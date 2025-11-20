@@ -24,11 +24,11 @@ function check_port() {
 }
 
 function start_dev() {
-    echo -e "${BLUE}🚀 Starting Development Supabase on port 7010...${NC}"
+    echo -e "${BLUE}🚀 Starting Development Supabase on port 6010...${NC}"
 
     # Check if already running
-    if check_port 7010; then
-        echo -e "${YELLOW}⚠️  Development Supabase already running on port 7010${NC}"
+    if check_port 6010; then
+        echo -e "${YELLOW}⚠️  Development Supabase already running on port 6010${NC}"
         return 0
     fi
 
@@ -42,9 +42,9 @@ function start_dev() {
     SUPABASE_PROJECT_ID=api-dev supabase start
 
     echo -e "${GREEN}✅ Development Supabase started:${NC}"
-    echo -e "  API: http://127.0.0.1:7010"
-    echo -e "  Database: postgres://postgres:postgres@127.0.0.1:7012/postgres"
-    echo -e "  Studio: http://127.0.0.1:7015"
+    echo -e "  API: http://127.0.0.1:6010"
+    echo -e "  Database: postgres://postgres:postgres@127.0.0.1:6012/postgres"
+    echo -e "  Studio: http://127.0.0.1:6015"
 }
 
 function start_prod() {
@@ -81,12 +81,12 @@ function show_status() {
     echo -e "${BLUE}📊 Supabase Status:${NC}"
     echo ""
 
-    if check_port 7010; then
-        echo -e "${GREEN}✅ Development (port 7010): Running${NC}"
-        echo -e "   API: http://127.0.0.1:7010"
-        echo -e "   Studio: http://127.0.0.1:7015"
+    if check_port 6010; then
+        echo -e "${GREEN}✅ Development (port 6010): Running${NC}"
+        echo -e "   API: http://127.0.0.1:6010"
+        echo -e "   Studio: http://127.0.0.1:6015"
     else
-        echo -e "${YELLOW}⚠️  Development (port 7010): Not running${NC}"
+        echo -e "${YELLOW}⚠️  Development (port 6010): Not running${NC}"
     fi
 
     echo ""
@@ -121,7 +121,7 @@ case "$1" in
     *)
         echo "Usage: $0 {dev|prod|stop|status}"
         echo ""
-        echo "  dev    - Start development Supabase on port 7010"
+        echo "  dev    - Start development Supabase on port 6010"
         echo "  prod   - Start production Supabase on port 9010"
         echo "  stop   - Stop all Supabase instances"
         echo "  status - Show status of all instances"

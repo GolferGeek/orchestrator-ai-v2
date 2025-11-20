@@ -89,8 +89,8 @@ else
     fi
 fi
 
-# Check and start local Supabase (DEV - port 7010)
-echo -e "${BLUE}🗄️  Checking local Supabase status (Development - Port 7010)...${NC}"
+# Check and start local Supabase (DEV - port 6010)
+echo -e "${BLUE}🗄️  Checking local Supabase status (Development - Port 6010)...${NC}"
 
 # Function to check if port is in use
 check_port() {
@@ -183,19 +183,19 @@ start_langgraph() {
     return 1
 }
 
-# Check if Supabase is running on dev port 7010
-if check_port 7010; then
-    echo -e "${GREEN}✅ Local Supabase is already running on port 7010${NC}"
-    echo -e "${BLUE}   Studio: http://127.0.0.1:7015${NC}"
-    echo -e "${BLUE}   API: http://127.0.0.1:7010${NC}"
-    echo -e "${BLUE}   Database: postgres://postgres:postgres@127.0.0.1:7012/postgres${NC}"
+# Check if Supabase is running on dev port 6010
+if check_port 6010; then
+    echo -e "${GREEN}✅ Local Supabase is already running on port 6010${NC}"
+    echo -e "${BLUE}   Studio: http://127.0.0.1:6015${NC}"
+    echo -e "${BLUE}   API: http://127.0.0.1:6010${NC}"
+    echo -e "${BLUE}   Database: postgres://postgres:postgres@127.0.0.1:6012/postgres${NC}"
 
     # Remind about backup system if available
     if [ -f "supabase/backup-local-db.sh" ]; then
         echo -e "${BLUE}💡 Backup system available: ./supabase/backup-local-db.sh --list${NC}"
     fi
 else
-    echo -e "${BLUE}🚀 Starting local Supabase development instance on port 7010...${NC}"
+    echo -e "${BLUE}🚀 Starting local Supabase development instance on port 6010...${NC}"
 
     # Check if backup script exists and create a backup if Supabase has data
     if [ -f "supabase/backup-local-db.sh" ] && check_docker; then
@@ -208,12 +208,28 @@ else
 
     # Start Supabase with development config
     echo -e "${BLUE}🔧 Starting Supabase with development configuration...${NC}"
-    supabase start --config ./supabase/config.dev.toml
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✅ Local Supabase started successfully on port 7010${NC}"
-        echo -e "${BLUE}   Studio: http://127.0.0.1:7015${NC}"
-        echo -e "${BLUE}   API: http://127.0.0.1:7010${NC}"
-        echo -e "${BLUE}   Database: postgres://postgres:postgres@127.0.0.1:7012/postgres${NC}"
+
+    # Backup existing config if it exists
+    if [ -f "supabase/config.toml" ]; then
+        cp supabase/config.toml supabase/config.toml.backup
+    fi
+
+    # Use development config
+    cp supabase/config.dev.toml supabase/config.toml
+
+    # Start Supabase
+    supabase start
+    SUPABASE_EXIT_CODE=$?
+
+    # Restore original config
+    if [ -f "supabase/config.toml.backup" ]; then
+        mv supabase/config.toml.backup supabase/config.toml
+    fi
+    if [ $SUPABASE_EXIT_CODE -eq 0 ]; then
+        echo -e "${GREEN}✅ Local Supabase started successfully on port 6010${NC}"
+        echo -e "${BLUE}   Studio: http://127.0.0.1:6015${NC}"
+        echo -e "${BLUE}   API: http://127.0.0.1:6010${NC}"
+        echo -e "${BLUE}   Database: postgres://postgres:postgres@127.0.0.1:6012/postgres${NC}"
         SUPABASE_STARTED_BY_SCRIPT=true
 
         # Remind about backup system
@@ -221,7 +237,7 @@ else
             echo -e "${BLUE}💡 Backup system available: ./supabase/backup-local-db.sh${NC}"
         fi
     else
-        echo -e "${RED}❌ Failed to start local Supabase on port 7010${NC}"
+        echo -e "${RED}❌ Failed to start local Supabase on port 6010${NC}"
         echo -e "${BLUE}💡 This might be due to Docker not being ready yet${NC}"
         echo -e "${BLUE}💡 Try running: supabase start --config ./supabase/config.dev.toml${NC}"
         echo -e "${BLUE}💡 Or check Docker Desktop status and restart if needed${NC}"
