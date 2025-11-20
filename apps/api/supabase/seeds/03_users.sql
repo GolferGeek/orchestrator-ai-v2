@@ -71,7 +71,7 @@ INSERT INTO auth.users (
   'authenticated',
   'authenticated',
   'demo.user@orchestratorai.io',
-  '$2a$10$rEZhbJKKFLKjDEKwKjLs8Otgp/K1P8NP3kLKHMYLXvP5P2YmGQZDm', -- 'DemoUser123!'
+  '$2b$10$98Q4nSoIqHUwGKHVPDZqPOjaNPGLZ65bsaqb/JgiG.gwezDhwh.sq', -- 'DemoUser123!'
   NOW(),
   NOW(),
   NOW(),
@@ -88,7 +88,7 @@ INSERT INTO auth.users (
   'authenticated',
   'authenticated',
   'golfergeek@golfergeek.com',
-  '$2a$10$rEZhbJKKFLKjDEKwKjLs8Otgp/K1P8NP3kLKHMYLXvP5P2YmGQZDm', -- Use your actual password
+  '$2b$10$zftAWbxm65LYVAQghYQ/mewjwsizSRb7KWygYpCha0zjtq.bHlSSe', -- 'GolferGeek123!'
   NOW(),
   NOW(),
   NOW(),
@@ -105,7 +105,7 @@ INSERT INTO auth.users (
   'authenticated',
   'authenticated',
   'test.user@example.com',
-  '$2a$10$rEZhbJKKFLKjDEKwKjLs8Otgp/K1P8NP3kLKHMYLXvP5P2YmGQZDm', -- 'TestUser123!'
+  '$2b$10$a4wFYH9op4BDmLti5RbspObE58klBgS3cYi9t9bh65.FMSR.dQ3Om', -- 'Admin123!'
   NOW(),
   NOW(),
   NOW(),
