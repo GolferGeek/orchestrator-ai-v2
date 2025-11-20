@@ -137,6 +137,9 @@ async function bootstrap() {
     'http://127.0.0.1:6010',
     'http://localhost:6015', // Supabase Studio
     'http://127.0.0.1:6015',
+    // Web app development port
+    'http://localhost:6101',
+    'http://127.0.0.1:6101',
     // Add more common development ports
     'http://localhost:8080',
     'http://127.0.0.1:8080',
@@ -161,9 +164,12 @@ async function bootstrap() {
       if (!origin) return callback(null, true);
 
       // In development mode, allow localhost and test environments
+      // Treat undefined NODE_ENV as development
       if (
         process.env.NODE_ENV === 'development' ||
-        process.env.NODE_ENV === 'test'
+        process.env.NODE_ENV === 'test' ||
+        !process.env.NODE_ENV ||
+        process.env.NODE_ENV === 'undefined'
       ) {
         // Allow localhost and common test origins
         if (
@@ -189,7 +195,12 @@ async function bootstrap() {
       }
 
       // In development, be more permissive for testing
-      if (process.env.NODE_ENV === 'development') {
+      // Treat undefined NODE_ENV as development
+      if (
+        process.env.NODE_ENV === 'development' ||
+        !process.env.NODE_ENV ||
+        process.env.NODE_ENV === 'undefined'
+      ) {
         console.warn(
           `🚨 CORS: Allowing unrecognized origin in development: ${origin}`,
         );
