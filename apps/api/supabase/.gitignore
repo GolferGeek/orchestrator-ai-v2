@@ -1,0 +1,12 @@
+# Supabase
+.branches
+.temp
+
+# Backup data files (keep system, exclude data)
+backups/
+*.sql.backup
+
+# dotenvx
+.env.keys
+.env.local
+.env.*.local

@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": "bash $CLAUDE_PROJECT_DIR/apps/observability/hooks/send-event.sh --auto-detect --event-type PreToolUse"
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": "bash $CLAUDE_PROJECT_DIR/apps/observability/hooks/send-event.sh --auto-detect --event-type PostToolUse"
+      }
+    ],
+    "beforeSubmitPrompt": [
+      {
+        "command": "bash $CLAUDE_PROJECT_DIR/apps/observability/hooks/send-event.sh --auto-detect --event-type UserPromptSubmit --summarize"
+      }
+    ],
+    "stop": [
+      {
+        "command": "bash $CLAUDE_PROJECT_DIR/apps/observability/hooks/send-event.sh --auto-detect --event-type Stop --add-chat"
+      }
+    ]
+  }
+}
