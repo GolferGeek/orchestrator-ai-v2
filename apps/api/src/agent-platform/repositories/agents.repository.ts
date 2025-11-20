@@ -33,21 +33,20 @@ export class AgentsRepository {
   async upsert(payload: AgentUpsertInput): Promise<AgentRecord> {
     const client = this.getClient();
     const row: AgentUpsertRow = {
-      organization_slug: payload.organization_slug,
       slug: payload.slug,
-      display_name: payload.display_name,
-      description: payload.description ?? null,
+      organization_slug: payload.organization_slug ?? ['demo-org'],
+      name: payload.name,
+      description: payload.description,
+      version: payload.version ?? '1.0.0',
       agent_type: payload.agent_type,
-      mode_profile: payload.mode_profile,
-      version: payload.version ?? null,
-      status: payload.status ?? null,
-      yaml: payload.yaml,
-      function_code: payload.function_code ?? null,
-      context: payload.context ?? null,
-      plan_structure: payload.plan_structure ?? null,
-      deliverable_structure: payload.deliverable_structure ?? null,
-      io_schema: payload.io_schema ?? null,
-      config: payload.config ?? null,
+      department: payload.department,
+      tags: payload.tags ?? [],
+      io_schema: payload.io_schema,
+      capabilities: payload.capabilities,
+      context: payload.context,
+      endpoint: payload.endpoint ?? null,
+      llm_config: payload.llm_config ?? null,
+      metadata: payload.metadata ?? {},
       updated_at: new Date().toISOString(),
     };
 
@@ -55,7 +54,7 @@ export class AgentsRepository {
 
     const { data, error } = (await client
       .from(AGENTS_TABLE)
-      .upsert(rows, { onConflict: 'organization_slug,slug' })
+      .upsert(rows, { onConflict: 'slug' })
       .select()
       .maybeSingle()) as SupabaseSelectResponse<AgentRecord>;
 
@@ -84,9 +83,10 @@ export class AgentsRepository {
       .eq('slug', agentSlug)
       .limit(1);
 
-    query = organizationSlug
-      ? query.eq('organization_slug', organizationSlug)
-      : query.is('organization_slug', null);
+    // Filter by organization using array contains operator
+    if (organizationSlug) {
+      query = query.contains('organization_slug', [organizationSlug]);
+    }
 
     const { data, error } =
       (await query.maybeSingle()) as SupabaseSelectResponse<AgentRecord>;
@@ -104,9 +104,11 @@ export class AgentsRepository {
   ): Promise<AgentRecord[]> {
     const client = this.getClient();
     let query = client.from(AGENTS_TABLE).select('*');
-    query = organizationSlug
-      ? query.eq('organization_slug', organizationSlug)
-      : query.is('organization_slug', null);
+
+    // Filter by organization using array contains operator
+    if (organizationSlug) {
+      query = query.contains('organization_slug', [organizationSlug]);
+    }
 
     const { data, error } = (await query.order('slug', {
       ascending: true,
@@ -114,7 +116,7 @@ export class AgentsRepository {
 
     if (error) {
       this.logger.error(
-        `Failed to list agents for ${organizationSlug ?? 'global'}: ${error.message}`,
+        `Failed to list agents for ${organizationSlug ?? 'all'}: ${error.message}`,
       );
       throw new Error(`Failed to list agents: ${error.message}`);
     }
@@ -127,7 +129,6 @@ export class AgentsRepository {
     const { data, error } = (await client
       .from(AGENTS_TABLE)
       .select('*')
-      .order('organization_slug', { ascending: true, nullsFirst: true })
       .order('slug', {
         ascending: true,
       })) as SupabaseSelectListResponse<AgentRecord>;
@@ -165,45 +166,29 @@ export class AgentsRepository {
     return data?.updated_at ?? null;
   }
 
-  async deleteById(id: string): Promise<void> {
+  async deleteBySlug(slug: string): Promise<void> {
     const client = this.getClient();
-    const { error } = await client.from(AGENTS_TABLE).delete().eq('id', id);
+    const { error } = await client.from(AGENTS_TABLE).delete().eq('slug', slug);
     if (error) {
-      this.logger.error(`Failed to delete agent ${id}: ${error.message}`);
+      this.logger.error(`Failed to delete agent ${slug}: ${error.message}`);
       throw new Error(`Failed to delete agent: ${error.message}`);
     }
   }
 
-  async getById(id: string): Promise<AgentRecord | null> {
+  async updateMetadata(slug: string, metadata: Record<string, any>): Promise<AgentRecord> {
     const client = this.getClient();
     const { data, error } = (await client
       .from(AGENTS_TABLE)
-      .select('*')
-      .eq('id', id)
-      .maybeSingle()) as SupabaseSelectResponse<AgentRecord>;
-
-    if (error && error.code !== 'PGRST116') {
-      this.logger.error(`Failed to load agent ${id}: ${error.message}`);
-      throw new Error(`Failed to load agent: ${error.message}`);
-    }
-
-    return data;
-  }
-
-  async updateStatus(id: string, status: string): Promise<AgentRecord> {
-    const client = this.getClient();
-    const { data, error } = (await client
-      .from(AGENTS_TABLE)
-      .update({ status, updated_at: new Date().toISOString() })
-      .eq('id', id)
+      .update({ metadata, updated_at: new Date().toISOString() })
+      .eq('slug', slug)
       .select()
       .single()) as SupabaseSelectResponse<AgentRecord>;
 
     if (error) {
       this.logger.error(
-        `Failed to update agent ${id} status: ${error.message}`,
+        `Failed to update agent ${slug} metadata: ${error.message}`,
       );
-      throw new Error(`Failed to update agent status: ${error.message}`);
+      throw new Error(`Failed to update agent metadata: ${error.message}`);
     }
 
     if (!data) {

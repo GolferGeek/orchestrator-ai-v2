@@ -7,61 +7,56 @@ type JsonNullable<T extends JsonValue = JsonValue> = T | null;
 // ============================================================================
 
 export interface AgentRecord {
-  id: string;
-  organization_slug: string | null;
-  slug: string;
-  display_name: string;
-  description: string | null;
-  agent_type: string;
-  mode_profile: string;
-  version: string | null;
-  status: string | null;
-  yaml: string;
-  function_code: string | null;
-  agent_card: JsonObject | null;
-  context: JsonObject | null;
-  config: AgentConfigDefinition | null;
-  plan_structure: JsonObject | null;
-  deliverable_structure: JsonObject | null;
-  io_schema: JsonObject | null;
+  slug: string; // PRIMARY KEY
+  organization_slug: string[]; // Multi-org support (TEXT[])
+  name: string;
+  description: string;
+  version: string;
+  agent_type: 'context' | 'api' | 'external';
+  department: string;
+  tags: string[];
+  io_schema: JsonObject;
+  capabilities: string[];
+  context: string; // Markdown context for all agent types
+  endpoint: JsonObject | null; // API/external only
+  llm_config: JsonObject | null; // context only
+  metadata: JsonObject;
   created_at: string;
   updated_at: string;
 }
 
 export interface AgentUpsertInput {
-  organization_slug: string | null;
   slug: string;
-  display_name: string;
-  description?: string | null;
-  agent_type: string;
-  mode_profile: string;
-  version?: string | null;
-  status?: string | null;
-  yaml: string;
-  function_code?: string | null;
-  context?: JsonObject | null;
-  plan_structure?: string | JsonObject | null;
-  deliverable_structure?: string | JsonObject | null;
-  io_schema?: JsonObject | null;
-  config?: AgentConfigDefinition | null;
+  organization_slug?: string[]; // Multi-org support
+  name: string;
+  description: string;
+  version?: string;
+  agent_type: 'context' | 'api' | 'external';
+  department: string;
+  tags?: string[];
+  io_schema: JsonObject;
+  capabilities: string[];
+  context: string; // Markdown context
+  endpoint?: JsonObject | null; // API/external only
+  llm_config?: JsonObject | null; // context only
+  metadata?: JsonObject;
 }
 
 export interface AgentUpsertRow {
-  organization_slug: string | null;
   slug: string;
-  display_name: string;
-  description: string | null;
-  agent_type: string;
-  mode_profile: string;
-  version: string | null;
-  status: string | null;
-  yaml: string;
-  function_code: string | null;
-  context: JsonObject | null;
-  plan_structure?: string | JsonObject | null;
-  deliverable_structure?: string | JsonObject | null;
-  io_schema?: JsonObject | null;
-  config?: AgentConfigDefinition | null;
+  organization_slug: string[];
+  name: string;
+  description: string;
+  version: string;
+  agent_type: 'context' | 'api' | 'external';
+  department: string;
+  tags: string[];
+  io_schema: JsonObject;
+  capabilities: string[];
+  context: string;
+  endpoint: JsonObject | null;
+  llm_config: JsonObject | null;
+  metadata: JsonObject;
   updated_at: string;
 }
 
