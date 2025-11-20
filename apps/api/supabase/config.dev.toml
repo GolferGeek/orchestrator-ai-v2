@@ -1,4 +1,4 @@
-# Development Configuration for Supabase (Port 7010)
+# Development Configuration for Supabase (Port 6010)
 # For detailed configuration reference documentation, visit:
 # https://supabase.com/docs/guides/local-development/cli/config
 
@@ -7,7 +7,7 @@ project_id = "api-dev"
 [api]
 enabled = true
 # Port to use for the API URL (Development)
-port = 7010
+port = 6010
 schemas = ["public", "graphql_public"]
 extra_search_path = ["public", "extensions"]
 max_rows = 1000
@@ -17,13 +17,13 @@ enabled = false
 
 [db]
 # Port to use for the local database URL (Development)
-port = 7012
-shadow_port = 7011
+port = 6012
+shadow_port = 6011
 major_version = 17
 
 [db.pooler]
 enabled = false
-port = 7013
+port = 6013
 pool_mode = "transaction"
 default_pool_size = 20
 max_client_conn = 100
@@ -47,16 +47,16 @@ enabled = true
 [studio]
 enabled = true
 # Port to use for Supabase Studio (Development)
-port = 7015
+port = 6015
 api_url = "http://127.0.0.1"
 openai_api_key = "env(OPENAI_API_KEY)"
 
 [inbucket]
 enabled = true
 # Port to use for the email testing server web interface (Development)
-port = 7016
-smtp_port = 7017
-pop3_port = 7018
+port = 6016
+smtp_port = 6017
+pop3_port = 6018
 
 [storage]
 enabled = true
@@ -145,12 +145,12 @@ enabled = false
 [edge_runtime]
 enabled = true
 policy = "per_worker"
-inspector_port = 7020
+inspector_port = 6020
 deno_version = 2
 
 [analytics]
 enabled = true
-port = 7021
+port = 6021
 backend = "postgres"
 
 [experimental]

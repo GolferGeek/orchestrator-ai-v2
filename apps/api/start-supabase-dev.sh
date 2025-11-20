@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Start Development Supabase on port 7010
-echo "Starting Development Supabase on port 7010..."
+# Start Development Supabase on port 6010
+echo "Starting Development Supabase on port 6010..."
 
 # Navigate to API directory
 cd "$(dirname "$0")"
@@ -23,6 +23,6 @@ if [ -f "supabase/config.toml.backup" ]; then
 fi
 
 echo "Development Supabase started on:"
-echo "  API: http://127.0.0.1:7010"
-echo "  Database: postgres://postgres:postgres@127.0.0.1:7012/postgres"
-echo "  Studio: http://127.0.0.1:7015"
+echo "  API: http://127.0.0.1:6010"
+echo "  Database: postgres://postgres:postgres@127.0.0.1:6012/postgres"
+echo "  Studio: http://127.0.0.1:6015"
