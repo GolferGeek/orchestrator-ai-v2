@@ -82,15 +82,23 @@ export class AgentModeRouterService {
 
     let agentRecord: AgentRecord | null = existingAgent ?? null;
     if (!agentRecord) {
+      // Convert organizationSlug to first element if array, or use as is
+      const orgSlugParam: string | null = Array.isArray(organizationSlug) && organizationSlug.length > 0
+        ? (organizationSlug[0] ?? null)
+        : (typeof organizationSlug === 'string' ? organizationSlug : null);
+
       agentRecord = await this.agentRegistry.getAgent(
-        organizationSlug,
+        orgSlugParam,
         agentSlug,
       );
     }
 
     if (!agentRecord) {
+      const orgDisplay = Array.isArray(organizationSlug)
+        ? organizationSlug.join(',')
+        : organizationSlug ?? 'global';
       this.logger.warn(
-        `Agent ${agentSlug} not found for organization ${organizationSlug ?? 'global'}`,
+        `Agent ${agentSlug} not found for organization ${orgDisplay}`,
       );
       return null;
     }
@@ -99,9 +107,14 @@ export class AgentModeRouterService {
       context.definition ??
       this.runtimeDefinitions.buildDefinition(agentRecord);
 
+    // For organizationSlug in context, use first element if array
+    const contextOrgSlug: string | null = Array.isArray(organizationSlug) && organizationSlug.length > 0
+      ? (organizationSlug[0] ?? null)
+      : (typeof organizationSlug === 'string' ? organizationSlug : null);
+
     return {
       ...context,
-      organizationSlug,
+      organizationSlug: contextOrgSlug,
       agentSlug,
       agent: agentRecord,
       definition,

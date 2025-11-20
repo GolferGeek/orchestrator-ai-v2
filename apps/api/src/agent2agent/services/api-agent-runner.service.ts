@@ -491,7 +491,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         {
           title:
             ((request.payload as Record<string, unknown>)?.title as string) ||
-            `API Response: ${definition.displayName}`,
+            `API Response: ${definition.name}`,
           content: formattedContent,
           format: definition.config?.deliverable?.format || 'json',
           type: definition.config?.deliverable?.type || 'api-response',
@@ -972,7 +972,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         {
           title:
             ((request.payload as Record<string, unknown>)?.title as string) ||
-            `API Response: ${definition.displayName}`,
+            `API Response: ${definition.name}`,
           content: formattedContent,
           format: definition.config?.deliverable?.format || 'json',
           type: definition.config?.deliverable?.type || 'api-response',

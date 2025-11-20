@@ -1214,7 +1214,7 @@ function serializeDeliverable(
     userId: userId as string,
     agentName: (d.agentName ??
       d.agent_name ??
-      definition.displayName ??
+      definition.name ??
       definition.slug) as string,
     namespace: namespace as string,
     title: (d.title ?? 'Deliverable') as string,

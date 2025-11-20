@@ -222,7 +222,6 @@ export class AgentExecutionGateway {
     return TaskResponseDto.success(AgentTaskMode.PLAN, {
       content: planRecord,
       metadata: {
-        agentId: definition.id,
         agentSlug: definition.slug,
         organizationSlug,
       },
@@ -300,11 +299,10 @@ export class AgentExecutionGateway {
     draftWithMeta._meta = {
       ...existingMeta,
       agent: {
-        id: definition.id,
         slug: definition.slug,
-        displayName: definition.displayName,
+        name: definition.name,
         agentType: definition.agentType,
-        modeProfile: definition.modeProfile,
+        modeProfile: definition.execution.modeProfile,
         organizationSlug: definition.organizationSlug,
       },
     };

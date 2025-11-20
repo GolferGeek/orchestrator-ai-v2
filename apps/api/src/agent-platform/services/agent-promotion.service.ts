@@ -13,6 +13,7 @@ import {
 import { AgentPolicyService } from './agent-policy.service';
 import type { AgentType, CreateAgentPayload } from '../schemas/agent-schemas';
 import type { AgentRecord } from '../interfaces/agent.interface';
+import type { JsonObject } from '@orchestrator-ai/transport-types';
 
 export interface PromotionRequirements {
   requiresApproval: boolean;
@@ -55,26 +56,29 @@ export class AgentPromotionService {
     },
   ): Promise<PromotionResult> {
     try {
-      // 1. Fetch agent
-      const agent = await this.agents.getById(agentId);
+      // 1. Fetch agent (agentId is now slug)
+      const agent = await this.agents.findBySlug(null, agentId);
       if (!agent) {
         throw new BadRequestException(`Agent ${agentId} not found`);
       }
 
+      const metadataObj = agent.metadata as Record<string, unknown> || {};
+      const currentStatus = (metadataObj.status as string) || 'draft';
+
       // 2. Check current status
-      if (agent.status === 'active') {
+      if (currentStatus === 'active') {
         return {
           success: false,
           agentId,
-          previousStatus: agent.status,
-          newStatus: agent.status,
+          previousStatus: currentStatus,
+          newStatus: currentStatus,
           error: 'Agent is already active',
         };
       }
 
-      if (agent.status !== 'draft') {
+      if (currentStatus !== 'draft') {
         throw new BadRequestException(
-          `Cannot promote agent with status '${agent.status}'. Only draft agents can be promoted.`,
+          `Cannot promote agent with status '${currentStatus}'. Only draft agents can be promoted.`,
         );
       }
 
@@ -85,21 +89,25 @@ export class AgentPromotionService {
           {
             agent_type: agent.agent_type as AgentType,
             slug: agent.slug,
-            display_name: agent.display_name,
-            mode_profile: agent.mode_profile,
+            display_name: agent.name,
+            mode_profile: (metadataObj.mode_profile as string) || 'conversation_only',
             description: agent.description,
-            yaml: agent.yaml,
-            context: agent.context,
-            config: agent.config,
+            yaml: '', // No YAML in v2
+            context: { markdown: agent.context } as JsonObject, // Wrap string as object
+            config: metadataObj,
           } as CreateAgentPayload,
         );
 
         const policyIssues = this.policy.check({
           agent_type: agent.agent_type,
-          config: agent.config as unknown as Parameters<
+          config: metadataObj as unknown as Parameters<
             typeof this.policy.check
           >[0]['config'],
-          context: agent.context ?? undefined,
+          context: {
+            input_modes: (metadataObj.input_modes as unknown) || undefined,
+            output_modes: (metadataObj.output_modes as unknown) || undefined,
+            system_prompt: agent.context,
+          },
         });
 
         if (!validation.ok || policyIssues.length > 0) {
@@ -110,8 +118,8 @@ export class AgentPromotionService {
           return {
             success: false,
             agentId,
-            previousStatus: agent.status || 'unknown',
-            newStatus: agent.status || 'unknown',
+            previousStatus: currentStatus,
+            newStatus: currentStatus,
             error: `Validation failed: ${allIssues.map((i) => i.message).join(', ')}`,
             validationResults: { ok: false, issues: allIssues },
           };
@@ -125,13 +133,13 @@ export class AgentPromotionService {
       if (requiresApproval) {
         // Create approval request
         const approval = await this.approvals.create({
-          organizationSlug: agent.organization_slug,
+          organizationSlug: agent.organization_slug.join(','),
           agentSlug: agent.slug,
           mode: 'agent_promotion',
           metadata: {
-            agentId: agent.id,
+            agentId: agent.slug,
             agentType: agent.agent_type,
-            displayName: agent.display_name,
+            displayName: agent.name,
             requestedBy: options?.requestedBy,
             requestedAt: new Date().toISOString(),
             fromStatus: 'draft',
@@ -146,21 +154,21 @@ export class AgentPromotionService {
         return {
           success: true,
           agentId,
-          previousStatus: agent.status || 'draft',
-          newStatus: agent.status || 'draft', // Status unchanged, pending approval
+          previousStatus: currentStatus,
+          newStatus: currentStatus, // Status unchanged, pending approval
           approvalId: approval.id,
           requiresApproval: true,
         };
       }
 
       // 5. Auto-promote (no approval required)
-      await this.agents.updateStatus(agentId, 'active');
+      await this.agents.updateMetadata(agentId, { ...metadataObj, status: 'active' });
       this.logger.log(`Agent ${agent.slug} promoted to active (auto-approved)`);
 
       return {
         success: true,
         agentId,
-        previousStatus: agent.status || 'draft',
+        previousStatus: currentStatus,
         newStatus: 'active',
       };
     } catch (error) {
@@ -199,20 +207,22 @@ export class AgentPromotionService {
       }
 
       // 4. Fetch agent
-      const agent = await this.agents.getById(agentId);
+      const agent = await this.agents.findBySlug(null, agentId);
       if (!agent) {
         throw new BadRequestException(`Agent ${agentId} not found`);
       }
 
       // 5. Verify still in draft status
-      if (agent.status !== 'draft') {
+      const metaStatus = ((agent.metadata as Record<string, unknown>)?.status as string) || 'draft';
+      if (metaStatus !== 'draft') {
         throw new BadRequestException(
-          `Agent status is '${agent.status}', expected 'draft'`,
+          `Agent status is '${metaStatus}', expected 'draft'`,
         );
       }
 
       // 6. Promote
-      await this.agents.updateStatus(agentId, 'active');
+      const metadataObj = agent.metadata as Record<string, unknown> || {};
+      await this.agents.updateMetadata(agentId, { ...metadataObj, status: 'active' });
 
       this.logger.log(
         `Agent ${agent.slug} promoted to active via approval ${approvalId} by ${approval.approved_by}`,
@@ -239,22 +249,25 @@ export class AgentPromotionService {
    */
   async demote(agentId: string, reason?: string): Promise<PromotionResult> {
     try {
-      const agent = await this.agents.getById(agentId);
+      const agent = await this.agents.findBySlug(null, agentId);
       if (!agent) {
         throw new BadRequestException(`Agent ${agentId} not found`);
       }
 
-      if (agent.status !== 'active') {
+      const metaObj1 = agent.metadata as Record<string, unknown> || {};
+      const currentStatus1 = (metaObj1.status as string) || 'unknown';
+
+      if (currentStatus1 !== 'active') {
         return {
           success: false,
           agentId,
-          previousStatus: agent.status || 'unknown',
-          newStatus: agent.status || 'unknown',
-          error: `Agent is not active (status: ${agent.status})`,
+          previousStatus: currentStatus1,
+          newStatus: currentStatus1,
+          error: `Agent is not active (status: ${currentStatus1})`,
         };
       }
 
-      await this.agents.updateStatus(agentId, 'draft');
+      await this.agents.updateMetadata(agentId, { ...metaObj1, status: 'draft' });
 
       this.logger.log(
         `Agent ${agent.slug} demoted to draft. Reason: ${reason || 'N/A'}`,
@@ -278,23 +291,26 @@ export class AgentPromotionService {
    */
   async archive(agentId: string, reason?: string): Promise<PromotionResult> {
     try {
-      const agent = await this.agents.getById(agentId);
+      const agent = await this.agents.findBySlug(null, agentId);
       if (!agent) {
         throw new BadRequestException(`Agent ${agentId} not found`);
       }
 
-      if (agent.status === 'archived') {
+      const metaObj2 = agent.metadata as Record<string, unknown> || {};
+      const currentStatus2 = (metaObj2.status as string) || 'unknown';
+
+      if (currentStatus2 === 'archived') {
         return {
           success: false,
           agentId,
-          previousStatus: agent.status || 'archived',
-          newStatus: agent.status || 'archived',
+          previousStatus: currentStatus2,
+          newStatus: currentStatus2,
           error: 'Agent is already archived',
         };
       }
 
-      const previousStatus = agent.status || 'unknown';
-      await this.agents.updateStatus(agentId, 'archived');
+      const previousStatus = currentStatus2;
+      await this.agents.updateMetadata(agentId, { ...metaObj2, status: 'archived' });
 
       this.logger.log(
         `Agent ${agent.slug} archived. Reason: ${reason || 'N/A'}`,
@@ -317,31 +333,20 @@ export class AgentPromotionService {
    * Determine if agent requires approval based on type and configuration
    */
   private requiresApproval(agent: AgentRecord): boolean {
-    // Function agents with complex code always require approval
-    if (agent.agent_type === 'function') {
-      const config = agent.config as {
-        configuration?: { function?: { code?: string } };
-      } | null;
-      const code: string = config?.configuration?.function?.code || '';
-      // Require approval for long/complex functions
-      if (code.length > 5000) return true;
-      // Require approval if uses external services
-      if (
-        code.includes('fetch(') ||
-        code.includes('axios') ||
-        code.includes('http')
-      ) {
-        return true;
-      }
-    }
+    // Function agents no longer exist in v2
 
     // API agents calling external endpoints require approval
     if (agent.agent_type === 'api') {
       return true;
     }
 
-    // Orchestrators coordinating multiple agents require approval
-    if (agent.agent_type === 'orchestrator') {
+    // External agents require approval
+    if (agent.agent_type === 'external') {
+      return true;
+    }
+
+    // Orchestrators (agents with orchestrate capability) require approval
+    if (agent.capabilities.includes('orchestrate')) {
       return true;
     }
 
@@ -355,15 +360,14 @@ export class AgentPromotionService {
   async getPromotionRequirements(
     agentId: string,
   ): Promise<PromotionRequirements> {
-    const agent = await this.agents.getById(agentId);
+    const agent = await this.agents.findBySlug(null, agentId);
     if (!agent) {
       throw new BadRequestException(`Agent ${agentId} not found`);
     }
 
     const requiresApproval = this.requiresApproval(agent);
     const requiresValidation = true; // Always validate
-    const requiresDryRun =
-      agent.agent_type === 'function' || agent.agent_type === 'api';
+    const requiresDryRun = agent.agent_type === 'api'; // Function agents no longer exist
 
     return {
       requiresApproval,

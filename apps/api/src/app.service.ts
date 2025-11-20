@@ -259,16 +259,17 @@ export class AppService implements OnModuleInit {
   }
 
   private mapDatabaseAgent(record: AgentRecord) {
-    const agentCategory = record.config?.agent_category as string | undefined;
+    const metadataObj = record.metadata as Record<string, unknown> || {};
+    const agentCategory = metadataObj.agent_category as string | undefined;
     const isTool = agentCategory === 'tool';
 
-    const supportedModesRaw = Array.isArray(record.context?.supported_modes)
-      ? (record.context.supported_modes as string[])
+    const supportedModesRaw = Array.isArray(metadataObj.supported_modes)
+      ? (metadataObj.supported_modes as string[])
       : [];
 
     const supportedModes = supportedModesRaw.length
       ? supportedModesRaw
-      : record.agent_type === 'orchestrator'
+      : record.capabilities.includes('orchestrate')
         ? ['converse', 'plan', 'build']
         : ['converse', 'build'];
 
@@ -277,8 +278,8 @@ export class AppService implements OnModuleInit {
       can_plan: supportedModes.includes('plan'),
       can_build: supportedModes.includes('build'),
       requires_human_gate:
-        record.config?.requires_human_gate === true ||
-        record.config?.human_gate === true,
+        metadataObj.requires_human_gate === true ||
+        metadataObj.human_gate === true,
     };
 
     const executionModes = this.extractExecutionModes(record);
@@ -287,29 +288,29 @@ export class AppService implements OnModuleInit {
       organization_slug: record.organization_slug,
       source: 'database',
       agent_type: record.agent_type,
-      mode_profile: record.mode_profile,
+      mode_profile: metadataObj.mode_profile,
       version: record.version,
-      status: record.status,
-      config: record.config,
+      status: metadataObj.status,
+      config: metadataObj,
       context: record.context,
       agent_category: agentCategory,
       execution_modes: executionModes,
     };
 
     return {
-      id: record.id,
+      id: record.slug,
       name: record.slug,
-      displayName: record.display_name,
+      displayName: record.name,
       type: isTool ? 'tool' : record.agent_type,
-      namespace: record.organization_slug ?? undefined,
-      description: record.description ?? record.display_name,
+      namespace: record.organization_slug.join(',') || undefined,
+      description: record.description,
       serviceClass: undefined,
       hasInstance: true,
       execution_modes: executionModes,
-      execution_profile: this.deriveExecutionProfile(record.mode_profile),
+      execution_profile: this.deriveExecutionProfile(metadataObj.mode_profile as string),
       execution_capabilities: executionCapabilities,
       metadata,
-      status: record.status ?? 'active',
+      status: (metadataObj.status as string) ?? 'active',
       registeredAt: new Date(record.created_at),
       lastHeartbeat: new Date(record.updated_at),
     };
@@ -318,7 +319,7 @@ export class AppService implements OnModuleInit {
   private extractExecutionModes(record: AgentRecord): string[] {
     const modes = new Set<string>();
 
-    const config = record.config as
+    const metadataObj = record.metadata as
       | (Record<string, unknown> & {
           execution_modes?: unknown;
           executionModes?: unknown;
@@ -326,41 +327,12 @@ export class AppService implements OnModuleInit {
       | null
       | undefined;
 
-    const configModes = config?.execution_modes ?? config?.executionModes;
+    const configModes = metadataObj?.execution_modes ?? metadataObj?.executionModes;
     if (Array.isArray(configModes)) {
       for (const mode of configModes) {
         if (typeof mode === 'string' && mode.trim().length > 0) {
           modes.add(mode);
         }
-      }
-    }
-
-    if (record.yaml) {
-      try {
-        const parsed = yamlLoad(record.yaml) as Record<string, unknown>;
-        const configuration = parsed?.configuration as
-          | (Record<string, unknown> & {
-              execution_modes?: unknown;
-              executionModes?: unknown;
-            })
-          | undefined;
-
-        const yamlModes =
-          configuration?.execution_modes ?? configuration?.executionModes;
-
-        if (Array.isArray(yamlModes)) {
-          for (const mode of yamlModes) {
-            if (typeof mode === 'string' && mode.trim().length > 0) {
-              modes.add(mode);
-            }
-          }
-        }
-      } catch (error) {
-        this.logger.warn(
-          `Failed to parse YAML for agent ${record.slug}: ${
-            error instanceof Error ? error.message : 'Unknown error'
-          }`,
-        );
       }
     }
 

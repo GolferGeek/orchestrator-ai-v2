@@ -95,7 +95,7 @@ export class OrchestratorAgentRunnerService extends BaseAgentRunner {
       return this.addAttribution(
         response,
         targetAgent,
-        subAgentDefinition?.display_name,
+        subAgentDefinition?.name,
       );
     } catch (error) {
       this.logger.error(
@@ -116,8 +116,8 @@ export class OrchestratorAgentRunnerService extends BaseAgentRunner {
     // Get available sub-agents
     const agents = await this.agentRegistry.listAgents(organizationSlug);
 
-    // Filter to only sub-agents (agents that are not orchestrators)
-    const subAgents = agents.filter((a) => a.agent_type !== 'orchestrator');
+    // Filter to only sub-agents (exclude orchestrators based on capabilities)
+    const subAgents = agents.filter((a) => !a.capabilities?.includes('orchestrate'));
 
     if (subAgents.length === 0) {
       throw new Error('No sub-agents available for delegation');
@@ -132,7 +132,7 @@ export class OrchestratorAgentRunnerService extends BaseAgentRunner {
     const agentList = subAgents
       .map(
         (a) =>
-          `- ${a.slug}: ${a.display_name} - ${a.description || 'No description'}`,
+          `- ${a.slug}: ${a.name} - ${a.description || 'No description'}`,
       )
       .join('\n');
 

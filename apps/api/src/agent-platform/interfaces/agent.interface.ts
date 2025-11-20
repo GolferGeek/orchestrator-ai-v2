@@ -227,14 +227,13 @@ export interface AgentConfigDefinition extends JsonObject {
 // ============================================================================
 
 export interface AgentRuntimeDefinition {
-  id: string;
   slug: string;
-  organizationSlug: string | null;
-  displayName: string;
-  description?: string | null;
+  organizationSlug: string[];
+  name: string;
+  description: string;
   agentType: string;
-  modeProfile: string;
-  status?: string | null;
+  department: string;
+  tags: string[];
   metadata: AgentMetadataDefinition;
   hierarchy?: AgentHierarchyDefinition;
   capabilities: string[];
@@ -248,8 +247,8 @@ export interface AgentRuntimeDefinition {
   config: AgentConfigDefinition | null;
   agentCard?: JsonNullable<JsonObject>;
   rawDescriptor?: JsonNullable<JsonObject>;
+  ioSchema: JsonNullable<JsonObject>;
   planStructure?: string | JsonNullable<JsonObject>;
   deliverableStructure?: string | JsonNullable<JsonObject>;
-  ioSchema?: string | JsonNullable<JsonObject>;
   record: AgentRecord;
 }

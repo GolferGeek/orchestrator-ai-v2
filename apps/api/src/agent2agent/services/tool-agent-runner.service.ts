@@ -342,7 +342,7 @@ export class ToolAgentRunnerService extends BaseAgentRunner {
         {
           title:
             (request.payload as Record<string, unknown>)?.title ||
-            `Tool Execution: ${definition.displayName}`,
+            `Tool Execution: ${definition.name}`,
           content: formattedContent,
           format: formatRaw || 'json',
           type: typeRaw || 'tool-result',

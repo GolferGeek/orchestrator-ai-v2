@@ -80,7 +80,7 @@ export class AgentRuntimePromptService {
       definition.config?.systemPrompt ??
       definition.description;
 
-    const fallbackName = definition.displayName ?? definition.slug;
+    const fallbackName = definition.name ?? definition.slug;
     let basePrompt = '';
 
     if (typeof promptCandidate === 'string' && promptCandidate.trim()) {
@@ -195,10 +195,10 @@ export class AgentRuntimePromptService {
     additional: Record<string, unknown> | undefined,
   ): Record<string, unknown> {
     const baseMetadata = {
-      agentId: definition.id,
+      agentId: definition.slug, // Use slug as ID in v2
       agentSlug: definition.slug,
       agentType: definition.agentType,
-      modeProfile: definition.modeProfile,
+      modeProfile: definition.execution.modeProfile,
       organizationSlug: definition.organizationSlug,
     };
 

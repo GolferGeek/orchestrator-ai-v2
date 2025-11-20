@@ -35,8 +35,11 @@ export class AgentRuntimeRedactionService {
     // Apply org/DB regex redactions to userMessage unless local route
     const shouldApplyDbPatterns = options.isLocal !== true;
     if (shouldApplyDbPatterns && typeof next.userMessage === 'string') {
+      const orgSlug = Array.isArray(definition.organizationSlug) && definition.organizationSlug.length > 0
+        ? definition.organizationSlug[0]
+        : null;
       const redacted = await this.applyOrgPatterns(
-        definition.organizationSlug ?? null,
+        orgSlug ?? null,
         next.userMessage,
       );
       if (redacted !== next.userMessage) {

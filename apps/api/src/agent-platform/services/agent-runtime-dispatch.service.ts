@@ -232,7 +232,7 @@ export class AgentRuntimeDispatchService {
 
     const finalOptions: NonNullable<GenerateResponseParams['options']> = {
       callerType: 'agent',
-      callerName: options.definition.displayName ?? options.definition.slug,
+      callerName: options.definition.name ?? options.definition.slug,
       temperature: config.temperature,
       piiMetadata: routingDecision.piiMetadata,
       routingDecision: {
@@ -243,7 +243,7 @@ export class AgentRuntimeDispatchService {
         confidence: 1.0,
       } as LLMRoutingDecision,
       preferLocal: routingDecision.isLocal,
-      organizationSlug: options.definition.organizationSlug ?? null,
+      organizationSlug: (Array.isArray(options.definition.organizationSlug) && options.definition.organizationSlug.length > 0 ? options.definition.organizationSlug[0] : null) ?? null,
       agentSlug: options.definition.slug,
       stream:
         overrideStream ??

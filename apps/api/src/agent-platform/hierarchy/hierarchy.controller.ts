@@ -115,13 +115,15 @@ export class HierarchyController {
   private buildHierarchyFromAgents(agents: AgentRecord[]): HierarchyNode[] {
     const byNamespace = new Map<string, AgentRecord[]>();
 
-    // Group agents by namespace
+    // Group agents by namespace (now an array)
     for (const agent of agents) {
-      const namespace = agent.organization_slug ?? 'global';
-      if (!byNamespace.has(namespace)) {
-        byNamespace.set(namespace, []);
+      const namespaces = agent.organization_slug.length > 0 ? agent.organization_slug : ['global'];
+      for (const namespace of namespaces) {
+        if (!byNamespace.has(namespace)) {
+          byNamespace.set(namespace, []);
+        }
+        byNamespace.get(namespace)!.push(agent);
       }
-      byNamespace.get(namespace)!.push(agent);
     }
 
     const roots: HierarchyNode[] = [];
@@ -132,41 +134,29 @@ export class HierarchyController {
 
       // Create nodes for all agents
       for (const agent of namespaceAgents) {
-        // Extract execution_modes from YAML configuration
+        // Extract execution_modes from metadata
+        const metadataObj = agent.metadata as Record<string, unknown> || {};
         let executionModes: string[] = ['immediate']; // default
-        
-        if (agent.yaml) {
-          try {
-            // Parse the YAML string (yamlLoad handles both YAML and JSON)
-            const yamlConfig = yamlLoad(agent.yaml) as Record<string, any>;
-            const modes = yamlConfig?.configuration?.execution_modes;
-            
-            if (Array.isArray(modes) && modes.length > 0) {
-              executionModes = modes.filter(
-                (mode): mode is string => typeof mode === 'string',
-              );
-            }
-            
-          } catch (error) {
-            // If parsing fails, keep the default
-            this.logger.warn(
-              `Failed to parse YAML for agent ${agent.slug}: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            );
-          }
+
+        const modes = metadataObj.execution_modes;
+        if (Array.isArray(modes) && modes.length > 0) {
+          executionModes = modes.filter(
+            (mode): mode is string => typeof mode === 'string',
+          );
         }
 
         const node = {
-          id: agent.id,
+          id: agent.slug,
           name: agent.slug,
-          displayName: agent.display_name,
+          displayName: agent.name,
           type: agent.agent_type,
           description: agent.description,
-          status: agent.status,
-          namespace: agent.organization_slug ?? 'global',
+          status: (metadataObj.status as string) || 'active',
+          namespace: agent.organization_slug.join(',') || 'global',
           execution_modes: executionModes,
           metadata: {
-            execution_profile: agent.config?.execution_profile,
-            execution_capabilities: agent.config?.execution_capabilities,
+            execution_profile: (metadataObj.execution_profile as string | null | undefined) ?? null,
+            execution_capabilities: metadataObj.execution_capabilities as unknown,
             execution_modes: executionModes,
           },
           children: [],
@@ -181,18 +171,9 @@ export class HierarchyController {
         const node = agentMap.get(agent.slug);
         if (!node) continue;
 
-        // Get reports_to from YAML
-        let reportsTo: string | null = null;
-
-        // Parse YAML to get reports_to
-        if (agent.yaml) {
-          try {
-            const yamlData = yamlLoad(agent.yaml) as YamlAgentData;
-            reportsTo = yamlData?.reports_to || yamlData?.reportsTo || null;
-          } catch {
-            // YAML parse error - reportsTo remains null
-          }
-        }
+        // Get reports_to from metadata
+        const metadataObj = agent.metadata as Record<string, unknown> || {};
+        const reportsTo = (metadataObj.reports_to || metadataObj.reportsTo) as string | null;
 
         if (reportsTo && agentMap.has(reportsTo)) {
           // This agent reports to another agent - add as child

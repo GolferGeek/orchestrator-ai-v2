@@ -12,9 +12,9 @@ export class AgentRuntimeExecutionService {
     organizationSlug: string | null,
   ): AgentRuntimeAgentMetadata {
     return {
-      id: definition.id ?? null,
+      id: definition.slug, // Use slug as ID in v2
       slug: definition.slug,
-      displayName: definition.displayName ?? null,
+      displayName: definition.name ?? null,
       type: definition.agentType ?? null,
       organizationSlug,
     };

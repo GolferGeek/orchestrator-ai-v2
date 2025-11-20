@@ -302,7 +302,7 @@ export class ExternalAgentRunnerService extends BaseAgentRunner {
           {
             title:
               (typeof titleRaw === 'string' ? titleRaw : undefined) ||
-              `External Agent Response: ${definition.displayName}`,
+              `External Agent Response: ${definition.name}`,
             content: JSON.stringify(a2aResponse.payload?.content, null, 2),
             format: definition.config?.deliverable?.format || 'json',
             type: definition.config?.deliverable?.type || 'external-response',

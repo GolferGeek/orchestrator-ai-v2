@@ -318,7 +318,7 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
           format: deliverableFormat,
           type: deliverableType,
           deliverableId: targetDeliverableId ?? undefined,
-          agentName: definition.displayName ?? definition.slug,
+          agentName: definition.name ?? definition.slug,
           taskId,
           metadata: this.compactMetadata({
             planId: buildContext.plan?.id ?? null,
@@ -528,7 +528,7 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
           typeof candidate === 'string' && candidate.trim().length > 0,
       ) ??
       `You are ${
-        definition.displayName ?? definition.slug
+        definition.name ?? definition.slug
       }, an expert builder responsible for producing high-quality deliverables from plans and conversations.`;
 
     const sections: string[] = [basePrompt.trim()];
@@ -610,9 +610,11 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
     definition: AgentRuntimeDefinition,
     organizationSlug: string | null,
   ): string {
+    const orgSlugs = definition.organizationSlug;
+    const firstOrgSlug = Array.isArray(orgSlugs) && orgSlugs.length > 0 ? orgSlugs[0] : null;
     return (
       organizationSlug ??
-      definition.organizationSlug ??
+      firstOrgSlug ??
       (definition.context?.namespace as string | undefined) ??
       'global'
     );
@@ -881,7 +883,7 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
       return plan.title.trim();
     }
 
-    return `${definition.displayName ?? definition.slug} Deliverable`;
+    return `${definition.name ?? definition.slug} Deliverable`;
   }
 
   /**

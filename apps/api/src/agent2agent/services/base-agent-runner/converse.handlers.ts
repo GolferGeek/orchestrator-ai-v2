@@ -44,12 +44,15 @@ export async function executeConverse(
     const namespace =
       organizationSlug ?? definition.organizationSlug ?? 'global';
 
+    const firstOrgSlug: string = Array.isArray(namespace) && namespace.length > 0
+      ? (namespace[0] ?? 'global')
+      : (typeof namespace === 'string' ? namespace : 'global');
     const conversation =
       await services.conversationsService.getOrCreateConversation(
         existingConversationId,
         userId,
         definition.slug,
-        namespace ?? 'global',
+        firstOrgSlug,
       );
 
     request.conversationId = conversation.id;
@@ -209,7 +212,7 @@ export function buildConversationalPrompt(
     definition.context?.systemPrompt ??
     definition.description;
 
-  const fallbackName = definition.displayName ?? definition.slug;
+  const fallbackName = definition.name ?? definition.slug;
   let prompt =
     typeof promptCandidate === 'string' && promptCandidate.trim().length > 0
       ? promptCandidate.trim()

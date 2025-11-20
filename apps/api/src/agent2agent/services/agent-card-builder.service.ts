@@ -35,8 +35,10 @@ export class AgentCardBuilderService {
     }
 
     const specCard = this.composeSpecCard(agent);
-    const combined = agent.agent_card
-      ? this.mergeCards(agent.agent_card, specCard)
+    const metadataObj = agent.metadata as Record<string, unknown> || {};
+    const agentCard = metadataObj.agent_card as Record<string, unknown> | undefined;
+    const combined = agentCard
+      ? this.mergeCards(agentCard, specCard)
       : specCard;
 
     // When private fields are explicitly requested, attach safe metrics into metadata
@@ -78,17 +80,14 @@ export class AgentCardBuilderService {
 
   private composeSpecCard(agent: AgentRecord): Record<string, unknown> {
     const baseUrl = this.resolveBaseUrl();
-    const orgSegment = agent.organization_slug ?? 'global';
+    const metadataObj = agent.metadata as Record<string, unknown> || {};
+    const orgSegment = agent.organization_slug.join(',') || 'global';
     const encodedOrg = encodeURIComponent(orgSegment);
     const encodedAgent = encodeURIComponent(agent.slug);
     const agentUrl = `${baseUrl}/agent-to-agent/${encodedOrg}/${encodedAgent}`;
 
-    const defaultInputModes = this.ensureStringArray(
-      agent.context?.input_modes,
-    ) ?? ['text/plain'];
-    const defaultOutputModes = this.ensureStringArray(
-      agent.context?.output_modes,
-    ) ?? ['text/plain'];
+    const defaultInputModes = (metadataObj.input_modes as string[]) ?? ['text/plain'];
+    const defaultOutputModes = (metadataObj.output_modes as string[]) ?? ['text/plain'];
 
     const capabilities = this.deriveCapabilities(agent);
     const skills = this.deriveSkills(agent);
@@ -97,8 +96,8 @@ export class AgentCardBuilderService {
     return {
       protocol: 'google/a2a',
       version: this.resolveSpecVersion(),
-      name: agent.display_name,
-      description: agent.description ?? '',
+      name: agent.name,
+      description: agent.description,
       url: agentUrl,
       endpoints: {
         health: `${agentUrl}/health`,
@@ -117,14 +116,14 @@ export class AgentCardBuilderService {
         slug: agent.slug,
         organization: agent.organization_slug,
         agentType: agent.agent_type,
-        modeProfile: agent.mode_profile,
-        status: agent.status ?? 'active',
-        version: agent.version ?? null,
+        modeProfile: metadataObj.mode_profile,
+        status: metadataObj.status ?? 'active',
+        version: agent.version,
         updatedAt: agent.updated_at,
         createdAt: agent.created_at,
-        // Expose execution fields from config for frontend
-        execution_profile: agent.config?.execution_profile ?? null,
-        execution_capabilities: agent.config?.execution_capabilities ?? null,
+        // Expose execution fields from metadata for frontend
+        execution_profile: metadataObj.execution_profile ?? null,
+        execution_capabilities: metadataObj.execution_capabilities ?? null,
       },
     };
   }
@@ -199,27 +198,27 @@ export class AgentCardBuilderService {
   }
 
   private deriveCapabilities(agent: AgentRecord): Record<string, unknown> {
-    const config = agent.config ?? {};
+    const metadataConfig = (agent.metadata as Record<string, unknown>) ?? {};
     const modes = this.deriveSupportedModes(agent);
 
-    const streamingEnabled = this.lookupBoolean(config, [
+    const streamingEnabled = this.lookupBoolean(metadataConfig, [
       'streaming',
       'enabled',
     ]);
-    const pushNotifications = this.lookupBoolean(config, [
+    const pushNotifications = this.lookupBoolean(metadataConfig, [
       'notifications',
       'push',
     ]);
-    const stateHistory = this.lookupBoolean(config, [
+    const stateHistory = this.lookupBoolean(metadataConfig, [
       'stateTracking',
       'enabled',
     ]);
-    const deliverables = this.lookupBoolean(config, [
+    const deliverables = this.lookupBoolean(metadataConfig, [
       'deliverables',
       'enabled',
     ]);
 
-    const declared = this.ensureStringArray(config.capabilities) ?? [];
+    const declared = agent.capabilities ?? [];
 
     return {
       modes,
@@ -227,22 +226,19 @@ export class AgentCardBuilderService {
       pushNotifications,
       stateTransitions: stateHistory,
       deliverables,
-      extensions: this.ensureStringArray(config.extensions) ?? [],
+      extensions: this.ensureStringArray(metadataConfig.extensions) ?? [],
       declared,
     };
   }
 
   private deriveSupportedModes(agent: AgentRecord): string[] {
+    const metadataConfig = (agent.metadata as Record<string, unknown>) ?? {};
+    const modeProfile: string | null = (metadataConfig.mode_profile as string | null) ?? null;
+
     const sources: Array<string[] | null> = [
-      this.ensureStringArray(
-        (agent.config as Record<string, unknown>)?.supported_modes,
-      ),
-      this.ensureStringArray((agent.config as Record<string, unknown>)?.modes),
-      this.ensureStringArray(
-        (agent.context as Record<string, unknown>)?.supported_modes,
-      ),
-      this.ensureStringArray((agent.context as Record<string, unknown>)?.modes),
-      this.modesFromProfile(agent.mode_profile),
+      this.ensureStringArray(metadataConfig.supported_modes),
+      this.ensureStringArray(metadataConfig.modes),
+      this.modesFromProfile(modeProfile),
     ];
 
     const values = new Set<string>();
@@ -285,7 +281,8 @@ export class AgentCardBuilderService {
     const metadataRecord = this.asRecord(contextRecord?.metadata);
 
     const contextSkills = this.ensureStringArray(contextRecord?.skills) ?? [];
-    const configSkills = this.ensureStringArray(agent.config?.skills) ?? [];
+    const metadataConfig = (agent.metadata as Record<string, unknown>) ?? {};
+    const configSkills = this.ensureStringArray(metadataConfig.skills) ?? [];
     const yamlSkills = this.ensureStringArray(metadataRecord?.skills) ?? [];
 
     const combined = new Set<string>([
@@ -315,7 +312,8 @@ export class AgentCardBuilderService {
 
   private deriveProvider(agent: AgentRecord): Record<string, unknown> {
     const contextRecord = this.asRecord(agent.context);
-    const configProvider = agent.config?.provider;
+    const metadataConfig = (agent.metadata as Record<string, unknown>) ?? {};
+    const configProvider = metadataConfig.provider;
     const contextProvider = contextRecord?.provider;
     const globalProvider =
       this.configService.get<string>('AGENT_PROVIDER_NAME') ??

@@ -907,7 +907,7 @@ export function buildPlanningPrompt(
       (prompt): prompt is string =>
         typeof prompt === 'string' && prompt.trim().length > 0,
     ) ??
-    `You are ${definition.displayName ?? definition.slug}, an expert planning assistant. Create detailed, actionable plans.`;
+    `You are ${definition.name ?? definition.slug}, an expert planning assistant. Create detailed, actionable plans.`;
 
   const historySection =
     conversationHistory.length > 0
@@ -1092,7 +1092,9 @@ function resolveNamespace(
   definition: AgentRuntimeDefinition,
   organizationSlug: string | null,
 ): string {
-  return organizationSlug ?? definition.organizationSlug ?? 'global';
+  const orgSlugs = definition.organizationSlug;
+  const firstOrgSlug = Array.isArray(orgSlugs) && orgSlugs.length > 0 ? orgSlugs[0] : null;
+  return organizationSlug ?? firstOrgSlug ?? 'global';
 }
 
 function normalizeUsage(usage: unknown): typeof EMPTY_USAGE {
@@ -1156,7 +1158,7 @@ function serializePlan(
   const agentNameRaw: unknown =
     record.agentName ??
     record.agent_name ??
-    definition.displayName ??
+    definition.name ??
     definition.slug;
 
   const userIdRaw: unknown = record.userId ?? record.user_id ?? fallbackUserId;

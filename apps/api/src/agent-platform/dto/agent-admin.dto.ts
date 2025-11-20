@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
+  IsArray,
   IsEnum,
   IsObject,
   IsOptional,
@@ -8,20 +9,21 @@ import {
 } from 'class-validator';
 
 export enum AgentType {
-  FUNCTION = 'function',
   CONTEXT = 'context',
   API = 'api',
-  ORCHESTRATOR = 'orchestrator',
+  EXTERNAL = 'external',
 }
 
 export class CreateAgentDto {
   @ApiProperty({
-    description: 'Organization slug (null for global)',
+    description: 'Organization slug array (empty for global)',
     required: false,
+    type: [String],
   })
   @IsOptional()
-  @IsString()
-  organization_slug?: string | null;
+  @IsArray()
+  @IsString({ each: true })
+  organization_slug?: string[];
 
   @ApiProperty({
     description: 'Unique agent slug',
@@ -31,85 +33,99 @@ export class CreateAgentDto {
   @Matches(/^[a-z0-9][a-z0-9_-]{1,62}$/)
   slug!: string;
 
-  @ApiProperty({ description: 'Display name', example: 'Blog Post Writer' })
+  @ApiProperty({ description: 'Agent name', example: 'Blog Post Writer' })
   @IsString()
   display_name!: string;
 
-  @ApiProperty({ enum: AgentType, example: AgentType.FUNCTION })
+  @ApiProperty({ enum: AgentType, example: AgentType.CONTEXT })
   @IsEnum(AgentType)
   agent_type!: AgentType;
 
   @ApiProperty({
-    description: 'Mode profile (e.g., draft, active)',
-    example: 'draft',
-  })
-  @IsString()
-  mode_profile!: string;
-
-  @ApiProperty({
-    description: 'Agent status (draft, active, archived)',
+    description: 'Department/category for the agent',
+    example: 'engineering',
     required: false,
   })
   @IsOptional()
   @IsString()
-  status?: string | null;
+  department?: string;
 
   @ApiProperty({
-    description: 'YAML definition (JSON string allowed)',
+    description: 'Agent version',
+    example: '1.0.0',
     required: false,
   })
   @IsOptional()
   @IsString()
-  yaml?: string;
+  version?: string;
 
   @ApiProperty({
-    description: 'Function code (JavaScript/TypeScript) for function agents',
+    description: 'Tags for categorization',
+    type: [String],
+    required: false,
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
+
+  @ApiProperty({
+    description: 'Agent capabilities',
+    type: [String],
+    required: false,
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  capabilities?: string[];
+
+  @ApiProperty({
+    description: 'Agent description',
     required: false,
   })
   @IsOptional()
   @IsString()
-  function_code?: string | null;
+  description?: string;
 
   @ApiProperty({
-    description: 'Optional long-form description',
+    description: 'Markdown context/prompt for agent',
     required: false,
   })
   @IsOptional()
   @IsString()
-  description?: string | null;
+  context?: string;
 
-  @ApiProperty({ description: 'Agent card metadata', required: false })
+  @ApiProperty({
+    description: 'I/O schema definition',
+    required: false,
+  })
   @IsOptional()
   @IsObject()
-  agent_card?: Record<string, unknown> | null;
-
-  @ApiProperty({ description: 'Context/Prompt configuration', required: false })
-  @IsOptional()
-  @IsObject()
-  context?: Record<string, unknown> | null;
+  io_schema?: Record<string, unknown>;
 
   @ApiProperty({
-    description: 'Runtime configuration (type-specific)',
+    description: 'Endpoint configuration (for API/external agents)',
     required: false,
   })
   @IsOptional()
   @IsObject()
-  config?: Record<string, unknown> | null;
+  endpoint?: Record<string, unknown> | null;
 
   @ApiProperty({
-    description: 'Plan structure template (markdown string or JSON schema)',
+    description: 'LLM configuration (for context agents)',
     required: false,
   })
   @IsOptional()
-  plan_structure?: string | Record<string, unknown> | null;
+  @IsObject()
+  llm_config?: Record<string, unknown> | null;
 
   @ApiProperty({
-    description:
-      'Deliverable structure template (markdown string or JSON schema)',
+    description: 'Additional metadata',
     required: false,
   })
   @IsOptional()
-  deliverable_structure?: string | Record<string, unknown> | null;
+  @IsObject()
+  metadata?: Record<string, unknown>;
 }
 
 export class UpdateAgentDto {
