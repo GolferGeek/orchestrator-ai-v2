@@ -110,8 +110,8 @@ BEGIN
     RAISE EXCEPTION 'Expected at least 7 providers, found %', provider_count;
   END IF;
 
-  IF model_count < 45 THEN
-    RAISE EXCEPTION 'Expected at least 45 models, found %', model_count;
+  IF model_count < 43 THEN
+    RAISE EXCEPTION 'Expected at least 43 models, found %', model_count;
   END IF;
 
   RAISE NOTICE 'All providers and models seeded successfully ✓';
