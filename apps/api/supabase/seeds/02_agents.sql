@@ -144,7 +144,7 @@ INSERT INTO public.agents (
     }
   }'::jsonb,
 
-  -- Capabilities
+  -- Capabilities (includes plan/build for mode support)
   ARRAY[
     'blog-writing',
     'content-generation',
@@ -153,7 +153,9 @@ INSERT INTO public.agents (
     'tone-adaptation',
     'audience-targeting',
     'content-structuring',
-    'meta-description-creation'
+    'meta-description-creation',
+    'plan',
+    'build'
   ]::TEXT[],
 
   -- Context (System Prompt)
@@ -255,11 +257,17 @@ Remember: Your goal is to create content that ranks well in search engines while
     }
   }'::jsonb,
 
-  -- Metadata
+  -- Metadata (includes mode_profile and execution_capabilities for BUILD mode support)
   '{
     "author": "Orchestrator AI Team",
     "license": "PROPRIETARY",
     "documentation_url": "https://docs.orchestratorai.io/agents/blog-post-writer",
+    "mode_profile": "full",
+    "execution_capabilities": {
+      "can_converse": true,
+      "can_plan": true,
+      "can_build": true
+    },
     "version_history": [
       {
         "version": "1.0.0",

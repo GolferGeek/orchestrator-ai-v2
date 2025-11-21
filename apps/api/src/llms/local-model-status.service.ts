@@ -346,6 +346,16 @@ export class LocalModelStatusService {
       const client = this.supabaseService.getServiceClient();
 
       // Query database for models in the specified tier
+      // Map routing tiers to speed_tier values
+      const tierMapping: Record<string, string> = {
+        'ultra-fast': 'very-fast',
+        'balanced': 'medium',
+        'high-quality': 'slow',
+        'general': 'fast',
+        'fast-thinking': 'medium',
+      };
+      const speedTier = tierMapping[tier] || tier;
+
       const { data: dbModels, error } = await client
         .from(getTableName('llm_models'))
         .select(
@@ -359,7 +369,7 @@ export class LocalModelStatusService {
         `,
         )
         .eq('is_local', true)
-        .eq('model_tier', tier)
+        .eq('speed_tier', speedTier)
         .eq('is_active', true)
         .order('loading_priority', { ascending: false });
 

@@ -83,6 +83,9 @@ ON CONFLICT (model_name, provider_name) DO UPDATE SET
   speed_tier = EXCLUDED.speed_tier,
   capabilities = EXCLUDED.capabilities;
 
+-- Set is_local flag for Ollama models (model_tier = 'local')
+UPDATE llm_models SET is_local = true WHERE model_tier = 'local';
+
 -- Verification
 DO $$
 DECLARE
