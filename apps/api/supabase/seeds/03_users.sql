@@ -21,6 +21,7 @@ INSERT INTO auth.users (
   raw_user_meta_data,
   is_super_admin,
   confirmation_token,
+  email_change,
   email_change_token_current,
   email_change_token_new
 ) VALUES
@@ -37,6 +38,7 @@ INSERT INTO auth.users (
   '{"provider":"email","providers":["email"]}'::jsonb,
   '{"display_name":"Demo User"}'::jsonb,
   false,
+  '',
   '',
   '',
   ''
@@ -56,6 +58,7 @@ INSERT INTO auth.users (
   true,
   '',
   '',
+  '',
   ''
 ),
 (
@@ -73,6 +76,7 @@ INSERT INTO auth.users (
   false,
   '',
   '',
+  '',
   ''
 )
 ON CONFLICT (id) DO UPDATE SET
@@ -82,7 +86,10 @@ ON CONFLICT (id) DO UPDATE SET
   updated_at = NOW(),
   raw_app_meta_data = EXCLUDED.raw_app_meta_data,
   raw_user_meta_data = EXCLUDED.raw_user_meta_data,
-  is_super_admin = EXCLUDED.is_super_admin;
+  is_super_admin = EXCLUDED.is_super_admin,
+  email_change = EXCLUDED.email_change,
+  email_change_token_current = EXCLUDED.email_change_token_current,
+  email_change_token_new = EXCLUDED.email_change_token_new;
 
 -- Insert into public.users (application users) - AFTER auth.users
 INSERT INTO public.users (id, email, display_name, role, roles, namespace_access, organization_slug, status) VALUES
