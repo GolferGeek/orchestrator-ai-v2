@@ -162,9 +162,11 @@ export class HierarchyController {
 
     // Sort agents within each department by name
     for (const department in hierarchy) {
-      hierarchy[department].sort((a, b) =>
-        a.displayName.localeCompare(b.displayName),
-      );
+      if (hierarchy[department]) {
+        hierarchy[department].sort((a, b) =>
+          a.displayName.localeCompare(b.displayName),
+        );
+      }
     }
 
     return hierarchy;
