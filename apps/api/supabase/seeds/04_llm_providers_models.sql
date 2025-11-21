@@ -10,8 +10,6 @@ INSERT INTO public.llm_providers (name, display_name, api_base_url, configuratio
 ('openai', 'OpenAI', 'https://api.openai.com/v1', '{"api_key_env_var": "OPENAI_API_KEY", "provider_type": "cloud"}'::jsonb, true),
 ('google', 'Google AI', 'https://generativelanguage.googleapis.com/v1', '{"api_key_env_var": "GOOGLE_API_KEY", "provider_type": "cloud"}'::jsonb, true),
 ('ollama', 'Ollama', 'http://localhost:11434', '{"provider_type": "local"}'::jsonb, true),
-('groq', 'Groq', 'https://api.groq.com/openai/v1', '{"api_key_env_var": "GROQ_API_KEY", "provider_type": "cloud"}'::jsonb, true),
-('together', 'Together AI', 'https://api.together.xyz/v1', '{"api_key_env_var": "TOGETHER_API_KEY", "provider_type": "cloud"}'::jsonb, true),
 ('xai', 'xAI', 'https://api.x.ai/v1', '{"api_key_env_var": "XAI_API_KEY", "provider_type": "cloud"}'::jsonb, true)
 ON CONFLICT (name) DO UPDATE SET
   display_name = EXCLUDED.display_name,
@@ -57,13 +55,6 @@ INSERT INTO public.llm_models (
 ('gemini-1.5-pro', 'google', 'Gemini 1.5 Pro', 'text-generation', '1.5', 2000000, 8192, 'premium', 'medium', '["chat", "text-generation", "function-calling", "vision"]'::jsonb),
 ('gemini-1.5-flash', 'google', 'Gemini 1.5 Flash', 'text-generation', '1.5', 1000000, 8192, 'standard', 'very-fast', '["chat", "text-generation", "function-calling", "vision"]'::jsonb),
 
--- Groq Models (Ultra-fast inference with DeepSeek R1)
-('deepseek-r1-distill-llama-70b', 'groq', 'DeepSeek R1 Distill Llama 70B', 'text-generation', 'r1', 128000, 32768, 'premium', 'ultra-fast', '["chat", "text-generation", "reasoning"]'::jsonb),
-('llama-3.3-70b-versatile', 'groq', 'Llama 3.3 70B', 'text-generation', '3.3', 32768, 32768, 'standard', 'ultra-fast', '["chat", "text-generation"]'::jsonb),
-('llama-3.3-70b-specdec', 'groq', 'Llama 3.3 70B SpecDec', 'text-generation', '3.3', 32768, 32768, 'standard', 'ultra-fast', '["chat", "text-generation"]'::jsonb),
-('llama-3.1-70b-versatile', 'groq', 'Llama 3.1 70B', 'text-generation', '3.1', 131072, 32768, 'standard', 'ultra-fast', '["chat", "text-generation", "function-calling"]'::jsonb),
-('mixtral-8x7b-32768', 'groq', 'Mixtral 8x7B', 'text-generation', '8x7b', 32768, 32768, 'budget', 'ultra-fast', '["chat", "text-generation"]'::jsonb),
-
 -- Ollama Models (Local - including user-requested models)
 ('llama3.2:1b', 'ollama', 'Llama 3.2 1B', 'text-generation', '3.2', 128000, 4096, 'local', 'very-fast', '["chat", "text-generation"]'::jsonb),
 ('llama3.2', 'ollama', 'Llama 3.2', 'text-generation', '3.2', 128000, 4096, 'local', 'medium', '["chat", "text-generation"]'::jsonb),
@@ -106,12 +97,12 @@ BEGIN
   RAISE NOTICE 'LLM Models seeded: %', model_count;
   RAISE NOTICE '================================================';
 
-  IF provider_count < 7 THEN
-    RAISE EXCEPTION 'Expected at least 7 providers, found %', provider_count;
+  IF provider_count < 5 THEN
+    RAISE EXCEPTION 'Expected at least 5 providers, found %', provider_count;
   END IF;
 
-  IF model_count < 43 THEN
-    RAISE EXCEPTION 'Expected at least 43 models, found %', model_count;
+  IF model_count < 38 THEN
+    RAISE EXCEPTION 'Expected at least 38 models, found %', model_count;
   END IF;
 
   RAISE NOTICE 'All providers and models seeded successfully ✓';
