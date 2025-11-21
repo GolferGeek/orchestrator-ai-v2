@@ -21,9 +21,13 @@ INSERT INTO auth.users (
   raw_user_meta_data,
   is_super_admin,
   confirmation_token,
+  recovery_token,
   email_change,
   email_change_token_current,
-  email_change_token_new
+  email_change_token_new,
+  phone_change,
+  phone_change_token,
+  reauthentication_token
 ) VALUES
 (
   'b29a590e-b07f-49df-a25b-574c956b5035',
@@ -38,6 +42,10 @@ INSERT INTO auth.users (
   '{"provider":"email","providers":["email"]}'::jsonb,
   '{"display_name":"Demo User"}'::jsonb,
   false,
+  '',
+  '',
+  '',
+  '',
   '',
   '',
   '',
@@ -59,6 +67,10 @@ INSERT INTO auth.users (
   '',
   '',
   '',
+  '',
+  '',
+  '',
+  '',
   ''
 ),
 (
@@ -77,6 +89,10 @@ INSERT INTO auth.users (
   '',
   '',
   '',
+  '',
+  '',
+  '',
+  '',
   ''
 )
 ON CONFLICT (id) DO UPDATE SET
@@ -87,9 +103,14 @@ ON CONFLICT (id) DO UPDATE SET
   raw_app_meta_data = EXCLUDED.raw_app_meta_data,
   raw_user_meta_data = EXCLUDED.raw_user_meta_data,
   is_super_admin = EXCLUDED.is_super_admin,
+  confirmation_token = EXCLUDED.confirmation_token,
+  recovery_token = EXCLUDED.recovery_token,
   email_change = EXCLUDED.email_change,
   email_change_token_current = EXCLUDED.email_change_token_current,
-  email_change_token_new = EXCLUDED.email_change_token_new;
+  email_change_token_new = EXCLUDED.email_change_token_new,
+  phone_change = EXCLUDED.phone_change,
+  phone_change_token = EXCLUDED.phone_change_token,
+  reauthentication_token = EXCLUDED.reauthentication_token;
 
 -- Insert into public.users (application users) - AFTER auth.users
 INSERT INTO public.users (id, email, display_name, role, roles, namespace_access, organization_slug, status) VALUES
