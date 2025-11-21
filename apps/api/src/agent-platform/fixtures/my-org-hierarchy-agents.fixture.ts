@@ -9,19 +9,6 @@ interface AgentFixture {
   record: AgentRecord;
 }
 
-const agentIds: Record<string, string> = {
-  'hiverarchy-orchestrator': 'fad9dc74-44ca-407b-918b-8d8109156a78',
-  'hiverarchy-researcher': '6c3d2a56-d4f7-4a60-aebe-486d99c3ba4d',
-  'hiverarchy-child-builder': '34c92d84-34eb-4fcb-8ea1-99f51d257a43',
-  'hiverarchy-outliner': '53f13670-6129-4b35-9c95-ff5a5664c8fe',
-  'hiverarchy-writer': 'c9bccbcc-ca99-43d7-a567-5b7586955949',
-  'hiverarchy-editor': '5b57fa64-e684-4dda-8c96-9a966aa7ef72',
-  'hiverarchy-image-generator': '326523a8-87d1-486c-a716-8245a7266438',
-  'supabase-post-update': '9113b610-d53b-4ce7-a486-10860f7a2b9f',
-  'supabase-child-create': '504a7172-0546-40bf-933b-419537560da6',
-  'supabase-idea-list': 'e346dd1b-0e95-4b12-b9bf-7058f38ea5fb',
-};
-
 const mkRecord = (
   slug: string,
   displayName: string,
@@ -29,30 +16,39 @@ const mkRecord = (
   agentType: string,
   descriptor: Descriptor,
   overrides: Partial<AgentRecord> = {},
-): AgentRecord => ({
-  organization_slug: ['my-org'],
-  slug,
-  name: displayName,
-  description,
-  agent_type: agentType as 'context' | 'api' | 'external',
-  department: 'hiverarchy',
-  version: '0.1.0',
-  tags: (descriptor.metadata as any)?.tags || [],
-  capabilities: (descriptor.capabilities as string[]) || [],
-  context: JSON.stringify(descriptor, null, 2), // Store descriptor as markdown-formatted JSON
-  io_schema: {},
-  endpoint: null,
-  llm_config: null,
-  metadata: {
-    mode_profile: 'specialist_full',
-    status: 'active',
-    supported_modes: ['converse', 'plan', 'build'],
-    streaming: { enabled: true },
-  },
-  created_at: EPOCH,
-  updated_at: EPOCH,
-  ...overrides,
-});
+): AgentRecord => {
+  const metadataObj = descriptor.metadata as
+    | Record<string, unknown>
+    | undefined;
+  const tags = Array.isArray(metadataObj?.tags)
+    ? (metadataObj.tags as string[])
+    : [];
+
+  return {
+    organization_slug: ['my-org'],
+    slug,
+    name: displayName,
+    description,
+    agent_type: agentType as 'context' | 'api' | 'external',
+    department: 'hiverarchy',
+    version: '0.1.0',
+    tags,
+    capabilities: (descriptor.capabilities as string[]) || [],
+    context: JSON.stringify(descriptor, null, 2), // Store descriptor as markdown-formatted JSON
+    io_schema: {},
+    endpoint: null,
+    llm_config: null,
+    metadata: {
+      mode_profile: 'specialist_full',
+      status: 'active',
+      supported_modes: ['converse', 'plan', 'build'],
+      streaming: { enabled: true },
+    },
+    created_at: EPOCH,
+    updated_at: EPOCH,
+    ...overrides,
+  };
+};
 
 const baseCommunication = {
   input_modes: ['text/plain'],

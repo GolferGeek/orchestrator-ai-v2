@@ -115,9 +115,7 @@ export class HierarchyController {
    * Build department-based hierarchy from flat agent list
    * Groups agents by their department field
    */
-  private buildDepartmentHierarchy(
-    agents: AgentRecord[],
-  ): DepartmentHierarchy {
+  private buildDepartmentHierarchy(agents: AgentRecord[]): DepartmentHierarchy {
     const hierarchy: DepartmentHierarchy = {};
 
     for (const agent of agents) {

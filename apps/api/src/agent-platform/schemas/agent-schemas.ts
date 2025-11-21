@@ -1,6 +1,6 @@
 import type { JsonObject } from '@orchestrator-ai/transport-types';
 
-export type AgentType = 'function' | 'context' | 'api' | 'orchestrator';
+export type AgentType = 'context' | 'api' | 'external';
 
 export interface CreateAgentPayload {
   organization_slug?: string | null;
@@ -27,7 +27,7 @@ export const baseAgentSchema: JsonSchema = {
     display_name: { type: 'string' },
     agent_type: {
       type: 'string',
-      enum: ['function', 'context', 'api', 'orchestrator'] as AgentType[],
+      enum: ['context', 'api', 'external'] as AgentType[],
     },
     mode_profile: { type: 'string' },
     yaml: { type: 'string', nullable: true, optional: true },
@@ -55,46 +55,6 @@ export const baseAgentSchema: JsonSchema = {
   additionalProperties: true,
 };
 
-// Function agent must include configuration.function.code
-export const functionAgentSchema: JsonSchema = {
-  ...baseAgentSchema,
-  allOf: [
-    {
-      if: {
-        properties: { agent_type: { const: 'function' } },
-      },
-      then: {
-        properties: {
-          config: {
-            type: 'object',
-            nullable: true,
-            additionalProperties: true,
-            properties: {
-              configuration: {
-                type: 'object',
-                nullable: true,
-                additionalProperties: true,
-                properties: {
-                  function: {
-                    type: 'object',
-                    nullable: true,
-                    additionalProperties: true,
-                    properties: {
-                      code: { type: 'string', nullable: true },
-                      timeout_ms: { type: 'integer', nullable: true },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-        // Custom validation note: enforce presence of code via runtime check
-      },
-    },
-  ],
-};
-
 // Context agent should provide either `context` object or `yaml`
 export const contextAgentSchema: JsonSchema = {
   ...baseAgentSchema,
@@ -105,21 +65,19 @@ export const apiAgentSchema: JsonSchema = {
   ...baseAgentSchema,
 };
 
-// Orchestrator agent – no extra requireds yet
-export const orchestratorAgentSchema: JsonSchema = {
+// External agent for A2A protocol
+export const externalAgentSchema: JsonSchema = {
   ...baseAgentSchema,
 };
 
 export function schemaFor(type: AgentType) {
   switch (type) {
-    case 'function':
-      return functionAgentSchema;
     case 'context':
       return contextAgentSchema;
     case 'api':
       return apiAgentSchema;
-    case 'orchestrator':
-      return orchestratorAgentSchema;
+    case 'external':
+      return externalAgentSchema;
     default:
       return baseAgentSchema;
   }

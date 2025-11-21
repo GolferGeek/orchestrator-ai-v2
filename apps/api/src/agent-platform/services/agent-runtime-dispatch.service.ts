@@ -243,7 +243,11 @@ export class AgentRuntimeDispatchService {
         confidence: 1.0,
       } as LLMRoutingDecision,
       preferLocal: routingDecision.isLocal,
-      organizationSlug: (Array.isArray(options.definition.organizationSlug) && options.definition.organizationSlug.length > 0 ? options.definition.organizationSlug[0] : null) ?? null,
+      organizationSlug:
+        (Array.isArray(options.definition.organizationSlug) &&
+        options.definition.organizationSlug.length > 0
+          ? options.definition.organizationSlug[0]
+          : null) ?? null,
       agentSlug: options.definition.slug,
       stream:
         overrideStream ??

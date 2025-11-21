@@ -14,8 +14,9 @@ import type { JsonObject } from '@orchestrator-ai/transport-types';
 import {
   CreateAgentDto,
   UpdateAgentDto,
-  AgentType,
+  AgentType as DtoAgentType,
 } from '../dto/agent-admin.dto';
+import type { AgentType } from '../schemas/agent-schemas';
 import { AgentValidationService } from '../services/agent-validation.service';
 import { AgentsRepository } from '../repositories/agents.repository';
 import { AgentDryRunService } from '../services/agent-dry-run.service';
@@ -79,9 +80,9 @@ export class AgentsAdminController {
   async upsert(@Body() dto: CreateAgentDto) {
     // Run JSON-schema validation by type
     const type = dto.agent_type;
-    // Cast to any to avoid type incompatibility between dto.AgentType and schemas.AgentType
+    // Validate using the agent type from DTO
     const { ok, issues } = this.validator.validateByType(
-      type as any,
+      type,
       dto as unknown as Parameters<typeof this.validator.validateByType>[1],
     );
     const policyIssues = this.policy.check(
@@ -93,7 +94,9 @@ export class AgentsAdminController {
 
     // Normalize organization_slug to array
     const organization_slug = dto.organization_slug
-      ? (Array.isArray(dto.organization_slug) ? dto.organization_slug : [dto.organization_slug])
+      ? Array.isArray(dto.organization_slug)
+        ? dto.organization_slug
+        : [dto.organization_slug]
       : [];
 
     const record = await this.agents.upsert({
@@ -118,14 +121,11 @@ export class AgentsAdminController {
 
   @Post('validate')
   @AdminOnly()
-  async validate(
-    @Body() dto: CreateAgentDto,
-    @Query('dryRun') dryRun?: string,
-  ) {
+  validate(@Body() dto: CreateAgentDto, @Query('dryRun') dryRun?: string) {
     const type = dto.agent_type;
-    // Cast to any to avoid type incompatibility between dto.AgentType and schemas.AgentType
+    // Validate using the agent type from DTO
     const validation = this.validator.validateByType(
-      type as any,
+      type,
       dto as unknown as Parameters<typeof this.validator.validateByType>[1],
     );
     const policyIssues = this.policy.check(
@@ -141,10 +141,9 @@ export class AgentsAdminController {
       issues: [...validation.issues, ...policyIssues],
     };
     const wantsDryRun = (dryRun || '').toString().toLowerCase() === 'true';
-    // Function agents no longer exist in v2 - removed dry-run logic
 
-    if (validation.ok && wantsDryRun && type === AgentType.API) {
-      const config = dto.metadata as Record<string, unknown> | undefined;
+    if (validation.ok && wantsDryRun && type === DtoAgentType.API) {
+      const config = dto.metadata;
       const configuration = config?.configuration as
         | Record<string, unknown>
         | undefined;
@@ -215,9 +214,9 @@ export class AgentsAdminController {
       config: next.config,
     } as unknown as CreateAgentDto;
 
-    // Cast to any to avoid type incompatibility between dto.AgentType and schemas.AgentType
+    // Validate using the agent type from current record
     const validation = this.validator.validateByType(
-      current.agent_type as any,
+      current.agent_type as AgentType,
       createLike as unknown as Parameters<
         typeof this.validator.validateByType
       >[1],
@@ -262,9 +261,9 @@ export class AgentsAdminController {
         const raw = await readFile(f, 'utf8');
         const dto = JSON.parse(raw) as CreateAgentDto;
         const type = dto.agent_type;
-        // Cast to any to avoid type incompatibility between dto.AgentType and schemas.AgentType
+        // Validate using the agent type from DTO
         const validation = this.validator.validateByType(
-          type as any,
+          type,
           dto as unknown as Parameters<typeof this.validator.validateByType>[1],
         );
         const policyIssues = this.policy.check(
@@ -275,49 +274,26 @@ export class AgentsAdminController {
           success: validation.ok && policyIssues.length === 0,
           issues: [...validation.issues, ...policyIssues],
         };
-        if (item.success) {
-          // Note: AgentType.FUNCTION no longer exists in v2
-          if (false) {
-            const metadataConfig = dto.metadata as Record<string, unknown> | undefined;
-            const configuration = metadataConfig?.configuration as
-              | Record<string, unknown>
-              | undefined;
-            const functionConfig = configuration?.function as
-              | Record<string, unknown>
-              | undefined;
-            const code = functionConfig?.code;
-            const timeout = Number(functionConfig?.timeout_ms) || 1000;
-            if (code && typeof code === 'string') {
-              item.dryRun = await this.dryRun.runFunction(
-                code as string,
-                {
-                  title: 'Smoke Test',
-                  outline: ['Intro', 'Body', 'Conclusion'],
-                },
-                timeout,
-              );
-            }
-          } else if (type === AgentType.API) {
-            const metadataConfig = dto.metadata as Record<string, unknown> | undefined;
-            const configuration = metadataConfig?.configuration as
-              | Record<string, unknown>
-              | undefined;
-            const apiConfig = configuration?.api as
-              | Record<string, unknown>
-              | undefined;
-            const apiCfg = apiConfig?.api_configuration;
-            if (apiCfg) {
-              item.dryRun = this.dryRun.runApiTransform(
-                apiCfg,
-                apiConfig?.sample_input || {
-                  sessionId: 'dryrun',
-                  userMessage: 'hello',
-                },
-                apiConfig?.sample_response || {
-                  output: 'ok',
-                },
-              );
-            }
+        if (item.success && type === DtoAgentType.API) {
+          const metadataConfig = dto.metadata;
+          const configuration = metadataConfig?.configuration as
+            | Record<string, unknown>
+            | undefined;
+          const apiConfig = configuration?.api as
+            | Record<string, unknown>
+            | undefined;
+          const apiCfg = apiConfig?.api_configuration;
+          if (apiCfg) {
+            item.dryRun = this.dryRun.runApiTransform(
+              apiCfg,
+              apiConfig?.sample_input || {
+                sessionId: 'dryrun',
+                userMessage: 'hello',
+              },
+              apiConfig?.sample_response || {
+                output: 'ok',
+              },
+            );
           }
         }
         results.push(item);

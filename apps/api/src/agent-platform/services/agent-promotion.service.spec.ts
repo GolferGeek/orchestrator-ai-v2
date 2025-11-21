@@ -59,18 +59,18 @@ describe('AgentPromotionService', () => {
         display_name: 'Simple Context Agent',
       };
 
-      agentsRepo.getById.mockResolvedValue(agent as never);
-      agentsRepo.updateStatus.mockResolvedValue({
+      (agentsRepo.getById as jest.Mock).mockResolvedValue(agent);
+      (agentsRepo.updateStatus as jest.Mock).mockResolvedValue({
         ...agent,
         status: 'active',
-      } as never);
+      });
 
       const result = await service.requestPromotion('agent-1');
 
       expect(result.success).toBe(true);
       expect(result.newStatus).toBe('active');
       expect(result.requiresApproval).toBeUndefined();
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(agentsRepo.updateStatus).toHaveBeenCalledWith('agent-1', 'active');
     });
 
@@ -91,12 +91,12 @@ describe('AgentPromotionService', () => {
         },
       };
 
-      agentsRepo.getById.mockResolvedValue(agent as never);
-      approvalsRepo.create.mockResolvedValue({
+      (agentsRepo.getById as jest.Mock).mockResolvedValue(agent);
+      (approvalsRepo.create as jest.Mock).mockResolvedValue({
         id: 'approval-1',
         agent_slug: agent.slug,
         status: 'pending',
-      } as never);
+      });
 
       const result = await service.requestPromotion('agent-2', {
         requestedBy: 'user-123',
@@ -108,7 +108,7 @@ describe('AgentPromotionService', () => {
       expect(result.approvalId).toBe('approval-1');
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(approvalsRepo.create).toHaveBeenCalled();
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(agentsRepo.updateStatus).not.toHaveBeenCalled();
     });
 
@@ -122,7 +122,7 @@ describe('AgentPromotionService', () => {
         display_name: 'API Agent',
       };
 
-      agentsRepo.getById.mockResolvedValue(agent as never);
+      (agentsRepo.getById as jest.Mock).mockResolvedValue(agent);
       approvalsRepo.create.mockResolvedValue({
         id: 'approval-2',
         agent_slug: agent.slug,
@@ -144,7 +144,7 @@ describe('AgentPromotionService', () => {
         status: 'active',
       };
 
-      agentsRepo.getById.mockResolvedValue(agent as never);
+      (agentsRepo.getById as jest.Mock).mockResolvedValue(agent);
 
       const result = await service.requestPromotion('agent-4');
 
@@ -161,7 +161,7 @@ describe('AgentPromotionService', () => {
         config: {},
       };
 
-      agentsRepo.getById.mockResolvedValue(agent as never);
+      (agentsRepo.getById as jest.Mock).mockResolvedValue(agent);
       validator.validateByType.mockReturnValue({
         ok: false,
         issues: [{ message: 'Missing function code' }],
@@ -181,17 +181,17 @@ describe('AgentPromotionService', () => {
         status: 'draft',
       };
 
-      agentsRepo.getById.mockResolvedValue(agent as never);
-      agentsRepo.updateStatus.mockResolvedValue({
+      (agentsRepo.getById as jest.Mock).mockResolvedValue(agent);
+      (agentsRepo.updateStatus as jest.Mock).mockResolvedValue({
         ...agent,
         status: 'active',
-      } as never);
+      });
 
       await service.requestPromotion('agent-6', { skipValidation: true });
 
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(validator.validateByType).not.toHaveBeenCalled();
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(agentsRepo.updateStatus).toHaveBeenCalled();
     });
   });
@@ -212,18 +212,18 @@ describe('AgentPromotionService', () => {
         status: 'draft',
       };
 
-      approvalsRepo.get.mockResolvedValue(approval as never);
-      agentsRepo.getById.mockResolvedValue(agent as never);
-      agentsRepo.updateStatus.mockResolvedValue({
+      (approvalsRepo.get as jest.Mock).mockResolvedValue(approval);
+      (agentsRepo.getById as jest.Mock).mockResolvedValue(agent);
+      (agentsRepo.updateStatus as jest.Mock).mockResolvedValue({
         ...agent,
         status: 'active',
-      } as never);
+      });
 
       const result = await service.completePromotionAfterApproval('approval-1');
 
       expect(result.success).toBe(true);
       expect(result.newStatus).toBe('active');
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(agentsRepo.updateStatus).toHaveBeenCalledWith('agent-1', 'active');
     });
 
@@ -235,7 +235,7 @@ describe('AgentPromotionService', () => {
         metadata: { agentId: 'agent-2' },
       };
 
-      approvalsRepo.get.mockResolvedValue(approval as never);
+      (approvalsRepo.get as jest.Mock).mockResolvedValue(approval);
 
       await expect(
         service.completePromotionAfterApproval('approval-2'),
@@ -251,18 +251,18 @@ describe('AgentPromotionService', () => {
         status: 'active',
       };
 
-      agentsRepo.getById.mockResolvedValue(agent as never);
-      agentsRepo.updateStatus.mockResolvedValue({
+      (agentsRepo.getById as jest.Mock).mockResolvedValue(agent);
+      (agentsRepo.updateStatus as jest.Mock).mockResolvedValue({
         ...agent,
         status: 'draft',
-      } as never);
+      });
 
       const result = await service.demote('agent-7', 'Needs fixes');
 
       expect(result.success).toBe(true);
       expect(result.previousStatus).toBe('active');
       expect(result.newStatus).toBe('draft');
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(agentsRepo.updateStatus).toHaveBeenCalledWith('agent-7', 'draft');
     });
 
@@ -273,7 +273,7 @@ describe('AgentPromotionService', () => {
         status: 'draft',
       };
 
-      agentsRepo.getById.mockResolvedValue(agent as never);
+      (agentsRepo.getById as jest.Mock).mockResolvedValue(agent);
 
       const result = await service.demote('agent-8');
 
@@ -290,11 +290,11 @@ describe('AgentPromotionService', () => {
         status: 'active',
       };
 
-      agentsRepo.getById.mockResolvedValue(agent as never);
-      agentsRepo.updateStatus.mockResolvedValue({
+      (agentsRepo.getById as jest.Mock).mockResolvedValue(agent);
+      (agentsRepo.updateStatus as jest.Mock).mockResolvedValue({
         ...agent,
         status: 'archived',
-      } as never);
+      });
 
       const result = await service.archive('agent-9', 'No longer needed');
 
@@ -312,7 +312,7 @@ describe('AgentPromotionService', () => {
         config: { configuration: { function: { code: 'simple code' } } },
       };
 
-      agentsRepo.getById.mockResolvedValue(agent as never);
+      (agentsRepo.getById as jest.Mock).mockResolvedValue(agent);
 
       const requirements = await service.getPromotionRequirements('agent-10');
 
@@ -326,7 +326,7 @@ describe('AgentPromotionService', () => {
         agent_type: 'orchestrator',
       };
 
-      agentsRepo.getById.mockResolvedValue(agent as never);
+      (agentsRepo.getById as jest.Mock).mockResolvedValue(agent);
 
       const requirements = await service.getPromotionRequirements('agent-11');
 

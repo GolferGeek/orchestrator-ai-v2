@@ -1,7 +1,6 @@
 import { Controller, Get, Headers } from '@nestjs/common';
 import { Public } from '@/auth/decorators/public.decorator';
 import { AgentRegistryService } from '../services/agent-registry.service';
-import { load as yamlLoad } from 'js-yaml';
 import type { AgentRecord } from '../interfaces/agent.interface';
 
 interface HierarchyNode {
@@ -83,7 +82,10 @@ export class AgentsPublicController {
 
     // Group agents by namespace (now an array)
     for (const agent of agents) {
-      const namespaces = agent.organization_slug.length > 0 ? agent.organization_slug : ['global'];
+      const namespaces =
+        agent.organization_slug.length > 0
+          ? agent.organization_slug
+          : ['global'];
       for (const namespace of namespaces) {
         if (!byNamespace.has(namespace)) {
           byNamespace.set(namespace, []);
@@ -103,7 +105,10 @@ export class AgentsPublicController {
         // Extract execution_modes from metadata
         let executionModes: string[] = ['immediate'];
         const metadataConfig = agent.metadata as Record<string, unknown>;
-        if (metadataConfig?.execution_modes && Array.isArray(metadataConfig.execution_modes)) {
+        if (
+          metadataConfig?.execution_modes &&
+          Array.isArray(metadataConfig.execution_modes)
+        ) {
           executionModes = metadataConfig.execution_modes.filter(
             (mode): mode is string => typeof mode === 'string',
           );
@@ -115,7 +120,7 @@ export class AgentsPublicController {
           displayName: agent.name,
           type: agent.agent_type,
           description: agent.description,
-          status: metadataConfig?.status as string || 'active',
+          status: (metadataConfig?.status as string) || 'active',
           namespace: agent.organization_slug.join(',') || 'global',
           execution_modes: executionModes,
           metadata: {
@@ -140,7 +145,8 @@ export class AgentsPublicController {
 
         // Extract reports_to from metadata
         const metadataObj = agent.metadata as Record<string, unknown>;
-        const reportsToValue = metadataObj?.reports_to || metadataObj?.reportsTo;
+        const reportsToValue =
+          metadataObj?.reports_to || metadataObj?.reportsTo;
         reportsTo = typeof reportsToValue === 'string' ? reportsToValue : null;
 
         if (reportsTo && agentMap.has(reportsTo)) {

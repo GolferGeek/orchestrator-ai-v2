@@ -117,16 +117,17 @@ describe('AgentsRepository', () => {
     expect(result).toEqual([sampleAgent]);
   });
 
-  it('deletes agent by id', async () => {
+  it('deletes agent by slug', async () => {
     const { fromMock, service } = createSupabaseMock();
-    const _deleteFn = jest.fn().mockResolvedValue({ error: null });
     const eqMock = jest.fn().mockResolvedValue({ error: null });
+    const deleteFn: jest.Mock = jest.fn(() => ({ eq: eqMock }));
 
-    fromMock.mockReturnValue({ delete: jest.fn(() => ({ eq: eqMock })) });
+    fromMock.mockReturnValue({ delete: deleteFn });
 
     const repo = new AgentsRepository(service);
-    await repo.deleteById('123');
+    await repo.deleteBySlug('test-agent');
 
-    expect(eqMock).toHaveBeenCalledWith('id', '123');
+    expect(deleteFn).toHaveBeenCalled();
+    expect(eqMock).toHaveBeenCalledWith('slug', 'test-agent');
   });
 });

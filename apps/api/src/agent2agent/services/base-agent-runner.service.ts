@@ -1100,15 +1100,15 @@ export abstract class BaseAgentRunner implements IAgentRunner {
 
   /**
    * Emit observability event for admin monitoring.
-   * 
+   *
    * This helper method calls the /webhooks/status endpoint internally to emit
    * agent execution events. Events are fire-and-forget (non-blocking).
-   * 
+   *
    * @param eventType - Event type ('agent.started', 'agent.progress', 'agent.completed', 'agent.failed')
    * @param message - Human-readable message describing the event
    * @param context - Context information about the agent and task
    */
-  protected async emitObservabilityEvent(
+  protected emitObservabilityEvent(
     eventType: string,
     message: string,
     context: {
@@ -1118,7 +1118,7 @@ export abstract class BaseAgentRunner implements IAgentRunner {
       taskId?: string;
       progress?: number;
     },
-  ): Promise<void> {
+  ): void {
     // Skip if HttpService not injected (some tests or edge cases)
     if (!this.httpService) {
       return;
@@ -1126,14 +1126,21 @@ export abstract class BaseAgentRunner implements IAgentRunner {
 
     try {
       if (!process.env.API_PORT) {
-        throw new Error('API_PORT environment variable is required for webhook URL construction');
+        throw new Error(
+          'API_PORT environment variable is required for webhook URL construction',
+        );
       }
       const apiPort = process.env.API_PORT;
       const webhookUrl = `http://localhost:${apiPort}/webhooks/status`;
 
       const userId = this.resolveUserId(context.request);
       const conversationId = this.resolveConversationId(context.request);
-      const taskId = context.taskId || ((context.request.payload as Record<string, unknown>)?.taskId as string | null) || null;
+      const taskId =
+        context.taskId ||
+        ((context.request.payload as Record<string, unknown>)?.taskId as
+          | string
+          | null) ||
+        null;
 
       const payload = {
         taskId: taskId || conversationId || 'unknown',
@@ -1154,16 +1161,18 @@ export abstract class BaseAgentRunner implements IAgentRunner {
           timeout: 5000,
           headers: { 'Content-Type': 'application/json' },
         }),
-      ).catch((error) => {
+      ).catch((error: unknown) => {
         // Log error but don't throw - observability should never break agent execution
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         this.logger.warn(
-          `Failed to emit observability event (${eventType}): ${error.message}`,
+          `Failed to emit observability event (${eventType}): ${errorMessage}`,
         );
       });
     } catch (error) {
       // Silently catch errors - observability is non-critical
       this.logger.debug(
-        `Error preparing observability event: ${error instanceof Error ? error.message : error}`,
+        `Error preparing observability event: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }

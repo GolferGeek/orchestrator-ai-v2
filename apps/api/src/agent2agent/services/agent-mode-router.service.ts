@@ -83,20 +83,20 @@ export class AgentModeRouterService {
     let agentRecord: AgentRecord | null = existingAgent ?? null;
     if (!agentRecord) {
       // Convert organizationSlug to first element if array, or use as is
-      const orgSlugParam: string | null = Array.isArray(organizationSlug) && organizationSlug.length > 0
-        ? (organizationSlug[0] ?? null)
-        : (typeof organizationSlug === 'string' ? organizationSlug : null);
+      const orgSlugParam: string | null =
+        Array.isArray(organizationSlug) && organizationSlug.length > 0
+          ? (organizationSlug[0] ?? null)
+          : typeof organizationSlug === 'string'
+            ? organizationSlug
+            : null;
 
-      agentRecord = await this.agentRegistry.getAgent(
-        orgSlugParam,
-        agentSlug,
-      );
+      agentRecord = await this.agentRegistry.getAgent(orgSlugParam, agentSlug);
     }
 
     if (!agentRecord) {
       const orgDisplay = Array.isArray(organizationSlug)
         ? organizationSlug.join(',')
-        : organizationSlug ?? 'global';
+        : (organizationSlug ?? 'global');
       this.logger.warn(
         `Agent ${agentSlug} not found for organization ${orgDisplay}`,
       );
@@ -108,9 +108,12 @@ export class AgentModeRouterService {
       this.runtimeDefinitions.buildDefinition(agentRecord);
 
     // For organizationSlug in context, use first element if array
-    const contextOrgSlug: string | null = Array.isArray(organizationSlug) && organizationSlug.length > 0
-      ? (organizationSlug[0] ?? null)
-      : (typeof organizationSlug === 'string' ? organizationSlug : null);
+    const contextOrgSlug: string | null =
+      Array.isArray(organizationSlug) && organizationSlug.length > 0
+        ? (organizationSlug[0] ?? null)
+        : typeof organizationSlug === 'string'
+          ? organizationSlug
+          : null;
 
     return {
       ...context,

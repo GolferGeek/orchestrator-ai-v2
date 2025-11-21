@@ -117,7 +117,9 @@ export class OrchestratorAgentRunnerService extends BaseAgentRunner {
     const agents = await this.agentRegistry.listAgents(organizationSlug);
 
     // Filter to only sub-agents (exclude orchestrators based on capabilities)
-    const subAgents = agents.filter((a) => !a.capabilities?.includes('orchestrate'));
+    const subAgents = agents.filter(
+      (a) => !a.capabilities?.includes('orchestrate'),
+    );
 
     if (subAgents.length === 0) {
       throw new Error('No sub-agents available for delegation');
@@ -131,8 +133,7 @@ export class OrchestratorAgentRunnerService extends BaseAgentRunner {
     const userMessage = request.userMessage || JSON.stringify(request.payload);
     const agentList = subAgents
       .map(
-        (a) =>
-          `- ${a.slug}: ${a.name} - ${a.description || 'No description'}`,
+        (a) => `- ${a.slug}: ${a.name} - ${a.description || 'No description'}`,
       )
       .join('\n');
 

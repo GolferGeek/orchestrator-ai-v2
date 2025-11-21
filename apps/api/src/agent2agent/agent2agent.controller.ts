@@ -41,7 +41,6 @@ import { AgentRecord } from '../agent-platform/interfaces/agent.interface';
 import { Public } from '../auth/decorators/public.decorator';
 import { Agent2AgentDeliverablesService } from './services/agent2agent-deliverables.service';
 import { SupabaseService } from '../supabase/supabase.service';
-import { load as yamlLoad } from 'js-yaml';
 import {
   A2ATaskSuccessResponse,
   A2ATaskErrorResponse,
@@ -1487,7 +1486,10 @@ export class Agent2AgentController {
     // Group agents by organization (now an array)
     const grouped = new Map<string, AgentRecord[]>();
     for (const record of records) {
-      const keys = record.organization_slug.length > 0 ? record.organization_slug : ['global'];
+      const keys =
+        record.organization_slug.length > 0
+          ? record.organization_slug
+          : ['global'];
       for (const key of keys) {
         if (!grouped.has(key)) {
           grouped.set(key, []);
@@ -1500,7 +1502,7 @@ export class Agent2AgentController {
       record: AgentRecord,
       children: unknown[] = [],
     ): unknown => {
-      const metadataObj = record.metadata as Record<string, unknown> || {};
+      const metadataObj = (record.metadata as Record<string, unknown>) || {};
       const isTool = metadataObj.agent_category === 'tool';
       const isOrchestrator =
         record.capabilities.includes('orchestrate') || metadataObj.orchestrator;
@@ -1547,11 +1549,13 @@ export class Agent2AgentController {
     grouped.forEach((agents, _namespaceKey) => {
       // Group agents by logical hierarchy based on naming patterns
       const orchestrators = agents.filter(
-        (a) => a.capabilities?.includes('orchestrate') ||
+        (a) =>
+          a.capabilities?.includes('orchestrate') ||
           ((a.metadata as Record<string, unknown>)?.orchestrator as boolean),
       );
       const nonOrchestrators = agents.filter(
-        (a) => !a.capabilities?.includes('orchestrate') &&
+        (a) =>
+          !a.capabilities?.includes('orchestrate') &&
           !((a.metadata as Record<string, unknown>)?.orchestrator as boolean),
       );
 
@@ -1599,7 +1603,10 @@ export class Agent2AgentController {
   private extractExecutionModes(record: AgentRecord): string[] {
     const modes = new Set<string>();
 
-    const metadataObj = record.metadata as { execution_modes?: unknown; executionModes?: unknown } | null;
+    const metadataObj = record.metadata as {
+      execution_modes?: unknown;
+      executionModes?: unknown;
+    } | null;
     const configExecutionModes =
       metadataObj?.execution_modes ?? metadataObj?.executionModes;
 

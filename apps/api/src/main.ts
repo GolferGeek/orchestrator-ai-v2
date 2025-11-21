@@ -243,7 +243,7 @@ async function bootstrap() {
   if (!process.env.API_PORT) {
     throw new Error(
       'API_PORT environment variable is required. ' +
-      'Set API_PORT in your .env file (Dev: 6100, Staging: 8100, Prod: 9100)'
+        'Set API_PORT in your .env file (Dev: 6100, Staging: 8100, Prod: 9100)',
     );
   }
   const port = parseInt(process.env.API_PORT);

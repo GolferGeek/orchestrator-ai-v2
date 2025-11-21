@@ -71,10 +71,10 @@ export class JwtAuthGuard implements CanActivate {
 
     const bearerToken = this.extractBearerToken(request);
     const queryToken = this.extractQueryToken(request);
-    
+
     // Try bearer token first, then query token
     const token = bearerToken || queryToken;
-    
+
     if (token) {
       try {
         const supabaseClient = this.supabaseService.getAnonClient();
@@ -110,7 +110,7 @@ export class JwtAuthGuard implements CanActivate {
         };
 
         request.user = validatedUser;
-        
+
         // If token came from query params, try to parse as stream token (for backward compatibility)
         if (queryToken && !bearerToken) {
           try {
@@ -123,7 +123,7 @@ export class JwtAuthGuard implements CanActivate {
             // Not a stream token, that's fine - it's a regular JWT
           }
         }
-        
+
         return true;
       } catch (error) {
         this.logger.warn('Token validation failed', {

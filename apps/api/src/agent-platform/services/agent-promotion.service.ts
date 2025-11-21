@@ -62,7 +62,7 @@ export class AgentPromotionService {
         throw new BadRequestException(`Agent ${agentId} not found`);
       }
 
-      const metadataObj = agent.metadata as Record<string, unknown> || {};
+      const metadataObj = (agent.metadata as Record<string, unknown>) || {};
       const currentStatus = (metadataObj.status as string) || 'draft';
 
       // 2. Check current status
@@ -90,7 +90,8 @@ export class AgentPromotionService {
             agent_type: agent.agent_type as AgentType,
             slug: agent.slug,
             display_name: agent.name,
-            mode_profile: (metadataObj.mode_profile as string) || 'conversation_only',
+            mode_profile:
+              (metadataObj.mode_profile as string) || 'conversation_only',
             description: agent.description,
             yaml: '', // No YAML in v2
             context: { markdown: agent.context } as JsonObject, // Wrap string as object
@@ -104,8 +105,8 @@ export class AgentPromotionService {
             typeof this.policy.check
           >[0]['config'],
           context: {
-            input_modes: (metadataObj.input_modes as unknown) || undefined,
-            output_modes: (metadataObj.output_modes as unknown) || undefined,
+            input_modes: metadataObj.input_modes || undefined,
+            output_modes: metadataObj.output_modes || undefined,
             system_prompt: agent.context,
           },
         });
@@ -162,7 +163,10 @@ export class AgentPromotionService {
       }
 
       // 5. Auto-promote (no approval required)
-      await this.agents.updateMetadata(agentId, { ...metadataObj, status: 'active' });
+      await this.agents.updateMetadata(agentId, {
+        ...metadataObj,
+        status: 'active',
+      });
       this.logger.log(`Agent ${agent.slug} promoted to active (auto-approved)`);
 
       return {
@@ -213,7 +217,9 @@ export class AgentPromotionService {
       }
 
       // 5. Verify still in draft status
-      const metaStatus = ((agent.metadata as Record<string, unknown>)?.status as string) || 'draft';
+      const metaStatus =
+        ((agent.metadata as Record<string, unknown>)?.status as string) ||
+        'draft';
       if (metaStatus !== 'draft') {
         throw new BadRequestException(
           `Agent status is '${metaStatus}', expected 'draft'`,
@@ -221,8 +227,11 @@ export class AgentPromotionService {
       }
 
       // 6. Promote
-      const metadataObj = agent.metadata as Record<string, unknown> || {};
-      await this.agents.updateMetadata(agentId, { ...metadataObj, status: 'active' });
+      const metadataObj = (agent.metadata as Record<string, unknown>) || {};
+      await this.agents.updateMetadata(agentId, {
+        ...metadataObj,
+        status: 'active',
+      });
 
       this.logger.log(
         `Agent ${agent.slug} promoted to active via approval ${approvalId} by ${approval.approved_by}`,
@@ -254,7 +263,7 @@ export class AgentPromotionService {
         throw new BadRequestException(`Agent ${agentId} not found`);
       }
 
-      const metaObj1 = agent.metadata as Record<string, unknown> || {};
+      const metaObj1 = (agent.metadata as Record<string, unknown>) || {};
       const currentStatus1 = (metaObj1.status as string) || 'unknown';
 
       if (currentStatus1 !== 'active') {
@@ -267,7 +276,10 @@ export class AgentPromotionService {
         };
       }
 
-      await this.agents.updateMetadata(agentId, { ...metaObj1, status: 'draft' });
+      await this.agents.updateMetadata(agentId, {
+        ...metaObj1,
+        status: 'draft',
+      });
 
       this.logger.log(
         `Agent ${agent.slug} demoted to draft. Reason: ${reason || 'N/A'}`,
@@ -296,7 +308,7 @@ export class AgentPromotionService {
         throw new BadRequestException(`Agent ${agentId} not found`);
       }
 
-      const metaObj2 = agent.metadata as Record<string, unknown> || {};
+      const metaObj2 = (agent.metadata as Record<string, unknown>) || {};
       const currentStatus2 = (metaObj2.status as string) || 'unknown';
 
       if (currentStatus2 === 'archived') {
@@ -310,7 +322,10 @@ export class AgentPromotionService {
       }
 
       const previousStatus = currentStatus2;
-      await this.agents.updateMetadata(agentId, { ...metaObj2, status: 'archived' });
+      await this.agents.updateMetadata(agentId, {
+        ...metaObj2,
+        status: 'archived',
+      });
 
       this.logger.log(
         `Agent ${agent.slug} archived. Reason: ${reason || 'N/A'}`,

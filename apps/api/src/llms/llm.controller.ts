@@ -54,7 +54,10 @@ export class LLMController {
     try {
       // Guard: Conversation-based requests from frontend should use agent tasks endpoint
       // But allow external API calls (like n8n) to use conversationId for observability
-      if (request?.options?.conversationId && request?.options?.callerType !== 'external') {
+      if (
+        request?.options?.conversationId &&
+        request?.options?.callerType !== 'external'
+      ) {
         const guidance = {
           message:
             'Conversation-based requests must use the agent tasks endpoint to preserve agent + MCP context.',
@@ -76,9 +79,10 @@ export class LLMController {
       }
 
       // Ensure providerName and modelName are set (use provider as fallback for compatibility)
-      const providerName = request.options?.providerName || request.options?.provider;
+      const providerName =
+        request.options?.providerName || request.options?.provider;
       const modelName = request.options?.modelName;
-      
+
       this.logger.debug(`LLM request options:`, {
         provider: request.options?.provider,
         providerName: request.options?.providerName,

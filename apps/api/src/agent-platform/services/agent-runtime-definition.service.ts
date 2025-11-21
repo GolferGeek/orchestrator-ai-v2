@@ -42,7 +42,8 @@ export class AgentRuntimeDefinitionService {
     const config = this.buildConfig(record, descriptor);
 
     // Use io_schema from database, fall back to descriptor if available
-    const ioSchema = record.io_schema || this.toJsonObject(descriptor?.io_schema) || null;
+    const ioSchema =
+      record.io_schema || this.toJsonObject(descriptor?.io_schema) || null;
 
     // Extract plan and deliverable structures from metadata and descriptor
     const metadataConfig = this.toJsonObject(record.metadata);
@@ -97,7 +98,9 @@ export class AgentRuntimeDefinitionService {
   /**
    * Parse context field as descriptor - context may contain YAML frontmatter or structured metadata
    */
-  private parseContextAsDescriptor(context: string | null | undefined): JsonObject | null {
+  private parseContextAsDescriptor(
+    context: string | null | undefined,
+  ): JsonObject | null {
     if (!context || typeof context !== 'string' || !context.trim()) {
       return null;
     }
@@ -122,7 +125,9 @@ export class AgentRuntimeDefinitionService {
   /**
    * Parse context as a JSON object for runtime use
    */
-  private parseContextObject(context: string | null | undefined): JsonObject | null {
+  private parseContextObject(
+    context: string | null | undefined,
+  ): JsonObject | null {
     if (!context || typeof context !== 'string' || !context.trim()) {
       return null;
     }
@@ -139,7 +144,8 @@ export class AgentRuntimeDefinitionService {
     descriptor: UnknownRecord,
   ): AgentMetadataDefinition {
     const metadataNode = this.toJsonObject(descriptor?.metadata);
-    const tags = record.tags || this.toStringArray(metadataNode?.tags ?? descriptor?.tags);
+    const tags =
+      record.tags || this.toStringArray(metadataNode?.tags ?? descriptor?.tags);
 
     return {
       name: record.name,
@@ -301,7 +307,10 @@ export class AgentRuntimeDefinitionService {
     descriptor: UnknownRecord,
   ): AgentTransportDefinition | undefined {
     // Use record.endpoint for api/external agents
-    const endpointConfig = record.endpoint ?? this.toJsonObject(descriptor?.api_configuration) ?? this.toJsonObject(descriptor?.external_a2a_configuration);
+    const endpointConfig =
+      record.endpoint ??
+      this.toJsonObject(descriptor?.api_configuration) ??
+      this.toJsonObject(descriptor?.external_a2a_configuration);
 
     if (!endpointConfig) {
       return undefined;
@@ -338,7 +347,10 @@ export class AgentRuntimeDefinitionService {
     }
 
     // External agent configuration
-    if (record.agent_type === 'external' || descriptor?.external_a2a_configuration) {
+    if (
+      record.agent_type === 'external' ||
+      descriptor?.external_a2a_configuration
+    ) {
       const authentication =
         endpointConfig.authentication === null
           ? null
@@ -412,9 +424,12 @@ export class AgentRuntimeDefinitionService {
     const contextNode = this.toJsonObject(descriptor?.context);
 
     // For context agents, use the markdown context as the system prompt
-    const systemFromContext = record.agent_type === 'context'
-      ? record.context
-      : this.asString(contextNode?.system_prompt ?? contextNode?.systemPrompt);
+    const systemFromContext =
+      record.agent_type === 'context'
+        ? record.context
+        : this.asString(
+            contextNode?.system_prompt ?? contextNode?.systemPrompt,
+          );
 
     return {
       system:
@@ -436,7 +451,9 @@ export class AgentRuntimeDefinitionService {
     const descriptorConfig = this.toJsonObject(
       descriptor?.configuration,
     ) as AgentConfigDefinition | null;
-    const metadataConfig = record.metadata ? this.toJsonObject(record.metadata) : null;
+    const metadataConfig = record.metadata
+      ? this.toJsonObject(record.metadata)
+      : null;
     const merged = this.mergeJsonObjects(descriptorConfig, metadataConfig);
     return (merged as AgentConfigDefinition | null) ?? null;
   }

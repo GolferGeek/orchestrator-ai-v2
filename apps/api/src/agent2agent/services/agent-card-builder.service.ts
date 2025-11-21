@@ -35,8 +35,10 @@ export class AgentCardBuilderService {
     }
 
     const specCard = this.composeSpecCard(agent);
-    const metadataObj = agent.metadata as Record<string, unknown> || {};
-    const agentCard = metadataObj.agent_card as Record<string, unknown> | undefined;
+    const metadataObj = (agent.metadata as Record<string, unknown>) || {};
+    const agentCard = metadataObj.agent_card as
+      | Record<string, unknown>
+      | undefined;
     const combined = agentCard
       ? this.mergeCards(agentCard, specCard)
       : specCard;
@@ -80,14 +82,18 @@ export class AgentCardBuilderService {
 
   private composeSpecCard(agent: AgentRecord): Record<string, unknown> {
     const baseUrl = this.resolveBaseUrl();
-    const metadataObj = agent.metadata as Record<string, unknown> || {};
+    const metadataObj = (agent.metadata as Record<string, unknown>) || {};
     const orgSegment = agent.organization_slug.join(',') || 'global';
     const encodedOrg = encodeURIComponent(orgSegment);
     const encodedAgent = encodeURIComponent(agent.slug);
     const agentUrl = `${baseUrl}/agent-to-agent/${encodedOrg}/${encodedAgent}`;
 
-    const defaultInputModes = (metadataObj.input_modes as string[]) ?? ['text/plain'];
-    const defaultOutputModes = (metadataObj.output_modes as string[]) ?? ['text/plain'];
+    const defaultInputModes = (metadataObj.input_modes as string[]) ?? [
+      'text/plain',
+    ];
+    const defaultOutputModes = (metadataObj.output_modes as string[]) ?? [
+      'text/plain',
+    ];
 
     const capabilities = this.deriveCapabilities(agent);
     const skills = this.deriveSkills(agent);
@@ -233,7 +239,8 @@ export class AgentCardBuilderService {
 
   private deriveSupportedModes(agent: AgentRecord): string[] {
     const metadataConfig = (agent.metadata as Record<string, unknown>) ?? {};
-    const modeProfile: string | null = (metadataConfig.mode_profile as string | null) ?? null;
+    const modeProfile: string | null =
+      (metadataConfig.mode_profile as string | null) ?? null;
 
     const sources: Array<string[] | null> = [
       this.ensureStringArray(metadataConfig.supported_modes),

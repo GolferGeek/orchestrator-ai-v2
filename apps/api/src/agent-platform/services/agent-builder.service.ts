@@ -5,7 +5,7 @@ import { AgentDryRunService } from './agent-dry-run.service';
 import { AgentsRepository } from '../repositories/agents.repository';
 import { LLMService } from '@/llms/llm.service';
 import type { JsonObject } from '@orchestrator-ai/transport-types';
-import { AgentType } from '../dto/agent-admin.dto';
+import type { AgentType } from '../schemas/agent-schemas';
 
 interface ValidationIssue {
   message: string;
@@ -49,10 +49,10 @@ export class AgentBuilderService {
    * Validate an agent configuration
    */
   async validateAgent(payload: JsonObject): Promise<ValidationResult> {
-    const type = payload.agent_type as string;
-    // Cast to any to avoid type incompatibility between dto.AgentType and schemas.AgentType
+    const type = payload.agent_type as AgentType;
+    // Validate using the agent type from payload
     const validation = this.validator.validateByType(
-      type as any,
+      type,
       payload as unknown as Parameters<typeof this.validator.validateByType>[1],
     );
     const policyIssues = this.policy.check(
@@ -65,8 +65,9 @@ export class AgentBuilderService {
     };
 
     // Note: Function agents removed in v2 schema
-    // Run dry-run for function agents (legacy code - AgentType.FUNCTION no longer exists)
-    if (validation.ok && false) {
+    // Legacy function agent dry-run code removed - only API agents supported
+    const isLegacyFunctionAgent = false; // Function agents no longer exist
+    if (validation.ok && isLegacyFunctionAgent) {
       const config = payload?.config;
       if (config && typeof config === 'object' && !Array.isArray(config)) {
         const configuration = (config as Record<string, unknown>).configuration;
@@ -100,7 +101,7 @@ export class AgentBuilderService {
     }
 
     // Run dry-run for API agents
-    if (validation.ok && type === AgentType.API) {
+    if (validation.ok && type === 'api') {
       const config = payload?.config;
       if (config && typeof config === 'object' && !Array.isArray(config)) {
         const configuration = (config as Record<string, unknown>).configuration;
@@ -151,7 +152,8 @@ export class AgentBuilderService {
       }
 
       // Create the agent using v2 schema
-      const agentType = typeof payload.agent_type === 'string' ? payload.agent_type : '';
+      const agentType =
+        typeof payload.agent_type === 'string' ? payload.agent_type : '';
       // Validate agent type
       if (!['context', 'api', 'external'].includes(agentType)) {
         return {
@@ -167,27 +169,46 @@ export class AgentBuilderService {
             ? [payload.organization_slug]
             : [],
         slug: typeof payload.slug === 'string' ? payload.slug : '',
-        name: typeof payload.display_name === 'string' ? payload.display_name : '',
+        name:
+          typeof payload.display_name === 'string' ? payload.display_name : '',
         description:
           typeof payload.description === 'string' ? payload.description : '',
         agent_type: agentType as 'context' | 'api' | 'external',
-        department: typeof payload.department === 'string' ? payload.department : 'general',
-        version: typeof payload.version === 'string' ? payload.version : '1.0.0',
+        department:
+          typeof payload.department === 'string'
+            ? payload.department
+            : 'general',
+        version:
+          typeof payload.version === 'string' ? payload.version : '1.0.0',
         tags: Array.isArray(payload.tags) ? (payload.tags as string[]) : [],
-        capabilities: Array.isArray(payload.capabilities) ? (payload.capabilities as string[]) : [],
+        capabilities: Array.isArray(payload.capabilities)
+          ? (payload.capabilities as string[])
+          : [],
         context: typeof payload.context === 'string' ? payload.context : '',
-        io_schema: (payload.io_schema && typeof payload.io_schema === 'object' && !Array.isArray(payload.io_schema))
-          ? (payload.io_schema as JsonObject)
-          : {},
-        endpoint: (payload.endpoint && typeof payload.endpoint === 'object' && !Array.isArray(payload.endpoint))
-          ? (payload.endpoint as JsonObject)
-          : null,
-        llm_config: (payload.llm_config && typeof payload.llm_config === 'object' && !Array.isArray(payload.llm_config))
-          ? (payload.llm_config as JsonObject)
-          : null,
-        metadata: (payload.metadata && typeof payload.metadata === 'object' && !Array.isArray(payload.metadata))
-          ? (payload.metadata as JsonObject)
-          : {},
+        io_schema:
+          payload.io_schema &&
+          typeof payload.io_schema === 'object' &&
+          !Array.isArray(payload.io_schema)
+            ? payload.io_schema
+            : {},
+        endpoint:
+          payload.endpoint &&
+          typeof payload.endpoint === 'object' &&
+          !Array.isArray(payload.endpoint)
+            ? payload.endpoint
+            : null,
+        llm_config:
+          payload.llm_config &&
+          typeof payload.llm_config === 'object' &&
+          !Array.isArray(payload.llm_config)
+            ? payload.llm_config
+            : null,
+        metadata:
+          payload.metadata &&
+          typeof payload.metadata === 'object' &&
+          !Array.isArray(payload.metadata)
+            ? payload.metadata
+            : {},
       });
 
       return { success: true, data: record };

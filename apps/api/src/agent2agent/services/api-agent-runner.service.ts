@@ -258,17 +258,27 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           );
           // Remove fields with unresolved templates or empty strings (from missing env vars)
           body = this.filterUnresolvedTemplates(body);
-          
+
           // Post-process statusWebhook to ensure AGENT_BASE_URL and API_PORT are combined correctly
           if (body && typeof body === 'object') {
             const bodyObj = body as Record<string, unknown>;
-            if ('statusWebhook' in bodyObj && typeof bodyObj.statusWebhook === 'string') {
-              bodyObj.statusWebhook = this.combineBaseUrlAndPort(bodyObj.statusWebhook);
-              this.logger.debug(`statusWebhook value: ${JSON.stringify(bodyObj.statusWebhook)}`);
+            if (
+              'statusWebhook' in bodyObj &&
+              typeof bodyObj.statusWebhook === 'string'
+            ) {
+              bodyObj.statusWebhook = this.combineBaseUrlAndPort(
+                bodyObj.statusWebhook,
+              );
+              this.logger.debug(
+                `statusWebhook value: ${JSON.stringify(bodyObj.statusWebhook)}`,
+              );
             }
           }
         } else if (typeof apiConfig.body === 'string') {
-          const interpolated = this.interpolateString(apiConfig.body, enrichedRequest);
+          const interpolated = this.interpolateString(
+            apiConfig.body,
+            enrichedRequest,
+          );
           // Only use if no unresolved templates remain
           body = interpolated.includes('{{') ? undefined : interpolated;
         } else {
@@ -288,7 +298,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
 
       // 5. Execute HTTP request
       // Observability: Calling external API
-      await this.emitObservabilityEvent('agent.progress', 'Calling external API', {
+      this.emitObservabilityEvent('agent.progress', 'Calling external API', {
         definition,
         request,
         organizationSlug,
@@ -304,9 +314,9 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           throw new Error('HttpService not available');
         }
         if (!this.httpService) {
-        throw new Error('HttpService not available');
-      }
-      const observable = this.httpService.request({
+          throw new Error('HttpService not available');
+        }
+        const observable = this.httpService.request({
           url,
           method: method,
           headers,
@@ -321,7 +331,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         // Extract detailed error information
         let errorMessage = 'Unknown error';
         let errorDetails = '';
-        
+
         if (error && typeof error === 'object') {
           // Handle Axios errors
           const axiosError = error as {
@@ -330,7 +340,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
             response?: { status?: number; statusText?: string; data?: unknown };
             request?: { path?: string };
           };
-          
+
           if (axiosError.code === 'ECONNREFUSED') {
             errorMessage = `Connection refused - service may not be running`;
             errorDetails = `Failed to connect to ${url}`;
@@ -338,38 +348,42 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
             errorMessage = `Request timeout`;
             errorDetails = `Request to ${url} timed out`;
           } else if (axiosError.response) {
-            errorMessage = `HTTP ${axiosError.response.status} ${axiosError.response.statusText || ''}`.trim();
-            errorDetails = axiosError.response.data 
-              ? (typeof axiosError.response.data === 'string' 
-                  ? axiosError.response.data 
-                  : JSON.stringify(axiosError.response.data))
+            errorMessage =
+              `HTTP ${axiosError.response.status} ${axiosError.response.statusText || ''}`.trim();
+            errorDetails = axiosError.response.data
+              ? typeof axiosError.response.data === 'string'
+                ? axiosError.response.data
+                : JSON.stringify(axiosError.response.data)
               : '';
           } else if (axiosError.message) {
             errorMessage = axiosError.message;
-            errorDetails = axiosError.code ? `Error code: ${axiosError.code}` : '';
+            errorDetails = axiosError.code
+              ? `Error code: ${axiosError.code}`
+              : '';
           }
         } else if (error instanceof Error) {
           errorMessage = error.message;
         } else {
           errorMessage = String(error);
         }
-        
-        const fullErrorMsg = errorDetails 
+
+        const fullErrorMsg = errorDetails
           ? `${errorMessage}${errorDetails ? ` - ${errorDetails}` : ''}`
           : errorMessage;
-        
-        this.logger.error(`API call failed: ${fullErrorMsg}`, { url, method, error });
 
-        return TaskResponseDto.failure(
-          AgentTaskMode.BUILD,
-          fullErrorMsg,
-        );
+        this.logger.error(`API call failed: ${fullErrorMsg}`, {
+          url,
+          method,
+          error,
+        });
+
+        return TaskResponseDto.failure(AgentTaskMode.BUILD, fullErrorMsg);
       }
 
       const duration = Date.now() - startTime;
 
       // Observability: Processing API response
-      await this.emitObservabilityEvent('agent.progress', 'Processing API response', {
+      this.emitObservabilityEvent('agent.progress', 'Processing API response', {
         definition,
         request,
         organizationSlug,
@@ -395,7 +409,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
 
       // 7. Format response data
       // Observability: Formatting response
-      await this.emitObservabilityEvent('agent.progress', 'Formatting response', {
+      this.emitObservabilityEvent('agent.progress', 'Formatting response', {
         definition,
         request,
         organizationSlug,
@@ -477,12 +491,17 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         throw new Error('DeliverablesService not injected');
       }
       if (typeof this.deliverablesService.executeAction !== 'function') {
-        this.logger.error('deliverablesService.executeAction is not a function', {
-          deliverablesService: this.deliverablesService,
-          type: typeof this.deliverablesService,
-          constructor: this.deliverablesService?.constructor?.name,
-          methods: Object.getOwnPropertyNames(Object.getPrototypeOf(this.deliverablesService)),
-        });
+        this.logger.error(
+          'deliverablesService.executeAction is not a function',
+          {
+            deliverablesService: this.deliverablesService,
+            type: typeof this.deliverablesService,
+            constructor: this.deliverablesService?.constructor?.name,
+            methods: Object.getOwnPropertyNames(
+              Object.getPrototypeOf(this.deliverablesService),
+            ),
+          },
+        );
         throw new Error('DeliverablesService.executeAction is not available');
       }
 
@@ -523,12 +542,15 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
       }
 
       // Extract deliverable from result (createOrEnhance returns { deliverable, versions })
-      const deliverableData = deliverableResult.data as { deliverable?: unknown; versions?: unknown[] } | unknown;
-      
+      const deliverableData = deliverableResult.data;
+
       // Ensure deliverable is accessible at payload.content.deliverable for frontend
-      const contentWithDeliverable = (deliverableData && typeof deliverableData === 'object' && 'deliverable' in deliverableData)
-        ? deliverableData
-        : { deliverable: deliverableData };
+      const contentWithDeliverable =
+        deliverableData &&
+        typeof deliverableData === 'object' &&
+        'deliverable' in deliverableData
+          ? deliverableData
+          : { deliverable: deliverableData };
 
       return TaskResponseDto.success(AgentTaskMode.BUILD, {
         content: contentWithDeliverable,
@@ -626,7 +648,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
       (match: string, path: string) => {
         const trimmedPath = path.trim();
         const keys = trimmedPath.split('.');
-        
+
         // Handle environment variables: {{env.VAR_NAME}}
         if (keys[0] === 'env' && keys.length === 2 && keys[1]) {
           const envVar = keys[1];
@@ -638,12 +660,12 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           // Return empty string if env var not found (will be filtered out later)
           return '';
         }
-        
+
         // Handle combined URL construction: {{env.AGENT_BASE_URL}}:{{env.API_PORT}}
         // This pattern appears in templates like "{{env.AGENT_BASE_URL}}:{{env.API_PORT}}/path"
         // We handle it here by checking if the next part of the template is :{{env.API_PORT}}
         // Actually, this is handled by the regex replacement above - each {{...}} is replaced separately
-        
+
         // Handle request data interpolation
         let value: unknown = request;
         for (const key of keys) {
@@ -733,7 +755,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
   private combineBaseUrlAndPort(urlString: string): string {
     const agentBaseUrl = process.env.AGENT_BASE_URL;
     const apiPort = process.env.API_PORT;
-    
+
     // If URL contains the pattern "AGENT_BASE_URL:API_PORT" after interpolation
     // and both env vars exist, ensure they're properly combined
     if (agentBaseUrl && apiPort) {
@@ -741,13 +763,16 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
       if (urlString.startsWith(agentBaseUrl)) {
         // If URL is exactly the base URL or base URL + path without port, add port
         const expectedWithPort = `${agentBaseUrl}:${apiPort}`;
-        if (!urlString.startsWith(expectedWithPort) && urlString !== agentBaseUrl) {
+        if (
+          !urlString.startsWith(expectedWithPort) &&
+          urlString !== agentBaseUrl
+        ) {
           // Replace base URL with base URL + port
           urlString = urlString.replace(agentBaseUrl, expectedWithPort);
         }
       }
     }
-    
+
     return urlString;
   }
 
@@ -759,23 +784,23 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
     if (!value.startsWith('http://') && !value.startsWith('https://')) {
       return false; // Not a URL, let other validation handle it
     }
-    
+
     // Check for empty host: http://:port/path (colon immediately after ://)
     if (value.match(/:\/\/:/)) {
       return true; // Malformed: empty host
     }
-    
+
     // Check for empty port in URL: http://host:/path (colon followed directly by slash)
     // Pattern matches: :// followed by hostname (one or more non-:/ chars), then :/ (colon + slash with no port)
-    if (value.match(/:\/\/[^\/:]+:\//)) {
+    if (value.match(/:\/\/[^/:]+:\//)) {
       return true; // Malformed: has colon-slash but no port number
     }
-    
+
     // Also check for URLs with just colon and no slash after host (edge case)
-    if (value.match(/:\/\/[^\/:]+:$/)) {
+    if (value.match(/:\/\/[^/:]+:$/)) {
       return true; // Malformed: ends with colon
     }
-    
+
     // Try URL constructor as final validation
     try {
       new URL(value);

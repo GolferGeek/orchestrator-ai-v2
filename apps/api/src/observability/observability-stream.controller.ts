@@ -50,9 +50,10 @@ export class ObservabilityStreamController {
     response.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
+      Connection: 'keep-alive',
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'Cache-Control, Content-Type, Authorization',
+      'Access-Control-Allow-Headers':
+        'Cache-Control, Content-Type, Authorization',
       'X-Accel-Buffering': 'no', // Disable nginx buffering
     });
 
@@ -72,7 +73,9 @@ export class ObservabilityStreamController {
         for (const event of recentEvents.reverse()) {
           response.write(`data: ${JSON.stringify(event)}\n\n`);
         }
-        this.logger.log(`📦 Sent ${recentEvents.length} recent events to admin`);
+        this.logger.log(
+          `📦 Sent ${recentEvents.length} recent events to admin`,
+        );
       }
     } catch (error) {
       this.logger.error('Error sending recent events:', error);
@@ -106,7 +109,7 @@ export class ObservabilityStreamController {
     const heartbeatInterval = setInterval(() => {
       try {
         response.write(': heartbeat\n\n');
-      } catch (error) {
+      } catch {
         this.logger.warn('Failed to send heartbeat, client disconnected');
         clearInterval(heartbeatInterval);
       }
@@ -121,4 +124,3 @@ export class ObservabilityStreamController {
     });
   }
 }
-

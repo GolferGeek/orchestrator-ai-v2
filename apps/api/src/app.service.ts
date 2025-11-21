@@ -7,7 +7,6 @@ import {
   DEFAULT_EXECUTION_PROFILE,
   AgentExecutionProfile,
 } from './agent-platform/types/agent-execution.types';
-import { load as yamlLoad } from 'js-yaml';
 
 @Injectable()
 export class AppService implements OnModuleInit {
@@ -259,7 +258,7 @@ export class AppService implements OnModuleInit {
   }
 
   private mapDatabaseAgent(record: AgentRecord) {
-    const metadataObj = record.metadata as Record<string, unknown> || {};
+    const metadataObj = (record.metadata as Record<string, unknown>) || {};
     const agentCategory = metadataObj.agent_category as string | undefined;
     const isTool = agentCategory === 'tool';
 
@@ -307,7 +306,9 @@ export class AppService implements OnModuleInit {
       serviceClass: undefined,
       hasInstance: true,
       execution_modes: executionModes,
-      execution_profile: this.deriveExecutionProfile(metadataObj.mode_profile as string),
+      execution_profile: this.deriveExecutionProfile(
+        metadataObj.mode_profile as string,
+      ),
       execution_capabilities: executionCapabilities,
       metadata,
       status: (metadataObj.status as string) ?? 'active',
@@ -327,7 +328,8 @@ export class AppService implements OnModuleInit {
       | null
       | undefined;
 
-    const configModes = metadataObj?.execution_modes ?? metadataObj?.executionModes;
+    const configModes =
+      metadataObj?.execution_modes ?? metadataObj?.executionModes;
     if (Array.isArray(configModes)) {
       for (const mode of configModes) {
         if (typeof mode === 'string' && mode.trim().length > 0) {

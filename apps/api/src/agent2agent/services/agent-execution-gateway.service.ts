@@ -131,11 +131,15 @@ export class AgentExecutionGateway {
 
       // Emit completion or failure based on response
       if (response.success) {
-        this.emitAgentLifecycleEvent('agent.completed', 'Agent execution completed', {
-          definition,
-          request,
-          organizationSlug,
-        });
+        this.emitAgentLifecycleEvent(
+          'agent.completed',
+          'Agent execution completed',
+          {
+            definition,
+            request,
+            organizationSlug,
+          },
+        );
       } else {
         this.emitAgentLifecycleEvent('agent.failed', 'Agent execution failed', {
           definition,
@@ -146,12 +150,17 @@ export class AgentExecutionGateway {
 
       return response;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.emitAgentLifecycleEvent('agent.failed', `Agent execution error: ${errorMessage}`, {
-        definition,
-        request,
-        organizationSlug,
-      });
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.emitAgentLifecycleEvent(
+        'agent.failed',
+        `Agent execution error: ${errorMessage}`,
+        {
+          definition,
+          request,
+          organizationSlug,
+        },
+      );
       throw error;
     }
   }
@@ -438,31 +447,35 @@ export class AgentExecutionGateway {
     try {
       const userId = this.resolveUserId(context.request);
       const conversationId = context.request.conversationId || null;
-      const taskId = (context.request.payload as Record<string, unknown>)?.taskId as string | null;
+      const taskId = (context.request.payload as Record<string, unknown>)
+        ?.taskId as string | null;
 
       // Fire webhook call (non-blocking)
       if (this.httpService) {
-        this.httpService.post('http://localhost:7100/webhooks/status', {
-          taskId: taskId || conversationId || 'unknown',
-          status: eventType,
-          timestamp: new Date().toISOString(),
-          message,
-          userId: userId || undefined,
-          conversationId: conversationId || undefined,
-          agentSlug: context.definition.slug,
-          organizationSlug: context.organizationSlug || 'global',
-          mode: context.request.mode || undefined,
-        }).toPromise().catch((error: Error) => {
-          // Log but don't throw - observability should never break execution
-          this.logger.warn(
-            `Failed to emit observability event (${eventType}): ${error.message}`,
-          );
-        });
+        this.httpService
+          .post('http://localhost:7100/webhooks/status', {
+            taskId: taskId || conversationId || 'unknown',
+            status: eventType,
+            timestamp: new Date().toISOString(),
+            message,
+            userId: userId || undefined,
+            conversationId: conversationId || undefined,
+            agentSlug: context.definition.slug,
+            organizationSlug: context.organizationSlug || 'global',
+            mode: context.request.mode || undefined,
+          })
+          .toPromise()
+          .catch((error: Error) => {
+            // Log but don't throw - observability should never break execution
+            this.logger.warn(
+              `Failed to emit observability event (${eventType}): ${error.message}`,
+            );
+          });
       }
     } catch (error) {
       // Silently catch - observability is non-critical
       this.logger.debug(
-        `Error preparing observability event: ${error instanceof Error ? error.message : error}`,
+        `Error preparing observability event: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }

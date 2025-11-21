@@ -175,7 +175,10 @@ export class AgentsRepository {
     }
   }
 
-  async updateMetadata(slug: string, metadata: Record<string, any>): Promise<AgentRecord> {
+  async updateMetadata(
+    slug: string,
+    metadata: Record<string, unknown>,
+  ): Promise<AgentRecord> {
     const client = this.getClient();
     const { data, error } = (await client
       .from(AGENTS_TABLE)

@@ -175,7 +175,7 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
           : null;
 
       // Observability: Fetching context
-      await this.emitObservabilityEvent('agent.progress', 'Fetching context', {
+      this.emitObservabilityEvent('agent.progress', 'Fetching context', {
         definition,
         request,
         organizationSlug,
@@ -195,7 +195,7 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
       }
 
       // Observability: Context fetched, optimizing
-      await this.emitObservabilityEvent('agent.progress', 'Optimizing context', {
+      this.emitObservabilityEvent('agent.progress', 'Optimizing context', {
         definition,
         request,
         organizationSlug,
@@ -238,7 +238,7 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
 
       if (!finalContent) {
         // Observability: Calling LLM
-        await this.emitObservabilityEvent('agent.progress', 'Calling LLM', {
+        this.emitObservabilityEvent('agent.progress', 'Calling LLM', {
           definition,
           request,
           organizationSlug,
@@ -611,7 +611,8 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
     organizationSlug: string | null,
   ): string {
     const orgSlugs = definition.organizationSlug;
-    const firstOrgSlug = Array.isArray(orgSlugs) && orgSlugs.length > 0 ? orgSlugs[0] : null;
+    const firstOrgSlug =
+      Array.isArray(orgSlugs) && orgSlugs.length > 0 ? orgSlugs[0] : null;
     return (
       organizationSlug ??
       firstOrgSlug ??

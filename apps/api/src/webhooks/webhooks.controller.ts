@@ -265,14 +265,17 @@ export class WebhooksController {
   ): Promise<void> {
     try {
       const now = Date.now();
-      
+
       // Resolve username if not provided
       let username = update.username;
       if (update.userId && !username) {
         // Resolve username from userId using AuthService
         try {
-          const userProfile = await this.observabilityService['authService'].getUserProfile(update.userId);
-          username = userProfile?.displayName || userProfile?.email || update.userId;
+          const userProfile = await this.observabilityService[
+            'authService'
+          ].getUserProfile(update.userId);
+          username =
+            userProfile?.displayName || userProfile?.email || update.userId;
         } catch {
           username = update.userId; // Fallback to userId if resolution fails
         }

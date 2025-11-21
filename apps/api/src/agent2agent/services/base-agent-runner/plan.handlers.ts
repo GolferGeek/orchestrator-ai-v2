@@ -1093,7 +1093,8 @@ function resolveNamespace(
   organizationSlug: string | null,
 ): string {
   const orgSlugs = definition.organizationSlug;
-  const firstOrgSlug = Array.isArray(orgSlugs) && orgSlugs.length > 0 ? orgSlugs[0] : null;
+  const firstOrgSlug =
+    Array.isArray(orgSlugs) && orgSlugs.length > 0 ? orgSlugs[0] : null;
   return organizationSlug ?? firstOrgSlug ?? 'global';
 }
 
@@ -1156,10 +1157,7 @@ function serializePlan(
   );
 
   const agentNameRaw: unknown =
-    record.agentName ??
-    record.agent_name ??
-    definition.name ??
-    definition.slug;
+    record.agentName ?? record.agent_name ?? definition.name ?? definition.slug;
 
   const userIdRaw: unknown = record.userId ?? record.user_id ?? fallbackUserId;
   const namespaceRaw: unknown =

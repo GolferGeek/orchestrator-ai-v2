@@ -12,4 +12,3 @@ import { SupabaseModule } from '../supabase/supabase.module';
   exports: [ObservabilityWebhookService],
 })
 export class ObservabilityModule {}
-
