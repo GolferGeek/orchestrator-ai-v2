@@ -102,7 +102,7 @@ INSERT INTO public.users (id, email, display_name, role, roles, namespace_access
   'GolferGeek',
   'superadmin',
   '["superadmin", "admin", "user"]'::jsonb,
-  '["golfergeek", "demo-org"]'::jsonb,
+  '["golfergeek", "demo-org", "hiverarchy", "law-firm", "manufacturing-firm", "marketing-firm", "finance-firm", "ifm", "global"]'::jsonb,
   'golfergeek',
   'active'
 ),
@@ -112,7 +112,7 @@ INSERT INTO public.users (id, email, display_name, role, roles, namespace_access
   'Admin User',
   'admin',
   '["admin", "user"]'::jsonb,
-  '["golfergeek", "demo-org"]'::jsonb,
+  '["golfergeek", "demo-org", "hiverarchy", "law-firm", "manufacturing-firm", "marketing-firm", "finance-firm", "ifm", "global"]'::jsonb,
   'demo-org',
   'active'
 )

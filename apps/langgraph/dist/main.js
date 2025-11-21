@@ -14,7 +14,11 @@ async function bootstrap() {
         transform: true,
     }));
     app.enableCors();
-    const port = configService.get('LANGGRAPH_PORT') || 7200;
+    const port = configService.get('LANGGRAPH_PORT');
+    if (!port) {
+        throw new Error('LANGGRAPH_PORT environment variable is required. ' +
+            'Set LANGGRAPH_PORT in your .env file (Dev: 6200, Staging: 8200, Prod: 9200)');
+    }
     const host = configService.get('LANGGRAPH_HOST') || '0.0.0.0';
     await app.listen(port, host);
     logger.log(`🚀 LangGraph application is running on: http://${host}:${port}`);

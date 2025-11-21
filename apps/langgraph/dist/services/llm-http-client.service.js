@@ -23,7 +23,7 @@ let LLMHttpClientService = LLMHttpClientService_1 = class LLMHttpClientService {
         const apiPort = this.configService.get('API_PORT');
         if (!apiPort) {
             throw new Error('API_PORT environment variable is required. ' +
-                'Please set API_PORT in your .env file (e.g., API_PORT=7100). ' +
+                'Please set API_PORT in your .env file (e.g., API_PORT=6100). ' +
                 'This must be explicitly configured for your environment.');
         }
         const apiHost = this.configService.get('API_HOST') || 'localhost';
