@@ -5,7 +5,7 @@
 -- Created: Phase 1 - Agent Infrastructure
 -- =============================================================================
 
--- Insert demo organization
+-- Insert demo organizations
 INSERT INTO public.organizations (slug, name, description, url, settings) VALUES
 (
   'demo-org',
@@ -18,6 +18,24 @@ INSERT INTO public.organizations (slug, name, description, url, settings) VALUES
     "limits": {
       "max_agents": 100,
       "max_conversations": 1000
+    },
+    "preferences": {
+      "default_llm_provider": "anthropic",
+      "default_llm_model": "claude-3-5-sonnet-20241022"
+    }
+  }'::jsonb
+),
+(
+  'golfergeek',
+  'GolferGeek Organization',
+  'GolferGeek personal organization for Orchestrator AI development',
+  'https://golfergeek.com',
+  '{
+    "theme": "dark",
+    "features": ["context-agents", "api-agents", "external-agents", "langgraph-agents"],
+    "limits": {
+      "max_agents": 1000,
+      "max_conversations": 10000
     },
     "preferences": {
       "default_llm_provider": "anthropic",
@@ -43,5 +61,9 @@ BEGIN
     RAISE EXCEPTION 'Failed to seed demo-org organization';
   END IF;
 
-  RAISE NOTICE 'Successfully seeded 1 organization: demo-org';
+  IF NOT EXISTS (SELECT 1 FROM public.organizations WHERE slug = 'golfergeek') THEN
+    RAISE EXCEPTION 'Failed to seed golfergeek organization';
+  END IF;
+
+  RAISE NOTICE 'Successfully seeded 2 organizations: demo-org, golfergeek';
 END $$;

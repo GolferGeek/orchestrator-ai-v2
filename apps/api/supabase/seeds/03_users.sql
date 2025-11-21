@@ -2,51 +2,10 @@
 -- USERS SEED DATA
 -- =============================================================================
 -- Create users in both auth.users and public.users tables
+-- NOTE: Must insert into auth.users FIRST due to foreign key constraint
 -- =============================================================================
 
--- Insert into public.users (application users)
-INSERT INTO public.users (id, email, display_name, role, roles, namespace_access, organization_slug, status) VALUES
-(
-  'b29a590e-b07f-49df-a25b-574c956b5035',
-  'demo.user@orchestratorai.io',
-  'Demo User',
-  'admin',
-  '["admin", "user"]'::jsonb,
-  '["demo-org", "global"]'::jsonb,
-  'demo-org',
-  'active'
-),
-(
-  'b894f14e-1937-4831-8b1e-195e7535d859',
-  'golfergeek@golfergeek.com',
-  'GolferGeek',
-  'superadmin',
-  '["superadmin", "admin", "user"]'::jsonb,
-  '["golfergeek", "global", "hiverarchy", "ifm", "demo-org"]'::jsonb,
-  'golfergeek',
-  'active'
-),
-(
-  '43432813-7b99-44c0-b094-7c7f20305939',
-  'test.user@example.com',
-  'Test User',
-  'user',
-  '["user"]'::jsonb,
-  '["demo-org"]'::jsonb,
-  'demo-org',
-  'active'
-)
-ON CONFLICT (id) DO UPDATE SET
-  email = EXCLUDED.email,
-  display_name = EXCLUDED.display_name,
-  role = EXCLUDED.role,
-  roles = EXCLUDED.roles,
-  namespace_access = EXCLUDED.namespace_access,
-  organization_slug = EXCLUDED.organization_slug,
-  status = EXCLUDED.status,
-  updated_at = NOW();
-
--- Insert into auth.users (Supabase auth)
+-- Insert into auth.users (Supabase auth) - MUST BE FIRST
 -- Note: These are simplified entries - in production, Supabase Auth handles this
 INSERT INTO auth.users (
   id,
@@ -124,6 +83,48 @@ ON CONFLICT (id) DO UPDATE SET
   raw_app_meta_data = EXCLUDED.raw_app_meta_data,
   raw_user_meta_data = EXCLUDED.raw_user_meta_data,
   is_super_admin = EXCLUDED.is_super_admin;
+
+-- Insert into public.users (application users) - AFTER auth.users
+INSERT INTO public.users (id, email, display_name, role, roles, namespace_access, organization_slug, status) VALUES
+(
+  'b29a590e-b07f-49df-a25b-574c956b5035',
+  'demo.user@orchestratorai.io',
+  'Demo User',
+  'admin',
+  '["admin", "user"]'::jsonb,
+  '["demo-org", "global"]'::jsonb,
+  'demo-org',
+  'active'
+),
+(
+  'b894f14e-1937-4831-8b1e-195e7535d859',
+  'golfergeek@golfergeek.com',
+  'GolferGeek',
+  'superadmin',
+  '["superadmin", "admin", "user"]'::jsonb,
+  '["golfergeek", "global", "hiverarchy", "ifm", "demo-org"]'::jsonb,
+  'golfergeek',
+  'active'
+),
+(
+  '43432813-7b99-44c0-b094-7c7f20305939',
+  'test.user@example.com',
+  'Test User',
+  'user',
+  '["user"]'::jsonb,
+  '["demo-org"]'::jsonb,
+  'demo-org',
+  'active'
+)
+ON CONFLICT (id) DO UPDATE SET
+  email = EXCLUDED.email,
+  display_name = EXCLUDED.display_name,
+  role = EXCLUDED.role,
+  roles = EXCLUDED.roles,
+  namespace_access = EXCLUDED.namespace_access,
+  organization_slug = EXCLUDED.organization_slug,
+  status = EXCLUDED.status,
+  updated_at = NOW();
 
 -- Verification
 DO $$
