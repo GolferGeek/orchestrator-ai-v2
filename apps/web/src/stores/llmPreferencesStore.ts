@@ -499,6 +499,13 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
 
         this.providers = providers;
         console.log(`Fetched ${this.providers.length} providers (filtering handled reactively)`);
+
+        // Set default provider if none selected
+        if (!this.selectedProvider && providers.length > 0) {
+          const anthropic = providers.find(p => p.name.toLowerCase() === 'anthropic');
+          this.selectedProvider = anthropic || providers[0];
+          console.log('Auto-selected default provider:', this.selectedProvider?.name);
+        }
       } catch (error) {
         const message = resolveErrorMessage(error, 'Failed to fetch providers');
         this.providerError = message;

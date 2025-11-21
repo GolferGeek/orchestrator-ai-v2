@@ -34,7 +34,7 @@ schema_paths = []
 
 [db.seed]
 enabled = true
-sql_paths = ["./seeds/seed.sql"]
+sql_paths = ["./seed.sql"]
 
 [db.network_restrictions]
 enabled = false
@@ -145,12 +145,12 @@ enabled = false
 [edge_runtime]
 enabled = true
 policy = "per_worker"
-inspector_port = 7020
+inspector_port = 6020
 deno_version = 2
 
 [analytics]
 enabled = true
-port = 7021
+port = 6021
 backend = "postgres"
 
 [experimental]

@@ -557,7 +557,10 @@ const handleDeleteConfirm = async (deleteDeliverables: boolean) => {
 const hierarchyGroups = computed(() => {
   const hierarchy = agentHierarchy.value;
   if (!hierarchy?.data) return [];
-  
+
+  // The store already normalized the data to a flat array
+  const flatAgents = Array.isArray(hierarchy.data) ? hierarchy.data : [];
+
   const groups: Agent[] = [];
   
   const processNode = (node: Agent) => {
@@ -618,7 +621,7 @@ const hierarchyGroups = computed(() => {
     const mainAgent = {
       name: node.name,
       displayName: node.displayName || node.metadata?.displayName || node.name,
-      type: node.type || 'orchestrator',
+      type: node.agentType,
       description: node.metadata?.description || node.description || '',
       execution_modes: node.execution_modes || node.metadata?.execution_modes || [],
       execution_profile: node.metadata?.execution_profile,
@@ -626,7 +629,7 @@ const hierarchyGroups = computed(() => {
       namespace: node.namespace,
       conversations: nodeConversations,
       activeConversations: nodeConversations.filter(c => !c.endedAt).length,
-      totalConversations: nodeConversations.length, // Will be updated after child agents are processed
+      totalConversations: nodeConversations.length,
     };
 
     // Build the agents array - manager first, then direct children only
@@ -662,7 +665,7 @@ const hierarchyGroups = computed(() => {
           agents.push({
             name: child.name,
             displayName: child.displayName || child.metadata?.displayName || child.name,
-            type: child.type || 'specialist',
+            type: child.agentType,
             description: child.metadata?.description || child.description || '',
             execution_modes: child.execution_modes || child.metadata?.execution_modes || [],
             execution_profile: child.metadata?.execution_profile,
@@ -708,9 +711,9 @@ const hierarchyGroups = computed(() => {
   
   // First, find the top-level orchestrator (could be CEO, Hiverarchy, etc.)
   // Take the first root node that has children as the main orchestrator
-  const topOrchestrator = hierarchy.data.find((agent: Agent) =>
+  const topOrchestrator = flatAgents.find((agent: Agent) =>
     agent.children && agent.children.length > 0
-  ) || hierarchy.data[0]; // Fallback to first node if none have children
+  ) || flatAgents[0]; // Fallback to first node if none have children
 
   if (topOrchestrator) {
     // For database orchestrators (with namespace), match by organizationSlug; otherwise match by agentType
@@ -729,12 +732,12 @@ const hierarchyGroups = computed(() => {
       const orchestratorAgents = [{
         name: topOrchestrator.name,
         displayName: topOrchestrator.displayName || topOrchestrator.metadata?.displayName || topOrchestrator.name,
-        type: topOrchestrator.type || 'orchestrator',
+        type: topOrchestrator.agentType,
         description: topOrchestrator.metadata?.description || topOrchestrator.description || '',
         execution_modes: topOrchestrator.execution_modes || topOrchestrator.metadata?.execution_modes || [],
         conversations: orchestratorConversations,
         activeConversations: orchestratorConversations.filter(c => !c.endedAt).length,
-        totalConversations: orchestratorConversations.length, // Will be updated after child agents are processed
+        totalConversations: orchestratorConversations.length,
       }];
 
       // Add non-manager children directly to the orchestrator's agents array
@@ -750,7 +753,7 @@ const hierarchyGroups = computed(() => {
             orchestratorAgents.push({
               name: child.name,
               displayName: child.displayName || child.metadata?.displayName || child.name,
-              type: child.type || 'specialist',
+              type: child.agentType,
               description: child.metadata?.description || child.description || '',
               execution_modes: child.execution_modes || child.metadata?.execution_modes || [],
               conversations: childConversations,
@@ -791,7 +794,7 @@ const hierarchyGroups = computed(() => {
   }
   
   // Process any remaining root nodes that aren't the top orchestrator
-  const otherRootNodes = hierarchy.data.filter((agent: Agent) =>
+  const otherRootNodes = flatAgents.filter((agent: Agent) =>
     topOrchestrator ? agent.name !== topOrchestrator.name : true
   );
   const specialistAgents: Agent[] = [];
@@ -817,7 +820,7 @@ const hierarchyGroups = computed(() => {
         specialistAgents.push({
           name: agent.name,
           displayName: agent.displayName || agent.metadata?.displayName || agent.name,
-          type: agent.type || 'specialist',
+          type: agent.agentType,
           description: agent.metadata?.description || agent.description || '',
           execution_modes: agent.execution_modes || agent.metadata?.execution_modes || [],
           conversations: nodeConversations,

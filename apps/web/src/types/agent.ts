@@ -187,9 +187,31 @@ export interface Agent {
   updatedAt: string;
 }
 
+// Department-based hierarchy (new v2 format)
+export interface DepartmentHierarchyData {
+  [department: string]: Array<{
+    id: string;
+    slug: string;
+    name: string;
+    displayName: string;
+    type: string;
+    description: string;
+    status: string;
+    namespace: string;
+    tags: string[];
+    capabilities: string[];
+    execution_modes: string[];
+    metadata: Record<string, unknown>;
+  }>;
+}
+
 export type AgentHierarchyResponse = {
-  data?: HierarchyNode[];
-  metadata?: AgentNodeMetadata | null;
+  data?: HierarchyNode[] | DepartmentHierarchyData;
+  metadata?: (AgentNodeMetadata & {
+    totalAgents?: number;
+    totalDepartments?: number;
+    departments?: string[];
+  }) | null;
 } & JsonObject;
 
 // =====================================

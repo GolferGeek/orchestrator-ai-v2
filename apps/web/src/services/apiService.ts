@@ -570,14 +570,16 @@ class ApiService {
   }
 
   async getAgentHierarchy(namespace?: string): Promise<AgentHierarchyResponse> {
-    // All agents now use the A2A endpoint
-    // Use A2A controller endpoint for all namespaces (including 'demo')
-    console.log('🔍 [ApiService.getAgentHierarchy] Using A2A endpoint for namespace:', namespace);
+    // Use department-based hierarchy endpoint
+    console.log('🔍 [ApiService.getAgentHierarchy] Using hierarchy endpoint for namespace:', namespace);
 
     const response = await this.axiosInstance.get<AgentHierarchyResponse>(
-      '/agent-to-agent/.well-known/hierarchy'
+      '/hierarchy/.well-known/hierarchy',
+      {
+        headers: namespace ? { 'x-agent-namespace': namespace } : {}
+      }
     );
-    console.log('✅ [ApiService.getAgentHierarchy] A2A response received');
+    console.log('✅ [ApiService.getAgentHierarchy] Hierarchy response received');
     return response.data;
   }
 

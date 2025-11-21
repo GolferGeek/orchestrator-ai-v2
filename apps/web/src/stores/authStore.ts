@@ -189,8 +189,8 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => !!token.value);
 
   // Namespace selection for landing/navigation
-  const availableNamespaces = ref<string[]>(['demo', 'my-org']);
-  const currentNamespace = ref<string>(localStorage.getItem('currentNamespace') || 'demo');
+  const availableNamespaces = ref<string[]>(['demo-org', 'my-org']);
+  const currentNamespace = ref<string>(localStorage.getItem('currentNamespace') || 'demo-org');
   const setActiveNamespace = (namespace: string) => {
     if (currentNamespace.value !== namespace) {
       currentNamespace.value = namespace;

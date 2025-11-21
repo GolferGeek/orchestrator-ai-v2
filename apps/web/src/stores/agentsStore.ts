@@ -24,6 +24,36 @@ export function normalizeHierarchyResponse(input: HierarchyNode[] | AgentHierarc
   if (input && typeof input === 'object' && !Array.isArray(input)) {
     const { data, metadata, ...rest } = input as AgentHierarchyResponse;
 
+    // Handle department-grouped format (v2)
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      // Convert department object to flat array
+      const flatAgents: HierarchyNode[] = [];
+      for (const department in data) {
+        const departmentAgents = data[department];
+        if (Array.isArray(departmentAgents)) {
+          flatAgents.push(...departmentAgents.map((agent: any) => ({
+            id: agent.id || agent.slug,
+            name: agent.slug || agent.name,
+            displayName: agent.displayName || agent.name,
+            type: 'agent' as const, // HierarchyNode type (not agentType)
+            agentType: agent.type, // The actual database agent type (context, api, etc.)
+            namespace: agent.namespace,
+            metadata: {
+              ...agent.metadata,
+              description: agent.description,
+              department,
+            },
+            children: [],
+          })));
+        }
+      }
+      return {
+        data: flatAgents,
+        metadata: metadata ?? null,
+        rest: rest as JsonObject,
+      };
+    }
+
     return {
       data: Array.isArray(data) ? data : [],
       metadata: metadata ?? null,
