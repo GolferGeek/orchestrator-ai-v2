@@ -7,7 +7,7 @@
         </ion-buttons>
         <ion-title>RAG Collections</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="openCreateModal">
+          <ion-button @click="openCreateModal" v-permission="'rag:write'">
             <ion-icon slot="icon-only" :icon="addOutline" />
           </ion-button>
         </ion-buttons>

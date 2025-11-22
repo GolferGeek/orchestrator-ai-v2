@@ -5,10 +5,8 @@ import {
   IsString,
   IsUUID,
   IsArray,
-  IsEnum,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { UserRole } from '../decorators/roles.decorator';
 
 export class UserCreateDto {
   @ApiProperty({ example: 'user@example.com' })
@@ -70,14 +68,13 @@ export class AuthenticatedUserResponseDto {
 
   @ApiPropertyOptional({
     example: ['user', 'admin'],
-    description: 'Array of user roles',
-    enum: UserRole,
+    description: 'Array of user roles (deprecated - use RBAC)',
     isArray: true,
   })
   @IsArray()
-  @IsEnum(UserRole, { each: true })
+  @IsString({ each: true })
   @IsOptional()
-  roles?: UserRole[];
+  roles?: string[];
 
   @ApiPropertyOptional({
     example: ['my-org'],
@@ -155,13 +152,12 @@ export class UserProfileDto {
 
   @ApiProperty({
     example: ['user', 'admin'],
-    description: 'Array of user roles',
-    enum: UserRole,
+    description: 'Array of user roles (deprecated - use RBAC)',
     isArray: true,
   })
   @IsArray()
-  @IsEnum(UserRole, { each: true })
-  roles!: UserRole[];
+  @IsString({ each: true })
+  roles!: string[];
 
   @ApiPropertyOptional({
     example: ['my-org'],
@@ -179,15 +175,17 @@ export class UserProfileDto {
   updatedAt!: Date;
 }
 
+/**
+ * @deprecated Use RBAC endpoints instead (/api/rbac/users/:userId/roles)
+ */
 export class AssignRoleDto {
   @ApiProperty({
-    example: UserRole.EVALUATION_MONITOR,
-    description: 'Role to assign to user',
-    enum: UserRole,
+    example: 'evaluation-monitor',
+    description: 'Role to assign to user (deprecated - use RBAC)',
   })
-  @IsEnum(UserRole)
+  @IsString()
   @IsNotEmpty()
-  role!: UserRole;
+  role!: string;
 
   @ApiPropertyOptional({
     example: 'Promoting user to evaluation monitor for Q4 review',
@@ -198,15 +196,17 @@ export class AssignRoleDto {
   reason?: string;
 }
 
+/**
+ * @deprecated Use RBAC endpoints instead (/api/rbac/users/:userId/roles)
+ */
 export class RemoveRoleDto {
   @ApiProperty({
-    example: UserRole.EVALUATION_MONITOR,
-    description: 'Role to remove from user',
-    enum: UserRole,
+    example: 'evaluation-monitor',
+    description: 'Role to remove from user (deprecated - use RBAC)',
   })
-  @IsEnum(UserRole)
+  @IsString()
   @IsNotEmpty()
-  role!: UserRole;
+  role!: string;
 
   @ApiPropertyOptional({
     example: 'End of evaluation monitoring period',
@@ -217,17 +217,19 @@ export class RemoveRoleDto {
   reason?: string;
 }
 
+/**
+ * @deprecated Use RBAC endpoints instead (/api/rbac/users/:userId/roles)
+ */
 export class SetRolesDto {
   @ApiProperty({
-    example: [UserRole.USER, UserRole.EVALUATION_MONITOR],
-    description: 'Complete array of roles to set for user (replaces existing)',
-    enum: UserRole,
+    example: ['user', 'evaluation-monitor'],
+    description: 'Complete array of roles to set for user (deprecated - use RBAC)',
     isArray: true,
   })
   @IsArray()
-  @IsEnum(UserRole, { each: true })
+  @IsString({ each: true })
   @IsNotEmpty()
-  roles!: UserRole[];
+  roles!: string[];
 
   @ApiPropertyOptional({
     example: 'Updating roles for new position',

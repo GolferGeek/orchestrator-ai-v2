@@ -7,9 +7,11 @@ import {
   Param,
   Post,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import { SupabaseService } from '@/supabase/supabase.service';
-import { AdminOnly } from '@/auth/decorators/roles.decorator';
+import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
+import { RequirePermission } from '@/rbac/decorators/require-permission.decorator';
 import type { JsonObject } from '@orchestrator-ai/transport-types';
 import {
   CreateAgentDto,
@@ -55,6 +57,7 @@ interface SmokeRunResult {
 }
 
 @Controller('api/admin/agents')
+@UseGuards(JwtAuthGuard)
 export class AgentsAdminController {
   constructor(
     private readonly supabase: SupabaseService,
@@ -66,7 +69,7 @@ export class AgentsAdminController {
   ) {}
 
   @Get()
-  @AdminOnly()
+  @RequirePermission('agents:admin')
   async list(@Query('type') type?: string) {
     let q = this.supabase.getServiceClient().from('agents').select('*');
     if (type) q = q.eq('agent_type', type);
@@ -76,7 +79,7 @@ export class AgentsAdminController {
   }
 
   @Post()
-  @AdminOnly()
+  @RequirePermission('agents:admin')
   async upsert(@Body() dto: CreateAgentDto) {
     // Run JSON-schema validation by type
     const type = dto.agent_type;
@@ -120,7 +123,7 @@ export class AgentsAdminController {
   }
 
   @Post('validate')
-  @AdminOnly()
+  @RequirePermission('agents:admin')
   validate(@Body() dto: CreateAgentDto, @Query('dryRun') dryRun?: string) {
     const type = dto.agent_type;
     // Validate using the agent type from DTO
@@ -175,7 +178,7 @@ export class AgentsAdminController {
   }
 
   @Patch(':id')
-  @AdminOnly()
+  @RequirePermission('agents:admin')
   async patch(@Param('id') id: string, @Body() body: UpdateAgentDto) {
     // Load current to determine type for validation
     const result = await this.supabase
@@ -243,7 +246,7 @@ export class AgentsAdminController {
   }
 
   @Post('smoke-run')
-  @AdminOnly()
+  @RequirePermission('agents:admin')
   async smokeRun() {
     const root = resolve(__dirname, '../../../../..');
     const files = [
@@ -316,7 +319,7 @@ export class AgentsAdminController {
   // === Promotion Endpoints ===
 
   @Post(':id/promote')
-  @AdminOnly()
+  @RequirePermission('agents:admin')
   async requestPromotion(
     @Param('id') id: string,
     @Body() body: { requireApproval?: boolean; skipValidation?: boolean },
@@ -332,21 +335,21 @@ export class AgentsAdminController {
   }
 
   @Post(':id/demote')
-  @AdminOnly()
+  @RequirePermission('agents:admin')
   async demote(@Param('id') id: string, @Body() body: { reason?: string }) {
     const result = await this.promotion.demote(id, body.reason);
     return result;
   }
 
   @Post(':id/archive')
-  @AdminOnly()
+  @RequirePermission('agents:admin')
   async archive(@Param('id') id: string, @Body() body: { reason?: string }) {
     const result = await this.promotion.archive(id, body.reason);
     return result;
   }
 
   @Get(':id/promotion-requirements')
-  @AdminOnly()
+  @RequirePermission('agents:admin')
   async getPromotionRequirements(@Param('id') id: string) {
     const requirements = await this.promotion.getPromotionRequirements(id);
     return { success: true, data: requirements };

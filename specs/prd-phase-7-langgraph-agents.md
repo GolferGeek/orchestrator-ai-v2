@@ -14,10 +14,9 @@
 This PRD defines the complete LangGraph architecture for Orchestrator AI and delivers two production demo agents that showcase the platform's capabilities. This phase transforms the existing basic LangGraph implementation into a full-featured system with checkpointing, HITL workflows, RAG integration, and multi-agent patterns.
 
 **Key Deliverables:**
-1. Shared Services Module (LLM, Observability, Webhook, HITL)
+1. Shared Services Module (LLM, Observability, RAG, HITL)
 2. Persistence Module (PostgresSaver checkpointing, PostgresStore memory)
-3. Tools Module (RAG tool wrapping Phase 6 API)
-4. HITL Infrastructure (interrupt/resume, front-end approval UI)
+3. HITL Infrastructure (interrupt/resume via threadId, front-end approval UI)
 5. **HR Assistant Agent** - RAG-powered knowledge agent
 6. **Marketing Swarm Agent** - HITL-powered content generation
 
@@ -51,20 +50,15 @@ This PRD defines the complete LangGraph architecture for Orchestrator AI and del
 apps/langgraph/src/
 ├── services/                    # SHARED SERVICES MODULE
 │   ├── shared-services.module.ts
-│   ├── llm-http-client.service.ts     (EXISTS)
-│   ├── webhook-status.service.ts      (EXISTS)
-│   ├── observability.service.ts       (NEW)
-│   └── hitl.service.ts                (NEW)
+│   ├── llm-http-client.service.ts     (EXISTS - LLM access)
+│   ├── observability.service.ts       (EXISTS - event streaming, replaces webhook-status)
+│   ├── rag.service.ts                 (NEW - knowledge retrieval)
+│   └── hitl.service.ts                (NEW - human approval workflows)
 │
 ├── persistence/                 # PERSISTENCE MODULE
 │   ├── persistence.module.ts
 │   ├── postgres-checkpointer.service.ts
 │   └── postgres-store.service.ts
-│
-├── tools/                       # TOOLS MODULE
-│   ├── tools.module.ts
-│   ├── rag.tool.ts
-│   └── index.ts
 │
 ├── state/                       # STATE ANNOTATIONS
 │   ├── base-state.annotation.ts
@@ -114,7 +108,7 @@ apps/langgraph/src/
 │  ┌────────────────────────────────────────────────────────────────┐  │
 │  │  Agent Execution Engine (existing)                             │  │
 │  │  - Routes to LangGraph agents                                  │  │
-│  │  - Handles status webhook callbacks                            │  │
+│  │  - Receives observability events from LangGraph                │  │
 │  │  - Stores HITL interrupt state                                 │  │
 │  └────────────────────────────────────────────────────────────────┘  │
 │                                │                                     │
@@ -133,13 +127,12 @@ apps/langgraph/src/
 │                    LangGraph App (apps/langgraph)                    │
 │  ┌────────────────────────────────────────────────────────────────┐  │
 │  │                    Shared Services Module                      │  │
-│  │  LLMHttpClient | WebhookStatus | Observability | HITL          │  │
+│  │  LLMService | ObservabilityService | RAGService | HITLService  │  │
 │  └────────────────────────────────────────────────────────────────┘  │
-│  ┌──────────────────┐  ┌──────────────────────────────────────────┐  │
-│  │ Persistence      │  │            Tools Module                  │  │
-│  │ PostgresSaver    │  │  RagTool (wraps RAG API)                 │  │
-│  │ PostgresStore    │  │                                          │  │
-│  └──────────────────┘  └──────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────────────────────┐│
+│  │ Persistence Module                                              ││
+│  │ PostgresSaver (checkpoints) | PostgresStore (memory)            ││
+│  └──────────────────────────────────────────────────────────────────┘│
 │  ┌──────────────────────────────────────────────────────────────────┐│
 │  │                    Agent Feature Modules                        ││
 │  │  ┌─────────────────────┐    ┌─────────────────────────────┐     ││
@@ -175,8 +168,8 @@ import { Module, Global } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { ConfigModule } from '@nestjs/config';
 import { LLMHttpClientService } from './llm-http-client.service';
-import { WebhookStatusService } from './webhook-status.service';
 import { ObservabilityService } from './observability.service';
+import { RagService } from './rag.service';
 import { HitlService } from './hitl.service';
 
 @Global()
@@ -184,14 +177,14 @@ import { HitlService } from './hitl.service';
   imports: [HttpModule, ConfigModule],
   providers: [
     LLMHttpClientService,
-    WebhookStatusService,
     ObservabilityService,
+    RagService,
     HitlService,
   ],
   exports: [
     LLMHttpClientService,
-    WebhookStatusService,
     ObservabilityService,
+    RagService,
     HitlService,
   ],
 })
@@ -209,41 +202,7 @@ Already exists. Routes all LLM calls through Orchestrator AI API's `/llm/generat
 
 **No changes needed** - already production-ready.
 
-### 4.3 Webhook Status Service (EXISTS - Minor Updates)
-
-**File:** `apps/langgraph/src/services/webhook-status.service.ts`
-
-Already exists. Sends status webhooks for started/progress/completed/failed.
-
-**Enhancement needed:** Add HITL status type:
-
-```typescript
-// Add to existing service
-async sendHitlWaiting(
-  webhookUrl: string,
-  taskId: string,
-  conversationId: string,
-  userId: string,
-  hitlRequest: {
-    type: 'confirmation' | 'choice' | 'input' | 'approval';
-    question: string;
-    options?: string[];
-    dataToReview?: Record<string, unknown>;
-  },
-): Promise<void> {
-  await this.sendStatus(webhookUrl, {
-    taskId,
-    conversationId,
-    userId,
-    status: 'hitl_waiting',
-    timestamp: new Date().toISOString(),
-    message: 'Waiting for human input',
-    data: hitlRequest,
-  });
-}
-```
-
-### 4.4 Observability Service (NEW)
+### 4.3 Observability Service (EXISTS - consolidates webhook-status)
 
 **File:** `apps/langgraph/src/services/observability.service.ts`
 
@@ -390,17 +349,123 @@ export class ObservabilityService {
 }
 ```
 
+### 4.4 RAG Service (NEW)
+
+**File:** `apps/langgraph/src/services/rag.service.ts`
+
+Provides knowledge retrieval by calling Orchestrator AI's RAG API.
+
+```typescript
+import { Injectable, Logger } from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
+import { firstValueFrom } from 'rxjs';
+
+export interface RagSearchResult {
+  chunkId: string;
+  documentId: string;
+  documentFilename: string;
+  content: string;
+  score: number;
+  pageNumber: number | null;
+  chunkIndex: number;
+  metadata?: Record<string, unknown>;
+}
+
+export interface RagQueryResponse {
+  query: string;
+  results: RagSearchResult[];
+  totalResults: number;
+  searchDurationMs: number;
+}
+
+@Injectable()
+export class RagService {
+  private readonly logger = new Logger(RagService.name);
+  private readonly apiBaseUrl: string;
+
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
+  ) {
+    this.apiBaseUrl = this.configService.get<string>('ORCHESTRATOR_API_URL') || 'http://localhost:6100';
+  }
+
+  /**
+   * Search a RAG collection for relevant content
+   *
+   * Note: LangGraph is a trusted internal service. We pass userId and organizationSlug
+   * as headers so Orchestrator AI can:
+   * 1. Verify the organization has access to the collection
+   * 2. Log usage/metrics attributed to the correct user
+   */
+  async search(params: {
+    collectionId: string;
+    organizationSlug: string;
+    userId: string;
+    query: string;
+    topK?: number;
+    similarityThreshold?: number;
+    strategy?: 'basic' | 'mmr' | 'reranking';
+  }): Promise<RagQueryResponse> {
+    const { collectionId, organizationSlug, userId, query, topK = 5, similarityThreshold = 0.5, strategy = 'basic' } = params;
+
+    const url = `${this.apiBaseUrl}/api/rag/collections/${collectionId}/query`;
+
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post<RagQueryResponse>(url, {
+          query,
+          topK,
+          similarityThreshold,
+          strategy,
+        }, {
+          headers: {
+            'x-organization-slug': organizationSlug,
+            'x-user-id': userId,
+            'x-service-caller': 'langgraph', // Identifies this as internal service call
+          },
+        }),
+      );
+
+      this.logger.debug(`RAG search returned ${response.data.totalResults} results in ${response.data.searchDurationMs}ms`);
+      return response.data;
+    } catch (error) {
+      this.logger.error(`RAG search failed: ${error}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Format RAG results as context for LLM prompts
+   */
+  formatAsContext(results: RagSearchResult[]): string {
+    if (results.length === 0) {
+      return 'No relevant documents found.';
+    }
+
+    return results
+      .map((r, i) => `[Source ${i + 1}: ${r.documentFilename}]\n${r.content}`)
+      .join('\n\n---\n\n');
+  }
+}
+```
+
 ### 4.5 HITL Service (NEW)
 
 **File:** `apps/langgraph/src/services/hitl.service.ts`
 
-Provides HITL functionality wrapping LangGraph's `interrupt()` function.
+Provides HITL functionality wrapping LangGraph's `interrupt()` function. When an agent needs human approval, it calls `hitlService.requestApproval()` which:
+1. Emits an observability event
+2. Calls `interrupt()` to pause the graph
+3. Returns the human's response when the graph is resumed via a new request with the same `threadId`
+
+**Important:** HITL does not wait for the response. The graph pauses and returns `status: 'hitl_waiting'`. The human response comes in as a separate request with the `threadId`, which resumes the graph from the checkpoint.
 
 ```typescript
 import { Injectable, Logger } from '@nestjs/common';
 import { interrupt, Command } from '@langchain/langgraph';
 import { ObservabilityService } from './observability.service';
-import { WebhookStatusService } from './webhook-status.service';
 
 export interface HitlRequest {
   type: 'confirmation' | 'choice' | 'input' | 'approval';
@@ -423,7 +488,6 @@ export interface HitlContext {
   userId: string;
   agentSlug: string;
   threadId: string;
-  statusWebhook?: string;
 }
 
 @Injectable()
@@ -432,18 +496,23 @@ export class HitlService {
 
   constructor(
     private readonly observabilityService: ObservabilityService,
-    private readonly webhookService: WebhookStatusService,
   ) {}
 
   /**
    * Request human input - pauses graph execution via interrupt()
-   * Returns the human's response when graph is resumed
+   *
+   * This does NOT wait for the response. The graph pauses immediately and
+   * returns status: 'hitl_waiting' to the caller. The human's response
+   * comes in as a separate HTTP request with the same threadId, which
+   * resumes the graph from its checkpoint.
    */
   async requestHumanInput(
     request: HitlRequest,
     context: HitlContext,
   ): Promise<HitlResponse> {
-    // Emit observability event
+    this.logger.log(`HITL requested: ${request.type} - ${request.question}`);
+
+    // Emit observability event so front-end knows to show approval UI
     await this.observabilityService.emitHitlRequested({
       taskId: context.taskId,
       conversationId: context.conversationId,
@@ -454,19 +523,10 @@ export class HitlService {
       threadId: context.threadId,
     });
 
-    // Send webhook status update
-    if (context.statusWebhook) {
-      await this.webhookService.sendHitlWaiting(
-        context.statusWebhook,
-        context.taskId,
-        context.conversationId || context.taskId,
-        context.userId,
-        request,
-      );
-    }
-
-    // Use LangGraph's interrupt() - this pauses execution
-    // The response comes when graph.invoke() is called with Command({ resume: ... })
+    // Use LangGraph's interrupt() - this pauses execution and saves checkpoint
+    // The graph returns immediately with status 'hitl_waiting'
+    // When a new request comes in with the same threadId + hitlResponse,
+    // the graph resumes from checkpoint and interrupt() returns that response
     const response = interrupt({
       type: request.type,
       question: request.question,
@@ -772,147 +832,9 @@ export class PersistenceModule {}
 
 ---
 
-## 6. Tools Module
+## 6. State Annotations
 
-### 6.1 RAG Tool
-
-**File:** `apps/langgraph/src/tools/rag.tool.ts`
-
-Wraps the Phase 6 RAG API for use in LangGraph agents.
-
-```typescript
-import { Injectable, Logger } from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { ConfigService } from '@nestjs/config';
-import { firstValueFrom } from 'rxjs';
-import { tool } from '@langchain/core/tools';
-import { z } from 'zod';
-
-export interface RagQueryResult {
-  chunkId: string;
-  documentId: string;
-  documentFilename: string;
-  content: string;
-  score: number;
-  pageNumber?: number;
-}
-
-@Injectable()
-export class RagTool {
-  private readonly logger = new Logger(RagTool.name);
-  private readonly apiUrl: string;
-
-  constructor(
-    private readonly httpService: HttpService,
-    private readonly configService: ConfigService,
-  ) {
-    const apiPort = this.configService.get<string>('API_PORT');
-    const apiHost = this.configService.get<string>('API_HOST') || 'localhost';
-    this.apiUrl = `http://${apiHost}:${apiPort}`;
-  }
-
-  /**
-   * Create LangChain tool for use with bindTools()
-   */
-  createLangChainTool() {
-    return tool(
-      async ({ collectionId, query, topK, similarityThreshold }) => {
-        const results = await this.query({
-          collectionId,
-          query,
-          topK,
-          similarityThreshold,
-        });
-        return this.formatResultsAsContext(results);
-      },
-      {
-        name: 'rag_query',
-        description: 'Search a knowledge base collection to find relevant information for answering questions',
-        schema: z.object({
-          collectionId: z.string().describe('The ID of the RAG collection to search'),
-          query: z.string().describe('The question or search query'),
-          topK: z.number().optional().default(5).describe('Number of results to retrieve'),
-          similarityThreshold: z.number().optional().default(0.7).describe('Minimum similarity score (0-1)'),
-        }),
-      },
-    );
-  }
-
-  /**
-   * Direct query method (for non-tool-calling usage)
-   */
-  async query(params: {
-    collectionId: string;
-    query: string;
-    topK?: number;
-    similarityThreshold?: number;
-    strategy?: 'basic' | 'mmr';
-  }): Promise<RagQueryResult[]> {
-    try {
-      const response = await firstValueFrom(
-        this.httpService.post(
-          `${this.apiUrl}/api/rag/collections/${params.collectionId}/query`,
-          {
-            query: params.query,
-            topK: params.topK || 5,
-            similarityThreshold: params.similarityThreshold || 0.7,
-            strategy: params.strategy || 'basic',
-          },
-          { timeout: 10000 },
-        ),
-      );
-
-      return response.data.results || [];
-    } catch (error) {
-      this.logger.error(`RAG query failed: ${error.message}`);
-      return [];
-    }
-  }
-
-  /**
-   * Format results as context string for LLM
-   */
-  formatResultsAsContext(results: RagQueryResult[]): string {
-    if (results.length === 0) {
-      return 'No relevant information found in the knowledge base.';
-    }
-
-    return results
-      .map((r, i) => {
-        const source = r.pageNumber
-          ? `${r.documentFilename} (page ${r.pageNumber})`
-          : r.documentFilename;
-        return `[Source ${i + 1}: ${source}, Score: ${r.score.toFixed(2)}]\n${r.content}`;
-      })
-      .join('\n\n---\n\n');
-  }
-}
-```
-
-### 6.2 Tools Module
-
-**File:** `apps/langgraph/src/tools/tools.module.ts`
-
-```typescript
-import { Module, Global } from '@nestjs/common';
-import { HttpModule } from '@nestjs/axios';
-import { ConfigModule } from '@nestjs/config';
-import { RagTool } from './rag.tool';
-
-@Global()
-@Module({
-  imports: [HttpModule, ConfigModule],
-  providers: [RagTool],
-  exports: [RagTool],
-})
-export class ToolsModule {}
-```
-
----
-
-## 7. State Annotations
-
-### 7.1 Base State Annotation
+### 6.1 Base State Annotation
 
 **File:** `apps/langgraph/src/state/base-state.annotation.ts`
 
@@ -938,8 +860,7 @@ export const BaseWorkflowAnnotation = Annotation.Root({
   provider: Annotation<string>(),
   model: Annotation<string>(),
 
-  // Status tracking
-  statusWebhook: Annotation<string | undefined>(),
+  // Status tracking (observability events sent via ObservabilityService)
   currentStep: Annotation<string | undefined>(),
   totalSteps: Annotation<number | undefined>(),
   completedSteps: Annotation<number>({
@@ -1007,9 +928,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { StateGraph, START, END } from '@langchain/langgraph';
 import { PostgresCheckpointerService } from '../../persistence/postgres-checkpointer.service';
 import { LLMHttpClientService } from '../../services/llm-http-client.service';
-import { WebhookStatusService } from '../../services/webhook-status.service';
 import { ObservabilityService } from '../../services/observability.service';
-import { RagTool } from '../../tools/rag.tool';
+import { RagService } from '../../services/rag.service';
 import { HRAssistantAnnotation, HRAssistantState } from './hr-assistant.annotation';
 
 @Injectable()
@@ -1020,9 +940,8 @@ export class HRAssistantGraph {
   constructor(
     private readonly checkpointerService: PostgresCheckpointerService,
     private readonly llmClient: LLMHttpClientService,
-    private readonly webhookService: WebhookStatusService,
     private readonly observabilityService: ObservabilityService,
-    private readonly ragTool: RagTool,
+    private readonly ragService: RagService,
   ) {
     this.compiledGraph = this.buildGraph();
   }
@@ -1080,19 +999,6 @@ Respond with just the category name, nothing else.`,
       durationMs: Date.now() - startTime,
     });
 
-    // Update progress
-    if (state.statusWebhook) {
-      await this.webhookService.sendProgress(
-        state.statusWebhook,
-        state.taskId,
-        state.conversationId || state.taskId,
-        state.userId,
-        'Categorizing query',
-        1,
-        3,
-      );
-    }
-
     return {
       queryCategory: category,
       completedSteps: 1,
@@ -1111,16 +1017,18 @@ Respond with just the category name, nothing else.`,
 
     const startTime = Date.now();
 
-    // Query RAG collection
-    const results = await this.ragTool.query({
+    // Query RAG collection using RAG service
+    const response = await this.ragService.search({
       collectionId: state.ragCollectionId,
+      organizationSlug: state.organizationSlug,
+      userId: state.userId,
       query: state.employeeQuery,
       topK: 5,
       similarityThreshold: 0.6,
     });
 
-    const ragContext = this.ragTool.formatResultsAsContext(results);
-    const ragSources = results.map(r => ({
+    const ragContext = this.ragService.formatAsContext(response.results);
+    const ragSources = response.results.map(r => ({
       filename: r.documentFilename,
       page: r.pageNumber,
     }));
@@ -1133,19 +1041,6 @@ Respond with just the category name, nothing else.`,
       nodeName: 'retrieveContext',
       durationMs: Date.now() - startTime,
     });
-
-    // Update progress
-    if (state.statusWebhook) {
-      await this.webhookService.sendProgress(
-        state.statusWebhook,
-        state.taskId,
-        state.conversationId || state.taskId,
-        state.userId,
-        'Retrieving relevant information',
-        2,
-        3,
-      );
-    }
 
     return {
       ragContext,
@@ -1194,19 +1089,6 @@ Guidelines:
       durationMs: Date.now() - startTime,
     });
 
-    // Update progress
-    if (state.statusWebhook) {
-      await this.webhookService.sendProgress(
-        state.statusWebhook,
-        state.taskId,
-        state.conversationId || state.taskId,
-        state.userId,
-        'Generating response',
-        3,
-        3,
-      );
-    }
-
     return {
       response: result.text,
       completedSteps: 3,
@@ -1221,16 +1103,14 @@ Guidelines:
   ): Promise<HRAssistantState> {
     const config = { configurable: { thread_id: threadId } };
 
-    // Send start webhook
-    if (input.statusWebhook) {
-      await this.webhookService.sendStarted(
-        input.statusWebhook,
-        input.taskId!,
-        input.conversationId || input.taskId!,
-        input.userId!,
-        3,
-      );
-    }
+    // Emit start event
+    await this.observabilityService.emitAgentStarted({
+      taskId: input.taskId!,
+      conversationId: input.conversationId,
+      userId: input.userId!,
+      agentSlug: input.agentSlug!,
+      totalSteps: 3,
+    });
 
     try {
       const result = await this.compiledGraph.invoke(
@@ -1238,32 +1118,28 @@ Guidelines:
         config,
       );
 
-      // Send completion webhook
-      if (input.statusWebhook) {
-        await this.webhookService.sendCompleted(
-          input.statusWebhook,
-          input.taskId!,
-          input.conversationId || input.taskId!,
-          input.userId!,
-          {
-            response: result.response,
-            category: result.queryCategory,
-            sources: result.ragSources,
-          },
-        );
-      }
+      // Emit completion event
+      await this.observabilityService.emitAgentCompleted({
+        taskId: input.taskId!,
+        conversationId: input.conversationId,
+        userId: input.userId!,
+        agentSlug: input.agentSlug!,
+        deliverable: {
+          response: result.response,
+          category: result.queryCategory,
+          sources: result.ragSources,
+        },
+      });
 
       return result;
     } catch (error) {
-      if (input.statusWebhook) {
-        await this.webhookService.sendFailed(
-          input.statusWebhook,
-          input.taskId!,
-          input.conversationId || input.taskId!,
-          input.userId!,
-          error.message,
-        );
-      }
+      await this.observabilityService.emitAgentFailed({
+        taskId: input.taskId!,
+        conversationId: input.conversationId,
+        userId: input.userId!,
+        agentSlug: input.agentSlug!,
+        error: error.message,
+      });
       throw error;
     }
   }
@@ -1296,7 +1172,6 @@ export class HRAssistantService {
         agentSlug: 'hr-assistant',
         provider: request.provider,
         model: request.model,
-        statusWebhook: request.statusWebhook,
       },
       threadId,
     );
@@ -1354,10 +1229,6 @@ export class HRAssistantRequestDto {
 
   @IsString()
   model: string;
-
-  @IsOptional()
-  @IsString()
-  statusWebhook?: string;
 }
 ```
 
@@ -1422,7 +1293,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { StateGraph, START, END } from '@langchain/langgraph';
 import { PostgresCheckpointerService } from '../../persistence/postgres-checkpointer.service';
 import { LLMHttpClientService } from '../../services/llm-http-client.service';
-import { WebhookStatusService } from '../../services/webhook-status.service';
 import { ObservabilityService } from '../../services/observability.service';
 import { HitlService } from '../../services/hitl.service';
 import { MarketingSwarmAnnotation, MarketingSwarmState } from './marketing-swarm.annotation';
@@ -1436,7 +1306,6 @@ export class MarketingSwarmGraph {
   constructor(
     private readonly checkpointerService: PostgresCheckpointerService,
     private readonly llmClient: LLMHttpClientService,
-    private readonly webhookService: WebhookStatusService,
     private readonly observabilityService: ObservabilityService,
     private readonly hitlService: HitlService,
   ) {
@@ -1576,7 +1445,6 @@ export class MarketingSwarmGraph {
         userId: state.userId,
         agentSlug: state.agentSlug,
         threadId: state.taskId, // Use taskId as threadId
-        statusWebhook: state.statusWebhook,
       },
     );
 
@@ -1645,23 +1513,20 @@ export class MarketingSwarmGraph {
     });
   }
 
-  private async updateProgress(
+  private async emitProgress(
     state: MarketingSwarmState,
     step: string,
     sequence: number,
     total: number,
   ) {
-    if (state.statusWebhook) {
-      await this.webhookService.sendProgress(
-        state.statusWebhook,
-        state.taskId,
-        state.conversationId || state.taskId,
-        state.userId,
-        step,
-        sequence,
-        total,
-      );
-    }
+    await this.observabilityService.emitNodeStarted({
+      taskId: state.taskId,
+      conversationId: state.conversationId,
+      userId: state.userId,
+      agentSlug: state.agentSlug,
+      nodeName: step,
+      progress: { current: sequence, total },
+    });
   }
 
   // Public execution methods
@@ -1671,15 +1536,14 @@ export class MarketingSwarmGraph {
   ): Promise<MarketingSwarmState> {
     const config = { configurable: { thread_id: threadId } };
 
-    if (input.statusWebhook) {
-      await this.webhookService.sendStarted(
-        input.statusWebhook,
-        input.taskId!,
-        input.conversationId || input.taskId!,
-        input.userId!,
-        5,
-      );
-    }
+    // Emit start event
+    await this.observabilityService.emitAgentStarted({
+      taskId: input.taskId!,
+      conversationId: input.conversationId,
+      userId: input.userId!,
+      agentSlug: input.agentSlug!,
+      totalSteps: 5,
+    });
 
     try {
       const result = await this.compiledGraph.invoke(
@@ -1692,47 +1556,47 @@ export class MarketingSwarmGraph {
       const threadState = await this.checkpointerService.getThreadState(threadId);
       if (threadState.isInterrupted) {
         // Return partial result indicating we're waiting for human input
+        // The HITL event was already emitted by hitlService.requestHumanInput()
         return {
           ...result,
           hitlStatus: 'waiting',
         } as MarketingSwarmState;
       }
 
-      if (input.statusWebhook && result.contentApproved) {
-        await this.webhookService.sendCompleted(
-          input.statusWebhook,
-          input.taskId!,
-          input.conversationId || input.taskId!,
-          input.userId!,
-          result.result,
-        );
+      if (result.contentApproved) {
+        await this.observabilityService.emitAgentCompleted({
+          taskId: input.taskId!,
+          conversationId: input.conversationId,
+          userId: input.userId!,
+          agentSlug: input.agentSlug!,
+          deliverable: result.result,
+        });
       }
 
       return result;
     } catch (error) {
-      if (input.statusWebhook) {
-        await this.webhookService.sendFailed(
-          input.statusWebhook,
-          input.taskId!,
-          input.conversationId || input.taskId!,
-          input.userId!,
-          error.message,
-        );
-      }
+      await this.observabilityService.emitAgentFailed({
+        taskId: input.taskId!,
+        conversationId: input.conversationId,
+        userId: input.userId!,
+        agentSlug: input.agentSlug!,
+        error: error.message,
+      });
       throw error;
     }
   }
 
+  /**
+   * Resume a paused graph after HITL response.
+   * Called when a new request comes in with the same threadId + hitlResponse.
+   */
   async resume(
     threadId: string,
     humanResponse: { decision: string; editedData?: Record<string, string>; reason?: string },
   ): Promise<MarketingSwarmState> {
     const config = { configurable: { thread_id: threadId } };
 
-    // Get current state to access statusWebhook
-    const threadState = await this.checkpointerService.getThreadState(threadId);
-
-    // Resume with human response
+    // Resume with human response - LangGraph picks up from checkpoint
     const result = await this.compiledGraph.invoke(
       new Command({ resume: humanResponse }),
       config,
@@ -1749,7 +1613,7 @@ export class MarketingSwarmGraph {
 
 ### 9.3 Service, Controller, Module
 
-Similar structure to HR Assistant - service wraps graph, controller exposes endpoints including `/resume` for HITL.
+Similar structure to HR Assistant - service wraps graph, controller exposes endpoint. Note: there is no separate `/resume` endpoint - resuming uses the same invoke endpoint with `threadId` + `hitlResponse` in the request body.
 
 ---
 
@@ -1935,7 +1799,7 @@ INSERT INTO agents (
 ### Phase 7a: Shared Services & Persistence (3-4 days)
 
 - [ ] Create ObservabilityService
-- [ ] Update WebhookStatusService with HITL status
+- [ ] Ensure ObservabilityService has all required emit methods
 - [ ] Create HitlService
 - [ ] Create SharedServicesModule
 - [ ] Create database migration for langgraph schema
@@ -1946,12 +1810,11 @@ INSERT INTO agents (
 - [ ] Update app.module.ts to import new modules
 - [ ] Test checkpointing with simple graph
 
-### Phase 7b: Tools Module & RAG Integration (2 days)
+### Phase 7b: RAG Service Integration (1-2 days)
 
-- [ ] Create RagTool wrapping Phase 6 RAG API
-- [ ] Create ToolsModule
-- [ ] Test RAG tool with mock collection
-- [ ] Integration test: RAG tool → RAG API → Supabase
+- [ ] Create RagService wrapping Phase 6 RAG API
+- [ ] Test RAG service with existing HR collection
+- [ ] Integration test: RAG service → RAG API → Supabase
 
 ### Phase 7c: HR Assistant Agent (3 days)
 
@@ -2063,7 +1926,6 @@ INSERT INTO agents (
 - [ ] Thread state queryable
 - [ ] All LLM calls through Orchestrator AI API
 - [ ] Observability events flowing
-- [ ] Status webhooks working
 
 ---
 

@@ -23,7 +23,6 @@ import {
   WorkflowStepDto,
   AgentLLMRecommendationDto,
 } from '@/llms/dto/enhanced-evaluation.dto';
-import { UserRole } from '@/auth/decorators/roles.decorator';
 import {
   enhancedMessageResponseSchema,
   enhancedMessageResponseArraySchema,
@@ -2528,20 +2527,14 @@ export class EvaluationService {
     };
   }
 
-  private normalizeUserRoles(roles: string[] | null | undefined): UserRole[] {
+  private normalizeUserRoles(roles: string[] | null | undefined): string[] {
     if (!Array.isArray(roles) || roles.length === 0) {
-      return [UserRole.USER];
+      return ['user'];
     }
 
-    const validRoles = roles
-      .map((role) =>
-        Object.values(UserRole).includes(role as UserRole)
-          ? (role as UserRole)
-          : null,
-      )
-      .filter((role): role is UserRole => role !== null);
+    const validRoles = roles.filter((role) => typeof role === 'string' && role.length > 0);
 
-    return validRoles.length ? validRoles : [UserRole.USER];
+    return validRoles.length ? validRoles : ['user'];
   }
 
   private normalizeUserRating(value: unknown): UserRatingScale | undefined {

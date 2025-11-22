@@ -22,6 +22,7 @@ import { AgentRegistryService } from './agent-platform/services/agent-registry.s
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { ObservabilityModule } from './observability/observability.module';
 import { RagModule } from './rag/rag.module';
+import { RbacModule } from './rbac/rbac.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { RagModule } from './rag/rag.module';
     WebhooksModule,
     ObservabilityModule,
     RagModule,
+    RbacModule,
   ],
   controllers: [AppController, AnalyticsController],
   providers: [AppService, AgentRegistryService],

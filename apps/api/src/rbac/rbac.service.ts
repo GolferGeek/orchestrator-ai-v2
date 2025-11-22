@@ -1,0 +1,384 @@
+import { Injectable, ForbiddenException, Logger } from '@nestjs/common';
+import { SupabaseService } from '../supabase/supabase.service';
+
+export interface PermissionCheck {
+  permission: string;
+  resourceType?: string;
+  resourceId?: string;
+}
+
+export interface UserRole {
+  id: string;
+  name: string;
+  displayName: string;
+  isGlobal: boolean;
+  assignedAt: Date;
+  expiresAt?: Date;
+}
+
+export interface UserPermission {
+  permission: string;
+  resourceType?: string;
+  resourceId?: string;
+}
+
+export interface UserOrganization {
+  organizationSlug: string;
+  organizationName: string;
+  roleName: string;
+  isGlobal: boolean;
+}
+
+export interface RbacRole {
+  id: string;
+  name: string;
+  displayName: string;
+  description?: string;
+  isSystem: boolean;
+}
+
+export interface RbacPermission {
+  id: string;
+  name: string;
+  displayName: string;
+  description?: string;
+  category?: string;
+}
+
+@Injectable()
+export class RbacService {
+  private readonly logger = new Logger(RbacService.name);
+
+  constructor(private readonly supabase: SupabaseService) {}
+
+  /**
+   * Check if user has permission in organization
+   */
+  async hasPermission(
+    userId: string,
+    organizationSlug: string,
+    permission: string,
+    resourceType?: string,
+    resourceId?: string,
+  ): Promise<boolean> {
+    const { data, error } = await this.supabase.getServiceClient().rpc('rbac_has_permission', {
+      p_user_id: userId,
+      p_organization_slug: organizationSlug,
+      p_permission: permission,
+      p_resource_type: resourceType || null,
+      p_resource_id: resourceId || null,
+    });
+
+    if (error) {
+      this.logger.error(`Permission check failed: ${error.message}`, error);
+      return false;
+    }
+
+    return data === true;
+  }
+
+  /**
+   * Require permission - throws ForbiddenException if not authorized
+   */
+  async requirePermission(
+    userId: string,
+    organizationSlug: string,
+    permission: string,
+    resourceType?: string,
+    resourceId?: string,
+  ): Promise<void> {
+    const hasAccess = await this.hasPermission(
+      userId,
+      organizationSlug,
+      permission,
+      resourceType,
+      resourceId,
+    );
+
+    if (!hasAccess) {
+      throw new ForbiddenException(
+        `Permission denied: ${permission}${resourceType ? ` on ${resourceType}` : ''}`,
+      );
+    }
+  }
+
+  /**
+   * Get all permissions for user in organization
+   */
+  async getUserPermissions(userId: string, organizationSlug: string): Promise<UserPermission[]> {
+    const { data, error } = await this.supabase.getServiceClient().rpc('rbac_get_user_permissions', {
+      p_user_id: userId,
+      p_organization_slug: organizationSlug,
+    });
+
+    if (error) {
+      this.logger.error(`Failed to get user permissions: ${error.message}`, error);
+      return [];
+    }
+
+    return (data || []).map((row: Record<string, unknown>) => ({
+      permission: row.permission_name as string,
+      resourceType: row.resource_type as string | undefined,
+      resourceId: row.resource_id as string | undefined,
+    }));
+  }
+
+  /**
+   * Get user's roles in organization
+   */
+  async getUserRoles(userId: string, organizationSlug: string): Promise<UserRole[]> {
+    const { data, error } = await this.supabase.getServiceClient().rpc('rbac_get_user_roles', {
+      p_user_id: userId,
+      p_organization_slug: organizationSlug,
+    });
+
+    if (error) {
+      this.logger.error(`Failed to get user roles: ${error.message}`, error);
+      return [];
+    }
+
+    return (data || []).map((row: Record<string, unknown>) => ({
+      id: row.role_id as string,
+      name: row.role_name as string,
+      displayName: row.role_display_name as string,
+      isGlobal: row.is_global as boolean,
+      assignedAt: new Date(row.assigned_at as string),
+      expiresAt: row.expires_at ? new Date(row.expires_at as string) : undefined,
+    }));
+  }
+
+  /**
+   * Get all organizations user has access to
+   */
+  async getUserOrganizations(userId: string): Promise<UserOrganization[]> {
+    const { data, error } = await this.supabase.getServiceClient().rpc('rbac_get_user_organizations', {
+      p_user_id: userId,
+    });
+
+    if (error) {
+      this.logger.error(`Failed to get user organizations: ${error.message}`, error);
+      return [];
+    }
+
+    return (data || []).map((row: Record<string, unknown>) => ({
+      organizationSlug: row.organization_slug as string,
+      organizationName: row.organization_name as string,
+      roleName: row.role_name as string,
+      isGlobal: row.is_global as boolean,
+    }));
+  }
+
+  /**
+   * Get all available roles
+   */
+  async getAllRoles(): Promise<RbacRole[]> {
+    const { data, error } = await this.supabase
+      .getServiceClient()
+      .from('rbac_roles')
+      .select('id, name, display_name, description, is_system')
+      .order('name');
+
+    if (error) {
+      this.logger.error(`Failed to get roles: ${error.message}`, error);
+      return [];
+    }
+
+    return (data || []).map((row) => ({
+      id: row.id,
+      name: row.name,
+      displayName: row.display_name,
+      description: row.description,
+      isSystem: row.is_system,
+    }));
+  }
+
+  /**
+   * Get all available permissions
+   */
+  async getAllPermissions(): Promise<RbacPermission[]> {
+    const { data, error } = await this.supabase
+      .getServiceClient()
+      .from('rbac_permissions')
+      .select('id, name, display_name, description, category')
+      .order('category, name');
+
+    if (error) {
+      this.logger.error(`Failed to get permissions: ${error.message}`, error);
+      return [];
+    }
+
+    return (data || []).map((row) => ({
+      id: row.id,
+      name: row.name,
+      displayName: row.display_name,
+      description: row.description,
+      category: row.category,
+    }));
+  }
+
+  /**
+   * Assign role to user in organization
+   */
+  async assignRole(
+    targetUserId: string,
+    organizationSlug: string,
+    roleName: string,
+    assignedBy: string,
+    expiresAt?: Date,
+  ): Promise<void> {
+    // Get role ID
+    const { data: role, error: roleError } = await this.supabase
+      .getServiceClient()
+      .from('rbac_roles')
+      .select('id')
+      .eq('name', roleName)
+      .single();
+
+    if (roleError || !role) {
+      throw new Error(`Role not found: ${roleName}`);
+    }
+
+    // Insert assignment
+    const { error } = await this.supabase.getServiceClient().from('rbac_user_org_roles').upsert(
+      {
+        user_id: targetUserId,
+        organization_slug: organizationSlug,
+        role_id: role.id,
+        assigned_by: assignedBy,
+        expires_at: expiresAt?.toISOString() || null,
+      },
+      {
+        onConflict: 'user_id,organization_slug,role_id',
+      },
+    );
+
+    if (error) {
+      throw new Error(`Failed to assign role: ${error.message}`);
+    }
+
+    // Audit log
+    await this.logAudit('grant', assignedBy, targetUserId, role.id, organizationSlug, {
+      role_name: roleName,
+      expires_at: expiresAt?.toISOString(),
+    });
+  }
+
+  /**
+   * Revoke role from user in organization
+   */
+  async revokeRole(
+    targetUserId: string,
+    organizationSlug: string,
+    roleName: string,
+    revokedBy: string,
+  ): Promise<void> {
+    // Get role ID
+    const { data: role, error: roleError } = await this.supabase
+      .getServiceClient()
+      .from('rbac_roles')
+      .select('id')
+      .eq('name', roleName)
+      .single();
+
+    if (roleError || !role) {
+      throw new Error(`Role not found: ${roleName}`);
+    }
+
+    // Delete assignment
+    const { error } = await this.supabase
+      .getServiceClient()
+      .from('rbac_user_org_roles')
+      .delete()
+      .eq('user_id', targetUserId)
+      .eq('organization_slug', organizationSlug)
+      .eq('role_id', role.id);
+
+    if (error) {
+      throw new Error(`Failed to revoke role: ${error.message}`);
+    }
+
+    // Audit log
+    await this.logAudit('revoke', revokedBy, targetUserId, role.id, organizationSlug, {
+      role_name: roleName,
+    });
+  }
+
+  /**
+   * Check if user is super-admin (has '*' org access)
+   */
+  async isSuperAdmin(userId: string): Promise<boolean> {
+    const { data } = await this.supabase
+      .getServiceClient()
+      .from('rbac_user_org_roles')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('organization_slug', '*')
+      .limit(1);
+
+    return (data?.length ?? 0) > 0;
+  }
+
+  /**
+   * Get audit log entries
+   */
+  async getAuditLog(
+    organizationSlug?: string,
+    limit = 100,
+  ): Promise<
+    Array<{
+      id: string;
+      action: string;
+      actorId: string;
+      targetUserId: string;
+      targetRoleId: string;
+      organizationSlug: string;
+      details: Record<string, unknown>;
+      createdAt: Date;
+    }>
+  > {
+    let query = this.supabase.getServiceClient().from('rbac_audit_log').select('*').order('created_at', { ascending: false }).limit(limit);
+
+    if (organizationSlug) {
+      query = query.eq('organization_slug', organizationSlug);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      this.logger.error(`Failed to get audit log: ${error.message}`, error);
+      return [];
+    }
+
+    return (data || []).map((row) => ({
+      id: row.id,
+      action: row.action,
+      actorId: row.actor_id,
+      targetUserId: row.target_user_id,
+      targetRoleId: row.target_role_id,
+      organizationSlug: row.organization_slug,
+      details: row.details,
+      createdAt: new Date(row.created_at),
+    }));
+  }
+
+  /**
+   * Log an audit entry
+   */
+  private async logAudit(
+    action: string,
+    actorId: string,
+    targetUserId: string | null,
+    targetRoleId: string | null,
+    organizationSlug: string | null,
+    details: Record<string, unknown>,
+  ): Promise<void> {
+    await this.supabase.getServiceClient().from('rbac_audit_log').insert({
+      action,
+      actor_id: actorId,
+      target_user_id: targetUserId,
+      target_role_id: targetRoleId,
+      organization_slug: organizationSlug,
+      details,
+    });
+  }
+}

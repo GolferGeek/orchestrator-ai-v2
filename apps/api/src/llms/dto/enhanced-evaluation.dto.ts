@@ -15,7 +15,6 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { UserRole } from '@/auth/decorators/roles.decorator';
 
 /**
  * User information for evaluation context
@@ -35,12 +34,11 @@ export class EvaluationUserDto {
 
   @ApiProperty({
     example: ['user', 'evaluation-monitor'],
-    enum: UserRole,
     isArray: true,
   })
   @IsArray()
-  @IsEnum(UserRole, { each: true })
-  roles!: UserRole[];
+  @IsString({ each: true })
+  roles!: string[];
 }
 
 /**

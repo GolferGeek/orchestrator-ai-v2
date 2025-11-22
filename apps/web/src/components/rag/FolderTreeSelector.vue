@@ -57,7 +57,7 @@ const emit = defineEmits<{
 const treeData = ref<FileNode[]>([]);
 const selectedPaths = ref<Set<string>>(new Set());
 
-const buildTree = (files: File[]): FileNode[] => {
+const _buildTree = (files: File[]): FileNode[] => {
   const root: Record<string, FileNode> = {};
 
   for (const file of files) {

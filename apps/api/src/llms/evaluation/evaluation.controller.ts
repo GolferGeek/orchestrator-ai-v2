@@ -19,13 +19,9 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
-import { RolesGuard } from '@/auth/guards/roles.guard';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 import { SupabaseAuthUserDto } from '@/auth/dto/auth.dto';
-import {
-  AdminOnly,
-  EvaluationMonitor,
-} from '@/auth/decorators/roles.decorator';
+import { RequirePermission } from '@/rbac/decorators/require-permission.decorator';
 import { EvaluationService } from './evaluation.service';
 import {
   MessageEvaluationDto,
@@ -672,8 +668,8 @@ export class EvaluationController {
   // =========================
 
   @Get('admin/all')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @EvaluationMonitor()
+  @UseGuards(JwtAuthGuard)
+  @RequirePermission('admin:audit')
   @ApiOperation({
     summary: 'Get all evaluations across all users (Admin/Monitor only)',
   })
@@ -698,8 +694,8 @@ export class EvaluationController {
   }
 
   @Get('admin/analytics/overview')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @AdminOnly()
+  @UseGuards(JwtAuthGuard)
+  @RequirePermission('admin:audit')
   @ApiOperation({
     summary: 'Get comprehensive evaluation analytics (Admin only)',
   })
@@ -735,8 +731,8 @@ export class EvaluationController {
   }
 
   @Get('admin/analytics/workflow')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @EvaluationMonitor()
+  @UseGuards(JwtAuthGuard)
+  @RequirePermission('admin:audit')
   @ApiOperation({
     summary: 'Get workflow step performance analytics (Monitor only)',
   })
@@ -807,8 +803,8 @@ export class EvaluationController {
   }
 
   @Get('admin/analytics/constraints')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @EvaluationMonitor()
+  @UseGuards(JwtAuthGuard)
+  @RequirePermission('admin:audit')
   @ApiOperation({
     summary: 'Get CIDAFM constraint effectiveness analytics (Monitor only)',
   })
@@ -884,8 +880,8 @@ export class EvaluationController {
   }
 
   @Get('admin/export')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @AdminOnly()
+  @UseGuards(JwtAuthGuard)
+  @RequirePermission('admin:audit')
   @ApiOperation({
     summary: 'Export enhanced evaluation data for admin analysis (Admin only)',
   })
@@ -962,8 +958,8 @@ export class EvaluationController {
   }
 
   @Get('admin/users/:userId/evaluations')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @EvaluationMonitor()
+  @UseGuards(JwtAuthGuard)
+  @RequirePermission('admin:audit')
   @ApiOperation({
     summary: 'Get evaluations for a specific user (Monitor only)',
   })
@@ -1035,8 +1031,8 @@ export class EvaluationController {
   }
 
   @Get('admin/performance/agents')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @EvaluationMonitor()
+  @UseGuards(JwtAuthGuard)
+  @RequirePermission('admin:audit')
   @ApiOperation({ summary: 'Get agent performance comparison (Monitor only)' })
   @ApiQuery({
     name: 'startDate',
@@ -1091,8 +1087,8 @@ export class EvaluationController {
   }
 
   @Get('admin/trends/time-series')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @AdminOnly()
+  @UseGuards(JwtAuthGuard)
+  @RequirePermission('admin:audit')
   @ApiOperation({ summary: 'Get evaluation trends over time (Admin only)' })
   @ApiQuery({
     name: 'timeframe',

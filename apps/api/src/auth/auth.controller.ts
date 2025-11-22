@@ -22,7 +22,7 @@ import {
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
-import { AdminOnly, UserRole } from './decorators/roles.decorator';
+import { RequirePermission } from '../rbac/decorators/require-permission.decorator';
 import {
   UserCreateDto,
   UserLoginDto,
@@ -178,7 +178,7 @@ export class AuthController {
 
   @Post('admin/users')
   @UseGuards(JwtAuthGuard)
-  @AdminOnly()
+  @RequirePermission('admin:users')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create new user (admin only)' })
   @ApiResponse({
@@ -195,7 +195,7 @@ export class AuthController {
 
   @Get('admin/users')
   @UseGuards(JwtAuthGuard)
-  @AdminOnly()
+  @RequirePermission('admin:users')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all users (admin only)' })
   @ApiResponse({
@@ -213,7 +213,7 @@ export class AuthController {
 
   @Get('admin/users/:userId')
   @UseGuards(JwtAuthGuard)
-  @AdminOnly()
+  @RequirePermission('admin:users')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get user by ID (admin only)' })
   @ApiResponse({
@@ -233,7 +233,7 @@ export class AuthController {
 
   @Put('admin/users/:userId/roles')
   @UseGuards(JwtAuthGuard)
-  @AdminOnly()
+  @RequirePermission('admin:users')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Set user roles (admin only)' })
   @ApiResponse({
@@ -259,7 +259,7 @@ export class AuthController {
 
   @Post('admin/users/:userId/roles')
   @UseGuards(JwtAuthGuard)
-  @AdminOnly()
+  @RequirePermission('admin:users')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Add role to user (admin only)' })
   @ApiResponse({
@@ -285,7 +285,7 @@ export class AuthController {
 
   @Delete('admin/users/:userId/roles/:role')
   @UseGuards(JwtAuthGuard)
-  @AdminOnly()
+  @RequirePermission('admin:users')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Remove role from user (admin only)' })
   @ApiResponse({
@@ -300,7 +300,7 @@ export class AuthController {
   ): Promise<{ success: boolean; message: string }> {
     await this.authService.removeUserRole(
       userId,
-      role as unknown as UserRole,
+      role,
       currentAuthUser.id,
       removeUserRoleDto.reason,
     );

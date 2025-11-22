@@ -10,7 +10,7 @@
           <ion-button @click="openQueryModal">
             <ion-icon slot="icon-only" :icon="searchOutline" />
           </ion-button>
-          <ion-button @click="openUploadModal">
+          <ion-button @click="openUploadModal" v-permission="'rag:write'">
             <ion-icon slot="icon-only" :icon="cloudUploadOutline" />
           </ion-button>
         </ion-buttons>
@@ -83,6 +83,7 @@
               <div class="section-actions">
                 <ion-button
                   v-if="ragStore.documents.length > 0"
+                  v-permission="'rag:delete'"
                   fill="outline"
                   size="small"
                   color="danger"
@@ -138,6 +139,7 @@
                   slot="end"
                   fill="clear"
                   color="danger"
+                  v-permission="'rag:delete'"
                   @click.stop="confirmDeleteDocument(doc)"
                 >
                   <ion-icon :icon="trashOutline" />

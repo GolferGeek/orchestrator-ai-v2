@@ -19,7 +19,7 @@ import {
   CreateUserDto,
   CreateUserResponseDto,
 } from './dto/admin-user-management.dto';
-import { UserRole } from './decorators/roles.decorator';
+// Note: Legacy role management methods are deprecated. Use RbacService instead.
 import { getTableName } from '../supabase/supabase.config';
 
 /**
@@ -229,7 +229,7 @@ export class AuthService {
           id: currentAuthUser.id,
           email: currentAuthUser.email,
           displayName: userData.display_name as string,
-          roles: (userData.roles as UserRole[]) || [UserRole.USER],
+          roles: (userData.roles as string[]) || ['user'],
           namespaceAccess,
         };
       }
@@ -317,7 +317,7 @@ export class AuthService {
         id: data.id,
         email: data.email,
         displayName: data.display_name,
-        roles: (data.roles as UserRole[]) || [UserRole.USER],
+        roles: (data.roles as string[]) || ['user'],
         createdAt: new Date(data.created_at),
         updatedAt: new Date(data.updated_at),
         namespaceAccess: Array.isArray(data.namespace_access)
@@ -347,7 +347,7 @@ export class AuthService {
   /**
    * Check if user has a specific role
    */
-  async userHasRole(userId: string, role: UserRole): Promise<boolean> {
+  async userHasRole(userId: string, role: string): Promise<boolean> {
     const profile = await this.getUserProfile(userId);
     if (!profile) {
       return false;
@@ -358,7 +358,7 @@ export class AuthService {
   /**
    * Check if user has any of the specified roles
    */
-  async userHasAnyRole(userId: string, roles: UserRole[]): Promise<boolean> {
+  async userHasAnyRole(userId: string, roles: string[]): Promise<boolean> {
     const profile = await this.getUserProfile(userId);
     if (!profile) {
       return false;
@@ -371,7 +371,7 @@ export class AuthService {
    */
   async addUserRole(
     targetUserId: string,
-    role: UserRole,
+    role: string,
     adminUserId: string,
     reason?: string,
   ): Promise<UserProfileDto> {
@@ -421,7 +421,7 @@ export class AuthService {
    */
   async removeUserRole(
     targetUserId: string,
-    role: UserRole,
+    role: string,
     adminUserId: string,
     reason?: string,
   ): Promise<UserProfileDto> {
@@ -437,8 +437,8 @@ export class AuthService {
     let newRoles = profile.roles.filter((r) => r !== role);
 
     // Ensure user always has at least 'user' role
-    if (newRoles.length === 0 || !newRoles.includes(UserRole.USER)) {
-      newRoles = [UserRole.USER];
+    if (newRoles.length === 0 || !newRoles.includes('user')) {
+      newRoles = ['user'];
     }
 
     const { error } = await this.supabaseService
@@ -477,7 +477,7 @@ export class AuthService {
    */
   async setUserRoles(
     targetUserId: string,
-    roles: UserRole[],
+    roles: string[],
     adminUserId: string,
     reason?: string,
   ): Promise<UserProfileDto> {
@@ -487,9 +487,9 @@ export class AuthService {
     }
 
     // Ensure 'user' role is always included
-    const newRoles = roles.includes(UserRole.USER)
+    const newRoles = roles.includes('user')
       ? roles
-      : [UserRole.USER, ...roles];
+      : ['user', ...roles];
 
     const { error } = await this.supabaseService
       .getAnonClient()
@@ -529,9 +529,9 @@ export class AuthService {
     targetUserId: string,
     adminUserId: string,
     action: string,
-    oldRoles: UserRole[],
-    newRoles: UserRole[],
-    changedRole?: UserRole,
+    oldRoles: string[],
+    newRoles: string[],
+    changedRole?: string,
     reason?: string,
   ): Promise<void> {
     try {
@@ -588,7 +588,7 @@ export class AuthService {
       }
 
       // Set default roles if none provided
-      const roles = createUserDto.roles || [UserRole.USER];
+      const roles = createUserDto.roles || ['user'];
 
       // Create user profile record
       const { error: profileError } = await serviceClient

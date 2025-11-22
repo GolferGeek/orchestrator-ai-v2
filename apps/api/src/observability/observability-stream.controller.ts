@@ -2,9 +2,7 @@ import { Controller, Get, Res, UseGuards, Logger, Query } from '@nestjs/common';
 import { Response } from 'express';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { UserRole } from '../auth/decorators/roles.decorator';
+import { RequirePermission } from '../rbac/decorators/require-permission.decorator';
 import { SupabaseService } from '../supabase/supabase.service';
 
 /**
@@ -14,12 +12,12 @@ import { SupabaseService } from '../supabase/supabase.service';
  * Broadcasts all observability events to connected admin clients.
  *
  * Endpoint: GET /observability/stream
- * Auth: Requires admin role
+ * Auth: Requires admin:audit permission
  * Response: Server-Sent Events stream
  */
 @Controller('observability')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN)
+@UseGuards(JwtAuthGuard)
+@RequirePermission('admin:audit')
 export class ObservabilityStreamController {
   private readonly logger = new Logger(ObservabilityStreamController.name);
 

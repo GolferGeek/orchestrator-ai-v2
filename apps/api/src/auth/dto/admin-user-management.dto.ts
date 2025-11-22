@@ -1,14 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsArray,
-  IsEnum,
   IsOptional,
   IsString,
   IsEmail,
   MinLength,
 } from 'class-validator';
-import { UserRole } from '../decorators/roles.decorator';
 
+/**
+ * @deprecated Use RBAC endpoints instead (/api/rbac/*)
+ */
 export class UserListResponseDto {
   @ApiProperty({ description: 'User ID' })
   id!: string;
@@ -20,12 +21,11 @@ export class UserListResponseDto {
   displayName?: string;
 
   @ApiProperty({
-    description: 'Array of user roles',
-    enum: UserRole,
+    description: 'Array of user roles (deprecated - use RBAC)',
     isArray: true,
-    example: [UserRole.USER, UserRole.ADMIN],
+    example: ['user', 'admin'],
   })
-  roles!: UserRole[];
+  roles!: string[];
 
   @ApiProperty({ description: 'User creation timestamp' })
   createdAt!: string;
@@ -34,16 +34,18 @@ export class UserListResponseDto {
   status!: string;
 }
 
+/**
+ * @deprecated Use RBAC endpoints instead (/api/rbac/users/:userId/roles)
+ */
 export class UpdateUserRolesDto {
   @ApiProperty({
-    description: 'Array of roles to assign to the user',
-    enum: UserRole,
+    description: 'Array of roles to assign to the user (deprecated - use RBAC)',
     isArray: true,
-    example: [UserRole.USER, UserRole.ADMIN],
+    example: ['user', 'admin'],
   })
   @IsArray()
-  @IsEnum(UserRole, { each: true })
-  roles!: UserRole[];
+  @IsString({ each: true })
+  roles!: string[];
 
   @ApiProperty({
     description: 'Optional reason for role change',
@@ -55,14 +57,16 @@ export class UpdateUserRolesDto {
   reason?: string;
 }
 
+/**
+ * @deprecated Use RBAC endpoints instead (/api/rbac/users/:userId/roles)
+ */
 export class AddUserRoleDto {
   @ApiProperty({
-    description: 'Role to add to the user',
-    enum: UserRole,
-    example: UserRole.ADMIN,
+    description: 'Role to add to the user (deprecated - use RBAC)',
+    example: 'admin',
   })
-  @IsEnum(UserRole)
-  role!: UserRole;
+  @IsString()
+  role!: string;
 
   @ApiProperty({
     description: 'Optional reason for adding role',
@@ -74,14 +78,16 @@ export class AddUserRoleDto {
   reason?: string;
 }
 
+/**
+ * @deprecated Use RBAC endpoints instead (/api/rbac/users/:userId/roles)
+ */
 export class RemoveUserRoleDto {
   @ApiProperty({
-    description: 'Role to remove from the user',
-    enum: UserRole,
-    example: UserRole.ADMIN,
+    description: 'Role to remove from the user (deprecated - use RBAC)',
+    example: 'admin',
   })
-  @IsEnum(UserRole)
-  role!: UserRole;
+  @IsString()
+  role!: string;
 
   @ApiProperty({
     description: 'Optional reason for removing role',
@@ -120,16 +126,15 @@ export class CreateUserDto {
   displayName?: string;
 
   @ApiProperty({
-    description: 'Initial roles to assign to the user',
-    enum: UserRole,
+    description: 'Initial roles to assign to the user (deprecated - use RBAC)',
     isArray: true,
-    example: [UserRole.USER],
+    example: ['user'],
     required: false,
   })
   @IsOptional()
   @IsArray()
-  @IsEnum(UserRole, { each: true })
-  roles?: UserRole[];
+  @IsString({ each: true })
+  roles?: string[];
 
   @ApiProperty({
     description: 'Force user to change password on first login',
@@ -162,11 +167,10 @@ export class CreateUserResponseDto {
   displayName?: string;
 
   @ApiProperty({
-    description: 'Assigned roles',
-    enum: UserRole,
+    description: 'Assigned roles (deprecated - use RBAC)',
     isArray: true,
   })
-  roles!: UserRole[];
+  roles!: string[];
 
   @ApiProperty({ description: 'Whether email confirmation is required' })
   emailConfirmationRequired!: boolean;

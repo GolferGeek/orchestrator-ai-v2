@@ -79,6 +79,7 @@ const props = withDefaults(defineProps<{
   depth?: number;
 }>(), {
   depth: 0,
+  batchUploadItems: () => [],
 });
 
 defineEmits<{

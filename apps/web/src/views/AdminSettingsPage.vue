@@ -142,6 +142,38 @@
                   </ion-card-content>
                 </ion-card>
               </ion-col>
+
+              <!-- User Management Card -->
+              <ion-col size="12" size-md="6" size-lg="4" v-permission="'admin:users'">
+                <ion-card button @click="navigateTo('/app/admin/users')" class="action-card user-management">
+                  <ion-card-content>
+                    <div class="card-icon">
+                      <ion-icon :icon="peopleOutline" />
+                    </div>
+                    <h3>User Management</h3>
+                    <p>Manage users and role assignments</p>
+                    <ion-chip color="primary" size="small">
+                      <ion-label>RBAC</ion-label>
+                    </ion-chip>
+                  </ion-card-content>
+                </ion-card>
+              </ion-col>
+
+              <!-- Role Management Card -->
+              <ion-col size="12" size-md="6" size-lg="4" v-permission="'admin:roles'">
+                <ion-card button @click="navigateTo('/app/admin/roles')" class="action-card role-management">
+                  <ion-card-content>
+                    <div class="card-icon">
+                      <ion-icon :icon="shieldOutline" />
+                    </div>
+                    <h3>Roles & Permissions</h3>
+                    <p>View and configure system roles</p>
+                    <ion-chip color="warning" size="small">
+                      <ion-label>RBAC</ion-label>
+                    </ion-chip>
+                  </ion-card-content>
+                </ion-card>
+              </ion-col>
             </ion-row>
           </ion-grid>
         </div>
@@ -639,6 +671,7 @@ import {
   analyticsOutline,
   barChartOutline,
   shieldCheckmarkOutline,
+  shieldOutline,
   flaskOutline,
   libraryOutline,
   checkmarkCircleOutline,
