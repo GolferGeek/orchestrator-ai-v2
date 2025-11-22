@@ -23,7 +23,6 @@ import { AssetsModule } from '@/assets/assets.module';
 import { Agent2AgentModule } from '@/agent2agent/agent2agent.module';
 import { AgentRuntimeNormalizationService } from './services/agent-runtime-normalization.service';
 import { AgentRuntimeRedactionService } from './services/agent-runtime-redaction.service';
-import { FunctionAgentRunnerService } from '@/agent2agent/services/function-agent-runner.service';
 import { HumanApprovalsRepository } from './repositories/human-approvals.repository';
 import { RedactionPatternsRepository } from './repositories/redaction-patterns.repository';
 import { AgentApprovalsController } from './controllers/agent-approvals.controller';
@@ -77,7 +76,6 @@ import { ContextOptimizationModule } from '@/agent2agent/context-optimization/co
     AgentRuntimePlansAdapter,
     AgentRuntimeNormalizationService,
     AgentRuntimeRedactionService,
-    FunctionAgentRunnerService,
     AgentValidationService,
     AgentDryRunService,
     AgentPolicyService,
@@ -104,7 +102,6 @@ import { ContextOptimizationModule } from '@/agent2agent/context-optimization/co
     AgentRuntimePlansAdapter,
     AgentRuntimeNormalizationService,
     AgentRuntimeRedactionService,
-    FunctionAgentRunnerService,
     AgentValidationService,
     AgentDryRunService,
     AgentPolicyService,

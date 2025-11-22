@@ -1,10 +1,8 @@
 import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { IAgentRunner } from '../interfaces/agent-runner.interface';
 import { ContextAgentRunnerService } from './context-agent-runner.service';
-import { ToolAgentRunnerService } from './tool-agent-runner.service';
 import { ApiAgentRunnerService } from './api-agent-runner.service';
 import { ExternalAgentRunnerService } from './external-agent-runner.service';
-import { FunctionAgentRunnerService } from './function-agent-runner.service';
 import { OrchestratorAgentRunnerService } from './orchestrator-agent-runner.service';
 
 /**
@@ -28,14 +26,10 @@ export class AgentRunnerRegistryService {
   constructor(
     @Inject(forwardRef(() => ContextAgentRunnerService))
     private readonly contextAgentRunner: ContextAgentRunnerService,
-    @Inject(forwardRef(() => ToolAgentRunnerService))
-    private readonly toolAgentRunner: ToolAgentRunnerService,
     @Inject(forwardRef(() => ApiAgentRunnerService))
     private readonly apiAgentRunner: ApiAgentRunnerService,
     @Inject(forwardRef(() => ExternalAgentRunnerService))
     private readonly externalAgentRunner: ExternalAgentRunnerService,
-    @Inject(forwardRef(() => FunctionAgentRunnerService))
-    private readonly functionAgentRunner: FunctionAgentRunnerService,
     @Inject(forwardRef(() => OrchestratorAgentRunnerService))
     private readonly orchestratorAgentRunner: OrchestratorAgentRunnerService,
   ) {
@@ -44,10 +38,8 @@ export class AgentRunnerRegistryService {
 
     // Register runners
     this.registerRunner('context', this.contextAgentRunner);
-    this.registerRunner('tool', this.toolAgentRunner);
     this.registerRunner('api', this.apiAgentRunner);
     this.registerRunner('external', this.externalAgentRunner);
-    this.registerRunner('function', this.functionAgentRunner);
     this.registerRunner('orchestrator', this.orchestratorAgentRunner);
   }
 

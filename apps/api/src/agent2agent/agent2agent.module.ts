@@ -7,7 +7,6 @@ import { AgentExecutionGateway } from './services/agent-execution-gateway.servic
 import { AgentModeRouterService } from './services/agent-mode-router.service';
 import { AgentRunnerRegistryService } from './services/agent-runner-registry.service';
 import { ContextAgentRunnerService } from './services/context-agent-runner.service';
-import { ToolAgentRunnerService } from './services/tool-agent-runner.service';
 import { ApiAgentRunnerService } from './services/api-agent-runner.service';
 import { ExternalAgentRunnerService } from './services/external-agent-runner.service';
 import { OrchestratorAgentRunnerService } from './services/orchestrator-agent-runner.service';
@@ -53,7 +52,6 @@ import { ObservabilityModule } from '../observability/observability.module';
     AgentModeRouterService,
     AgentRunnerRegistryService,
     ContextAgentRunnerService,
-    ToolAgentRunnerService,
     ApiAgentRunnerService,
     ExternalAgentRunnerService,
     OrchestratorAgentRunnerService,
