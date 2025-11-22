@@ -231,7 +231,7 @@ export async function createDeliverable(
     if (typeof parsedResult === 'string') {
       try {
         parsedResult = JSON.parse(parsedResult);
-      } catch (e) {
+      } catch {
         console.warn('📦 [Build Create Action] Backend returned non-JSON string:', parsedResult?.substring(0, 200));
       }
     }

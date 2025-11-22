@@ -343,11 +343,13 @@
         </template>
         <template v-else>
         <!-- Markdown Content -->
+        <!-- eslint-disable vue/no-v-html -- Sanitized markdown content -->
         <div
           v-if="displayVersion?.format === 'markdown'"
           class="markdown-content"
           v-html="renderedMarkdown"
         ></div>
+        <!-- eslint-enable vue/no-v-html -->
         <!-- JSON Content -->
         <pre 
           v-else-if="displayVersion?.format === 'json'"
@@ -527,7 +529,7 @@ import {
 } from 'ionicons/icons';
 import { useDeliverablesStore } from '@/stores/deliverablesStore';
 import { useConversationsStore } from '@/stores/conversationsStore';
-import { useAgentsStore } from '@/stores/agentsStore';
+// import { useAgentsStore } from '@/stores/agentsStore';
 import { createDeliverableVersion } from '@/stores/helpers/deliverablesActions';
 import { setCurrentVersion } from '@/services/agent2agent/actions';
 import { deliverablesService } from '@/services/deliverablesService';

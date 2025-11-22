@@ -36,10 +36,12 @@ describe('Agent Video Fallback Behavior', () => {
     const unmappedAgentSlug = 'unknown/test_agent';
     const videoIds = videoService.getAgentVideoIds(unmappedAgentSlug);
     const videos = videoService.getAgentVideos(unmappedAgentSlug);
-    
+
+    // Unmapped agents return empty arrays - fallback is handled at component level
     expect(videoIds).toEqual([]);
-    // Should fallback to default video
-    expect(videos.some(video => video.id === 'agent-default-overview')).toBe(true);
+    expect(videos).toEqual([]);
+    // getDefaultVideoIds provides fallback video IDs for component use
+    expect(videoService.getDefaultVideoIds()).toContain('agent-default-overview');
   });
 
   it('should display AgentResourcesPanel with fallback video for unmapped agents', () => {

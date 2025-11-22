@@ -101,6 +101,7 @@
           >
             <!-- Simple message bubble for converse mode -->
             <div v-if="isSimpleMessage(message)" class="simple-message-bubble" :class="message.role">
+              <!-- eslint-disable-next-line vue/no-v-html -- Sanitized message content -->
               <div class="message-content" v-html="formatMessageContent(message.content)"></div>
               <div v-if="message.timestamp" class="message-timestamp">
                 {{ formatTimestamp(message.timestamp) }}
@@ -385,7 +386,7 @@ import {
 import { usePrivacyStore } from '@/stores/privacyStore';
 import { useLLMPreferencesStore } from '@/stores/llmPreferencesStore';
 import { useUiStore } from '@/stores/uiStore';
-import { useUserPreferencesStore } from '@/stores/userPreferencesStore';
+// import { useUserPreferencesStore } from '@/stores/userPreferencesStore';
 import type {
   AgentConversation,
   AgentChatMessage,
@@ -398,7 +399,7 @@ import AgentTaskItem from './AgentTaskItem.vue';
 import AgentResourcesPanel from './AgentResourcesPanel.vue';
 import CompactLLMControl from './CompactLLMControl.vue';
 import TaskExecutionControls from './TaskExecutionControls.vue';
-import ChatModeSendButton from './ChatModeSendButton.vue';
+// import ChatModeSendButton from './ChatModeSendButton.vue';
 import DeliverableDisplay from './DeliverableDisplay.vue';
 import PlanDisplay from './PlanDisplay.vue';
 // ProjectDisplay removed - projects deprecated

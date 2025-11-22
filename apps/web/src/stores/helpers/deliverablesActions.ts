@@ -19,7 +19,7 @@
 
 import { deliverablesService } from '@/services/deliverablesService';
 import { useDeliverablesStore } from '@/stores/deliverablesStore';
-import type { Deliverable, DeliverableVersion, CreateVersionDto } from '@/services/deliverablesService';
+import type { Deliverable, DeliverableVersion } from '@/services/deliverablesService';
 import type { JsonRpcSuccessResponse, JsonRpcErrorResponse } from '@orchestrator-ai/transport-types';
 
 const getErrorMessage = (error: unknown): string =>

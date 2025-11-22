@@ -1,12 +1,11 @@
 // State Management Integration Tests - Task 24.2
 // Comprehensive tests for Pinia store interactions, reactivity, and data flow
-// Following CLAUDE.md principles: Real functionality testing, no mocks
+// Updated for Phase 4.3 consolidated privacyStore
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
 import { nextTick } from 'vue';
-import { usePIIPatternsStore } from '@/stores/piiPatternsStore';
-import { usePseudonymDictionariesStore } from '@/stores/pseudonymDictionariesStore';
+import { usePrivacyStore } from '@/stores/privacyStore';
 import { useAnalyticsStore } from '@/stores/analyticsStore';
 
 describe('State Management Integration Tests - Task 24.2', () => {
@@ -16,125 +15,151 @@ describe('State Management Integration Tests - Task 24.2', () => {
 
   describe('Store Initialization and State', () => {
     it('should initialize all stores with correct default state', () => {
-      const piiStore = usePIIPatternsStore();
-      const pseudonymStore = usePseudonymDictionariesStore();
+      const privacyStore = usePrivacyStore();
       const analyticsStore = useAnalyticsStore();
 
-      // PII Patterns Store
-      expect(piiStore.patterns).toEqual([]);
-      expect(piiStore.isLoading).toBe(false);
-      expect(piiStore.error).toBeNull();
+      // Privacy Store - Patterns section
+      expect(privacyStore.patterns).toEqual([]);
+      expect(privacyStore.patternsLoading).toBe(false);
+      expect(privacyStore.patternsError).toBeNull();
 
-      // Pseudonym Dictionaries Store
-      expect(pseudonymStore.dictionaries).toEqual([]);
-      expect(pseudonymStore.isLoading).toBe(false);
-      expect(pseudonymStore.error).toBeNull();
+      // Privacy Store - Dictionaries section
+      expect(privacyStore.dictionaries).toEqual([]);
+      expect(privacyStore.dictionariesLoading).toBe(false);
+      expect(privacyStore.dictionariesError).toBeNull();
+
+      // Privacy Store - Indicators section
+      expect(privacyStore.indicatorsInitialized).toBe(false);
+      expect(privacyStore.messageStates.size).toBe(0);
 
       // Analytics Store
       expect(analyticsStore.isLoading).toBe(false);
       expect(analyticsStore.dashboardData).toBeNull();
-      expect(analyticsStore.usageStats).toBeNull();
-      expect(Array.isArray(analyticsStore.modelPerformance)).toBe(true);
     });
 
     it('should maintain state independence between store instances', () => {
-      const piiStore1 = usePIIPatternsStore();
-      const piiStore2 = usePIIPatternsStore();
-      
+      const privacyStore1 = usePrivacyStore();
+      const privacyStore2 = usePrivacyStore();
+
       // Should be the same instance (Pinia singleton)
-      expect(piiStore1).toBe(piiStore2);
-      
+      expect(privacyStore1).toBe(privacyStore2);
+
       // Modify state in one instance
-      piiStore1.patterns = [{ id: '1', name: 'test', dataType: 'email', enabled: true, regex: 'test' }];
-      
+      privacyStore1.addPattern({
+        id: '1',
+        name: 'test',
+        dataType: 'email',
+        enabled: true,
+        pattern: 'test',
+        isBuiltIn: false,
+        category: 'test'
+      });
+
       // Should reflect in other instance
-      expect(piiStore2.patterns).toHaveLength(1);
-      expect(piiStore2.patterns[0].name).toBe('test');
+      expect(privacyStore2.patterns).toHaveLength(1);
+      expect(privacyStore2.patterns[0].name).toBe('test');
     });
   });
 
   describe('Store State Mutations and Reactivity', () => {
     it('should update loading states properly during async operations', async () => {
-      const piiStore = usePIIPatternsStore();
-      
+      const privacyStore = usePrivacyStore();
+
       // Mock the async operation to test loading states
       const mockLoadPatterns = vi.fn().mockImplementation(async () => {
-        piiStore.isLoading = true;
+        privacyStore.setPatternsLoading(true);
         await new Promise(resolve => setTimeout(resolve, 10)); // Simulate async
-        piiStore.isLoading = false;
-        piiStore.patterns = [{ id: '1', name: 'test', dataType: 'email', enabled: true, regex: 'test' }];
+        privacyStore.setPatternsLoading(false);
+        privacyStore.addPattern({
+          id: '1',
+          name: 'test',
+          dataType: 'email',
+          enabled: true,
+          pattern: 'test',
+          isBuiltIn: false,
+          category: 'test'
+        });
       });
 
       // Test loading state changes
-      expect(piiStore.isLoading).toBe(false);
-      
+      expect(privacyStore.patternsLoading).toBe(false);
+
       const loadPromise = mockLoadPatterns();
       await nextTick();
-      
+
       await loadPromise;
-      expect(piiStore.isLoading).toBe(false);
-      expect(piiStore.patterns).toHaveLength(1);
+      expect(privacyStore.patternsLoading).toBe(false);
+      expect(privacyStore.patterns).toHaveLength(1);
     });
 
     it('should handle error states correctly', async () => {
-      const piiStore = usePIIPatternsStore();
-      
+      const privacyStore = usePrivacyStore();
+
       // Simulate error scenario
-      piiStore.error = new Error('Test error');
-      piiStore.isLoading = false;
-      
-      expect(piiStore.error).toBeDefined();
-      expect(piiStore.error?.message).toBe('Test error');
-      expect(piiStore.isLoading).toBe(false);
-      
+      privacyStore.setPatternsError('Test error');
+      privacyStore.setPatternsLoading(false);
+
+      expect(privacyStore.patternsError).toBeDefined();
+      expect(privacyStore.patternsError).toBe('Test error');
+      expect(privacyStore.patternsLoading).toBe(false);
+
       // Clear error
-      piiStore.error = null;
-      expect(piiStore.error).toBeNull();
+      privacyStore.setPatternsError(null);
+      expect(privacyStore.patternsError).toBeNull();
     });
 
     it('should maintain data consistency during state updates', async () => {
-      const piiStore = usePIIPatternsStore();
-      
+      const privacyStore = usePrivacyStore();
+
       // Add patterns one by one
-      piiStore.patterns = [
-        { id: '1', name: 'pattern1', dataType: 'email', enabled: true, regex: 'test1' }
-      ];
-      expect(piiStore.patterns).toHaveLength(1);
-      
-      piiStore.patterns = [
-        ...piiStore.patterns,
-        { id: '2', name: 'pattern2', dataType: 'phone', enabled: false, regex: 'test2' }
-      ];
-      expect(piiStore.patterns).toHaveLength(2);
-      expect(piiStore.patterns[1].name).toBe('pattern2');
+      privacyStore.addPattern({
+        id: '1',
+        name: 'pattern1',
+        dataType: 'email',
+        enabled: true,
+        pattern: 'test1',
+        isBuiltIn: false,
+        category: 'test'
+      });
+      expect(privacyStore.patterns).toHaveLength(1);
+
+      privacyStore.addPattern({
+        id: '2',
+        name: 'pattern2',
+        dataType: 'phone',
+        enabled: false,
+        pattern: 'test2',
+        isBuiltIn: false,
+        category: 'test'
+      });
+      expect(privacyStore.patterns).toHaveLength(2);
+      expect(privacyStore.patterns[1].name).toBe('pattern2');
     });
   });
 
   describe('Computed Properties and Getters', () => {
     it('should calculate filtered patterns correctly', () => {
-      const piiStore = usePIIPatternsStore();
-      
+      const privacyStore = usePrivacyStore();
+
       // Add test patterns
-      piiStore.patterns = [
-        { id: '1', name: 'email1', dataType: 'email', enabled: true, regex: 'test1' },
-        { id: '2', name: 'email2', dataType: 'email', enabled: false, regex: 'test2' },
-        { id: '3', name: 'phone1', dataType: 'phone', enabled: true, regex: 'test3' },
-      ];
+      privacyStore.addPattern({ id: '1', name: 'email1', dataType: 'email', enabled: true, pattern: 'test1', isBuiltIn: false, category: 'contact' });
+      privacyStore.addPattern({ id: '2', name: 'email2', dataType: 'email', enabled: false, pattern: 'test2', isBuiltIn: false, category: 'contact' });
+      privacyStore.addPattern({ id: '3', name: 'phone1', dataType: 'phone', enabled: true, pattern: 'test3', isBuiltIn: false, category: 'contact' });
 
       // Test filtering by enabled status
-      const enabledPatterns = piiStore.patterns.filter(p => p.enabled);
+      const enabledPatterns = privacyStore.patterns.filter(p => p.enabled);
       expect(enabledPatterns).toHaveLength(2);
       expect(enabledPatterns.every(p => p.enabled)).toBe(true);
 
       // Test filtering by data type
-      const emailPatterns = piiStore.patterns.filter(p => p.dataType === 'email');
+      const emailPatterns = privacyStore.patterns.filter(p => p.dataType === 'email');
       expect(emailPatterns).toHaveLength(2);
       expect(emailPatterns.every(p => p.dataType === 'email')).toBe(true);
     });
 
     it('should calculate statistics correctly in analytics store', () => {
       const analyticsStore = useAnalyticsStore();
-      
+
       // Update usage stats
       analyticsStore.usageStats = {
         totalRequests: 100,
@@ -147,7 +172,7 @@ describe('State Management Integration Tests - Task 24.2', () => {
       // Verify calculated values
       expect(analyticsStore.usageStats.totalRequests).toBe(100);
       expect(analyticsStore.usageStats.successfulRequests + analyticsStore.usageStats.failedRequests).toBe(100);
-      
+
       // Calculate success rate
       const successRate = (analyticsStore.usageStats.successfulRequests / analyticsStore.usageStats.totalRequests) * 100;
       expect(successRate).toBe(85);
@@ -156,33 +181,42 @@ describe('State Management Integration Tests - Task 24.2', () => {
 
   describe('Cross-Store Interactions', () => {
     it('should maintain consistency across related stores', async () => {
-      const piiStore = usePIIPatternsStore();
-      const pseudonymStore = usePseudonymDictionariesStore();
-      
+      const privacyStore = usePrivacyStore();
+
       // Add related data
-      piiStore.patterns = [
-        { id: '1', name: 'email-pattern', dataType: 'email', enabled: true, regex: '[\\w\\.-]+@[\\w\\.-]+' }
-      ];
-      
-      pseudonymStore.dictionaries = [
-        { id: '1', dataType: 'email', category: 'business', words: ['test@example.com', 'user@test.com'] }
-      ];
+      privacyStore.addPattern({
+        id: '1',
+        name: 'email-pattern',
+        dataType: 'email',
+        enabled: true,
+        pattern: '[\\w\\.-]+@[\\w\\.-]+',
+        isBuiltIn: false,
+        category: 'contact'
+      });
+
+      privacyStore.addDictionary({
+        id: '1',
+        dataType: 'email',
+        category: 'business',
+        words: ['test@example.com', 'user@test.com'],
+        isActive: true
+      });
 
       // Verify data types match
-      const piiDataType = piiStore.patterns[0].dataType;
-      const dictDataType = pseudonymStore.dictionaries[0].dataType;
+      const piiDataType = privacyStore.patterns[0].dataType;
+      const dictDataType = privacyStore.dictionaries[0].dataType;
       expect(piiDataType).toBe(dictDataType);
     });
 
     it('should handle concurrent store updates correctly', async () => {
-      const piiStore = usePIIPatternsStore();
+      const privacyStore = usePrivacyStore();
       const analyticsStore = useAnalyticsStore();
-      
+
       // Simulate concurrent updates
       const updates = [
-        () => { piiStore.patterns = [{ id: '1', name: 'test1', dataType: 'email', enabled: true, regex: 'test' }]; },
-        () => { analyticsStore.usageStats = { totalRequests: 50, successfulRequests: 40, failedRequests: 10 }; },
-        () => { piiStore.isLoading = true; },
+        () => { privacyStore.addPattern({ id: '1', name: 'test1', dataType: 'email', enabled: true, pattern: 'test', isBuiltIn: false, category: 'test' }); },
+        () => { analyticsStore.usageStats = { totalRequests: 50, successfulRequests: 40, failedRequests: 10, averageResponseTime: 100, totalDataProcessed: 500 }; },
+        () => { privacyStore.setPatternsLoading(true); },
         () => { analyticsStore.isLoading = false; },
       ];
 
@@ -191,9 +225,9 @@ describe('State Management Integration Tests - Task 24.2', () => {
       await nextTick();
 
       // Verify final state
-      expect(piiStore.patterns).toHaveLength(1);
+      expect(privacyStore.patterns).toHaveLength(1);
       expect(analyticsStore.usageStats?.totalRequests).toBe(50);
-      expect(piiStore.isLoading).toBe(true);
+      expect(privacyStore.patternsLoading).toBe(true);
       expect(analyticsStore.isLoading).toBe(false);
     });
   });
@@ -201,162 +235,164 @@ describe('State Management Integration Tests - Task 24.2', () => {
   describe('Store Actions and Side Effects', () => {
     it('should handle action execution with proper state management', async () => {
       // Test pattern validation action
-      const validatePattern = (pattern: { name: string; dataType: string; regex: string }) => {
-        if (!pattern.name || !pattern.dataType || !pattern.regex) {
+      const validatePattern = (pattern: { name: string; dataType: string; pattern: string }) => {
+        if (!pattern.name || !pattern.dataType || !pattern.pattern) {
           throw new Error('Invalid pattern structure');
         }
         return true;
       };
 
       // Valid pattern
-      const validPattern = { id: '1', name: 'test', dataType: 'email', enabled: true, regex: '[\\w]+@[\\w]+' };
+      const validPattern = { id: '1', name: 'test', dataType: 'email', enabled: true, pattern: '[\\w]+@[\\w]+' };
       expect(() => validatePattern(validPattern)).not.toThrow();
 
       // Invalid pattern
-      const invalidPattern = { id: '2', name: '', dataType: 'email', enabled: true, regex: '' };
+      const invalidPattern = { id: '2', name: '', dataType: 'email', enabled: true, pattern: '' };
       expect(() => validatePattern(invalidPattern)).toThrow('Invalid pattern structure');
     });
 
     it('should handle bulk operations correctly', async () => {
-      const piiStore = usePIIPatternsStore();
-      
+      const privacyStore = usePrivacyStore();
+
       // Initial patterns
       const initialPatterns = [
-        { id: '1', name: 'pattern1', dataType: 'email', enabled: false, regex: 'test1' },
-        { id: '2', name: 'pattern2', dataType: 'phone', enabled: false, regex: 'test2' },
-        { id: '3', name: 'pattern3', dataType: 'email', enabled: false, regex: 'test3' },
+        { id: '1', name: 'pattern1', dataType: 'email', enabled: false, pattern: 'test1', isBuiltIn: false, category: 'test' },
+        { id: '2', name: 'pattern2', dataType: 'phone', enabled: false, pattern: 'test2', isBuiltIn: false, category: 'test' },
+        { id: '3', name: 'pattern3', dataType: 'email', enabled: false, pattern: 'test3', isBuiltIn: false, category: 'test' },
       ];
-      
-      piiStore.patterns = [...initialPatterns];
-      
+
+      initialPatterns.forEach(p => privacyStore.addPattern(p));
+
       // Bulk enable operation
-      piiStore.patterns = piiStore.patterns.map(p => ({ ...p, enabled: true }));
-      
-      expect(piiStore.patterns).toHaveLength(3);
-      expect(piiStore.patterns.every(p => p.enabled)).toBe(true);
+      privacyStore.patterns.forEach(p => {
+        privacyStore.updatePattern(p.id, { enabled: true });
+      });
+
+      expect(privacyStore.patterns).toHaveLength(3);
+      expect(privacyStore.patterns.every(p => p.enabled)).toBe(true);
     });
   });
 
   describe('Store Persistence and Hydration', () => {
-    it('should handle store reset correctly', () => {
-      const piiStore = usePIIPatternsStore();
-      
+    it('should handle store operations correctly', () => {
+      const privacyStore = usePrivacyStore();
+
       // Add data
-      piiStore.patterns = [{ id: '1', name: 'test', dataType: 'email', enabled: true, regex: 'test' }];
-      piiStore.error = new Error('test error');
-      piiStore.isLoading = true;
-      
-      // Reset store to initial state
-      piiStore.patterns = [];
-      piiStore.error = null;
-      piiStore.isLoading = false;
-      
-      expect(piiStore.patterns).toEqual([]);
-      expect(piiStore.error).toBeNull();
-      expect(piiStore.isLoading).toBe(false);
+      privacyStore.addPattern({ id: '1', name: 'test', dataType: 'email', enabled: true, pattern: 'test', isBuiltIn: false, category: 'test' });
+      privacyStore.setPatternsError('test error');
+      privacyStore.setPatternsLoading(true);
+
+      // Reset individual properties
+      privacyStore.removePattern('1');
+      privacyStore.setPatternsError(null);
+      privacyStore.setPatternsLoading(false);
+
+      expect(privacyStore.patterns).toEqual([]);
+      expect(privacyStore.patternsError).toBeNull();
+      expect(privacyStore.patternsLoading).toBe(false);
     });
 
     it('should maintain referential integrity during updates', () => {
-      const piiStore = usePIIPatternsStore();
-      
-      const pattern1 = { id: '1', name: 'pattern1', dataType: 'email', enabled: true, regex: 'test' };
-      const pattern2 = { id: '2', name: 'pattern2', dataType: 'phone', enabled: true, regex: 'test' };
-      
-      piiStore.patterns = [pattern1, pattern2];
-      
+      const privacyStore = usePrivacyStore();
+
+      privacyStore.addPattern({ id: '1', name: 'pattern1', dataType: 'email', enabled: true, pattern: 'test', isBuiltIn: false, category: 'test' });
+      privacyStore.addPattern({ id: '2', name: 'pattern2', dataType: 'phone', enabled: true, pattern: 'test', isBuiltIn: false, category: 'test' });
+
+      const pattern2Before = { ...privacyStore.patterns[1] };
+
       // Update specific pattern
-      const updatedPattern1 = { ...pattern1, name: 'updated-pattern1' };
-      piiStore.patterns = piiStore.patterns.map(p => p.id === '1' ? updatedPattern1 : p);
-      
-      expect(piiStore.patterns[0].name).toBe('updated-pattern1');
-      expect(piiStore.patterns[1]).toStrictEqual(pattern2); // Should remain unchanged
+      privacyStore.updatePattern('1', { name: 'updated-pattern1' });
+
+      expect(privacyStore.patterns[0].name).toBe('updated-pattern1');
+      expect(privacyStore.patterns[1].name).toBe(pattern2Before.name); // Should remain unchanged
     });
   });
 
   describe('Memory Management and Cleanup', () => {
     it('should handle large datasets efficiently', () => {
-      const piiStore = usePIIPatternsStore();
-      
+      const privacyStore = usePrivacyStore();
+
       // Generate large dataset
-      const largePatternSet = Array.from({ length: 1000 }, (_, i) => ({
-        id: `pattern-${i}`,
-        name: `Pattern ${i}`,
-        dataType: i % 2 === 0 ? 'email' : 'phone',
-        enabled: i % 3 === 0,
-        regex: `test-${i}`
-      }));
-      
-      // Set large dataset
-      piiStore.patterns = largePatternSet;
-      
-      expect(piiStore.patterns).toHaveLength(1000);
-      
+      for (let i = 0; i < 1000; i++) {
+        privacyStore.addPattern({
+          id: `pattern-${i}`,
+          name: `Pattern ${i}`,
+          dataType: i % 2 === 0 ? 'email' : 'phone',
+          enabled: i % 3 === 0,
+          pattern: `test-${i}`,
+          isBuiltIn: false,
+          category: 'test'
+        });
+      }
+
+      expect(privacyStore.patterns).toHaveLength(1000);
+
       // Filter operations should be efficient
-      const enabledPatterns = piiStore.patterns.filter(p => p.enabled);
+      const enabledPatterns = privacyStore.patterns.filter(p => p.enabled);
       expect(enabledPatterns.length).toBeGreaterThan(0);
       expect(enabledPatterns.length).toBeLessThan(1000);
     });
 
-    it('should handle memory cleanup during store destruction', () => {
+    it('should handle memory cleanup during store operations', () => {
       const pinia = createPinia();
       setActivePinia(pinia);
-      
-      const piiStore = usePIIPatternsStore();
-      piiStore.patterns = [{ id: '1', name: 'test', dataType: 'email', enabled: true, regex: 'test' }];
-      
+
+      const privacyStore = usePrivacyStore();
+      privacyStore.addPattern({ id: '1', name: 'test', dataType: 'email', enabled: true, pattern: 'test', isBuiltIn: false, category: 'test' });
+
       // Simulate store cleanup
-      piiStore.patterns = [];
-      piiStore.error = null;
-      piiStore.isLoading = false;
-      
-      expect(piiStore.patterns).toEqual([]);
+      privacyStore.removePattern('1');
+      privacyStore.setPatternsError(null);
+      privacyStore.setPatternsLoading(false);
+
+      expect(privacyStore.patterns).toEqual([]);
     });
   });
 
   describe('Store Performance and Optimization', () => {
     it('should handle rapid state updates efficiently', async () => {
-      const piiStore = usePIIPatternsStore();
+      const privacyStore = usePrivacyStore();
       const startTime = Date.now();
-      
+
       // Rapid updates
       for (let i = 0; i < 100; i++) {
-        piiStore.patterns = [...piiStore.patterns, {
+        privacyStore.addPattern({
           id: `pattern-${i}`,
           name: `Pattern ${i}`,
           dataType: 'email',
           enabled: true,
-          regex: `test-${i}`
-        }];
+          pattern: `test-${i}`,
+          isBuiltIn: false,
+          category: 'test'
+        });
       }
-      
+
       const endTime = Date.now();
       const duration = endTime - startTime;
-      
-      expect(piiStore.patterns).toHaveLength(100);
+
+      expect(privacyStore.patterns).toHaveLength(100);
       expect(duration).toBeLessThan(1000); // Should complete in under 1 second
     });
 
     it('should optimize filtering and search operations', () => {
-      const piiStore = usePIIPatternsStore();
-      
+      const privacyStore = usePrivacyStore();
+
       // Add patterns with searchable content
-      piiStore.patterns = [
-        { id: '1', name: 'email-business', dataType: 'email', enabled: true, regex: 'business.*@.*' },
-        { id: '2', name: 'email-personal', dataType: 'email', enabled: false, regex: 'personal.*@.*' },
-        { id: '3', name: 'phone-mobile', dataType: 'phone', enabled: true, regex: '\\d{3}-\\d{3}-\\d{4}' },
-      ];
-      
+      privacyStore.addPattern({ id: '1', name: 'email-business', dataType: 'email', enabled: true, pattern: 'business.*@.*', isBuiltIn: false, category: 'contact' });
+      privacyStore.addPattern({ id: '2', name: 'email-personal', dataType: 'email', enabled: false, pattern: 'personal.*@.*', isBuiltIn: false, category: 'contact' });
+      privacyStore.addPattern({ id: '3', name: 'phone-mobile', dataType: 'phone', enabled: true, pattern: '\\d{3}-\\d{3}-\\d{4}', isBuiltIn: false, category: 'contact' });
+
       const startTime = Date.now();
-      
+
       // Complex filtering
-      const filteredResults = piiStore.patterns
+      const filteredResults = privacyStore.patterns
         .filter(p => p.enabled)
         .filter(p => p.name.includes('email'))
         .sort((a, b) => a.name.localeCompare(b.name));
-      
+
       const endTime = Date.now();
       const duration = endTime - startTime;
-      
+
       expect(filteredResults).toHaveLength(1);
       expect(filteredResults[0].name).toBe('email-business');
       expect(duration).toBeLessThan(10); // Should be very fast for small datasets

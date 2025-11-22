@@ -4,7 +4,7 @@ import { videoService } from '@/services/videoService';
 describe('Landing Page Video Compatibility', () => {
   it('should maintain all existing video categories for landing page', () => {
     const categories = videoService.getCategories();
-    
+
     // Verify core landing page categories still exist
     expect(categories).toHaveProperty('introduction');
     expect(categories).toHaveProperty('agent-architecture');
@@ -13,7 +13,7 @@ describe('Landing Page Video Compatibility', () => {
     expect(categories).toHaveProperty('evaluations');
     expect(categories).toHaveProperty('what-were-working-on-next');
     expect(categories).toHaveProperty('demos');
-    expect(categories).toHaveProperty('agents');
+    expect(categories).toHaveProperty('agent-demos');
   });
 
   it('should maintain featured video functionality for landing page buttons', () => {
@@ -41,15 +41,16 @@ describe('Landing Page Video Compatibility', () => {
 
   it('should maintain category ordering for landing page', () => {
     const categoriesInOrder = videoService.getCategoriesInOrder();
+    // Order matches videos.json categoryOrder
     const expectedOrder = [
       'introduction',
-      'agent-architecture', 
       'privacy-security',
       'how-we-work',
       'evaluations',
       'what-were-working-on-next',
-      'demos',
-      'agents'
+      'agent-architecture',
+      'agent-demos',
+      'demos'
     ];
 
     expectedOrder.forEach((categoryKey, index) => {

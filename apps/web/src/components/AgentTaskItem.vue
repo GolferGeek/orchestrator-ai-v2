@@ -87,6 +87,7 @@
         <!-- Task text content (shown for all messages, even with deliverables) -->
         <div class="task-text" v-if="message.content">
           <!-- Render markdown for assistant messages -->
+          <!-- eslint-disable-next-line vue/no-v-html -- Sanitized markdown content -->
           <div v-if="message.role === 'assistant'" class="rendered-content" v-html="renderedContent"></div>
           <!-- Plain text for user messages -->
           <div v-else>{{ message.content }}</div>

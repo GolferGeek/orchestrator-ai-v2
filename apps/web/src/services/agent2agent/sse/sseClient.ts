@@ -188,7 +188,7 @@ export class SSEClient {
         chunkType: parsedData.chunk?.type,
         content: parsedData.chunk?.content?.substring(0, 100),
       });
-    } catch (e) {
+    } catch {
       console.warn('[SSEClient] Could not parse event data as JSON');
     }
 

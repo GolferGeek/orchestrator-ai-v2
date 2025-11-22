@@ -285,7 +285,7 @@ import {
 } from 'ionicons/icons';
 
 import BaseChart from '@/components/Charts/BaseChart.vue';
-import { useLlmUsageStore } from '@/stores/llmUsageStore';
+import { useLLMAnalyticsStore } from '@/stores/llmAnalyticsStore';
 
 // Props
 const props = defineProps<{
@@ -294,7 +294,7 @@ const props = defineProps<{
 }>();
 
 // Store
-const llmUsageStore = useLlmUsageStore();
+const llmAnalyticsStore = useLLMAnalyticsStore();
 
 // Local state
 const showRulesEditor = ref(false);
@@ -306,7 +306,7 @@ const routingRules = ref({
 });
 
 // Computed - Routing Metrics
-const usageRecords = computed(() => llmUsageStore.usageRecords);
+const usageRecords = computed(() => llmAnalyticsStore.usageRecords);
 
 const totalRoutingDecisions = computed(() => usageRecords.value.length);
 

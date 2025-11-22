@@ -31,7 +31,7 @@ export function normalizeHierarchyResponse(input: HierarchyNode[] | AgentHierarc
       for (const department in data) {
         const departmentAgents = data[department];
         if (Array.isArray(departmentAgents)) {
-          flatAgents.push(...departmentAgents.map((agent: any) => ({
+          flatAgents.push(...departmentAgents.map((agent: Record<string, unknown>) => ({
             id: agent.id || agent.slug,
             name: agent.slug || agent.name,
             displayName: agent.displayName || agent.name,

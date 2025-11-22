@@ -43,7 +43,7 @@ import { sendMessage, createPlan, createDeliverable } from '@/services/agent2age
 // Define conversation states
 type ConversationState = 'idle' | 'listening' | 'processing' | 'speaking' | 'error' | 'done';
 
-const props = defineProps<{
+const _props = defineProps<{
   conversationId: string;
   disabled?: boolean;
   agentName?: string;

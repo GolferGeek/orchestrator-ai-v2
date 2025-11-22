@@ -27,7 +27,7 @@ const getErrorMessage = (error: unknown): string =>
 const normalizeError = (error: unknown): Error =>
   (error instanceof Error ? error : new Error(String(error)));
 
-interface CreatePlanVersionDto {
+interface _CreatePlanVersionDto {
   content: string;
   createdByType?: 'agent' | 'user' | 'manual_edit';
   taskId?: string;

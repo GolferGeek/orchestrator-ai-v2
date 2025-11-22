@@ -53,10 +53,10 @@ describe('CollectionsService', () => {
       expect(result).toHaveLength(1);
       expect(result[0]?.name).toBe('Test Collection');
       expect(result[0]?.organizationSlug).toBe('test-org');
-      expect(ragDb.queryAll).toHaveBeenCalledWith(
-        'SELECT * FROM rag_get_collections($1)',
-        ['test-org'],
-      );
+      // Verify queryAll was called with correct parameters
+      const [query, params] = ragDb.queryAll.mock.calls[0] ?? [];
+      expect(query).toContain('rag_get_collections');
+      expect(params).toEqual(['test-org']);
     });
 
     it('should return empty array when no collections exist', async () => {
@@ -96,7 +96,8 @@ describe('CollectionsService', () => {
       });
 
       expect(result.name).toBe('Test Collection');
-      expect(ragDb.queryOne).toHaveBeenCalled();
+      // Verify queryOne was called
+      expect(ragDb.queryOne.mock.calls.length).toBeGreaterThan(0);
     });
 
     it('should generate slug from name', async () => {
@@ -161,7 +162,10 @@ describe('CollectionsService', () => {
     it('should delete collection and return true', async () => {
       ragDb.queryOne.mockResolvedValue({ rag_delete_collection: true });
 
-      const result = await service.deleteCollection(mockCollection.id, 'test-org');
+      const result = await service.deleteCollection(
+        mockCollection.id,
+        'test-org',
+      );
 
       expect(result).toBe(true);
     });

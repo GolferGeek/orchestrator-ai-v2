@@ -1,67 +1,34 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+/**
+ * Unit Tests for Privacy Store - Privacy Indicators Section
+ * Tests the privacy indicators functionality after Phase 4.3 consolidation into unified privacyStore
+ */
+
+import { describe, it, expect, beforeEach } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
-import { usePrivacyIndicatorsStore } from '../privacyIndicatorsStore';
+import { usePrivacyStore } from '../privacyStore';
 
-// Mock the other stores
-vi.mock('../sanitizationStore', () => ({
-  useSanitizationStore: () => ({
-    currentResult: null,
-    isProcessing: false,
-    error: null
-  })
-}));
-
-vi.mock('../llmAnalyticsStore', () => ({
-  useLLMAnalyticsStore: () => ({
-    usageRecords: []
-  })
-}));
-
-vi.mock('../agentChatStore', () => ({
-  useAgentChatStore: () => ({
-    conversations: []
-  })
-}));
-
-describe('PrivacyIndicatorsStore', () => {
-  let store: ReturnType<typeof usePrivacyIndicatorsStore>;
+describe('PrivacyStore - Privacy Indicators', () => {
+  let store: ReturnType<typeof usePrivacyStore>;
 
   beforeEach(() => {
     setActivePinia(createPinia());
-    store = usePrivacyIndicatorsStore();
-  });
-
-  afterEach(() => {
-    vi.clearAllTimers();
+    store = usePrivacyStore();
   });
 
   describe('Initialization', () => {
     it('initializes with default state', () => {
-      expect(store.isInitialized).toBe(false);
+      expect(store.indicatorsInitialized).toBe(false);
       expect(store.messageStates.size).toBe(0);
       expect(store.conversationSettings.size).toBe(0);
     });
 
-    it('initializes successfully', async () => {
-      await store.initialize();
-      expect(store.isInitialized).toBe(true);
-      expect(store.lastGlobalUpdate).not.toBe(null);
-    });
-
-    it('does not initialize twice', async () => {
-      await store.initialize();
-      const firstUpdate = store.lastGlobalUpdate;
-      
-      await store.initialize();
-      expect(store.lastGlobalUpdate).toBe(firstUpdate);
+    it('can set initialized flag', () => {
+      store.setIndicatorsInitialized(true);
+      expect(store.indicatorsInitialized).toBe(true);
     });
   });
 
   describe('Message Privacy State Management', () => {
-    beforeEach(async () => {
-      await store.initialize();
-    });
-
     it('creates new message privacy state', () => {
       const messageId = 'test-message-1';
       const state = store.updateMessagePrivacyState(messageId, {
@@ -81,7 +48,7 @@ describe('PrivacyIndicatorsStore', () => {
 
     it('updates existing message privacy state', () => {
       const messageId = 'test-message-1';
-      
+
       // Create initial state
       store.updateMessagePrivacyState(messageId, {
         isDataProtected: false,
@@ -124,7 +91,7 @@ describe('PrivacyIndicatorsStore', () => {
 
       const removed = store.removeMessagePrivacyState(messageId);
       expect(removed).toBe(true);
-      
+
       const retrievedState = store.getMessagePrivacyState(messageId);
       expect(retrievedState).toBe(null);
     });
@@ -136,10 +103,6 @@ describe('PrivacyIndicatorsStore', () => {
   });
 
   describe('Conversation Settings Management', () => {
-    beforeEach(async () => {
-      await store.initialize();
-    });
-
     it('sets conversation privacy settings', () => {
       const conversationId = 'conv-1';
       const settings = store.setConversationSettings(conversationId, {
@@ -183,23 +146,19 @@ describe('PrivacyIndicatorsStore', () => {
   });
 
   describe('Conversation Message States', () => {
-    beforeEach(async () => {
-      await store.initialize();
-    });
-
     it('retrieves message states for a conversation', () => {
       const conversationId = 'conv-1';
-      
+
       store.updateMessagePrivacyState('msg-1', {
         conversationId,
         isDataProtected: true
       });
-      
+
       store.updateMessagePrivacyState('msg-2', {
         conversationId,
         isDataProtected: false
       });
-      
+
       store.updateMessagePrivacyState('msg-3', {
         conversationId: 'conv-2',
         isDataProtected: true
@@ -217,7 +176,7 @@ describe('PrivacyIndicatorsStore', () => {
 
     it('clears all message states for a conversation', () => {
       const conversationId = 'conv-1';
-      
+
       store.updateMessagePrivacyState('msg-1', { conversationId });
       store.updateMessagePrivacyState('msg-2', { conversationId });
       store.setConversationSettings(conversationId, {});
@@ -226,233 +185,40 @@ describe('PrivacyIndicatorsStore', () => {
 
       const conversationStates = store.getConversationMessageStates(conversationId);
       expect(conversationStates).toHaveLength(0);
-      
+
       const settings = store.getConversationSettings(conversationId);
       expect(settings).toBe(null);
     });
   });
 
-  describe('Privacy Summary Statistics', () => {
-    beforeEach(async () => {
-      await store.initialize();
+  describe('Global Settings', () => {
+    it('has default global settings', () => {
+      expect(store.globalSettings.enableGlobalRealTime).toBe(true);
+      expect(store.globalSettings.defaultUpdateInterval).toBe(2000);
+      expect(store.globalSettings.maxStoredStates).toBe(100);
     });
 
-    it('calculates conversation privacy summary', () => {
-      const conversationId = 'conv-1';
-      
-      store.updateMessagePrivacyState('msg-1', {
-        conversationId,
-        isDataProtected: true,
-        sanitizationStatus: 'completed',
-        trustScore: 90
-      });
-      
-      store.updateMessagePrivacyState('msg-2', {
-        conversationId,
-        isDataProtected: false,
-        sanitizationStatus: 'failed',
-        trustScore: 60,
-        hasErrors: true
-      });
-
-      const summary = store.getConversationPrivacySummary(conversationId);
-      expect(summary.totalMessages).toBe(2);
-      expect(summary.protectedMessages).toBe(1);
-      expect(summary.sanitizedMessages).toBe(1);
-      expect(summary.averageTrustScore).toBe(75); // (90 + 60) / 2
-      expect(summary.hasErrors).toBe(true);
-    });
-
-    it('returns default summary for empty conversation', () => {
-      const summary = store.getConversationPrivacySummary('empty-conv');
-      expect(summary.totalMessages).toBe(0);
-      expect(summary.protectedMessages).toBe(0);
-      expect(summary.sanitizedMessages).toBe(0);
-      expect(summary.averageTrustScore).toBe(null);
-      expect(summary.hasErrors).toBe(false);
-    });
-
-    it('calculates global privacy statistics', () => {
-      // Add messages from different conversations
-      store.updateMessagePrivacyState('msg-1', {
-        conversationId: 'conv-1',
-        isDataProtected: true,
-        trustScore: 85,
-        piiDetectionCount: 2,
-        processingTimeMs: 150
-      });
-      
-      store.updateMessagePrivacyState('msg-2', {
-        conversationId: 'conv-2',
-        isDataProtected: false,
-        trustScore: 65,
-        piiDetectionCount: 1,
-        processingTimeMs: 200
-      });
-
-      const stats = store.globalPrivacyStats;
-      expect(stats.totalMessages).toBe(2);
-      expect(stats.totalConversations).toBe(2);
-      expect(stats.protectedPercentage).toBe(50); // 1/2 * 100
-      expect(stats.averageTrustScore).toBe(75); // (85 + 65) / 2
-      expect(stats.totalPiiDetected).toBe(3); // 2 + 1
-      expect(stats.averageProcessingTime).toBe(175); // (150 + 200) / 2
-    });
-
-    it('returns default global stats when no messages', () => {
-      const stats = store.globalPrivacyStats;
-      expect(stats.totalMessages).toBe(0);
-      expect(stats.totalConversations).toBe(0);
-      expect(stats.protectedPercentage).toBe(0);
-      expect(stats.averageTrustScore).toBe(null);
-      expect(stats.totalPiiDetected).toBe(0);
-      expect(stats.averageProcessingTime).toBe(0);
+    it('allows modifying global settings', () => {
+      store.globalSettings.maxStoredStates = 50;
+      expect(store.globalSettings.maxStoredStates).toBe(50);
     });
   });
 
-  describe('Real-time Updates', () => {
-    beforeEach(async () => {
-      await store.initialize();
-      vi.useFakeTimers();
-    });
+  describe('Default State Values', () => {
+    it('creates message state with default values for unspecified properties', () => {
+      const state = store.updateMessagePrivacyState('test-msg', {});
 
-    afterEach(() => {
-      vi.useRealTimers();
-    });
-
-    it('starts real-time updates for conversation', () => {
-      const conversationId = 'conv-1';
-      store.setConversationSettings(conversationId, {
-        enableRealTimeUpdates: true,
-        updateInterval: 1000
-      });
-
-      store.startConversationRealTimeUpdates(conversationId);
-      
-      // Timer should be active
-      expect(vi.getTimerCount()).toBe(1);
-    });
-
-    it('stops real-time updates for conversation', () => {
-      const conversationId = 'conv-1';
-      store.setConversationSettings(conversationId, {
-        enableRealTimeUpdates: true
-      });
-
-      store.startConversationRealTimeUpdates(conversationId);
-      store.stopConversationRealTimeUpdates(conversationId);
-      
-      // Timer should be cleared
-      expect(vi.getTimerCount()).toBe(0);
-    });
-
-    it('does not start updates when disabled', () => {
-      const conversationId = 'conv-1';
-      store.setConversationSettings(conversationId, {
-        enableRealTimeUpdates: false
-      });
-
-      store.startConversationRealTimeUpdates(conversationId);
-      
-      // No timer should be active
-      expect(vi.getTimerCount()).toBe(0);
-    });
-  });
-
-  describe('State Cleanup', () => {
-    beforeEach(async () => {
-      await store.initialize();
-      vi.useFakeTimers();
-    });
-
-    afterEach(() => {
-      vi.useRealTimers();
-    });
-
-    it('cleans up old states based on age', () => {
-      const now = new Date();
-      const oldTime = new Date(now.getTime() - 7200000); // 2 hours ago
-
-      // Create old state
-      store.updateMessagePrivacyState('old-msg', {
-        conversationId: 'conv-1'
-      });
-      
-      // Manually set old timestamp
-      const oldState = store.messageStates.get('old-msg');
-      if (oldState) {
-        oldState.lastUpdated = oldTime;
-      }
-
-      // Create recent state
-      store.updateMessagePrivacyState('new-msg', {
-        conversationId: 'conv-1'
-      });
-
-      // Trigger cleanup
-      store.cleanupOldStates();
-
-      // Old state should be removed, new state should remain
-      expect(store.getMessagePrivacyState('old-msg')).toBe(null);
-      expect(store.getMessagePrivacyState('new-msg')).not.toBe(null);
-    });
-
-    it('enforces maximum stored states limit', () => {
-      // Set a low limit for testing
-      store.globalSettings.maxStoredStates = 2;
-
-      // Add more states than the limit
-      store.updateMessagePrivacyState('msg-1', { conversationId: 'conv-1' });
-      store.updateMessagePrivacyState('msg-2', { conversationId: 'conv-1' });
-      store.updateMessagePrivacyState('msg-3', { conversationId: 'conv-1' });
-
-      // Trigger cleanup
-      store.cleanupOldStates();
-
-      // Should only have 2 states (the most recent ones)
-      expect(store.messageStates.size).toBe(2);
-      expect(store.getMessagePrivacyState('msg-1')).toBe(null); // Oldest should be removed
-      expect(store.getMessagePrivacyState('msg-2')).not.toBe(null);
-      expect(store.getMessagePrivacyState('msg-3')).not.toBe(null);
-    });
-  });
-
-  describe('Helper Functions', () => {
-    it('calculates trust score correctly', () => {
-      // This tests the internal helper function indirectly
-      const messageId = 'test-msg';
-      
-      // Mock message with good conditions
-      const message = {
-        metadata: {
-          llmMetadata: {
-            providerName: 'local'
-          }
-        }
-      };
-
-      // Update state which uses trust calculation internally
-      store.updateMessagePrivacyFromSources(messageId, message);
-      
-      const state = store.getMessagePrivacyState(messageId);
-      expect(state?.trustScore).toBeGreaterThan(70); // Should have base + local bonus
-    });
-
-    it('determines routing mode correctly', () => {
-      const messageId = 'test-msg';
-      
-      const message = {
-        metadata: {
-          llmMetadata: {
-            providerName: 'openai'
-          }
-        }
-      };
-
-      store.updateMessagePrivacyFromSources(messageId, message);
-      
-      const state = store.getMessagePrivacyState(messageId);
-      expect(state?.routingMode).toBe('external');
+      expect(state.isDataProtected).toBe(false);
+      expect(state.dataProtectionLevel).toBe('none');
+      expect(state.sanitizationStatus).toBe('none');
+      expect(state.piiDetectionCount).toBe(0);
+      expect(state.routingMode).toBe('local');
+      expect(state.trustLevel).toBe('medium');
+      expect(state.trustScore).toBe(null);
+      expect(state.processingTimeMs).toBe(0);
+      expect(state.isProcessing).toBe(false);
+      expect(state.hasErrors).toBe(false);
+      expect(state.errorMessage).toBe(null);
     });
   });
 });

@@ -187,7 +187,7 @@ interface Props {
 const props = defineProps<Props>();
 // Stores
 const contextStore = useContextStore();
-const chatUiStore = useChatUiStore();
+const _chatUiStore = useChatUiStore();
 // Reactive state
 const selectedVersions = ref<string[]>([]);
 const mergeSelectedVersions = ref<string[]>([]);
@@ -196,10 +196,10 @@ const showMergeDialog = ref(false);
 const mergePrompt = ref('');
 const isDeleteMode = ref(false);
 // Computed properties
-const sortedVersions = computed(() => 
+const sortedVersions = computed(() =>
   [...props.versions].sort((a, b) => b.versionNumber - a.versionNumber)
 );
-const isCurrentVersionSelected = computed(() => 
+const _isCurrentVersionSelected = computed(() =>
   selectedVersions.value.includes(props.currentVersionId || '')
 );
 const deleteConfirmationMessage = computed(() => {

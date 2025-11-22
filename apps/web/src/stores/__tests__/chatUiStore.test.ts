@@ -18,7 +18,7 @@ describe('ChatUiStore', () => {
 
       expect(store.activeConversationId).toBeNull();
       expect(store.pendingAction).toBeNull();
-      expect(store.chatMode).toBe('conversational');
+      expect(store.chatMode).toBe('converse');
       expect(store.lastMessageWasSpeech).toBe(false);
       expect(store.sidebarCollapsed).toBe(false);
       expect(store.rightPanelVisible).toBe(true);
@@ -221,7 +221,7 @@ describe('ChatUiStore', () => {
       // Verify everything is reset
       expect(store.activeConversationId).toBeNull();
       expect(store.pendingAction).toBeNull();
-      expect(store.chatMode).toBe('conversational');
+      expect(store.chatMode).toBe('converse');
       expect(store.lastMessageWasSpeech).toBe(false);
       expect(store.sidebarCollapsed).toBe(false);
       expect(store.rightPanelVisible).toBe(true);

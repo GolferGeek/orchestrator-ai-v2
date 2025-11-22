@@ -9,7 +9,10 @@ describe('ChunkingService', () => {
 
   describe('splitText', () => {
     it('should return empty array for empty text', () => {
-      const result = service.splitText('', { chunkSize: 100, chunkOverlap: 20 });
+      const result = service.splitText('', {
+        chunkSize: 100,
+        chunkOverlap: 20,
+      });
       expect(result).toEqual([]);
     });
 

@@ -491,7 +491,7 @@ const deleteDocument = async () => {
       color: 'success',
     });
     await toast.present();
-  } catch (e) {
+  } catch {
     const toast = await toastController.create({
       message: 'Failed to delete document',
       duration: 2000,

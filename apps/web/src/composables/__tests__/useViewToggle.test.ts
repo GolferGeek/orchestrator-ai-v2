@@ -30,7 +30,11 @@ Object.defineProperty(window, 'localStorage', {
 describe('useViewToggle', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset localStorage mock to return null by default
     localStorageMock.getItem.mockReturnValue(null);
+    // Reset route query
+    mockRoute.query = {};
+    // Reset the global view mode state to default
     resetViewMode();
   });
 

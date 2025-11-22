@@ -332,8 +332,8 @@ import {
   refreshOutline, 
   playSkipForwardOutline 
 } from 'ionicons/icons';
-import { useLlmUsageStore } from '@/stores/llmUsageStore';
-import { llmUsageService } from '@/services/llmUsageService';
+import { useLLMAnalyticsStore } from '@/stores/llmAnalyticsStore';
+// import { llmAnalyticsService } from '@/services/llmAnalyticsService';
 
 // Component Props
 interface RequestData {
@@ -379,13 +379,13 @@ const animationTimer = ref<NodeJS.Timeout>();
 const liveDataTimer = ref<NodeJS.Timeout>();
 
 // Store integration
-const llmUsageStore = useLlmUsageStore();
+const llmAnalyticsStore = useLLMAnalyticsStore();
 
 // Live Data State (using reactive computed from store)
 const liveRequestData = ref<RequestData | null>(null);
-const isLoadingLiveData = computed(() => llmUsageStore.loading);
-const liveDataError = computed(() => llmUsageStore.error);
-const recentRequests = computed(() => llmUsageStore.usageRecords.slice(0, 10)); // Last 10 requests
+const isLoadingLiveData = computed(() => llmAnalyticsStore.loading);
+const _liveDataError = computed(() => llmAnalyticsStore.error);
+const recentRequests = computed(() => llmAnalyticsStore.usageRecords.slice(0, 10)); // Last 10 requests
 const selectedRequestId = ref<string | null>(null);
 
 // SVG Dimensions
@@ -737,18 +737,15 @@ const formatMetadataKey = (key: string) => {
 // Live Data Methods
 const fetchLiveData = async () => {
   if (!props.liveMode) return;
-  
-  isLoadingLiveData.value = true;
-  liveDataError.value = null;
-  
+
   try {
-    // Fetch recent LLM usage records
-    const records = await llmUsageService.getUsageRecords({
+    // Fetch recent LLM usage records using store action
+    await llmAnalyticsStore.fetchUsageRecords({
       limit: 10,
       startDate: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0] // Last 24 hours
     });
-    
-    recentRequests.value = records || [];
+
+    const records = llmAnalyticsStore.usageRecords;
     
     // If we have a specific request ID, fetch its details
     if (props.requestId) {
@@ -769,9 +766,7 @@ const fetchLiveData = async () => {
     emit('data-updated', liveRequestData.value);
   } catch (error) {
     console.error('Error fetching live LLM data:', error);
-    liveDataError.value = 'Failed to fetch live request data';
-  } finally {
-    isLoadingLiveData.value = false;
+    // Error is handled by the store
   }
 };
 
@@ -917,12 +912,12 @@ const selectRequest = (requestId: string) => {
 // Lifecycle
 onMounted(async () => {
   // Initialize store data
-  await llmUsageStore.fetchUsageRecords();
-  
+  await llmAnalyticsStore.fetchUsageRecords();
+
   if (props.liveMode) {
     startLiveDataPolling();
   }
-  
+
   if (props.autoStart) {
     startFlow();
   }

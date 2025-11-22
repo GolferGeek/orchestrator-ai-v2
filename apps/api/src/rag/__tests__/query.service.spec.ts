@@ -77,7 +77,8 @@ describe('QueryService', () => {
         query: 'test query',
       });
 
-      expect(embeddingService.embed).toHaveBeenCalledWith('test query');
+      // Verify embed was called with query
+      expect(embeddingService.embed.mock.calls[0]?.[0]).toBe('test query');
     });
 
     it('should pass correct parameters to database', async () => {
@@ -89,10 +90,11 @@ describe('QueryService', () => {
         similarityThreshold: 0.7,
       });
 
-      expect(ragDb.queryAll).toHaveBeenCalledWith(
-        expect.stringContaining('rag_search'),
-        expect.arrayContaining(['collection-1', 'test-org']),
-      );
+      // Verify queryAll was called with search parameters
+      const [query, params] = ragDb.queryAll.mock.calls[0] ?? [];
+      expect(query).toContain('rag_search');
+      expect(params).toContain('collection-1');
+      expect(params).toContain('test-org');
     });
 
     it('should include metadata when requested', async () => {

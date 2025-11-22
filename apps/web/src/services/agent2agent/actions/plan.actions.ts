@@ -19,7 +19,7 @@ import type {
   PlanVersionData,
   TaskResponse,
   PlanCreateResponseContent,
-  PlanRerunResponseContent,
+  // PlanRerunResponseContent,
   PlanResponseMetadata,
   JsonRpcSuccessResponse,
   JsonRpcErrorResponse
@@ -106,14 +106,14 @@ export async function createPlan(
     if (typeof parsedResult === 'string') {
       try {
         parsedResult = JSON.parse(parsedResult);
-      } catch (e) {
+      } catch {
         // If direct parsing fails, try to find JSON in the text
         const jsonMatch = parsedResult.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           try {
             parsedResult = JSON.parse(jsonMatch[0]);
             console.log('📦 [Plan Action] Extracted JSON from text response');
-          } catch (e2) {
+          } catch {
             // Still not valid JSON, use as-is
           }
         }
@@ -179,7 +179,7 @@ export async function createPlan(
         }
       }
 
-      const finalThinking = thinkingContent || extractedThinkingFromTags || extractedThinkingFromPattern;
+      const _finalThinking = thinkingContent || extractedThinkingFromTags || extractedThinkingFromPattern;
 
       assistantContent = strippedContent || 'Plan created successfully';
     }

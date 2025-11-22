@@ -56,7 +56,7 @@ import { useConversationsStore } from '@/stores/conversationsStore';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
 import { useAgentsStore } from '@/stores/agentsStore';
 import { sendMessage, createPlan, createDeliverable } from '@/services/agent2agent/actions';
-import { conversation } from '@/services/conversationHelpers';
+import { conversation as conversationHelpers } from '@/services/conversationHelpers';
 import AgentChatView from './AgentChatView.vue';
 import TwoPaneConversationView from './TwoPaneConversationView.vue';
 // const route = useRoute();
@@ -107,8 +107,8 @@ const switchToConversation = async (conversationId: string) => {
   // Otherwise, load the conversation data from backend
   console.log('📥 [ConversationTabs] Loading conversation from backend...');
   try {
-    const backendConversation = await conversation.getBackendConversation(conversationId);
-    const messages = await conversation.loadConversationMessages(conversationId);
+    const backendConversation = await conversationHelpers.getBackendConversation(conversationId);
+    const messages = await conversationHelpers.loadConversationMessages(conversationId);
 
     console.log('📦 [ConversationTabs] Loaded messages from backend:', messages.length);
 
@@ -126,7 +126,7 @@ const switchToConversation = async (conversationId: string) => {
 
     // Create the conversation object
     const createdAt = backendConversation.createdAt ? new Date(backendConversation.createdAt) : new Date();
-    const loadedConversation = conversation.createConversationObject(agent, createdAt);
+    const loadedConversation = conversationHelpers.createConversationObject(agent, createdAt);
     loadedConversation.id = conversationId;
     loadedConversation.agentName = backendConversation.agentName;
     loadedConversation.agentType = backendConversation.agentType;
@@ -160,24 +160,24 @@ const closeConversation = (conversationId: string) => {
 };
 
 const handleSendMessage = async (content: string) => {
-  const conversation = chatUiStore.activeConversation;
-  if (!conversation || !conversation.agentName) {
+  const activeConv = chatUiStore.activeConversation;
+  if (!activeConv || !activeConv.agentName) {
     console.error('Cannot send message: no active conversation');
     return;
   }
 
   try {
     const mode = chatUiStore.chatMode || 'conversational';
-    const agentName = conversation.agentName;
+    const agentName = activeConv.agentName;
 
     // Route to appropriate action based on mode
     if (mode === 'plan') {
-      await createPlan(agentName, conversation.id, content);
+      await createPlan(agentName, activeConv.id, content);
     } else if (mode === 'build') {
-      await createDeliverable(agentName, conversation.id, content);
+      await createDeliverable(agentName, activeConv.id, content);
     } else {
       // converse mode (default)
-      await sendMessage(agentName, conversation.id, content);
+      await sendMessage(agentName, activeConv.id, content);
     }
   } catch (error) {
     console.error('Error sending message:', error);

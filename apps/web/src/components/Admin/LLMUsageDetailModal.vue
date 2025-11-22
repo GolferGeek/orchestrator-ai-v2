@@ -406,14 +406,46 @@ async function loadUsageDetails(runId: string) {
   const pseudonymMappingsStore = usePrivacyStore();
 
   try {
-    // Load usage details
-    const details = await llmAnalyticsStore.getLLMUsageDetails(runId);
-    usageDetails.value = details;
-    
-    // Load pseudonym mappings if there are pseudonyms
-    if (details?.pseudonyms_used > 0) {
-      const mappings = await pseudonymMappingsStore.getMappingsByRunId(runId);
-      pseudonymMappings.value = mappings;
+    // Ensure usage records are loaded
+    if (llmAnalyticsStore.usageRecords.length === 0) {
+      await llmAnalyticsStore.fetchUsageRecords();
+    }
+
+    // Find the usage details from the store records
+    const details = llmAnalyticsStore.usageRecords.find(
+      record => record.run_id === runId || record.id === runId
+    );
+
+    if (details) {
+      // Map to expected format
+      usageDetails.value = {
+        run_id: details.run_id || details.id,
+        status: details.status,
+        provider: details.provider_name,
+        model: details.model_name,
+        caller_type: details.caller_type,
+        caller_name: details.caller_name,
+        route: details.route,
+        is_local: details.is_local,
+        conversation_id: details.conversation_id,
+        input_tokens: details.input_tokens,
+        output_tokens: details.output_tokens,
+        input_cost: details.input_cost,
+        output_cost: details.output_cost,
+        duration_ms: details.duration_ms,
+        started_at: details.started_at,
+        completed_at: details.completed_at,
+        error_message: details.error_message,
+        pii_detected: false,
+        pseudonyms_used: 0,
+        redactions_applied: 0,
+      } as UsageDetails;
+
+      // Load pseudonym mappings if there are pseudonyms
+      if (usageDetails.value?.pseudonyms_used > 0) {
+        const mappings = await pseudonymMappingsStore.getMappingsByRunId(runId);
+        pseudonymMappings.value = mappings;
+      }
     }
   } catch (error) {
     console.error('Error loading usage details:', error);

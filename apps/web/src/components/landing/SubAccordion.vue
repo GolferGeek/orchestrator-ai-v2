@@ -10,15 +10,15 @@
       tabindex="0"
     >
       <h3 class="sub-accordion-title">{{ title }}</h3>
-      <ion-icon 
+      <ion-icon
         :icon="isExpanded ? chevronUpOutline : chevronDownOutline"
         class="sub-accordion-icon"
         :class="{ 'rotated': isExpanded }"
-        @click="toggle"
+        @click.stop="toggle"
         @keydown="handleKeydown"
         tabindex="0"
         role="button"
-        :aria-label="isExpanded ? 'Collapse subsection' : 'Expand subsection'"
+        :aria-label="isExpanded ? `Collapse subsection: ${title}` : `Expand subsection: ${title}`"
       />
     </button>
     
@@ -37,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { IonIcon } from '@ionic/vue';
 import { chevronUpOutline, chevronDownOutline } from 'ionicons/icons';
 
@@ -55,13 +55,18 @@ const props = withDefaults(defineProps<Props>(), {
 // Generate a more predictable ID for this sub-accordion
 const subId = computed(() => {
   if (props.id) {
-    return `sub-${props.id}`;
+    return `sub-sub-${props.id}`;
   }
   // Fallback to title-based ID
-  return `sub-${props.title.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Math.random().toString(36).substr(2, 6)}`;
+  return `sub-sub-${props.title.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Math.random().toString(36).substr(2, 6)}`;
 });
 
 const isExpanded = ref(props.isExpanded);
+
+// Watch for prop changes to sync with local state
+watch(() => props.isExpanded, (newVal) => {
+  isExpanded.value = newVal;
+});
 
 const toggle = () => {
   isExpanded.value = !isExpanded.value;
@@ -73,6 +78,7 @@ const handleKeydown = (event: KeyboardEvent) => {
     case 'Enter':
     case ' ':
       event.preventDefault();
+      event.stopPropagation();
       toggle();
       break;
     case 'ArrowDown':
@@ -94,6 +100,13 @@ const handleKeydown = (event: KeyboardEvent) => {
       break;
   }
 };
+
+// Expose methods for testing
+defineExpose({
+  toggle,
+  handleKeydown,
+  isExpanded,
+});
 </script>
 
 <style scoped>

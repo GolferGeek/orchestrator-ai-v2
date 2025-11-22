@@ -62,7 +62,7 @@ export async function sendMessage(
     timestamp: new Date().toISOString(),
   };
 
-  const addedUserMessage = conversationsStore.addMessage(conversationId, userMessageObj);
+  const _addedUserMessage = conversationsStore.addMessage(conversationId, userMessageObj);
   console.log('📝 [Converse Send Action] Added user message to store');
 
   // 3. Get conversation history and UI preferences
@@ -106,7 +106,7 @@ export async function sendMessage(
     if (typeof parsedResult === 'string') {
       try {
         parsedResult = JSON.parse(parsedResult);
-      } catch (e) {
+      } catch {
         console.warn('📦 [Converse Action] Backend returned non-JSON string:', parsedResult?.substring(0, 200));
       }
     }

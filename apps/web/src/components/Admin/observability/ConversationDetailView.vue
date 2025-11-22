@@ -271,7 +271,7 @@ const {
   isLoading,
   error,
   conversation,
-  events,
+  events: _events,
   tasks,
   deliverables,
   eventsByType,

@@ -319,11 +319,13 @@
           </template>
           <template v-else>
             <!-- Markdown Content -->
+            <!-- eslint-disable vue/no-v-html -- Sanitized markdown content -->
             <div
               v-if="displayVersion?.format === 'markdown'"
               class="markdown-content"
               v-html="renderedMarkdown"
             ></div>
+            <!-- eslint-enable vue/no-v-html -->
             <!-- JSON Content -->
             <pre
               v-else-if="displayVersion?.format === 'json'"
@@ -797,7 +799,7 @@ const makeCurrentVersion = async () => {
 
     // Reload versions to get updated current version status
     const planStore = usePlanStore();
-    const updatedVersions = planStore.planVersions(props.plan.id);
+    const _updatedVersions = planStore.planVersions(props.plan.id);
 
     // Update local state
     selectedVersion.value.isCurrentVersion = true;
