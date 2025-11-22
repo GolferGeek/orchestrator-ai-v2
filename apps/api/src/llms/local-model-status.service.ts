@@ -349,9 +349,9 @@ export class LocalModelStatusService {
       // Map routing tiers to speed_tier values
       const tierMapping: Record<string, string> = {
         'ultra-fast': 'very-fast',
-        'balanced': 'medium',
+        balanced: 'medium',
         'high-quality': 'slow',
-        'general': 'fast',
+        general: 'fast',
         'fast-thinking': 'medium',
       };
       const speedTier = tierMapping[tier] || tier;

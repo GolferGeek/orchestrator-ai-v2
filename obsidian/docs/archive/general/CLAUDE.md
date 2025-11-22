@@ -58,3 +58,24 @@
 - **A2A Compliance**: Tasks flow through normally, orchestrator just adds project orchestration on top
 
 **Key Insight**: The orchestrator isn't a special case - it's **a regular agent that happens to coordinate other agents and manage projects**. It should work exactly like the existing conversation + tasks system that's proven to work, just with added orchestration intelligence.
+
+# DATABASE ARCHITECTURE PRINCIPLE
+
+## Four Separate Databases - By Design
+
+**Orchestrator AI uses four separate databases intentionally. This separation is a core architectural decision and should be maintained.**
+
+| Database | Purpose | Connection |
+|----------|---------|------------|
+| `postgres` | Main Orchestrator AI (agents, conversations, tasks, orgs, users) | `DATABASE_URL` |
+| `rag_data` | RAG infrastructure (collections, documents, vector embeddings) | `RAG_DATABASE_URL` |
+| `n8n` | N8N workflow automation | N8N internal |
+| `observability` | Multi-agent observability events and analytics | Observability service |
+
+**Why separate databases?**
+- **Isolation**: Each concern has its own data lifecycle and scaling needs
+- **Performance**: Vector operations (RAG) don't impact transactional workloads (Orchestrator)
+- **Security**: Service-level access control per database
+- **Backup/Restore**: Independent backup strategies per concern
+
+**NEVER consolidate these databases.** Keep the four-database architecture.
