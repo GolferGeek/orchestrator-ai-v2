@@ -33,7 +33,7 @@ import {
 } from 'ionicons/icons';
 import { useLandingStore } from '@/stores/landingStore';
 import { useRouter } from 'vue-router';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore } from '@/stores/rbacStore';
 import VideoPlayer from './VideoPlayer.vue';
 import { videoService } from '@/services/videoService';
 

@@ -375,7 +375,7 @@ import { useChatUiStore } from '@/stores/ui/chatUiStore';
 import { useDeliverablesStore } from '@/stores/deliverablesStore';
 import { deliverablesService } from '@/services/deliverablesService';
 import { usePlanStore } from '@/stores/planStore';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore } from '@/stores/rbacStore';
 import { useAgentsStore } from '@/stores/agentsStore';
 import { videoService } from '@/services/videoService';
 import {

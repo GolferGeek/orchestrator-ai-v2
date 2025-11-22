@@ -459,7 +459,7 @@ import {
 } from 'ionicons/icons';
 import FolderTreeSelector from '@/components/rag/FolderTreeSelector.vue';
 import { useRagStore } from '@/stores/ragStore';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore } from '@/stores/rbacStore';
 import ragService, { type RagDocument } from '@/services/ragService';
 
 const route = useRoute();

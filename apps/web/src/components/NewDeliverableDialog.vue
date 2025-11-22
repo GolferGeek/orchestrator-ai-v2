@@ -151,7 +151,7 @@ import {
 } from 'ionicons/icons';
 import { useAgentsStore } from '@/stores/agentsStore';
 import { agentsService } from '@/services/agentsService';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore } from '@/stores/rbacStore';
 // import { useConversationsStore } from '@/stores/conversationsStore';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
 import { /* migrated */ } from '@/stores/agentChatStore';

@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from '@ionic/vue-router';
 import { RouteRecordRaw } from 'vue-router';
 // Dynamic imports for better code splitting - all views loaded on demand
-import { useAuthStore, UserRole } from '../stores/authStore';
+import { useAuthStore } from '../stores/rbacStore';
 import { useRbacStore } from '../stores/rbacStore';
 
 // Extended route meta for RBAC support
@@ -9,8 +9,7 @@ declare module 'vue-router' {
   interface RouteMeta {
     requiresAuth?: boolean;
     public?: boolean;
-    requiresRole?: (string | UserRole)[];  // Legacy role check
-    requiresPermission?: string | string[];  // New RBAC permission check
+    requiresPermission?: string | string[];  // RBAC permission check
     requiresAllPermissions?: boolean;  // If true, user must have ALL permissions
     title?: string;
     description?: string;
@@ -206,17 +205,6 @@ const routes: Array<RouteRecordRaw> = [
         }
       },
       {
-        path: 'admin/audit',
-        name: 'AdminAudit',
-        component: () => import('../views/AdminAuditDashboard.vue'),
-        meta: {
-          requiresAuth: true,
-          requiresPermission: 'admin:audit',
-          title: 'Access Control Audit Dashboard',
-          description: 'Monitor access attempts and security events'
-        }
-      },
-      {
         path: 'admin/rag/collections',
         name: 'RagCollections',
         component: () => import('../views/admin/RagCollectionsPage.vue'),
@@ -281,10 +269,11 @@ router.beforeEach(async (to, from, next) => {
     // Initialize RBAC store if needed
     if (!rbacStore.isInitialized) {
       try {
+        console.log('[Router] Initializing RBAC store...');
         await rbacStore.initialize();
+        console.log('[Router] RBAC initialized. isSuperAdmin:', rbacStore.isSuperAdmin, 'currentOrg:', rbacStore.currentOrganization);
       } catch (error) {
         console.error('Failed to initialize RBAC:', error);
-        // Continue with legacy role check if RBAC fails
       }
     }
 
@@ -294,12 +283,14 @@ router.beforeEach(async (to, from, next) => {
       const permissions = Array.isArray(requiredPermissions) ? requiredPermissions : [requiredPermissions];
       const requireAll = to.meta.requiresAllPermissions === true;
 
+      console.log('[Router] Checking permissions:', permissions, 'isSuperAdmin:', rbacStore.isSuperAdmin);
       const hasAccess = requireAll
         ? rbacStore.hasAllPermissions(permissions)
         : rbacStore.hasAnyPermission(permissions);
+      console.log('[Router] hasAccess:', hasAccess);
 
       if (!hasAccess) {
-        console.warn(`Permission denied. Required: ${permissions.join(', ')}`);
+        console.warn(`Permission denied. Required: ${permissions.join(', ')}, isSuperAdmin: ${rbacStore.isSuperAdmin}`);
         next({
           path: '/access-denied',
           query: {
@@ -311,50 +302,8 @@ router.beforeEach(async (to, from, next) => {
       }
     }
 
-    // Check if route requires specific roles (legacy system - still supported)
-    const requiredRoles = to.meta.requiresRole as (string | UserRole)[] | undefined;
-    if (requiredRoles && requiredRoles.length > 0) {
-      // Ensure user data is loaded
-      if (!authStore.user) {
-        try {
-          await authStore.fetchCurrentUser();
-        } catch (error) {
-          console.error('Failed to fetch user data for role check:', error);
-          next({ path: '/login', query: { redirect: to.fullPath } });
-          return;
-        }
-      }
-
-      if (authStore.user) {
-        // Convert string roles to UserRole enum values for consistency
-        const normalizedRequiredRoles = requiredRoles.map(role =>
-          typeof role === 'string' ? role as UserRole : role
-        );
-
-        // Check if user has any of the required roles
-        const hasRequiredRole = authStore.hasAnyRole(normalizedRequiredRoles);
-
-        if (!hasRequiredRole) {
-          console.warn(`Access denied. User roles: ${authStore.user.roles}, Required: ${normalizedRequiredRoles}`);
-          // Redirect to access denied page with role information
-          next({
-            path: '/access-denied',
-            query: {
-              requiredRoles: normalizedRequiredRoles.join(','),
-              attemptedPath: to.fullPath
-            }
-          });
-          return;
-        }
-      } else {
-        // No user data available, redirect to login
-        next({ path: '/login', query: { redirect: to.fullPath } });
-        return;
-      }
-    }
-
     // If navigating to /app or /app/welcome and user is admin, redirect to admin dashboard
-    if ((to.path === '/app' || to.path === '/app/welcome' || to.name === 'Welcome') && authStore.user?.roles?.includes(UserRole.ADMIN)) {
+    if ((to.path === '/app' || to.path === '/app/welcome' || to.name === 'Welcome') && authStore.isAdmin) {
       // Only redirect if not explicitly coming from admin area
       if (!from.path.startsWith('/app/admin')) {
         next({ path: '/app/admin/settings' });
@@ -364,7 +313,7 @@ router.beforeEach(async (to, from, next) => {
 
     // If navigating to /app/home and user is admin, prefer the admin dashboard
     // UNLESS there's a specific query parameter or redirect indicating intent to go to home
-    if ((to.name === 'Home' || to.path === '/app/home') && authStore.user?.roles?.includes(UserRole.ADMIN)) {
+    if ((to.name === 'Home' || to.path === '/app/home') && authStore.isAdmin) {
       // Check if there's an active conversation or if coming from agent selection
       const hasActiveConversation = from?.path?.includes('/app/home') ||
                                    to.query?.conversationId ||

@@ -47,7 +47,7 @@
 import { ref, onMounted } from 'vue';
 import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonList, IonItem, IonLabel, IonButton, IonButtons, IonSelect, IonSelectOption, IonInput, IonChip, IonInfiniteScroll, IonInfiniteScrollContent } from '@ionic/vue';
 import approvalsService, { type HumanApprovalRecord } from '@/services/approvalsService';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore } from '@/stores/rbacStore';
 
 const status = ref<'pending' | 'approved' | 'rejected'>('pending');
 const agentFilter = ref('');

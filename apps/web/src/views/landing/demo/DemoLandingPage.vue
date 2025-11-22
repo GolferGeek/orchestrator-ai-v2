@@ -358,7 +358,7 @@ import { useLandingStore } from '@/stores/landingStore';
 // Video service
 import { videoService, type Video } from '@/services/videoService';
 import { useRouter } from 'vue-router';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore } from '@/stores/rbacStore';
 
 // Interface for video player (simplified)
 interface VideoPlayerVideo {

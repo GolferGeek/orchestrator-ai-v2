@@ -397,7 +397,7 @@ import { useConversationsStore } from '@/stores/conversationsStore';
 import { useDeliverablesStore } from '@/stores/deliverablesStore';
 import { deliverablesService } from '@/services/deliverablesService';
 import { agentsService } from '@/services/agentsService';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore } from '@/stores/rbacStore';
 import ConversationDeleteModal from './ConversationDeleteModal.vue';
 
 // Props

@@ -58,7 +58,7 @@ export interface AuditLogEntry {
 
 class RbacService {
   private getAuthHeaders(): Record<string, string> {
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem('authToken');
     return {
       ...getSecureHeaders(),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),

@@ -1,5 +1,5 @@
 import { ref, onUnmounted, computed } from 'vue';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore } from '@/stores/rbacStore';
 
 export interface ObservabilityEvent {
   id?: number;

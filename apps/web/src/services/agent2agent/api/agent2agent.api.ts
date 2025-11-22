@@ -13,7 +13,7 @@ import {
   // EditPlanRequest,
   // ReadPlanRequest,
 } from '../types';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore } from '@/stores/rbacStore';
 import type {
   // A2ATaskRequest,
   // A2ATaskResponse,

@@ -684,7 +684,7 @@ import {
   settingsOutline,
   serverOutline,
 } from 'ionicons/icons';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore } from '@/stores/rbacStore';
 import { usePrivacyStore } from '@/stores/privacyStore';
 import { useLLMAnalyticsStore } from '@/stores/llmAnalyticsStore';
 // Privacy stores consolidated into usePrivacyStore

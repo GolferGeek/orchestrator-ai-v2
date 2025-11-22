@@ -254,7 +254,7 @@ import {
   timeOutline,
 } from 'ionicons/icons';
 import { useRagStore } from '@/stores/ragStore';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore } from '@/stores/rbacStore';
 import ragService, { type RagCollection, type CreateCollectionDto } from '@/services/ragService';
 
 const router = useRouter();

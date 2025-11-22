@@ -31,7 +31,6 @@ interface PermissionModifiers {
 }
 
 function checkPermission(binding: DirectiveBinding<PermissionValue>): boolean {
-  const rbacStore = useRbacStore();
   const permissions = binding.value;
   const modifiers = binding.modifiers as PermissionModifiers;
 
@@ -43,6 +42,20 @@ function checkPermission(binding: DirectiveBinding<PermissionValue>): boolean {
 
   if (permissionList.length === 0) {
     return true;
+  }
+
+  // Safely get the RBAC store - may not be initialized on login page
+  let rbacStore;
+  try {
+    rbacStore = useRbacStore();
+  } catch {
+    // Store not ready, hide element by default
+    return false;
+  }
+
+  // If store exists but not initialized, hide protected elements
+  if (!rbacStore.isInitialized) {
+    return false;
   }
 
   // Check if user has required permissions

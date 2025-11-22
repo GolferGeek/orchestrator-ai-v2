@@ -948,7 +948,7 @@ function openGenerateModal() {
 async function submitGenerate() {
   try {
     // Execute function agent "image_basic_generator" via Agent2Agent
-    const orgSlug = (await import('@/stores/authStore')).useAuthStore().currentNamespace || 'my-org';
+    const orgSlug = (await import('@/stores/rbacStore')).useRbacStore().currentOrganization || 'my-org';
     const selectedProviders = genProviders.value || [];
     const agentSlug = (selectedProviders.length === 1)
       ? (selectedProviders[0] === 'gemini' ? 'image_google_generator' : 'image_openai_generator')

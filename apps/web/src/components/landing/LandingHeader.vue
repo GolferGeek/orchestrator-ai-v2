@@ -10,9 +10,9 @@
       
       <!-- Main Navigation -->
       <nav class="header-nav">
-        <NamespaceSwitcher v-if="authStore.isAuthenticated" />
-        <!-- View Toggle - only show in demo namespace -->
-        <ViewToggle v-if="isDemoNamespace" />
+        <OrganizationSwitcher v-if="authStore.isAuthenticated" />
+        <!-- View Toggle - only show in demo organization -->
+        <ViewToggle v-if="isDemoOrg" />
         <a href="/videos" class="nav-link">
           <ion-icon :icon="playCircleOutline"></ion-icon>
           All Videos
@@ -38,18 +38,18 @@ import {
   appsOutline
 } from 'ionicons/icons';
 import { useRouter } from 'vue-router';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore } from '@/stores/rbacStore';
 import { storeToRefs } from 'pinia';
-import NamespaceSwitcher from '@/components/common/NamespaceSwitcher.vue';
+import OrganizationSwitcher from '@/components/common/OrganizationSwitcher.vue';
 import ViewToggle from '@/components/landing/ViewToggle.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();
-const { currentNamespace } = storeToRefs(authStore);
+const { currentOrganization } = storeToRefs(authStore);
 
-// Check if we're in the demo namespace
-const isDemoNamespace = computed(() => {
-  return (currentNamespace?.value || 'demo') === 'demo';
+// Check if we're in the demo organization
+const isDemoOrg = computed(() => {
+  return (currentOrganization?.value || 'demo-org') === 'demo-org';
 });
 
 function navigateToApp() {

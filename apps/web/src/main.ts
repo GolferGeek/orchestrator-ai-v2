@@ -3,7 +3,6 @@ import App from './App.vue'
 import router from './router';
 import { createPinia } from 'pinia';
 import { IonicVue } from '@ionic/vue';
-import { registerRoleGuardDirective } from './directives/roleGuard';
 import { vPermission } from './directives/permission';
 /* Core CSS required for Ionic components to work properly */
 import '@ionic/vue/css/core.css';
@@ -34,9 +33,6 @@ const app = createApp(App)
   .use(IonicVue)
   .use(router)
   .use(createPinia());
-
-// Register role guard directive (legacy - will be deprecated)
-registerRoleGuardDirective(app);
 
 // Register RBAC permission directive
 app.directive('permission', vPermission);

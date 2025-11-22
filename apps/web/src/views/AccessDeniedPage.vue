@@ -84,7 +84,7 @@ import {
 import {
   lockClosedOutline, arrowBackOutline, homeOutline, mailOutline
 } from 'ionicons/icons';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore } from '@/stores/rbacStore';
 
 const router = useRouter();
 const route = useRoute();

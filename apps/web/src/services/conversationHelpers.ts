@@ -1,7 +1,7 @@
 import agentConversationsService, { type AgentType } from '@/services/agentConversationsService';
 import agent2AgentConversationsService from '@/services/agent2AgentConversationsService';
 import { useAgentsStore } from '@/stores/agentsStore';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore } from '@/stores/rbacStore';
 import { tasksService } from '@/services/tasksService';
 import type { AgentConversation, AgentChatMessage, ExecutionMode, Agent, AgentChatMode } from '@/types/conversation';
 import { DEFAULT_CHAT_MODES } from '@/types/conversation';

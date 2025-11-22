@@ -207,42 +207,63 @@ export class AuthService {
       // Use service role client to bypass RLS issues temporarily
       const serviceClient = this.supabaseService.getServiceClient();
 
+      // Get user profile from users table
       const { data: userData } = await serviceClient
         .from(getTableName('users'))
-        .select('id, email, display_name, roles, created_at, namespace_access')
+        .select('id, email, display_name, organization_slug, created_at')
         .eq('id', currentAuthUser.id)
         .single();
 
-      if (userData) {
-        const namespaceAccess = Array.isArray(userData.namespace_access)
-          ? (userData.namespace_access as string[])
-          : [];
-
-        if (!namespaceAccess.length) {
-          throw new HttpException(
-            'User has no namespace access configured. Please contact an administrator.',
-            HttpStatus.FORBIDDEN,
-          );
-        }
-
-        return {
-          id: currentAuthUser.id,
-          email: currentAuthUser.email,
-          displayName: userData.display_name as string,
-          roles: (userData.roles as string[]) || ['user'],
-          namespaceAccess,
-        };
+      if (!userData) {
+        throw new HttpException(
+          'User profile not found.',
+          HttpStatus.FORBIDDEN,
+        );
       }
 
-      throw new HttpException(
-        'User profile not found in namespace directory.',
-        HttpStatus.FORBIDDEN,
+      // Get user's organizations from RBAC
+      const { data: userOrgs, error: orgsError } = await serviceClient.rpc(
+        'rbac_get_user_organizations',
+        { p_user_id: currentAuthUser.id },
       );
+
+      if (orgsError) {
+        this.logger.warn('Failed to get user organizations:', orgsError);
+      }
+
+      // Extract unique organization slugs
+      const namespaceAccess = userOrgs
+        ? [...new Set((userOrgs as Array<{ organization_slug: string }>).map((o) => o.organization_slug))]
+        : [];
+
+      // If user has no organizations, use their default org or 'demo-org'
+      if (namespaceAccess.length === 0) {
+        if (userData.organization_slug) {
+          namespaceAccess.push(userData.organization_slug as string);
+        } else {
+          namespaceAccess.push('demo-org');
+        }
+      }
+
+      // Get user's roles from RBAC (extract from userOrgs which includes role_name)
+      // userOrgs returns: organization_slug, organization_name, role_name, is_global
+      const roles = userOrgs
+        ? [...new Set((userOrgs as Array<{ role_name: string }>).map((o) => o.role_name))]
+        : ['member'];
+
+      return {
+        id: currentAuthUser.id,
+        email: currentAuthUser.email,
+        displayName: userData.display_name as string,
+        roles,
+        namespaceAccess,
+      };
     } catch (error) {
       if (error instanceof HttpException) {
         throw error;
       }
 
+      this.logger.error('Error fetching user profile:', error);
       throw new HttpException(
         'Could not fetch user profile.',
         HttpStatus.INTERNAL_SERVER_ERROR,

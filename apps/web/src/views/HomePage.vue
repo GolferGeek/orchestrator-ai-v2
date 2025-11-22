@@ -78,7 +78,7 @@ import {
   sunnyOutline,
 } from 'ionicons/icons';
 import { useRouter, useRoute } from 'vue-router';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore } from '@/stores/rbacStore';
 import { useConversationsStore } from '@/stores/conversationsStore';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
 import { conversation } from '@/services/conversationHelpers';

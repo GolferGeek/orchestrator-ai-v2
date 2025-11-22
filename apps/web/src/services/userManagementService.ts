@@ -1,22 +1,21 @@
 import { apiService } from './apiService';
-import { UserRole } from '../stores/authStore';
 
 export interface User {
   id: string;
   email: string;
   displayName?: string;
-  roles: UserRole[];
+  roles: string[];
   createdAt: string;
   status: string;
 }
 
 export interface UpdateUserRolesRequest {
-  roles: UserRole[];
+  roles: string[];
   reason?: string;
 }
 
 export interface AddUserRoleRequest {
-  role: UserRole;
+  role: string;
   reason?: string;
 }
 
@@ -28,7 +27,7 @@ export interface CreateUserRequest {
   email: string;
   password: string;
   displayName?: string;
-  roles?: UserRole[];
+  roles?: string[];
   emailConfirm?: boolean;
 }
 
@@ -36,7 +35,7 @@ export interface CreateUserResponse {
   id: string;
   email: string;
   displayName?: string;
-  roles: UserRole[];
+  roles: string[];
   emailConfirmationRequired: boolean;
   message: string;
 }

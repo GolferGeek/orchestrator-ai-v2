@@ -49,28 +49,27 @@ import { ref, computed } from 'vue';
 import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonList, IonItem, IonLabel, IonInput, IonButton, IonText, IonSpinner } from '@ionic/vue';
 // LoginForm component is not directly used here anymore, logic moved to this view for store integration
 import { useRouter, useRoute } from 'vue-router';
-import { useAuthStore, UserRole } from '@/stores/authStore';
+import { useAuthStore } from '@/stores/rbacStore';
 const router = useRouter();
 const route = useRoute();
 const auth = useAuthStore();
-// Prefill with demo credentials for the playground
-const DEMO_EMAIL = 'demo.user@orchestratorai.io';
-const DEMO_PASSWORD = 'DemoUser123!';
 
-const email = ref(DEMO_EMAIL);
-const password = ref(DEMO_PASSWORD);
+// Use env variables for test credentials, with fallback to demo user
+const TEST_EMAIL = import.meta.env.VITE_TEST_USER || '';
+const TEST_PASSWORD = import.meta.env.VITE_TEST_PASSWORD || '';
 
-// Check if demo credentials are available
+const email = ref(TEST_EMAIL);
+const password = ref(TEST_PASSWORD);
+
+// Check if test credentials are available from env
 const hasDemoCreds = computed(() => {
-  return DEMO_EMAIL && DEMO_PASSWORD;
+  return Boolean(TEST_EMAIL && TEST_PASSWORD);
 });
 const performLogin = async () => {
   const success = await auth.login({ email: email.value, password: password.value });
   if (success) {
-    // Check if user is admin and redirect to admin dashboard
-    // Access user roles directly instead of computed property for immediate check
-    const isUserAdmin = auth.user?.roles?.includes(UserRole.ADMIN);
-    if (isUserAdmin) {
+    // Check if user is admin/super-admin and redirect to admin dashboard
+    if (auth.isAdmin) {
       router.push('/app/admin/settings');
     } else {
       const redirectPath = route.query.redirect as string || '/app';
@@ -81,8 +80,8 @@ const performLogin = async () => {
 
 const demoLogin = async () => {
   // Fields are already prefilled, but ensure values
-  email.value = DEMO_EMAIL;
-  password.value = DEMO_PASSWORD;
+  email.value = TEST_EMAIL;
+  password.value = TEST_PASSWORD;
   await performLogin();
 };
 </script>
