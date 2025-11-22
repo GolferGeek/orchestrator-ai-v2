@@ -175,10 +175,8 @@
             </ion-item>
             <ion-item>
               <ion-label position="stacked">Embedding Model</ion-label>
-              <ion-select v-model="newCollection.embeddingModel" interface="popover">
+              <ion-select v-model="newCollection.embeddingModel" interface="popover" disabled>
                 <ion-select-option value="nomic-embed-text">nomic-embed-text (768d)</ion-select-option>
-                <ion-select-option value="text-embedding-3-small">text-embedding-3-small (1536d)</ion-select-option>
-                <ion-select-option value="text-embedding-3-large">text-embedding-3-large (3072d)</ion-select-option>
               </ion-select>
             </ion-item>
             <ion-item>
