@@ -80,10 +80,22 @@
           <div class="documents-section">
             <div class="section-header">
               <h2>Documents</h2>
-              <ion-button fill="outline" size="small" @click="openUploadModal">
-                <ion-icon slot="start" :icon="cloudUploadOutline" />
-                Upload
-              </ion-button>
+              <div class="section-actions">
+                <ion-button
+                  v-if="ragStore.documents.length > 0"
+                  fill="outline"
+                  size="small"
+                  color="danger"
+                  @click="confirmDeleteAllDocuments"
+                >
+                  <ion-icon slot="start" :icon="trashOutline" />
+                  Delete All
+                </ion-button>
+                <ion-button fill="outline" size="small" @click="openUploadModal">
+                  <ion-icon slot="start" :icon="cloudUploadOutline" />
+                  Upload
+                </ion-button>
+              </div>
             </div>
 
             <!-- Documents Loading -->
@@ -140,61 +152,172 @@
       <ion-modal :is-open="showUploadModal" @didDismiss="closeUploadModal">
         <ion-header>
           <ion-toolbar>
-            <ion-title>Upload Document</ion-title>
+            <ion-title>Upload Documents</ion-title>
             <ion-buttons slot="end">
-              <ion-button @click="closeUploadModal">Cancel</ion-button>
+              <ion-button @click="closeUploadModal" :disabled="isUploading">
+                {{ isUploading ? 'Processing...' : 'Cancel' }}
+              </ion-button>
             </ion-buttons>
+          </ion-toolbar>
+          <!-- Mode Tabs -->
+          <ion-toolbar>
+            <ion-segment v-model="uploadMode" :disabled="isUploading">
+              <ion-segment-button value="files">
+                <ion-icon :icon="documentOutline" />
+                <ion-label>Files</ion-label>
+              </ion-segment-button>
+              <ion-segment-button value="folder">
+                <ion-icon :icon="folderOutline" />
+                <ion-label>Folder</ion-label>
+              </ion-segment-button>
+            </ion-segment>
           </ion-toolbar>
         </ion-header>
         <ion-content class="ion-padding">
-          <div class="upload-area" :class="{ 'drag-over': isDragOver }"
-            @dragover.prevent="isDragOver = true"
-            @dragleave.prevent="isDragOver = false"
-            @drop.prevent="handleFileDrop"
-          >
-            <ion-icon :icon="cloudUploadOutline" />
-            <h3>Drag & Drop Files</h3>
-            <p>or click to browse</p>
-            <input
-              type="file"
-              ref="fileInput"
-              @change="handleFileSelect"
-              accept=".pdf,.docx,.doc,.txt,.md"
-              multiple
-              hidden
-            />
-            <ion-button fill="outline" @click="triggerFileSelect">
-              Browse Files
-            </ion-button>
-          </div>
-
-          <div v-if="selectedFiles.length > 0" class="selected-files">
-            <h4>Selected Files</h4>
-            <ion-list>
-              <ion-item v-for="(file, index) in selectedFiles" :key="index">
-                <ion-icon :icon="documentOutline" slot="start" />
-                <ion-label>
-                  <h3>{{ file.name }}</h3>
-                  <p>{{ formatFileSize(file.size) }}</p>
-                </ion-label>
-                <ion-button slot="end" fill="clear" @click="removeFile(index)">
-                  <ion-icon :icon="closeOutline" />
-                </ion-button>
-              </ion-item>
-            </ion-list>
-          </div>
-
-          <div class="modal-actions">
-            <ion-button
-              expand="block"
-              @click="uploadFiles"
-              :disabled="selectedFiles.length === 0 || isUploading"
+          <!-- Files Mode -->
+          <template v-if="uploadMode === 'files'">
+            <div class="upload-area" :class="{ 'drag-over': isDragOver }"
+              @dragover.prevent="isDragOver = true"
+              @dragleave.prevent="isDragOver = false"
+              @drop.prevent="handleFileDrop"
             >
-              <ion-spinner v-if="isUploading" name="crescent" />
-              <span v-else>Upload {{ selectedFiles.length }} File(s)</span>
-            </ion-button>
-          </div>
+              <ion-icon :icon="cloudUploadOutline" />
+              <h3>Drag & Drop Files</h3>
+              <p>or click to browse</p>
+              <input
+                type="file"
+                ref="fileInput"
+                @change="handleFileSelect"
+                accept=".pdf,.docx,.doc,.txt,.md"
+                multiple
+                hidden
+              />
+              <ion-button fill="outline" @click="triggerFileSelect">
+                Browse Files
+              </ion-button>
+            </div>
+
+            <div v-if="selectedFiles.length > 0" class="selected-files">
+              <h4>Selected Files</h4>
+              <ion-list>
+                <ion-item v-for="(file, index) in selectedFiles" :key="index">
+                  <ion-icon :icon="documentOutline" slot="start" />
+                  <ion-label>
+                    <h3>{{ file.name }}</h3>
+                    <p>{{ formatFileSize(file.size) }}</p>
+                  </ion-label>
+                  <ion-button slot="end" fill="clear" @click="removeFile(index)">
+                    <ion-icon :icon="closeOutline" />
+                  </ion-button>
+                </ion-item>
+              </ion-list>
+            </div>
+          </template>
+
+          <!-- Folder Mode -->
+          <template v-else>
+            <!-- Folder Selection -->
+            <div v-if="folderFiles.length === 0" class="upload-area">
+              <ion-icon :icon="folderOutline" />
+              <h3>Select a Folder</h3>
+              <p>Choose a folder containing documents to upload</p>
+              <p class="supported-types">Supported: .pdf, .docx, .doc, .txt, .md</p>
+              <input
+                type="file"
+                ref="folderInput"
+                @change="handleFolderSelect"
+                webkitdirectory
+                hidden
+              />
+              <ion-button fill="outline" @click="triggerFolderSelect">
+                Browse Folder
+              </ion-button>
+            </div>
+
+            <!-- Tree Selection & Processing -->
+            <div v-else class="folder-content">
+              <!-- Progress Bar (when processing) -->
+              <div v-if="ragStore.batchUploadActive" class="processing-progress">
+                <div class="progress-header">
+                  <span>Processing: {{ ragStore.batchUploadProgress.currentFile }}</span>
+                  <span>{{ ragStore.batchUploadProgress.current }} / {{ ragStore.batchUploadProgress.total }}</span>
+                </div>
+                <ion-progress-bar
+                  :value="ragStore.batchUploadProgress.total > 0 ? ragStore.batchUploadProgress.current / ragStore.batchUploadProgress.total : 0"
+                />
+                <div class="progress-stats">
+                  <span class="success-count">
+                    <ion-icon :icon="checkmarkCircleOutline" /> {{ ragStore.batchUploadResults.success }}
+                  </span>
+                  <span v-if="ragStore.batchUploadResults.failed > 0" class="error-count">
+                    <ion-icon :icon="alertCircleOutline" /> {{ ragStore.batchUploadResults.failed }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Tree Selector -->
+              <FolderTreeSelector
+                :files="folderFiles"
+                :batch-upload-items="ragStore.batchUploadItems"
+                @update:selected-files="updateSelectedFolderFiles"
+              />
+
+              <!-- Error Summary -->
+              <div v-if="!isUploading && failedUploadItems.length > 0" class="error-summary">
+                <h4>Failed Files:</h4>
+                <ul>
+                  <li v-for="item in failedUploadItems" :key="item.path">{{ item.name }}: {{ item.error }}</li>
+                </ul>
+              </div>
+            </div>
+          </template>
         </ion-content>
+
+        <!-- Fixed Footer with Actions -->
+        <ion-footer>
+          <ion-toolbar>
+            <!-- Files Mode Actions -->
+            <template v-if="uploadMode === 'files'">
+              <ion-button
+                expand="block"
+                @click="uploadFiles"
+                :disabled="selectedFiles.length === 0 || isUploading"
+              >
+                <ion-spinner v-if="isUploading" name="crescent" slot="start" />
+                <span v-if="isUploading">Uploading...</span>
+                <span v-else>Upload {{ selectedFiles.length }} File(s)</span>
+              </ion-button>
+            </template>
+
+            <!-- Folder Mode Actions -->
+            <template v-else>
+              <div class="footer-actions" v-if="folderFiles.length > 0">
+                <ion-button
+                  v-if="!isUploading"
+                  fill="outline"
+                  @click="resetFolderSelection"
+                >
+                  Change Folder
+                </ion-button>
+                <ion-button
+                  v-if="isUploading"
+                  fill="outline"
+                  color="danger"
+                  @click="cancelProcessing"
+                >
+                  Cancel
+                </ion-button>
+                <ion-button
+                  v-if="!isUploading"
+                  @click="uploadFolderFiles"
+                  :disabled="selectedFolderFiles.length === 0"
+                >
+                  Process {{ selectedFolderFiles.length }} File(s)
+                </ion-button>
+              </div>
+            </template>
+          </ion-toolbar>
+        </ion-footer>
       </ion-modal>
 
       <!-- Query Modal -->
@@ -293,6 +416,7 @@ import {
   IonButton,
   IonBackButton,
   IonIcon,
+  IonFooter,
   IonCard,
   IonCardHeader,
   IonCardTitle,
@@ -312,7 +436,11 @@ import {
   IonSelect,
   IonSelectOption,
   IonAlert,
+  IonSegment,
+  IonSegmentButton,
+  IonProgressBar,
   toastController,
+  alertController,
 } from '@ionic/vue';
 import {
   searchOutline,
@@ -324,7 +452,10 @@ import {
   codeOutline,
   trashOutline,
   closeOutline,
+  folderOutline,
+  checkmarkCircleOutline,
 } from 'ionicons/icons';
+import FolderTreeSelector from '@/components/rag/FolderTreeSelector.vue';
 import { useRagStore } from '@/stores/ragStore';
 import { useAuthStore } from '@/stores/authStore';
 import ragService, { type RagDocument } from '@/services/ragService';
@@ -344,6 +475,12 @@ const isDragOver = ref(false);
 const selectedFiles = ref<File[]>([]);
 const isUploading = ref(false);
 const fileInput = ref<HTMLInputElement>();
+const folderInput = ref<HTMLInputElement>();
+
+// Folder upload mode
+const uploadMode = ref<'files' | 'folder'>('files');
+const folderFiles = ref<File[]>([]);
+const selectedFolderFiles = ref<File[]>([]);
 
 // Query Modal
 const showQueryModal = ref(false);
@@ -358,6 +495,11 @@ const documentToDelete = ref<RagDocument | null>(null);
 // Helpers
 const getOrgSlug = () => authStore.currentNamespace || 'demo-org';
 const collectionId = computed(() => route.params.id as string);
+
+// Computed for failed upload items (from store)
+const failedUploadItems = computed(() =>
+  ragStore.batchUploadItems.filter(item => item.status === 'error')
+);
 
 // Load collection and documents
 const loadCollection = async () => {
@@ -389,11 +531,26 @@ const loadDocuments = async () => {
 
 // File handling
 const triggerFileSelect = () => fileInput.value?.click();
+const triggerFolderSelect = () => folderInput.value?.click();
 
 const handleFileSelect = (event: Event) => {
   const input = event.target as HTMLInputElement;
   if (input.files) {
     selectedFiles.value = [...selectedFiles.value, ...Array.from(input.files)];
+  }
+};
+
+const handleFolderSelect = (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  if (input.files) {
+    // Filter to only supported file types
+    const supportedExtensions = ['.pdf', '.docx', '.doc', '.txt', '.md'];
+    const files = Array.from(input.files).filter(file => {
+      const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+      return supportedExtensions.includes(ext);
+    });
+    folderFiles.value = files;
+    selectedFolderFiles.value = files; // Select all by default
   }
 };
 
@@ -408,7 +565,11 @@ const removeFile = (index: number) => {
   selectedFiles.value.splice(index, 1);
 };
 
-// Upload files
+const updateSelectedFolderFiles = (files: File[]) => {
+  selectedFolderFiles.value = files;
+};
+
+// Upload files (single file mode)
 const uploadFiles = async () => {
   if (selectedFiles.value.length === 0 || !collectionId.value) return;
 
@@ -438,6 +599,47 @@ const uploadFiles = async () => {
   }
 
   closeUploadModal();
+};
+
+// Upload folder files (batch processing) - calls service which updates store
+const uploadFolderFiles = async () => {
+  if (selectedFolderFiles.value.length === 0 || !collectionId.value) return;
+
+  isUploading.value = true;
+
+  // Service handles all the logic and updates the store
+  const result = await ragService.uploadFolderFiles(
+    collectionId.value,
+    getOrgSlug(),
+    selectedFolderFiles.value,
+  );
+
+  isUploading.value = false;
+
+  // Show summary toast
+  const { success, failed } = result;
+  const wasCancelled = ragStore.batchUploadCancelled;
+  const message = wasCancelled
+    ? `Cancelled. ${success} succeeded, ${failed} failed`
+    : `${success} file(s) uploaded${failed > 0 ? `, ${failed} failed` : ''}`;
+
+  const toast = await toastController.create({
+    message,
+    duration: 3000,
+    color: failed > 0 ? 'warning' : 'success',
+  });
+  await toast.present();
+
+  // Refresh collection stats and close modal
+  if (success > 0) {
+    await loadCollection();
+  }
+  closeUploadModal();
+};
+
+// Cancel processing - tells store to cancel
+const cancelProcessing = () => {
+  ragStore.cancelBatchUpload();
 };
 
 // Query
@@ -503,6 +705,52 @@ const deleteDocument = async () => {
   documentToDelete.value = null;
 };
 
+// Delete all documents
+const confirmDeleteAllDocuments = async () => {
+  const alert = await alertController.create({
+    header: 'Delete All Documents',
+    message: `Are you sure you want to delete all ${ragStore.documents.length} documents? This cannot be undone.`,
+    buttons: [
+      { text: 'Cancel', role: 'cancel' },
+      {
+        text: 'Delete All',
+        role: 'destructive',
+        handler: deleteAllDocuments,
+      },
+    ],
+  });
+  await alert.present();
+};
+
+const deleteAllDocuments = async () => {
+  if (!collectionId.value) return;
+
+  const docs = [...ragStore.documents];
+  let deleted = 0;
+  let failed = 0;
+
+  for (const doc of docs) {
+    try {
+      await ragService.deleteDocument(collectionId.value, doc.id, getOrgSlug());
+      ragStore.removeDocument(doc.id);
+      deleted++;
+    } catch {
+      failed++;
+    }
+  }
+
+  await loadCollection(); // Refresh stats
+
+  const toast = await toastController.create({
+    message: failed > 0
+      ? `Deleted ${deleted} documents, ${failed} failed`
+      : `Deleted ${deleted} documents`,
+    duration: 2000,
+    color: failed > 0 ? 'warning' : 'success',
+  });
+  await toast.present();
+};
+
 // View document (placeholder)
 const viewDocument = (doc: RagDocument) => {
   console.log('View document:', doc);
@@ -512,11 +760,23 @@ const viewDocument = (doc: RagDocument) => {
 // Modal handlers
 const openUploadModal = () => {
   selectedFiles.value = [];
+  folderFiles.value = [];
+  selectedFolderFiles.value = [];
+  uploadMode.value = 'files';
+  ragStore.clearBatchUpload();
   showUploadModal.value = true;
 };
 const closeUploadModal = () => {
   showUploadModal.value = false;
   selectedFiles.value = [];
+  folderFiles.value = [];
+  selectedFolderFiles.value = [];
+};
+
+const resetFolderSelection = () => {
+  folderFiles.value = [];
+  selectedFolderFiles.value = [];
+  ragStore.clearBatchUpload();
 };
 
 const openQueryModal = () => {
@@ -698,6 +958,105 @@ onMounted(() => {
   white-space: pre-wrap;
   font-size: 0.9rem;
   line-height: 1.5;
+}
+
+.supported-types {
+  font-size: 0.8rem;
+  color: var(--ion-color-medium);
+  margin-top: 0.5rem;
+}
+
+.folder-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.processing-progress {
+  background: var(--ion-color-light);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.progress-header span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  margin-right: 1rem;
+}
+
+.progress-stats {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.success-count {
+  color: var(--ion-color-success);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.error-count {
+  color: var(--ion-color-danger);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.folder-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.folder-actions ion-button {
+  flex: 1;
+  min-width: 140px;
+}
+
+.footer-actions {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0 0.5rem;
+}
+
+.footer-actions ion-button {
+  flex: 1;
+}
+
+.error-summary {
+  background: var(--ion-color-danger-tint);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.error-summary h4 {
+  margin: 0 0 0.5rem 0;
+  color: var(--ion-color-danger-shade);
+}
+
+.error-summary ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.85rem;
+  color: var(--ion-color-danger-shade);
+}
+
+.error-summary li {
+  margin-bottom: 0.25rem;
 }
 
 @media (max-width: 768px) {

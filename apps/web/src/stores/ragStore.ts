@@ -14,6 +14,14 @@ import type {
   SearchResult,
 } from '@/services/ragService';
 
+// Batch Upload Types (for folder upload feature)
+export interface BatchUploadItem {
+  path: string;
+  name: string;
+  status: 'pending' | 'processing' | 'success' | 'error';
+  error?: string;
+}
+
 export const useRagStore = defineStore('rag', () => {
   // ==================== State ====================
 
@@ -39,6 +47,13 @@ export const useRagStore = defineStore('rag', () => {
   const searchLoading = ref(false);
   const searchError = ref<string | null>(null);
   const lastSearchDuration = ref<number | null>(null);
+
+  // Batch Upload (Folder Upload)
+  const batchUploadItems = ref<BatchUploadItem[]>([]);
+  const batchUploadActive = ref(false);
+  const batchUploadCancelled = ref(false);
+  const batchUploadProgress = ref({ current: 0, total: 0, currentFile: '' });
+  const batchUploadResults = ref({ success: 0, failed: 0 });
 
   // ==================== Computed ====================
 
@@ -181,6 +196,54 @@ export const useRagStore = defineStore('rag', () => {
     lastSearchDuration.value = null;
   };
 
+  // Batch Upload Mutations
+  const initBatchUpload = (items: Array<{ path: string; name: string }>) => {
+    batchUploadItems.value = items.map(item => ({
+      ...item,
+      status: 'pending' as const,
+    }));
+    batchUploadActive.value = true;
+    batchUploadCancelled.value = false;
+    batchUploadProgress.value = { current: 0, total: items.length, currentFile: '' };
+    batchUploadResults.value = { success: 0, failed: 0 };
+  };
+
+  const updateBatchUploadItem = (path: string, status: 'pending' | 'processing' | 'success' | 'error', error?: string) => {
+    const item = batchUploadItems.value.find(i => i.path === path);
+    if (item) {
+      item.status = status;
+      item.error = error;
+    }
+  };
+
+  const updateBatchUploadProgress = (current: number, currentFile: string) => {
+    batchUploadProgress.value = { ...batchUploadProgress.value, current, currentFile };
+  };
+
+  const incrementBatchUploadResult = (success: boolean) => {
+    if (success) {
+      batchUploadResults.value.success++;
+    } else {
+      batchUploadResults.value.failed++;
+    }
+  };
+
+  const cancelBatchUpload = () => {
+    batchUploadCancelled.value = true;
+  };
+
+  const finishBatchUpload = () => {
+    batchUploadActive.value = false;
+  };
+
+  const clearBatchUpload = () => {
+    batchUploadItems.value = [];
+    batchUploadActive.value = false;
+    batchUploadCancelled.value = false;
+    batchUploadProgress.value = { current: 0, total: 0, currentFile: '' };
+    batchUploadResults.value = { success: 0, failed: 0 };
+  };
+
   // Reset
   const reset = () => {
     collections.value = [];
@@ -252,6 +315,22 @@ export const useRagStore = defineStore('rag', () => {
     setSearchError,
     setLastSearchDuration,
     clearSearch,
+
+    // Batch Upload State
+    batchUploadItems,
+    batchUploadActive,
+    batchUploadCancelled,
+    batchUploadProgress,
+    batchUploadResults,
+
+    // Batch Upload Mutations
+    initBatchUpload,
+    updateBatchUploadItem,
+    updateBatchUploadProgress,
+    incrementBatchUploadResult,
+    cancelBatchUpload,
+    finishBatchUpload,
+    clearBatchUpload,
     reset,
   };
 });

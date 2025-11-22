@@ -36,6 +36,8 @@ const ALLOWED_MIME_TYPES = [
   'application/pdf',
   'text/plain',
   'text/markdown',
+  'text/x-markdown', // Alternative markdown MIME type
+  'application/octet-stream', // Fallback for unknown types
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ];
 
@@ -89,11 +91,8 @@ export class DocumentsController {
       new ParseFilePipe({
         validators: [
           new MaxFileSizeValidator({ maxSize: MAX_FILE_SIZE }),
-          new FileTypeValidator({
-            fileType: new RegExp(
-              ALLOWED_MIME_TYPES.join('|').replace(/\//g, '\\/'),
-            ),
-          }),
+          // Skip MIME type validation - we'll validate by extension instead
+          // NestJS FileTypeValidator has issues with text/markdown matching
         ],
         fileIsRequired: true,
       }),
@@ -113,13 +112,28 @@ export class DocumentsController {
       throw new BadRequestException('No file provided');
     }
 
-    // Determine file type from extension
+    // Determine file type from extension (more reliable than MIME type)
     const ext = file.originalname.split('.').pop()?.toLowerCase();
     const fileType = this.getFileType(ext || '');
 
     if (!fileType) {
       throw new BadRequestException(
         `Unsupported file type: ${ext}. Allowed: pdf, txt, md, docx`,
+      );
+    }
+
+    // Additional MIME type check for safety (but allow common variations)
+    const allowedMimeTypes = [
+      'application/pdf',
+      'text/plain',
+      'text/markdown',
+      'text/x-markdown',
+      'application/octet-stream', // Browsers sometimes send this for unknown types
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      console.warn(
+        `Unexpected MIME type ${file.mimetype} for file ${file.originalname}, but allowing based on extension`,
       );
     }
 
@@ -135,8 +149,8 @@ export class DocumentsController {
       req.user.id,
     );
 
-    // Queue document for processing (async - fire and forget)
-    void this.documentProcessorService.processDocument(
+    // Process document synchronously and return result
+    const result = await this.documentProcessorService.processDocument(
       document.id,
       organizationSlug,
       collectionId,
@@ -144,11 +158,21 @@ export class DocumentsController {
       fileType,
     );
 
+    if (result.status === 'error') {
+      // Return error response but don't throw - document record exists
+      return {
+        id: document.id,
+        filename: document.filename,
+        status: 'error',
+        message: result.error || 'Document processing failed',
+      };
+    }
+
     return {
       id: document.id,
       filename: document.filename,
-      status: 'pending',
-      message: 'Document queued for processing',
+      status: 'completed',
+      message: `Document processed successfully: ${result.chunkCount} chunks, ${result.tokenCount} tokens`,
     };
   }
 

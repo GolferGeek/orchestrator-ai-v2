@@ -865,6 +865,33 @@ console.error(`ApiService.post error for ${url}:`, error);
   }
 
   /**
+   * POST FormData (for file uploads)
+   * This method properly handles multipart/form-data by not setting Content-Type
+   * so axios can set it with the correct boundary
+   */
+  async postFormData<T = unknown>(
+    url: string,
+    formData: FormData,
+    additionalHeaders?: Record<string, string>,
+  ): Promise<T> {
+    try {
+      const response = await this.axiosInstance.post<T>(url, formData, {
+        headers: {
+          ...additionalHeaders,
+          // Explicitly remove Content-Type so axios sets multipart/form-data with boundary
+          'Content-Type': undefined as unknown as string,
+        },
+        // Ensure axios doesn't transform the data
+        transformRequest: [(data) => data],
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`ApiService.postFormData error for ${url}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Generic PUT method
    */
   async put<T = unknown, Body = unknown>(url: string, data?: Body, options?: { headers?: Record<string, string> }): Promise<T> {

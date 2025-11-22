@@ -33,9 +33,28 @@ export class DocumentProcessorService {
   ) {}
 
   /**
-   * Process a document (fire and forget - runs async)
+   * Process a document synchronously and return result
    */
-  processDocument(
+  async processDocument(
+    documentId: string,
+    organizationSlug: string,
+    collectionId: string,
+    buffer: Buffer,
+    fileType: string,
+  ): Promise<{ status: 'completed' | 'error'; chunkCount?: number; tokenCount?: number; error?: string }> {
+    return this.processDocumentSync(
+      documentId,
+      organizationSlug,
+      collectionId,
+      buffer,
+      fileType,
+    );
+  }
+
+  /**
+   * Process a document (fire and forget - runs async) - DEPRECATED, use processDocument instead
+   */
+  processDocumentAsync(
     documentId: string,
     organizationSlug: string,
     collectionId: string,
@@ -43,7 +62,7 @@ export class DocumentProcessorService {
     fileType: string,
   ): void {
     // Start processing in background
-    this.processDocumentAsync(
+    this.processDocumentSync(
       documentId,
       organizationSlug,
       collectionId,
@@ -57,15 +76,15 @@ export class DocumentProcessorService {
   }
 
   /**
-   * Async document processing with retry logic
+   * Synchronous document processing with retry logic - returns result
    */
-  private async processDocumentAsync(
+  private async processDocumentSync(
     documentId: string,
     organizationSlug: string,
     collectionId: string,
     buffer: Buffer,
     fileType: string,
-  ): Promise<void> {
+  ): Promise<{ status: 'completed' | 'error'; chunkCount?: number; tokenCount?: number; error?: string }> {
     this.logger.log(`Starting processing for document ${documentId}`);
 
     try {
@@ -125,6 +144,12 @@ export class DocumentProcessorService {
       const chunksWithEmbeddings =
         await this.generateEmbeddingsWithRetry(chunks);
 
+      // Calculate total token count
+      const totalTokenCount = chunksWithEmbeddings.reduce(
+        (sum, c) => sum + c.tokenCount,
+        0,
+      );
+
       // 5. Store chunks in database
       const insertedCount = await this.documentsService.insertChunks(
         documentId,
@@ -145,6 +170,11 @@ export class DocumentProcessorService {
       );
 
       // Status is updated to 'completed' by the insertChunks function
+      return {
+        status: 'completed',
+        chunkCount: insertedCount,
+        tokenCount: totalTokenCount,
+      };
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
@@ -159,6 +189,11 @@ export class DocumentProcessorService {
         'error',
         errorMessage,
       );
+
+      return {
+        status: 'error',
+        error: errorMessage,
+      };
     }
   }
 
