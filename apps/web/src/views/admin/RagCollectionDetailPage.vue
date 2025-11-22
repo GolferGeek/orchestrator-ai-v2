@@ -356,7 +356,7 @@ const showDeleteAlert = ref(false);
 const documentToDelete = ref<RagDocument | null>(null);
 
 // Helpers
-const getOrgSlug = () => authStore.currentOrganization?.slug || 'demo-org';
+const getOrgSlug = () => authStore.currentNamespace || 'demo-org';
 const collectionId = computed(() => route.params.id as string);
 
 // Load collection and documents

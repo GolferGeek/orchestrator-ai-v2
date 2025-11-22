@@ -234,6 +234,7 @@ async function bootstrap() {
       'X-Api-Version',
       'X-Test-Api-Key',
       'X-Agent-Namespace',
+      'x-organization-slug',
     ],
   });
 

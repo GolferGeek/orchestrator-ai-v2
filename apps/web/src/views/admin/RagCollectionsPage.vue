@@ -277,7 +277,7 @@ const newCollection = ref<CreateCollectionDto>({
 
 // Get organization slug from auth store
 const getOrgSlug = () => {
-  return authStore.currentOrganization?.slug || 'demo-org';
+  return authStore.currentNamespace || 'demo-org';
 };
 
 // Load collections

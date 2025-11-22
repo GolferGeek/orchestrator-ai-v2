@@ -803,12 +803,18 @@ class ApiService {
   /**
    * Generic GET method
    */
-  async get<T = unknown>(url: string, options?: { suppressErrors?: boolean }): Promise<T> {
+  async get<T = unknown>(url: string, options?: { suppressErrors?: boolean; headers?: Record<string, string> }): Promise<T> {
 
-    
+
     try {
       // Use axios default headers (set via setAuthToken) instead of manually fetching from localStorage
-      const config = options?.suppressErrors ? { _suppressStatuses: [404] } : {};
+      const config: Record<string, unknown> = {};
+      if (options?.suppressErrors) {
+        config._suppressStatuses = [404];
+      }
+      if (options?.headers) {
+        config.headers = options.headers;
+      }
       const response = await this.axiosInstance.get<T>(url, config);
 
       
@@ -837,16 +843,20 @@ console.error(`ApiService.get error for ${url}:`, error);
   /**
    * Generic POST method
    */
-  async post<T = unknown, Body = unknown>(url: string, data?: Body): Promise<T> {
+  async post<T = unknown, Body = unknown>(url: string, data?: Body, options?: { headers?: Record<string, string> }): Promise<T> {
 
-    
+
     try {
       // Use axios default headers (set via setAuthToken) instead of manually fetching from localStorage
-      const response = await this.axiosInstance.post<T>(url, data);
+      const config: Record<string, unknown> = {};
+      if (options?.headers) {
+        config.headers = options.headers;
+      }
+      const response = await this.axiosInstance.post<T>(url, data, config);
 
-      
 
-      
+
+
       return response.data;
     } catch (error) {
 console.error(`ApiService.post error for ${url}:`, error);
@@ -857,16 +867,36 @@ console.error(`ApiService.post error for ${url}:`, error);
   /**
    * Generic PUT method
    */
-  async put<T = unknown, Body = unknown>(url: string, data?: Body): Promise<T> {
-    const response = await this.axiosInstance.put<T>(url, data);
+  async put<T = unknown, Body = unknown>(url: string, data?: Body, options?: { headers?: Record<string, string> }): Promise<T> {
+    const config: Record<string, unknown> = {};
+    if (options?.headers) {
+      config.headers = options.headers;
+    }
+    const response = await this.axiosInstance.put<T>(url, data, config);
+    return response.data;
+  }
+
+  /**
+   * Generic PATCH method
+   */
+  async patch<T = unknown, Body = unknown>(url: string, data?: Body, options?: { headers?: Record<string, string> }): Promise<T> {
+    const config: Record<string, unknown> = {};
+    if (options?.headers) {
+      config.headers = options.headers;
+    }
+    const response = await this.axiosInstance.patch<T>(url, data, config);
     return response.data;
   }
 
   /**
    * Generic DELETE method
    */
-  async delete<T = unknown>(url: string): Promise<T> {
-    const response = await this.axiosInstance.delete<T>(url);
+  async delete<T = unknown>(url: string, options?: { headers?: Record<string, string> }): Promise<T> {
+    const config: Record<string, unknown> = {};
+    if (options?.headers) {
+      config.headers = options.headers;
+    }
+    const response = await this.axiosInstance.delete<T>(url, config);
     return response.data;
   }
 

@@ -3,6 +3,10 @@ import { ConfigModule } from '@nestjs/config';
 import { MulterModule } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 
+// Auth
+import { AuthModule } from '../auth/auth.module';
+import { SupabaseModule } from '../supabase/supabase.module';
+
 // Database
 import { RagDatabaseService } from './rag-database.service';
 
@@ -39,6 +43,8 @@ import { QueryController } from './query.controller';
 @Module({
   imports: [
     ConfigModule,
+    AuthModule,
+    SupabaseModule,
     MulterModule.register({
       storage: memoryStorage(), // Store files in memory for processing
       limits: {
