@@ -127,6 +127,21 @@
                   </ion-card-content>
                 </ion-card>
               </ion-col>
+
+              <ion-col size="12" size-md="6" size-lg="4">
+                <ion-card button @click="navigateTo('/app/admin/rag/collections')" class="action-card rag-collections">
+                  <ion-card-content>
+                    <div class="card-icon">
+                      <ion-icon :icon="serverOutline" />
+                    </div>
+                    <h3>RAG Collections</h3>
+                    <p>Manage knowledge base collections</p>
+                    <ion-chip color="tertiary" size="small">
+                      <ion-label>Knowledge Base</ion-label>
+                    </ion-chip>
+                  </ion-card-content>
+                </ion-card>
+              </ion-col>
             </ion-row>
           </ion-grid>
         </div>
@@ -633,7 +648,8 @@ import {
   hardwareChipOutline,
   peopleOutline,
   chatbubblesOutline,
-  settingsOutline
+  settingsOutline,
+  serverOutline,
 } from 'ionicons/icons';
 import { useAuthStore } from '@/stores/authStore';
 import { usePrivacyStore } from '@/stores/privacyStore';

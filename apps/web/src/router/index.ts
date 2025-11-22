@@ -173,11 +173,33 @@ const routes: Array<RouteRecordRaw> = [
         path: 'admin/audit',
         name: 'AdminAudit',
         component: () => import('../views/AdminAuditDashboard.vue'),
-        meta: { 
-          requiresAuth: true, 
+        meta: {
+          requiresAuth: true,
           requiresRole: ['admin'],
           title: 'Access Control Audit Dashboard',
           description: 'Monitor access attempts and security events'
+        }
+      },
+      {
+        path: 'admin/rag/collections',
+        name: 'RagCollections',
+        component: () => import('../views/admin/RagCollectionsPage.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresRole: ['admin'],
+          title: 'RAG Collections',
+          description: 'Manage knowledge base collections for RAG'
+        }
+      },
+      {
+        path: 'admin/rag/collections/:id',
+        name: 'RagCollectionDetail',
+        component: () => import('../views/admin/RagCollectionDetailPage.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresRole: ['admin'],
+          title: 'Collection Details',
+          description: 'View and manage collection documents'
         }
       }
     ]

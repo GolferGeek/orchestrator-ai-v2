@@ -175,8 +175,9 @@ describe('AgentRunnerRegistryService', () => {
       expect(types).toContain('api');
       expect(types).toContain('external');
       expect(types).toContain('function');
+      expect(types).toContain('orchestrator');
       expect(types).toContain('custom');
-      expect(types.length).toBe(6);
+      expect(types.length).toBe(7);
     });
   });
 
