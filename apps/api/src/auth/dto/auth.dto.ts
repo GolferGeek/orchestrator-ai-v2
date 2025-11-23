@@ -78,12 +78,12 @@ export class AuthenticatedUserResponseDto {
 
   @ApiPropertyOptional({
     example: ['my-org'],
-    description: 'Array of namespace access',
+    description: 'Array of organization access',
     isArray: true,
   })
   @IsArray()
   @IsOptional()
-  namespaceAccess?: string[];
+  organizationAccess?: string[];
 }
 
 export class SupabaseAuthUserDto {
@@ -161,12 +161,12 @@ export class UserProfileDto {
 
   @ApiPropertyOptional({
     example: ['my-org'],
-    description: 'Array of namespace access',
+    description: 'Array of organization access',
     isArray: true,
   })
   @IsArray()
   @IsOptional()
-  namespaceAccess?: string[];
+  organizationAccess?: string[];
 
   @ApiProperty()
   createdAt!: Date;
@@ -223,7 +223,8 @@ export class RemoveRoleDto {
 export class SetRolesDto {
   @ApiProperty({
     example: ['user', 'evaluation-monitor'],
-    description: 'Complete array of roles to set for user (deprecated - use RBAC)',
+    description:
+      'Complete array of roles to set for user (deprecated - use RBAC)',
     isArray: true,
   })
   @IsArray()

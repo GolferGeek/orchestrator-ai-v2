@@ -25,8 +25,8 @@ export interface AgentNodeMetadata {
   /** Color for UI display */
   color?: string;
 
-  /** Namespace for organization */
-  namespace?: string;
+  /** Organization slug for scoping */
+  organizationSlug?: string;
 
   /** Node order/priority */
   order?: number;
@@ -80,8 +80,8 @@ export interface HierarchyNode {
   /** Whether node is selectable */
   selectable?: boolean;
 
-  /** Namespace for organizational grouping */
-  namespace?: string;
+  /** Organization slug for organizational grouping */
+  organizationSlug?: string;
 
   /** Node metadata */
   metadata?: AgentNodeMetadata;
@@ -100,7 +100,7 @@ export interface FlatHierarchyData {
   type: string;
   agentType?: string;
   parentId?: string | null;
-  namespace?: string;
+  organizationSlug?: string;
   metadata?: AgentNodeMetadata;
   [key: string]: JsonValue;
 }
@@ -179,7 +179,7 @@ export interface Agent {
   type: string;
   description?: string;
   status: 'active' | 'inactive' | 'archived';
-  namespace?: string;
+  organizationSlug?: string;
   capabilities?: AgentCapability[];
   configuration?: AgentConfiguration;
   metadata?: AgentNodeMetadata;
@@ -197,7 +197,7 @@ export interface DepartmentHierarchyData {
     type: string;
     description: string;
     status: string;
-    namespace: string;
+    organizationSlug: string;
     tags: string[];
     capabilities: string[];
     execution_modes: string[];
@@ -327,7 +327,7 @@ export interface HierarchyOperationResult {
 export interface AgentFilters {
   type?: string | string[];
   status?: 'active' | 'inactive' | 'archived';
-  namespace?: string | string[];
+  organizationSlug?: string | string[];
   capabilities?: string[];
   tags?: string[];
   search?: string;
@@ -352,7 +352,7 @@ export interface CreateAgentPayload {
   name: string;
   type: string;
   description?: string;
-  namespace?: string;
+  organizationSlug?: string;
   capabilities?: string[];
   configuration?: AgentConfiguration;
   metadata?: AgentNodeMetadata;
@@ -365,7 +365,7 @@ export interface UpdateAgentPayload {
   name?: string;
   description?: string;
   status?: 'active' | 'inactive' | 'archived';
-  namespace?: string;
+  organizationSlug?: string;
   capabilities?: string[];
   configuration?: Partial<AgentConfiguration>;
   metadata?: Partial<AgentNodeMetadata>;

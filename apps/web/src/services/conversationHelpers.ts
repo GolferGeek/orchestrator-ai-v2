@@ -34,7 +34,7 @@ export class ConversationService {
   async createConversation(agent: Agent): Promise<string> {
     // Get organization slug from authStore - the canonical source of truth
     const authStore = useAuthStore();
-    const orgSlug = authStore.currentNamespace || 'demo';
+    const orgSlug = authStore.currentOrganization || 'demo-org';
 
     // All agents now use the Agent2Agent conversation service
     console.log('🔍 [ConversationService.createConversation] Agent routing:', {
@@ -53,7 +53,7 @@ export class ConversationService {
     const backendConversation = await agent2AgentConversationsService.createConversation({
       agentName: agent.name,
       agentType: agent.type as AgentType, // Required for backend validation
-      organizationSlug: orgSlug, // Use authStore.currentNamespace as canonical source
+      organizationSlug: orgSlug, // Use authStore.currentOrganization as canonical source
       conversationId: conversationId, // Pass the generated ID
       metadata: {
         source: 'frontend',
@@ -646,9 +646,14 @@ console.error(`Failed to get active tasks for conversation ${conversationId}:`, 
 
     console.log('✅ [createConversationObject] supportedModes:', supportedModes, 'defaultExecutionMode:', defaultExecutionMode);
 
+    // Get organization from authStore
+    const authStore = useAuthStore();
+    const organizationSlug = authStore.currentOrganization || null;
+
     return {
       id: generateUUID(),
       agent,
+      organizationSlug,
       messages: [],
       createdAt,
       lastActiveAt: createdAt,

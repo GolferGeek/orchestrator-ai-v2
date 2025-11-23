@@ -159,7 +159,7 @@ describe('ExternalAgentRunnerService', () => {
           format: 'json',
           type: 'external-response',
           agentName: 'test-external-agent',
-          namespace: 'test-org',
+          organizationSlug: 'test-org',
         }),
         expect.objectContaining({
           conversationId: 'conv-123',

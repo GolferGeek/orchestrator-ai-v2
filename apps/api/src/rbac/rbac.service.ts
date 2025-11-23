@@ -1,6 +1,58 @@
 import { Injectable, ForbiddenException, Logger } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 
+/**
+ * Database row types for RPC and table queries
+ */
+interface RpcPermissionRow {
+  permission_name: string;
+  resource_type?: string;
+  resource_id?: string;
+}
+
+interface RpcRoleRow {
+  role_id: string;
+  role_name: string;
+  role_display_name: string;
+  is_global: boolean;
+  assigned_at: string;
+  expires_at?: string;
+}
+
+interface RpcOrganizationRow {
+  organization_slug: string;
+  organization_name: string;
+  role_name: string;
+  is_global: boolean;
+}
+
+interface RbacRoleDbRow {
+  id: string;
+  name: string;
+  display_name: string;
+  description?: string;
+  is_system: boolean;
+}
+
+interface RbacPermissionDbRow {
+  id: string;
+  name: string;
+  display_name: string;
+  description?: string;
+  category?: string;
+}
+
+interface RbacAuditLogDbRow {
+  id: string;
+  action: string;
+  actor_id: string;
+  target_user_id: string;
+  target_role_id: string;
+  organization_slug: string;
+  details: Record<string, unknown>;
+  created_at: string;
+}
+
 export interface PermissionCheck {
   permission: string;
   resourceType?: string;
@@ -61,13 +113,15 @@ export class RbacService {
     resourceType?: string,
     resourceId?: string,
   ): Promise<boolean> {
-    const { data, error } = await this.supabase.getServiceClient().rpc('rbac_has_permission', {
-      p_user_id: userId,
-      p_organization_slug: organizationSlug,
-      p_permission: permission,
-      p_resource_type: resourceType || null,
-      p_resource_id: resourceId || null,
-    });
+    const { data, error } = (await this.supabase
+      .getServiceClient()
+      .rpc('rbac_has_permission', {
+        p_user_id: userId,
+        p_organization_slug: organizationSlug,
+        p_permission: permission,
+        p_resource_type: resourceType || null,
+        p_resource_id: resourceId || null,
+      })) as { data: boolean | null; error: { message: string } | null };
 
     if (error) {
       this.logger.error(`Permission check failed: ${error.message}`, error);
@@ -105,45 +159,64 @@ export class RbacService {
   /**
    * Get all permissions for user in organization
    */
-  async getUserPermissions(userId: string, organizationSlug: string): Promise<UserPermission[]> {
-    const { data, error } = await this.supabase.getServiceClient().rpc('rbac_get_user_permissions', {
-      p_user_id: userId,
-      p_organization_slug: organizationSlug,
-    });
+  async getUserPermissions(
+    userId: string,
+    organizationSlug: string,
+  ): Promise<UserPermission[]> {
+    const { data, error } = (await this.supabase
+      .getServiceClient()
+      .rpc('rbac_get_user_permissions', {
+        p_user_id: userId,
+        p_organization_slug: organizationSlug,
+      })) as {
+      data: RpcPermissionRow[] | null;
+      error: { message: string } | null;
+    };
 
     if (error) {
-      this.logger.error(`Failed to get user permissions: ${error.message}`, error);
+      this.logger.error(
+        `Failed to get user permissions: ${error.message}`,
+        error,
+      );
       return [];
     }
 
-    return (data || []).map((row: Record<string, unknown>) => ({
-      permission: row.permission_name as string,
-      resourceType: row.resource_type as string | undefined,
-      resourceId: row.resource_id as string | undefined,
+    return (data || []).map((row) => ({
+      permission: row.permission_name,
+      resourceType: row.resource_type,
+      resourceId: row.resource_id,
     }));
   }
 
   /**
    * Get user's roles in organization
    */
-  async getUserRoles(userId: string, organizationSlug: string): Promise<UserRole[]> {
-    const { data, error } = await this.supabase.getServiceClient().rpc('rbac_get_user_roles', {
-      p_user_id: userId,
-      p_organization_slug: organizationSlug,
-    });
+  async getUserRoles(
+    userId: string,
+    organizationSlug: string,
+  ): Promise<UserRole[]> {
+    const { data, error } = (await this.supabase
+      .getServiceClient()
+      .rpc('rbac_get_user_roles', {
+        p_user_id: userId,
+        p_organization_slug: organizationSlug,
+      })) as {
+      data: RpcRoleRow[] | null;
+      error: { message: string } | null;
+    };
 
     if (error) {
       this.logger.error(`Failed to get user roles: ${error.message}`, error);
       return [];
     }
 
-    return (data || []).map((row: Record<string, unknown>) => ({
-      id: row.role_id as string,
-      name: row.role_name as string,
-      displayName: row.role_display_name as string,
-      isGlobal: row.is_global as boolean,
-      assignedAt: new Date(row.assigned_at as string),
-      expiresAt: row.expires_at ? new Date(row.expires_at as string) : undefined,
+    return (data || []).map((row) => ({
+      id: row.role_id,
+      name: row.role_name,
+      displayName: row.role_display_name,
+      isGlobal: row.is_global,
+      assignedAt: new Date(row.assigned_at),
+      expiresAt: row.expires_at ? new Date(row.expires_at) : undefined,
     }));
   }
 
@@ -151,20 +224,28 @@ export class RbacService {
    * Get all organizations user has access to
    */
   async getUserOrganizations(userId: string): Promise<UserOrganization[]> {
-    const { data, error } = await this.supabase.getServiceClient().rpc('rbac_get_user_organizations', {
-      p_user_id: userId,
-    });
+    const { data, error } = (await this.supabase
+      .getServiceClient()
+      .rpc('rbac_get_user_organizations', {
+        p_user_id: userId,
+      })) as {
+      data: RpcOrganizationRow[] | null;
+      error: { message: string } | null;
+    };
 
     if (error) {
-      this.logger.error(`Failed to get user organizations: ${error.message}`, error);
+      this.logger.error(
+        `Failed to get user organizations: ${error.message}`,
+        error,
+      );
       return [];
     }
 
-    return (data || []).map((row: Record<string, unknown>) => ({
-      organizationSlug: row.organization_slug as string,
-      organizationName: row.organization_name as string,
-      roleName: row.role_name as string,
-      isGlobal: row.is_global as boolean,
+    return (data || []).map((row) => ({
+      organizationSlug: row.organization_slug,
+      organizationName: row.organization_name,
+      roleName: row.role_name,
+      isGlobal: row.is_global,
     }));
   }
 
@@ -183,7 +264,8 @@ export class RbacService {
       return [];
     }
 
-    return (data || []).map((row) => ({
+    const typedData = data as RbacRoleDbRow[] | null;
+    return (typedData || []).map((row) => ({
       id: row.id,
       name: row.name,
       displayName: row.display_name,
@@ -207,7 +289,8 @@ export class RbacService {
       return [];
     }
 
-    return (data || []).map((row) => ({
+    const typedData = data as RbacPermissionDbRow[] | null;
+    return (typedData || []).map((row) => ({
       id: row.id,
       name: row.name,
       displayName: row.display_name,
@@ -238,29 +321,41 @@ export class RbacService {
       throw new Error(`Role not found: ${roleName}`);
     }
 
+    const typedRole = role as { id: string };
+
     // Insert assignment
-    const { error } = await this.supabase.getServiceClient().from('rbac_user_org_roles').upsert(
-      {
-        user_id: targetUserId,
-        organization_slug: organizationSlug,
-        role_id: role.id,
-        assigned_by: assignedBy,
-        expires_at: expiresAt?.toISOString() || null,
-      },
-      {
-        onConflict: 'user_id,organization_slug,role_id',
-      },
-    );
+    const { error } = await this.supabase
+      .getServiceClient()
+      .from('rbac_user_org_roles')
+      .upsert(
+        {
+          user_id: targetUserId,
+          organization_slug: organizationSlug,
+          role_id: typedRole.id,
+          assigned_by: assignedBy,
+          expires_at: expiresAt?.toISOString() || null,
+        },
+        {
+          onConflict: 'user_id,organization_slug,role_id',
+        },
+      );
 
     if (error) {
       throw new Error(`Failed to assign role: ${error.message}`);
     }
 
     // Audit log
-    await this.logAudit('grant', assignedBy, targetUserId, role.id, organizationSlug, {
-      role_name: roleName,
-      expires_at: expiresAt?.toISOString(),
-    });
+    await this.logAudit(
+      'grant',
+      assignedBy,
+      targetUserId,
+      typedRole.id,
+      organizationSlug,
+      {
+        role_name: roleName,
+        expires_at: expiresAt?.toISOString(),
+      },
+    );
   }
 
   /**
@@ -284,6 +379,8 @@ export class RbacService {
       throw new Error(`Role not found: ${roleName}`);
     }
 
+    const typedRole = role as { id: string };
+
     // Delete assignment
     const { error } = await this.supabase
       .getServiceClient()
@@ -291,16 +388,23 @@ export class RbacService {
       .delete()
       .eq('user_id', targetUserId)
       .eq('organization_slug', organizationSlug)
-      .eq('role_id', role.id);
+      .eq('role_id', typedRole.id);
 
     if (error) {
       throw new Error(`Failed to revoke role: ${error.message}`);
     }
 
     // Audit log
-    await this.logAudit('revoke', revokedBy, targetUserId, role.id, organizationSlug, {
-      role_name: roleName,
-    });
+    await this.logAudit(
+      'revoke',
+      revokedBy,
+      targetUserId,
+      typedRole.id,
+      organizationSlug,
+      {
+        role_name: roleName,
+      },
+    );
   }
 
   /**
@@ -336,7 +440,12 @@ export class RbacService {
       createdAt: Date;
     }>
   > {
-    let query = this.supabase.getServiceClient().from('rbac_audit_log').select('*').order('created_at', { ascending: false }).limit(limit);
+    let query = this.supabase
+      .getServiceClient()
+      .from('rbac_audit_log')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit);
 
     if (organizationSlug) {
       query = query.eq('organization_slug', organizationSlug);
@@ -349,7 +458,8 @@ export class RbacService {
       return [];
     }
 
-    return (data || []).map((row) => ({
+    const typedData = data as RbacAuditLogDbRow[] | null;
+    return (typedData || []).map((row) => ({
       id: row.id,
       action: row.action,
       actorId: row.actor_id,

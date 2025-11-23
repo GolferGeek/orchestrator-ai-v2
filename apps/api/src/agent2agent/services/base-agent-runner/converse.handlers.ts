@@ -41,14 +41,13 @@ export async function executeConverse(
     }
 
     const existingConversationId = resolveConversationId(request) ?? undefined;
-    const namespace =
-      organizationSlug ?? definition.organizationSlug ?? 'global';
+    const orgSlug = organizationSlug ?? definition.organizationSlug ?? 'global';
 
     const firstOrgSlug: string =
-      Array.isArray(namespace) && namespace.length > 0
-        ? (namespace[0] ?? 'global')
-        : typeof namespace === 'string'
-          ? namespace
+      Array.isArray(orgSlug) && orgSlug.length > 0
+        ? (orgSlug[0] ?? 'global')
+        : typeof orgSlug === 'string'
+          ? orgSlug
           : 'global';
     const conversation =
       await services.conversationsService.getOrCreateConversation(
@@ -108,7 +107,7 @@ export async function executeConverse(
       conversationId: conversation.id,
       sessionId: request.sessionId,
       userId,
-      organizationSlug: namespace,
+      organizationSlug: orgSlug,
       agentSlug: definition.slug,
       stream: shouldStreamResponse(request),
       callerType: 'agent',

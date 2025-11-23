@@ -13,7 +13,6 @@ import {
   UploadedFile,
   ParseFilePipe,
   MaxFileSizeValidator,
-  FileTypeValidator,
   BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -30,16 +29,6 @@ interface AuthenticatedRequest {
 
 // 50MB max file size
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
-
-// Allowed MIME types
-const ALLOWED_MIME_TYPES = [
-  'application/pdf',
-  'text/plain',
-  'text/markdown',
-  'text/x-markdown', // Alternative markdown MIME type
-  'application/octet-stream', // Fallback for unknown types
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-];
 
 /**
  * Get organization slug from header

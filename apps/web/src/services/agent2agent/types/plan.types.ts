@@ -21,7 +21,7 @@ export interface CreatePlanRequest {
     content: string;
     format?: 'markdown' | 'json' | 'text';
     agentName?: string;
-    namespace?: string;
+    organizationSlug?: string;
     metadata?: Record<string, unknown>;
   };
 }

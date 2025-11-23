@@ -118,7 +118,7 @@ export class Agent2AgentTasksService {
   async createTask(
     userId: string,
     agentName: string,
-    agentType: string, // Simple string - no enum validation needed
+    organizationSlug: string, // Organization slug (e.g., 'demo-org', 'global')
     params: {
       method: string;
       prompt: string;
@@ -132,14 +132,14 @@ export class Agent2AgentTasksService {
     id: string;
     userId: string;
     agentName: string;
-    namespace: string | null; // Organization slug from conversation (null for global agents)
+    organization: string | null; // Organization slug from conversation (null for global agents)
     agentConversationId: string | null;
     status: string;
     params: TaskParams;
     createdAt: Date;
   }> {
     this.logger.debug(
-      `🚨 [Agent2AgentTasksService.createTask] Received agentType: "${agentType}" for agent: ${agentName}`,
+      `🚨 [Agent2AgentTasksService.createTask] Received organizationSlug: "${organizationSlug}" for agent: ${agentName}`,
     );
 
     try {
@@ -167,14 +167,14 @@ export class Agent2AgentTasksService {
       // Create conversation if needed
       if (!conversationId) {
         this.logger.log(
-          `🚨 [Agent2AgentTasksService] Creating conversation with agentType: "${agentType}"`,
+          `🚨 [Agent2AgentTasksService] Creating conversation with organizationSlug: "${organizationSlug}"`,
         );
 
         const now = new Date().toISOString();
         const conversationData = {
           user_id: userId,
           agent_name: agentName,
-          agent_type: agentType,
+          organization_slug: organizationSlug, // Store organization slug properly
           started_at: now,
           last_active_at: now,
           metadata: {
@@ -256,7 +256,7 @@ export class Agent2AgentTasksService {
         ).metadata = {
           ...params.metadata,
           agentName,
-          agentType,
+          organizationSlug,
           createdAt: new Date().toISOString(),
         };
       }
@@ -291,7 +291,7 @@ export class Agent2AgentTasksService {
         id: task.id,
         userId: task.user_id,
         agentName: agentName, // Use the parameter since it's not in the task record
-        namespace: null, // Conversation was created without organization_slug, so it's null
+        organization: organizationSlug, // Return the organization slug that was stored in the conversation
         agentConversationId: task.conversation_id,
         status: task.status,
         params: task.params as unknown as TaskParams,
@@ -314,7 +314,7 @@ export class Agent2AgentTasksService {
     id: string;
     userId: string;
     agentName: string;
-    namespace: string | null; // Organization slug from conversation (null for global agents)
+    organization: string | null; // Organization slug from conversation (null for global agents)
     agentConversationId: string | null;
     status: string;
     params: TaskParams;
@@ -357,7 +357,7 @@ export class Agent2AgentTasksService {
         id: task.id,
         userId: task.user_id,
         agentName: task.conversations?.agent_name || 'unknown',
-        namespace: task.conversations?.organization_slug || null,
+        organization: task.conversations?.organization_slug || null,
         agentConversationId: task.conversation_id,
         status: task.status,
         params: task.params as unknown as TaskParams,

@@ -22,7 +22,7 @@ interface UserProfile {
   email?: string;
   displayName?: string;
   roles: string[];
-  namespaceAccess?: string[];
+  organizationAccess?: string[];
 }
 
 // Token data from login/signup

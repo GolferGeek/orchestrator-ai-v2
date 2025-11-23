@@ -320,7 +320,7 @@ export class ExternalAgentRunnerService extends BaseAgentRunner {
             type: definition.config?.deliverable?.type || 'external-response',
             deliverableId: targetDeliverableId ?? undefined,
             agentName: definition.slug,
-            namespace: organizationSlug || 'default',
+            organizationSlug: organizationSlug || 'default',
             taskId: taskId ?? undefined,
             metadata: {
               externalUrl: endpoint,

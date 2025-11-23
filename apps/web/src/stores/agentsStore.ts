@@ -37,7 +37,7 @@ export function normalizeHierarchyResponse(input: HierarchyNode[] | AgentHierarc
             displayName: agent.displayName || agent.name,
             type: 'agent' as const, // HierarchyNode type (not agentType)
             agentType: agent.type, // The actual database agent type (context, api, etc.)
-            namespace: agent.namespace,
+            organizationSlug: agent.organizationSlug,
             metadata: {
               ...agent.metadata,
               description: agent.description,
@@ -68,9 +68,9 @@ export function normalizeHierarchyResponse(input: HierarchyNode[] | AgentHierarc
   };
 }
 
-export function filterHierarchyByNamespace(
+export function filterHierarchyByOrganization(
   hierarchy: HierarchyNode[] | AgentHierarchyResponse | null | undefined,
-  namespace: string,
+  organization: string,
 ) {
   const { data, metadata, rest } = normalizeHierarchyResponse(hierarchy);
 
@@ -79,12 +79,12 @@ export function filterHierarchyByNamespace(
 
     for (const node of tree) {
       const children = Array.isArray(node.children) ? prune(node.children) : [];
-      const nodeNamespace = node.namespace || node.metadata?.namespace;
+      const nodeOrganization = node.organizationSlug || node.metadata?.organizationSlug;
 
-      const matchesNamespace =
-        !nodeNamespace || nodeNamespace === namespace || nodeNamespace === 'global' || children.length > 0;
+      const matchesOrganization =
+        !nodeOrganization || nodeOrganization === organization || nodeOrganization === 'global' || children.length > 0;
 
-      if (matchesNamespace) {
+      if (matchesOrganization) {
         result.push({ ...node, children });
       }
     }
@@ -101,6 +101,9 @@ export function filterHierarchyByNamespace(
   };
 }
 
+// Alias for backward compatibility
+export const filterHierarchyByNamespace = filterHierarchyByOrganization;
+
 export const useAgentsStore = defineStore('agents', () => {
   // ============================================================================
   // STATE
@@ -110,7 +113,7 @@ export const useAgentsStore = defineStore('agents', () => {
   const agentHierarchy = ref<HierarchyNode | null>(null);
   const isLoading = ref(false);
   const error = ref<string | null>(null);
-  const lastLoadedNamespace = ref<string | null>(null);
+  const lastLoadedOrganization = ref<string | null>(null);
 
   // ============================================================================
   // COMPUTED / GETTERS
@@ -138,8 +141,13 @@ export const useAgentsStore = defineStore('agents', () => {
     agentHierarchy.value = hierarchy;
   }
 
-  function setLastLoadedNamespace(namespace: string | null) {
-    lastLoadedNamespace.value = namespace;
+  function setLastLoadedOrganization(organization: string | null) {
+    lastLoadedOrganization.value = organization;
+  }
+
+  // @deprecated Use setLastLoadedOrganization instead
+  function setLastLoadedNamespace(organizationSlug: string | null) {
+    lastLoadedOrganization.value = organizationSlug;
   }
 
   function resetAgents() {
@@ -162,7 +170,8 @@ export const useAgentsStore = defineStore('agents', () => {
     isLoading,
     error,
     hasAgents,
-    lastLoadedNamespace,
+    lastLoadedOrganization,
+    lastLoadedNamespace: lastLoadedOrganization, // Alias for backward compatibility
 
     // Mutations
     setLoading,
@@ -170,7 +179,8 @@ export const useAgentsStore = defineStore('agents', () => {
     clearError,
     setAvailableAgents,
     setAgentHierarchy,
-    setLastLoadedNamespace,
+    setLastLoadedOrganization,
+    setLastLoadedNamespace, // Alias for backward compatibility
     resetAgents,
   };
 });

@@ -48,6 +48,15 @@ export class UpdateUserRolesDto {
   roles!: string[];
 
   @ApiProperty({
+    description: 'Organization slug for role assignment',
+    required: false,
+    example: 'demo-org',
+  })
+  @IsOptional()
+  @IsString()
+  organizationSlug?: string;
+
+  @ApiProperty({
     description: 'Optional reason for role change',
     required: false,
     example: 'Promoting user to admin for system maintenance',
@@ -69,6 +78,15 @@ export class AddUserRoleDto {
   role!: string;
 
   @ApiProperty({
+    description: 'Organization slug for role assignment',
+    required: false,
+    example: 'demo-org',
+  })
+  @IsOptional()
+  @IsString()
+  organizationSlug?: string;
+
+  @ApiProperty({
     description: 'Optional reason for adding role',
     required: false,
     example: 'Granting admin access for project management',
@@ -83,11 +101,13 @@ export class AddUserRoleDto {
  */
 export class RemoveUserRoleDto {
   @ApiProperty({
-    description: 'Role to remove from the user (deprecated - use RBAC)',
-    example: 'admin',
+    description: 'Organization slug for role removal',
+    required: false,
+    example: 'demo-org',
   })
+  @IsOptional()
   @IsString()
-  role!: string;
+  organizationSlug?: string;
 
   @ApiProperty({
     description: 'Optional reason for removing role',
@@ -145,7 +165,7 @@ export class CreateUserDto {
   emailConfirm?: boolean;
 
   @ApiProperty({
-    description: 'Namespace access for the user',
+    description: 'Organization access for the user',
     example: ['my-org'],
     required: false,
     isArray: true,
@@ -153,7 +173,7 @@ export class CreateUserDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  namespaceAccess?: string[];
+  organizationAccess?: string[];
 }
 
 export class CreateUserResponseDto {
@@ -179,10 +199,10 @@ export class CreateUserResponseDto {
   message!: string;
 
   @ApiProperty({
-    description: 'Namespace access for the user',
+    description: 'Organization access for the user',
     example: ['my-org'],
     required: false,
     isArray: true,
   })
-  namespaceAccess?: string[];
+  organizationAccess?: string[];
 }

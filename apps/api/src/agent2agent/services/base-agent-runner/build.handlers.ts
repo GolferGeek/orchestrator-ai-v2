@@ -1195,11 +1195,11 @@ function serializeDeliverable(
   const userIdRaw: unknown = d.userId ?? d.user_id;
   const userId: unknown = userIdRaw ?? fallbackUserId;
 
-  const namespaceRaw: unknown = d.namespace;
-  const namespace: unknown =
-    namespaceRaw ??
+  const organizationRaw: unknown = d.organization ?? d.organizationSlug;
+  const organization: unknown =
+    organizationRaw ??
     definition.organizationSlug ??
-    definition.context?.namespace ??
+    definition.context?.organizationSlug ??
     'global';
 
   const currentVersionId =
@@ -1216,7 +1216,7 @@ function serializeDeliverable(
       d.agent_name ??
       definition.name ??
       definition.slug) as string,
-    namespace: namespace as string,
+    organization: organization as string,
     title: (d.title ?? 'Deliverable') as string,
     type: (d.type ?? d.deliverableType ?? 'document') as string,
     currentVersionId: currentVersionId as string,

@@ -29,7 +29,8 @@ type PlanConversationApiResponse = {
   conversationId: string;
   userId: string;
   agentName: string;
-  namespace?: string | null;
+  organization?: string | null; // Preferred field name (matches API response)
+  organizationSlug?: string | null; // Alias for compatibility
   title?: string | null;
   currentVersionId?: string | null;
   createdAt: string | Date;
@@ -108,7 +109,8 @@ const normalizePlan = (plan: PlanConversationApiResponse): PlanData => ({
   conversationId: plan.conversationId,
   userId: plan.userId,
   agentName: plan.agentName,
-  namespace: plan.namespace ?? '',
+  // Support both 'organization' (API response) and 'organizationSlug' (frontend preference)
+  organization: plan.organization ?? plan.organizationSlug ?? '',
   title: plan.title ?? '',
   currentVersionId: plan.currentVersionId ?? '',
   createdAt: toIsoString(plan.createdAt),

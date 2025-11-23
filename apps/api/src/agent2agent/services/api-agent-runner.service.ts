@@ -516,7 +516,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           type: definition.config?.deliverable?.type || 'api-response',
           deliverableId: targetDeliverableId ?? undefined,
           agentName: definition.slug,
-          namespace: organizationSlug || 'default',
+          organizationSlug: organizationSlug || 'default',
           taskId: taskId ?? undefined,
           metadata: {
             apiUrl: url,

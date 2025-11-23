@@ -18,10 +18,10 @@ class AgentsService {
   }
 
   /**
-   * Get agent hierarchy for a specific namespace
+   * Get agent hierarchy for a specific organization
    */
-  async getAgentHierarchy(namespace: string): Promise<AgentHierarchyResponse> {
-    return apiService.getAgentHierarchy(namespace);
+  async getAgentHierarchy(organization: string): Promise<AgentHierarchyResponse> {
+    return apiService.getAgentHierarchy(organization);
   }
 
   /**

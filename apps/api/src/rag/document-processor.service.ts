@@ -41,7 +41,12 @@ export class DocumentProcessorService {
     collectionId: string,
     buffer: Buffer,
     fileType: string,
-  ): Promise<{ status: 'completed' | 'error'; chunkCount?: number; tokenCount?: number; error?: string }> {
+  ): Promise<{
+    status: 'completed' | 'error';
+    chunkCount?: number;
+    tokenCount?: number;
+    error?: string;
+  }> {
     return this.processDocumentSync(
       documentId,
       organizationSlug,
@@ -84,7 +89,12 @@ export class DocumentProcessorService {
     collectionId: string,
     buffer: Buffer,
     fileType: string,
-  ): Promise<{ status: 'completed' | 'error'; chunkCount?: number; tokenCount?: number; error?: string }> {
+  ): Promise<{
+    status: 'completed' | 'error';
+    chunkCount?: number;
+    tokenCount?: number;
+    error?: string;
+  }> {
     this.logger.log(`Starting processing for document ${documentId}`);
 
     try {

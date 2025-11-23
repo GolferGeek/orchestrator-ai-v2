@@ -775,7 +775,7 @@ export class PlanVersionsService {
       conversationId: data.conversation_id,
       userId: data.user_id,
       agentName: data.agent_name,
-      namespace: data.namespace,
+      organization: data.organization,
       title: data.title,
       currentVersionId: data.current_version_id,
       createdAt: new Date(data.created_at),

@@ -96,7 +96,7 @@ export async function createPlan(
         llmSelection,
         executionMode: chatUiStore.executionMode || 'polling',
       },
-      { namespace: conversation.organizationSlug || 'global' }
+      { organization: conversation.organizationSlug || 'global' }
     );
 
     console.log('📥 [Plan Create Action] Task response:', result);

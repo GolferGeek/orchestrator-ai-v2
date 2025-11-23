@@ -18,7 +18,7 @@ describe('Agent Platform Smoke Tests', () => {
         id: 'test-agent-id',
         name: 'Test Smoke Agent',
         slug: 'test-smoke-agent',
-        namespace: 'test',
+        organizationSlug: 'test',
         source: 'agent-platform',
         configuration: {
           type: 'function',
@@ -51,7 +51,7 @@ describe('Agent Platform Smoke Tests', () => {
       const mockConversation = {
         id: 'test-conversation-id',
         agentName: 'test-smoke-agent',
-        namespace: 'test',
+        organizationSlug: 'test',
         createdAt: new Date().toISOString(),
       };
 
@@ -114,7 +114,7 @@ describe('Agent Platform Smoke Tests', () => {
         id: 'second-agent-id',
         name: 'Second Smoke Agent',
         slug: 'second-smoke-agent',
-        namespace: 'test',
+        organizationSlug: 'test',
       };
 
       secondAgentId = mockAgent.id;

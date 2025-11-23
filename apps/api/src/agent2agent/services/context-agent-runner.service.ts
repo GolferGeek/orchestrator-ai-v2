@@ -203,7 +203,10 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
         progress: 30,
       });
 
-      const namespace = this.resolveNamespace(definition, organizationSlug);
+      const resolvedOrgSlug = this.resolveOrganizationSlug(
+        definition,
+        organizationSlug,
+      );
       const conversationForPrompt =
         buildContext.optimizedHistory.length > 0
           ? buildContext.optimizedHistory
@@ -251,7 +254,7 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
           payload,
           conversationId,
           userId,
-          namespace,
+          resolvedOrgSlug,
           request,
         );
 
@@ -368,7 +371,7 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
           thinking: llmMetadata?.thinking,
         },
         this.compactMetadata({
-          namespace,
+          resolvedOrgSlug,
           planId: buildContext.plan?.id ?? null,
           planVersionId:
             buildContext.planVersion?.id ?? requestedPlanVersionId ?? null,
@@ -606,7 +609,7 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
     return sections.join('\n\n---\n\n');
   }
 
-  private resolveNamespace(
+  private resolveOrganizationSlug(
     definition: AgentRuntimeDefinition,
     organizationSlug: string | null,
   ): string {
@@ -616,7 +619,7 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
     return (
       organizationSlug ??
       firstOrgSlug ??
-      (definition.context?.namespace as string | undefined) ??
+      (definition.context?.organizationSlug as string | undefined) ??
       'global'
     );
   }
@@ -647,14 +650,14 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
     payload: ExtendedBuildCreatePayload,
     conversationId: string,
     userId: string,
-    namespace: string,
+    orgSlug: string,
     request: TaskRequestDto,
   ): Record<string, unknown> {
     const config: Record<string, unknown> = {
       conversationId,
       sessionId: request.sessionId,
       userId,
-      organizationSlug: namespace,
+      organizationSlug: orgSlug,
       agentSlug: definition.slug,
       callerType: 'agent',
       callerName: `${definition.slug}-build-create`,

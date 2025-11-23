@@ -56,7 +56,7 @@ export class AgentConversationsService {
       return agentType;
     }
 
-    // Allow database namespaces (contain hyphens, underscores, or end with -org)
+    // Allow organization slugs (contain hyphens, underscores, or end with -org)
     if (
       agentType.includes('-') ||
       agentType.includes('_') ||
@@ -69,7 +69,7 @@ export class AgentConversationsService {
     throw new Error(
       `Invalid agentType '${agentType}'. ` +
         `Must be a valid file-based type (${validTypes.join(', ')}) ` +
-        `or a database namespace (e.g., 'my-org', 'company-name'). ` +
+        `or an organization slug (e.g., 'my-org', 'company-name'). ` +
         `No default agentType is provided - explicit configuration required.`,
     );
   }
@@ -91,7 +91,7 @@ export class AgentConversationsService {
         user_id: userId,
         agent_name: dto.agentName,
         agent_type: validatedAgentType,
-        organization_slug: dto.namespace || null, // Store organization slug for database agents
+        organization_slug: dto.organization || null, // Store organization slug for database agents
         started_at: now,
         last_active_at: now,
         metadata: dto.metadata || {},

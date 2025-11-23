@@ -49,7 +49,7 @@ interface Agent2AgentConversationListResponse {
 interface CreateAgent2AgentConversationPayload {
   agentName: string;
   agentType: string;
-  namespace: string;
+  organization: string; // organizationSlug - API expects 'organization' field
   conversationId?: string;
   metadata?: JsonObject;
 }
@@ -68,7 +68,7 @@ class Agent2AgentConversationsService {
     const payload: CreateAgent2AgentConversationPayload = {
       agentName: dto.agentName,
       agentType: dto.agentType, // Required for backend validation
-      namespace: dto.organizationSlug, // Database organization slug like 'my-org' - API still expects 'namespace' field
+      organization: dto.organizationSlug, // Database organization slug like 'my-org'
       conversationId: dto.conversationId, // Pre-generated ID
       metadata: {
         source: 'agent2agent-frontend',

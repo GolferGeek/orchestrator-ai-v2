@@ -104,7 +104,7 @@ async function approveContinue(rec: HumanApprovalRecord) {
   loading.value = true;
   try {
     const auth = useAuthStore();
-    const orgSlug = rec.organization_slug ?? auth.currentNamespace ?? 'global';
+    const orgSlug = rec.organization_slug ?? auth.currentOrganization ?? 'global';
     const streamId = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
     const response = await approvalsService.approveAndContinue(orgSlug, rec.agent_slug, rec.id, { options: { stream: true }, metadata: { stream: true, streamId } });
     const assignedStream = response?.payload?.metadata?.streamId || streamId;

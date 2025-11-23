@@ -48,7 +48,7 @@ export interface Agent {
   slug?: string;
   id?: string;
   description?: string;
-  namespace?: string | null;
+  organizationSlug?: string | null;
   execution_modes?: string[];
   execution_profile?: AgentExecutionProfile;
   execution_capabilities?: AgentExecutionCapabilities;
@@ -212,6 +212,7 @@ export interface AgentChatMessage {
 export interface AgentConversation {
   id: string;
   agent: Agent;
+  organizationSlug?: string | null;
   messages: AgentChatMessage[];
   createdAt: Date;
   lastActiveAt: Date;
@@ -257,7 +258,7 @@ export interface TaskExecutionOptions {
   mode?: AgentChatMode;
   timeoutSeconds?: number;
   metadata?: JsonObject; // Context metadata for version operations
-  agentNamespace?: string | null;
+  agentOrganization?: string | null;
 }
 
 export interface PendingAction {

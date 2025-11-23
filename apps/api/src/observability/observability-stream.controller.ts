@@ -17,7 +17,6 @@ import { SupabaseService } from '../supabase/supabase.service';
  */
 @Controller('observability')
 @UseGuards(JwtAuthGuard)
-@RequirePermission('admin:audit')
 export class ObservabilityStreamController {
   private readonly logger = new Logger(ObservabilityStreamController.name);
 
@@ -36,15 +35,21 @@ export class ObservabilityStreamController {
    * - conversationId: Filter by conversation
    */
   @Get('stream')
+  @RequirePermission('admin:audit')
   async streamEvents(
     @Res() response: Response,
     @Query('userId') userId?: string,
     @Query('agentSlug') agentSlug?: string,
     @Query('conversationId') conversationId?: string,
   ): Promise<void> {
-    this.logger.log('🔌 Admin connected to observability stream');
+    this.logger.log(
+      '🔌 Admin connected to observability stream - method entry',
+    );
+    this.logger.debug(
+      `Filters: userId=${userId}, agentSlug=${agentSlug}, conversationId=${conversationId}`,
+    );
 
-    // Set SSE headers
+    // Set SSE headers IMMEDIATELY to establish connection
     response.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
@@ -55,7 +60,13 @@ export class ObservabilityStreamController {
       'X-Accel-Buffering': 'no', // Disable nginx buffering
     });
 
-    // Send recent events on connection (last 100 events)
+    // Send initial connection confirmation
+    response.write(
+      `data: ${JSON.stringify({ event_type: 'connected', message: 'Observability stream connected' })}\n\n`,
+    );
+    this.logger.log('📡 SSE headers sent, connection established');
+
+    // Send recent events on connection (last 100 events) - don't block if table doesn't exist
     try {
       const { data: recentEvents, error } = await this.supabaseService
         .getServiceClient()
@@ -65,7 +76,13 @@ export class ObservabilityStreamController {
         .limit(100);
 
       if (error) {
-        this.logger.error('Failed to fetch recent events:', error);
+        this.logger.warn(
+          'Failed to fetch recent events (table may not exist):',
+          error.message,
+        );
+        response.write(
+          `data: ${JSON.stringify({ event_type: 'info', message: 'No historical events available' })}\n\n`,
+        );
       } else if (recentEvents && recentEvents.length > 0) {
         // Send recent events in chronological order (oldest first)
         for (const event of recentEvents.reverse()) {
@@ -74,9 +91,16 @@ export class ObservabilityStreamController {
         this.logger.log(
           `📦 Sent ${recentEvents.length} recent events to admin`,
         );
+      } else {
+        response.write(
+          `data: ${JSON.stringify({ event_type: 'info', message: 'No historical events' })}\n\n`,
+        );
       }
     } catch (error) {
       this.logger.error('Error sending recent events:', error);
+      response.write(
+        `data: ${JSON.stringify({ event_type: 'error', message: 'Failed to load historical events' })}\n\n`,
+      );
     }
 
     // Create event listener for new events
@@ -100,8 +124,55 @@ export class ObservabilityStreamController {
       }
     };
 
-    // Subscribe to observability events
-    this.eventEmitter.on('observability.event', eventListener);
+    // Subscribe to all observability-relevant events
+    const eventTypes = [
+      'observability.event',
+      // Task lifecycle events
+      'task.created',
+      'task.started',
+      'task.progress',
+      'task.completed',
+      'task.failed',
+      'task.cancelled',
+      'task.status_changed',
+      'task.message',
+      'task.resumed',
+      // Agent streaming events
+      'agent.stream.start',
+      'agent.stream.chunk',
+      'agent.stream.complete',
+      'agent.stream.error',
+      // Human-in-the-loop events
+      'human_input.required',
+      'human_input.response',
+      'human_input.timeout',
+      // Workflow events
+      'workflow.step.progress',
+      'workflow.status.update',
+      'workflow.status_update',
+      // Context optimization
+      'context_optimization.metrics',
+    ];
+
+    // Create wrapper that adds event type to payload
+    const wrappedListener =
+      (eventType: string) => (eventData: Record<string, unknown>) => {
+        this.logger.debug(`📥 Received event: ${eventType}`);
+        eventListener({ ...eventData, event_type: eventType });
+      };
+
+    // Subscribe to all event types
+    const listeners: Array<{
+      type: string;
+      handler: (data: Record<string, unknown>) => void;
+    }> = [];
+    for (const eventType of eventTypes) {
+      const handler = wrappedListener(eventType);
+      this.eventEmitter.on(eventType, handler);
+      listeners.push({ type: eventType, handler });
+    }
+
+    this.logger.log(`📡 Subscribed to ${eventTypes.length} event types`);
 
     // Send heartbeat every 30 seconds to keep connection alive
     const heartbeatInterval = setInterval(() => {
@@ -117,7 +188,10 @@ export class ObservabilityStreamController {
     response.on('close', () => {
       this.logger.log('🔌 Admin disconnected from observability stream');
       clearInterval(heartbeatInterval);
-      this.eventEmitter.off('observability.event', eventListener);
+      // Unsubscribe from all event types
+      for (const { type, handler } of listeners) {
+        this.eventEmitter.off(type, handler);
+      }
       response.end();
     });
   }

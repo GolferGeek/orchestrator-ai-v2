@@ -569,14 +569,14 @@ class ApiService {
     return response.data.agents || [];
   }
 
-  async getAgentHierarchy(namespace?: string): Promise<AgentHierarchyResponse> {
+  async getAgentHierarchy(organization?: string): Promise<AgentHierarchyResponse> {
     // Use department-based hierarchy endpoint
-    console.log('🔍 [ApiService.getAgentHierarchy] Using hierarchy endpoint for namespace:', namespace);
+    console.log('🔍 [ApiService.getAgentHierarchy] Using hierarchy endpoint for organization:', organization);
 
     const response = await this.axiosInstance.get<AgentHierarchyResponse>(
       '/hierarchy/.well-known/hierarchy',
       {
-        headers: namespace ? { 'x-agent-namespace': namespace } : {}
+        headers: organization ? { 'x-organization-slug': organization } : {}
       }
     );
     console.log('✅ [ApiService.getAgentHierarchy] Hierarchy response received');

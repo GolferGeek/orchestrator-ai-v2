@@ -37,7 +37,7 @@ export class Agent2AgentConversationsService {
   async createConversation(
     userId: string,
     agentName: string,
-    namespace: string, // Database namespace (my-org, etc.)
+    organization: string, // Organization slug (my-org, etc.)
     options?: {
       title?: string;
       metadata?: Record<string, unknown>;
@@ -47,7 +47,7 @@ export class Agent2AgentConversationsService {
     id: string;
     userId: string;
     agentName: string;
-    namespace: string;
+    organization: string;
     title: string;
     metadata: Record<string, unknown>;
     createdAt: Date;
@@ -57,7 +57,7 @@ export class Agent2AgentConversationsService {
       const insertData: Record<string, unknown> = {
         user_id: userId,
         agent_name: agentName,
-        agent_type: namespace, // Store namespace in agent_type column
+        organization_slug: organization, // Store organization in organization_slug column
         started_at: now,
         last_active_at: now,
         metadata: {
@@ -100,7 +100,7 @@ export class Agent2AgentConversationsService {
         id: conversation.id,
         userId: conversation.user_id,
         agentName: conversation.agent_name,
-        namespace: conversation.agent_type, // agent_type column stores the namespace
+        organization: conversation.agent_type, // agent_type column stores the organization
         title: conversation.title,
         metadata: conversation.metadata,
         createdAt: new Date(conversation.created_at),
@@ -122,7 +122,7 @@ export class Agent2AgentConversationsService {
     id: string;
     userId: string;
     agentName: string;
-    namespace: string;
+    organization: string;
     title: string;
     metadata: Record<string, unknown>;
     createdAt: Date;
@@ -149,7 +149,7 @@ export class Agent2AgentConversationsService {
         id: conversation.id,
         userId: conversation.user_id,
         agentName: conversation.agent_name,
-        namespace: conversation.agent_type, // agent_type column stores the namespace
+        organization: conversation.agent_type, // agent_type column stores the organization
         title: conversation.title,
         metadata: conversation.metadata,
         createdAt: new Date(conversation.created_at),
@@ -172,12 +172,12 @@ export class Agent2AgentConversationsService {
     conversationId: string | undefined,
     userId: string,
     agentName: string,
-    namespace: string,
+    organization: string,
   ): Promise<{
     id: string;
     userId: string;
     agentName: string;
-    namespace: string;
+    organization: string;
     title: string;
     metadata: Record<string, unknown>;
     createdAt: Date;
@@ -190,7 +190,7 @@ export class Agent2AgentConversationsService {
           id: existing.id,
           userId: existing.userId,
           agentName: existing.agentName,
-          namespace: existing.namespace,
+          organization: existing.organization,
           title: existing.title,
           metadata: existing.metadata,
           createdAt: existing.createdAt,
@@ -203,7 +203,7 @@ export class Agent2AgentConversationsService {
     }
 
     // Create new conversation
-    return this.createConversation(userId, agentName, namespace);
+    return this.createConversation(userId, agentName, organization);
   }
 
   /**
@@ -274,7 +274,7 @@ export class Agent2AgentConversationsService {
   async listConversations(
     userId: string,
     agentName?: string,
-    namespace?: string,
+    organization?: string,
   ): Promise<unknown[]> {
     try {
       let query = this.supabaseService
@@ -287,8 +287,8 @@ export class Agent2AgentConversationsService {
         query = query.eq('agent_name', agentName);
       }
 
-      if (namespace) {
-        query = query.eq('agent_type', namespace);
+      if (organization) {
+        query = query.eq('agent_type', organization);
       }
 
       const { data: conversations, error } = await query.order('updated_at', {

@@ -70,7 +70,7 @@ export class Agent2AgentApi {
    * Get current organization slug from authStore
    */
   private getOrgSlug(): string {
-    const org = this.authStore.currentNamespace;
+    const org = this.authStore.currentOrganization;
     if (!org) {
       throw new Error('No organization context available');
     }

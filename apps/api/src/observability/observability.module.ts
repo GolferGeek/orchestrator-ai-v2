@@ -4,9 +4,10 @@ import { ObservabilityWebhookService } from './observability-webhook.service';
 import { ObservabilityStreamController } from './observability-stream.controller';
 import { AuthModule } from '../auth/auth.module';
 import { SupabaseModule } from '../supabase/supabase.module';
+import { RbacModule } from '../rbac/rbac.module';
 
 @Module({
-  imports: [HttpModule, AuthModule, SupabaseModule],
+  imports: [HttpModule, AuthModule, SupabaseModule, RbacModule],
   providers: [ObservabilityWebhookService],
   controllers: [ObservabilityStreamController],
   exports: [ObservabilityWebhookService],

@@ -11,7 +11,7 @@ export interface Plan {
   conversationId: string;
   userId: string;
   agentName: string;
-  namespace: string;
+  organization: string;
   title: string;
   currentVersionId: string | null;
   createdAt: Date;
@@ -56,7 +56,7 @@ export type PlanCreateParams = {
   content: string;
   format?: 'markdown' | 'json' | 'text';
   agentName?: string;
-  namespace?: string;
+  organization?: string;
   taskId?: string;
   metadata?: JsonObject;
 };

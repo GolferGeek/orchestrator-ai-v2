@@ -218,7 +218,7 @@ export class PlansService implements IActionHandler {
         conversation_id: context.conversationId,
         user_id: context.userId,
         agent_name: params.agentName ?? context.agentSlug ?? 'unknown',
-        namespace: params.namespace || 'default',
+        organization: params.organization || 'default',
         title: params.title,
       });
 
@@ -628,7 +628,7 @@ export class PlansService implements IActionHandler {
       conversationId: data.conversation_id,
       userId: data.user_id,
       agentName: data.agent_name,
-      namespace: data.namespace,
+      organization: data.organization,
       title: data.title,
       currentVersionId: data.current_version_id,
       createdAt: new Date(data.created_at),

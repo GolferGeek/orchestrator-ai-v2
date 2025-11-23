@@ -66,26 +66,28 @@ export class AgentRegistryService {
     return this.agentsRepository.listAll();
   }
 
-  async listAgentsForNamespaces(
-    namespaces: (string | null)[],
+  async listAgentsForOrganizations(
+    organizations: (string | null)[],
   ): Promise<AgentRecord[]> {
-    if (!namespaces.length) {
+    if (!organizations.length) {
       return [];
     }
 
-    const uniqueNamespaces = Array.from(
+    const uniqueOrganizations = Array.from(
       new Set(
-        namespaces.map((ns) => (ns && ns.trim().length ? ns.trim() : null)),
+        organizations.map((org) =>
+          org && org.trim().length ? org.trim() : null,
+        ),
       ),
     );
 
-    // Always include global agents alongside namespace-specific agents
-    if (!uniqueNamespaces.includes(null)) {
-      uniqueNamespaces.push(null);
+    // Always include global agents alongside organization-specific agents
+    if (!uniqueOrganizations.includes(null)) {
+      uniqueOrganizations.push(null);
     }
 
     const results = await Promise.all(
-      uniqueNamespaces.map((namespace) => this.listAgents(namespace)),
+      uniqueOrganizations.map((organization) => this.listAgents(organization)),
     );
 
     return results.flat();

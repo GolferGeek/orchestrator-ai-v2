@@ -13,20 +13,20 @@ export class AppService implements OnModuleInit {
   private readonly logger = new Logger(AppService.name);
   private discoveredAgents: Array<{
     name: string;
-    namespace: string;
+    organizationSlug: string;
     type?: string;
     path?: string;
-    namespacedPath?: string;
+    organizationScopedPath?: string;
     metadata?: unknown;
   }> = [];
   private agentInstances: unknown[] = [];
   private agentRecords: Array<{
     agent: {
       name: string;
-      namespace?: string;
+      organizationSlug?: string;
       type?: string;
       path?: string;
-      namespacedPath?: string;
+      organizationScopedPath?: string;
       serviceClass?: { name: string };
       metadata?: unknown;
     };
@@ -50,11 +50,11 @@ export class AppService implements OnModuleInit {
     return 'NestJS A2A Agent Framework - Ready!';
   }
 
-  async getAgentStatus(namespaces?: string[]): Promise<unknown> {
-    const filteredRecords = namespaces?.length
+  async getAgentStatus(organizations?: string[]): Promise<unknown> {
+    const filteredRecords = organizations?.length
       ? this.agentRecords.filter((record) =>
-          record.agent?.namespace
-            ? namespaces.includes(record.agent.namespace)
+          record.agent?.organizationSlug
+            ? organizations.includes(record.agent.organizationSlug)
             : true,
         )
       : this.agentRecords;
@@ -121,12 +121,12 @@ export class AppService implements OnModuleInit {
         return {
           id: this.generateAgentId(
             agent.name,
-            agent.namespacedPath || agent.path || '',
+            agent.organizationScopedPath || agent.path || '',
           ),
           name: agent.name,
           displayName: displayNameRaw || agent.name,
           type: agent.type,
-          namespace: agent.namespace ?? undefined,
+          organizationSlug: agent.organizationSlug ?? undefined,
           description:
             descriptionRaw ||
             `${agent.name} - A specialized agent for handling specific tasks`,
@@ -140,28 +140,31 @@ export class AppService implements OnModuleInit {
       }),
     );
 
-    const databaseAgents = await this.loadDatabaseAgents(namespaces);
+    const databaseAgents = await this.loadDatabaseAgents(organizations);
     const databaseAgentStatuses = databaseAgents.map((record) =>
       this.mapDatabaseAgent(record),
     );
 
     const existingKeys = new Set(
       agentsWithDetails.map((agent) =>
-        this.normalizeAgentIdentifier(agent.namespace ?? null, agent.name),
+        this.normalizeAgentIdentifier(
+          agent.organizationSlug ?? null,
+          agent.name,
+        ),
       ),
     );
 
     const mergedAgents = [...agentsWithDetails];
     for (const agent of databaseAgentStatuses) {
       const key = this.normalizeAgentIdentifier(
-        agent.namespace ?? null,
+        agent.organizationSlug ?? null,
         agent.name,
       );
       if (existingKeys.has(key)) {
         const index = mergedAgents.findIndex(
           (existing) =>
             this.normalizeAgentIdentifier(
-              existing.namespace ?? null,
+              existing.organizationSlug ?? null,
               existing.name,
             ) === key,
         );
@@ -193,30 +196,30 @@ export class AppService implements OnModuleInit {
    */
   getDiscoveredAgents(): Array<{
     name: string;
-    namespace: string;
+    organizationSlug: string;
     type?: string;
     path?: string;
-    namespacedPath?: string;
+    organizationScopedPath?: string;
     metadata?: unknown;
   }> {
     return this.discoveredAgents;
   }
 
-  getDiscoveredAgentsByNamespaces(namespaces?: string[]): Array<{
+  getDiscoveredAgentsByOrganizations(organizations?: string[]): Array<{
     name: string;
-    namespace: string;
+    organizationSlug: string;
     type?: string;
     path?: string;
-    namespacedPath?: string;
+    organizationScopedPath?: string;
     metadata?: unknown;
   }> {
-    if (!namespaces || namespaces.length === 0) {
+    if (!organizations || organizations.length === 0) {
       return this.discoveredAgents;
     }
 
-    const allowed = new Set(namespaces);
+    const allowed = new Set(organizations);
     return this.discoveredAgents.filter((agent) =>
-      allowed.has(agent.namespace),
+      allowed.has(agent.organizationSlug),
     );
   }
 
@@ -227,16 +230,16 @@ export class AppService implements OnModuleInit {
     return this.agentInstances;
   }
 
-  getAgentInstancesByNamespaces(namespaces?: string[]): unknown[] {
-    if (!namespaces || namespaces.length === 0) {
+  getAgentInstancesByOrganizations(organizations?: string[]): unknown[] {
+    if (!organizations || organizations.length === 0) {
       return this.agentInstances;
     }
 
-    const allowed = new Set(namespaces);
+    const allowed = new Set(organizations);
     const filtered: unknown[] = [];
 
     this.discoveredAgents.forEach((agent, index) => {
-      if (allowed.has(agent.namespace)) {
+      if (allowed.has(agent.organizationSlug)) {
         filtered.push(this.agentInstances[index] || null);
       }
     });
@@ -245,13 +248,13 @@ export class AppService implements OnModuleInit {
   }
 
   private async loadDatabaseAgents(
-    namespaces?: string[],
+    organizations?: string[],
   ): Promise<AgentRecord[]> {
-    if (namespaces && namespaces.length > 0) {
-      const normalized = namespaces
-        .map((ns) => (ns && ns.trim().length ? ns.trim() : null))
-        .map((ns) => (ns === 'global' ? null : ns));
-      return this.agentRegistry.listAgentsForNamespaces(normalized);
+    if (organizations && organizations.length > 0) {
+      const normalized = organizations
+        .map((org) => (org && org.trim().length ? org.trim() : null))
+        .map((org) => (org === 'global' ? null : org));
+      return this.agentRegistry.listAgentsForOrganizations(normalized);
     }
 
     return this.agentRegistry.listAllAgents();
@@ -301,7 +304,7 @@ export class AppService implements OnModuleInit {
       name: record.slug,
       displayName: record.name,
       type: isTool ? 'tool' : record.agent_type,
-      namespace: record.organization_slug.join(',') || undefined,
+      organizationSlug: record.organization_slug[0] || undefined,
       description: record.description,
       serviceClass: undefined,
       hasInstance: true,
@@ -346,14 +349,14 @@ export class AppService implements OnModuleInit {
   }
 
   private normalizeAgentIdentifier(
-    namespace: string | null,
+    organizationSlug: string | null,
     name: string,
   ): string {
-    const normalizedNamespace = namespace?.trim().length
-      ? namespace.trim().toLowerCase()
+    const normalizedOrg = organizationSlug?.trim().length
+      ? organizationSlug.trim().toLowerCase()
       : 'global';
     const normalizedName = (name ?? '').toLowerCase().replace(/[\s_-]+/g, '_');
-    return `${normalizedNamespace}::${normalizedName}`;
+    return `${normalizedOrg}::${normalizedName}`;
   }
 
   private deriveExecutionProfile(

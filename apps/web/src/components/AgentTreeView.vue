@@ -564,12 +564,12 @@ const hierarchyGroups = computed(() => {
   const groups: Agent[] = [];
   
   const processNode = (node: Agent) => {
-    // Debug: Log the raw node data to see if namespace exists
+    // Debug: Log the raw node data to see if organization exists
     if (node.name === 'blog_post_writer') {
       console.log('🔍 [AgentTreeView.processNode] Raw node data for blog_post_writer:', {
         name: node.name,
-        namespace: node.namespace,
-        hasNamespace: !!node.namespace,
+        organizationSlug: node.organizationSlug,
+        hasOrganizationSlug: !!node.organizationSlug,
         fullNode: node,
         totalConversationsInStore: storeConversations.value.length,
         conversationsInStore: storeConversations.value.map(c => ({
@@ -602,15 +602,15 @@ const hierarchyGroups = computed(() => {
     if (!matchesSearch && !hasMatchingChildren) return;
 
     // Get conversations for this manager/orchestrator
-    // All agents now filter by organizationSlug/namespace
+    // All agents now filter by organizationSlug
     const nodeConversations = storeConversations.value.filter(conv => {
-      const match = conv.agentName === node.name && conv.organizationSlug === (node.namespace || 'demo');
+      const match = conv.agentName === node.name && conv.organizationSlug === node.organizationSlug;
       if (node.name === 'blog_post_writer') {
         console.log('🔍 [AgentTreeView] Filtering conversation for blog_post_writer:', {
           convAgentName: conv.agentName,
           nodeAgentName: node.name,
           convOrgSlug: conv.organizationSlug,
-          nodeNamespace: node.namespace || 'demo',
+          nodeOrgSlug: node.organizationSlug || 'demo',
           match
         });
       }
@@ -626,7 +626,7 @@ const hierarchyGroups = computed(() => {
       execution_modes: node.execution_modes || node.metadata?.execution_modes || [],
       execution_profile: node.metadata?.execution_profile,
       execution_capabilities: node.metadata?.execution_capabilities,
-      namespace: node.namespace,
+      organizationSlug: node.organizationSlug,
       conversations: nodeConversations,
       activeConversations: nodeConversations.filter(c => !c.endedAt).length,
       totalConversations: nodeConversations.length,
@@ -645,23 +645,23 @@ const hierarchyGroups = computed(() => {
           child.metadata?.description?.toLowerCase().includes(searchQuery.value.toLowerCase());
 
         if (childMatchesSearch) {
-          // All agents now filter by organizationSlug/namespace
+          // All agents now filter by organizationSlug
           const childConversations = storeConversations.value.filter(conv =>
-            conv.agentName === child.name && conv.organizationSlug === (child.namespace || 'demo')
+            conv.agentName === child.name && conv.organizationSlug === child.organizationSlug
           );
 
           // Add this child as a team member
           console.log('🔍 [AgentTreeView] Building child agent object:', {
             name: child.name,
             type: child.type,
-            namespace: child.namespace,
-            hasNamespace: !!child.namespace,
+            organizationSlug: child.organizationSlug,
+            hasOrganizationSlug: !!child.organizationSlug,
             metadata: child.metadata,
             execution_profile_from_metadata: child.metadata?.execution_profile,
             execution_capabilities_from_metadata: child.metadata?.execution_capabilities,
             fullChild: child
           });
-          
+
           agents.push({
             name: child.name,
             displayName: child.displayName || child.metadata?.displayName || child.name,
@@ -670,7 +670,7 @@ const hierarchyGroups = computed(() => {
             execution_modes: child.execution_modes || child.metadata?.execution_modes || [],
             execution_profile: child.metadata?.execution_profile,
             execution_capabilities: child.metadata?.execution_capabilities,
-            namespace: child.namespace,
+            organizationSlug: child.organizationSlug,
             conversations: childConversations,
             activeConversations: childConversations.filter(c => !c.endedAt).length,
             totalConversations: childConversations.length,
@@ -716,9 +716,9 @@ const hierarchyGroups = computed(() => {
   ) || flatAgents[0]; // Fallback to first node if none have children
 
   if (topOrchestrator) {
-    // For database orchestrators (with namespace), match by organizationSlug; otherwise match by agentType
-    const orchestratorConversations = topOrchestrator.namespace
-      ? conversationsStore.conversationsByAgent(topOrchestrator.name, topOrchestrator.namespace)
+    // For database orchestrators (with organizationSlug), match by organizationSlug; otherwise match by agentType
+    const orchestratorConversations = topOrchestrator.organizationSlug
+      ? conversationsStore.conversationsByAgent(topOrchestrator.name, topOrchestrator.organizationSlug)
       : conversationsStore.conversationsByAgentType(topOrchestrator.type)
           .filter(conv => conv.agentName === topOrchestrator.name);
 
@@ -745,9 +745,9 @@ const hierarchyGroups = computed(() => {
         topOrchestrator.children.forEach((child: Agent) => {
           if (!child.children || child.children.length === 0) {
             // This is a non-manager child - add it to the orchestrator's team
-            // For database agents (with namespace), match by organizationSlug; otherwise match by agentType
-            const childConversations = child.namespace
-              ? conversationsStore.conversationsByAgent(child.name, child.namespace)
+            // For database agents (with organizationSlug), match by organizationSlug; otherwise match by agentType
+            const childConversations = child.organizationSlug
+              ? conversationsStore.conversationsByAgent(child.name, child.organizationSlug)
               : conversationsStore.conversationsByAgentType(child.type)
                   .filter(conv => conv.agentName === child.name);
             orchestratorAgents.push({
@@ -805,9 +805,9 @@ const hierarchyGroups = computed(() => {
       processNode(agent);
     } else {
       // This is a standalone specialist/agent
-      // For database agents (with namespace), match by organizationSlug; otherwise match by agentType
-      const nodeConversations = agent.namespace
-        ? conversationsStore.conversationsByAgent(agent.name, agent.namespace)
+      // For database agents (with organizationSlug), match by organizationSlug; otherwise match by agentType
+      const nodeConversations = agent.organizationSlug
+        ? conversationsStore.conversationsByAgent(agent.name, agent.organizationSlug)
         : conversationsStore.conversationsByAgentType(agent.type)
             .filter(conv => conv.agentName === agent.name);
 
@@ -859,7 +859,7 @@ const hierarchyGroups = computed(() => {
       totalConversations: g.totalConversations,
       agents: g.agents.map((a: Agent) => ({
         name: a.name,
-        namespace: a.namespace,
+        organizationSlug: a.organizationSlug,
         conversationCount: a.conversations?.length || 0,
         conversations: a.conversations?.map((c: AgentConversation) => ({
           id: c.id,
@@ -879,10 +879,10 @@ const hierarchyGroups = computed(() => {
 const refreshData = async () => {
   try {
     const authStore = useAuthStore();
-    const namespace = authStore.currentNamespace;
+    const organization = authStore.currentOrganization;
 
-    if (!namespace) {
-      console.warn('No namespace available for refreshing agents');
+    if (!organization) {
+      console.warn('No organization available for refreshing agents');
       return;
     }
 
@@ -892,28 +892,28 @@ const refreshData = async () => {
     // Load agents and hierarchy from service
     const [agents, hierarchy] = await Promise.all([
       agentsService.getAvailableAgents(),
-      agentsService.getAgentHierarchy(namespace).catch(() => null),
+      agentsService.getAgentHierarchy(organization).catch(() => null),
     ]);
 
-    // Filter agents by namespace
+    // Filter agents by organization
     const filteredAgents = Array.isArray(agents)
       ? agents.filter((agent) => {
           if (!agent || typeof agent !== 'object') return false;
-          if (!('namespace' in agent) || !agent.namespace) return true;
-          return agent.namespace === namespace || agent.namespace === 'global';
+          if (!('organization' in agent) || !agent.organization) return true;
+          return agent.organization === organization || agent.organization === 'global';
         })
       : [];
 
-    // Filter hierarchy by namespace
-    const { filterHierarchyByNamespace } = await import('@/stores/agentsStore');
+    // Filter hierarchy by organization
+    const { filterHierarchyByOrganization } = await import('@/stores/agentsStore');
     const filteredHierarchy = hierarchy
-      ? filterHierarchyByNamespace(hierarchy, namespace)
+      ? filterHierarchyByOrganization(hierarchy, organization)
       : null;
 
     // Update store via mutations
     agentsStore.setAvailableAgents(filteredAgents);
     agentsStore.setAgentHierarchy(filteredHierarchy);
-    agentsStore.setLastLoadedNamespace(namespace);
+    agentsStore.setLastLoadedOrganization(organization);
     agentsStore.setLoading(false);
 
     await conversationsStore.fetchConversations(true);
@@ -933,7 +933,7 @@ const createNewConversation = async (agent: Agent) => {
     console.log('🔍 [AgentTreeView] Creating conversation with agent:', {
       name: agent.name,
       type: agent.type,
-      namespace: agent.namespace,
+      organizationSlug: agent.organizationSlug,
       execution_profile: agent.execution_profile,
       execution_capabilities: agent.execution_capabilities,
       fullAgent: agent

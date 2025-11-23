@@ -2532,7 +2532,9 @@ export class EvaluationService {
       return ['user'];
     }
 
-    const validRoles = roles.filter((role) => typeof role === 'string' && role.length > 0);
+    const validRoles = roles.filter(
+      (role) => typeof role === 'string' && role.length > 0,
+    );
 
     return validRoles.length ? validRoles : ['user'];
   }

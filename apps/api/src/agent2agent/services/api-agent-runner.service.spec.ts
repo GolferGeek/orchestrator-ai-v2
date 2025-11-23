@@ -134,7 +134,7 @@ describe('ApiAgentRunnerService', () => {
           format: 'json',
           type: 'api-response',
           agentName: 'test-api-agent',
-          namespace: 'test-org',
+          organizationSlug: 'test-org',
         }),
         expect.objectContaining({
           conversationId: 'conv-123',

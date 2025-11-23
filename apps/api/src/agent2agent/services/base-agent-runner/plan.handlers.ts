@@ -93,7 +93,7 @@ export async function handlePlanCreate(
     const { userId, conversationId, taskId, executionContext } =
       buildPlanActionContext(definition, request);
 
-    const namespace = resolveNamespace(definition, organizationSlug);
+    const organization = resolveOrganization(definition, organizationSlug);
     const existingPlan = (await fetchExistingPlan(
       services.plansService,
       request,
@@ -183,7 +183,7 @@ export async function handlePlanCreate(
           conversationId,
           sessionId: request.sessionId,
           userId,
-          organizationSlug: namespace,
+          organizationSlug: organization,
           agentSlug: definition.slug,
           callerType: 'agent',
           callerName: `${definition.slug}-plan-create`,
@@ -216,7 +216,7 @@ export async function handlePlanCreate(
           content: normalizedContent,
           format: planFormat,
           agentName: definition.slug, // Always use slug, not displayName
-          namespace,
+          organization,
           taskId,
           metadata: {
             planMetadata,
@@ -1088,7 +1088,7 @@ function buildPlanActionContext(
   };
 }
 
-function resolveNamespace(
+function resolveOrganization(
   definition: AgentRuntimeDefinition,
   organizationSlug: string | null,
 ): string {
@@ -1160,8 +1160,8 @@ function serializePlan(
     record.agentName ?? record.agent_name ?? definition.name ?? definition.slug;
 
   const userIdRaw: unknown = record.userId ?? record.user_id ?? fallbackUserId;
-  const namespaceRaw: unknown =
-    record.namespace ?? record.agent_namespace ?? 'default';
+  const organizationRaw: unknown =
+    record.organization ?? record.organizationSlug ?? 'default';
 
   const currentVersionIdRaw: unknown =
     record.currentVersionId ??
@@ -1178,7 +1178,7 @@ function serializePlan(
     conversationId: String(conversationIdAlt),
     userId: String(userIdRaw),
     agentName: String(agentNameRaw),
-    namespace: String(namespaceRaw),
+    organization: String(organizationRaw),
     title: typeof titleAlt === 'string' ? titleAlt : 'Plan',
     currentVersionId:
       typeof currentVersionIdRaw === 'string' ? currentVersionIdRaw : '',

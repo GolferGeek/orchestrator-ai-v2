@@ -17,7 +17,7 @@ export interface CreatePlanInput {
   userId?: string | null;
   title?: string | null;
   content?: string | null;
-  namespace?: string | null;
+  organization?: string | null;
 }
 
 interface CreatePlanActionResult {
@@ -69,7 +69,8 @@ export class AgentRuntimePlansAdapter {
         ctx.content ??
         this.extractString(request.payload ?? {}, 'output') ??
         '';
-      const namespace = ctx.namespace || ctx.organizationSlug || 'default';
+      const organization =
+        ctx.organization || ctx.organizationSlug || 'default';
       const taskId = this.resolveTaskId(request);
 
       const result =
@@ -80,7 +81,7 @@ export class AgentRuntimePlansAdapter {
             content,
             format: 'markdown',
             agentName: ctx.agentSlug,
-            namespace,
+            organization,
             taskId,
             metadata: this.buildMetadataObject({
               organizationSlug: ctx.organizationSlug,

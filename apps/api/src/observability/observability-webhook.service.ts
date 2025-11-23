@@ -164,7 +164,7 @@ export class ObservabilityWebhookService implements OnModuleInit {
     }
 
     try {
-      const url = `${this.observabilityUrl}/hooks`;
+      const url = `${this.observabilityUrl}/webhooks/status`;
 
       this.logger.debug(
         `Sending observability event: ${event.hook_event_type} for task ${event.taskId || 'N/A'}`,

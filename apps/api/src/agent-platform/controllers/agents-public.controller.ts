@@ -10,7 +10,7 @@ interface HierarchyNode {
   type: string;
   description: string | null;
   status: string | null;
-  namespace: string;
+  organization: string;
   execution_modes?: string[];
   metadata: {
     execution_profile?: unknown;
@@ -31,24 +31,25 @@ export class AgentsPublicController {
   @Get('.well-known/hierarchy')
   @Public()
   async getAgentHierarchy(
-    @Headers('x-agent-namespace') namespaceHeader?: string,
+    @Headers('x-organization-slug') organizationHeader?: string,
   ) {
-    const namespaces = namespaceHeader
-      ? namespaceHeader
+    const headerValue = organizationHeader;
+    const organizations = headerValue
+      ? headerValue
           .split(',')
-          .map((ns) => ns.trim())
+          .map((org) => org.trim())
           .filter(Boolean)
       : undefined;
 
     try {
       // Get agents from database registry
-      const agents = namespaces?.length
-        ? await this.agentRegistry.listAgentsForNamespaces(
-            namespaces.map((ns) => (ns === 'global' ? null : ns)),
+      const agents = organizations?.length
+        ? await this.agentRegistry.listAgentsForOrganizations(
+            organizations.map((org) => (org === 'global' ? null : org)),
           )
         : await this.agentRegistry.listAllAgents();
 
-      // Build hierarchy from flat agent list grouped by namespace
+      // Build hierarchy from flat agent list grouped by organization
       const hierarchy = this.buildHierarchyFromAgents(agents);
       const totalAgents = agents.length;
 
@@ -58,7 +59,7 @@ export class AgentsPublicController {
         metadata: {
           totalAgents,
           rootNodes: hierarchy.length,
-          namespaces: namespaces ?? 'all',
+          organizations: organizations ?? 'all',
           timestamp: new Date().toISOString(),
         },
       };
@@ -70,7 +71,7 @@ export class AgentsPublicController {
         metadata: {
           totalAgents: 0,
           rootNodes: 0,
-          namespaces: namespaces ?? 'all',
+          organizations: organizations ?? 'all',
           timestamp: new Date().toISOString(),
         },
       };
@@ -78,30 +79,30 @@ export class AgentsPublicController {
   }
 
   private buildHierarchyFromAgents(agents: AgentRecord[]): HierarchyNode[] {
-    const byNamespace = new Map<string, AgentRecord[]>();
+    const byOrganization = new Map<string, AgentRecord[]>();
 
-    // Group agents by namespace (now an array)
+    // Group agents by organization slug (now an array)
     for (const agent of agents) {
-      const namespaces =
+      const orgSlugs =
         agent.organization_slug.length > 0
           ? agent.organization_slug
           : ['global'];
-      for (const namespace of namespaces) {
-        if (!byNamespace.has(namespace)) {
-          byNamespace.set(namespace, []);
+      for (const orgSlug of orgSlugs) {
+        if (!byOrganization.has(orgSlug)) {
+          byOrganization.set(orgSlug, []);
         }
-        byNamespace.get(namespace)!.push(agent);
+        byOrganization.get(orgSlug)!.push(agent);
       }
     }
 
     const roots: HierarchyNode[] = [];
 
-    // Build hierarchy for each namespace
-    byNamespace.forEach((namespaceAgents, _namespace) => {
+    // Build hierarchy for each organization
+    byOrganization.forEach((orgAgents, _orgSlug) => {
       const agentMap = new Map<string, HierarchyNode>();
 
       // Create nodes for all agents
-      for (const agent of namespaceAgents) {
+      for (const agent of orgAgents) {
         // Extract execution_modes from metadata
         let executionModes: string[] = ['immediate'];
         const metadataConfig = agent.metadata as Record<string, unknown>;
@@ -121,7 +122,7 @@ export class AgentsPublicController {
           type: agent.agent_type,
           description: agent.description,
           status: (metadataConfig?.status as string) || 'active',
-          namespace: agent.organization_slug.join(',') || 'global',
+          organization: agent.organization_slug.join(',') || 'global',
           execution_modes: executionModes,
           metadata: {
             execution_profile: metadataConfig?.execution_profile,
@@ -136,7 +137,7 @@ export class AgentsPublicController {
       // Build parent-child relationships based on reports_to
       const topLevelNodes: HierarchyNode[] = [];
 
-      for (const agent of namespaceAgents) {
+      for (const agent of orgAgents) {
         const node = agentMap.get(agent.slug);
         if (!node) continue;
 
@@ -159,7 +160,7 @@ export class AgentsPublicController {
             topLevelNodes.push(node);
           }
         } else {
-          // No reportsTo or parent not in this namespace - top level node
+          // No reportsTo or parent not in this organization - top level node
           topLevelNodes.push(node);
         }
       }

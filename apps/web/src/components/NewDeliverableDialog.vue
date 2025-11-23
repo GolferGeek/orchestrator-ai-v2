@@ -240,14 +240,14 @@ onMounted(async () => {
   try {
     if (!agentsStore.availableAgents || agentsStore.availableAgents.length === 0) {
       const authStore = useAuthStore();
-      const namespace = authStore.currentNamespace;
+      const organization = authStore.currentOrganization;
 
-      if (namespace) {
+      if (organization) {
         const agents = await agentsService.getAvailableAgents();
         const filteredAgents = agents.filter((agent) => {
           if (!agent || typeof agent !== 'object') return false;
-          if (!('namespace' in agent) || !agent.namespace) return true;
-          return agent.namespace === namespace || agent.namespace === 'global';
+          if (!('organization' in agent) || !agent.organization) return true;
+          return agent.organization === organization || agent.organization === 'global';
         });
         agentsStore.setAvailableAgents(filteredAgents);
       }

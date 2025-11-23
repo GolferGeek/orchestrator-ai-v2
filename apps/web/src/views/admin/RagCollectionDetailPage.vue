@@ -495,7 +495,7 @@ const showDeleteAlert = ref(false);
 const documentToDelete = ref<RagDocument | null>(null);
 
 // Helpers
-const getOrgSlug = () => authStore.currentNamespace || 'demo-org';
+const getOrgSlug = () => authStore.currentOrganization || 'demo-org';
 const collectionId = computed(() => route.params.id as string);
 
 // Computed for failed upload items (from store)

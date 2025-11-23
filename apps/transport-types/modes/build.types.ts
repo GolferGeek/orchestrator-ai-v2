@@ -190,7 +190,7 @@ export interface BuildCreateResponseContent {
     conversationId: string;
     userId: string;
     agentName: string;
-    namespace: string;
+    organization: string;
     title: string;
     type: string;
     currentVersionId: string;

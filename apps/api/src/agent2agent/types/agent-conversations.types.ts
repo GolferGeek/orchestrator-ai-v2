@@ -1,7 +1,7 @@
 // Agent organizational categories - supports both file structure and explicit configuration
 // Common values include: orchestrator, specialist, marketing, finance, hr, operations,
 // sales, legal, engineering, product, research, context, function, tool
-// Also supports any string for database namespaces (my-org, etc.)
+// Also supports any string for organization slugs (my-org, etc.)
 export type AgentType = string;
 
 export interface AgentConversation {
@@ -63,7 +63,7 @@ export interface AgentConversationWithStats extends AgentConversation {
 export interface CreateAgentConversationDto {
   agentName: string;
   agentType: AgentType;
-  namespace?: string; // Organization slug for database agents (e.g., 'my-org')
+  organization?: string; // Organization slug for database agents (e.g., 'my-org')
   metadata?: Record<string, unknown>;
   workProduct?: WorkProductContext;
 }

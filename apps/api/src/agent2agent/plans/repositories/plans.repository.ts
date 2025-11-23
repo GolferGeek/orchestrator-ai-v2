@@ -7,7 +7,7 @@ export interface PlanRecord {
   conversation_id: string;
   user_id: string;
   agent_name: string;
-  namespace: string;
+  organization: string;
   title: string;
   current_version_id: string | null;
   created_at: string;
@@ -18,7 +18,7 @@ export interface CreatePlanData {
   conversation_id: string;
   user_id: string;
   agent_name: string;
-  namespace: string;
+  organization: string;
   title: string;
   current_version_id?: string | null;
 }
@@ -26,7 +26,7 @@ export interface CreatePlanData {
 export interface UpdatePlanData {
   title?: string;
   agent_name?: string;
-  namespace?: string;
+  organization?: string;
   current_version_id?: string;
 }
 

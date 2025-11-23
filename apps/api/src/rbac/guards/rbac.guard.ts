@@ -1,7 +1,36 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Logger,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { RbacService } from '../rbac.service';
-import { PERMISSION_KEY, RESOURCE_PARAM_KEY } from '../decorators/require-permission.decorator';
+import {
+  PERMISSION_KEY,
+  RESOURCE_PARAM_KEY,
+} from '../decorators/require-permission.decorator';
+
+/**
+ * Request user type from JWT authentication
+ */
+interface RequestUser {
+  id: string;
+  email?: string;
+}
+
+/**
+ * Typed request interface for HTTP requests with auth
+ */
+interface TypedRequest {
+  user?: RequestUser;
+  headers: Record<string, string | undefined>;
+  query: Record<string, string | undefined>;
+  body: Record<string, string | undefined>;
+  params: Record<string, string | undefined>;
+  organizationSlug?: string;
+}
 
 /**
  * Guard to enforce permission-based access control
@@ -34,33 +63,46 @@ export class RbacGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     // Get required permission from route metadata
-    const permission = this.reflector.getAllAndOverride<string>(PERMISSION_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const permission = this.reflector.getAllAndOverride<string>(
+      PERMISSION_KEY,
+      [context.getHandler(), context.getClass()],
+    );
 
     // If no permission is specified, allow access
     if (!permission) {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<TypedRequest>();
     const user = request.user;
+
+    this.logger.debug(
+      `[RbacGuard] request.user: ${user ? JSON.stringify({ id: user.id, email: user.email }) : 'undefined'}`,
+    );
 
     // Ensure user is authenticated (should be handled by JwtAuthGuard first)
     if (!user || !user.id) {
+      this.logger.warn(
+        '[RbacGuard] No user found on request - JwtAuthGuard may not have run first',
+      );
       throw new ForbiddenException('Authentication required');
     }
 
-    // Get organization slug from request
-    const orgSlug = this.getOrganizationSlug(request);
-    if (!orgSlug) {
-      throw new ForbiddenException('Organization context required (x-organization-slug header or organizationSlug parameter)');
-    }
+    // Get organization slug from request (use '*' for global/admin endpoints)
+    const orgSlug = this.getOrganizationSlug(request) || '*';
+
+    this.logger.debug(
+      `[RbacGuard] Checking permission: user=${user.id}, org=${orgSlug}, permission=${permission}`,
+    );
 
     // Check for resource-specific permission
-    const resourceParam = this.reflector.get<string>(RESOURCE_PARAM_KEY, context.getHandler());
-    const resourceId = resourceParam ? request.params[resourceParam] : undefined;
+    const resourceParam = this.reflector.get<string>(
+      RESOURCE_PARAM_KEY,
+      context.getHandler(),
+    );
+    const resourceId = resourceParam
+      ? request.params[resourceParam]
+      : undefined;
 
     // Check permission
     const hasAccess = await this.rbacService.hasPermission(
@@ -69,6 +111,10 @@ export class RbacGuard implements CanActivate {
       permission,
       undefined,
       resourceId,
+    );
+
+    this.logger.debug(
+      `[RbacGuard] Permission check result: hasAccess=${hasAccess}`,
     );
 
     if (!hasAccess) {
@@ -88,15 +134,11 @@ export class RbacGuard implements CanActivate {
    * Extract organization slug from request
    * Priority: header > query > body
    */
-  private getOrganizationSlug(request: Record<string, unknown>): string | undefined {
-    const headers = request.headers as Record<string, string> | undefined;
-    const query = request.query as Record<string, string> | undefined;
-    const body = request.body as Record<string, string> | undefined;
-
+  private getOrganizationSlug(request: TypedRequest): string | undefined {
     return (
-      headers?.['x-organization-slug'] ||
-      query?.organizationSlug ||
-      body?.organizationSlug ||
+      request.headers['x-organization-slug'] ||
+      request.query.organizationSlug ||
+      request.body.organizationSlug ||
       undefined
     );
   }

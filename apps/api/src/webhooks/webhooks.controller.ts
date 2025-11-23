@@ -55,7 +55,7 @@ interface WorkflowStatusUpdate {
   // NEW: Observability enrichment fields
   agentSlug?: string; // Agent being executed
   username?: string; // display_name or email (human-readable)
-  organizationSlug?: string; // Organization namespace
+  organizationSlug?: string; // Organization slug (e.g. 'demo-org')
   mode?: string; // 'converse', 'plan', 'build', 'orchestrate'
 }
 

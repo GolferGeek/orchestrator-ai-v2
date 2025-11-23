@@ -23,6 +23,7 @@ import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { RequirePermission } from '../rbac/decorators/require-permission.decorator';
+import { RbacService } from '../rbac/rbac.service';
 import {
   UserCreateDto,
   UserLoginDto,
@@ -44,7 +45,10 @@ import {
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly rbacService: RbacService,
+  ) {}
 
   @Post('signup')
   @ApiOperation({ summary: 'Create new user and return session token' })
@@ -235,7 +239,9 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @RequirePermission('admin:users')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Set user roles (admin only)' })
+  @ApiOperation({
+    summary: 'Set user roles (admin only) - use RBAC endpoints instead',
+  })
   @ApiResponse({
     status: 200,
     description: 'User roles updated successfully',
@@ -245,12 +251,16 @@ export class AuthController {
     @Body() updateUserRolesDto: UpdateUserRolesDto,
     @CurrentUser() currentAuthUser: SupabaseAuthUserDto,
   ): Promise<{ success: boolean; message: string }> {
-    await this.authService.setUserRoles(
-      userId,
-      updateUserRolesDto.roles,
-      currentAuthUser.id,
-      updateUserRolesDto.reason,
-    );
+    // Use RBAC service - requires organization context
+    const orgSlug = updateUserRolesDto.organizationSlug || 'demo-org';
+    for (const roleName of updateUserRolesDto.roles) {
+      await this.rbacService.assignRole(
+        userId,
+        orgSlug,
+        roleName,
+        currentAuthUser.id,
+      );
+    }
     return {
       success: true,
       message: `User roles updated to: ${updateUserRolesDto.roles.join(', ')}`,
@@ -261,7 +271,9 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @RequirePermission('admin:users')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Add role to user (admin only)' })
+  @ApiOperation({
+    summary: 'Add role to user (admin only) - use RBAC endpoints instead',
+  })
   @ApiResponse({
     status: 200,
     description: 'Role added successfully',
@@ -271,11 +283,12 @@ export class AuthController {
     @Body() addUserRoleDto: AddUserRoleDto,
     @CurrentUser() currentAuthUser: SupabaseAuthUserDto,
   ): Promise<{ success: boolean; message: string }> {
-    await this.authService.addUserRole(
+    const orgSlug = addUserRoleDto.organizationSlug || 'demo-org';
+    await this.rbacService.assignRole(
       userId,
+      orgSlug,
       addUserRoleDto.role,
       currentAuthUser.id,
-      addUserRoleDto.reason,
     );
     return {
       success: true,
@@ -287,7 +300,9 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @RequirePermission('admin:users')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Remove role from user (admin only)' })
+  @ApiOperation({
+    summary: 'Remove role from user (admin only) - use RBAC endpoints instead',
+  })
   @ApiResponse({
     status: 200,
     description: 'Role removed successfully',
@@ -298,11 +313,12 @@ export class AuthController {
     @Body() removeUserRoleDto: RemoveUserRoleDto,
     @CurrentUser() currentAuthUser: SupabaseAuthUserDto,
   ): Promise<{ success: boolean; message: string }> {
-    await this.authService.removeUserRole(
+    const orgSlug = removeUserRoleDto.organizationSlug || 'demo-org';
+    await this.rbacService.revokeRole(
       userId,
+      orgSlug,
       role,
       currentAuthUser.id,
-      removeUserRoleDto.reason,
     );
     return {
       success: true,

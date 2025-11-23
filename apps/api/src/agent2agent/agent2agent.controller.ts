@@ -156,7 +156,7 @@ export class Agent2AgentController {
     @Body()
     body: {
       agentName: string;
-      namespace: string;
+      organization: string;
       conversationId?: string;
       metadata?: Record<string, unknown>;
     },
@@ -166,7 +166,7 @@ export class Agent2AgentController {
       await this.agentConversationsService.createConversation(
         currentUser.id,
         body.agentName,
-        body.namespace, // No AgentType casting needed - just a string
+        body.organization, // Organization slug for database agents
         {
           conversationId: body.conversationId,
           metadata: body.metadata,
@@ -183,20 +183,18 @@ export class Agent2AgentController {
   @Get('agent-to-agent/.well-known/hierarchy')
   @Public()
   async getAgentHierarchy(
-    @Headers('x-agent-namespace') namespaceHeader?: string,
-    @Headers('X-Agent-Namespace') namespaceHeaderCaps?: string,
+    @Headers('x-organization-slug') organizationHeader?: string,
   ) {
-    // Handle both lowercase and capitalized header names
-    const effectiveNamespace = namespaceHeader || namespaceHeaderCaps;
-    const namespaces = effectiveNamespace
-      ? effectiveNamespace
+    const effectiveHeader = organizationHeader;
+    const organizations = effectiveHeader
+      ? effectiveHeader
           .split(',')
-          .map((ns) => ns.trim())
+          .map((org) => org.trim())
           .filter(Boolean)
       : undefined;
 
     try {
-      const databaseAgents = await this.fetchDatabaseAgents(namespaces);
+      const databaseAgents = await this.fetchDatabaseAgents(organizations);
       const hierarchy = this.buildDatabaseHierarchy(databaseAgents);
 
       return {
@@ -205,7 +203,7 @@ export class Agent2AgentController {
         metadata: {
           totalAgents: databaseAgents.length,
           rootNodes: hierarchy.length,
-          namespaces: namespaces ?? 'all',
+          organizations: organizations ?? 'all',
           source: 'database',
           timestamp: new Date().toISOString(),
         },
@@ -219,7 +217,7 @@ export class Agent2AgentController {
         metadata: {
           totalAgents: 0,
           rootNodes: 0,
-          namespaces: namespaces ?? 'all',
+          organizations: organizations ?? 'all',
           source: 'database',
           timestamp: new Date().toISOString(),
         },
@@ -374,8 +372,8 @@ export class Agent2AgentController {
           };
         }) || [];
 
-      // Use namespace as agentType for database agents (clean architecture separation)
-      const effectiveAgentType = org || 'global';
+      // Organization slug comes from the URL path parameter (already normalized by normalizeOrgSlug)
+      const organizationSlug = org;
 
       // CRITICAL: Persist task AND conversation to database BEFORE execution
       // (like DynamicAgentsController does)
@@ -383,22 +381,21 @@ export class Agent2AgentController {
       this.logger.debug(`📝 Attempting to create task in database with:`, {
         userId: currentUser.id,
         agentName: agentSlug,
-        originalAgentType: agentRecord.agent_type,
-        effectiveAgentType,
-        orgSlug: org,
+        agentType: agentRecord.agent_type,
+        organizationSlug,
         method: dto.mode,
         conversationId: dto.conversationId,
         taskId: taskIdFromPayload,
       });
 
       this.logger.debug(
-        `🚨 [Agent2AgentController] CALLING tasksService.createTask with effectiveAgentType: "${effectiveAgentType}"`,
+        `🚨 [Agent2AgentController] CALLING tasksService.createTask with organizationSlug: "${organizationSlug}"`,
       );
 
       const task = await this.tasksService.createTask(
         currentUser.id,
         agentSlug, // agentName
-        effectiveAgentType, // Use namespace as agent_type for database agents
+        organizationSlug, // Organization slug (e.g., 'demo-org')
         {
           method: dto.mode, // Use the normalized mode from DTO (guaranteed to be set)
           prompt: dto.userMessage || '',
@@ -982,19 +979,25 @@ export class Agent2AgentController {
     agentSlug: string,
     organizationSlug: string,
   ): void {
+    this.logger.debug(
+      `🔍 assertTaskContext: task.agentName=${task.agentName}, agentSlug=${agentSlug}, task.organization=${task.organization}, organizationSlug=${organizationSlug}`,
+    );
+
     if (task.agentName !== agentSlug) {
       throw new UnauthorizedException(
         'Task does not belong to the requested agent',
       );
     }
 
-    // Normalize task namespace: null → 'global', empty → 'global'
+    // Normalize task organization: null → 'global', empty → 'global'
     const taskOrg =
-      !task.namespace || task.namespace === '' ? 'global' : task.namespace;
+      !task.organization || task.organization === ''
+        ? 'global'
+        : task.organization;
 
     if (taskOrg !== organizationSlug) {
       throw new UnauthorizedException(
-        'Task does not belong to the requested organization',
+        `Task does not belong to the requested organization (task: ${taskOrg}, requested: ${organizationSlug})`,
       );
     }
   }
@@ -1460,16 +1463,16 @@ export class Agent2AgentController {
   }
 
   /**
-   * Fetch database agents filtered by namespaces
+   * Fetch database agents filtered by organization slugs
    */
   private async fetchDatabaseAgents(
-    namespaces?: string[],
+    organizations?: string[],
   ): Promise<AgentRecord[]> {
-    if (namespaces && namespaces.length > 0) {
-      const normalized = namespaces
-        .map((ns) => (ns && ns.trim().length ? ns.trim() : null))
-        .map((ns) => (ns === 'global' ? null : ns));
-      return this.agentRegistry.listAgentsForNamespaces(normalized);
+    if (organizations && organizations.length > 0) {
+      const normalized = organizations
+        .map((org) => (org && org.trim().length ? org.trim() : null))
+        .map((org) => (org === 'global' ? null : org));
+      return this.agentRegistry.listAgentsForOrganizations(normalized);
     }
 
     return this.agentRegistry.listAllAgents();
@@ -1521,8 +1524,8 @@ export class Agent2AgentController {
         type: isTool ? 'tool' : record.agent_type,
         path: `db://${orgSlug}/${record.slug}`,
         relativePath: record.slug,
-        namespace: orgSlug,
-        namespacedPath: `db://${orgSlug}/${record.slug}`,
+        organization: orgSlug,
+        organizationPath: `db://${orgSlug}/${record.slug}`,
         execution_modes: executionModes.length > 0 ? executionModes : undefined,
         metadata: {
           description: record.description,
@@ -1530,7 +1533,7 @@ export class Agent2AgentController {
           category,
           agentType: record.agent_type,
           source: 'database',
-          namespace: orgSlug,
+          organization: orgSlug,
           isTool: isTool || undefined,
           isOrchestrator: isOrchestrator || undefined,
           // Expose execution fields from metadata for frontend
@@ -1546,7 +1549,7 @@ export class Agent2AgentController {
 
     const roots: unknown[] = [];
 
-    grouped.forEach((agents, _namespaceKey) => {
+    grouped.forEach((agents, _orgKey) => {
       // Group agents by logical hierarchy based on naming patterns
       const orchestrators = agents.filter(
         (a) =>

@@ -6,7 +6,7 @@
     
     <div class="event-content">
       <div class="event-header">
-        <span class="event-type">{{ event.hook_event_type }}</span>
+        <span class="event-type">{{ event.hook_event_type || event.event_type || 'unknown' }}</span>
         <span class="event-time">{{ formattedTime }}</span>
       </div>
       
@@ -86,6 +86,15 @@ import {
   cloudUploadOutline,
   globeOutline,
   codeSlashOutline,
+  addCircleOutline,
+  stopCircleOutline,
+  syncOutline,
+  playForwardOutline,
+  alertCircleOutline,
+  handRightOutline,
+  checkmarkDoneOutline,
+  timeOutline,
+  informationCircleOutline,
 } from 'ionicons/icons';
 import type { ObservabilityEvent } from '@/composables/useAdminObservabilityStream';
 
@@ -113,35 +122,68 @@ const formattedTime = computed(() => {
 
 // Determine event icon and color based on event type
 const eventIcon = computed(() => {
-  const type = props.event.hook_event_type;
-  
-  if (type === 'agent.started') return playCircleOutline;
-  if (type === 'agent.completed') return checkmarkCircleOutline;
-  if (type === 'agent.failed') return closeCircleOutline;
-  if (type === 'agent.progress') {
+  const type = props.event.hook_event_type || props.event.event_type || '';
+
+  // Task lifecycle events
+  if (type === 'task.created') return addCircleOutline;
+  if (type === 'task.started' || type === 'agent.started') return playCircleOutline;
+  if (type === 'task.completed' || type === 'agent.completed') return checkmarkCircleOutline;
+  if (type === 'task.failed' || type === 'agent.failed') return closeCircleOutline;
+  if (type === 'task.cancelled') return stopCircleOutline;
+  if (type === 'task.progress' || type === 'agent.progress') {
     const msg = props.event.message?.toLowerCase() || '';
     if (msg.includes('calling llm')) return codeSlashOutline;
     if (msg.includes('api')) return cloudUploadOutline;
     if (msg.includes('external')) return globeOutline;
     return arrowForwardCircleOutline;
   }
-  
+  if (type === 'task.status_changed') return syncOutline;
+  if (type === 'task.message') return chatbubbleOutline;
+  if (type === 'task.resumed') return playForwardOutline;
+
+  // Agent streaming events
+  if (type === 'agent.stream.start') return playCircleOutline;
+  if (type === 'agent.stream.chunk') return arrowForwardCircleOutline;
+  if (type === 'agent.stream.complete') return checkmarkCircleOutline;
+  if (type === 'agent.stream.error') return alertCircleOutline;
+
+  // Human-in-the-loop events
+  if (type === 'human_input.required') return handRightOutline;
+  if (type === 'human_input.response') return checkmarkDoneOutline;
+  if (type === 'human_input.timeout') return timeOutline;
+
+  // Connection/info events
+  if (type === 'connected' || type === 'info') return informationCircleOutline;
+
   return pauseCircleOutline;
 });
 
 const eventColor = computed(() => {
-  const type = props.event.hook_event_type;
-  
-  if (type === 'agent.started') return 'primary';
-  if (type === 'agent.completed') return 'success';
-  if (type === 'agent.failed') return 'danger';
-  if (type === 'agent.progress') return 'tertiary';
-  
+  const type = props.event.hook_event_type || props.event.event_type || '';
+
+  // Task lifecycle colors
+  if (type === 'task.created') return 'secondary';
+  if (type === 'task.started' || type === 'agent.started' || type === 'agent.stream.start') return 'primary';
+  if (type === 'task.completed' || type === 'agent.completed' || type === 'agent.stream.complete') return 'success';
+  if (type === 'task.failed' || type === 'agent.failed' || type === 'agent.stream.error') return 'danger';
+  if (type === 'task.cancelled') return 'warning';
+  if (type === 'task.progress' || type === 'agent.progress' || type === 'agent.stream.chunk') return 'tertiary';
+  if (type === 'task.status_changed' || type === 'task.message') return 'secondary';
+  if (type === 'task.resumed') return 'primary';
+
+  // Human-in-the-loop colors
+  if (type === 'human_input.required') return 'warning';
+  if (type === 'human_input.response') return 'success';
+  if (type === 'human_input.timeout') return 'danger';
+
+  // Connection/info colors
+  if (type === 'connected' || type === 'info') return 'medium';
+
   return 'medium';
 });
 
 const eventTypeClass = computed(() => {
-  const type = props.event.hook_event_type;
+  const type = props.event.hook_event_type || props.event.event_type || 'unknown';
   return type.replace(/\./g, '-');
 });
 

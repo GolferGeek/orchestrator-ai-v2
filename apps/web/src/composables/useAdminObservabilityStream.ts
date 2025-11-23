@@ -3,24 +3,30 @@ import { useAuthStore } from '@/stores/rbacStore';
 
 export interface ObservabilityEvent {
   id?: number;
-  source_app: string;
-  session_id: string;
-  hook_event_type: string;
-  user_id: string | null;
-  username: string | null;
-  conversation_id: string | null;
-  task_id: string;
-  agent_slug: string | null;
-  organization_slug: string | null;
-  mode: string | null;
-  status: string;
-  message: string | null;
-  progress: number;
-  step: string;
-  payload: Record<string, unknown>;
-  timestamp: number;
+  source_app?: string;
+  session_id?: string;
+  hook_event_type?: string;
+  event_type?: string; // New field for task/agent events
+  user_id?: string | null;
+  userId?: string; // Alternative casing from task events
+  username?: string | null;
+  conversation_id?: string | null;
+  task_id?: string;
+  taskId?: string; // Alternative casing from task events
+  agent_slug?: string | null;
+  agentSlug?: string; // Alternative casing from task events
+  organization_slug?: string | null;
+  mode?: string | null;
+  status?: string;
+  message?: string | null;
+  progress?: number;
+  step?: string;
+  payload?: Record<string, unknown>;
+  data?: Record<string, unknown>; // Task events use 'data' instead of 'payload'
+  result?: unknown; // For task.completed events
+  error?: unknown; // For task.failed events
+  timestamp?: number;
   created_at?: string;
-  eventType?: string;
 }
 
 export interface AgentActivity {
@@ -133,7 +139,7 @@ export function useAdminObservabilityStream() {
       isConnecting.value = true;
       error.value = null;
       
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:7100';
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:6100';
       const url = `${apiUrl}/observability/stream`;
       
       // Create EventSource with authorization header (via query param as workaround)
@@ -153,13 +159,15 @@ export function useAdminObservabilityStream() {
       
       eventSource.onmessage = (event: MessageEvent) => {
         try {
-          // Handle heartbeat
-          if (event.data === ': heartbeat') {
+          // Handle heartbeat (SSE comments are not received as messages)
+          if (event.data.startsWith(':')) {
             lastHeartbeat.value = new Date();
             return;
           }
-          
+
+          console.log('📥 SSE Event received:', event.data.substring(0, 200));
           const data = JSON.parse(event.data) as ObservabilityEvent;
+          console.log('📥 Parsed event:', data.event_type || data.hook_event_type, data);
           allEvents.value.push(data);
           lastHeartbeat.value = new Date();
           

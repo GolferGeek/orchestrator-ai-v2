@@ -129,7 +129,7 @@ export async function createDeliverable(
         executionMode,
         taskId,
       },
-      { namespace: conversation.organizationSlug || 'global' }
+      { organization: conversation.organizationSlug || 'global' }
     );
 
     // 7. If using SSE mode, connect with retry logic (in parallel with API call)

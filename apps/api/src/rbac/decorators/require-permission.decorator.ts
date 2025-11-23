@@ -34,7 +34,10 @@ export const RESOURCE_PARAM_KEY = 'rbac:resourceParam';
  * }
  * ```
  */
-export const RequirePermission = (permission: string, resourceParam?: string) => {
+export const RequirePermission = (
+  permission: string,
+  resourceParam?: string,
+) => {
   return applyDecorators(
     SetMetadata(PERMISSION_KEY, permission),
     SetMetadata(RESOURCE_PARAM_KEY, resourceParam),

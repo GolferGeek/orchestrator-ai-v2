@@ -96,7 +96,7 @@ export async function sendMessage(
         llmSelection,
         executionMode: chatUiStore.executionMode || 'polling',
       },
-      { namespace: conversation.organizationSlug || 'global' }
+      { organization: conversation.organizationSlug || 'global' }
     );
 
     console.log('📥 [Converse Send Action] Task response:', result);

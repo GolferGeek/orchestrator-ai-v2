@@ -256,7 +256,7 @@ class TasksService {
     agentType: string,
     agentName: string,
     taskData: CreateTaskDto,
-    options?: { namespace?: string | null }
+    options?: { organization?: string | null }
   ): Promise<{
     taskId: string;
     conversationId: string;
@@ -271,13 +271,16 @@ class TasksService {
     // Determine routing pattern and payload format based on agent source:
     // - File-based agents (source: undefined): Use DynamicAgentsController - /agents/:agentType/:agentName/tasks
     //   Format: CreateTaskDto { method, prompt, conversationHistory, ... }
-    // - Database agents (source: 'database'): Use Agent2AgentController - /agent-to-agent/:namespace/:agentName/tasks
+    // - Database agents (source: 'database'): Use Agent2AgentController - /agent-to-agent/:organization/:agentName/tasks
     //   Format: JSON-RPC 2.0 { jsonrpc, method, id, params }
     // All agents now use the agent2agent controller with A2A-compliant JSON-RPC 2.0 format
-    const namespace = options?.namespace || 'demo';
+    const organization = options?.organization;
+    if (!organization) {
+      throw new Error('Cannot create agent task: missing organization');
+    }
     
     // Build agent2agent endpoint
-    const url = `/agent-to-agent/${namespace}/${agentName}/tasks`;
+    const url = `/agent-to-agent/${organization}/${agentName}/tasks`;
     
     // Transform to JSON-RPC 2.0 format (A2A protocol compliant)
     const paramsInput: TaskParameters = taskData.params ?? {};
@@ -364,7 +367,7 @@ class TasksService {
 
     console.log('🚀 Sending A2A JSON-RPC 2.0 request:', {
       url,
-      namespace: namespace,
+      organization: organization,
       method: payload.method,
       id: payload.id,
       conversationId: paramsBody.conversationId,

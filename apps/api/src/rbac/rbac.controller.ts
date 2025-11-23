@@ -92,7 +92,10 @@ export class RbacController {
     @Query('organizationSlug') orgSlug: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    const permissions = await this.rbacService.getUserPermissions(user.id, orgSlug);
+    const permissions = await this.rbacService.getUserPermissions(
+      user.id,
+      orgSlug,
+    );
     return { permissions };
   }
 
@@ -162,7 +165,10 @@ export class RbacController {
     @Param('userId') userId: string,
     @Query('organizationSlug') orgSlug: string,
   ) {
-    const permissions = await this.rbacService.getUserPermissions(userId, orgSlug);
+    const permissions = await this.rbacService.getUserPermissions(
+      userId,
+      orgSlug,
+    );
     return { permissions };
   }
 
@@ -184,7 +190,10 @@ export class RbacController {
       currentUser.id,
       dto.expiresAt ? new Date(dto.expiresAt) : undefined,
     );
-    return { success: true, message: `Role '${dto.roleName}' assigned to user` };
+    return {
+      success: true,
+      message: `Role '${dto.roleName}' assigned to user`,
+    };
   }
 
   /**
@@ -198,7 +207,12 @@ export class RbacController {
     @Query('organizationSlug') orgSlug: string,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    await this.rbacService.revokeRole(userId, orgSlug, roleName, currentUser.id);
+    await this.rbacService.revokeRole(
+      userId,
+      orgSlug,
+      roleName,
+      currentUser.id,
+    );
     return { success: true, message: `Role '${roleName}' revoked from user` };
   }
 

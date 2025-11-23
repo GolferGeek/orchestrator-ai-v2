@@ -76,7 +76,7 @@ export interface Plan {
   conversation_id: string;
   user_id: string;
   agent_name: string;
-  namespace: string;
+  organizationSlug: string;
   title: string;
   current_version_id: string | null;
   created_at: string;
@@ -102,7 +102,7 @@ export interface Deliverable {
   conversation_id: string;
   user_id: string;
   agent_name: string;
-  namespace: string;
+  organizationSlug: string;
   title: string;
   current_version_id: string | null;
   created_at: string;

@@ -11,7 +11,7 @@ interface DepartmentAgent {
   type: string;
   description: string;
   status: string;
-  namespace: string;
+  organization: string;
   tags: string[];
   capabilities: string[];
   execution_modes: string[];
@@ -48,21 +48,20 @@ export class HierarchyController {
    */
   @Get('agents')
   @Public()
-  async getAgentHierarchy(
-    @Headers('x-agent-namespace') namespaceHeader?: string,
-  ) {
-    const namespaces = namespaceHeader
-      ? namespaceHeader
+  async getAgentHierarchy(@Headers('x-organization-slug') orgHeader?: string) {
+    const header = orgHeader;
+    const organizations = header
+      ? header
           .split(',')
-          .map((ns) => ns.trim())
+          .map((org) => org.trim())
           .filter(Boolean)
       : undefined;
 
     try {
       // Get agents from database registry
-      const agents = namespaces?.length
-        ? await this.agentRegistry.listAgentsForNamespaces(
-            namespaces.map((ns) => (ns === 'global' ? null : ns)),
+      const agents = organizations?.length
+        ? await this.agentRegistry.listAgentsForOrganizations(
+            organizations.map((org) => (org === 'global' ? null : org)),
           )
         : await this.agentRegistry.listAllAgents();
 
@@ -78,7 +77,7 @@ export class HierarchyController {
           totalAgents,
           totalDepartments: departments.length,
           departments,
-          namespaces: namespaces ?? 'all',
+          organizations: organizations ?? 'all',
           timestamp: new Date().toISOString(),
         },
       };
@@ -92,7 +91,7 @@ export class HierarchyController {
           totalAgents: 0,
           totalDepartments: 0,
           departments: [],
-          namespaces: namespaces ?? 'all',
+          organizations: organizations ?? 'all',
           timestamp: new Date().toISOString(),
         },
       };
@@ -106,9 +105,9 @@ export class HierarchyController {
   @Get('.well-known/hierarchy')
   @Public()
   async getAgentHierarchyWellKnown(
-    @Headers('x-agent-namespace') namespaceHeader?: string,
+    @Headers('x-organization-slug') orgHeader?: string,
   ) {
-    return this.getAgentHierarchy(namespaceHeader);
+    return this.getAgentHierarchy(orgHeader);
   }
 
   /**
@@ -146,7 +145,7 @@ export class HierarchyController {
         type: agent.agent_type,
         description: agent.description,
         status: (metadataObj.status as string) || 'active',
-        namespace: Array.isArray(agent.organization_slug)
+        organization: Array.isArray(agent.organization_slug)
           ? agent.organization_slug.join(',')
           : 'global',
         tags: agent.tags || [],

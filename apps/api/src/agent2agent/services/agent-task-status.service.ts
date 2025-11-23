@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { getTableName } from '../../supabase/supabase.config';
+import { ObservabilityWebhookService } from '../../observability/observability-webhook.service';
 
 /**
  * Database record type for tasks table
@@ -16,6 +17,8 @@ interface TaskDbRecord {
   created_at: string;
   updated_at: string;
   completed_at?: string | null;
+  agent_slug?: string;
+  organization_slug?: string;
   [key: string]: unknown;
 }
 
@@ -23,12 +26,18 @@ interface TaskDbRecord {
  * Agent2Agent-specific Task Status Service
  * Handles task status updates for A2A Google protocol agents
  * Isolated from legacy file-based agent system
+ *
+ * Uses ObservabilityWebhookService to send events to the centralized
+ * /hooks endpoint, which stores events and broadcasts to admin stream.
  */
 @Injectable()
 export class Agent2AgentTaskStatusService {
   private readonly logger = new Logger(Agent2AgentTaskStatusService.name);
 
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(
+    private readonly supabaseService: SupabaseService,
+    private readonly observabilityService: ObservabilityWebhookService,
+  ) {}
 
   /**
    * Update task status
@@ -132,9 +141,130 @@ export class Agent2AgentTaskStatusService {
       this.logger.debug(
         `✅ Updated A2A task ${taskId} status: ${updates.status || 'progress update'}`,
       );
+
+      // Send events via centralized observability service
+      // Fetch task context for enrichment
+      const taskContext = await this.getTaskContext(taskId, userId);
+
+      if (updates.status) {
+        this.sendStatusEvent(
+          taskId,
+          userId,
+          updates.status,
+          updates,
+          taskContext,
+        );
+      } else if (updates.progress !== undefined) {
+        // Progress updates also go through observability service
+        await this.observabilityService.emitAgentProgress({
+          taskId,
+          userId,
+          agentSlug: taskContext?.agentSlug || 'unknown',
+          conversationId: taskContext?.conversationId,
+          organizationSlug: taskContext?.organizationSlug,
+          mode: 'converse',
+          message: (updates.progressMessage as string) || 'Processing...',
+          progress: updates.progress,
+        });
+      }
     } catch (error) {
       this.logger.error(`Failed to update A2A task ${taskId} status:`, error);
       throw error;
+    }
+  }
+
+  /**
+   * Send status change events via ObservabilityWebhookService
+   * This routes through the centralized /hooks endpoint
+   */
+  private sendStatusEvent(
+    taskId: string,
+    userId: string,
+    status: string,
+    updates: Record<string, unknown>,
+    taskContext?: {
+      agentSlug?: string;
+      conversationId?: string;
+      organizationSlug?: string;
+    },
+  ): void {
+    this.logger.debug(
+      `🎯 A2A sendStatusEvent: taskId=${taskId}, status=${status}`,
+    );
+
+    // Map internal status to observability event type
+    let eventType = `task.${status}`;
+    if (status === 'running' || status === 'processing') {
+      eventType = 'agent.started';
+    } else if (status === 'completed') {
+      eventType = 'agent.completed';
+    } else if (status === 'failed') {
+      eventType = 'agent.failed';
+    }
+
+    // Send via centralized observability service (non-blocking)
+    this.observabilityService
+      .sendEvent({
+        source_app: 'orchestrator-ai',
+        session_id: taskContext?.conversationId || taskId,
+        hook_event_type: eventType,
+        taskId,
+        userId,
+        agentSlug: taskContext?.agentSlug,
+        conversationId: taskContext?.conversationId,
+        organizationSlug: taskContext?.organizationSlug,
+        payload: {
+          status,
+          progress: updates.progress,
+          message: updates.progressMessage,
+          ...updates,
+        },
+      })
+      .catch((err: Error) => {
+        this.logger.warn(`Failed to send observability event: ${err.message}`);
+      });
+  }
+
+  /**
+   * Get task context for event enrichment
+   */
+  private async getTaskContext(
+    taskId: string,
+    userId: string,
+  ): Promise<
+    | { agentSlug?: string; conversationId?: string; organizationSlug?: string }
+    | undefined
+  > {
+    try {
+      const { data } = await this.supabaseService
+        .getServiceClient()
+        .from(getTableName('tasks'))
+        .select('conversation_id, agent_slug, organization_slug, params')
+        .eq('id', taskId)
+        .eq('user_id', userId)
+        .single();
+
+      if (!data) return undefined;
+
+      const task = data as Pick<
+        TaskDbRecord,
+        'conversation_id' | 'agent_slug' | 'organization_slug' | 'params'
+      >;
+      // Agent slug might be in params if not in dedicated column
+      const agentSlug = task.agent_slug || (task.params?.agentSlug as string);
+      const orgSlug =
+        task.organization_slug || (task.params?.organizationSlug as string);
+
+      return {
+        agentSlug,
+        conversationId: task.conversation_id,
+        organizationSlug: orgSlug,
+      };
+    } catch (error) {
+      this.logger.warn(
+        `Failed to get task context for ${taskId}: ${(error as Error).message}`,
+      );
+      return undefined;
     }
   }
 

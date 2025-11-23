@@ -859,6 +859,9 @@ export class TaskStatusService {
    * Emit status change events for WebSocket broadcasting
    */
   private emitStatusChange(taskId: string, taskStatus: TaskStatus): void {
+    this.logger.debug(
+      `🎯 emitStatusChange: taskId=${taskId}, status=${taskStatus.status}`,
+    );
     // Emit generic task status change
     this.eventEmitter.emit('task.status_changed', {
       taskId,

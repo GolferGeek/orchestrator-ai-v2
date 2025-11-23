@@ -75,6 +75,10 @@ export class JwtAuthGuard implements CanActivate {
     // Try bearer token first, then query token
     const token = bearerToken || queryToken;
 
+    this.logger.debug(
+      `[JwtAuthGuard] bearerToken: ${bearerToken ? 'present' : 'missing'}, queryToken: ${queryToken ? 'present' : 'missing'}`,
+    );
+
     if (token) {
       try {
         const supabaseClient = this.supabaseService.getAnonClient();
@@ -110,6 +114,9 @@ export class JwtAuthGuard implements CanActivate {
         };
 
         request.user = validatedUser;
+        this.logger.debug(
+          `[JwtAuthGuard] User validated: ${validatedUser.id}, ${validatedUser.email}`,
+        );
 
         // If token came from query params, try to parse as stream token (for backward compatibility)
         if (queryToken && !bearerToken) {

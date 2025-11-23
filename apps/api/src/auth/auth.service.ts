@@ -19,20 +19,20 @@ import {
   CreateUserDto,
   CreateUserResponseDto,
 } from './dto/admin-user-management.dto';
-// Note: Legacy role management methods are deprecated. Use RbacService instead.
 import { getTableName } from '../supabase/supabase.config';
 
 /**
  * Database record type for users table
+ * Note: Roles and permissions are managed via RBAC tables, not stored here
  */
 interface UserDbRecord {
   id: string;
   email: string;
   display_name: string;
-  roles: string[];
+  organization_slug?: string;
+  status: string;
   created_at: string;
   updated_at: string;
-  namespace_access?: string[];
 }
 
 @Injectable()
@@ -222,33 +222,43 @@ export class AuthService {
       }
 
       // Get user's organizations from RBAC
-      const { data: userOrgs, error: orgsError } = await serviceClient.rpc(
+      // Define proper type for RPC response
+      interface UserOrgRpcResult {
+        organization_slug: string;
+        organization_name: string;
+        role_name: string;
+        is_global: boolean;
+      }
+      const { data: userOrgs, error: orgsError } = (await serviceClient.rpc(
         'rbac_get_user_organizations',
         { p_user_id: currentAuthUser.id },
-      );
+      )) as {
+        data: UserOrgRpcResult[] | null;
+        error: { message: string } | null;
+      };
 
       if (orgsError) {
         this.logger.warn('Failed to get user organizations:', orgsError);
       }
 
       // Extract unique organization slugs
-      const namespaceAccess = userOrgs
-        ? [...new Set((userOrgs as Array<{ organization_slug: string }>).map((o) => o.organization_slug))]
+      const organizationAccess = userOrgs
+        ? [...new Set(userOrgs.map((o) => o.organization_slug))]
         : [];
 
       // If user has no organizations, use their default org or 'demo-org'
-      if (namespaceAccess.length === 0) {
+      if (organizationAccess.length === 0) {
         if (userData.organization_slug) {
-          namespaceAccess.push(userData.organization_slug as string);
+          organizationAccess.push(userData.organization_slug as string);
         } else {
-          namespaceAccess.push('demo-org');
+          organizationAccess.push('demo-org');
         }
       }
 
       // Get user's roles from RBAC (extract from userOrgs which includes role_name)
       // userOrgs returns: organization_slug, organization_name, role_name, is_global
       const roles = userOrgs
-        ? [...new Set((userOrgs as Array<{ role_name: string }>).map((o) => o.role_name))]
+        ? [...new Set(userOrgs.map((o) => o.role_name))]
         : ['member'];
 
       return {
@@ -256,7 +266,7 @@ export class AuthService {
         email: currentAuthUser.email,
         displayName: userData.display_name as string,
         roles,
-        namespaceAccess,
+        organizationAccess,
       };
     } catch (error) {
       if (error instanceof HttpException) {
@@ -309,15 +319,16 @@ export class AuthService {
   }
 
   /**
-   * Get user profile with roles
+   * Get user profile - basic info only, roles come from RBAC
    */
   async getUserProfile(userId: string): Promise<UserProfileDto | null> {
     try {
-      const { data: result, error } = await this.supabaseService
-        .getAnonClient()
+      const serviceClient = this.supabaseService.getServiceClient();
+
+      const { data: result, error } = await serviceClient
         .from(getTableName('users'))
         .select(
-          'id, email, display_name, roles, created_at, updated_at, namespace_access',
+          'id, email, display_name, organization_slug, status, created_at, updated_at',
         )
         .eq('id', userId)
         .single();
@@ -334,16 +345,33 @@ export class AuthService {
         return null;
       }
 
+      // Get roles from RBAC
+      const { data: userOrgs } = (await serviceClient.rpc(
+        'rbac_get_user_organizations',
+        { p_user_id: userId },
+      )) as {
+        data: Array<{
+          organization_slug: string;
+          role_name: string;
+        }> | null;
+      };
+
+      const roles = userOrgs
+        ? [...new Set(userOrgs.map((o) => o.role_name))]
+        : ['member'];
+
+      const organizationAccess = userOrgs
+        ? [...new Set(userOrgs.map((o) => o.organization_slug))]
+        : [];
+
       return {
         id: data.id,
         email: data.email,
         displayName: data.display_name,
-        roles: (data.roles as string[]) || ['user'],
+        roles,
         createdAt: new Date(data.created_at),
         updatedAt: new Date(data.updated_at),
-        namespaceAccess: Array.isArray(data.namespace_access)
-          ? data.namespace_access
-          : [],
+        organizationAccess,
       };
     } catch {
       throw new HttpException(
@@ -353,238 +381,48 @@ export class AuthService {
     }
   }
 
-  async getNamespaceAccessForUser(userId: string): Promise<string[]> {
-    const profile = await this.getUserProfile(userId);
-    if (!profile || !profile.namespaceAccess?.length) {
+  /**
+   * Get user's organization access from RBAC
+   */
+  async getOrganizationAccessForUser(userId: string): Promise<string[]> {
+    const serviceClient = this.supabaseService.getServiceClient();
+
+    const { data: userOrgs, error } = (await serviceClient.rpc(
+      'rbac_get_user_organizations',
+      { p_user_id: userId },
+    )) as {
+      data: Array<{ organization_slug: string }> | null;
+      error: { message: string } | null;
+    };
+
+    if (error) {
       throw new HttpException(
-        'Namespace access is not configured for this user.',
+        'Could not fetch user organizations.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    const organizations = userOrgs
+      ? [...new Set(userOrgs.map((o) => o.organization_slug))]
+      : [];
+
+    if (organizations.length === 0) {
+      throw new HttpException(
+        'No organization access configured for this user.',
         HttpStatus.FORBIDDEN,
       );
     }
 
-    return profile.namespaceAccess;
-  }
-
-  /**
-   * Check if user has a specific role
-   */
-  async userHasRole(userId: string, role: string): Promise<boolean> {
-    const profile = await this.getUserProfile(userId);
-    if (!profile) {
-      return false;
-    }
-    return profile.roles.includes(role);
-  }
-
-  /**
-   * Check if user has any of the specified roles
-   */
-  async userHasAnyRole(userId: string, roles: string[]): Promise<boolean> {
-    const profile = await this.getUserProfile(userId);
-    if (!profile) {
-      return false;
-    }
-    return roles.some((role) => profile.roles.includes(role));
-  }
-
-  /**
-   * Add role to user (for admin use)
-   */
-  async addUserRole(
-    targetUserId: string,
-    role: string,
-    adminUserId: string,
-    reason?: string,
-  ): Promise<UserProfileDto> {
-    const profile = await this.getUserProfile(targetUserId);
-    if (!profile) {
-      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
-    }
-
-    if (profile.roles.includes(role)) {
-      return profile; // Already has role
-    }
-
-    const newRoles = [...profile.roles, role];
-    const { error } = await this.supabaseService
-      .getAnonClient()
-      .from('users')
-      .update({ roles: newRoles })
-      .eq('id', targetUserId);
-
-    if (error) {
-      throw new HttpException(
-        `Failed to add role: ${error.message}`,
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-
-    // Log the change
-    await this.logRoleChange(
-      targetUserId,
-      adminUserId,
-      'add_role',
-      profile.roles,
-      newRoles,
-      role,
-      reason,
-    );
-
-    return {
-      ...profile,
-      roles: newRoles,
-      updatedAt: new Date(),
-    };
-  }
-
-  /**
-   * Remove role from user (for admin use)
-   */
-  async removeUserRole(
-    targetUserId: string,
-    role: string,
-    adminUserId: string,
-    reason?: string,
-  ): Promise<UserProfileDto> {
-    const profile = await this.getUserProfile(targetUserId);
-    if (!profile) {
-      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
-    }
-
-    if (!profile.roles.includes(role)) {
-      return profile; // Doesn't have role
-    }
-
-    let newRoles = profile.roles.filter((r) => r !== role);
-
-    // Ensure user always has at least 'user' role
-    if (newRoles.length === 0 || !newRoles.includes('user')) {
-      newRoles = ['user'];
-    }
-
-    const { error } = await this.supabaseService
-      .getAnonClient()
-      .from('users')
-      .update({ roles: newRoles })
-      .eq('id', targetUserId);
-
-    if (error) {
-      throw new HttpException(
-        `Failed to remove role: ${error.message}`,
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-
-    // Log the change
-    await this.logRoleChange(
-      targetUserId,
-      adminUserId,
-      'remove_role',
-      profile.roles,
-      newRoles,
-      role,
-      reason,
-    );
-
-    return {
-      ...profile,
-      roles: newRoles,
-      updatedAt: new Date(),
-    };
-  }
-
-  /**
-   * Set exact roles for user (for admin use)
-   */
-  async setUserRoles(
-    targetUserId: string,
-    roles: string[],
-    adminUserId: string,
-    reason?: string,
-  ): Promise<UserProfileDto> {
-    const profile = await this.getUserProfile(targetUserId);
-    if (!profile) {
-      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
-    }
-
-    // Ensure 'user' role is always included
-    const newRoles = roles.includes('user')
-      ? roles
-      : ['user', ...roles];
-
-    const { error } = await this.supabaseService
-      .getAnonClient()
-      .from('users')
-      .update({ roles: newRoles })
-      .eq('id', targetUserId);
-
-    if (error) {
-      throw new HttpException(
-        `Failed to set roles: ${error.message}`,
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-
-    // Log the change
-    await this.logRoleChange(
-      targetUserId,
-      adminUserId,
-      'set_roles',
-      profile.roles,
-      newRoles,
-      undefined,
-      reason,
-    );
-
-    return {
-      ...profile,
-      roles: newRoles,
-      updatedAt: new Date(),
-    };
-  }
-
-  /**
-   * Log role changes for audit purposes
-   */
-  private async logRoleChange(
-    targetUserId: string,
-    adminUserId: string,
-    action: string,
-    oldRoles: string[],
-    newRoles: string[],
-    changedRole?: string,
-    reason?: string,
-  ): Promise<void> {
-    try {
-      const { error } = await this.supabaseService
-        .getAnonClient()
-        .from(getTableName('role_audit_log'))
-        .insert({
-          user_id: targetUserId,
-          admin_user_id: adminUserId,
-          action,
-          old_roles: oldRoles,
-          new_roles: newRoles,
-          role_changed: changedRole,
-          reason,
-        });
-
-      if (error) {
-        // Audit log insertion failed - log but don't throw
-        this.logger.warn('Failed to insert role change audit log', error);
-      }
-    } catch {
-      // Silent failure for audit log
-    }
+    return organizations;
   }
 
   /**
    * Create new user (admin only)
-   * Creates both auth user and profile record
+   * Creates auth user, profile record, and assigns default RBAC role
    */
   async createUser(
     createUserDto: CreateUserDto,
-    _adminUserId: string,
+    adminUserId: string,
   ): Promise<CreateUserResponseDto> {
     try {
       const serviceClient = this.supabaseService.getServiceClient();
@@ -594,7 +432,7 @@ export class AuthService {
         await serviceClient.auth.admin.createUser({
           email: createUserDto.email,
           password: createUserDto.password,
-          email_confirm: createUserDto.emailConfirm !== false, // Default to true
+          email_confirm: createUserDto.emailConfirm !== false,
           user_metadata: {
             display_name: createUserDto.displayName || '',
           },
@@ -608,45 +446,61 @@ export class AuthService {
         throw new Error('Auth user creation returned no user data');
       }
 
-      // Set default roles if none provided
-      const roles = createUserDto.roles || ['user'];
-
-      // Create user profile record
+      // Create user profile record (roles are managed via RBAC)
+      const defaultOrg = createUserDto.organizationAccess?.[0] || 'demo-org';
       const { error: profileError } = await serviceClient
         .from(getTableName('users'))
         .insert({
           id: authUser.user.id,
           email: createUserDto.email,
           display_name: createUserDto.displayName || null,
-          roles: roles,
+          organization_slug: defaultOrg,
           status: 'active',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          namespace_access: createUserDto.namespaceAccess?.length
-            ? createUserDto.namespaceAccess
-            : ['my-org'],
         })
         .select()
         .single();
 
       if (profileError) {
-        // If profile creation fails, we should clean up the auth user
         await serviceClient.auth.admin.deleteUser(authUser.user.id);
         throw new Error(
           `Failed to create user profile: ${profileError.message}`,
         );
       }
 
+      // Assign RBAC roles for each organization
+      const roles = createUserDto.roles || ['member'];
+      const orgs = createUserDto.organizationAccess?.length
+        ? createUserDto.organizationAccess
+        : ['demo-org'];
+
+      // Get role IDs
+      const { data: roleData } = await serviceClient
+        .from('rbac_roles')
+        .select('id, name')
+        .in('name', roles);
+
+      if (roleData) {
+        const typedRoleData = roleData as Array<{ id: string; name: string }>;
+        for (const org of orgs) {
+          for (const role of typedRoleData) {
+            await serviceClient.from('rbac_user_org_roles').insert({
+              user_id: authUser.user.id,
+              organization_slug: org,
+              role_id: role.id,
+              assigned_by: adminUserId,
+            });
+          }
+        }
+      }
+
       return {
         id: authUser.user.id,
         email: createUserDto.email,
         displayName: createUserDto.displayName,
-        roles: roles,
+        roles,
         emailConfirmationRequired: !authUser.user.email_confirmed_at,
         message: 'User created successfully',
-        namespaceAccess: createUserDto.namespaceAccess?.length
-          ? createUserDto.namespaceAccess
-          : ['my-org'],
+        organizationAccess: orgs,
       };
     } catch (error) {
       throw new Error(
@@ -665,7 +519,7 @@ export class AuthService {
       const { data: users, error } = await serviceClient
         .from(getTableName('users'))
         .select(
-          'id, email, display_name, roles, created_at, status, namespace_access',
+          'id, email, display_name, organization_slug, status, created_at',
         )
         .order('created_at', { ascending: false });
 
@@ -691,7 +545,7 @@ export class AuthService {
       const { data: user, error } = await serviceClient
         .from(getTableName('users'))
         .select(
-          'id, email, display_name, roles, created_at, status, namespace_access',
+          'id, email, display_name, organization_slug, status, created_at',
         )
         .eq('id', userId)
         .single();

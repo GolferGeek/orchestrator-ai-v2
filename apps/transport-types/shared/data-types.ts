@@ -13,7 +13,7 @@ export interface PlanData {
   conversationId: string;
   userId: string;
   agentName: string;
-  namespace: string;
+  organization: string;
   title: string;
   currentVersionId: string;
   createdAt: string;
@@ -46,7 +46,7 @@ export interface DeliverableData {
   conversationId: string;
   userId: string;
   agentName: string;
-  namespace: string;
+  organization: string;
   title: string;
   type: string;
   currentVersionId: string;

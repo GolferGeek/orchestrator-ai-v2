@@ -60,7 +60,7 @@ export interface PlanCreateResponseContent {
         conversationId: string;
         userId: string;
         agentName: string;
-        namespace: string;
+        organizationSlug: string;
         title: string;
         currentVersionId: string;
         createdAt: string;
@@ -86,7 +86,7 @@ export interface PlanReadResponseContent {
         conversationId: string;
         userId: string;
         agentName: string;
-        namespace: string;
+        organizationSlug: string;
         title: string;
         currentVersionId: string;
         createdAt: string;
@@ -111,7 +111,7 @@ export interface PlanListResponseContent {
         conversationId: string;
         userId: string;
         agentName: string;
-        namespace: string;
+        organizationSlug: string;
         title: string;
         currentVersionId: string;
         createdAt: string;
