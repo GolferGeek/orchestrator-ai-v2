@@ -1,4 +1,10 @@
-import { IsString, IsOptional, IsIn } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsArray,
+  IsUUID,
+  IsBoolean,
+} from 'class-validator';
 
 export class UpdateCollectionDto {
   @IsString()
@@ -10,7 +16,15 @@ export class UpdateCollectionDto {
   description?: string;
 
   @IsString()
-  @IsIn(['member', 'director', 'c-level', null])
   @IsOptional()
   requiredRole?: string | null;
+
+  @IsArray()
+  @IsUUID('4', { each: true })
+  @IsOptional()
+  allowedUsers?: string[] | null;
+
+  @IsBoolean()
+  @IsOptional()
+  clearAllowedUsers?: boolean;
 }

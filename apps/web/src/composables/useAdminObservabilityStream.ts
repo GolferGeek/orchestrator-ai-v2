@@ -1,5 +1,5 @@
 import { ref, onUnmounted, computed } from 'vue';
-import { useAuthStore } from '@/stores/rbacStore';
+import { useAuthStore, useRbacStore } from '@/stores/rbacStore';
 
 export interface ObservabilityEvent {
   id?: number;
@@ -42,6 +42,7 @@ export interface AgentActivity {
  */
 export function useAdminObservabilityStream() {
   const authStore = useAuthStore();
+  const rbacStore = useRbacStore();
   
   // Connection state
   const isConnected = ref(false);
@@ -53,35 +54,46 @@ export function useAdminObservabilityStream() {
   const allEvents = ref<ObservabilityEvent[]>([]);
   const recentEvents = computed(() => allEvents.value.slice(-100)); // Last 100 events
   
-  // Agent activities (grouped by agent slug)
+  // Agent activities (grouped by agent slug or task ID)
   const agentActivities = computed<Record<string, AgentActivity>>(() => {
     const activities: Record<string, AgentActivity> = {};
     
     for (const event of allEvents.value) {
-      if (!event.agent_slug) continue;
+      // Get agent identifier - try multiple fields (snake_case and camelCase)
+      const agentKey = event.agent_slug || event.agentSlug || event.task_id || event.taskId;
+      if (!agentKey) continue;
       
-      if (!activities[event.agent_slug]) {
-        activities[event.agent_slug] = {
-          agentSlug: event.agent_slug,
+      if (!activities[agentKey]) {
+        activities[agentKey] = {
+          agentSlug: agentKey,
           lastEvent: event,
           events: [],
           status: 'idle',
         };
       }
       
-      const activity = activities[event.agent_slug];
+      const activity = activities[agentKey];
       activity.events.push(event);
       activity.lastEvent = event;
       
-      // Determine status based on most recent event
-      if (event.hook_event_type === 'agent.failed') {
+      // Determine status based on event type (check both hook_event_type and event_type)
+      const eventType = event.hook_event_type || event.event_type;
+      
+      if (eventType === 'agent.failed' || eventType === 'task.failed') {
         activity.status = 'error';
       } else if (
-        event.hook_event_type === 'agent.started' ||
-        event.hook_event_type === 'agent.progress'
+        eventType === 'agent.started' ||
+        eventType === 'agent.progress' ||
+        eventType === 'task.started' ||
+        eventType === 'task.progress' ||
+        eventType === 'agent.stream.chunk'
       ) {
         activity.status = 'active';
-      } else if (event.hook_event_type === 'agent.completed') {
+      } else if (
+        eventType === 'agent.completed' ||
+        eventType === 'task.completed' ||
+        eventType === 'agent.stream.complete'
+      ) {
         activity.status = 'idle';
       }
     }
@@ -131,9 +143,41 @@ export function useAdminObservabilityStream() {
     // Ensure we have an auth token
     const token = authStore.token;
     if (!token) {
-      error.value = 'Authentication token required';
+      error.value = 'Authentication token required - please log in again';
+      console.error('❌ [ObservabilityStream] No authentication token available');
       return;
     }
+    
+    // Validate token format (basic check)
+    if (typeof token !== 'string' || token.length < 10) {
+      error.value = 'Invalid authentication token format';
+      console.error('❌ [ObservabilityStream] Invalid token format:', typeof token, token?.length);
+      return;
+    }
+    
+    // Check if user has required permission
+    if (!rbacStore.isInitialized) {
+      try {
+        console.log('🔍 [ObservabilityStream] Initializing RBAC store...');
+        await rbacStore.initialize();
+      } catch (err) {
+        console.error('❌ [ObservabilityStream] Failed to initialize RBAC:', err);
+        error.value = 'Failed to check permissions - please refresh the page';
+        return;
+      }
+    }
+    
+    // Check for admin:audit permission
+    const hasPermission = rbacStore.hasPermission('admin:audit');
+    if (!hasPermission) {
+      error.value = 'Permission denied: This endpoint requires admin:audit permission. Please contact your administrator.';
+      console.error('❌ [ObservabilityStream] Permission denied - user does not have admin:audit permission');
+      console.error('   User permissions:', rbacStore.userPermissions);
+      console.error('   Is super admin:', rbacStore.isSuperAdmin);
+      return;
+    }
+    
+    console.log('✅ [ObservabilityStream] Permission check passed - user has admin:audit permission');
     
     try {
       isConnecting.value = true;
@@ -147,6 +191,9 @@ export function useAdminObservabilityStream() {
       // OR implement a different auth strategy for SSE. For now, using query param:
       const urlWithAuth = `${url}?token=${encodeURIComponent(token)}`;
       
+      console.log('🔌 [ObservabilityStream] Connecting to:', url);
+      console.log('🔌 [ObservabilityStream] Token present:', !!token, token ? `${token.substring(0, 20)}...` : 'none');
+      
       eventSource = new EventSource(urlWithAuth);
       
       eventSource.onopen = () => {
@@ -154,7 +201,8 @@ export function useAdminObservabilityStream() {
         isConnecting.value = false;
         reconnectAttempts = 0;
         lastHeartbeat.value = new Date();
-        console.log('✅ Connected to admin observability stream');
+        error.value = null;
+        console.log('✅ [ObservabilityStream] Connected to admin observability stream');
       };
       
       eventSource.onmessage = (event: MessageEvent) => {
@@ -165,9 +213,9 @@ export function useAdminObservabilityStream() {
             return;
           }
 
-          console.log('📥 SSE Event received:', event.data.substring(0, 200));
+          console.log('📥 [ObservabilityStream] SSE Event received:', event.data.substring(0, 200));
           const data = JSON.parse(event.data) as ObservabilityEvent;
-          console.log('📥 Parsed event:', data.event_type || data.hook_event_type, data);
+          console.log('📥 [ObservabilityStream] Parsed event:', data.event_type || data.hook_event_type, data);
           allEvents.value.push(data);
           lastHeartbeat.value = new Date();
           
@@ -176,25 +224,45 @@ export function useAdminObservabilityStream() {
             allEvents.value = allEvents.value.slice(-500);
           }
         } catch (err) {
-          console.error('Failed to parse SSE message:', err);
+          console.error('❌ [ObservabilityStream] Failed to parse SSE message:', err);
         }
       };
       
-      eventSource.onerror = () => {
-        console.error('SSE connection error');
+      eventSource.onerror = (event: Event) => {
+        // EventSource doesn't provide detailed error info, but we can check readyState
+        const readyState = eventSource?.readyState;
+        let errorMessage = 'SSE connection error';
+        
+        if (readyState === EventSource.CONNECTING) {
+          errorMessage = 'Connection failed - check authentication and network';
+        } else if (readyState === EventSource.CLOSED) {
+          // Connection closed immediately usually means auth/permission failure
+          errorMessage = 'Connection closed - Authentication or permission issue. This endpoint requires admin:audit permission.';
+          console.error('❌ [ObservabilityStream] Connection closed immediately - likely permission issue');
+          console.error('   Required permission: admin:audit');
+          console.error('   Check that your user has this permission in the RBAC system');
+        }
+        
+        console.error(`❌ [ObservabilityStream] ${errorMessage}`, {
+          readyState,
+          url: urlWithAuth.substring(0, urlWithAuth.indexOf('token=') + 20) + '...',
+          hasToken: !!token,
+          readyStateText: readyState === EventSource.CONNECTING ? 'CONNECTING' : readyState === EventSource.OPEN ? 'OPEN' : 'CLOSED'
+        });
+        
         disconnect();
         
         // Attempt to reconnect with exponential backoff
         if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
           reconnectAttempts++;
           const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
-          error.value = `Connection lost. Reconnecting in ${delay / 1000}s...`;
+          error.value = `${errorMessage} Reconnecting in ${delay / 1000}s... (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`;
           
           reconnectTimeout = setTimeout(() => {
             connect();
           }, delay);
         } else {
-          error.value = 'Connection lost. Maximum reconnection attempts reached.';
+          error.value = `${errorMessage} Maximum reconnection attempts reached. Please verify: 1) User has admin:audit permission, 2) Token is valid, 3) Server is running.`;
         }
       };
     } catch (err) {

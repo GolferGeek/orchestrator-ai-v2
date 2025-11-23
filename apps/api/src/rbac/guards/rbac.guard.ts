@@ -11,13 +11,13 @@ import {
   PERMISSION_KEY,
   RESOURCE_PARAM_KEY,
 } from '../decorators/require-permission.decorator';
+import { SupabaseAuthUserDto } from '../../auth/dto/auth.dto';
 
 /**
  * Request user type from JWT authentication
  */
-interface RequestUser {
+interface RequestUser extends Partial<SupabaseAuthUserDto> {
   id: string;
-  email?: string;
 }
 
 /**
@@ -88,8 +88,60 @@ export class RbacGuard implements CanActivate {
       throw new ForbiddenException('Authentication required');
     }
 
+    // Check if user is super admin via RBAC service
+    // Super admins bypass all permission checks
+    // Wrap in try-catch to handle potential database errors gracefully
+    try {
+      const isSuperAdmin = await this.rbacService.isSuperAdmin(user.id);
+      if (isSuperAdmin) {
+        this.logger.debug(
+          `[RbacGuard] Super admin detected - bypassing permission check for ${permission}`,
+        );
+        // Still set organization slug for use in controllers
+        const orgSlug = this.getOrganizationSlug(request) || '*';
+        request.organizationSlug = orgSlug;
+        return true;
+      }
+    } catch (error) {
+      // Log error but continue with normal permission check
+      // This prevents 500 errors if super admin check fails
+      this.logger.warn(
+        `[RbacGuard] Super admin check failed, continuing with normal permission check: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+
     // Get organization slug from request (use '*' for global/admin endpoints)
     const orgSlug = this.getOrganizationSlug(request) || '*';
+
+    // For admin permissions (admin:*), also check if user is admin for the organization
+    // This allows org admins to access admin endpoints without needing explicit permission grants
+    if (permission.startsWith('admin:')) {
+      try {
+        this.logger.debug(
+          `[RbacGuard] Checking admin access for permission ${permission}, org=${orgSlug}, user=${user.id}`,
+        );
+        const isAdmin = await this.rbacService.isAdmin(user.id, orgSlug);
+        this.logger.debug(
+          `[RbacGuard] Admin check result: isAdmin=${isAdmin} for user=${user.id}, org=${orgSlug}`,
+        );
+        if (isAdmin) {
+          this.logger.debug(
+            `[RbacGuard] Admin detected for org ${orgSlug} - granting access to ${permission}`,
+          );
+          request.organizationSlug = orgSlug;
+          return true;
+        } else {
+          this.logger.debug(
+            `[RbacGuard] User is not admin for org ${orgSlug}, continuing with permission check`,
+          );
+        }
+      } catch (error) {
+        // Log error but continue with normal permission check
+        this.logger.warn(
+          `[RbacGuard] Admin check failed, continuing with normal permission check: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
 
     this.logger.debug(
       `[RbacGuard] Checking permission: user=${user.id}, org=${orgSlug}, permission=${permission}`,
@@ -133,12 +185,13 @@ export class RbacGuard implements CanActivate {
   /**
    * Extract organization slug from request
    * Priority: header > query > body
+   * Safely handles SSE and other request types that may not have all properties
    */
   private getOrganizationSlug(request: TypedRequest): string | undefined {
     return (
-      request.headers['x-organization-slug'] ||
-      request.query.organizationSlug ||
-      request.body.organizationSlug ||
+      request.headers?.[' x-organization-slug'] ||
+      request.query?.organizationSlug ||
+      request.body?.organizationSlug ||
       undefined
     );
   }

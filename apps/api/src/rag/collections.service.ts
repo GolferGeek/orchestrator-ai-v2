@@ -14,6 +14,8 @@ export interface RagCollection {
   chunkOverlap: number;
   status: 'active' | 'processing' | 'error';
   requiredRole: string | null;
+  allowedUsers: string[] | null;
+  createdBy: string | null;
   documentCount: number;
   chunkCount: number;
   totalTokens: number;
@@ -33,6 +35,7 @@ interface DbCollection {
   chunk_overlap: number;
   status: string;
   required_role: string | null;
+  allowed_users: string[] | null;
   document_count: number;
   chunk_count: number;
   total_tokens: number;
@@ -63,6 +66,8 @@ export class CollectionsService {
       chunkOverlap: row.chunk_overlap,
       status: row.status as 'active' | 'processing' | 'error',
       requiredRole: row.required_role,
+      allowedUsers: row.allowed_users,
+      createdBy: row.created_by,
       documentCount: row.document_count,
       chunkCount: row.chunk_count,
       totalTokens: row.total_tokens,
@@ -96,11 +101,15 @@ export class CollectionsService {
 
   /**
    * List all collections for an organization
+   * If userId is provided, filters to collections the user can access
    */
-  async getCollections(organizationSlug: string): Promise<RagCollection[]> {
+  async getCollections(
+    organizationSlug: string,
+    userId?: string,
+  ): Promise<RagCollection[]> {
     const rows = await this.ragDb.queryAll<DbCollection>(
-      'SELECT * FROM rag_get_collections($1)',
-      [organizationSlug],
+      'SELECT * FROM rag_get_collections($1, $2)',
+      [organizationSlug, userId || null],
     );
 
     return rows.map((row) => this.toCollection(row));
@@ -137,8 +146,14 @@ export class CollectionsService {
     const embeddingModel = dto.embeddingModel || 'nomic-embed-text';
     const embeddingDimensions = this.getEmbeddingDimensions(embeddingModel);
 
+    // Handle privateToCreator flag - sets allowed_users to just the creator
+    let allowedUsers = dto.allowedUsers || null;
+    if (dto.privateToCreator && userId) {
+      allowedUsers = [userId];
+    }
+
     const row = await this.ragDb.queryOne<DbCollection>(
-      `SELECT * FROM rag_create_collection($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      `SELECT * FROM rag_create_collection($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
       [
         organizationSlug,
         dto.name,
@@ -149,6 +164,8 @@ export class CollectionsService {
         dto.chunkSize || 1000,
         dto.chunkOverlap || 200,
         userId || null,
+        dto.requiredRole || null,
+        allowedUsers,
       ],
     );
 
@@ -172,13 +189,15 @@ export class CollectionsService {
     dto: UpdateCollectionDto,
   ): Promise<RagCollection> {
     const row = await this.ragDb.queryOne<DbCollection>(
-      `SELECT * FROM rag_update_collection($1, $2, $3, $4, $5)`,
+      `SELECT * FROM rag_update_collection($1, $2, $3, $4, $5, $6, $7)`,
       [
         collectionId,
         organizationSlug,
         dto.name || null,
         dto.description || null,
         dto.requiredRole !== undefined ? dto.requiredRole : null,
+        dto.allowedUsers || null,
+        dto.clearAllowedUsers || false,
       ],
     );
 

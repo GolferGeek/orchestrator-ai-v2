@@ -103,7 +103,15 @@
             class="collection-card"
           >
             <ion-card-header>
-              <ion-card-title>{{ collection.name }}</ion-card-title>
+              <div class="card-title-row">
+                <ion-card-title>{{ collection.name }}</ion-card-title>
+                <ion-icon
+                  v-if="collection.allowedUsers !== null"
+                  :icon="lockClosedOutline"
+                  class="private-icon"
+                  :title="getAccessLabel(collection)"
+                />
+              </div>
               <ion-card-subtitle>{{ collection.slug }}</ion-card-subtitle>
             </ion-card-header>
             <ion-card-content>
@@ -121,6 +129,14 @@
                 </ion-chip>
                 <ion-chip :color="getStatusColor(collection.status)" size="small">
                   <ion-label>{{ collection.status }}</ion-label>
+                </ion-chip>
+                <!-- Access indicator -->
+                <ion-chip v-if="collection.allowedUsers !== null" color="warning" size="small">
+                  <ion-icon :icon="lockClosedOutline" />
+                  <ion-label>{{ getAccessLabel(collection) }}</ion-label>
+                </ion-chip>
+                <ion-chip v-if="collection.requiredRole" color="tertiary" size="small">
+                  <ion-label>{{ collection.requiredRole }}</ion-label>
                 </ion-chip>
               </div>
               <div class="collection-meta">
@@ -198,6 +214,52 @@
               />
             </ion-item>
           </ion-list>
+
+          <!-- Access Control Section -->
+          <ion-item-divider>
+            <ion-label>Access Control</ion-label>
+          </ion-item-divider>
+
+          <ion-list>
+            <ion-item lines="none">
+              <ion-checkbox
+                v-model="newCollection.privateToCreator"
+                slot="start"
+              />
+              <ion-label>
+                <h3>Only me</h3>
+                <p>Only you can access this collection</p>
+              </ion-label>
+            </ion-item>
+
+            <ion-item v-if="!newCollection.privateToCreator">
+              <ion-label position="stacked">Required Role (optional)</ion-label>
+              <ion-select
+                v-model="newCollection.requiredRole"
+                interface="popover"
+                placeholder="No role requirement"
+              >
+                <ion-select-option :value="null">No role requirement</ion-select-option>
+                <ion-select-option
+                  v-for="role in availableRoles"
+                  :key="role.name"
+                  :value="role.name"
+                >
+                  {{ role.displayName }}
+                </ion-select-option>
+              </ion-select>
+            </ion-item>
+
+            <ion-item v-if="!newCollection.privateToCreator" button @click="openAccessControlModal">
+              <ion-icon slot="start" :icon="peopleOutline" />
+              <ion-label>
+                <h3>Manage User Access</h3>
+                <p>{{ accessSummary }}</p>
+              </ion-label>
+              <ion-icon slot="end" :icon="chevronForwardOutline" />
+            </ion-item>
+          </ion-list>
+
           <div class="modal-actions">
             <ion-button expand="block" @click="createCollection" :disabled="!newCollection.name || isCreating">
               <ion-spinner v-if="isCreating" name="crescent" />
@@ -206,12 +268,21 @@
           </div>
         </ion-content>
       </ion-modal>
+
+      <!-- Access Control Modal -->
+      <AccessControlModal
+        :is-open="showAccessControlModal"
+        :current-allowed-users="newCollection.allowedUsers || null"
+        :current-required-role="newCollection.requiredRole || null"
+        @dismiss="showAccessControlModal = false"
+        @save="handleAccessControlSave"
+      />
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   IonPage,
@@ -241,6 +312,8 @@ import {
   IonTextarea,
   IonSelect,
   IonSelectOption,
+  IonCheckbox,
+  IonItemDivider,
   toastController,
 } from '@ionic/vue';
 import {
@@ -252,10 +325,15 @@ import {
   alertCircleOutline,
   codeOutline,
   timeOutline,
+  peopleOutline,
+  chevronForwardOutline,
+  lockClosedOutline,
 } from 'ionicons/icons';
 import { useRagStore } from '@/stores/ragStore';
 import { useAuthStore } from '@/stores/rbacStore';
 import ragService, { type RagCollection, type CreateCollectionDto } from '@/services/ragService';
+import rbacService, { type RbacRole } from '@/services/rbacService';
+import AccessControlModal from '@/components/rag/AccessControlModal.vue';
 
 const router = useRouter();
 const ragStore = useRagStore();
@@ -263,7 +341,9 @@ const authStore = useAuthStore();
 
 // Modal state
 const showCreateModal = ref(false);
+const showAccessControlModal = ref(false);
 const isCreating = ref(false);
+const availableRoles = ref<RbacRole[]>([]);
 const newCollection = ref<CreateCollectionDto>({
   name: '',
   slug: '',
@@ -271,6 +351,20 @@ const newCollection = ref<CreateCollectionDto>({
   embeddingModel: 'nomic-embed-text',
   chunkSize: 1000,
   chunkOverlap: 200,
+  privateToCreator: false,
+  requiredRole: null,
+  allowedUsers: null,
+});
+
+// Computed
+const accessSummary = computed(() => {
+  if (newCollection.value.privateToCreator) {
+    return 'Only you';
+  }
+  if (newCollection.value.allowedUsers && newCollection.value.allowedUsers.length > 0) {
+    return `${newCollection.value.allowedUsers.length} specific user(s)`;
+  }
+  return 'Everyone in organization';
 });
 
 // Get organization slug from auth store
@@ -328,7 +422,7 @@ const viewCollection = (collection: RagCollection) => {
 };
 
 // Modal handlers
-const openCreateModal = () => {
+const openCreateModal = async () => {
   newCollection.value = {
     name: '',
     slug: '',
@@ -336,12 +430,38 @@ const openCreateModal = () => {
     embeddingModel: 'nomic-embed-text',
     chunkSize: 1000,
     chunkOverlap: 200,
+    privateToCreator: false,
+    requiredRole: null,
+    allowedUsers: null,
   };
+  // Load roles if not already loaded
+  if (availableRoles.value.length === 0) {
+    try {
+      const roles = await rbacService.getAllRoles();
+      availableRoles.value = roles.filter(r => !r.isSystem || r.name !== 'super-admin');
+    } catch (error) {
+      console.error('Failed to load roles:', error);
+    }
+  }
   showCreateModal.value = true;
 };
 
 const closeCreateModal = () => {
   showCreateModal.value = false;
+};
+
+const openAccessControlModal = () => {
+  showAccessControlModal.value = true;
+};
+
+const handleAccessControlSave = (data: {
+  allowedUsers: string[] | null;
+  requiredRole: string | null;
+  clearAllowedUsers: boolean;
+}) => {
+  newCollection.value.allowedUsers = data.allowedUsers;
+  newCollection.value.requiredRole = data.requiredRole;
+  showAccessControlModal.value = false;
 };
 
 // Helpers
@@ -360,6 +480,16 @@ const getStatusColor = (status: string) => {
 
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString();
+};
+
+const getAccessLabel = (collection: RagCollection) => {
+  if (!collection.allowedUsers) {
+    return 'Everyone';
+  }
+  if (collection.allowedUsers.length === 1 && collection.allowedUsers[0] === collection.createdBy) {
+    return 'Private';
+  }
+  return `${collection.allowedUsers.length} users`;
 };
 
 // Lifecycle
@@ -497,6 +627,18 @@ onMounted(() => {
 
 .modal-actions {
   margin-top: 2rem;
+}
+
+.card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.private-icon {
+  color: var(--ion-color-warning);
+  font-size: 1.2rem;
 }
 
 @media (max-width: 768px) {

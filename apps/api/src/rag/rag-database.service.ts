@@ -10,13 +10,12 @@ import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
 /**
  * RAG Database Service
  *
- * Provides direct PostgreSQL connection to the rag_data database.
+ * Provides direct PostgreSQL connection to the rag_data schema.
  * Uses pg Pool for connection pooling and efficient query execution.
  *
- * This is separate from the main Supabase connection because:
- * 1. RAG uses a different database (rag_data vs postgres)
- * 2. RAG operations use PostgreSQL functions for org isolation
- * 3. Vector operations require direct pg connection
+ * RAG data is stored in the rag_data schema within the main postgres database.
+ * This uses the same DATABASE_URL as the main app but sets search_path to rag_data.
+ * RAG operations use PostgreSQL functions for org isolation and vector operations.
  */
 @Injectable()
 export class RagDatabaseService implements OnModuleInit, OnModuleDestroy {
@@ -37,11 +36,12 @@ export class RagDatabaseService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async initializePool() {
-    const connectionString = this.configService.get<string>('RAG_DATABASE_URL');
+    // Use main DATABASE_URL - RAG data is in rag_data schema within postgres database
+    const connectionString = this.configService.get<string>('DATABASE_URL');
 
     if (!connectionString) {
       this.logger.warn(
-        'RAG_DATABASE_URL not configured - RAG features disabled',
+        'DATABASE_URL not configured - RAG features disabled',
       );
       return;
     }
@@ -54,12 +54,13 @@ export class RagDatabaseService implements OnModuleInit, OnModuleDestroy {
         connectionTimeoutMillis: 5000,
       });
 
-      // Test connection
+      // Test connection and set search_path to rag_data schema
       const client = await this.pool.connect();
+      await client.query('SET search_path TO rag_data, public');
       await client.query('SELECT 1');
       client.release();
 
-      this.logger.log('RAG database pool initialized successfully');
+      this.logger.log('RAG database pool initialized successfully (using rag_data schema)');
     } catch (error) {
       this.logger.error(
         'Failed to initialize RAG database pool',
@@ -77,7 +78,7 @@ export class RagDatabaseService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Execute a query against the RAG database
+   * Execute a query against the RAG database (rag_data schema)
    */
   async query<T extends QueryResultRow = QueryResultRow>(
     text: string,
@@ -89,16 +90,23 @@ export class RagDatabaseService implements OnModuleInit, OnModuleDestroy {
 
     const start = Date.now();
     try {
-      const result = await this.pool.query<T>(text, params);
-      const duration = Date.now() - start;
+      // Ensure we're using the rag_data schema for each query
+      const client = await this.pool.connect();
+      try {
+        await client.query('SET search_path TO rag_data, public');
+        const result = await client.query<T>(text, params);
+        const duration = Date.now() - start;
 
-      if (duration > 1000) {
-        this.logger.warn(
-          `Slow RAG query (${duration}ms): ${text.substring(0, 100)}...`,
-        );
+        if (duration > 1000) {
+          this.logger.warn(
+            `Slow RAG query (${duration}ms): ${text.substring(0, 100)}...`,
+          );
+        }
+
+        return result;
+      } finally {
+        client.release();
       }
-
-      return result;
     } catch (error) {
       this.logger.error(
         `RAG query failed: ${text.substring(0, 100)}...`,
@@ -141,13 +149,14 @@ export class RagDatabaseService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Execute a function within a transaction
+   * Execute a function within a transaction (with rag_data schema)
    */
   async withTransaction<T>(
     callback: (client: PoolClient) => Promise<T>,
   ): Promise<T> {
     const client = await this.getClient();
     try {
+      await client.query('SET search_path TO rag_data, public');
       await client.query('BEGIN');
       const result = await callback(client);
       await client.query('COMMIT');

@@ -1,4 +1,13 @@
-import { IsString, IsOptional, IsInt, Min, Max } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsInt,
+  Min,
+  Max,
+  IsArray,
+  IsUUID,
+  IsBoolean,
+} from 'class-validator';
 
 export class CreateCollectionDto {
   @IsString()
@@ -27,4 +36,17 @@ export class CreateCollectionDto {
   @Max(1000)
   @IsOptional()
   chunkOverlap?: number = 200;
+
+  @IsString()
+  @IsOptional()
+  requiredRole?: string | null;
+
+  @IsArray()
+  @IsUUID('4', { each: true })
+  @IsOptional()
+  allowedUsers?: string[] | null;
+
+  @IsBoolean()
+  @IsOptional()
+  privateToCreator?: boolean;
 }

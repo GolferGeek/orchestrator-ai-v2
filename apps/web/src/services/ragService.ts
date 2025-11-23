@@ -20,6 +20,8 @@ export interface RagCollection {
   chunkOverlap: number;
   status: 'active' | 'processing' | 'error';
   requiredRole: string | null;
+  allowedUsers: string[] | null;
+  createdBy: string | null;
   documentCount: number;
   chunkCount: number;
   totalTokens: number;
@@ -77,12 +79,17 @@ export interface CreateCollectionDto {
   embeddingModel?: string;
   chunkSize?: number;
   chunkOverlap?: number;
+  requiredRole?: string | null;
+  allowedUsers?: string[] | null;
+  privateToCreator?: boolean;
 }
 
 export interface UpdateCollectionDto {
   name?: string;
   description?: string;
   requiredRole?: string | null;
+  allowedUsers?: string[] | null;
+  clearAllowedUsers?: boolean;
 }
 
 export interface QueryCollectionDto {

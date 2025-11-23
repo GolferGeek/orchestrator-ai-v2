@@ -1,4 +1,7 @@
 -- =============================================================================
+-- Set search path to rag_data schema
+SET search_path TO rag_data, public;
+
 -- RAG DATABASE: PostgreSQL Functions (API Interface)
 -- =============================================================================
 -- All RAG access goes through these functions for organization isolation
@@ -35,7 +38,7 @@ AS $$
     SELECT id, name, slug, description, embedding_model, embedding_dimensions,
            chunk_size, chunk_overlap, status, required_role,
            document_count, chunk_count, total_tokens, created_at, updated_at
-    FROM rag_collections
+    FROM rag_data.rag_collections
     WHERE organization_slug = p_organization_slug
     ORDER BY created_at DESC;
 $$;
@@ -69,7 +72,7 @@ AS $$
     SELECT id, organization_slug, name, slug, description, embedding_model,
            embedding_dimensions, chunk_size, chunk_overlap, status, required_role,
            document_count, chunk_count, total_tokens, created_at, updated_at, created_by
-    FROM rag_collections
+    FROM rag_data.rag_collections
     WHERE id = p_collection_id
       AND organization_slug = p_organization_slug;
 $$;
@@ -86,10 +89,10 @@ CREATE OR REPLACE FUNCTION rag_create_collection(
     p_chunk_overlap INTEGER DEFAULT 200,
     p_created_by UUID DEFAULT NULL
 )
-RETURNS rag_collections
+RETURNS rag_data.rag_collections
 LANGUAGE sql
 AS $$
-    INSERT INTO rag_collections (
+    INSERT INTO rag_data.rag_collections (
         organization_slug, name, slug, description,
         embedding_model, embedding_dimensions, chunk_size, chunk_overlap, created_by
     )
@@ -108,13 +111,13 @@ CREATE OR REPLACE FUNCTION rag_update_collection(
     p_description TEXT DEFAULT NULL,
     p_required_role TEXT DEFAULT NULL
 )
-RETURNS rag_collections
+RETURNS rag_data.rag_collections
 LANGUAGE plpgsql
 AS $$
 DECLARE
     v_result rag_collections;
 BEGIN
-    UPDATE rag_collections
+    UPDATE rag_data.rag_collections
     SET
         name = COALESCE(p_name, name),
         description = COALESCE(p_description, description),
@@ -137,7 +140,7 @@ RETURNS BOOLEAN
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    DELETE FROM rag_collections
+    DELETE FROM rag_data.rag_collections
     WHERE id = p_collection_id
       AND organization_slug = p_organization_slug;
     RETURN FOUND;
@@ -172,7 +175,7 @@ AS $$
     SELECT d.id, d.collection_id, d.filename, d.file_type, d.file_size, d.status,
            d.error_message, d.chunk_count, d.token_count, d.metadata,
            d.created_at, d.processed_at
-    FROM rag_documents d
+    FROM rag_data.rag_documents d
     JOIN rag_collections c ON d.collection_id = c.id
     WHERE d.collection_id = p_collection_id
       AND c.organization_slug = p_organization_slug
@@ -207,7 +210,7 @@ AS $$
            d.file_hash, d.storage_path, d.status, d.error_message,
            d.chunk_count, d.token_count, d.metadata,
            d.created_at, d.updated_at, d.processed_at
-    FROM rag_documents d
+    FROM rag_data.rag_documents d
     WHERE d.id = p_document_id
       AND d.organization_slug = p_organization_slug;
 $$;
@@ -223,7 +226,7 @@ CREATE OR REPLACE FUNCTION rag_insert_document(
     p_storage_path TEXT DEFAULT NULL,
     p_created_by UUID DEFAULT NULL
 )
-RETURNS rag_documents
+RETURNS rag_data.rag_documents
 LANGUAGE plpgsql
 AS $$
 DECLARE
@@ -232,7 +235,7 @@ DECLARE
 BEGIN
     -- Verify collection belongs to organization
     SELECT EXISTS(
-        SELECT 1 FROM rag_collections
+        SELECT 1 FROM rag_data.rag_collections
         WHERE id = p_collection_id AND organization_slug = p_organization_slug
     ) INTO v_collection_exists;
 
@@ -240,7 +243,7 @@ BEGIN
         RETURN NULL;
     END IF;
 
-    INSERT INTO rag_documents (
+    INSERT INTO rag_data.rag_documents (
         collection_id, organization_slug, filename, file_type, file_size,
         file_hash, storage_path, created_by
     )
@@ -263,13 +266,13 @@ CREATE OR REPLACE FUNCTION rag_update_document_status(
     p_chunk_count INTEGER DEFAULT NULL,
     p_token_count INTEGER DEFAULT NULL
 )
-RETURNS rag_documents
+RETURNS rag_data.rag_documents
 LANGUAGE plpgsql
 AS $$
 DECLARE
     v_result rag_documents;
 BEGIN
-    UPDATE rag_documents
+    UPDATE rag_data.rag_documents
     SET
         status = p_status,
         error_message = p_error_message,
@@ -299,7 +302,7 @@ DECLARE
 BEGIN
     -- Get collection and chunk count before delete
     SELECT collection_id, chunk_count INTO v_collection_id, v_chunk_count
-    FROM rag_documents
+    FROM rag_data.rag_documents
     WHERE id = p_document_id AND organization_slug = p_organization_slug;
 
     IF v_collection_id IS NULL THEN
@@ -307,11 +310,11 @@ BEGIN
     END IF;
 
     -- Delete document (chunks deleted via CASCADE)
-    DELETE FROM rag_documents
+    DELETE FROM rag_data.rag_documents
     WHERE id = p_document_id AND organization_slug = p_organization_slug;
 
     -- Update collection stats
-    UPDATE rag_collections
+    UPDATE rag_data.rag_collections
     SET document_count = document_count - 1,
         chunk_count = chunk_count - COALESCE(v_chunk_count, 0),
         updated_at = NOW()
@@ -342,7 +345,7 @@ DECLARE
 BEGIN
     -- Get collection_id and verify org ownership
     SELECT d.collection_id INTO v_collection_id
-    FROM rag_documents d
+    FROM rag_data.rag_documents d
     JOIN rag_collections c ON d.collection_id = c.id
     WHERE d.id = p_document_id
       AND c.organization_slug = p_organization_slug;
@@ -354,7 +357,7 @@ BEGIN
     -- Insert all chunks
     FOR v_chunk IN SELECT * FROM jsonb_array_elements(p_chunks)
     LOOP
-        INSERT INTO rag_document_chunks (
+        INSERT INTO rag_data.rag_document_chunks (
             document_id, collection_id, organization_slug, content, chunk_index,
             embedding, token_count, page_number, char_offset, metadata
         )
@@ -379,7 +382,7 @@ BEGIN
     END LOOP;
 
     -- Update document stats
-    UPDATE rag_documents
+    UPDATE rag_data.rag_documents
     SET chunk_count = v_inserted,
         token_count = v_total_tokens,
         status = 'completed',
@@ -387,7 +390,7 @@ BEGIN
     WHERE id = p_document_id;
 
     -- Update collection stats
-    UPDATE rag_collections
+    UPDATE rag_data.rag_collections
     SET chunk_count = chunk_count + v_inserted,
         document_count = document_count + 1,
         total_tokens = total_tokens + v_total_tokens,
@@ -414,7 +417,7 @@ RETURNS TABLE (
 LANGUAGE sql STABLE
 AS $$
     SELECT c.id, c.content, c.chunk_index, c.token_count, c.page_number, c.metadata
-    FROM rag_document_chunks c
+    FROM rag_data.rag_document_chunks c
     WHERE c.document_id = p_document_id
       AND c.organization_slug = p_organization_slug
     ORDER BY c.chunk_index;
@@ -453,7 +456,7 @@ AS $$
         c.page_number,
         c.chunk_index,
         c.metadata
-    FROM rag_document_chunks c
+    FROM rag_data.rag_document_chunks c
     JOIN rag_documents d ON c.document_id = d.id
     JOIN rag_collections col ON c.collection_id = col.id
     WHERE c.collection_id = p_collection_id

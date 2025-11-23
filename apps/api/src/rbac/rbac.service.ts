@@ -408,18 +408,113 @@ export class RbacService {
   }
 
   /**
-   * Check if user is super-admin (has '*' org access)
+   * Check if user is super-admin
+   * Super-admin is determined by having the 'super-admin' role with organization_slug = '*'
+   * The '*' indicates global access across all organizations
    */
   async isSuperAdmin(userId: string): Promise<boolean> {
-    const { data } = await this.supabase
+    // Check if user has super-admin role with organization_slug = '*' (global access)
+    const { data, error } = await this.supabase
       .getServiceClient()
       .from('rbac_user_org_roles')
-      .select('id')
+      .select(`
+        id,
+        role_id,
+        organization_slug,
+        role:rbac_roles!inner(name)
+      `)
       .eq('user_id', userId)
       .eq('organization_slug', '*')
-      .limit(1);
+      .limit(10);
 
-    return (data?.length ?? 0) > 0;
+    if (error) {
+      this.logger.error(`[RbacService] Error checking super admin: ${error.message}`);
+      return false;
+    }
+
+    if (!data || data.length === 0) {
+      return false;
+    }
+
+    // Check if any of the roles is 'super-admin'
+    // The role data comes from the join, so we need to check the nested role object
+    return data.some((record: any) => {
+      const role = record.role;
+      return role && role.name === 'super-admin';
+    });
+  }
+
+  /**
+   * Check if user is admin for a specific organization
+   * Admin is determined by having the 'admin' role for the organization
+   * Also returns true if user is super-admin (global access)
+   * If organizationSlug is '*', checks if user is admin for any organization
+   */
+  async isAdmin(userId: string, organizationSlug: string): Promise<boolean> {
+    // Super admins are admins everywhere
+    const isSuperAdmin = await this.isSuperAdmin(userId);
+    if (isSuperAdmin) {
+      return true;
+    }
+
+    // If organizationSlug is '*', check if user is admin for any organization
+    if (organizationSlug === '*') {
+      const { data, error } = await this.supabase
+        .getServiceClient()
+        .from('rbac_user_org_roles')
+        .select(`
+          id,
+          role_id,
+          organization_slug,
+          role:rbac_roles!inner(name)
+        `)
+        .eq('user_id', userId)
+        .limit(100);
+
+      if (error) {
+        this.logger.error(`[RbacService] Error checking admin (any org): ${error.message}`);
+        return false;
+      }
+
+      if (!data || data.length === 0) {
+        return false;
+      }
+
+      // Check if user has admin role for any organization
+      return data.some((record: any) => {
+        const role = record.role;
+        return role && role.name === 'admin';
+      });
+    }
+
+    // Check if user has admin role for the specific organization
+    const { data, error } = await this.supabase
+      .getServiceClient()
+      .from('rbac_user_org_roles')
+      .select(`
+        id,
+        role_id,
+        organization_slug,
+        role:rbac_roles!inner(name)
+      `)
+      .eq('user_id', userId)
+      .eq('organization_slug', organizationSlug)
+      .limit(10);
+
+    if (error) {
+      this.logger.error(`[RbacService] Error checking admin: ${error.message}`);
+      return false;
+    }
+
+    if (!data || data.length === 0) {
+      return false;
+    }
+
+    // Check if any of the roles is 'admin'
+    return data.some((record: any) => {
+      const role = record.role;
+      return role && role.name === 'admin';
+    });
   }
 
   /**

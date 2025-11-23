@@ -46,12 +46,18 @@ export class CollectionsController {
    * List all collections for the organization
    * GET /api/rag/collections
    * Header: x-organization-slug (required)
+   * Filters by user access unless user has admin permissions
    */
   @Get()
   async listCollections(
+    @Request() req: AuthenticatedRequest,
     @Headers('x-organization-slug') orgSlug?: string,
   ): Promise<RagCollection[]> {
-    return this.collectionsService.getCollections(getOrgSlug(orgSlug));
+    // Pass user ID to filter collections by access
+    return this.collectionsService.getCollections(
+      getOrgSlug(orgSlug),
+      req.user.id,
+    );
   }
 
   /**

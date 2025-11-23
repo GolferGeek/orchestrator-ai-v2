@@ -12,26 +12,19 @@
 -- Demo organizations for v2-start testing and development
 -- =============================================================================
 
--- Insert demo organization
+-- Insert all organizations
 INSERT INTO public.organizations (slug, name, description, url, settings) VALUES
-(
-  'demo-org',
-  'Demo Organization',
-  'Default demonstration organization for Orchestrator AI v2-start',
-  'https://orchestratorai.io',
-  '{
-    "theme": "light",
-    "features": ["context-agents", "api-agents", "external-agents"],
-    "limits": {
-      "max_agents": 100,
-      "max_conversations": 1000
-    },
-    "preferences": {
-      "default_llm_provider": "anthropic",
-      "default_llm_model": "claude-3-5-sonnet-20241022"
-    }
-  }'::jsonb
-)
+  ('demo-org', 'Demo Organization', 'Default demonstration organization for Orchestrator AI v2-start', 'https://orchestratorai.io', '{"theme": "light", "features": ["context-agents", "api-agents", "external-agents"]}'::jsonb),
+  ('orchestratorai', 'OrchestratorAI', 'Main Orchestrator AI organization', 'https://orchestratorai.io', '{}'::jsonb),
+  ('golfergeek', 'GolferGeek', 'GolferGeek development organization', NULL, '{}'::jsonb),
+  ('hiverarchy', 'Hiverarchy', 'Hiverarchy partner organization', NULL, '{}'::jsonb),
+  ('law-firm', 'Law Firm', 'Demo law firm organization', NULL, '{}'::jsonb),
+  ('finance-firm', 'Finance Firm', 'Demo finance firm organization', NULL, '{}'::jsonb),
+  ('manufacturing-firm', 'Manufacturing Firm', 'Demo manufacturing firm organization', NULL, '{}'::jsonb),
+  ('marketing-firm', 'Marketing Firm', 'Demo marketing firm organization', NULL, '{}'::jsonb),
+  ('my-org', 'My Organization', 'Generic test organization', NULL, '{}'::jsonb),
+  ('*', 'All Organizations', 'Special organization representing access to all organizations (superadmin)', NULL, '{}'::jsonb),
+  ('all', 'All Organizations', 'Special organization for global agent access', NULL, '{}'::jsonb)
 ON CONFLICT (slug) DO UPDATE SET
   name = EXCLUDED.name,
   description = EXCLUDED.description,
@@ -39,14 +32,90 @@ ON CONFLICT (slug) DO UPDATE SET
   settings = EXCLUDED.settings,
   updated_at = NOW();
 
+-- =============================================================================
+-- AUTH USERS SEED DATA
+-- =============================================================================
+-- Passwords: DemoUser123!, Admin123!, GolferGeek123!
+-- Note: Empty strings for token columns to avoid Supabase auth NULL scan errors
+
+INSERT INTO auth.users (
+  id, instance_id, email, encrypted_password, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, aud, role, created_at, updated_at,
+  confirmation_token, recovery_token, email_change_token_new, email_change_token_current,
+  email_change, phone_change, phone_change_token, reauthentication_token
+) VALUES
+  ('493101fa-8892-4de4-a0f9-daf43afdca1f', '00000000-0000-0000-0000-000000000000', 'demo.user@orchestratorai.io',
+   crypt('DemoUser123!', gen_salt('bf')), NOW(),
+   '{"provider": "email", "providers": ["email"]}'::jsonb, '{"display_name": "Demo User"}'::jsonb,
+   'authenticated', 'authenticated', NOW(), NOW(), '', '', '', '', '', '', '', ''),
+  ('739b2b8b-0bb1-4894-b5ba-8698c8cd071a', '00000000-0000-0000-0000-000000000000', 'admin@orchestratorai.io',
+   crypt('Admin123!', gen_salt('bf')), NOW(),
+   '{"provider": "email", "providers": ["email"]}'::jsonb, '{"display_name": "Admin User"}'::jsonb,
+   'authenticated', 'authenticated', NOW(), NOW(), '', '', '', '', '', '', '', ''),
+  ('618f3960-a8be-4c67-855f-aae4130699b8', '00000000-0000-0000-0000-000000000000', 'golfergeek@orchestratorai.io',
+   crypt('GolferGeek123!', gen_salt('bf')), NOW(),
+   '{"provider": "email", "providers": ["email"]}'::jsonb, '{"display_name": "GolferGeek"}'::jsonb,
+   'authenticated', 'authenticated', NOW(), NOW(), '', '', '', '', '', '', '', '')
+ON CONFLICT (id) DO UPDATE SET
+  encrypted_password = EXCLUDED.encrypted_password,
+  confirmation_token = EXCLUDED.confirmation_token,
+  recovery_token = EXCLUDED.recovery_token,
+  email_change_token_new = EXCLUDED.email_change_token_new,
+  email_change_token_current = EXCLUDED.email_change_token_current,
+  email_change = EXCLUDED.email_change,
+  phone_change = EXCLUDED.phone_change,
+  phone_change_token = EXCLUDED.phone_change_token,
+  reauthentication_token = EXCLUDED.reauthentication_token,
+  updated_at = NOW();
+
+-- =============================================================================
+-- RBAC ROLES SEED DATA
+-- =============================================================================
+
+INSERT INTO public.rbac_roles (id, name, description, permissions) VALUES
+  ('c4f9a1ab-18bf-4622-a793-ff69ac071519', 'super-admin', 'Super administrator with full access to all organizations',
+   ARRAY['*:*']::TEXT[]),
+  ('bd9b27af-c78c-4490-b69e-01624488b420', 'admin', 'Organization administrator',
+   ARRAY['org:manage', 'users:manage', 'agents:*', 'conversations:*', 'settings:*']::TEXT[]),
+  ('aebbc0e1-6ba1-4c30-a606-3fa5979d9fb4', 'manager', 'Team manager with elevated permissions',
+   ARRAY['agents:read', 'agents:create', 'agents:update', 'conversations:*', 'users:read']::TEXT[]),
+  ('8854d99f-9c5b-4805-afe2-0ee6ca8261e2', 'member', 'Standard organization member',
+   ARRAY['agents:read', 'conversations:read', 'conversations:create']::TEXT[]),
+  ('733bbaf9-124f-4779-b629-f00c69ef35cb', 'viewer', 'Read-only access',
+   ARRAY['agents:read', 'conversations:read']::TEXT[])
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  description = EXCLUDED.description,
+  permissions = EXCLUDED.permissions;
+
+-- =============================================================================
+-- USER ORG ROLE ASSIGNMENTS
+-- =============================================================================
+
+INSERT INTO public.rbac_user_org_roles (user_id, organization_slug, role_id) VALUES
+  -- GolferGeek: super-admin for * (all orgs), plus explicit orgs
+  ('618f3960-a8be-4c67-855f-aae4130699b8', '*', 'c4f9a1ab-18bf-4622-a793-ff69ac071519'),
+  ('618f3960-a8be-4c67-855f-aae4130699b8', 'orchestratorai', 'c4f9a1ab-18bf-4622-a793-ff69ac071519'),
+  ('618f3960-a8be-4c67-855f-aae4130699b8', 'demo-org', 'c4f9a1ab-18bf-4622-a793-ff69ac071519'),
+  ('618f3960-a8be-4c67-855f-aae4130699b8', 'golfergeek', 'c4f9a1ab-18bf-4622-a793-ff69ac071519'),
+  -- Admin: admin for orchestratorai and demo-org
+  ('739b2b8b-0bb1-4894-b5ba-8698c8cd071a', 'orchestratorai', 'bd9b27af-c78c-4490-b69e-01624488b420'),
+  ('739b2b8b-0bb1-4894-b5ba-8698c8cd071a', 'demo-org', 'bd9b27af-c78c-4490-b69e-01624488b420'),
+  -- Demo user: member of demo-org
+  ('493101fa-8892-4de4-a0f9-daf43afdca1f', 'demo-org', '8854d99f-9c5b-4805-afe2-0ee6ca8261e2')
+ON CONFLICT DO NOTHING;
+
 -- Verify organizations
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.organizations WHERE slug = 'demo-org') THEN
     RAISE EXCEPTION 'Failed to seed demo-org organization';
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.organizations WHERE slug = 'orchestratorai') THEN
+    RAISE EXCEPTION 'Failed to seed orchestratorai organization';
+  END IF;
 
-  RAISE NOTICE 'Successfully seeded 1 organization: demo-org';
+  RAISE NOTICE 'Successfully seeded organizations, users, and RBAC data';
 END $$;
 
 -- =============================================================================
@@ -381,6 +450,83 @@ BEGIN
 END $$;
 
 -- =============================================================================
+-- LLM PROVIDERS SEED DATA
+-- =============================================================================
+
+INSERT INTO public.llm_providers (name, display_name, api_base_url, is_local, is_active) VALUES
+  ('ollama', 'Ollama (Local)', 'http://localhost:11434', true, true),
+  ('anthropic', 'Anthropic', 'https://api.anthropic.com', false, true),
+  ('openai', 'OpenAI', 'https://api.openai.com', false, true),
+  ('google', 'Google AI', 'https://generativelanguage.googleapis.com', false, true),
+  ('xai', 'xAI (Grok)', 'https://api.x.ai', false, true)
+ON CONFLICT (name) DO UPDATE SET
+  display_name = EXCLUDED.display_name,
+  api_base_url = EXCLUDED.api_base_url,
+  is_local = EXCLUDED.is_local,
+  is_active = EXCLUDED.is_active;
+
+-- =============================================================================
+-- LLM MODELS SEED DATA
+-- =============================================================================
+
+-- Ollama local models (marked as loaded)
+-- Note: speed_tier 'very-fast' maps to routing tier 'ultra-fast' in local-model-status.service.ts
+INSERT INTO public.llm_models (model_name, provider_name, display_name, model_type, context_window, max_output_tokens, speed_tier, is_local, is_currently_loaded, is_active) VALUES
+  ('llama3.2:1b', 'ollama', 'Llama 3.2 1B', 'text-generation', 8192, 4096, 'very-fast', true, true, true),
+  ('llama3.2:3b', 'ollama', 'Llama 3.2 3B', 'text-generation', 8192, 4096, 'very-fast', true, true, true),
+  ('llama3.2:latest', 'ollama', 'Llama 3.2 Latest', 'text-generation', 8192, 4096, 'fast', true, true, true),
+  ('qwen3:8b', 'ollama', 'Qwen 3 8B', 'text-generation', 32768, 8192, 'fast', true, true, true),
+  ('deepseek-r1:latest', 'ollama', 'DeepSeek R1', 'text-generation', 32768, 8192, 'medium', true, true, true),
+  ('qwq:latest', 'ollama', 'QwQ', 'text-generation', 32768, 8192, 'medium', true, true, true),
+  ('nomic-embed-text:latest', 'ollama', 'Nomic Embed Text', 'embedding', 8192, 768, 'fast', true, true, true)
+ON CONFLICT (model_name, provider_name) DO UPDATE SET
+  display_name = EXCLUDED.display_name,
+  speed_tier = EXCLUDED.speed_tier,
+  is_currently_loaded = EXCLUDED.is_currently_loaded,
+  is_active = EXCLUDED.is_active;
+
+-- Anthropic models
+INSERT INTO public.llm_models (model_name, provider_name, display_name, model_type, context_window, max_output_tokens, speed_tier, is_local, is_currently_loaded, is_active) VALUES
+  ('claude-sonnet-4-5-20250514', 'anthropic', 'Claude Sonnet 4.5', 'text-generation', 200000, 8192, 'fast', false, false, true),
+  ('claude-3-5-sonnet-20241022', 'anthropic', 'Claude 3.5 Sonnet', 'text-generation', 200000, 8192, 'fast', false, false, true),
+  ('claude-3-5-haiku-20241022', 'anthropic', 'Claude 3.5 Haiku', 'text-generation', 200000, 8192, 'very-fast', false, false, true),
+  ('claude-3-opus-20240229', 'anthropic', 'Claude 3 Opus', 'text-generation', 200000, 4096, 'slow', false, false, true)
+ON CONFLICT (model_name, provider_name) DO UPDATE SET
+  display_name = EXCLUDED.display_name,
+  speed_tier = EXCLUDED.speed_tier,
+  is_active = EXCLUDED.is_active;
+
+-- OpenAI models
+INSERT INTO public.llm_models (model_name, provider_name, display_name, model_type, context_window, max_output_tokens, speed_tier, is_local, is_currently_loaded, is_active) VALUES
+  ('gpt-4o', 'openai', 'GPT-4o', 'text-generation', 128000, 4096, 'fast', false, false, true),
+  ('gpt-4o-mini', 'openai', 'GPT-4o Mini', 'text-generation', 128000, 4096, 'very-fast', false, false, true),
+  ('gpt-4-turbo', 'openai', 'GPT-4 Turbo', 'text-generation', 128000, 4096, 'medium', false, false, true),
+  ('o1-preview', 'openai', 'o1 Preview', 'text-generation', 128000, 32768, 'slow', false, false, true)
+ON CONFLICT (model_name, provider_name) DO UPDATE SET
+  display_name = EXCLUDED.display_name,
+  speed_tier = EXCLUDED.speed_tier,
+  is_active = EXCLUDED.is_active;
+
+-- Google models
+INSERT INTO public.llm_models (model_name, provider_name, display_name, model_type, context_window, max_output_tokens, speed_tier, is_local, is_currently_loaded, is_active) VALUES
+  ('gemini-2.0-flash', 'google', 'Gemini 2.0 Flash', 'text-generation', 1000000, 8192, 'very-fast', false, false, true),
+  ('gemini-1.5-pro', 'google', 'Gemini 1.5 Pro', 'text-generation', 2000000, 8192, 'fast', false, false, true),
+  ('gemini-1.5-flash', 'google', 'Gemini 1.5 Flash', 'text-generation', 1000000, 8192, 'very-fast', false, false, true)
+ON CONFLICT (model_name, provider_name) DO UPDATE SET
+  display_name = EXCLUDED.display_name,
+  speed_tier = EXCLUDED.speed_tier,
+  is_active = EXCLUDED.is_active;
+
+-- xAI models
+INSERT INTO public.llm_models (model_name, provider_name, display_name, model_type, context_window, max_output_tokens, speed_tier, is_local, is_currently_loaded, is_active) VALUES
+  ('grok-2', 'xai', 'Grok 2', 'text-generation', 128000, 8192, 'fast', false, false, true),
+  ('grok-2-mini', 'xai', 'Grok 2 Mini', 'text-generation', 128000, 8192, 'very-fast', false, false, true)
+ON CONFLICT (model_name, provider_name) DO UPDATE SET
+  display_name = EXCLUDED.display_name,
+  speed_tier = EXCLUDED.speed_tier,
+  is_active = EXCLUDED.is_active;
+
+-- =============================================================================
 -- FINAL VERIFICATION
 -- =============================================================================
 
@@ -388,10 +534,14 @@ DO $$
 DECLARE
   org_count INTEGER;
   agent_count INTEGER;
+  provider_count INTEGER;
+  model_count INTEGER;
 BEGIN
   -- Count seeded records
   SELECT COUNT(*) INTO org_count FROM public.organizations;
   SELECT COUNT(*) INTO agent_count FROM public.agents;
+  SELECT COUNT(*) INTO provider_count FROM public.llm_providers;
+  SELECT COUNT(*) INTO model_count FROM public.llm_models;
 
   -- Report results
   RAISE NOTICE '================================================';
@@ -399,6 +549,8 @@ BEGIN
   RAISE NOTICE '================================================';
   RAISE NOTICE 'Organizations seeded: %', org_count;
   RAISE NOTICE 'Agents seeded: %', agent_count;
+  RAISE NOTICE 'LLM Providers seeded: %', provider_count;
+  RAISE NOTICE 'LLM Models seeded: %', model_count;
   RAISE NOTICE '================================================';
 
   -- Validate minimum expected data
@@ -408,6 +560,14 @@ BEGIN
 
   IF agent_count < 1 THEN
     RAISE EXCEPTION 'Expected at least 1 agent, found %', agent_count;
+  END IF;
+
+  IF provider_count < 1 THEN
+    RAISE EXCEPTION 'Expected at least 1 LLM provider, found %', provider_count;
+  END IF;
+
+  IF model_count < 1 THEN
+    RAISE EXCEPTION 'Expected at least 1 LLM model, found %', model_count;
   END IF;
 
   RAISE NOTICE 'All validations passed ✓';

@@ -5,10 +5,13 @@
 -- Per PRD §4.3: Uses organization_slug for multi-tenant isolation
 -- =============================================================================
 
+-- Set search path to rag_data schema
+SET search_path TO rag_data, public;
+
 -- =============================================================================
 -- COLLECTIONS TABLE (PRD §4.3.1)
 -- =============================================================================
-CREATE TABLE IF NOT EXISTS rag_collections (
+CREATE TABLE IF NOT EXISTS rag_data.rag_collections (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
     -- Organization isolation (validated by API before calling)
@@ -47,14 +50,14 @@ CREATE TABLE IF NOT EXISTS rag_collections (
     UNIQUE(organization_slug, slug)
 );
 
-COMMENT ON TABLE rag_collections IS 'RAG collection definitions with embedding configuration (PRD §4.3.1)';
+COMMENT ON TABLE rag_data.rag_collections IS 'RAG collection definitions with embedding configuration (PRD §4.3.1)';
 
 -- =============================================================================
 -- DOCUMENTS TABLE (PRD §4.2.2)
 -- =============================================================================
-CREATE TABLE IF NOT EXISTS rag_documents (
+CREATE TABLE IF NOT EXISTS rag_data.rag_documents (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    collection_id UUID NOT NULL REFERENCES rag_collections(id) ON DELETE CASCADE,
+    collection_id UUID NOT NULL REFERENCES rag_data.rag_collections(id) ON DELETE CASCADE,
 
     -- Denormalized for efficient org filtering
     organization_slug TEXT NOT NULL,
@@ -86,15 +89,15 @@ CREATE TABLE IF NOT EXISTS rag_documents (
     created_by UUID
 );
 
-COMMENT ON TABLE rag_documents IS 'Source documents ingested into RAG collections (PRD §4.2.2)';
+COMMENT ON TABLE rag_data.rag_documents IS 'Source documents ingested into RAG collections (PRD §4.2.2)';
 
 -- =============================================================================
 -- DOCUMENT CHUNKS TABLE (PRD §4.2.3)
 -- =============================================================================
-CREATE TABLE IF NOT EXISTS rag_document_chunks (
+CREATE TABLE IF NOT EXISTS rag_data.rag_document_chunks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    document_id UUID NOT NULL REFERENCES rag_documents(id) ON DELETE CASCADE,
-    collection_id UUID NOT NULL REFERENCES rag_collections(id) ON DELETE CASCADE,
+    document_id UUID NOT NULL REFERENCES rag_data.rag_documents(id) ON DELETE CASCADE,
+    collection_id UUID NOT NULL REFERENCES rag_data.rag_collections(id) ON DELETE CASCADE,
 
     -- Denormalized for efficient org filtering
     organization_slug TEXT NOT NULL,
@@ -120,12 +123,12 @@ CREATE TABLE IF NOT EXISTS rag_document_chunks (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-COMMENT ON TABLE rag_document_chunks IS 'Document chunks with vector embeddings for semantic search (PRD §4.2.3)';
+COMMENT ON TABLE rag_data.rag_document_chunks IS 'Document chunks with vector embeddings for semantic search (PRD §4.2.3)';
 
 -- =============================================================================
 -- UPDATED_AT TRIGGERS
 -- =============================================================================
-CREATE OR REPLACE FUNCTION set_updated_at()
+CREATE OR REPLACE FUNCTION rag_data.set_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = NOW();
@@ -134,9 +137,9 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER set_collections_updated_at
-    BEFORE UPDATE ON rag_collections
-    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    BEFORE UPDATE ON rag_data.rag_collections
+    FOR EACH ROW EXECUTE FUNCTION rag_data.set_updated_at();
 
 CREATE TRIGGER set_documents_updated_at
-    BEFORE UPDATE ON rag_documents
-    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    BEFORE UPDATE ON rag_data.rag_documents
+    FOR EACH ROW EXECUTE FUNCTION rag_data.set_updated_at();
