@@ -18,7 +18,6 @@ export interface AnalyticsFilters {
   userRole?: string;
   providerName?: string;
   modelName?: string;
-  projectId?: string;
   taskId?: string;
   status?: string;
   granularity?: 'daily' | 'weekly' | 'monthly';
@@ -131,46 +130,6 @@ export interface ConstraintAnalytics {
       averageCost: number;
     };
   }>;
-}
-
-// =====================================
-// PROJECT ANALYTICS
-// =====================================
-
-export interface ProjectAnalytics {
-  overallProgress: number;
-  stepProgress: Array<{
-    stepId: string;
-    stepName: string;
-    status: string;
-    duration?: number;
-    startedAt?: string;
-    completedAt?: string;
-  }>;
-  performance: {
-    avgStepDuration: number;
-    totalDuration: number;
-    errorRate: number;
-    throughput: number;
-  };
-  bottlenecks: Array<{
-    stepId: string;
-    stepName: string;
-    issue: string;
-    impact: 'low' | 'medium' | 'high';
-  }>;
-  recommendations: string[];
-}
-
-export interface ProjectMetrics {
-  totalProjects: number;
-  activeProjects: number;
-  completedProjects: number;
-  failedProjects: number;
-  averageCompletionTime: number;
-  successRate: number;
-  projectStatusDistribution: Record<string, number>;
-  projectCompletionTrends: MetricTrend[];
 }
 
 // =====================================
@@ -357,7 +316,6 @@ export interface BusinessMetrics {
 export interface DashboardData {
   overview: {
     totalUsers: number;
-    totalProjects: number;
     totalTasks: number;
     totalCost: number;
     systemHealth: 'healthy' | 'warning' | 'critical';
@@ -366,7 +324,7 @@ export interface DashboardData {
   keyMetrics: PerformanceMetric[];
   recentActivity: Array<{
     id: string;
-    type: 'project' | 'task' | 'evaluation' | 'alert';
+    type: 'task' | 'evaluation' | 'alert';
     title: string;
     description: string;
     timestamp: string;
@@ -385,15 +343,7 @@ export interface DashboardData {
       userId: string;
       username: string;
       activityScore: number;
-      projectsCompleted: number;
       averageRating: number;
-    }>;
-    projects: Array<{
-      projectId: string;
-      projectName: string;
-      completionRate: number;
-      averageRating: number;
-      totalTasks: number;
     }>;
   };
 }
@@ -441,7 +391,7 @@ export interface ReportConfig {
   id: string;
   name: string;
   description: string;
-  type: 'usage' | 'performance' | 'cost' | 'evaluation' | 'project' | 'custom';
+  type: 'usage' | 'performance' | 'cost' | 'evaluation' | 'custom';
   filters: AnalyticsFilters;
   metrics: string[];
   visualizations: VisualizationConfig[];
@@ -537,8 +487,6 @@ export interface EvaluationAnalyticsResponse extends AnalyticsResponse<Evaluatio
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface WorkflowAnalyticsResponse extends AnalyticsResponse<WorkflowAnalytics> {}
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface ProjectAnalyticsResponse extends AnalyticsResponse<ProjectAnalytics> {}
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface UsageStatsResponse extends AnalyticsResponse<UsageStats> {}
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface CostSummaryResponse extends AnalyticsResponse<CostSummary> {}
@@ -562,7 +510,6 @@ export interface AnalyticsFiltersUI {
   userRole?: string | 'all';
   provider?: string | 'all';
   model?: string | 'all';
-  project?: string | 'all';
   status?: string | 'all';
   granularity?: 'daily' | 'weekly' | 'monthly';
   includeDetails?: boolean;

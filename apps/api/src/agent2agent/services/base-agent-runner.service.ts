@@ -309,11 +309,12 @@ export abstract class BaseAgentRunner implements IAgentRunner {
       typeof payload.action === 'string' ? payload.action : 'create';
 
     // Check execution mode for 'create' action - handle real-time (SSE) mode
+    // Note: real-time/polling mode now executes synchronously but still streams progress updates
     if (action === 'create') {
       const executionMode = payload.executionMode || 'immediate';
 
       if (executionMode === 'real-time' || executionMode === 'polling') {
-        return this.handleBuildWithStreaming(
+        return await this.handleBuildWithStreaming(
           definition,
           request,
           organizationSlug,
@@ -403,26 +404,29 @@ export abstract class BaseAgentRunner implements IAgentRunner {
   /**
    * Handle BUILD with streaming (SSE or polling mode)
    *
-   * For websocket/polling execution modes:
-   * 1. Register stream session with StreamingService
-   * 2. Start async execution (don't await)
-   * 3. Return immediately with taskId and streamId
+   * For real-time/polling execution modes:
+   * 1. Register stream session with StreamingService for progress updates
+   * 2. Execute synchronously (await completion)
+   * 3. Return deliverable in response (same as immediate mode)
+   * 
+   * Note: Streaming is still used for progress updates via SSE, but the API
+   * waits for completion and returns the deliverable synchronously.
    */
-  protected handleBuildWithStreaming(
+  protected async handleBuildWithStreaming(
     definition: AgentRuntimeDefinition,
     request: TaskRequestDto,
     organizationSlug: string | null,
     executionMode: string,
-  ): TaskResponseDto {
+  ): Promise<TaskResponseDto> {
     const taskId = this.resolveTaskId(request) || `task_${Date.now()}`;
     const userId = this.resolveUserId(request) || 'unknown';
     const conversationId = this.resolveConversationId(request);
 
     this.logger.log(
-      `🔌 Agent ${definition.slug}: ${executionMode} mode - registering stream session for task ${taskId}`,
+      `🔌 Agent ${definition.slug}: ${executionMode} mode - registering stream session for progress updates, task ${taskId}`,
     );
 
-    // Register stream session and get streamId
+    // Register stream session for progress updates (SSE will still emit chunks)
     const streamId = this.streamingService.registerStream(
       taskId,
       definition.slug,
@@ -432,74 +436,70 @@ export abstract class BaseAgentRunner implements IAgentRunner {
       userId,
     );
 
-    // Start async execution (don't await)
-    this.executeAndStreamBuild(
-      definition,
-      request,
-      organizationSlug,
-      taskId,
-    ).catch((error) => {
-      this.logger.error(
-        `Async BUILD execution failed for task ${taskId}: ${error instanceof Error ? error.message : String(error)}`,
-      );
-      this.streamingService.emitError(
-        taskId,
-        error instanceof Error ? error.message : 'Unknown error',
-      );
-    });
-
-    // Return immediately with streamId
-    return TaskResponseDto.success(AgentTaskMode.BUILD, {
-      content: {
-        status: 'processing',
-        message: 'Task started - streaming updates via SSE',
-      },
-      metadata: {
-        taskId,
-        streamId,
-        executionMode,
-        streamUrl: `/agent2agent/stream/${streamId}`,
-      },
-    });
-  }
-
-  /**
-   * Execute build async and emit progress via StreamingService
-   */
-  protected async executeAndStreamBuild(
-    definition: AgentRuntimeDefinition,
-    request: TaskRequestDto,
-    organizationSlug: string | null,
-    taskId: string,
-  ): Promise<void> {
+    // Execute synchronously - wait for completion
+    // Progress updates will still be streamed via SSE, but we wait for the final result
     try {
-      this.logger.log(`▶️  Starting async BUILD for task ${taskId}`);
+      // Emit initial progress update
+      this.streamingService.emitProgress(
+        taskId,
+        'Starting build execution...',
+        {
+          step: 'Initializing',
+          progress: 0,
+          status: 'running',
+          sequence: 1,
+        },
+      );
 
-      // Execute the build (delegates to concrete runner implementation)
       const result = await this.executeBuild(
         definition,
         request,
         organizationSlug,
       );
 
-      // Emit completion with result
+      // Emit completion event for SSE clients
       if (result.success) {
-        this.streamingService.emitComplete(taskId);
+        // Extract deliverable from result payload for build mode
+        const buildContent = result.payload?.content as
+          | { deliverable?: unknown; version?: unknown }
+          | undefined;
+        
+        const completionData: Record<string, unknown> = {};
+        if (buildContent?.deliverable) {
+          completionData.deliverable = buildContent.deliverable;
+        }
+        if (buildContent?.version) {
+          completionData.version = buildContent.version;
+        }
+        
+        // Emit completion event with deliverable data
+        this.streamingService.emitComplete(
+          taskId,
+          Object.keys(completionData).length > 0 ? completionData : undefined,
+        );
       } else {
         const errorMsg =
           (result.payload.metadata?.reason as string) || 'Build failed';
         this.streamingService.emitError(taskId, errorMsg);
       }
+
+      // Return the result synchronously (same as immediate mode)
+      return result;
     } catch (error) {
       this.logger.error(
-        `Error in executeAndStreamBuild for task ${taskId}: ${error instanceof Error ? error.message : String(error)}`,
+        `BUILD execution failed for task ${taskId}: ${error instanceof Error ? error.message : String(error)}`,
       );
       this.streamingService.emitError(
         taskId,
         error instanceof Error ? error.message : 'Unknown error',
       );
+      throw error;
     }
   }
+
+  // REMOVED: executeAndStreamBuild method
+  // Real-time/polling mode now executes synchronously in handleBuildWithStreaming
+  // This method is no longer needed as we await completion before returning
 
   /**
    * Execute build - Abstract, each runner implements specific build logic.

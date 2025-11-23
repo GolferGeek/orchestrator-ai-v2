@@ -701,7 +701,6 @@ export class SupabaseMCPServer implements IMCPServer {
       'messages',
       'tasks',
       'agents',
-      'projects',
       'deliverables',
     ];
     return tables.some((table) => coreTables.includes(table.toLowerCase()));

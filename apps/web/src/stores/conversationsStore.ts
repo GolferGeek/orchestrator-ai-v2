@@ -490,6 +490,9 @@ export const useConversationsStore = defineStore('conversations', () => {
     if (messageIndex === -1) return;
 
     const message = conversationMessages[messageIndex];
+    
+    // Create a new message object with updated metadata
+    // IMPORTANT: Deep clone metadata to ensure Vue detects nested changes
     const updatedMessage = {
       ...message,
       metadata: {
@@ -498,11 +501,17 @@ export const useConversationsStore = defineStore('conversations', () => {
       },
     };
 
-    conversationMessages[messageIndex] = updatedMessage;
+    // Create a completely new array with the updated message
+    // This ensures Vue reactivity detects the change
+    const newConversationMessages = [
+      ...conversationMessages.slice(0, messageIndex),
+      updatedMessage,
+      ...conversationMessages.slice(messageIndex + 1),
+    ];
 
     // Create a new Map to trigger Vue reactivity
     const newMessages = new Map(messages.value);
-    newMessages.set(conversationId, [...conversationMessages]);
+    newMessages.set(conversationId, newConversationMessages);
     messages.value = newMessages;
   }
 

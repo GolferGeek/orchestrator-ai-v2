@@ -23,7 +23,7 @@ export class ContextOptimizationService {
   async optimizeContext(request: {
     fullHistory: ConversationMessage[];
     conversationId?: string;
-    workProductType?: 'project' | 'deliverable';
+    workProductType?: 'deliverable';
     workProductId?: string;
     tokenBudget: number;
   }): Promise<ConversationMessage[]> {
@@ -57,7 +57,7 @@ export class ContextOptimizationService {
 
   private async performLayeredOptimization(request: {
     fullHistory: ConversationMessage[];
-    workProductType?: 'project' | 'deliverable';
+    workProductType?: 'deliverable';
     workProductId?: string;
     tokenBudget: number;
   }): Promise<ConversationMessage[]> {
@@ -75,7 +75,7 @@ export class ContextOptimizationService {
   }
 
   private async extractWorkProductContext(
-    type?: 'project' | 'deliverable',
+    type?: 'deliverable',
     id?: string,
   ): Promise<unknown> {
     if (!type || !id) return null;

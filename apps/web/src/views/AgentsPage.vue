@@ -21,12 +21,12 @@
             </ion-item>
             <hr/>
 
-            <!-- Deliverables, Projects & Evaluations Accordion -->
+            <!-- Deliverables & Evaluations Accordion -->
             <ion-accordion-group>
               <ion-accordion value="main-nav">
                 <ion-item slot="header" color="none" class="accordion-header-custom">
                   <ion-icon aria-hidden="true" :icon="documentTextOutline" slot="start"></ion-icon>
-                  <ion-label>Deliverables, Projects & Evaluations</ion-label>
+                  <ion-label>Deliverables & Evaluations</ion-label>
                 </ion-item>
                 <div slot="content" class="main-nav-content">
                   <ion-list>
@@ -49,16 +49,6 @@
                     >
                       <ion-icon aria-hidden="true" :icon="starOutline" slot="start"></ion-icon>
                       <ion-label>Evaluations</ion-label>
-                    </ion-item>
-                    <ion-item
-                      :button="true"
-                      lines="none"
-                      :detail="false"
-                      @click="$router.push('/app/projects')"
-                      :class="{ 'selected': $route.path.startsWith('/app/projects') }"
-                    >
-                      <ion-icon aria-hidden="true" :icon="folderOutline" slot="start"></ion-icon>
-                      <ion-label>Projects</ion-label>
                     </ion-item>
                   </ion-list>
                 </div>
@@ -179,7 +169,7 @@ import { computed, ref } from 'vue';
 import { 
   IonPage, IonContent, IonIcon, IonItem, IonLabel, IonList, IonMenu, IonMenuToggle, IonNote, IonRouterOutlet, IonSplitPane, IonHeader, IonToolbar, IonTitle, IonAccordion, IonAccordionGroup
 } from '@ionic/vue';
-import { logOutOutline, starOutline, folderOutline, chatbubblesOutline, documentTextOutline, shieldCheckmarkOutline, analyticsOutline, barChartOutline, pulseOutline, settingsOutline } from 'ionicons/icons';
+import { logOutOutline, starOutline, chatbubblesOutline, documentTextOutline, shieldCheckmarkOutline, analyticsOutline, barChartOutline, pulseOutline, settingsOutline } from 'ionicons/icons';
 import { useAuthStore } from '@/stores/rbacStore';
 import { conversation } from '@/services/conversationHelpers';
 import { useConversationsStore } from '@/stores/conversationsStore';
@@ -223,26 +213,14 @@ const handleConversationSelected = async (conversation: Record<string, unknown>)
 };
 const handleAgentSelected = async (agent: Record<string, unknown>) => {
   try {
-    if (agent.createProject) {
-      // Navigate to projects page with agent info for creating new project
-      router.push({
-        path: '/app/projects',
-        query: { 
-          action: 'new',
-          agentName: agent.name,
-          agentType: agent.type
-        }
-      });
-    } else {
-      const conversationId = await conversation.createConversation(agent);
+    const conversationId = await conversation.createConversation(agent);
 
-      // Refresh conversations list to show the new conversation
-      await conversationsStore.fetchConversations(true);
+    // Refresh conversations list to show the new conversation
+    await conversationsStore.fetchConversations(true);
 
-      // Set flag in sessionStorage to indicate active conversation for admin users
-      sessionStorage.setItem('activeConversation', 'true');
-      router.push({ path: '/app/home', query: { forceHome: 'true', conversationId } });
-    }
+    // Set flag in sessionStorage to indicate active conversation for admin users
+    sessionStorage.setItem('activeConversation', 'true');
+    router.push({ path: '/app/home', query: { forceHome: 'true', conversationId } });
   } catch (error) {
     console.error('Failed to handle agent selection:', error);
   }

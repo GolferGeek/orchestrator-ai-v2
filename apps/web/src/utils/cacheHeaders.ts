@@ -118,7 +118,7 @@ export const RESOURCE_HINTS = {
   
   // Prefetch likely next navigation
   PREFETCH: [
-    '/app/projects',
-    '/app/evaluations'
+    '/app/evaluations',
+    '/app/deliverables'
   ]
 };

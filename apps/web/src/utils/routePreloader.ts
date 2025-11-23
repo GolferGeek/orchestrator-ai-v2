@@ -14,8 +14,7 @@ export class RoutePreloader {
     const criticalRoutes = [
       () => import('../views/HomePage.vue'),
       () => import('../views/LoginPage.vue'),
-      () => import('../views/PIIManagementPage.vue'),
-      () => import('../views/ProjectsListPage.vue')
+      () => import('../views/PIIManagementPage.vue')
     ];
 
     // Preload during idle time
@@ -49,7 +48,6 @@ export class RoutePreloader {
       case 'user':
         roleBasedRoutes = [
           () => import('../views/EvaluationsPage.vue'),
-          () => import('../views/ProjectDetailPage.vue'),
           () => import('../views/PIITestingPage.vue')
         ];
         break;
@@ -72,7 +70,6 @@ export class RoutePreloader {
     
     // Map route paths to dynamic imports
     const routeImports: Record<string, () => Promise<unknown>> = {
-      '/app/projects': () => import('../views/ProjectsListPage.vue'),
       '/app/pii': () => import('../views/PIIManagementPage.vue'),
       '/app/pii/testing': () => import('../views/PIITestingPage.vue'),
       '/app/pii/dictionary': () => import('../views/PseudonymDictionaryPage.vue'),
@@ -125,8 +122,7 @@ export class RoutePreloader {
    */
   preloadRelatedRoutes(currentRoute: string) {
     const relatedRoutes: Record<string, string[]> = {
-      '/app/home': ['/app/projects', '/app/pii'],
-      '/app/projects': ['/app/projects/:id', '/app/deliverables'],
+      '/app/home': ['/app/pii', '/app/deliverables'],
       '/app/pii': ['/app/pii/testing', '/app/pii/dictionary'],
       '/app/pii/management': ['/app/pii/testing', '/app/pii/dictionary', '/app/pii/mappings'],
       '/app/admin': ['/app/admin/evaluations', '/app/admin/settings', '/app/admin/audit']

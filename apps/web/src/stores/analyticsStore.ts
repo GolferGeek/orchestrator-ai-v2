@@ -8,8 +8,6 @@ import {
   EvaluationAnalytics,
   WorkflowAnalytics,
   ConstraintAnalytics,
-  ProjectAnalytics,
-  ProjectMetrics,
   UsageStats,
   CostSummary,
   ModelPerformance,
@@ -40,10 +38,6 @@ export const useAnalyticsStore = defineStore('analytics', () => {
   const workflowAnalytics = ref<WorkflowAnalytics | null>(null);
   const constraintAnalytics = ref<ConstraintAnalytics | null>(null);
   
-  // Project Analytics
-  const projectAnalytics = ref<Record<string, ProjectAnalytics>>({});
-  const projectMetrics = ref<ProjectMetrics | null>(null);
-  
   // Usage Analytics
   const usageStats = ref<UsageStats | null>(null);
   const costSummary = ref<CostSummary | null>(null);
@@ -65,7 +59,6 @@ export const useAnalyticsStore = defineStore('analytics', () => {
   // Loading States
   const isLoadingDashboard = ref(false);
   const isLoadingEvaluation = ref(false);
-  const isLoadingProjects = ref(false);
   const isLoadingUsage = ref(false);
   const isLoadingTasks = ref(false);
   const isLoadingSystem = ref(false);
@@ -82,7 +75,6 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     userRole: 'all',
     provider: 'all',
     model: 'all',
-    project: 'all',
     status: 'all',
     granularity: 'daily',
     includeDetails: false,
@@ -110,12 +102,11 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     return analyticsService.getDateRange(filters.value.timeRange as 'today' | 'yesterday' | 'last7days' | 'last30days' | 'thisMonth' | 'lastMonth' || 'last30days');
   });
   
-  const isLoading = computed(() => 
-    isLoadingDashboard.value || 
-    isLoadingEvaluation.value || 
-    isLoadingProjects.value || 
-    isLoadingUsage.value || 
-    isLoadingTasks.value || 
+  const isLoading = computed(() =>
+    isLoadingDashboard.value ||
+    isLoadingEvaluation.value ||
+    isLoadingUsage.value ||
+    isLoadingTasks.value ||
     isLoadingSystem.value
   );
   
@@ -149,11 +140,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     if (!dashboardData.value) return [];
     return dashboardData.value.recentActivity || [];
   });
-  
-  const availableProjects = computed(() => {
-    return Object.keys(projectAnalytics.value);
-  });
-  
+
   const availableReportTypes = computed(() => {
     const types = new Set<string>();
     reportConfigs.value.forEach(config => types.add(config.type));
@@ -228,35 +215,6 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       console.error('Error loading evaluation analytics:', err);
     } finally {
       isLoadingEvaluation.value = false;
-    }
-  }
-  
-  /**
-   * Load project analytics
-   */
-  async function loadProjectAnalytics(projectId?: string) {
-    isLoadingProjects.value = true;
-    error.value = null;
-    
-    try {
-      if (projectId) {
-        const response = await analyticsService.getProjectAnalytics(projectId);
-        if (response.success) {
-          projectAnalytics.value[projectId] = response.data;
-        }
-      } else {
-        const metricsResponse = await analyticsService.getProjectMetrics({
-          timeRange: currentTimeRange.value
-        });
-        projectMetrics.value = metricsResponse;
-      }
-      
-      lastUpdated.value = new Date();
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to load project analytics';
-      console.error('Error loading project analytics:', err);
-    } finally {
-      isLoadingProjects.value = false;
     }
   }
   
@@ -581,7 +539,6 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       userRole: 'all',
       provider: 'all',
       model: 'all',
-      project: 'all',
       status: 'all',
       granularity: 'daily',
       includeDetails: false,
@@ -613,8 +570,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       loadEvaluationAnalytics(),
       loadUsageAnalytics(),
       loadTaskAnalytics(),
-      loadSystemAnalytics(),
-      loadProjectAnalytics()
+      loadSystemAnalytics()
     ]);
   }
   
@@ -634,7 +590,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
           providerName: filters.value.provider !== 'all' ? filters.value.provider : undefined,
           modelName: filters.value.model !== 'all' ? filters.value.model : undefined
         },
-        sections: ['dashboard', 'evaluation', 'usage', 'projects', 'tasks']
+        sections: ['dashboard', 'evaluation', 'usage', 'tasks']
       });
       
       if (result.success && result.downloadUrl) {
@@ -675,8 +631,6 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     evaluationAnalytics,
     workflowAnalytics,
     constraintAnalytics,
-    projectAnalytics,
-    projectMetrics,
     usageStats,
     costSummary,
     modelPerformance,
@@ -689,7 +643,6 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     eventTrackingEnabled,
     isLoadingDashboard,
     isLoadingEvaluation,
-    isLoadingProjects,
     isLoadingUsage,
     isLoadingTasks,
     isLoadingSystem,
@@ -711,13 +664,11 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     averageResponseTime,
     topPerformingModels,
     recentActivity,
-    availableProjects,
     availableReportTypes,
     
     // Actions
     loadDashboardData,
     loadEvaluationAnalytics,
-    loadProjectAnalytics,
     loadUsageAnalytics,
     loadTaskAnalytics,
     loadSystemAnalytics,

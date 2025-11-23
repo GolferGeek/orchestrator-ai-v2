@@ -27,7 +27,6 @@ import type {
   DashboardData,
   EvaluationAnalytics,
   WorkflowAnalytics,
-  ProjectAnalytics,
   UsageStats,
   CostSummary,
   ModelPerformance,
@@ -121,18 +120,16 @@ export interface AnalyticsStoreState extends MonitoringStoreState {
   dashboardData: DashboardData | null;
   evaluationAnalytics: EvaluationAnalytics | null;
   workflowAnalytics: WorkflowAnalytics | null;
-  projectAnalytics: Record<string, ProjectAnalytics>;
   usageStats: UsageStats | null;
   costSummary: CostSummary | null;
   modelPerformance: ModelPerformance[];
-  
+
   // Analytics-specific filters
   filters: {
     timeRange: string;
     userRole: string;
     provider: string;
     model: string;
-    project: string;
     status: string;
     granularity: 'daily' | 'weekly' | 'monthly';
     includeDetails: boolean;

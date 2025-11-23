@@ -183,6 +183,22 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
         progress: 10,
       });
 
+      // Emit SSE progress update
+      const taskIdForStream = taskId || this.resolveTaskId(request);
+      if (taskIdForStream) {
+        this.streamingService.emitProgress(
+          taskIdForStream,
+          'Fetching context...',
+          {
+            step: 'Fetching context',
+            progress: 10,
+            status: 'running',
+            sequence: 1,
+            totalSteps: 5,
+          },
+        );
+      }
+
       const buildContext = await this.gatherBuildContext(
         definition,
         request,
@@ -202,6 +218,21 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
         taskId,
         progress: 30,
       });
+
+      // Emit SSE progress update
+      if (taskIdForStream) {
+        this.streamingService.emitProgress(
+          taskIdForStream,
+          'Optimizing context...',
+          {
+            step: 'Optimizing context',
+            progress: 30,
+            status: 'running',
+            sequence: 2,
+            totalSteps: 5,
+          },
+        );
+      }
 
       const resolvedOrgSlug = this.resolveOrganizationSlug(
         definition,
@@ -248,6 +279,21 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
           taskId,
           progress: 50,
         });
+
+        // Emit SSE progress update
+        if (taskIdForStream) {
+          this.streamingService.emitProgress(
+            taskIdForStream,
+            'Calling LLM to generate deliverable...',
+            {
+              step: 'Calling LLM',
+              progress: 50,
+              status: 'running',
+              sequence: 3,
+              totalSteps: 5,
+            },
+          );
+        }
 
         const llmConfig = this.buildLlmConfig(
           definition,
@@ -399,6 +445,22 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
         version: unknown;
         isNew: boolean;
       };
+
+      // Emit final progress update
+      if (taskIdForStream) {
+        this.streamingService.emitProgress(
+          taskIdForStream,
+          'Deliverable created successfully',
+          {
+            step: 'Complete',
+            progress: 100,
+            status: 'completed',
+            sequence: 5,
+            totalSteps: 5,
+          },
+        );
+      }
+
       return TaskResponseDto.success(AgentTaskMode.BUILD, {
         content: {
           deliverable: resultData.deliverable,

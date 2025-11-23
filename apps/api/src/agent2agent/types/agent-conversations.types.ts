@@ -82,7 +82,7 @@ export interface LLMSelection {
 }
 
 export interface WorkProductContext {
-  type: 'project' | 'deliverable';
+  type: 'deliverable';
   id: string;
   version?: number;
   state?: unknown;
@@ -107,7 +107,7 @@ export interface CreateTaskDto {
     taskId?: string;
     metadata?: Record<string, unknown>;
   }>; // Conversation history array passed from frontend
-  metadata?: Record<string, unknown>; // Context metadata for deliverable/project operations
+  metadata?: Record<string, unknown>; // Context metadata for deliverable operations
 }
 
 export interface UpdateTaskDto {

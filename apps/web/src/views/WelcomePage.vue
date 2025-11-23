@@ -21,7 +21,6 @@
         <ion-card-content>
           <ion-list>
             <ion-item button :router-link="{ name: 'Evaluations' }">Evaluations</ion-item>
-            <ion-item button :router-link="{ name: 'Projects' }">Projects</ion-item>
             <ion-item button :router-link="{ name: 'Organization' }">Organization</ion-item>
           </ion-list>
         </ion-card-content>

@@ -535,9 +535,10 @@ export class AgentConversationsService {
         : new Date(data.created_at),
       metadata: data.metadata,
       workProduct:
-        data.primary_work_product_type && data.primary_work_product_id
+        data.primary_work_product_type === 'deliverable' &&
+        data.primary_work_product_id
           ? {
-              type: data.primary_work_product_type as 'project' | 'deliverable',
+              type: 'deliverable' as const,
               id: data.primary_work_product_id,
             }
           : undefined,

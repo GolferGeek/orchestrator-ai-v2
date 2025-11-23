@@ -106,15 +106,15 @@ export class SystemController {
       // Get real data from database - use service client for admin analytics
       const client = this.supabaseService.getServiceClient();
 
-      const [usersResult, tasksResult, conversationsResult, projectsResult] =
-        await Promise.all([
+      const [usersResult, tasksResult, conversationsResult] = await Promise.all(
+        [
           client.from('users').select('id', { count: 'exact', head: true }),
           client.from('tasks').select('id', { count: 'exact', head: true }),
           client
             .from('conversations')
             .select('id', { count: 'exact', head: true }),
-          client.from('projects').select('id', { count: 'exact', head: true }),
-        ]);
+        ],
+      );
 
       // Get task completion stats
       const [completedTasks, failedTasks] = await Promise.all([
@@ -131,7 +131,6 @@ export class SystemController {
       const totalUsers = usersResult.count || 0;
       const totalTasks = tasksResult.count || 0;
       const totalConversations = conversationsResult.count || 0;
-      const totalProjects = projectsResult.count || 0;
       const completedTasksCount = completedTasks.count || 0;
       const failedTasksCount = failedTasks.count || 0;
 
@@ -184,7 +183,6 @@ export class SystemController {
           totalUsers: totalUsers,
           totalAgents: 37, // TODO: Get from agent discovery service
           totalTasks: totalTasks,
-          totalProjects: totalProjects,
           totalConversations: totalConversations,
           completedTasks: completedTasksCount,
           failedTasks: failedTasksCount,

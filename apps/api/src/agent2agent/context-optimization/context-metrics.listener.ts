@@ -5,7 +5,7 @@ export interface ContextMetricsEvent {
   originalCount: number;
   optimizedCount: number;
   processingTimeMs: number;
-  workProductType?: 'project' | 'deliverable';
+  workProductType?: 'deliverable';
 }
 
 export interface RollupMetrics {

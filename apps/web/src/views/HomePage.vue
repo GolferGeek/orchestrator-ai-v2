@@ -30,7 +30,7 @@
       <div v-if="!auth.isAuthenticated" class="auth-required">
         <ion-icon :icon="lockClosedOutline" class="auth-icon"></ion-icon>
         <h2>Authentication Required</h2>
-        <p>Please <router-link to="/login">log in</router-link> to access your conversations and projects.</p>
+        <p>Please <router-link to="/login">log in</router-link> to access your conversations.</p>
       </div>
       <!-- Agent Conversation View or Deliverable View -->
       <div v-else-if="chatUiStore.hasActiveConversation || route.query.deliverableId" class="conversation-container">
@@ -41,17 +41,7 @@
         <div class="welcome-content">
           <ion-icon :icon="chatbubblesOutline" class="welcome-icon"></ion-icon>
           <h2>Welcome to Orchestrator AI</h2>
-          <p>Start a conversation with any agent from the sidebar, or create a new project to begin orchestrated workflows.</p>
-          <div class="quick-nav">
-            <ion-button 
-              @click="navigateToProjects"
-              fill="solid"
-              size="large"
-            >
-              <ion-icon :icon="folderOutline" slot="start"></ion-icon>
-              View Projects
-            </ion-button>
-          </div>
+          <p>Start a conversation with any agent from the sidebar to begin.</p>
         </div>
       </div>
     </ion-content>
@@ -73,7 +63,6 @@ import {
 import {
   lockClosedOutline,
   chatbubblesOutline,
-  folderOutline,
   moonOutline,
   sunnyOutline,
 } from 'ionicons/icons';
@@ -203,10 +192,6 @@ const toggleDarkMode = () => {
   userPreferencesStore.setTheme(newTheme);
 };
 
-// Methods
-const navigateToProjects = () => {
-  router.push('/app/projects');
-};
 </script>
 <style scoped>
 .auth-required,

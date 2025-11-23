@@ -365,7 +365,7 @@ class TasksService {
       ...(taskData.taskId ? { id: taskData.taskId } : {}),
     };
 
-    console.log('🚀 Sending A2A JSON-RPC 2.0 request:', {
+    console.log('🚀 [TasksService] Sending A2A JSON-RPC 2.0 request:', {
       url,
       organization: organization,
       method: payload.method,
@@ -373,14 +373,96 @@ class TasksService {
       conversationId: paramsBody.conversationId,
       mode: paramsBody.mode,
     });
+    console.log('🚀 [TasksService] Request payload (sanitized):', {
+      jsonrpc: payload.jsonrpc,
+      method: payload.method,
+      id: payload.id,
+      paramsKeys: Object.keys(payload.params || {}),
+    });
 
-    const response = await apiService.post<{
-      taskId: string;
-      conversationId: string;
-      status: TaskStatus;
+    // API returns JSON-RPC 2.0 format: { jsonrpc: '2.0', id: ..., result: ... } or { jsonrpc: '2.0', id: ..., error: ... }
+    console.log('⏳ [TasksService] Waiting for API response...');
+    const jsonRpcResponse = await apiService.post<{
+      jsonrpc?: string;
+      id?: string | number | null;
       result?: JsonValue;
+      error?: {
+        code: number;
+        message: string;
+        data?: unknown;
+      };
     }, JsonObject>(url, payload);
-    return response;
+
+    console.log('📥 [TasksService] Received API response:', {
+      hasJsonrpc: !!jsonRpcResponse.jsonrpc,
+      hasResult: !!jsonRpcResponse.result,
+      hasError: !!jsonRpcResponse.error,
+      id: jsonRpcResponse.id,
+    });
+
+    // Handle JSON-RPC error response
+    if (jsonRpcResponse.error) {
+      const errorMessage = jsonRpcResponse.error.message || 'API request failed';
+      console.error('❌ [TasksService] JSON-RPC error response:', jsonRpcResponse.error);
+      throw new Error(errorMessage);
+    }
+
+    // Extract result from JSON-RPC envelope
+    // The API returns: { jsonrpc: '2.0', id: ..., result: TaskResponseDto }
+    // But we need to return: { taskId, conversationId, status, result: TaskResponseDto }
+    // The TaskResponseDto contains the actual response data
+    const taskResponseDto = jsonRpcResponse.result;
+    
+    if (!taskResponseDto) {
+      console.error('❌ [TasksService] No result in JSON-RPC response:', jsonRpcResponse);
+      throw new Error('No result in JSON-RPC response');
+    }
+
+    // Extract taskId and conversationId from the TaskResponseDto metadata
+    // The API adds taskId to dto.metadata before execution (line 419 in controller)
+    // TaskResponseDto structure: { success, mode, payload: { content, metadata: { taskId, conversationId, ... } }, humanResponse? }
+    const taskResponse = taskResponseDto as {
+      success?: boolean;
+      payload?: {
+        metadata?: Record<string, unknown>;
+      };
+    };
+    const metadata = taskResponse?.payload?.metadata || {};
+    
+    // Extract taskId - API adds it to payload.metadata.taskId (from dto.metadata.taskId)
+    // Also check streaming metadata and JSON-RPC id as fallbacks
+    const streamingMetadata = (metadata.streaming as Record<string, unknown> | undefined) || {};
+    const taskId = (metadata.taskId as string) || 
+                   (streamingMetadata.taskId as string) ||
+                   (jsonRpcResponse.id?.toString() || '');
+    
+    // Extract conversationId from metadata or streaming metadata
+    const conversationId = (metadata.conversationId as string) || 
+                          (metadata.conversation_id as string) ||
+                          (streamingMetadata.conversationId as string) || '';
+    
+    // Extract status - default to 'completed' if success, 'failed' otherwise
+    const taskResponseSuccess = taskResponse?.success ?? true;
+    const status: TaskStatus = (metadata.status as TaskStatus) || 
+                              (taskResponseSuccess ? 'completed' : 'failed');
+
+    console.log('📦 [TasksService] Extracted from TaskResponseDto:', {
+      taskId,
+      conversationId,
+      status,
+      hasMetadata: !!metadata,
+      metadataKeys: Object.keys(metadata),
+      streamingKeys: Object.keys(streamingMetadata),
+    });
+
+    // Return in the expected format with result containing the full TaskResponseDto
+    // Actions will access the TaskResponseDto via result.result
+    return {
+      taskId,
+      conversationId,
+      status,
+      result: taskResponseDto, // This is the TaskResponseDto that actions will access via result.result
+    };
   }
   /**
    * Get task by ID (alias for getTask)

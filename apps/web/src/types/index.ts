@@ -94,8 +94,6 @@ export type {
   EvaluationAnalytics,
   WorkflowAnalytics,
   ConstraintAnalytics,
-  ProjectAnalytics,
-  ProjectMetrics,
   TaskAnalytics,
   SystemAnalytics,
   BusinessMetrics,

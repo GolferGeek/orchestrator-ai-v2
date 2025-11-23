@@ -4,7 +4,6 @@ import {
   // AnalyticsRequest,
   EvaluationAnalyticsResponse,
   WorkflowAnalyticsResponse,
-  ProjectAnalyticsResponse,
   UsageStatsResponse,
   CostSummaryResponse,
   ModelPerformanceResponse,
@@ -93,51 +92,6 @@ class AnalyticsService {
       return response;
     } catch (error) {
       console.error('Error fetching constraint analytics:', error);
-      throw error;
-    }
-  }
-
-  // =====================================
-  // PROJECT ANALYTICS
-  // =====================================
-
-  /**
-   * Get analytics for a specific project
-   */
-  async getProjectAnalytics(projectId: string): Promise<ProjectAnalyticsResponse> {
-    try {
-      const response = await apiService.get(`/projects/${projectId}/analytics`);
-      return {
-        success: true,
-        data: response,
-        metadata: {
-          totalRecords: 0,
-          filteredRecords: 0,
-          processingTime: 0,
-          cacheHit: false,
-          generatedAt: new Date().toISOString()
-        }
-      };
-    } catch (error) {
-      console.error('Error fetching project analytics:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get aggregated project metrics
-   */
-  async getProjectMetrics(filters: AnalyticsFilters = {}): Promise<unknown> {
-    try {
-      const params = new URLSearchParams();
-      if (filters.timeRange?.startDate) params.append('startDate', filters.timeRange.startDate);
-      if (filters.timeRange?.endDate) params.append('endDate', filters.timeRange.endDate);
-      if (filters.userId) params.append('userId', filters.userId);
-
-      const response = await apiService.get(`/projects/analytics/metrics?${params.toString()}`);
-      return response;
-    } catch (error) {
-      console.error('Error fetching project metrics:', error);
       throw error;
     }
   }
@@ -419,13 +373,11 @@ class AnalyticsService {
       const [
         _evaluationAnalytics,
         usageStats,
-        _projectMetrics,
         _taskMetrics,
         systemAnalytics
       ] = await Promise.allSettled([
         this.getEvaluationAnalytics(filters),
         this.getUserUsageStats(filters),
-        this.getProjectMetrics(filters),
         this.getTaskMetrics(),
         this.getSystemAnalytics()
       ]);
@@ -434,7 +386,6 @@ class AnalyticsService {
       const dashboardData = {
         overview: {
           totalUsers: 0, // Would need user analytics endpoint
-          totalProjects: 0,
           totalTasks: 0,
           totalCost: 0,
           systemHealth: 'healthy' as const,
@@ -459,8 +410,7 @@ class AnalyticsService {
         },
         topPerformers: {
           models: [],
-          users: [],
-          projects: []
+          users: []
         }
       };
 
