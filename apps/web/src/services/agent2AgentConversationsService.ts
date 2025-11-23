@@ -4,13 +4,20 @@ import apiService from './apiService';
 export interface Agent2AgentConversation {
   id: string;
   agentName: string;
-  organizationSlug: string; // Database organization slug (my-org, etc.) - renamed from namespace to match API
+  organizationSlug?: string | null; // Database organization slug (my-org, etc.) - can be null for global agents
   startedAt: string;
   lastActiveAt: string;
   createdAt: string;
   updatedAt: string;
   title?: string; // Friendly display name
   metadata?: JsonObject;
+  // Additional fields from AgentConversationWithStats
+  agentType?: string;
+  taskCount?: number;
+  completedTasks?: number;
+  failedTasks?: number;
+  activeTasks?: number;
+  endedAt?: string;
 }
 
 /**

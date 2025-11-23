@@ -231,14 +231,61 @@ export const useConversationsStore = defineStore('conversations', () => {
    * Get conversations by agent name
    */
   const conversationsByAgent = (agentName: string, organizationSlug?: string | null): Conversation[] => {
-    return Array.from(conversations.value.values())
+    // Normalize agent name for comparison (handle different formats: blog-post-writer, blog_post_writer, Blog Post Writer)
+    const normalizeAgentName = (name: string): string => {
+      if (!name) return '';
+      return name.toLowerCase().replace(/[-_\s]/g, '-');
+    };
+    
+    const normalizedSearchName = normalizeAgentName(agentName);
+    
+    // Debug logging for matching
+    if (agentName.toLowerCase().includes('blog') || agentName.toLowerCase().includes('writer')) {
+      console.log(`🔍 [conversationsByAgent] Searching for agent:`, {
+        searchName: agentName,
+        normalizedSearchName,
+        organizationSlug,
+        totalConversations: conversations.value.size,
+        sampleConversationNames: Array.from(conversations.value.values()).slice(0, 5).map(c => ({
+          agentName: c.agentName,
+          agentNameFromAgent: c.agent?.name,
+          normalized: normalizeAgentName(c.agentName || c.agent?.name || ''),
+          organizationSlug: c.organizationSlug || c.agent?.organizationSlug
+        }))
+      });
+    }
+    
+    const matched = Array.from(conversations.value.values())
       .filter(conv => {
-        // Check both agentName field and agent.name
-        const matchesName = conv.agentName === agentName || conv.agent?.name === agentName;
+        // Check both agentName field and agent.name, with normalization
+        const convAgentName = conv.agentName || conv.agent?.name || '';
+        const normalizedConvName = normalizeAgentName(convAgentName);
+        const matchesName = normalizedConvName === normalizedSearchName || conv.agentName === agentName || conv.agent?.name === agentName;
+        
         if (!matchesName) return false;
+        
+        // Handle organizationSlug matching
+        // If organizationSlug is explicitly provided (including null), match it exactly
+        // If undefined, match any organizationSlug (including null)
         if (organizationSlug !== undefined) {
-          const convOrg = conv.organizationSlug || conv.agent?.organizationSlug;
-          return convOrg === organizationSlug;
+          const convOrg = conv.organizationSlug || conv.agent?.organizationSlug || null;
+          // Normalize both to null if they're falsy for comparison
+          const normalizedConvOrg = convOrg || null;
+          const normalizedFilterOrg = organizationSlug || null;
+          const orgMatches = normalizedConvOrg === normalizedFilterOrg;
+          
+          if (agentName.toLowerCase().includes('blog') || agentName.toLowerCase().includes('writer')) {
+            console.log(`🔍 [conversationsByAgent] Org match check:`, {
+              searchName: agentName,
+              convAgentName,
+              convOrg,
+              normalizedConvOrg,
+              normalizedFilterOrg,
+              orgMatches
+            });
+          }
+          
+          return orgMatches;
         }
         return true;
       })
@@ -247,6 +294,14 @@ export const useConversationsStore = defineStore('conversations', () => {
         const dateB = new Date(b.lastActiveAt || b.updatedAt || b.createdAt);
         return dateB.getTime() - dateA.getTime();
       });
+    
+    if (agentName.toLowerCase().includes('blog') || agentName.toLowerCase().includes('writer')) {
+      console.log(`✅ [conversationsByAgent] Found ${matched.length} conversations for "${agentName}"`, {
+        matchedIds: matched.map(c => c.id)
+      });
+    }
+    
+    return matched;
   };
 
   /**
@@ -681,6 +736,18 @@ export const useConversationsStore = defineStore('conversations', () => {
       // Get agents store to look up agent data
       const agentsStore = useAgentsStore();
 
+      // Debug: Log raw API response to check organizationSlug
+      console.log('🔍 [ConversationsStore] Raw API response:', {
+        totalConversations: response.conversations.length,
+        sampleConversation: response.conversations[0] ? {
+          id: response.conversations[0].id,
+          agentName: response.conversations[0].agentName,
+          organizationSlug: response.conversations[0].organizationSlug,
+          hasOrganizationSlug: 'organizationSlug' in (response.conversations[0] || {}),
+          allKeys: Object.keys(response.conversations[0] || {})
+        } : null
+      });
+
       // Map API response to our Conversation interface
       const mappedConversations = response.conversations.map(conv => {
         // Look up the agent to get execution modes (agents should already be loaded)
@@ -722,7 +789,7 @@ export const useConversationsStore = defineStore('conversations', () => {
             validModes.includes(mode),
           ) ?? validModes[0] ?? 'immediate';
 
-        return {
+        const mappedConv = {
           id: conv.id,
           userId: conv.userId,
           title: conv.metadata?.title || 'Untitled',
@@ -745,6 +812,19 @@ export const useConversationsStore = defineStore('conversations', () => {
           supportedExecutionModes: validModes,
           isExecutionModeOverride: false,
         };
+        
+        // Debug: Log organizationSlug for blog-post-writer conversations
+        if (mappedConv.agentName?.toLowerCase().includes('blog') || mappedConv.agentName?.toLowerCase().includes('writer')) {
+          console.log(`🔍 [ConversationsStore] Mapped conversation "${mappedConv.agentName}":`, {
+            id: mappedConv.id,
+            agentName: mappedConv.agentName,
+            organizationSlug: mappedConv.organizationSlug,
+            rawOrganizationSlug: conv.organizationSlug,
+            hasOrganizationSlug: 'organizationSlug' in mappedConv
+          });
+        }
+        
+        return mappedConv;
       });
 
       setConversations(mappedConversations);

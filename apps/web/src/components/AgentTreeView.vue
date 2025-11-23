@@ -560,21 +560,46 @@ const hierarchyGroups = computed(() => {
 
   // The store already normalized the data to a flat array
   const flatAgents = Array.isArray(hierarchy.data) ? hierarchy.data : [];
+  
+  // Debug: Log all agent names in hierarchy
+  const agentNames = flatAgents.map((a: Agent) => ({
+    name: a.name,
+    displayName: a.displayName,
+    organizationSlug: a.organizationSlug,
+    type: a.type,
+    agentType: a.agentType,
+    hasChildren: !!(a.children && a.children.length > 0)
+  }));
+  console.log(`🔍 [AgentTreeView.hierarchyGroups] All agents in hierarchy:`, JSON.stringify({
+    totalAgents: flatAgents.length,
+    agentNames
+  }, null, 2));
 
   const groups: Agent[] = [];
   
   const processNode = (node: Agent) => {
-    // Debug: Log the raw node data to see if organization exists
-    if (node.name === 'blog_post_writer') {
-      console.log('🔍 [AgentTreeView.processNode] Raw node data for blog_post_writer:', {
+    // Debug: Log ALL nodes to see what we're working with
+    console.log(`🔍 [AgentTreeView.processNode] Processing node:`, {
+      name: node.name,
+      displayName: node.displayName,
+      organizationSlug: node.organizationSlug,
+      type: node.type,
+      agentType: node.agentType,
+      hasChildren: !!(node.children && node.children.length > 0)
+    });
+    
+    // Debug: Log the raw node data for blog-related agents
+    if (node.name.toLowerCase().includes('blog') || node.name.toLowerCase().includes('writer') || node.name.toLowerCase().includes('post')) {
+      console.log(`🔍 [AgentTreeView.processNode] Raw node data for "${node.name}":`, {
         name: node.name,
         organizationSlug: node.organizationSlug,
         hasOrganizationSlug: !!node.organizationSlug,
         fullNode: node,
         totalConversationsInStore: storeConversations.value.length,
-        conversationsInStore: storeConversations.value.map(c => ({
+        conversationsInStore: storeConversations.value.slice(0, 5).map(c => ({
           id: c.id,
           agentName: c.agentName,
+          agentNameFromAgent: c.agent?.name,
           organizationSlug: c.organizationSlug,
           agentType: c.agentType
         }))
@@ -601,21 +626,45 @@ const hierarchyGroups = computed(() => {
     // Skip if neither the node nor its children match the search
     if (!matchesSearch && !hasMatchingChildren) return;
 
+    // Debug: Log ALL node names to see what we're searching for
+    if (node.name.toLowerCase().includes('blog') || node.name.toLowerCase().includes('marketing') || node.name.toLowerCase().includes('writer') || node.name.toLowerCase().includes('post')) {
+      console.log(`🔍 [AgentTreeView] Processing node:`, {
+        nodeName: node.name,
+        nodeDisplayName: node.displayName,
+        nodeSlug: node.slug,
+        nodeId: node.id,
+        organizationSlug: node.organizationSlug,
+        nodeType: node.type,
+        agentType: node.agentType
+      });
+    }
+    
     // Get conversations for this manager/orchestrator
     // All agents now filter by organizationSlug
-    const nodeConversations = storeConversations.value.filter(conv => {
-      const match = conv.agentName === node.name && conv.organizationSlug === node.organizationSlug;
-      if (node.name === 'blog_post_writer') {
-        console.log('🔍 [AgentTreeView] Filtering conversation for blog_post_writer:', {
-          convAgentName: conv.agentName,
-          nodeAgentName: node.name,
-          convOrgSlug: conv.organizationSlug,
-          nodeOrgSlug: node.organizationSlug || 'demo',
-          match
-        });
-      }
-      return match;
-    });
+    // Use the store's conversationsByAgent method which handles organizationSlug matching properly
+    const nodeConversations = conversationsStore.conversationsByAgent(
+      node.name,
+      node.organizationSlug || null
+    );
+    
+    // Debug logging for all agents with conversations or specific agents
+    if (nodeConversations.length > 0 || node.name.toLowerCase().includes('blog') || node.name.toLowerCase().includes('marketing') || node.name.toLowerCase().includes('writer') || node.name.toLowerCase().includes('post')) {
+      console.log(`🔍 [AgentTreeView] Agent "${node.name}" conversations:`, {
+        agentName: node.name,
+        organizationSlug: node.organizationSlug,
+        conversationsFound: nodeConversations.length,
+        conversationIds: nodeConversations.map(c => c.id),
+        allConversations: storeConversations.value.length,
+        sampleConversations: storeConversations.value.slice(0, 5).map(c => ({
+          id: c.id,
+          agentName: c.agentName,
+          agentNameFromAgent: c.agent?.name,
+          organizationSlug: c.organizationSlug
+        })),
+        // Show what conversationsByAgent is actually matching
+        allAgentNames: Array.from(new Set(storeConversations.value.map(c => c.agentName || c.agent?.name).filter(Boolean)))
+      });
+    }
 
     // Create the manager/orchestrator agent
     const mainAgent = {
@@ -646,8 +695,10 @@ const hierarchyGroups = computed(() => {
 
         if (childMatchesSearch) {
           // All agents now filter by organizationSlug
-          const childConversations = storeConversations.value.filter(conv =>
-            conv.agentName === child.name && conv.organizationSlug === child.organizationSlug
+          // Use the store's conversationsByAgent method which handles organizationSlug matching properly
+          const childConversations = conversationsStore.conversationsByAgent(
+            child.name,
+            child.organizationSlug || null
           );
 
           // Add this child as a team member
@@ -713,9 +764,9 @@ const hierarchyGroups = computed(() => {
   // Take the first root node that has children as the main orchestrator
   const topOrchestrator = flatAgents.find((agent: Agent) =>
     agent.children && agent.children.length > 0
-  ) || flatAgents[0]; // Fallback to first node if none have children
+  ); // Only find orchestrators that actually have children - no fallback
 
-  if (topOrchestrator) {
+  if (topOrchestrator && topOrchestrator.children && topOrchestrator.children.length > 0) {
     // For database orchestrators (with organizationSlug), match by organizationSlug; otherwise match by agentType
     const orchestratorConversations = topOrchestrator.organizationSlug
       ? conversationsStore.conversationsByAgent(topOrchestrator.name, topOrchestrator.organizationSlug)
@@ -794,9 +845,22 @@ const hierarchyGroups = computed(() => {
   }
   
   // Process any remaining root nodes that aren't the top orchestrator
-  const otherRootNodes = flatAgents.filter((agent: Agent) =>
-    topOrchestrator ? agent.name !== topOrchestrator.name : true
-  );
+  // If topOrchestrator exists and has children, filter it out; otherwise process all agents
+  const otherRootNodes = flatAgents.filter((agent: Agent) => {
+    if (topOrchestrator && topOrchestrator.children && topOrchestrator.children.length > 0) {
+      // Only filter out if topOrchestrator actually has children
+      return agent.name !== topOrchestrator.name;
+    }
+    // If no real orchestrator, process all agents as standalone
+    return true;
+  });
+  
+  console.log(`🔍 [AgentTreeView] Processing otherRootNodes:`, JSON.stringify({
+    topOrchestrator: topOrchestrator ? { name: topOrchestrator.name, hasChildren: !!(topOrchestrator.children && topOrchestrator.children.length > 0), organizationSlug: topOrchestrator.organizationSlug } : null,
+    otherRootNodesCount: otherRootNodes.length,
+    otherRootNodeNames: otherRootNodes.map((a: Agent) => ({ name: a.name, hasChildren: !!(a.children && a.children.length > 0), organizationSlug: a.organizationSlug }))
+  }, null, 2));
+  
   const specialistAgents: Agent[] = [];
 
   otherRootNodes.forEach((agent: Agent) => {
@@ -805,11 +869,30 @@ const hierarchyGroups = computed(() => {
       processNode(agent);
     } else {
       // This is a standalone specialist/agent
-      // For database agents (with organizationSlug), match by organizationSlug; otherwise match by agentType
-      const nodeConversations = agent.organizationSlug
-        ? conversationsStore.conversationsByAgent(agent.name, agent.organizationSlug)
-        : conversationsStore.conversationsByAgentType(agent.type)
-            .filter(conv => conv.agentName === agent.name);
+      // Always try to match by agent name first, with organizationSlug if available
+      // Fall back to agentType matching only if no organizationSlug
+      console.log(`🔍 [AgentTreeView] Processing standalone agent:`, JSON.stringify({
+        name: agent.name,
+        organizationSlug: agent.organizationSlug,
+        type: agent.type,
+        agentType: agent.agentType
+      }, null, 2));
+      
+      // Try with organizationSlug first (even if null, to match conversations with null org)
+      // Pass undefined if organizationSlug is not set, so conversationsByAgent can match any org
+      const nodeConversations = conversationsStore.conversationsByAgent(
+        agent.name,
+        agent.organizationSlug !== undefined ? agent.organizationSlug : undefined
+      );
+      
+      console.log(`🔍 [AgentTreeView] Found ${nodeConversations.length} conversations for standalone agent "${agent.name}"`, {
+        conversationIds: nodeConversations.map(c => c.id),
+        sampleConversations: nodeConversations.slice(0, 3).map(c => ({
+          id: c.id,
+          agentName: c.agentName,
+          organizationSlug: c.organizationSlug
+        }))
+      });
 
       const matchesSearch = !searchQuery.value ||
         agent.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
@@ -963,6 +1046,30 @@ onMounted(async () => {
   // Fetch data if not already loaded
   if (!agentHierarchy.value) {
     await refreshData();
+  }
+  
+  // Ensure conversations are loaded
+  // Check if conversations are already loaded
+  const hasConversations = storeConversations.value.length > 0;
+  if (!hasConversations) {
+    console.log('📥 [AgentTreeView] Loading conversations on mount...');
+    try {
+      await conversationsStore.fetchConversations(true);
+      console.log('✅ [AgentTreeView] Conversations loaded:', storeConversations.value.length);
+    } catch (error) {
+      console.error('❌ [AgentTreeView] Failed to load conversations:', error);
+    }
+  } else {
+    console.log('✅ [AgentTreeView] Conversations already loaded:', storeConversations.value.length);
+    // Debug: Show all agent names from conversations
+    const allAgentNames = Array.from(new Set(storeConversations.value.map(c => c.agentName || c.agent?.name).filter(Boolean)));
+    console.log('📋 [AgentTreeView] All agent names from conversations:', allAgentNames);
+    console.log('📋 [AgentTreeView] Sample conversations:', storeConversations.value.slice(0, 3).map(c => ({
+      id: c.id,
+      agentName: c.agentName,
+      agentNameFromAgent: c.agent?.name,
+      organizationSlug: c.organizationSlug
+    })));
   }
 });
 </script>
