@@ -146,9 +146,15 @@ class RagService {
     organizationSlug: string,
     data: CreateCollectionDto,
   ): Promise<RagCollection> {
+    // Clean up the data - remove empty slug to allow auto-generation
+    const cleanData = { ...data };
+    if (!cleanData.slug || cleanData.slug.trim() === '') {
+      delete cleanData.slug;
+    }
+    
     const response = await apiService.post<RagCollection>(
       '/api/rag/collections',
-      data,
+      cleanData,
       { headers: this.getOrgHeader(organizationSlug) },
     );
     return response;

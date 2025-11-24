@@ -175,13 +175,6 @@
               />
             </ion-item>
             <ion-item>
-              <ion-label position="stacked">Slug (optional)</ion-label>
-              <ion-input
-                v-model="newCollection.slug"
-                placeholder="auto-generated from name"
-              />
-            </ion-item>
-            <ion-item>
               <ion-label position="stacked">Description</ion-label>
               <ion-textarea
                 v-model="newCollection.description"
