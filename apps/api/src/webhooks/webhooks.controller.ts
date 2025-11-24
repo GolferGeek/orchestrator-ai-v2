@@ -12,6 +12,10 @@ import { TasksService } from '../agent2agent/tasks/tasks.service';
 import { StreamingService } from '../agent2agent/services/streaming.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { ObservabilityWebhookService } from '../observability/observability-webhook.service';
+import {
+  ObservabilityEventsService,
+  ObservabilityEventRecord,
+} from '../observability/observability-events.service';
 
 /**
  * Workflow Status Update
@@ -57,6 +61,7 @@ interface WorkflowStatusUpdate {
   username?: string; // display_name or email (human-readable)
   organizationSlug?: string; // Organization slug (e.g. 'demo-org')
   mode?: string; // 'converse', 'plan', 'build', 'orchestrate'
+  [key: string]: unknown;
 }
 
 @Controller('webhooks')
@@ -73,6 +78,7 @@ export class WebhooksController {
     private readonly streamingService: StreamingService,
     private readonly supabaseService: SupabaseService,
     private readonly observabilityService: ObservabilityWebhookService,
+    private readonly observabilityEvents: ObservabilityEventsService,
   ) {}
 
   /**
@@ -281,7 +287,7 @@ export class WebhooksController {
         }
       }
 
-      const eventData = {
+      const eventData: ObservabilityEventRecord = {
         source_app: 'orchestrator-ai',
         session_id: update.conversationId || update.taskId,
         hook_event_type: update.status, // 'agent.started', 'agent.progress', etc.
@@ -323,6 +329,8 @@ export class WebhooksController {
         ...eventData,
         eventType: update.status,
       });
+      // Push into in-memory reactive buffer for shared SSE streams
+      this.observabilityEvents.push(eventData);
       this.logger.debug(
         `📡 Emitted observability.event for admin stream: ${update.status} - ${update.message?.substring(0, 50)}...`,
       );

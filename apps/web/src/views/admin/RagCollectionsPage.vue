@@ -105,12 +105,23 @@
             <ion-card-header>
               <div class="card-title-row">
                 <ion-card-title>{{ collection.name }}</ion-card-title>
-                <ion-icon
-                  v-if="collection.allowedUsers !== null"
-                  :icon="lockClosedOutline"
-                  class="private-icon"
-                  :title="getAccessLabel(collection)"
-                />
+                <div class="card-actions">
+                  <ion-icon
+                    v-if="collection.allowedUsers !== null"
+                    :icon="lockClosedOutline"
+                    class="private-icon"
+                    :title="getAccessLabel(collection)"
+                  />
+                  <ion-button
+                    fill="clear"
+                    color="danger"
+                    size="small"
+                    @click.stop="confirmDeleteCollection(collection)"
+                    v-permission="'rag:write'"
+                  >
+                    <ion-icon slot="icon-only" :icon="trashOutline" />
+                  </ion-button>
+                </div>
               </div>
               <ion-card-subtitle>{{ collection.slug }}</ion-card-subtitle>
             </ion-card-header>
@@ -308,6 +319,7 @@ import {
   IonCheckbox,
   IonItemDivider,
   toastController,
+  alertController,
 } from '@ionic/vue';
 import {
   addOutline,
@@ -321,6 +333,7 @@ import {
   peopleOutline,
   chevronForwardOutline,
   lockClosedOutline,
+  trashOutline,
 } from 'ionicons/icons';
 import { useRagStore } from '@/stores/ragStore';
 import { useAuthStore } from '@/stores/rbacStore';
@@ -485,6 +498,49 @@ const getAccessLabel = (collection: RagCollection) => {
   return `${collection.allowedUsers.length} users`;
 };
 
+// Delete collection with confirmation
+const confirmDeleteCollection = async (collection: RagCollection) => {
+  const alert = await alertController.create({
+    header: 'Delete Collection?',
+    message: `Are you sure you want to delete "${collection.name}"? This will permanently delete all ${collection.documentCount} documents and ${collection.chunkCount} chunks. This action cannot be undone.`,
+    buttons: [
+      {
+        text: 'Cancel',
+        role: 'cancel',
+      },
+      {
+        text: 'Delete',
+        role: 'destructive',
+        handler: () => {
+          void deleteCollection(collection);
+        },
+      },
+    ],
+  });
+  await alert.present();
+};
+
+const deleteCollection = async (collection: RagCollection) => {
+  try {
+    await ragService.deleteCollection(collection.id, getOrgSlug());
+    ragStore.removeCollection(collection.id);
+
+    const toast = await toastController.create({
+      message: `Collection "${collection.name}" and all its contents have been deleted`,
+      duration: 3000,
+      color: 'success',
+    });
+    await toast.present();
+  } catch (error) {
+    const toast = await toastController.create({
+      message: error instanceof Error ? error.message : 'Failed to delete collection',
+      duration: 3000,
+      color: 'danger',
+    });
+    await toast.present();
+  }
+};
+
 // Lifecycle
 onMounted(() => {
   void loadCollections();
@@ -626,6 +682,12 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.card-actions {
+  display: flex;
+  align-items: center;
   gap: 0.5rem;
 }
 
