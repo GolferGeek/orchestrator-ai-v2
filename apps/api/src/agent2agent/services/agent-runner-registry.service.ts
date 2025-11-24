@@ -4,6 +4,7 @@ import { ContextAgentRunnerService } from './context-agent-runner.service';
 import { ApiAgentRunnerService } from './api-agent-runner.service';
 import { ExternalAgentRunnerService } from './external-agent-runner.service';
 import { OrchestratorAgentRunnerService } from './orchestrator-agent-runner.service';
+import { RagAgentRunnerService } from './rag-agent-runner.service';
 
 /**
  * Registry service for agent runners.
@@ -32,6 +33,8 @@ export class AgentRunnerRegistryService {
     private readonly externalAgentRunner: ExternalAgentRunnerService,
     @Inject(forwardRef(() => OrchestratorAgentRunnerService))
     private readonly orchestratorAgentRunner: OrchestratorAgentRunnerService,
+    @Inject(forwardRef(() => RagAgentRunnerService))
+    private readonly ragAgentRunner: RagAgentRunnerService,
   ) {
     this.runners = new Map();
     this.logger.log('AgentRunnerRegistry initialized');
@@ -41,6 +44,7 @@ export class AgentRunnerRegistryService {
     this.registerRunner('api', this.apiAgentRunner);
     this.registerRunner('external', this.externalAgentRunner);
     this.registerRunner('orchestrator', this.orchestratorAgentRunner);
+    this.registerRunner('rag-runner', this.ragAgentRunner);
   }
 
   /**

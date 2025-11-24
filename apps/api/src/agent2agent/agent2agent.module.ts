@@ -10,6 +10,7 @@ import { ContextAgentRunnerService } from './services/context-agent-runner.servi
 import { ApiAgentRunnerService } from './services/api-agent-runner.service';
 import { ExternalAgentRunnerService } from './services/external-agent-runner.service';
 import { OrchestratorAgentRunnerService } from './services/orchestrator-agent-runner.service';
+import { RagAgentRunnerService } from './services/rag-agent-runner.service';
 import { RoutingPolicyAdapterService } from './services/routing-policy-adapter.service';
 import { ApiKeyGuard } from './guards/api-key.guard';
 import { LLMModule } from '../llms/llm.module';
@@ -28,6 +29,7 @@ import { MCPModule } from '../mcp/mcp.module';
 import { HttpModule } from '@nestjs/axios';
 import { StreamingService } from './services/streaming.service';
 import { ObservabilityModule } from '../observability/observability.module';
+import { RagModule } from '../rag/rag.module';
 
 @Module({
   imports: [
@@ -38,6 +40,7 @@ import { ObservabilityModule } from '../observability/observability.module';
     MCPModule,
     HttpModule,
     ObservabilityModule,
+    RagModule,
     // Agent2Agent Sub-modules
     AgentConversationsModule,
     TasksModule,
@@ -55,6 +58,7 @@ import { ObservabilityModule } from '../observability/observability.module';
     ApiAgentRunnerService,
     ExternalAgentRunnerService,
     OrchestratorAgentRunnerService,
+    RagAgentRunnerService,
     RoutingPolicyAdapterService,
     ApiKeyGuard,
     Agent2AgentDeliverablesService,

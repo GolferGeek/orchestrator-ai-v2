@@ -439,6 +439,171 @@ ON CONFLICT (slug) DO UPDATE SET
   metadata = EXCLUDED.metadata,
   updated_at = NOW();
 
+-- =============================================================================
+-- HR POLICY AGENT - RAG Runner Agent
+-- =============================================================================
+-- RAG-based agent that queries the hr-policy knowledge base collection
+-- Answers questions about HR policies, benefits, procedures, etc.
+-- =============================================================================
+
+INSERT INTO public.agents (
+  slug,
+  organization_slug,
+  name,
+  description,
+  version,
+  agent_type,
+  department,
+  tags,
+  io_schema,
+  capabilities,
+  context,
+  llm_config,
+  metadata
+) VALUES (
+  -- Basic identifiers
+  'hr-policy-agent',
+  ARRAY['demo-org', 'orchestratorai']::TEXT[],
+  'HR Policy Assistant',
+  'AI-powered HR assistant that answers questions about company policies, benefits, procedures, and employee guidelines using the HR knowledge base.',
+  '1.0.0',
+  'rag-runner',
+  'hr',
+  ARRAY['hr', 'policy', 'benefits', 'employee', 'knowledge-base', 'rag']::TEXT[],
+
+  -- Input/Output Schema
+  '{
+    "input": {
+      "type": "object",
+      "required": ["question"],
+      "properties": {
+        "question": {
+          "type": "string",
+          "description": "The HR-related question to answer"
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "required": ["message"],
+      "properties": {
+        "message": {
+          "type": "string",
+          "description": "The answer to the HR question"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "document": {"type": "string"},
+              "score": {"type": "number"},
+              "excerpt": {"type": "string"}
+            }
+          },
+          "description": "Source documents used to answer the question"
+        }
+      }
+    }
+  }'::jsonb,
+
+  -- Capabilities
+  ARRAY[
+    'hr-policy-lookup',
+    'benefits-information',
+    'procedure-guidance',
+    'employee-handbook',
+    'plan',
+    'build'
+  ]::TEXT[],
+
+  -- Context (System Prompt)
+  'You are an HR Policy Assistant that helps employees find information about company policies, benefits, and procedures.
+
+## Your Role
+
+You answer questions by searching the HR knowledge base and providing accurate, helpful information based on official company documents.
+
+## Guidelines
+
+1. **Accuracy First**: Only answer based on the information provided in the retrieved documents. Do not make up policies or procedures.
+
+2. **Clear Explanations**: Explain policies in clear, easy-to-understand language while remaining accurate to the source material.
+
+3. **Cite Sources**: When possible, mention which document or policy the information comes from (e.g., "According to the Employee Handbook...").
+
+4. **Limitations**: If the knowledge base does not contain information to answer a question, clearly state that and suggest contacting HR directly.
+
+5. **Confidentiality**: Do not share information that should only be accessed by specific roles or individuals.
+
+6. **Helpful Tone**: Be friendly and professional. Remember that HR questions can be sensitive topics for employees.
+
+## Common Topics
+
+- PTO and leave policies
+- Benefits enrollment and options
+- Expense reimbursement procedures
+- Code of conduct
+- Performance review process
+- Onboarding procedures
+- Remote work policies
+
+## Response Format
+
+Always provide clear, concise answers. If citing multiple policies or documents, organize the information logically.',
+
+  -- LLM Configuration (default to local Ollama gpt-oss:20b for sovereign use)
+  '{
+    "provider": "ollama",
+    "model": "gpt-oss:20b",
+    "parameters": {
+      "temperature": 0.3,
+      "maxTokens": 2000,
+      "topP": 0.9
+    }
+  }'::jsonb,
+
+  -- Metadata (includes RAG configuration)
+  '{
+    "author": "Orchestrator AI Team",
+    "license": "PROPRIETARY",
+    "mode_profile": "full",
+    "execution_capabilities": {
+      "can_converse": true,
+      "can_plan": true,
+      "can_build": true
+    },
+    "rag_config": {
+      "collection_slug": "hr-policy",
+      "top_k": 5,
+      "similarity_threshold": 0.6,
+      "no_results_message": "I could not find information about that in the HR knowledge base. Please contact HR directly for assistance.",
+      "no_access_message": "I do not have access to the HR knowledge base. Please contact HR directly."
+    },
+    "version_history": [
+      {
+        "version": "1.0.0",
+        "date": "2025-01-24",
+        "changes": "Initial release - RAG-based HR policy assistant"
+      }
+    ]
+  }'::jsonb
+)
+ON CONFLICT (slug) DO UPDATE SET
+  organization_slug = EXCLUDED.organization_slug,
+  name = EXCLUDED.name,
+  description = EXCLUDED.description,
+  version = EXCLUDED.version,
+  agent_type = EXCLUDED.agent_type,
+  department = EXCLUDED.department,
+  tags = EXCLUDED.tags,
+  io_schema = EXCLUDED.io_schema,
+  capabilities = EXCLUDED.capabilities,
+  context = EXCLUDED.context,
+  llm_config = EXCLUDED.llm_config,
+  metadata = EXCLUDED.metadata,
+  updated_at = NOW();
+
 -- Verify agents
 DO $$
 BEGIN
@@ -446,7 +611,11 @@ BEGIN
     RAISE EXCEPTION 'Failed to seed blog-post-writer agent';
   END IF;
 
-  RAISE NOTICE 'Successfully seeded 1 agent: blog-post-writer';
+  IF NOT EXISTS (SELECT 1 FROM public.agents WHERE slug = 'hr-policy-agent') THEN
+    RAISE EXCEPTION 'Failed to seed hr-policy-agent';
+  END IF;
+
+  RAISE NOTICE 'Successfully seeded 2 agents: blog-post-writer, hr-policy-agent';
 END $$;
 
 -- =============================================================================
@@ -471,7 +640,9 @@ ON CONFLICT (name) DO UPDATE SET
 
 -- Ollama local models (marked as loaded)
 -- Note: speed_tier 'very-fast' maps to routing tier 'ultra-fast' in local-model-status.service.ts
+-- gpt-oss:20b is the default model for sovereign/internal use
 INSERT INTO public.llm_models (model_name, provider_name, display_name, model_type, context_window, max_output_tokens, speed_tier, is_local, is_currently_loaded, is_active) VALUES
+  ('gpt-oss:20b', 'ollama', 'GPT-OSS 20B', 'text-generation', 32768, 8192, 'medium', true, true, true),
   ('llama3.2:1b', 'ollama', 'Llama 3.2 1B', 'text-generation', 8192, 4096, 'very-fast', true, true, true),
   ('llama3.2:3b', 'ollama', 'Llama 3.2 3B', 'text-generation', 8192, 4096, 'very-fast', true, true, true),
   ('llama3.2:latest', 'ollama', 'Llama 3.2 Latest', 'text-generation', 8192, 4096, 'fast', true, true, true),

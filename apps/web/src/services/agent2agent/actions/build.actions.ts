@@ -8,13 +8,13 @@
  * - Store mutations (update state)
  */
 
-import { tasksService } from '@/services/tasksService';
-import { useConversationsStore } from '@/stores/conversationsStore';
-import { useChatUiStore } from '@/stores/ui/chatUiStore';
-import { useLLMPreferencesStore } from '@/stores/llmPreferencesStore';
-import { useDeliverablesStore } from '@/stores/deliverablesStore';
-import { useErrorStore } from '@/stores/errorStore';
-import { createAgent2AgentApi } from '@/services/agent2agent/api';
+import { tasksService } from "@/services/tasksService";
+import { useConversationsStore } from "@/stores/conversationsStore";
+import { useChatUiStore } from "@/stores/ui/chatUiStore";
+import { useLLMPreferencesStore } from "@/stores/llmPreferencesStore";
+import { useDeliverablesStore } from "@/stores/deliverablesStore";
+import { useErrorStore } from "@/stores/errorStore";
+import { createAgent2AgentApi } from "@/services/agent2agent/api";
 import type {
   DeliverableData,
   DeliverableVersionData,
@@ -22,8 +22,8 @@ import type {
   BuildCreateResponseContent,
   BuildResponseMetadata,
   JsonRpcSuccessResponse,
-  JsonRpcErrorResponse
-} from '@orchestrator-ai/transport-types';
+  JsonRpcErrorResponse,
+} from "@orchestrator-ai/transport-types";
 
 // Local workflow step type for SSE tracking
 interface WorkflowStep {
@@ -55,7 +55,11 @@ export async function createDeliverable(
   userMessage: string,
   planId?: string,
 ): Promise<{ deliverable: DeliverableData; version: DeliverableVersionData }> {
-  console.log('🔨 [Build Create Action] Starting', { agentName, conversationId, planId });
+  console.log("🔨 [Build Create Action] Starting", {
+    agentName,
+    conversationId,
+    planId,
+  });
 
   const conversationsStore = useConversationsStore();
   const chatUiStore = useChatUiStore();
@@ -69,30 +73,33 @@ export async function createDeliverable(
     // 2. Add user message to conversation
     const conversation = conversationsStore.conversationById(conversationId);
     if (!conversation) {
-      throw new Error('Conversation not found');
+      throw new Error("Conversation not found");
     }
 
     conversationsStore.addMessage(conversationId, {
-      role: 'user',
+      role: "user",
       content: userMessage,
       timestamp: new Date().toISOString(),
     });
 
     // 3. Build conversation history
     const messages = conversationsStore.messagesByConversation(conversationId);
-    const conversationHistory = messages.map(msg => ({
+    const conversationHistory = messages.map((msg) => ({
       role: msg.role,
       content: msg.content,
     }));
 
     // 4. Build LLM selection from preferences store
-    const llmSelection = llmStore.selectedProvider && llmStore.selectedModel ? {
-      providerName: llmStore.selectedProvider.name,
-      modelName: llmStore.selectedModel.modelName,
-    } : undefined;
+    const llmSelection =
+      llmStore.selectedProvider && llmStore.selectedModel
+        ? {
+            providerName: llmStore.selectedProvider.name,
+            modelName: llmStore.selectedModel.modelName,
+          }
+        : undefined;
 
     // 5. Set up for SSE connection (if using real-time/polling mode)
-    const executionMode = chatUiStore.executionMode || 'polling';
+    const executionMode = chatUiStore.executionMode || "polling";
     const workflowSteps = new Map<number, WorkflowStep>();
     let assistantMessageId: string | null = null;
 
@@ -101,34 +108,39 @@ export async function createDeliverable(
 
     // Create assistant message upfront (will be updated with deliverable when complete)
     const assistantMessage = conversationsStore.addMessage(conversationId, {
-      role: 'assistant',
-      content: 'Processing your request...',
+      role: "assistant",
+      content: "Processing your request...",
       timestamp: new Date().toISOString(),
       metadata: {
         taskId,
-        mode: 'build',
+        mode: "build",
         workflow_steps_realtime: [],
-        provider: llmSelection?.providerName || 'n8n',
-        model: llmSelection?.modelName || 'workflow',
+        provider: llmSelection?.providerName || "n8n",
+        model: llmSelection?.modelName || "workflow",
       },
     });
     assistantMessageId = assistantMessage.id;
 
     // 6. Start API call and SSE connection in parallel
-    console.log('📤 [Build Create Action] Starting task with execution mode:', executionMode, 'taskId:', taskId);
-    console.log('📤 [Build Create Action] Request details:', {
+    console.log(
+      "📤 [Build Create Action] Starting task with execution mode:",
+      executionMode,
+      "taskId:",
+      taskId,
+    );
+    console.log("📤 [Build Create Action] Request details:", {
       agentName,
       conversationId,
-      userMessage: userMessage.substring(0, 100) + '...',
+      userMessage: userMessage.substring(0, 100) + "...",
       executionMode,
       hasLLMSelection: !!llmSelection,
     });
 
     const resultPromise = tasksService.createAgentTask(
-      conversation.agentType || 'custom',
+      conversation.agentType || "custom",
       agentName,
       {
-        method: 'build',
+        method: "build",
         prompt: userMessage,
         conversationId,
         conversationHistory,
@@ -137,105 +149,139 @@ export async function createDeliverable(
         executionMode,
         taskId,
       },
-      { organization: conversation.organizationSlug || 'global' }
+      { organization: conversation.organizationSlug || "global" },
     );
 
     // 7. If using SSE mode, connect for progress updates (in parallel with API call)
     // Note: API now returns synchronously with deliverable, SSE is only for progress updates
-    if (executionMode === 'real-time' || executionMode === 'polling') {
-      const { A2AStreamHandler } = await import('@/services/agent2agent/sse/a2aStreamHandler');
+    if (executionMode === "real-time" || executionMode === "polling") {
+      const { A2AStreamHandler } = await import(
+        "@/services/agent2agent/sse/a2aStreamHandler"
+      );
       const streamHandler = new A2AStreamHandler();
-      const orgSlug = conversation.organizationSlug || 'global';
+      const orgSlug = conversation.organizationSlug || "global";
       const streamId = taskId;
 
       // Retry connection with exponential backoff
       const connectWithRetry = async (attempt = 1, maxAttempts = 5) => {
         const delay = Math.min(100 * Math.pow(2, attempt - 1), 2000); // 100ms, 200ms, 400ms, 800ms, 1600ms
-        console.log(`📡 [Build Create Action] SSE connection attempt ${attempt}/${maxAttempts} (delay: ${delay}ms)`);
+        console.log(
+          `📡 [Build Create Action] SSE connection attempt ${attempt}/${maxAttempts} (delay: ${delay}ms)`,
+        );
 
-        await new Promise(resolve => setTimeout(resolve, delay));
+        await new Promise((resolve) => setTimeout(resolve, delay));
 
         try {
           await streamHandler.connect({
-        metadata: {
-          streamId,
-          taskId,
-          agentSlug: agentName,
-          conversationId,
-          organizationSlug: orgSlug,
-          streamUrl: `/agent-to-agent/${orgSlug}/${agentName}/tasks/${taskId}/stream?streamId=${streamId}`,
-          streamTokenUrl: `/agent-to-agent/${orgSlug}/${agentName}/tasks/${taskId}/stream-token`,
-        },
-        onChunk: (data) => {
-          console.log('📨 [Build Create Action] Received SSE chunk:', data);
+            metadata: {
+              streamId,
+              taskId,
+              agentSlug: agentName,
+              conversationId,
+              organizationSlug: orgSlug,
+              streamUrl: `/agent-to-agent/${orgSlug}/${agentName}/tasks/${taskId}/stream?streamId=${streamId}`,
+              streamTokenUrl: `/agent-to-agent/${orgSlug}/${agentName}/tasks/${taskId}/stream-token`,
+            },
+            onChunk: (data) => {
+              console.log("📨 [Build Create Action] Received SSE chunk:", data);
 
-          const chunk = data.chunk;
-          if (chunk?.metadata) {
-            const { step, sequence, totalSteps, status, progress } = chunk.metadata;
-            const stepName = step || chunk.content || 'Processing';
+              const chunk = data.chunk;
+              if (chunk?.metadata) {
+                const { step, sequence, totalSteps, status, progress } =
+                  chunk.metadata;
+                const stepName = step || chunk.content || "Processing";
 
-            let stepStatus: 'pending' | 'in_progress' | 'completed' | 'failed' = 'in_progress';
-            if (status === 'completed' || progress === 100) {
-              stepStatus = 'completed';
-            } else if (status === 'failed' || status === 'error') {
-              stepStatus = 'failed';
-            }
+                let stepStatus:
+                  | "pending"
+                  | "in_progress"
+                  | "completed"
+                  | "failed" = "in_progress";
+                if (status === "completed" || progress === 100) {
+                  stepStatus = "completed";
+                } else if (status === "failed" || status === "error") {
+                  stepStatus = "failed";
+                }
 
-            const stepIndex = (sequence || 1) - 1;
-            workflowSteps.set(stepIndex, {
-              stepName,
-              stepIndex,
-              totalSteps: totalSteps || workflowSteps.size + 1,
-              status: stepStatus,
-              message: chunk.content,
-              timestamp: new Date().toISOString(),
-            });
+                const stepIndex = (sequence || 1) - 1;
+                workflowSteps.set(stepIndex, {
+                  stepName,
+                  stepIndex,
+                  totalSteps: totalSteps || workflowSteps.size + 1,
+                  status: stepStatus,
+                  message: chunk.content,
+                  timestamp: new Date().toISOString(),
+                });
 
-            const stepsArray = Array.from(workflowSteps.values()).sort((a, b) => a.stepIndex - b.stepIndex);
+                const stepsArray = Array.from(workflowSteps.values()).sort(
+                  (a, b) => a.stepIndex - b.stepIndex,
+                );
 
-            if (assistantMessageId) {
-              // Create a new array reference to ensure Vue reactivity
-              conversationsStore.updateMessageMetadata(conversationId, assistantMessageId, {
-                workflow_steps_realtime: [...stepsArray], // Spread to create new array reference
-              });
-              
-              console.log('✅ [Build Create Action] Updated workflow steps in store:', {
-                conversationId,
-                messageId: assistantMessageId,
-                stepCount: stepsArray.length,
-                steps: stepsArray.map(s => ({ name: s.stepName, status: s.status, progress: s.stepIndex + 1 })),
-              });
-            } else {
-              console.warn('⚠️ [Build Create Action] No assistantMessageId available for workflow step update');
-            }
-          }
-        },
+                if (assistantMessageId) {
+                  // Create a new array reference to ensure Vue reactivity
+                  conversationsStore.updateMessageMetadata(
+                    conversationId,
+                    assistantMessageId,
+                    {
+                      workflow_steps_realtime: [...stepsArray], // Spread to create new array reference
+                    },
+                  );
+
+                  console.log(
+                    "✅ [Build Create Action] Updated workflow steps in store:",
+                    {
+                      conversationId,
+                      messageId: assistantMessageId,
+                      stepCount: stepsArray.length,
+                      steps: stepsArray.map((s) => ({
+                        name: s.stepName,
+                        status: s.status,
+                        progress: s.stepIndex + 1,
+                      })),
+                    },
+                  );
+                } else {
+                  console.warn(
+                    "⚠️ [Build Create Action] No assistantMessageId available for workflow step update",
+                  );
+                }
+              }
+            },
             onComplete: (data) => {
-              console.log('✅ [Build Create Action] SSE stream completed:', data);
+              console.log(
+                "✅ [Build Create Action] SSE stream completed:",
+                data,
+              );
               // Note: Deliverable is now returned synchronously in the API response
               // SSE is only used for progress updates, not for deliverable delivery
               streamHandler.disconnect();
             },
             onError: (data) => {
-              console.error('❌ [Build Create Action] SSE stream error:', data);
+              console.error("❌ [Build Create Action] SSE stream error:", data);
               streamHandler.disconnect();
             },
           });
-          console.log(`✅ [Build Create Action] SSE connection established on attempt ${attempt}`);
+          console.log(
+            `✅ [Build Create Action] SSE connection established on attempt ${attempt}`,
+          );
         } catch (error) {
-          console.error(`❌ [Build Create Action] SSE connection attempt ${attempt} failed:`, error);
+          console.error(
+            `❌ [Build Create Action] SSE connection attempt ${attempt} failed:`,
+            error,
+          );
           if (attempt < maxAttempts) {
             return connectWithRetry(attempt + 1, maxAttempts);
           } else {
-            console.error('❌ [Build Create Action] Max SSE connection attempts reached, giving up');
+            console.error(
+              "❌ [Build Create Action] Max SSE connection attempts reached, giving up",
+            );
           }
         }
       };
 
       // Start connection in background (don't await - run in parallel)
       // SSE is only for progress updates, deliverable comes in API response
-      connectWithRetry().catch(err => {
-        console.error('❌ [Build Create Action] SSE connection failed:', err);
+      connectWithRetry().catch((err) => {
+        console.error("❌ [Build Create Action] SSE connection failed:", err);
       });
     }
 
@@ -245,94 +291,126 @@ export async function createDeliverable(
       // Add timeout to prevent hanging (60 seconds for build operations)
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => {
-          reject(new Error('Request timeout: The build request took too long to complete. Please try again.'));
+          reject(
+            new Error(
+              "Request timeout: The build request took too long to complete. Please try again.",
+            ),
+          );
         }, 60000); // 60 second timeout
       });
 
       result = await Promise.race([resultPromise, timeoutPromise]);
-      console.log('✅ [Build Create Action] API call completed successfully');
+      console.log("✅ [Build Create Action] API call completed successfully");
     } catch (error) {
-      console.error('❌ [Build Create Action] API call failed:', error);
-      console.error('❌ [Build Create Action] Error details:', {
+      console.error("❌ [Build Create Action] API call failed:", error);
+      console.error("❌ [Build Create Action] Error details:", {
         message: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
         name: error instanceof Error ? error.name : undefined,
       });
       chatUiStore.setIsSendingMessage(false);
-      
+
       // Extract meaningful error message
-      let errorMessage = 'Failed to create deliverable';
+      let errorMessage = "Failed to create deliverable";
       if (error instanceof Error) {
         errorMessage = error.message;
         // Check for specific error types
-        if (error.message.includes('timeout')) {
-          errorMessage = 'Request timeout: The build request took too long. The server may be processing your request. Please check back in a moment.';
-        } else if (error.message.includes('Network Error') || error.message.includes('ERR_NETWORK')) {
-          errorMessage = 'Network error: Unable to connect to the server. Please check your internet connection.';
-        } else if (error.message.includes('401') || error.message.includes('Unauthorized')) {
-          errorMessage = 'Authentication error: Please log in again.';
-        } else if (error.message.includes('500')) {
-          errorMessage = 'Server error: The server encountered an error processing your request. Please try again.';
+        if (error.message.includes("timeout")) {
+          errorMessage =
+            "Request timeout: The build request took too long. The server may be processing your request. Please check back in a moment.";
+        } else if (
+          error.message.includes("Network Error") ||
+          error.message.includes("ERR_NETWORK")
+        ) {
+          errorMessage =
+            "Network error: Unable to connect to the server. Please check your internet connection.";
+        } else if (
+          error.message.includes("401") ||
+          error.message.includes("Unauthorized")
+        ) {
+          errorMessage = "Authentication error: Please log in again.";
+        } else if (error.message.includes("500")) {
+          errorMessage =
+            "Server error: The server encountered an error processing your request. Please try again.";
         }
       }
-      
+
       conversationsStore.setError(errorMessage);
       // Also log to error store for better tracking
       const errorStore = useErrorStore();
       if (error instanceof Error) {
         errorStore.addError(error, {
-          component: 'build.actions',
+          component: "build.actions",
           url: window.location.href,
         });
       }
       throw error;
     }
 
-    console.log('📥 [Build Create Action] Task response:', result);
-    console.log('📥 [Build Create Action] Execution mode was:', executionMode);
-    console.log('📥 [Build Create Action] Response keys:', Object.keys(result || {}));
-    console.log('📥 [Build Create Action] Response type:', typeof result);
-    console.log('📥 [Build Create Action] Full response:', JSON.stringify(result, null, 2));
+    console.log("📥 [Build Create Action] Task response:", result);
+    console.log("📥 [Build Create Action] Execution mode was:", executionMode);
+    console.log(
+      "📥 [Build Create Action] Response keys:",
+      Object.keys(result || {}),
+    );
+    console.log("📥 [Build Create Action] Response type:", typeof result);
+    console.log(
+      "📥 [Build Create Action] Full response:",
+      JSON.stringify(result, null, 2),
+    );
 
     // 9. Parse result - tasksService.createAgentTask now handles JSON-RPC extraction
     // It returns: { taskId, conversationId, status, result: TaskResponseDto }
     // So we need to extract result.result to get the TaskResponseDto
     let parsedResult: unknown = result.result;
-    
+
     // Handle case where result might be undefined or null
     if (!parsedResult) {
-      console.error('❌ [Build Create Action] No result in response:', result);
-      const errorMessage = (result as { error?: string })?.error || 'No result from API';
+      console.error("❌ [Build Create Action] No result in response:", result);
+      const errorMessage =
+        (result as { error?: string })?.error || "No result from API";
       conversationsStore.setError(errorMessage);
       throw new Error(errorMessage);
     }
 
     // If parsedResult is a string, try to parse it
-    if (typeof parsedResult === 'string') {
+    if (typeof parsedResult === "string") {
       try {
         parsedResult = JSON.parse(parsedResult);
       } catch {
-        console.warn('📦 [Build Create Action] Backend returned non-JSON string:', parsedResult?.substring(0, 200));
+        console.warn(
+          "📦 [Build Create Action] Backend returned non-JSON string:",
+          parsedResult?.substring(0, 200),
+        );
       }
     }
 
-    console.log('📦 [Build Create Action] Full result from backend:', result);
-    console.log('📦 [Build Create Action] Parsed result (TaskResponseDto):', parsedResult);
-    console.log('📦 [Build Create Action] Result keys:', Object.keys(parsedResult || {}));
+    console.log("📦 [Build Create Action] Full result from backend:", result);
+    console.log(
+      "📦 [Build Create Action] Parsed result (TaskResponseDto):",
+      parsedResult,
+    );
+    console.log(
+      "📦 [Build Create Action] Result keys:",
+      Object.keys(parsedResult || {}),
+    );
 
     // Parse as TaskResponse with BuildCreateResponseContent
     // parsedResult should now be the TaskResponseDto: { success, mode, payload: { content, metadata }, humanResponse? }
     const taskResponse = parsedResult as TaskResponse;
-    const buildContent = taskResponse?.payload?.content as BuildCreateResponseContent;
+    const buildContent = taskResponse?.payload
+      ?.content as BuildCreateResponseContent;
     const metadata = taskResponse?.payload?.metadata as BuildResponseMetadata;
 
     // Check if the response indicates failure
     if (!taskResponse || !taskResponse.success || !buildContent) {
       // Check for JSON-RPC error format
-      if (result && typeof result === 'object' && 'error' in result) {
-        const jsonRpcError = (result as { error: { message?: string; code?: number } }).error;
-        const errorMessage = jsonRpcError?.message || 'API call failed';
-        console.error('❌ [Build Create Action] JSON-RPC error response:', {
+      if (result && typeof result === "object" && "error" in result) {
+        const jsonRpcError = (
+          result as { error: { message?: string; code?: number } }
+        ).error;
+        const errorMessage = jsonRpcError?.message || "API call failed";
+        console.error("❌ [Build Create Action] JSON-RPC error response:", {
           error: jsonRpcError,
           fullResult: result,
         });
@@ -340,53 +418,126 @@ export async function createDeliverable(
         throw new Error(errorMessage);
       }
 
-      const errorReason = taskResponse?.error?.message ||
-                          metadata?.reason ||
-                          (result && typeof result === 'object' && 'error' in result 
-                            ? (result as { error: { message?: string } }).error?.message 
-                            : undefined) ||
-                          'Unknown error';
-      
-      const errorMessage = errorReason || 'API call failed';
-      console.error('❌ [Build Create Action] Backend returned failure:', {
+      const errorReason =
+        taskResponse?.error?.message ||
+        metadata?.reason ||
+        (result && typeof result === "object" && "error" in result
+          ? (result as { error: { message?: string } }).error?.message
+          : undefined) ||
+        "Unknown error";
+
+      const errorMessage = errorReason || "API call failed";
+      console.error("❌ [Build Create Action] Backend returned failure:", {
         success: taskResponse?.success,
         error: errorMessage,
         fullResult: parsedResult,
         rawResult: result,
       });
-      
+
       // Check if streaming is available (for polling mode)
       const streamingInfo = metadata?.streaming;
       if (streamingInfo) {
-        console.log('ℹ️ [Build Create Action] Streaming endpoints available, task may still be processing:', streamingInfo);
+        console.log(
+          "ℹ️ [Build Create Action] Streaming endpoints available, task may still be processing:",
+          streamingInfo,
+        );
         // Don't throw error - let the streaming handle it
         // Return a placeholder response that indicates streaming is in progress
         return { deliverable: null, version: null };
       }
-      
+
       conversationsStore.setError(errorMessage);
       throw new Error(errorMessage);
     }
 
-    const thinkingContent = (taskResponse?.humanResponse as { thinking?: string })?.thinking;
-    const assistantContent = taskResponse?.humanResponse?.message || 'Deliverable created successfully';
+    const thinkingContent = (
+      taskResponse?.humanResponse as { thinking?: string }
+    )?.thinking;
+    const assistantContent =
+      taskResponse?.humanResponse?.message ||
+      "Deliverable created successfully";
 
     // Extract deliverable and version from proper transport type structure
     const deliverable = buildContent?.deliverable;
     const version = buildContent?.version;
 
-    console.log('📦 [Build Create Action] Extracted:', { deliverable, version, thinking: thinkingContent });
+    // Check if this is a conversational response (e.g., from RAG agent)
+    const isConversational = (buildContent as { isConversational?: boolean })
+      ?.isConversational;
+    const conversationalMessage = (buildContent as { message?: string })
+      ?.message;
+
+    console.log("📦 [Build Create Action] Extracted:", {
+      deliverable,
+      version,
+      thinking: thinkingContent,
+      isConversational,
+      conversationalMessage,
+    });
+
+    // Handle conversational responses (e.g., RAG agents) - no deliverable, just a message
+    if (isConversational && conversationalMessage) {
+      console.log(
+        "💬 [Build Create Action] Conversational response from agent:",
+        conversationalMessage,
+      );
+
+      // Update the assistant message with the conversational content
+      if (assistantMessageId) {
+        const messages =
+          conversationsStore.messagesByConversation(conversationId);
+        const message = messages.find((m) => m.id === assistantMessageId);
+
+        if (message) {
+          conversationsStore.updateMessageMetadata(
+            conversationId,
+            assistantMessageId,
+            {
+              taskId: result.taskId,
+              thinking: thinkingContent,
+              provider: metadata?.provider || message.metadata?.provider,
+              model: metadata?.model || message.metadata?.model,
+              workflow_steps_realtime: Array.from(workflowSteps.values()).sort(
+                (a, b) => (a.stepIndex || 0) - (b.stepIndex || 0),
+              ),
+              isConversational: true,
+              sources: (buildContent as { sources?: unknown[] })?.sources,
+            },
+          );
+
+          conversationsStore.updateMessage(conversationId, assistantMessageId, {
+            content: conversationalMessage,
+          });
+        }
+      }
+
+      console.log("💬 [Build Create Action] Conversational response complete");
+      chatUiStore.setIsSendingMessage(false);
+
+      // Return null for deliverable/version since this is conversational
+      return {
+        deliverable: null as unknown as DeliverableData,
+        version: null as unknown as DeliverableVersionData,
+      };
+    }
 
     if (!deliverable || !version) {
       // For real-time/polling mode, the API now returns synchronously with the deliverable
       // If it's not here, something went wrong
-      console.error('❌ [Build Create Action] Could not find deliverable in response. Full result:', JSON.stringify(parsedResult, null, 2));
-      const errorMessage = metadata?.reason || 'No deliverable or version in response';
+      console.error(
+        "❌ [Build Create Action] Could not find deliverable in response. Full result:",
+        JSON.stringify(parsedResult, null, 2),
+      );
+      const errorMessage =
+        metadata?.reason || "No deliverable or version in response";
       conversationsStore.setError(errorMessage);
       throw new Error(errorMessage);
     }
 
-    console.log('✅ [Build Create Action] Deliverable extracted:', { deliverable, version });
+    console.log("✅ [Build Create Action] Deliverable extracted:", {
+      deliverable,
+      version,
+    });
 
     // 7. Enrich version with LLM metadata from response
     const enrichedVersion: DeliverableVersionData = {
@@ -399,7 +550,10 @@ export async function createDeliverable(
       },
     };
 
-    console.log('✅ [Build Create Action] Enriched version metadata:', enrichedVersion?.metadata);
+    console.log(
+      "✅ [Build Create Action] Enriched version metadata:",
+      enrichedVersion?.metadata,
+    );
 
     // 8. Update deliverables store
     deliverablesStore.addDeliverable(deliverable);
@@ -407,24 +561,34 @@ export async function createDeliverable(
     deliverablesStore.setCurrentVersion(deliverable.id, enrichedVersion.id);
 
     // Associate deliverable with conversation
-    deliverablesStore.associateDeliverableWithConversation(deliverable.id, conversationId);
+    deliverablesStore.associateDeliverableWithConversation(
+      deliverable.id,
+      conversationId,
+    );
 
     // 9. Update the existing assistant message with deliverable and final content
     if (assistantMessageId) {
       // Get current message to preserve existing data
-      const messages = conversationsStore.messagesByConversation(conversationId);
-      const message = messages.find(m => m.id === assistantMessageId);
+      const messages =
+        conversationsStore.messagesByConversation(conversationId);
+      const message = messages.find((m) => m.id === assistantMessageId);
 
       if (message) {
         // Update message metadata
-        conversationsStore.updateMessageMetadata(conversationId, assistantMessageId, {
-          taskId: result.taskId,
-          deliverableId: deliverable.id,
-          thinking: thinkingContent,
-          provider: metadata?.provider || message.metadata?.provider,
-          model: metadata?.model || message.metadata?.model,
-          workflow_steps_realtime: Array.from(workflowSteps.values()).sort((a, b) => (a.stepIndex || 0) - (b.stepIndex || 0)),
-        });
+        conversationsStore.updateMessageMetadata(
+          conversationId,
+          assistantMessageId,
+          {
+            taskId: result.taskId,
+            deliverableId: deliverable.id,
+            thinking: thinkingContent,
+            provider: metadata?.provider || message.metadata?.provider,
+            model: metadata?.model || message.metadata?.model,
+            workflow_steps_realtime: Array.from(workflowSteps.values()).sort(
+              (a, b) => (a.stepIndex || 0) - (b.stepIndex || 0),
+            ),
+          },
+        );
 
         // Update content and deliverableId
         conversationsStore.updateMessage(conversationId, assistantMessageId, {
@@ -434,15 +598,17 @@ export async function createDeliverable(
       }
     }
 
-    console.log('💾 [Build Create Action] Complete');
+    console.log("💾 [Build Create Action] Complete");
 
     chatUiStore.setIsSendingMessage(false);
 
     return { deliverable, version: enrichedVersion };
   } catch (error) {
-    console.error('❌ [Build Create Action] Error:', error);
+    console.error("❌ [Build Create Action] Error:", error);
     chatUiStore.setIsSendingMessage(false);
-    conversationsStore.setError(error instanceof Error ? error.message : 'Failed to create deliverable');
+    conversationsStore.setError(
+      error instanceof Error ? error.message : "Failed to create deliverable",
+    );
     throw error;
   }
 }
@@ -460,21 +626,25 @@ export async function readDeliverable(
   deliverableId: string,
   versionId?: string,
 ): Promise<{ deliverable: DeliverableData; version?: DeliverableVersionData }> {
-  console.log('📖 [Build Read Action] Starting', { agentName, deliverableId, versionId });
+  console.log("📖 [Build Read Action] Starting", {
+    agentName,
+    deliverableId,
+    versionId,
+  });
 
   const api = createAgent2AgentApi(agentName);
   const response = await api.deliverables.read(deliverableId, versionId);
 
   if (!response.success) {
-    console.error('❌ [Build Read Action] Failed:', response.error);
-    throw new Error(response.error?.message || 'Failed to read deliverable');
+    console.error("❌ [Build Read Action] Failed:", response.error);
+    throw new Error(response.error?.message || "Failed to read deliverable");
   }
 
   const deliverable = response.payload?.deliverable;
   const version = response.payload?.version;
 
   if (!deliverable) {
-    throw new Error('No deliverable in response');
+    throw new Error("No deliverable in response");
   }
 
   // Update store with latest data
@@ -485,7 +655,7 @@ export async function readDeliverable(
     deliverablesStore.addVersion(deliverable.id, version);
   }
 
-  console.log('✅ [Build Read Action] Complete');
+  console.log("✅ [Build Read Action] Complete");
 
   return { deliverable, version };
 }
@@ -505,21 +675,25 @@ export async function editDeliverable(
   editInstructions: string,
   conversationId: string,
 ): Promise<{ deliverable: DeliverableData; version: DeliverableVersionData }> {
-  console.log('✏️ [Build Edit Action] Starting', { agentName, deliverableId });
+  console.log("✏️ [Build Edit Action] Starting", { agentName, deliverableId });
 
   const api = createAgent2AgentApi(agentName);
-  const response = await api.deliverables.edit(deliverableId, editInstructions, conversationId);
+  const response = await api.deliverables.edit(
+    deliverableId,
+    editInstructions,
+    conversationId,
+  );
 
   if (!response.success) {
-    console.error('❌ [Build Edit Action] Failed:', response.error);
-    throw new Error(response.error?.message || 'Failed to edit deliverable');
+    console.error("❌ [Build Edit Action] Failed:", response.error);
+    throw new Error(response.error?.message || "Failed to edit deliverable");
   }
 
   const deliverable = response.payload?.deliverable;
   const version = response.payload?.version;
 
   if (!deliverable || !version) {
-    throw new Error('No deliverable or version in response');
+    throw new Error("No deliverable or version in response");
   }
 
   // Update store
@@ -528,7 +702,7 @@ export async function editDeliverable(
   deliverablesStore.addVersion(deliverable.id, version);
   deliverablesStore.setCurrentVersion(deliverable.id, version.id);
 
-  console.log('✅ [Build Edit Action] Complete');
+  console.log("✅ [Build Edit Action] Complete");
 
   return { deliverable, version };
 }
@@ -544,14 +718,14 @@ export async function listDeliverables(
   agentName: string,
   conversationId: string,
 ): Promise<DeliverableData[]> {
-  console.log('📋 [Build List Action] Starting', { agentName, conversationId });
+  console.log("📋 [Build List Action] Starting", { agentName, conversationId });
 
   const api = createAgent2AgentApi(agentName);
   const response = await api.deliverables.list(conversationId);
 
   if (!response.success) {
-    console.error('❌ [Build List Action] Failed:', response.error);
-    throw new Error(response.error?.message || 'Failed to list deliverables');
+    console.error("❌ [Build List Action] Failed:", response.error);
+    throw new Error(response.error?.message || "Failed to list deliverables");
   }
 
   const deliverables = response.payload?.deliverables || [];
@@ -560,10 +734,13 @@ export async function listDeliverables(
   const deliverablesStore = useDeliverablesStore();
   deliverables.forEach((deliverable: DeliverableData) => {
     deliverablesStore.addDeliverable(deliverable);
-    deliverablesStore.associateDeliverableWithConversation(deliverable.id, conversationId);
+    deliverablesStore.associateDeliverableWithConversation(
+      deliverable.id,
+      conversationId,
+    );
   });
 
-  console.log('✅ [Build List Action] Complete, found', deliverables.length);
+  console.log("✅ [Build List Action] Complete, found", deliverables.length);
 
   return deliverables;
 }
@@ -583,19 +760,39 @@ export async function rerunDeliverable(
   conversationId: string,
   deliverableId: string,
   versionId: string,
-  llmConfig: { provider: string; model: string; temperature?: number; maxTokens?: number },
+  llmConfig: {
+    provider: string;
+    model: string;
+    temperature?: number;
+    maxTokens?: number;
+  },
   userMessage?: string,
 ): Promise<{ deliverable: DeliverableData; version: DeliverableVersionData }> {
-  console.log('🔄 [Build Rerun Action] Starting', { agentName, conversationId, deliverableId, versionId, llmConfig, userMessage });
+  console.log("🔄 [Build Rerun Action] Starting", {
+    agentName,
+    conversationId,
+    deliverableId,
+    versionId,
+    llmConfig,
+    userMessage,
+  });
 
   const api = createAgent2AgentApi(agentName);
-  const response = await api.deliverables.rerun(conversationId, versionId, llmConfig, userMessage);
+  const response = await api.deliverables.rerun(
+    conversationId,
+    versionId,
+    llmConfig,
+    userMessage,
+  );
 
-  console.log('🔍 [Build Rerun Action] Response:', JSON.stringify(response, null, 2));
+  console.log(
+    "🔍 [Build Rerun Action] Response:",
+    JSON.stringify(response, null, 2),
+  );
 
   if (!response.success) {
-    console.error('❌ [Build Rerun Action] Failed:', response.error);
-    throw new Error(response.error?.message || 'Failed to rerun deliverable');
+    console.error("❌ [Build Rerun Action] Failed:", response.error);
+    throw new Error(response.error?.message || "Failed to rerun deliverable");
   }
 
   // The API client returns { success: true, data: content }
@@ -604,22 +801,28 @@ export async function rerunDeliverable(
   const version = response.data?.version;
 
   if (!deliverable || !version) {
-    console.error('❌ [Build Rerun Action] Missing data. Response structure:', response);
-    throw new Error('No deliverable or version in response');
+    console.error(
+      "❌ [Build Rerun Action] Missing data. Response structure:",
+      response,
+    );
+    throw new Error("No deliverable or version in response");
   }
 
   // Enrich version with LLM metadata from response
   // Response.data contains the deliverable/version with metadata already populated by backend
   const enrichedVersion: DeliverableVersionData = version;
 
-  console.log('✅ [Build Rerun Action] Enriched version metadata:', enrichedVersion.metadata);
+  console.log(
+    "✅ [Build Rerun Action] Enriched version metadata:",
+    enrichedVersion.metadata,
+  );
 
   // Update store
   const deliverablesStore = useDeliverablesStore();
   deliverablesStore.addDeliverable(deliverable);
   deliverablesStore.addVersion(deliverable.id, enrichedVersion);
 
-  console.log('✅ [Build Rerun Action] Complete');
+  console.log("✅ [Build Rerun Action] Complete");
 
   return { deliverable, version: enrichedVersion };
 }
@@ -636,31 +839,43 @@ export async function setCurrentVersion(
   deliverableId: string,
   versionId: string,
 ): Promise<void> {
-  console.log('🔖 [Build Set Current Action] Starting', { agentName, deliverableId, versionId });
+  console.log("🔖 [Build Set Current Action] Starting", {
+    agentName,
+    deliverableId,
+    versionId,
+  });
 
   const api = createAgent2AgentApi(agentName);
-  const jsonRpcResponse = await api.deliverables.setCurrent(deliverableId, versionId) as JsonRpcSuccessResponse<{ success: boolean }> | JsonRpcErrorResponse;
+  const jsonRpcResponse = (await api.deliverables.setCurrent(
+    deliverableId,
+    versionId,
+  )) as JsonRpcSuccessResponse<{ success: boolean }> | JsonRpcErrorResponse;
 
-  console.log('🔖 [Build Set Current Action] Response:', jsonRpcResponse);
+  console.log("🔖 [Build Set Current Action] Response:", jsonRpcResponse);
 
   // Handle JSON-RPC response format
-  if ('error' in jsonRpcResponse) {
-    console.error('❌ [Build Set Current Action] Failed:', jsonRpcResponse.error);
-    throw new Error(jsonRpcResponse.error?.message || 'Failed to set current version');
+  if ("error" in jsonRpcResponse) {
+    console.error(
+      "❌ [Build Set Current Action] Failed:",
+      jsonRpcResponse.error,
+    );
+    throw new Error(
+      jsonRpcResponse.error?.message || "Failed to set current version",
+    );
   }
 
   const response = jsonRpcResponse.result;
 
   if (!response.success) {
-    console.error('❌ [Build Set Current Action] Failed:', response);
-    throw new Error('Failed to set current version');
+    console.error("❌ [Build Set Current Action] Failed:", response);
+    throw new Error("Failed to set current version");
   }
 
   // Update store
   const deliverablesStore = useDeliverablesStore();
   deliverablesStore.setCurrentVersion(deliverableId, versionId);
 
-  console.log('✅ [Build Set Current Action] Complete');
+  console.log("✅ [Build Set Current Action] Complete");
 }
 
 /**
@@ -675,31 +890,43 @@ export async function deleteVersion(
   deliverableId: string,
   versionId: string,
 ): Promise<void> {
-  console.log('🗑️  [Build Delete Version Action] Starting', { agentName, deliverableId, versionId });
+  console.log("🗑️  [Build Delete Version Action] Starting", {
+    agentName,
+    deliverableId,
+    versionId,
+  });
 
   const api = createAgent2AgentApi(agentName);
-  const jsonRpcResponse = await api.deliverables.deleteVersion(deliverableId, versionId) as JsonRpcSuccessResponse<{ success: boolean }> | JsonRpcErrorResponse;
+  const jsonRpcResponse = (await api.deliverables.deleteVersion(
+    deliverableId,
+    versionId,
+  )) as JsonRpcSuccessResponse<{ success: boolean }> | JsonRpcErrorResponse;
 
-  console.log('🗑️  [Build Delete Version Action] Response:', jsonRpcResponse);
+  console.log("🗑️  [Build Delete Version Action] Response:", jsonRpcResponse);
 
   // Handle JSON-RPC response format
-  if ('error' in jsonRpcResponse) {
-    console.error('❌ [Build Delete Version Action] Failed:', jsonRpcResponse.error);
-    throw new Error(jsonRpcResponse.error?.message || 'Failed to delete version');
+  if ("error" in jsonRpcResponse) {
+    console.error(
+      "❌ [Build Delete Version Action] Failed:",
+      jsonRpcResponse.error,
+    );
+    throw new Error(
+      jsonRpcResponse.error?.message || "Failed to delete version",
+    );
   }
 
   const response = jsonRpcResponse.result;
 
   if (!response.success) {
-    console.error('❌ [Build Delete Version Action] Failed:', response);
-    throw new Error('Failed to delete version');
+    console.error("❌ [Build Delete Version Action] Failed:", response);
+    throw new Error("Failed to delete version");
   }
 
   // Update store
   const deliverablesStore = useDeliverablesStore();
   deliverablesStore.removeVersion(deliverableId, versionId);
 
-  console.log('✅ [Build Delete Version Action] Complete');
+  console.log("✅ [Build Delete Version Action] Complete");
 }
 
 /**
@@ -712,19 +939,22 @@ export async function deleteDeliverable(
   agentName: string,
   deliverableId: string,
 ): Promise<void> {
-  console.log('🗑️  [Build Delete Action] Starting', { agentName, deliverableId });
+  console.log("🗑️  [Build Delete Action] Starting", {
+    agentName,
+    deliverableId,
+  });
 
   const api = createAgent2AgentApi(agentName);
   const response = await api.deliverables.delete(deliverableId);
 
   if (!response.success) {
-    console.error('❌ [Build Delete Action] Failed:', response.error);
-    throw new Error(response.error?.message || 'Failed to delete deliverable');
+    console.error("❌ [Build Delete Action] Failed:", response.error);
+    throw new Error(response.error?.message || "Failed to delete deliverable");
   }
 
   // Update store
   const deliverablesStore = useDeliverablesStore();
   deliverablesStore.removeDeliverable(deliverableId);
 
-  console.log('✅ [Build Delete Action] Complete');
+  console.log("✅ [Build Delete Action] Complete");
 }

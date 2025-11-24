@@ -325,8 +325,33 @@ export abstract class BaseAgentRunner implements IAgentRunner {
 
     try {
       switch (action) {
-        case 'create':
-          return await this.executeBuild(definition, request, organizationSlug);
+        case 'create': {
+          const result = await this.executeBuild(
+            definition,
+            request,
+            organizationSlug,
+          );
+          // Add humanResponse for conversational build responses at the base level
+          const buildContent = result.payload?.content as
+            | {
+                deliverable?: unknown;
+                message?: string;
+                isConversational?: boolean;
+              }
+            | undefined;
+          if (
+            result.success &&
+            buildContent?.isConversational &&
+            buildContent?.message &&
+            !buildContent?.deliverable
+          ) {
+            (result as { humanResponse?: { message: string } }).humanResponse =
+              {
+                message: buildContent.message,
+              };
+          }
+          return result;
+        }
         case 'read':
           return await this.handleBuildRead(
             definition,
@@ -408,7 +433,7 @@ export abstract class BaseAgentRunner implements IAgentRunner {
    * 1. Register stream session with StreamingService for progress updates
    * 2. Execute synchronously (await completion)
    * 3. Return deliverable in response (same as immediate mode)
-   * 
+   *
    * Note: Streaming is still used for progress updates via SSE, but the API
    * waits for completion and returns the deliverable synchronously.
    */
@@ -427,7 +452,7 @@ export abstract class BaseAgentRunner implements IAgentRunner {
     );
 
     // Register stream session for progress updates (SSE will still emit chunks)
-    const streamId = this.streamingService.registerStream(
+    const _streamId = this.streamingService.registerStream(
       taskId,
       definition.slug,
       organizationSlug || 'global',
@@ -461,9 +486,26 @@ export abstract class BaseAgentRunner implements IAgentRunner {
       if (result.success) {
         // Extract deliverable from result payload for build mode
         const buildContent = result.payload?.content as
-          | { deliverable?: unknown; version?: unknown }
+          | {
+              deliverable?: unknown;
+              version?: unknown;
+              message?: string;
+              isConversational?: boolean;
+            }
           | undefined;
-        
+
+        // Check if this is a conversational response (e.g., RAG agents, info responses)
+        // If no deliverable but has message and isConversational flag, add humanResponse
+        if (
+          buildContent?.isConversational &&
+          buildContent?.message &&
+          !buildContent?.deliverable
+        ) {
+          (result as { humanResponse?: { message: string } }).humanResponse = {
+            message: buildContent.message,
+          };
+        }
+
         const completionData: Record<string, unknown> = {};
         if (buildContent?.deliverable) {
           completionData.deliverable = buildContent.deliverable;
@@ -471,7 +513,12 @@ export abstract class BaseAgentRunner implements IAgentRunner {
         if (buildContent?.version) {
           completionData.version = buildContent.version;
         }
-        
+        // Include message for conversational responses
+        if (buildContent?.isConversational && buildContent?.message) {
+          completionData.message = buildContent.message;
+          completionData.isConversational = true;
+        }
+
         // Emit completion event with deliverable data
         this.streamingService.emitComplete(
           taskId,
