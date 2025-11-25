@@ -8,32 +8,32 @@ import { IsString, IsNumber, IsOptional, IsIn, IsObject, Min } from 'class-valid
  */
 export class RecordLLMUsageDto {
   @IsString()
-  provider: string;
+  provider!: string;
 
   @IsString()
-  model: string;
+  model!: string;
 
   @IsNumber()
   @Min(0)
-  promptTokens: number;
+  promptTokens!: number;
 
   @IsNumber()
   @Min(0)
-  completionTokens: number;
+  completionTokens!: number;
 
   @IsNumber()
   @Min(0)
-  totalTokens: number;
+  totalTokens!: number;
 
   @IsString()
-  userId: string;
+  userId!: string;
 
   @IsString()
   @IsIn(['langgraph-tool', 'langgraph-workflow', 'n8n', 'external'])
-  callerType: string;
+  callerType!: string;
 
   @IsString()
-  callerName: string;
+  callerName!: string;
 
   @IsOptional()
   @IsString()

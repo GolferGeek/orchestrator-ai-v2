@@ -11,6 +11,8 @@ import {
 import { LLMService } from './llm.service';
 import { isLLMResponse } from './services/llm-interfaces';
 import { LocalModelStatusService } from './local-model-status.service';
+import { RunMetadataService } from './run-metadata.service';
+import { RecordLLMUsageDto } from './dto/record-llm-usage.dto';
 
 @Controller('llm')
 export class LLMController {
@@ -19,6 +21,7 @@ export class LLMController {
   constructor(
     private readonly llmService: LLMService,
     private readonly localModelStatusService: LocalModelStatusService,
+    private readonly runMetadataService: RunMetadataService,
   ) {}
 
   @Post('generate')
@@ -148,6 +151,52 @@ export class LLMController {
       return status as unknown as Record<string, unknown>;
     } catch (error) {
       this.logger.error('Failed to get local model status', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Record LLM usage from external callers (e.g., LangGraph tools)
+   *
+   * This endpoint allows LangGraph tools that call specialized LLMs directly
+   * (e.g., Ollama/SQLCoder) to report their usage for tracking and billing.
+   */
+  @Post('usage')
+  @HttpCode(HttpStatus.CREATED)
+  async recordUsage(
+    @Body() usageDto: RecordLLMUsageDto,
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      this.logger.debug(
+        `Recording LLM usage: ${usageDto.provider}/${usageDto.model} from ${usageDto.callerName}`,
+      );
+
+      await this.runMetadataService.insertCompletedUsage({
+        provider: usageDto.provider,
+        model: usageDto.model,
+        isLocal: usageDto.provider.toLowerCase() === 'ollama',
+        userId: usageDto.userId,
+        callerType: usageDto.callerType,
+        callerName: usageDto.callerName,
+        conversationId: usageDto.conversationId,
+        inputTokens: usageDto.promptTokens,
+        outputTokens: usageDto.completionTokens,
+        totalCost: undefined, // Let the service calculate from tokens
+        startTime: usageDto.timestamp
+          ? new Date(usageDto.timestamp).getTime() - (usageDto.latencyMs || 0)
+          : Date.now() - (usageDto.latencyMs || 0),
+        endTime: usageDto.timestamp
+          ? new Date(usageDto.timestamp).getTime()
+          : Date.now(),
+        status: 'completed',
+      });
+
+      return {
+        success: true,
+        message: 'Usage recorded successfully',
+      };
+    } catch (error) {
+      this.logger.error('Failed to record LLM usage', error);
       throw error;
     }
   }

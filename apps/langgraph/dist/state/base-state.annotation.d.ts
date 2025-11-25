@@ -10,25 +10,25 @@ export declare const WorkflowInputSchema: z.ZodObject<{
     model: z.ZodDefault<z.ZodString>;
     metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
 }, "strip", z.ZodTypeAny, {
-    taskId?: string;
-    userId?: string;
-    conversationId?: string;
-    organizationSlug?: string;
-    userMessage?: string;
-    agentSlug?: string;
     provider?: string;
     model?: string;
+    taskId?: string;
+    conversationId?: string;
+    userId?: string;
     metadata?: Record<string, unknown>;
+    agentSlug?: string;
+    organizationSlug?: string;
+    userMessage?: string;
 }, {
-    taskId?: string;
-    userId?: string;
-    conversationId?: string;
-    organizationSlug?: string;
-    userMessage?: string;
-    agentSlug?: string;
     provider?: string;
     model?: string;
+    taskId?: string;
+    conversationId?: string;
+    userId?: string;
     metadata?: Record<string, unknown>;
+    agentSlug?: string;
+    organizationSlug?: string;
+    userMessage?: string;
 }>;
 export type WorkflowInput = z.infer<typeof WorkflowInputSchema>;
 export declare const HitlStateSchema: z.ZodObject<{
@@ -43,25 +43,25 @@ export declare const HitlStateSchema: z.ZodObject<{
         contentType: z.ZodString;
         message: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        taskId?: string;
-        userId?: string;
-        conversationId?: string;
-        organizationSlug?: string;
-        agentSlug?: string;
         message?: string;
+        taskId?: string;
+        conversationId?: string;
+        userId?: string;
         threadId?: string;
+        agentSlug?: string;
         pendingContent?: unknown;
         contentType?: string;
+        organizationSlug?: string;
     }, {
-        taskId?: string;
-        userId?: string;
-        conversationId?: string;
-        organizationSlug?: string;
-        agentSlug?: string;
         message?: string;
+        taskId?: string;
+        conversationId?: string;
+        userId?: string;
         threadId?: string;
+        agentSlug?: string;
         pendingContent?: unknown;
         contentType?: string;
+        organizationSlug?: string;
     }>>;
     hitlResponse: z.ZodOptional<z.ZodObject<{
         decision: z.ZodEnum<["approve", "edit", "reject"]>;
@@ -79,15 +79,15 @@ export declare const HitlStateSchema: z.ZodObject<{
     hitlStatus: z.ZodDefault<z.ZodEnum<["none", "waiting", "resumed"]>>;
 }, "strip", z.ZodTypeAny, {
     hitlRequest?: {
-        taskId?: string;
-        userId?: string;
-        conversationId?: string;
-        organizationSlug?: string;
-        agentSlug?: string;
         message?: string;
+        taskId?: string;
+        conversationId?: string;
+        userId?: string;
         threadId?: string;
+        agentSlug?: string;
         pendingContent?: unknown;
         contentType?: string;
+        organizationSlug?: string;
     };
     hitlResponse?: {
         decision?: "approve" | "edit" | "reject";
@@ -97,15 +97,15 @@ export declare const HitlStateSchema: z.ZodObject<{
     hitlStatus?: "none" | "waiting" | "resumed";
 }, {
     hitlRequest?: {
-        taskId?: string;
-        userId?: string;
-        conversationId?: string;
-        organizationSlug?: string;
-        agentSlug?: string;
         message?: string;
+        taskId?: string;
+        conversationId?: string;
+        userId?: string;
         threadId?: string;
+        agentSlug?: string;
         pendingContent?: unknown;
         contentType?: string;
+        organizationSlug?: string;
     };
     hitlResponse?: {
         decision?: "approve" | "edit" | "reject";
@@ -148,25 +148,25 @@ export declare const BaseStateAnnotation: import("@langchain/langgraph").Annotat
     result: import("@langchain/langgraph").BinaryOperatorAggregate<unknown, unknown>;
     error: import("@langchain/langgraph").BinaryOperatorAggregate<string, string>;
     hitlRequest: import("@langchain/langgraph").BinaryOperatorAggregate<{
-        taskId?: string;
-        userId?: string;
-        conversationId?: string;
-        organizationSlug?: string;
-        agentSlug?: string;
         message?: string;
+        taskId?: string;
+        conversationId?: string;
+        userId?: string;
         threadId?: string;
+        agentSlug?: string;
         pendingContent?: unknown;
         contentType?: string;
+        organizationSlug?: string;
     }, {
-        taskId?: string;
-        userId?: string;
-        conversationId?: string;
-        organizationSlug?: string;
-        agentSlug?: string;
         message?: string;
+        taskId?: string;
+        conversationId?: string;
+        userId?: string;
         threadId?: string;
+        agentSlug?: string;
         pendingContent?: unknown;
         contentType?: string;
+        organizationSlug?: string;
     }>;
     hitlResponse: import("@langchain/langgraph").BinaryOperatorAggregate<{
         decision?: "approve" | "edit" | "reject";
@@ -191,7 +191,7 @@ export declare const BaseStateAnnotation: import("@langchain/langgraph").Annotat
         stepCount?: number;
         errors?: string[];
     }>;
-    messages: import("@langchain/langgraph").BinaryOperatorAggregate<import("@langchain/core/messages").BaseMessage[], import("@langchain/langgraph").Messages>;
+    messages: import("@langchain/langgraph").BinaryOperatorAggregate<import("@langchain/core/messages").BaseMessage<import("@langchain/core/messages").MessageStructure, import("@langchain/core/messages").MessageType>[], import("@langchain/langgraph").Messages>;
 }>;
 export type BaseState = typeof BaseStateAnnotation.State;
 export declare function validateWorkflowInput(input: unknown): WorkflowInput;

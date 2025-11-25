@@ -11,6 +11,8 @@ const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const workflows_module_1 = require("./workflows/workflows.module");
 const health_module_1 = require("./health/health.module");
+const shared_services_module_1 = require("./services/shared-services.module");
+const persistence_module_1 = require("./persistence/persistence.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -21,6 +23,8 @@ exports.AppModule = AppModule = __decorate([
                 isGlobal: true,
                 envFilePath: '.env',
             }),
+            shared_services_module_1.SharedServicesModule,
+            persistence_module_1.PersistenceModule,
             workflows_module_1.WorkflowsModule,
             health_module_1.HealthModule,
         ],
