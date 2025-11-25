@@ -4,6 +4,9 @@ import { WorkflowsModule } from './workflows/workflows.module';
 import { HealthModule } from './health/health.module';
 import { SharedServicesModule } from './services/shared-services.module';
 import { PersistenceModule } from './persistence/persistence.module';
+import { ToolsModule } from './tools/tools.module';
+import { DataAnalystModule } from './agents/data-analyst/data-analyst.module';
+import { ExtendedPostWriterModule } from './agents/extended-post-writer/extended-post-writer.module';
 
 @Module({
   imports: [
@@ -14,6 +17,10 @@ import { PersistenceModule } from './persistence/persistence.module';
     // Core infrastructure modules
     SharedServicesModule,
     PersistenceModule,
+    ToolsModule,
+    // Agent modules
+    DataAnalystModule,
+    ExtendedPostWriterModule,
     // Feature modules
     WorkflowsModule,
     HealthModule,

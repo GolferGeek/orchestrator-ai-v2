@@ -65,101 +65,104 @@ When starting a new session, share this file and say:
 
 ### Verification
 - [x] Build passes for both langgraph and API apps
-- [ ] Start LangGraph app successfully (requires running services)
+- [x] LangGraph app starts successfully (health check OK)
 - [x] Checkpointer tables created in database
 - [ ] `/llm/usage` endpoint accepts POST requests (requires running API)
 
 ---
 
-## Phase 5b: Tools Module (1-2 days)
+## Phase 5b: Tools Module (1-2 days) - COMPLETED 2025-11-25
 
 ### Tools Module Setup
-- [ ] Create `apps/langgraph/src/tools/tools.module.ts`
-- [ ] Create `apps/langgraph/src/tools/index.ts` (barrel export)
+- [x] Create `apps/langgraph/src/tools/tools.module.ts`
+- [x] Create `apps/langgraph/src/tools/index.ts` (barrel export)
 
 ### SQL Query Tool
-- [ ] Create `apps/langgraph/src/tools/sql-query.tool.ts`
-- [ ] Uses Ollama/SQLCoder for SQL generation
-- [ ] Reports usage via LLMUsageReporterService
-- [ ] Executes read-only queries
-- [ ] Returns structured results
+- [x] Create `apps/langgraph/src/tools/sql-query.tool.ts`
+- [x] Uses Ollama/SQLCoder for SQL generation
+- [x] Reports usage via LLMUsageReporterService
+- [x] Executes read-only queries
+- [x] Returns structured results
 
 ### Schema Tools
-- [ ] Create `apps/langgraph/src/tools/list-tables.tool.ts`
-- [ ] Create `apps/langgraph/src/tools/describe-table.tool.ts`
+- [x] Create `apps/langgraph/src/tools/list-tables.tool.ts`
+- [x] Create `apps/langgraph/src/tools/describe-table.tool.ts`
 
 ### Verification
-- [ ] Tools can be instantiated
-- [ ] SQL generation works with Ollama
-- [ ] Usage reporting reaches `/llm/usage`
-- [ ] Read-only queries execute correctly
+- [x] Build passes with swc (switched from tsc due to LangChain 1.x memory issues)
+- [ ] Tools can be instantiated (requires running app)
+- [ ] SQL generation works with Ollama (requires Ollama running)
+- [ ] Usage reporting reaches `/llm/usage` (requires running API)
+- [ ] Read-only queries execute correctly (requires running app)
 
 ---
 
-## Phase 5c: Data Analyst Agent (2-3 days)
+## Phase 5c: Data Analyst Agent (2-3 days) - COMPLETED 2025-11-25
 
 ### Agent Structure
-- [ ] Create `apps/langgraph/src/agents/data-analyst/` directory
-- [ ] Create `data-analyst.state.ts` (state annotation)
-- [ ] Create `data-analyst.graph.ts` (StateGraph with tool-calling)
-- [ ] Create `data-analyst.service.ts`
-- [ ] Create `data-analyst.controller.ts`
-- [ ] Create `data-analyst.module.ts`
-- [ ] Create `dto/data-analyst-request.dto.ts`
-- [ ] Create `dto/index.ts`
+- [x] Create `apps/langgraph/src/agents/data-analyst/` directory
+- [x] Create `data-analyst.state.ts` (state annotation)
+- [x] Create `data-analyst.graph.ts` (StateGraph with tool-calling)
+- [x] Create `data-analyst.service.ts`
+- [x] Create `data-analyst.controller.ts`
+- [x] Create `data-analyst.module.ts`
+- [x] Create `dto/data-analyst-request.dto.ts`
+- [x] Create `dto/index.ts`
 
 ### Graph Implementation
-- [ ] Input validation with Zod
-- [ ] Tool-calling node with ToolNode
-- [ ] LLM node for summarization (via LLMHttpClientService)
-- [ ] Conditional routing based on tool results
-- [ ] Checkpointing enabled
+- [x] Input validation with Zod
+- [x] Tool-calling via direct tool invocation (discover → describe → query)
+- [x] LLM node for summarization (via LLMHttpClientService)
+- [x] Conditional routing based on tool results
+- [x] Checkpointing enabled via PostgresSaver
 
 ### Integration
-- [ ] Register module in app.module.ts
-- [ ] Register agent in database (agents table)
-- [ ] Expose endpoints: POST `/data-analyst/analyze`, GET `/data-analyst/status/:threadId`
+- [x] Register module in app.module.ts
+- [ ] Register agent in database (agents table) - manual step
+- [x] Expose endpoints: POST `/data-analyst/analyze`, GET `/data-analyst/status/:threadId`, GET `/data-analyst/history/:threadId`
 
 ### Verification
-- [ ] End-to-end: Question → SQL generation → Execution → Summary
-- [ ] Tool LLM usage appears in usage tracking
-- [ ] Observability events fire correctly
-- [ ] Checkpoints persist across requests
+- [x] Build passes
+- [ ] End-to-end: Question → SQL generation → Execution → Summary (requires running services)
+- [ ] Tool LLM usage appears in usage tracking (requires Ollama)
+- [ ] Observability events fire correctly (requires running API)
+- [ ] Checkpoints persist across requests (requires running services)
 
 ---
 
-## Phase 5d: Extended Post Writer Agent (2-3 days)
+## Phase 5d: Extended Post Writer Agent (2-3 days) - COMPLETED 2025-11-25
 
 ### Agent Structure
-- [ ] Create `apps/langgraph/src/agents/extended-post-writer/` directory
-- [ ] Create `extended-post-writer.state.ts`
-- [ ] Create `extended-post-writer.graph.ts` (StateGraph with HITL)
-- [ ] Create `extended-post-writer.service.ts`
-- [ ] Create `extended-post-writer.controller.ts`
-- [ ] Create `extended-post-writer.module.ts`
-- [ ] Create `dto/extended-post-writer-request.dto.ts`
-- [ ] Create `dto/extended-post-writer-resume.dto.ts`
-- [ ] Create `dto/index.ts`
+- [x] Create `apps/langgraph/src/agents/extended-post-writer/` directory
+- [x] Create `extended-post-writer.state.ts`
+- [x] Create `extended-post-writer.graph.ts` (StateGraph with HITL)
+- [x] Create `extended-post-writer.service.ts`
+- [x] Create `extended-post-writer.controller.ts`
+- [x] Create `extended-post-writer.module.ts`
+- [x] Create `dto/extended-post-writer-request.dto.ts`
+- [x] Create `dto/extended-post-writer-resume.dto.ts`
+- [x] Create `dto/index.ts`
 
 ### Graph Implementation
-- [ ] Input validation with Zod
-- [ ] Content generation node (blog, SEO, social)
-- [ ] HITL interrupt node (calls `interrupt()` directly)
-- [ ] Resume handling with `Command({ resume })`
-- [ ] Finalization node
-- [ ] Checkpointing enabled
+- [x] Input validation with Zod
+- [x] Content generation node (blog, SEO, social)
+- [x] HITL interrupt node (calls `interrupt()` directly)
+- [x] Resume handling with `Command({ resume })`
+- [x] Finalization node
+- [x] Checkpointing enabled via PostgresSaver
 
 ### Integration
-- [ ] Register module in app.module.ts
-- [ ] Register agent in database
-- [ ] Expose endpoints: POST `/extended-post-writer/generate`, POST `/extended-post-writer/resume/:threadId`, GET `/extended-post-writer/status/:threadId`
+- [x] Register module in app.module.ts
+- [ ] Register agent in database - manual step
+- [x] Expose endpoints: POST `/extended-post-writer/generate`, POST `/extended-post-writer/resume/:threadId`, GET `/extended-post-writer/status/:threadId`, GET `/extended-post-writer/history/:threadId`
 
 ### Verification
-- [ ] Generate → Interrupt → status shows `hitl_waiting`
-- [ ] Resume with approve → completes successfully
-- [ ] Resume with edit → uses edited content
-- [ ] Resume with reject → handles gracefully
-- [ ] HITL events visible in observability
+- [x] Build passes
+- [ ] Generate → Interrupt → status shows `hitl_waiting` (requires running services)
+- [ ] Resume with approve → completes successfully (requires running services)
+- [ ] Resume with edit → uses edited content (requires running services)
+- [ ] Resume with reject → handles gracefully (requires running services)
+- [ ] HITL events visible in observability (requires running services)
 
 ---
 
@@ -245,9 +248,36 @@ _Add notes here as implementation progresses:_
   - @langchain/langgraph: ^1.0.2
   - @langchain/langgraph-checkpoint-postgres: ^1.0.0
 - Created all Phase 5a infrastructure files
-- Build passes for both langgraph and API apps
-- Database migration created but not yet applied
-- Runtime verification pending (requires DB and running services)
+- Database migration applied, langgraph schema tables created
+- LangGraph app starts successfully (health check OK)
+
+[2025-11-25] - Phase 5b Tools Module Completed
+--------------
+- Created tools module with 3 tools:
+  - list-tables.tool.ts - Lists database tables
+  - describe-table.tool.ts - Describes table schemas
+  - sql-query.tool.ts - Executes SQL queries with Ollama/SQLCoder integration
+- Switched build to SWC due to LangChain 1.x type-checking memory issues
+- Build completes in ~38ms with swc
+
+[2025-11-25] - Phase 5c Data Analyst Agent Completed
+--------------
+- Created data-analyst agent with:
+  - Zod input validation
+  - Tool-calling flow (discover → describe → query → summarize)
+  - LLM summarization via LLMHttpClientService
+  - PostgresSaver checkpointing
+- Endpoints: POST /data-analyst/analyze, GET /data-analyst/status/:threadId, GET /data-analyst/history/:threadId
+
+[2025-11-25] - Phase 5d Extended Post Writer Agent Completed
+--------------
+- Created extended-post-writer agent with HITL support:
+  - Generates blog post, SEO description, and social posts
+  - Uses interrupt() directly in graph node for HITL
+  - Supports approve/edit/reject decisions via Command({ resume })
+  - PostgresSaver checkpointing persists state across HITL
+- Endpoints: POST /extended-post-writer/generate, POST /extended-post-writer/resume/:threadId, GET /extended-post-writer/status/:threadId
+- Added .gitignore to exclude dist/
 ```
 
 ---
