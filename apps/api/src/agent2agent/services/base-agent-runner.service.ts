@@ -13,6 +13,7 @@ import { StreamingService } from './streaming.service';
 import * as ConverseHandlers from './base-agent-runner/converse.handlers';
 import * as PlanHandlers from './base-agent-runner/plan.handlers';
 import * as BuildHandlers from './base-agent-runner/build.handlers';
+import * as HitlHandlers from './base-agent-runner/hitl.handlers';
 import { handleError as sharedHandleError } from './base-agent-runner/shared.helpers';
 import { firstValueFrom } from 'rxjs';
 
@@ -126,6 +127,9 @@ export abstract class BaseAgentRunner implements IAgentRunner {
 
         case AgentTaskMode.BUILD:
           return await this.handleBuild(definition, request, organizationSlug);
+
+        case AgentTaskMode.HITL:
+          return await this.handleHitl(definition, request, organizationSlug);
 
         default:
           this.logger.warn(`Unsupported mode: ${String(mode)}`);
@@ -437,7 +441,7 @@ export abstract class BaseAgentRunner implements IAgentRunner {
     definition: AgentRuntimeDefinition,
     request: TaskRequestDto,
     organizationSlug: string | null,
-    executionMode: string,
+    _executionMode: string,
   ): Promise<TaskResponseDto> {
     const taskId = this.resolveTaskId(request) || `task_${Date.now()}`;
     const userId = this.resolveUserId(request) || 'unknown';
@@ -548,6 +552,115 @@ export abstract class BaseAgentRunner implements IAgentRunner {
     _request: TaskRequestDto,
     _organizationSlug: string | null,
   ): Promise<TaskResponseDto>;
+
+  /**
+   * Handle HITL mode - Human-in-the-Loop workflow operations.
+   *
+   * Implementations should:
+   * - Handle resume, status, and history actions
+   * - Work with LangGraph or n8n workflows that have paused for human review
+   *
+   * @param definition - Agent runtime definition
+   * @param request - Task request with HITL action (resume, status, history)
+   * @param organizationSlug - Organization context
+   * @returns Task response with HITL result
+   */
+  protected async handleHitl(
+    definition: AgentRuntimeDefinition,
+    request: TaskRequestDto,
+    organizationSlug: string | null,
+  ): Promise<TaskResponseDto> {
+    const payload = (request.payload ?? {}) as { action?: string };
+    const action =
+      typeof payload.action === 'string' ? payload.action : 'status';
+
+    try {
+      switch (action) {
+        case 'resume':
+          return await this.handleHitlResume(
+            definition,
+            request,
+            organizationSlug,
+          );
+        case 'status':
+          return await this.handleHitlStatus(
+            definition,
+            request,
+            organizationSlug,
+          );
+        case 'history':
+          return await this.handleHitlHistory(
+            definition,
+            request,
+            organizationSlug,
+          );
+        default:
+          this.logger.warn(
+            `Unsupported HITL action "${action}" for agent ${definition.slug}`,
+          );
+          return TaskResponseDto.failure(
+            AgentTaskMode.HITL,
+            `Unsupported HITL action: ${action}`,
+          );
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to execute HITL action "${action}" for agent ${definition.slug}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return TaskResponseDto.failure(
+        AgentTaskMode.HITL,
+        error instanceof Error ? error.message : 'Unknown error',
+      );
+    }
+  }
+
+  /**
+   * Handles HITL resume action - resume a paused workflow with human decision.
+   */
+  protected async handleHitlResume(
+    definition: AgentRuntimeDefinition,
+    request: TaskRequestDto,
+    organizationSlug: string | null,
+  ): Promise<TaskResponseDto> {
+    return HitlHandlers.handleHitlResume(
+      definition,
+      request,
+      organizationSlug,
+      this.getHitlHandlerDependencies(),
+    );
+  }
+
+  /**
+   * Handles HITL status action - get current status of a HITL workflow.
+   */
+  protected async handleHitlStatus(
+    definition: AgentRuntimeDefinition,
+    request: TaskRequestDto,
+    organizationSlug: string | null,
+  ): Promise<TaskResponseDto> {
+    return HitlHandlers.handleHitlStatus(
+      definition,
+      request,
+      organizationSlug,
+      this.getHitlHandlerDependencies(),
+    );
+  }
+
+  /**
+   * Handles HITL history action - get execution history for a HITL workflow.
+   */
+  protected async handleHitlHistory(
+    definition: AgentRuntimeDefinition,
+    request: TaskRequestDto,
+    organizationSlug: string | null,
+  ): Promise<TaskResponseDto> {
+    return HitlHandlers.handleHitlHistory(
+      definition,
+      request,
+      organizationSlug,
+      this.getHitlHandlerDependencies(),
+    );
+  }
 
   /**
    * Handles PLAN create action.
@@ -875,6 +988,9 @@ export abstract class BaseAgentRunner implements IAgentRunner {
         return exec.canPlan;
       case AgentTaskMode.BUILD:
         return exec.canBuild;
+      case AgentTaskMode.HITL:
+        // HITL is always allowed - it's for resuming interrupted workflows
+        return true;
       default:
         return false;
     }
@@ -900,6 +1016,13 @@ export abstract class BaseAgentRunner implements IAgentRunner {
       deliverablesService: this.deliverablesService,
       plansService: this.plansService,
       llmService: this.llmService,
+      conversationsService: this.conversationsService,
+    };
+  }
+
+  private getHitlHandlerDependencies(): HitlHandlers.HitlHandlerDependencies {
+    return {
+      httpService: this.httpService,
       conversationsService: this.conversationsService,
     };
   }

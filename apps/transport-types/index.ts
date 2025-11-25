@@ -113,6 +113,26 @@ export type {
   ConverseResponseContent,
 } from './modes/converse.types';
 
+// HITL Mode
+export type {
+  HitlStatus,
+  HitlDecision,
+  HitlAction,
+  HitlGeneratedContent,
+  HitlContent,
+  HitlStatusResponsePayload,
+  HitlResponseMetadata,
+  HitlResumePayload,
+  HitlStatusPayload,
+  HitlHistoryPayload,
+  HitlModePayload,
+  HitlRequestMetadata,
+  HitlResumeResponseContent,
+  HitlStatusResponseContent,
+  HitlHistoryEntry,
+  HitlHistoryResponseContent,
+} from './modes/hitl.types';
+
 // ============================================================================
 // STREAMING (SSE) TYPES
 // ============================================================================

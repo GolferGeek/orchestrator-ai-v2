@@ -15,7 +15,8 @@ export type TaskStatusState =
   | 'running'
   | 'completed'
   | 'failed'
-  | 'cancelled';
+  | 'cancelled'
+  | 'hitl_waiting';
 
 export type TaskType = 'long_running' | 'swarm' | 'ephemeral';
 
@@ -927,6 +928,16 @@ export class TaskStatusService {
           conversationId,
           organizationSlug,
           agentSlug,
+        });
+        break;
+      case 'hitl_waiting':
+        this.eventEmitter.emit('task.hitl_waiting', {
+          taskId,
+          userId: taskStatus.userId,
+          conversationId,
+          organizationSlug,
+          agentSlug,
+          result: taskStatus.result, // Contains generated content for review
         });
         break;
     }

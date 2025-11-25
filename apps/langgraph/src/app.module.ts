@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { WorkflowsModule } from './workflows/workflows.module';
 import { HealthModule } from './health/health.module';
 import { SharedServicesModule } from './services/shared-services.module';
 import { PersistenceModule } from './persistence/persistence.module';
@@ -21,8 +20,7 @@ import { ExtendedPostWriterModule } from './agents/extended-post-writer/extended
     // Agent modules
     DataAnalystModule,
     ExtendedPostWriterModule,
-    // Feature modules
-    WorkflowsModule,
+    // Health check
     HealthModule,
   ],
 })

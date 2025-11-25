@@ -1,6 +1,9 @@
 import {
   TaskResponse,
   TaskResponsePayload,
+  AgentTaskMode,
+  HitlGeneratedContent,
+  HitlStatus,
 } from '@orchestrator-ai/transport-types';
 
 // Re-export shared types
@@ -9,6 +12,20 @@ export { TaskResponse, TaskResponsePayload };
 export interface HumanResponsePayload {
   message: string;
   reason?: string;
+}
+
+/**
+ * HITL Response payload for human-in-the-loop workflows
+ */
+export interface HitlResponsePayload {
+  threadId: string;
+  status: HitlStatus;
+  topic: string;
+  hitlPending: boolean;
+  generatedContent?: HitlGeneratedContent;
+  finalContent?: HitlGeneratedContent;
+  error?: string;
+  duration?: number;
 }
 
 export class TaskResponseDto implements TaskResponse {
@@ -62,6 +79,82 @@ export class TaskResponseDto implements TaskResponse {
     return new TaskResponseDto(false, mode, {
       content: {},
       metadata: { reason },
+    });
+  }
+
+  /**
+   * Create a HITL waiting response - task is paused awaiting human decision
+   */
+  static hitlWaiting(
+    payload: HitlResponsePayload,
+    metadata?: Record<string, unknown>,
+  ) {
+    return new TaskResponseDto(true, AgentTaskMode.HITL, {
+      content: {
+        ...payload,
+        status: 'hitl_waiting' as HitlStatus,
+        hitlPending: true,
+      },
+      metadata: {
+        ...metadata,
+        hitlStatus: 'waiting',
+      },
+    });
+  }
+
+  /**
+   * Create a HITL completed response - human approved or edited content
+   */
+  static hitlCompleted(
+    payload: HitlResponsePayload,
+    metadata?: Record<string, unknown>,
+  ) {
+    return new TaskResponseDto(true, AgentTaskMode.HITL, {
+      content: {
+        ...payload,
+        status: 'completed' as HitlStatus,
+        hitlPending: false,
+      },
+      metadata: {
+        ...metadata,
+        hitlStatus: 'completed',
+      },
+    });
+  }
+
+  /**
+   * Create a HITL rejected response - human rejected content
+   */
+  static hitlRejected(
+    payload: HitlResponsePayload,
+    metadata?: Record<string, unknown>,
+  ) {
+    return new TaskResponseDto(true, AgentTaskMode.HITL, {
+      content: {
+        ...payload,
+        status: 'rejected' as HitlStatus,
+        hitlPending: false,
+      },
+      metadata: {
+        ...metadata,
+        hitlStatus: 'rejected',
+      },
+    });
+  }
+
+  /**
+   * Create a HITL status response - for status queries
+   */
+  static hitlStatus(
+    payload: HitlResponsePayload,
+    metadata?: Record<string, unknown>,
+  ) {
+    return new TaskResponseDto(true, AgentTaskMode.HITL, {
+      content: payload,
+      metadata: {
+        ...metadata,
+        hitlStatus: payload.status,
+      },
     });
   }
 }

@@ -11,6 +11,9 @@ export enum AgentTaskMode {
 
   /** Building/execution phase */
   BUILD = 'build',
+
+  /** Human-in-the-Loop operations */
+  HITL = 'hitl',
 }
 
 /**
@@ -27,6 +30,10 @@ export type JsonRpcMethod =
   | 'build'
   | 'agent.build'
   | 'tasks.build'
+  | 'hitl'
+  | 'hitl.resume'
+  | 'hitl.status'
+  | 'hitl.history'
   | string; // Allow extension
 
 /**

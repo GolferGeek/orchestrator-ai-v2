@@ -125,6 +125,17 @@ export class AgentExecutionGateway {
             routingMetadata,
           });
           break;
+        case AgentTaskMode.HITL:
+          // Delegate to mode router for HITL actions (resume, status, history)
+          response = await this.modeRouter.execute({
+            organizationSlug,
+            agentSlug: agent.slug,
+            agent,
+            definition,
+            request,
+            routingMetadata,
+          });
+          break;
         default:
           response = TaskResponseDto.failure(request.mode!, 'Unsupported mode');
       }
@@ -183,6 +194,10 @@ export class AgentExecutionGateway {
         return exec.canBuild
           ? null
           : TaskResponseDto.failure(mode, 'Mode not supported by agent');
+      case AgentTaskMode.HITL:
+        // HITL is always allowed - it's for resuming interrupted workflows
+        // The actual capability check happens when the workflow was started
+        return null;
       default:
         return null;
     }
