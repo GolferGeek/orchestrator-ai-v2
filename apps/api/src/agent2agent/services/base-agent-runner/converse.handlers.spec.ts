@@ -34,7 +34,8 @@ describe('Converse Handlers', () => {
 
       const result = buildConversationalPrompt(definition, []);
 
-      expect(result).toContain('You are Test Agent.');
+      // Implementation uses definition.name ?? definition.slug, so it falls back to slug
+      expect(result).toContain('You are test-agent.');
       expect(result).toContain('Respond helpfully and concisely.');
     });
 

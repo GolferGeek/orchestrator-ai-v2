@@ -56,7 +56,7 @@ describe('CollectionsService', () => {
       // Verify queryAll was called with correct parameters
       const [query, params] = ragDb.queryAll.mock.calls[0] ?? [];
       expect(query).toContain('rag_get_collections');
-      expect(params).toEqual(['test-org']);
+      expect(params).toEqual(['test-org', null]);
     });
 
     it('should return empty array when no collections exist', async () => {

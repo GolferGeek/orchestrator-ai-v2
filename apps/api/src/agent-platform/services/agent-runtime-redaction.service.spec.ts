@@ -1,7 +1,10 @@
 import { AgentRuntimeRedactionService } from './agent-runtime-redaction.service';
 import { RedactionPatternsRepository } from '../repositories/redaction-patterns.repository';
 import { AgentRuntimeDefinition } from '../interfaces/agent.interface';
-import { TaskRequestDto } from '@agent2agent/dto/task-request.dto';
+import {
+  TaskRequestDto,
+  AgentTaskMode,
+} from '@agent2agent/dto/task-request.dto';
 
 describe('AgentRuntimeRedactionService', () => {
   const makeService = (
@@ -18,17 +21,18 @@ describe('AgentRuntimeRedactionService', () => {
           replacement: p.replacement ?? '[REDACTED]',
         })),
       ),
-    } as jest.Mocked<RedactionPatternsRepository>;
+    } as unknown as jest.Mocked<RedactionPatternsRepository>;
     return new AgentRuntimeRedactionService(repo);
   };
 
   const definition: AgentRuntimeDefinition = {
-    id: 'a1',
     slug: 'agent',
-    organizationSlug: 'demo',
-    displayName: 'Agent',
-    agentType: 'llm',
-    modeProfile: 'converse_only',
+    organizationSlug: ['demo'],
+    name: 'Agent',
+    description: 'Test agent',
+    agentType: 'context',
+    department: 'test',
+    tags: [],
     metadata: { tags: [] },
     capabilities: [],
     skills: [],
@@ -43,14 +47,32 @@ describe('AgentRuntimeRedactionService', () => {
     },
     prompts: { system: '', plan: '', build: '', human: '' },
     context: null,
-    config: { transforms: { redaction: { fields: [] } } },
-    record: {},
+    config: null,
+    ioSchema: null,
+    record: {
+      slug: 'agent',
+      organization_slug: ['demo'],
+      name: 'Agent',
+      description: 'Test agent',
+      version: '1.0.0',
+      agent_type: 'context',
+      department: 'test',
+      tags: [],
+      io_schema: {},
+      capabilities: [],
+      context: '',
+      endpoint: null,
+      llm_config: null,
+      metadata: {},
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
   };
 
   it('applies DB regex only on remote (isLocal=false) and always applies secret masking', async () => {
     const service = makeService([{ pattern: 'secret', replacement: '[DB]' }]);
     const request: TaskRequestDto = {
-      mode: 'converse',
+      mode: AgentTaskMode.CONVERSE,
       userMessage: 'my secret is ALPHA and key sk-ABCDEFGHIJKL',
       payload: {},
     };

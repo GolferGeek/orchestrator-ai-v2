@@ -19,11 +19,11 @@ describe('AgentsRepository', () => {
 
   const sampleAgent = {
     id: '123',
-    organization_slug: 'my-org',
+    organization_slug: ['my-org'],
     slug: 'marketing_swarm',
     display_name: 'Marketing Swarm',
     description: 'desc',
-    agent_type: 'function',
+    agent_type: 'context',
     mode_profile: 'full_cycle',
     version: '1.0.0',
     status: 'active',
@@ -35,7 +35,7 @@ describe('AgentsRepository', () => {
     updated_at: new Date().toISOString(),
   };
 
-  it('upserts agents with conflict on organization_slug + slug', async () => {
+  it('upserts agents with conflict on slug', async () => {
     const { fromMock, service } = createSupabaseMock();
 
     const maybeSingle = jest
@@ -48,12 +48,15 @@ describe('AgentsRepository', () => {
 
     const repo = new AgentsRepository(service);
     const result = await repo.upsert({
-      organization_slug: 'my-org',
+      organization_slug: ['my-org'],
       slug: 'marketing_swarm',
-      display_name: 'Marketing Swarm',
-      agent_type: 'function',
-      mode_profile: 'full_cycle',
-      yaml: 'yaml: true',
+      name: 'Marketing Swarm',
+      description: 'desc',
+      agent_type: 'context',
+      department: 'marketing',
+      io_schema: {},
+      capabilities: [],
+      context: 'yaml: true',
     });
 
     expect(fromMock).toHaveBeenCalledWith('agents');
@@ -61,7 +64,7 @@ describe('AgentsRepository', () => {
       expect.arrayContaining([
         expect.objectContaining({ slug: 'marketing_swarm' }),
       ]),
-      { onConflict: 'organization_slug,slug' },
+      { onConflict: 'slug' },
     );
     expect(result).toEqual(sampleAgent);
   });
@@ -72,6 +75,7 @@ describe('AgentsRepository', () => {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       is: jest.fn().mockReturnThis(),
+      contains: jest.fn().mockReturnThis(),
       limit: jest.fn().mockReturnThis(),
       maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
     };
@@ -82,6 +86,9 @@ describe('AgentsRepository', () => {
     const result = await repo.findBySlug('demo', 'missing');
 
     expect(queryChain.eq).toHaveBeenCalledWith('slug', 'missing');
+    expect(queryChain.contains).toHaveBeenCalledWith('organization_slug', [
+      'demo',
+    ]);
     expect(result).toBeNull();
   });
 
@@ -91,6 +98,7 @@ describe('AgentsRepository', () => {
       select: jest.Mock;
       eq: jest.Mock;
       is: jest.Mock;
+      contains: jest.Mock;
       order: jest.Mock;
       data: (typeof sampleAgent)[];
       error: null;
@@ -99,6 +107,7 @@ describe('AgentsRepository', () => {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       is: jest.fn().mockReturnThis(),
+      contains: jest.fn().mockReturnThis(),
       order: jest.fn().mockReturnThis(),
       data: [sampleAgent],
       error: null,
@@ -111,9 +120,11 @@ describe('AgentsRepository', () => {
     fromMock.mockReturnValue(listChain);
 
     const repo = new AgentsRepository(service);
+    // When organizationSlug is null, contains is not called
     const result = await repo.listByOrganization(null);
 
-    expect(listChain.is).toHaveBeenCalledWith('organization_slug', null);
+    // Verify contains was NOT called since organizationSlug is null
+    expect(listChain.contains).not.toHaveBeenCalled();
     expect(result).toEqual([sampleAgent]);
   });
 

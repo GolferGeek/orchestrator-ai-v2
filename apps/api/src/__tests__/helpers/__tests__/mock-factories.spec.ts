@@ -113,7 +113,7 @@ describe('MockFactories', () => {
         expect(definition.organization_slug).toBe('test-org');
         expect(definition.slug).toBe('test-orchestration');
         expect(definition.display_name).toBe('Test Orchestration');
-        expect(definition.description).toBe('Test orchestration description');
+        expect(definition.description).toBe('A test orchestration for automated testing');
         expect(definition.version).toBe(1);
         expect(definition.is_active).toBe(true);
         expect(definition.created_at).toBeInstanceOf(Date);

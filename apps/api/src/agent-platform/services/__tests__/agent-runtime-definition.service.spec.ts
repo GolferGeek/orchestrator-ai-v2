@@ -2,29 +2,27 @@ import { AgentRuntimeDefinitionService } from '../agent-runtime-definition.servi
 import type { AgentRecord } from '../../interfaces/agent.interface';
 import type { AgentConfigDefinition } from '../../interfaces/agent.interface';
 import type { JsonObject } from '@orchestrator-ai/transport-types';
+import { dump as yamlDump } from 'js-yaml';
 
 describe('AgentRuntimeDefinitionService', () => {
   const service = new AgentRuntimeDefinitionService();
   const now = new Date().toISOString();
 
   const createRecord = (overrides: Partial<AgentRecord> = {}): AgentRecord => ({
-    id: 'agent-123',
-    organization_slug: 'demo-org',
     slug: 'demo-agent',
-    display_name: 'Demo Agent',
+    organization_slug: ['demo-org'],
+    name: 'Demo Agent',
     description: 'Demo description',
-    agent_type: 'specialist',
-    mode_profile: 'autonomous_build',
     version: '1.0.0',
-    status: 'active',
-    yaml: '{}',
-    function_code: null,
-    agent_card: null,
-    context: null,
-    config: null,
-    plan_structure: null,
-    deliverable_structure: null,
-    io_schema: null,
+    agent_type: 'context',
+    department: 'engineering',
+    tags: [],
+    io_schema: {},
+    capabilities: [],
+    context: '',
+    endpoint: null,
+    llm_config: null,
+    metadata: {},
     created_at: now,
     updated_at: now,
     ...overrides,
@@ -88,20 +86,18 @@ describe('AgentRuntimeDefinitionService', () => {
           fromDescriptor: true,
         },
       },
-      schemas: {
-        plan: {
-          type: 'object',
-          properties: {
-            goal: { type: 'string' },
-          },
+      plan_structure: {
+        type: 'object',
+        properties: {
+          goal: { type: 'string' },
         },
-        deliverable: {
-          type: 'object',
-        },
-        io: {
-          type: 'object',
-          additionalProperties: true,
-        },
+      },
+      deliverable_structure: {
+        type: 'object',
+      },
+      io_schema: {
+        type: 'object',
+        additionalProperties: true,
       },
     } satisfies JsonObject;
 
@@ -117,21 +113,30 @@ describe('AgentRuntimeDefinitionService', () => {
       execution_profile: 'autonomous_build',
     };
 
-    const recordContext: JsonObject = {
+    const recordContext = {
       fromRecord: true,
       system_prompt: 'Record context prompt.',
     };
 
+    // Embed descriptor as YAML frontmatter in the context field
+    const yamlFrontmatter = `---
+${yamlDump(descriptor)}---
+${JSON.stringify(recordContext)}`;
+
     const record = createRecord({
-      yaml: JSON.stringify(descriptor),
-      context: recordContext,
-      config: recordConfig,
+      context: yamlFrontmatter,
+      metadata: recordConfig,
+      // Use descriptor tags by not setting tags on record (empty array is truthy)
+      tags: [],
     });
 
     const definition = service.buildDefinition(record);
 
-    expect(definition.metadata.displayName).toBe('Descriptor Name');
-    expect(definition.metadata.tags).toEqual(['descriptor', 'demo']);
+    // Metadata displayName comes from record.name, not descriptor
+    expect(definition.metadata.displayName).toBe('Demo Agent');
+    // Tags come from record if present, otherwise from descriptor
+    expect(definition.metadata.tags).toEqual([]);
+    // Hierarchy comes from descriptor
     expect(definition.hierarchy?.level).toBe('senior');
     expect(definition.skills).toHaveLength(1);
     expect(definition.skills[0]?.metadata).toEqual({ confidence: 0.9 });
@@ -151,22 +156,22 @@ describe('AgentRuntimeDefinitionService', () => {
     expect(transport.api?.authentication).toEqual({ type: 'bearer' });
     expect(transport.api?.requestTransform).toEqual({ kind: 'template' });
 
-    expect(definition.context).toEqual({
-      nested: { fromDescriptor: true },
-      fromRecord: true,
-      system_prompt: 'Record context prompt.',
-    });
+    // Context is parsed as { markdown: ..., raw: ... } containing the full context string
+    expect(definition.context).toBeDefined();
+    expect(definition.context?.markdown).toBe(yamlFrontmatter);
+    expect(definition.context?.raw).toBe(yamlFrontmatter);
 
     expect(definition.prompts.system).toBe(
       'You are the descriptor system prompt.',
     );
     expect(definition.prompts.plan).toBe('Descriptor plan prompt.');
 
-    expect(definition.planStructure).toEqual(descriptor.schemas.plan);
+    expect(definition.planStructure).toEqual(descriptor.plan_structure);
     expect(definition.deliverableStructure).toEqual(
-      descriptor.schemas.deliverable,
+      descriptor.deliverable_structure,
     );
-    expect(definition.ioSchema).toEqual(descriptor.schemas.io);
+    // ioSchema comes from record.io_schema first, which is {} in this case
+    expect(definition.ioSchema).toEqual({});
     expect(definition.rawDescriptor).toEqual(descriptor);
   });
 
@@ -182,21 +187,28 @@ describe('AgentRuntimeDefinitionService', () => {
       title: 'From Record',
     };
 
+    // Embed descriptor as YAML frontmatter in the context field
+    const yamlFrontmatter = `---
+${yamlDump(descriptor)}---
+Additional context content`;
+
     const record = createRecord({
-      yaml: JSON.stringify(descriptor),
-      context: { fromRecordOnly: true } as JsonObject,
-      config: {
+      context: yamlFrontmatter,
+      metadata: {
         execution_capabilities: {
           can_plan: true,
           can_build: true,
         },
-      } as AgentConfigDefinition,
-      plan_structure: recordPlan,
+        plan_structure: recordPlan,
+      },
     });
 
     const definition = service.buildDefinition(record);
 
-    expect(definition.context).toEqual({ fromRecordOnly: true });
+    // Context is parsed as { markdown: ..., raw: ... } containing the full context string
+    expect(definition.context).toBeDefined();
+    expect(definition.context?.markdown).toBe(yamlFrontmatter);
+    expect(definition.context?.raw).toBe(yamlFrontmatter);
     expect(definition.config).toMatchObject({
       execution_capabilities: {
         can_plan: true,

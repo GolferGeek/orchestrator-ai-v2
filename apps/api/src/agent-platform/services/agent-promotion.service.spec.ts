@@ -14,8 +14,8 @@ describe('AgentPromotionService', () => {
 
   beforeEach(async () => {
     const mockAgentsRepo = {
-      getById: jest.fn(),
-      updateStatus: jest.fn(),
+      findBySlug: jest.fn(),
+      updateMetadata: jest.fn(),
     };
 
     const mockApprovalsRepo = {
@@ -55,50 +55,49 @@ describe('AgentPromotionService', () => {
         slug: 'simple-context',
         agent_type: 'context',
         status: 'draft',
-        organization_slug: 'my-org',
-        display_name: 'Simple Context Agent',
+        organization_slug: ['my-org'],
+        name: 'Simple Context Agent',
+        capabilities: [],
+        metadata: { status: 'draft' },
       };
 
-      (agentsRepo.getById as jest.Mock).mockResolvedValue(agent);
-      (agentsRepo.updateStatus as jest.Mock).mockResolvedValue({
+      (agentsRepo.findBySlug as jest.Mock).mockResolvedValue(agent);
+      (agentsRepo.updateMetadata as jest.Mock).mockResolvedValue({
         ...agent,
-        status: 'active',
+        metadata: { status: 'active' },
       });
 
-      const result = await service.requestPromotion('agent-1');
+      const result = await service.requestPromotion('simple-context');
 
       expect(result.success).toBe(true);
       expect(result.newStatus).toBe('active');
       expect(result.requiresApproval).toBeUndefined();
 
-      expect(agentsRepo.updateStatus).toHaveBeenCalledWith('agent-1', 'active');
+      expect(agentsRepo.updateMetadata).toHaveBeenCalledWith('simple-context', {
+        status: 'active',
+      });
     });
 
-    it('should require approval for complex function agent', async () => {
+    it('should require approval for api agent', async () => {
       const agent = {
         id: 'agent-2',
-        slug: 'complex-function',
-        agent_type: 'function',
+        slug: 'api-agent',
+        agent_type: 'api',
         status: 'draft',
-        organization_slug: 'my-org',
-        display_name: 'Complex Function',
-        config: {
-          configuration: {
-            function: {
-              code: 'a'.repeat(6000), // Long code > 5000 chars
-            },
-          },
-        },
+        organization_slug: ['my-org'],
+        name: 'API Agent',
+        capabilities: [],
+        metadata: { status: 'draft' },
       };
 
-      (agentsRepo.getById as jest.Mock).mockResolvedValue(agent);
+      (agentsRepo.findBySlug as jest.Mock).mockResolvedValue(agent);
       (approvalsRepo.create as jest.Mock).mockResolvedValue({
         id: 'approval-1',
         agent_slug: agent.slug,
         status: 'pending',
       });
 
-      const result = await service.requestPromotion('agent-2', {
+      const result = await service.requestPromotion('api-agent', {
         requestedBy: 'user-123',
       });
 
@@ -109,27 +108,29 @@ describe('AgentPromotionService', () => {
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(approvalsRepo.create).toHaveBeenCalled();
 
-      expect(agentsRepo.updateStatus).not.toHaveBeenCalled();
+      expect(agentsRepo.updateMetadata).not.toHaveBeenCalled();
     });
 
-    it('should require approval for API agent', async () => {
+    it('should require approval for external agent', async () => {
       const agent = {
         id: 'agent-3',
-        slug: 'api-agent',
-        agent_type: 'api',
+        slug: 'external-agent',
+        agent_type: 'external',
         status: 'draft',
-        organization_slug: 'my-org',
-        display_name: 'API Agent',
+        organization_slug: ['my-org'],
+        name: 'External Agent',
+        capabilities: [],
+        metadata: { status: 'draft' },
       };
 
-      (agentsRepo.getById as jest.Mock).mockResolvedValue(agent);
+      (agentsRepo.findBySlug as jest.Mock).mockResolvedValue(agent);
       approvalsRepo.create.mockResolvedValue({
         id: 'approval-2',
         agent_slug: agent.slug,
         status: 'pending',
       } as never);
 
-      const result = await service.requestPromotion('agent-3');
+      const result = await service.requestPromotion('external-agent');
 
       expect(result.requiresApproval).toBe(true);
       // eslint-disable-next-line @typescript-eslint/unbound-method
@@ -142,11 +143,13 @@ describe('AgentPromotionService', () => {
         slug: 'already-active',
         agent_type: 'context',
         status: 'active',
+        capabilities: [],
+        metadata: { status: 'active' },
       };
 
-      (agentsRepo.getById as jest.Mock).mockResolvedValue(agent);
+      (agentsRepo.findBySlug as jest.Mock).mockResolvedValue(agent);
 
-      const result = await service.requestPromotion('agent-4');
+      const result = await service.requestPromotion('already-active');
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('already active');
@@ -156,21 +159,22 @@ describe('AgentPromotionService', () => {
       const agent = {
         id: 'agent-5',
         slug: 'invalid-agent',
-        agent_type: 'function',
+        agent_type: 'context',
         status: 'draft',
-        config: {},
+        capabilities: [],
+        metadata: { status: 'draft' },
       };
 
-      (agentsRepo.getById as jest.Mock).mockResolvedValue(agent);
+      (agentsRepo.findBySlug as jest.Mock).mockResolvedValue(agent);
       validator.validateByType.mockReturnValue({
         ok: false,
-        issues: [{ message: 'Missing function code' }],
+        issues: [{ message: 'Missing required field' }],
       });
 
-      const result = await service.requestPromotion('agent-5');
+      const result = await service.requestPromotion('invalid-agent');
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Missing function code');
+      expect(result.error).toContain('Missing required field');
     });
 
     it('should skip validation when requested', async () => {
@@ -179,20 +183,22 @@ describe('AgentPromotionService', () => {
         slug: 'skip-validation',
         agent_type: 'context',
         status: 'draft',
+        capabilities: [],
+        metadata: { status: 'draft' },
       };
 
-      (agentsRepo.getById as jest.Mock).mockResolvedValue(agent);
-      (agentsRepo.updateStatus as jest.Mock).mockResolvedValue({
+      (agentsRepo.findBySlug as jest.Mock).mockResolvedValue(agent);
+      (agentsRepo.updateMetadata as jest.Mock).mockResolvedValue({
         ...agent,
-        status: 'active',
+        metadata: { status: 'active' },
       });
 
-      await service.requestPromotion('agent-6', { skipValidation: true });
+      await service.requestPromotion('skip-validation', { skipValidation: true });
 
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(validator.validateByType).not.toHaveBeenCalled();
 
-      expect(agentsRepo.updateStatus).toHaveBeenCalled();
+      expect(agentsRepo.updateMetadata).toHaveBeenCalled();
     });
   });
 
@@ -203,20 +209,22 @@ describe('AgentPromotionService', () => {
         status: 'approved',
         mode: 'agent_promotion',
         approved_by: 'user-123',
-        metadata: { agentId: 'agent-1' },
+        metadata: { agentId: 'test-agent' },
       };
 
       const agent = {
         id: 'agent-1',
         slug: 'test-agent',
         status: 'draft',
+        capabilities: [],
+        metadata: { status: 'draft' },
       };
 
       (approvalsRepo.get as jest.Mock).mockResolvedValue(approval);
-      (agentsRepo.getById as jest.Mock).mockResolvedValue(agent);
-      (agentsRepo.updateStatus as jest.Mock).mockResolvedValue({
+      (agentsRepo.findBySlug as jest.Mock).mockResolvedValue(agent);
+      (agentsRepo.updateMetadata as jest.Mock).mockResolvedValue({
         ...agent,
-        status: 'active',
+        metadata: { status: 'active' },
       });
 
       const result = await service.completePromotionAfterApproval('approval-1');
@@ -224,7 +232,9 @@ describe('AgentPromotionService', () => {
       expect(result.success).toBe(true);
       expect(result.newStatus).toBe('active');
 
-      expect(agentsRepo.updateStatus).toHaveBeenCalledWith('agent-1', 'active');
+      expect(agentsRepo.updateMetadata).toHaveBeenCalledWith('test-agent', {
+        status: 'active',
+      });
     });
 
     it('should fail if approval is not approved', async () => {
@@ -249,21 +259,25 @@ describe('AgentPromotionService', () => {
         id: 'agent-7',
         slug: 'active-agent',
         status: 'active',
+        capabilities: [],
+        metadata: { status: 'active' },
       };
 
-      (agentsRepo.getById as jest.Mock).mockResolvedValue(agent);
-      (agentsRepo.updateStatus as jest.Mock).mockResolvedValue({
+      (agentsRepo.findBySlug as jest.Mock).mockResolvedValue(agent);
+      (agentsRepo.updateMetadata as jest.Mock).mockResolvedValue({
         ...agent,
-        status: 'draft',
+        metadata: { status: 'draft' },
       });
 
-      const result = await service.demote('agent-7', 'Needs fixes');
+      const result = await service.demote('active-agent', 'Needs fixes');
 
       expect(result.success).toBe(true);
       expect(result.previousStatus).toBe('active');
       expect(result.newStatus).toBe('draft');
 
-      expect(agentsRepo.updateStatus).toHaveBeenCalledWith('agent-7', 'draft');
+      expect(agentsRepo.updateMetadata).toHaveBeenCalledWith('active-agent', {
+        status: 'draft',
+      });
     });
 
     it('should fail if agent is not active', async () => {
@@ -271,11 +285,13 @@ describe('AgentPromotionService', () => {
         id: 'agent-8',
         slug: 'draft-agent',
         status: 'draft',
+        capabilities: [],
+        metadata: { status: 'draft' },
       };
 
-      (agentsRepo.getById as jest.Mock).mockResolvedValue(agent);
+      (agentsRepo.findBySlug as jest.Mock).mockResolvedValue(agent);
 
-      const result = await service.demote('agent-8');
+      const result = await service.demote('draft-agent');
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('not active');
@@ -288,15 +304,17 @@ describe('AgentPromotionService', () => {
         id: 'agent-9',
         slug: 'to-archive',
         status: 'active',
+        capabilities: [],
+        metadata: { status: 'active' },
       };
 
-      (agentsRepo.getById as jest.Mock).mockResolvedValue(agent);
-      (agentsRepo.updateStatus as jest.Mock).mockResolvedValue({
+      (agentsRepo.findBySlug as jest.Mock).mockResolvedValue(agent);
+      (agentsRepo.updateMetadata as jest.Mock).mockResolvedValue({
         ...agent,
-        status: 'archived',
+        metadata: { status: 'archived' },
       });
 
-      const result = await service.archive('agent-9', 'No longer needed');
+      const result = await service.archive('to-archive', 'No longer needed');
 
       expect(result.success).toBe(true);
       expect(result.previousStatus).toBe('active');
@@ -305,30 +323,36 @@ describe('AgentPromotionService', () => {
   });
 
   describe('getPromotionRequirements', () => {
-    it('should return requirements for function agent', async () => {
+    it('should return requirements for api agent', async () => {
       const agent = {
         id: 'agent-10',
-        agent_type: 'function',
-        config: { configuration: { function: { code: 'simple code' } } },
+        slug: 'api-agent',
+        agent_type: 'api',
+        capabilities: [],
+        metadata: {},
       };
 
-      (agentsRepo.getById as jest.Mock).mockResolvedValue(agent);
+      (agentsRepo.findBySlug as jest.Mock).mockResolvedValue(agent);
 
-      const requirements = await service.getPromotionRequirements('agent-10');
+      const requirements = await service.getPromotionRequirements('api-agent');
 
       expect(requirements.requiresValidation).toBe(true);
       expect(requirements.requiresDryRun).toBe(true);
     });
 
-    it('should indicate approval requirement for orchestrator', async () => {
+    it('should indicate approval requirement for agent with orchestrate capability', async () => {
       const agent = {
         id: 'agent-11',
-        agent_type: 'orchestrator',
+        slug: 'orchestrator-agent',
+        agent_type: 'context',
+        capabilities: ['orchestrate'],
+        metadata: {},
       };
 
-      (agentsRepo.getById as jest.Mock).mockResolvedValue(agent);
+      (agentsRepo.findBySlug as jest.Mock).mockResolvedValue(agent);
 
-      const requirements = await service.getPromotionRequirements('agent-11');
+      const requirements =
+        await service.getPromotionRequirements('orchestrator-agent');
 
       expect(requirements.requiresApproval).toBe(true);
     });

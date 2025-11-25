@@ -1,7 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ApiAgentRunnerService } from './api-agent-runner.service';
 import { HttpService } from '@nestjs/axios';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DeliverablesService } from '../deliverables/deliverables.service';
+import { LLMService } from '../../llms/llm.service';
+import { ContextOptimizationService } from '../context-optimization/context-optimization.service';
+import { PlansService } from '../plans/services/plans.service';
+import { Agent2AgentConversationsService } from './agent-conversations.service';
+import { StreamingService } from './streaming.service';
 import { AgentRuntimeDefinition } from '../../agent-platform/interfaces/agent.interface';
 import { TaskRequestDto, AgentTaskMode } from '../dto/task-request.dto';
 import { of, throwError } from 'rxjs';
@@ -35,9 +41,50 @@ describe('ApiAgentRunnerService', () => {
           },
         },
         {
+          provide: EventEmitter2,
+          useValue: {
+            emit: jest.fn(),
+            on: jest.fn(),
+          },
+        },
+        {
+          provide: LLMService,
+          useValue: {
+            generateResponse: jest.fn(),
+            emitLlmObservabilityEvent: jest.fn(),
+          },
+        },
+        {
+          provide: ContextOptimizationService,
+          useValue: {
+            optimizeContext: jest.fn(),
+          },
+        },
+        {
+          provide: PlansService,
+          useValue: {
+            executeAction: jest.fn(),
+            findByConversationId: jest.fn(),
+          },
+        },
+        {
+          provide: Agent2AgentConversationsService,
+          useValue: {
+            findByConversationId: jest.fn(),
+          },
+        },
+        {
           provide: DeliverablesService,
           useValue: {
             executeAction: jest.fn(),
+            findOne: jest.fn(),
+            findByConversationId: jest.fn(),
+          },
+        },
+        {
+          provide: StreamingService,
+          useValue: {
+            sendUpdate: jest.fn(),
           },
         },
       ],
@@ -82,6 +129,10 @@ describe('ApiAgentRunnerService', () => {
         userMessage: 'Fetch users',
         payload: {
           title: 'User List',
+          config: {
+            provider: 'anthropic',
+            model: 'claude-3-5-sonnet-20241022',
+          },
         },
         metadata: {
           userId: 'user-123',
@@ -170,6 +221,10 @@ describe('ApiAgentRunnerService', () => {
         payload: {
           userName: 'John Doe',
           userEmail: 'john@example.com',
+          config: {
+            provider: 'anthropic',
+            model: 'claude-3-5-sonnet-20241022',
+          },
         },
         metadata: { userId: 'user-123' },
       };
@@ -222,12 +277,18 @@ describe('ApiAgentRunnerService', () => {
         mode: AgentTaskMode.BUILD,
         conversationId: 'conv-123',
         userMessage: 'Fetch user',
-        payload: { userId: '42' },
+        payload: {
+          userId: '42',
+          config: {
+            provider: 'anthropic',
+            model: 'claude-3-5-sonnet-20241022',
+          },
+        },
         metadata: { userId: 'user-123' },
       };
 
       httpService.request.mockReturnValue(
-        of({ status: 200, data: { id: 42 } }) as unknown,
+        of(createMockAxiosResponse({ id: 42 })),
       );
 
       deliverablesService.executeAction.mockResolvedValue({
@@ -268,12 +329,18 @@ describe('ApiAgentRunnerService', () => {
         mode: AgentTaskMode.BUILD,
         conversationId: 'conv-123',
         userMessage: 'Fetch users',
-        payload: { page: '2' },
+        payload: {
+          page: '2',
+          config: {
+            provider: 'anthropic',
+            model: 'claude-3-5-sonnet-20241022',
+          },
+        },
         metadata: { userId: 'user-123' },
       };
 
       httpService.request.mockReturnValue(
-        of({ status: 200, data: [] }) as unknown,
+        of(createMockAxiosResponse([])),
       );
 
       deliverablesService.executeAction.mockResolvedValue({
@@ -332,7 +399,12 @@ describe('ApiAgentRunnerService', () => {
         mode: AgentTaskMode.BUILD,
         conversationId: 'conv-123',
         userMessage: 'Test',
-        payload: {},
+        payload: {
+          config: {
+            provider: 'anthropic',
+            model: 'claude-3-5-sonnet-20241022',
+          },
+        },
         metadata: { userId: 'user-123' },
       };
 
@@ -360,18 +432,23 @@ describe('ApiAgentRunnerService', () => {
         mode: AgentTaskMode.BUILD,
         conversationId: 'conv-123',
         userMessage: 'Test',
-        payload: {},
+        payload: {
+          config: {
+            provider: 'anthropic',
+            model: 'claude-3-5-sonnet-20241022',
+          },
+        },
         metadata: { userId: 'user-123' },
       };
 
       httpService.request.mockReturnValue(
-        throwError(() => new Error('Network error')) as unknown,
+        throwError(() => new Error('Network error')),
       );
 
       const result = await service.execute(definition, request, null);
 
       expect(result.success).toBe(false);
-      expect(result.payload?.metadata?.reason).toContain('API call failed');
+      expect(result.payload?.metadata?.reason).toContain('Network error');
     });
 
     it('should handle non-2xx status codes when failOnError is true', async () => {
@@ -394,15 +471,17 @@ describe('ApiAgentRunnerService', () => {
         mode: AgentTaskMode.BUILD,
         conversationId: 'conv-123',
         userMessage: 'Test',
-        payload: {},
+        payload: {
+          config: {
+            provider: 'anthropic',
+            model: 'claude-3-5-sonnet-20241022',
+          },
+        },
         metadata: { userId: 'user-123' },
       };
 
       httpService.request.mockReturnValue(
-        of({
-          status: 404,
-          data: { error: 'Not found' },
-        }) as unknown,
+        of(createMockAxiosResponse({ error: 'Not found' }, 404, 'Not Found')),
       );
 
       const result = await service.execute(definition, request, null);
@@ -433,15 +512,17 @@ describe('ApiAgentRunnerService', () => {
         mode: AgentTaskMode.BUILD,
         conversationId: 'conv-123',
         userMessage: 'Test',
-        payload: {},
+        payload: {
+          config: {
+            provider: 'anthropic',
+            model: 'claude-3-5-sonnet-20241022',
+          },
+        },
         metadata: { userId: 'user-123' },
       };
 
       httpService.request.mockReturnValue(
-        of({
-          status: 404,
-          data: { error: 'Not found' },
-        }) as unknown,
+        of(createMockAxiosResponse({ error: 'Not found' }, 404, 'Not Found')),
       );
 
       deliverablesService.executeAction.mockResolvedValue({
@@ -470,12 +551,17 @@ describe('ApiAgentRunnerService', () => {
         mode: AgentTaskMode.BUILD,
         conversationId: 'conv-123',
         userMessage: 'Test',
-        payload: {},
+        payload: {
+          config: {
+            provider: 'anthropic',
+            model: 'claude-3-5-sonnet-20241022',
+          },
+        },
         metadata: { userId: 'user-123' },
       };
 
       httpService.request.mockReturnValue(
-        of({ status: 200, data: {} }) as unknown,
+        of(createMockAxiosResponse({})),
       );
 
       deliverablesService.executeAction.mockResolvedValue({
@@ -512,17 +598,23 @@ describe('ApiAgentRunnerService', () => {
         mode: AgentTaskMode.BUILD,
         conversationId: 'conv-123',
         userMessage: 'Test',
-        payload: {},
+        payload: {
+          config: {
+            provider: 'anthropic',
+            model: 'claude-3-5-sonnet-20241022',
+          },
+        },
         metadata: { userId: 'user-123' },
       };
 
       httpService.request.mockReturnValue(
-        of({ status: 200, data: { users: [] } }) as unknown,
+        of(createMockAxiosResponse({ users: [] })),
       );
 
       let capturedContent: string = '';
       deliverablesService.executeAction.mockImplementation(
-        (action, params: { content: string }) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (action: string, params: any, context: any) => {
           capturedContent = params.content;
           return Promise.resolve({
             success: true,
@@ -557,21 +649,65 @@ describe('ApiAgentRunnerService', () => {
         payload: {
           action: 'read',
           deliverableId: 'del-123',
+          config: {
+            provider: 'anthropic',
+            model: 'claude-3-5-sonnet-20241022',
+          },
         },
         metadata: { userId: 'user-123' },
       };
 
+      // Mock findByConversationId to return the deliverable (called by fetchExistingDeliverable)
+      deliverablesService.findByConversationId.mockResolvedValue([
+        {
+          id: 'del-123',
+          title: 'Test',
+          content: 'Content',
+          conversationId: 'conv-123',
+        },
+      ] as never);
+
+      // Mock findOne to return the full deliverable record
+      deliverablesService.findOne.mockResolvedValue({
+        id: 'del-123',
+        title: 'Test',
+        content: 'Content',
+        format: 'json',
+        type: 'other' as const,
+        agentName: 'test-agent',
+        conversationId: 'conv-123',
+        userId: 'user-123',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as never);
+
+      // Mock executeAction for read action (returns deliverable and version)
       deliverablesService.executeAction.mockResolvedValue({
         success: true,
-        data: { id: 'del-123', title: 'Test', content: 'Content' },
+        data: {
+          deliverable: { id: 'del-123', title: 'Test', content: 'Content' },
+          version: { id: 'ver-1', version: 1 },
+        },
       });
 
       const result = await service.execute(definition, request, null);
 
       expect(result.success).toBe(true);
-      expect(
-        (result.payload?.content as Record<string, unknown> | undefined)?.id,
-      ).toBe('del-123');
+      const content = result.payload?.content as
+        | { deliverable?: { id?: string } }
+        | undefined;
+      expect(content?.deliverable?.id).toBe('del-123');
+
+      // Verify the read action was executed through deliverablesService
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(deliverablesService.executeAction).toHaveBeenCalledWith(
+        'read',
+        {},
+        expect.objectContaining({
+          conversationId: 'conv-123',
+          userId: 'user-123',
+        }),
+      );
 
       // Should not call HTTP service for non-create actions
       // eslint-disable-next-line @typescript-eslint/unbound-method

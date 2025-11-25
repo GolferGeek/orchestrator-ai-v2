@@ -1,7 +1,7 @@
 <template>
   <ion-page>
     <ion-split-pane content-id="agents-main-content" when="(min-width: 2000px)">
-      <ion-menu content-id="agents-main-content" type="overlay" :disabled="!auth.isAuthenticated" @ionWillOpen="handleMenuOpen">
+      <ion-menu content-id="agents-main-content" type="overlay" :disabled="!auth.isAuthenticated" @ionWillOpen="handleMenuOpen" @ionWillClose="handleMenuClose">
         <ion-header>
           <ion-toolbar>
             <ion-title 
@@ -191,6 +191,15 @@ const menuTitle = computed(() => {
 const handleMenuOpen = () => {
   // Blur active element to prevent aria-hidden accessibility warning
   // when Ionic sets aria-hidden on the main content behind the menu
+  if (document.activeElement instanceof HTMLElement) {
+    document.activeElement.blur();
+  }
+};
+
+const handleMenuClose = () => {
+  // Blur any focused element inside the menu before it closes
+  // This prevents the aria-hidden warning when focus is trapped in the menu
+  // as the main content regains visibility
   if (document.activeElement instanceof HTMLElement) {
     document.activeElement.blur();
   }
