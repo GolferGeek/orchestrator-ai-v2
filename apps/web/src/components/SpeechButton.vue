@@ -179,7 +179,6 @@ const processAudio = async () => {
     const audioBlob = new Blob(audioChunks.value, { type: 'audio/webm;codecs=opus' });
     const base64Audio = await blobToBase64(audioBlob);
     
-    console.log('🎤 [SpeechButton] Processing audio via new frontend flow');
 
     // Step 1: Transcribe the audio to text
     const transcription = await apiService.transcribeAudio(
@@ -192,7 +191,6 @@ const processAudio = async () => {
       throw new Error('No speech detected in audio');
     }
 
-    console.log('🎤 [SpeechButton] Transcribed text:', transcription.text);
 
     // Step 2: Mark that the next message was sent via speech (for TTS triggering)
     chatUiStore.lastMessageWasSpeech = true;
@@ -214,7 +212,6 @@ const processAudio = async () => {
       }
     }
 
-    console.log('🎤 [SpeechButton] Message sent through chat store');
 
     // Emit transcription for UI updates
     emit('transcription', transcription.text);
@@ -278,7 +275,6 @@ onUnmounted(() => {
 onMounted(() => {
   // Check for microphone permission
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    console.warn('Speech functionality not available - missing media devices API');
   }
 });
 

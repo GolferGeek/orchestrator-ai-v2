@@ -197,7 +197,6 @@ const navigateToLanding = () => {
 };
 const handleConversationSelected = async (conversation: Record<string, unknown>) => {
   try {
-    console.log('Conversation selected:', conversation);
 
     // Set the active conversation in the store
     chatUiStore.setActiveConversation(conversation.id);

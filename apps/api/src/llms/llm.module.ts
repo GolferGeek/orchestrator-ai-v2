@@ -30,6 +30,7 @@ import { BlindedHttpService } from './blinded-http.service';
 import { PIIService } from './pii/pii.service';
 import { DictionaryPseudonymizerService } from './pii/dictionary-pseudonymizer.service';
 import { LLMServiceFactory } from './services/llm-service-factory';
+import { ObservabilityModule } from '../observability/observability.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { LLMServiceFactory } from './services/llm-service-factory';
     EvaluationModule,
     UsageModule,
     LangChainModule,
+    ObservabilityModule,
   ],
   controllers: [
     LLMController,

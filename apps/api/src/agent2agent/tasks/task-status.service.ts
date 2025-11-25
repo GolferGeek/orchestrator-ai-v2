@@ -544,7 +544,10 @@ export class TaskStatusService {
       }
     }
 
-    this.emitStatusChange(taskId, taskStatus);
+    // Emit status change events (don't await to avoid blocking)
+    this.emitStatusChange(taskId, taskStatus).catch((error) => {
+      this.logger.warn(`Failed to emit status change event: ${error instanceof Error ? error.message : String(error)}`);
+    });
   }
 
   /**
@@ -639,8 +642,10 @@ export class TaskStatusService {
       }
     }
 
-    // Emit status change event
-    this.emitStatusChange(taskId, newStatus);
+    // Emit status change event (don't await to avoid blocking)
+    this.emitStatusChange(taskId, newStatus).catch((error) => {
+      this.logger.warn(`Failed to emit status change event: ${error instanceof Error ? error.message : String(error)}`);
+    });
 
     // Handle task completion
     if (
@@ -858,31 +863,74 @@ export class TaskStatusService {
   /**
    * Emit status change events for WebSocket broadcasting
    */
-  private emitStatusChange(taskId: string, taskStatus: TaskStatus): void {
+  private async emitStatusChange(taskId: string, taskStatus: TaskStatus): Promise<void> {
     this.logger.debug(
       `🎯 emitStatusChange: taskId=${taskId}, status=${taskStatus.status}`,
     );
-    // Emit generic task status change
+
+    // Extract conversation context from metadata or look it up
+    let conversationId: string | null = null;
+    let organizationSlug: string | null = null;
+    let agentSlug: string | null = null;
+
+    // First try to get context from taskStatus metadata
+    if (taskStatus.metadata) {
+      conversationId = (taskStatus.metadata as any).conversationId || null;
+      organizationSlug = (taskStatus.metadata as any).organizationSlug || null;
+      agentSlug = (taskStatus.metadata as any).agentSlug || null;
+    }
+
+    // If not in metadata, look up task from database
+    if (!conversationId) {
+      try {
+        const taskResponse = await this.supabase
+          .getAnonClient()
+          .from('tasks')
+          .select('conversation_id, metadata')
+          .eq('id', taskId)
+          .single();
+
+        if (taskResponse.data) {
+          conversationId = taskResponse.data.conversation_id;
+          const metadata = taskResponse.data.metadata as Record<string, unknown>;
+          organizationSlug = metadata?.organizationSlug as string || metadata?.organization_slug as string || null;
+          agentSlug = metadata?.agentSlug as string || metadata?.agent_slug as string || null;
+        }
+      } catch (error) {
+        this.logger.warn(`Failed to fetch task context for observability: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+
+    // Emit generic task status change with conversation context
     this.eventEmitter.emit('task.status_changed', {
       taskId,
       userId: taskStatus.userId,
+      conversationId,
+      organizationSlug,
+      agentSlug,
       status: taskStatus.status,
       progress: taskStatus.progress,
       data: taskStatus,
     });
 
-    // Emit specific lifecycle events
+    // Emit specific lifecycle events with conversation context
     switch (taskStatus.status) {
       case 'running':
         this.eventEmitter.emit('task.started', {
           taskId,
           userId: taskStatus.userId,
+          conversationId,
+          organizationSlug,
+          agentSlug,
         });
         break;
       case 'completed':
         this.eventEmitter.emit('task.completed', {
           taskId,
           userId: taskStatus.userId,
+          conversationId,
+          organizationSlug,
+          agentSlug,
           result: taskStatus.result,
         });
         break;
@@ -890,6 +938,9 @@ export class TaskStatusService {
         this.eventEmitter.emit('task.failed', {
           taskId,
           userId: taskStatus.userId,
+          conversationId,
+          organizationSlug,
+          agentSlug,
           error: taskStatus.error,
         });
         break;
@@ -897,6 +948,9 @@ export class TaskStatusService {
         this.eventEmitter.emit('task.cancelled', {
           taskId,
           userId: taskStatus.userId,
+          conversationId,
+          organizationSlug,
+          agentSlug,
         });
         break;
     }

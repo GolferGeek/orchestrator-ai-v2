@@ -35,8 +35,6 @@ export interface SanitizationResult {
 // =====================================
 
 export function useApiSanitization() {
-  console.log('🔍 [DEBUG] useApiSanitization: Function called');
-  
   /**
    * Sanitize data before sending to API
    */
@@ -69,13 +67,6 @@ export function useApiSanitization() {
         if (sanitized !== value) {
           modified = true;
           if (key) modifiedFields.push(key);
-          if (logSanitization) {
-            console.log(`🧹 Sanitized field "${key}":`, {
-              original: value.substring(0, 100),
-              sanitized: sanitized.substring(0, 100),
-              profile: sanitizationProfile
-            });
-          }
         }
         return sanitized;
       }

@@ -45,6 +45,7 @@ import type {
 import { mapProviderFromDb, mapModelFromDb } from '@/utils/case-converter';
 import { ModelConfigurationService } from './config/model-configuration.service';
 import type { EnvironmentName } from './config/model-configuration.service';
+import { ObservabilityWebhookService } from '@/observability/observability-webhook.service';
 import { getTableName } from '@/supabase/supabase.config';
 import {
   LLMError,
@@ -108,6 +109,7 @@ export class LLMService {
     private readonly blindedLLMService: BlindedLLMService,
     private readonly llmServiceFactoryInstance: LLMServiceFactory,
     private readonly modelConfigurationService: ModelConfigurationService,
+    private readonly observabilityService: ObservabilityWebhookService,
   ) {
     // Initialize OpenAI client only if API key is available
     if (process.env.OPENAI_API_KEY) {
@@ -140,7 +142,18 @@ export class LLMService {
         `🔍 [LLM-USAGE-DEBUG] generateResponse called with callerType: ${options?.callerType}, callerName: ${options?.callerName}, providerName: ${options?.providerName}, modelName: ${options?.modelName}`,
       );
     }
+    const observabilityContext = this.extractObservabilityContext(options);
+
     try {
+      await this.emitLlmEvent('agent.llm.started', {
+        ...observabilityContext,
+        payload: {
+          systemPrompt: systemPrompt.substring(0, 2000),
+          userMessage: userMessage.substring(0, 2000),
+          options,
+        },
+      });
+
       // Debug LLM options being received
 
       // If providerName/modelName are provided, use the unified method
@@ -375,6 +388,25 @@ export class LLMService {
             Object.keys(unifiedResult),
           );
         // Return the result (string or object based on includeMetadata)
+        const isStringResult = typeof unifiedResult === 'string';
+        const preview = isStringResult
+          ? (unifiedResult as string).substring(0, 2000)
+          : (unifiedResult as LLMResponse).content?.substring(0, 2000);
+        const metadata = isStringResult
+          ? undefined
+          : ((unifiedResult as LLMResponse).metadata as unknown as Record<
+              string,
+              unknown
+            >);
+
+        await this.emitLlmEvent('agent.llm.completed', {
+          ...observabilityContext,
+          payload: {
+            responsePreview: preview,
+            metadata,
+          },
+        });
+
         return unifiedResult;
       }
 
@@ -596,6 +628,14 @@ export class LLMService {
           };
         }
 
+        await this.emitLlmEvent('agent.llm.completed', {
+          ...observabilityContext,
+          payload: {
+            responsePreview: content.substring(0, 2000),
+            metadata: undefined,
+          },
+        });
+
         return content;
       } catch (error: unknown) {
         let errorMessage: string;
@@ -607,6 +647,12 @@ export class LLMService {
         throw new Error(`LLM service error: ${errorMessage}`);
       }
     } catch (_outerError) {
+      await this.emitLlmEvent('agent.llm.failed', {
+        ...observabilityContext,
+        payload: {
+          error: _outerError instanceof Error ? _outerError.message : String(_outerError),
+        },
+      });
       // Handle any errors in the try block setup
       const errorMessage =
         _outerError instanceof Error
@@ -614,6 +660,122 @@ export class LLMService {
           : String(_outerError);
       throw new Error(`LLM service error: ${errorMessage}`);
     }
+  }
+
+  /**
+   * Emit observability event for LLM lifecycle
+   */
+  emitLlmObservabilityEvent(
+    hook_event_type: string,
+    event: {
+      provider?: string | null;
+      model?: string | null;
+      conversationId?: string | null;
+      sessionId?: string | null;
+      userId?: string | null;
+      agentSlug?: string | null;
+      organizationSlug?: string | null;
+      payload?: Record<string, unknown>;
+    },
+  ): void {
+    try {
+      this.observabilityService
+        .sendEvent({
+          source_app: 'orchestrator-ai',
+          session_id: event.conversationId || event.sessionId || 'unknown',
+          hook_event_type,
+          conversationId: event.conversationId || undefined,
+          taskId: event.sessionId || event.conversationId || 'unknown',
+          agentSlug: event.agentSlug || undefined,
+          organizationSlug: event.organizationSlug || undefined,
+          userId: event.userId || undefined,
+          mode: 'llm',
+          payload: {
+            provider: event.provider,
+            model: event.model,
+            ...event.payload,
+          },
+        })
+        .catch((err) => {
+          this.logger.warn(
+            `Failed to emit LLM observability event (${hook_event_type}): ${err.message}`,
+          );
+        });
+    } catch (error) {
+      this.logger.debug(
+        `Observability event error (${hook_event_type}): ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  private async emitLlmEvent(
+    hook_event_type: string,
+    event: {
+      provider?: string | null;
+      model?: string | null;
+      conversationId?: string | null;
+      sessionId?: string | null;
+      userId?: string | null;
+      agentSlug?: string | null;
+      organizationSlug?: string | null;
+      payload?: Record<string, unknown>;
+    },
+  ): Promise<void> {
+    try {
+      await this.observabilityService.sendEvent({
+        source_app: 'orchestrator-ai',
+        session_id: event.conversationId || event.sessionId || 'unknown',
+        hook_event_type,
+        conversationId: event.conversationId || undefined,
+        taskId: event.sessionId || event.conversationId || 'unknown',
+        agentSlug: event.agentSlug || undefined,
+        organizationSlug: event.organizationSlug || undefined,
+        userId: event.userId || undefined,
+        mode: 'llm',
+        payload: {
+          provider: event.provider,
+          model: event.model,
+          ...event.payload,
+        },
+      });
+    } catch (error) {
+      this.logger.debug(
+        `Observability event error (${hook_event_type}): ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  private extractObservabilityContext(
+    options?: Record<string, unknown>,
+  ): {
+    provider?: string | null;
+    model?: string | null;
+    conversationId?: string | null;
+    sessionId?: string | null;
+    userId?: string | null;
+    agentSlug?: string | null;
+    organizationSlug?: string | null;
+  } {
+    if (!options) {
+      return {};
+    }
+    return {
+      provider:
+        (options.providerName as string) || (options.provider as string) || null,
+      model:
+        (options.modelName as string) || (options.model as string) || null,
+      conversationId:
+        (options.conversationId as string) || (options.streamId as string) || null,
+      sessionId: (options.sessionId as string) || null,
+      userId: (options.userId as string) || null,
+      agentSlug: (options.agentSlug as string) || null,
+      organizationSlug:
+        typeof options.organizationSlug === 'string'
+          ? options.organizationSlug
+          : options.organizationSlug === null
+            ? null
+            : undefined,
+    };
   }
 
   /**
@@ -639,7 +801,19 @@ export class LLMService {
       });
     }
 
+    const observabilityContext = this.extractObservabilityContext(params.options);
+
     try {
+      await this.emitLlmEvent('agent.llm.started', {
+        ...observabilityContext,
+        payload: {
+          systemPrompt: params.systemPrompt.substring(0, 2000),
+          userMessage: params.userMessage.substring(0, 2000),
+          provider: params.provider,
+          model: params.model,
+        },
+      });
+
       // Validate required parameters
       if (!params.provider) {
         throw new Error('Missing required parameter: provider is required');
@@ -842,12 +1016,30 @@ export class LLMService {
       }
 
       // Return either string or full response based on includeMetadata flag
-      if (params.options?.includeMetadata) {
-        return response;
-      } else {
-        return response.content;
-      }
+      const responsePayload =
+        params.options?.includeMetadata ? response : response.content;
+
+      await this.emitLlmEvent('agent.llm.completed', {
+        ...observabilityContext,
+        payload: {
+          responsePreview:
+            typeof responsePayload === 'string'
+              ? responsePayload.substring(0, 2000)
+              : responsePayload,
+          metadata:
+            typeof response === 'string' ? undefined : response.metadata,
+        },
+      });
+
+      return responsePayload;
     } catch (error) {
+      await this.emitLlmEvent('agent.llm.failed', {
+        ...observabilityContext,
+        payload: {
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
+
       // Standardized error handling
       try {
         const mapped = LLMErrorMapper.fromGenericError(

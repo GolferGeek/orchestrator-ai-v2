@@ -66,7 +66,6 @@ export async function createPlanVersion(
       throw new Error(`Plan ${planId} not found in store`);
     }
 
-    console.log('🔖 [Plan Create Version Action] Starting:', {
       agentSlug,
       planId,
       versionId,
@@ -86,9 +85,6 @@ export async function createPlanVersion(
     // The backend will derive planId from conversationId and create the new version
     const jsonRpcResponse = await api.plans.edit(plan.conversationId, content, versionMetadata) as JsonRpcSuccessResponse<{ success: boolean; version?: PlanVersionData }> | JsonRpcErrorResponse;
 
-    console.log('🔖 [Plan Create Version Action] Response:', jsonRpcResponse);
-    console.log('🔖 [Plan Create Version Action] Response.data:', jsonRpcResponse.data);
-    console.log('🔖 [Plan Create Version Action] Response.result:', jsonRpcResponse.result);
 
     // Handle JSON-RPC response format
     if (jsonRpcResponse.error) {

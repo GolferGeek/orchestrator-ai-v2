@@ -235,7 +235,6 @@ const handleDismiss = (errorId: string) => {
 
 const handleRetry = (error: AppError) => {
   // Emit retry event or implement retry logic
-  console.log('Retrying operation for error:', error.id);
   
   // For API errors, we could trigger a retry of the failed request
   if (error.type === 'api' || error.type === 'network') {
@@ -256,7 +255,6 @@ const handleNavigate = (path: string) => {
 
 const handleReport = (error: AppError) => {
   // Implement error reporting
-  console.log('Reporting error:', error.id);
   
   // In a real implementation, you might:
   // - Send error to logging service
@@ -277,19 +275,16 @@ const checkConnection = () => {
   
   if (!isOffline.value) {
     // Connection restored - you might want to retry failed requests
-    console.log('Connection restored');
   }
 };
 
 // Network status handling
 const handleOnline = () => {
   isOffline.value = false;
-  console.log('Back online');
 };
 
 const handleOffline = () => {
   isOffline.value = true;
-  console.log('Gone offline');
 };
 
 // Watch for new critical errors with lifecycle guard

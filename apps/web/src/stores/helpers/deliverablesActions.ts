@@ -188,7 +188,6 @@ export async function createDeliverableVersion(
     const api = createAgent2AgentApi(agentSlug);
     const jsonRpcResponse = await api.deliverables.edit(deliverable.conversationId, content, versionMetadata) as JsonRpcSuccessResponse<{ success: boolean; version?: DeliverableVersion }> | JsonRpcErrorResponse;
 
-    console.log('🔖 [Deliverable Create Version] Response:', jsonRpcResponse);
 
     // Handle JSON-RPC response format
     if (jsonRpcResponse.error) {

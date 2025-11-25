@@ -755,7 +755,6 @@ const deleteAllDocuments = async () => {
 
 // View document (placeholder)
 const viewDocument = (doc: RagDocument) => {
-  console.log('View document:', doc);
   // Could expand to show chunks, metadata, etc.
 };
 

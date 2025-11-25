@@ -498,7 +498,6 @@ const deleteConversation = async (conversation: AgentConversation, event: Event)
     });
     hasDeliverables = deliverables && deliverables.length > 0;
   } catch (error) {
-    console.warn('Failed to check deliverables for conversation:', error);
     // Default to false if we can't check
     hasDeliverables = false;
   }
@@ -519,7 +518,6 @@ const handleDeleteCancel = () => {
 const handleDeleteConfirm = async (deleteDeliverables: boolean) => {
   try {
     if (!conversationToDelete.value) {
-      console.warn('No conversation to delete');
       return;
     }
     
@@ -537,7 +535,6 @@ const handleDeleteConfirm = async (deleteDeliverables: boolean) => {
           await deliverablesService.deleteDeliverable(deliverable.id);
         }
       } catch (error) {
-        console.warn('Failed to delete deliverables:', error);
         // Continue with conversation deletion even if deliverable deletion fails
       }
     }
@@ -570,7 +567,6 @@ const hierarchyGroups = computed(() => {
     agentType: a.agentType,
     hasChildren: !!(a.children && a.children.length > 0)
   }));
-  console.log(`🔍 [AgentTreeView.hierarchyGroups] All agents in hierarchy:`, JSON.stringify({
     totalAgents: flatAgents.length,
     agentNames
   }, null, 2));
@@ -579,7 +575,6 @@ const hierarchyGroups = computed(() => {
   
   const processNode = (node: Agent) => {
     // Debug: Log ALL nodes to see what we're working with
-    console.log(`🔍 [AgentTreeView.processNode] Processing node:`, {
       name: node.name,
       displayName: node.displayName,
       organizationSlug: node.organizationSlug,
@@ -590,7 +585,6 @@ const hierarchyGroups = computed(() => {
     
     // Debug: Log the raw node data for blog-related agents
     if (node.name.toLowerCase().includes('blog') || node.name.toLowerCase().includes('writer') || node.name.toLowerCase().includes('post')) {
-      console.log(`🔍 [AgentTreeView.processNode] Raw node data for "${node.name}":`, {
         name: node.name,
         organizationSlug: node.organizationSlug,
         hasOrganizationSlug: !!node.organizationSlug,
@@ -628,7 +622,6 @@ const hierarchyGroups = computed(() => {
 
     // Debug: Log ALL node names to see what we're searching for
     if (node.name.toLowerCase().includes('blog') || node.name.toLowerCase().includes('marketing') || node.name.toLowerCase().includes('writer') || node.name.toLowerCase().includes('post')) {
-      console.log(`🔍 [AgentTreeView] Processing node:`, {
         nodeName: node.name,
         nodeDisplayName: node.displayName,
         nodeSlug: node.slug,
@@ -649,7 +642,6 @@ const hierarchyGroups = computed(() => {
     
     // Debug logging for all agents with conversations or specific agents
     if (nodeConversations.length > 0 || node.name.toLowerCase().includes('blog') || node.name.toLowerCase().includes('marketing') || node.name.toLowerCase().includes('writer') || node.name.toLowerCase().includes('post')) {
-      console.log(`🔍 [AgentTreeView] Agent "${node.name}" conversations:`, {
         agentName: node.name,
         organizationSlug: node.organizationSlug,
         conversationsFound: nodeConversations.length,
@@ -702,7 +694,6 @@ const hierarchyGroups = computed(() => {
           );
 
           // Add this child as a team member
-          console.log('🔍 [AgentTreeView] Building child agent object:', {
             name: child.name,
             type: child.type,
             organizationSlug: child.organizationSlug,
@@ -855,7 +846,6 @@ const hierarchyGroups = computed(() => {
     return true;
   });
   
-  console.log(`🔍 [AgentTreeView] Processing otherRootNodes:`, JSON.stringify({
     topOrchestrator: topOrchestrator ? { name: topOrchestrator.name, hasChildren: !!(topOrchestrator.children && topOrchestrator.children.length > 0), organizationSlug: topOrchestrator.organizationSlug } : null,
     otherRootNodesCount: otherRootNodes.length,
     otherRootNodeNames: otherRootNodes.map((a: Agent) => ({ name: a.name, hasChildren: !!(a.children && a.children.length > 0), organizationSlug: a.organizationSlug }))
@@ -871,7 +861,6 @@ const hierarchyGroups = computed(() => {
       // This is a standalone specialist/agent
       // Always try to match by agent name first, with organizationSlug if available
       // Fall back to agentType matching only if no organizationSlug
-      console.log(`🔍 [AgentTreeView] Processing standalone agent:`, JSON.stringify({
         name: agent.name,
         organizationSlug: agent.organizationSlug,
         type: agent.type,
@@ -885,7 +874,6 @@ const hierarchyGroups = computed(() => {
         agent.organizationSlug !== undefined ? agent.organizationSlug : undefined
       );
       
-      console.log(`🔍 [AgentTreeView] Found ${nodeConversations.length} conversations for standalone agent "${agent.name}"`, {
         conversationIds: nodeConversations.map(c => c.id),
         sampleConversations: nodeConversations.slice(0, 3).map(c => ({
           id: c.id,
@@ -926,7 +914,6 @@ const hierarchyGroups = computed(() => {
   }
   
   // Debug: Log all agents and their conversations
-  console.log('🔍 [AgentTreeView.hierarchyGroups] Final groups:', {
     totalGroups: groups.length,
     totalConversations: storeConversations.value.length,
     allConversations: storeConversations.value.map(c => ({
@@ -965,7 +952,6 @@ const refreshData = async () => {
     const organization = authStore.currentOrganization;
 
     if (!organization) {
-      console.warn('No organization available for refreshing agents');
       return;
     }
 
@@ -1013,7 +999,6 @@ const filterAgents = () => {
 
 const createNewConversation = async (agent: Agent) => {
   try {
-    console.log('🔍 [AgentTreeView] Creating conversation with agent:', {
       name: agent.name,
       type: agent.type,
       organizationSlug: agent.organizationSlug,
@@ -1052,19 +1037,14 @@ onMounted(async () => {
   // Check if conversations are already loaded
   const hasConversations = storeConversations.value.length > 0;
   if (!hasConversations) {
-    console.log('📥 [AgentTreeView] Loading conversations on mount...');
     try {
       await conversationsStore.fetchConversations(true);
-      console.log('✅ [AgentTreeView] Conversations loaded:', storeConversations.value.length);
     } catch (error) {
       console.error('❌ [AgentTreeView] Failed to load conversations:', error);
     }
   } else {
-    console.log('✅ [AgentTreeView] Conversations already loaded:', storeConversations.value.length);
     // Debug: Show all agent names from conversations
     const allAgentNames = Array.from(new Set(storeConversations.value.map(c => c.agentName || c.agent?.name).filter(Boolean)));
-    console.log('📋 [AgentTreeView] All agent names from conversations:', allAgentNames);
-    console.log('📋 [AgentTreeView] Sample conversations:', storeConversations.value.slice(0, 3).map(c => ({
       id: c.id,
       agentName: c.agentName,
       agentNameFromAgent: c.agent?.name,

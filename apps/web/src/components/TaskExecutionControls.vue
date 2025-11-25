@@ -101,7 +101,6 @@ const isSingleModeAgent = computed(() => {
   return modes.length === 1;
 });
 const showControls = computed(() => {
-  console.log('[TaskExecutionControls] Debug:', {
     hasConversation: !!activeConversation.value,
     hasAgent: !!activeConversation.value?.agent,
     supportedModes: activeConversation.value?.supportedExecutionModes,
@@ -144,13 +143,11 @@ const getModeLabel = (mode: string) => {
 // Event handlers
 const handleModeChange = (event: CustomEvent) => {
   const newMode = event.detail.value as 'immediate' | 'polling' | 'real-time' | 'auto';
-  console.log('[TaskExecutionControls] 🔄 Changing execution mode:', {
     from: currentMode.value,
     to: newMode,
     conversationId: activeConversation.value?.id,
   });
   chatUiStore.setExecutionMode(newMode);
-  console.log('[TaskExecutionControls] ✅ Mode changed, new effective mode:', chatUiStore.effectiveExecutionMode);
   showModeSelector.value = false;
 };
 const resetToDefault = () => {

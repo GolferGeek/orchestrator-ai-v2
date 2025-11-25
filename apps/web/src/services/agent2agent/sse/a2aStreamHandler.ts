@@ -112,7 +112,6 @@ export class A2AStreamHandler {
       try {
         dispose?.();
       } catch (error) {
-        console.warn('[SSE] failed to cleanup listener', error);
       }
     }
   }
@@ -170,20 +169,16 @@ export class A2AStreamHandler {
   }
 
   private handleChunk(event: MessageEvent): void {
-    console.log('[A2AStreamHandler] 📥 handleChunk called with event:', event);
     const data = this.safeParse<AgentStreamChunkSSEEvent['data']>(event.data);
     if (!data) {
-      console.warn('[A2AStreamHandler] ⚠️ Failed to parse chunk data');
       return;
     }
-    console.log('[A2AStreamHandler] ✅ Parsed chunk data:', {
       streamId: data.streamId,
       taskId: data.taskId,
       chunkType: data.chunk?.type,
       content: data.chunk?.content?.substring(0, 100),
     });
     this.handlers.onChunk?.(data);
-    console.log('[A2AStreamHandler] 🎯 Called onChunk handler');
   }
 
   private handleComplete(event: MessageEvent): void {
@@ -212,7 +207,6 @@ export class A2AStreamHandler {
     try {
       return JSON.parse(raw) as T;
     } catch (error) {
-      console.warn('[SSE] failed to parse event payload', error);
       return null;
     }
   }

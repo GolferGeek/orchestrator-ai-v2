@@ -420,7 +420,6 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     try {
       const result = await analyticsService.trackEvent(event);
       if (!result.success) {
-        console.warn('Failed to track event:', event);
       }
     } catch (err) {
       console.error('Error tracking event:', err);

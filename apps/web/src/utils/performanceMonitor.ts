@@ -58,7 +58,6 @@ export class PerformanceMonitor {
       
       // Log slow operations (>100ms)
       if (metric.duration > 100) {
-        console.warn(`Slow operation detected: ${name} took ${metric.duration.toFixed(2)}ms`);
       }
     }
   }
@@ -83,7 +82,6 @@ export class PerformanceMonitor {
 
     // Warn about slow renders (>16ms for 60fps)
     if (renderTime > 16) {
-      console.warn(`Slow render: ${component} took ${renderTime.toFixed(2)}ms`);
     }
   }
 
@@ -108,7 +106,6 @@ export class PerformanceMonitor {
 
     // Warn about slow API calls (>1000ms)
     if (responseTime > 1000) {
-      console.warn(`Slow API call: ${method} ${endpoint} took ${responseTime}ms`);
     }
   }
 
@@ -133,7 +130,6 @@ export class PerformanceMonitor {
       navObserver.observe({ entryTypes: ['navigation'] });
       this.observers.push(navObserver);
     } catch {
-      console.debug('Navigation observer not supported');
     }
 
     // Resource timing
@@ -149,7 +145,6 @@ export class PerformanceMonitor {
       resourceObserver.observe({ entryTypes: ['resource'] });
       this.observers.push(resourceObserver);
     } catch {
-      console.debug('Resource observer not supported');
     }
 
     // Paint timing
@@ -157,27 +152,23 @@ export class PerformanceMonitor {
       const paintObserver = new PerformanceObserver((list) => {
         for (const entry of list.getEntries()) {
           if (entry.entryType === 'paint') {
-            console.log(`${entry.name}: ${entry.startTime.toFixed(2)}ms`);
           }
         }
       });
       paintObserver.observe({ entryTypes: ['paint'] });
       this.observers.push(paintObserver);
     } catch {
-      console.debug('Paint observer not supported');
     }
 
     // Largest Contentful Paint
     try {
       const lcpObserver = new PerformanceObserver((list) => {
         for (const entry of list.getEntries()) {
-          console.log(`LCP: ${entry.startTime.toFixed(2)}ms`);
         }
       });
       lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] });
       this.observers.push(lcpObserver);
     } catch {
-      console.debug('LCP observer not supported');
     }
   }
 
@@ -199,7 +190,6 @@ export class PerformanceMonitor {
     console.group('Navigation Timing');
     Object.entries(timings).forEach(([name, time]) => {
       if (time > 0) {
-        console.log(`${name}: ${time.toFixed(2)}ms`);
       }
     });
     console.groupEnd();
@@ -213,7 +203,6 @@ export class PerformanceMonitor {
     
     // Only track significant resources (>100ms or >100KB)
     if (duration > 100 || entry.transferSize > 100000) {
-      console.log(`Resource: ${entry.name} - ${duration.toFixed(2)}ms, ${(entry.transferSize / 1024).toFixed(1)}KB`);
     }
   }
 

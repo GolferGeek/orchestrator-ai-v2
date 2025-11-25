@@ -447,7 +447,6 @@ export class Agent2AgentApi {
         },
       };
 
-      console.log('📤 [Agent2Agent API] Request:', JSON.stringify(requestBody, null, 2));
 
       const response = await fetch(endpoint, {
         method: 'POST',

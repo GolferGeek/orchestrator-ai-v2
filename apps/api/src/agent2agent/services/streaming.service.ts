@@ -53,15 +53,6 @@ export class StreamingService {
     conversationId: string | null,
     userId: string,
   ): string {
-    this.logger.debug('🚀 [StreamingService] registerStream() called', {
-      taskId,
-      agentSlug,
-      organizationSlug,
-      mode,
-      conversationId,
-      userId,
-    });
-
     // Use taskId as streamId for simplicity - frontend already knows the taskId
     const streamId = taskId;
 
@@ -77,10 +68,6 @@ export class StreamingService {
     };
 
     this.streamRegistry.set(taskId, metadata);
-
-    this.logger.log(
-      `📡 [StreamingService] Registered stream session: taskId=${taskId}, streamId=${streamId}, agent=${agentSlug}`,
-    );
 
     // Register stream session in task-status service
     // This allows SSE connections to find the stream
@@ -119,12 +106,6 @@ export class StreamingService {
       [key: string]: unknown;
     },
   ): void {
-    this.logger.debug('📥 [StreamingService] emitProgress() called', {
-      taskId,
-      content: content.substring(0, 100),
-      metadata,
-    });
-
     const streamMeta = this.streamRegistry.get(taskId);
 
     if (!streamMeta) {
@@ -133,10 +114,6 @@ export class StreamingService {
       );
       return;
     }
-
-    this.logger.log(
-      `📨 [StreamingService] Emitting progress for task ${taskId} (stream ${streamMeta.streamId}): ${content.substring(0, 100)}...`,
-    );
 
     const eventPayload = {
       streamId: streamMeta.streamId,
@@ -152,11 +129,6 @@ export class StreamingService {
       },
     };
 
-    this.logger.debug(
-      '🔔 [StreamingService] Emitting agent.stream.chunk event',
-      eventPayload,
-    );
-
     // Emit A2A formatted stream chunk event
     this.eventEmitter.emit('agent.stream.chunk', eventPayload);
   }
@@ -169,15 +141,8 @@ export class StreamingService {
     const streamMeta = this.streamRegistry.get(taskId);
 
     if (!streamMeta) {
-      this.logger.debug(
-        `No stream registered for taskId ${taskId} - skipping complete emission`,
-      );
       return;
     }
-
-    this.logger.log(
-      `✅ Emitting completion for task ${taskId} (stream ${streamMeta.streamId})`,
-    );
 
     // Emit A2A formatted complete event
     this.eventEmitter.emit('agent.stream.complete', {
@@ -202,14 +167,11 @@ export class StreamingService {
     const streamMeta = this.streamRegistry.get(taskId);
 
     if (!streamMeta) {
-      this.logger.debug(
-        `No stream registered for taskId ${taskId} - skipping error emission`,
-      );
       return;
     }
 
     this.logger.error(
-      `❌ Emitting error for task ${taskId} (stream ${streamMeta.streamId}): ${error}`,
+      `❌ Stream error for task ${taskId}: ${error}`,
     );
 
     // Emit A2A formatted error event

@@ -97,7 +97,6 @@ export class RoutePreloader {
       try {
         await route();
       } catch (error) {
-        console.debug('Route preload failed:', error);
       }
     }
   }

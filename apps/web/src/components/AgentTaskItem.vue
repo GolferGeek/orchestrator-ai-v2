@@ -373,27 +373,22 @@ const hasBackendDeliverable = computed(() => {
 const backendDeliverableId = computed(() => {
   const id = props.message.deliverableId ||
          props.message.metadata?.deliverableId;
-  console.log('🆔 [AgentTaskItem.backendDeliverableId] Message:', props.message.id, 'has deliverableId:', id);
   return id;
 });
 
 const backendDeliverable = computed<Deliverable | null>(() => {
   const deliverableId = backendDeliverableId.value;
-  console.log('🔍 [AgentTaskItem.backendDeliverable] Computing for message:', props.message.id, 'deliverableId:', deliverableId);
 
   if (!deliverableId) {
-    console.log('❌ [AgentTaskItem.backendDeliverable] No deliverableId found');
     return null;
   }
 
   // Get deliverable from store - this will be reactive to store changes
   const deliverable = deliverablesStore.getDeliverableById(deliverableId);
-  console.log('📦 [AgentTaskItem.backendDeliverable] Retrieved from store:', deliverable ? deliverable.id : 'NOT FOUND');
 
   // Force reactivity by accessing conversation deliverables
   if (props.conversationId) {
     const conversationDeliverables = deliverablesStore.getDeliverablesByConversation(props.conversationId);
-    console.log('📋 [AgentTaskItem.backendDeliverable] Conversation deliverables count:', conversationDeliverables?.length || 0);
 
     // Also force reactivity on the deliverables store state
     void deliverablesStore.$state;
@@ -760,7 +755,6 @@ const pseudonymizedItemsCount = computed(() => {
   // First check for simplified PII metadata
   const simplifiedPii = props.message.metadata?.simplifiedPii;
   if (simplifiedPii) {
-    console.log('🏷️ [BADGE-CHECK] Using simplified PII - pseudonym count:', simplifiedPii.pseudonymCount);
     return simplifiedPii.pseudonymCount || 0;
   }
   
@@ -769,9 +763,7 @@ const pseudonymizedItemsCount = computed(() => {
   
   // Debug logging for PII badges (only when no simplified metadata)
   if (props.message.role === 'assistant' && !simplifiedPii) {
-    console.log('🏷️ [BADGE-CHECK] Falling back to legacy PII metadata');
     if (piiMetadata) {
-      console.log('🏷️ [BADGE-CHECK] Legacy PII structure found');
     }
   }
   
@@ -792,7 +784,6 @@ const flaggedItemsCount = computed(() => {
   // First check for simplified PII metadata
   const simplifiedPii = props.message.metadata?.simplifiedPii;
   if (simplifiedPii) {
-    console.log('🚩 [BADGE-CHECK] Using simplified PII - flag count:', simplifiedPii.flagCount);
     return simplifiedPii.flagCount || 0;
   }
   
@@ -802,14 +793,12 @@ const flaggedItemsCount = computed(() => {
   // Use the correct structure: detectionResults.flaggedMatches
   if (piiMetadata?.detectionResults?.flaggedMatches?.length) {
     const count = piiMetadata.detectionResults.flaggedMatches.length;
-    console.log('🚩 [BADGE-CHECK] Falling back to legacy - flaggedMatches:', count);
     return count;
   }
   
   // Alternative: use totalMatches if available
   if (piiMetadata?.detectionResults?.totalMatches) {
     const count = piiMetadata.detectionResults.totalMatches;
-    console.log('🚩 [BADGE-CHECK] Falling back to legacy - totalMatches:', count);
     return count;
   }
   
@@ -967,40 +956,30 @@ watch(() => props.message, (newMessage) => {
 
     // Check if the last message was sent via speech
     if (chatUiStore.lastMessageWasSpeech) {
-      console.log('🎤 [TTS] Assistant message detected, checking length...');
 
       if (isResponseTooLong(newMessage.content)) {
-        console.log('🎤 [TTS] Response is lengthy, using fallback message');
         handleTextToSpeech(LENGTHY_RESPONSE_FALLBACK);
       } else {
-        console.log('🎤 [TTS] Response is short, using full content');
         handleTextToSpeech(newMessage.content);
       }
     } else {
-      console.log('🎤 [TTS] Skipping TTS - last message was not via speech');
     }
   }
 }, { immediate: false, deep: true });
 
 watch(() => backendDeliverable.value, (newVal, oldVal) => {
-  console.log('👀 [AgentTaskItem.backendDeliverable watcher] Triggered - newVal:', newVal?.id, 'oldVal:', oldVal?.id);
 
   if (newVal !== oldVal) {
-    console.log('🔄 [AgentTaskItem.backendDeliverable watcher] Values changed');
 
     // Emit deliverable-created event when a new deliverable is detected
     if (newVal && !oldVal) {
-      console.log('✨ [AgentTaskItem.backendDeliverable watcher] NEW deliverable detected, emitting deliverable-created:', newVal.id);
       emit('deliverable-created', newVal);
     } else if (newVal && oldVal && newVal.id !== oldVal.id) {
       // Different deliverable
-      console.log('🔄 [AgentTaskItem.backendDeliverable watcher] DIFFERENT deliverable detected, emitting deliverable-created:', newVal.id);
       emit('deliverable-created', newVal);
     } else if (newVal && oldVal) {
-      console.log('📝 [AgentTaskItem.backendDeliverable watcher] Same deliverable, no emit');
     }
   } else {
-    console.log('➡️ [AgentTaskItem.backendDeliverable watcher] No change');
   }
 }, { immediate: true });
 
@@ -1043,7 +1022,6 @@ function isResponseTooLong(text: string): boolean {
 // TTS function to handle text-to-speech conversion (simple working version)
 async function handleTextToSpeech(text: string) {
   try {
-    console.log('🎤 [TTS] Starting text-to-speech conversion...');
     
     // Synthesize the response text to speech
     const synthesizedAudio = await apiService.synthesizeText(
@@ -1052,12 +1030,10 @@ async function handleTextToSpeech(text: string) {
       0.5 // Speaking rate/stability
     );
 
-    console.log('🎤 [TTS] Audio synthesis completed, starting playback...');
     
     // Play the response audio
     await playAudio(synthesizedAudio.audioData);
     
-    console.log('🎤 [TTS] Audio playback finished successfully');
     
   } catch (error) {
     console.error('🎤 [TTS] Failed to convert text to speech:', error);
@@ -1073,7 +1049,6 @@ async function handleTextToSpeech(text: string) {
   } finally {
     // Always clear the speech flag when TTS completes (success or error)
     chatUiStore.setLastMessageWasSpeech(false);
-    console.log('🎤 [TTS] Cleared speech flag after TTS completion');
   }
 }
 
@@ -1084,16 +1059,13 @@ async function playAudio(audioData: string) {
     
     // Set up event handlers
     audio.onended = () => {
-      console.log('🎤 [TTS] Audio playback ended naturally');
       
       // Auto-start listening for user response by clicking the speech button
       try {
         const speechButton = document.querySelector('.conversation-button');
         if (speechButton) {
-          console.log('🎤 [AUTO-LISTEN] Auto-clicking speech button after TTS');
           speechButton.click();
         } else {
-          console.log('🎤 [AUTO-LISTEN] Speech button not found');
         }
       } catch (error) {
         console.error('🎤 [AUTO-LISTEN] Failed to auto-click speech button:', error);
@@ -1116,7 +1088,6 @@ async function playAudio(audioData: string) {
       audio.src = `data:audio/mpeg;base64,${audioData}`;
     }
     
-    console.log('🎤 [TTS DEBUG] Audio src format:', audio.src.substring(0, 50) + '...');
     audio.play().catch(reject);
   });
 }

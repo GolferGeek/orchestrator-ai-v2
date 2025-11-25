@@ -365,7 +365,6 @@ class TasksService {
       ...(taskData.taskId ? { id: taskData.taskId } : {}),
     };
 
-    console.log('🚀 [TasksService] Sending A2A JSON-RPC 2.0 request:', {
       url,
       organization: organization,
       method: payload.method,
@@ -373,7 +372,6 @@ class TasksService {
       conversationId: paramsBody.conversationId,
       mode: paramsBody.mode,
     });
-    console.log('🚀 [TasksService] Request payload (sanitized):', {
       jsonrpc: payload.jsonrpc,
       method: payload.method,
       id: payload.id,
@@ -381,7 +379,6 @@ class TasksService {
     });
 
     // API returns JSON-RPC 2.0 format: { jsonrpc: '2.0', id: ..., result: ... } or { jsonrpc: '2.0', id: ..., error: ... }
-    console.log('⏳ [TasksService] Waiting for API response...');
     const jsonRpcResponse = await apiService.post<{
       jsonrpc?: string;
       id?: string | number | null;
@@ -393,7 +390,6 @@ class TasksService {
       };
     }, JsonObject>(url, payload);
 
-    console.log('📥 [TasksService] Received API response:', {
       hasJsonrpc: !!jsonRpcResponse.jsonrpc,
       hasResult: !!jsonRpcResponse.result,
       hasError: !!jsonRpcResponse.error,
@@ -446,7 +442,6 @@ class TasksService {
     const status: TaskStatus = (metadata.status as TaskStatus) || 
                               (taskResponseSuccess ? 'completed' : 'failed');
 
-    console.log('📦 [TasksService] Extracted from TaskResponseDto:', {
       taskId,
       conversationId,
       status,

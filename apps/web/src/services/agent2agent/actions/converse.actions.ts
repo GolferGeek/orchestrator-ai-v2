@@ -42,7 +42,6 @@ export async function sendMessage(
   conversationId: string,
   userMessage: string,
 ): Promise<Message> {
-  console.log('💬 [Converse Send Action] Starting', { agentName, conversationId });
 
   // 1. Get conversation from store (for context)
   const conversationsStore = useConversationsStore();
@@ -52,7 +51,6 @@ export async function sendMessage(
     throw new Error(`Conversation ${conversationId} not found`);
   }
 
-  console.log('📚 [Converse Send Action] Found conversation:', conversation.title);
 
   // 2. Add user message to store immediately (optimistic update)
   const userMessageObj: Omit<Message, 'id'> = {
@@ -63,7 +61,6 @@ export async function sendMessage(
   };
 
   const _addedUserMessage = conversationsStore.addMessage(conversationId, userMessageObj);
-  console.log('📝 [Converse Send Action] Added user message to store');
 
   // 3. Get conversation history and UI preferences
   const chatUiStore = useChatUiStore();
@@ -83,7 +80,6 @@ export async function sendMessage(
 
   // 5. Call tasksService to create and execute the converse task
   try {
-    console.log('📤 [Converse Send Action] Calling tasksService.createAgentTask');
 
     const result = await tasksService.createAgentTask(
       conversation.agentType || 'custom',
@@ -99,7 +95,6 @@ export async function sendMessage(
       { organization: conversation.organizationSlug || 'global' }
     );
 
-    console.log('📥 [Converse Send Action] Task response:', result);
 
     // 5. Extract assistant message from task result - backend should provide clean response
     let parsedResult = result.result;
@@ -107,7 +102,6 @@ export async function sendMessage(
       try {
         parsedResult = JSON.parse(parsedResult);
       } catch {
-        console.warn('📦 [Converse Action] Backend returned non-JSON string:', parsedResult?.substring(0, 200));
       }
     }
 
@@ -119,8 +113,6 @@ export async function sendMessage(
       throw new Error(errorMessage);
     }
 
-    console.log('📦 [Converse Action] Full result from backend:', result);
-    console.log('📦 [Converse Action] Parsed result:', parsedResult);
 
     // Parse as TaskResponse with ConverseResponseContent
     const taskResponse = parsedResult as TaskResponse;
@@ -130,7 +122,6 @@ export async function sendMessage(
     const thinkingContent = (taskResponse?.humanResponse as { thinking?: string })?.thinking;
     const assistantContent = converseContent?.message || 'No response content';
 
-    console.log('📝 [Converse Action] Extracted content:', { thinkingContent, assistantContent });
 
     // Extract provider/model metadata from proper transport type structure
     const metadata = {
@@ -150,8 +141,6 @@ export async function sendMessage(
       metadata,
     });
 
-    console.log('💾 [Converse Send Action] Assistant message added to store');
-    console.log('✅ [Converse Send Action] Complete');
 
     return assistantMessage;
   } catch (error) {
@@ -176,16 +165,13 @@ export async function createConversation(
   organizationSlug: string,
   title?: string,
 ): Promise<Conversation> {
-  console.log('🆕 [Converse Create Action] Starting', { agentName, agentType, organizationSlug });
 
   // 1. Create API client
   const api = createAgent2AgentApi(agentName);
 
   // 2. Send create conversation request
-  console.log('📤 [Converse Create Action] Sending request');
   const response = await api.conversations.create(agentName, agentType, organizationSlug);
 
-  console.log('📥 [Converse Create Action] Response received:', response);
 
   // 3. Validate response
   if (!response.success || !response.conversationId) {
@@ -214,8 +200,6 @@ export async function createConversation(
   const chatUiStore = useChatUiStore();
   chatUiStore.setActiveConversation(conversation.id);
 
-  console.log('💾 [Converse Create Action] Store updated');
-  console.log('✅ [Converse Create Action] Complete');
 
   return conversation;
 }
@@ -229,7 +213,6 @@ export async function createConversation(
 export async function loadConversation(
   conversationId: string,
 ): Promise<Conversation> {
-  console.log('📖 [Converse Load Action] Starting', { conversationId });
 
   // This would call a backend API to load the conversation
   // For now, we'll just return what's in the store
@@ -240,7 +223,6 @@ export async function loadConversation(
     throw new Error(`Conversation ${conversationId} not found`);
   }
 
-  console.log('✅ [Converse Load Action] Complete');
 
   return conversation;
 }
@@ -253,7 +235,6 @@ export async function loadConversation(
 export async function deleteConversation(
   conversationId: string,
 ): Promise<void> {
-  console.log('🗑️  [Converse Delete Action] Starting', { conversationId });
 
   const conversationsStore = useConversationsStore();
   const chatUiStore = useChatUiStore();
@@ -264,5 +245,4 @@ export async function deleteConversation(
   // 2. Remove from store
   conversationsStore.removeConversation(conversationId);
 
-  console.log('✅ [Converse Delete Action] Complete');
 }

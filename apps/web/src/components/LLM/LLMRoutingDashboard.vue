@@ -542,7 +542,6 @@ const saveRoutingRules = async () => {
   savingRules.value = true;
   try {
     // TODO: Implement API call to save routing rules
-    console.log('Saving routing rules:', routingRules.value);
     await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
   } catch (error) {
     console.error('Failed to save routing rules:', error);
@@ -553,7 +552,6 @@ const saveRoutingRules = async () => {
 
 const testRoutingRules = () => {
   // TODO: Implement routing rules testing
-  console.log('Testing routing rules:', routingRules.value);
 };
 
 // Watch for prop changes to refresh data

@@ -140,7 +140,6 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
         maxTokens: this.maxTokens,
       };
 
-      console.log('🔍 LLM Selection being sent:', {
         providerName: selection.providerName,
         modelName: selection.modelName,
         selectedModelObject: this.selectedModel,
@@ -403,7 +402,6 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
         try {
           this.sovereignPolicy = await sovereignPolicyService.getPolicy();
         } catch (error) {
-          console.warn('Failed to fetch sovereign policy, using defaults:', error);
           this.sovereignPolicy = { enforced: false };
         }
 
@@ -431,7 +429,6 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
       // Handle provider/model selection changes SYNCHRONOUSLY when sovereign mode changes
       if (enabled && !wasEnabled) {
         // Switching TO sovereign mode - immediately set Ollama provider
-        console.log('Switching to sovereign mode, setting Ollama provider...');
 
         // Find Ollama provider from the newly filtered providers
         const ollamaProvider = this.filteredProviders.find(p =>
@@ -457,7 +454,6 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
 
             this.selectedModel = preferredModel;
 
-            console.log('Switched to sovereign mode:', {
               provider: this.selectedProvider.name,
               model: this.selectedModel.modelName,
               availableModels: ollamaModels.length
@@ -466,7 +462,6 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
         }
       } else if (!enabled && wasEnabled) {
         // Switching FROM sovereign mode - current selection should remain valid
-        console.log('Switched from sovereign mode, current selection remains valid');
       }
     },
     // Fetch all providers from API (filtering handled reactively by getters)
@@ -498,13 +493,11 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
         }
 
         this.providers = providers;
-        console.log(`Fetched ${this.providers.length} providers (filtering handled reactively)`);
 
         // Set default provider if none selected
         if (!this.selectedProvider && providers.length > 0) {
           const anthropic = providers.find(p => p.name.toLowerCase() === 'anthropic');
           this.selectedProvider = anthropic || providers[0];
-          console.log('Auto-selected default provider:', this.selectedProvider?.name);
         }
       } catch (error) {
         const message = resolveErrorMessage(error, 'Failed to fetch providers');
@@ -522,7 +515,6 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
         // Fetch all models - filtering will be handled reactively by getters
         this.models = await sovereignPolicyService.getModels(false); // Always fetch all models
 
-        console.log(`Fetched ${this.models.length} models (filtering handled reactively)`);
       } catch (error) {
         this.modelError = error instanceof Error ? error.message : 'Failed to fetch models';
         console.error('Error fetching models:', error);
@@ -612,7 +604,6 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
 
         this.selectedModel = preferredModel || ossModel || llama32Model || thinkingModel || fallbackModel || providerModels[0];
 
-        console.log('LLM Preferences Store Initialization:', {
           userPreferences,
           selectedProvider: this.selectedProvider?.name,
           selectedModel: this.selectedModel?.modelName,
@@ -806,7 +797,6 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
       // Could emit events here for toast notifications or other UI feedback
       if (showToUser) {
         // Emit to global error handler or set reactive state for UI
-        console.log('User-friendly error message:', error.userMessage);
       }
     },
 

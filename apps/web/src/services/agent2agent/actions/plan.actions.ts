@@ -46,7 +46,6 @@ export async function createPlan(
   conversationId: string,
   userMessage: string,
 ): Promise<{ plan: PlanData; version: PlanVersionData; isNew: boolean }> {
-  console.log('🔨 [Plan Create Action] Starting', { agentName, conversationId });
 
   const conversationsStore = useConversationsStore();
   const chatUiStore = useChatUiStore();
@@ -83,7 +82,6 @@ export async function createPlan(
     } : undefined;
 
     // 5. Call tasksService to create and execute the plan task
-    console.log('📤 [Plan Create Action] Calling tasksService.createAgentTask');
 
     const result = await tasksService.createAgentTask(
       conversation.agentType || 'custom',
@@ -99,7 +97,6 @@ export async function createPlan(
       { organization: conversation.organizationSlug || 'global' }
     );
 
-    console.log('📥 [Plan Create Action] Task response:', result);
 
     // 6. Parse result to extract plan
     let parsedResult = result.result;
@@ -112,7 +109,6 @@ export async function createPlan(
         if (jsonMatch) {
           try {
             parsedResult = JSON.parse(jsonMatch[0]);
-            console.log('📦 [Plan Action] Extracted JSON from text response');
           } catch {
             // Still not valid JSON, use as-is
           }
@@ -126,7 +122,6 @@ export async function createPlan(
       const jsonMatch = result.result.match(/\{[\s\S]*\}/);
       if (jsonMatch && jsonMatch.index !== undefined && jsonMatch.index > 0) {
         extractedThinking = result.result.substring(0, jsonMatch.index).trim();
-        console.log('🧠 [Plan Action] Extracted thinking from before JSON:', extractedThinking.substring(0, 100));
       }
     }
 
@@ -173,7 +168,6 @@ export async function createPlan(
           if (match) {
             extractedThinkingFromPattern = match[0].trim();
             assistantContent = strippedContent.substring(match[0].length).trim();
-            console.log('🧠 [Plan Action] Detected untagged thinking, extracted:', extractedThinkingFromPattern.substring(0, 100));
             break;
           }
         }
@@ -185,8 +179,6 @@ export async function createPlan(
     }
 
     // Extract plan from response - backend returns at payload.content.plan
-    console.log('🔍 [Plan Create Action] Parsed result keys:', Object.keys(parsedResult || {}));
-    console.log('🔍 [Plan Create Action] Payload keys:', Object.keys(taskResponse?.payload || {}));
 
     const plan = planContent?.plan;
     const version = planContent?.version;
@@ -196,7 +188,6 @@ export async function createPlan(
       throw new Error('No plan or version in response');
     }
 
-    console.log('✅ [Plan Create Action] Plan extracted:', { plan, version });
 
     // 7. Enrich version with LLM metadata from response
     const enrichedVersion: PlanVersionData = {
@@ -209,7 +200,6 @@ export async function createPlan(
       },
     };
 
-    console.log('✅ [Plan Create Action] Enriched version metadata:', enrichedVersion.metadata);
 
     // 8. Update plan store
     planStore.addPlan(plan, enrichedVersion);
@@ -234,7 +224,6 @@ export async function createPlan(
       },
     });
 
-    console.log('💾 [Plan Create Action] Complete');
 
     chatUiStore.setIsSendingMessage(false);
 
@@ -279,22 +268,18 @@ export async function rerunPlan(
     maxTokens?: number;
   },
 ): Promise<{ plan: PlanData; version: PlanVersionData }> {
-  console.log('🔄 [Plan Rerun Action] Starting', { agentName, conversationId, versionId, llmConfig });
 
   // 1. Get existing plan from store (for context)
   const planStore = usePlanStore();
   const existingPlans = planStore.plansByConversationId(conversationId);
 
-  console.log('📚 [Plan Rerun Action] Existing plans:', existingPlans.length);
 
   // 2. Create API client
   const api = createAgent2AgentApi(agentName);
 
   // 3. Build and send request
-  console.log('📤 [Plan Rerun Action] Sending rerun request');
   const response = await api.plans.rerun(conversationId, versionId, llmConfig) as { plan: PlanData; version: PlanVersionData };
 
-  console.log('📥 [Plan Rerun Action] Response received:', JSON.stringify(response, null, 2));
 
   // 4. Validate - response is already transformed by handleResponse.plan.handle()
   // It returns { plan, version } directly
@@ -305,26 +290,18 @@ export async function rerunPlan(
 
   const { plan, version } = response;
 
-  console.log('✅ [Plan Rerun Action] Extracted plan and version');
-  console.log('🔍 [Plan Rerun Action] Plan ID:', plan.id, 'Version ID:', version.id, 'Version #:', version.versionNumber);
 
   // 5. Version already has metadata from backend, use as-is
   const enrichedVersion = version;
 
-  console.log('✅ [Plan Rerun Action] Version metadata:', enrichedVersion.metadata);
 
   // 6. Update store
   // Add the new version to the store
-  console.log('📝 [Plan Rerun Action] Calling addVersion...');
   planStore.addVersion(plan.id, enrichedVersion);
-  console.log('📝 [Plan Rerun Action] addVersion completed');
 
   // Set the new version as current (optional - depends on UX preference)
-  console.log('📝 [Plan Rerun Action] Calling setCurrentVersion...');
   planStore.setCurrentVersion(plan.id, enrichedVersion.id);
-  console.log('📝 [Plan Rerun Action] setCurrentVersion completed');
 
-  console.log('💾 [Plan Rerun Action] Store updated with new version');
 
   // 7. Return the result
   return {
@@ -345,12 +322,10 @@ export async function setCurrentPlanVersion(
   planId: string,
   versionId: string,
 ): Promise<void> {
-  console.log('🔖 [Plan Set Current Action] Starting', { agentName, planId, versionId });
 
   const api = createAgent2AgentApi(agentName);
   const jsonRpcResponse = await api.plans.setCurrent(planId, versionId) as JsonRpcSuccessResponse<{ success: boolean }> | JsonRpcErrorResponse;
 
-  console.log('🔖 [Plan Set Current Action] Response:', jsonRpcResponse);
 
   // Handle JSON-RPC response format
   if ('error' in jsonRpcResponse) {
@@ -369,7 +344,6 @@ export async function setCurrentPlanVersion(
   const planStore = usePlanStore();
   planStore.setCurrentVersion(planId, versionId);
 
-  console.log('✅ [Plan Set Current Action] Complete');
 }
 
 /**
@@ -384,12 +358,10 @@ export async function deletePlanVersion(
   planId: string,
   versionId: string,
 ): Promise<void> {
-  console.log('🗑️  [Plan Delete Version Action] Starting', { agentName, planId, versionId });
 
   const api = createAgent2AgentApi(agentName);
   const jsonRpcResponse = await api.plans.deleteVersion(planId, versionId) as JsonRpcSuccessResponse<{ success: boolean }> | JsonRpcErrorResponse;
 
-  console.log('🗑️  [Plan Delete Version Action] Response:', jsonRpcResponse);
 
   // Handle JSON-RPC response format
   if ('error' in jsonRpcResponse) {
@@ -408,5 +380,4 @@ export async function deletePlanVersion(
   const planStore = usePlanStore();
   planStore.removeVersion(planId, versionId);
 
-  console.log('✅ [Plan Delete Version Action] Complete');
 }

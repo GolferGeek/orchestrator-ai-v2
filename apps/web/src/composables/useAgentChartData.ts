@@ -27,13 +27,29 @@ export function useAgentChartData(agentIdFilter?: string) {
   };
   
   const getEventTimestamp = (event: ObservabilityEvent): number => {
-    if (event.timestamp) return event.timestamp;
-    if (event.created_at) return new Date(event.created_at).getTime();
+    // Check for timestamp in milliseconds
+    if (event.timestamp) {
+      return typeof event.timestamp === 'number' ? event.timestamp : parseInt(event.timestamp as string, 10);
+    }
+    // Check for created_at (snake_case)
+    if (event.created_at) {
+      return new Date(event.created_at).getTime();
+    }
+    // Check for createdAt (camelCase) - from legacy events
+    if ((event as any).createdAt) {
+      return new Date((event as any).createdAt).getTime();
+    }
     return Date.now();
   };
   
   const getEventType = (event: ObservabilityEvent): string => {
-    return event.hook_event_type || event.event_type || 'unknown';
+    // Check for hook_event_type (snake_case from observability events)
+    if (event.hook_event_type) return event.hook_event_type;
+    // Check for event_type (snake_case alternative)
+    if (event.event_type) return event.event_type;
+    // Check for eventType (camelCase from legacy events)
+    if ((event as any).eventType) return (event as any).eventType;
+    return 'unknown';
   };
   
   const getSessionId = (event: ObservabilityEvent): string => {
@@ -241,4 +257,6 @@ export function useAgentChartData(agentIdFilter?: string) {
     eventTimingMetrics
   };
 }
+
+
 

@@ -591,7 +591,6 @@ export function useValidation(options: UseValidationOptions = {}): UseValidation
       
       // Log validation if enabled
       if (config.logValidationErrors && allErrors.length > 0) {
-        console.warn(`Validation errors for field "${field}":`, allErrors);
       }
       
       return {

@@ -24,6 +24,11 @@ export interface ObservabilityEvent {
   agentSlug?: string;
   organizationSlug?: string;
   mode?: string;
+  message?: string;
+  progress?: number;
+  step?: string;
+  sequence?: number;
+  totalSteps?: number;
 }
 
 /**
@@ -138,9 +143,6 @@ export class ObservabilityWebhookService implements OnModuleInit {
       }
     }
 
-    if (cleaned > 0) {
-      this.logger.debug(`Cleaned up ${cleaned} expired username cache entries`);
-    }
   }
 
   /**
@@ -165,20 +167,13 @@ export class ObservabilityWebhookService implements OnModuleInit {
 
     try {
       const url = `${this.observabilityUrl}/webhooks/status`;
-
-      this.logger.debug(
-        `Sending observability event: ${event.hook_event_type} for task ${event.taskId || 'N/A'}`,
-      );
+      const webhookPayload = this.buildWebhookPayload(event);
 
       await firstValueFrom(
-        this.httpService.post(url, event, {
+        this.httpService.post(url, webhookPayload, {
           timeout: 2000, // 2 second timeout - don't block
           validateStatus: () => true, // Accept any status
         }),
-      );
-
-      this.logger.debug(
-        `✅ Observability event sent: ${event.hook_event_type} (task: ${event.taskId || 'N/A'})`,
       );
     } catch (error) {
       // Log but don't throw - observability failures shouldn't break agent execution
@@ -188,6 +183,67 @@ export class ObservabilityWebhookService implements OnModuleInit {
         }`,
       );
     }
+  }
+
+  /**
+   * Convert ObservabilityEvent payload into the webhook format expected by
+   * /webhooks/status so downstream services continue to receive updates.
+   */
+  private buildWebhookPayload(
+    event: ObservabilityEvent,
+  ): Record<string, unknown> {
+    const payload = event.payload ?? {};
+    const asString = (value: unknown): string | undefined =>
+      typeof value === 'string' && value.length > 0 ? value : undefined;
+    const asNumber = (value: unknown): number | undefined =>
+      typeof value === 'number' && Number.isFinite(value)
+        ? value
+        : undefined;
+
+    const timestampIso =
+      typeof event.timestamp === 'number'
+        ? new Date(event.timestamp).toISOString()
+        : asString(event.timestamp) ?? new Date().toISOString();
+
+    const resolvedTaskId =
+      asString(event.taskId) ??
+      asString(payload.taskId) ??
+      asString(payload.id) ??
+      'unknown';
+
+    return {
+      taskId: resolvedTaskId,
+      status: event.hook_event_type,
+      timestamp: timestampIso,
+      conversationId:
+        asString(event.conversationId) ??
+        asString(payload.conversationId),
+      userId: asString(event.userId) ?? asString(payload.userId),
+      username: asString(event.username) ?? asString(payload.username),
+      agentSlug:
+        asString(event.agentSlug) ?? asString(payload.agentSlug),
+      organizationSlug:
+        asString(event.organizationSlug) ??
+        asString(payload.organizationSlug),
+      mode: asString(event.mode) ?? asString(payload.mode),
+      message:
+        asString(event.message) ?? asString(payload.message) ?? undefined,
+      step: asString(event.step) ?? asString(payload.step),
+      percent:
+        asNumber(event.progress) ??
+        asNumber(payload.progress) ??
+        asNumber(payload.percent),
+      sequence:
+        asNumber(event.sequence) ?? asNumber(payload.sequence),
+      totalSteps:
+        asNumber(event.totalSteps) ?? asNumber(payload.totalSteps),
+      data: {
+        ...payload,
+        hook_event_type: event.hook_event_type,
+        source_app: event.source_app,
+        session_id: event.session_id,
+      },
+    };
   }
 
   /**

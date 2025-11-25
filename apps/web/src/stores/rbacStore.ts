@@ -184,7 +184,6 @@ export const useRbacStore = defineStore('rbac', () => {
     try {
       await authService.logout();
     } catch (err) {
-      console.warn('Auth service logout failed', err);
     }
     tokenManager.stopMonitoring();
     clearAuthData();
@@ -215,7 +214,6 @@ export const useRbacStore = defineStore('rbac', () => {
     }
     try {
       const userData = await apiService.getCurrentUser() as UserProfile;
-      console.log('[RbacStore] User data received:', userData);
       user.value = userData;
       localStorage.setItem('userData', JSON.stringify(userData));
       authError.value = null;

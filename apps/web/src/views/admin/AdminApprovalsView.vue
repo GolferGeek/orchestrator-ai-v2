@@ -108,7 +108,6 @@ async function approveContinue(rec: HumanApprovalRecord) {
     const streamId = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
     const response = await approvalsService.approveAndContinue(orgSlug, rec.agent_slug, rec.id, { options: { stream: true }, metadata: { stream: true, streamId } });
     const assignedStream = response?.payload?.metadata?.streamId || streamId;
-    console.info('Approved & continued, streamId:', assignedStream);
     await load();
   } catch (e) {
     console.error('Approve & Continue failed', e);

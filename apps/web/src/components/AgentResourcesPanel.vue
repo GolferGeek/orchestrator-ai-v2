@@ -287,7 +287,6 @@ async function trackVideoButtonClick(video: Video) {
       }
     });
   } catch (error) {
-    console.warn('Failed to track video button click:', error);
   }
 }
 
@@ -310,7 +309,6 @@ async function trackVideoModalOpen(video: Video) {
       }
     });
   } catch (error) {
-    console.warn('Failed to track video modal open:', error);
   }
 }
 
@@ -330,7 +328,6 @@ async function trackTranscriptView(video: Video) {
       }
     });
   } catch (error) {
-    console.warn('Failed to track transcript view:', error);
   }
 }
 
@@ -351,7 +348,6 @@ async function trackFallbackVideoUsage() {
       }
     });
   } catch (error) {
-    console.warn('Failed to track fallback video usage:', error);
   }
 }
 

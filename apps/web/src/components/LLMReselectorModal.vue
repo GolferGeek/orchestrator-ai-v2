@@ -228,7 +228,6 @@ const handleRunWithSelected = () => {
     maxTokens: maxTokens.value,
   };
 
-  console.log('🔄 [LLMReselectorModal] Emitting execute with config:', config);
 
   // Emit the config - parent will use it to call rerun
   emit('execute', config);

@@ -214,7 +214,6 @@ const startVoiceActivityDetection = (stream: MediaStream) => {
     // Create or reuse AudioContext
     if (!audioContext.value || audioContext.value.state === 'closed') {
       audioContext.value = new AudioContext();
-      console.log('VAD: Created new AudioContext');
     }
 
     // Disconnect any existing source
@@ -232,7 +231,6 @@ const startVoiceActivityDetection = (stream: MediaStream) => {
 
     currentSource.value.connect(analyser.value);
 
-    console.log('VAD: Starting voice activity detection');
 
     // Measure baseline volume for first 500ms
     const baselineEndTime = Date.now() + BASELINE_MEASUREMENT_MS;
@@ -244,7 +242,6 @@ const startVoiceActivityDetection = (stream: MediaStream) => {
         const volume = calculateVolume();
         baselineSum += volume;
         baselineCount++;
-        console.log(`VAD: Measuring baseline - volume: ${volume}`);
         requestAnimationFrame(measureBaseline);
       } else {
         baselineVolume.value = baselineSum / baselineCount;
@@ -253,7 +250,6 @@ const startVoiceActivityDetection = (stream: MediaStream) => {
         const proportionalThreshold = baselineVolume.value + (baselineVolume.value * VOLUME_THRESHOLD_MULTIPLIER);
         volumeThreshold.value = Math.max(minThreshold, proportionalThreshold);
 
-        console.log(`VAD: Baseline complete - baseline: ${baselineVolume.value}, threshold: ${volumeThreshold.value} (min: ${minThreshold}, prop: ${proportionalThreshold})`);
 
         // Start continuous VAD monitoring
         startVADMonitoring();
@@ -272,11 +268,9 @@ const startVADMonitoring = () => {
   let logCount = 0;
   const monitoringStartTime = Date.now();
 
-  console.log('VAD: Starting monitoring');
 
   const checkVAD = () => {
     if (conversationState.value !== 'listening') {
-      console.log('VAD: Stopping - conversation state changed to:', conversationState.value);
       return;
     }
 
@@ -286,7 +280,6 @@ const startVADMonitoring = () => {
 
     // Debug logging every 30 frames (about once per second at 30fps)
     if (logCount % 30 === 0) {
-      console.log(`VAD: volume=${currentVolume.value.toFixed(1)}, threshold=${volumeThreshold.value.toFixed(1)}, above=${isAboveThreshold}, wasAbove=${wasAboveThreshold}, time=${timeSinceStart}ms`);
     }
     logCount++;
 
@@ -299,7 +292,6 @@ const startVADMonitoring = () => {
     if (isAboveThreshold) {
       // User is speaking
       if (!wasAboveThreshold) {
-        console.log('VAD: Speech detected!');
       }
       wasAboveThreshold = true;
       hasDetectedSpeech.value = true;
@@ -308,12 +300,10 @@ const startVADMonitoring = () => {
       // User stopped speaking, start silence timer
       if (silenceStartTime.value === 0) {
         silenceStartTime.value = Date.now();
-        console.log('VAD: Silence started');
       } else {
         const silenceDuration = Date.now() - silenceStartTime.value;
         if (silenceDuration > SILENCE_DURATION_MS) {
           // Silence detected for long enough, auto-stop
-          console.log(`VAD: Auto-stopping due to ${silenceDuration}ms of silence`);
           stopListening();
           return;
         }
@@ -321,7 +311,6 @@ const startVADMonitoring = () => {
     } else {
       // Check if we've been monitoring for 3 seconds without detecting significant speech
       if (!hasDetectedSpeech.value && timeSinceStart > NO_AUDIO_TIMEOUT_MS) {
-        console.log(`VAD: Auto-stopping - no significant speech detected in ${timeSinceStart}ms`);
         stoppedDueToNoSpeech.value = true;
         stopListening();
         return;
@@ -335,7 +324,6 @@ const startVADMonitoring = () => {
 };
 
 const stopVADMonitoring = () => {
-  console.log('VAD: Stopping monitoring and cleaning up audio resources');
 
   if (vadCheckInterval.value) {
     cancelAnimationFrame(vadCheckInterval.value);
@@ -347,7 +335,6 @@ const stopVADMonitoring = () => {
     try {
       currentSource.value.disconnect();
     } catch (error) {
-      console.warn('VAD: Error disconnecting source:', error);
     }
     currentSource.value = null;
   }
@@ -356,7 +343,6 @@ const stopVADMonitoring = () => {
     try {
       analyser.value.disconnect();
     } catch (error) {
-      console.warn('VAD: Error disconnecting analyser:', error);
     }
     analyser.value = null;
   }
@@ -427,7 +413,6 @@ const startMediaRecording = async () => {
 
   // Track this stream for cleanup
   activeStreams.value.push(stream);
-  console.log(`Audio: Tracking new stream, total active: ${activeStreams.value.length}`);
 
   // Start Voice Activity Detection
   startVoiceActivityDetection(stream);
@@ -451,7 +436,6 @@ const startMediaRecording = async () => {
     if (MediaRecorder.isTypeSupported(format.mime)) {
       mimeType = format.mime;
       actualFormat = format.format;
-      console.log(`Selected ${actualFormat} format (${mimeType}) for recording`);
       break;
     }
   }
@@ -471,13 +455,11 @@ const startMediaRecording = async () => {
   };
 
   mediaRecorder.value.onstop = async () => {
-    console.log('MediaRecorder: Stopping and cleaning up');
 
     // Force cleanup of this specific stream
     try {
       stream.getTracks().forEach(track => {
         track.stop();
-        console.log(`Audio: Stopped track: ${track.kind}`);
       });
     } catch (error) {
       console.error('Error stopping stream tracks:', error);
@@ -487,7 +469,6 @@ const startMediaRecording = async () => {
     const streamIndex = activeStreams.value.indexOf(stream);
     if (streamIndex > -1) {
       activeStreams.value.splice(streamIndex, 1);
-      console.log(`Audio: Removed stream from tracking, remaining: ${activeStreams.value.length}`);
     }
 
     stopVADMonitoring();
@@ -498,22 +479,18 @@ const startMediaRecording = async () => {
   };
 
   mediaRecorder.value.start();
-  console.log('MediaRecorder: Started recording');
 };
 
 const stopListening = async () => {
-  console.log('MediaRecorder: Attempting to stop listening');
 
   if (mediaRecorder.value) {
     const state = mediaRecorder.value.state;
-    console.log(`MediaRecorder: Current state: ${state}`);
 
     if (state === 'recording') {
       conversationState.value = 'processing';
       continuousListening.value = false;
       try {
         mediaRecorder.value.stop();
-        console.log('MediaRecorder: Stop called successfully');
       } catch (error) {
         console.error('MediaRecorder: Error stopping:', error);
         // Force cleanup even if stop fails
@@ -521,12 +498,10 @@ const stopListening = async () => {
         resetConversation();
       }
     } else {
-      console.log(`MediaRecorder: Not recording (state: ${state}), cleaning up anyway`);
       forceCleanupAllStreams();
       conversationState.value = 'idle';
     }
   } else {
-    console.log('MediaRecorder: No active recorder to stop');
     forceCleanupAllStreams();
     conversationState.value = 'idle';
   }
@@ -536,7 +511,6 @@ const processRecordedAudio = async () => {
   try {
     // If we stopped due to no speech being detected, just reset silently
     if (stoppedDueToNoSpeech.value) {
-      console.log('🎤 Stopped due to no speech detected - resetting silently');
       conversationState.value = 'idle';
       return;
     }
@@ -549,7 +523,6 @@ const processRecordedAudio = async () => {
     const audioBlob = new Blob(audioChunks.value, { type: currentMimeType.value });
     const base64Audio = await blobToBase64(audioBlob);
 
-    console.log('🎤 [ConversationalSpeechButton] Processing audio via new frontend flow');
 
     // Step 1: Transcribe the audio to text
     const transcription = await apiService.transcribeAudio(
@@ -562,10 +535,8 @@ const processRecordedAudio = async () => {
       throw new Error('No speech detected in audio');
     }
 
-    console.log('🎤 Transcribed text:', transcription.text);
 
     // Step 2: Mark that the next message was sent via speech (for TTS triggering)
-    console.log('🎤 [DEBUG] Setting lastMessageWasSpeech = true');
     chatUiStore.lastMessageWasSpeech = true;
 
     // Step 3: Send the transcribed text through normal chat flow
@@ -585,13 +556,11 @@ const processRecordedAudio = async () => {
       }
     }
 
-    console.log('🎤 Message sent through chat store, waiting for response...');
 
     // Response will be automatically converted to speech by useSpeechTTS composable
     // since we set lastMessageWasSpeech = true above
     conversationState.value = 'idle';
     
-    console.log('🎤 Message sent successfully, TTS will be handled by composable');
 
   } catch (error) {
     console.error('Failed to process conversation:', error);
@@ -629,14 +598,12 @@ const processRecordedAudio = async () => {
 // stopSpeaking function removed - no longer needed with new TTS system
 
 const cancelConversation = () => {
-  console.log('Audio: Cancelling conversation and cleaning up resources');
 
   try {
     if (mediaRecorder.value && mediaRecorder.value.state === 'recording') {
       mediaRecorder.value.stop();
     }
   } catch (error) {
-    console.warn('Error stopping MediaRecorder:', error);
   }
 
   if (currentAudio.value) {
@@ -646,7 +613,6 @@ const cancelConversation = () => {
       currentAudio.value.src = '';
       currentAudio.value.load();
     } catch (error) {
-      console.warn('Error stopping audio:', error);
     }
     currentAudio.value = null;
   }
@@ -659,7 +625,6 @@ const cancelConversation = () => {
 };
 
 const resetConversation = () => {
-  console.log('Audio: Resetting conversation state');
 
   conversationState.value = 'idle';
   audioChunks.value = [];
@@ -674,7 +639,6 @@ const resetConversation = () => {
         mediaRecorder.value.stop();
       }
     } catch (error) {
-      console.warn('Error stopping MediaRecorder in reset:', error);
     }
     mediaRecorder.value = null;
   }
@@ -689,7 +653,6 @@ const resetConversation = () => {
       currentAudio.value.onended = null;
       currentAudio.value.onerror = null;
     } catch (error) {
-      console.warn('Error cleaning up audio element:', error);
     }
     currentAudio.value = null;
   }
@@ -700,7 +663,6 @@ const resetConversation = () => {
 
 // Utility functions
 const presentToast = async (message: string, duration: number = 3000, color: string = 'danger') => {
-  console.log(`TOAST [${color}]: ${message}`);
   const toast = await toastController.create({
     message: message,
     duration: duration,
@@ -724,18 +686,15 @@ const blobToBase64 = (blob: Blob): Promise<string> => {
 
 // Force cleanup all MediaStreams
 const forceCleanupAllStreams = () => {
-  console.log(`Audio: Force cleaning up ${activeStreams.value.length} active streams`);
 
   activeStreams.value.forEach((stream, index) => {
     try {
       stream.getTracks().forEach(track => {
         if (track.readyState === 'live') {
           track.stop();
-          console.log(`Audio: Force stopped track ${index}: ${track.kind}`);
         }
       });
     } catch (error) {
-      console.warn(`Error cleaning up stream ${index}:`, error);
     }
   });
 
@@ -746,18 +705,15 @@ const forceCleanupAllStreams = () => {
 const closeAudioContext = async () => {
   if (audioContext.value && audioContext.value.state !== 'closed') {
     try {
-      console.log('Audio: Closing AudioContext');
       await audioContext.value.close();
       audioContext.value = null;
     } catch (error) {
-      console.warn('Error closing AudioContext:', error);
     }
   }
 };
 
 // System-level cleanup
 const systemCleanup = () => {
-  console.log('Audio: Performing system-level cleanup');
   cancelConversation();
   forceCleanupAllStreams();
   closeAudioContext();
@@ -771,13 +727,11 @@ onUnmounted(() => {
 // Cleanup on page unload/visibility change
 onMounted(() => {
   const handleBeforeUnload = () => {
-    console.log('Audio: Page unloading, cleaning up resources');
     systemCleanup();
   };
 
   const handleVisibilityChange = () => {
     if (document.hidden) {
-      console.log('Audio: Page hidden, cleaning up resources');
       systemCleanup();
     }
   };

@@ -83,7 +83,6 @@ export function useComponentPerformance(componentName?: string) {
       
       // Log slow mounting components (>50ms)
       if (mountTime > 50) {
-        console.warn(`Slow component mount: ${name} took ${mountTime.toFixed(2)}ms`);
       }
     }
   });

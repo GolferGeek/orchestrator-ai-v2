@@ -55,7 +55,6 @@ export async function createDeliverable(
   userMessage: string,
   planId?: string,
 ): Promise<{ deliverable: DeliverableData; version: DeliverableVersionData }> {
-  console.log("🔨 [Build Create Action] Starting", {
     agentName,
     conversationId,
     planId,
@@ -93,9 +92,9 @@ export async function createDeliverable(
     const llmSelection =
       llmStore.selectedProvider && llmStore.selectedModel
         ? {
-            providerName: llmStore.selectedProvider.name,
-            modelName: llmStore.selectedModel.modelName,
-          }
+          providerName: llmStore.selectedProvider.name,
+          modelName: llmStore.selectedModel.modelName,
+        }
         : undefined;
 
     // 5. Set up for SSE connection (if using real-time/polling mode)
@@ -122,13 +121,11 @@ export async function createDeliverable(
     assistantMessageId = assistantMessage.id;
 
     // 6. Start API call and SSE connection in parallel
-    console.log(
       "📤 [Build Create Action] Starting task with execution mode:",
       executionMode,
       "taskId:",
       taskId,
     );
-    console.log("📤 [Build Create Action] Request details:", {
       agentName,
       conversationId,
       userMessage: userMessage.substring(0, 100) + "...",
@@ -165,7 +162,6 @@ export async function createDeliverable(
       // Retry connection with exponential backoff
       const connectWithRetry = async (attempt = 1, maxAttempts = 5) => {
         const delay = Math.min(100 * Math.pow(2, attempt - 1), 2000); // 100ms, 200ms, 400ms, 800ms, 1600ms
-        console.log(
           `📡 [Build Create Action] SSE connection attempt ${attempt}/${maxAttempts} (delay: ${delay}ms)`,
         );
 
@@ -183,7 +179,6 @@ export async function createDeliverable(
               streamTokenUrl: `/agent-to-agent/${orgSlug}/${agentName}/tasks/${taskId}/stream-token`,
             },
             onChunk: (data) => {
-              console.log("📨 [Build Create Action] Received SSE chunk:", data);
 
               const chunk = data.chunk;
               if (chunk?.metadata) {
@@ -226,7 +221,6 @@ export async function createDeliverable(
                     },
                   );
 
-                  console.log(
                     "✅ [Build Create Action] Updated workflow steps in store:",
                     {
                       conversationId,
@@ -240,14 +234,12 @@ export async function createDeliverable(
                     },
                   );
                 } else {
-                  console.warn(
                     "⚠️ [Build Create Action] No assistantMessageId available for workflow step update",
                   );
                 }
               }
             },
             onComplete: (data) => {
-              console.log(
                 "✅ [Build Create Action] SSE stream completed:",
                 data,
               );
@@ -260,7 +252,6 @@ export async function createDeliverable(
               streamHandler.disconnect();
             },
           });
-          console.log(
             `✅ [Build Create Action] SSE connection established on attempt ${attempt}`,
           );
         } catch (error) {
@@ -300,7 +291,6 @@ export async function createDeliverable(
       });
 
       result = await Promise.race([resultPromise, timeoutPromise]);
-      console.log("✅ [Build Create Action] API call completed successfully");
     } catch (error) {
       console.error("❌ [Build Create Action] API call failed:", error);
       console.error("❌ [Build Create Action] Error details:", {
@@ -347,14 +337,9 @@ export async function createDeliverable(
       throw error;
     }
 
-    console.log("📥 [Build Create Action] Task response:", result);
-    console.log("📥 [Build Create Action] Execution mode was:", executionMode);
-    console.log(
       "📥 [Build Create Action] Response keys:",
       Object.keys(result || {}),
     );
-    console.log("📥 [Build Create Action] Response type:", typeof result);
-    console.log(
       "📥 [Build Create Action] Full response:",
       JSON.stringify(result, null, 2),
     );
@@ -378,19 +363,15 @@ export async function createDeliverable(
       try {
         parsedResult = JSON.parse(parsedResult);
       } catch {
-        console.warn(
           "📦 [Build Create Action] Backend returned non-JSON string:",
           parsedResult?.substring(0, 200),
         );
       }
     }
 
-    console.log("📦 [Build Create Action] Full result from backend:", result);
-    console.log(
       "📦 [Build Create Action] Parsed result (TaskResponseDto):",
       parsedResult,
     );
-    console.log(
       "📦 [Build Create Action] Result keys:",
       Object.keys(parsedResult || {}),
     );
@@ -437,7 +418,6 @@ export async function createDeliverable(
       // Check if streaming is available (for polling mode)
       const streamingInfo = metadata?.streaming;
       if (streamingInfo) {
-        console.log(
           "ℹ️ [Build Create Action] Streaming endpoints available, task may still be processing:",
           streamingInfo,
         );
@@ -467,7 +447,6 @@ export async function createDeliverable(
     const conversationalMessage = (buildContent as { message?: string })
       ?.message;
 
-    console.log("📦 [Build Create Action] Extracted:", {
       deliverable,
       version,
       thinking: thinkingContent,
@@ -477,7 +456,6 @@ export async function createDeliverable(
 
     // Handle conversational responses (e.g., RAG agents) - no deliverable, just a message
     if (isConversational && conversationalMessage) {
-      console.log(
         "💬 [Build Create Action] Conversational response from agent:",
         conversationalMessage,
       );
@@ -511,7 +489,6 @@ export async function createDeliverable(
         }
       }
 
-      console.log("💬 [Build Create Action] Conversational response complete");
       chatUiStore.setIsSendingMessage(false);
 
       // Return null for deliverable/version since this is conversational
@@ -534,7 +511,6 @@ export async function createDeliverable(
       throw new Error(errorMessage);
     }
 
-    console.log("✅ [Build Create Action] Deliverable extracted:", {
       deliverable,
       version,
     });
@@ -550,7 +526,6 @@ export async function createDeliverable(
       },
     };
 
-    console.log(
       "✅ [Build Create Action] Enriched version metadata:",
       enrichedVersion?.metadata,
     );
@@ -598,7 +573,6 @@ export async function createDeliverable(
       }
     }
 
-    console.log("💾 [Build Create Action] Complete");
 
     chatUiStore.setIsSendingMessage(false);
 
@@ -626,7 +600,6 @@ export async function readDeliverable(
   deliverableId: string,
   versionId?: string,
 ): Promise<{ deliverable: DeliverableData; version?: DeliverableVersionData }> {
-  console.log("📖 [Build Read Action] Starting", {
     agentName,
     deliverableId,
     versionId,
@@ -655,7 +628,6 @@ export async function readDeliverable(
     deliverablesStore.addVersion(deliverable.id, version);
   }
 
-  console.log("✅ [Build Read Action] Complete");
 
   return { deliverable, version };
 }
@@ -675,7 +647,6 @@ export async function editDeliverable(
   editInstructions: string,
   conversationId: string,
 ): Promise<{ deliverable: DeliverableData; version: DeliverableVersionData }> {
-  console.log("✏️ [Build Edit Action] Starting", { agentName, deliverableId });
 
   const api = createAgent2AgentApi(agentName);
   const response = await api.deliverables.edit(
@@ -702,7 +673,6 @@ export async function editDeliverable(
   deliverablesStore.addVersion(deliverable.id, version);
   deliverablesStore.setCurrentVersion(deliverable.id, version.id);
 
-  console.log("✅ [Build Edit Action] Complete");
 
   return { deliverable, version };
 }
@@ -718,7 +688,6 @@ export async function listDeliverables(
   agentName: string,
   conversationId: string,
 ): Promise<DeliverableData[]> {
-  console.log("📋 [Build List Action] Starting", { agentName, conversationId });
 
   const api = createAgent2AgentApi(agentName);
   const response = await api.deliverables.list(conversationId);
@@ -740,7 +709,6 @@ export async function listDeliverables(
     );
   });
 
-  console.log("✅ [Build List Action] Complete, found", deliverables.length);
 
   return deliverables;
 }
@@ -768,7 +736,6 @@ export async function rerunDeliverable(
   },
   userMessage?: string,
 ): Promise<{ deliverable: DeliverableData; version: DeliverableVersionData }> {
-  console.log("🔄 [Build Rerun Action] Starting", {
     agentName,
     conversationId,
     deliverableId,
@@ -785,7 +752,6 @@ export async function rerunDeliverable(
     userMessage,
   );
 
-  console.log(
     "🔍 [Build Rerun Action] Response:",
     JSON.stringify(response, null, 2),
   );
@@ -812,7 +778,6 @@ export async function rerunDeliverable(
   // Response.data contains the deliverable/version with metadata already populated by backend
   const enrichedVersion: DeliverableVersionData = version;
 
-  console.log(
     "✅ [Build Rerun Action] Enriched version metadata:",
     enrichedVersion.metadata,
   );
@@ -822,7 +787,6 @@ export async function rerunDeliverable(
   deliverablesStore.addDeliverable(deliverable);
   deliverablesStore.addVersion(deliverable.id, enrichedVersion);
 
-  console.log("✅ [Build Rerun Action] Complete");
 
   return { deliverable, version: enrichedVersion };
 }
@@ -839,7 +803,6 @@ export async function setCurrentVersion(
   deliverableId: string,
   versionId: string,
 ): Promise<void> {
-  console.log("🔖 [Build Set Current Action] Starting", {
     agentName,
     deliverableId,
     versionId,
@@ -851,7 +814,6 @@ export async function setCurrentVersion(
     versionId,
   )) as JsonRpcSuccessResponse<{ success: boolean }> | JsonRpcErrorResponse;
 
-  console.log("🔖 [Build Set Current Action] Response:", jsonRpcResponse);
 
   // Handle JSON-RPC response format
   if ("error" in jsonRpcResponse) {
@@ -875,7 +837,6 @@ export async function setCurrentVersion(
   const deliverablesStore = useDeliverablesStore();
   deliverablesStore.setCurrentVersion(deliverableId, versionId);
 
-  console.log("✅ [Build Set Current Action] Complete");
 }
 
 /**
@@ -890,7 +851,6 @@ export async function deleteVersion(
   deliverableId: string,
   versionId: string,
 ): Promise<void> {
-  console.log("🗑️  [Build Delete Version Action] Starting", {
     agentName,
     deliverableId,
     versionId,
@@ -902,7 +862,6 @@ export async function deleteVersion(
     versionId,
   )) as JsonRpcSuccessResponse<{ success: boolean }> | JsonRpcErrorResponse;
 
-  console.log("🗑️  [Build Delete Version Action] Response:", jsonRpcResponse);
 
   // Handle JSON-RPC response format
   if ("error" in jsonRpcResponse) {
@@ -926,7 +885,6 @@ export async function deleteVersion(
   const deliverablesStore = useDeliverablesStore();
   deliverablesStore.removeVersion(deliverableId, versionId);
 
-  console.log("✅ [Build Delete Version Action] Complete");
 }
 
 /**
@@ -939,7 +897,6 @@ export async function deleteDeliverable(
   agentName: string,
   deliverableId: string,
 ): Promise<void> {
-  console.log("🗑️  [Build Delete Action] Starting", {
     agentName,
     deliverableId,
   });
@@ -956,5 +913,4 @@ export async function deleteDeliverable(
   const deliverablesStore = useDeliverablesStore();
   deliverablesStore.removeDeliverable(deliverableId);
 
-  console.log("✅ [Build Delete Action] Complete");
 }

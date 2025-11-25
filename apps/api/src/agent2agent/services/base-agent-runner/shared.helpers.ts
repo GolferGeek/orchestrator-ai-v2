@@ -401,11 +401,44 @@ export async function callLLM(
       options.modelName = model;
     }
 
+    llmService.emitLlmObservabilityEvent('agent.llm.started', {
+      provider,
+      model,
+      conversationId,
+      sessionId,
+      userId,
+      agentSlug,
+      organizationSlug,
+      payload: {
+        systemPrompt: systemPrompt.substring(0, 2000),
+        userMessage: userMessage.substring(0, 2000),
+        options,
+      },
+    });
+
     const response = await llmService.generateResponse(
       systemPrompt,
       userMessage,
       options,
     );
+
+    llmService.emitLlmObservabilityEvent('agent.llm.completed', {
+      provider,
+      model,
+      conversationId,
+      sessionId,
+      userId,
+      agentSlug,
+      organizationSlug,
+      payload: {
+        responsePreview:
+          typeof response === 'string'
+            ? response.substring(0, 2000)
+            : response.content,
+        metadata:
+          typeof response === 'string' ? undefined : response.metadata,
+      },
+    });
 
     if (!isLLMResponse(response)) {
       throw new Error('LLM returned an unexpected response');

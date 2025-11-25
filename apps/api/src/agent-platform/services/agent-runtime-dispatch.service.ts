@@ -30,7 +30,7 @@ export interface AgentRuntimeDispatchOptions {
 }
 
 export interface AgentRuntimeStreamChunk {
-  type: 'partial' | 'final';
+  type: 'partial' | 'final' | 'progress';
   content: string;
   metadata?: Record<string, unknown>;
 }

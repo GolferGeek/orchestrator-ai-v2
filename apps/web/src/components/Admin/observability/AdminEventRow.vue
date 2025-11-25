@@ -60,18 +60,71 @@
           :value="event.progress / 100"
           :color="progressColor"
         />
+        
+        <!-- Expandable Details -->
+        <div v-if="hasAdditionalDetails" class="additional-details">
+          <ion-button
+            fill="clear"
+            size="small"
+            @click="showDetails = !showDetails"
+          >
+            <ion-icon :icon="showDetails ? chevronUpOutline : chevronDownOutline" />
+            {{ showDetails ? 'Hide' : 'Show' }} Details
+          </ion-button>
+          
+          <div v-if="showDetails" class="details-content">
+            <!-- Organization -->
+            <div v-if="event.organization_slug" class="detail-item">
+              <strong>Organization:</strong> {{ event.organization_slug }}
+            </div>
+            
+            <!-- Mode -->
+            <div v-if="event.mode" class="detail-item">
+              <strong>Mode:</strong> {{ event.mode }}
+            </div>
+            
+            <!-- Status -->
+            <div v-if="event.status" class="detail-item">
+              <strong>Status:</strong> {{ event.status }}
+            </div>
+            
+            <!-- Step -->
+            <div v-if="event.step" class="detail-item">
+              <strong>Step:</strong> {{ event.step }}
+            </div>
+            
+            <!-- Result (for completed events) -->
+            <div v-if="event.result" class="detail-item">
+              <strong>Result:</strong>
+              <pre class="detail-json">{{ formatJSON(event.result) }}</pre>
+            </div>
+            
+            <!-- Error (for failed events) -->
+            <div v-if="event.error" class="detail-item error-detail">
+              <strong>Error:</strong>
+              <pre class="detail-json">{{ formatJSON(event.error) }}</pre>
+            </div>
+            
+            <!-- Payload/Data -->
+            <div v-if="eventPayload" class="detail-item">
+              <strong>Payload:</strong>
+              <pre class="detail-json">{{ formatJSON(eventPayload) }}</pre>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 import {
   IonIcon,
   IonChip,
   IonLabel,
   IonProgressBar,
+  IonButton,
 } from '@ionic/vue';
 import {
   personOutline,
@@ -95,6 +148,8 @@ import {
   checkmarkDoneOutline,
   timeOutline,
   informationCircleOutline,
+  chevronUpOutline,
+  chevronDownOutline,
 } from 'ionicons/icons';
 import type { ObservabilityEvent } from '@/composables/useAdminObservabilityStream';
 
@@ -106,6 +161,8 @@ const props = defineProps<Props>();
 const emit = defineEmits<{
   (e: 'conversation-click', conversationId: string): void;
 }>();
+
+const showDetails = ref(false);
 
 // Format timestamp
 const formattedTime = computed(() => {
@@ -209,6 +266,35 @@ function truncateId(id: string): string {
   if (id.length <= 12) return id;
   return `${id.substring(0, 8)}...`;
 }
+
+// Check if event has additional details worth showing
+const hasAdditionalDetails = computed(() => {
+  return !!(
+    props.event.payload ||
+    props.event.data ||
+    props.event.result ||
+    props.event.error ||
+    props.event.organization_slug ||
+    props.event.mode ||
+    props.event.status ||
+    props.event.step
+  );
+});
+
+// Get payload (check both payload and data fields)
+const eventPayload = computed(() => {
+  return props.event.payload || props.event.data || null;
+});
+
+// Format JSON for display
+function formatJSON(obj: unknown): string {
+  if (!obj) return '';
+  try {
+    return JSON.stringify(obj, null, 2);
+  } catch {
+    return String(obj);
+  }
+}
 </script>
 
 <style scoped>
@@ -296,6 +382,58 @@ function truncateId(id: string): string {
 
 .clickable:hover {
   transform: scale(1.05);
+}
+
+.additional-details {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ion-color-step-150);
+}
+
+.details-content {
+  margin-top: 8px;
+  padding: 12px;
+  background: var(--ion-color-step-100);
+  border-radius: 4px;
+  border: 1px solid var(--ion-color-step-200);
+}
+
+.detail-item {
+  margin-bottom: 12px;
+  font-size: 0.875rem;
+}
+
+.detail-item:last-child {
+  margin-bottom: 0;
+}
+
+.detail-item strong {
+  color: var(--ion-color-dark);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.detail-json {
+  background: var(--ion-color-step-50);
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid var(--ion-color-step-200);
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.75rem;
+  overflow-x: auto;
+  max-height: 300px;
+  overflow-y: auto;
+  color: var(--ion-color-step-850);
+  margin: 4px 0 0 0;
+}
+
+.error-detail {
+  border-left: 3px solid var(--ion-color-danger);
+  padding-left: 8px;
+}
+
+.error-detail strong {
+  color: var(--ion-color-danger);
 }
 
 ion-chip {

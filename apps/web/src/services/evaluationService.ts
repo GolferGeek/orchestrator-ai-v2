@@ -153,7 +153,6 @@ class EvaluationService {
 
     const contentType = response.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
-      console.warn(`[EvaluationService] Received non-JSON response for agent ${agentIdentifier}:`, contentType);
       return [];
     }
 

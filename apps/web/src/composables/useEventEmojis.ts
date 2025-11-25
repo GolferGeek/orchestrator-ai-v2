@@ -1,5 +1,37 @@
 const eventTypeToEmoji: Record<string, string> = {
-  // Task events
+  // LLM Events (critical for cost/performance monitoring)
+  'agent.llm.started': '🤖',
+  'agent.llm.completed': '✨',
+  'agent.llm.failed': '💥',
+
+  // PII Events (critical for compliance)
+  'agent.pii.detected': '🔒',
+  'agent.pii.sanitized': '🧹',
+  'agent.pii.check.started': '🔍',
+  'agent.pii.check.completed': '✅',
+
+  // Agent-specific events
+  'agent.rag.search': '🔎',
+  'agent.rag.documents_found': '📄',
+  'agent.api.call_started': '🌐',
+  'agent.api.call_completed': '✅',
+  'agent.context.loaded': '📚',
+
+  // Streaming events
+  'agent.stream.chunk': '📊',
+  'agent.stream.complete': '🏁',
+  'agent.stream.error': '⚠️',
+
+  // HITL events
+  'human_input.required': '🙋',
+  'human_input.response': '💭',
+  'human_input.timeout': '⏱️',
+
+  // Workflow events (from n8n)
+  'workflow.step.progress': '🔀',
+  'workflow.status.update': '📋',
+
+  // Legacy events (deprecated but kept for compatibility)
   'task.created': '📝',
   'task.started': '▶️',
   'task.progress': '⚡',
@@ -7,26 +39,11 @@ const eventTypeToEmoji: Record<string, string> = {
   'task.failed': '❌',
   'task.cancelled': '🚫',
   'task.message': '💬',
-  
-  // Agent events
   'agent.started': '🚀',
   'agent.progress': '🔄',
   'agent.completed': '🏁',
   'agent.failed': '💥',
-  'agent.stream.start': '📡',
-  'agent.stream.chunk': '📊',
-  'agent.stream.complete': '✨',
-  'agent.stream.error': '⚠️',
-  
-  // Workflow events
-  'workflow.step.progress': '🔀',
-  'workflow.status.update': '📋',
-  
-  // HITL events
-  'human_input.required': '🙋',
-  'human_input.response': '💭',
-  'human_input.timeout': '⏱️',
-  
+
   // Tool events (from Claude Code observability)
   'PreToolUse': '🔧',
   'PostToolUse': '✅',
@@ -37,7 +54,7 @@ const eventTypeToEmoji: Record<string, string> = {
   'UserPromptSubmit': '💬',
   'SessionStart': '🚀',
   'SessionEnd': '🏁',
-  
+
   // Default
   'default': '❓'
 };
@@ -69,4 +86,6 @@ export function useEventEmojis() {
     formatEventTypeLabel
   };
 }
+
+
 

@@ -477,20 +477,17 @@ const versions = computed(() => {
 const displayTitle = computed(() => props.plan.title || 'Untitled Plan');
 const totalVersions = computed(() => {
   const count = versions.value.length || 1;
-  console.log('[PlanDisplay] totalVersions:', count, 'versions:', versions.value);
   return count;
 });
 const currentVersion = computed(() => {
   // Get current version from the versions in the store
   // This is reactive and will update when the store changes
   const current = versions.value.find(v => v.isCurrentVersion) || versions.value[0];
-  console.log('[PlanDisplay] currentVersion:', current, 'from', versions.value.length, 'versions');
   return current;
 });
 const displayVersion = computed(() => {
   if (selectedVersion.value) return selectedVersion.value;
   const version = currentVersion.value;
-  console.log('[PlanDisplay] displayVersion:', version);
   return version;
 });
 

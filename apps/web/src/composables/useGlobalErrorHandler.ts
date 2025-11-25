@@ -17,15 +17,10 @@ export function useGlobalErrorHandler() {
 
   // Set up error logger in the store (lazy import to avoid circular references)
   onMounted(async () => {
-    console.log('🔍 [DEBUG] Global Error Handler: Setting up error logger');
     const imported = await import('@/services/errorLoggerService');
-    console.log('🔍 [DEBUG] Imported service:', imported);
-    console.log('🔍 [DEBUG] Service methods:', Object.getOwnPropertyNames(imported.errorLoggerService));
-    console.log('🔍 [DEBUG] Service prototype methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(imported.errorLoggerService)));
-    
+
     errorLoggerService.value = imported.errorLoggerService;
     errorStore.setErrorLogger(imported.errorLoggerService);
-    console.log('🔍 [DEBUG] Global Error Handler: Error logger setup complete');
   });
 
   // Reactively process retry queue when service becomes available
@@ -185,7 +180,6 @@ export function useGlobalErrorHandler() {
   ): Promise<boolean> => {
     const error = errorStore.getErrorById(errorId);
     if (!error) {
-      console.warn('Error not found for reporting:', errorId);
       return false;
     }
 
@@ -196,11 +190,7 @@ export function useGlobalErrorHandler() {
         reproductionSteps,
         expectedBehavior
       );
-      
-      if (success) {
-        console.log('✅ Error reported successfully');
-      }
-      
+
       return success;
     } catch (error) {
       console.error('❌ Failed to report error:', error);
@@ -213,15 +203,13 @@ export function useGlobalErrorHandler() {
    */
   const clearOldErrors = (olderThanHours: number = 24) => {
     const cutoff = Date.now() - (olderThanHours * 60 * 60 * 1000);
-    
+
     errorStore.clearErrors({
       timeRange: {
         start: 0,
         end: cutoff
       }
     });
-    
-    console.log(`🧹 Cleared errors older than ${olderThanHours} hours`);
   };
 
   /**
@@ -243,11 +231,8 @@ export function useGlobalErrorHandler() {
    */
   const testErrorHandling = () => {
     if (import.meta.env.PROD) {
-      console.warn('Error testing disabled in production');
       return;
     }
-
-    console.log('🧪 Testing error handling...');
     
     // Test synchronous error
     setTimeout(() => {

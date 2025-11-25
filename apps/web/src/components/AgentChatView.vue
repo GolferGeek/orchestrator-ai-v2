@@ -132,13 +132,11 @@ const messages = computed(() => {
   const conversationId = props.conversation?.id || chatUiStore.activeConversation?.id;
 
   if (!conversationId) {
-    console.log('📭 [AgentChatView] No conversationId, returning empty messages');
     return [];
   }
 
   // Get messages from the store's messages Map (not from conversation.messages)
   const msgs = conversationsStore.messagesByConversation(conversationId);
-  console.log('📬 [AgentChatView] Messages computed for conversation', conversationId, ':', msgs.length);
   return msgs;
 });
 const isLoading = computed(() =>
@@ -184,6 +182,13 @@ const sendMessage = async (mode?: AgentChatMode) => {
       const agentName = currentAgent.value.name;
 
       // Route to appropriate action based on mode
+        mode: effectiveMode,
+        agentName,
+        conversationId: activeConversation.id,
+        executionMode: activeConversation.executionMode,
+        supportedModes: activeConversation.supportedExecutionModes
+      });
+
       if (effectiveMode === 'plan') {
         await createPlan(agentName, activeConversation.id, text);
       } else if (effectiveMode === 'build') {
@@ -215,7 +220,6 @@ const scrollToBottom = async () => {
 const handleTranscription = (transcribedText: string) => {
   // Optionally populate the text area with the transcribed text
   // messageText.value = transcribedText;
-  console.log('Speech transcribed:', transcribedText);
 };
 
 const handleSpeechError = (error: string) => {
@@ -227,12 +231,10 @@ const cancelCurrentOperation = async () => {
   try {
     const activeConversation = chatUiStore.activeConversation;
     if (!activeConversation?.activeTaskId) {
-      console.warn('No active task to cancel');
       return;
     }
 
     await tasksService.cancelTask(activeConversation.activeTaskId);
-    console.log('Task cancelled successfully');
   } catch (error) {
     console.error('Failed to cancel current operation', error);
   }

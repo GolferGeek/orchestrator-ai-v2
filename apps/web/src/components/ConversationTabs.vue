@@ -68,15 +68,12 @@ const activeConversation = computed(() => chatUiStore.activeConversation);
 
 // Get only the open tabs (conversations that are in openConversationTabs array)
 const openTabs = computed(() => {
-  console.log('🔍 [ConversationTabs] Computing openTabs, openConversationTabs:', chatUiStore.openConversationTabs);
   const tabs = chatUiStore.openConversationTabs
     .map(id => {
       const conv = conversationsStore.conversationById(id);
-      console.log('  → Tab ID:', id, 'Found:', !!conv, 'Title:', conv?.title);
       return conv;
     })
     .filter(conv => conv !== undefined);
-  console.log('🔍 [ConversationTabs] Computed', tabs.length, 'open tabs');
   return tabs;
 });
 
@@ -89,28 +86,22 @@ const shouldUseTwoPaneView = computed(() => {
 
 // Methods
 const switchToConversation = async (conversationId: string) => {
-  console.log('🔄 [ConversationTabs] Switching to conversation:', conversationId);
 
   const existingConversation = conversationsStore.conversationById(conversationId);
   const existingMessages = conversationsStore.messagesByConversation(conversationId);
 
-  console.log('🔍 [ConversationTabs] Existing conversation:', !!existingConversation);
-  console.log('🔍 [ConversationTabs] Existing messages count:', existingMessages?.length || 0);
 
   // If conversation exists and has messages, just switch to it
   if (existingConversation && existingMessages && existingMessages.length > 0) {
-    console.log('✅ [ConversationTabs] Conversation already loaded, switching to it');
     chatUiStore.setActiveConversation(conversationId);
     return;
   }
 
   // Otherwise, load the conversation data from backend
-  console.log('📥 [ConversationTabs] Loading conversation from backend...');
   try {
     const backendConversation = await conversationHelpers.getBackendConversation(conversationId);
     const messages = await conversationHelpers.loadConversationMessages(conversationId);
 
-    console.log('📦 [ConversationTabs] Loaded messages from backend:', messages.length);
 
     // Ensure agents are loaded
     if (!agentsStore.availableAgents || agentsStore.availableAgents.length === 0) {
@@ -141,12 +132,10 @@ const switchToConversation = async (conversationId: string) => {
     }
 
     // Set messages separately (the store manages messages in a separate Map)
-    console.log('💾 [ConversationTabs] Setting messages in store...');
     conversationsStore.setMessages(conversationId, messages);
 
     // Verify messages were set
     const verifyMessages = conversationsStore.messagesByConversation(conversationId);
-    console.log('✅ [ConversationTabs] Messages set in store, count:', verifyMessages.length);
 
     chatUiStore.setActiveConversation(conversationId);
   } catch (error) {

@@ -37,7 +37,6 @@ export class ConversationService {
     const orgSlug = authStore.currentOrganization || 'demo-org';
 
     // All agents now use the Agent2Agent conversation service
-    console.log('🔍 [ConversationService.createConversation] Agent routing:', {
       agentName: agent.name,
       agentType: agent.type,
       orgSlug: orgSlug,
@@ -45,7 +44,6 @@ export class ConversationService {
     });
 
     // Use dedicated Agent2Agent conversation service for all agents
-    console.log('🚀 [ConversationService] Using Agent2Agent service');
     const conversationId = generateUUID(); // Generate ID upfront
     const createdAt = new Date();
     const title = this.createConversationTitle(agent, createdAt);
@@ -61,7 +59,6 @@ export class ConversationService {
       },
     });
 
-    console.log('✅ [ConversationService.createConversation] Created conversation:', backendConversation.id);
     return backendConversation.id;
   }
 
@@ -80,9 +77,7 @@ export class ConversationService {
 
       const tasks = tasksResponse.tasks || [];
 
-      console.log(`📋 [loadConversationMessages] Loaded ${tasks.length} tasks for conversation ${conversationId}`);
       if (tasks.length > 0) {
-        console.log('📋 [loadConversationMessages] First task:', tasks[0]);
       }
 
       
@@ -226,30 +221,23 @@ export class ConversationService {
 
             // Only stringify if it's still an object (shouldn't be if we extracted correctly)
             if (typeof responseContent === 'object') {
-              console.log('[loadConversationMessages] responseContent is object, hasDeliverable:', hasDeliverable, 'planId:', planId);
-              console.log('[loadConversationMessages] responseContent keys:', Object.keys(responseContent).slice(0, 10));
 
               // If this is a deliverable or plan response without a message, use a simple fallback
               if (hasDeliverable) {
-                console.log('[loadConversationMessages] Using deliverable fallback message');
                 responseContent = 'Deliverable created';
               } else if (planId) {
-                console.log('[loadConversationMessages] Using plan fallback message');
                 responseContent = 'Plan created';
               } else {
-                console.log('[loadConversationMessages] Stringifying response');
                 responseContent = JSON.stringify(responseContent, null, 2);
               }
             }
 
             // Merge backend-provided metadata (provider/model/usage, etc.)
             if (parsedResponse && typeof parsedResponse === 'object') {
-              console.log('[loadConversationMessages] Extracting metadata from response for task', task.id);
 
               // Extract metadata from various locations
               // 1. Top-level provider/model/usage fields
               if (parsedResponse.provider || parsedResponse.model || parsedResponse.usage) {
-                console.log('[loadConversationMessages] Found metadata at top level:', {
                   provider: parsedResponse.provider,
                   model: parsedResponse.model
                 });
@@ -263,23 +251,19 @@ export class ConversationService {
 
               // 2. result.metadata (agent2agent format)
               if (parsedResponse.result?.metadata) {
-                console.log('[loadConversationMessages] Found result.metadata:', parsedResponse.result.metadata);
                 mergedResponseMetadata = { ...mergedResponseMetadata, ...parsedResponse.result.metadata };
               }
 
               // 3. Top-level metadata object
               if (parsedResponse.metadata) {
-                console.log('[loadConversationMessages] Found top-level metadata:', parsedResponse.metadata);
                 mergedResponseMetadata = { ...mergedResponseMetadata, ...parsedResponse.metadata };
               }
 
               // 4. payload.metadata
               if (parsedResponse.payload?.metadata) {
-                console.log('[loadConversationMessages] Found payload.metadata:', parsedResponse.payload.metadata);
                 mergedResponseMetadata = { ...mergedResponseMetadata, ...parsedResponse.payload.metadata };
               }
 
-              console.log('[loadConversationMessages] Final merged metadata:', mergedResponseMetadata);
             }
           } catch {
             // Keep raw response
@@ -299,7 +283,6 @@ export class ConversationService {
             // LlmSelection uses 'provider' and 'model' fields
             mergedResponseMetadata.provider = storedLlmSelection.provider;
             mergedResponseMetadata.model = storedLlmSelection.model;
-            console.log('[loadConversationMessages] Using stored LLM selection:', mergedResponseMetadata);
           }
 
           const hasLlmMetadata = mergedResponseMetadata.provider || mergedResponseMetadata.model || (task.llmMetadata && Object.keys(task.llmMetadata).length > 0);
@@ -469,7 +452,6 @@ console.error(`Failed to get active tasks for conversation ${conversationId}:`, 
   async updateConversationExecutionModes(conversation: AgentConversation): Promise<void> {
     if (!conversation.agent) return;
 
-    console.log('🔍 [ConversationService.updateConversationExecutionModes] Starting with agent:', {
       name: conversation.agent.name,
       execution_profile: conversation.agent.execution_profile,
       execution_capabilities: conversation.agent.execution_capabilities
@@ -482,7 +464,6 @@ console.error(`Failed to get active tasks for conversation ${conversationId}:`, 
       // Find agent info from the store
       const agentInfo = agentsStore.availableAgents.find(agent => agent.name === conversation.agent?.name);
       
-      console.log('🔍 [ConversationService.updateConversationExecutionModes] Found agentInfo:', {
         found: !!agentInfo,
         agentInfo: agentInfo ? {
           name: agentInfo.name,
@@ -527,7 +508,6 @@ console.error(`Failed to get active tasks for conversation ${conversationId}:`, 
       const profile = conversation.agent.execution_profile;
       const capabilities = conversation.agent.execution_capabilities;
 
-      console.log('🔍 [ConversationService.updateConversationExecutionModes] Final execution fields:', {
         profile,
         capabilities,
         source: 'originalAgent',
@@ -550,7 +530,6 @@ console.error(`Failed to get active tasks for conversation ${conversationId}:`, 
       }
 
 
-      console.log('🔍 [ConversationService.updateConversationExecutionModes] Final allowedChatModes:', allowedChatModes);
       conversation.allowedChatModes = allowedChatModes;
       if (!allowedChatModes.includes(conversation.chatMode)) {
         // Prefer 'converse' mode if available, otherwise use first allowed mode
@@ -616,7 +595,6 @@ console.error(`Failed to get active tasks for conversation ${conversationId}:`, 
                      agentWithContext.context?.execution_modes ||
                      ['immediate'];
 
-    console.log('🔍 [createConversationObject] Agent:', agent.name, 'rawModes:', rawModes);
 
     const normalizeMode = (mode: string): ExecutionMode | null => {
       switch (mode) {
@@ -644,7 +622,6 @@ console.error(`Failed to get active tasks for conversation ${conversationId}:`, 
         supportedModes.includes(mode),
       ) ?? supportedModes[0];
 
-    console.log('✅ [createConversationObject] supportedModes:', supportedModes, 'defaultExecutionMode:', defaultExecutionMode);
 
     // Get organization from authStore
     const authStore = useAuthStore();

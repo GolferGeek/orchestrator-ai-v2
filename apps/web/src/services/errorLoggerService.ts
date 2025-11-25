@@ -22,7 +22,6 @@ class ErrorLoggerService implements ErrorLogger {
    */
   async log(error: AppError): Promise<void> {
     if (!this.isEnabled) {
-      console.log('Error logging disabled, skipping:', error.id);
       return;
     }
 
@@ -31,7 +30,6 @@ class ErrorLoggerService implements ErrorLogger {
       
       await apiService.post(`${this.basePath}/log`, payload);
       
-      console.log('✅ Error logged successfully:', error.id);
     } catch (logError) {
       console.error('❌ Failed to log error:', logError);
       
@@ -47,7 +45,6 @@ class ErrorLoggerService implements ErrorLogger {
    */
   async report(payload: ErrorReportPayload): Promise<void> {
     if (!this.isEnabled) {
-      console.log('Error reporting disabled, skipping:', payload.error.id);
       return;
     }
 
@@ -66,7 +63,6 @@ class ErrorLoggerService implements ErrorLogger {
 
       await apiService.post(`${this.basePath}/report`, sanitizedPayload);
       
-      console.log('✅ Error reported successfully:', payload.error.id);
     } catch (reportError) {
       console.error('❌ Failed to report error:', reportError);
       
@@ -94,7 +90,6 @@ class ErrorLoggerService implements ErrorLogger {
         timestamp: Date.now()
       });
       
-      console.log(`✅ Batch logged ${errors.length} errors successfully`);
     } catch (batchError) {
       console.error('❌ Failed to batch log errors:', batchError);
       
@@ -166,7 +161,6 @@ class ErrorLoggerService implements ErrorLogger {
    */
   setEnabled(enabled: boolean): void {
     this.isEnabled = enabled;
-    console.log(`Error logging ${enabled ? 'enabled' : 'disabled'}`);
   }
 
   /**
@@ -185,7 +179,6 @@ class ErrorLoggerService implements ErrorLogger {
     }
 
     this.isProcessingQueue = true;
-    console.log(`Processing ${this.retryQueue.length} queued error operations`);
 
     const queue = [...this.retryQueue];
     this.retryQueue = [];
@@ -207,7 +200,6 @@ class ErrorLoggerService implements ErrorLogger {
    */
   clearRetryQueue(): void {
     this.retryQueue = [];
-    console.log('Error retry queue cleared');
   }
 
   /**
@@ -339,7 +331,6 @@ class ErrorLoggerService implements ErrorLogger {
     if (this.retryQueue.length < 100) { // Prevent queue from growing too large
       this.retryQueue.push(operation);
     } else {
-      console.warn('Error retry queue is full, dropping operation');
     }
   }
 }

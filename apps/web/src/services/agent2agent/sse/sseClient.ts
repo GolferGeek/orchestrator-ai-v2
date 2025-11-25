@@ -99,7 +99,6 @@ export class SSEClient {
   }
 
   async connect(url: string): Promise<void> {
-    console.log('[SSEClient] 🔌 Connecting to SSE endpoint:', url);
     this.currentUrl = url;
     this.reconnectAttempts = 0;
     this.transitionState('connecting');
@@ -130,7 +129,6 @@ export class SSEClient {
     if (!this.eventSource) return;
 
     this.eventSource.onopen = () => {
-      console.log('[SSEClient] ✅ EventSource connected successfully');
       this.debug('EventSource connected');
       this.reconnectAttempts = 0;
       this.transitionState('connected');
@@ -175,12 +173,10 @@ export class SSEClient {
   }
 
   private emitEvent(eventName: string, event: MessageEvent): void {
-    console.log('[SSEClient] 📨 Received SSE event:', eventName, 'data:', event.data);
 
     // Parse and log detailed info about the event
     try {
       const parsedData = JSON.parse(event.data);
-      console.log('[SSEClient] 📦 Parsed event data:', {
         eventName,
         dataKeys: Object.keys(parsedData),
         streamId: parsedData.streamId,
@@ -189,12 +185,10 @@ export class SSEClient {
         content: parsedData.chunk?.content?.substring(0, 100),
       });
     } catch {
-      console.warn('[SSEClient] Could not parse event data as JSON');
     }
 
     const handlers = this.eventListeners.get(eventName);
     if (!handlers || handlers.size === 0) {
-      console.log('[SSEClient] ⚠️ No handlers registered for event:', eventName);
       return;
     }
 
@@ -279,9 +273,7 @@ export class SSEClient {
       return;
     }
     if (detail) {
-      console.debug(`[SSEClient] ${message}`, detail);
     } else {
-      console.debug(`[SSEClient] ${message}`);
     }
   }
 }

@@ -123,7 +123,6 @@ class ApiService {
                error.response?.status === 429; // Rate limiting
       },
       onRetry: (retryCount, error, requestConfig) => {
-        console.log(`🔄 API Retry attempt ${retryCount} for ${requestConfig.url}:`, error.message);
       }
     });
 
@@ -274,8 +273,6 @@ class ApiService {
       if (import.meta.env.DEV) {
         console.group(`🚨 API Failure Detected [${severity.toUpperCase()}]`);
         console.error('Error:', error.message);
-        console.log('Request:', context);
-        console.log('Full Error:', error);
         console.groupEnd();
       }
 
@@ -571,7 +568,6 @@ class ApiService {
 
   async getAgentHierarchy(organization?: string): Promise<AgentHierarchyResponse> {
     // Use department-based hierarchy endpoint
-    console.log('🔍 [ApiService.getAgentHierarchy] Using hierarchy endpoint for organization:', organization);
 
     const response = await this.axiosInstance.get<AgentHierarchyResponse>(
       '/hierarchy/.well-known/hierarchy',
@@ -579,7 +575,6 @@ class ApiService {
         headers: organization ? { 'x-organization-slug': organization } : {}
       }
     );
-    console.log('✅ [ApiService.getAgentHierarchy] Hierarchy response received');
     return response.data;
   }
 
@@ -964,12 +959,10 @@ console.error(`ApiService.post error for ${url}:`, error);
       const conversationHistory: ConversationHistoryItem[] = [];
       
       // Debug: Log the incoming LLM selection
-      console.log('🎤 [apiService.processConversation] Received llmSelection:', data.llmSelection);
 
       // Use the LLM selection as-is - no fallbacks, let errors surface
       const llmSelection = data.llmSelection;
 
-      console.log('🎤 [apiService.processConversation] Using llmSelection:', llmSelection);
       
       // Generate unique task ID
       const taskId = crypto.randomUUID();

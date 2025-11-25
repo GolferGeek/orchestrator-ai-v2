@@ -231,32 +231,27 @@ const showErrorNotification = (error: Record<string, unknown>) => {
   currentNotificationError.value = error;
   isVisible.value = true;
   
-  console.log('📢 Showing error notification:', error.id);
 };
 
 const showCriticalError = (error: Record<string, unknown>) => {
   errorStore.showGlobalError(error);
-  console.log('🚨 Showing critical error modal:', error.id);
 };
 
 const onDismiss = () => {
   isVisible.value = false;
   currentNotificationError.value = null;
   
-  console.log('📢 Error notification dismissed');
 };
 
 const closeCriticalModal = () => {
   errorStore.hideGlobalError();
   showCriticalModal.value = false;
   
-  console.log('🚨 Critical error modal closed');
 };
 
 const retryError = () => {
   if (!currentNotificationError.value) return;
   
-  console.log('🔄 Retrying error:', currentNotificationError.value.id);
   
   // Mark error as resolved (optimistic)
   errorStore.resolveError(currentNotificationError.value.id);
@@ -272,7 +267,6 @@ const retryError = () => {
 };
 
 const reloadPage = () => {
-  console.log('🔄 Reloading page due to critical error');
   window.location.reload();
 };
 
@@ -280,14 +274,12 @@ const reportCriticalError = async () => {
   const error = errorStore.currentGlobalError;
   if (!error) return;
   
-  console.log('🐛 Reporting critical error:', error.id);
   
   try {
     const success = await errorStore.reportError(error, 'Critical error reported by user');
     
     if (success) {
       // Show success feedback
-      console.log('✅ Critical error reported successfully');
       
       // You could show a success toast here
     } else {

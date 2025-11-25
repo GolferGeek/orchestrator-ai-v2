@@ -247,14 +247,12 @@ onErrorCaptured((error: Error, instance, info) => {
 // Recovery methods
 const retry = async () => {
   if (retryCount.value >= props.maxRetries) {
-    console.warn('Max retry attempts reached');
     return;
   }
   
   isRetrying.value = true;
   retryCount.value++;
   
-  console.log(`🔄 ErrorBoundary retry attempt ${retryCount.value}/${props.maxRetries}`);
   
   // Call onRetry callback if provided
   if (props.onRetry) {
@@ -281,7 +279,6 @@ const retry = async () => {
 };
 
 const clearError = () => {
-  console.log('🧹 ErrorBoundary clearing error state');
   
   hasError.value = false;
   currentError.value = null;
@@ -299,18 +296,15 @@ const clearError = () => {
 };
 
 const reload = () => {
-  console.log('🔄 ErrorBoundary reloading page');
   window.location.reload();
 };
 
 const navigateHome = async () => {
-  console.log('🏠 ErrorBoundary navigating to home');
   clearError();
   await router.push('/');
 };
 
 const reportError = () => {
-  console.log('🐛 ErrorBoundary reporting error');
   
   if (currentError.value && errorInfo.value) {
     emit('report', currentError.value, errorInfo.value);

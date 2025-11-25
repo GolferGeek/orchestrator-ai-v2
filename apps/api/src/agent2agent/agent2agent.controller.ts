@@ -70,6 +70,11 @@ import {
   DeliverableFormat,
   DeliverableVersionCreationType,
 } from './deliverables/dto';
+import {
+  ObservabilityEventsService,
+  ObservabilityEventRecord,
+} from '../observability/observability-events.service';
+import { Subscription } from 'rxjs';
 
 interface NormalizedTaskRequest {
   dto: NormalizedTaskRequestDto;
@@ -142,6 +147,7 @@ export class Agent2AgentController {
     private readonly eventEmitter: EventEmitter2,
     private readonly deliverablesService: DeliverablesService,
     private readonly taskUpdateService: TasksService,
+    private readonly observabilityEvents: ObservabilityEventsService,
   ) {}
 
   private readonly logger = new Logger(Agent2AgentController.name);
@@ -731,6 +737,7 @@ export class Agent2AgentController {
     });
 
     let streamSessionId: string | null = null;
+    let observabilitySubscription: Subscription | null = null;
     try {
       streamSessionId = this.taskStatusCache.registerStreamSession({
         taskId,
@@ -764,6 +771,12 @@ export class Agent2AgentController {
     }, 15000);
 
     let streamActive = true;
+    const observabilityFilters = {
+      taskId,
+      agentSlug,
+      organizationSlug,
+      conversationId: expectedConversationId,
+    };
 
     const cleanup = (cleanupReason?: string) => {
       if (!streamActive) {
@@ -771,9 +784,10 @@ export class Agent2AgentController {
       }
       streamActive = false;
       clearInterval(keepAlive);
-      this.eventEmitter.off('agent.stream.chunk', chunkListener);
-      this.eventEmitter.off('agent.stream.complete', completeListener);
-      this.eventEmitter.off('agent.stream.error', errorListener);
+      if (observabilitySubscription) {
+        observabilitySubscription.unsubscribe();
+        observabilitySubscription = null;
+      }
       if (streamSessionId) {
         this.taskStatusCache.unregisterStreamSession(
           streamSessionId,
@@ -797,56 +811,66 @@ export class Agent2AgentController {
       }
     };
 
-    const chunkListener = (event: AgentStreamChunkEvent) => {
+    // Replay recent observability events for this task
+    const replayEvents = this.observabilityEvents
+      .getSnapshot()
+      .filter((event) =>
+        this.matchesObservabilityEvent(event, observabilityFilters),
+      );
+    for (const eventRecord of replayEvents) {
       if (
-        !this.matchesStreamEvent(event, {
-          agentSlug,
-          organizationSlug,
-          streamId,
-          allowedStreamId,
-          conversationId: expectedConversationId,
-        })
+        eventRecord.hook_event_type === 'agent.completed' ||
+        eventRecord.hook_event_type === 'agent.failed'
       ) {
-        return;
+        continue;
       }
-      this.writeSseEvent(response, this.toChunkSseEvent(event));
-    };
+      this.writeSseEvent(
+        response,
+        this.toChunkSseEventFromObservability(eventRecord),
+      );
+    }
 
-    const completeListener = (event: AgentStreamCompleteEvent) => {
-      if (
-        !this.matchesStreamEvent(event, {
-          agentSlug,
-          organizationSlug,
-          streamId,
-          allowedStreamId,
-          conversationId: expectedConversationId,
-        })
-      ) {
-        return;
-      }
-      this.writeSseEvent(response, this.toCompleteSseEvent(event));
-      endStream('complete');
-    };
+    observabilitySubscription = this.observabilityEvents.events$.subscribe({
+      next: (eventRecord) => {
+        if (
+          !this.matchesObservabilityEvent(eventRecord, observabilityFilters) ||
+          !streamActive
+        ) {
+          return;
+        }
 
-    const errorListener = (event: AgentStreamErrorEvent) => {
-      if (
-        !this.matchesStreamEvent(event, {
-          agentSlug,
-          organizationSlug,
-          streamId,
-          allowedStreamId,
-          conversationId: expectedConversationId,
-        })
-      ) {
-        return;
-      }
-      this.writeSseEvent(response, this.toErrorSseEvent(event));
-      endStream('error');
-    };
+        const hookType = eventRecord.hook_event_type;
+        if (hookType === 'agent.completed' || hookType === 'task.completed') {
+          this.writeSseEvent(
+            response,
+            this.toCompleteSseEventFromObservability(eventRecord),
+          );
+          endStream('complete');
+          return;
+        }
 
-    this.eventEmitter.on('agent.stream.chunk', chunkListener);
-    this.eventEmitter.on('agent.stream.complete', completeListener);
-    this.eventEmitter.on('agent.stream.error', errorListener);
+        if (hookType === 'agent.failed' || hookType === 'task.failed') {
+          this.writeSseEvent(
+            response,
+            this.toErrorSseEventFromObservability(eventRecord),
+          );
+          endStream('error');
+          return;
+        }
+
+        this.writeSseEvent(
+          response,
+          this.toChunkSseEventFromObservability(eventRecord),
+        );
+      },
+      error: (error) => {
+        this.logger.warn(
+          `Observability stream error for task ${taskId}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      },
+    });
 
     request.on('close', () => endStream('client_closed'));
     request.on('error', () => endStream('client_error'));
@@ -1002,42 +1026,114 @@ export class Agent2AgentController {
     }
   }
 
-  private matchesStreamEvent(
-    event:
-      | AgentStreamChunkEvent
-      | AgentStreamCompleteEvent
-      | AgentStreamErrorEvent,
+  private matchesObservabilityEvent(
+    event: ObservabilityEventRecord,
     filters: {
+      taskId: string;
       agentSlug: string;
       organizationSlug: string;
-      streamId?: string;
-      allowedStreamId?: string;
       conversationId?: string | null;
     },
   ): boolean {
-    if (event.agentSlug !== filters.agentSlug) {
+    if (event.task_id !== filters.taskId) {
       return false;
     }
-    // Normalize: null or undefined → 'global'
-    const eventOrg = event.organizationSlug || 'global';
+
+    const eventOrg = this.normalizeOrgValue(event.organization_slug);
     if (eventOrg !== filters.organizationSlug) {
       return false;
     }
 
-    const candidateStreamIds = [
-      filters.streamId,
-      filters.allowedStreamId,
-    ].filter((id): id is string => Boolean(id));
-
-    if (candidateStreamIds.length > 0) {
-      return candidateStreamIds.includes(event.streamId);
-    }
-
     if (filters.conversationId) {
-      return event.conversationId === filters.conversationId;
+      return event.conversation_id === filters.conversationId;
     }
 
     return true;
+  }
+
+  private toChunkSseEventFromObservability(
+    event: ObservabilityEventRecord,
+  ): AgentStreamChunkSSEEvent {
+    return this.toChunkSseEvent(this.buildChunkEventFromObservability(event));
+  }
+
+  private toCompleteSseEventFromObservability(
+    event: ObservabilityEventRecord,
+  ): AgentStreamCompleteSSEEvent {
+    const completeEvent: AgentStreamCompleteEvent = {
+      streamId: event.task_id,
+      conversationId: event.conversation_id ?? undefined,
+      organizationSlug: event.organization_slug ?? null,
+      agentSlug: event.agent_slug ?? 'unknown',
+      mode: event.mode ?? 'converse',
+    };
+    return this.toCompleteSseEvent(completeEvent);
+  }
+
+  private toErrorSseEventFromObservability(
+    event: ObservabilityEventRecord,
+  ): AgentStreamErrorSSEEvent {
+    const errorEvent: AgentStreamErrorEvent = {
+      streamId: event.task_id,
+      conversationId: event.conversation_id ?? undefined,
+      organizationSlug: event.organization_slug ?? null,
+      agentSlug: event.agent_slug ?? 'unknown',
+      mode: event.mode ?? 'converse',
+      error:
+        event.message ||
+        (event.payload?.error as string) ||
+        event.status ||
+        'Agent task failed',
+    };
+    return this.toErrorSseEvent(errorEvent);
+  }
+
+  private buildChunkEventFromObservability(
+    event: ObservabilityEventRecord,
+  ): AgentStreamChunkEvent {
+    return {
+      streamId: event.task_id,
+      conversationId: event.conversation_id ?? undefined,
+      organizationSlug: event.organization_slug ?? null,
+      agentSlug: event.agent_slug ?? 'unknown',
+      mode: event.mode ?? 'converse',
+      chunk: {
+        type: 'progress',
+        content: this.resolveObservabilityContent(event),
+        metadata: {
+          progress: event.progress ?? undefined,
+          step: event.step ?? undefined,
+          message: event.message ?? undefined,
+          status: event.status,
+          hookEventType: event.hook_event_type,
+          payload: event.payload,
+          sequence: event.sequence ?? undefined,
+          totalSteps: event.totalSteps ?? undefined,
+          timestamp: event.timestamp,
+        },
+      },
+    };
+  }
+
+  private resolveObservabilityContent(event: ObservabilityEventRecord): string {
+    if (typeof event.message === 'string' && event.message.trim().length > 0) {
+      return event.message;
+    }
+    const payloadMessage = event.payload?.message;
+    if (
+      typeof payloadMessage === 'string' &&
+      payloadMessage.trim().length > 0
+    ) {
+      return payloadMessage;
+    }
+    return event.hook_event_type;
+  }
+
+  private normalizeOrgValue(value: string | null | undefined): string {
+    if (value && value.trim().length > 0) {
+      return value;
+    }
+    return 'global';
   }
 
   private toChunkSseEvent(

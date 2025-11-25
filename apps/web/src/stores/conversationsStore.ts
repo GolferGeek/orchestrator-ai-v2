@@ -241,7 +241,6 @@ export const useConversationsStore = defineStore('conversations', () => {
     
     // Debug logging for matching
     if (agentName.toLowerCase().includes('blog') || agentName.toLowerCase().includes('writer')) {
-      console.log(`🔍 [conversationsByAgent] Searching for agent:`, {
         searchName: agentName,
         normalizedSearchName,
         organizationSlug,
@@ -275,7 +274,6 @@ export const useConversationsStore = defineStore('conversations', () => {
           const orgMatches = normalizedConvOrg === normalizedFilterOrg;
           
           if (agentName.toLowerCase().includes('blog') || agentName.toLowerCase().includes('writer')) {
-            console.log(`🔍 [conversationsByAgent] Org match check:`, {
               searchName: agentName,
               convAgentName,
               convOrg,
@@ -296,7 +294,6 @@ export const useConversationsStore = defineStore('conversations', () => {
       });
     
     if (agentName.toLowerCase().includes('blog') || agentName.toLowerCase().includes('writer')) {
-      console.log(`✅ [conversationsByAgent] Found ${matched.length} conversations for "${agentName}"`, {
         matchedIds: matched.map(c => c.id)
       });
     }
@@ -737,7 +734,6 @@ export const useConversationsStore = defineStore('conversations', () => {
       const agentsStore = useAgentsStore();
 
       // Debug: Log raw API response to check organizationSlug
-      console.log('🔍 [ConversationsStore] Raw API response:', {
         totalConversations: response.conversations.length,
         sampleConversation: response.conversations[0] ? {
           id: response.conversations[0].id,
@@ -815,7 +811,6 @@ export const useConversationsStore = defineStore('conversations', () => {
         
         // Debug: Log organizationSlug for blog-post-writer conversations
         if (mappedConv.agentName?.toLowerCase().includes('blog') || mappedConv.agentName?.toLowerCase().includes('writer')) {
-          console.log(`🔍 [ConversationsStore] Mapped conversation "${mappedConv.agentName}":`, {
             id: mappedConv.id,
             agentName: mappedConv.agentName,
             organizationSlug: mappedConv.organizationSlug,

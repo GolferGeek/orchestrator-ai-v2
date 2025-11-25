@@ -918,7 +918,6 @@ const navigateTo = (path: string) => {
   
   try {
     // In real app, this would call an API to update backend settings
-    console.log(`Updating privacy setting: ${setting} = ${value}`);
     
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -958,7 +957,6 @@ const navigateTo = (path: string) => {
   
   try {
     // In real app, this would call an API to update backend settings
-    console.log(`Updating audit setting: ${setting} = ${value}`);
     
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -994,7 +992,6 @@ const navigateTo = (path: string) => {
 const _loadSettings = async () => {
   try {
     // In real app, this would load settings from API/environment variables
-    console.log('Loading admin settings...');
     
     // Load privacy settings from environment or API
     // privacySettings.value = await api.getPrivacySettings();
@@ -1008,7 +1005,6 @@ const _loadSettings = async () => {
 const _loadStats = async () => {
   try {
     // In real app, this would load stats from various APIs
-    console.log('Loading system stats...');
     
     // Load stats from APIs
     // evaluationStats.value = await api.getEvaluationStats();

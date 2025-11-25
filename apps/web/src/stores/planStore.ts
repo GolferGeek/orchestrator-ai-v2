@@ -215,26 +215,21 @@ export const usePlanStore = defineStore('plan', () => {
    * Add version to a plan
    */
   function addVersion(planId: string, version: PlanVersionData): void {
-    console.log('📝 [planStore.addVersion] Adding version:', { planId, versionId: version.id, versionNumber: version.versionNumber });
 
     const versions = planVersions.value.get(planId) || [];
-    console.log('📝 [planStore.addVersion] Existing versions:', versions.length);
 
     // Check if version already exists
     const existingIndex = versions.findIndex(v => v.id === version.id);
 
     if (existingIndex >= 0) {
       // Update existing version
-      console.log('📝 [planStore.addVersion] Updating existing version at index', existingIndex);
       versions[existingIndex] = version;
       planVersions.value.set(planId, [...versions]);
     } else {
       // Add new version
-      console.log('📝 [planStore.addVersion] Adding new version (total will be:', versions.length + 1, ')');
       planVersions.value.set(planId, [...versions, version]);
     }
 
-    console.log('📝 [planStore.addVersion] Total versions now:', planVersions.value.get(planId)?.length);
   }
 
   /**
@@ -314,7 +309,6 @@ export const usePlanStore = defineStore('plan', () => {
       );
 
       if (!response) {
-        console.log('[planStore.loadPlansByConversation] No plan found for conversation:', conversationId);
         return null;
       }
 
@@ -348,7 +342,6 @@ export const usePlanStore = defineStore('plan', () => {
       // Associate with conversation
       associatePlanWithConversation(plan.id, conversationId);
 
-      console.log('[planStore.loadPlansByConversation] Loaded plan:', plan.id, 'with', response.versions?.length || 0, 'versions');
       return plan;
     } catch (error) {
       console.error('[planStore.loadPlansByConversation] Error loading plan:', error);
@@ -382,7 +375,6 @@ export const usePlanStore = defineStore('plan', () => {
       const { createAgent2AgentApi } = await import('@/services/agent2agent/api/agent2agent.api');
       const api = createAgent2AgentApi(plan.agentName);
 
-      console.log('🔄 [Plan Rerun] Calling rerun API:', {
         conversationId,
         versionId,
         llmConfig: llmSelection
@@ -395,7 +387,6 @@ export const usePlanStore = defineStore('plan', () => {
         maxTokens: llmSelection.maxTokens,
       });
 
-      console.log('✅ [Plan Rerun] Response received:', response);
 
       // Handle the response
       if (!response.success || !response.data) {
@@ -412,7 +403,6 @@ export const usePlanStore = defineStore('plan', () => {
       }
 
       // Add the new version to the store
-      console.log('✅ [Plan Rerun] Adding new version to store:', newVersion);
       addVersion(plan.id, newVersion);
 
       return newVersion;

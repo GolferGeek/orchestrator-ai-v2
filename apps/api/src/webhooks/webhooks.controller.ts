@@ -90,14 +90,8 @@ export class WebhooksController {
   async handleStatusUpdate(
     @Body() update: WorkflowStatusUpdate,
   ): Promise<void> {
-    this.logger.debug('=== WEBHOOK ENDPOINT HIT ===');
-    this.logger.debug(`Request body: ${JSON.stringify(update)}`);
-    this.logger.log(
-      `Received workflow status update for task ${update.taskId}: ${update.status}`,
-    );
-    this.logger.debug(
-      `Sequence info - top level: ${update.sequence}, in data: ${update.data?.sequence}`,
-    );
+    this.logger.log('🔔 [WEBHOOK] === WEBHOOK ENDPOINT HIT ===');
+    this.logger.log(`🔔 [WEBHOOK] Status: ${update.status}, Task: ${update.taskId}, Message: ${update.message || 'N/A'}`);
 
     // Validate required fields
     if (!update.taskId) {
@@ -168,9 +162,6 @@ export class WebhooksController {
               status: update.status,
             },
           );
-          this.logger.debug(
-            `📝 Created task message for ${update.taskId}: "${update.message}"`,
-          );
         } catch (error) {
           this.logger.error(
             `Failed to create task message for ${update.taskId}:`,
@@ -180,9 +171,6 @@ export class WebhooksController {
       }
 
       // Emit SSE chunk event via StreamingService for real-time streaming to frontend (USER STREAM)
-      this.logger.log(
-        `📤 [WebhookController] Broadcasting to USER stream via streamingService.emitProgress for taskId=${update.taskId}`,
-      );
       this.streamingService.emitProgress(
         update.taskId,
         update.message || stepName,
@@ -193,9 +181,6 @@ export class WebhooksController {
           status: update.status,
           progress,
         },
-      );
-      this.logger.debug(
-        `✅ [WebhookController] Broadcasted to USER stream successfully`,
       );
 
       // Webhooks only emit progress - never completion
@@ -215,9 +200,6 @@ export class WebhooksController {
         data: update,
       };
 
-      this.logger.debug(
-        `📤 Emitting workflow status update - History length: ${history.length}`,
-      );
       this.eventEmitter.emit('workflow.status.update', {
         taskId: update.taskId,
         event: 'workflow_status_update',
@@ -235,23 +217,13 @@ export class WebhooksController {
       });
 
       // Webhook is ONLY for progress updates - completion should go through agent2agent controller
-      this.logger.debug(
-        `Webhook received status "${update.status}" - emitting as progress update only`,
-      );
-
       // NEW: Emit observability event for admin monitoring and store in database (ADMIN STREAM)
-      this.logger.log(
-        `📊 [WebhookController] Broadcasting to ADMIN stream via observability event for taskId=${update.taskId}`,
-      );
       await this.storeAndBroadcastObservabilityEvent(update, {
         stepName,
         progress,
         sequence,
         totalStepsFromUpdate,
       });
-      this.logger.debug(
-        `✅ [WebhookController] Broadcasted to ADMIN stream successfully`,
-      );
     } catch (error) {
       this.logger.error('Error processing workflow status update', error);
     }
@@ -302,6 +274,8 @@ export class WebhooksController {
         message: update.message || null,
         progress: computed.progress,
         step: computed.stepName,
+        sequence: computed.sequence,
+        totalSteps: computed.totalStepsFromUpdate ?? null,
         payload: update,
         timestamp: now,
       };
@@ -317,10 +291,6 @@ export class WebhooksController {
           `Failed to store observability event: ${dbError.message}`,
           dbError,
         );
-      } else {
-        this.logger.debug(
-          `📊 Stored observability event for task ${update.taskId}`,
-        );
       }
 
       // Emit to admin clients via EventEmitter (ADMIN STREAM)
@@ -330,9 +300,10 @@ export class WebhooksController {
         eventType: update.status,
       });
       // Push into in-memory reactive buffer for shared SSE streams
+      this.logger.log(`📤 [WEBHOOK] Pushing to observability buffer: ${update.status} for task ${update.taskId}`);
       this.observabilityEvents.push(eventData);
-      this.logger.debug(
-        `📡 Emitted observability.event for admin stream: ${update.status} - ${update.message?.substring(0, 50)}...`,
+      this.logger.log(
+        `📡 [WEBHOOK] Emitted observability.event for admin stream: ${update.status} - ${update.message?.substring(0, 50)}...`,
       );
     } catch (error) {
       this.logger.error(

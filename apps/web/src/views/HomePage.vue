@@ -138,12 +138,10 @@ const handleConversationFromQuery = async () => {
         }
 
         // Set messages separately (the store manages messages in a separate Map)
-        console.log('💾 [HomePage] Setting messages in store for conversation', conversationId, ':', messages.length);
         conversationsStore.setMessages(conversationId, messages);
 
         // Verify messages were set
         const verifyMessages = conversationsStore.messagesByConversation(conversationId);
-        console.log('✅ [HomePage] Messages set in store, verified count:', verifyMessages.length);
 
         chatUiStore.setActiveConversation(conversationId);
       }

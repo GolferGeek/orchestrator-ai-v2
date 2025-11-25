@@ -1108,7 +1108,6 @@ const getVersionLLMInfo = (version: DeliverableVersion): string | null => {
   
   // Temporary debug to see what we're actually getting
   if (version.id && version.metadata.llmMetadata) {
-    console.log('🔍 [QUICK-DEBUG] Direct access test:', {
       hasProvider: !!version.metadata.llmMetadata.provider,
       hasModel: !!version.metadata.llmMetadata.model,
       provider: version.metadata.llmMetadata.provider,
@@ -1129,18 +1128,15 @@ const getVersionLLMInfo = (version: DeliverableVersion): string | null => {
   if (version.metadata.llmMetadata) {
     // Convert Vue proxy to plain object for easier access
     const info = JSON.parse(JSON.stringify(version.metadata.llmMetadata));
-    console.log('🔍 [TEMP-DEBUG] Parsed llmMetadata:', info);
     
     // Handle direct provider/model format (from reruns and new initial creation)
     if (info.provider && info.model) {
-      console.log('🔍 [TEMP-DEBUG] Using direct provider/model format');
       return `${info.provider}/${info.model}`;
     }
     
     // Handle originalLLMSelection format (from old initial creation)
     if (info.originalLLMSelection) {
       const selection = info.originalLLMSelection;
-      console.log('🔍 [TEMP-DEBUG] Using originalLLMSelection format:', selection);
       if (selection.providerName && selection.modelName) {
         return `${selection.providerName}/${selection.modelName}`;
       }

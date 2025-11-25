@@ -95,7 +95,6 @@ export function enforceHttpsUrl(url: string): string {
         urlObj.port = config.httpsPort === 443 ? '' : config.httpsPort.toString();
       }
       
-      console.warn(`🔒 Enforced HTTPS: ${url} → ${urlObj.toString()}`);
     }
     
     return urlObj.toString();
@@ -245,18 +244,9 @@ export function logSecurityConfig(): void {
   const validation = validateSecurityConfig();
   
   console.group('🔒 Security Configuration');
-  console.log('Environment:', import.meta.env.MODE);
-  console.log('Enforce HTTPS:', config.enforceHttps);
-  console.log('Allowed Protocols:', config.allowedProtocols);
-  console.log('Require Secure Context:', config.requireSecureContext);
-  console.log('Is Secure Context:', isSecureContext());
-  console.log('API Base URL:', getSecureApiBaseUrl());
   
   if (!validation.valid) {
-    console.warn('⚠️ Security Configuration Issues:');
-    validation.errors.forEach(error => console.warn(`  - ${error}`));
   } else {
-    console.log('✅ Security configuration is valid');
   }
   
   console.groupEnd();

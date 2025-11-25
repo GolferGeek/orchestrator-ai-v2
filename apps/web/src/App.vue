@@ -48,21 +48,18 @@ interface ErrorDebugContext {
 
 // Global error event handlers
 const onGlobalError = (error: Error, _errorInfo: ErrorBoundaryInfo) => {
-  console.log('🚨 App-level error captured:', error);
   
   // Error is already handled by ErrorBoundary and added to store
   // This is just for additional app-level logic if needed
 };
 
 const onErrorRetry = (attempt: number) => {
-  console.log(`🔄 App-level retry attempt ${attempt}`);
   
   // You could add app-level retry logic here
   // For example, clearing caches, refreshing auth tokens, etc.
 };
 
 const onErrorReport = (error: Error, _errorInfo: ErrorBoundaryInfo) => {
-  console.log('🐛 App-level error report requested:', error);
   
   // Additional reporting logic could go here
   // For example, showing a feedback form, etc.
@@ -71,11 +68,9 @@ const onErrorReport = (error: Error, _errorInfo: ErrorBoundaryInfo) => {
 // Set up global Vue error handler
 onMounted(() => {
   // Log initial error summary
-  console.log('📊 Initial error summary:', getErrorSummary());
 
   // Test error handling in development
   if (isDevelopment && import.meta.env.VITE_TEST_ERRORS === 'true') {
-    console.log('🧪 Testing error handling in 5 seconds...');
     setTimeout(() => {
       testErrorHandling();
     }, 5000);

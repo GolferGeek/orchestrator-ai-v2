@@ -90,7 +90,6 @@ const startAutoUpdate = () => {
         status: status.status,
       });
     } catch (error) {
-      console.warn('Failed to refresh task progress', error);
     }
   };
 

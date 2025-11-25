@@ -90,7 +90,15 @@ export class AgentRegistryService {
       uniqueOrganizations.map((organization) => this.listAgents(organization)),
     );
 
-    return results.flat();
+    // Deduplicate by slug (agents can belong to multiple orgs)
+    const seen = new Set<string>();
+    return results.flat().filter((agent) => {
+      if (seen.has(agent.slug)) {
+        return false;
+      }
+      seen.add(agent.slug);
+      return true;
+    });
   }
 
   invalidate(organizationSlug: string | null, agentSlug?: string): void {

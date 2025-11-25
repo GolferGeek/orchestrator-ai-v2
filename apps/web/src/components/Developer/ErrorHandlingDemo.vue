@@ -339,37 +339,31 @@ const loggerStatus = computed(() => ({
 
 // Error testing methods
 const testComponentError = () => {
-  console.log('🧪 Testing component error...');
   throw new Error('Test component error - this is intentional');
 };
 
 const testPromiseRejection = () => {
-  console.log('🧪 Testing promise rejection...');
   Promise.reject(new Error('Test promise rejection - this is intentional'));
 };
 
 const testNetworkError = () => {
-  console.log('🧪 Testing network error...');
   const networkError = new Error('Network request failed');
   networkError.name = 'NetworkError';
   handleNetworkError(networkError, 'https://api.example.com/test');
 };
 
 const testApiError = () => {
-  console.log('🧪 Testing API error...');
   const apiError = new Error('API request failed with status 500');
   handleApiError(apiError, '/api/test', 'GET');
 };
 
 const testChunkError = () => {
-  console.log('🧪 Testing chunk load error...');
   const chunkError = new Error('Loading chunk 1 failed');
   chunkError.name = 'ChunkLoadError';
   handleChunkError(chunkError);
 };
 
 const testCriticalError = () => {
-  console.log('🧪 Testing critical error...');
   const criticalError = new Error('Critical system failure - application cannot continue');
   criticalError.name = 'CriticalError';
   errorStore.addError(criticalError, {
@@ -379,7 +373,6 @@ const testCriticalError = () => {
 };
 
 const throwBoundaryError = () => {
-  console.log('🧪 Testing error boundary...');
   hasBoundaryError.value = true;
   // This will be caught by the ErrorBoundary component
   throw new Error('Test error boundary - this should be caught');
@@ -387,17 +380,14 @@ const throwBoundaryError = () => {
 
 // Error management methods
 const resolveError = (errorId: string) => {
-  console.log('✅ Resolving error:', errorId);
   errorStore.resolveError(errorId);
 };
 
 const removeError = (errorId: string) => {
-  console.log('🗑️ Removing error:', errorId);
   errorStore.removeError(errorId);
 };
 
 const reportError = async (errorId: string) => {
-  console.log('📤 Reporting error:', errorId);
   const success = await reportErrorToService(
     errorId,
     'User reported error from demo page',
@@ -406,37 +396,30 @@ const reportError = async (errorId: string) => {
   );
   
   if (success) {
-    console.log('✅ Error reported successfully');
   } else {
-    console.log('❌ Failed to report error');
   }
 };
 
 const clearAllErrors = () => {
-  console.log('🧹 Clearing all errors');
   errorStore.clearErrors();
 };
 
 // Logger management
 const toggleLogging = (event: CustomEvent) => {
   const enabled = event.detail.checked;
-  console.log(`${enabled ? '🟢' : '🔴'} Error logging ${enabled ? 'enabled' : 'disabled'}`);
   errorLoggerService.setEnabled(enabled);
 };
 
 const processRetryQueue = async () => {
-  console.log('⚡ Processing error logger retry queue');
   await errorLoggerService.processRetryQueue();
 };
 
 // Error boundary event handlers
 const onBoundaryError = (error: Error) => {
-  console.log('🚨 Error boundary caught error:', error);
   hasBoundaryError.value = true;
 };
 
 const onBoundaryRetry = (attempt: number) => {
-  console.log(`🔄 Error boundary retry attempt ${attempt}`);
   hasBoundaryError.value = false;
 };
 
@@ -469,8 +452,6 @@ const formatTimestamp = (timestamp: number) => {
 
 // Initialize
 onMounted(() => {
-  console.log('🎭 Error Handling Demo initialized');
-  console.log('📊 Current error summary:', getErrorSummary());
 });
 </script>
 

@@ -491,10 +491,8 @@ const messages = computed<AgentChatMessage[]>(() => {
   // Always read from store - conversation.messages is legacy and may be empty/stale
   if (props.conversation?.id) {
     const msgs = conversationsStore.messagesByConversation(props.conversation.id);
-    console.log('📬 [TwoPaneConversationView] Using messages from store for conversation', props.conversation.id, ':', msgs.length);
     return msgs;
   }
-  console.log('📭 [TwoPaneConversationView] No conversation ID available');
   return [];
 });
 
@@ -683,19 +681,15 @@ const sendMessage = async (mode?: AgentChatMode) => {
     const effectiveMode = mode || currentChatMode.value || 'converse';
     const agentName = agent.name;
 
-    console.log('🎯 [sendMessage] effectiveMode:', effectiveMode, 'mode param:', mode, 'currentChatMode:', currentChatMode.value);
 
     // Route to appropriate action based on mode
     if (effectiveMode === 'plan') {
-      console.log('📋 [sendMessage] Calling createPlanAction');
       await createPlanAction(agentName, conversationId, content);
     } else if (effectiveMode === 'build') {
-      console.log('🔨 [sendMessage] Calling createDeliverableAction');
       // Always call createDeliverable - backend will automatically enhance existing deliverable if one exists
       // and create a new version with the user's new instructions
       await createDeliverableAction(agentName, conversationId, content);
     } else {
-      console.log('💬 [sendMessage] Calling sendMessageAction (converse)');
       // converse mode (default - 'conversational' or undefined)
       await sendMessageAction(agentName, conversationId, content);
     }
@@ -791,8 +785,6 @@ const applyRecommendation = async (recommendation: AgentLLMRecommendation) => {
     return;
   }
 
-  console.log('🎯 Applying recommendation:', recommendation);
-  console.log('📋 Before update - Current selection:', {
     provider: llmStore.selectedProvider?.name,
     model: llmStore.selectedModel?.modelName
   });
@@ -808,7 +800,6 @@ const applyRecommendation = async (recommendation: AgentLLMRecommendation) => {
   }
 
   // Set provider first and wait for models to load
-  console.log('Setting provider to:', provider.name);
   await llmStore.setProvider(provider);
 
   // Wait for next tick to ensure models list is updated
@@ -819,8 +810,6 @@ const applyRecommendation = async (recommendation: AgentLLMRecommendation) => {
   // We need to match against the actual model name which might be "gpt-oss:20b"
   const recommendedModelName = recommendation.modelName.toLowerCase();
 
-  console.log('Looking for model:', recommendedModelName, 'in provider:', provider.name);
-  console.log('Available models for this provider:', llmStore.filteredModels
     .filter(m => m.providerName === provider.name)
     .map(m => ({ modelName: m.modelName, name: m.name })));
 
@@ -831,18 +820,15 @@ const applyRecommendation = async (recommendation: AgentLLMRecommendation) => {
     const modelDisplayNameLower = m.name?.toLowerCase() || '';
 
     // Debug log for each model checked
-    console.log(`Checking model: modelName="${m.modelName}", name="${m.name}" against recommendation="${recommendedModelName}"`);
 
     // Try exact match first
     if (modelNameLower === recommendedModelName || modelDisplayNameLower === recommendedModelName) {
-      console.log('✅ Exact match found!');
       return true;
     }
 
     // If recommendation includes provider prefix like "ollama/gpt-oss:20b", try without prefix
     const withoutPrefix = recommendedModelName.replace(`${provider.name?.toLowerCase() || ''}/`, '');
     if (modelNameLower === withoutPrefix || modelDisplayNameLower === withoutPrefix) {
-      console.log('✅ Match found without provider prefix!');
       return true;
     }
 
@@ -850,7 +836,6 @@ const applyRecommendation = async (recommendation: AgentLLMRecommendation) => {
     const modelBase = modelNameLower.replace(':latest', '');
     const recBase = withoutPrefix.replace(':latest', '');
     if (modelBase === recBase) {
-      console.log('✅ Match found ignoring :latest suffix!');
       return true;
     }
 
@@ -859,14 +844,12 @@ const applyRecommendation = async (recommendation: AgentLLMRecommendation) => {
 
   if (!model) {
     console.error('❌ Model not found:', recommendation.modelName, 'for provider:', provider.name);
-    console.log('Available models for provider:', llmStore.filteredModels
       .filter(m => m.providerName === provider.name)
       .map(m => ({ name: m.name, modelName: m.modelName })));
     return;
   }
 
   // Set model
-  console.log('Setting model to:', model.modelName);
   llmStore.setModel(model);
 
   // Note: Don't update user preferences here - that should only happen when
@@ -875,7 +858,6 @@ const applyRecommendation = async (recommendation: AgentLLMRecommendation) => {
 
   // Verify the change happened
   nextTick(() => {
-    console.log('✅ After update - Current selection:', {
       provider: llmStore.selectedProvider?.name,
       model: llmStore.selectedModel?.modelName,
       llmSelection: llmStore.currentLLMSelection
@@ -945,45 +927,33 @@ const cancelEnhancement = async () => {
   }
 };
 const handleDeliverableCreated = async (deliverable: Deliverable) => {
-  console.log('🎉 [TwoPaneConversationView.handleDeliverableCreated] Called with deliverable:', deliverable.id, 'title:', deliverable.title);
-  console.log('🎉 [TwoPaneConversationView.handleDeliverableCreated] Current conversation:', props.conversation?.id);
-  console.log('🎉 [TwoPaneConversationView.handleDeliverableCreated] Deliverable conversationId:', deliverable.conversationId);
 
   // Use the correct camelCase field name
   // Ensure the deliverable belongs to the current conversation
   if (props.conversation?.id && deliverable.conversationId !== props.conversation.id) {
-    console.log('⚠️ [TwoPaneConversationView.handleDeliverableCreated] Deliverable belongs to different conversation, ignoring');
     return;
   }
 
-  console.log('✅ [TwoPaneConversationView.handleDeliverableCreated] Deliverable belongs to current conversation');
 
   // Load versions for the newly created deliverable
   try {
-    console.log('📥 [TwoPaneConversationView.handleDeliverableCreated] Loading deliverable versions...');
     const versionList = await deliverablesService.getVersionHistory(deliverable.id);
     versionList.forEach(v => {
       deliverablesStore.addVersion(deliverable.id, v);
     });
-    console.log('✅ [TwoPaneConversationView.handleDeliverableCreated] Versions loaded');
   } catch (error) {
     console.error('❌ [TwoPaneConversationView.handleDeliverableCreated] Error loading versions:', error);
     // Don't let version loading failure block deliverable creation handling
   }
 
   // Auto-select newly created or newly loaded deliverable
-  console.log('🎯 [TwoPaneConversationView.handleDeliverableCreated] Setting activeWorkProduct to deliverable:', deliverable.id);
   activeWorkProduct.value = { type: 'deliverable', data: deliverable };
-  console.log('🎯 [TwoPaneConversationView.handleDeliverableCreated] activeWorkProduct set:', activeWorkProduct.value);
 
   // FORCE show the work product pane immediately when a deliverable is created
-  console.log('🎯 [TwoPaneConversationView.handleDeliverableCreated] Setting showWorkProductPane to true');
   showWorkProductPane.value = true;
-  console.log('🎯 [TwoPaneConversationView.handleDeliverableCreated] showWorkProductPane set:', showWorkProductPane.value);
 
   // Force Vue reactivity update
   await nextTick();
-  console.log('✅ [TwoPaneConversationView.handleDeliverableCreated] nextTick complete');
 
   // Show visual debugging toast to confirm pane opened
   try {
@@ -1051,12 +1021,8 @@ const handleMergeCompleted = (mergedDeliverable: Deliverable) => {
 
 // LLM Rerun handlers
 const handleRunWithDifferentLLM = (data: DeliverableRerunContext) => {
-  console.log('🔍 [handleRunWithDifferentLLM] Capturing user message...');
-  console.log('🔍 [handleRunWithDifferentLLM] Conversation ID:', props.conversation?.id);
-  console.log('🔍 [handleRunWithDifferentLLM] Messages from computed:', messages.value.length);
 
   if (messages.value.length > 0) {
-    console.log('🔍 [handleRunWithDifferentLLM] Message roles:', messages.value.map(m => m.role));
   }
 
   // Capture the last user message from the messages store
@@ -1067,11 +1033,9 @@ const handleRunWithDifferentLLM = (data: DeliverableRerunContext) => {
     const userMessages = allMessages.filter(msg =>
       msg.role === 'user' && !msg.metadata?.isRerunRequest
     );
-    console.log('🔍 [handleRunWithDifferentLLM] User messages (non-rerun) found:', userMessages.length);
 
     if (userMessages.length > 0) {
       userMessage = userMessages[userMessages.length - 1].content;
-      console.log('✅ [handleRunWithDifferentLLM] Captured user message:', userMessage);
     } else {
       console.error('❌ [handleRunWithDifferentLLM] No non-rerun user messages found!');
     }
@@ -1084,28 +1048,23 @@ const handleRunWithDifferentLLM = (data: DeliverableRerunContext) => {
     ...data,
     userMessage // Add the user message to the rerun context
   };
-  console.log('🔍 [handleRunWithDifferentLLM] Stored rerun data. Has userMessage?', !!userMessage);
   showLLMRerunModal.value = true;
 };
 
 // Plan event handlers
 const handlePlanVersionChanged = (version: PlanVersionData) => {
-  console.log('Plan version changed:', version);
   // TODO: Update plan state if needed
 };
 
 const handlePlanVersionCreated = (version: PlanVersionData) => {
-  console.log('Plan version created:', version);
   // TODO: Update plan state if needed
 };
 
 const handlePlanCurrentVersionChanged = (version: PlanVersionData) => {
-  console.log('Plan current version changed:', version);
   // TODO: Update plan state if needed
 };
 
 const handleRunPlanWithDifferentLLM = (data: PlanRerunContext) => {
-  console.log('Run plan with different LLM:', data);
 
   // Capture the last user message from the messages store
   let userMessage = '';
@@ -1117,7 +1076,6 @@ const handleRunPlanWithDifferentLLM = (data: PlanRerunContext) => {
     );
     if (userMessages.length > 0) {
       userMessage = userMessages[userMessages.length - 1].content;
-      console.log('✅ [handleRunPlanWithDifferentLLM] Captured user message:', userMessage);
     }
   }
 
@@ -1162,7 +1120,6 @@ const executeRerunWithConfig = async (
   capturedRerunData: RerunContext,
   llmConfig: LLMRunConfiguration
 ) => {
-  console.log('🔍 [executeRerunWithConfig] Rerun data:', capturedRerunData);
 
   const plan = isPlanRerunContext(capturedRerunData) ? capturedRerunData.plan : null;
   const deliverable = 'deliverable' in capturedRerunData ? capturedRerunData.deliverable : null;
@@ -1172,7 +1129,6 @@ const executeRerunWithConfig = async (
   // Use the user message that was captured when opening the modal
   const userPrompt = (capturedRerunData as { userMessage?: string }).userMessage || '';
 
-  console.log('🔍 [executeRerunWithConfig] Using captured user message:', userPrompt);
 
   if (!userPrompt || userPrompt.trim() === '') {
     console.error('❌ [executeRerunWithConfig] User prompt is empty!');
@@ -1207,7 +1163,6 @@ const executeRerunWithConfig = async (
       conversationsStore.addMessage(props.conversation.id, initialMessage);
     }
 
-    console.log('🔄 LLM Rerun Config:', llmConfig, 'isPlan:', isPlan, 'isDeliverable:', isDeliverable);
 
     // Get agent slug from conversation (this is the reliable source)
     const agentSlug = props.conversation?.agentName || currentAgent.value?.slug;
@@ -1325,7 +1280,6 @@ watch(
       return;
     }
 
-    console.log('📊 Fetching recommendations for agent:', agentName);
     const existing = llmStore.getRecommendationsForAgent(agentName);
     if (!existing.length && !llmStore.isAgentRecommendationsLoading) {
       llmStore.fetchAgentRecommendations(agentName, 3);
@@ -1335,9 +1289,7 @@ watch(
 );
 // Ensure pane opens when a work product becomes active (desktop)
 watch(() => activeWorkProduct.value, (val) => {
-  console.log('👀 [TwoPaneConversationView] activeWorkProduct watcher triggered:', val, 'isMobile:', isMobile.value, 'showWorkProductPane:', showWorkProductPane.value);
   if (val && !isMobile.value && !showWorkProductPane.value) {
-    console.log('🎯 [TwoPaneConversationView] Opening work product pane from watcher');
     showWorkProductPane.value = true;
   }
 });
@@ -1348,12 +1300,10 @@ watch(() => messages.value.length, () => {
 // Watch for conversation changes and handle deliverable/plan loading properly
 watch(() => props.conversation?.id, async (newId, _oldId) => {
   if (newId && authStore.isAuthenticated) {
-    console.log('🔍 [TwoPaneConversationView] Conversation changed to:', newId);
 
     // Set chat mode to 'converse' for new conversations if it's an allowed mode
     if (props.conversation?.allowedChatModes?.includes('converse' as AgentChatMode)) {
       chatUiStore.setChatMode('converse');
-      console.log('✅ [TwoPaneConversationView] Set chat mode to converse for new conversation');
     }
 
     // Step 0: Load plan for this conversation (similar to deliverables)
@@ -1361,18 +1311,14 @@ watch(() => props.conversation?.id, async (newId, _oldId) => {
 
     // Check if we already have the plan in the store
     const conversationPlans = planStore.plansByConversationId(newId);
-    console.log('🔍 [TwoPaneConversationView] Plans in store:', conversationPlans.length);
 
     if (conversationPlans.length === 0) {
       // Load from API if not in store
       try {
-        console.log('📡 [TwoPaneConversationView] Loading plan from API for conversation:', newId);
         const loadedPlan = await planStore.loadPlansByConversation(newId);
         if (loadedPlan) {
           mostRecentPlan = loadedPlan;
-          console.log('✅ [TwoPaneConversationView] Loaded plan from API:', loadedPlan.id);
         } else {
-          console.log('❌ [TwoPaneConversationView] No plan found in API for conversation');
         }
       } catch (error) {
         console.error('❌ [TwoPaneConversationView] Error loading plan:', error);
@@ -1380,41 +1326,31 @@ watch(() => props.conversation?.id, async (newId, _oldId) => {
     } else {
       // Plan already in store
       mostRecentPlan = conversationPlans[0]; // Already sorted by updatedAt DESC
-      console.log('✅ [TwoPaneConversationView] Plan already in store:', mostRecentPlan.id);
     }
 
-    console.log('🔍 [TwoPaneConversationView] mostRecentPlan:', mostRecentPlan?.id);
 
     // Step 1: Check if deliverables are already loaded, if not load them
     let conversationDeliverables = deliverablesStore.getDeliverablesByConversation(newId);
-    console.log('🔍 [TwoPaneConversationView] Initial deliverables from store:', conversationDeliverables?.length || 0);
 
     if (!conversationDeliverables || conversationDeliverables.length === 0) {
       // Load deliverables first
-      console.log('📡 [TwoPaneConversationView] Loading deliverables from API...');
       try {
         const loadedDeliverables = await deliverablesService.getConversationDeliverables(newId);
         loadedDeliverables.forEach(d => {
           deliverablesStore.addDeliverable(d);
         });
         conversationDeliverables = loadedDeliverables || [];
-        console.log('✅ [TwoPaneConversationView] Loaded deliverables from API:', conversationDeliverables.length);
       } catch (error) {
         console.error('❌ [TwoPaneConversationView] Error loading deliverables:', error);
         conversationDeliverables = [];
       }
     } else {
-      console.log('✅ [TwoPaneConversationView] Using existing deliverables from store');
     }
-    console.log('🔍 [TwoPaneConversationView] Final deliverables count:', conversationDeliverables.length, 'mostRecentPlan:', mostRecentPlan?.id);
-    console.log('🔍 [TwoPaneConversationView] Current showWorkProductPane before setting:', showWorkProductPane.value);
-    console.log('🔍 [TwoPaneConversationView] Current activeWorkProduct before setting:', activeWorkProduct.value);
 
     if (conversationDeliverables.length > 0) {
       // Step 2: Get the most recent deliverable
       const mostRecentDeliverable = conversationDeliverables
         .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())[0];
-      console.log('📋 [TwoPaneConversationView] Most recent deliverable:', mostRecentDeliverable.id);
 
       // Step 3: Load versions for the selected deliverable
       try {
@@ -1422,33 +1358,25 @@ watch(() => props.conversation?.id, async (newId, _oldId) => {
         versionList.forEach(v => {
           deliverablesStore.addVersion(mostRecentDeliverable.id, v);
         });
-        console.log('✅ [TwoPaneConversationView] Loaded deliverable versions');
       } catch (error) {
         console.error('❌ [TwoPaneConversationView] Error loading deliverable versions:', error);
       }
 
       // Step 4: Set up the work product pane and select the deliverable
-      console.log('🎯 [TwoPaneConversationView] Setting activeWorkProduct to deliverable:', mostRecentDeliverable.id);
       activeWorkProduct.value = { type: 'deliverable', data: mostRecentDeliverable };
-      console.log('🎯 [TwoPaneConversationView] Setting showWorkProductPane to true');
       showWorkProductPane.value = true;
-      console.log('✅ [TwoPaneConversationView] After setting - showWorkProductPane:', showWorkProductPane.value, 'activeWorkProduct:', activeWorkProduct.value);
     } else if (mostRecentPlan) {
       // If no deliverables but there's a plan, show the plan pane
       // Plans are accessed via planStore, not activeWorkProduct
-      console.log('🎯 [TwoPaneConversationView] Found plan, showing work product pane');
       activeTab.value = 'plan';
       showWorkProductPane.value = true;
-      console.log('✅ [TwoPaneConversationView] Showing plan pane - showWorkProductPane:', showWorkProductPane.value);
     } else {
       // Reset active work product when no deliverables or plans
-      console.log('⚠️ [TwoPaneConversationView] No deliverables or plans, hiding pane');
       activeWorkProduct.value = null;
       // Hide work product pane when no deliverables or plans (can be toggled back on)
       if (!isMobile.value) {
         showWorkProductPane.value = false;
       }
-      console.log('⚠️ [TwoPaneConversationView] After hiding - showWorkProductPane:', showWorkProductPane.value);
     }
   } else {
     // Reset active work product when switching conversations
@@ -1471,19 +1399,15 @@ watch(() => authStore.isAuthenticated, async (isAuthenticated) => {
 
 // Watch for plan creation and show in work product pane
 watch(currentPlan, (plan) => {
-  console.log('👀 [TwoPaneConversationView] currentPlan changed:', plan);
   if (plan) {
     activeTab.value = 'plan';
     showWorkProductPane.value = true;
-    console.log('✅ [TwoPaneConversationView] Switched to plan tab:', plan.id);
   }
 }, { immediate: true });
 
 // Watch for deliverable selection and switch tabs
 watch(() => activeWorkProduct.value, (workProduct) => {
-  console.log('👀 [TwoPaneConversationView] activeWorkProduct tab watcher:', workProduct);
   if (workProduct?.type === 'deliverable') {
-    console.log('🎯 [TwoPaneConversationView] Switching to deliverable tab');
     activeTab.value = 'deliverable';
   }
   // Project tab logic removed - projects deprecated
@@ -1491,10 +1415,6 @@ watch(() => activeWorkProduct.value, (workProduct) => {
 
 // Debug watcher for showWorkProductPane
 watch(() => showWorkProductPane.value, (newVal, oldVal) => {
-  console.log('🔄 [TwoPaneConversationView] showWorkProductPane changed from', oldVal, 'to', newVal);
-  console.log('🔄 [TwoPaneConversationView] Current activeWorkProduct:', activeWorkProduct.value);
-  console.log('🔄 [TwoPaneConversationView] Current activeTab:', activeTab.value);
-  console.log('🔄 [TwoPaneConversationView] Current currentPlan:', currentPlan.value);
 });
 </script>
 <style scoped>

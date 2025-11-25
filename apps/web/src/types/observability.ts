@@ -20,3 +20,5 @@ export interface ChartConfig {
 
 export type TimeRange = '1m' | '3m' | '5m' | '10m';
 
+
+

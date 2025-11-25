@@ -56,8 +56,8 @@ export interface AgentStreamChunkMetadata {
  */
 export interface AgentStreamChunkData extends AgentStreamContext {
   chunk: {
-    /** Chunk type: partial (incremental update) or final (complete response). */
-    type: 'partial' | 'final';
+    /** Chunk type: partial (incremental update), final (complete response), or progress (observability update). */
+    type: 'partial' | 'final' | 'progress';
     /** Streamed text/content. */
     content: string;
     /** Optional metadata for UI/analytics. */
