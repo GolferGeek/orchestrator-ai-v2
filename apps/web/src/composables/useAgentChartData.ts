@@ -36,8 +36,9 @@ export function useAgentChartData(agentIdFilter?: string) {
       return new Date(event.created_at).getTime();
     }
     // Check for createdAt (camelCase) - from legacy events
-    if ((event as any).createdAt) {
-      return new Date((event as any).createdAt).getTime();
+    const eventRecord = event as Record<string, unknown>;
+    if ('createdAt' in event && typeof eventRecord.createdAt === 'string') {
+      return new Date(eventRecord.createdAt).getTime();
     }
     return Date.now();
   };
@@ -48,7 +49,10 @@ export function useAgentChartData(agentIdFilter?: string) {
     // Check for event_type (snake_case alternative)
     if (event.event_type) return event.event_type;
     // Check for eventType (camelCase from legacy events)
-    if ((event as any).eventType) return (event as any).eventType;
+    const eventRecord = event as Record<string, unknown>;
+    if ('eventType' in event && typeof eventRecord.eventType === 'string') {
+      return eventRecord.eventType;
+    }
     return 'unknown';
   };
   
@@ -76,7 +80,7 @@ export function useAgentChartData(agentIdFilter?: string) {
       const sessionId = getSessionId(event);
       
       // Find existing bucket or create new one
-      let bucket = dataPoints.value.find(dp => dp.timestamp === bucketTime);
+      const bucket = dataPoints.value.find(dp => dp.timestamp === bucketTime);
       if (bucket) {
         bucket.count++;
         if (!bucket.eventTypes) bucket.eventTypes = {};
@@ -181,7 +185,7 @@ export function useAgentChartData(agentIdFilter?: string) {
       const eventType = getEventType(event);
       const sessionId = getSessionId(event);
       
-      let bucket = dataPoints.value.find(dp => dp.timestamp === bucketTime);
+      const bucket = dataPoints.value.find(dp => dp.timestamp === bucketTime);
       if (bucket) {
         bucket.count++;
         if (!bucket.eventTypes) bucket.eventTypes = {};

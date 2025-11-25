@@ -201,16 +201,9 @@ async function bootstrap() {
         !process.env.NODE_ENV ||
         process.env.NODE_ENV === 'undefined'
       ) {
-        console.warn(
-          `🚨 CORS: Allowing unrecognized origin in development: ${origin}`,
-        );
         return callback(null, true);
       }
 
-      // Log the rejection for debugging
-      console.error(
-        `❌ CORS REJECTED: Origin="${origin}" | NODE_ENV="${process.env.NODE_ENV}" | Not in allowed list`,
-      );
       callback(new Error('Not allowed by CORS'));
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],

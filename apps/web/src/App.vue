@@ -47,20 +47,20 @@ interface ErrorDebugContext {
 }
 
 // Global error event handlers
-const onGlobalError = (error: Error, _errorInfo: ErrorBoundaryInfo) => {
-  
+const onGlobalError = (_error: Error, _errorInfo: ErrorBoundaryInfo) => {
+
   // Error is already handled by ErrorBoundary and added to store
   // This is just for additional app-level logic if needed
 };
 
-const onErrorRetry = (attempt: number) => {
-  
+const onErrorRetry = (_attempt: number) => {
+
   // You could add app-level retry logic here
   // For example, clearing caches, refreshing auth tokens, etc.
 };
 
-const onErrorReport = (error: Error, _errorInfo: ErrorBoundaryInfo) => {
-  
+const onErrorReport = (_error: Error, _errorInfo: ErrorBoundaryInfo) => {
+
   // Additional reporting logic could go here
   // For example, showing a feedback form, etc.
 };

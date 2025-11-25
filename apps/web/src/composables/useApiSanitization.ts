@@ -46,8 +46,7 @@ export function useApiSanitization() {
       deep = true,
       profile = 'apiInput',
       excludeFields = [],
-      fieldProfiles = {},
-      logSanitization = false
+      fieldProfiles = {}
     } = options;
 
     const modifiedFields: string[] = [];

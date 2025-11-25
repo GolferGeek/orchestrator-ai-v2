@@ -104,11 +104,19 @@ export class TaskMessageService {
       if (taskResponse.data) {
         conversationId = taskResponse.data.conversation_id;
         const metadata = taskResponse.data.metadata as Record<string, unknown>;
-        organizationSlug = metadata?.organizationSlug as string || metadata?.organization_slug as string || null;
-        agentSlug = metadata?.agentSlug as string || metadata?.agent_slug as string || null;
+        organizationSlug =
+          (metadata?.organizationSlug as string) ||
+          (metadata?.organization_slug as string) ||
+          null;
+        agentSlug =
+          (metadata?.agentSlug as string) ||
+          (metadata?.agent_slug as string) ||
+          null;
       }
     } catch (error) {
-      this.logger.warn(`Failed to fetch task context for observability: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.warn(
+        `Failed to fetch task context for observability: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
 
     // Emit task message event for real-time updates with conversation context

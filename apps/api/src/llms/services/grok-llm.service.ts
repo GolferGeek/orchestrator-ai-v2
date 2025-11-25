@@ -82,10 +82,6 @@ export class GrokLLMService extends BaseLLMService {
         this.logger.warn(
           `⚠️ [PII-METADATA-DEBUG] GrokLLMService - No PII metadata from LLM Service, using raw message`,
         );
-      } else {
-        this.logger.debug(
-          `🔍 [PII-METADATA-DEBUG] GrokLLMService - Using preprocessed text and PII metadata`,
-        );
       }
 
       // Prepare Grok request (OpenAI-compatible API)
@@ -260,7 +256,6 @@ export class GrokLLMService extends BaseLLMService {
       try {
         // This would integrate with LangSmith for Grok-specific tracing
         const runId = `grok-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        this.logger.debug(`LangSmith integration for Grok: ${runId}`);
         return Promise.resolve(runId);
       } catch (error) {
         this.logger.warn('LangSmith integration failed:', error);
@@ -391,11 +386,8 @@ export async function testGrokService() {
 
   try {
     const response = await service.generateResponse(params);
-    console.log('Grok Response:', response.content);
-    console.log('Metadata:', response.metadata);
     return response;
   } catch (error) {
-    console.error('Grok Service Error:', error);
     throw error;
   }
 }

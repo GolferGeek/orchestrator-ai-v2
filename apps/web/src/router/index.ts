@@ -269,9 +269,7 @@ router.beforeEach(async (to, from, next) => {
     // Initialize RBAC store if needed
     if (!rbacStore.isInitialized) {
       try {
-        console.log('[Router] Initializing RBAC store...');
         await rbacStore.initialize();
-        console.log('[Router] RBAC initialized. isSuperAdmin:', rbacStore.isSuperAdmin, 'currentOrg:', rbacStore.currentOrganization);
       } catch (error) {
         console.error('Failed to initialize RBAC:', error);
       }
@@ -283,14 +281,11 @@ router.beforeEach(async (to, from, next) => {
       const permissions = Array.isArray(requiredPermissions) ? requiredPermissions : [requiredPermissions];
       const requireAll = to.meta.requiresAllPermissions === true;
 
-      console.log('[Router] Checking permissions:', permissions, 'isSuperAdmin:', rbacStore.isSuperAdmin);
       const hasAccess = requireAll
         ? rbacStore.hasAllPermissions(permissions)
         : rbacStore.hasAnyPermission(permissions);
-      console.log('[Router] hasAccess:', hasAccess);
 
       if (!hasAccess) {
-        console.warn(`Permission denied. Required: ${permissions.join(', ')}, isSuperAdmin: ${rbacStore.isSuperAdmin}`);
         next({
           path: '/access-denied',
           query: {

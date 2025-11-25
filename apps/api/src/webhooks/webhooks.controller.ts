@@ -90,9 +90,6 @@ export class WebhooksController {
   async handleStatusUpdate(
     @Body() update: WorkflowStatusUpdate,
   ): Promise<void> {
-    this.logger.log('🔔 [WEBHOOK] === WEBHOOK ENDPOINT HIT ===');
-    this.logger.log(`🔔 [WEBHOOK] Status: ${update.status}, Task: ${update.taskId}, Message: ${update.message || 'N/A'}`);
-
     // Validate required fields
     if (!update.taskId) {
       this.logger.warn(
@@ -275,7 +272,7 @@ export class WebhooksController {
         progress: computed.progress,
         step: computed.stepName,
         sequence: computed.sequence,
-        totalSteps: computed.totalStepsFromUpdate ?? null,
+        total_steps: computed.totalStepsFromUpdate ?? null,
         payload: update,
         timestamp: now,
       };
@@ -300,11 +297,7 @@ export class WebhooksController {
         eventType: update.status,
       });
       // Push into in-memory reactive buffer for shared SSE streams
-      this.logger.log(`📤 [WEBHOOK] Pushing to observability buffer: ${update.status} for task ${update.taskId}`);
       this.observabilityEvents.push(eventData);
-      this.logger.log(
-        `📡 [WEBHOOK] Emitted observability.event for admin stream: ${update.status} - ${update.message?.substring(0, 50)}...`,
-      );
     } catch (error) {
       this.logger.error(
         'Failed to process observability event',

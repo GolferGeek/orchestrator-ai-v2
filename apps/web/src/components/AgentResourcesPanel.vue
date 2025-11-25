@@ -286,7 +286,8 @@ async function trackVideoButtonClick(video: Video) {
         source: 'agent_conversation'
       }
     });
-  } catch (error) {
+  } catch {
+    // Ignore tracking errors
   }
 }
 
@@ -308,7 +309,8 @@ async function trackVideoModalOpen(video: Video) {
         modalType: 'video_resources'
       }
     });
-  } catch (error) {
+  } catch {
+    // Ignore tracking errors
   }
 }
 
@@ -327,7 +329,8 @@ async function trackTranscriptView(video: Video) {
         source: 'agent_conversation'
       }
     });
-  } catch (error) {
+  } catch {
+    // Ignore tracking errors
   }
 }
 
@@ -347,7 +350,8 @@ async function trackFallbackVideoUsage() {
         reason: 'no_agent_specific_videos'
       }
     });
-  } catch (error) {
+  } catch {
+    // Ignore tracking errors
   }
 }
 

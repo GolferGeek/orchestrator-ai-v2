@@ -89,7 +89,8 @@ const startAutoUpdate = () => {
         message: status.progressMessage,
         status: status.status,
       });
-    } catch (error) {
+    } catch {
+      // Ignore tracking errors
     }
   };
 

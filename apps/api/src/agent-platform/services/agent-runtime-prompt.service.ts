@@ -25,20 +25,11 @@ export interface PromptPayload {
 export class AgentRuntimePromptService {
   buildPromptPayload(options: PromptBuildOptions): PromptPayload {
     const mode = options.mode ?? 'converse';
-    console.log(
-      `🎯 [PROMPT-PAYLOAD-DEBUG] buildPromptPayload called with mode: ${mode}`,
-    );
     const systemPrompt = this.buildSystemPrompt(options.definition, mode);
-    console.log(
-      `🎯 [PROMPT-PAYLOAD-DEBUG] systemPrompt length: ${systemPrompt.length}`,
-    );
     const userMessage = this.buildUserMessage(
       options.definition,
       options.request,
       mode,
-    );
-    console.log(
-      `🎯 [PROMPT-PAYLOAD-DEBUG] userMessage: ${userMessage.substring(0, 200)}`,
     );
     const metadata = this.collectMetadata(
       options.definition,
@@ -117,28 +108,9 @@ export class AgentRuntimePromptService {
     // Inject plan template for plan mode
     if (mode === 'plan') {
       const planTemplate = definition.context?.plan_template;
-      const templateLength =
-        typeof planTemplate === 'string'
-          ? planTemplate.length
-          : Array.isArray(planTemplate)
-            ? planTemplate.length
-            : 0;
-      console.log(
-        `🔍 [PLAN-TEMPLATE-DEBUG] Mode: ${mode}, Has template: ${!!planTemplate}, Template length: ${templateLength}, Type: ${typeof planTemplate}`,
-      );
       if (typeof planTemplate === 'string' && planTemplate.trim()) {
         const finalPrompt = `${basePrompt}\n\n${planTemplate}`;
-        console.log(
-          `✅ [PLAN-TEMPLATE-DEBUG] Injected template. Final prompt length: ${finalPrompt.length}`,
-        );
-        console.log(
-          `✅ [PLAN-TEMPLATE-DEBUG] Final system prompt: ${finalPrompt.substring(0, 500)}...`,
-        );
         return finalPrompt;
-      } else {
-        console.log(
-          `❌ [PLAN-TEMPLATE-DEBUG] Template check failed - typeof: ${typeof planTemplate}, is string: ${typeof planTemplate === 'string'}, has trim: ${typeof planTemplate === 'string' && !!planTemplate.trim()}`,
-        );
       }
     }
 

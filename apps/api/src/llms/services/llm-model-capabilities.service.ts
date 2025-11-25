@@ -211,9 +211,6 @@ export class LLMModelCapabilities {
     // Handle temperature restrictions
     if (!capabilities.supportsTemperature) {
       if (normalizedConfig.temperature !== undefined) {
-        this.logger.debug(
-          `Model ${config.model} doesn't support temperature, removing temperature: ${normalizedConfig.temperature}`,
-        );
         delete normalizedConfig.temperature;
       }
     } else if (normalizedConfig.temperature !== undefined) {
@@ -274,9 +271,6 @@ export class LLMModelCapabilities {
 
     if (!capabilities.supportsSystemMessages) {
       // For models that don't support system messages, prepend system prompt to user message
-      this.logger.debug(
-        `Model ${model} doesn't support system messages, combining system prompt with user message`,
-      );
 
       return {
         systemPrompt: undefined, // Remove system prompt
@@ -320,9 +314,6 @@ export class LLMModelCapabilities {
     if (model.match(/^o\d+(-\w+)?$/)) {
       // If we have o1-mini config and this is another o-series model, use o1-mini as template
       if (providerCapabilities['o1-mini']) {
-        this.logger.debug(
-          `Using o1-mini capabilities as template for o-series model: ${model}`,
-        );
         return 'o1-mini';
       }
     }

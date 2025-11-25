@@ -971,9 +971,6 @@ export function validatePlanStructure(
       }
     } catch {
       // Not valid JSON, it's a markdown template - return content as-is
-      console.log(
-        '📝 Plan structure is a markdown template, skipping JSON schema validation',
-      );
       return planContent;
     }
   }
@@ -989,11 +986,7 @@ export function validatePlanStructure(
   const candidate = coercePlanContent(planContent);
 
   if (!validate(candidate)) {
-    const message = ajv.errorsText(validate.errors, { separator: '; ' });
-    console.warn(`⚠️ Plan structure validation warning: ${message}`, {
-      errors: validate.errors,
-    });
-    // Don't throw - just log a warning and continue
+    // Don't throw - just continue
     // This allows flexible plan structures while still providing feedback
   }
 

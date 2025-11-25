@@ -128,7 +128,8 @@ export class ObservabilityStreamController {
       // Apply server-side filtering if specified
       if (userId && eventData.user_id !== userId) return;
       if (agentSlug && eventData.agent_slug !== agentSlug) return;
-      if (conversationId && eventData.conversation_id !== conversationId) return;
+      if (conversationId && eventData.conversation_id !== conversationId)
+        return;
 
       // Send event to client
       try {
@@ -150,7 +151,7 @@ export class ObservabilityStreamController {
       type: string;
       handler: (data: Record<string, unknown>) => void;
     }> = [];
-    
+
     for (const eventType of eventTypes) {
       const handler = wrappedListener(eventType);
       this.eventEmitter.on(eventType, handler);
@@ -158,24 +159,48 @@ export class ObservabilityStreamController {
     }
 
     // Subscribe to canonical observability stream (RxJS-based)
-    this.logger.log(`📡 [SSE] Subscribing to observability events stream with filters: userId=${userId}, agentSlug=${agentSlug}, conversationId=${conversationId}`);
+    this.logger.log(
+      `📡 [SSE] Subscribing to observability events stream with filters: userId=${userId}, agentSlug=${agentSlug}, conversationId=${conversationId}`,
+    );
     const observabilitySubscription: Subscription =
       this.observabilityEvents.events$.subscribe({
         next: (event) => {
-          this.logger.log(`📨 [SSE] Received event from buffer: ${event.hook_event_type} for task ${event.task_id}`);
-          this.logger.debug(`📨 [SSE] Event fields: user_id=${event.user_id}, agent_slug=${event.agent_slug}, conversation_id=${event.conversation_id}`);
+          this.logger.log(
+            `📨 [SSE] Received event from buffer: ${event.hook_event_type} for task ${event.task_id}`,
+          );
+          this.logger.debug(
+            `📨 [SSE] Event fields: user_id=${event.user_id}, agent_slug=${event.agent_slug}, conversation_id=${event.conversation_id}`,
+          );
 
           // Apply filters - check both snake_case and camelCase variants
-          if (userId && event.user_id !== userId && (event as any).userId !== userId) {
-            this.logger.debug(`📨 [SSE] Event filtered out - userId mismatch (event.user_id=${event.user_id}, event.userId=${(event as any).userId} !== ${userId})`);
+          if (
+            userId &&
+            event.user_id !== userId &&
+            (event as any).userId !== userId
+          ) {
+            this.logger.debug(
+              `📨 [SSE] Event filtered out - userId mismatch (event.user_id=${event.user_id}, event.userId=${(event as any).userId} !== ${userId})`,
+            );
             return;
           }
-          if (agentSlug && event.agent_slug !== agentSlug && (event as any).agentSlug !== agentSlug) {
-            this.logger.debug(`📨 [SSE] Event filtered out - agentSlug mismatch (${event.agent_slug} !== ${agentSlug})`);
+          if (
+            agentSlug &&
+            event.agent_slug !== agentSlug &&
+            (event as any).agentSlug !== agentSlug
+          ) {
+            this.logger.debug(
+              `📨 [SSE] Event filtered out - agentSlug mismatch (${event.agent_slug} !== ${agentSlug})`,
+            );
             return;
           }
-          if (conversationId && event.conversation_id !== conversationId && (event as any).conversationId !== conversationId) {
-            this.logger.debug(`📨 [SSE] Event filtered out - conversationId mismatch (${event.conversation_id} !== ${conversationId})`);
+          if (
+            conversationId &&
+            event.conversation_id !== conversationId &&
+            (event as any).conversationId !== conversationId
+          ) {
+            this.logger.debug(
+              `📨 [SSE] Event filtered out - conversationId mismatch (${event.conversation_id} !== ${conversationId})`,
+            );
             return;
           }
 
@@ -222,9 +247,13 @@ export class ObservabilityStreamController {
     event: ObservabilityEventRecord,
   ): void {
     try {
-      this.logger.log(`✍️ [SSE] Writing event to client: ${event.hook_event_type}`);
+      this.logger.log(
+        `✍️ [SSE] Writing event to client: ${event.hook_event_type}`,
+      );
       const eventJson = JSON.stringify(event);
-      this.logger.debug(`✍️ [SSE] Event JSON length: ${eventJson.length} bytes`);
+      this.logger.debug(
+        `✍️ [SSE] Event JSON length: ${eventJson.length} bytes`,
+      );
       response.write(`data: ${eventJson}\n\n`);
       this.logger.log(`✅ [SSE] Event written successfully`);
     } catch (error) {

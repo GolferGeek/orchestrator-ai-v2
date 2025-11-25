@@ -911,7 +911,7 @@ const navigateTo = (path: string) => {
   router.push(path);
 };
 
-  const updatePrivacySetting = async (setting: string, value: unknown) => {
+  const updatePrivacySetting = async (setting: string, _value: unknown) => {
   if (isUpdating.value) return;
   
   isUpdating.value = true;
@@ -950,7 +950,7 @@ const navigateTo = (path: string) => {
   }
 };
 
-  const updateAuditSetting = async (setting: string, value: unknown) => {
+  const updateAuditSetting = async (setting: string, _value: unknown) => {
   if (isUpdating.value) return;
   
   isUpdating.value = true;

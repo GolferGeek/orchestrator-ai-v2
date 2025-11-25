@@ -134,15 +134,12 @@ export class ObservabilityWebhookService implements OnModuleInit {
    */
   private cleanupCache(): void {
     const now = Date.now();
-    let cleaned = 0;
 
     for (const [userId, entry] of this.userCache.entries()) {
       if (now - entry.cachedAt >= this.CACHE_TTL_MS) {
         this.userCache.delete(userId);
-        cleaned++;
       }
     }
-
   }
 
   /**
@@ -196,14 +193,12 @@ export class ObservabilityWebhookService implements OnModuleInit {
     const asString = (value: unknown): string | undefined =>
       typeof value === 'string' && value.length > 0 ? value : undefined;
     const asNumber = (value: unknown): number | undefined =>
-      typeof value === 'number' && Number.isFinite(value)
-        ? value
-        : undefined;
+      typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 
     const timestampIso =
       typeof event.timestamp === 'number'
         ? new Date(event.timestamp).toISOString()
-        : asString(event.timestamp) ?? new Date().toISOString();
+        : (asString(event.timestamp) ?? new Date().toISOString());
 
     const resolvedTaskId =
       asString(event.taskId) ??
@@ -216,15 +211,12 @@ export class ObservabilityWebhookService implements OnModuleInit {
       status: event.hook_event_type,
       timestamp: timestampIso,
       conversationId:
-        asString(event.conversationId) ??
-        asString(payload.conversationId),
+        asString(event.conversationId) ?? asString(payload.conversationId),
       userId: asString(event.userId) ?? asString(payload.userId),
       username: asString(event.username) ?? asString(payload.username),
-      agentSlug:
-        asString(event.agentSlug) ?? asString(payload.agentSlug),
+      agentSlug: asString(event.agentSlug) ?? asString(payload.agentSlug),
       organizationSlug:
-        asString(event.organizationSlug) ??
-        asString(payload.organizationSlug),
+        asString(event.organizationSlug) ?? asString(payload.organizationSlug),
       mode: asString(event.mode) ?? asString(payload.mode),
       message:
         asString(event.message) ?? asString(payload.message) ?? undefined,
@@ -233,10 +225,8 @@ export class ObservabilityWebhookService implements OnModuleInit {
         asNumber(event.progress) ??
         asNumber(payload.progress) ??
         asNumber(payload.percent),
-      sequence:
-        asNumber(event.sequence) ?? asNumber(payload.sequence),
-      totalSteps:
-        asNumber(event.totalSteps) ?? asNumber(payload.totalSteps),
+      sequence: asNumber(event.sequence) ?? asNumber(payload.sequence),
+      totalSteps: asNumber(event.totalSteps) ?? asNumber(payload.totalSteps),
       data: {
         ...payload,
         hook_event_type: event.hook_event_type,

@@ -37,7 +37,6 @@ export class AgentRunnerRegistryService {
     private readonly ragAgentRunner: RagAgentRunnerService,
   ) {
     this.runners = new Map();
-    this.logger.log('AgentRunnerRegistry initialized');
 
     // Register runners
     this.registerRunner('context', this.contextAgentRunner);
@@ -61,7 +60,6 @@ export class AgentRunnerRegistryService {
     }
 
     this.runners.set(agentType, runner);
-    this.logger.log(`Registered runner for agent type: ${agentType}`);
   }
 
   /**

@@ -334,7 +334,8 @@ const stopVADMonitoring = () => {
   if (currentSource.value) {
     try {
       currentSource.value.disconnect();
-    } catch (error) {
+    } catch {
+      // Ignore disconnect errors
     }
     currentSource.value = null;
   }
@@ -342,7 +343,8 @@ const stopVADMonitoring = () => {
   if (analyser.value) {
     try {
       analyser.value.disconnect();
-    } catch (error) {
+    } catch {
+      // Ignore disconnect errors
     }
     analyser.value = null;
   }
@@ -603,7 +605,8 @@ const cancelConversation = () => {
     if (mediaRecorder.value && mediaRecorder.value.state === 'recording') {
       mediaRecorder.value.stop();
     }
-  } catch (error) {
+  } catch {
+    // Ignore stop errors
   }
 
   if (currentAudio.value) {
@@ -612,7 +615,8 @@ const cancelConversation = () => {
       currentAudio.value.currentTime = 0;
       currentAudio.value.src = '';
       currentAudio.value.load();
-    } catch (error) {
+    } catch {
+      // Ignore audio cleanup errors
     }
     currentAudio.value = null;
   }
@@ -638,7 +642,8 @@ const resetConversation = () => {
       if (mediaRecorder.value.state === 'recording') {
         mediaRecorder.value.stop();
       }
-    } catch (error) {
+    } catch {
+      // Ignore stop errors
     }
     mediaRecorder.value = null;
   }
@@ -652,7 +657,8 @@ const resetConversation = () => {
       // Remove event listeners
       currentAudio.value.onended = null;
       currentAudio.value.onerror = null;
-    } catch (error) {
+    } catch {
+      // Ignore audio cleanup errors
     }
     currentAudio.value = null;
   }
@@ -687,14 +693,15 @@ const blobToBase64 = (blob: Blob): Promise<string> => {
 // Force cleanup all MediaStreams
 const forceCleanupAllStreams = () => {
 
-  activeStreams.value.forEach((stream, index) => {
+  activeStreams.value.forEach((stream) => {
     try {
       stream.getTracks().forEach(track => {
         if (track.readyState === 'live') {
           track.stop();
         }
       });
-    } catch (error) {
+    } catch {
+      // Ignore stream cleanup errors
     }
   });
 
@@ -707,7 +714,8 @@ const closeAudioContext = async () => {
     try {
       await audioContext.value.close();
       audioContext.value = null;
-    } catch (error) {
+    } catch {
+      // Ignore AudioContext close errors
     }
   }
 };

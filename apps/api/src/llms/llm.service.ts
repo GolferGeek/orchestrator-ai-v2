@@ -137,11 +137,6 @@ export class LLMService {
     options?: GenerateResponseOptions,
   ): Promise<string | LLMResponse> {
     const startTime = Date.now();
-    if (this.debugEnabled) {
-      this.logger.debug(
-        `🔍 [LLM-USAGE-DEBUG] generateResponse called with callerType: ${options?.callerType}, callerName: ${options?.callerName}, providerName: ${options?.providerName}, modelName: ${options?.modelName}`,
-      );
-    }
     const observabilityContext = this.extractObservabilityContext(options);
 
     try {
@@ -154,21 +149,8 @@ export class LLMService {
         },
       });
 
-      // Debug LLM options being received
-
       // If providerName/modelName are provided, use the unified method
       if (options?.providerName && options?.modelName) {
-        if (this.debugEnabled) {
-          this.logger.debug(
-            `🔍 [LLM-USAGE-DEBUG] Using generateUnifiedResponse with explicit provider/model`,
-          );
-          this.logger.debug(
-            `🔍 [LLM-PII-DEBUG] Received options.piiMetadata: ${options?.piiMetadata ? 'yes' : 'no'}`,
-          );
-          this.logger.debug(
-            `🔍 [LLM-PII-DEBUG] Received options.routingDecision: ${options?.routingDecision ? 'yes' : 'no'}`,
-          );
-        }
 
         // === PII PROCESSING BEFORE FACTORY CALL ===
         let processedUserMessage = userMessage;
@@ -179,11 +161,6 @@ export class LLMService {
         // Always apply dictionary pseudonymization for external providers (non-Ollama), unless quick bypass
         const skipPII = options?.quick === true;
         if (!skipPII && options.providerName.toLowerCase() !== 'ollama') {
-          if (this.debugEnabled)
-            console.log(
-              '🔍 [LLM-SERVICE] Applying dictionary pseudonymization for provider:',
-              options.providerName,
-            );
 
           const pseudonymResult =
             await this.dictionaryPseudonymizerService.pseudonymizeText(
@@ -313,11 +290,6 @@ export class LLMService {
                 pseudonymResult.mappings.length > 0 ? 'standard' : 'none',
             } as unknown as PIIProcessingMetadata;
           }
-
-          if (this.debugEnabled)
-            console.log(
-              `🎯 [LLM-SERVICE] PII applied - pseudonyms: ${dictionaryMappings.length}`,
-            );
         } else {
           // Quick/local path – no pseudonymization
           processedUserMessage = userMessage;
@@ -369,35 +341,20 @@ export class LLMService {
               dictionaryMappings,
             );
           unifiedResult.content = reverseResult.originalText;
-          if (this.debugEnabled)
-            this.logger.debug(
-              `🔄 [LLM-SERVICE] Reversed ${reverseResult.reversalCount} pseudonyms in response`,
-            );
         }
 
         // Ensure PII metadata is included in response
         if (enhancedPiiMetadata) {
           unifiedResult.piiMetadata = enhancedPiiMetadata;
-          if (this.debugEnabled)
-            console.log('✅ [LLM-SERVICE] Added PII metadata to response');
         }
-
-        if (this.debugEnabled)
-          console.log(
-            '📦 [LLM-SERVICE] Returning result with keys:',
-            Object.keys(unifiedResult),
-          );
         // Return the result (string or object based on includeMetadata)
         const isStringResult = typeof unifiedResult === 'string';
         const preview = isStringResult
           ? (unifiedResult as string).substring(0, 2000)
-          : (unifiedResult as LLMResponse).content?.substring(0, 2000);
+          : unifiedResult.content?.substring(0, 2000);
         const metadata = isStringResult
           ? undefined
-          : ((unifiedResult as LLMResponse).metadata as unknown as Record<
-              string,
-              unknown
-            >);
+          : (unifiedResult.metadata as unknown as Record<string, unknown>);
 
         await this.emitLlmEvent('agent.llm.completed', {
           ...observabilityContext,
@@ -446,13 +403,6 @@ export class LLMService {
 
       const isLocalProvider = validProvider === 'ollama';
 
-      this.logger.log(
-        `🔍 [SIMPLE-LLM-DEBUG] Simple response path - provider: ${validProvider}, isLocal: ${isLocalProvider}`,
-      );
-      this.logger.log(
-        `🔍 [SIMPLE-LLM-DEBUG] User message preview: "${userMessage.substring(0, 100)}..."`,
-      );
-
       // Apply conditional sanitization using unified PII service
       // Generate request ID for pseudonymization context
       const _requestId =
@@ -477,21 +427,6 @@ export class LLMService {
           mappings: pseudonymResult.mappings,
           processingTimeMs: pseudonymResult.processingTimeMs,
         };
-
-        this.logger.log(
-          `🎯 [DICTIONARY-PSEUDONYMIZER] Simple path pseudonymization completed: ${pseudonymResult.mappings.length} replacements in ${pseudonymResult.processingTimeMs}ms`,
-        );
-        if (pseudonymResult.mappings.length > 0) {
-          pseudonymResult.mappings.forEach((mapping) => {
-            this.logger.log(
-              `🎯 [DICTIONARY-PSEUDONYMIZER] "${mapping.originalValue}" → "${mapping.pseudonym}"`,
-            );
-          });
-        }
-      } else {
-        this.logger.log(
-          `🎯 [DICTIONARY-PSEUDONYMIZER] Skipping pseudonymization for local provider: ${validProvider}`,
-        );
       }
 
       const sanitizedSystemPrompt = systemPrompt; // System prompts typically don't contain user PII
@@ -524,13 +459,6 @@ export class LLMService {
           options?.modelName,
         );
 
-        // Add debug logging to see what's being sent
-        if (this.debugEnabled) {
-          this.logger.debug(
-            `🔍 [LLM-DEBUG] Sending ${messages.length} messages to ${validProvider}/${options?.modelName}`,
-          );
-        }
-
         const response = await llm.invoke(messages);
         let content =
           (response.content as string) ||
@@ -549,10 +477,6 @@ export class LLMService {
               mappings,
             );
           content = reversalResult.originalText;
-
-          this.logger.log(
-            `🔄 [DICTIONARY-PSEUDONYMIZER] Simple path reversal completed: ${reversalResult.reversalCount} reversals in ${reversalResult.processingTimeMs}ms`,
-          );
 
           if (reversalResult.reversalCount === 0) {
             this.logger.warn(
@@ -650,7 +574,10 @@ export class LLMService {
       await this.emitLlmEvent('agent.llm.failed', {
         ...observabilityContext,
         payload: {
-          error: _outerError instanceof Error ? _outerError.message : String(_outerError),
+          error:
+            _outerError instanceof Error
+              ? _outerError.message
+              : String(_outerError),
         },
       });
       // Handle any errors in the try block setup
@@ -702,9 +629,7 @@ export class LLMService {
           );
         });
     } catch (error) {
-      this.logger.debug(
-        `Observability event error (${hook_event_type}): ${error instanceof Error ? error.message : String(error)}`,
-      );
+      // Silently ignore observability errors to avoid disrupting main flow
     }
   }
 
@@ -739,15 +664,11 @@ export class LLMService {
         },
       });
     } catch (error) {
-      this.logger.debug(
-        `Observability event error (${hook_event_type}): ${error instanceof Error ? error.message : String(error)}`,
-      );
+      // Silently ignore observability errors to avoid disrupting main flow
     }
   }
 
-  private extractObservabilityContext(
-    options?: Record<string, unknown>,
-  ): {
+  private extractObservabilityContext(options?: Record<string, unknown>): {
     provider?: string | null;
     model?: string | null;
     conversationId?: string | null;
@@ -761,11 +682,14 @@ export class LLMService {
     }
     return {
       provider:
-        (options.providerName as string) || (options.provider as string) || null,
-      model:
-        (options.modelName as string) || (options.model as string) || null,
+        (options.providerName as string) ||
+        (options.provider as string) ||
+        null,
+      model: (options.modelName as string) || (options.model as string) || null,
       conversationId:
-        (options.conversationId as string) || (options.streamId as string) || null,
+        (options.conversationId as string) ||
+        (options.streamId as string) ||
+        null,
       sessionId: (options.sessionId as string) || null,
       userId: (options.userId as string) || null,
       agentSlug: (options.agentSlug as string) || null,
@@ -791,17 +715,9 @@ export class LLMService {
   async generateUnifiedResponse(
     params: UnifiedGenerateResponseParams,
   ): Promise<string | LLMResponse> {
-    if (this.debugEnabled) {
-      this.logger.debug(`🔍 [UNIFIED-LLM] generateUnifiedResponse called`, {
-        provider: params.provider,
-        model: params.model,
-        callerType: params.options?.callerType,
-        callerName: params.options?.callerName,
-        includeMetadata: params.options?.includeMetadata,
-      });
-    }
-
-    const observabilityContext = this.extractObservabilityContext(params.options);
+    const observabilityContext = this.extractObservabilityContext(
+      params.options,
+    );
 
     try {
       await this.emitLlmEvent('agent.llm.started', {
@@ -850,10 +766,7 @@ export class LLMService {
 
       // Only process PII for non-Ollama providers
       if (params.provider.toLowerCase() === 'ollama') {
-        if (this.debugEnabled)
-          this.logger.debug(
-            '🏠 [LLM-SERVICE] Skipping PII processing for Ollama (local model)',
-          );
+        // Skip PII processing for local models
       } else {
         // Always apply dictionary pseudonymization for non-Ollama here; merge with existing metadata if provided
         if (params.provider.toLowerCase() !== 'ollama') {
@@ -948,11 +861,6 @@ export class LLMService {
                 ? 'standard'
                 : enhancedPiiMetadata?.sanitizationLevel || 'none',
           };
-
-          this.logger.debug(`🎯 [LLM-SERVICE] PII applied:`, {
-            pseudonymsApplied: pseudonymResult.mappings.length,
-            textModified: processedUserMessage !== params.userMessage,
-          });
         }
       }
 
@@ -1005,9 +913,6 @@ export class LLMService {
             dictionaryMappings,
           );
         response.content = reverseResult.originalText;
-        this.logger.debug(
-          `🔄 [LLM-SERVICE] Reversed ${reverseResult.reversalCount} pseudonyms in response`,
-        );
       }
 
       // Ensure PII metadata is included in response
@@ -1016,8 +921,9 @@ export class LLMService {
       }
 
       // Return either string or full response based on includeMetadata flag
-      const responsePayload =
-        params.options?.includeMetadata ? response : response.content;
+      const responsePayload = params.options?.includeMetadata
+        ? response
+        : response.content;
 
       await this.emitLlmEvent('agent.llm.completed', {
         ...observabilityContext,
@@ -1101,10 +1007,6 @@ export class LLMService {
       await this.dictionaryPseudonymizerService.pseudonymizeText(userMessage);
     const processedUserMessage = pseudonymResult.pseudonymizedText;
 
-    this.logger.debug(
-      `[LLMService] Dictionary pseudonymization applied. ${pseudonymResult.mappings.length} replacements made.`,
-    );
-
     // Merge dictionary pseudonymization results into the main PII metadata
     if (pseudonymResult.mappings.length > 0 && routingDecision.piiMetadata) {
       const piiMetadata = routingDecision.piiMetadata;
@@ -1138,7 +1040,6 @@ export class LLMService {
 
     // Use LocalLLMService for local Ollama models - NO SANITIZATION needed
     if (routingDecision.isLocal && routingDecision.provider === 'ollama') {
-      this.logger.debug('Using local Ollama - skipping sanitization');
 
       const response = await this.localLLMService.generateResponse({
         model: routingDecision.model,
@@ -1203,8 +1104,6 @@ export class LLMService {
     }
 
     // For EXTERNAL providers - apply sanitization before sending
-    if (this.debugEnabled)
-      this.logger.debug('Using external provider - applying sanitization');
 
     // NEW ARCHITECTURE: All PII processing is handled in the unified response method
     // This method receives already-processed content and just calls the LLM
@@ -1229,13 +1128,6 @@ export class LLMService {
       routingDecision.model,
     );
 
-    // Add debug logging to see what's being sent
-    if (this.debugEnabled) {
-      this.logger.debug(
-        `🔍 [CENTRALIZED-LLM-DEBUG] Sending ${messages.length} messages to ${routingDecision.provider}/${routingDecision.model}`,
-      );
-    }
-
     const response = await llm.invoke(messages);
     let responseContent =
       (response.content as string) ||
@@ -1249,9 +1141,6 @@ export class LLMService {
           pseudonymResult.mappings,
         );
       responseContent = reversalResult.originalText;
-      this.logger.debug(
-        `[LLMService] Dictionary pseudonymization reversed. ${reversalResult.reversalCount} items restored.`,
-      );
     }
 
     // Estimate tokens (TODO: Get actual token counts from provider)
@@ -1479,13 +1368,6 @@ export class LLMService {
         selectedDefault.provider,
         selectedDefault.model,
       );
-
-      // Debug
-      if (this.debugEnabled) {
-        this.logger.debug(
-          `🔍 [SYSTEM-LLM-DEBUG] Sending ${messages.length} messages to ${selectedDefault.provider}/${selectedDefault.model}`,
-        );
-      }
 
       const response = await llm.invoke(messages);
       const content =

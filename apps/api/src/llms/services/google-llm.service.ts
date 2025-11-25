@@ -111,15 +111,6 @@ export class GoogleLLMService extends BaseLLMService {
         this.logger.warn(
           `⚠️ [PII-METADATA-DEBUG] GoogleLLMService - No PII metadata from LLM Service, using raw message`,
         );
-      } else {
-        this.logger.debug(
-          `🔍 [PII-METADATA-DEBUG] GoogleLLMService - Using preprocessed text and PII metadata`,
-        );
-      }
-      if (dictionaryMappings.length > 0) {
-        this.logger.debug(
-          `📓 [DICTIONARY] Applying ${dictionaryMappings.length} dictionary mappings for Google request ${requestId}`,
-        );
       }
 
       // Get the model
@@ -321,9 +312,6 @@ export class GoogleLLMService extends BaseLLMService {
       try {
         // This would integrate with LangSmith for Google-specific tracing
         const runId = `google-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        this.logger.debug(
-          `LangSmith integration for Google model ${params.config.model} (run: ${runId}, tokens: ${response.metadata.usage.totalTokens})`,
-        );
         return Promise.resolve(runId);
       } catch (error) {
         this.logger.warn('LangSmith integration failed:', error);
@@ -518,15 +506,8 @@ export async function testGoogleService() {
 
   try {
     const response = await service.generateResponse(params);
-    console.log('Google Response:', response.content);
-    console.log(
-      'Safety Ratings:',
-      response.metadata.providerSpecific?.safety_ratings,
-    );
-    console.log('Metadata:', response.metadata);
     return response;
   } catch (error) {
-    console.error('Google Service Error:', error);
     throw error;
   }
 }

@@ -27,11 +27,7 @@ export class BlindedHttpService {
   constructor(
     private readonly httpService: HttpService,
     private readonly sourceBlindingService: SourceBlindingService,
-  ) {
-    this.logger.log(
-      'BlindedHttpService initialized - all external HTTP calls will be source-blinded',
-    );
-  }
+  ) {}
 
   /**
    * Make a source-blinded GET request
@@ -125,9 +121,6 @@ export class BlindedHttpService {
   ): Observable<AxiosResponse<T>> {
     // Skip blinding for explicitly trusted internal calls
     if (blindingOptions.skipBlinding || this.isInternalCall(config.url)) {
-      this.logger.debug(
-        `Skipping source blinding for internal call: ${config.url}`,
-      );
       return this.httpService.request<T>(config);
     }
 
@@ -147,17 +140,6 @@ export class BlindedHttpService {
         ...config,
         headers: blindedRequest.headers,
       };
-
-      // Log the blinding action
-      this.logger.debug(
-        `Source blinding applied to ${blindingOptions.serviceType || 'external'} request:`,
-        {
-          url: config.url,
-          service: blindingOptions.serviceName,
-          strippedHeaders: blindedRequest.strippedHeaders.length,
-          finalHeaders: Object.keys(blindedRequest.headers).length,
-        },
-      );
 
       return this.httpService.request<T>(blindedConfig);
     } catch (error) {
@@ -298,10 +280,6 @@ export class BlindedHttpService {
     error?: string;
   }> {
     try {
-      this.logger.debug(
-        `Testing source blinding with request to: ${targetUrl}`,
-      );
-
       const testConfig: AxiosRequestConfig = {
         method: 'GET',
         url: targetUrl,

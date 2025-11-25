@@ -183,7 +183,8 @@ export const useRbacStore = defineStore('rbac', () => {
   async function logout() {
     try {
       await authService.logout();
-    } catch (err) {
+    } catch {
+      // Logout errors are non-critical - continue with local cleanup
     }
     tokenManager.stopMonitoring();
     clearAuthData();

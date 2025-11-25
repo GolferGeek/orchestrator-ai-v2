@@ -451,9 +451,11 @@ export class AgentExecutionGateway {
         ?.taskId as string | null;
 
       // Fire webhook call (non-blocking)
+      const apiPort = process.env.API_PORT || '6100';
+      const webhookUrl = `http://localhost:${apiPort}/webhooks/status`;
       if (this.httpService) {
         this.httpService
-          .post('http://localhost:7100/webhooks/status', {
+          .post(webhookUrl, {
             taskId: taskId || conversationId || 'unknown',
             status: eventType,
             timestamp: new Date().toISOString(),

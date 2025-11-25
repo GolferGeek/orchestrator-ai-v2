@@ -101,13 +101,6 @@ const isSingleModeAgent = computed(() => {
   return modes.length === 1;
 });
 const showControls = computed(() => {
-    hasConversation: !!activeConversation.value,
-    hasAgent: !!activeConversation.value?.agent,
-    supportedModes: activeConversation.value?.supportedExecutionModes,
-    executionMode: activeConversation.value?.executionMode,
-    showIndicator: userPreferences.value.showExecutionModeIndicator,
-    enableToggle: userPreferences.value.enableQuickModeToggle,
-  });
   return activeConversation.value?.agent &&
          (userPreferences.value.showExecutionModeIndicator ||
           userPreferences.value.enableQuickModeToggle);
@@ -143,10 +136,6 @@ const getModeLabel = (mode: string) => {
 // Event handlers
 const handleModeChange = (event: CustomEvent) => {
   const newMode = event.detail.value as 'immediate' | 'polling' | 'real-time' | 'auto';
-    from: currentMode.value,
-    to: newMode,
-    conversationId: activeConversation.value?.id,
-  });
   chatUiStore.setExecutionMode(newMode);
   showModeSelector.value = false;
 };

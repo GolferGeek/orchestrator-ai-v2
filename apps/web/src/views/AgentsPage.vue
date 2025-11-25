@@ -1,7 +1,7 @@
 <template>
   <ion-page>
     <ion-split-pane content-id="agents-main-content" when="(min-width: 2000px)">
-      <ion-menu content-id="agents-main-content" type="overlay" :disabled="!auth.isAuthenticated">
+      <ion-menu content-id="agents-main-content" type="overlay" :disabled="!auth.isAuthenticated" @ionWillOpen="handleMenuOpen">
         <ion-header>
           <ion-toolbar>
             <ion-title 
@@ -188,6 +188,14 @@ const adminExpanded = ref(false); // Admin accordion starts collapsed
 const menuTitle = computed(() => {
   return 'Orchestrator AI';
 });
+const handleMenuOpen = () => {
+  // Blur active element to prevent aria-hidden accessibility warning
+  // when Ionic sets aria-hidden on the main content behind the menu
+  if (document.activeElement instanceof HTMLElement) {
+    document.activeElement.blur();
+  }
+};
+
 const handleLogout = async () => {
   await auth.logout();
   router.push('/login');

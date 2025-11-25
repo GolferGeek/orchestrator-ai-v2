@@ -335,23 +335,6 @@ export async function callLLM(
     );
   }
 
-  // DEBUG: Log LLM configuration before processing
-  console.log(
-    '🔍 [DEBUG] callLLM - Input llmConfig:',
-    JSON.stringify(llmConfig, null, 2),
-  );
-  console.log('🔍 [DEBUG] callLLM - Resolved provider:', provider);
-  console.log('🔍 [DEBUG] callLLM - Resolved model:', model);
-  console.log(
-    '🔍 [DEBUG] callLLM - System prompt (first 500 chars):',
-    systemPrompt.substring(0, 500),
-  );
-  console.log(
-    '🔍 [DEBUG] callLLM - System prompt (last 500 chars):',
-    systemPrompt.substring(Math.max(0, systemPrompt.length - 500)),
-  );
-  console.log('🔍 [DEBUG] callLLM - User message:', userMessage);
-
   const temperature =
     typeof config.temperature === 'number' ? config.temperature : undefined;
   const maxTokens =
@@ -435,8 +418,7 @@ export async function callLLM(
           typeof response === 'string'
             ? response.substring(0, 2000)
             : response.content,
-        metadata:
-          typeof response === 'string' ? undefined : response.metadata,
+        metadata: typeof response === 'string' ? undefined : response.metadata,
       },
     });
 

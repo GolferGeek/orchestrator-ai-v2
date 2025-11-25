@@ -785,10 +785,6 @@ const applyRecommendation = async (recommendation: AgentLLMRecommendation) => {
     return;
   }
 
-    provider: llmStore.selectedProvider?.name,
-    model: llmStore.selectedModel?.modelName
-  });
-
   // Find provider by name
   const provider = llmStore.filteredProviders.find(
     (p) => p.name?.toLowerCase() === recommendation.providerName.toLowerCase(),
@@ -809,9 +805,6 @@ const applyRecommendation = async (recommendation: AgentLLMRecommendation) => {
   // The recommendation.modelName might be "ollama/gpt-oss:20b" format
   // We need to match against the actual model name which might be "gpt-oss:20b"
   const recommendedModelName = recommendation.modelName.toLowerCase();
-
-    .filter(m => m.providerName === provider.name)
-    .map(m => ({ modelName: m.modelName, name: m.name })));
 
   const model = llmStore.filteredModels.find((m) => {
     if (m.providerName !== provider.name) return false;
@@ -844,8 +837,6 @@ const applyRecommendation = async (recommendation: AgentLLMRecommendation) => {
 
   if (!model) {
     console.error('❌ Model not found:', recommendation.modelName, 'for provider:', provider.name);
-      .filter(m => m.providerName === provider.name)
-      .map(m => ({ name: m.name, modelName: m.modelName })));
     return;
   }
 
@@ -858,10 +849,6 @@ const applyRecommendation = async (recommendation: AgentLLMRecommendation) => {
 
   // Verify the change happened
   nextTick(() => {
-      provider: llmStore.selectedProvider?.name,
-      model: llmStore.selectedModel?.modelName,
-      llmSelection: llmStore.currentLLMSelection
-    });
   });
 };
 const clearError = () => {
@@ -1052,15 +1039,15 @@ const handleRunWithDifferentLLM = (data: DeliverableRerunContext) => {
 };
 
 // Plan event handlers
-const handlePlanVersionChanged = (version: PlanVersionData) => {
+const handlePlanVersionChanged = (_version: PlanVersionData) => {
   // TODO: Update plan state if needed
 };
 
-const handlePlanVersionCreated = (version: PlanVersionData) => {
+const handlePlanVersionCreated = (_version: PlanVersionData) => {
   // TODO: Update plan state if needed
 };
 
-const handlePlanCurrentVersionChanged = (version: PlanVersionData) => {
+const handlePlanCurrentVersionChanged = (_version: PlanVersionData) => {
   // TODO: Update plan state if needed
 };
 
@@ -1414,7 +1401,7 @@ watch(() => activeWorkProduct.value, (workProduct) => {
 });
 
 // Debug watcher for showWorkProductPane
-watch(() => showWorkProductPane.value, (newVal, oldVal) => {
+watch(() => showWorkProductPane.value, (_newVal, _oldVal) => {
 });
 </script>
 <style scoped>

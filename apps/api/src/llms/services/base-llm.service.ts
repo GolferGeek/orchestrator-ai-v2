@@ -47,9 +47,6 @@ export abstract class BaseLLMService {
     protected readonly providerConfigService: ProviderConfigService,
   ) {
     this.logger = new Logger(this.constructor.name);
-    this.logger.log(
-      `${this.constructor.name} initialized for provider: ${config.provider}`,
-    );
   }
 
   /**
@@ -266,31 +263,8 @@ export abstract class BaseLLMService {
     },
   ): Promise<void> {
     try {
-      this.logger.debug(
-        `Usage tracked - Provider: ${provider}, Model: ${model}, Input: ${inputTokens}, Output: ${outputTokens}, Cost: ${cost || 'N/A'}`,
-      );
-
       // Start metadata tracking if we have the necessary info
       if (requestMetadata?.startTime && requestMetadata?.userId) {
-        // Insert a single completed usage record (simpler, no two-phase update)
-        this.logger.debug(
-          `🔍 [PII-METADATA-DEBUG] trackUsage - requestMetadata.piiMetadata exists:`,
-          !!requestMetadata.piiMetadata,
-        );
-        if (requestMetadata.piiMetadata) {
-          this.logger.debug(
-            `🔍 [PII-METADATA-DEBUG] trackUsage - piiMetadata structure:`,
-            {
-              piiDetected: requestMetadata.piiMetadata.piiDetected,
-              processingFlow: requestMetadata.piiMetadata.processingFlow,
-              totalMatches: requestMetadata.piiMetadata.totalMatches,
-              hasDetectionResults:
-                !!requestMetadata.piiMetadata.detectionResults,
-              hasPseudonymInstructions:
-                !!requestMetadata.piiMetadata.pseudonymInstructions,
-            },
-          );
-        }
 
         // Derive full pseudonym mappings from PII metadata when available
         const derivePseudonymMappings = (
@@ -440,11 +414,6 @@ export abstract class BaseLLMService {
               redactionTypes: [],
             } as Record<string, unknown>);
 
-        this.logger.debug(
-          `🔍 [PII-METADATA-DEBUG] trackUsage - enhancedMetrics:`,
-          enhancedMetrics,
-        );
-
         await this.runMetadataService.insertCompletedUsage({
           provider,
           model,
@@ -462,14 +431,6 @@ export abstract class BaseLLMService {
           enhancedMetrics,
           runId: requestMetadata.requestId,
         });
-
-        this.logger.debug(
-          `✅ Usage data saved to database for ${provider}/${model}`,
-        );
-      } else {
-        this.logger.debug(
-          `⚠️ Insufficient metadata for database tracking - missing startTime or userId`,
-        );
       }
     } catch (error) {
       this.logger.error('Usage tracking failed:', error);
@@ -621,16 +582,6 @@ export abstract class BaseLLMService {
     response: LLMResponse,
     duration: number,
   ): void {
-    if (process.env.NODE_ENV === 'development') {
-      this.logger.debug('Request/Response Log:', {
-        provider: params.config.provider,
-        model: params.config.model,
-        requestId: response.metadata.requestId,
-        inputLength: params.userMessage.length,
-        outputLength: response.content.length,
-        duration,
-        cost: response.metadata.usage.cost,
-      });
-    }
+    // Logging removed for performance
   }
 }

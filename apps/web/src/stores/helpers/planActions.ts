@@ -66,14 +66,6 @@ export async function createPlanVersion(
       throw new Error(`Plan ${planId} not found in store`);
     }
 
-      agentSlug,
-      planId,
-      versionId,
-      conversationId: plan.conversationId,
-      contentLength: content.length,
-      metadata
-    });
-
     // Prepare metadata with version tracking
     const versionMetadata: JsonObject = {
       ...metadata,

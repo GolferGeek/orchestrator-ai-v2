@@ -95,9 +95,6 @@ export class LocalModelStatusService {
   ) {
     this.ollamaBaseUrl =
       process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
-    this.logger.log(
-      `LocalModelStatusService initialized (Ollama: ${this.ollamaBaseUrl})`,
-    );
 
     // Don't perform initial health check - only check when explicitly requested
     // This prevents startup connection attempts to services that may not be running
@@ -435,7 +432,6 @@ export class LocalModelStatusService {
         return false;
       }
 
-      this.logger.debug(`Updated loading status for ${modelName}: ${isLoaded}`);
       return true;
     } catch (error) {
       this.logger.error(
@@ -521,8 +517,6 @@ export class LocalModelStatusService {
           await this.updateModelLoadingStatus(dbModel.modelName, false);
         }
       }
-
-      this.logger.debug('Successfully synced Ollama models with database');
     } catch (error) {
       this.logger.error('Failed to sync with database:', error);
     }
@@ -597,7 +591,6 @@ export class LocalModelStatusService {
    */
   clearCache(): void {
     this.healthCache.clear();
-    this.logger.debug('Cleared model health cache');
   }
 
   /**
@@ -638,8 +631,6 @@ export class LocalModelStatusService {
    * Periodic health check for all models
    */
   async performHealthCheck(): Promise<void> {
-    this.logger.debug('Performing periodic health check');
-
     const models = await this.getAvailableModels();
     for (const model of models) {
       // This will update the cache

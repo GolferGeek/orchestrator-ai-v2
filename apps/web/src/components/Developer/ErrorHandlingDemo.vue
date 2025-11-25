@@ -321,7 +321,6 @@ const {
   handleNetworkError,
   handleChunkError,
   reportError: reportErrorToService,
-  getErrorSummary,
   errorLoggerService
 } = useGlobalErrorHandler();
 
@@ -415,11 +414,11 @@ const processRetryQueue = async () => {
 };
 
 // Error boundary event handlers
-const onBoundaryError = (error: Error) => {
+const onBoundaryError = (_error: Error) => {
   hasBoundaryError.value = true;
 };
 
-const onBoundaryRetry = (attempt: number) => {
+const onBoundaryRetry = (_attempt: number) => {
   hasBoundaryError.value = false;
 };
 

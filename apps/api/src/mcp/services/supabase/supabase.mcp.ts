@@ -113,7 +113,6 @@ export class SupabaseMCPServer implements IMCPServer {
 
     // Mark as initialized - connection will be tested when first used
     this.initialized = true;
-    console.log('✅ Supabase MCP Server initialized successfully');
     return Promise.resolve();
   }
 
@@ -409,35 +408,11 @@ export class SupabaseMCPServer implements IMCPServer {
       model,
     } = args;
 
-    console.log('\n[MCP-SQL-DEBUG] ====== handleGenerateSQL START ======');
-    console.log('[MCP-SQL-DEBUG] Input args:', {
-      query,
-      tables,
-      domain_hint,
-      max_rows,
-      provider,
-      model,
-    });
-    console.log('[MCP-SQL-DEBUG] Full args object:', JSON.stringify(args));
-
     try {
       // Get relevant schema context for specified tables
-      console.log(
-        '[MCP-SQL-DEBUG] Building schema context for tables:',
-        tables,
-      );
       const schemaContext = this.buildSchemaContext(tables, domain_hint);
-      console.log(
-        '[MCP-SQL-DEBUG] Schema context length:',
-        schemaContext.length,
-      );
-      console.log(
-        '[MCP-SQL-DEBUG] Schema context preview:',
-        schemaContext.substring(0, 500),
-      );
 
       // Generate SQL using LLM with proper schema context
-      console.log('[MCP-SQL-DEBUG] Calling generateSQLFromQuery...');
       const generatedSQL = await this.generateSQLFromQuery(
         query,
         tables,
@@ -446,7 +421,6 @@ export class SupabaseMCPServer implements IMCPServer {
         provider,
         model,
       );
-      console.log('[MCP-SQL-DEBUG] Generated SQL:', generatedSQL);
 
       // Return structured JSON so clients can reliably parse { sql, ... }
       const responsePayload = {
@@ -473,15 +447,8 @@ export class SupabaseMCPServer implements IMCPServer {
         },
       };
 
-      console.log('[MCP-SQL-DEBUG] Response prepared successfully');
-      console.log('[MCP-SQL-DEBUG] ====== handleGenerateSQL END ======\n');
       return response;
     } catch (error) {
-      console.error('[MCP-SQL-DEBUG] ERROR in handleGenerateSQL:', error);
-      console.error(
-        '[MCP-SQL-DEBUG] Error stack:',
-        error instanceof Error ? error.stack : 'No stack',
-      );
       throw new Error(`SQL generation failed: ${getErrorMessage(error)}`);
     }
   }
@@ -537,10 +504,6 @@ export class SupabaseMCPServer implements IMCPServer {
       }
 
       // Execute SQL using Supabase RPC function
-      console.log('[SUPABASE-EXEC] ====== EXECUTING SQL ======');
-      console.log('[SUPABASE-EXEC] SQL:', finalSQL);
-      console.log('[SUPABASE-EXEC] max_rows:', max_rows);
-
       const rpcResponse = await this.supabaseClient.rpc('exec_sql', {
         query: finalSQL,
       });
@@ -548,13 +511,6 @@ export class SupabaseMCPServer implements IMCPServer {
         data: unknown;
         error: unknown;
       };
-
-      console.log('[SUPABASE-EXEC] Response error:', error);
-      console.log('[SUPABASE-EXEC] Response data type:', typeof result);
-      console.log(
-        '[SUPABASE-EXEC] Response data:',
-        JSON.stringify(result).substring(0, 500),
-      );
 
       const executionTime = Date.now() - startTime;
 
@@ -624,23 +580,6 @@ export class SupabaseMCPServer implements IMCPServer {
       provider = 'anthropic',
       model = 'claude-3-5-sonnet-20241022',
     } = args;
-
-    console.log('[ANALYZE-HANDLER] ====== handleAnalyzeResults CALLED ======');
-    console.log(
-      '[ANALYZE-HANDLER] Args received:',
-      JSON.stringify(args).substring(0, 500),
-    );
-    console.log(
-      '[ANALYZE-HANDLER] Data type:',
-      typeof data,
-      'isArray:',
-      Array.isArray(data),
-    );
-    console.log(
-      '[ANALYZE-HANDLER] Data length:',
-      Array.isArray(data) ? data.length : 'N/A',
-    );
-    console.log('[ANALYZE-HANDLER] Provider:', provider, 'Model:', model);
 
     try {
       // Use LLM service for analysis
@@ -761,53 +700,30 @@ export class SupabaseMCPServer implements IMCPServer {
   }
 
   private buildSchemaContext(tables?: string[], domain_hint?: string): string {
-    console.log(
-      '[MCP-SQL-DEBUG] buildSchemaContext - tables:',
-      tables,
-      'domain_hint:',
-      domain_hint,
-    );
     let context = '';
 
     // Add relevant schema information
     // If no tables specified, include all schemas to let LLM infer
     const isKpi = tables ? this.isKpiTables(tables) : true;
     const isCore = tables ? this.isCoreTables(tables) : true;
-    console.log(
-      '[MCP-SQL-DEBUG] Table classification - isKpi:',
-      isKpi,
-      'isCore:',
-      isCore,
-    );
 
     if (domain_hint?.toLowerCase().includes('kpi') || isKpi) {
-      console.log('[MCP-SQL-DEBUG] Adding KPI schema context');
       context += this.readContextFile('kpi-schema.md') + '\n\n';
     }
 
     if (isCore) {
-      console.log('[MCP-SQL-DEBUG] Adding Core schema context');
       context += this.readContextFile('core-schema.md') + '\n\n';
     }
 
     // Add SQL patterns for reference
-    console.log('[MCP-SQL-DEBUG] Adding SQL patterns');
     context += this.readContextFile('sql-patterns.md');
 
     // Only filter if tables are specified
     if (tables && tables.length > 0) {
       const filtered = this.filterSchemaByTables(context, tables);
-      console.log(
-        '[MCP-SQL-DEBUG] Context after filtering - length:',
-        filtered.length,
-      );
       return filtered;
     }
 
-    console.log(
-      '[MCP-SQL-DEBUG] No tables filter, returning full context - length:',
-      context.length,
-    );
     return context;
   }
 
@@ -819,17 +735,9 @@ export class SupabaseMCPServer implements IMCPServer {
     provider?: string,
     model?: string,
   ): Promise<string> {
-    console.log('[MCP-SQL-DEBUG] generateSQLFromQuery START');
-    console.log('[MCP-SQL-DEBUG] Query:', query);
-    console.log('[MCP-SQL-DEBUG] Tables:', tables);
-    console.log('[MCP-SQL-DEBUG] MaxRows:', maxRows);
-
     // Let LLMService choose the best available provider/model combination
     // This allows the system to route to local models (Ollama) when available
     // or fall back to external providers as needed
-    console.log(
-      '[MCP-SQL-DEBUG] Using system default routing for provider/model selection',
-    );
     // Use LLM to generate SQL with proper schema context
     const systemPrompt = `You are an expert SQL query generator for a Supabase PostgreSQL database. 
 
@@ -865,10 +773,6 @@ ${tables ? `Available tables to query: ${tables.join(', ')}\n` : ''}Maximum rows
 Return ONLY the SQL query, no explanation or formatting.`;
 
     try {
-      console.log('[MCP-SQL-DEBUG] Calling llmService.generateResponse...');
-      console.log('[MCP-SQL-DEBUG] System prompt length:', systemPrompt.length);
-      console.log('[MCP-SQL-DEBUG] User prompt:', userPrompt);
-
       // Build options for LLM service
       const generateOptions: {
         temperature?: number;
@@ -898,7 +802,6 @@ Return ONLY the SQL query, no explanation or formatting.`;
           | 'ollama'
           | undefined,
       };
-      console.log('[MCP-SQL-DEBUG] LLM params:', generateOptions);
 
       const response = await this.llmService.generateResponse(
         systemPrompt,
@@ -908,37 +811,16 @@ Return ONLY the SQL query, no explanation or formatting.`;
 
       const responseIsLLM = isLLMResponse(response);
 
-      console.log(
-        '[MCP-SQL-DEBUG] LLM response received - type:',
-        typeof response,
-      );
-      console.log(
-        '[MCP-SQL-DEBUG] Response has content:',
-        responseIsLLM ? !!response.content : false,
-      );
-      console.log(
-        '[MCP-SQL-DEBUG] Response content type:',
-        responseIsLLM ? typeof response.content : typeof response,
-      );
-
       // Extract the actual response text from the LLM service response
       // The response is now an LLMResponse object with content and metadata
       let responseText: string;
       if (typeof response === 'string') {
         responseText = response;
-        console.log('[MCP-SQL-DEBUG] Using string response directly');
       } else if (responseIsLLM) {
         responseText = response.content;
-        console.log(
-          '[MCP-SQL-DEBUG] Extracted content from LLM response object',
-        );
       } else {
         responseText = String(response ?? '');
-        console.log('[MCP-SQL-DEBUG] Using fallback string conversion');
       }
-
-      console.log('[MCP-SQL-DEBUG] Extracted response text:', responseText);
-      console.log('[MCP-SQL-DEBUG] Response text type:', typeof responseText);
 
       // Ensure we have a string to work with
       if (typeof responseText !== 'string') {
@@ -947,7 +829,6 @@ Return ONLY the SQL query, no explanation or formatting.`;
 
       // Clean up the response to ensure it's just SQL
       let sql = responseText.trim();
-      console.log('[MCP-SQL-DEBUG] Trimmed SQL:', sql);
 
       // Handle models that return structured responses with thinking
       // Some models return JSON like: { thinking: "...", sql: "..." }
@@ -955,7 +836,6 @@ Return ONLY the SQL query, no explanation or formatting.`;
       if (sql.includes('<thinking>') && sql.includes('</thinking>')) {
         // Remove thinking tags and their content
         sql = sql.replace(/<thinking>[\s\S]*?<\/thinking>/g, '').trim();
-        console.log('[MCP-SQL-DEBUG] Removed <thinking> tags');
       }
 
       // Try to parse as JSON in case model returned structured response
@@ -964,19 +844,13 @@ Return ONLY the SQL query, no explanation or formatting.`;
           const parsed = JSON.parse(sql) as Record<string, unknown>;
           if (parsed.sql) {
             sql = parsed.sql as string;
-            console.log('[MCP-SQL-DEBUG] Extracted SQL from JSON response');
           } else if (parsed.query) {
             sql = parsed.query as string;
-            console.log('[MCP-SQL-DEBUG] Extracted query from JSON response');
           } else if (parsed.result) {
             sql = parsed.result as string;
-            console.log('[MCP-SQL-DEBUG] Extracted result from JSON response');
           }
         } catch {
           // Not valid JSON, continue with raw text
-          console.log(
-            '[MCP-SQL-DEBUG] Not a JSON response, continuing with raw text',
-          );
         }
       }
 
@@ -989,9 +863,6 @@ Return ONLY the SQL query, no explanation or formatting.`;
         if (beforeSelect.length > 50) {
           // Likely contains thinking
           sql = sql.substring(selectIndex);
-          console.log(
-            '[MCP-SQL-DEBUG] Extracted SQL starting from SELECT statement',
-          );
         }
       }
 
@@ -1002,7 +873,6 @@ Return ONLY the SQL query, no explanation or formatting.`;
 
       // Additional cleanup for edge cases
       sql = sql.trim();
-      console.log('[MCP-SQL-DEBUG] Generated SQL:', sql);
 
       // Final guardrail: normalize any lingering 'sales' filters to revenue
       // and prefer km.name LIKE '%revenue%'
@@ -1050,7 +920,6 @@ Return ONLY the SQL query, no explanation or formatting.`;
         sql === 'SELECT ' ||
         !sql.includes(' ')
       ) {
-        console.log('[MCP-SQL-DEBUG] Invalid or incomplete SQL detected:', sql);
         throw new Error(
           `LLM generated incomplete or invalid SQL: "${sql}". The LLM response was too short or incomplete.`,
         );
@@ -1058,10 +927,6 @@ Return ONLY the SQL query, no explanation or formatting.`;
 
       // Ensure this is actually a SELECT statement
       if (!sql.toLowerCase().trim().startsWith('select')) {
-        console.log(
-          '[MCP-SQL-DEBUG] Generated content is not a SELECT statement:',
-          sql,
-        );
         throw new Error(
           `LLM did not generate a valid SELECT statement. Generated: "${sql}"`,
         );
@@ -1077,27 +942,10 @@ Return ONLY the SQL query, no explanation or formatting.`;
         sql += ` LIMIT ${maxRows}`;
       }
 
-      // Log the generated SQL for debugging
-      console.log('\n🧠 GENERATED SQL:');
-      console.log('='.repeat(50));
-      console.log(`Query: ${query}`);
-      console.log(`Tables: ${tables ? tables.join(', ') : 'auto-detected'}`);
-      console.log('Generated SQL:');
-      console.log(sql);
-      console.log('='.repeat(50));
-
       return sql;
     } catch (error) {
       // Do NOT fallback to a generic SELECT *; surface the failure for proper handling
       const msg = getErrorMessage(error);
-      console.error('[MCP-SQL-DEBUG] ERROR in generateSQLFromQuery:', msg);
-      console.error('[MCP-SQL-DEBUG] Full error:', error);
-      console.error(
-        '[MCP-SQL-DEBUG] Error stack:',
-        error instanceof Error ? error.stack : 'No stack',
-      );
-      console.error('[MCP-SQL-DEBUG] userPrompt:', userPrompt);
-      console.error('[MCP-SQL-DEBUG] tables:', tables);
 
       if (process.env.MCP_SQL_DEBUG === 'true') {
         console.error('[MCP SQL DEBUG] generation failed:', msg);
@@ -1115,15 +963,6 @@ Return ONLY the SQL query, no explanation or formatting.`;
     model: string,
   ): Promise<Record<string, unknown>> {
     try {
-      console.log('[SUPABASE-ANALYZE] ====== ANALYZING RESULTS ======');
-      console.log('[SUPABASE-ANALYZE] Data length:', data.length);
-      console.log(
-        '[SUPABASE-ANALYZE] Data received:',
-        JSON.stringify(data).substring(0, 500),
-      );
-      console.log('[SUPABASE-ANALYZE] Prompt:', prompt);
-      console.log('[SUPABASE-ANALYZE] Provider:', provider);
-      console.log('[SUPABASE-ANALYZE] Model:', model);
 
       const analysisPrompt = `Analyze the following data and provide insights based on this request: "${prompt}"
 

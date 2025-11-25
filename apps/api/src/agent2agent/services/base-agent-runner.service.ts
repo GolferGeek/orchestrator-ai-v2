@@ -197,10 +197,6 @@ export abstract class BaseAgentRunner implements IAgentRunner {
     const action =
       typeof payload.action === 'string' ? payload.action : 'create';
 
-    this.logger.debug(
-      `🔖 [handlePlan] action=${action}, conversationId=${request.conversationId}`,
-    );
-
     try {
       switch (action) {
         case 'create':
@@ -446,10 +442,6 @@ export abstract class BaseAgentRunner implements IAgentRunner {
     const taskId = this.resolveTaskId(request) || `task_${Date.now()}`;
     const userId = this.resolveUserId(request) || 'unknown';
     const conversationId = this.resolveConversationId(request);
-
-    this.logger.log(
-      `🔌 Agent ${definition.slug}: ${executionMode} mode - registering stream session for progress updates, task ${taskId}`,
-    );
 
     // Register stream session for progress updates (SSE will still emit chunks)
     const _streamId = this.streamingService.registerStream(

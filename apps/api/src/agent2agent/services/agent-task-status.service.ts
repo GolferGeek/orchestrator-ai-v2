@@ -42,6 +42,11 @@ export class Agent2AgentTaskStatusService {
   /**
    * Update task status
    * A2A protocol: status updates during task execution
+   *
+   * @param taskId - The task ID
+   * @param userId - The user ID
+   * @param updates - Status updates to apply
+   * @param context - Optional context to avoid database lookup (conversationId, agentSlug, organizationSlug)
    */
   async updateTaskStatus(
     taskId: string,
@@ -52,6 +57,11 @@ export class Agent2AgentTaskStatusService {
       progressMessage?: string;
       metadata?: Record<string, unknown>;
       [key: string]: unknown;
+    },
+    context?: {
+      conversationId?: string;
+      agentSlug?: string;
+      organizationSlug?: string;
     },
   ): Promise<void> {
     try {
@@ -143,8 +153,10 @@ export class Agent2AgentTaskStatusService {
       );
 
       // Send events via centralized observability service
-      // Fetch task context for enrichment
-      const taskContext = await this.getTaskContext(taskId, userId);
+      // Use provided context or fetch from database if not provided
+      const taskContext = context?.conversationId
+        ? context
+        : await this.getTaskContext(taskId, userId);
 
       if (updates.status) {
         this.sendStatusEvent(

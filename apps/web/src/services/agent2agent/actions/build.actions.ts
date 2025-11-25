@@ -55,11 +55,6 @@ export async function createDeliverable(
   userMessage: string,
   planId?: string,
 ): Promise<{ deliverable: DeliverableData; version: DeliverableVersionData }> {
-    agentName,
-    conversationId,
-    planId,
-  });
-
   const conversationsStore = useConversationsStore();
   const chatUiStore = useChatUiStore();
   const llmStore = useLLMPreferencesStore();
@@ -121,18 +116,6 @@ export async function createDeliverable(
     assistantMessageId = assistantMessage.id;
 
     // 6. Start API call and SSE connection in parallel
-      "📤 [Build Create Action] Starting task with execution mode:",
-      executionMode,
-      "taskId:",
-      taskId,
-    );
-      agentName,
-      conversationId,
-      userMessage: userMessage.substring(0, 100) + "...",
-      executionMode,
-      hasLLMSelection: !!llmSelection,
-    });
-
     const resultPromise = tasksService.createAgentTask(
       conversation.agentType || "custom",
       agentName,
@@ -162,8 +145,6 @@ export async function createDeliverable(
       // Retry connection with exponential backoff
       const connectWithRetry = async (attempt = 1, maxAttempts = 5) => {
         const delay = Math.min(100 * Math.pow(2, attempt - 1), 2000); // 100ms, 200ms, 400ms, 800ms, 1600ms
-          `📡 [Build Create Action] SSE connection attempt ${attempt}/${maxAttempts} (delay: ${delay}ms)`,
-        );
 
         await new Promise((resolve) => setTimeout(resolve, delay));
 
@@ -220,29 +201,10 @@ export async function createDeliverable(
                       workflow_steps_realtime: [...stepsArray], // Spread to create new array reference
                     },
                   );
-
-                    "✅ [Build Create Action] Updated workflow steps in store:",
-                    {
-                      conversationId,
-                      messageId: assistantMessageId,
-                      stepCount: stepsArray.length,
-                      steps: stepsArray.map((s) => ({
-                        name: s.stepName,
-                        status: s.status,
-                        progress: s.stepIndex + 1,
-                      })),
-                    },
-                  );
-                } else {
-                    "⚠️ [Build Create Action] No assistantMessageId available for workflow step update",
-                  );
                 }
               }
             },
-            onComplete: (data) => {
-                "✅ [Build Create Action] SSE stream completed:",
-                data,
-              );
+            onComplete: (_data) => {
               // Note: Deliverable is now returned synchronously in the API response
               // SSE is only used for progress updates, not for deliverable delivery
               streamHandler.disconnect();
@@ -252,8 +214,6 @@ export async function createDeliverable(
               streamHandler.disconnect();
             },
           });
-            `✅ [Build Create Action] SSE connection established on attempt ${attempt}`,
-          );
         } catch (error) {
           console.error(
             `❌ [Build Create Action] SSE connection attempt ${attempt} failed:`,
@@ -337,13 +297,6 @@ export async function createDeliverable(
       throw error;
     }
 
-      "📥 [Build Create Action] Response keys:",
-      Object.keys(result || {}),
-    );
-      "📥 [Build Create Action] Full response:",
-      JSON.stringify(result, null, 2),
-    );
-
     // 9. Parse result - tasksService.createAgentTask now handles JSON-RPC extraction
     // It returns: { taskId, conversationId, status, result: TaskResponseDto }
     // So we need to extract result.result to get the TaskResponseDto
@@ -363,18 +316,9 @@ export async function createDeliverable(
       try {
         parsedResult = JSON.parse(parsedResult);
       } catch {
-          "📦 [Build Create Action] Backend returned non-JSON string:",
-          parsedResult?.substring(0, 200),
-        );
+        // Failed to parse, will use as-is
       }
     }
-
-      "📦 [Build Create Action] Parsed result (TaskResponseDto):",
-      parsedResult,
-    );
-      "📦 [Build Create Action] Result keys:",
-      Object.keys(parsedResult || {}),
-    );
 
     // Parse as TaskResponse with BuildCreateResponseContent
     // parsedResult should now be the TaskResponseDto: { success, mode, payload: { content, metadata }, humanResponse? }
@@ -418,9 +362,6 @@ export async function createDeliverable(
       // Check if streaming is available (for polling mode)
       const streamingInfo = metadata?.streaming;
       if (streamingInfo) {
-          "ℹ️ [Build Create Action] Streaming endpoints available, task may still be processing:",
-          streamingInfo,
-        );
         // Don't throw error - let the streaming handle it
         // Return a placeholder response that indicates streaming is in progress
         return { deliverable: null, version: null };
@@ -447,19 +388,8 @@ export async function createDeliverable(
     const conversationalMessage = (buildContent as { message?: string })
       ?.message;
 
-      deliverable,
-      version,
-      thinking: thinkingContent,
-      isConversational,
-      conversationalMessage,
-    });
-
     // Handle conversational responses (e.g., RAG agents) - no deliverable, just a message
     if (isConversational && conversationalMessage) {
-        "💬 [Build Create Action] Conversational response from agent:",
-        conversationalMessage,
-      );
-
       // Update the assistant message with the conversational content
       if (assistantMessageId) {
         const messages =
@@ -511,10 +441,6 @@ export async function createDeliverable(
       throw new Error(errorMessage);
     }
 
-      deliverable,
-      version,
-    });
-
     // 7. Enrich version with LLM metadata from response
     const enrichedVersion: DeliverableVersionData = {
       ...version,
@@ -525,10 +451,6 @@ export async function createDeliverable(
         usage: metadata?.usage,
       },
     };
-
-      "✅ [Build Create Action] Enriched version metadata:",
-      enrichedVersion?.metadata,
-    );
 
     // 8. Update deliverables store
     deliverablesStore.addDeliverable(deliverable);
@@ -600,11 +522,6 @@ export async function readDeliverable(
   deliverableId: string,
   versionId?: string,
 ): Promise<{ deliverable: DeliverableData; version?: DeliverableVersionData }> {
-    agentName,
-    deliverableId,
-    versionId,
-  });
-
   const api = createAgent2AgentApi(agentName);
   const response = await api.deliverables.read(deliverableId, versionId);
 
@@ -736,24 +653,12 @@ export async function rerunDeliverable(
   },
   userMessage?: string,
 ): Promise<{ deliverable: DeliverableData; version: DeliverableVersionData }> {
-    agentName,
-    conversationId,
-    deliverableId,
-    versionId,
-    llmConfig,
-    userMessage,
-  });
-
   const api = createAgent2AgentApi(agentName);
   const response = await api.deliverables.rerun(
     conversationId,
     versionId,
     llmConfig,
     userMessage,
-  );
-
-    "🔍 [Build Rerun Action] Response:",
-    JSON.stringify(response, null, 2),
   );
 
   if (!response.success) {
@@ -778,10 +683,6 @@ export async function rerunDeliverable(
   // Response.data contains the deliverable/version with metadata already populated by backend
   const enrichedVersion: DeliverableVersionData = version;
 
-    "✅ [Build Rerun Action] Enriched version metadata:",
-    enrichedVersion.metadata,
-  );
-
   // Update store
   const deliverablesStore = useDeliverablesStore();
   deliverablesStore.addDeliverable(deliverable);
@@ -803,11 +704,6 @@ export async function setCurrentVersion(
   deliverableId: string,
   versionId: string,
 ): Promise<void> {
-    agentName,
-    deliverableId,
-    versionId,
-  });
-
   const api = createAgent2AgentApi(agentName);
   const jsonRpcResponse = (await api.deliverables.setCurrent(
     deliverableId,
@@ -851,11 +747,6 @@ export async function deleteVersion(
   deliverableId: string,
   versionId: string,
 ): Promise<void> {
-    agentName,
-    deliverableId,
-    versionId,
-  });
-
   const api = createAgent2AgentApi(agentName);
   const jsonRpcResponse = (await api.deliverables.deleteVersion(
     deliverableId,
@@ -897,10 +788,6 @@ export async function deleteDeliverable(
   agentName: string,
   deliverableId: string,
 ): Promise<void> {
-    agentName,
-    deliverableId,
-  });
-
   const api = createAgent2AgentApi(agentName);
   const response = await api.deliverables.delete(deliverableId);
 

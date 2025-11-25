@@ -111,7 +111,8 @@ export class A2AStreamHandler {
       const dispose = this.disposeFns.pop();
       try {
         dispose?.();
-      } catch (error) {
+      } catch {
+        // Error during cleanup - non-critical
       }
     }
   }
@@ -173,11 +174,6 @@ export class A2AStreamHandler {
     if (!data) {
       return;
     }
-      streamId: data.streamId,
-      taskId: data.taskId,
-      chunkType: data.chunk?.type,
-      content: data.chunk?.content?.substring(0, 100),
-    });
     this.handlers.onChunk?.(data);
   }
 
@@ -206,7 +202,7 @@ export class A2AStreamHandler {
 
     try {
       return JSON.parse(raw) as T;
-    } catch (error) {
+    } catch {
       return null;
     }
   }

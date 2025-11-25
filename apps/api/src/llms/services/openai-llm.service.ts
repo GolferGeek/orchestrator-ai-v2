@@ -85,9 +85,6 @@ export class OpenAILLMService extends BaseLLMService {
       let piiResult;
       if (params.options?.piiMetadata) {
         // Use existing PII metadata from LLM Service level processing
-        this.logger.debug(
-          `🔍 [PII-METADATA-DEBUG] OpenAILLMService - Using PII metadata from LLM Service level`,
-        );
 
         // The text has already been pseudonymized at LLM Service level
         piiResult = {
@@ -95,10 +92,6 @@ export class OpenAILLMService extends BaseLLMService {
           piiMetadata: params.options.piiMetadata,
           dictionaryMappings: params.options?.dictionaryMappings || [], // Already applied at LLM Service level
         };
-
-        this.logger.debug(
-          `🎯 [DICTIONARY-DEBUG] Using pre-processed text with ${params.options?.dictionaryMappings?.length || 0} dictionary mappings`,
-        );
       } else {
         // Fallback - shouldn't happen if LLM Service is processing correctly
         this.logger.warn(
@@ -148,18 +141,12 @@ export class OpenAILLMService extends BaseLLMService {
           maxTokensValue &&
           maxTokensValue < restrictions.minCompletionTokens
         ) {
-          this.logger.debug(
-            `Model ${normalizedConfig.model} requires minimum ${restrictions.minCompletionTokens} tokens, increasing from ${maxTokensValue}`,
-          );
           maxTokensValue = restrictions.minCompletionTokens;
         }
 
         // Check if model requires max_completion_tokens instead of max_tokens
         if (this.requiresMaxCompletionTokens(normalizedConfig.model)) {
           apiParams.max_completion_tokens = maxTokensValue;
-          this.logger.debug(
-            `Using max_completion_tokens for model ${normalizedConfig.model}: ${maxTokensValue}`,
-          );
         } else {
           apiParams.max_tokens = maxTokensValue;
         }
@@ -188,17 +175,6 @@ export class OpenAILLMService extends BaseLLMService {
       // Don't reverse pseudonyms here - it will be done at LLM Service level
       const finalContent = choice.message.content;
 
-      // Skip dictionary reversal - handled at LLM Service level
-      if (
-        'dictionaryMappings' in piiResult &&
-        piiResult.dictionaryMappings &&
-        piiResult.dictionaryMappings.length > 0
-      ) {
-        this.logger.debug(
-          `🎯 [DICTIONARY-DEBUG] Skipping reversal - will be handled at LLM Service level with ${piiResult.dictionaryMappings.length} mappings`,
-        );
-      }
-
       const endTime = Date.now();
 
       // Create OpenAI-specific metadata
@@ -209,24 +185,6 @@ export class OpenAILLMService extends BaseLLMService {
         endTime,
         requestId,
       );
-
-      // Debug PII metadata before passing to trackUsage
-      this.logger.debug(
-        `🔍 [PII-METADATA-DEBUG] OpenAILLMService - piiResult structure:`,
-        {
-          hasPiiResult: !!piiResult,
-          hasPiiMetadata: !!piiResult?.piiMetadata,
-          piiDetected: piiResult?.piiMetadata?.piiDetected,
-          processingFlow: piiResult?.piiMetadata?.processingFlow,
-        },
-      );
-
-      if (piiResult?.piiMetadata) {
-        this.logger.debug(
-          `🔍 [PII-METADATA-DEBUG] OpenAILLMService - Full piiMetadata:`,
-          piiResult.piiMetadata,
-        );
-      }
 
       // Track usage with full metadata for database persistence
       await this.trackUsage(
@@ -304,9 +262,6 @@ export class OpenAILLMService extends BaseLLMService {
     // Handle temperature restrictions
     if (restrictions.temperature && !restrictions.temperature.supported) {
       if (normalizedConfig.temperature !== undefined) {
-        this.logger.debug(
-          `OpenAI model ${config.model} doesn't support temperature, removing: ${normalizedConfig.temperature}`,
-        );
         delete normalizedConfig.temperature;
       }
     }
@@ -329,9 +284,6 @@ export class OpenAILLMService extends BaseLLMService {
       !restrictions.systemMessages.supported
     ) {
       // Model doesn't support system messages
-      this.logger.debug(
-        `OpenAI model ${model} doesn't support system messages, combining with user message`,
-      );
 
       if (restrictions.systemMessages.workaround === 'combine_with_user') {
         return [
@@ -422,7 +374,6 @@ export class OpenAILLMService extends BaseLLMService {
       try {
         // This would integrate with LangSmith for OpenAI-specific tracing
         const runId = `openai-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        this.logger.debug(`LangSmith integration for OpenAI: ${runId}`);
         return Promise.resolve(runId);
       } catch (error) {
         this.logger.warn('LangSmith integration failed:', error);
@@ -515,11 +466,8 @@ export async function testOpenAIService() {
 
   try {
     const response = await service.generateResponse(params);
-    console.log('OpenAI Response:', response.content);
-    console.log('Metadata:', response.metadata);
     return response;
   } catch (error) {
-    console.error('OpenAI Service Error:', error);
     throw error;
   }
 }

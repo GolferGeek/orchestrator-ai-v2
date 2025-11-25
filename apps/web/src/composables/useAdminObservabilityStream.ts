@@ -65,8 +65,8 @@ export function useAdminObservabilityStream() {
       eventTime = typeof event.timestamp === 'number' ? event.timestamp : parseInt(event.timestamp as string, 10);
     } else if (event.created_at) {
       eventTime = new Date(event.created_at).getTime();
-    } else if ((event as any).createdAt) {
-      eventTime = new Date((event as any).createdAt).getTime();
+    } else if ('createdAt' in event && typeof (event as Record<string, unknown>).createdAt === 'string') {
+      eventTime = new Date((event as Record<string, unknown>).createdAt as string).getTime();
     } else {
       eventTime = Date.now();
     }
@@ -80,27 +80,45 @@ export function useAdminObservabilityStream() {
   const agentActivities = computed<Record<string, AgentActivity>>(() => {
     const activities: Record<string, AgentActivity> = {};
 
+    // First pass: build a mapping of session_id -> conversation_id
+    // This allows us to correlate events that have session_id with their conversation
+    const sessionToConversation: Record<string, string> = {};
+    for (const event of allEvents.value) {
+      const eventRecord = event as Record<string, unknown>;
+      const convId = event.conversation_id || eventRecord.conversationId as string;
+      const sessId = event.session_id || eventRecord.sessionId as string;
+      if (convId && sessId && !sessionToConversation[sessId]) {
+        sessionToConversation[sessId] = convId;
+      }
+    }
+
     for (const event of allEvents.value) {
       // Group by conversation_id - each conversation gets its own swim lane
-      // Fall back to session_id or task_id if conversation_id is not available
-      const conversationId = event.conversation_id || (event as any).conversationId ||
-                             event.session_id || (event as any).sessionId ||
-                             event.task_id || (event as any).taskId;
+      // Use the session->conversation mapping to correlate events
+      const eventRecord = event as Record<string, unknown>;
+      const sessionId = event.session_id || eventRecord.sessionId as string;
+      const directConvId = event.conversation_id || eventRecord.conversationId as string;
+
+      // Try to get conversation_id directly, then via session mapping, then fall back
+      const conversationId = directConvId ||
+                             (sessionId ? sessionToConversation[sessionId] : undefined) ||
+                             sessionId ||
+                             event.task_id || eventRecord.taskId as string;
       if (!conversationId) continue;
 
       if (!activities[conversationId]) {
         // Extract user and org info from first event
-        const username = event.username || (event as any).userName || event.user_id || 'Unknown User';
-        const organizationSlug = event.organization_slug || (event as any).organizationSlug || 'unknown-org';
+        const username = event.username || eventRecord.userName as string || event.user_id || 'Unknown User';
+        const organizationSlug = event.organization_slug || eventRecord.organizationSlug as string || 'unknown-org';
 
         // Determine label based on what ID we're using
         let displayLabel: string;
-        if (event.conversation_id || (event as any).conversationId) {
-          displayLabel = `Conversation ${conversationId.substring(0, 8)}`;
-        } else if (event.session_id || (event as any).sessionId) {
-          displayLabel = `Session ${conversationId.substring(0, 8)}`;
+        if (directConvId || (sessionId && sessionToConversation[sessionId])) {
+          displayLabel = `Conversation ${conversationId.substring(0, 8).toUpperCase()}`;
+        } else if (sessionId) {
+          displayLabel = `Session ${conversationId.substring(0, 8).toUpperCase()}`;
         } else {
-          displayLabel = `Task ${conversationId.substring(0, 8)}`;
+          displayLabel = `Task ${conversationId.substring(0, 8).toUpperCase()}`;
         }
 
         activities[conversationId] = {
@@ -115,6 +133,17 @@ export function useAdminObservabilityStream() {
       }
 
       const activity = activities[conversationId];
+
+      // Update org/username if we have better data from this event
+      const eventOrg = event.organization_slug || eventRecord.organizationSlug as string;
+      const eventUser = event.username || eventRecord.userName as string;
+      if (eventOrg && activity.organizationSlug === 'unknown-org') {
+        activity.organizationSlug = eventOrg;
+      }
+      if (eventUser && activity.username === 'Unknown User') {
+        activity.username = eventUser;
+      }
+
       activity.events.push(event);
       activity.lastEvent = event;
 
@@ -209,7 +238,7 @@ export function useAdminObservabilityStream() {
     if (!rbacStore.isInitialized) {
       try {
         await rbacStore.initialize();
-      } catch (err) {
+      } catch {
         error.value = 'Failed to check permissions - please refresh the page';
         return;
       }
@@ -260,12 +289,12 @@ export function useAdminObservabilityStream() {
           if (allEvents.value.length > 1000) {
             allEvents.value = allEvents.value.slice(-500);
           }
-        } catch (err) {
+        } catch {
           // Silently ignore parse errors
         }
       };
-      
-      eventSource.onerror = (event: Event) => {
+
+      eventSource.onerror = (_event: Event) => {
         // EventSource doesn't provide detailed error info, but we can check readyState
         const readyState = eventSource?.readyState;
         let errorMessage = 'SSE connection error';

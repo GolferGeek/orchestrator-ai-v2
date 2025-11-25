@@ -62,20 +62,12 @@ export class ObservabilityEventsService {
    */
   push(event: ObservabilityEventRecord): void {
     try {
-      this.logger.log(`📥 [BUFFER] Pushing event: ${event.hook_event_type} for task ${event.task_id}`);
-      this.logger.debug(`📥 [BUFFER] Event details: status=${event.status}, message=${event.message?.substring(0, 50)}`);
-
-      const observersCount = (this.subject as any).observers?.length || 0;
-      this.logger.log(`📥 [BUFFER] Current subscribers: ${observersCount}, Buffer size: ${this.buffer.length}/${this.bufferSize}`);
-
       this.buffer.push(event);
       if (this.buffer.length > this.bufferSize) {
         this.buffer.shift();
       }
 
-      this.logger.log(`📤 [BUFFER] Notifying ${observersCount} subscribers via subject.next()`);
       this.subject.next(event);
-      this.logger.log(`✅ [BUFFER] Event pushed successfully`);
     } catch (error) {
       this.logger.error(
         `❌ [BUFFER] Failed to push observability event: ${
@@ -86,5 +78,3 @@ export class ObservabilityEventsService {
     }
   }
 }
-
-

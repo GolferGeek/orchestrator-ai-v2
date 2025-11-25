@@ -296,7 +296,8 @@ const copySpecificVersion = async (versionId: string) => {
     } catch {
       // Ignore toast errors
     }
-  } catch (e) {
+  } catch {
+    // Ignore errors
   }
 };
 const executeMerge = async () => {

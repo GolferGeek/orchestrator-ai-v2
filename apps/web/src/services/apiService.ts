@@ -122,7 +122,7 @@ class ApiService {
                (error.response?.status ? error.response.status >= 500 : false) ||
                error.response?.status === 429; // Rate limiting
       },
-      onRetry: (retryCount, error, requestConfig) => {
+      onRetry: (_retryCount, _error, _requestConfig) => {
       }
     });
 

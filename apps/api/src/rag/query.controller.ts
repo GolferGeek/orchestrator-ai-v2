@@ -64,7 +64,10 @@ export class QueryController {
     );
 
     // Check access: NULL/undefined allowed_users = everyone, or user must be in list or be creator
-    if (collection.allowedUsers != null && Array.isArray(collection.allowedUsers)) {
+    if (
+      collection.allowedUsers != null &&
+      Array.isArray(collection.allowedUsers)
+    ) {
       const hasAccess =
         collection.createdBy === userId ||
         collection.allowedUsers.includes(userId);
@@ -76,6 +79,10 @@ export class QueryController {
       }
     }
 
-    return this.queryService.queryCollection(collectionId, organizationSlug, dto);
+    return this.queryService.queryCollection(
+      collectionId,
+      organizationSlug,
+      dto,
+    );
   }
 }

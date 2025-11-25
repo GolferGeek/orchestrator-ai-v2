@@ -497,7 +497,7 @@ const deleteConversation = async (conversation: AgentConversation, event: Event)
       deliverablesStore.addDeliverable(d);
     });
     hasDeliverables = deliverables && deliverables.length > 0;
-  } catch (error) {
+  } catch {
     // Default to false if we can't check
     hasDeliverables = false;
   }
@@ -534,7 +534,7 @@ const handleDeleteConfirm = async (deleteDeliverables: boolean) => {
         for (const deliverable of deliverables) {
           await deliverablesService.deleteDeliverable(deliverable.id);
         }
-      } catch (error) {
+      } catch {
         // Continue with conversation deletion even if deliverable deletion fails
       }
     }
@@ -558,48 +558,9 @@ const hierarchyGroups = computed(() => {
   // The store already normalized the data to a flat array
   const flatAgents = Array.isArray(hierarchy.data) ? hierarchy.data : [];
   
-  // Debug: Log all agent names in hierarchy
-  const agentNames = flatAgents.map((a: Agent) => ({
-    name: a.name,
-    displayName: a.displayName,
-    organizationSlug: a.organizationSlug,
-    type: a.type,
-    agentType: a.agentType,
-    hasChildren: !!(a.children && a.children.length > 0)
-  }));
-    totalAgents: flatAgents.length,
-    agentNames
-  }, null, 2));
-
   const groups: Agent[] = [];
-  
+
   const processNode = (node: Agent) => {
-    // Debug: Log ALL nodes to see what we're working with
-      name: node.name,
-      displayName: node.displayName,
-      organizationSlug: node.organizationSlug,
-      type: node.type,
-      agentType: node.agentType,
-      hasChildren: !!(node.children && node.children.length > 0)
-    });
-    
-    // Debug: Log the raw node data for blog-related agents
-    if (node.name.toLowerCase().includes('blog') || node.name.toLowerCase().includes('writer') || node.name.toLowerCase().includes('post')) {
-        name: node.name,
-        organizationSlug: node.organizationSlug,
-        hasOrganizationSlug: !!node.organizationSlug,
-        fullNode: node,
-        totalConversationsInStore: storeConversations.value.length,
-        conversationsInStore: storeConversations.value.slice(0, 5).map(c => ({
-          id: c.id,
-          agentName: c.agentName,
-          agentNameFromAgent: c.agent?.name,
-          organizationSlug: c.organizationSlug,
-          agentType: c.agentType
-        }))
-      });
-    }
-    
     // Apply search filter to the manager/orchestrator
     const matchesSearch = !searchQuery.value ||
       node.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
@@ -620,18 +581,6 @@ const hierarchyGroups = computed(() => {
     // Skip if neither the node nor its children match the search
     if (!matchesSearch && !hasMatchingChildren) return;
 
-    // Debug: Log ALL node names to see what we're searching for
-    if (node.name.toLowerCase().includes('blog') || node.name.toLowerCase().includes('marketing') || node.name.toLowerCase().includes('writer') || node.name.toLowerCase().includes('post')) {
-        nodeName: node.name,
-        nodeDisplayName: node.displayName,
-        nodeSlug: node.slug,
-        nodeId: node.id,
-        organizationSlug: node.organizationSlug,
-        nodeType: node.type,
-        agentType: node.agentType
-      });
-    }
-    
     // Get conversations for this manager/orchestrator
     // All agents now filter by organizationSlug
     // Use the store's conversationsByAgent method which handles organizationSlug matching properly
@@ -639,24 +588,6 @@ const hierarchyGroups = computed(() => {
       node.name,
       node.organizationSlug || null
     );
-    
-    // Debug logging for all agents with conversations or specific agents
-    if (nodeConversations.length > 0 || node.name.toLowerCase().includes('blog') || node.name.toLowerCase().includes('marketing') || node.name.toLowerCase().includes('writer') || node.name.toLowerCase().includes('post')) {
-        agentName: node.name,
-        organizationSlug: node.organizationSlug,
-        conversationsFound: nodeConversations.length,
-        conversationIds: nodeConversations.map(c => c.id),
-        allConversations: storeConversations.value.length,
-        sampleConversations: storeConversations.value.slice(0, 5).map(c => ({
-          id: c.id,
-          agentName: c.agentName,
-          agentNameFromAgent: c.agent?.name,
-          organizationSlug: c.organizationSlug
-        })),
-        // Show what conversationsByAgent is actually matching
-        allAgentNames: Array.from(new Set(storeConversations.value.map(c => c.agentName || c.agent?.name).filter(Boolean)))
-      });
-    }
 
     // Create the manager/orchestrator agent
     const mainAgent = {
@@ -692,17 +623,6 @@ const hierarchyGroups = computed(() => {
             child.name,
             child.organizationSlug || null
           );
-
-          // Add this child as a team member
-            name: child.name,
-            type: child.type,
-            organizationSlug: child.organizationSlug,
-            hasOrganizationSlug: !!child.organizationSlug,
-            metadata: child.metadata,
-            execution_profile_from_metadata: child.metadata?.execution_profile,
-            execution_capabilities_from_metadata: child.metadata?.execution_capabilities,
-            fullChild: child
-          });
 
           agents.push({
             name: child.name,
@@ -845,12 +765,7 @@ const hierarchyGroups = computed(() => {
     // If no real orchestrator, process all agents as standalone
     return true;
   });
-  
-    topOrchestrator: topOrchestrator ? { name: topOrchestrator.name, hasChildren: !!(topOrchestrator.children && topOrchestrator.children.length > 0), organizationSlug: topOrchestrator.organizationSlug } : null,
-    otherRootNodesCount: otherRootNodes.length,
-    otherRootNodeNames: otherRootNodes.map((a: Agent) => ({ name: a.name, hasChildren: !!(a.children && a.children.length > 0), organizationSlug: a.organizationSlug }))
-  }, null, 2));
-  
+
   const specialistAgents: Agent[] = [];
 
   otherRootNodes.forEach((agent: Agent) => {
@@ -861,26 +776,13 @@ const hierarchyGroups = computed(() => {
       // This is a standalone specialist/agent
       // Always try to match by agent name first, with organizationSlug if available
       // Fall back to agentType matching only if no organizationSlug
-        name: agent.name,
-        organizationSlug: agent.organizationSlug,
-        type: agent.type,
-        agentType: agent.agentType
-      }, null, 2));
-      
+
       // Try with organizationSlug first (even if null, to match conversations with null org)
       // Pass undefined if organizationSlug is not set, so conversationsByAgent can match any org
       const nodeConversations = conversationsStore.conversationsByAgent(
         agent.name,
         agent.organizationSlug !== undefined ? agent.organizationSlug : undefined
       );
-      
-        conversationIds: nodeConversations.map(c => c.id),
-        sampleConversations: nodeConversations.slice(0, 3).map(c => ({
-          id: c.id,
-          agentName: c.agentName,
-          organizationSlug: c.organizationSlug
-        }))
-      });
 
       const matchesSearch = !searchQuery.value ||
         agent.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
@@ -912,33 +814,6 @@ const hierarchyGroups = computed(() => {
       isSpecialists: true
     });
   }
-  
-  // Debug: Log all agents and their conversations
-    totalGroups: groups.length,
-    totalConversations: storeConversations.value.length,
-    allConversations: storeConversations.value.map(c => ({
-      id: c.id,
-      agentName: c.agentName,
-      organizationSlug: c.organizationSlug,
-      agentType: c.agentType,
-      hasOrgSlug: !!c.organizationSlug,
-      orgSlugValue: c.organizationSlug || 'MISSING'
-    })),
-    groupSummary: groups.map(g => ({
-      type: g.type,
-      totalConversations: g.totalConversations,
-      agents: g.agents.map((a: Agent) => ({
-        name: a.name,
-        organizationSlug: a.organizationSlug,
-        conversationCount: a.conversations?.length || 0,
-        conversations: a.conversations?.map((c: AgentConversation) => ({
-          id: c.id,
-          agentName: c.agentName,
-          organizationSlug: c.organizationSlug
-        })) || []
-      }))
-    }))
-  });
 
   return groups;
 });
@@ -999,13 +874,6 @@ const filterAgents = () => {
 
 const createNewConversation = async (agent: Agent) => {
   try {
-      name: agent.name,
-      type: agent.type,
-      organizationSlug: agent.organizationSlug,
-      execution_profile: agent.execution_profile,
-      execution_capabilities: agent.execution_capabilities,
-      fullAgent: agent
-    });
     emit('agent-selected', agent);
   } catch (err) {
     console.error('Failed to create conversation:', err);
@@ -1042,14 +910,6 @@ onMounted(async () => {
     } catch (error) {
       console.error('❌ [AgentTreeView] Failed to load conversations:', error);
     }
-  } else {
-    // Debug: Show all agent names from conversations
-    const allAgentNames = Array.from(new Set(storeConversations.value.map(c => c.agentName || c.agent?.name).filter(Boolean)));
-      id: c.id,
-      agentName: c.agentName,
-      agentNameFromAgent: c.agent?.name,
-      organizationSlug: c.organizationSlug
-    })));
   }
 });
 </script>

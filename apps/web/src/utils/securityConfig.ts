@@ -240,14 +240,16 @@ export function validateSecurityConfig(): { valid: boolean; errors: string[] } {
  * Log security configuration (for debugging)
  */
 export function logSecurityConfig(): void {
-  const config = getSecurityConfig();
+  void getSecurityConfig();
   const validation = validateSecurityConfig();
-  
+
   console.group('🔒 Security Configuration');
-  
+
   if (!validation.valid) {
+    // Security configuration has errors
   } else {
+    // Security configuration is valid
   }
-  
+
   console.groupEnd();
 }

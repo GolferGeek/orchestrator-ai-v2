@@ -37,12 +37,6 @@ export class ConversationService {
     const orgSlug = authStore.currentOrganization || 'demo-org';
 
     // All agents now use the Agent2Agent conversation service
-      agentName: agent.name,
-      agentType: agent.type,
-      orgSlug: orgSlug,
-      approach: 'agent2agent-service'
-    });
-
     // Use dedicated Agent2Agent conversation service for all agents
     const conversationId = generateUUID(); // Generate ID upfront
     const createdAt = new Date();
@@ -78,9 +72,10 @@ export class ConversationService {
       const tasks = tasksResponse.tasks || [];
 
       if (tasks.length > 0) {
+        // Tasks loaded successfully
       }
 
-      
+
       // Load deliverables for this conversation to link them to messages
       const deliverables: unknown[] = [];
       try {
@@ -238,9 +233,6 @@ export class ConversationService {
               // Extract metadata from various locations
               // 1. Top-level provider/model/usage fields
               if (parsedResponse.provider || parsedResponse.model || parsedResponse.usage) {
-                  provider: parsedResponse.provider,
-                  model: parsedResponse.model
-                });
                 mergedResponseMetadata = {
                   ...mergedResponseMetadata,
                   provider: parsedResponse.provider,
@@ -452,25 +444,12 @@ console.error(`Failed to get active tasks for conversation ${conversationId}:`, 
   async updateConversationExecutionModes(conversation: AgentConversation): Promise<void> {
     if (!conversation.agent) return;
 
-      name: conversation.agent.name,
-      execution_profile: conversation.agent.execution_profile,
-      execution_capabilities: conversation.agent.execution_capabilities
-    });
-
     try {
       // Use the existing agents store instead of making a separate API call
       const agentsStore = useAgentsStore();
       
       // Find agent info from the store
       const agentInfo = agentsStore.availableAgents.find(agent => agent.name === conversation.agent?.name);
-      
-        found: !!agentInfo,
-        agentInfo: agentInfo ? {
-          name: agentInfo.name,
-          execution_profile: agentInfo.execution_profile,
-          execution_capabilities: agentInfo.execution_capabilities
-        } : null
-      });
 
       const normalizeMode = (mode: string): ExecutionMode | null => {
         switch (mode) {
@@ -507,12 +486,6 @@ console.error(`Failed to get active tasks for conversation ${conversationId}:`, 
       // The agentsStore.availableAgents may have stale data
       const profile = conversation.agent.execution_profile;
       const capabilities = conversation.agent.execution_capabilities;
-
-        profile,
-        capabilities,
-        source: 'originalAgent',
-        agentStoreHadFields: !!(agentInfo?.execution_profile)
-      });
 
       conversation.executionProfile = profile;
       conversation.executionCapabilities = capabilities;

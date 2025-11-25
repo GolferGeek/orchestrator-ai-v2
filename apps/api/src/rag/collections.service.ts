@@ -173,10 +173,6 @@ export class CollectionsService {
       throw new Error('Failed to create collection');
     }
 
-    this.logger.log(
-      `Created collection ${row.name} (${row.id}) for org ${organizationSlug}`,
-    );
-
     return this.toCollection(row);
   }
 
@@ -205,8 +201,6 @@ export class CollectionsService {
       throw new NotFoundException(`Collection ${collectionId} not found`);
     }
 
-    this.logger.log(`Updated collection ${collectionId}`);
-
     return this.toCollection(row);
   }
 
@@ -227,8 +221,6 @@ export class CollectionsService {
     if (!result?.rag_delete_collection) {
       throw new NotFoundException(`Collection ${collectionId} not found`);
     }
-
-    this.logger.log(`Deleted collection ${collectionId}`);
 
     return true;
   }

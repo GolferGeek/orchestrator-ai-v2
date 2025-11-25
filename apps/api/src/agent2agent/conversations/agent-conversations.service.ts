@@ -119,10 +119,6 @@ export class AgentConversationsService {
     conversationId: string,
     userId: string,
   ): Promise<AgentConversation | null> {
-    this.logger.debug(
-      `🔍 getConversationById: Looking for conversation ${conversationId} for user ${userId}`,
-    );
-
     const result = await this.supabaseService
       .getAnonClient()
       .from(getTableName('conversations'))
@@ -131,19 +127,8 @@ export class AgentConversationsService {
       .eq('user_id', userId)
       .single();
 
-    this.logger.debug(
-      `🔍 getConversationById: Query result - data:`,
-      result.data ? 'Found' : 'Null',
-      'error:',
-      result.error?.message || 'None',
-    );
-
     if (result.error && result.error.code !== 'PGRST116') {
       // PGRST116 is "no rows found"
-      this.logger.error(
-        `🔍 getConversationById: Database error:`,
-        result.error,
-      );
       throw new Error(`Failed to fetch conversation: ${result.error.message}`);
     }
 
@@ -280,28 +265,12 @@ export class AgentConversationsService {
     conversationId: string,
     userId: string,
   ): Promise<void> {
-    this.logger.debug(
-      `🗑️ Attempting to delete conversation: ${conversationId} for user: ${userId}`,
-    );
-
     // First verify the conversation exists and belongs to the user
     const conversation = await this.getConversationById(conversationId, userId);
 
-    this.logger.debug(
-      `🗑️ getConversationById result:`,
-      conversation ? 'Found' : 'Not found',
-    );
-
     if (!conversation) {
-      this.logger.error(
-        `🗑️ Conversation not found: ${conversationId} for user: ${userId}`,
-      );
       throw new Error('Conversation not found');
     }
-
-    this.logger.debug(
-      `🗑️ Found conversation to delete: ${conversation.agentName}`,
-    );
 
     // Delete related LLM usage records first to avoid foreign key constraint violation
     const { error: llmUsageDeleteError } = await this.supabaseService
@@ -312,18 +281,10 @@ export class AgentConversationsService {
       .eq('user_id', userId);
 
     if (llmUsageDeleteError) {
-      this.logger.error(
-        `🗑️ Failed to delete LLM usage records:`,
-        llmUsageDeleteError,
-      );
       throw new Error(
         `Failed to delete LLM usage records: ${llmUsageDeleteError.message}`,
       );
     }
-
-    this.logger.debug(
-      `🗑️ Deleted LLM usage records for conversation: ${conversationId}`,
-    );
 
     // Preserve agent_name in deliverables before deleting conversation
     // The database will automatically set conversation_id to NULL due to SET NULL constraint,

@@ -140,12 +140,6 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
         maxTokens: this.maxTokens,
       };
 
-        providerName: selection.providerName,
-        modelName: selection.modelName,
-        selectedModelObject: this.selectedModel,
-        selectedModelType: typeof this.selectedModel,
-      });
-
       return selection;
     },
 
@@ -401,7 +395,7 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
         // Fetch corporate policy from backend
         try {
           this.sovereignPolicy = await sovereignPolicyService.getPolicy();
-        } catch (error) {
+        } catch {
           this.sovereignPolicy = { enforced: false };
         }
 
@@ -453,11 +447,6 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
               ollamaModels[0];
 
             this.selectedModel = preferredModel;
-
-              provider: this.selectedProvider.name,
-              model: this.selectedModel.modelName,
-              availableModels: ollamaModels.length
-            });
           }
         }
       } else if (!enabled && wasEnabled) {
@@ -603,14 +592,6 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
         );
 
         this.selectedModel = preferredModel || ossModel || llama32Model || thinkingModel || fallbackModel || providerModels[0];
-
-          userPreferences,
-          selectedProvider: this.selectedProvider?.name,
-          selectedModel: this.selectedModel?.modelName,
-          availableProviders: this.filteredProviders.length,
-          availableModels: providerModels.length,
-          sovereignMode: this.effectiveSovereignMode
-        });
       }
     },
     // Set selected provider and clear model if incompatible

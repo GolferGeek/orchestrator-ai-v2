@@ -102,6 +102,7 @@ export async function sendMessage(
       try {
         parsedResult = JSON.parse(parsedResult);
       } catch {
+        // Failed to parse result as JSON - using as-is
       }
     }
 

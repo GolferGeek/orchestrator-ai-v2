@@ -262,14 +262,6 @@ export class Agent2AgentController {
     @CurrentUser() currentUser: SupabaseAuthUserDto,
     @Req() request: RequestWithStreamData,
   ): Promise<TaskResponseDto | JsonRpcSuccessEnvelope | JsonRpcErrorEnvelope> {
-    // CRITICAL: Log that this controller method was called
-    console.log(
-      `🚨🚨🚨 [Agent2AgentController.executeTask] METHOD CALLED - orgSlug: ${orgSlug}, agentSlug: ${agentSlug}`,
-    );
-    this.logger.log(
-      `🚨🚨🚨 [Agent2AgentController.executeTask] METHOD CALLED - orgSlug: ${orgSlug}, agentSlug: ${agentSlug}`,
-    );
-
     let org = this.normalizeOrgSlug(orgSlug);
 
     // ADAPTER: Transform frontend CreateTaskDto format to Agent2Agent TaskRequestDto format
@@ -290,19 +282,11 @@ export class Agent2AgentController {
 
         const conversation = result as ConversationOrgRecord | null;
         if (conversation?.organization_slug) {
-          this.logger.debug(
-            `🔍 Using organization_slug from conversation: ${conversation.organization_slug}`,
-          );
           org = conversation.organization_slug;
         }
       } catch (error) {
         // Conversation doesn't exist yet, will be created with org from URL
-        this.logger.debug(
-          `Conversation ${dto.conversationId} not found, will create with org: ${org}`,
-          {
-            cause: error instanceof Error ? error.message : error,
-          },
-        );
+        void error;
       }
     }
 
@@ -314,16 +298,6 @@ export class Agent2AgentController {
           `Agent ${agentSlug} not found in organization ${org || 'global'}`,
         );
       }
-
-      this.logger.debug(
-        `🔍 [Agent2AgentController] Creating task for user ${currentUser.id}, agent ${agentSlug}`,
-      );
-      this.logger.debug(
-        `🔍 Normalized DTO: ${JSON.stringify({ mode: dto.mode, conversationId: dto.conversationId })}`,
-      );
-      this.logger.debug(
-        `🔍 Agent record: ${JSON.stringify({ agentType: agentRecord.agent_type, slug: agentRecord.slug })}`,
-      );
 
       // Extract data from normalized DTO (which came from adaptedBody)
       const taskIdFromPayload =
@@ -360,9 +334,6 @@ export class Agent2AgentController {
         llmSelectionFromPayload = dto.payload.llmSelection as LlmSelection;
       }
 
-      this.logger.debug(
-        `🔍 [Agent2AgentController] llmSelectionFromPayload: ${JSON.stringify(llmSelectionFromPayload)}`,
-      );
       const conversationHistoryFromMessages: ConversationMessage[] =
         dto.messages?.map((msg) => {
           const content =
@@ -384,20 +355,6 @@ export class Agent2AgentController {
       // CRITICAL: Persist task AND conversation to database BEFORE execution
       // (like DynamicAgentsController does)
       // TasksService.createTask automatically handles conversation creation/retrieval
-      this.logger.debug(`📝 Attempting to create task in database with:`, {
-        userId: currentUser.id,
-        agentName: agentSlug,
-        agentType: agentRecord.agent_type,
-        organizationSlug,
-        method: dto.mode,
-        conversationId: dto.conversationId,
-        taskId: taskIdFromPayload,
-      });
-
-      this.logger.debug(
-        `🚨 [Agent2AgentController] CALLING tasksService.createTask with organizationSlug: "${organizationSlug}"`,
-      );
-
       const task = await this.tasksService.createTask(
         currentUser.id,
         agentSlug, // agentName
@@ -411,10 +368,6 @@ export class Agent2AgentController {
           llmSelection: llmSelectionFromPayload,
           conversationHistory: conversationHistoryFromMessages,
         },
-      );
-
-      this.logger.debug(
-        `✅ Task ${task.id} and conversation ${task.agentConversationId} persisted to database`,
       );
 
       // Add userId and taskId to metadata for mode router (needed for plans/deliverables services)
@@ -431,10 +384,16 @@ export class Agent2AgentController {
       }
 
       // Mark task as running before execution starts
+      // Pass context directly to avoid database lookup race condition
       await this.agentTaskStatusService.updateTaskStatus(
         task.id,
         currentUser.id,
         { status: 'running' },
+        {
+          conversationId: task.agentConversationId ?? undefined,
+          agentSlug,
+          organizationSlug,
+        },
       );
 
       // Execute the agent with the persisted task ID
@@ -477,10 +436,6 @@ export class Agent2AgentController {
           task.id,
           currentUser.id,
           result,
-        );
-      } else {
-        this.logger.debug(
-          `🎯 [Agent2AgentController] Task ${task.id} was already completed by agent instance – skipping duplicate completion call`,
         );
       }
 
@@ -554,10 +509,6 @@ export class Agent2AgentController {
       error?: string;
     },
   ): Promise<{ success: boolean; message: string }> {
-    this.logger.log(
-      `📥 Completion callback received for task ${taskId} from agent ${agentSlug} with status: ${body.status}`,
-    );
-
     try {
       const org = this.normalizeOrgSlug(orgSlug);
 
@@ -623,8 +574,6 @@ export class Agent2AgentController {
           body.userId,
         );
 
-        this.logger.log(`✅ Deliverable created for completed task ${taskId}`);
-
         // Emit event for async agents waiting for completion
         this.eventEmitter.emit(`task.completion.${taskId}`, {
           deliverable: formattedContent,
@@ -673,16 +622,6 @@ export class Agent2AgentController {
       conversationId: task.agentConversationId ?? null,
     });
 
-    this.logger.debug('Issued stream token', {
-      userId: currentUser.id,
-      taskId,
-      agentSlug,
-      organizationSlug,
-      streamId: body.streamId ?? null,
-      url: sanitizedUrl,
-      expiresAt: expiresAt.toISOString(),
-    });
-
     return {
       success: true,
       token,
@@ -718,7 +657,6 @@ export class Agent2AgentController {
     this.assertTaskContext(task, agentSlug, organizationSlug);
 
     const streamId = streamIdParam || claims?.streamId;
-    const allowedStreamId = claims?.streamId;
     const expectedConversationId = task.agentConversationId ?? null;
 
     const sanitizedUrl =
@@ -726,15 +664,6 @@ export class Agent2AgentController {
       this.streamTokenService.stripTokenFromUrl(
         request.originalUrl || request.url,
       );
-
-    this.logger.debug('Opening SSE stream', {
-      userId: currentUser.id,
-      taskId,
-      agentSlug,
-      organizationSlug,
-      streamId: streamId ?? null,
-      url: sanitizedUrl,
-    });
 
     let streamSessionId: string | null = null;
     let observabilitySubscription: Subscription | null = null;
@@ -798,13 +727,6 @@ export class Agent2AgentController {
     };
 
     const endStream = (reason: string) => {
-      if (streamActive) {
-        this.logger.debug('Closing SSE stream', {
-          userId: currentUser.id,
-          taskId,
-          reason,
-        });
-      }
       cleanup(reason);
       if (!response.writableEnded) {
         response.end();
@@ -1003,10 +925,6 @@ export class Agent2AgentController {
     agentSlug: string,
     organizationSlug: string,
   ): void {
-    this.logger.debug(
-      `🔍 assertTaskContext: task.agentName=${task.agentName}, agentSlug=${agentSlug}, task.organization=${task.organization}, organizationSlug=${organizationSlug}`,
-    );
-
     if (task.agentName !== agentSlug) {
       throw new UnauthorizedException(
         'Task does not belong to the requested agent',
@@ -1221,21 +1139,13 @@ export class Agent2AgentController {
   private adaptFrontendRequest(body: FrontendTaskRequest): FrontendTaskRequest {
     // Check if it's JSON-RPC format (frontend now sends this for database agents)
     if (body.jsonrpc === '2.0') {
-      this.logger.debug(
-        '📥 Request is JSON-RPC 2.0 format - passing through to normalizeTaskRequest',
-      );
       return body; // Let normalizeTaskRequest handle JSON-RPC
     }
 
     // If it already has 'mode' field, assume it's already in correct format
     if (body.mode) {
-      this.logger.debug('📥 Request already in Agent2Agent format');
       return body;
     }
-
-    this.logger.debug(
-      `📥 Adapting frontend CreateTaskDto to Agent2Agent format: method=${body.method}`,
-    );
 
     // Transform frontend format to backend format
     const adapted: FrontendTaskRequest = {
@@ -1266,10 +1176,6 @@ export class Agent2AgentController {
       // Preserve metadata
       metadata: body.metadata,
     };
-
-    this.logger.debug(
-      `✅ Adapted request: mode=${adapted.mode}, conversationId=${adapted.conversationId}`,
-    );
 
     return adapted;
   }

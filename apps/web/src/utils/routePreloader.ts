@@ -96,7 +96,8 @@ export class RoutePreloader {
     for (const route of routes) {
       try {
         await route();
-      } catch (error) {
+      } catch {
+        // Route preload failed - not critical, will load on demand
       }
     }
   }

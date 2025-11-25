@@ -109,9 +109,6 @@ export class StreamingService {
     const streamMeta = this.streamRegistry.get(taskId);
 
     if (!streamMeta) {
-      this.logger.warn(
-        `❌ [StreamingService] No stream registered for taskId ${taskId} - skipping progress emission`,
-      );
       return;
     }
 
@@ -170,9 +167,7 @@ export class StreamingService {
       return;
     }
 
-    this.logger.error(
-      `❌ Stream error for task ${taskId}: ${error}`,
-    );
+    this.logger.error(`❌ Stream error for task ${taskId}: ${error}`);
 
     // Emit A2A formatted error event
     this.eventEmitter.emit('agent.stream.error', {
@@ -204,10 +199,6 @@ export class StreamingService {
         this.streamRegistry.delete(taskId);
         cleaned++;
       }
-    }
-
-    if (cleaned > 0) {
-      this.logger.log(`🧹 Cleaned up ${cleaned} old stream registrations`);
     }
   }
 }

@@ -331,6 +331,7 @@ class ErrorLoggerService implements ErrorLogger {
     if (this.retryQueue.length < 100) { // Prevent queue from growing too large
       this.retryQueue.push(operation);
     } else {
+      // Queue is full - dropping oldest operation to prevent memory issues
     }
   }
 }

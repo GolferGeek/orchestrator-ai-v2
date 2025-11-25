@@ -417,18 +417,22 @@ export class RbacService {
     const { data, error } = await this.supabase
       .getServiceClient()
       .from('rbac_user_org_roles')
-      .select(`
+      .select(
+        `
         id,
         role_id,
         organization_slug,
         role:rbac_roles!inner(name)
-      `)
+      `,
+      )
       .eq('user_id', userId)
       .eq('organization_slug', '*')
       .limit(10);
 
     if (error) {
-      this.logger.error(`[RbacService] Error checking super admin: ${error.message}`);
+      this.logger.error(
+        `[RbacService] Error checking super admin: ${error.message}`,
+      );
       return false;
     }
 
@@ -462,17 +466,21 @@ export class RbacService {
       const { data, error } = await this.supabase
         .getServiceClient()
         .from('rbac_user_org_roles')
-        .select(`
+        .select(
+          `
           id,
           role_id,
           organization_slug,
           role:rbac_roles!inner(name)
-        `)
+        `,
+        )
         .eq('user_id', userId)
         .limit(100);
 
       if (error) {
-        this.logger.error(`[RbacService] Error checking admin (any org): ${error.message}`);
+        this.logger.error(
+          `[RbacService] Error checking admin (any org): ${error.message}`,
+        );
         return false;
       }
 
@@ -491,12 +499,14 @@ export class RbacService {
     const { data, error } = await this.supabase
       .getServiceClient()
       .from('rbac_user_org_roles')
-      .select(`
+      .select(
+        `
         id,
         role_id,
         organization_slug,
         role:rbac_roles!inner(name)
-      `)
+      `,
+      )
       .eq('user_id', userId)
       .eq('organization_slug', organizationSlug)
       .limit(10);

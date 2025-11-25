@@ -83,14 +83,6 @@ export class LLMController {
         request.options?.providerName || request.options?.provider;
       const modelName = request.options?.modelName;
 
-      this.logger.debug(`LLM request options:`, {
-        provider: request.options?.provider,
-        providerName: request.options?.providerName,
-        modelName: request.options?.modelName,
-        resolvedProviderName: providerName,
-        resolvedModelName: modelName,
-      });
-
       const result = await this.llmService.generateResponse(
         request.systemPrompt,
         request.userPrompt,
@@ -111,16 +103,6 @@ export class LLMController {
           // Request metadata for Python agents
           includeMetadata: true,
         },
-      );
-
-      console.log('🎮 [CONTROLLER] Result type:', typeof result);
-      console.log(
-        '🎮 [CONTROLLER] Result keys:',
-        result && typeof result === 'object' ? Object.keys(result) : 'N/A',
-      );
-      console.log(
-        '🎮 [CONTROLLER] Has piiMetadata?',
-        result && typeof result === 'object' ? !!result.piiMetadata : false,
       );
 
       // Handle both string and object responses
@@ -145,11 +127,6 @@ export class LLMController {
             | undefined,
           metadata: result.metadata as unknown as Record<string, unknown>,
         };
-
-        console.log(
-          '🎮 [CONTROLLER] Returning response with piiMetadata?',
-          !!normalized.piiMetadata,
-        );
 
         return normalized;
       }

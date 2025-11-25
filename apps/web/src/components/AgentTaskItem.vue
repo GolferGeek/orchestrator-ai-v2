@@ -386,11 +386,9 @@ const backendDeliverable = computed<Deliverable | null>(() => {
   // Get deliverable from store - this will be reactive to store changes
   const deliverable = deliverablesStore.getDeliverableById(deliverableId);
 
-  // Force reactivity by accessing conversation deliverables
+  // Force reactivity by accessing conversation deliverables and store state
   if (props.conversationId) {
-    const conversationDeliverables = deliverablesStore.getDeliverablesByConversation(props.conversationId);
-
-    // Also force reactivity on the deliverables store state
+    void deliverablesStore.getDeliverablesByConversation(props.conversationId);
     void deliverablesStore.$state;
   }
 

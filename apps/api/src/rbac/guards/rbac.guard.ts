@@ -76,10 +76,6 @@ export class RbacGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<TypedRequest>();
     const user = request.user;
 
-    this.logger.debug(
-      `[RbacGuard] request.user: ${user ? JSON.stringify({ id: user.id, email: user.email }) : 'undefined'}`,
-    );
-
     // Ensure user is authenticated (should be handled by JwtAuthGuard first)
     if (!user || !user.id) {
       this.logger.warn(
@@ -94,9 +90,6 @@ export class RbacGuard implements CanActivate {
     try {
       const isSuperAdmin = await this.rbacService.isSuperAdmin(user.id);
       if (isSuperAdmin) {
-        this.logger.debug(
-          `[RbacGuard] Super admin detected - bypassing permission check for ${permission}`,
-        );
         // Still set organization slug for use in controllers
         const orgSlug = this.getOrganizationSlug(request) || '*';
         request.organizationSlug = orgSlug;
@@ -117,23 +110,10 @@ export class RbacGuard implements CanActivate {
     // This allows org admins to access admin endpoints without needing explicit permission grants
     if (permission.startsWith('admin:')) {
       try {
-        this.logger.debug(
-          `[RbacGuard] Checking admin access for permission ${permission}, org=${orgSlug}, user=${user.id}`,
-        );
         const isAdmin = await this.rbacService.isAdmin(user.id, orgSlug);
-        this.logger.debug(
-          `[RbacGuard] Admin check result: isAdmin=${isAdmin} for user=${user.id}, org=${orgSlug}`,
-        );
         if (isAdmin) {
-          this.logger.debug(
-            `[RbacGuard] Admin detected for org ${orgSlug} - granting access to ${permission}`,
-          );
           request.organizationSlug = orgSlug;
           return true;
-        } else {
-          this.logger.debug(
-            `[RbacGuard] User is not admin for org ${orgSlug}, continuing with permission check`,
-          );
         }
       } catch (error) {
         // Log error but continue with normal permission check
@@ -142,10 +122,6 @@ export class RbacGuard implements CanActivate {
         );
       }
     }
-
-    this.logger.debug(
-      `[RbacGuard] Checking permission: user=${user.id}, org=${orgSlug}, permission=${permission}`,
-    );
 
     // Check for resource-specific permission
     const resourceParam = this.reflector.get<string>(
@@ -163,10 +139,6 @@ export class RbacGuard implements CanActivate {
       permission,
       undefined,
       resourceId,
-    );
-
-    this.logger.debug(
-      `[RbacGuard] Permission check result: hasAccess=${hasAccess}`,
     );
 
     if (!hasAccess) {

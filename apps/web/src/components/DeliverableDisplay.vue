@@ -1106,17 +1106,6 @@ const getMimeType = () => {
 const getVersionLLMInfo = (version: DeliverableVersion): string | null => {
   if (!version?.metadata) return null;
   
-  // Temporary debug to see what we're actually getting
-  if (version.id && version.metadata.llmMetadata) {
-      hasProvider: !!version.metadata.llmMetadata.provider,
-      hasModel: !!version.metadata.llmMetadata.model,
-      provider: version.metadata.llmMetadata.provider,
-      model: version.metadata.llmMetadata.model,
-      hasOriginalLLM: !!version.metadata.llmMetadata.originalLLMSelection,
-      originalProvider: version.metadata.llmMetadata.originalLLMSelection?.providerName,
-      originalModel: version.metadata.llmMetadata.originalLLMSelection?.modelName
-    });
-  }
   
   // Check for rerun LLM info first (most specific)
   if (version.metadata.llmRerunInfo) {

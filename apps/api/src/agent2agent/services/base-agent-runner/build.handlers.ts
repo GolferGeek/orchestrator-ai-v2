@@ -1065,10 +1065,6 @@ export function validateDeliverableSchema(
     candidate = parsed !== null ? parsed : extracted;
   }
 
-  console.log(
-    '[validateDeliverableSchema] Validating io_schema with wrapped format',
-  );
-
   if (!validate(candidate)) {
     const message = ajv.errorsText(validate.errors, { separator: '; ' });
     const error = new Error(
@@ -1269,32 +1265,9 @@ function normalizeDeliverableFormat(
 }
 
 function coerceDeliverableContent(content: unknown): unknown {
-  console.log('[coerceDeliverableContent] Input type:', typeof content);
-  if (typeof content === 'string') {
-    console.log('[coerceDeliverableContent] Content length:', content.length);
-    console.log(
-      '[coerceDeliverableContent] First 300 chars:',
-      content.substring(0, 300),
-    );
-    console.log(
-      '[coerceDeliverableContent] Last 300 chars:',
-      content.substring(Math.max(0, content.length - 300)),
-    );
-  } else {
-    console.log(
-      '[coerceDeliverableContent] Input value:',
-      JSON.stringify(content).substring(0, 200),
-    );
-  }
-
   if (typeof content === 'string') {
     const candidate = extractCodeFenceContent(content.trim());
     const parsed = tryParseJson(candidate);
-    console.log('[coerceDeliverableContent] After parsing:', {
-      hadCodeFence: candidate !== content.trim(),
-      parsedSuccessfully: parsed !== null,
-      parsedType: parsed !== null ? typeof parsed : 'null',
-    });
 
     // If parsed successfully, check if it's wrapped in io_schema output format
     if (
@@ -1304,21 +1277,12 @@ function coerceDeliverableContent(content: unknown): unknown {
     ) {
       // Check for common io_schema output wrappers and extract the actual deliverable
       if ('blog_post' in parsed) {
-        console.log(
-          '[coerceDeliverableContent] Unwrapping blog_post from io_schema output format',
-        );
         return parsed.blog_post;
       }
       if ('deliverable' in parsed) {
-        console.log(
-          '[coerceDeliverableContent] Unwrapping deliverable from io_schema output format',
-        );
         return parsed.deliverable;
       }
       if ('data' in parsed) {
-        console.log(
-          '[coerceDeliverableContent] Unwrapping data from io_schema output format',
-        );
         return parsed.data;
       }
     }
@@ -1334,19 +1298,12 @@ function coerceDeliverableContent(content: unknown): unknown {
     // Check if this is an io_schema wrapped object
     const obj = content as Record<string, unknown>;
     if ('blog_post' in obj) {
-      console.log(
-        '[coerceDeliverableContent] Unwrapping blog_post from object',
-      );
       return obj.blog_post;
     }
     if ('deliverable' in obj) {
-      console.log(
-        '[coerceDeliverableContent] Unwrapping deliverable from object',
-      );
       return obj.deliverable;
     }
     if ('data' in obj) {
-      console.log('[coerceDeliverableContent] Unwrapping data from object');
       return obj.data;
     }
     return content;

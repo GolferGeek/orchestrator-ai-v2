@@ -203,8 +203,15 @@ export class ChartRenderer {
           const isDark = document.documentElement.classList.contains('dark');
           this.ctx.fillStyle = isDark ? 'rgba(75, 85, 99, 0.95)' : 'rgba(0, 0, 0, 0.85)';
           this.ctx.beginPath();
-          if ('roundRect' in this.ctx && typeof (this.ctx as any).roundRect === 'function') {
-            (this.ctx as any).roundRect(bgX, bgY, bgWidth, bgHeight, 7);
+
+          // Check if roundRect is supported (available in modern browsers)
+          type CanvasWithRoundRect = CanvasRenderingContext2D & {
+            roundRect?: (x: number, y: number, w: number, h: number, radii: number | number[]) => void
+          };
+          const ctxWithRoundRect = this.ctx as CanvasWithRoundRect;
+
+          if ('roundRect' in this.ctx && typeof ctxWithRoundRect.roundRect === 'function') {
+            ctxWithRoundRect.roundRect(bgX, bgY, bgWidth, bgHeight, 7);
           } else {
             // Fallback for browsers without roundRect support
             const radius = 7;

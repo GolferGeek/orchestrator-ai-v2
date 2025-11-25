@@ -120,11 +120,6 @@ export class DocumentsController {
       'application/octet-stream', // Browsers sometimes send this for unknown types
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     ];
-    if (!allowedMimeTypes.includes(file.mimetype)) {
-      console.warn(
-        `Unexpected MIME type ${file.mimetype} for file ${file.originalname}, but allowing based on extension`,
-      );
-    }
 
     // Create document record
     const document = await this.documentsService.createDocument(

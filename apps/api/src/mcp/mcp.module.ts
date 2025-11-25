@@ -67,40 +67,17 @@ export class MCPModule {
   private async initializeModule(): Promise<void> {
     try {
       // Initialize MCP service and verify tool handlers
-      const serverInfo = this.mcpService.initialize();
+      this.mcpService.initialize();
 
-      console.log(
-        `✅ MCP Server initialized: ${serverInfo.serverInfo.name} v${serverInfo.serverInfo.version}`,
-      );
-      console.log(`📋 Protocol version: ${serverInfo.protocolVersion}`);
-
-      // List available tools for debugging
-      const toolsResult = await this.mcpService.listTools();
-      const namespaces = [
-        ...new Set(toolsResult.tools.map((tool) => tool.name.split('/')[0])),
-      ];
-
-      console.log(
-        `🔧 ${toolsResult.tools.length} tools loaded across ${namespaces.length} namespaces: ${namespaces.join(', ')}`,
-      );
+      // List available tools for initialization
+      await this.mcpService.listTools();
 
       // Health check all tool handlers
-      const pingResult = await this.mcpService.ping();
-      console.log(`❤️  MCP health status: ${pingResult.status}`);
-
-      // Log namespace health
-      Object.entries(pingResult.namespaces || {}).forEach(
-        ([namespace, healthy]) => {
-          const _status = healthy ? '✅' : '❌';
-          console.log(
-            `   ${_status} ${namespace}: ${healthy ? 'healthy' : 'unhealthy'}`,
-          );
-        },
-      );
+      await this.mcpService.ping();
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      console.error(`❌ MCP Module initialization failed: ${errorMessage}`);
+      throw new Error(`MCP Module initialization failed: ${errorMessage}`);
     }
   }
 }

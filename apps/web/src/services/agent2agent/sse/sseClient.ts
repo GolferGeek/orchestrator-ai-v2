@@ -174,17 +174,11 @@ export class SSEClient {
 
   private emitEvent(eventName: string, event: MessageEvent): void {
 
-    // Parse and log detailed info about the event
+    // Parse and log detailed info about the event - for debugging only
     try {
-      const parsedData = JSON.parse(event.data);
-        eventName,
-        dataKeys: Object.keys(parsedData),
-        streamId: parsedData.streamId,
-        taskId: parsedData.taskId,
-        chunkType: parsedData.chunk?.type,
-        content: parsedData.chunk?.content?.substring(0, 100),
-      });
+      void JSON.parse(event.data);
     } catch {
+      // Failed to parse event data
     }
 
     const handlers = this.eventListeners.get(eventName);
@@ -273,7 +267,9 @@ export class SSEClient {
       return;
     }
     if (detail) {
+      // Debug with detail
     } else {
+      // Debug message only
     }
   }
 }

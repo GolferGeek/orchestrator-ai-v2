@@ -591,8 +591,9 @@ export function useValidation(options: UseValidationOptions = {}): UseValidation
       
       // Log validation if enabled
       if (config.logValidationErrors && allErrors.length > 0) {
+        // Validation errors detected
       }
-      
+
       return {
         isValid: allErrors.length === 0,
         errors: allErrors,

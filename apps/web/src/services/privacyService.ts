@@ -73,7 +73,6 @@ export async function fetchMappings(force = false): Promise<PseudonymMapping[]> 
 
     // If API endpoint doesn't exist yet, return empty array
     if (err.response?.status === 404) {
-      console.warn('Pseudonym mappings endpoint not available');
       store.setMappings([]);
       store.setMappingsError('Pseudonym mappings API endpoint not yet implemented');
     }
@@ -612,10 +611,6 @@ export async function initializePrivacyIndicators(): Promise<void> {
   setInterval(cleanupOldStates, 300000); // Clean every 5 minutes
 
   store.setIndicatorsInitialized(true);
-
-  if (store.globalSettings.debugMode) {
-    console.log('[PrivacyService] Initialized privacy indicators');
-  }
 }
 
 export function cleanupOldStates(): void {
@@ -645,9 +640,6 @@ export function cleanupOldStates(): void {
     });
   }
 
-  if (store.globalSettings.debugMode && messagesToRemove.length > 0) {
-    console.log(`[PrivacyService] Cleaned up ${messagesToRemove.length} old states`);
-  }
 }
 
 // ============================================================================

@@ -182,13 +182,6 @@ const sendMessage = async (mode?: AgentChatMode) => {
       const agentName = currentAgent.value.name;
 
       // Route to appropriate action based on mode
-        mode: effectiveMode,
-        agentName,
-        conversationId: activeConversation.id,
-        executionMode: activeConversation.executionMode,
-        supportedModes: activeConversation.supportedExecutionModes
-      });
-
       if (effectiveMode === 'plan') {
         await createPlan(agentName, activeConversation.id, text);
       } else if (effectiveMode === 'build') {
@@ -217,7 +210,7 @@ const scrollToBottom = async () => {
 };
 
 // Speech handling functions
-const handleTranscription = (transcribedText: string) => {
+const handleTranscription = (_transcribedText: string) => {
   // Optionally populate the text area with the transcribed text
   // messageText.value = transcribedText;
 };

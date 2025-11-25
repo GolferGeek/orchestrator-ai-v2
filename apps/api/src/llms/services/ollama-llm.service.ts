@@ -66,9 +66,6 @@ export class OllamaLLMService extends BaseLLMService {
 
     this.ollamaBaseUrl =
       config.baseUrl || process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
-    this.logger.log(
-      `OllamaLLMService initialized (URL: ${this.ollamaBaseUrl})`,
-    );
   }
 
   /**
@@ -245,7 +242,6 @@ export class OllamaLLMService extends BaseLLMService {
 
       const loadTime = Date.now() - loadStartTime;
       this.loadedModels.add(model);
-      this.logger.log(`Model ${model} loaded successfully in ${loadTime}ms`);
 
       return { success: true, loadTime };
     } catch (error) {
@@ -444,7 +440,6 @@ export async function testOllamaService() {
 
   // Check health first
   const health = await service.checkHealth();
-  console.log('Ollama Health:', health);
 
   if (!health.healthy) {
     throw new Error('Ollama server is not healthy');
@@ -462,11 +457,8 @@ export async function testOllamaService() {
 
   try {
     const response = await service.generateResponse(params);
-    console.log('Ollama Response:', response.content);
-    console.log('Performance Metrics:', response.metadata.providerSpecific);
     return response;
   } catch (error) {
-    console.error('Ollama Service Error:', error);
     throw error;
   }
 }

@@ -365,19 +365,6 @@ class TasksService {
       ...(taskData.taskId ? { id: taskData.taskId } : {}),
     };
 
-      url,
-      organization: organization,
-      method: payload.method,
-      id: payload.id,
-      conversationId: paramsBody.conversationId,
-      mode: paramsBody.mode,
-    });
-      jsonrpc: payload.jsonrpc,
-      method: payload.method,
-      id: payload.id,
-      paramsKeys: Object.keys(payload.params || {}),
-    });
-
     // API returns JSON-RPC 2.0 format: { jsonrpc: '2.0', id: ..., result: ... } or { jsonrpc: '2.0', id: ..., error: ... }
     const jsonRpcResponse = await apiService.post<{
       jsonrpc?: string;
@@ -389,12 +376,6 @@ class TasksService {
         data?: unknown;
       };
     }, JsonObject>(url, payload);
-
-      hasJsonrpc: !!jsonRpcResponse.jsonrpc,
-      hasResult: !!jsonRpcResponse.result,
-      hasError: !!jsonRpcResponse.error,
-      id: jsonRpcResponse.id,
-    });
 
     // Handle JSON-RPC error response
     if (jsonRpcResponse.error) {
@@ -441,14 +422,6 @@ class TasksService {
     const taskResponseSuccess = taskResponse?.success ?? true;
     const status: TaskStatus = (metadata.status as TaskStatus) || 
                               (taskResponseSuccess ? 'completed' : 'failed');
-
-      taskId,
-      conversationId,
-      status,
-      hasMetadata: !!metadata,
-      metadataKeys: Object.keys(metadata),
-      streamingKeys: Object.keys(streamingMetadata),
-    });
 
     // Return in the expected format with result containing the full TaskResponseDto
     // Actions will access the TaskResponseDto via result.result

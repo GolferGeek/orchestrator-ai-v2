@@ -375,11 +375,6 @@ export const usePlanStore = defineStore('plan', () => {
       const { createAgent2AgentApi } = await import('@/services/agent2agent/api/agent2agent.api');
       const api = createAgent2AgentApi(plan.agentName);
 
-        conversationId,
-        versionId,
-        llmConfig: llmSelection
-      });
-
       const response = await api.plans.rerun(conversationId, versionId, {
         provider: llmSelection.providerName!,
         model: llmSelection.modelName!,

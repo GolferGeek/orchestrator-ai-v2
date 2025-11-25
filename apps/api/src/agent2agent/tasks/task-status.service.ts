@@ -141,15 +141,6 @@ export class TaskStatusService {
 
     this.scheduleStreamCleanup(session);
 
-    this.logger.debug('Registered stream session', {
-      taskId: session.taskId,
-      streamId: session.streamId,
-      sessionId: session.sessionId,
-      agentSlug: session.agentSlug,
-      organizationSlug: session.organizationSlug,
-      conversationId: session.conversationId,
-    });
-
     return session.sessionId;
   }
 
@@ -165,13 +156,6 @@ export class TaskStatusService {
     this.activeStreamSessionsByConversation.delete(session.conversationKey);
     this.streamSessionsById.delete(session.sessionId);
     this.clearStreamCleanup(session);
-
-    this.logger.debug('Unregistered stream session', {
-      taskId: session.taskId,
-      streamId: session.streamId,
-      sessionId: session.sessionId,
-      reason,
-    });
   }
 
   private resolveStreamSession(filters: {
@@ -222,11 +206,6 @@ export class TaskStatusService {
     this.clearStreamCleanup(session);
 
     const timer = setTimeout(() => {
-      this.logger.debug('Stream session expired due to inactivity', {
-        taskId: session.taskId,
-        streamId: session.streamId,
-        sessionId: session.sessionId,
-      });
       this.unregisterStreamSession(session.sessionId, 'inactivity_timeout');
     }, this.streamInactivityMs);
 
@@ -307,9 +286,6 @@ export class TaskStatusService {
     });
 
     if (!session) {
-      this.logger.debug(
-        `No active stream session found for chunk event ${event.streamId}`,
-      );
       return;
     }
 
@@ -357,21 +333,15 @@ export class TaskStatusService {
           messageType: 'progress',
           progressPercentage: progress,
         })
-        .catch((error) => {
-          this.logger.debug(
-            `Failed to create task message for task ${session.taskId}`,
-            error,
-          );
+        .catch(() => {
+          // Silently ignore task message creation errors
         });
     }
 
     if (!currentStatus || currentStatus.status !== 'completed') {
       this.updateTaskStatus(session.taskId, session.userId, update).catch(
-        (error) => {
-          this.logger.debug(
-            `Failed to apply stream chunk status update for task ${session.taskId}`,
-            error,
-          );
+        () => {
+          // Silently ignore status update errors
         },
       );
     }
@@ -415,11 +385,8 @@ export class TaskStatusService {
         progressPercentage: 100,
         metadata,
       })
-      .catch((error) => {
-        this.logger.debug(
-          `Failed to create task completion message for task ${session.taskId}`,
-          error,
-        );
+      .catch(() => {
+        // Silently ignore task message creation errors
       });
 
     const currentStatus = this.activeTaskStatuses.get(session.taskId);
@@ -427,11 +394,8 @@ export class TaskStatusService {
       this.updateTaskStatus(session.taskId, session.userId, {
         status: 'completed',
         progress: 100,
-      }).catch((error) => {
-        this.logger.debug(
-          `Failed to apply stream completion status update for task ${session.taskId}`,
-          error,
-        );
+      }).catch(() => {
+        // Silently ignore status update errors
       });
     }
 
@@ -476,11 +440,8 @@ export class TaskStatusService {
       this.updateTaskStatus(session.taskId, session.userId, {
         status: 'failed',
         error: errorMessage,
-      }).catch((error) => {
-        this.logger.debug(
-          `Failed to apply stream error status update for task ${session.taskId}`,
-          error,
-        );
+      }).catch(() => {
+        // Silently ignore status update errors
       });
     }
 
@@ -546,7 +507,9 @@ export class TaskStatusService {
 
     // Emit status change events (don't await to avoid blocking)
     this.emitStatusChange(taskId, taskStatus).catch((error) => {
-      this.logger.warn(`Failed to emit status change event: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.warn(
+        `Failed to emit status change event: ${error instanceof Error ? error.message : String(error)}`,
+      );
     });
   }
 
@@ -644,7 +607,9 @@ export class TaskStatusService {
 
     // Emit status change event (don't await to avoid blocking)
     this.emitStatusChange(taskId, newStatus).catch((error) => {
-      this.logger.warn(`Failed to emit status change event: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.warn(
+        `Failed to emit status change event: ${error instanceof Error ? error.message : String(error)}`,
+      );
     });
 
     // Handle task completion
@@ -863,11 +828,10 @@ export class TaskStatusService {
   /**
    * Emit status change events for WebSocket broadcasting
    */
-  private async emitStatusChange(taskId: string, taskStatus: TaskStatus): Promise<void> {
-    this.logger.debug(
-      `🎯 emitStatusChange: taskId=${taskId}, status=${taskStatus.status}`,
-    );
-
+  private async emitStatusChange(
+    taskId: string,
+    taskStatus: TaskStatus,
+  ): Promise<void> {
     // Extract conversation context from metadata or look it up
     let conversationId: string | null = null;
     let organizationSlug: string | null = null;
@@ -875,15 +839,16 @@ export class TaskStatusService {
 
     // First try to get context from taskStatus metadata
     if (taskStatus.metadata) {
-      conversationId = (taskStatus.metadata as any).conversationId || null;
-      organizationSlug = (taskStatus.metadata as any).organizationSlug || null;
-      agentSlug = (taskStatus.metadata as any).agentSlug || null;
+      const metadata = taskStatus.metadata as JsonObject;
+      conversationId = (typeof metadata.conversationId === 'string' ? metadata.conversationId : null);
+      organizationSlug = (typeof metadata.organizationSlug === 'string' ? metadata.organizationSlug : null);
+      agentSlug = (typeof metadata.agentSlug === 'string' ? metadata.agentSlug : null);
     }
 
     // If not in metadata, look up task from database
     if (!conversationId) {
       try {
-        const taskResponse = await this.supabase
+        const taskResponse = await this.supabaseService
           .getAnonClient()
           .from('tasks')
           .select('conversation_id, metadata')
@@ -892,12 +857,23 @@ export class TaskStatusService {
 
         if (taskResponse.data) {
           conversationId = taskResponse.data.conversation_id;
-          const metadata = taskResponse.data.metadata as Record<string, unknown>;
-          organizationSlug = metadata?.organizationSlug as string || metadata?.organization_slug as string || null;
-          agentSlug = metadata?.agentSlug as string || metadata?.agent_slug as string || null;
+          const metadata = taskResponse.data.metadata as Record<
+            string,
+            unknown
+          >;
+          organizationSlug =
+            (metadata?.organizationSlug as string) ||
+            (metadata?.organization_slug as string) ||
+            null;
+          agentSlug =
+            (metadata?.agentSlug as string) ||
+            (metadata?.agent_slug as string) ||
+            null;
         }
       } catch (error) {
-        this.logger.warn(`Failed to fetch task context for observability: ${error instanceof Error ? error.message : String(error)}`);
+        this.logger.warn(
+          `Failed to fetch task context for observability: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }
 

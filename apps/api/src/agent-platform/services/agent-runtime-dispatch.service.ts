@@ -767,11 +767,9 @@ export class AgentRuntimeDispatchService {
       const host = target.host;
       const path = target.pathname;
       const msg = `${kind.toUpperCase()} ${status} ${host}${path} in ${durationMs}ms`;
-      if (status >= 200 && status < 300) {
-        this.logger.debug(msg);
-      } else if (status >= 500) {
+      if (status >= 500) {
         this.logger.error(msg);
-      } else {
+      } else if (status >= 400) {
         this.logger.warn(msg);
       }
     } catch {

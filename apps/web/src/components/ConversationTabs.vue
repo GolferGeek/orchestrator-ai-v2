@@ -134,8 +134,8 @@ const switchToConversation = async (conversationId: string) => {
     // Set messages separately (the store manages messages in a separate Map)
     conversationsStore.setMessages(conversationId, messages);
 
-    // Verify messages were set
-    const verifyMessages = conversationsStore.messagesByConversation(conversationId);
+    // Verify messages were set - accessing to trigger reactivity
+    void conversationsStore.messagesByConversation(conversationId);
 
     chatUiStore.setActiveConversation(conversationId);
   } catch (error) {

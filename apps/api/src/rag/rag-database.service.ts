@@ -40,9 +40,7 @@ export class RagDatabaseService implements OnModuleInit, OnModuleDestroy {
     const connectionString = this.configService.get<string>('DATABASE_URL');
 
     if (!connectionString) {
-      this.logger.warn(
-        'DATABASE_URL not configured - RAG features disabled',
-      );
+      this.logger.warn('DATABASE_URL not configured - RAG features disabled');
       return;
     }
 
@@ -60,7 +58,9 @@ export class RagDatabaseService implements OnModuleInit, OnModuleDestroy {
       await client.query('SELECT 1');
       client.release();
 
-      this.logger.log('RAG database pool initialized successfully (using rag_data schema)');
+      this.logger.log(
+        'RAG database pool initialized successfully (using rag_data schema)',
+      );
     } catch (error) {
       this.logger.error(
         'Failed to initialize RAG database pool',

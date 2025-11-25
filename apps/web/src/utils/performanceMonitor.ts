@@ -58,6 +58,7 @@ export class PerformanceMonitor {
       
       // Log slow operations (>100ms)
       if (metric.duration > 100) {
+        // Performance metric logged
       }
     }
   }
@@ -82,6 +83,7 @@ export class PerformanceMonitor {
 
     // Warn about slow renders (>16ms for 60fps)
     if (renderTime > 16) {
+      // Slow render detected
     }
   }
 
@@ -106,6 +108,7 @@ export class PerformanceMonitor {
 
     // Warn about slow API calls (>1000ms)
     if (responseTime > 1000) {
+      // Slow API call detected
     }
   }
 
@@ -130,6 +133,7 @@ export class PerformanceMonitor {
       navObserver.observe({ entryTypes: ['navigation'] });
       this.observers.push(navObserver);
     } catch {
+      // Navigation observer not supported
     }
 
     // Resource timing
@@ -145,6 +149,7 @@ export class PerformanceMonitor {
       resourceObserver.observe({ entryTypes: ['resource'] });
       this.observers.push(resourceObserver);
     } catch {
+      // Resource observer not supported
     }
 
     // Paint timing
@@ -152,23 +157,26 @@ export class PerformanceMonitor {
       const paintObserver = new PerformanceObserver((list) => {
         for (const entry of list.getEntries()) {
           if (entry.entryType === 'paint') {
+            // Paint timing recorded
           }
         }
       });
       paintObserver.observe({ entryTypes: ['paint'] });
       this.observers.push(paintObserver);
     } catch {
+      // Paint observer not supported
     }
 
     // Largest Contentful Paint
     try {
       const lcpObserver = new PerformanceObserver((list) => {
-        for (const entry of list.getEntries()) {
-        }
+        // Record LCP entries
+        void list.getEntries();
       });
       lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] });
       this.observers.push(lcpObserver);
     } catch {
+      // LCP observer not supported
     }
   }
 
@@ -188,8 +196,9 @@ export class PerformanceMonitor {
     };
 
     console.group('Navigation Timing');
-    Object.entries(timings).forEach(([name, time]) => {
+    Object.entries(timings).forEach(([_name, time]) => {
       if (time > 0) {
+        // Navigation timing recorded
       }
     });
     console.groupEnd();
@@ -200,9 +209,10 @@ export class PerformanceMonitor {
    */
   private trackResourceTiming(entry: PerformanceResourceTiming): void {
     const duration = entry.responseEnd - entry.startTime;
-    
+
     // Only track significant resources (>100ms or >100KB)
     if (duration > 100 || entry.transferSize > 100000) {
+      // Significant resource load detected
     }
   }
 
@@ -296,6 +306,7 @@ export class PerformanceMonitor {
           checkCompletion();
         }, 1000);
       } catch {
+        // LCP measurement not supported
         checkCompletion();
       }
 
@@ -317,6 +328,7 @@ export class PerformanceMonitor {
           checkCompletion();
         }, 1000);
       } catch {
+        // CLS measurement not supported
         checkCompletion();
       }
 

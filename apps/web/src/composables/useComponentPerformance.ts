@@ -83,6 +83,7 @@ export function useComponentPerformance(componentName?: string) {
       
       // Log slow mounting components (>50ms)
       if (mountTime > 50) {
+        // Slow component mount detected
       }
     }
   });

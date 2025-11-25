@@ -269,10 +269,9 @@ export async function rerunPlan(
   },
 ): Promise<{ plan: PlanData; version: PlanVersionData }> {
 
-  // 1. Get existing plan from store (for context)
+  // 1. Get existing plan from store (for context) - accessing for reactivity
   const planStore = usePlanStore();
-  const existingPlans = planStore.plansByConversationId(conversationId);
-
+  void planStore.plansByConversationId(conversationId);
 
   // 2. Create API client
   const api = createAgent2AgentApi(agentName);

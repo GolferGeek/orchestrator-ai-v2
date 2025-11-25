@@ -70,8 +70,6 @@ class Agent2AgentConversationsService {
    * Create a new conversation for database agents
    */
   async createConversation(dto: CreateAgent2AgentConversationDto): Promise<Agent2AgentConversation> {
-    console.log('🔍 [Agent2AgentConversationsService] Creating conversation:', dto);
-
     const payload: CreateAgent2AgentConversationPayload = {
       agentName: dto.agentName,
       agentType: dto.agentType, // Required for backend validation
@@ -88,7 +86,6 @@ class Agent2AgentConversationsService {
       payload,
     );
 
-    console.log('✅ [Agent2AgentConversationsService] Created:', response.id);
     return response;
   }
 

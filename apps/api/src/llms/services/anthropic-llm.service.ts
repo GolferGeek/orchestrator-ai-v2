@@ -182,10 +182,6 @@ export class AnthropicLLMService extends BaseLLMService {
         this.logger.warn(
           `⚠️ [PII-METADATA-DEBUG] AnthropicLLMService - No PII metadata from LLM Service, using raw message`,
         );
-      } else {
-        this.logger.debug(
-          `🔍 [PII-METADATA-DEBUG] AnthropicLLMService - Using preprocessed text and PII metadata`,
-        );
       }
 
       // Prepare Anthropic request
@@ -354,7 +350,6 @@ export class AnthropicLLMService extends BaseLLMService {
       try {
         // This would integrate with LangSmith for Anthropic-specific tracing
         const runId = `anthropic-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        this.logger.debug(`LangSmith integration for Anthropic: ${runId}`);
         return Promise.resolve(runId);
       } catch (error) {
         this.logger.warn('LangSmith integration failed:', error);
@@ -481,11 +476,8 @@ export async function testAnthropicService() {
 
   try {
     const response = await service.generateResponse(params);
-    console.log('Anthropic Response:', response.content);
-    console.log('Metadata:', response.metadata);
     return response;
   } catch (error) {
-    console.error('Anthropic Service Error:', error);
     throw error;
   }
 }
