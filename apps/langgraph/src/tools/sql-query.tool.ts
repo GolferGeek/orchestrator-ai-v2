@@ -1,7 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { tool } from '@langchain/core/tools';
-import { z } from 'zod';
 import { PostgresCheckpointerService } from '../persistence/postgres-checkpointer.service';
 import { LLMUsageReporterService } from '../services/llm-usage-reporter.service';
 
@@ -32,62 +30,78 @@ export class SqlQueryTool {
 
   /**
    * Create the LangGraph tool instance for executing pre-written SQL
+   *
+   * Note: This method uses dynamic require to avoid TypeScript's deep type
+   * instantiation limits with LangChain's tool types.
    */
-  createTool() {
-    return tool(
-      async (input: { sql: string; params?: unknown[] }) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  createTool(): any {
+    // Import dynamically to avoid type inference at module load time
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { DynamicStructuredTool } = require('@langchain/core/tools');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { z } = require('zod');
+
+    return new DynamicStructuredTool({
+      name: 'execute_sql',
+      description:
+        'Executes a read-only SQL query against the database. Only SELECT statements are allowed. Use list_tables and describe_table first to understand the schema.',
+      schema: z.object({
+        sql: z
+          .string()
+          .describe('The SQL SELECT query to execute. Must be read-only.'),
+        params: z
+          .array(z.unknown())
+          .optional()
+          .describe('Optional query parameters for parameterized queries.'),
+      }),
+      func: async (input: { sql: string; params?: unknown[] }): Promise<string> => {
         return this.executeSql(input.sql, input.params);
       },
-      {
-        name: 'execute_sql',
-        description:
-          'Executes a read-only SQL query against the database. Only SELECT statements are allowed. Use list_tables and describe_table first to understand the schema.',
-        schema: z.object({
-          sql: z
-            .string()
-            .describe('The SQL SELECT query to execute. Must be read-only.'),
-          params: z
-            .array(z.unknown())
-            .optional()
-            .describe('Optional query parameters for parameterized queries.'),
-        }),
-      },
-    );
+    });
   }
 
   /**
    * Create the LangGraph tool instance for natural language to SQL
+   *
+   * Note: This method uses dynamic require to avoid TypeScript's deep type
+   * instantiation limits with LangChain's tool types.
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   createNaturalLanguageTool(context: {
     userId: string;
     taskId?: string;
     threadId?: string;
     conversationId?: string;
-  }) {
-    return tool(
-      async (input: { question: string; tableContext: string }) => {
+  }): any {
+    // Import dynamically to avoid type inference at module load time
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { DynamicStructuredTool } = require('@langchain/core/tools');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { z } = require('zod');
+
+    return new DynamicStructuredTool({
+      name: 'query_database',
+      description:
+        'Converts a natural language question into SQL and executes it. Provide the question and relevant table schema information.',
+      schema: z.object({
+        question: z
+          .string()
+          .describe('The natural language question to answer with SQL.'),
+        tableContext: z
+          .string()
+          .describe(
+            'The relevant table schemas (from describe_table) to help generate accurate SQL.',
+          ),
+      }),
+      func: async (input: { question: string; tableContext: string }): Promise<string> => {
         return this.generateAndExecuteSql(
           input.question,
           input.tableContext,
           context,
         );
       },
-      {
-        name: 'query_database',
-        description:
-          'Converts a natural language question into SQL and executes it. Provide the question and relevant table schema information.',
-        schema: z.object({
-          question: z
-            .string()
-            .describe('The natural language question to answer with SQL.'),
-          tableContext: z
-            .string()
-            .describe(
-              'The relevant table schemas (from describe_table) to help generate accurate SQL.',
-            ),
-        }),
-      },
-    );
+    });
   }
 
   /**

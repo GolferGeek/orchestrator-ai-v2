@@ -1,6 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { tool } from '@langchain/core/tools';
-import { z } from 'zod';
 import { PostgresCheckpointerService } from '../persistence/postgres-checkpointer.service';
 
 /**
@@ -19,25 +17,33 @@ export class DescribeTableTool {
 
   /**
    * Create the LangGraph tool instance
+   *
+   * Note: This method uses dynamic require to avoid TypeScript's deep type
+   * instantiation limits with LangChain's tool types.
    */
-  createTool() {
-    return tool(
-      async (input: { tableName: string; schema?: string }) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  createTool(): any {
+    // Import dynamically to avoid type inference at module load time
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { DynamicStructuredTool } = require('@langchain/core/tools');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { z } = require('zod');
+
+    return new DynamicStructuredTool({
+      name: 'describe_table',
+      description:
+        'Describes the schema of a database table, showing column names, data types, and constraints. Use this before writing SQL queries to understand the table structure.',
+      schema: z.object({
+        tableName: z.string().describe('The name of the table to describe'),
+        schema: z
+          .string()
+          .optional()
+          .describe('Optional schema name. Defaults to public.'),
+      }),
+      func: async (input: { tableName: string; schema?: string }): Promise<string> => {
         return this.execute(input.tableName, input.schema);
       },
-      {
-        name: 'describe_table',
-        description:
-          'Describes the schema of a database table, showing column names, data types, and constraints. Use this before writing SQL queries to understand the table structure.',
-        schema: z.object({
-          tableName: z.string().describe('The name of the table to describe'),
-          schema: z
-            .string()
-            .optional()
-            .describe('Optional schema name. Defaults to public.'),
-        }),
-      },
-    );
+    });
   }
 
   /**

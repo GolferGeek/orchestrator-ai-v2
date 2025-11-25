@@ -1,6 +1,5 @@
 import { StateGraph, END } from '@langchain/langgraph';
 import { AIMessage, HumanMessage } from '@langchain/core/messages';
-import { ToolNode } from '@langchain/langgraph/prebuilt';
 import {
   DataAnalystStateAnnotation,
   DataAnalystState,
@@ -32,14 +31,8 @@ export function createDataAnalystGraph(
   describeTableTool: DescribeTableTool,
   sqlQueryTool: SqlQueryTool,
 ) {
-  // Create tool instances for ToolNode
-  const tools = [
-    listTablesTool.createTool(),
-    describeTableTool.createTool(),
-    sqlQueryTool.createTool(),
-  ];
-
-  const toolNode = new ToolNode(tools);
+  // Note: Tools are called directly via their execute methods rather than
+  // through ToolNode, as this provides better control over the workflow.
 
   // Node: Start analysis
   async function startNode(state: DataAnalystState): Promise<Partial<DataAnalystState>> {
@@ -125,16 +118,15 @@ If no tables seem relevant, return an empty array: []`;
 
     try {
       const response = await llmClient.callLLM({
-        prompt,
+        userMessage: prompt,
         provider: state.provider,
         model: state.model,
         userId: state.userId,
-        agentName: AGENT_SLUG,
-        conversationId: state.conversationId,
+        callerName: AGENT_SLUG,
       });
 
       // Parse the JSON array from response
-      const jsonMatch = response.content.match(/\[[\s\S]*?\]/);
+      const jsonMatch = response.text.match(/\[[\s\S]*?\]/);
       const relevantTables: string[] = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
 
       return {
@@ -267,12 +259,11 @@ Provide a clear, concise summary that directly answers the user's question. If t
 
     try {
       const response = await llmClient.callLLM({
-        prompt,
+        userMessage: prompt,
         provider: state.provider,
         model: state.model,
         userId: state.userId,
-        agentName: AGENT_SLUG,
-        conversationId: state.conversationId,
+        callerName: AGENT_SLUG,
       });
 
       await observability.emitCompleted({
@@ -281,17 +272,17 @@ Provide a clear, concise summary that directly answers the user's question. If t
         agentSlug: AGENT_SLUG,
         userId: state.userId,
         conversationId: state.conversationId,
-        result: { summary: response.content },
+        result: { summary: response.text },
         duration: Date.now() - state.startedAt,
       });
 
       return {
-        summary: response.content,
+        summary: response.text,
         status: 'completed',
         completedAt: Date.now(),
         messages: [
           ...state.messages,
-          new AIMessage(response.content),
+          new AIMessage(response.text),
         ],
       };
     } catch (error) {
@@ -313,8 +304,8 @@ Provide a clear, concise summary that directly answers the user's question. If t
     }
   }
 
-  // Node: Handle errors
-  async function errorNode(state: DataAnalystState): Promise<Partial<DataAnalystState>> {
+  // Node: Handle errors (named 'handle_error' to avoid conflict with 'error' state channel)
+  async function handleErrorNode(state: DataAnalystState): Promise<Partial<DataAnalystState>> {
     await observability.emitFailed({
       taskId: state.taskId,
       threadId: state.threadId,
@@ -339,23 +330,23 @@ Provide a clear, concise summary that directly answers the user's question. If t
     .addNode('describe_tables', describeTablesNode)
     .addNode('execute_query', executeQueryNode)
     .addNode('summarize', summarizeNode)
-    .addNode('error', errorNode)
+    .addNode('handle_error', handleErrorNode)
     // Edges
     .addEdge('__start__', 'start')
     .addEdge('start', 'discover_tables')
     .addConditionalEdges('discover_tables', (state) => {
-      if (state.error) return 'error';
-      if (state.availableTables.length === 0) return 'error';
+      if (state.error) return 'handle_error';
+      if (state.availableTables.length === 0) return 'handle_error';
       return 'plan_schema';
     })
     .addEdge('plan_schema', 'describe_tables')
     .addEdge('describe_tables', 'execute_query')
     .addConditionalEdges('execute_query', (state) => {
-      if (state.error) return 'error';
+      if (state.error) return 'handle_error';
       return 'summarize';
     })
     .addEdge('summarize', END)
-    .addEdge('error', END);
+    .addEdge('handle_error', END);
 
   // Compile with checkpointer
   return graph.compile({

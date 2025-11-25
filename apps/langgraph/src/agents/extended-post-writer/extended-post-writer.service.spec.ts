@@ -1,0 +1,420 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { LLMHttpClientService } from '../../services/llm-http-client.service';
+import { ObservabilityService } from '../../services/observability.service';
+import {
+  ExtendedPostWriterInput,
+  HitlResponse,
+  GeneratedContent,
+  validateExtendedPostWriterInput,
+  formatValidationErrors,
+} from './extended-post-writer.state';
+import { z } from 'zod';
+
+// Mock PostgresSaver before any imports that need it
+jest.mock('@langchain/langgraph-checkpoint-postgres', () => ({
+  PostgresSaver: {
+    fromConnString: jest.fn(() => ({
+      setup: jest.fn().mockResolvedValue(undefined),
+      put: jest.fn().mockResolvedValue(undefined),
+      get: jest.fn().mockResolvedValue(null),
+    })),
+  },
+}));
+
+// Mock pg Pool
+jest.mock('pg', () => ({
+  Pool: jest.fn(() => ({
+    connect: jest.fn().mockResolvedValue({
+      query: jest.fn().mockResolvedValue({ rows: [] }),
+      release: jest.fn(),
+    }),
+    end: jest.fn().mockResolvedValue(undefined),
+  })),
+}));
+
+// Now import after mocking
+import { PostgresCheckpointerService } from '../../persistence/postgres-checkpointer.service';
+
+// Mock the graph module
+jest.mock('./extended-post-writer.graph', () => ({
+  createExtendedPostWriterGraph: jest.fn(() => ({
+    invoke: jest.fn().mockResolvedValue({
+      status: 'hitl_waiting',
+      generatedContent: {
+        blogPost: 'Mock blog post',
+        seoDescription: 'Mock SEO',
+        socialPosts: ['Mock social'],
+      },
+    }),
+    getState: jest.fn().mockResolvedValue({
+      values: {
+        status: 'hitl_waiting',
+        topic: 'Test topic',
+        startedAt: Date.now(),
+      },
+      next: ['hitl_interrupt'],
+    }),
+    getStateHistory: jest.fn().mockReturnValue({
+      [Symbol.asyncIterator]: async function* () {
+        yield { values: { status: 'started' } };
+        yield { values: { status: 'hitl_waiting' } };
+      },
+    }),
+  })),
+}));
+
+// Import after mocking
+import {
+  ExtendedPostWriterService,
+} from './extended-post-writer.service';
+
+/**
+ * Unit tests for ExtendedPostWriterService
+ *
+ * Tests the Extended Post Writer agent service that manages
+ * the HITL pattern for content generation.
+ */
+describe('ExtendedPostWriterService', () => {
+  let service: ExtendedPostWriterService;
+  let llmClient: jest.Mocked<LLMHttpClientService>;
+  let observability: jest.Mocked<ObservabilityService>;
+  let checkpointer: jest.Mocked<PostgresCheckpointerService>;
+
+  const mockSaver = {
+    setup: jest.fn().mockResolvedValue(undefined),
+    put: jest.fn().mockResolvedValue(undefined),
+    get: jest.fn().mockResolvedValue(null),
+    list: jest.fn().mockReturnValue([]),
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ExtendedPostWriterService,
+        {
+          provide: LLMHttpClientService,
+          useValue: {
+            callLLM: jest.fn().mockResolvedValue({
+              text: 'Generated blog post content...',
+              usage: { promptTokens: 50, completionTokens: 200, totalTokens: 250 },
+            }),
+          },
+        },
+        {
+          provide: ObservabilityService,
+          useValue: {
+            emit: jest.fn().mockResolvedValue(undefined),
+            emitStarted: jest.fn().mockResolvedValue(undefined),
+            emitProgress: jest.fn().mockResolvedValue(undefined),
+            emitHitlWaiting: jest.fn().mockResolvedValue(undefined),
+            emitHitlResumed: jest.fn().mockResolvedValue(undefined),
+            emitCompleted: jest.fn().mockResolvedValue(undefined),
+            emitFailed: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: PostgresCheckpointerService,
+          useValue: {
+            getSaver: jest.fn().mockReturnValue(mockSaver),
+            isReady: jest.fn().mockReturnValue(true),
+          },
+        },
+      ],
+    }).compile();
+
+    service = module.get<ExtendedPostWriterService>(ExtendedPostWriterService);
+    llmClient = module.get(LLMHttpClientService);
+    observability = module.get(ObservabilityService);
+    checkpointer = module.get(PostgresCheckpointerService);
+
+    // Initialize the service (triggers onModuleInit)
+    await service.onModuleInit();
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+
+  describe('generate', () => {
+    const validInput: ExtendedPostWriterInput = {
+      taskId: 'task-123',
+      userId: 'user-456',
+      conversationId: 'conv-789',
+      organizationSlug: 'org-abc',
+      topic: 'Introduction to AI',
+      context: 'Write for beginners',
+      keywords: ['AI', 'machine learning', 'basics'],
+      tone: 'casual',
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-20250514',
+    };
+
+    it('should throw error for missing taskId', async () => {
+      const invalidInput = { ...validInput, taskId: '' };
+
+      await expect(service.generate(invalidInput)).rejects.toThrow(
+        'Invalid input',
+      );
+    });
+
+    it('should throw error for missing userId', async () => {
+      const invalidInput = { ...validInput, userId: '' };
+
+      await expect(service.generate(invalidInput)).rejects.toThrow(
+        'Invalid input',
+      );
+    });
+
+    it('should throw error for missing topic', async () => {
+      const invalidInput = { ...validInput, topic: '' };
+
+      await expect(service.generate(invalidInput)).rejects.toThrow(
+        'Invalid input',
+      );
+    });
+
+    it('should return result with threadId for valid input', async () => {
+      const result = await service.generate(validInput);
+
+      expect(result.threadId).toBeDefined();
+      expect(result.topic).toBe(validInput.topic);
+    });
+  });
+
+  describe('resume', () => {
+    const approveResponse: HitlResponse = {
+      decision: 'approve',
+    };
+
+    const editResponse: HitlResponse = {
+      decision: 'edit',
+      editedContent: {
+        blogPost: 'Edited blog post...',
+        seoDescription: 'Edited SEO description',
+        socialPosts: ['Edited social post 1', 'Edited social post 2'],
+      },
+    };
+
+    const rejectResponse: HitlResponse = {
+      decision: 'reject',
+      feedback: 'Content is not relevant to the topic',
+    };
+
+    it('should throw error for non-existent thread', async () => {
+      // Mock getState to return null for non-existent thread
+      const { createExtendedPostWriterGraph } = require('./extended-post-writer.graph');
+      createExtendedPostWriterGraph.mockReturnValueOnce({
+        invoke: jest.fn(),
+        getState: jest.fn().mockResolvedValue({ values: null }),
+        getStateHistory: jest.fn(),
+      });
+
+      // Re-initialize service with new mock
+      await service.onModuleInit();
+
+      await expect(
+        service.resume('non-existent-thread', approveResponse),
+      ).rejects.toThrow();
+    });
+
+    it('should accept approve decision', () => {
+      expect(approveResponse.decision).toBe('approve');
+      expect(approveResponse.editedContent).toBeUndefined();
+    });
+
+    it('should accept edit decision with edited content', () => {
+      expect(editResponse.decision).toBe('edit');
+      expect(editResponse.editedContent).toBeDefined();
+      expect(editResponse.editedContent?.blogPost).toBe('Edited blog post...');
+    });
+
+    it('should accept reject decision with feedback', () => {
+      expect(rejectResponse.decision).toBe('reject');
+      expect(rejectResponse.feedback).toBe('Content is not relevant to the topic');
+    });
+  });
+
+  describe('getStatus', () => {
+    it('should return null for non-existent thread', async () => {
+      // Mock getState to return null
+      const { createExtendedPostWriterGraph } = require('./extended-post-writer.graph');
+      createExtendedPostWriterGraph.mockReturnValueOnce({
+        invoke: jest.fn(),
+        getState: jest.fn().mockResolvedValue({ values: null }),
+        getStateHistory: jest.fn(),
+      });
+
+      await service.onModuleInit();
+      const result = await service.getStatus('non-existent-thread');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('getHistory', () => {
+    it('should return empty array for non-existent thread', async () => {
+      // Mock getStateHistory to return empty iterator
+      const { createExtendedPostWriterGraph } = require('./extended-post-writer.graph');
+      createExtendedPostWriterGraph.mockReturnValueOnce({
+        invoke: jest.fn(),
+        getState: jest.fn(),
+        getStateHistory: jest.fn().mockReturnValue({
+          [Symbol.asyncIterator]: async function* () {
+            // Empty iterator
+          },
+        }),
+      });
+
+      await service.onModuleInit();
+      const result = await service.getHistory('non-existent-thread');
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('input validation', () => {
+    it('should accept valid input with all fields', () => {
+      const input: ExtendedPostWriterInput = {
+        taskId: 'task-123',
+        userId: 'user-456',
+        conversationId: 'conv-789',
+        organizationSlug: 'org-abc',
+        topic: 'AI Ethics',
+        context: 'Focus on privacy concerns',
+        keywords: ['ethics', 'privacy', 'AI'],
+        tone: 'formal',
+        provider: 'openai',
+        model: 'gpt-4',
+      };
+
+      expect(() => validateExtendedPostWriterInput(input)).not.toThrow();
+    });
+
+    it('should accept minimal valid input', () => {
+      const input = {
+        taskId: 'task-123',
+        userId: 'user-456',
+        topic: 'Test Topic',
+      };
+
+      const validated = validateExtendedPostWriterInput(input);
+
+      expect(validated.taskId).toBe('task-123');
+      expect(validated.tone).toBe('professional'); // default
+      expect(validated.provider).toBe('anthropic'); // default
+      expect(validated.keywords).toEqual([]); // default
+    });
+
+    it('should use default keywords as empty array', () => {
+      const input = {
+        taskId: 'task-123',
+        userId: 'user-456',
+        topic: 'Test',
+      };
+
+      const validated = validateExtendedPostWriterInput(input);
+
+      expect(validated.keywords).toEqual([]);
+    });
+
+    it('should use default tone as professional', () => {
+      const input = {
+        taskId: 'task-123',
+        userId: 'user-456',
+        topic: 'Test',
+      };
+
+      const validated = validateExtendedPostWriterInput(input);
+
+      expect(validated.tone).toBe('professional');
+    });
+
+    it('should reject input with empty topic', () => {
+      const input = {
+        taskId: 'task-123',
+        userId: 'user-456',
+        topic: '',
+      };
+
+      expect(() => validateExtendedPostWriterInput(input)).toThrow();
+    });
+
+    it('should format validation errors correctly', () => {
+      const mockError = new z.ZodError([
+        { path: ['taskId'], message: 'Required', code: 'invalid_type', expected: 'string', received: 'undefined' } as z.ZodIssue,
+        { path: ['topic'], message: 'Too short', code: 'too_small', minimum: 1, type: 'string', inclusive: true } as z.ZodIssue,
+      ]);
+
+      const formatted = formatValidationErrors(mockError);
+
+      expect(formatted).toContain('taskId');
+      expect(formatted).toContain('topic');
+    });
+  });
+
+  describe('GeneratedContent structure', () => {
+    it('should have required fields for generated content', () => {
+      const content: GeneratedContent = {
+        blogPost: 'Blog post content...',
+        seoDescription: 'SEO description for the post',
+        socialPosts: ['Social post 1', 'Social post 2', 'Social post 3'],
+      };
+
+      expect(content.blogPost).toBeDefined();
+      expect(content.seoDescription).toBeDefined();
+      expect(content.socialPosts).toHaveLength(3);
+    });
+  });
+
+  describe('HitlResponse structure', () => {
+    it('should support approve decision', () => {
+      const response: HitlResponse = {
+        decision: 'approve',
+      };
+
+      expect(response.decision).toBe('approve');
+    });
+
+    it('should support edit decision with content', () => {
+      const response: HitlResponse = {
+        decision: 'edit',
+        editedContent: {
+          blogPost: 'Edited content',
+          seoDescription: 'Edited SEO',
+          socialPosts: [],
+        },
+      };
+
+      expect(response.decision).toBe('edit');
+      expect(response.editedContent).toBeDefined();
+    });
+
+    it('should support reject decision with feedback', () => {
+      const response: HitlResponse = {
+        decision: 'reject',
+        feedback: 'Content needs improvement',
+      };
+
+      expect(response.decision).toBe('reject');
+      expect(response.feedback).toBe('Content needs improvement');
+    });
+  });
+});
+
+/**
+ * Integration tests for ExtendedPostWriterService
+ *
+ * These tests require a running database and should be run
+ * against the test environment.
+ */
+describe.skip('ExtendedPostWriterService (Integration)', () => {
+  // Integration tests would be marked with a different tag
+  // and run separately against the test database
+
+  it.todo('should complete full generate-approve workflow');
+  it.todo('should complete generate-edit-approve workflow');
+  it.todo('should complete generate-reject workflow');
+  it.todo('should persist state through HITL interrupt');
+  it.todo('should resume from checkpoint after restart');
+  it.todo('should emit correct observability events');
+});

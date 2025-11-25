@@ -95,16 +95,15 @@ Return ONLY the JSON object, no additional text.`;
 
     try {
       const response = await llmClient.callLLM({
-        prompt,
+        userMessage: prompt,
         provider: state.provider,
         model: state.model,
         userId: state.userId,
-        agentName: AGENT_SLUG,
-        conversationId: state.conversationId,
+        callerName: AGENT_SLUG,
       });
 
       // Parse the JSON response
-      const jsonMatch = response.content.match(/\{[\s\S]*\}/);
+      const jsonMatch = response.text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
         throw new Error('Failed to parse generated content');
       }
@@ -283,8 +282,8 @@ Return ONLY the JSON object, no additional text.`;
     };
   }
 
-  // Node: Handle errors
-  async function errorNode(
+  // Node: Handle errors (named 'handle_error' to avoid conflict with 'error' state channel)
+  async function handleErrorNode(
     state: ExtendedPostWriterState,
   ): Promise<Partial<ExtendedPostWriterState>> {
     await observability.emitFailed({
@@ -311,23 +310,23 @@ Return ONLY the JSON object, no additional text.`;
     .addNode('process_hitl', processHitlDecisionNode)
     .addNode('finalize', finalizeNode)
     .addNode('rejected', rejectedNode)
-    .addNode('error', errorNode)
+    .addNode('handle_error', handleErrorNode)
     // Edges
     .addEdge('__start__', 'start')
     .addEdge('start', 'generate_content')
     .addConditionalEdges('generate_content', (state) => {
-      if (state.error) return 'error';
+      if (state.error) return 'handle_error';
       return 'hitl_interrupt';
     })
     .addEdge('hitl_interrupt', 'process_hitl')
     .addConditionalEdges('process_hitl', (state) => {
-      if (state.error) return 'error';
+      if (state.error) return 'handle_error';
       if (state.status === 'rejected') return 'rejected';
       return 'finalize';
     })
     .addEdge('finalize', END)
     .addEdge('rejected', END)
-    .addEdge('error', END);
+    .addEdge('handle_error', END);
 
   // Compile with checkpointer
   return graph.compile({

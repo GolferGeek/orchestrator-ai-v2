@@ -1,6 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { tool } from '@langchain/core/tools';
-import { z } from 'zod';
 import { PostgresCheckpointerService } from '../persistence/postgres-checkpointer.service';
 
 /**
@@ -19,26 +17,33 @@ export class ListTablesTool {
 
   /**
    * Create the LangGraph tool instance
+   *
+   * Note: This method is implemented in a separate factory function to avoid
+   * TypeScript's deep type instantiation limits with LangChain's tool types.
+   * The actual tool creation is done at runtime when this method is called.
    */
-  createTool() {
-    return tool(
-      async (_input: { schema?: string }) => {
-        return this.execute(_input.schema);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  createTool(): any {
+    // Import dynamically to avoid type inference at module load time
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { DynamicStructuredTool } = require('@langchain/core/tools');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { z } = require('zod');
+
+    return new DynamicStructuredTool({
+      name: 'list_tables',
+      description:
+        'Lists all available database tables. Use this to discover what tables exist before writing SQL queries.',
+      schema: z.object({
+        schema: z
+          .string()
+          .optional()
+          .describe('Optional schema name to filter tables. Defaults to public.'),
+      }),
+      func: async (input: { schema?: string }): Promise<string> => {
+        return this.execute(input.schema);
       },
-      {
-        name: 'list_tables',
-        description:
-          'Lists all available database tables. Use this to discover what tables exist before writing SQL queries.',
-        schema: z.object({
-          schema: z
-            .string()
-            .optional()
-            .describe(
-              'Optional schema name to filter tables. Defaults to public.',
-            ),
-        }),
-      },
-    );
+    });
   }
 
   /**
