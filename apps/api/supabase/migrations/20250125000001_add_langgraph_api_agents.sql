@@ -1,0 +1,351 @@
+-- =============================================================================
+-- LANGGRAPH API AGENTS
+-- =============================================================================
+-- Migration to add Data Analyst and Extended Post Writer API agents
+-- These wrap LangGraph endpoints for Phase 5 testing
+-- Created: 2025-11-25
+-- =============================================================================
+
+-- =============================================================================
+-- DATA ANALYST AGENT - API Agent wrapping LangGraph
+-- =============================================================================
+-- Tool-calling agent that queries databases using natural language
+-- Endpoints: POST /data-analyst/analyze, GET /data-analyst/status/:threadId
+-- =============================================================================
+
+INSERT INTO public.agents (
+  slug,
+  organization_slug,
+  name,
+  description,
+  version,
+  agent_type,
+  department,
+  tags,
+  io_schema,
+  capabilities,
+  context,
+  endpoint,
+  llm_config,
+  metadata
+) VALUES (
+  'data-analyst',
+  ARRAY['demo-org']::TEXT[],
+  'Data Analyst',
+  'LangGraph-powered data analyst agent that uses natural language to query databases, list tables, describe schemas, and generate SQL queries with comprehensive result summaries.',
+  '1.0.0',
+  'api',
+  'analytics',
+  ARRAY['data-analysis', 'sql', 'database', 'langgraph', 'tool-calling']::TEXT[],
+
+  -- Input/Output Schema
+  '{
+    "input": {
+      "type": "object",
+      "required": ["question"],
+      "properties": {
+        "question": {
+          "type": "string",
+          "description": "Natural language question about the data"
+        },
+        "userId": {
+          "type": "string",
+          "description": "User ID for tracking"
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "threadId": {
+          "type": "string",
+          "description": "LangGraph thread ID for the analysis session"
+        },
+        "status": {
+          "type": "string",
+          "description": "Current status of the analysis"
+        },
+        "tablesDiscovered": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "List of database tables discovered"
+        },
+        "sqlGenerated": {
+          "type": "string",
+          "description": "Generated SQL query"
+        },
+        "queryResults": {
+          "type": "object",
+          "description": "Results from SQL execution"
+        },
+        "summary": {
+          "type": "string",
+          "description": "Natural language summary of the analysis"
+        }
+      }
+    }
+  }'::JSONB,
+
+  -- Capabilities
+  ARRAY['database-query', 'sql-generation', 'schema-analysis', 'data-summarization']::TEXT[],
+
+  -- Context (markdown)
+  '# Data Analyst Agent
+
+A LangGraph-powered agent that analyzes databases using natural language queries.
+
+## Capabilities
+- **Schema Discovery**: Lists and describes database tables
+- **SQL Generation**: Generates SQL from natural language using Ollama/SQLCoder
+- **Query Execution**: Executes read-only SQL queries safely
+- **Result Summarization**: Provides clear summaries of query results
+
+## Flow
+1. User asks a question about data
+2. Agent discovers relevant tables
+3. Agent describes table schemas
+4. Agent generates SQL query
+5. Agent executes query (read-only)
+6. Agent summarizes results
+
+## Safety
+- All SQL queries are read-only (SELECT only)
+- Query execution is sandboxed
+- Results are validated before returning',
+
+  -- Endpoint configuration (API agent)
+  '{
+    "url": "http://localhost:6200/data-analyst/analyze",
+    "method": "POST",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "timeout": 120000,
+    "requestTransform": {
+      "question": "{{userMessage}}",
+      "userId": "{{userId}}",
+      "conversationId": "{{conversationId}}"
+    },
+    "responseTransform": {
+      "content": "$.summary",
+      "metadata": {
+        "threadId": "$.threadId",
+        "status": "$.status",
+        "tablesDiscovered": "$.tablesDiscovered",
+        "sqlGenerated": "$.sqlGenerated",
+        "queryResults": "$.queryResults"
+      }
+    }
+  }'::JSONB,
+
+  -- LLM config (null for API agents - uses LangGraph internal LLM)
+  NULL,
+
+  -- Metadata
+  '{
+    "provider": "langgraph",
+    "langgraphEndpoint": "http://localhost:6200",
+    "features": ["tool-calling", "checkpointing"],
+    "statusEndpoint": "/data-analyst/status/{threadId}",
+    "historyEndpoint": "/data-analyst/history/{threadId}"
+  }'::JSONB
+)
+ON CONFLICT (slug) DO UPDATE SET
+  name = EXCLUDED.name,
+  description = EXCLUDED.description,
+  version = EXCLUDED.version,
+  agent_type = EXCLUDED.agent_type,
+  department = EXCLUDED.department,
+  tags = EXCLUDED.tags,
+  io_schema = EXCLUDED.io_schema,
+  capabilities = EXCLUDED.capabilities,
+  context = EXCLUDED.context,
+  endpoint = EXCLUDED.endpoint,
+  llm_config = EXCLUDED.llm_config,
+  metadata = EXCLUDED.metadata,
+  updated_at = NOW();
+
+
+-- =============================================================================
+-- EXTENDED POST WRITER AGENT - API Agent wrapping LangGraph with HITL
+-- =============================================================================
+-- HITL agent that generates blog posts, SEO descriptions, and social posts
+-- Pauses for human review before finalizing
+-- Endpoints: POST /extended-post-writer/generate, POST /extended-post-writer/resume/:threadId
+-- =============================================================================
+
+INSERT INTO public.agents (
+  slug,
+  organization_slug,
+  name,
+  description,
+  version,
+  agent_type,
+  department,
+  tags,
+  io_schema,
+  capabilities,
+  context,
+  endpoint,
+  llm_config,
+  metadata
+) VALUES (
+  'extended-post-writer',
+  ARRAY['demo-org']::TEXT[],
+  'Extended Post Writer',
+  'LangGraph-powered content generation agent with Human-in-the-Loop (HITL) approval. Generates blog posts, SEO descriptions, and social media posts, then pauses for human review before finalizing.',
+  '1.0.0',
+  'api',
+  'marketing',
+  ARRAY['content-creation', 'blog', 'seo', 'social-media', 'langgraph', 'hitl']::TEXT[],
+
+  -- Input/Output Schema
+  '{
+    "input": {
+      "type": "object",
+      "required": ["topic"],
+      "properties": {
+        "topic": {
+          "type": "string",
+          "description": "Topic for content generation"
+        },
+        "tone": {
+          "type": "string",
+          "enum": ["professional", "casual", "technical", "conversational"],
+          "default": "professional",
+          "description": "Writing tone"
+        },
+        "userId": {
+          "type": "string",
+          "description": "User ID for tracking"
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "threadId": {
+          "type": "string",
+          "description": "LangGraph thread ID for HITL resume"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["started", "generating", "hitl_waiting", "completed", "rejected", "failed"],
+          "description": "Current workflow status"
+        },
+        "hitlPending": {
+          "type": "boolean",
+          "description": "Whether human approval is pending"
+        },
+        "generatedContent": {
+          "type": "object",
+          "properties": {
+            "blogPost": {"type": "string"},
+            "seoDescription": {"type": "string"},
+            "socialPosts": {"type": "array", "items": {"type": "string"}}
+          },
+          "description": "Generated content awaiting review"
+        },
+        "finalContent": {
+          "type": "object",
+          "description": "Final approved/edited content after HITL"
+        }
+      }
+    }
+  }'::JSONB,
+
+  -- Capabilities
+  ARRAY['content-generation', 'blog-writing', 'seo-optimization', 'social-media', 'human-in-the-loop']::TEXT[],
+
+  -- Context (markdown)
+  '# Extended Post Writer Agent
+
+A LangGraph-powered content generation agent with Human-in-the-Loop (HITL) approval workflow.
+
+## Capabilities
+- **Blog Post Generation**: Creates comprehensive blog posts on any topic
+- **SEO Description**: Generates optimized meta descriptions
+- **Social Media Posts**: Creates multiple social media posts for different platforms
+- **HITL Approval**: Pauses for human review before finalizing content
+
+## HITL Workflow
+1. User provides topic and preferences
+2. Agent generates all content types
+3. Workflow pauses with `hitl_waiting` status
+4. Human reviews content in approval modal
+5. Human can:
+   - **Approve**: Accept content as-is
+   - **Edit**: Modify content then approve
+   - **Reject**: Reject and provide feedback
+6. Workflow completes with final content
+
+## Resume Actions
+- `approve`: Accept generated content
+- `edit`: Accept with modifications (provide editedContent)
+- `reject`: Reject content (provide feedback)
+
+## Endpoints
+- `POST /extended-post-writer/generate` - Start generation
+- `POST /extended-post-writer/resume/:threadId` - Resume with decision
+- `GET /extended-post-writer/status/:threadId` - Check status',
+
+  -- Endpoint configuration (API agent)
+  '{
+    "url": "http://localhost:6200/extended-post-writer/generate",
+    "method": "POST",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "timeout": 120000,
+    "requestTransform": {
+      "topic": "{{userMessage}}",
+      "tone": "{{payload.tone}}",
+      "userId": "{{userId}}",
+      "conversationId": "{{conversationId}}"
+    },
+    "responseTransform": {
+      "content": "$.generatedContent.blogPost",
+      "metadata": {
+        "threadId": "$.threadId",
+        "status": "$.status",
+        "hitlPending": "$.hitlPending",
+        "generatedContent": "$.generatedContent",
+        "finalContent": "$.finalContent"
+      }
+    }
+  }'::JSONB,
+
+  -- LLM config (null for API agents - uses LangGraph internal LLM)
+  NULL,
+
+  -- Metadata
+  '{
+    "provider": "langgraph",
+    "langgraphEndpoint": "http://localhost:6200",
+    "features": ["hitl", "checkpointing", "content-generation"],
+    "hitlEnabled": true,
+    "resumeEndpoint": "/extended-post-writer/resume/{threadId}",
+    "statusEndpoint": "/extended-post-writer/status/{threadId}",
+    "historyEndpoint": "/extended-post-writer/history/{threadId}"
+  }'::JSONB
+)
+ON CONFLICT (slug) DO UPDATE SET
+  name = EXCLUDED.name,
+  description = EXCLUDED.description,
+  version = EXCLUDED.version,
+  agent_type = EXCLUDED.agent_type,
+  department = EXCLUDED.department,
+  tags = EXCLUDED.tags,
+  io_schema = EXCLUDED.io_schema,
+  capabilities = EXCLUDED.capabilities,
+  context = EXCLUDED.context,
+  endpoint = EXCLUDED.endpoint,
+  llm_config = EXCLUDED.llm_config,
+  metadata = EXCLUDED.metadata,
+  updated_at = NOW();
+
+-- Log success
+DO $$
+BEGIN
+  RAISE NOTICE 'Successfully created/updated LangGraph API agents: data-analyst, extended-post-writer';
+END $$;
