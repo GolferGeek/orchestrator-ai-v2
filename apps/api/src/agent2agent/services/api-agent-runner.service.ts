@@ -14,6 +14,21 @@ import { Agent2AgentConversationsService } from './agent-conversations.service';
 import { StreamingService } from './streaming.service';
 
 /**
+ * Shared result from API call execution
+ */
+interface ApiCallResult {
+  message: string;
+  metadata: Record<string, unknown>;
+  responseData: unknown;
+  statusCode: number;
+  duration: number;
+  isSuccess: boolean;
+  url: string;
+  method: string;
+  headers: Record<string, unknown>;
+}
+
+/**
  * API Agent Runner
  *
  * Executes agents that make HTTP API calls. API agents:
@@ -1290,6 +1305,155 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         `Failed to execute API agent: ${errorMessage}`,
       );
     }
+  }
+
+  /**
+   * Extract message from API response using responseTransform
+   * Shared logic used by both BUILD and CONVERSE modes
+   */
+  private extractMessageFromResponse(
+    responseData: unknown,
+    responseTransform: Record<string, unknown> | null,
+  ): { message: string; metadata: Record<string, unknown> } {
+    let message: string = 'No response content';
+    let metadata: Record<string, unknown> = {};
+
+    if (responseTransform) {
+      // Extract content using responseTransform.content path
+      const contentPath = this.ensureString(responseTransform.content);
+      if (contentPath && responseData && typeof responseData === 'object') {
+        const path = contentPath.replace(/^\$\./, '');
+        const dataObj = responseData as Record<string, unknown>;
+        
+        const pathParts = path.split('.');
+        let value: unknown = dataObj;
+        for (const part of pathParts) {
+          if (value && typeof value === 'object' && part in value) {
+            value = (value as Record<string, unknown>)[part];
+          } else {
+            value = undefined;
+            break;
+          }
+        }
+        
+        if (value !== undefined && value !== null) {
+          message = String(value);
+        } else {
+          // Fallback paths
+          const fallbackPaths = [
+            ['data', 'summary'],
+            ['data', 'message'],
+            ['summary'],
+            ['message'],
+            ['content'],
+            ['result'],
+            ['response'],
+          ];
+          
+          let extracted = false;
+          for (const fallbackPath of fallbackPaths) {
+            let fallbackValue: unknown = dataObj;
+            let pathValid = true;
+            for (const part of fallbackPath) {
+              if (fallbackValue && typeof fallbackValue === 'object' && part in fallbackValue) {
+                fallbackValue = (fallbackValue as Record<string, unknown>)[part];
+              } else {
+                pathValid = false;
+                break;
+              }
+            }
+            if (pathValid && fallbackValue !== undefined && fallbackValue !== null) {
+              if (typeof fallbackValue === 'string') {
+                message = fallbackValue;
+                extracted = true;
+                break;
+              } else if (typeof fallbackValue === 'object') {
+                const obj = fallbackValue as Record<string, unknown>;
+                const stringFields = ['message', 'content', 'summary', 'text', 'response'];
+                for (const field of stringFields) {
+                  if (obj[field] && typeof obj[field] === 'string') {
+                    message = obj[field] as string;
+                    extracted = true;
+                    break;
+                  }
+                }
+                if (extracted) break;
+              }
+            }
+          }
+          
+          if (!extracted) {
+            // Deep search for any string value
+            const findStringValue = (obj: unknown, depth = 0): string | null => {
+              if (depth > 3) return null;
+              if (typeof obj === 'string' && obj.length > 0) return obj;
+              if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+                const record = obj as Record<string, unknown>;
+                for (const key of ['summary', 'message', 'content', 'text', 'response']) {
+                  if (key in record) {
+                    const found = findStringValue(record[key], depth + 1);
+                    if (found) return found;
+                  }
+                }
+                for (const value of Object.values(record)) {
+                  const found = findStringValue(value, depth + 1);
+                  if (found) return found;
+                }
+              }
+              return null;
+            };
+            
+            const foundString = findStringValue(dataObj);
+            if (foundString) {
+              message = foundString;
+            } else {
+              message = 'Response received but could not extract message content.';
+            }
+          }
+        }
+      } else {
+        message = String(responseData || 'No response content');
+      }
+
+      // Extract metadata if specified
+      const metadataTransform = this.asRecord(responseTransform.metadata);
+      if (metadataTransform && responseData && typeof responseData === 'object') {
+        const dataObj = responseData as Record<string, unknown>;
+        for (const [key, path] of Object.entries(metadataTransform)) {
+          const fieldPath = String(path).replace(/^\$\./, '');
+          const pathParts = fieldPath.split('.');
+          let value: unknown = dataObj;
+          for (const part of pathParts) {
+            if (value && typeof value === 'object' && part in value) {
+              value = (value as Record<string, unknown>)[part];
+            } else {
+              value = undefined;
+              break;
+            }
+          }
+          metadata[key] = value;
+        }
+      }
+    } else {
+      // Default extraction
+      if (responseData && typeof responseData === 'object') {
+        const dataObj = responseData as Record<string, unknown>;
+        if (dataObj.data && typeof dataObj.data === 'object') {
+          const nestedData = dataObj.data as Record<string, unknown>;
+          message = String(
+            nestedData.summary || nestedData.message || nestedData.content || JSON.stringify(responseData)
+          );
+        } else {
+          message = String(
+            dataObj.summary || dataObj.message || dataObj.content || JSON.stringify(responseData)
+          );
+        }
+      } else {
+        message = String(responseData || 'No response content');
+      }
+    }
+
+    return { message, metadata };
   }
 
   private asRecord(value: unknown): Record<string, unknown> | null {

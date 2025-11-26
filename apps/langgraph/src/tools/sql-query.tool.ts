@@ -1,7 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { readFileSync } from 'fs';
-import { join } from 'path';
 import { PostgresCheckpointerService } from '../persistence/postgres-checkpointer.service';
 import { LLMUsageReporterService } from '../services/llm-usage-reporter.service';
 
@@ -147,10 +145,40 @@ export class SqlQueryTool {
       const columns = Object.keys(result.rows[0]);
       const header = columns.join(' | ');
       const separator = columns.map(() => '---').join(' | ');
+      
+      // Helper to format date values to shorter strings
+      const formatValue = (value: unknown, columnName: string): string => {
+        if (value === null || value === undefined) {
+          return 'NULL';
+        }
+        
+        // Check if column name suggests it's a date/timestamp field
+        const isDateColumn = /_(at|date|time|created|updated)$/i.test(columnName);
+        
+        if (isDateColumn && (value instanceof Date || typeof value === 'string')) {
+          try {
+            const date = value instanceof Date ? value : new Date(value);
+            if (!isNaN(date.getTime())) {
+              // Format as YYYY-MM-DD HH:MM (much shorter)
+              const year = date.getFullYear();
+              const month = String(date.getMonth() + 1).padStart(2, '0');
+              const day = String(date.getDate()).padStart(2, '0');
+              const hours = String(date.getHours()).padStart(2, '0');
+              const minutes = String(date.getMinutes()).padStart(2, '0');
+              return `${year}-${month}-${day} ${hours}:${minutes}`;
+            }
+          } catch {
+            // If date parsing fails, return as string
+          }
+        }
+        
+        return String(value);
+      };
+      
       const rows = result.rows
         .slice(0, 100) // Limit to 100 rows
         .map((row: Record<string, unknown>) =>
-          columns.map((col) => String(row[col] ?? 'NULL')).join(' | '),
+          columns.map((col) => formatValue(row[col], col)).join(' | '),
         )
         .join('\n');
 
@@ -220,49 +248,9 @@ export class SqlQueryTool {
   }
 
   /**
-   * Load SQL patterns context file
-   */
-  private loadSqlPatternsContext(): string {
-    try {
-      // Try multiple paths to handle both dev and production builds
-      const possiblePaths = [
-        // From project root (works in both dev and production)
-        join(process.cwd(), 'apps/langgraph/src/agents/data-analyst/context/sql-patterns.md'),
-        // From compiled dist (production)
-        join(__dirname, '../agents/data-analyst/context/sql-patterns.md'),
-        // Fallback: relative to current working directory
-        join(__dirname, '../../agents/data-analyst/context/sql-patterns.md'),
-      ];
-
-      for (const contextPath of possiblePaths) {
-        try {
-          const content = readFileSync(contextPath, 'utf-8');
-          this.logger.log(`✅ Loaded SQL patterns context from: ${contextPath} (${content.length} chars)`);
-          return content;
-        } catch (err) {
-          // Try next path
-          this.logger.debug(`Failed to load from ${contextPath}: ${err instanceof Error ? err.message : String(err)}`);
-          continue;
-        }
-      }
-
-      throw new Error('Could not find sql-patterns.md in any expected location');
-    } catch (error) {
-      this.logger.warn(
-        'Failed to load SQL patterns context file, continuing without it',
-        error,
-      );
-      return '';
-    }
-  }
-
-  /**
    * Build the prompt for SQLCoder
    */
   private buildSqlCoderPrompt(question: string, tableContext: string): string {
-    // Load SQL patterns context
-    const sqlPatterns = this.loadSqlPatternsContext();
-
     return `### Task
 Generate a SQL query to answer the following question:
 "${question}"
@@ -270,32 +258,12 @@ Generate a SQL query to answer the following question:
 ### Database Schema
 ${tableContext}
 
-${sqlPatterns ? `### SQL Patterns & Relationships
-${sqlPatterns}
-
-` : ''}### Critical Column Name Reference
-**⚠️ EXACT COLUMN NAMES - Copy these EXACTLY (no abbreviations, no typos):**
-
-If using rbac_user_org_roles table:
-- Column name: **organization_slug** (FULL WORD "organization", 14 characters)
-- Common mistakes to avoid: "organis_slug", "org_slug", "organization_sl", "org_slug"
-
-If using organizations table:
-- Column name: **slug** (not "organization_slug")
-
-**Before generating SQL, verify every column name matches EXACTLY what appears in the Database Schema section above.**
-
 ### Instructions
 - Generate only a SELECT query (read-only)
 - Use proper PostgreSQL syntax
 - CRITICAL: ONLY use tables that are defined in the Database Schema section above
 - If the question mentions a table name that is NOT in the schema, you MUST find an alternative table from the schema or return "-- Unable to generate query: table not found"
 - Verify the table name matches exactly (case-sensitive) before using it
-- Follow the join patterns and relationship guidelines from the SQL Patterns section above
-- Pay special attention to RBAC relationships: use rbac_user_org_roles as the bridge table, NOT rbac_roles.organization_slug (which doesn't exist)
-- **CRITICAL: Copy column names EXACTLY as shown in Database Schema - no abbreviations, no typos**
-- **For rbac_user_org_roles.organization_slug: use the FULL 14-character word "organization", NOT "organis" (9 chars) or "org" (3 chars)**
-- **Read each column name carefully from the Database Schema section and use it EXACTLY as written**
 - Return only the SQL query, no explanations
 - If you cannot generate a valid query, respond with "-- Unable to generate query"
 
