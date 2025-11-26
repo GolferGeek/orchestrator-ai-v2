@@ -505,15 +505,133 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
       });
 
       const responseData = responseTyped.data;
-      const formattedContent = this.formatApiResponse(
-        responseData,
-        definition.config?.deliverable?.format || 'json',
-        {
-          statusCode,
-          headers: responseTyped.headers,
-          duration,
-        },
+      
+      // Extract message content for both conversation response and deliverable
+      // This must happen BEFORE deliverable creation in BUILD mode
+      let message: string = 'No response content';
+      let metadata: Record<string, unknown> = {};
+
+      const responseTransform = this.asRecord(apiConfig.responseTransform);
+      if (responseTransform) {
+        // Extract content using responseTransform.content path
+        const contentPath = this.ensureString(responseTransform.content);
+        if (contentPath && responseData && typeof responseData === 'object') {
+          const path = contentPath.replace(/^\$\./, '');
+          const dataObj = responseData as Record<string, unknown>;
+          
+          const pathParts = path.split('.');
+          let value: unknown = dataObj;
+          for (const part of pathParts) {
+            if (value && typeof value === 'object' && part in value) {
+              value = (value as Record<string, unknown>)[part];
+            } else {
+              value = undefined;
+              break;
+            }
+          }
+          
+          if (value !== undefined && value !== null) {
+            message = String(value);
+          } else {
+            // Fallback paths
+            const fallbackPaths = [
+              ['data', 'summary'],
+              ['data', 'message'],
+              ['summary'],
+              ['message'],
+              ['content'],
+            ];
+            
+            let extracted = false;
+            for (const fallbackPath of fallbackPaths) {
+              let fallbackValue: unknown = dataObj;
+              for (const part of fallbackPath) {
+                if (fallbackValue && typeof fallbackValue === 'object' && part in fallbackValue) {
+                  fallbackValue = (fallbackValue as Record<string, unknown>)[part];
+                } else {
+                  fallbackValue = undefined;
+                  break;
+                }
+              }
+              if (fallbackValue !== undefined && fallbackValue !== null && typeof fallbackValue === 'string') {
+                message = fallbackValue;
+                extracted = true;
+                break;
+              }
+            }
+            
+            if (!extracted) {
+              message = String(responseData || 'No response content');
+            }
+          }
+
+          // Extract metadata if specified
+          const metadataTransform = this.asRecord(responseTransform.metadata);
+          if (metadataTransform && responseData && typeof responseData === 'object') {
+            const dataObj = responseData as Record<string, unknown>;
+            for (const [key, path] of Object.entries(metadataTransform)) {
+              const fieldPath = String(path).replace(/^\$\./, '');
+              const pathParts = fieldPath.split('.');
+              let value: unknown = dataObj;
+              for (const part of pathParts) {
+                if (value && typeof value === 'object' && part in value) {
+                  value = (value as Record<string, unknown>)[part];
+                } else {
+                  value = undefined;
+                  break;
+                }
+              }
+              metadata[key] = value;
+            }
+          }
+        } else {
+          message = String(responseData || 'No response content');
+        }
+      } else {
+        // Default extraction
+        if (responseData && typeof responseData === 'object') {
+          const dataObj = responseData as Record<string, unknown>;
+          if (dataObj.data && typeof dataObj.data === 'object') {
+            const nestedData = dataObj.data as Record<string, unknown>;
+            message = String(
+              nestedData.summary || nestedData.message || nestedData.content || JSON.stringify(responseData)
+            );
+          } else {
+            message = String(
+              dataObj.summary || dataObj.message || dataObj.content || JSON.stringify(responseData)
+            );
+          }
+        } else {
+          message = String(responseData || 'No response content');
+        }
+      }
+
+      // For BUILD mode: Create deliverable with extracted message (markdown) instead of full JSON
+      // Check if the extracted message looks like markdown
+      const isMarkdown = message && (
+        message.includes('#') || 
+        message.includes('**') || 
+        message.includes('```') ||
+        (message.includes('|') && message.includes('---')) // Markdown table
       );
+      
+      // Use the extracted message for deliverable content, not the full response
+      // This ensures deliverables store just the markdown, matching other agents' behavior
+      const deliverableFormat = isMarkdown 
+        ? 'markdown' 
+        : (definition.config?.deliverable?.format || 'json');
+      
+      const formattedContent = isMarkdown 
+        ? message 
+        : this.formatApiResponse(
+            responseData,
+            deliverableFormat,
+            {
+              statusCode,
+              headers: responseTyped.headers || {},
+              duration,
+            },
+          );
 
       // 8. Save deliverable (unless configured to skip and wait for completion)
       const deliverableConfig = this.asRecord(definition.config?.deliverable);
@@ -599,7 +717,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
             ((request.payload as Record<string, unknown>)?.title as string) ||
             `API Response: ${definition.name}`,
           content: formattedContent,
-          format: definition.config?.deliverable?.format || 'json',
+          format: deliverableFormat,
           type: definition.config?.deliverable?.type || 'api-response',
           deliverableId: targetDeliverableId ?? undefined,
           agentName: definition.slug,
@@ -912,6 +1030,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
       const responseTyped = response as {
         status: number;
         data: unknown;
+        headers?: Record<string, unknown>;
       };
       const statusCode = responseTyped.status;
       const isSuccess = statusCode >= 200 && statusCode < 300;
@@ -940,7 +1059,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
       // Note: responseTyped structure is { statusCode, duration, data: { success, data: {...} } }
       // So responseData = responseTyped.data = { success: true, data: { summary: "..." } }
       const responseData = responseTyped.data;
-      let message: string;
+      let message: string = 'No response content';
       let metadata: Record<string, unknown> = {};
 
       const responseTransform = this.asRecord(apiConfig.responseTransform);
@@ -1111,6 +1230,33 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           message = String(responseData || 'No response content');
         }
       }
+
+      // For BUILD mode: Create deliverable with extracted message (markdown) instead of full JSON
+      // Check if the extracted message looks like markdown
+      const isMarkdown = message && (
+        message.includes('#') || 
+        message.includes('**') || 
+        message.includes('```') ||
+        (message.includes('|') && message.includes('---')) // Markdown table
+      );
+      
+      // Use the extracted message for deliverable content, not the full response
+      // This ensures deliverables store just the markdown, matching other agents' behavior
+      const deliverableFormat = isMarkdown 
+        ? 'markdown' 
+        : (definition.config?.deliverable?.format || 'json');
+      
+      const formattedContent = isMarkdown 
+        ? message 
+        : this.formatApiResponse(
+            responseData,
+            deliverableFormat,
+            {
+              statusCode,
+              headers: responseTyped.headers || {},
+              duration,
+            },
+          );
 
       // Observability: Completed
       this.emitObservabilityEvent('agent.completed', 'API call completed', {
@@ -1555,7 +1701,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         definition.config?.deliverable?.format || 'json',
         {
           statusCode: responseTyped.status,
-          headers: responseTyped.headers,
+          headers: responseTyped.headers || {},
           duration,
         },
       );
