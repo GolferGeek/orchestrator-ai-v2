@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PostgresCheckpointerService } from '../persistence/postgres-checkpointer.service';
+import { PostgresCheckpointerService } from '../../../persistence/postgres-checkpointer.service';
 
 /**
  * ListTablesTool

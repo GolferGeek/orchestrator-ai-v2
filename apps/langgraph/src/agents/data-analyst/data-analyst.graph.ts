@@ -4,9 +4,11 @@ import {
   DataAnalystStateAnnotation,
   DataAnalystState,
 } from './data-analyst.state';
-import { ListTablesTool } from '../../tools/list-tables.tool';
-import { DescribeTableTool } from '../../tools/describe-table.tool';
-import { SqlQueryTool } from '../../tools/sql-query.tool';
+import {
+  ListTablesTool,
+  DescribeTableTool,
+  SqlQueryTool,
+} from '../../tools/data/database';
 import { LLMHttpClientService } from '../../services/llm-http-client.service';
 import { ObservabilityService } from '../../services/observability.service';
 import { PostgresCheckpointerService } from '../../persistence/postgres-checkpointer.service';

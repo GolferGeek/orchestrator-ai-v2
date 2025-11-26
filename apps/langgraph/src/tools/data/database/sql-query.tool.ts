@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PostgresCheckpointerService } from '../persistence/postgres-checkpointer.service';
-import { LLMUsageReporterService } from '../services/llm-usage-reporter.service';
+import { PostgresCheckpointerService } from '../../../persistence/postgres-checkpointer.service';
+import { LLMUsageReporterService } from '../../../services/llm-usage-reporter.service';
 
 /**
  * SqlQueryTool

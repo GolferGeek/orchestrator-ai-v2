@@ -28,9 +28,11 @@ jest.mock('pg', () => ({
 
 // Now import after mocking
 import { PostgresCheckpointerService } from '../../persistence/postgres-checkpointer.service';
-import { ListTablesTool } from '../../tools/list-tables.tool';
-import { DescribeTableTool } from '../../tools/describe-table.tool';
-import { SqlQueryTool } from '../../tools/sql-query.tool';
+import {
+  ListTablesTool,
+  DescribeTableTool,
+  SqlQueryTool,
+} from '../../tools/data/database';
 
 // Mock the graph module
 jest.mock('./data-analyst.graph', () => ({
