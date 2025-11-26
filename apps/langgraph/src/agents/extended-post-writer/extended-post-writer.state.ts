@@ -1,23 +1,21 @@
 import { Annotation, MessagesAnnotation } from '@langchain/langgraph';
-import { z } from 'zod';
 
 /**
- * Zod schema for Extended Post Writer input validation
+ * Extended Post Writer input interface
+ * Validation is handled by NestJS DTOs at the controller level
  */
-export const ExtendedPostWriterInputSchema = z.object({
-  taskId: z.string().min(1, 'taskId is required'),
-  userId: z.string().min(1, 'userId is required'),
-  conversationId: z.string().optional(),
-  organizationSlug: z.string().optional(),
-  topic: z.string().min(1, 'topic is required'),
-  context: z.string().optional(),
-  keywords: z.array(z.string()).optional().default([]),
-  tone: z.string().optional().default('professional'),
-  provider: z.string().default('anthropic'),
-  model: z.string().default('claude-sonnet-4-20250514'),
-});
-
-export type ExtendedPostWriterInput = z.infer<typeof ExtendedPostWriterInputSchema>;
+export interface ExtendedPostWriterInput {
+  taskId: string;
+  userId: string;
+  conversationId?: string;
+  organizationSlug: string;
+  userMessage: string;
+  context?: string;
+  keywords?: string[];
+  tone?: string;
+  provider?: string;
+  model?: string;
+}
 
 /**
  * Generated content structure
@@ -78,9 +76,9 @@ export const ExtendedPostWriterStateAnnotation = Annotation.Root({
     default: () => undefined,
   }),
 
-  organizationSlug: Annotation<string | undefined>({
+  organizationSlug: Annotation<string>({
     reducer: (_, next) => next,
-    default: () => undefined,
+    default: () => '',
   }),
 
   // LLM configuration
@@ -94,8 +92,8 @@ export const ExtendedPostWriterStateAnnotation = Annotation.Root({
     default: () => 'claude-sonnet-4-20250514',
   }),
 
-  // Content generation parameters
-  topic: Annotation<string>({
+  // User's message/prompt
+  userMessage: Annotation<string>({
     reducer: (_, next) => next,
     default: () => '',
   }),
@@ -165,16 +163,3 @@ export const ExtendedPostWriterStateAnnotation = Annotation.Root({
 
 export type ExtendedPostWriterState = typeof ExtendedPostWriterStateAnnotation.State;
 
-/**
- * Validate Extended Post Writer input
- */
-export function validateExtendedPostWriterInput(input: unknown): ExtendedPostWriterInput {
-  return ExtendedPostWriterInputSchema.parse(input);
-}
-
-/**
- * Format validation errors
- */
-export function formatValidationErrors(error: z.ZodError): string {
-  return error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join('; ');
-}

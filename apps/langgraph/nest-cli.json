@@ -5,6 +5,13 @@
   "compilerOptions": {
     "deleteOutDir": true,
     "builder": "swc",
-    "typeCheck": false
+    "typeCheck": false,
+    "assets": [
+      {
+        "include": "**/*.md",
+        "exclude": "**/*.spec.ts",
+        "watchAssets": true
+      }
+    ]
   }
 }

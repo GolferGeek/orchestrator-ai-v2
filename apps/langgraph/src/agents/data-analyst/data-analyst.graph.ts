@@ -43,13 +43,13 @@ export function createDataAnalystGraph(
       userId: state.userId,
       conversationId: state.conversationId,
       organizationSlug: state.organizationSlug,
-      message: `Starting data analysis for question: ${state.question}`,
+      message: `Starting data analysis for question: ${state.userMessage}`,
     });
 
     return {
       status: 'discovering',
       startedAt: Date.now(),
-      messages: [new HumanMessage(state.question)],
+      messages: [new HumanMessage(state.userMessage)],
     };
   }
 
@@ -108,7 +108,7 @@ export function createDataAnalystGraph(
 
     const prompt = `You are a data analyst. Based on the user's question and available tables, decide which tables need to be examined.
 
-User's Question: ${state.question}
+User's Question: ${state.userMessage}
 
 Available Tables:
 ${state.availableTables.map((t) => `- ${t}`).join('\n')}
@@ -129,16 +129,28 @@ If no tables seem relevant, return an empty array: []`;
       const jsonMatch = response.text.match(/\[[\s\S]*?\]/);
       const relevantTables: string[] = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
 
+      // Filter to only include tables that actually exist
+      const validTables = relevantTables.filter((table) =>
+        state.availableTables.includes(table),
+      );
+
+      // If no valid tables selected, use all available tables (up to 5)
+      const tablesToUse = validTables.length > 0 
+        ? validTables.slice(0, 5)
+        : state.availableTables.slice(0, 5);
+
       return {
+        selectedTables: tablesToUse,
         messages: [
           ...state.messages,
-          new AIMessage(`I'll examine these tables: ${relevantTables.join(', ')}`),
+          new AIMessage(`I'll examine these tables: ${tablesToUse.join(', ')}`),
         ],
         status: 'querying',
       };
     } catch (error) {
-      // If LLM fails, examine all tables
+      // If LLM fails, use all available tables (up to 5)
       return {
+        selectedTables: state.availableTables.slice(0, 5),
         status: 'querying',
       };
     }
@@ -160,8 +172,10 @@ If no tables seem relevant, return an empty array: []`;
     const schemas: Record<string, string> = {};
     const toolResults: Array<{ toolName: string; result: string; success: boolean }> = [];
 
-    // Describe up to 5 tables to avoid overwhelming the context
-    const tablesToDescribe = state.availableTables.slice(0, 5);
+    // Use selected tables if available, otherwise fall back to first 5 available tables
+    const tablesToDescribe = state.selectedTables.length > 0
+      ? state.selectedTables
+      : state.availableTables.slice(0, 5);
 
     for (const tableName of tablesToDescribe) {
       try {
@@ -205,10 +219,19 @@ If no tables seem relevant, return an empty array: []`;
       .map(([table, schema]) => `${schema}`)
       .join('\n\n');
 
+    // Add available tables list to schema context if not already included
+    const tablesListHeader = `\n\n--- Available Tables ---\nThe following tables exist in the database:\n${state.availableTables.map(t => `- ${t}`).join('\n')}\nOnly use tables from this list.\n`;
+
+    // Include available tables list in the question for better SQL generation
+    const enhancedQuestion = `${state.userMessage}
+
+Available tables in the database: ${state.availableTables.join(', ')}
+Please use only tables that exist in this list.`;
+
     // Use the natural language tool to generate and execute SQL
     const result = await sqlQueryTool.generateAndExecuteSql(
-      state.question,
-      schemaContext,
+      enhancedQuestion,
+      schemaContext + tablesListHeader,
       {
         userId: state.userId,
         taskId: state.taskId,
@@ -243,19 +266,47 @@ If no tables seem relevant, return an empty array: []`;
       agentSlug: AGENT_SLUG,
       userId: state.userId,
       conversationId: state.conversationId,
-      message: 'Summarizing results',
+      message: 'Formatting results',
       step: 'summarize',
       progress: 80,
     });
 
-    const prompt = `You are a data analyst. Summarize the following SQL query results to answer the user's question.
+    // Prepare structured data for the LLM to format
+    const dataToFormat = {
+      userQuestion: state.userMessage,
+      generatedSql: state.generatedSql,
+      sqlResults: state.sqlResults,
+      availableTables: state.availableTables,
+    };
 
-User's Question: ${state.question}
+    const prompt = `You are a data analyst. Format the following SQL query results into a clear, user-friendly Markdown response.
 
-SQL Query and Results:
-${state.sqlResults}
+User's Question: ${dataToFormat.userQuestion}
 
-Provide a clear, concise summary that directly answers the user's question. If the query failed or returned no results, explain what happened and suggest alternatives.`;
+Generated SQL Query:
+\`\`\`sql
+${dataToFormat.generatedSql || 'N/A'}
+\`\`\`
+
+SQL Query Results:
+${dataToFormat.sqlResults || 'No results'}
+
+Available Tables: ${dataToFormat.availableTables.join(', ')}
+
+Please create a well-formatted Markdown response that includes:
+
+1. **A clear summary** that directly answers the user's question based on the query results
+2. **The SQL query** in a collapsible details section (use HTML <details> tag)
+3. **The query results** formatted as a clean Markdown table
+
+Formatting guidelines:
+- Use proper Markdown syntax
+- Format the SQL query in a collapsible section: <details><summary>📊 View SQL Query</summary>...code block...</details>
+- Convert the pipe-delimited results into a proper Markdown table
+- Make the summary concise but informative
+- If there was an error, explain it clearly and suggest alternatives
+
+Return ONLY the formatted Markdown - no explanations or meta-commentary.`;
 
     try {
       const response = await llmClient.callLLM({
@@ -266,23 +317,25 @@ Provide a clear, concise summary that directly answers the user's question. If t
         callerName: AGENT_SLUG,
       });
 
+      const formattedResponse = response.text.trim();
+
       await observability.emitCompleted({
         taskId: state.taskId,
         threadId: state.threadId,
         agentSlug: AGENT_SLUG,
         userId: state.userId,
         conversationId: state.conversationId,
-        result: { summary: response.text },
+        result: { summary: formattedResponse },
         duration: Date.now() - state.startedAt,
       });
 
       return {
-        summary: response.text,
+        summary: formattedResponse,
         status: 'completed',
         completedAt: Date.now(),
         messages: [
           ...state.messages,
-          new AIMessage(response.text),
+          new AIMessage(formattedResponse),
         ],
       };
     } catch (error) {

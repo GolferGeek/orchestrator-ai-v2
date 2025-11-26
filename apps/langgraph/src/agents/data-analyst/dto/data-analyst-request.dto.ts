@@ -1,4 +1,4 @@
-import { IsString, IsOptional } from 'class-validator';
+import { IsString, IsOptional, IsNotEmpty } from 'class-validator';
 
 /**
  * Request DTO for Data Analyst agent
@@ -14,12 +14,12 @@ export class DataAnalystRequestDto {
   @IsString()
   conversationId?: string;
 
-  @IsOptional()
   @IsString()
-  organizationSlug?: string;
+  @IsNotEmpty()
+  organizationSlug!: string;
 
   @IsString()
-  question!: string;
+  userMessage!: string;
 
   @IsOptional()
   @IsString()

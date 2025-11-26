@@ -74,8 +74,9 @@ export class ObservabilityWebhookService implements OnModuleInit {
       );
     }
     const apiPort = process.env.API_PORT;
+    const apiHost = process.env.API_HOST || 'localhost';
     this.observabilityUrl =
-      process.env.OBSERVABILITY_SERVER_URL || `http://localhost:${apiPort}`;
+      process.env.OBSERVABILITY_SERVER_URL || `http://${apiHost}:${apiPort}`;
   }
 
   onModuleInit() {

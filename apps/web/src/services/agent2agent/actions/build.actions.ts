@@ -343,18 +343,69 @@ export async function createDeliverable(
         throw new Error(errorMessage);
       }
 
-      const errorReason =
-        taskResponse?.error?.message ||
-        metadata?.reason ||
-        (result && typeof result === "object" && "error" in result
-          ? (result as { error: { message?: string } }).error?.message
-          : undefined) ||
-        "Unknown error";
+      // Extract error message from various possible locations
+      let errorReason: string | undefined;
+      
+      // Try taskResponse.error first
+      if (taskResponse?.error) {
+        if (typeof taskResponse.error === "string") {
+          errorReason = taskResponse.error;
+        } else if (typeof taskResponse.error === "object" && taskResponse.error !== null) {
+          errorReason = 
+            (taskResponse.error as { message?: string })?.message ||
+            (taskResponse.error as { error?: string })?.error ||
+            JSON.stringify(taskResponse.error);
+        }
+      }
+      
+      // Try metadata.reason
+      if (!errorReason && metadata?.reason) {
+        errorReason = typeof metadata.reason === "string" 
+          ? metadata.reason 
+          : String(metadata.reason);
+      }
+      
+      // Try result.error (JSON-RPC format)
+      if (!errorReason && result && typeof result === "object" && "error" in result) {
+        const errorObj = (result as { error: unknown }).error;
+        if (typeof errorObj === "string") {
+          errorReason = errorObj;
+        } else if (errorObj && typeof errorObj === "object") {
+          errorReason = 
+            (errorObj as { message?: string })?.message ||
+            (errorObj as { error?: string })?.error ||
+            JSON.stringify(errorObj);
+        }
+      }
+      
+      // Try to extract from parsedResult if it's an error object
+      if (!errorReason && parsedResult && typeof parsedResult === "object") {
+        const parsed = parsedResult as Record<string, unknown>;
+        if (parsed.error) {
+          if (typeof parsed.error === "string") {
+            errorReason = parsed.error;
+          } else if (parsed.error && typeof parsed.error === "object") {
+            errorReason = 
+              (parsed.error as { message?: string })?.message ||
+              JSON.stringify(parsed.error);
+          }
+        } else if (parsed.message && typeof parsed.message === "string") {
+          errorReason = parsed.message;
+        }
+      }
 
-      const errorMessage = errorReason || "API call failed";
+      let errorMessage = errorReason || "API call failed";
+      
+      // Provide more helpful error messages for common cases
+      if (errorMessage.includes("Mode not supported by agent")) {
+        errorMessage = "This agent does not support Build mode. Please use Converse mode instead.";
+      }
+      
       console.error("❌ [Build Create Action] Backend returned failure:", {
         success: taskResponse?.success,
         error: errorMessage,
+        taskResponseError: taskResponse?.error,
+        metadataReason: metadata?.reason,
         fullResult: parsedResult,
         rawResult: result,
       });

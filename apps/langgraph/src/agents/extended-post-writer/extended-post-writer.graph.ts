@@ -40,13 +40,13 @@ export function createExtendedPostWriterGraph(
       userId: state.userId,
       conversationId: state.conversationId,
       organizationSlug: state.organizationSlug,
-      message: `Starting content generation for topic: ${state.topic}`,
+      message: `Starting content generation for topic: ${state.userMessage}`,
     });
 
     return {
       status: 'generating',
       startedAt: Date.now(),
-      messages: [new HumanMessage(`Create content about: ${state.topic}`)],
+      messages: [new HumanMessage(`Create content about: ${state.userMessage}`)],
     };
   }
 
@@ -75,7 +75,7 @@ export function createExtendedPostWriterGraph(
 
     const prompt = `You are a professional content writer. Create comprehensive marketing content for the following topic.
 
-Topic: ${state.topic}
+Topic: ${state.userMessage}
 Tone: ${state.tone}
 ${keywordsStr}
 ${contextStr}

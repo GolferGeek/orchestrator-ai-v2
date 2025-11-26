@@ -57,9 +57,9 @@ INSERT INTO public.agents (
     "output": {
       "type": "object",
       "properties": {
-        "threadId": {
+        "taskId": {
           "type": "string",
-          "description": "LangGraph thread ID for the analysis session"
+          "description": "Task ID for the analysis session (used as thread ID)"
         },
         "status": {
           "type": "string",
@@ -121,19 +121,14 @@ A LangGraph-powered agent that analyzes databases using natural language queries
       "Content-Type": "application/json"
     },
     "timeout": 120000,
-    "requestTransform": {
-      "question": "{{userMessage}}",
-      "userId": "{{userId}}",
-      "conversationId": "{{conversationId}}"
-    },
     "responseTransform": {
-      "content": "$.summary",
+      "content": "$.data.summary",
       "metadata": {
-        "threadId": "$.threadId",
-        "status": "$.status",
-        "tablesDiscovered": "$.tablesDiscovered",
-        "sqlGenerated": "$.sqlGenerated",
-        "queryResults": "$.queryResults"
+        "taskId": "$.data.threadId",
+        "status": "$.data.status",
+        "tablesDiscovered": "$.data.tablesDiscovered",
+        "sqlGenerated": "$.data.sqlGenerated",
+        "queryResults": "$.data.queryResults"
       }
     }
   }'::JSONB,
@@ -147,7 +142,13 @@ A LangGraph-powered agent that analyzes databases using natural language queries
     "langgraphEndpoint": "http://localhost:6200",
     "features": ["tool-calling", "checkpointing"],
     "statusEndpoint": "/data-analyst/status/{threadId}",
-    "historyEndpoint": "/data-analyst/history/{threadId}"
+    "historyEndpoint": "/data-analyst/history/{threadId}",
+    "execution_capabilities": {
+      "can_converse": true,
+      "can_plan": false,
+      "can_build": true,
+      "requires_human_gate": false
+    }
   }'::JSONB
 )
 ON CONFLICT (slug) DO UPDATE SET
@@ -224,9 +225,9 @@ INSERT INTO public.agents (
     "output": {
       "type": "object",
       "properties": {
-        "threadId": {
+        "taskId": {
           "type": "string",
-          "description": "LangGraph thread ID for HITL resume"
+          "description": "Task ID for the content generation session (used as thread ID)"
         },
         "status": {
           "type": "string",
@@ -297,20 +298,14 @@ A LangGraph-powered content generation agent with Human-in-the-Loop (HITL) appro
       "Content-Type": "application/json"
     },
     "timeout": 120000,
-    "requestTransform": {
-      "topic": "{{userMessage}}",
-      "tone": "{{payload.tone}}",
-      "userId": "{{userId}}",
-      "conversationId": "{{conversationId}}"
-    },
     "responseTransform": {
-      "content": "$.generatedContent.blogPost",
+      "content": "$.data.generatedContent.blogPost",
       "metadata": {
-        "threadId": "$.threadId",
-        "status": "$.status",
-        "hitlPending": "$.hitlPending",
-        "generatedContent": "$.generatedContent",
-        "finalContent": "$.finalContent"
+        "taskId": "$.data.threadId",
+        "status": "$.data.status",
+        "hitlPending": "$.data.hitlPending",
+        "generatedContent": "$.data.generatedContent",
+        "finalContent": "$.data.finalContent"
       }
     }
   }'::JSONB,
@@ -326,7 +321,13 @@ A LangGraph-powered content generation agent with Human-in-the-Loop (HITL) appro
     "hitlEnabled": true,
     "resumeEndpoint": "/extended-post-writer/resume/{threadId}",
     "statusEndpoint": "/extended-post-writer/status/{threadId}",
-    "historyEndpoint": "/extended-post-writer/history/{threadId}"
+    "historyEndpoint": "/extended-post-writer/history/{threadId}",
+    "execution_capabilities": {
+      "can_converse": true,
+      "can_plan": false,
+      "can_build": true,
+      "requires_human_gate": true
+    }
   }'::JSONB
 )
 ON CONFLICT (slug) DO UPDATE SET

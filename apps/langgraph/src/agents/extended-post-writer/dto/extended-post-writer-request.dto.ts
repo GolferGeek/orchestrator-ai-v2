@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsArray, IsNotEmpty } from 'class-validator';
 
 /**
  * Request DTO for Extended Post Writer agent
@@ -14,12 +14,12 @@ export class ExtendedPostWriterRequestDto {
   @IsString()
   conversationId?: string;
 
-  @IsOptional()
   @IsString()
-  organizationSlug?: string;
+  @IsNotEmpty()
+  organizationSlug!: string;
 
   @IsString()
-  topic!: string;
+  userMessage!: string;
 
   @IsOptional()
   @IsString()

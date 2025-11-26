@@ -1,20 +1,18 @@
 import { Annotation, MessagesAnnotation } from '@langchain/langgraph';
-import { z } from 'zod';
 
 /**
- * Zod schema for Data Analyst input validation
+ * Data Analyst input interface
+ * Validation is handled by NestJS DTOs at the controller level
  */
-export const DataAnalystInputSchema = z.object({
-  taskId: z.string().min(1, 'taskId is required'),
-  userId: z.string().min(1, 'userId is required'),
-  conversationId: z.string().optional(),
-  organizationSlug: z.string().optional(),
-  question: z.string().min(1, 'question is required'),
-  provider: z.string().default('anthropic'),
-  model: z.string().default('claude-sonnet-4-20250514'),
-});
-
-export type DataAnalystInput = z.infer<typeof DataAnalystInputSchema>;
+export interface DataAnalystInput {
+  taskId: string;
+  userId: string;
+  conversationId?: string;
+  organizationSlug: string;
+  userMessage: string;
+  provider?: string;
+  model?: string;
+}
 
 /**
  * Tool result structure
@@ -62,9 +60,9 @@ export const DataAnalystStateAnnotation = Annotation.Root({
     default: () => undefined,
   }),
 
-  organizationSlug: Annotation<string | undefined>({
+  organizationSlug: Annotation<string>({
     reducer: (_, next) => next,
-    default: () => undefined,
+    default: () => '',
   }),
 
   // LLM configuration
@@ -78,14 +76,19 @@ export const DataAnalystStateAnnotation = Annotation.Root({
     default: () => 'claude-sonnet-4-20250514',
   }),
 
-  // User's question
-  question: Annotation<string>({
+  // User's message/prompt
+  userMessage: Annotation<string>({
     reducer: (_, next) => next,
     default: () => '',
   }),
 
   // Schema discovery
   availableTables: Annotation<string[]>({
+    reducer: (_, next) => next,
+    default: () => [],
+  }),
+
+  selectedTables: Annotation<string[]>({
     reducer: (_, next) => next,
     default: () => [],
   }),
@@ -143,16 +146,3 @@ export const DataAnalystStateAnnotation = Annotation.Root({
 
 export type DataAnalystState = typeof DataAnalystStateAnnotation.State;
 
-/**
- * Validate Data Analyst input
- */
-export function validateDataAnalystInput(input: unknown): DataAnalystInput {
-  return DataAnalystInputSchema.parse(input);
-}
-
-/**
- * Format validation errors
- */
-export function formatValidationErrors(error: z.ZodError): string {
-  return error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join('; ');
-}

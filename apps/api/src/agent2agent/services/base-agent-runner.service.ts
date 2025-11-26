@@ -1293,7 +1293,8 @@ export abstract class BaseAgentRunner implements IAgentRunner {
         );
       }
       const apiPort = process.env.API_PORT;
-      const webhookUrl = `http://localhost:${apiPort}/webhooks/status`;
+      const apiHost = process.env.API_HOST || 'localhost';
+      const webhookUrl = `http://${apiHost}:${apiPort}/webhooks/status`;
 
       const userId = this.resolveUserId(context.request);
       const conversationId = this.resolveConversationId(context.request);

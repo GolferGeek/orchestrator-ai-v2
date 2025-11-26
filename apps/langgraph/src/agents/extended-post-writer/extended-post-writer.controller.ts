@@ -44,7 +44,7 @@ export class ExtendedPostWriterController {
         userId: request.userId,
         conversationId: request.conversationId,
         organizationSlug: request.organizationSlug,
-        topic: request.topic,
+        userMessage: request.userMessage,
         context: request.context,
         keywords: request.keywords,
         tone: request.tone,

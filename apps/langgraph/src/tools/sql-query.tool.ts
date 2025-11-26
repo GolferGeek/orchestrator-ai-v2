@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { PostgresCheckpointerService } from '../persistence/postgres-checkpointer.service';
 import { LLMUsageReporterService } from '../services/llm-usage-reporter.service';
 
@@ -7,7 +9,7 @@ import { LLMUsageReporterService } from '../services/llm-usage-reporter.service'
  * SqlQueryTool
  *
  * Executes read-only SQL queries against the database.
- * Uses Ollama/SQLCoder for natural language to SQL generation.
+ * Uses Ollama (default: gpt-oss:20b, configurable via SQLCODER_MODEL) for natural language to SQL generation.
  * Reports LLM usage via the LLMUsageReporterService.
  */
 @Injectable()
@@ -25,7 +27,7 @@ export class SqlQueryTool {
       this.configService.get<string>('OLLAMA_BASE_URL') ||
       'http://localhost:11434';
     this.sqlCoderModel =
-      this.configService.get<string>('SQLCODER_MODEL') || 'sqlcoder';
+      this.configService.get<string>('SQLCODER_MODEL') || 'gpt-oss:20b';
   }
 
   /**
@@ -200,6 +202,16 @@ export class SqlQueryTool {
       // Execute the generated SQL
       const result = await this.executeSql(sql);
 
+      // Check if execution failed due to missing table
+      if (result.includes('SQL Error:') && result.includes('does not exist')) {
+        // Extract the table name from the error
+        const tableMatch = result.match(/relation\s+"([^"]+)"\s+does not exist/i);
+        if (tableMatch) {
+          const missingTable = tableMatch[1];
+          return `Generated SQL:\n\`\`\`sql\n${sql}\n\`\`\`\n\n${result}\n\n⚠️ The table "${missingTable}" does not exist. Please check the available tables and try again with a valid table name.`;
+        }
+      }
+
       return `Generated SQL:\n\`\`\`sql\n${sql}\n\`\`\`\n\n${result}`;
     } catch (error) {
       this.logger.error('Failed to generate and execute SQL', error);
@@ -208,9 +220,49 @@ export class SqlQueryTool {
   }
 
   /**
+   * Load SQL patterns context file
+   */
+  private loadSqlPatternsContext(): string {
+    try {
+      // Try multiple paths to handle both dev and production builds
+      const possiblePaths = [
+        // From project root (works in both dev and production)
+        join(process.cwd(), 'apps/langgraph/src/agents/data-analyst/context/sql-patterns.md'),
+        // From compiled dist (production)
+        join(__dirname, '../agents/data-analyst/context/sql-patterns.md'),
+        // Fallback: relative to current working directory
+        join(__dirname, '../../agents/data-analyst/context/sql-patterns.md'),
+      ];
+
+      for (const contextPath of possiblePaths) {
+        try {
+          const content = readFileSync(contextPath, 'utf-8');
+          this.logger.log(`✅ Loaded SQL patterns context from: ${contextPath} (${content.length} chars)`);
+          return content;
+        } catch (err) {
+          // Try next path
+          this.logger.debug(`Failed to load from ${contextPath}: ${err instanceof Error ? err.message : String(err)}`);
+          continue;
+        }
+      }
+
+      throw new Error('Could not find sql-patterns.md in any expected location');
+    } catch (error) {
+      this.logger.warn(
+        'Failed to load SQL patterns context file, continuing without it',
+        error,
+      );
+      return '';
+    }
+  }
+
+  /**
    * Build the prompt for SQLCoder
    */
   private buildSqlCoderPrompt(question: string, tableContext: string): string {
+    // Load SQL patterns context
+    const sqlPatterns = this.loadSqlPatternsContext();
+
     return `### Task
 Generate a SQL query to answer the following question:
 "${question}"
@@ -218,9 +270,32 @@ Generate a SQL query to answer the following question:
 ### Database Schema
 ${tableContext}
 
+${sqlPatterns ? `### SQL Patterns & Relationships
+${sqlPatterns}
+
+` : ''}### Critical Column Name Reference
+**⚠️ EXACT COLUMN NAMES - Copy these EXACTLY (no abbreviations, no typos):**
+
+If using rbac_user_org_roles table:
+- Column name: **organization_slug** (FULL WORD "organization", 14 characters)
+- Common mistakes to avoid: "organis_slug", "org_slug", "organization_sl", "org_slug"
+
+If using organizations table:
+- Column name: **slug** (not "organization_slug")
+
+**Before generating SQL, verify every column name matches EXACTLY what appears in the Database Schema section above.**
+
 ### Instructions
 - Generate only a SELECT query (read-only)
 - Use proper PostgreSQL syntax
+- CRITICAL: ONLY use tables that are defined in the Database Schema section above
+- If the question mentions a table name that is NOT in the schema, you MUST find an alternative table from the schema or return "-- Unable to generate query: table not found"
+- Verify the table name matches exactly (case-sensitive) before using it
+- Follow the join patterns and relationship guidelines from the SQL Patterns section above
+- Pay special attention to RBAC relationships: use rbac_user_org_roles as the bridge table, NOT rbac_roles.organization_slug (which doesn't exist)
+- **CRITICAL: Copy column names EXACTLY as shown in Database Schema - no abbreviations, no typos**
+- **For rbac_user_org_roles.organization_slug: use the FULL 14-character word "organization", NOT "organis" (9 chars) or "org" (3 chars)**
+- **Read each column name carefully from the Database Schema section and use it EXACTLY as written**
 - Return only the SQL query, no explanations
 - If you cannot generate a valid query, respond with "-- Unable to generate query"
 
@@ -242,7 +317,7 @@ ${tableContext}
           stream: false,
           options: {
             temperature: 0.1, // Low temperature for consistent SQL
-            num_predict: 500,
+            num_predict: 1000, // Increased to allow for longer, more accurate queries
           },
         }),
       });

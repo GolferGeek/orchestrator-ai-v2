@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { join } from 'path';
 import { HealthModule } from './health/health.module';
 import { SharedServicesModule } from './services/shared-services.module';
 import { PersistenceModule } from './persistence/persistence.module';
@@ -11,7 +12,13 @@ import { ExtendedPostWriterModule } from './agents/extended-post-writer/extended
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      envFilePath: [
+        join(__dirname, '../../../.env'),
+        '../../.env',
+        join(process.cwd(), '.env'),
+        '.env',
+      ],
+      expandVariables: true,
     }),
     // Core infrastructure modules
     SharedServicesModule,

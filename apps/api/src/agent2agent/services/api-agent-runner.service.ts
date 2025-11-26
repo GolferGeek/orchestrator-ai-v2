@@ -77,6 +77,24 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
   }
 
   /**
+   * CONVERSE mode - forward to API endpoint
+   */
+  protected async handleConverse(
+    definition: AgentRuntimeDefinition,
+    request: TaskRequestDto,
+    organizationSlug: string | null,
+  ): Promise<TaskResponseDto> {
+    // For API agents in CONVERSE mode, call the API endpoint
+    // This allows agents like data-analyst to use their LangGraph endpoints
+    return await this.executeApiCall(
+      definition,
+      request,
+      organizationSlug,
+      AgentTaskMode.CONVERSE,
+    );
+  }
+
+  /**
    * PLAN mode - not yet implemented for API agents
    */
   protected handlePlan(
@@ -124,6 +142,14 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
   ): Promise<TaskResponseDto> {
     try {
       // Validate required context
+      // organizationSlug is required - fail fast if missing
+      if (!organizationSlug) {
+        return TaskResponseDto.failure(
+          AgentTaskMode.BUILD,
+          'organizationSlug is required but was null or undefined',
+        );
+      }
+
       const userId = this.resolveUserId(request);
       const conversationId = this.resolveConversationId(request);
       const taskId =
@@ -155,7 +181,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           const streamId = this.streamingService.registerStream(
             taskId,
             definition.slug,
-            organizationSlug || 'global',
+            organizationSlug, // organizationSlug is already validated above
             AgentTaskMode.BUILD,
             conversationId,
             userId,
@@ -195,11 +221,16 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
 
       // Create enriched request with extracted values for interpolation
       // Include llmSelection for template compatibility ({{llmSelection.providerName}})
+      const userMessage = request.userMessage || 
+        ((request.payload as Record<string, unknown>)?.userMessage as string) || 
+        ((request.payload as Record<string, unknown>)?.prompt as string) || 
+        '';
       const enrichedRequest = {
         ...request,
         userId,
         conversationId,
         taskId: taskId ?? undefined,
+        userMessage,
         payload: {
           ...(request.payload as Record<string, unknown>),
           provider,
@@ -211,8 +242,28 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         },
       };
 
-      // Get API configuration
-      const apiConfig = this.asRecord(definition.config?.api);
+      // Get API configuration - check both config.api and transport.api
+      // transport.api is used by data analyst and extended post writer agents (stored in endpoint field)
+      // Note: transport.api.endpoint may be empty if database uses 'url' instead of 'endpoint'
+      // So we check transport.raw?.url as fallback
+      const apiConfig =
+        this.asRecord(definition.config?.api) ??
+        (definition.transport?.api
+          ? {
+              url:
+                definition.transport.api.endpoint ||
+                (definition.transport.raw &&
+                typeof definition.transport.raw === 'object' &&
+                'url' in definition.transport.raw
+                  ? String(definition.transport.raw.url)
+                  : ''),
+              method: definition.transport.api.method,
+              headers: definition.transport.api.headers,
+              timeout: definition.transport.api.timeout,
+              requestTransform: definition.transport.api.requestTransform,
+              responseTransform: definition.transport.api.responseTransform,
+            }
+          : null);
       if (!apiConfig) {
         return TaskResponseDto.failure(
           AgentTaskMode.BUILD,
@@ -248,8 +299,31 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
       );
 
       // 3. Build request body (for POST/PUT/PATCH)
+      // Default: Build standard request body with all common fields
+      // requestTransform is only used for special cases (e.g., n8n workflows with custom formats)
       let body: unknown = undefined;
-      if (['POST', 'PUT', 'PATCH'].includes(method) && apiConfig.body) {
+      if (['POST', 'PUT', 'PATCH'].includes(method)) {
+        const requestTransform = this.asRecord(apiConfig.requestTransform);
+        if (requestTransform) {
+          // Use requestTransform only if explicitly provided (for special cases)
+          // organizationSlug is already validated above
+          body = this.interpolateObject(
+            this.toPlainRecord(requestTransform),
+            enrichedRequest,
+          );
+          body = this.filterUnresolvedTemplates(body);
+          
+          // Ensure common fields are included even with custom transform
+          if (body && typeof body === 'object') {
+            const bodyObj = body as Record<string, unknown>;
+            if (!('taskId' in bodyObj)) bodyObj.taskId = taskId;
+            if (!('userId' in bodyObj)) bodyObj.userId = userId;
+            if (!('conversationId' in bodyObj)) bodyObj.conversationId = conversationId;
+            if (!('organizationSlug' in bodyObj)) bodyObj.organizationSlug = organizationSlug;
+            if (provider && model && !('provider' in bodyObj)) bodyObj.provider = provider;
+            if (provider && model && !('model' in bodyObj)) bodyObj.model = model;
+          }
+        } else if (apiConfig.body) {
         const bodyRecord = this.asRecord(apiConfig.body);
         if (bodyRecord) {
           body = this.interpolateObject(
@@ -274,15 +348,28 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
               );
             }
           }
-        } else if (typeof apiConfig.body === 'string') {
+          }
+        }
+        if (!body && typeof apiConfig.body === 'string') {
           const interpolated = this.interpolateString(
             apiConfig.body,
             enrichedRequest,
           );
           // Only use if no unresolved templates remain
           body = interpolated.includes('{{') ? undefined : interpolated;
-        } else {
-          body = apiConfig.body;
+        }
+        if (!body) {
+          // Default: Build simple request body with only immutable core fields
+          // organizationSlug is required - already validated above
+          // provider and model are included if available (validated earlier for BUILD mode)
+          body = {
+            taskId,
+            userId,
+            conversationId,
+            userMessage,
+            organizationSlug,
+            ...(provider && model ? { provider, model } : {}),
+          };
         }
       }
 
@@ -571,6 +658,489 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
 
       return TaskResponseDto.failure(
         AgentTaskMode.BUILD,
+        `Failed to execute API agent: ${errorMessage}`,
+      );
+    }
+  }
+
+  /**
+   * Execute API call for CONVERSE mode
+   * 
+   * NOTE: This duplicates HTTP request logic from executeBuild.
+   * TODO: Refactor to extract shared HTTP request logic into a helper method.
+   * 
+   * Key differences from executeBuild:
+   * - Returns conversation message instead of deliverable
+   * - Checks transport.api in addition to config.api (for data analyst agent)
+   * - Uses requestTransform/responseTransform for LangGraph agents
+   * 
+   * requestTransform: Maps frontend format to external API format
+   *   Example: { question: "{{userMessage}}", userId: "{{userId}}" }
+   *   Transforms: { userMessage: "how many users?" } 
+   *   Into: { question: "how many users?", userId: "..." }
+   * 
+   * responseTransform: Extracts conversation message from API response
+   *   Example: { content: "$.summary" }
+   *   Extracts: summary field from response.data.summary
+   *   Returns: Conversation message (not a deliverable)
+   */
+  private async executeApiCall(
+    definition: AgentRuntimeDefinition,
+    request: TaskRequestDto,
+    organizationSlug: string | null,
+    mode: AgentTaskMode,
+  ): Promise<TaskResponseDto> {
+    try {
+      // organizationSlug is required - fail fast if missing
+      if (!organizationSlug) {
+        return TaskResponseDto.failure(
+          mode,
+          'organizationSlug is required but was null or undefined',
+        );
+      }
+
+      const userId = this.resolveUserId(request);
+      const conversationId = this.resolveConversationId(request);
+      const taskId =
+        ((request.payload as Record<string, unknown>)?.taskId as
+          | string
+          | null) || null;
+
+      if (!userId || !conversationId) {
+        return TaskResponseDto.failure(
+          mode,
+          'Missing required userId or conversationId for API execution',
+        );
+      }
+
+      // Check execution mode - handle websocket/polling differently
+      const executionMode =
+        ((request.payload as Record<string, unknown>)
+          ?.executionMode as string) || 'immediate';
+
+      // Register stream if using real-time/polling mode (for SSE progress updates)
+      if (executionMode === 'real-time' || executionMode === 'polling') {
+        this.logger.log(
+          `🔌 API Agent ${definition.slug}: ${executionMode} mode detected - registering stream for progress updates`,
+        );
+
+        if (taskId) {
+          const streamId = this.streamingService.registerStream(
+            taskId,
+            definition.slug,
+            organizationSlug || 'global',
+            mode,
+            conversationId,
+            userId,
+          );
+          this.logger.log(
+            `✅ API Agent ${definition.slug}: Stream registered with streamId=${streamId} for progress updates`,
+          );
+        }
+      }
+
+      // Extract LLM configuration from payload (for observability and passing to LangGraph)
+      const payload = request.payload;
+      const config = payload?.config as
+        | { provider?: string; model?: string }
+        | undefined;
+      const provider = config?.provider ?? null;
+      const model = config?.model ?? null;
+
+      // Get API configuration - check both config.api and transport.api
+      // transport.api is used by data analyst and extended post writer agents (stored in endpoint field)
+      // Note: transport.api.endpoint may be empty if database uses 'url' instead of 'endpoint'
+      // So we check transport.raw?.url as fallback
+      const apiConfig =
+        this.asRecord(definition.config?.api) ??
+        (definition.transport?.api
+          ? {
+              url:
+                definition.transport.api.endpoint ||
+                (definition.transport.raw &&
+                typeof definition.transport.raw === 'object' &&
+                'url' in definition.transport.raw
+                  ? String(definition.transport.raw.url)
+                  : ''),
+              method: definition.transport.api.method,
+              headers: definition.transport.api.headers,
+              timeout: definition.transport.api.timeout,
+              requestTransform: definition.transport.api.requestTransform,
+              responseTransform: definition.transport.api.responseTransform,
+            }
+          : null);
+      if (!apiConfig) {
+        return TaskResponseDto.failure(
+          mode,
+          'No API configuration found or URL missing',
+        );
+      }
+
+      const urlTemplate =
+        this.ensureString(apiConfig.url) ??
+        this.ensureString(apiConfig.endpoint);
+      if (!urlTemplate) {
+        return TaskResponseDto.failure(
+          mode,
+          'API configuration missing URL string',
+        );
+      }
+
+      // Create enriched request for interpolation
+      // Include LLM config for passing to LangGraph endpoints
+      const enrichedRequest = {
+        ...request,
+        userId,
+        conversationId,
+        taskId: taskId ?? undefined,
+        userMessage: request.userMessage || '',
+        payload: {
+          ...(request.payload as Record<string, unknown>),
+          provider,
+          model,
+        },
+        llmSelection: provider && model
+          ? {
+              providerName: provider,
+              modelName: model,
+            }
+          : undefined,
+      };
+
+      // Observability: Starting API call
+      this.emitObservabilityEvent('agent.progress', 'Calling external API', {
+        definition,
+        request,
+        organizationSlug,
+        taskId: taskId ?? undefined,
+        progress: 30,
+      });
+
+      // Interpolate URL
+      const url = this.interpolateString(urlTemplate, enrichedRequest);
+      const method = (
+        this.ensureString(apiConfig.method) ?? 'POST'
+      ).toUpperCase();
+
+      // Build headers
+      const headersRecord = this.asRecord(apiConfig.headers);
+      const headers = this.buildHeaders(
+        headersRecord ? this.toPlainRecord(headersRecord) : {},
+        enrichedRequest,
+      );
+
+      // Build request body - default includes all common fields
+      // requestTransform is only used for special cases (e.g., n8n workflows with custom formats)
+      // organizationSlug is already validated above
+      let body: unknown = undefined;
+      if (['POST', 'PUT', 'PATCH'].includes(method)) {
+        const requestTransform = this.asRecord(apiConfig.requestTransform);
+        if (requestTransform) {
+          // Use requestTransform only if explicitly provided (for special cases)
+          body = this.interpolateObject(
+            this.toPlainRecord(requestTransform),
+            enrichedRequest,
+          );
+          body = this.filterUnresolvedTemplates(body);
+          
+          // Ensure common fields are included even with custom transform
+          if (body && typeof body === 'object') {
+            const bodyObj = body as Record<string, unknown>;
+            if (!('taskId' in bodyObj)) bodyObj.taskId = taskId;
+            if (!('userId' in bodyObj)) bodyObj.userId = userId;
+            if (!('conversationId' in bodyObj)) bodyObj.conversationId = conversationId;
+            if (!('organizationSlug' in bodyObj)) bodyObj.organizationSlug = organizationSlug;
+            if (provider && model && !('provider' in bodyObj)) bodyObj.provider = provider;
+            if (provider && model && !('model' in bodyObj)) bodyObj.model = model;
+          }
+        } else if (apiConfig.body) {
+          // Fallback to body config
+          const bodyRecord = this.asRecord(apiConfig.body);
+          if (bodyRecord) {
+            body = this.interpolateObject(
+              this.toPlainRecord(bodyRecord),
+              enrichedRequest,
+            );
+            body = this.filterUnresolvedTemplates(body);
+          }
+        } else {
+          // Default: Build simple request body with only immutable core fields
+          // Just pass userMessage - the external service handles mapping to their internal format
+          // organizationSlug is required - fail fast if missing
+          if (!organizationSlug) {
+            throw new Error('organizationSlug is required but was null or undefined');
+          }
+          body = {
+            taskId,
+            userId,
+            conversationId,
+            userMessage: request.userMessage || '',
+            organizationSlug,
+          };
+        }
+      }
+
+      this.logger.log(
+        `Executing API call to ${url} for agent ${definition.slug} in ${mode} mode`,
+      );
+
+      // Execute HTTP request
+      const startTime = Date.now();
+      let response: unknown;
+
+      try {
+        if (!this.httpService) {
+          throw new Error('HttpService not available');
+        }
+        const observable = this.httpService.request({
+          url,
+          method: method,
+          headers,
+          data: body,
+          timeout: this.ensureNumber(apiConfig.timeout) ?? 120000,
+          validateStatus: () => true,
+        });
+
+        response = await firstValueFrom(observable);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        this.logger.error(`API call failed: ${errorMessage}`, { url, method, error });
+        return TaskResponseDto.failure(mode, `API call failed: ${errorMessage}`);
+      }
+
+      const responseTyped = response as {
+        status: number;
+        data: unknown;
+      };
+      const statusCode = responseTyped.status;
+      const isSuccess = statusCode >= 200 && statusCode < 300;
+
+      if (!isSuccess) {
+        return TaskResponseDto.failure(
+          mode,
+          `API returned error status ${statusCode}: ${JSON.stringify(responseTyped.data)}`,
+        );
+      }
+
+      const duration = Date.now() - startTime;
+
+      // Observability: Processing API response
+      this.emitObservabilityEvent('agent.progress', 'Processing API response', {
+        definition,
+        request,
+        organizationSlug,
+        taskId: taskId ?? undefined,
+        progress: 60,
+      });
+
+      // Transform response using responseTransform if available
+      // responseTransform extracts conversation message from API response
+      // Example: { content: "$.data.summary" } extracts response.data.summary
+      // Note: responseTyped structure is { statusCode, duration, data: { success, data: {...} } }
+      // So responseData = responseTyped.data = { success: true, data: { summary: "..." } }
+      const responseData = responseTyped.data;
+      let message: string;
+      let metadata: Record<string, unknown> = {};
+
+      const responseTransform = this.asRecord(apiConfig.responseTransform);
+      if (responseTransform) {
+        // Extract content using responseTransform.content path
+        // Supports JSONPath-like notation: $.data.summary extracts data.summary
+        const contentPath = this.ensureString(responseTransform.content);
+        if (contentPath && responseData && typeof responseData === 'object') {
+          // Handle nested paths like "data.summary" from "$.data.summary"
+          const path = contentPath.replace(/^\$\./, '');
+          const dataObj = responseData as Record<string, unknown>;
+          
+          // Support nested paths (e.g., "data.summary")
+          const pathParts = path.split('.');
+          let value: unknown = dataObj;
+          for (const part of pathParts) {
+            if (value && typeof value === 'object' && part in value) {
+              value = (value as Record<string, unknown>)[part];
+            } else {
+              this.logger.debug(
+                `Failed to extract path "${path}": part "${part}" not found in ${JSON.stringify(value)}`,
+              );
+              value = undefined;
+              break;
+            }
+          }
+          
+          if (value !== undefined && value !== null) {
+            message = String(value);
+            this.logger.debug(
+              `✅ Extracted message from path "${path}": ${message.substring(0, 100)}...`,
+            );
+          } else {
+            // Path extraction failed - try fallback paths
+            // These are ordered by likelihood/common patterns
+            const fallbackPaths = [
+              ['data', 'summary'], // LangGraph nested: { success: true, data: { summary: "..." } }
+              ['data', 'message'], // Alternative nested structure
+              ['summary'], // Direct summary field
+              ['message'], // Direct message field
+              ['content'], // Direct content field
+              ['result'], // Direct result field
+              ['response'], // Direct response field
+            ];
+            
+            let extracted = false;
+            for (const fallbackPath of fallbackPaths) {
+              let fallbackValue: unknown = dataObj;
+              let pathValid = true;
+              for (const part of fallbackPath) {
+                if (fallbackValue && typeof fallbackValue === 'object' && part in fallbackValue) {
+                  fallbackValue = (fallbackValue as Record<string, unknown>)[part];
+                } else {
+                  pathValid = false;
+                  break;
+                }
+              }
+              if (pathValid && fallbackValue !== undefined && fallbackValue !== null) {
+                // Only use string values, or convert objects to JSON
+                if (typeof fallbackValue === 'string') {
+                  message = fallbackValue;
+                  this.logger.debug(
+                    `✅ Extracted message from fallback path "${fallbackPath.join('.')}"`,
+                  );
+                  extracted = true;
+                  break;
+                } else if (typeof fallbackValue === 'object') {
+                  // If it's an object, try to find a string field within it
+                  const obj = fallbackValue as Record<string, unknown>;
+                  const stringFields = ['message', 'content', 'summary', 'text', 'response'];
+                  for (const field of stringFields) {
+                    if (obj[field] && typeof obj[field] === 'string') {
+                      message = obj[field] as string;
+                      this.logger.debug(
+                        `✅ Extracted message from fallback path "${fallbackPath.join('.')}.${field}"`,
+                      );
+                      extracted = true;
+                      break;
+                    }
+                  }
+                  if (extracted) break;
+                }
+              }
+            }
+            
+            if (!extracted) {
+              // Last resort: if responseData has a string field at the top level, use it
+              // Otherwise, log warning but don't stringify the whole response (that breaks frontend)
+              this.logger.warn(
+                `⚠️ Could not extract message from path "${path}". Response keys: ${Object.keys(dataObj).join(', ')}`,
+              );
+              // Try to find any string value in the response
+              const findStringValue = (obj: unknown, depth = 0): string | null => {
+                if (depth > 3) return null; // Prevent infinite recursion
+                if (typeof obj === 'string' && obj.length > 0) return obj;
+                if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+                  const record = obj as Record<string, unknown>;
+                  // Check common message fields first
+                  for (const key of ['summary', 'message', 'content', 'text', 'response']) {
+                    if (key in record) {
+                      const found = findStringValue(record[key], depth + 1);
+                      if (found) return found;
+                    }
+                  }
+                  // Then check all fields
+                  for (const value of Object.values(record)) {
+                    const found = findStringValue(value, depth + 1);
+                    if (found) return found;
+                  }
+                }
+                return null;
+              };
+              
+              const foundString = findStringValue(dataObj);
+              if (foundString) {
+                message = foundString;
+                this.logger.debug('✅ Found message via deep search');
+              } else {
+                // Final fallback: return a user-friendly message instead of raw JSON
+                message = 'Response received but could not extract message content.';
+                this.logger.error(
+                  `❌ Failed to extract message. Full response structure: ${JSON.stringify(dataObj).substring(0, 500)}`,
+                );
+              }
+            }
+          }
+        } else {
+          message = String(responseData || 'No response content');
+        }
+
+        // Extract metadata if specified
+        const metadataTransform = this.asRecord(responseTransform.metadata);
+        if (metadataTransform && responseData && typeof responseData === 'object') {
+          const dataObj = responseData as Record<string, unknown>;
+          for (const [key, path] of Object.entries(metadataTransform)) {
+            const fieldPath = String(path).replace(/^\$\./, '');
+            // Support nested paths
+            const pathParts = fieldPath.split('.');
+            let value: unknown = dataObj;
+            for (const part of pathParts) {
+              if (value && typeof value === 'object' && part in value) {
+                value = (value as Record<string, unknown>)[part];
+              } else {
+                value = undefined;
+                break;
+              }
+            }
+            metadata[key] = value;
+          }
+        }
+      } else {
+        // Default: try to extract summary or message from response
+        // Handle LangGraph response format: { success: true, data: { summary: "..." } }
+        if (responseData && typeof responseData === 'object') {
+          const dataObj = responseData as Record<string, unknown>;
+          // Check for nested data.summary (LangGraph format)
+          if (dataObj.data && typeof dataObj.data === 'object') {
+            const nestedData = dataObj.data as Record<string, unknown>;
+            message = String(
+              nestedData.summary || nestedData.message || nestedData.content || JSON.stringify(responseData)
+            );
+          } else {
+            message = String(
+              dataObj.summary || dataObj.message || dataObj.content || JSON.stringify(responseData)
+            );
+          }
+        } else {
+          message = String(responseData || 'No response content');
+        }
+      }
+
+      // Observability: Completed
+      this.emitObservabilityEvent('agent.completed', 'API call completed', {
+        definition,
+        request,
+        organizationSlug,
+        taskId: taskId ?? undefined,
+        progress: 100,
+      });
+
+      return TaskResponseDto.success(mode, {
+        content: { message },
+        metadata: {
+          ...metadata,
+          provider,
+          model,
+          apiUrl: url,
+          method,
+          statusCode,
+          duration,
+        },
+      });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `API agent ${definition.slug} ${mode} failed: ${errorMessage}`,
+      );
+      return TaskResponseDto.failure(
+        mode,
         `Failed to execute API agent: ${errorMessage}`,
       );
     }

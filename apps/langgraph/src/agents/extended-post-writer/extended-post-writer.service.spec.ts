@@ -5,10 +5,7 @@ import {
   ExtendedPostWriterInput,
   HitlResponse,
   GeneratedContent,
-  validateExtendedPostWriterInput,
-  formatValidationErrors,
 } from './extended-post-writer.state';
-import { z } from 'zod';
 
 // Mock PostgresSaver before any imports that need it
 jest.mock('@langchain/langgraph-checkpoint-postgres', () => ({
@@ -272,85 +269,8 @@ describe('ExtendedPostWriterService', () => {
     });
   });
 
-  describe('input validation', () => {
-    it('should accept valid input with all fields', () => {
-      const input: ExtendedPostWriterInput = {
-        taskId: 'task-123',
-        userId: 'user-456',
-        conversationId: 'conv-789',
-        organizationSlug: 'org-abc',
-        topic: 'AI Ethics',
-        context: 'Focus on privacy concerns',
-        keywords: ['ethics', 'privacy', 'AI'],
-        tone: 'formal',
-        provider: 'openai',
-        model: 'gpt-4',
-      };
-
-      expect(() => validateExtendedPostWriterInput(input)).not.toThrow();
-    });
-
-    it('should accept minimal valid input', () => {
-      const input = {
-        taskId: 'task-123',
-        userId: 'user-456',
-        topic: 'Test Topic',
-      };
-
-      const validated = validateExtendedPostWriterInput(input);
-
-      expect(validated.taskId).toBe('task-123');
-      expect(validated.tone).toBe('professional'); // default
-      expect(validated.provider).toBe('anthropic'); // default
-      expect(validated.keywords).toEqual([]); // default
-    });
-
-    it('should use default keywords as empty array', () => {
-      const input = {
-        taskId: 'task-123',
-        userId: 'user-456',
-        topic: 'Test',
-      };
-
-      const validated = validateExtendedPostWriterInput(input);
-
-      expect(validated.keywords).toEqual([]);
-    });
-
-    it('should use default tone as professional', () => {
-      const input = {
-        taskId: 'task-123',
-        userId: 'user-456',
-        topic: 'Test',
-      };
-
-      const validated = validateExtendedPostWriterInput(input);
-
-      expect(validated.tone).toBe('professional');
-    });
-
-    it('should reject input with empty topic', () => {
-      const input = {
-        taskId: 'task-123',
-        userId: 'user-456',
-        topic: '',
-      };
-
-      expect(() => validateExtendedPostWriterInput(input)).toThrow();
-    });
-
-    it('should format validation errors correctly', () => {
-      const mockError = new z.ZodError([
-        { path: ['taskId'], message: 'Required', code: 'invalid_type', expected: 'string', received: 'undefined' } as z.ZodIssue,
-        { path: ['topic'], message: 'Too short', code: 'too_small', minimum: 1, type: 'string', inclusive: true } as z.ZodIssue,
-      ]);
-
-      const formatted = formatValidationErrors(mockError);
-
-      expect(formatted).toContain('taskId');
-      expect(formatted).toContain('topic');
-    });
-  });
+  // Note: Input validation is now handled by NestJS DTOs at the controller level
+  // No need for separate validation tests here
 
   describe('GeneratedContent structure', () => {
     it('should have required fields for generated content', () => {

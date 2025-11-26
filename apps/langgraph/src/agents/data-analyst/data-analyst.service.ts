@@ -1,5 +1,4 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { v4 as uuidv4 } from 'uuid';
 import {
   createDataAnalystGraph,
   DataAnalystGraph,
@@ -7,8 +6,8 @@ import {
 import {
   DataAnalystInput,
   DataAnalystState,
-  validateDataAnalystInput,
-  formatValidationErrors,
+  DataAnalystResult,
+  DataAnalystStatus,
 } from './data-analyst.state';
 import { LLMHttpClientService } from '../../services/llm-http-client.service';
 import { ObservabilityService } from '../../services/observability.service';
@@ -16,7 +15,6 @@ import { PostgresCheckpointerService } from '../../persistence/postgres-checkpoi
 import { ListTablesTool } from '../../tools/list-tables.tool';
 import { DescribeTableTool } from '../../tools/describe-table.tool';
 import { SqlQueryTool } from '../../tools/sql-query.tool';
-import { z } from 'zod';
 
 /**
  * Result from Data Analyst execution
@@ -24,7 +22,7 @@ import { z } from 'zod';
 export interface DataAnalystResult {
   threadId: string;
   status: 'completed' | 'failed';
-  question: string;
+  userMessage: string;
   summary?: string;
   generatedSql?: string;
   sqlResults?: string;
@@ -38,7 +36,7 @@ export interface DataAnalystResult {
 export interface DataAnalystStatus {
   threadId: string;
   status: DataAnalystState['status'];
-  question: string;
+  userMessage: string;
   summary?: string;
   error?: string;
 }
@@ -84,35 +82,25 @@ export class DataAnalystService implements OnModuleInit {
   async analyze(input: DataAnalystInput): Promise<DataAnalystResult> {
     const startTime = Date.now();
 
-    // Validate input
-    let validatedInput: DataAnalystInput;
-    try {
-      validatedInput = validateDataAnalystInput(input);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        throw new Error(`Invalid input: ${formatValidationErrors(error)}`);
-      }
-      throw error;
-    }
-
-    // Generate thread ID for this analysis
-    const threadId = uuidv4();
+    // Input is already validated by NestJS DTOs at the controller level
+    // Use taskId as threadId - no need for separate identifier
+    const threadId = input.taskId;
 
     this.logger.log(
-      `Starting data analysis: taskId=${validatedInput.taskId}, threadId=${threadId}`,
+      `Starting data analysis: taskId=${input.taskId}, threadId=${threadId}`,
     );
 
     try {
       // Initial state
       const initialState: Partial<DataAnalystState> = {
-        taskId: validatedInput.taskId,
+        taskId: input.taskId,
         threadId,
-        userId: validatedInput.userId,
-        conversationId: validatedInput.conversationId,
-        organizationSlug: validatedInput.organizationSlug,
-        question: validatedInput.question,
-        provider: validatedInput.provider || 'anthropic',
-        model: validatedInput.model || 'claude-sonnet-4-20250514',
+        userId: input.userId,
+        conversationId: input.conversationId,
+        organizationSlug: input.organizationSlug,
+        userMessage: input.userMessage,
+        provider: input.provider || 'anthropic',
+        model: input.model || 'claude-sonnet-4-20250514',
         status: 'started',
         startedAt: startTime,
       };
@@ -135,7 +123,7 @@ export class DataAnalystService implements OnModuleInit {
       return {
         threadId,
         status: finalState.status === 'completed' ? 'completed' : 'failed',
-        question: validatedInput.question,
+        userMessage: input.userMessage,
         summary: finalState.summary,
         generatedSql: finalState.generatedSql,
         sqlResults: finalState.sqlResults,
@@ -153,11 +141,11 @@ export class DataAnalystService implements OnModuleInit {
 
       // Emit failure event
       await this.observability.emitFailed({
-        taskId: validatedInput.taskId,
+        taskId: input.taskId,
         threadId,
         agentSlug: 'data-analyst',
-        userId: validatedInput.userId,
-        conversationId: validatedInput.conversationId,
+        userId: input.userId,
+        conversationId: input.conversationId,
         error: errorMessage,
         duration,
       });
@@ -165,7 +153,7 @@ export class DataAnalystService implements OnModuleInit {
       return {
         threadId,
         status: 'failed',
-        question: validatedInput.question,
+        userMessage: input.userMessage,
         error: errorMessage,
         duration,
       };
@@ -194,7 +182,7 @@ export class DataAnalystService implements OnModuleInit {
       return {
         threadId,
         status: values.status,
-        question: values.question,
+        userMessage: values.userMessage,
         summary: values.summary,
         error: values.error,
       };

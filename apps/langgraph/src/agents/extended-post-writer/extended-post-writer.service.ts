@@ -1,5 +1,4 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { v4 as uuidv4 } from 'uuid';
 import { Command } from '@langchain/langgraph';
 import {
   createExtendedPostWriterGraph,
@@ -8,15 +7,14 @@ import {
 import {
   ExtendedPostWriterInput,
   ExtendedPostWriterState,
+  ExtendedPostWriterResult,
+  ExtendedPostWriterStatus,
   GeneratedContent,
   HitlResponse,
-  validateExtendedPostWriterInput,
-  formatValidationErrors,
 } from './extended-post-writer.state';
 import { LLMHttpClientService } from '../../services/llm-http-client.service';
 import { ObservabilityService } from '../../services/observability.service';
 import { PostgresCheckpointerService } from '../../persistence/postgres-checkpointer.service';
-import { z } from 'zod';
 
 /**
  * Result from Extended Post Writer generation
@@ -24,7 +22,7 @@ import { z } from 'zod';
 export interface ExtendedPostWriterResult {
   threadId: string;
   status: ExtendedPostWriterState['status'];
-  topic: string;
+  userMessage: string;
   generatedContent?: GeneratedContent;
   finalContent?: GeneratedContent;
   error?: string;
@@ -37,7 +35,7 @@ export interface ExtendedPostWriterResult {
 export interface ExtendedPostWriterStatus {
   threadId: string;
   status: ExtendedPostWriterState['status'];
-  topic: string;
+  userMessage: string;
   generatedContent?: GeneratedContent;
   finalContent?: GeneratedContent;
   hitlPending: boolean;
@@ -80,38 +78,28 @@ export class ExtendedPostWriterService implements OnModuleInit {
   async generate(input: ExtendedPostWriterInput): Promise<ExtendedPostWriterResult> {
     const startTime = Date.now();
 
-    // Validate input
-    let validatedInput: ExtendedPostWriterInput;
-    try {
-      validatedInput = validateExtendedPostWriterInput(input);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        throw new Error(`Invalid input: ${formatValidationErrors(error)}`);
-      }
-      throw error;
-    }
-
-    // Generate thread ID
-    const threadId = uuidv4();
+    // Input is already validated by NestJS DTOs at the controller level
+    // Use taskId as threadId - no need for separate identifier
+    const threadId = input.taskId;
 
     this.logger.log(
-      `Starting content generation: taskId=${validatedInput.taskId}, threadId=${threadId}`,
+      `Starting content generation: taskId=${input.taskId}, threadId=${threadId}`,
     );
 
     try {
       // Initial state
       const initialState: Partial<ExtendedPostWriterState> = {
-        taskId: validatedInput.taskId,
+        taskId: input.taskId,
         threadId,
-        userId: validatedInput.userId,
-        conversationId: validatedInput.conversationId,
-        organizationSlug: validatedInput.organizationSlug,
-        topic: validatedInput.topic,
-        context: validatedInput.context,
-        keywords: validatedInput.keywords || [],
-        tone: validatedInput.tone || 'professional',
-        provider: validatedInput.provider || 'anthropic',
-        model: validatedInput.model || 'claude-sonnet-4-20250514',
+        userId: input.userId,
+        conversationId: input.conversationId,
+        organizationSlug: input.organizationSlug,
+        userMessage: input.userMessage,
+        context: input.context,
+        keywords: input.keywords || [],
+        tone: input.tone || 'professional',
+        provider: input.provider || 'anthropic',
+        model: input.model || 'claude-sonnet-4-20250514',
         status: 'started',
         startedAt: startTime,
       };
@@ -136,7 +124,7 @@ export class ExtendedPostWriterService implements OnModuleInit {
       return {
         threadId,
         status: isInterrupted ? 'hitl_waiting' : result.status,
-        topic: validatedInput.topic,
+        userMessage: input.userMessage,
         generatedContent: result.generatedContent,
         error: result.error,
       };
@@ -151,7 +139,7 @@ export class ExtendedPostWriterService implements OnModuleInit {
       return {
         threadId,
         status: 'failed',
-        topic: validatedInput.topic,
+        userMessage: input.userMessage,
         error: errorMessage,
         duration: Date.now() - startTime,
       };
@@ -176,7 +164,7 @@ export class ExtendedPostWriterService implements OnModuleInit {
         },
       };
 
-      // Get current state to extract topic
+      // Get current state
       const currentState = await this.graph.getState(config);
       if (!currentState.values) {
         throw new Error(`Thread not found: ${threadId}`);
@@ -199,7 +187,7 @@ export class ExtendedPostWriterService implements OnModuleInit {
       return {
         threadId,
         status: result.status,
-        topic: values.topic,
+        userMessage: values.userMessage,
         generatedContent: result.generatedContent,
         finalContent: result.finalContent,
         error: result.error,
@@ -240,7 +228,7 @@ export class ExtendedPostWriterService implements OnModuleInit {
       return {
         threadId,
         status: isInterrupted ? 'hitl_waiting' : values.status,
-        topic: values.topic,
+        userMessage: values.userMessage,
         generatedContent: values.generatedContent,
         finalContent: values.finalContent,
         hitlPending: isInterrupted,

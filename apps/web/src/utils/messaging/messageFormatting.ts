@@ -2,6 +2,87 @@ import type { AgentChatMessage } from '@/types/conversation';
 import type { Task } from '@/types/task';
 
 /**
+ * Extract content from various response formats
+ */
+function extractContent(
+  parsedResult: Record<string, unknown>,
+  fallback: string,
+): string {
+  // A2A format: { success: true, payload: { content: { message: "..." } } }
+  if (parsedResult.success && parsedResult.payload) {
+    const payload = parsedResult.payload as Record<string, unknown>;
+    if (payload.content) {
+      const content = payload.content as Record<string, unknown>;
+      if (content.message && typeof content.message === 'string') {
+        return content.message;
+      }
+    }
+  }
+
+  // Try payload.content.message without success flag
+  if (parsedResult.payload) {
+    const payload = parsedResult.payload as Record<string, unknown>;
+    if (payload.content) {
+      const content = payload.content as Record<string, unknown>;
+      if (content.message && typeof content.message === 'string') {
+        return content.message;
+      }
+    }
+  }
+
+  // Try result.content.message (agent2agent format)
+  if (parsedResult.result) {
+    const result = parsedResult.result as Record<string, unknown>;
+    if (result.content) {
+      const content = result.content as Record<string, unknown>;
+      if (content.message && typeof content.message === 'string') {
+        return content.message;
+      }
+    }
+  }
+
+  // Try content.message
+  if (parsedResult.content) {
+    const content = parsedResult.content as Record<string, unknown>;
+    if (content.message && typeof content.message === 'string') {
+      return content.message;
+    }
+    // If content is a string directly
+    if (typeof content === 'string') {
+      return content;
+    }
+  }
+
+  // Try message field directly
+  if (parsedResult.message && typeof parsedResult.message === 'string') {
+    return parsedResult.message;
+  }
+
+  // Try response field
+  if (parsedResult.response && typeof parsedResult.response === 'string') {
+    return parsedResult.response;
+  }
+
+  // If we still have an object, try to stringify it (shouldn't happen, but handle gracefully)
+  if (typeof parsedResult === 'object' && parsedResult !== null) {
+    // Check if it's a TaskResponseDto-like structure that wasn't extracted
+    const asRecord = parsedResult as Record<string, unknown>;
+    if (asRecord.success && asRecord.payload) {
+      const payload = asRecord.payload as Record<string, unknown>;
+      if (payload.content) {
+        const content = payload.content as Record<string, unknown>;
+        if (content.message && typeof content.message === 'string') {
+          return content.message;
+        }
+      }
+    }
+  }
+
+  // Fallback
+  return fallback;
+}
+
+/**
  * Service for formatting and processing agent response messages
  */
 export class MessageFormattingService {

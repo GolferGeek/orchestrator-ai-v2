@@ -41,7 +41,7 @@ export class DataAnalystController {
         userId: request.userId,
         conversationId: request.conversationId,
         organizationSlug: request.organizationSlug,
-        question: request.question,
+        userMessage: request.userMessage,
         provider: request.provider,
         model: request.model,
       });

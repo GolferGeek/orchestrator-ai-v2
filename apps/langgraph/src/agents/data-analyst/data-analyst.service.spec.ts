@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { LLMHttpClientService } from '../../services/llm-http-client.service';
 import { ObservabilityService } from '../../services/observability.service';
 import { DataAnalystInput } from './data-analyst.state';
-import { z } from 'zod';
 
 // Mock PostgresSaver before any imports that need it
 jest.mock('@langchain/langgraph-checkpoint-postgres', () => ({
@@ -242,63 +241,8 @@ describe('DataAnalystService', () => {
     });
   });
 
-  describe('input validation', () => {
-    it('should accept valid input with all fields', () => {
-      const input: DataAnalystInput = {
-        taskId: 'task-123',
-        userId: 'user-456',
-        conversationId: 'conv-789',
-        organizationSlug: 'org-abc',
-        question: 'What is the total revenue?',
-        provider: 'openai',
-        model: 'gpt-4',
-      };
-
-      // Import validation function
-      const { validateDataAnalystInput } = require('./data-analyst.state');
-      expect(() => validateDataAnalystInput(input)).not.toThrow();
-    });
-
-    it('should accept minimal valid input', () => {
-      const input = {
-        taskId: 'task-123',
-        userId: 'user-456',
-        question: 'Test question?',
-      };
-
-      const { validateDataAnalystInput } = require('./data-analyst.state');
-      const validated = validateDataAnalystInput(input);
-
-      expect(validated.taskId).toBe('task-123');
-      expect(validated.provider).toBe('anthropic'); // default
-      expect(validated.model).toBe('claude-sonnet-4-20250514'); // default
-    });
-
-    it('should reject input with empty taskId', () => {
-      const input = {
-        taskId: '',
-        userId: 'user-456',
-        question: 'Test?',
-      };
-
-      const { validateDataAnalystInput } = require('./data-analyst.state');
-      expect(() => validateDataAnalystInput(input)).toThrow();
-    });
-
-    it('should format validation errors correctly', () => {
-      const { formatValidationErrors } = require('./data-analyst.state');
-
-      const mockError = new z.ZodError([
-        { path: ['taskId'], message: 'Required', code: 'invalid_type', expected: 'string', received: 'undefined' } as z.ZodIssue,
-        { path: ['question'], message: 'Too short', code: 'too_small', minimum: 1, type: 'string', inclusive: true } as z.ZodIssue,
-      ]);
-
-      const formatted = formatValidationErrors(mockError);
-
-      expect(formatted).toContain('taskId');
-      expect(formatted).toContain('question');
-    });
-  });
+  // Note: Input validation is now handled by NestJS DTOs at the controller level
+  // No need for separate validation tests here
 });
 
 /**

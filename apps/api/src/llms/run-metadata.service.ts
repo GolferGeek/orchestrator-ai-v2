@@ -247,6 +247,24 @@ export class RunMetadataService {
       const endTime = params.endTime || Date.now();
       const duration = Math.max(0, endTime - startTime);
 
+      // Verify user exists in public.users table before inserting
+      // If user doesn't exist, set user_id to null to avoid foreign key constraint violation
+      let userId: string | null = params.userId || null;
+      if (userId) {
+        const { data: user, error: userError } = await client
+          .from(getTableName('users'))
+          .select('id')
+          .eq('id', userId)
+          .single();
+
+        if (userError || !user) {
+          this.logger.warn(
+            `User ${userId} not found in public.users table. Setting user_id to null for usage tracking.`,
+          );
+          userId = null;
+        }
+      }
+
       // Compute fallback cost if not provided
       const inTok = params.inputTokens ?? 0;
       const outTok = params.outputTokens ?? 0;
@@ -259,7 +277,7 @@ export class RunMetadataService {
 
       const insertData: Record<string, unknown> = {
         run_id: runId,
-        user_id: params.userId || null,
+        user_id: userId,
         caller_type: params.callerType || 'llm_service',
         agent_name: params.callerName || 'direct_call',
         conversation_id: params.conversationId || null,
@@ -563,9 +581,27 @@ export class RunMetadataService {
   ): Promise<void> {
     const client = this.supabaseService.getServiceClient();
 
+    // Verify user exists in public.users table before inserting
+    // If user doesn't exist, set user_id to null to avoid foreign key constraint violation
+    let userId: string | null = context.userId || null;
+    if (userId) {
+      const { data: user, error: userError } = await client
+        .from(getTableName('users'))
+        .select('id')
+        .eq('id', userId)
+        .single();
+
+      if (userError || !user) {
+        this.logger.warn(
+          `User ${userId} not found in public.users table. Setting user_id to null for usage tracking.`,
+        );
+        userId = null;
+      }
+    }
+
     const insertData = {
       run_id: context.runId,
-      user_id: context.userId, // Ensure user_id is populated
+      user_id: userId,
       caller_type: context.callerType || 'system',
       agent_name: context.callerName || 'unknown',
       conversation_id: context.conversationId, // Ensure conversation_id is populated
