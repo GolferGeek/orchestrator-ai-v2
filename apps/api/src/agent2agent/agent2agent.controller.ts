@@ -1270,6 +1270,13 @@ export class Agent2AgentController {
       case 'agent.build':
       case 'tasks.build':
         return AgentTaskMode.BUILD;
+      case 'hitl':
+      case 'hitl.resume':
+      case 'hitl.status':
+      case 'hitl.history':
+      case 'agent.hitl':
+      case 'tasks.hitl':
+        return AgentTaskMode.HITL;
       default:
         return undefined;
     }

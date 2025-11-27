@@ -84,12 +84,12 @@ export const ExtendedPostWriterStateAnnotation = Annotation.Root({
   // LLM configuration
   provider: Annotation<string>({
     reducer: (_, next) => next,
-    default: () => 'anthropic',
+    default: () => 'ollama',
   }),
 
   model: Annotation<string>({
     reducer: (_, next) => next,
-    default: () => 'claude-sonnet-4-20250514',
+    default: () => 'llama3.2:1b',
   }),
 
   // User's message/prompt
@@ -138,7 +138,15 @@ export const ExtendedPostWriterStateAnnotation = Annotation.Root({
 
   // Status tracking
   status: Annotation<
-    'started' | 'generating' | 'hitl_waiting' | 'hitl_resumed' | 'finalizing' | 'completed' | 'rejected' | 'failed'
+    | 'started'
+    | 'generating'
+    | 'hitl_waiting'
+    | 'hitl_resumed'
+    | 'generating_supporting'
+    | 'finalizing'
+    | 'completed'
+    | 'rejected'
+    | 'failed'
   >({
     reducer: (_, next) => next,
     default: () => 'started',

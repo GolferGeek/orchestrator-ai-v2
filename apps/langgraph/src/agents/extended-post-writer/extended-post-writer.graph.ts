@@ -16,11 +16,10 @@ const AGENT_SLUG = 'extended-post-writer';
  * Create the Extended Post Writer graph with HITL
  *
  * Flow:
- * 1. Start → Generate content (blog, SEO, social)
- * 2. Generate → HITL interrupt (wait for approval)
+ * 1. Start → Generate blog post ONLY
+ * 2. Generate blog → HITL interrupt (wait for approval of blog post)
  * 3. HITL resume → Process decision
- *    - approve → Finalize with original content
- *    - edit → Finalize with edited content
+ *    - approve/edit → Generate supporting content (SEO + social) → Finalize
  *    - reject → End with rejection
  * 4. Finalize → End
  */
@@ -50,8 +49,8 @@ export function createExtendedPostWriterGraph(
     };
   }
 
-  // Node: Generate content
-  async function generateContentNode(
+  // Node: Generate blog post ONLY (before HITL)
+  async function generateBlogPostNode(
     state: ExtendedPostWriterState,
   ): Promise<Partial<ExtendedPostWriterState>> {
     await observability.emitProgress({
@@ -60,8 +59,8 @@ export function createExtendedPostWriterGraph(
       agentSlug: AGENT_SLUG,
       userId: state.userId,
       conversationId: state.conversationId,
-      message: 'Generating blog post, SEO description, and social posts',
-      step: 'generate_content',
+      message: 'Generating blog post for review',
+      step: 'generate_blog_post',
       progress: 30,
     });
 
@@ -73,21 +72,80 @@ export function createExtendedPostWriterGraph(
       ? `Additional context: ${state.context}`
       : '';
 
-    const prompt = `You are a professional content writer. Create comprehensive marketing content for the following topic.
+    const prompt = `You are a professional content writer. Create a compelling blog post for the following topic.
 
 Topic: ${state.userMessage}
 Tone: ${state.tone}
 ${keywordsStr}
 ${contextStr}
 
+Generate a well-structured blog post (800-1200 words) with:
+- An engaging introduction that hooks the reader
+- Clear body sections with subheadings (use markdown ## for headings)
+- A compelling conclusion with a call to action
+
+Return ONLY the blog post content in markdown format, no additional text or JSON wrapping.`;
+
+    try {
+      const response = await llmClient.callLLM({
+        userMessage: prompt,
+        provider: state.provider,
+        model: state.model,
+        userId: state.userId,
+        callerName: AGENT_SLUG,
+      });
+
+      const blogPost = response.text.trim();
+
+      return {
+        generatedContent: {
+          blogPost,
+          seoDescription: '', // Will be generated after approval
+          socialPosts: [],    // Will be generated after approval
+        },
+        messages: [
+          ...state.messages,
+          new AIMessage('Blog post generated. Please review before we generate SEO and social content.'),
+        ],
+      };
+    } catch (error) {
+      return {
+        error: `Failed to generate blog post: ${error instanceof Error ? error.message : String(error)}`,
+        status: 'failed',
+      };
+    }
+  }
+
+  // Node: Generate supporting content (SEO + social) AFTER HITL approval
+  async function generateSupportingContentNode(
+    state: ExtendedPostWriterState,
+  ): Promise<Partial<ExtendedPostWriterState>> {
+    await observability.emitProgress({
+      taskId: state.taskId,
+      threadId: state.threadId,
+      agentSlug: AGENT_SLUG,
+      userId: state.userId,
+      conversationId: state.conversationId,
+      message: 'Generating SEO description and social posts based on approved blog',
+      step: 'generate_supporting_content',
+      progress: 70,
+    });
+
+    // Use the approved/edited blog post
+    const approvedBlogPost = state.finalContent?.blogPost || state.generatedContent?.blogPost || '';
+
+    const prompt = `Based on the following approved blog post, create supporting marketing content.
+
+APPROVED BLOG POST:
+${approvedBlogPost}
+
 Generate the following in JSON format:
 {
-  "blogPost": "A well-structured blog post (800-1200 words) with introduction, body sections, and conclusion. Use markdown formatting.",
-  "seoDescription": "A compelling SEO meta description (150-160 characters) that includes the main keyword.",
+  "seoDescription": "A compelling SEO meta description (150-160 characters) that captures the main value proposition and includes relevant keywords.",
   "socialPosts": [
-    "Twitter/X post (under 280 characters)",
-    "LinkedIn post (2-3 paragraphs, professional tone)",
-    "Instagram caption (engaging, with suggested hashtags)"
+    "Twitter/X post (under 280 characters) - engaging hook with key insight",
+    "LinkedIn post (2-3 paragraphs, professional tone) - valuable takeaways from the blog",
+    "Instagram caption (engaging, conversational, with 3-5 relevant hashtags)"
   ]
 }
 
@@ -102,24 +160,31 @@ Return ONLY the JSON object, no additional text.`;
         callerName: AGENT_SLUG,
       });
 
-      // Parse the JSON response
       const jsonMatch = response.text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        throw new Error('Failed to parse generated content');
+        throw new Error('Failed to parse supporting content');
       }
 
-      const content: GeneratedContent = JSON.parse(jsonMatch[0]);
+      const supportingContent = JSON.parse(jsonMatch[0]) as {
+        seoDescription: string;
+        socialPosts: string[];
+      };
 
       return {
-        generatedContent: content,
+        finalContent: {
+          blogPost: approvedBlogPost,
+          seoDescription: supportingContent.seoDescription,
+          socialPosts: supportingContent.socialPosts,
+        },
+        status: 'finalizing',
         messages: [
           ...state.messages,
-          new AIMessage('Content generated successfully. Awaiting review.'),
+          new AIMessage('SEO and social content generated. Finalizing...'),
         ],
       };
     } catch (error) {
       return {
-        error: `Failed to generate content: ${error instanceof Error ? error.message : String(error)}`,
+        error: `Failed to generate supporting content: ${error instanceof Error ? error.message : String(error)}`,
         status: 'failed',
       };
     }
@@ -183,28 +248,33 @@ Return ONLY the JSON object, no additional text.`;
 
     switch (response.decision) {
       case 'approve':
+        // Store approved blog post, will generate SEO + social next
         return {
-          finalContent: state.generatedContent,
-          status: 'finalizing',
+          finalContent: {
+            blogPost: state.generatedContent?.blogPost || '',
+            seoDescription: '',
+            socialPosts: [],
+          },
+          status: 'generating_supporting',
           messages: [
             ...state.messages,
-            new AIMessage('Content approved. Finalizing...'),
+            new AIMessage('Blog post approved! Now generating SEO and social content...'),
           ],
         };
 
       case 'edit':
-        if (!response.editedContent) {
-          return {
-            error: 'Edit decision requires edited content',
-            status: 'failed',
-          };
-        }
+        // Use edited blog post if provided, otherwise use original
+        const editedBlogPost = response.editedContent?.blogPost || state.generatedContent?.blogPost || '';
         return {
-          finalContent: response.editedContent,
-          status: 'finalizing',
+          finalContent: {
+            blogPost: editedBlogPost,
+            seoDescription: '',
+            socialPosts: [],
+          },
+          status: 'generating_supporting',
           messages: [
             ...state.messages,
-            new AIMessage('Edited content received. Finalizing...'),
+            new AIMessage('Edited blog post received! Now generating SEO and social content...'),
           ],
         };
 
@@ -305,23 +375,29 @@ Return ONLY the JSON object, no additional text.`;
   // Build the graph
   const graph = new StateGraph(ExtendedPostWriterStateAnnotation)
     .addNode('start', startNode)
-    .addNode('generate_content', generateContentNode)
+    .addNode('generate_blog_post', generateBlogPostNode)
     .addNode('hitl_interrupt', hitlInterruptNode)
     .addNode('process_hitl', processHitlDecisionNode)
+    .addNode('generate_supporting', generateSupportingContentNode)
     .addNode('finalize', finalizeNode)
     .addNode('rejected', rejectedNode)
     .addNode('handle_error', handleErrorNode)
-    // Edges
+    // Edges - First invocation: start → generate_blog_post → hitl_interrupt (pauses here)
     .addEdge('__start__', 'start')
-    .addEdge('start', 'generate_content')
-    .addConditionalEdges('generate_content', (state) => {
+    .addEdge('start', 'generate_blog_post')
+    .addConditionalEdges('generate_blog_post', (state) => {
       if (state.error) return 'handle_error';
       return 'hitl_interrupt';
     })
+    // After HITL resume: process_hitl → generate_supporting → finalize
     .addEdge('hitl_interrupt', 'process_hitl')
     .addConditionalEdges('process_hitl', (state) => {
       if (state.error) return 'handle_error';
       if (state.status === 'rejected') return 'rejected';
+      return 'generate_supporting'; // Go generate SEO + social after approval
+    })
+    .addConditionalEdges('generate_supporting', (state) => {
+      if (state.error) return 'handle_error';
       return 'finalize';
     })
     .addEdge('finalize', END)

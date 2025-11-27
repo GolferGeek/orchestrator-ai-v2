@@ -117,6 +117,8 @@ export function useHitl(options: UseHitlOptions): UseHitlReturn {
    * Approve content
    */
   const approve = async (feedback?: string, originalTaskId?: string): Promise<void> => {
+    console.log('[HITL-COMPOSABLE] approve() called', { threadId: threadId.value, agentSlug, conversationId, feedback, originalTaskId });
+
     if (!threadId.value) {
       throw new Error('No active thread');
     }
@@ -125,6 +127,7 @@ export function useHitl(options: UseHitlOptions): UseHitlReturn {
     error.value = null;
 
     try {
+      console.log('[HITL-COMPOSABLE] Calling hitlService.approve...');
       const response = await hitlService.approve(
         agentSlug,
         threadId.value,
@@ -133,16 +136,26 @@ export function useHitl(options: UseHitlOptions): UseHitlReturn {
         originalTaskId
       );
 
+      console.log('[HITL-COMPOSABLE] Response received:', response);
+      console.log('[HITL-COMPOSABLE] response.data:', response.data);
+      console.log('[HITL-COMPOSABLE] response.data.status:', response.data.status);
+      console.log('[HITL-COMPOSABLE] response.data.finalContent:', response.data.finalContent);
+
       status.value = response.data.status;
       finalContent.value = response.data.finalContent || null;
 
+      console.log('[HITL-COMPOSABLE] Updated state - status:', status.value, 'finalContent:', finalContent.value);
+
       if (response.data.error) {
         error.value = response.data.error;
+        console.log('[HITL-COMPOSABLE] Error in response.data:', response.data.error);
       }
 
       // Stop polling after final decision
       stopPolling();
+      console.log('[HITL-COMPOSABLE] approve() completed successfully');
     } catch (err) {
+      console.error('[HITL-COMPOSABLE] Error in approve():', err);
       error.value = err instanceof Error ? err.message : 'Failed to approve content';
       throw err;
     } finally {

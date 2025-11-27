@@ -98,8 +98,8 @@ export class ExtendedPostWriterService implements OnModuleInit {
         context: input.context,
         keywords: input.keywords || [],
         tone: input.tone || 'professional',
-        provider: input.provider || 'anthropic',
-        model: input.model || 'claude-sonnet-4-20250514',
+        provider: input.provider || 'ollama',
+        model: input.model || 'llama3.2:1b',
         status: 'started',
         startedAt: startTime,
       };

@@ -334,7 +334,11 @@ export class AgentRuntimeDefinitionService {
       return {
         kind: 'api',
         api: {
-          endpoint: this.asString(endpointConfig.endpoint) ?? '',
+          // Support both 'endpoint' and 'url' field names
+          endpoint:
+            this.asString(endpointConfig.endpoint) ??
+            this.asString(endpointConfig.url) ??
+            '',
           method: this.asString(endpointConfig.method) ?? 'POST',
           timeout: this.asNumber(endpointConfig.timeout),
           headers,

@@ -22,7 +22,7 @@
         <!-- Generated Content Sections -->
         <div class="content-sections">
           <!-- Blog Post -->
-          <div class="content-section">
+          <div class="content-section" v-if="hasBlogPost">
             <div class="section-header">
               <ion-icon :icon="documentTextOutline" />
               <h3>Blog Post</h3>
@@ -56,8 +56,8 @@
             </div>
           </div>
 
-          <!-- SEO Description -->
-          <div class="content-section">
+          <!-- SEO Description (only show if generated) -->
+          <div class="content-section" v-if="hasSeoDescription">
             <div class="section-header">
               <ion-icon :icon="searchOutline" />
               <h3>SEO Description</h3>
@@ -91,8 +91,8 @@
             </div>
           </div>
 
-          <!-- Social Posts -->
-          <div class="content-section">
+          <!-- Social Posts (only show if generated) -->
+          <div class="content-section" v-if="hasSocialPosts">
             <div class="section-header">
               <ion-icon :icon="shareOutline" />
               <h3>Social Media Posts</h3>
@@ -131,6 +131,12 @@
                 </ion-button>
               </div>
             </div>
+          </div>
+
+          <!-- Info about what will happen next -->
+          <div v-if="!hasSeoDescription && !hasSocialPosts" class="pending-content-info">
+            <ion-icon :icon="informationCircleOutline" />
+            <p>After you approve the blog post, SEO description and social posts will be generated automatically.</p>
           </div>
         </div>
 
@@ -213,6 +219,7 @@ import {
   createOutline,
   checkmarkCircleOutline,
   closeCircleOutline,
+  informationCircleOutline,
 } from 'ionicons/icons';
 import type { HitlGeneratedContent } from '@/services/hitlService';
 
@@ -297,6 +304,22 @@ const hasEdits = computed(() => {
     editedContent.seoDescription !== originalContent.seoDescription ||
     editedContent.socialPosts !== originalContent.socialPosts
   );
+});
+
+// Check which content sections exist
+const hasBlogPost = computed(() => {
+  return !!(props.generatedContent?.blogPost && props.generatedContent.blogPost.trim());
+});
+
+const hasSeoDescription = computed(() => {
+  return !!(props.generatedContent?.seoDescription && props.generatedContent.seoDescription.trim());
+});
+
+const hasSocialPosts = computed(() => {
+  const posts = props.generatedContent?.socialPosts;
+  if (!posts) return false;
+  if (Array.isArray(posts)) return posts.length > 0;
+  return posts.trim().length > 0;
 });
 
 // Helper functions
@@ -479,6 +502,29 @@ const handleReject = async () => {
   gap: 0.5rem;
   padding: 0.5rem 0;
   border-bottom: 1px solid var(--ion-color-step-100);
+}
+
+/* Pending content info */
+.pending-content-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--ion-color-warning-tint);
+  border-radius: 8px;
+  border-left: 4px solid var(--ion-color-warning);
+}
+
+.pending-content-info ion-icon {
+  font-size: 1.5rem;
+  color: var(--ion-color-warning-shade);
+  flex-shrink: 0;
+}
+
+.pending-content-info p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--ion-color-dark);
 }
 
 .social-post:last-child {

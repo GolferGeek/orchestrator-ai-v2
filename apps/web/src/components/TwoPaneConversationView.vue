@@ -344,6 +344,18 @@
       @dismiss="closeLLMRerunModal"
       @execute="handleLLMExecute"
     />
+
+    <!-- HITL Approval Modal -->
+    <HitlApprovalModal
+      :is-open="showHitlModal"
+      :topic="hitlData?.topic || ''"
+      :generated-content="hitlData?.generatedContent"
+      :thread-id="hitlData?.threadId"
+      @cancel="handleHitlCancel"
+      @approve="handleHitlApprove"
+      @edit="handleHitlEdit"
+      @reject="handleHitlReject"
+    />
   </div>
 </template>
 <script setup lang="ts">
@@ -381,8 +393,11 @@ import { videoService } from '@/services/videoService';
 import {
   sendMessage as sendMessageAction,
   createPlan as createPlanAction,
-  createDeliverable as createDeliverableAction
+  createDeliverable as createDeliverableAction,
+  type HitlWaitingResult,
 } from '@/services/agent2agent/actions';
+import { hitlService, type HitlGeneratedContent } from '@/services/hitlService';
+import HitlApprovalModal from '@/components/hitl/HitlApprovalModal.vue';
 import { usePrivacyStore } from '@/stores/privacyStore';
 import { useLLMPreferencesStore } from '@/stores/llmPreferencesStore';
 import { useUiStore } from '@/stores/uiStore';
@@ -453,6 +468,11 @@ const rerunDeliverableData = ref<RerunContext | null>(null);
 const activeWorkProduct = ref<{ type: 'deliverable'; data: Deliverable } | null>(null);
 const activeTab = ref<'plan' | 'deliverable'>('plan');
 const isMobile = ref(false);
+
+// HITL Modal State
+const showHitlModal = ref(false);
+const hitlData = ref<HitlWaitingResult | null>(null);
+const hitlDecisionInProgress = ref(false); // Prevents cancel handler when closing after decision
 // Computed properties
 const currentAgent = computed(() => {
   if (!props.conversation?.agentName) return null;
@@ -688,7 +708,14 @@ const sendMessage = async (mode?: AgentChatMode) => {
     } else if (effectiveMode === 'build') {
       // Always call createDeliverable - backend will automatically enhance existing deliverable if one exists
       // and create a new version with the user's new instructions
-      await createDeliverableAction(agentName, conversationId, content);
+      const result = await createDeliverableAction(agentName, conversationId, content);
+
+      // Check if this is an HITL waiting response
+      if (result && 'isHitlWaiting' in result && result.isHitlWaiting) {
+        console.log('🔄 [TwoPaneConversationView] HITL waiting - showing modal:', result);
+        hitlData.value = result;
+        showHitlModal.value = true;
+      }
     } else {
       // converse mode (default - 'conversational' or undefined)
       await sendMessageAction(agentName, conversationId, content);
@@ -1245,6 +1272,245 @@ const executeRerunWithConfig = async (
     chatUiStore.setIsSendingMessage(false);
   }
 };
+
+// HITL Modal Handlers
+const handleHitlCancel = () => {
+  // Skip if a decision (approve/edit/reject) is in progress - modal is closing programmatically
+  if (hitlDecisionInProgress.value) {
+    console.log('🔄 [TwoPaneConversationView] HITL modal closing (decision in progress, not a cancel)');
+    return;
+  }
+  console.log('🔄 [TwoPaneConversationView] HITL cancelled by user');
+  showHitlModal.value = false;
+  hitlData.value = null;
+};
+
+const handleHitlApprove = async (feedback?: string) => {
+  if (!hitlData.value || !props.conversation) {
+    console.error('❌ [TwoPaneConversationView] No HITL data or conversation');
+    return;
+  }
+
+  console.log('✅ [TwoPaneConversationView] HITL approved:', { threadId: hitlData.value.threadId, feedback });
+
+  // Set flag to prevent cancel handler from running when modal closes
+  hitlDecisionInProgress.value = true;
+
+  // Close modal immediately and show loading state
+  const savedHitlData = { ...hitlData.value };
+  showHitlModal.value = false;
+  hitlData.value = null;
+
+  // Show loading state while generating supporting content
+  chatUiStore.setIsSendingMessage(true);
+
+  // Add a progress message to show what's happening
+  const progressMessageId = `hitl-progress-${Date.now()}`;
+  conversationsStore.addMessage(props.conversation.id, {
+    id: progressMessageId,
+    role: 'assistant',
+    content: 'Blog post approved! Generating SEO description and social posts...',
+    timestamp: new Date().toISOString(),
+    metadata: {
+      hitlDecision: 'approve',
+      threadId: savedHitlData.threadId,
+      isProgress: true,
+    },
+  });
+  scrollToBottom();
+
+  try {
+    // Call hitlService to send approval to API
+    const result = await hitlService.approve(
+      savedHitlData.agentSlug,
+      savedHitlData.threadId,
+      savedHitlData.conversationId,
+      feedback,
+      savedHitlData.taskId
+    );
+
+    console.log('✅ [TwoPaneConversationView] HITL approval result:', result);
+    console.log('✅ [TwoPaneConversationView] result.data:', result.data);
+    console.log('✅ [TwoPaneConversationView] result.data.deliverable:', result.data?.deliverable);
+
+    // Build content to display from the final result
+    // After HITL approval, backend returns a BUILD response with deliverable (not HITL response with finalContent)
+    let displayContent = result.message || 'Content finalized!';
+
+    // Check for deliverable content from BUILD response (new format after HITL approval)
+    // Deliverable structure: { id, currentVersion: { content: "..." }, ... }
+    const deliverable = result.data?.deliverable;
+    const deliverableContent = deliverable?.currentVersion?.content || deliverable?.content;
+    if (deliverableContent) {
+      // Deliverable content is already formatted markdown from the backend
+      displayContent = deliverableContent;
+      console.log('✅ [TwoPaneConversationView] Using deliverable content for display');
+    }
+
+    console.log('✅ [TwoPaneConversationView] displayContent to show:', displayContent);
+    console.log('✅ [TwoPaneConversationView] Updating message with ID:', progressMessageId);
+
+    // Update the progress message with the final result
+    conversationsStore.updateMessage(props.conversation.id, progressMessageId, {
+      content: displayContent,
+    });
+    conversationsStore.updateMessageMetadata(props.conversation.id, progressMessageId, {
+      hitlCompleted: true,
+      isProgress: false,
+      deliverable: deliverable, // Store deliverable for potential later use
+    });
+
+    console.log('✅ [TwoPaneConversationView] Message updated successfully');
+
+    scrollToBottom();
+  } catch (error) {
+    console.error('❌ [TwoPaneConversationView] HITL approve failed:', error);
+
+    // Update progress message to show error
+    conversationsStore.updateMessage(props.conversation.id, progressMessageId, {
+      content: `❌ Failed to complete: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    });
+    conversationsStore.updateMessageMetadata(props.conversation.id, progressMessageId, {
+      hitlCompleted: false,
+      hitlError: true,
+      isProgress: false,
+    });
+
+    chatUiStore.setError(error instanceof Error ? error.message : 'Failed to approve content');
+  } finally {
+    chatUiStore.setIsSendingMessage(false);
+    hitlDecisionInProgress.value = false; // Reset flag
+  }
+};
+
+const handleHitlEdit = async (editedContent: Partial<HitlGeneratedContent>, feedback?: string) => {
+  if (!hitlData.value || !props.conversation) {
+    console.error('❌ [TwoPaneConversationView] No HITL data or conversation');
+    return;
+  }
+
+  console.log('✏️ [TwoPaneConversationView] HITL edit submitted:', { threadId: hitlData.value.threadId, editedContent, feedback });
+
+  // Set flag to prevent cancel handler from running when modal closes
+  hitlDecisionInProgress.value = true;
+
+  // Close modal immediately and show loading state
+  const savedHitlData = { ...hitlData.value };
+  showHitlModal.value = false;
+  hitlData.value = null;
+
+  // Show loading state while generating supporting content
+  chatUiStore.setIsSendingMessage(true);
+
+  // Add a progress message to show what's happening
+  const progressMessageId = `hitl-progress-${Date.now()}`;
+  conversationsStore.addMessage(props.conversation.id, {
+    id: progressMessageId,
+    role: 'assistant',
+    content: 'Edits received! Generating SEO description and social posts based on your changes...',
+    timestamp: new Date().toISOString(),
+    metadata: {
+      hitlDecision: 'edit',
+      threadId: savedHitlData.threadId,
+      isProgress: true,
+    },
+  });
+  scrollToBottom();
+
+  try {
+    // Call hitlService to send edits to API
+    const result = await hitlService.submitEdits(
+      savedHitlData.agentSlug,
+      savedHitlData.threadId,
+      savedHitlData.conversationId,
+      editedContent,
+      feedback,
+      savedHitlData.taskId
+    );
+
+    console.log('✅ [TwoPaneConversationView] HITL edit result:', result);
+
+    // Update the progress message with the final result
+    conversationsStore.updateMessage(props.conversation.id, progressMessageId, {
+      content: result.message || 'Content finalized with your edits! All deliverables have been generated.',
+    });
+    conversationsStore.updateMessageMetadata(props.conversation.id, progressMessageId, {
+      hitlCompleted: true,
+      isProgress: false,
+    });
+
+    scrollToBottom();
+  } catch (error) {
+    console.error('❌ [TwoPaneConversationView] HITL edit failed:', error);
+
+    // Update progress message to show error
+    conversationsStore.updateMessage(props.conversation.id, progressMessageId, {
+      content: `❌ Failed to complete: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    });
+    conversationsStore.updateMessageMetadata(props.conversation.id, progressMessageId, {
+      hitlCompleted: false,
+      hitlError: true,
+      isProgress: false,
+    });
+
+    chatUiStore.setError(error instanceof Error ? error.message : 'Failed to submit edits');
+  } finally {
+    chatUiStore.setIsSendingMessage(false);
+    hitlDecisionInProgress.value = false; // Reset flag
+  }
+};
+
+const handleHitlReject = async (feedback?: string) => {
+  if (!hitlData.value || !props.conversation) {
+    console.error('❌ [TwoPaneConversationView] No HITL data or conversation');
+    return;
+  }
+
+  console.log('❌ [TwoPaneConversationView] HITL rejected:', { threadId: hitlData.value.threadId, feedback });
+
+  // Set flag to prevent cancel handler from running when modal closes
+  hitlDecisionInProgress.value = true;
+
+  try {
+    chatUiStore.setIsSendingMessage(true);
+
+    // Call hitlService to send rejection to API
+    const result = await hitlService.reject(
+      hitlData.value.agentSlug,
+      hitlData.value.threadId,
+      hitlData.value.conversationId,
+      feedback,
+      hitlData.value.taskId
+    );
+
+    console.log('✅ [TwoPaneConversationView] HITL reject result:', result);
+
+    // Add rejection message to conversation
+    conversationsStore.addMessage(props.conversation.id, {
+      role: 'assistant',
+      content: result.message || 'Content rejected.',
+      timestamp: new Date().toISOString(),
+      metadata: {
+        hitlCompleted: true,
+        hitlDecision: 'reject',
+        threadId: hitlData.value.threadId,
+      },
+    });
+
+    // Close modal
+    showHitlModal.value = false;
+    hitlData.value = null;
+
+    scrollToBottom();
+  } catch (error) {
+    console.error('❌ [TwoPaneConversationView] HITL reject failed:', error);
+    chatUiStore.setError(error instanceof Error ? error.message : 'Failed to reject content');
+  } finally {
+    chatUiStore.setIsSendingMessage(false);
+    hitlDecisionInProgress.value = false; // Reset flag
+  }
+};
+
 // Responsive handling
 const checkMobile = () => {
   isMobile.value = window.innerWidth < 768;

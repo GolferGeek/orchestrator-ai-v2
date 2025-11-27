@@ -70,6 +70,9 @@ export class ExtendedPostWriterController {
 
   /**
    * Resume from HITL with approval decision
+   *
+   * This endpoint loads the checkpointed state, resumes with Command(resume),
+   * and returns the final result after the workflow completes.
    */
   @Post('resume/:threadId')
   @HttpCode(HttpStatus.OK)
@@ -89,11 +92,11 @@ export class ExtendedPostWriterController {
       });
 
       return {
-        success: result.status === 'completed',
+        success: result.status !== 'failed',
         data: result,
         message:
           result.status === 'completed'
-            ? 'Content approved and finalized.'
+            ? 'Content finalized successfully.'
             : result.status === 'rejected'
               ? 'Content rejected.'
               : undefined,

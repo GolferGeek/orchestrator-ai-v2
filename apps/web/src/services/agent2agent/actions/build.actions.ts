@@ -23,7 +23,37 @@ import type {
   BuildResponseMetadata,
   JsonRpcSuccessResponse,
   JsonRpcErrorResponse,
+  HitlGeneratedContent,
+  HitlStatus,
 } from "@orchestrator-ai/transport-types";
+
+/**
+ * HITL waiting result - returned when agent needs human review before completing
+ */
+export interface HitlWaitingResult {
+  isHitlWaiting: true;
+  threadId: string;
+  topic: string;
+  status: HitlStatus;
+  generatedContent: HitlGeneratedContent;
+  agentSlug: string;
+  conversationId: string;
+  taskId: string;
+}
+
+/**
+ * Normal deliverable result
+ */
+export interface DeliverableResult {
+  isHitlWaiting: false;
+  deliverable: DeliverableData;
+  version: DeliverableVersionData;
+}
+
+/**
+ * Result type that can be either HITL waiting or normal deliverable
+ */
+export type CreateDeliverableResult = HitlWaitingResult | DeliverableResult | null;
 
 // Local workflow step type for SSE tracking
 interface WorkflowStep {
@@ -54,7 +84,7 @@ export async function createDeliverable(
   conversationId: string,
   userMessage: string,
   planId?: string,
-): Promise<{ deliverable: DeliverableData; version: DeliverableVersionData }> {
+): Promise<CreateDeliverableResult> {
   const conversationsStore = useConversationsStore();
   const chatUiStore = useChatUiStore();
   const llmStore = useLLMPreferencesStore();
@@ -327,6 +357,59 @@ export async function createDeliverable(
       ?.content as BuildCreateResponseContent;
     const metadata = taskResponse?.payload?.metadata as BuildResponseMetadata;
 
+    // Check if this is an HITL waiting response
+    // HITL responses have mode='hitl' and content with status='hitl_waiting'
+    const hitlContent = buildContent as {
+      threadId?: string;
+      status?: HitlStatus;
+      topic?: string;
+      hitlPending?: boolean;
+      generatedContent?: HitlGeneratedContent;
+    };
+
+    if (
+      taskResponse?.success &&
+      (taskResponse?.mode === "hitl" || hitlContent?.status === "hitl_waiting")
+    ) {
+      console.log("🔄 [Build Create Action] HITL waiting detected:", {
+        threadId: hitlContent.threadId,
+        status: hitlContent.status,
+        topic: hitlContent.topic,
+      });
+
+      // Update assistant message to show HITL status
+      if (assistantMessageId) {
+        conversationsStore.updateMessage(conversationId, assistantMessageId, {
+          content: "Content generated. Waiting for your review...",
+        });
+        conversationsStore.updateMessageMetadata(
+          conversationId,
+          assistantMessageId,
+          {
+            taskId: result.taskId,
+            hitlWaiting: true,
+            hitlThreadId: hitlContent.threadId,
+            provider: metadata?.provider,
+            model: metadata?.model,
+          },
+        );
+      }
+
+      chatUiStore.setIsSendingMessage(false);
+
+      // Return HITL waiting result
+      return {
+        isHitlWaiting: true,
+        threadId: hitlContent.threadId || result.taskId,
+        topic: hitlContent.topic || userMessage,
+        status: hitlContent.status || "hitl_waiting",
+        generatedContent: hitlContent.generatedContent || {},
+        agentSlug: agentName,
+        conversationId,
+        taskId: result.taskId,
+      } as HitlWaitingResult;
+    }
+
     // Check if the response indicates failure
     if (!taskResponse || !taskResponse.success || !buildContent) {
       // Check for JSON-RPC error format
@@ -549,7 +632,7 @@ export async function createDeliverable(
 
     chatUiStore.setIsSendingMessage(false);
 
-    return { deliverable, version: enrichedVersion };
+    return { isHitlWaiting: false, deliverable, version: enrichedVersion } as DeliverableResult;
   } catch (error) {
     console.error("❌ [Build Create Action] Error:", error);
     chatUiStore.setIsSendingMessage(false);

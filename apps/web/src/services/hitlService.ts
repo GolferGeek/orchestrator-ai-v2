@@ -18,6 +18,7 @@ import type {
   HitlRequestMetadata,
 } from '@orchestrator-ai/transport-types';
 import { useAuthStore } from '@/stores/rbacStore';
+import { buildResponseHandler } from '@/services/agent2agent/utils/handlers/build.handler';
 
 // Re-export types for convenience
 export type {
@@ -168,29 +169,65 @@ class HitlService {
       },
     };
 
+    console.log('[HITL-FE] Making resume request:', { endpoint, requestBody });
+
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify(requestBody),
     });
 
+    console.log('[HITL-FE] Fetch response received:', { ok: response.ok, status: response.status });
+
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Unknown error' }));
+      console.log('[HITL-FE] Error response:', error);
       throw new Error(error.message || error.error?.message || `HTTP ${response.status}`);
     }
 
     const jsonRpcResponse = await response.json();
+    console.log('[HITL-FE] JSON-RPC response:', jsonRpcResponse);
 
     if (jsonRpcResponse.error) {
+      console.log('[HITL-FE] JSON-RPC error:', jsonRpcResponse.error);
       throw new Error(jsonRpcResponse.error.message || 'HITL resume failed');
     }
 
     const result = jsonRpcResponse.result;
-    return {
+    console.log('[HITL-FE] Result:', result);
+    console.log('[HITL-FE] result.mode:', result.mode);
+    console.log('[HITL-FE] result.success:', result.success);
+
+    // After HITL approval, the backend returns a BUILD response
+    // Process it through the normal build handler to add deliverable to store
+    if (result.mode === 'build' && result.success) {
+      console.log('[HITL-FE] Processing BUILD response through buildResponseHandler');
+      try {
+        // The build handler expects the full response structure
+        // It validates and adds the deliverable to the store
+        const buildResult = buildResponseHandler.handleExecute(result);
+        console.log('[HITL-FE] Build handler processed successfully:', buildResult);
+
+        return {
+          success: true,
+          data: buildResult,
+          message: result.humanResponse?.message,
+        };
+      } catch (error) {
+        console.warn('[HITL-FE] Build handler failed, falling back to direct response:', error);
+        // Fall through to return raw response
+      }
+    }
+
+    // Fallback for non-BUILD responses (status, history, etc.)
+    const finalResult = {
       success: result.success,
       data: result.payload?.content || result,
       message: result.humanResponse?.message,
     };
+    console.log('[HITL-FE] Final result being returned:', finalResult);
+
+    return finalResult;
   }
 
   /**

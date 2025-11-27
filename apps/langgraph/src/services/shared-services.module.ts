@@ -20,7 +20,7 @@ import { LLMUsageReporterService } from './llm-usage-reporter.service';
 @Module({
   imports: [
     HttpModule.register({
-      timeout: 30000, // 30 second default timeout
+      timeout: 60000, // 60 second default timeout for LLM calls
       maxRedirects: 5,
     }),
     ConfigModule,

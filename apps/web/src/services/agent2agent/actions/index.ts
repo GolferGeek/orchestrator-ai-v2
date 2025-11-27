@@ -26,6 +26,13 @@ export {
   deleteDeliverable,
 } from './build.actions';
 
+// HITL types
+export type {
+  HitlWaitingResult,
+  DeliverableResult,
+  CreateDeliverableResult,
+} from './build.actions';
+
 // Converse actions
 export {
   sendMessage,
