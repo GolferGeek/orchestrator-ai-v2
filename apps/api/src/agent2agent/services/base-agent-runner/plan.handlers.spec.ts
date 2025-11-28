@@ -5,8 +5,11 @@ import {
   validatePlanStructure,
   extractPlanMetadata,
 } from './plan.handlers';
+import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
 
 describe('Plan Handlers', () => {
+  const mockContext = createMockExecutionContext();
+
   describe('buildPlanningPrompt', () => {
     const baseDefinition: Partial<AgentRuntimeDefinition> = {
       slug: 'test-agent',

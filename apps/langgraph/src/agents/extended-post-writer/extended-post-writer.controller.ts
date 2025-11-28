@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { ExtendedPostWriterService } from './extended-post-writer.service';
 import { ExtendedPostWriterRequestDto, ExtendedPostWriterResumeDto } from './dto';
+import { ExecutionContext } from '@orchestrator-ai/transport-types';
 
 /**
  * ExtendedPostWriterController
@@ -36,20 +37,27 @@ export class ExtendedPostWriterController {
   @Post('generate')
   @HttpCode(HttpStatus.OK)
   async generate(@Body() request: ExtendedPostWriterRequestDto) {
-    this.logger.log(`Received generation request: taskId=${request.taskId}`);
+    // Build ExecutionContext from request (supports both context object and individual fields)
+    const context: ExecutionContext = {
+      taskId: request.context?.taskId || request.taskId || '',
+      userId: request.context?.userId || request.userId || '',
+      conversationId: request.context?.conversationId || request.conversationId || '',
+      orgSlug: request.context?.orgSlug || request.orgSlug || request.organizationSlug || '',
+      agentSlug: 'extended-post-writer',
+      agentType: 'langgraph',
+      provider: request.context?.provider || request.provider,
+      model: request.context?.model || request.model,
+    };
+
+    this.logger.log(`Received generation request: taskId=${context.taskId}, userId=${context.userId}`);
 
     try {
       const result = await this.extendedPostWriterService.generate({
-        taskId: request.taskId,
-        userId: request.userId,
-        conversationId: request.conversationId,
-        organizationSlug: request.organizationSlug,
+        context,
         userMessage: request.userMessage,
-        context: request.context,
+        additionalContext: request.contextInfo,
         keywords: request.keywords,
         tone: request.tone,
-        provider: request.provider,
-        model: request.model,
       });
 
       return {

@@ -64,6 +64,7 @@ jest.mock('./extended-post-writer.graph', () => ({
 import {
   ExtendedPostWriterService,
 } from './extended-post-writer.service';
+import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
 
 /**
  * Unit tests for ExtendedPostWriterService
@@ -76,6 +77,7 @@ describe('ExtendedPostWriterService', () => {
   let llmClient: jest.Mocked<LLMHttpClientService>;
   let observability: jest.Mocked<ObservabilityService>;
   let checkpointer: jest.Mocked<PostgresCheckpointerService>;
+  const mockContext = createMockExecutionContext();
 
   const mockSaver = {
     setup: jest.fn().mockResolvedValue(undefined),

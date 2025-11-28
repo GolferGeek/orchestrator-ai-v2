@@ -142,12 +142,11 @@ export type PlanModePayload =
 
 /**
  * Plan Request Metadata
+ * Note: userId, conversationId, provider, model are in ExecutionContext
  */
 export interface PlanRequestMetadata {
   /** Source of the request (e.g., 'web-ui', 'api', 'cli') */
   source: string;
-  /** User ID making the request (REQUIRED) */
-  userId: string;
   /** Current sub-agent handling the request (for orchestrator delegation) */
   current_sub_agent?: string | null;
 }

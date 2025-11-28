@@ -74,32 +74,42 @@ export class ExtendedPostWriterService implements OnModuleInit {
 
   /**
    * Generate content (will pause at HITL)
+   *
+   * @param input - Input containing ExecutionContext and content generation params
    */
   async generate(input: ExtendedPostWriterInput): Promise<ExtendedPostWriterResult> {
     const startTime = Date.now();
 
+    // Extract context fields
+    const { context } = input;
+    const taskId = context.taskId;
+
     // Input is already validated by NestJS DTOs at the controller level
     // Use taskId as threadId - no need for separate identifier
-    const threadId = input.taskId;
+    const threadId = taskId;
+
+    if (!taskId) {
+      throw new Error('taskId is required in ExecutionContext');
+    }
 
     this.logger.log(
-      `Starting content generation: taskId=${input.taskId}, threadId=${threadId}`,
+      `Starting content generation: taskId=${taskId}, threadId=${threadId}`,
     );
 
     try {
-      // Initial state
+      // Initial state - extract fields from ExecutionContext
       const initialState: Partial<ExtendedPostWriterState> = {
-        taskId: input.taskId,
+        taskId,
         threadId,
-        userId: input.userId,
-        conversationId: input.conversationId,
-        organizationSlug: input.organizationSlug,
+        userId: context.userId,
+        conversationId: context.conversationId,
+        organizationSlug: context.orgSlug,
         userMessage: input.userMessage,
-        context: input.context,
+        context: input.additionalContext,
         keywords: input.keywords || [],
         tone: input.tone || 'professional',
-        provider: input.provider || 'ollama',
-        model: input.model || 'llama3.2:1b',
+        provider: context.provider || 'ollama',
+        model: context.model || 'llama3.2:1b',
         status: 'started',
         startedAt: startTime,
       };

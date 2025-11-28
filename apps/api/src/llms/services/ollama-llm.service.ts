@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ExecutionContext } from '@orchestrator-ai/transport-types';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { BaseLLMService } from './base-llm.service';
@@ -71,7 +72,10 @@ export class OllamaLLMService extends BaseLLMService {
   /**
    * Implementation of the abstract generateResponse method for Ollama
    */
-  async generateResponse(params: GenerateResponseParams): Promise<LLMResponse> {
+  async generateResponse(
+    context: ExecutionContext,
+    params: GenerateResponseParams,
+  ): Promise<LLMResponse> {
     const startTime = Date.now();
     const requestId = this.generateRequestId('ollama');
 
@@ -156,6 +160,7 @@ export class OllamaLLMService extends BaseLLMService {
 
       // Track usage with full metadata for database persistence (local models have different cost structure)
       await this.trackUsage(
+        context,
         params.config.provider,
         params.config.model,
         metadata.usage.inputTokens,
@@ -163,9 +168,6 @@ export class OllamaLLMService extends BaseLLMService {
         0, // Local models typically have no cost
         {
           requestId,
-          userId: params.userId || params.options?.userId,
-          conversationId:
-            params.conversationId || params.options?.conversationId,
           callerType: params.options?.callerType,
           callerName: params.options?.callerName,
           piiMetadata: (piiResult.piiMetadata ?? undefined) as
@@ -456,7 +458,13 @@ export async function testOllamaService() {
   };
 
   try {
-    const response = await service.generateResponse(params);
+    // Create mock context for testing
+    const mockContext = {
+      orgSlug: 'test',
+      userId: 'test-user',
+      conversationId: 'test-conversation',
+    };
+    const response = await service.generateResponse(mockContext, params);
     return response;
   } catch (error) {
     throw error;

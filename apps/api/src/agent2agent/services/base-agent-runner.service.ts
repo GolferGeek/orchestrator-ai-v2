@@ -570,10 +570,15 @@ export abstract class BaseAgentRunner implements IAgentRunner {
     request: TaskRequestDto,
     organizationSlug: string | null,
   ): Promise<TaskResponseDto> {
-    const payload = (request.payload ?? {}) as { action?: string; decision?: string };
+    const payload = (request.payload ?? {}) as {
+      action?: string;
+      decision?: string;
+    };
 
     // Debug: Log full payload to see what frontend sends
-    this.logger.debug(`🔍 [HITL-HANDLER] Received payload: ${JSON.stringify(payload)}`);
+    this.logger.debug(
+      `🔍 [HITL-HANDLER] Received payload: ${JSON.stringify(payload)}`,
+    );
 
     // If decision is present but action is not, infer action='resume'
     // Frontend sends { decision: 'approve', threadId: ... } without explicit action
@@ -584,7 +589,9 @@ export abstract class BaseAgentRunner implements IAgentRunner {
           ? 'resume'
           : 'status';
 
-    this.logger.debug(`🔍 [HITL-HANDLER] Resolved action: ${action} for agent ${definition.slug}`);
+    this.logger.debug(
+      `🔍 [HITL-HANDLER] Resolved action: ${action} for agent ${definition.slug}`,
+    );
 
     try {
       switch (action) {

@@ -11,11 +11,17 @@ import { ContextOptimizationService } from '../context-optimization/context-opti
 import { PlansService } from '../plans/services/plans.service';
 import { Agent2AgentConversationsService } from './agent-conversations.service';
 import { StreamingService } from './streaming.service';
+import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
 
 describe('ExternalAgentRunnerService', () => {
   let service: ExternalAgentRunnerService;
   let httpService: jest.Mocked<HttpService>;
   let deliverablesService: jest.Mocked<DeliverablesService>;
+  const mockContext = createMockExecutionContext({
+    orgSlug: 'test-org',
+    userId: 'user-123',
+    conversationId: 'conv-123',
+  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -134,7 +140,7 @@ describe('ExternalAgentRunnerService', () => {
         },
       });
 
-      const result = await service.execute(definition, request, 'test-org');
+      const result = await service.execute(mockContext, definition, request);
 
       expect(result.success).toBe(true);
       expect(result.mode).toBe(AgentTaskMode.BUILD);
@@ -216,7 +222,7 @@ describe('ExternalAgentRunnerService', () => {
         data: { deliverable: {}, version: {} },
       });
 
-      await service.execute(definition, request, null);
+      await service.execute(mockContext, definition, request);
 
       // Verify no API key in headers
       // eslint-disable-next-line @typescript-eslint/unbound-method
@@ -264,7 +270,7 @@ describe('ExternalAgentRunnerService', () => {
         }) as unknown as ReturnType<typeof httpService.request>,
       );
 
-      const result = await service.execute(definition, request, null);
+      const result = await service.execute(mockContext, definition, request);
 
       expect(result.success).toBe(true);
       expect(result.mode).toBe(AgentTaskMode.CONVERSE);
@@ -313,7 +319,7 @@ describe('ExternalAgentRunnerService', () => {
         }) as unknown as ReturnType<typeof httpService.request>,
       );
 
-      const result = await service.execute(definition, request, null);
+      const result = await service.execute(mockContext, definition, request);
 
       expect(result.success).toBe(true);
       expect(result.mode).toBe(AgentTaskMode.PLAN);
@@ -340,7 +346,7 @@ describe('ExternalAgentRunnerService', () => {
         payload: {},
       };
 
-      const result = await service.execute(definition, request, null);
+      const result = await service.execute(mockContext, definition, request);
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toContain(
@@ -365,7 +371,7 @@ describe('ExternalAgentRunnerService', () => {
         metadata: { userId: 'user-123' },
       };
 
-      const result = await service.execute(definition, request, null);
+      const result = await service.execute(mockContext, definition, request);
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toContain(
@@ -398,7 +404,7 @@ describe('ExternalAgentRunnerService', () => {
         >,
       );
 
-      const result = await service.execute(definition, request, null);
+      const result = await service.execute(mockContext, definition, request);
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toContain(
@@ -432,7 +438,7 @@ describe('ExternalAgentRunnerService', () => {
         }) as unknown as ReturnType<typeof httpService.request>,
       );
 
-      const result = await service.execute(definition, request, null);
+      const result = await service.execute(mockContext, definition, request);
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toContain(
@@ -466,7 +472,7 @@ describe('ExternalAgentRunnerService', () => {
         }) as unknown as ReturnType<typeof httpService.request>,
       );
 
-      const result = await service.execute(definition, request, null);
+      const result = await service.execute(mockContext, definition, request);
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toContain(
@@ -512,7 +518,7 @@ describe('ExternalAgentRunnerService', () => {
         },
       });
 
-      const result = await service.execute(definition, request, null);
+      const result = await service.execute(mockContext, definition, request);
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toBe(
@@ -551,7 +557,7 @@ describe('ExternalAgentRunnerService', () => {
         data: { id: 'del-123', title: 'Test', content: 'Content' },
       });
 
-      const result = await service.execute(definition, request, null);
+      const result = await service.execute(mockContext, definition, request);
 
       expect(result.success).toBe(true);
       expect(

@@ -80,29 +80,39 @@ export class DataAnalystService implements OnModuleInit {
 
   /**
    * Run a data analysis query
+   *
+   * @param input - Input containing ExecutionContext and analysis params
    */
   async analyze(input: DataAnalystInput): Promise<DataAnalystResult> {
     const startTime = Date.now();
 
+    // Extract context fields
+    const { context } = input;
+    const taskId = context.taskId;
+
     // Input is already validated by NestJS DTOs at the controller level
     // Use taskId as threadId - no need for separate identifier
-    const threadId = input.taskId;
+    const threadId = taskId;
+
+    if (!taskId) {
+      throw new Error('taskId is required in ExecutionContext');
+    }
 
     this.logger.log(
-      `Starting data analysis: taskId=${input.taskId}, threadId=${threadId}`,
+      `Starting data analysis: taskId=${taskId}, threadId=${threadId}`,
     );
 
     try {
-      // Initial state
+      // Initial state - extract fields from ExecutionContext
       const initialState: Partial<DataAnalystState> = {
-        taskId: input.taskId,
+        taskId,
         threadId,
-        userId: input.userId,
-        conversationId: input.conversationId,
-        organizationSlug: input.organizationSlug,
+        userId: context.userId,
+        conversationId: context.conversationId,
+        organizationSlug: context.orgSlug,
         userMessage: input.userMessage,
-        provider: input.provider || 'anthropic',
-        model: input.model || 'claude-sonnet-4-20250514',
+        provider: context.provider || 'anthropic',
+        model: context.model || 'claude-sonnet-4-20250514',
         status: 'started',
         startedAt: startTime,
       };
@@ -141,13 +151,13 @@ export class DataAnalystService implements OnModuleInit {
         `Data analysis failed: threadId=${threadId}, error=${errorMessage}`,
       );
 
-      // Emit failure event
+      // Emit failure event - use context fields
       await this.observability.emitFailed({
-        taskId: input.taskId,
+        taskId,
         threadId,
         agentSlug: 'data-analyst',
-        userId: input.userId,
-        conversationId: input.conversationId,
+        userId: context.userId,
+        conversationId: context.conversationId,
         error: errorMessage,
         duration,
       });

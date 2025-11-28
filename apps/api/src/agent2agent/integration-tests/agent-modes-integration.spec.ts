@@ -4,6 +4,7 @@ import * as request from 'supertest';
 import { Agent2AgentModule } from '../agent2agent.module';
 import { TaskRequestDto, AgentTaskMode } from '../dto/task-request.dto';
 import { TaskResponseDto } from '../dto/task-response.dto';
+import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
 
 /**
  * Phase 6: Backend Integration Testing
@@ -17,6 +18,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
   let app: INestApplication;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let httpServer: any;
+  const mockContext = createMockExecutionContext();
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({

@@ -44,6 +44,7 @@ import { SupabaseService } from '../supabase/supabase.service';
 import {
   A2ATaskSuccessResponse,
   A2ATaskErrorResponse,
+  ExecutionContext,
 } from '@orchestrator-ai/transport-types';
 import { Response, Request } from 'express';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -168,13 +169,18 @@ export class Agent2AgentController {
     },
     @CurrentUser() currentUser: SupabaseAuthUserDto,
   ) {
+    // Build ExecutionContext from request
+    const context: ExecutionContext = {
+      orgSlug: body.organization,
+      userId: currentUser.id,
+      conversationId: body.conversationId || '',
+    };
+
     const conversation =
       await this.agentConversationsService.createConversation(
-        currentUser.id,
+        context,
         body.agentName,
-        body.organization, // Organization slug for database agents
         {
-          conversationId: body.conversationId,
           metadata: body.metadata,
         },
       );
@@ -352,23 +358,37 @@ export class Agent2AgentController {
       // Organization slug comes from the URL path parameter (already normalized by normalizeOrgSlug)
       const organizationSlug = org;
 
+      // Build initial ExecutionContext for task creation
+      const initialContext: ExecutionContext = {
+        orgSlug: organizationSlug,
+        userId: currentUser.id,
+        conversationId: dto.conversationId ?? '',
+        agentSlug,
+        agentType: agentRecord.agent_type,
+      };
+
       // CRITICAL: Persist task AND conversation to database BEFORE execution
       // (like DynamicAgentsController does)
       // TasksService.createTask automatically handles conversation creation/retrieval
       const task = await this.tasksService.createTask(
-        currentUser.id,
+        initialContext,
         agentSlug, // agentName
-        organizationSlug, // Organization slug (e.g., 'demo-org')
         {
           method: dto.mode, // Use the normalized mode from DTO (guaranteed to be set)
           prompt: dto.userMessage || '',
-          conversationId: dto.conversationId, // Will be validated/created by TasksService
           taskId: taskIdFromPayload,
           metadata: dto.metadata || {},
           llmSelection: llmSelectionFromPayload,
           conversationHistory: conversationHistoryFromMessages,
         },
       );
+
+      // Enrich context with taskId after creation
+      const context: ExecutionContext = {
+        ...initialContext,
+        conversationId: task.agentConversationId ?? dto.conversationId ?? '',
+        taskId: task.id,
+      };
 
       // Add userId and taskId to metadata for mode router (needed for plans/deliverables services)
       dto.metadata = {
@@ -385,19 +405,12 @@ export class Agent2AgentController {
 
       // Mark task as running before execution starts
       // Pass context directly to avoid database lookup race condition
-      await this.agentTaskStatusService.updateTaskStatus(
-        task.id,
-        currentUser.id,
-        { status: 'running' },
-        {
-          conversationId: task.agentConversationId ?? undefined,
-          agentSlug,
-          organizationSlug,
-        },
-      );
+      await this.agentTaskStatusService.updateTaskStatus(context, {
+        status: 'running',
+      });
 
-      // Execute the agent with the persisted task ID
-      const result = await this.gateway.execute(org, agentSlug, dto);
+      // Execute the agent with ExecutionContext
+      const result = await this.gateway.execute(context, dto);
       this.attachStreamMetadata(result, {
         request,
         organizationSlug: org,
@@ -432,11 +445,7 @@ export class Agent2AgentController {
         }
 
         // Update task with result
-        await this.agentTaskStatusService.completeTask(
-          task.id,
-          currentUser.id,
-          result,
-        );
+        await this.agentTaskStatusService.completeTask(context, result);
       }
 
       this.logRequest({
@@ -913,7 +922,13 @@ export class Agent2AgentController {
     taskId: string,
     userId: string,
   ): Promise<AgentTaskRecord> {
-    const task = await this.tasksService.getTaskById(taskId, userId);
+    const context: ExecutionContext = {
+      taskId,
+      userId,
+      orgSlug: '', // Will be validated later
+      conversationId: '', // Will be validated later
+    };
+    const task = await this.tasksService.getTaskById(context);
     if (!task) {
       throw new NotFoundException('Task not found');
     }

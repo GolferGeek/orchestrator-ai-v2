@@ -6,6 +6,7 @@ import {
   HitlState,
 } from './hitl-helper.service';
 import { ObservabilityService } from './observability.service';
+import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
 
 /**
  * Unit tests for HITLHelperService
@@ -16,6 +17,7 @@ import { ObservabilityService } from './observability.service';
 describe('HITLHelperService', () => {
   let service: HITLHelperService;
   let observability: jest.Mocked<ObservabilityService>;
+  const mockContext = createMockExecutionContext();
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({

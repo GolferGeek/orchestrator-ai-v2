@@ -142,7 +142,13 @@ export async function testOllamaGolfBlogPost(): Promise<{
 
     // Generate response
     console.log('🤖 Generating blog post...');
-    const response = await ollamaService.generateResponse(params);
+    // Create mock context for testing
+    const mockContext = {
+      orgSlug: 'test',
+      userId: 'test-user',
+      conversationId: `golf-test-${Date.now()}`,
+    };
+    const response = await ollamaService.generateResponse(mockContext, params);
 
     const duration = Date.now() - startTime;
 

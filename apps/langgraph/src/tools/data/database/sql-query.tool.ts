@@ -66,6 +66,8 @@ export class SqlQueryTool {
    *
    * Note: This method uses dynamic require to avoid TypeScript's deep type
    * instantiation limits with LangChain's tool types.
+   *
+   * @param context - Execution context fields (subset of ExecutionContext from transport-types)
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   createNaturalLanguageTool(context: {
@@ -193,6 +195,10 @@ export class SqlQueryTool {
 
   /**
    * Generate SQL from natural language using Ollama/SQLCoder and execute it
+   *
+   * @param question - The natural language question to convert to SQL
+   * @param tableContext - The relevant table schemas
+   * @param context - Execution context fields (subset of ExecutionContext from transport-types)
    */
   async generateAndExecuteSql(
     question: string,

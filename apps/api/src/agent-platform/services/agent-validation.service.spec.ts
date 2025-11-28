@@ -14,9 +14,9 @@ describe('AgentValidationService', () => {
     };
     const res = svc.validateByType('api', payload as never);
     expect(res.ok).toBe(false);
-    expect(res.issues.some((i) => i.message.includes('api_configuration'))).toBe(
-      true,
-    );
+    expect(
+      res.issues.some((i) => i.message.includes('api_configuration')),
+    ).toBe(true);
   });
 
   it('accepts valid api agent payload', () => {

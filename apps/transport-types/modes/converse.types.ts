@@ -18,14 +18,13 @@ export interface ConverseModePayload {
 
 /**
  * Converse Request Metadata
+ * Note: userId, conversationId, provider, model are in ExecutionContext
  */
 export interface ConverseRequestMetadata {
   /** Source of the request (e.g., 'web-ui', 'api', 'cli') */
   source: string;
-  /** User ID making the request (REQUIRED) */
-  userId: string;
-  /** Conversation context (optional) */
-  context?: string;
+  /** Additional conversation context (optional) */
+  additionalContext?: string;
   /** Current sub-agent handling the request (for orchestrator delegation) */
   current_sub_agent?: string | null;
 }

@@ -840,10 +840,17 @@ export class TaskStatusService {
 
     // First try to get context from taskStatus metadata
     if (taskStatus.metadata) {
-      const metadata = taskStatus.metadata as JsonObject;
-      conversationId = (typeof metadata.conversationId === 'string' ? metadata.conversationId : null);
-      organizationSlug = (typeof metadata.organizationSlug === 'string' ? metadata.organizationSlug : null);
-      agentSlug = (typeof metadata.agentSlug === 'string' ? metadata.agentSlug : null);
+      const metadata = taskStatus.metadata;
+      conversationId =
+        typeof metadata.conversationId === 'string'
+          ? metadata.conversationId
+          : null;
+      organizationSlug =
+        typeof metadata.organizationSlug === 'string'
+          ? metadata.organizationSlug
+          : null;
+      agentSlug =
+        typeof metadata.agentSlug === 'string' ? metadata.agentSlug : null;
     }
 
     // If not in metadata, look up task from database

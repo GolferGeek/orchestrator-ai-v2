@@ -144,12 +144,11 @@ export type BuildModePayload =
 
 /**
  * Build Request Metadata
+ * Note: userId, conversationId, provider, model are in ExecutionContext
  */
 export interface BuildRequestMetadata {
   /** Source of the request (e.g., 'web-ui', 'api', 'cli') */
   source: string;
-  /** User ID making the request (REQUIRED) */
-  userId: string;
   /** Deliverable type context (optional) */
   deliverableType?: string;
   /** Output format preference (optional) */

@@ -1,8 +1,11 @@
 import 'reflect-metadata';
 import { AgentRuntimeDefinition } from '@agent-platform/interfaces/agent.interface';
 import { buildConversationalPrompt } from './converse.handlers';
+import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
 
 describe('Converse Handlers', () => {
+  const mockContext = createMockExecutionContext();
+
   describe('buildConversationalPrompt', () => {
     it('should build a basic prompt from agent definition', () => {
       const definition = {

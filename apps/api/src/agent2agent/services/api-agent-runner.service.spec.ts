@@ -12,6 +12,7 @@ import { AgentRuntimeDefinition } from '../../agent-platform/interfaces/agent.in
 import { TaskRequestDto, AgentTaskMode } from '../dto/task-request.dto';
 import { of, throwError } from 'rxjs';
 import type { AxiosResponse } from 'axios';
+import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
 
 const createMockAxiosResponse = <T = unknown>(
   data: T,
@@ -29,6 +30,11 @@ describe('ApiAgentRunnerService', () => {
   let service: ApiAgentRunnerService;
   let httpService: jest.Mocked<HttpService>;
   let deliverablesService: jest.Mocked<DeliverablesService>;
+  const mockContext = createMockExecutionContext({
+    orgSlug: 'test-org',
+    userId: 'user-123',
+    conversationId: 'conv-123',
+  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -156,7 +162,7 @@ describe('ApiAgentRunnerService', () => {
         },
       });
 
-      const result = await service.execute(definition, request, 'test-org');
+      const result = await service.execute(mockContext, definition, request);
 
       expect(result.success).toBe(true);
       expect(result.mode).toBe(AgentTaskMode.BUILD);
@@ -244,7 +250,7 @@ describe('ApiAgentRunnerService', () => {
         data: { deliverable: {}, version: {} },
       });
 
-      await service.execute(definition, request, null);
+      await service.execute(mockContext, definition, request);
 
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(httpService.request).toHaveBeenCalledWith(
@@ -296,7 +302,7 @@ describe('ApiAgentRunnerService', () => {
         data: { deliverable: {}, version: {} },
       });
 
-      await service.execute(definition, request, null);
+      await service.execute(mockContext, definition, request);
 
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(httpService.request).toHaveBeenCalledWith(
@@ -339,16 +345,14 @@ describe('ApiAgentRunnerService', () => {
         metadata: { userId: 'user-123' },
       };
 
-      httpService.request.mockReturnValue(
-        of(createMockAxiosResponse([])),
-      );
+      httpService.request.mockReturnValue(of(createMockAxiosResponse([])));
 
       deliverablesService.executeAction.mockResolvedValue({
         success: true,
         data: { deliverable: {}, version: {} },
       });
 
-      await service.execute(definition, request, null);
+      await service.execute(mockContext, definition, request);
 
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(httpService.request).toHaveBeenCalledWith(
@@ -378,7 +382,7 @@ describe('ApiAgentRunnerService', () => {
         payload: {},
       };
 
-      const result = await service.execute(definition, request, null);
+      const result = await service.execute(mockContext, definition, request);
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toContain(
@@ -408,7 +412,7 @@ describe('ApiAgentRunnerService', () => {
         metadata: { userId: 'user-123' },
       };
 
-      const result = await service.execute(definition, request, null);
+      const result = await service.execute(mockContext, definition, request);
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toContain(
@@ -445,7 +449,7 @@ describe('ApiAgentRunnerService', () => {
         throwError(() => new Error('Network error')),
       );
 
-      const result = await service.execute(definition, request, null);
+      const result = await service.execute(mockContext, definition, request);
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toContain('Network error');
@@ -484,7 +488,7 @@ describe('ApiAgentRunnerService', () => {
         of(createMockAxiosResponse({ error: 'Not found' }, 404, 'Not Found')),
       );
 
-      const result = await service.execute(definition, request, null);
+      const result = await service.execute(mockContext, definition, request);
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toContain(
@@ -530,7 +534,7 @@ describe('ApiAgentRunnerService', () => {
         data: { deliverable: {}, version: {} },
       });
 
-      const result = await service.execute(definition, request, null);
+      const result = await service.execute(mockContext, definition, request);
 
       expect(result.success).toBe(true);
     });
@@ -560,9 +564,7 @@ describe('ApiAgentRunnerService', () => {
         metadata: { userId: 'user-123' },
       };
 
-      httpService.request.mockReturnValue(
-        of(createMockAxiosResponse({})),
-      );
+      httpService.request.mockReturnValue(of(createMockAxiosResponse({})));
 
       deliverablesService.executeAction.mockResolvedValue({
         success: false,
@@ -572,7 +574,7 @@ describe('ApiAgentRunnerService', () => {
         },
       });
 
-      const result = await service.execute(definition, request, null);
+      const result = await service.execute(mockContext, definition, request);
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toBe(
@@ -623,7 +625,7 @@ describe('ApiAgentRunnerService', () => {
         },
       );
 
-      await service.execute(definition, request, null);
+      await service.execute(mockContext, definition, request);
 
       expect(capturedContent).toContain('# API Response');
       expect(capturedContent).toContain('**Status Code:** 200');
@@ -690,7 +692,7 @@ describe('ApiAgentRunnerService', () => {
         },
       });
 
-      const result = await service.execute(definition, request, null);
+      const result = await service.execute(mockContext, definition, request);
 
       expect(result.success).toBe(true);
       const content = result.payload?.content as

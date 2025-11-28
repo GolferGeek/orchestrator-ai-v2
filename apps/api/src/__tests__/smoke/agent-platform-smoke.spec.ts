@@ -7,7 +7,10 @@
  * NOTE: These are UNIT tests that mock the services, not integration tests.
  * They verify the controller logic and API contract, not the full stack.
  */
+import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
+
 describe('Agent Platform Smoke Tests', () => {
+  const mockContext = createMockExecutionContext();
   let agentId: string;
   let conversationId: string;
 

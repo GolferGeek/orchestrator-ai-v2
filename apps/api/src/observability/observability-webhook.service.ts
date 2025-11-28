@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { ExecutionContext } from '@orchestrator-ai/transport-types';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
@@ -368,6 +369,84 @@ export class ObservabilityWebhookService implements OnModuleInit {
         error: params.error,
         duration: params.duration,
       },
+    });
+  }
+
+  /**
+   * NEW: Convenience method using ExecutionContext
+   * Emit agent execution started event
+   */
+  async emitAgentStartedWithContext(
+    context: ExecutionContext,
+    params: {
+      mode: string;
+      payload?: Record<string, unknown>;
+    },
+  ): Promise<void> {
+    await this.emitAgentStarted({
+      userId: context.userId,
+      conversationId: context.conversationId,
+      taskId: context.taskId || 'unknown',
+      agentSlug: context.agentSlug || 'unknown',
+      organizationSlug: context.orgSlug,
+      mode: params.mode,
+      payload: params.payload,
+    });
+  }
+
+  /**
+   * NEW: Convenience method using ExecutionContext
+   * Emit agent execution completed event
+   */
+  async emitAgentCompletedWithContext(
+    context: ExecutionContext,
+    params: {
+      mode: string;
+      success: boolean;
+      result?: unknown;
+      error?: string;
+      duration?: number;
+    },
+  ): Promise<void> {
+    await this.emitAgentCompleted({
+      userId: context.userId,
+      conversationId: context.conversationId,
+      taskId: context.taskId || 'unknown',
+      agentSlug: context.agentSlug || 'unknown',
+      organizationSlug: context.orgSlug,
+      mode: params.mode,
+      success: params.success,
+      result: params.result,
+      error: params.error,
+      duration: params.duration,
+    });
+  }
+
+  /**
+   * NEW: Convenience method using ExecutionContext
+   * Emit agent progress event
+   */
+  async emitAgentProgressWithContext(
+    context: ExecutionContext,
+    params: {
+      mode: string;
+      message: string;
+      progress?: number;
+      step?: string;
+      metadata?: Record<string, unknown>;
+    },
+  ): Promise<void> {
+    await this.emitAgentProgress({
+      userId: context.userId,
+      conversationId: context.conversationId,
+      taskId: context.taskId || 'unknown',
+      agentSlug: context.agentSlug || 'unknown',
+      organizationSlug: context.orgSlug,
+      mode: params.mode,
+      message: params.message,
+      progress: params.progress,
+      step: params.step,
+      metadata: params.metadata,
     });
   }
 }

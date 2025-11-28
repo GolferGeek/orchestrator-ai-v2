@@ -1,20 +1,20 @@
 import { Annotation, MessagesAnnotation } from '@langchain/langgraph';
+import { ExecutionContext } from '@orchestrator-ai/transport-types';
 
 /**
  * Extended Post Writer input interface
  * Validation is handled by NestJS DTOs at the controller level
+ *
+ * Context flows through via ExecutionContext parameter.
+ * Provider/model come from context.provider and context.model.
  */
 export interface ExtendedPostWriterInput {
-  taskId: string;
-  userId: string;
-  conversationId?: string;
-  organizationSlug: string;
+  /** Execution context - contains orgSlug, userId, conversationId, taskId, provider, model, etc. */
+  context: ExecutionContext;
   userMessage: string;
-  context?: string;
+  additionalContext?: string;
   keywords?: string[];
   tone?: string;
-  provider?: string;
-  model?: string;
 }
 
 /**

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { getTableName } from '../../supabase/supabase.config';
+import { ExecutionContext } from '@orchestrator-ai/transport-types';
 // No AgentType import needed - we treat agent_type as a simple string
 
 /**
@@ -116,13 +117,11 @@ export class Agent2AgentTasksService {
    * Conforms to A2A Google protocol standards
    */
   async createTask(
-    userId: string,
+    context: ExecutionContext,
     agentName: string,
-    organizationSlug: string, // Organization slug (e.g., 'demo-org', 'global')
     params: {
       method: string;
       prompt: string;
-      conversationId?: string;
       taskId?: string;
       metadata?: Record<string, unknown>;
       llmSelection?: LlmSelection;
@@ -139,19 +138,19 @@ export class Agent2AgentTasksService {
     createdAt: Date;
   }> {
     this.logger.debug(
-      `🚨 [Agent2AgentTasksService.createTask] Received organizationSlug: "${organizationSlug}" for agent: ${agentName}`,
+      `🚨 [Agent2AgentTasksService.createTask] Received organizationSlug: "${context.orgSlug}" for agent: ${agentName}`,
     );
 
     try {
       // If conversationId provided, validate it exists
-      let conversationId = params.conversationId || null;
+      let conversationId = context.conversationId;
       if (conversationId) {
         const { data } = await this.supabaseService
           .getServiceClient()
           .from(getTableName('conversations'))
           .select('id')
           .eq('id', conversationId)
-          .eq('user_id', userId)
+          .eq('user_id', context.userId)
           .single();
 
         const existingConv = data as Pick<ConversationDbRecord, 'id'> | null;
@@ -160,21 +159,21 @@ export class Agent2AgentTasksService {
           this.logger.warn(
             `Conversation ${conversationId} not found, will create new one`,
           );
-          conversationId = null;
+          conversationId = '';
         }
       }
 
       // Create conversation if needed
       if (!conversationId) {
         this.logger.log(
-          `🚨 [Agent2AgentTasksService] Creating conversation with organizationSlug: "${organizationSlug}"`,
+          `🚨 [Agent2AgentTasksService] Creating conversation with organizationSlug: "${context.orgSlug}"`,
         );
 
         const now = new Date().toISOString();
         const conversationData = {
-          user_id: userId,
+          user_id: context.userId,
           agent_name: agentName,
-          organization_slug: organizationSlug, // Store organization slug properly
+          organization_slug: context.orgSlug, // Store organization slug properly
           started_at: now,
           last_active_at: now,
           metadata: {
@@ -218,7 +217,7 @@ export class Agent2AgentTasksService {
 
       // Create task record (agent info is stored in the linked conversation)
       const taskData: TaskData = {
-        user_id: userId,
+        user_id: context.userId,
         conversation_id: conversationId,
         method: params.method,
         prompt: params.prompt,
@@ -256,7 +255,7 @@ export class Agent2AgentTasksService {
         ).metadata = {
           ...params.metadata,
           agentName,
-          organizationSlug,
+          organizationSlug: context.orgSlug,
           createdAt: new Date().toISOString(),
         };
       }
@@ -291,7 +290,7 @@ export class Agent2AgentTasksService {
         id: task.id,
         userId: task.user_id,
         agentName: agentName, // Use the parameter since it's not in the task record
-        organization: organizationSlug, // Return the organization slug that was stored in the conversation
+        organization: context.orgSlug, // Return the organization slug that was stored in the conversation
         agentConversationId: task.conversation_id,
         status: task.status,
         params: task.params as unknown as TaskParams,
@@ -307,10 +306,7 @@ export class Agent2AgentTasksService {
    * Get a task by ID
    * A2A protocol: task tracking and status queries
    */
-  async getTaskById(
-    taskId: string,
-    userId: string,
-  ): Promise<{
+  async getTaskById(context: ExecutionContext): Promise<{
     id: string;
     userId: string;
     agentName: string;
@@ -333,8 +329,8 @@ export class Agent2AgentTasksService {
           conversations!inner(agent_name, agent_type, organization_slug)
         `,
         )
-        .eq('id', taskId)
-        .eq('user_id', userId)
+        .eq('id', context.taskId!)
+        .eq('user_id', context.userId)
         .single();
 
       const data: unknown = response.data;
@@ -367,7 +363,7 @@ export class Agent2AgentTasksService {
         updatedAt: new Date(task.updated_at),
       };
     } catch (error) {
-      this.logger.error(`Failed to get A2A task ${taskId}:`, error);
+      this.logger.error(`Failed to get A2A task ${context.taskId}:`, error);
       return null;
     }
   }
@@ -377,16 +373,15 @@ export class Agent2AgentTasksService {
    * A2A protocol: conversation history and context
    */
   async getTasksByConversation(
-    conversationId: string,
-    userId: string,
+    context: ExecutionContext,
   ): Promise<TaskRecord[]> {
     try {
       const { data, error } = await this.supabaseService
         .getServiceClient()
         .from(getTableName('tasks'))
         .select('*')
-        .eq('conversation_id', conversationId)
-        .eq('user_id', userId)
+        .eq('conversation_id', context.conversationId)
+        .eq('user_id', context.userId)
         .order('created_at', { ascending: true });
 
       const tasks = data as TaskDbRecord[] | null;
@@ -413,7 +408,7 @@ export class Agent2AgentTasksService {
       });
     } catch (error) {
       this.logger.error(
-        `Failed to get tasks for conversation ${conversationId}:`,
+        `Failed to get tasks for conversation ${context.conversationId}:`,
         error,
       );
       return [];

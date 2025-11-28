@@ -4,6 +4,7 @@
  */
 
 import { AgentTaskMode } from '../shared/enums';
+import { ExecutionContext } from '../core/execution-context';
 
 /**
  * Message in a conversation
@@ -22,16 +23,17 @@ export interface TaskMessage {
  */
 export interface TaskRequestParams {
   /**
+   * Execution context - contains orgSlug, userId, conversationId, taskId, provider, model, etc.
+   * This is the single source of truth for all context-related data (REQUIRED)
+   */
+  context: ExecutionContext;
+
+  /**
    * The operational mode for the agent (REQUIRED)
    * Note: In JSON-RPC, this is derived from the `method` field
    * but can also be explicitly set in params
    */
   mode: AgentTaskMode;
-
-  /**
-   * Unique identifier for the conversation (REQUIRED)
-   */
-  conversationId: string;
 
   /**
    * Session identifier for grouping related requests (optional)
@@ -89,12 +91,6 @@ export interface TaskRequestParams {
    * Conversation history (array of messages) (optional)
    */
   messages?: TaskMessage[];
-
-  /**
-   * Custom metadata for the request (REQUIRED)
-   * This is for implementation-specific data
-   */
-  metadata: Record<string, any>;
 }
 
 /**

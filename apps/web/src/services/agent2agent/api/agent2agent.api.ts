@@ -23,6 +23,7 @@ import type {
   StrictA2ARequest,
   StrictA2ASuccessResponse,
   StrictA2AErrorResponse,
+  ExecutionContext,
 } from '@orchestrator-ai/transport-types';
 import {
   buildRequest,
@@ -36,6 +37,7 @@ import {
   extractErrorDetails,
   StrictResponseValidationError,
 } from '../utils/handlers';
+import { buildExecutionContext } from '@/utils/executionContext';
 
 // Get API base URL from environment
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_NESTJS_BASE_URL || 'http://localhost:7100';
@@ -86,6 +88,17 @@ export class Agent2AgentApi {
       ...this.headers,
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
+  }
+
+  /**
+   * Build execution context for API requests
+   */
+  private buildContext(conversationId: string, options?: { taskId?: string; deliverableId?: string }): ExecutionContext {
+    return buildExecutionContext(conversationId, {
+      taskId: options?.taskId,
+      deliverableId: options?.deliverableId,
+      agentSlug: this.agentSlug,
+    });
   }
 
   // ============================================================================
@@ -324,6 +337,18 @@ export class Agent2AgentApi {
       );
     }
 
+    // Inject execution context into request params
+    const conversationId = request.params.conversationId;
+    const context = this.buildContext(conversationId);
+
+    const enrichedRequest = {
+      ...request,
+      params: {
+        ...request.params,
+        context,
+      },
+    };
+
     const org = this.getOrgSlug();
     const endpoint = `${API_BASE_URL}/agent-to-agent/${encodeURIComponent(org)}/${encodeURIComponent(this.agentSlug)}/tasks`;
 
@@ -331,7 +356,7 @@ export class Agent2AgentApi {
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: this.getAuthHeaders(),
-        body: JSON.stringify(request),
+        body: JSON.stringify(enrichedRequest),
       });
 
       if (!response.ok) {
@@ -431,13 +456,19 @@ export class Agent2AgentApi {
 
     try {
       // Extract message and other params
-      const { message, userMessage, ...otherParams } = request.params || {};
+      const params = (request.params || {}) as Record<string, unknown>;
+      const { message, userMessage, ...otherParams } = params;
+
+      // Build execution context
+      const conversationId = request.conversationId as string;
+      const context = this.buildContext(conversationId);
 
       const requestBody = {
         jsonrpc: '2.0',
         id: crypto.randomUUID(),
         method: mode,
         params: {
+          context,
           userMessage: userMessage || message,
           conversationId: request.conversationId,
           payload: {

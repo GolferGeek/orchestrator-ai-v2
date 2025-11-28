@@ -26,7 +26,11 @@ import type {
   HitlGeneratedContent,
   HitlStatus,
 } from '@orchestrator-ai/transport-types';
-import { handleError, resolveUserId, resolveConversationId } from './shared.helpers';
+import {
+  handleError,
+  resolveUserId,
+  resolveConversationId,
+} from './shared.helpers';
 
 export interface HitlHandlerDependencies {
   httpService?: HttpService;
@@ -75,7 +79,10 @@ export async function sendHitlResume(
   }
 
   if (!payload.decision) {
-    return { response: null, error: 'decision is required for HITL resume (approve, edit, or reject)' };
+    return {
+      response: null,
+      error: 'decision is required for HITL resume (approve, edit, or reject)',
+    };
   }
 
   // Get the LangGraph endpoint from agent's transport configuration
@@ -83,11 +90,17 @@ export async function sendHitlResume(
   console.log(`🔍 [HITL-RESUME] Resolved LangGraph endpoint: ${endpoint}`);
 
   if (!endpoint) {
-    return { response: null, error: 'Agent does not have a configured HITL endpoint' };
+    return {
+      response: null,
+      error: 'Agent does not have a configured HITL endpoint',
+    };
   }
 
   if (!services.httpService) {
-    return { response: null, error: 'HttpService not available for HITL requests' };
+    return {
+      response: null,
+      error: 'HttpService not available for HITL requests',
+    };
   }
 
   // Build the resume request for LangGraph
@@ -105,7 +118,10 @@ export async function sendHitlResume(
     resumeBody.feedback = payload.feedback;
   }
 
-  console.log(`🔍 [HITL-RESUME] Resume body:`, JSON.stringify(resumeBody, null, 2));
+  console.log(
+    `🔍 [HITL-RESUME] Resume body:`,
+    JSON.stringify(resumeBody, null, 2),
+  );
 
   try {
     const response = await firstValueFrom(
@@ -114,7 +130,9 @@ export async function sendHitlResume(
       }),
     );
 
-    console.log(`🔍 [HITL-RESUME] LangGraph response status: ${response.status}`);
+    console.log(
+      `🔍 [HITL-RESUME] LangGraph response status: ${response.status}`,
+    );
     return { response: response };
   } catch (error) {
     console.log(`🔍 [HITL-RESUME] Error sending resume:`, error);
@@ -156,10 +174,14 @@ export async function handleHitlResume(
     const responseData = axiosResponse.data as Record<string, unknown>;
     const dataObj = responseData.data as Record<string, unknown> | undefined;
 
-    console.log(`🔍 [HITL-RESUME] LangGraph response data:`, JSON.stringify(responseData, null, 2).slice(0, 500));
+    console.log(
+      `🔍 [HITL-RESUME] LangGraph response data:`,
+      JSON.stringify(responseData, null, 2).slice(0, 500),
+    );
 
     // Extract status from nested data object or top-level response
-    const resultStatus = (dataObj?.status as string) || (responseData.status as string);
+    const resultStatus =
+      (dataObj?.status as string) || (responseData.status as string);
     const payload = (request.payload ?? {}) as Partial<HitlResumePayload>;
 
     // Build HITL response payload
@@ -168,8 +190,10 @@ export async function handleHitlResume(
       status: (resultStatus as HitlStatus) || 'completed',
       topic: (responseData.topic as string) || '',
       hitlPending: false,
-      finalContent: (dataObj?.finalContent || responseData.finalContent) as HitlGeneratedContent,
-      generatedContent: (dataObj?.generatedContent || responseData.generatedContent) as HitlGeneratedContent,
+      finalContent: (dataObj?.finalContent ||
+        responseData.finalContent) as HitlGeneratedContent,
+      generatedContent: (dataObj?.generatedContent ||
+        responseData.generatedContent) as HitlGeneratedContent,
       duration: (dataObj?.duration || responseData.duration) as number,
     };
 
@@ -201,7 +225,9 @@ export async function handleHitlResume(
  * Build deliverable content from HITL finalContent
  * Combines blog post, SEO description, and social posts into a single markdown document
  */
-function buildDeliverableContentFromHitl(finalContent: HitlGeneratedContent): string {
+function buildDeliverableContentFromHitl(
+  finalContent: HitlGeneratedContent,
+): string {
   const parts: string[] = [];
 
   if (finalContent.blogPost) {
@@ -209,7 +235,9 @@ function buildDeliverableContentFromHitl(finalContent: HitlGeneratedContent): st
   }
 
   if (finalContent.seoDescription) {
-    parts.push('\n\n---\n\n## SEO Description\n\n' + finalContent.seoDescription);
+    parts.push(
+      '\n\n---\n\n## SEO Description\n\n' + finalContent.seoDescription,
+    );
   }
 
   if (finalContent.socialPosts) {

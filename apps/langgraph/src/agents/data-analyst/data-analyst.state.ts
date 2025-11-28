@@ -1,17 +1,17 @@
 import { Annotation, MessagesAnnotation } from '@langchain/langgraph';
+import { ExecutionContext } from '@orchestrator-ai/transport-types';
 
 /**
  * Data Analyst input interface
  * Validation is handled by NestJS DTOs at the controller level
+ *
+ * Context flows through via ExecutionContext parameter.
+ * Provider/model come from context.provider and context.model.
  */
 export interface DataAnalystInput {
-  taskId: string;
-  userId: string;
-  conversationId?: string;
-  organizationSlug: string;
+  /** Execution context - contains orgSlug, userId, conversationId, taskId, provider, model, etc. */
+  context: ExecutionContext;
   userMessage: string;
-  provider?: string;
-  model?: string;
 }
 
 /**

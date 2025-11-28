@@ -963,7 +963,6 @@ Return ONLY the SQL query, no explanation or formatting.`;
     model: string,
   ): Promise<Record<string, unknown>> {
     try {
-
       const analysisPrompt = `Analyze the following data and provide insights based on this request: "${prompt}"
 
 Data (${data.length} records):

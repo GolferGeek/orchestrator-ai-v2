@@ -193,7 +193,9 @@ describe('AgentPromotionService', () => {
         metadata: { status: 'active' },
       });
 
-      await service.requestPromotion('skip-validation', { skipValidation: true });
+      await service.requestPromotion('skip-validation', {
+        skipValidation: true,
+      });
 
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(validator.validateByType).not.toHaveBeenCalled();

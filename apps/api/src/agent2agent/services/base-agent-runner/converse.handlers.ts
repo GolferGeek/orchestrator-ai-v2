@@ -1,7 +1,10 @@
 import { AgentRuntimeDefinition } from '@agent-platform/interfaces/agent.interface';
 import type { ConversationMessage } from '../../context-optimization/context-optimization.service';
 import { LLMService } from '@llm/llm.service';
-import { ConverseModePayload } from '@orchestrator-ai/transport-types';
+import {
+  ConverseModePayload,
+  ExecutionContext,
+} from '@orchestrator-ai/transport-types';
 import { Agent2AgentConversationsService } from '../agent-conversations.service';
 import {
   fetchConversationHistory,
@@ -49,12 +52,19 @@ export async function executeConverse(
         : typeof orgSlug === 'string'
           ? orgSlug
           : 'global';
+
+    // Build ExecutionContext for service call
+    const context: ExecutionContext = {
+      orgSlug: firstOrgSlug,
+      userId,
+      conversationId: existingConversationId || '',
+      agentSlug: definition.slug,
+    };
+
     const conversation =
       await services.conversationsService.getOrCreateConversation(
-        existingConversationId,
-        userId,
+        context,
         definition.slug,
-        firstOrgSlug,
       );
 
     request.conversationId = conversation.id;
@@ -149,16 +159,18 @@ export async function executeConverse(
         ? updatedHistory.slice(updatedHistory.length - maxHistoryEntries)
         : updatedHistory;
 
-    await services.conversationsService.updateConversation(
-      conversation.id,
-      userId,
-      {
-        metadata: {
-          history: trimmedHistory,
-          lastAssistantMessageAt: timestamp,
-        },
+    // Update context with the actual conversation ID for the update
+    const updateContext: ExecutionContext = {
+      ...context,
+      conversationId: conversation.id,
+    };
+
+    await services.conversationsService.updateConversation(updateContext, {
+      metadata: {
+        history: trimmedHistory,
+        lastAssistantMessageAt: timestamp,
       },
-    );
+    });
 
     const usage = llmResponse.metadata?.usage ?? {
       inputTokens: 0,

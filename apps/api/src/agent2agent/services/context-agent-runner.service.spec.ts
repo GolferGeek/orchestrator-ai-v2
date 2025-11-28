@@ -15,6 +15,7 @@ import {
   DeliverableFormat,
   DeliverableVersionCreationType,
 } from '../deliverables/dto';
+import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
 
 describe('ContextAgentRunnerService', () => {
   let service: ContextAgentRunnerService;
@@ -22,6 +23,11 @@ describe('ContextAgentRunnerService', () => {
   let llmService: jest.Mocked<LLMService>;
   let plansService: jest.Mocked<PlansService>;
   let deliverablesService: jest.Mocked<DeliverablesService>;
+  const mockContext = createMockExecutionContext({
+    orgSlug: 'test-org',
+    userId: 'user-123',
+    conversationId: 'conv-123',
+  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -231,7 +237,7 @@ describe('ContextAgentRunnerService', () => {
       });
 
       // Act
-      const result = await service.execute(definition, request, 'test-org');
+      const result = await service.execute(mockContext, definition, request);
 
       // Assert
       expect(result.success).toBe(true);
@@ -282,7 +288,7 @@ describe('ContextAgentRunnerService', () => {
         payload: {},
       };
 
-      const result = await service.execute(definition, request, null);
+      const result = await service.execute(mockContext, definition, request);
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toContain(
@@ -330,7 +336,7 @@ describe('ContextAgentRunnerService', () => {
         new Error('LLM service unavailable'),
       );
 
-      const result = await service.execute(definition, request, 'test-org');
+      const result = await service.execute(mockContext, definition, request);
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toContain(
@@ -403,7 +409,7 @@ describe('ContextAgentRunnerService', () => {
         },
       });
 
-      const result = await service.execute(definition, request, 'test-org');
+      const result = await service.execute(mockContext, definition, request);
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toBe(
@@ -466,7 +472,7 @@ describe('ContextAgentRunnerService', () => {
         },
       });
 
-      const result = await service.execute(definition, request, 'test-org');
+      const result = await service.execute(mockContext, definition, request);
 
       expect(result.success).toBe(true);
       expect(

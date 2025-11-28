@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ExecutionContext } from '@orchestrator-ai/transport-types';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { TaskStatusService } from '../tasks/task-status.service';
 
@@ -200,5 +201,23 @@ export class StreamingService {
         cleaned++;
       }
     }
+  }
+
+  /**
+   * NEW: Register stream using ExecutionContext
+   */
+  registerStreamWithContext(context: ExecutionContext, mode: string): string {
+    if (!context.taskId) {
+      throw new Error('Task ID must be present in context to register stream');
+    }
+
+    return this.registerStream(
+      context.taskId,
+      context.agentSlug || 'unknown',
+      context.orgSlug,
+      mode,
+      context.conversationId,
+      context.userId,
+    );
   }
 }

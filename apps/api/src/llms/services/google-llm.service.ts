@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ExecutionContext } from '@orchestrator-ai/transport-types';
 import { BaseLLMService } from './base-llm.service';
 import {
   GenerateResponseParams,
@@ -95,7 +96,10 @@ export class GoogleLLMService extends BaseLLMService {
   /**
    * Implementation of the abstract generateResponse method for Google Gemini
    */
-  async generateResponse(params: GenerateResponseParams): Promise<LLMResponse> {
+  async generateResponse(
+    context: ExecutionContext,
+    params: GenerateResponseParams,
+  ): Promise<LLMResponse> {
     const startTime = Date.now();
     const requestId = this.generateRequestId('google');
 
@@ -178,6 +182,7 @@ export class GoogleLLMService extends BaseLLMService {
 
       // Track usage with full metadata for database persistence
       await this.trackUsage(
+        context,
         params.config.provider,
         params.config.model,
         metadata.usage.inputTokens,
@@ -185,9 +190,6 @@ export class GoogleLLMService extends BaseLLMService {
         metadata.usage.cost,
         {
           requestId,
-          userId: params.userId || params.options?.userId,
-          conversationId:
-            params.conversationId || params.options?.conversationId,
           callerType: params.options?.callerType,
           callerName: params.options?.callerName,
           piiMetadata: (piiMetadata ?? undefined) as unknown as
@@ -505,7 +507,13 @@ export async function testGoogleService() {
   };
 
   try {
-    const response = await service.generateResponse(params);
+    // Create mock context for testing
+    const mockContext = {
+      orgSlug: 'test',
+      userId: 'test-user',
+      conversationId: 'test-conversation',
+    };
+    const response = await service.generateResponse(mockContext, params);
     return response;
   } catch (error) {
     throw error;

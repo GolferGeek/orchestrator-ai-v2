@@ -10,6 +10,7 @@ import { Request } from 'express';
 import { AgentExecutionGateway } from '../services/agent-execution-gateway.service';
 import { HumanApprovalsRepository } from '@/agent-platform/repositories/human-approvals.repository';
 import { TaskRequestDto } from '../dto/task-request.dto';
+import { ExecutionContext } from '@orchestrator-ai/transport-types';
 
 interface StoredRequest {
   conversationId?: string;
@@ -104,9 +105,16 @@ export class AgentApprovalsActionsController {
       } as Record<string, unknown>;
     }
 
-    const response = await this.gateway.execute(
-      record.organization_slug ?? orgSlug ?? null,
+    // Build ExecutionContext for approval continuation
+    const context: ExecutionContext = {
+      orgSlug: record.organization_slug ?? orgSlug ?? 'global',
+      userId: userId ?? 'unknown',
+      conversationId: record.conversation_id ?? stored.conversationId ?? '',
       agentSlug,
+    };
+
+    const response = await this.gateway.execute(
+      context,
       request as unknown as TaskRequestDto,
     );
 

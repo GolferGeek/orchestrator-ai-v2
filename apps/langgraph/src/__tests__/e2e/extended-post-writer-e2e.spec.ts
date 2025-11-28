@@ -3,6 +3,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../../app.module';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
 
 /**
  * Comprehensive End-to-End Tests for Extended Post Writer Agent
@@ -27,6 +28,7 @@ describeE2E('Extended Post Writer E2E Tests', () => {
   let supabase: SupabaseClient;
   let authToken: string;
   let testUserId: string;
+  const mockContext = createMockExecutionContext();
 
   // Load from environment
   const supabaseUrl = process.env.SUPABASE_URL || 'http://127.0.0.1:6010';

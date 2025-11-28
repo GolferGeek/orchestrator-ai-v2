@@ -5,8 +5,11 @@
  */
 
 import { MockFactories } from '../mock-factories';
+import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
 
 describe('MockFactories', () => {
+  const mockContext = createMockExecutionContext();
+
   describe('Agent Factories', () => {
     describe('createAgent', () => {
       it('should create agent with default values', () => {
@@ -113,7 +116,9 @@ describe('MockFactories', () => {
         expect(definition.organization_slug).toBe('test-org');
         expect(definition.slug).toBe('test-orchestration');
         expect(definition.display_name).toBe('Test Orchestration');
-        expect(definition.description).toBe('A test orchestration for automated testing');
+        expect(definition.description).toBe(
+          'A test orchestration for automated testing',
+        );
         expect(definition.version).toBe(1);
         expect(definition.is_active).toBe(true);
         expect(definition.created_at).toBeInstanceOf(Date);

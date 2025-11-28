@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { DataAnalystService } from './data-analyst.service';
 import { DataAnalystRequestDto } from './dto';
+import { ExecutionContext } from '@orchestrator-ai/transport-types';
 
 /**
  * DataAnalystController
@@ -33,17 +34,24 @@ export class DataAnalystController {
   @Post('analyze')
   @HttpCode(HttpStatus.OK)
   async analyze(@Body() request: DataAnalystRequestDto) {
-    this.logger.log(`Received analysis request: taskId=${request.taskId}`);
+    // Build ExecutionContext from request (supports both context object and individual fields)
+    const context: ExecutionContext = {
+      taskId: request.context?.taskId || request.taskId || '',
+      userId: request.context?.userId || request.userId || '',
+      conversationId: request.context?.conversationId || request.conversationId || '',
+      orgSlug: request.context?.orgSlug || request.orgSlug || request.organizationSlug || '',
+      agentSlug: 'data-analyst',
+      agentType: 'langgraph',
+      provider: request.context?.provider || request.provider,
+      model: request.context?.model || request.model,
+    };
+
+    this.logger.log(`Received analysis request: taskId=${context.taskId}, userId=${context.userId}`);
 
     try {
       const result = await this.dataAnalystService.analyze({
-        taskId: request.taskId,
-        userId: request.userId,
-        conversationId: request.conversationId,
-        organizationSlug: request.organizationSlug,
+        context,
         userMessage: request.userMessage,
-        provider: request.provider,
-        model: request.model,
       });
 
       return {

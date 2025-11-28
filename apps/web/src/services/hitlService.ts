@@ -16,9 +16,11 @@ import type {
   HitlStatusResponseContent,
   HitlHistoryResponseContent,
   HitlRequestMetadata,
+  ExecutionContext,
 } from '@orchestrator-ai/transport-types';
 import { useAuthStore } from '@/stores/rbacStore';
 import { buildResponseHandler } from '@/services/agent2agent/utils/handlers/build.handler';
+import { buildExecutionContext } from '@/utils/executionContext';
 
 // Re-export types for convenience
 export type {
@@ -126,7 +128,8 @@ class HitlService {
   }
 
   /**
-   * Build request metadata
+   * Build request metadata (deprecated - use buildExecutionContext instead)
+   * @deprecated Use buildExecutionContext from utils instead
    */
   private buildMetadata(conversationId: string, originalTaskId?: string): HitlRequestMetadata {
     return {
@@ -136,6 +139,13 @@ class HitlService {
       organizationSlug: this.getOrgSlug(),
       originalTaskId,
     };
+  }
+
+  /**
+   * Build execution context for request
+   */
+  private buildContext(conversationId: string, taskId?: string): ExecutionContext {
+    return buildExecutionContext(conversationId, { taskId });
   }
 
   /**
@@ -158,11 +168,14 @@ class HitlService {
       feedback: request.feedback,
     };
 
+    const context = this.buildContext(conversationId, originalTaskId);
+
     const requestBody = {
       jsonrpc: '2.0',
       id: crypto.randomUUID(),
       method: 'hitl.resume',
       params: {
+        context,
         conversationId,
         payload,
         metadata: this.buildMetadata(conversationId, originalTaskId),
@@ -210,7 +223,7 @@ class HitlService {
 
         return {
           success: true,
-          data: buildResult,
+          data: buildResult as unknown as HitlResumeResponseContent,
           message: result.humanResponse?.message,
         };
       } catch (error) {
@@ -245,11 +258,14 @@ class HitlService {
       threadId,
     };
 
+    const context = this.buildContext(conversationId);
+
     const requestBody = {
       jsonrpc: '2.0',
       id: crypto.randomUUID(),
       method: 'hitl.status',
       params: {
+        context,
         conversationId,
         payload,
         metadata: this.buildMetadata(conversationId),
@@ -298,11 +314,14 @@ class HitlService {
       threadId,
     };
 
+    const context = this.buildContext(conversationId);
+
     const requestBody = {
       jsonrpc: '2.0',
       id: crypto.randomUUID(),
       method: 'hitl.history',
       params: {
+        context,
         conversationId,
         payload,
         metadata: this.buildMetadata(conversationId),

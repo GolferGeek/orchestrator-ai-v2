@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import type { JsonObject } from '@orchestrator-ai/transport-types';
+import { ExecutionContext } from '@orchestrator-ai/transport-types';
 import { AgentRecord } from '@agent-platform/interfaces/agent.interface';
 import { ConversationPlanRecord } from '@agent-platform/interfaces/conversation-plan-record.interface';
 import { AgentTaskMode, TaskRequestDto } from '../dto/task-request.dto';
@@ -39,13 +40,12 @@ export class AgentExecutionGateway {
   ) {}
 
   async execute(
-    organizationSlug: string | null,
-    agentSlug: string,
+    context: ExecutionContext,
     request: TaskRequestDto,
   ): Promise<TaskResponseDto> {
     const agent = await this.agentRegistry.getAgent(
-      organizationSlug,
-      agentSlug,
+      context.orgSlug,
+      context.agentSlug!,
     );
 
     if (!agent) {
@@ -55,14 +55,14 @@ export class AgentExecutionGateway {
     const definition = this.runtimeDefinitions.buildDefinition(agent);
     const agentMetadata = this.runtimeExecution.getAgentMetadataFromDefinition(
       definition,
-      organizationSlug,
+      context.orgSlug,
     );
 
     // Observability: Agent execution started
     this.emitAgentLifecycleEvent('agent.started', 'Agent execution started', {
       definition,
       request,
-      organizationSlug,
+      organizationSlug: context.orgSlug,
     });
 
     const assessment = await this.routingPolicy.evaluate(request, agent);
@@ -84,7 +84,7 @@ export class AgentExecutionGateway {
       this.emitAgentLifecycleEvent('agent.failed', 'Unsupported mode', {
         definition,
         request,
-        organizationSlug,
+        organizationSlug: context.orgSlug,
       });
       return unsupported;
     }
@@ -95,7 +95,7 @@ export class AgentExecutionGateway {
       switch (request.mode!) {
         case AgentTaskMode.CONVERSE:
           response = await this.modeRouter.execute({
-            organizationSlug,
+            organizationSlug: context.orgSlug,
             agentSlug: agent.slug,
             agent,
             definition,
@@ -106,7 +106,7 @@ export class AgentExecutionGateway {
         case AgentTaskMode.PLAN:
           // Delegate to mode router (uses new plans table via PlansService)
           response = await this.modeRouter.execute({
-            organizationSlug,
+            organizationSlug: context.orgSlug,
             agentSlug: agent.slug,
             agent,
             definition,
@@ -117,7 +117,7 @@ export class AgentExecutionGateway {
         case AgentTaskMode.BUILD:
           // Delegate to mode router (uses new deliverables table via DeliverablesService)
           response = await this.modeRouter.execute({
-            organizationSlug,
+            organizationSlug: context.orgSlug,
             agentSlug: agent.slug,
             agent,
             definition,
@@ -128,7 +128,7 @@ export class AgentExecutionGateway {
         case AgentTaskMode.HITL:
           // Delegate to mode router for HITL actions (resume, status, history)
           response = await this.modeRouter.execute({
-            organizationSlug,
+            organizationSlug: context.orgSlug,
             agentSlug: agent.slug,
             agent,
             definition,
@@ -148,14 +148,14 @@ export class AgentExecutionGateway {
           {
             definition,
             request,
-            organizationSlug,
+            organizationSlug: context.orgSlug,
           },
         );
       } else {
         this.emitAgentLifecycleEvent('agent.failed', 'Agent execution failed', {
           definition,
           request,
-          organizationSlug,
+          organizationSlug: context.orgSlug,
         });
       }
 
@@ -169,7 +169,7 @@ export class AgentExecutionGateway {
         {
           definition,
           request,
-          organizationSlug,
+          organizationSlug: context.orgSlug,
         },
       );
       throw error;
@@ -333,6 +333,8 @@ export class AgentExecutionGateway {
 
     return enriched;
   }
+
+  // NOTE: Removed handlePlan and handleBuild methods as they are now handled by mode router
 
   private collectMetadata(request: TaskRequestDto): Record<string, unknown> {
     return {

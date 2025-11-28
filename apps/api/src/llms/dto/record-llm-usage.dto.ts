@@ -1,4 +1,11 @@
-import { IsString, IsNumber, IsOptional, IsIn, IsObject, Min } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsIn,
+  IsObject,
+  Min,
+} from 'class-validator';
 
 /**
  * DTO for recording LLM usage from external callers (e.g., LangGraph tools)

@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { getTableName } from '../../supabase/supabase.config';
 import { ObservabilityWebhookService } from '../../observability/observability-webhook.service';
+import { ExecutionContext } from '@orchestrator-ai/transport-types';
 
 /**
  * Database record type for tasks table
@@ -43,25 +44,17 @@ export class Agent2AgentTaskStatusService {
    * Update task status
    * A2A protocol: status updates during task execution
    *
-   * @param taskId - The task ID
-   * @param userId - The user ID
+   * @param context - Execution context containing taskId, userId, conversationId, agentSlug, orgSlug
    * @param updates - Status updates to apply
-   * @param context - Optional context to avoid database lookup (conversationId, agentSlug, organizationSlug)
    */
   async updateTaskStatus(
-    taskId: string,
-    userId: string,
+    context: ExecutionContext,
     updates: {
       status?: string;
       progress?: number;
       progressMessage?: string;
       metadata?: Record<string, unknown>;
       [key: string]: unknown;
-    },
-    context?: {
-      conversationId?: string;
-      agentSlug?: string;
-      organizationSlug?: string;
     },
   ): Promise<void> {
     try {
@@ -109,8 +102,8 @@ export class Agent2AgentTaskStatusService {
           .getServiceClient()
           .from(getTableName('tasks'))
           .select('params')
-          .eq('id', taskId)
-          .eq('user_id', userId)
+          .eq('id', context.taskId!)
+          .eq('user_id', context.userId)
           .single();
 
         const currentTask = data as Pick<TaskDbRecord, 'params'> | null;
@@ -141,46 +134,44 @@ export class Agent2AgentTaskStatusService {
         .getServiceClient()
         .from(getTableName('tasks'))
         .update(updateData)
-        .eq('id', taskId)
-        .eq('user_id', userId);
+        .eq('id', context.taskId!)
+        .eq('user_id', context.userId);
 
       if (error) {
         throw new Error(`Failed to update task status: ${error.message}`);
       }
 
       this.logger.debug(
-        `✅ Updated A2A task ${taskId} status: ${updates.status || 'progress update'}`,
+        `✅ Updated A2A task ${context.taskId} status: ${updates.status || 'progress update'}`,
       );
 
       // Send events via centralized observability service
-      // Use provided context or fetch from database if not provided
-      const taskContext = context?.conversationId
-        ? context
-        : await this.getTaskContext(taskId, userId);
-
       if (updates.status) {
         this.sendStatusEvent(
-          taskId,
-          userId,
+          context.taskId!,
+          context.userId,
           updates.status,
           updates,
-          taskContext,
+          context,
         );
       } else if (updates.progress !== undefined) {
         // Progress updates also go through observability service
         await this.observabilityService.emitAgentProgress({
-          taskId,
-          userId,
-          agentSlug: taskContext?.agentSlug || 'unknown',
-          conversationId: taskContext?.conversationId,
-          organizationSlug: taskContext?.organizationSlug,
+          taskId: context.taskId!,
+          userId: context.userId,
+          agentSlug: context.agentSlug || 'unknown',
+          conversationId: context.conversationId,
+          organizationSlug: context.orgSlug,
           mode: 'converse',
           message: (updates.progressMessage as string) || 'Processing...',
           progress: updates.progress,
         });
       }
     } catch (error) {
-      this.logger.error(`Failed to update A2A task ${taskId} status:`, error);
+      this.logger.error(
+        `Failed to update A2A task ${context.taskId} status:`,
+        error,
+      );
       throw error;
     }
   }
@@ -194,11 +185,7 @@ export class Agent2AgentTaskStatusService {
     userId: string,
     status: string,
     updates: Record<string, unknown>,
-    taskContext?: {
-      agentSlug?: string;
-      conversationId?: string;
-      organizationSlug?: string;
-    },
+    context: ExecutionContext,
   ): void {
     this.logger.debug(
       `🎯 A2A sendStatusEvent: taskId=${taskId}, status=${status}`,
@@ -218,13 +205,13 @@ export class Agent2AgentTaskStatusService {
     this.observabilityService
       .sendEvent({
         source_app: 'orchestrator-ai',
-        session_id: taskContext?.conversationId || taskId,
+        session_id: context.conversationId || taskId,
         hook_event_type: eventType,
         taskId,
         userId,
-        agentSlug: taskContext?.agentSlug,
-        conversationId: taskContext?.conversationId,
-        organizationSlug: taskContext?.organizationSlug,
+        agentSlug: context.agentSlug,
+        conversationId: context.conversationId,
+        organizationSlug: context.orgSlug,
         payload: {
           status,
           progress: updates.progress,
@@ -238,55 +225,11 @@ export class Agent2AgentTaskStatusService {
   }
 
   /**
-   * Get task context for event enrichment
-   */
-  private async getTaskContext(
-    taskId: string,
-    userId: string,
-  ): Promise<
-    | { agentSlug?: string; conversationId?: string; organizationSlug?: string }
-    | undefined
-  > {
-    try {
-      const { data } = await this.supabaseService
-        .getServiceClient()
-        .from(getTableName('tasks'))
-        .select('conversation_id, agent_slug, organization_slug, params')
-        .eq('id', taskId)
-        .eq('user_id', userId)
-        .single();
-
-      if (!data) return undefined;
-
-      const task = data as Pick<
-        TaskDbRecord,
-        'conversation_id' | 'agent_slug' | 'organization_slug' | 'params'
-      >;
-      // Agent slug might be in params if not in dedicated column
-      const agentSlug = task.agent_slug || (task.params?.agentSlug as string);
-      const orgSlug =
-        task.organization_slug || (task.params?.organizationSlug as string);
-
-      return {
-        agentSlug,
-        conversationId: task.conversation_id,
-        organizationSlug: orgSlug,
-      };
-    } catch (error) {
-      this.logger.warn(
-        `Failed to get task context for ${taskId}: ${(error as Error).message}`,
-      );
-      return undefined;
-    }
-  }
-
-  /**
    * Complete a task
    * A2A protocol: task completion with response payload
    */
   async completeTask(
-    taskId: string,
-    userId: string,
+    context: ExecutionContext,
     response: unknown,
   ): Promise<void> {
     try {
@@ -347,16 +290,19 @@ export class Agent2AgentTaskStatusService {
         .getServiceClient()
         .from(getTableName('tasks'))
         .update(updateData)
-        .eq('id', taskId)
-        .eq('user_id', userId);
+        .eq('id', context.taskId!)
+        .eq('user_id', context.userId);
 
       if (error) {
         throw new Error(`Failed to complete task: ${error.message}`);
       }
 
-      this.logger.log(`✅ A2A task ${taskId} completed successfully`);
+      this.logger.log(`✅ A2A task ${context.taskId} completed successfully`);
     } catch (error) {
-      this.logger.error(`Failed to complete A2A task ${taskId}:`, error);
+      this.logger.error(
+        `Failed to complete A2A task ${context.taskId}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -366,8 +312,7 @@ export class Agent2AgentTaskStatusService {
    * A2A protocol: task failure with error details
    */
   async failTask(
-    taskId: string,
-    userId: string,
+    context: ExecutionContext,
     errorMessage: string,
     errorDetails?: unknown,
   ): Promise<void> {
@@ -386,16 +331,16 @@ export class Agent2AgentTaskStatusService {
         .getServiceClient()
         .from(getTableName('tasks'))
         .update(updateData)
-        .eq('id', taskId)
-        .eq('user_id', userId);
+        .eq('id', context.taskId!)
+        .eq('user_id', context.userId);
 
       if (error) {
         throw new Error(`Failed to mark task as failed: ${error.message}`);
       }
 
-      this.logger.warn(`❌ A2A task ${taskId} failed: ${errorMessage}`);
+      this.logger.warn(`❌ A2A task ${context.taskId} failed: ${errorMessage}`);
     } catch (error) {
-      this.logger.error(`Failed to fail A2A task ${taskId}:`, error);
+      this.logger.error(`Failed to fail A2A task ${context.taskId}:`, error);
       throw error;
     }
   }
@@ -404,10 +349,7 @@ export class Agent2AgentTaskStatusService {
    * Get task status
    * A2A protocol: status queries
    */
-  async getTaskStatus(
-    taskId: string,
-    userId: string,
-  ): Promise<{
+  async getTaskStatus(context: ExecutionContext): Promise<{
     status: string;
     progress?: number;
     progressMessage?: string;
@@ -420,8 +362,8 @@ export class Agent2AgentTaskStatusService {
         .getServiceClient()
         .from(getTableName('tasks'))
         .select('status, response, error, params')
-        .eq('id', taskId)
-        .eq('user_id', userId)
+        .eq('id', context.taskId!)
+        .eq('user_id', context.userId)
         .single();
 
       const task = data as
@@ -449,7 +391,10 @@ export class Agent2AgentTaskStatusService {
         metadata: statusData.metadata as Record<string, unknown> | undefined,
       };
     } catch (error) {
-      this.logger.error(`Failed to get A2A task ${taskId} status:`, error);
+      this.logger.error(
+        `Failed to get A2A task ${context.taskId} status:`,
+        error,
+      );
       return null;
     }
   }

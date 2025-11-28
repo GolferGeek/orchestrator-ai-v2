@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ExecutionContext } from '@orchestrator-ai/transport-types';
 import { PIIService } from '../pii/pii.service';
 import {
   DictionaryPseudonymizerService,
@@ -54,6 +55,7 @@ export abstract class BaseLLMService {
    * This is the core method for generating responses from the LLM
    */
   abstract generateResponse(
+    context: ExecutionContext,
     params: GenerateResponseParams,
   ): Promise<LLMResponse>;
 
@@ -246,6 +248,7 @@ export abstract class BaseLLMService {
    * Track usage metrics and costs
    */
   protected async trackUsage(
+    context: ExecutionContext,
     provider: string,
     model: string,
     inputTokens: number,
@@ -253,19 +256,16 @@ export abstract class BaseLLMService {
     cost?: number,
     requestMetadata?: {
       requestId?: string;
-      userId?: string;
-      conversationId?: string;
-      callerType?: string;
-      callerName?: string;
       piiMetadata?: Record<string, unknown>;
       startTime?: number;
       endTime?: number;
+      callerType?: string;
+      callerName?: string;
     },
   ): Promise<void> {
     try {
       // Start metadata tracking if we have the necessary info
-      if (requestMetadata?.startTime && requestMetadata?.userId) {
-
+      if (requestMetadata?.startTime && context.userId) {
         // Derive full pseudonym mappings from PII metadata when available
         const derivePseudonymMappings = (
           piiMeta: unknown,
@@ -418,10 +418,10 @@ export abstract class BaseLLMService {
           provider,
           model,
           isLocal: provider === 'ollama',
-          userId: requestMetadata.userId,
+          userId: context.userId,
           callerType: requestMetadata.callerType,
           callerName: requestMetadata.callerName,
-          conversationId: requestMetadata.conversationId,
+          conversationId: context.conversationId,
           inputTokens,
           outputTokens,
           totalCost: cost,

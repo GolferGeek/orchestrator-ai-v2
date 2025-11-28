@@ -9,6 +9,7 @@ import { ContextOptimizationService } from '../../context-optimization/context-o
 import { TaskRequestDto, AgentTaskMode } from '../../dto/task-request.dto';
 import { TaskResponseDto } from '../../dto/task-response.dto';
 import type { AgentRuntimeDefinition } from '../../../agent-platform/interfaces/agent.interface';
+import { ExecutionContext } from '@orchestrator-ai/transport-types';
 
 /**
  * Fetches conversation history required for agent execution.
@@ -41,10 +42,15 @@ export async function fetchConversationHistory(
   }
 
   try {
-    const conversation = await conversationsService.getConversationById(
-      conversationId,
+    // Build ExecutionContext for service call
+    const context: ExecutionContext = {
+      orgSlug: 'global', // Will be refined when organization context is available
       userId,
-    );
+      conversationId,
+    };
+
+    const conversation =
+      await conversationsService.getConversationById(context);
 
     const metadataHistory = conversation?.metadata?.history;
     if (!Array.isArray(metadataHistory)) {

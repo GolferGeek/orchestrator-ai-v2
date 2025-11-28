@@ -171,17 +171,12 @@ export type HitlModePayload =
 
 /**
  * HITL Request Metadata
+ * Note: userId, conversationId, orgSlug, taskId, provider, model are in ExecutionContext
  */
 export interface HitlRequestMetadata {
   /** Source of the request (e.g., 'web-ui', 'api') */
   source: string;
-  /** User ID making the decision */
-  userId: string;
-  /** Conversation ID */
-  conversationId: string;
-  /** Organization slug */
-  organizationSlug?: string;
-  /** Original task ID that triggered HITL */
+  /** Original task ID that triggered HITL (for reference, taskId in context is the current task) */
   originalTaskId?: string;
 }
 

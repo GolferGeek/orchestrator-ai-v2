@@ -10,6 +10,7 @@ import {
   ExtendedPostWriterRequestDto,
   ExtendedPostWriterResumeDto,
 } from './dto';
+import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
 
 /**
  * Unit tests for ExtendedPostWriterController
@@ -20,6 +21,7 @@ import {
 describe('ExtendedPostWriterController', () => {
   let controller: ExtendedPostWriterController;
   let service: jest.Mocked<ExtendedPostWriterService>;
+  const mockContext = createMockExecutionContext();
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({

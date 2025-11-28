@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { getTableName } from '../../supabase/supabase.config';
+import { ExecutionContext } from '@orchestrator-ai/transport-types';
 // No AgentType import needed - we treat agent_type as a simple string
 
 /**
@@ -35,13 +36,11 @@ export class Agent2AgentConversationsService {
    * A2A protocol: conversation initiation
    */
   async createConversation(
-    userId: string,
+    context: ExecutionContext,
     agentName: string,
-    organization: string, // Organization slug (my-org, etc.)
     options?: {
       title?: string;
       metadata?: Record<string, unknown>;
-      conversationId?: string;
     },
   ): Promise<{
     id: string;
@@ -55,9 +54,9 @@ export class Agent2AgentConversationsService {
     try {
       const now = new Date().toISOString();
       const insertData: Record<string, unknown> = {
-        user_id: userId,
+        user_id: context.userId,
         agent_name: agentName,
-        organization_slug: organization, // Store organization in organization_slug column
+        organization_slug: context.orgSlug, // Store organization in organization_slug column
         started_at: now,
         last_active_at: now,
         metadata: {
@@ -69,11 +68,6 @@ export class Agent2AgentConversationsService {
           source: 'agent2agent',
         },
       };
-
-      // Only include id if explicitly provided, otherwise let database generate it
-      if (options?.conversationId) {
-        insertData.id = options.conversationId;
-      }
 
       const response = await this.supabaseService
         .getServiceClient()
@@ -115,10 +109,7 @@ export class Agent2AgentConversationsService {
    * Get conversation by ID
    * A2A protocol: conversation context retrieval
    */
-  async getConversationById(
-    conversationId: string,
-    userId: string,
-  ): Promise<{
+  async getConversationById(context: ExecutionContext): Promise<{
     id: string;
     userId: string;
     agentName: string;
@@ -133,8 +124,8 @@ export class Agent2AgentConversationsService {
         .getServiceClient()
         .from(getTableName('conversations'))
         .select('*')
-        .eq('id', conversationId)
-        .eq('user_id', userId)
+        .eq('id', context.conversationId)
+        .eq('user_id', context.userId)
         .single();
 
       const data: unknown = response.data;
@@ -157,7 +148,7 @@ export class Agent2AgentConversationsService {
       };
     } catch (error) {
       this.logger.error(
-        `Failed to get A2A conversation ${conversationId}:`,
+        `Failed to get A2A conversation ${context.conversationId}:`,
         error,
       );
       return null;
@@ -169,10 +160,8 @@ export class Agent2AgentConversationsService {
    * A2A protocol: ensure conversation exists for task execution
    */
   async getOrCreateConversation(
-    conversationId: string | undefined,
-    userId: string,
+    context: ExecutionContext,
     agentName: string,
-    organization: string,
   ): Promise<{
     id: string;
     userId: string;
@@ -183,8 +172,8 @@ export class Agent2AgentConversationsService {
     createdAt: Date;
   }> {
     // If conversationId provided, try to get it
-    if (conversationId) {
-      const existing = await this.getConversationById(conversationId, userId);
+    if (context.conversationId) {
+      const existing = await this.getConversationById(context);
       if (existing) {
         return {
           id: existing.id,
@@ -198,12 +187,12 @@ export class Agent2AgentConversationsService {
       }
 
       this.logger.warn(
-        `Conversation ${conversationId} not found, creating new one`,
+        `Conversation ${context.conversationId} not found, creating new one`,
       );
     }
 
     // Create new conversation
-    return this.createConversation(userId, agentName, organization);
+    return this.createConversation(context, agentName);
   }
 
   /**
@@ -211,8 +200,7 @@ export class Agent2AgentConversationsService {
    * A2A protocol: conversation state updates
    */
   async updateConversation(
-    conversationId: string,
-    userId: string,
+    context: ExecutionContext,
     updates: {
       title?: string;
       metadata?: Record<string, unknown>;
@@ -233,8 +221,8 @@ export class Agent2AgentConversationsService {
           .getServiceClient()
           .from(getTableName('conversations'))
           .select('metadata')
-          .eq('id', conversationId)
-          .eq('user_id', userId)
+          .eq('id', context.conversationId)
+          .eq('user_id', context.userId)
           .single();
 
         const current = data as Pick<ConversationDbRecord, 'metadata'> | null;
@@ -250,17 +238,19 @@ export class Agent2AgentConversationsService {
         .getServiceClient()
         .from(getTableName('conversations'))
         .update(updateData)
-        .eq('id', conversationId)
-        .eq('user_id', userId);
+        .eq('id', context.conversationId)
+        .eq('user_id', context.userId);
 
       if (error) {
         throw new Error(`Failed to update conversation: ${error.message}`);
       }
 
-      this.logger.debug(`✅ Updated A2A conversation ${conversationId}`);
+      this.logger.debug(
+        `✅ Updated A2A conversation ${context.conversationId}`,
+      );
     } catch (error) {
       this.logger.error(
-        `Failed to update A2A conversation ${conversationId}:`,
+        `Failed to update A2A conversation ${context.conversationId}:`,
         error,
       );
       throw error;
@@ -310,26 +300,23 @@ export class Agent2AgentConversationsService {
    * Delete a conversation
    * A2A protocol: conversation cleanup
    */
-  async deleteConversation(
-    conversationId: string,
-    userId: string,
-  ): Promise<void> {
+  async deleteConversation(context: ExecutionContext): Promise<void> {
     try {
       const { error } = await this.supabaseService
         .getServiceClient()
         .from(getTableName('conversations'))
         .delete()
-        .eq('id', conversationId)
-        .eq('user_id', userId);
+        .eq('id', context.conversationId)
+        .eq('user_id', context.userId);
 
       if (error) {
         throw new Error(`Failed to delete conversation: ${error.message}`);
       }
 
-      this.logger.log(`🗑️ Deleted A2A conversation ${conversationId}`);
+      this.logger.log(`🗑️ Deleted A2A conversation ${context.conversationId}`);
     } catch (error) {
       this.logger.error(
-        `Failed to delete A2A conversation ${conversationId}:`,
+        `Failed to delete A2A conversation ${context.conversationId}:`,
         error,
       );
       throw error;

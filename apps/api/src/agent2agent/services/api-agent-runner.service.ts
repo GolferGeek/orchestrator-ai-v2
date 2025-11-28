@@ -126,7 +126,9 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
     request: TaskRequestDto,
     organizationSlug: string | null,
   ): Promise<TaskResponseDto> {
-    this.logger.log(`🔍 [API-HITL-RESUME] Starting HITL resume for agent: ${definition.slug}`);
+    this.logger.log(
+      `🔍 [API-HITL-RESUME] Starting HITL resume for agent: ${definition.slug}`,
+    );
 
     // 1. Send resume to LangGraph
     const result = await HitlHandlers.sendHitlResume(
@@ -146,7 +148,9 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
     const axiosResponse = result.response as { status: number; data: unknown };
     const responseData = axiosResponse.data;
 
-    this.logger.log(`🔍 [API-HITL-RESUME] LangGraph returned response, processing through normal BUILD flow`);
+    this.logger.log(
+      `🔍 [API-HITL-RESUME] LangGraph returned response, processing through normal BUILD flow`,
+    );
 
     // 3. Process exactly like executeBuild does - create deliverable
     return await this.processApiResponseAsDeliverable(
@@ -178,7 +182,9 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
 
       const userId = this.resolveUserId(request);
       const conversationId = this.resolveConversationId(request);
-      const taskId = ((request.payload as Record<string, unknown>)?.taskId as string) || null;
+      const taskId =
+        ((request.payload as Record<string, unknown>)?.taskId as string) ||
+        null;
 
       if (!userId || !conversationId) {
         return TaskResponseDto.failure(
@@ -188,24 +194,30 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
       }
 
       // Extract message/content from response
-      const { message, metadata } = this.extractContentFromResponse(responseData, definition);
+      const { message, metadata } = this.extractContentFromResponse(
+        responseData,
+        definition,
+      );
 
       // Determine format
-      const isMarkdown = message && (
-        message.includes('#') ||
-        message.includes('**') ||
-        message.includes('```') ||
-        (message.includes('|') && message.includes('---'))
-      );
-      const deliverableFormat = isMarkdown ? 'markdown' : (definition.config?.deliverable?.format || 'json');
+      const isMarkdown =
+        message &&
+        (message.includes('#') ||
+          message.includes('**') ||
+          message.includes('```') ||
+          (message.includes('|') && message.includes('---')));
+      const deliverableFormat = isMarkdown
+        ? 'markdown'
+        : definition.config?.deliverable?.format || 'json';
 
       // Create deliverable
       const deliverableResult = await this.deliverablesService.executeAction(
         'create',
         {
-          title: ((request.payload as Record<string, unknown>)?.title as string) ||
-                 (metadata.topic as string) ||
-                 `Response: ${definition.name}`,
+          title:
+            ((request.payload as Record<string, unknown>)?.title as string) ||
+            (metadata.topic as string) ||
+            `Response: ${definition.name}`,
           content: message,
           format: deliverableFormat,
           type: definition.config?.deliverable?.type || 'api-response',
@@ -234,10 +246,13 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
       this.logger.log(`✅ [API-HITL-RESUME] Deliverable created successfully`);
 
       // Return BUILD response with deliverable
-      const deliverableData = deliverableResult.data as Record<string, unknown> | undefined;
-      const contentWithDeliverable = deliverableData && 'deliverable' in deliverableData
-        ? deliverableData
-        : { deliverable: deliverableData };
+      const deliverableData = deliverableResult.data as
+        | Record<string, unknown>
+        | undefined;
+      const contentWithDeliverable =
+        deliverableData && 'deliverable' in deliverableData
+          ? deliverableData
+          : { deliverable: deliverableData };
 
       return TaskResponseDto.success(AgentTaskMode.BUILD, {
         content: contentWithDeliverable,
@@ -247,7 +262,8 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         },
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       this.logger.error(`Failed to process API response: ${errorMessage}`);
       return TaskResponseDto.failure(AgentTaskMode.BUILD, errorMessage);
     }
@@ -259,22 +275,28 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
    */
   private extractContentFromResponse(
     responseData: unknown,
-    definition: AgentRuntimeDefinition,
+    _definition: AgentRuntimeDefinition,
   ): { message: string; metadata: Record<string, unknown> } {
     let message = 'No response content';
     const metadata: Record<string, unknown> = {};
 
     if (!responseData || typeof responseData !== 'object') {
-      return { message: String(responseData || 'No response content'), metadata };
+      return {
+        message: String(responseData || 'No response content'),
+        metadata,
+      };
     }
 
     const dataObj = responseData as Record<string, unknown>;
-    const nestedData = dataObj.data && typeof dataObj.data === 'object'
-      ? (dataObj.data as Record<string, unknown>)
-      : null;
+    const nestedData =
+      dataObj.data && typeof dataObj.data === 'object'
+        ? (dataObj.data as Record<string, unknown>)
+        : null;
 
     // Check for finalContent (HITL completed response)
-    const finalContent = (nestedData?.finalContent || dataObj.finalContent) as Record<string, unknown> | undefined;
+    const finalContent = (nestedData?.finalContent || dataObj.finalContent) as
+      | Record<string, unknown>
+      | undefined;
     if (finalContent) {
       // Build content from finalContent fields
       const parts: string[] = [];
@@ -283,7 +305,10 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         parts.push(String(finalContent.blogPost));
       }
       if (finalContent.seoDescription) {
-        parts.push('\n\n---\n\n## SEO Description\n\n' + String(finalContent.seoDescription));
+        parts.push(
+          '\n\n---\n\n## SEO Description\n\n' +
+            String(finalContent.seoDescription),
+        );
       }
       if (finalContent.socialPosts) {
         let socialPostsText = '';
@@ -309,9 +334,9 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
     const source = nestedData || dataObj;
     message = String(
       source.summary ||
-      source.message ||
-      source.content ||
-      JSON.stringify(responseData)
+        source.message ||
+        source.content ||
+        JSON.stringify(responseData),
     );
 
     // Extract topic if present
@@ -771,7 +796,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
       // Extract message content for both conversation response and deliverable
       // This must happen BEFORE deliverable creation in BUILD mode
       let message: string = 'No response content';
-      let metadata: Record<string, unknown> = {};
+      const metadata: Record<string, unknown> = {};
 
       const responseTransform = this.asRecord(apiConfig.responseTransform);
       if (responseTransform) {
@@ -1420,7 +1445,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
       }
 
       let message: string = 'No response content';
-      let metadata: Record<string, unknown> = {};
+      const metadata: Record<string, unknown> = {};
 
       const responseTransform = this.asRecord(apiConfig.responseTransform);
       if (responseTransform) {
@@ -1508,7 +1533,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
                   ];
                   for (const field of stringFields) {
                     if (obj[field] && typeof obj[field] === 'string') {
-                      message = obj[field] as string;
+                      message = obj[field];
                       this.logger.debug(
                         `✅ Extracted message from fallback path "${fallbackPath.join('.')}.${field}"`,
                       );
@@ -1693,7 +1718,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
     responseTransform: Record<string, unknown> | null,
   ): { message: string; metadata: Record<string, unknown> } {
     let message: string = 'No response content';
-    let metadata: Record<string, unknown> = {};
+    const metadata: Record<string, unknown> = {};
 
     if (responseTransform) {
       // Extract content using responseTransform.content path
@@ -1765,7 +1790,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
                 ];
                 for (const field of stringFields) {
                   if (obj[field] && typeof obj[field] === 'string') {
-                    message = obj[field] as string;
+                    message = obj[field];
                     extracted = true;
                     break;
                   }

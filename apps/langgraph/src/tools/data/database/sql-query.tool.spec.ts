@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { SqlQueryTool } from './sql-query.tool';
 import { LLMUsageReporterService } from '../services/llm-usage-reporter.service';
+import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
 
 // Mock PostgresSaver before any imports that need it
 jest.mock('@langchain/langgraph-checkpoint-postgres', () => ({
@@ -35,6 +36,7 @@ describe('SqlQueryTool', () => {
   let tool: SqlQueryTool;
   let checkpointer: jest.Mocked<PostgresCheckpointerService>;
   let usageReporter: jest.Mocked<LLMUsageReporterService>;
+  const mockContext = createMockExecutionContext();
   let mockPool: {
     query: jest.Mock;
   };

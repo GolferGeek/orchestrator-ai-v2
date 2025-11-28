@@ -33,6 +33,7 @@ import {
   DescribeTableTool,
   SqlQueryTool,
 } from '../../tools/data/database';
+import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
 
 // Mock the graph module
 jest.mock('./data-analyst.graph', () => ({
@@ -74,6 +75,7 @@ describe('DataAnalystService', () => {
   let llmClient: jest.Mocked<LLMHttpClientService>;
   let observability: jest.Mocked<ObservabilityService>;
   let checkpointer: jest.Mocked<PostgresCheckpointerService>;
+  const mockContext = createMockExecutionContext();
 
   const mockSaver = {
     setup: jest.fn().mockResolvedValue(undefined),

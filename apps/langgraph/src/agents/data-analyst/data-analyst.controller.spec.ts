@@ -3,6 +3,7 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { DataAnalystController } from './data-analyst.controller';
 import { DataAnalystService, DataAnalystResult, DataAnalystStatus } from './data-analyst.service';
 import { DataAnalystRequestDto } from './dto';
+import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
 
 /**
  * Unit tests for DataAnalystController
@@ -12,6 +13,7 @@ import { DataAnalystRequestDto } from './dto';
 describe('DataAnalystController', () => {
   let controller: DataAnalystController;
   let service: jest.Mocked<DataAnalystService>;
+  const mockContext = createMockExecutionContext();
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({

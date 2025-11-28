@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ExecutionContext } from '@orchestrator-ai/transport-types';
 import OpenAI from 'openai';
 import { ChatOllama } from '@langchain/ollama';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
@@ -151,7 +152,6 @@ export class LLMService {
 
       // If providerName/modelName are provided, use the unified method
       if (options?.providerName && options?.modelName) {
-
         // === PII PROCESSING BEFORE FACTORY CALL ===
         let processedUserMessage = userMessage;
         let dictionaryMappings: DictionaryPseudonymMapping[] = [];
@@ -161,7 +161,6 @@ export class LLMService {
         // Always apply dictionary pseudonymization for external providers (non-Ollama), unless quick bypass
         const skipPII = options?.quick === true;
         if (!skipPII && options.providerName.toLowerCase() !== 'ollama') {
-
           const pseudonymResult =
             await this.dictionaryPseudonymizerService.pseudonymizeText(
               userMessage,
@@ -1040,7 +1039,6 @@ export class LLMService {
 
     // Use LocalLLMService for local Ollama models - NO SANITIZATION needed
     if (routingDecision.isLocal && routingDecision.provider === 'ollama') {
-
       const response = await this.localLLMService.generateResponse({
         model: routingDecision.model,
         prompt: userMessage,

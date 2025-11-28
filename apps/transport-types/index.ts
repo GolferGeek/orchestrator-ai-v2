@@ -6,6 +6,19 @@
  */
 
 // ============================================================================
+// CORE - EXECUTION CONTEXT
+// ============================================================================
+export type {
+  ExecutionContext,
+  PartialExecutionContext,
+} from './core/execution-context';
+export {
+  createExecutionContext,
+  createMockExecutionContext,
+  isExecutionContext,
+} from './core/execution-context';
+
+// ============================================================================
 // SHARED ENUMS
 // ============================================================================
 export {

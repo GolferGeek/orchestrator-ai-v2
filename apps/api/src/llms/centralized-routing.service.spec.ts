@@ -6,6 +6,7 @@ import { FeatureFlagService } from '../config/feature-flag.service';
 import { PIIService } from './pii/pii.service';
 import { DictionaryPseudonymizerService } from './pii/dictionary-pseudonymizer.service';
 import { RunMetadataService } from './run-metadata.service';
+import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
 
 function makeService(
   overrides?: Partial<{
@@ -97,6 +98,8 @@ function makeService(
 }
 
 describe('CentralizedRoutingService showstopper behavior', () => {
+  const mockContext = createMockExecutionContext();
+
   it('blocks remote route when showstopper and no local available', async () => {
     const { service } = makeService({
       showstopper: true,
