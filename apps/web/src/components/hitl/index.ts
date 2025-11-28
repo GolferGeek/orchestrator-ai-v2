@@ -14,6 +14,9 @@
 
 export { default as HitlStatusBanner } from './HitlStatusBanner.vue';
 export { default as HitlApprovalModal } from './HitlApprovalModal.vue';
+export { default as HitlReviewModal } from './HitlReviewModal.vue';
+export { default as HitlPendingCard } from './HitlPendingCard.vue';
+export { default as HitlPendingList } from './HitlPendingList.vue';
 
 // Re-export types from transport-types via service
 export type {

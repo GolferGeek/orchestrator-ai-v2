@@ -36,6 +36,7 @@
               </ion-button>
             </div>
             <div v-if="!editMode.blogPost" class="section-content">
+              <!-- eslint-disable-next-line vue/no-v-html -- Content is sanitized via DOMPurify in formatContent -->
               <div class="content-preview" v-html="formatContent(editedContent.blogPost || generatedContent?.blogPost)" />
             </div>
             <div v-else class="section-edit">
@@ -221,6 +222,7 @@ import {
   closeCircleOutline,
   informationCircleOutline,
 } from 'ionicons/icons';
+import DOMPurify from 'dompurify';
 import type { HitlGeneratedContent } from '@/services/hitlService';
 
 interface Props {
@@ -319,18 +321,19 @@ const hasSocialPosts = computed(() => {
   const posts = props.generatedContent?.socialPosts;
   if (!posts) return false;
   if (Array.isArray(posts)) return posts.length > 0;
-  return posts.trim().length > 0;
+  return (posts as string).trim().length > 0;
 });
 
 // Helper functions
 const formatContent = (content?: string): string => {
   if (!content) return '<em>No content</em>';
-  // Convert markdown-style formatting to HTML
-  return content
+  // Convert markdown-style formatting to HTML and sanitize
+  const html = content
     .replace(/\n\n/g, '</p><p>')
     .replace(/\n/g, '<br>')
     .replace(/^/, '<p>')
     .replace(/$/, '</p>');
+  return DOMPurify.sanitize(html);
 };
 
 const parseSocialPosts = (posts?: string | string[]): string[] => {
