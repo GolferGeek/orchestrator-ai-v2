@@ -16,6 +16,11 @@ interface StoredRequest {
   conversationId?: string;
   userMessage?: string;
   payload?: Record<string, unknown>;
+  taskId?: string;
+  deliverableId?: string;
+  agentType?: string;
+  provider?: string;
+  model?: string;
   [key: string]: unknown;
 }
 
@@ -106,11 +111,17 @@ export class AgentApprovalsActionsController {
     }
 
     // Build ExecutionContext for approval continuation
+    // Note: Some fields may not be stored in older approvals, provide defaults
     const context: ExecutionContext = {
       orgSlug: record.organization_slug ?? orgSlug ?? 'global',
       userId: userId ?? 'unknown',
       conversationId: record.conversation_id ?? stored.conversationId ?? '',
+      taskId: stored.taskId ?? '',
+      deliverableId: stored.deliverableId ?? '',
       agentSlug,
+      agentType: stored.agentType ?? 'context',
+      provider: stored.provider ?? 'anthropic',
+      model: stored.model ?? 'claude-sonnet-4-20250514',
     };
 
     const response = await this.gateway.execute(

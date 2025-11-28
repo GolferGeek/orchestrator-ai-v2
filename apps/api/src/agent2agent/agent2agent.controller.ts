@@ -169,16 +169,12 @@ export class Agent2AgentController {
     },
     @CurrentUser() currentUser: SupabaseAuthUserDto,
   ) {
-    // Build ExecutionContext from request
-    const context: ExecutionContext = {
-      orgSlug: body.organization,
-      userId: currentUser.id,
-      conversationId: body.conversationId || '',
-    };
-
     const conversation =
       await this.agentConversationsService.createConversation(
-        context,
+        {
+          userId: currentUser.id,
+          orgSlug: body.organization,
+        },
         body.agentName,
         {
           metadata: body.metadata,
@@ -358,20 +354,15 @@ export class Agent2AgentController {
       // Organization slug comes from the URL path parameter (already normalized by normalizeOrgSlug)
       const organizationSlug = org;
 
-      // Build initial ExecutionContext for task creation
-      const initialContext: ExecutionContext = {
-        orgSlug: organizationSlug,
-        userId: currentUser.id,
-        conversationId: dto.conversationId ?? '',
-        agentSlug,
-        agentType: agentRecord.agent_type,
-      };
-
       // CRITICAL: Persist task AND conversation to database BEFORE execution
       // (like DynamicAgentsController does)
       // TasksService.createTask automatically handles conversation creation/retrieval
       const task = await this.tasksService.createTask(
-        initialContext,
+        {
+          userId: currentUser.id,
+          orgSlug: organizationSlug,
+          conversationId: dto.conversationId,
+        },
         agentSlug, // agentName
         {
           method: dto.mode, // Use the normalized mode from DTO (guaranteed to be set)
@@ -383,11 +374,18 @@ export class Agent2AgentController {
         },
       );
 
-      // Enrich context with taskId after creation
+      // Build full ExecutionContext now that we have taskId
+      // Note: deliverableId may be created later during execution
       const context: ExecutionContext = {
-        ...initialContext,
+        orgSlug: organizationSlug,
+        userId: currentUser.id,
         conversationId: task.agentConversationId ?? dto.conversationId ?? '',
         taskId: task.id,
+        deliverableId: '', // Will be set during execution if needed
+        agentSlug,
+        agentType: agentRecord.agent_type,
+        provider: llmSelectionFromPayload?.provider ?? 'anthropic',
+        model: llmSelectionFromPayload?.model ?? 'claude-sonnet-4-20250514',
       };
 
       // Add userId and taskId to metadata for mode router (needed for plans/deliverables services)
@@ -922,13 +920,7 @@ export class Agent2AgentController {
     taskId: string,
     userId: string,
   ): Promise<AgentTaskRecord> {
-    const context: ExecutionContext = {
-      taskId,
-      userId,
-      orgSlug: '', // Will be validated later
-      conversationId: '', // Will be validated later
-    };
-    const task = await this.tasksService.getTaskById(context);
+    const task = await this.tasksService.getTaskById({ taskId, userId });
     if (!task) {
       throw new NotFoundException('Task not found');
     }

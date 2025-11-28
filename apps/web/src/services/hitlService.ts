@@ -1,79 +1,75 @@
 /**
  * HITL Service
  *
- * Service for interacting with agents that support Human-in-the-Loop (HITL).
- * Uses the A2A transport protocol - calls go through the main API, not directly to LangGraph.
+ * All HITL operations go through the A2A endpoint using JSON-RPC methods:
+ * - hitl.resume: Resume workflow with decision
+ * - hitl.status: Get current HITL status
+ * - hitl.history: Get version history
+ * - hitl.pending: Get all pending HITL reviews for user
  */
 
 import type {
-  HitlStatus,
   HitlDecision,
+  HitlStatus,
+  HitlDeliverableResponse,
+  HitlResumeRequest,
+  HitlStatusResponse,
+  HitlHistoryResponse,
+  HitlPendingListResponse,
   HitlGeneratedContent,
-  HitlResumePayload,
-  HitlStatusPayload,
-  HitlHistoryPayload,
-  HitlResumeResponseContent,
-  HitlStatusResponseContent,
-  HitlHistoryResponseContent,
-  HitlRequestMetadata,
-  ExecutionContext,
 } from '@orchestrator-ai/transport-types';
 import { useAuthStore } from '@/stores/rbacStore';
-import { buildResponseHandler } from '@/services/agent2agent/utils/handlers/build.handler';
-import { buildExecutionContext } from '@/utils/executionContext';
 
 // Re-export types for convenience
 export type {
-  HitlStatus,
   HitlDecision,
+  HitlStatus,
+  HitlDeliverableResponse,
+  HitlResumeRequest,
+  HitlStatusResponse,
+  HitlHistoryResponse,
+  HitlPendingListResponse,
   HitlGeneratedContent,
-  HitlResumeResponseContent,
-  HitlStatusResponseContent,
-  HitlHistoryResponseContent,
 };
 
-/**
- * HITL Resume Request
- */
-export interface HitlResumeRequest {
-  decision: HitlDecision;
-  editedContent?: Partial<HitlGeneratedContent>;
-  feedback?: string;
-}
-
-/**
- * HITL Resume Response (wrapped in API response format)
- */
-export interface HitlResumeResponse {
-  success: boolean;
-  data: HitlResumeResponseContent;
-  message?: string;
-}
-
-/**
- * HITL Status Response (wrapped in API response format)
- */
-export interface HitlStatusResponse {
-  success: boolean;
-  data: HitlStatusResponseContent;
-}
-
-/**
- * HITL History Response (wrapped in API response format)
- */
-export interface HitlHistoryResponse {
-  success: boolean;
-  data: HitlHistoryResponseContent;
-}
-
 // Get API base URL from environment
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_NESTJS_BASE_URL || 'http://localhost:7100';
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_API_NESTJS_BASE_URL ||
+  'http://localhost:7100';
+
+/**
+ * JSON-RPC request structure for A2A endpoint
+ */
+interface JsonRpcRequest {
+  jsonrpc: '2.0';
+  method: string;
+  params: Record<string, unknown>;
+  id: number;
+}
+
+/**
+ * JSON-RPC response structure
+ */
+interface JsonRpcResponse<T> {
+  jsonrpc: '2.0';
+  result?: {
+    success: boolean;
+    payload: T;
+  };
+  error?: {
+    code: number;
+    message: string;
+  };
+  id: number;
+}
 
 /**
  * HITL Service class
  * Communicates with agents via A2A protocol for HITL operations
  */
 class HitlService {
+  private requestId = 0;
   private authStore: ReturnType<typeof useAuthStore> | null = null;
 
   /**
@@ -84,17 +80,6 @@ class HitlService {
       this.authStore = useAuthStore();
     }
     return this.authStore;
-  }
-
-  /**
-   * Get current organization slug
-   */
-  private getOrgSlug(): string {
-    const org = this.getAuthStore().currentOrganization;
-    if (!org) {
-      throw new Error('No organization context available');
-    }
-    return org;
   }
 
   /**
@@ -112,301 +97,197 @@ class HitlService {
   }
 
   /**
-   * Get current user ID
+   * Build A2A endpoint URL
    */
-  private getUserId(): string {
-    const user = this.getAuthStore().user;
-    return user?.id || 'anonymous';
+  private getEndpoint(organizationSlug: string, agentSlug: string): string {
+    return `${API_BASE_URL}/agent-to-agent/${encodeURIComponent(organizationSlug)}/${encodeURIComponent(agentSlug)}/tasks`;
   }
 
   /**
-   * Build the A2A endpoint URL for an agent
+   * Send JSON-RPC request to A2A endpoint
    */
-  private getEndpoint(agentSlug: string): string {
-    const org = this.getOrgSlug();
-    return `${API_BASE_URL}/agent-to-agent/${encodeURIComponent(org)}/${encodeURIComponent(agentSlug)}/tasks`;
-  }
+  private async sendJsonRpc<T>(
+    organizationSlug: string,
+    agentSlug: string,
+    method: string,
+    params: Record<string, unknown>
+  ): Promise<T> {
+    const endpoint = this.getEndpoint(organizationSlug, agentSlug);
 
-  /**
-   * Build request metadata (deprecated - use buildExecutionContext instead)
-   * @deprecated Use buildExecutionContext from utils instead
-   */
-  private buildMetadata(conversationId: string, originalTaskId?: string): HitlRequestMetadata {
-    return {
-      source: 'web-ui',
-      userId: this.getUserId(),
-      conversationId,
-      organizationSlug: this.getOrgSlug(),
-      originalTaskId,
+    const request: JsonRpcRequest = {
+      jsonrpc: '2.0',
+      method,
+      params,
+      id: ++this.requestId,
     };
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Unknown error' }));
+      throw new Error(error.message || error.error?.message || `HTTP ${response.status}`);
+    }
+
+    const jsonRpcResponse = (await response.json()) as JsonRpcResponse<T>;
+
+    if (jsonRpcResponse.error) {
+      throw new Error(jsonRpcResponse.error.message);
+    }
+
+    if (!jsonRpcResponse.result?.success) {
+      throw new Error('HITL request failed');
+    }
+
+    return jsonRpcResponse.result.payload;
   }
 
   /**
-   * Build execution context for request
-   */
-  private buildContext(conversationId: string, taskId?: string): ExecutionContext {
-    return buildExecutionContext(conversationId, { taskId });
-  }
-
-  /**
-   * Resume from HITL with decision
+   * Resume HITL workflow with a decision
    */
   async resume(
+    organizationSlug: string,
     agentSlug: string,
-    threadId: string,
-    conversationId: string,
-    request: HitlResumeRequest,
-    originalTaskId?: string
-  ): Promise<HitlResumeResponse> {
-    const endpoint = this.getEndpoint(agentSlug);
-
-    const payload: HitlResumePayload = {
-      action: 'resume',
-      threadId,
-      decision: request.decision,
-      editedContent: request.editedContent,
-      feedback: request.feedback,
-    };
-
-    const context = this.buildContext(conversationId, originalTaskId);
-
-    const requestBody = {
-      jsonrpc: '2.0',
-      id: crypto.randomUUID(),
-      method: 'hitl.resume',
-      params: {
-        context,
-        conversationId,
-        payload,
-        metadata: this.buildMetadata(conversationId, originalTaskId),
-      },
-    };
-
-    console.log('[HITL-FE] Making resume request:', { endpoint, requestBody });
-
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: this.getHeaders(),
-      body: JSON.stringify(requestBody),
-    });
-
-    console.log('[HITL-FE] Fetch response received:', { ok: response.ok, status: response.status });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Unknown error' }));
-      console.log('[HITL-FE] Error response:', error);
-      throw new Error(error.message || error.error?.message || `HTTP ${response.status}`);
-    }
-
-    const jsonRpcResponse = await response.json();
-    console.log('[HITL-FE] JSON-RPC response:', jsonRpcResponse);
-
-    if (jsonRpcResponse.error) {
-      console.log('[HITL-FE] JSON-RPC error:', jsonRpcResponse.error);
-      throw new Error(jsonRpcResponse.error.message || 'HITL resume failed');
-    }
-
-    const result = jsonRpcResponse.result;
-    console.log('[HITL-FE] Result:', result);
-    console.log('[HITL-FE] result.mode:', result.mode);
-    console.log('[HITL-FE] result.success:', result.success);
-
-    // After HITL approval, the backend returns a BUILD response
-    // Process it through the normal build handler to add deliverable to store
-    if (result.mode === 'build' && result.success) {
-      console.log('[HITL-FE] Processing BUILD response through buildResponseHandler');
-      try {
-        // The build handler expects the full response structure
-        // It validates and adds the deliverable to the store
-        const buildResult = buildResponseHandler.handleExecute(result);
-        console.log('[HITL-FE] Build handler processed successfully:', buildResult);
-
-        return {
-          success: true,
-          data: buildResult as unknown as HitlResumeResponseContent,
-          message: result.humanResponse?.message,
-        };
-      } catch (error) {
-        console.warn('[HITL-FE] Build handler failed, falling back to direct response:', error);
-        // Fall through to return raw response
+    request: HitlResumeRequest
+  ): Promise<HitlDeliverableResponse> {
+    return this.sendJsonRpc<HitlDeliverableResponse>(
+      organizationSlug,
+      agentSlug,
+      'hitl.resume',
+      {
+        taskId: request.taskId,
+        decision: request.decision,
+        feedback: request.feedback,
+        content: request.content,
       }
-    }
-
-    // Fallback for non-BUILD responses (status, history, etc.)
-    const finalResult = {
-      success: result.success,
-      data: result.payload?.content || result,
-      message: result.humanResponse?.message,
-    };
-    console.log('[HITL-FE] Final result being returned:', finalResult);
-
-    return finalResult;
+    );
   }
 
   /**
-   * Get status of a HITL thread
-   */
-  async getStatus(
-    agentSlug: string,
-    threadId: string,
-    conversationId: string
-  ): Promise<HitlStatusResponse> {
-    const endpoint = this.getEndpoint(agentSlug);
-
-    const payload: HitlStatusPayload = {
-      action: 'status',
-      threadId,
-    };
-
-    const context = this.buildContext(conversationId);
-
-    const requestBody = {
-      jsonrpc: '2.0',
-      id: crypto.randomUUID(),
-      method: 'hitl.status',
-      params: {
-        context,
-        conversationId,
-        payload,
-        metadata: this.buildMetadata(conversationId),
-      },
-    };
-
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: this.getHeaders(),
-      body: JSON.stringify(requestBody),
-    });
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        throw new Error('Thread not found');
-      }
-      const error = await response.json().catch(() => ({ message: 'Unknown error' }));
-      throw new Error(error.message || error.error?.message || `HTTP ${response.status}`);
-    }
-
-    const jsonRpcResponse = await response.json();
-
-    if (jsonRpcResponse.error) {
-      throw new Error(jsonRpcResponse.error.message || 'Failed to get HITL status');
-    }
-
-    const result = jsonRpcResponse.result;
-    return {
-      success: result.success,
-      data: result.payload?.content || result,
-    };
-  }
-
-  /**
-   * Get history of a HITL thread
-   */
-  async getHistory(
-    agentSlug: string,
-    threadId: string,
-    conversationId: string
-  ): Promise<HitlHistoryResponse> {
-    const endpoint = this.getEndpoint(agentSlug);
-
-    const payload: HitlHistoryPayload = {
-      action: 'history',
-      threadId,
-    };
-
-    const context = this.buildContext(conversationId);
-
-    const requestBody = {
-      jsonrpc: '2.0',
-      id: crypto.randomUUID(),
-      method: 'hitl.history',
-      params: {
-        context,
-        conversationId,
-        payload,
-        metadata: this.buildMetadata(conversationId),
-      },
-    };
-
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: this.getHeaders(),
-      body: JSON.stringify(requestBody),
-    });
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        throw new Error('Thread not found');
-      }
-      const error = await response.json().catch(() => ({ message: 'Unknown error' }));
-      throw new Error(error.message || error.error?.message || `HTTP ${response.status}`);
-    }
-
-    const jsonRpcResponse = await response.json();
-
-    if (jsonRpcResponse.error) {
-      throw new Error(jsonRpcResponse.error.message || 'Failed to get HITL history');
-    }
-
-    const result = jsonRpcResponse.result;
-    return {
-      success: result.success,
-      data: result.payload?.content || result,
-    };
-  }
-
-  /**
-   * Helper: Approve content
+   * Approve current content and continue workflow
    */
   async approve(
+    organizationSlug: string,
     agentSlug: string,
-    threadId: string,
-    conversationId: string,
-    feedback?: string,
-    originalTaskId?: string
-  ): Promise<HitlResumeResponse> {
-    return this.resume(agentSlug, threadId, conversationId, {
+    taskId: string
+  ): Promise<HitlDeliverableResponse> {
+    return this.resume(organizationSlug, agentSlug, {
+      taskId,
       decision: 'approve',
-      feedback,
-    }, originalTaskId);
+    });
   }
 
   /**
-   * Helper: Submit edits
+   * Regenerate content with feedback
    */
-  async submitEdits(
+  async regenerate(
+    organizationSlug: string,
     agentSlug: string,
-    threadId: string,
-    conversationId: string,
-    editedContent: Partial<HitlGeneratedContent>,
-    feedback?: string,
-    originalTaskId?: string
-  ): Promise<HitlResumeResponse> {
-    return this.resume(agentSlug, threadId, conversationId, {
-      decision: 'edit',
-      editedContent,
+    taskId: string,
+    feedback: string
+  ): Promise<HitlDeliverableResponse> {
+    return this.resume(organizationSlug, agentSlug, {
+      taskId,
+      decision: 'regenerate',
       feedback,
-    }, originalTaskId);
+    });
   }
 
   /**
-   * Helper: Reject content
+   * Replace content with user-provided content
+   */
+  async replace(
+    organizationSlug: string,
+    agentSlug: string,
+    taskId: string,
+    content: HitlGeneratedContent
+  ): Promise<HitlDeliverableResponse> {
+    return this.resume(organizationSlug, agentSlug, {
+      taskId,
+      decision: 'replace',
+      content,
+    });
+  }
+
+  /**
+   * Reject current content and regenerate from scratch
    */
   async reject(
+    organizationSlug: string,
     agentSlug: string,
-    threadId: string,
-    conversationId: string,
-    feedback?: string,
-    originalTaskId?: string
-  ): Promise<HitlResumeResponse> {
-    return this.resume(agentSlug, threadId, conversationId, {
+    taskId: string
+  ): Promise<HitlDeliverableResponse> {
+    return this.resume(organizationSlug, agentSlug, {
+      taskId,
       decision: 'reject',
-      feedback,
-    }, originalTaskId);
+    });
+  }
+
+  /**
+   * Skip this review point (auto-approve)
+   */
+  async skip(
+    organizationSlug: string,
+    agentSlug: string,
+    taskId: string
+  ): Promise<HitlDeliverableResponse> {
+    return this.resume(organizationSlug, agentSlug, {
+      taskId,
+      decision: 'skip',
+    });
+  }
+
+  /**
+   * Get current HITL status for a task
+   */
+  async getStatus(
+    organizationSlug: string,
+    agentSlug: string,
+    taskId: string
+  ): Promise<HitlStatusResponse> {
+    return this.sendJsonRpc<HitlStatusResponse>(
+      organizationSlug,
+      agentSlug,
+      'hitl.status',
+      { taskId }
+    );
+  }
+
+  /**
+   * Get version history for a task's deliverable
+   */
+  async getHistory(
+    organizationSlug: string,
+    agentSlug: string,
+    taskId: string
+  ): Promise<HitlHistoryResponse> {
+    return this.sendJsonRpc<HitlHistoryResponse>(
+      organizationSlug,
+      agentSlug,
+      'hitl.history',
+      { taskId }
+    );
+  }
+
+  /**
+   * Get all pending HITL reviews for current user
+   * Note: This doesn't need agent-specific routing, but we use a default agent
+   */
+  async getPendingReviews(organizationSlug: string): Promise<HitlPendingListResponse> {
+    // Use a system agent or first available agent for this query
+    // The backend will query across all conversations regardless of agent
+    return this.sendJsonRpc<HitlPendingListResponse>(
+      organizationSlug,
+      '_system', // Special slug for cross-agent queries
+      'hitl.pending',
+      {}
+    );
   }
 }
 
-// Export singleton instance
 export const hitlService = new HitlService();
 
 // Default export for compatibility

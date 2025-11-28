@@ -1,10 +1,7 @@
 import { AgentRuntimeDefinition } from '@agent-platform/interfaces/agent.interface';
 import type { ConversationMessage } from '../../context-optimization/context-optimization.service';
 import { LLMService } from '@llm/llm.service';
-import {
-  ConverseModePayload,
-  ExecutionContext,
-} from '@orchestrator-ai/transport-types';
+import { ConverseModePayload } from '@orchestrator-ai/transport-types';
 import { Agent2AgentConversationsService } from '../agent-conversations.service';
 import {
   fetchConversationHistory,
@@ -53,17 +50,13 @@ export async function executeConverse(
           ? orgSlug
           : 'global';
 
-    // Build ExecutionContext for service call
-    const context: ExecutionContext = {
-      orgSlug: firstOrgSlug,
-      userId,
-      conversationId: existingConversationId || '',
-      agentSlug: definition.slug,
-    };
-
     const conversation =
       await services.conversationsService.getOrCreateConversation(
-        context,
+        {
+          userId,
+          orgSlug: firstOrgSlug,
+          conversationId: existingConversationId || undefined,
+        },
         definition.slug,
       );
 
@@ -159,18 +152,18 @@ export async function executeConverse(
         ? updatedHistory.slice(updatedHistory.length - maxHistoryEntries)
         : updatedHistory;
 
-    // Update context with the actual conversation ID for the update
-    const updateContext: ExecutionContext = {
-      ...context,
-      conversationId: conversation.id,
-    };
-
-    await services.conversationsService.updateConversation(updateContext, {
-      metadata: {
-        history: trimmedHistory,
-        lastAssistantMessageAt: timestamp,
+    await services.conversationsService.updateConversation(
+      {
+        conversationId: conversation.id,
+        userId,
       },
-    });
+      {
+        metadata: {
+          history: trimmedHistory,
+          lastAssistantMessageAt: timestamp,
+        },
+      },
+    );
 
     const usage = llmResponse.metadata?.usage ?? {
       inputTokens: 0,

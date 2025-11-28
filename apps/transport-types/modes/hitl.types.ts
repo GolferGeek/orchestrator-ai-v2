@@ -5,49 +5,46 @@
  * HITL flow:
  * 1. Agent task returns with status 'hitl_waiting' and generated content
  * 2. Frontend displays content for human review
- * 3. Human makes decision (approve/edit/reject)
+ * 3. Human makes decision (approve/reject/regenerate/replace/skip)
  * 4. Frontend sends HITL resume request with decision
  * 5. Agent completes or handles rejection
+ *
+ * KEY DESIGN DECISIONS:
+ * - Uses `taskId` consistently (LangGraph uses it as thread_id internally)
+ * - No separate HITL controller - use existing A2A endpoint
+ * - Deliverable-based responses for version tracking
  */
 
 // ============================================================================
-// HITL STATUS
+// HITL Decision & Status
 // ============================================================================
 
-/**
- * HITL Status values
- */
+export type HitlDecision = 'approve' | 'reject' | 'regenerate' | 'replace' | 'skip';
+
 export type HitlStatus =
   | 'started'
   | 'generating'
   | 'hitl_waiting'
+  | 'regenerating'
   | 'completed'
-  | 'rejected'
   | 'failed';
 
-/**
- * HITL Decision types
- */
-export type HitlDecision = 'approve' | 'edit' | 'reject';
-
 // ============================================================================
-// HITL ACTIONS
+// HITL Actions
 // ============================================================================
 
-/**
- * HITL Actions
- */
 export type HitlAction =
-  | 'resume'      // Resume from HITL with decision
-  | 'status'      // Get current HITL status
-  | 'history';    // Get HITL state history
+  | 'resume' // Resume from HITL with decision
+  | 'status' // Get current HITL status
+  | 'history' // Get HITL state history
+  | 'pending'; // Get all pending HITL reviews
 
 // ============================================================================
-// GENERATED CONTENT (Response from Agent)
+// Generated Content Structure
 // ============================================================================
 
 /**
- * Generated content structure for Extended Post Writer
+ * Generated content structure for Extended Post Writer and similar agents
  * This is what the agent produces and sends back for review
  */
 export interface HitlGeneratedContent {
@@ -55,8 +52,10 @@ export interface HitlGeneratedContent {
   blogPost?: string;
   /** SEO meta description */
   seoDescription?: string;
-  /** Social media posts (array or newline-separated string) */
-  socialPosts?: string[] | string;
+  /** Social media posts */
+  socialPosts?: string[];
+  /** Extensible for other content types */
+  [key: string]: unknown;
 }
 
 /**
@@ -70,30 +69,172 @@ export interface HitlContent {
 }
 
 // ============================================================================
-// HITL RESPONSE (API → Web)
+// Deliverable-Based Response Types
 // ============================================================================
 
 /**
- * HITL Status Response Payload
- * Returned when a task enters hitl_waiting status or when status is queried
+ * HITL Response with Deliverable (returned by API to frontend)
+ * Used when workflow hits interrupt() and returns for review
  */
-export interface HitlStatusResponsePayload {
-  /** Thread/execution ID for resuming */
-  threadId: string;
+export interface HitlDeliverableResponse {
+  /** Task ID for resuming (used as LangGraph thread_id) */
+  taskId: string;
+  /** Conversation ID */
+  conversationId: string;
   /** Current HITL status */
   status: HitlStatus;
-  /** Topic/subject of the content */
-  topic: string;
+  /** Deliverable ID */
+  deliverableId: string;
+  /** Current version number */
+  currentVersionNumber: number;
+  /** Message for the user */
+  message: string;
+  /** Topic/subject */
+  topic?: string;
+  /** Agent that generated this */
+  agentSlug?: string;
+  /** Node that triggered HITL (for serialized HITL) */
+  nodeName?: string;
+  /** Generated content for immediate display */
+  generatedContent: HitlGeneratedContent;
+}
+
+/**
+ * HITL Resume Request (from frontend to API via A2A endpoint)
+ */
+export interface HitlResumeRequest {
+  /** Task ID to resume */
+  taskId: string;
+  /** User's decision */
+  decision: HitlDecision;
+  /** Feedback for regeneration (required if decision is 'regenerate') */
+  feedback?: string;
+  /** Replacement content (required if decision is 'replace') */
+  content?: HitlGeneratedContent;
+}
+
+/**
+ * HITL Status Response
+ */
+export interface HitlStatusResponse {
+  /** Task ID */
+  taskId: string;
+  /** Current status */
+  status: HitlStatus;
   /** Whether HITL is pending review */
   hitlPending: boolean;
-  /** Generated content awaiting review (present when status is hitl_waiting) */
-  generatedContent?: HitlGeneratedContent;
-  /** Final approved/edited content (present when status is completed) */
-  finalContent?: HitlGeneratedContent;
-  /** Error message if status is failed */
+  /** Deliverable ID (if exists) */
+  deliverableId?: string;
+  /** Current version number */
+  currentVersionNumber?: number;
+  /** Error message if failed */
   error?: string;
-  /** Duration in ms (present when completed) */
-  duration?: number;
+}
+
+/**
+ * HITL History Response (uses deliverable versions)
+ */
+export interface HitlHistoryResponse {
+  /** Task ID */
+  taskId: string;
+  /** Deliverable ID */
+  deliverableId: string;
+  /** Total version count */
+  versionCount: number;
+  /** Current version number */
+  currentVersionNumber: number;
+}
+
+// ============================================================================
+// HITL Pending List Types (for sidebar)
+// ============================================================================
+
+/**
+ * Single item in the HITL pending list (sidebar)
+ * Note: taskId is the PRIMARY identifier since hitl_pending is on tasks table
+ */
+export interface HitlPendingItem {
+  /** Task ID - primary identifier for resuming */
+  taskId: string;
+  /** Agent slug that generated this (from task) */
+  agentSlug: string;
+  /** When HITL became pending (from task.hitl_pending_since) */
+  pendingSince: string;
+  /** Conversation ID (for navigation) */
+  conversationId: string;
+  /** Conversation title */
+  conversationTitle: string;
+  /** Deliverable ID (if exists) */
+  deliverableId?: string;
+  /** Deliverable title (if exists) */
+  deliverableTitle?: string;
+  /** Current version number */
+  currentVersionNumber?: number;
+  /** Agent display name */
+  agentName?: string;
+  /** Topic/subject */
+  topic?: string;
+}
+
+/**
+ * Response for hitl.pending query
+ */
+export interface HitlPendingListResponse {
+  /** List of pending HITL items */
+  items: HitlPendingItem[];
+  /** Total count */
+  totalCount: number;
+}
+
+// ============================================================================
+// Payload Types (use taskId instead of threadId)
+// ============================================================================
+
+export interface HitlResumePayload {
+  action: 'resume';
+  taskId: string;
+  decision: HitlDecision;
+  editedContent?: Partial<HitlGeneratedContent>;
+  feedback?: string;
+}
+
+export interface HitlStatusPayload {
+  action: 'status';
+  taskId: string;
+}
+
+export interface HitlHistoryPayload {
+  action: 'history';
+  taskId: string;
+}
+
+export interface HitlPendingPayload {
+  action: 'pending';
+  // No additional params - queries for current user
+}
+
+/**
+ * HITL Mode Payload (union of all HITL actions)
+ */
+export type HitlModePayload =
+  | HitlResumePayload
+  | HitlStatusPayload
+  | HitlHistoryPayload
+  | HitlPendingPayload;
+
+// ============================================================================
+// Request/Response Metadata (legacy compatibility)
+// ============================================================================
+
+/**
+ * HITL Request Metadata
+ * Note: userId, conversationId, orgSlug, taskId, provider, model are in ExecutionContext
+ */
+export interface HitlRequestMetadata {
+  /** Source of the request (e.g., 'web-ui', 'api') */
+  source: string;
+  /** Original task ID that triggered HITL (for reference) */
+  originalTaskId?: string;
 }
 
 /**
@@ -122,71 +263,34 @@ export interface HitlResponseMetadata {
 }
 
 // ============================================================================
-// HITL REQUEST (Web → API)
+// Legacy Response Content Types (for backward compatibility)
 // ============================================================================
 
 /**
- * HITL Resume Action Payload
- * Sent when user makes a decision on HITL content
+ * HITL Status Response Payload (legacy)
+ * @deprecated Use HitlStatusResponse instead
  */
-export interface HitlResumePayload {
-  action: 'resume';
-  /** Thread ID to resume */
+export interface HitlStatusResponsePayload {
+  /** Thread/execution ID for resuming */
   threadId: string;
-  /** User's decision */
-  decision: HitlDecision;
-  /** Edited content (required if decision is 'edit') */
-  editedContent?: Partial<HitlGeneratedContent>;
-  /** Optional feedback from user */
-  feedback?: string;
+  /** Current HITL status */
+  status: HitlStatus;
+  /** Topic/subject of the content */
+  topic: string;
+  /** Whether HITL is pending review */
+  hitlPending: boolean;
+  /** Generated content awaiting review (present when status is hitl_waiting) */
+  generatedContent?: HitlGeneratedContent;
+  /** Final approved/edited content (present when status is completed) */
+  finalContent?: HitlGeneratedContent;
+  /** Error message if status is failed */
+  error?: string;
+  /** Duration in ms (present when completed) */
+  duration?: number;
 }
 
 /**
- * HITL Status Action Payload
- * Request current HITL status for a thread
- */
-export interface HitlStatusPayload {
-  action: 'status';
-  /** Thread ID to check */
-  threadId: string;
-}
-
-/**
- * HITL History Action Payload
- * Request HITL state history for a thread
- */
-export interface HitlHistoryPayload {
-  action: 'history';
-  /** Thread ID to get history for */
-  threadId: string;
-}
-
-/**
- * HITL Mode Payload (union of all HITL actions)
- */
-export type HitlModePayload =
-  | HitlResumePayload
-  | HitlStatusPayload
-  | HitlHistoryPayload;
-
-/**
- * HITL Request Metadata
- * Note: userId, conversationId, orgSlug, taskId, provider, model are in ExecutionContext
- */
-export interface HitlRequestMetadata {
-  /** Source of the request (e.g., 'web-ui', 'api') */
-  source: string;
-  /** Original task ID that triggered HITL (for reference, taskId in context is the current task) */
-  originalTaskId?: string;
-}
-
-// ============================================================================
-// HITL RESPONSE CONTENT
-// ============================================================================
-
-/**
- * HITL Resume Response Content
- * Returned after processing a resume decision
+ * HITL Resume Response Content (legacy)
  */
 export interface HitlResumeResponseContent {
   /** Thread ID */
@@ -208,8 +312,7 @@ export interface HitlResumeResponseContent {
 }
 
 /**
- * HITL Status Response Content
- * Returned from status check
+ * HITL Status Response Content (legacy)
  */
 export interface HitlStatusResponseContent {
   /** Thread ID */
@@ -229,7 +332,7 @@ export interface HitlStatusResponseContent {
 }
 
 /**
- * HITL History Entry
+ * HITL History Entry (legacy)
  */
 export interface HitlHistoryEntry {
   /** Thread ID */
@@ -247,7 +350,7 @@ export interface HitlHistoryEntry {
 }
 
 /**
- * HITL History Response Content
+ * HITL History Response Content (legacy)
  */
 export interface HitlHistoryResponseContent {
   /** Thread ID */
@@ -256,4 +359,48 @@ export interface HitlHistoryResponseContent {
   entries: HitlHistoryEntry[];
   /** Total count */
   count: number;
+}
+
+// ============================================================================
+// LangGraph Response Structure (for API Runner detection)
+// ============================================================================
+
+/**
+ * LangGraph interrupt response structure
+ * This is what LangGraph returns when interrupt() is called
+ */
+export interface LangGraphInterruptValue {
+  reason: string; // 'human_review'
+  nodeName: string; // Node that called interrupt
+  content: HitlGeneratedContent;
+  message: string; // User-facing message
+  topic?: string;
+}
+
+export interface LangGraphInterruptItem {
+  value: LangGraphInterruptValue;
+  resumable: boolean; // Always true for HITL
+  ns: string[]; // Namespace
+}
+
+export interface LangGraphInterruptResponse {
+  /** Present when interrupt() was called */
+  __interrupt__: LangGraphInterruptItem[];
+  /** Current state values */
+  values: Record<string, unknown>;
+}
+
+/**
+ * Type guard for LangGraph interrupt response
+ */
+export function isLangGraphInterruptResponse(
+  response: unknown
+): response is LangGraphInterruptResponse {
+  return (
+    typeof response === 'object' &&
+    response !== null &&
+    '__interrupt__' in response &&
+    Array.isArray((response as LangGraphInterruptResponse).__interrupt__) &&
+    (response as LangGraphInterruptResponse).__interrupt__.length > 0
+  );
 }

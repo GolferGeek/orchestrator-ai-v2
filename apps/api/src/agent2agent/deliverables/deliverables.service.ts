@@ -896,6 +896,67 @@ export class DeliverablesService implements IActionHandler {
   }
 
   /**
+   * Find deliverable by task_id with access control
+   * Used by HITL handlers since deliverables link to tasks via task_id
+   *
+   * SECURITY: Verifies user has access via conversation ownership
+   */
+  async findByTaskId(
+    taskId: string,
+    userId: string,
+  ): Promise<Deliverable | null> {
+    this.logger.log(`Finding deliverable by taskId: ${taskId}`);
+
+    // Query deliverables by task_id with user access check
+    const { data: result, error } = await this.supabaseService
+      .getServiceClient()
+      .from(getTableName('deliverables'))
+      .select('*')
+      .eq('task_id', taskId)
+      .eq('user_id', userId)
+      .single();
+
+    // Handle no results (PGRST116 = no rows returned)
+    if (error?.code === 'PGRST116') {
+      return null;
+    }
+
+    if (error) {
+      this.logger.error(
+        `Failed to find deliverable by taskId: ${error.message}`,
+      );
+      throw new BadRequestException(
+        `Failed to find deliverable by task: ${error.message}`,
+      );
+    }
+
+    const data = result as DeliverableDbRecord | null;
+    if (!data) {
+      return null;
+    }
+
+    const deliverable = this.mapToDeliverable(data);
+
+    // Get current version
+    try {
+      const currentVersion = await this.versionsService.getCurrentVersion(
+        deliverable.id,
+        userId,
+      );
+      if (currentVersion) {
+        deliverable.currentVersion = currentVersion;
+      }
+    } catch (versionError) {
+      this.logger.warn(
+        `Failed to load current version for deliverable ${deliverable.id}`,
+        versionError instanceof Error ? versionError : { message: String(versionError) },
+      );
+    }
+
+    return deliverable;
+  }
+
+  /**
    * Find a specific deliverable by ID with current version data
    */
   async findOne(id: string, userId: string): Promise<Deliverable> {

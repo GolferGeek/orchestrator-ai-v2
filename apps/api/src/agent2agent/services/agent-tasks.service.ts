@@ -117,7 +117,11 @@ export class Agent2AgentTasksService {
    * Conforms to A2A Google protocol standards
    */
   async createTask(
-    context: ExecutionContext,
+    taskContext: {
+      userId: string;
+      orgSlug: string;
+      conversationId?: string;
+    },
     agentName: string,
     params: {
       method: string;
@@ -138,19 +142,19 @@ export class Agent2AgentTasksService {
     createdAt: Date;
   }> {
     this.logger.debug(
-      `🚨 [Agent2AgentTasksService.createTask] Received organizationSlug: "${context.orgSlug}" for agent: ${agentName}`,
+      `🚨 [Agent2AgentTasksService.createTask] Received organizationSlug: "${taskContext.orgSlug}" for agent: ${agentName}`,
     );
 
     try {
       // If conversationId provided, validate it exists
-      let conversationId = context.conversationId;
+      let conversationId = taskContext.conversationId || '';
       if (conversationId) {
         const { data } = await this.supabaseService
           .getServiceClient()
           .from(getTableName('conversations'))
           .select('id')
           .eq('id', conversationId)
-          .eq('user_id', context.userId)
+          .eq('user_id', taskContext.userId)
           .single();
 
         const existingConv = data as Pick<ConversationDbRecord, 'id'> | null;
@@ -166,14 +170,14 @@ export class Agent2AgentTasksService {
       // Create conversation if needed
       if (!conversationId) {
         this.logger.log(
-          `🚨 [Agent2AgentTasksService] Creating conversation with organizationSlug: "${context.orgSlug}"`,
+          `🚨 [Agent2AgentTasksService] Creating conversation with organizationSlug: "${taskContext.orgSlug}"`,
         );
 
         const now = new Date().toISOString();
         const conversationData = {
-          user_id: context.userId,
+          user_id: taskContext.userId,
           agent_name: agentName,
-          organization_slug: context.orgSlug, // Store organization slug properly
+          organization_slug: taskContext.orgSlug, // Store organization slug properly
           started_at: now,
           last_active_at: now,
           metadata: {
@@ -217,7 +221,7 @@ export class Agent2AgentTasksService {
 
       // Create task record (agent info is stored in the linked conversation)
       const taskData: TaskData = {
-        user_id: context.userId,
+        user_id: taskContext.userId,
         conversation_id: conversationId,
         method: params.method,
         prompt: params.prompt,
@@ -255,7 +259,7 @@ export class Agent2AgentTasksService {
         ).metadata = {
           ...params.metadata,
           agentName,
-          organizationSlug: context.orgSlug,
+          organizationSlug: taskContext.orgSlug,
           createdAt: new Date().toISOString(),
         };
       }
@@ -290,7 +294,7 @@ export class Agent2AgentTasksService {
         id: task.id,
         userId: task.user_id,
         agentName: agentName, // Use the parameter since it's not in the task record
-        organization: context.orgSlug, // Return the organization slug that was stored in the conversation
+        organization: taskContext.orgSlug, // Return the organization slug that was stored in the conversation
         agentConversationId: task.conversation_id,
         status: task.status,
         params: task.params as unknown as TaskParams,
@@ -304,9 +308,12 @@ export class Agent2AgentTasksService {
 
   /**
    * Get a task by ID
-   * A2A protocol: task tracking and status queries
+   * Internal method: task tracking and status queries
    */
-  async getTaskById(context: ExecutionContext): Promise<{
+  async getTaskById(params: {
+    taskId: string;
+    userId: string;
+  }): Promise<{
     id: string;
     userId: string;
     agentName: string;
@@ -329,8 +336,8 @@ export class Agent2AgentTasksService {
           conversations!inner(agent_name, agent_type, organization_slug)
         `,
         )
-        .eq('id', context.taskId!)
-        .eq('user_id', context.userId)
+        .eq('id', params.taskId)
+        .eq('user_id', params.userId)
         .single();
 
       const data: unknown = response.data;
@@ -363,7 +370,7 @@ export class Agent2AgentTasksService {
         updatedAt: new Date(task.updated_at),
       };
     } catch (error) {
-      this.logger.error(`Failed to get A2A task ${context.taskId}:`, error);
+      this.logger.error(`Failed to get A2A task ${params.taskId}:`, error);
       return null;
     }
   }

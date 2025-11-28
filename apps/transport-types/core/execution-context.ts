@@ -44,10 +44,6 @@ export interface ExecutionContext {
   model: string;
 }
 
-/**
- * Partial context - used when building context incrementally
- */
-export type PartialExecutionContext = Partial<ExecutionContext>;
 
 /**
  * Create a complete execution context with all required fields

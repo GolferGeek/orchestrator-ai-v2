@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { ExecutionContext } from '@orchestrator-ai/transport-types';
+import {
+  ExecutionContext,
+  createMockExecutionContext,
+} from '@orchestrator-ai/transport-types';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { BaseLLMService } from './base-llm.service';
@@ -458,12 +461,7 @@ export async function testOllamaService() {
   };
 
   try {
-    // Create mock context for testing
-    const mockContext = {
-      orgSlug: 'test',
-      userId: 'test-user',
-      conversationId: 'test-conversation',
-    };
+    const mockContext = createMockExecutionContext();
     const response = await service.generateResponse(mockContext, params);
     return response;
   } catch (error) {

@@ -6,6 +6,7 @@
  */
 
 import { OllamaLLMService } from './ollama-llm.service';
+import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
 import {
   LLMServiceConfig,
   GenerateResponseParams,
@@ -142,12 +143,9 @@ export async function testOllamaGolfBlogPost(): Promise<{
 
     // Generate response
     console.log('🤖 Generating blog post...');
-    // Create mock context for testing
-    const mockContext = {
-      orgSlug: 'test',
-      userId: 'test-user',
+    const mockContext = createMockExecutionContext({
       conversationId: `golf-test-${Date.now()}`,
-    };
+    });
     const response = await ollamaService.generateResponse(mockContext, params);
 
     const duration = Date.now() - startTime;

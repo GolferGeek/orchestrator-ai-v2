@@ -7,12 +7,28 @@ import { AgentRuntimeDefinition } from '@agent-platform/interfaces/agent.interfa
 import { TaskRequestDto, AgentTaskMode } from '../dto/task-request.dto';
 import { TaskResponseDto } from '../dto/task-response.dto';
 import { DeliverablesService } from '../deliverables/deliverables.service';
+import { DeliverableVersionsService } from '../deliverables/deliverable-versions.service';
 import { LLMService } from '@llm/llm.service';
 import { ContextOptimizationService } from '../context-optimization/context-optimization.service';
 import { PlansService } from '../plans/services/plans.service';
 import { Agent2AgentConversationsService } from './agent-conversations.service';
 import { StreamingService } from './streaming.service';
+import { TasksService } from '../tasks/tasks.service';
+import { AgentConversationsService } from '../conversations/agent-conversations.service';
 import * as HitlHandlers from './base-agent-runner/hitl.handlers';
+import {
+  isLangGraphInterruptResponse,
+  type HitlDecision,
+  type HitlGeneratedContent,
+  type HitlDeliverableResponse,
+  type HitlStatusResponse,
+  type HitlHistoryResponse,
+  type HitlPendingListResponse,
+  type HitlPendingItem,
+} from '@orchestrator-ai/transport-types';
+import {
+  DeliverableVersionCreationType,
+} from '../deliverables/dto';
 
 // ApiCallResult interface removed - inline object typing used instead
 
@@ -67,6 +83,11 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
     @Inject(forwardRef(() => DeliverablesService))
     deliverablesService: DeliverablesService,
     streamingService: StreamingService,
+    @Inject(forwardRef(() => TasksService))
+    private readonly tasksService: TasksService,
+    @Inject(forwardRef(() => DeliverableVersionsService))
+    private readonly versionsService: DeliverableVersionsService,
+    private readonly agentConversationsService: AgentConversationsService,
   ) {
     super(
       llmService,
@@ -112,6 +133,369 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
 
     // For other actions, use base class logic
     return await super.handleBuild(definition, request, organizationSlug);
+  }
+
+  // ============================================================================
+  // HITL Method Handlers (Session 2)
+  // ============================================================================
+
+  /**
+   * Handle HITL methods routed from the mode router
+   * This is called when the request has hitlMethod in payload
+   */
+  async handleHitlMethod(
+    definition: AgentRuntimeDefinition | null,
+    request: TaskRequestDto,
+    organizationSlug: string | null,
+  ): Promise<TaskResponseDto> {
+    const payload = request.payload as Record<string, unknown> | undefined;
+    const hitlMethod = payload?.hitlMethod as string | undefined;
+
+    this.logger.log(`Handling HITL method: ${hitlMethod}`);
+
+    switch (hitlMethod) {
+      case 'hitl.resume':
+        if (!definition) {
+          return TaskResponseDto.failure(
+            AgentTaskMode.HITL,
+            'Agent definition required for hitl.resume',
+          );
+        }
+        return this.handleHitlResumeMethod(definition, request, organizationSlug);
+
+      case 'hitl.status':
+        return this.executeHitlStatus(request, organizationSlug);
+
+      case 'hitl.history':
+        return this.executeHitlHistory(request, organizationSlug);
+
+      case 'hitl.pending':
+        return this.handleHitlPending(request, organizationSlug);
+
+      default:
+        return TaskResponseDto.failure(
+          AgentTaskMode.HITL,
+          `Unknown HITL method: ${hitlMethod}`,
+        );
+    }
+  }
+
+  /**
+   * Handle hitl.resume - resume a paused workflow with user decision
+   */
+  private async handleHitlResumeMethod(
+    definition: AgentRuntimeDefinition,
+    request: TaskRequestDto,
+    organizationSlug: string | null,
+  ): Promise<TaskResponseDto> {
+    const payload = request.payload as Record<string, unknown>;
+    const taskId = payload.taskId as string;
+    const decision = payload.decision as HitlDecision;
+    const feedback = payload.feedback as string | undefined;
+    const content = payload.content as HitlGeneratedContent | undefined;
+
+    this.logger.log(`HITL resume: taskId=${taskId}, decision=${decision}`);
+
+    // Validate the request
+    if (!taskId) {
+      return TaskResponseDto.failure(
+        AgentTaskMode.HITL,
+        'HITL resume requires taskId',
+      );
+    }
+
+    // Validate decision-specific requirements
+    if (decision === 'regenerate' && !feedback?.trim()) {
+      return TaskResponseDto.failure(
+        AgentTaskMode.HITL,
+        'Feedback is required for regenerate decision',
+      );
+    }
+
+    if (decision === 'replace' && !content) {
+      return TaskResponseDto.failure(
+        AgentTaskMode.HITL,
+        'Content is required for replace decision',
+      );
+    }
+
+    const userId = this.resolveUserId(request);
+    if (!userId) {
+      return TaskResponseDto.failure(
+        AgentTaskMode.HITL,
+        'userId is required for HITL resume',
+      );
+    }
+
+    // Handle REPLACE decision - create version before resuming
+    if (decision === 'replace' && content) {
+      const deliverable = await this.deliverablesService.findByTaskId(
+        taskId,
+        userId,
+      );
+
+      if (deliverable) {
+        await this.versionsService.createVersion(
+          deliverable.id,
+          {
+            content: this.contentToString(content),
+            createdByType: DeliverableVersionCreationType.MANUAL_EDIT,
+            metadata: {
+              hitlDecision: 'replace',
+              replacedAt: new Date().toISOString(),
+            },
+          },
+          userId,
+        );
+      }
+    }
+
+    // Clear HITL pending flag before resuming
+    await this.tasksService.updateHitlPending(taskId, false);
+
+    // Use existing handleHitlResume for the actual resume
+    return this.handleHitlResume(definition, request, organizationSlug);
+  }
+
+  /**
+   * Execute hitl.status - get HITL status for a task
+   * Named differently from base class handleHitlStatus to avoid override
+   */
+  private async executeHitlStatus(
+    request: TaskRequestDto,
+    _organizationSlug: string | null,
+  ): Promise<TaskResponseDto> {
+    const payload = request.payload as Record<string, unknown>;
+    const taskId = payload.taskId as string;
+
+    if (!taskId) {
+      return TaskResponseDto.failure(
+        AgentTaskMode.HITL,
+        'taskId is required for hitl.status',
+      );
+    }
+
+    const userId = this.resolveUserId(request);
+    if (!userId) {
+      return TaskResponseDto.failure(
+        AgentTaskMode.HITL,
+        'userId is required for hitl.status',
+      );
+    }
+
+    // Get task to check hitl_pending (NOT conversation)
+    const task = await this.tasksService.findOne(taskId);
+    if (!task) {
+      return TaskResponseDto.failure(
+        AgentTaskMode.HITL,
+        `Task not found: ${taskId}`,
+      );
+    }
+
+    // Find deliverable via task_id (NOT conversation)
+    const deliverable = await this.deliverablesService.findByTaskId(
+      taskId,
+      userId,
+    );
+
+    let currentVersionNumber: number | undefined;
+    if (deliverable) {
+      const currentVersion = await this.versionsService.getCurrentVersion(
+        deliverable.id,
+        userId,
+      );
+      currentVersionNumber = currentVersion?.versionNumber;
+    }
+
+    const statusResponse: HitlStatusResponse = {
+      taskId,
+      status: task.hitl_pending ? 'hitl_waiting' : 'completed',
+      hitlPending: task.hitl_pending || false,
+      deliverableId: deliverable?.id,
+      currentVersionNumber,
+    };
+
+    return TaskResponseDto.success(AgentTaskMode.HITL, {
+      content: statusResponse,
+      metadata: {
+        action: 'status',
+      },
+    });
+  }
+
+  /**
+   * Execute hitl.history - get version history for a task
+   * Named differently from base class handleHitlHistory to avoid override
+   */
+  private async executeHitlHistory(
+    request: TaskRequestDto,
+    _organizationSlug: string | null,
+  ): Promise<TaskResponseDto> {
+    const payload = request.payload as Record<string, unknown>;
+    const taskId = payload.taskId as string;
+
+    if (!taskId) {
+      return TaskResponseDto.failure(
+        AgentTaskMode.HITL,
+        'taskId is required for hitl.history',
+      );
+    }
+
+    const userId = this.resolveUserId(request);
+    if (!userId) {
+      return TaskResponseDto.failure(
+        AgentTaskMode.HITL,
+        'userId is required for hitl.history',
+      );
+    }
+
+    // Find deliverable via task_id (NOT conversation)
+    const deliverable = await this.deliverablesService.findByTaskId(
+      taskId,
+      userId,
+    );
+
+    if (!deliverable) {
+      const historyResponse: HitlHistoryResponse = {
+        taskId,
+        deliverableId: '',
+        versionCount: 0,
+        currentVersionNumber: 0,
+      };
+
+      return TaskResponseDto.success(AgentTaskMode.HITL, {
+        content: historyResponse,
+        metadata: {
+          action: 'history',
+        },
+      });
+    }
+
+    // Get version history
+    const versions = await this.versionsService.getVersionHistory(
+      deliverable.id,
+      userId,
+    );
+
+    const currentVersion = versions.find((v) => v.isCurrentVersion);
+
+    const historyResponse: HitlHistoryResponse = {
+      taskId,
+      deliverableId: deliverable.id,
+      versionCount: versions.length,
+      currentVersionNumber: currentVersion?.versionNumber || 0,
+    };
+
+    return TaskResponseDto.success(AgentTaskMode.HITL, {
+      content: historyResponse,
+      metadata: {
+        action: 'history',
+      },
+    });
+  }
+
+  /**
+   * Handle hitl.pending - get all pending HITL reviews for user
+   * This queries TASKS with hitl_pending = true (NOT conversations)
+   */
+  private async handleHitlPending(
+    request: TaskRequestDto,
+    organizationSlug: string | null,
+  ): Promise<TaskResponseDto> {
+    const userId = this.resolveUserId(request);
+    if (!userId) {
+      return TaskResponseDto.failure(
+        AgentTaskMode.HITL,
+        'userId is required for hitl.pending',
+      );
+    }
+
+    // Query TASKS with hitl_pending = true for this user
+    const pendingTasks = await this.tasksService.findPendingHitl(
+      userId,
+      organizationSlug || undefined,
+    );
+
+    // Build pending items list
+    const items: HitlPendingItem[] = [];
+
+    for (const task of pendingTasks) {
+      // Get conversation for context (from the join)
+      const conversationData = (task as unknown as Record<string, unknown>).conversations as {
+        id: string;
+        title?: string;
+      } | undefined;
+
+      // Get deliverable for this task (via task_id)
+      const deliverable = await this.deliverablesService.findByTaskId(
+        task.id || '',
+        userId,
+      );
+
+      let currentVersionNumber: number | undefined;
+      if (deliverable) {
+        const currentVersion = await this.versionsService.getCurrentVersion(
+          deliverable.id,
+          userId,
+        );
+        currentVersionNumber = currentVersion?.versionNumber;
+      }
+
+      items.push({
+        // taskId is the PRIMARY identifier
+        taskId: task.id || '',
+        agentSlug: task.agent_slug || 'unknown',
+        pendingSince: task.hitl_pending_since || new Date().toISOString(),
+        // Conversation info for navigation/display
+        conversationId: task.conversation_id,
+        conversationTitle: conversationData?.title || 'Untitled Conversation',
+        // Deliverable info
+        deliverableId: deliverable?.id,
+        deliverableTitle: deliverable?.title,
+        currentVersionNumber,
+        agentName: task.agent_name,
+        topic: deliverable?.title,
+      });
+    }
+
+    const pendingResponse: HitlPendingListResponse = {
+      items,
+      totalCount: items.length,
+    };
+
+    return TaskResponseDto.success(AgentTaskMode.HITL, {
+      content: pendingResponse,
+      metadata: {
+        action: 'pending',
+      },
+    });
+  }
+
+  /**
+   * Convert HITL content to string for deliverable
+   */
+  private contentToString(content: HitlGeneratedContent): string {
+    let result = '';
+
+    if (content.blogPost) {
+      result += content.blogPost + '\n\n';
+    }
+
+    if (content.seoDescription) {
+      result += '---\n\n## SEO Description\n\n' + content.seoDescription + '\n\n';
+    }
+
+    if (content.socialPosts) {
+      result += '---\n\n## Social Posts\n\n';
+      const posts = Array.isArray(content.socialPosts)
+        ? content.socialPosts
+        : [content.socialPosts];
+      posts.forEach((post, i) => {
+        result += `### Post ${i + 1}\n\n${post}\n\n`;
+      });
+    }
+
+    return result.trim() || JSON.stringify(content, null, 2);
   }
 
   /**

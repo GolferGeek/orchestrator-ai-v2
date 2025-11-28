@@ -36,7 +36,10 @@ export class Agent2AgentConversationsService {
    * A2A protocol: conversation initiation
    */
   async createConversation(
-    context: ExecutionContext,
+    params: {
+      userId: string;
+      orgSlug: string;
+    },
     agentName: string,
     options?: {
       title?: string;
@@ -54,9 +57,9 @@ export class Agent2AgentConversationsService {
     try {
       const now = new Date().toISOString();
       const insertData: Record<string, unknown> = {
-        user_id: context.userId,
+        user_id: params.userId,
         agent_name: agentName,
-        organization_slug: context.orgSlug, // Store organization in organization_slug column
+        organization_slug: params.orgSlug, // Store organization in organization_slug column
         started_at: now,
         last_active_at: now,
         metadata: {
@@ -107,9 +110,12 @@ export class Agent2AgentConversationsService {
 
   /**
    * Get conversation by ID
-   * A2A protocol: conversation context retrieval
+   * Internal method for conversation context retrieval
    */
-  async getConversationById(context: ExecutionContext): Promise<{
+  async getConversationById(params: {
+    conversationId: string;
+    userId: string;
+  }): Promise<{
     id: string;
     userId: string;
     agentName: string;
@@ -124,8 +130,8 @@ export class Agent2AgentConversationsService {
         .getServiceClient()
         .from(getTableName('conversations'))
         .select('*')
-        .eq('id', context.conversationId)
-        .eq('user_id', context.userId)
+        .eq('id', params.conversationId)
+        .eq('user_id', params.userId)
         .single();
 
       const data: unknown = response.data;
@@ -148,7 +154,7 @@ export class Agent2AgentConversationsService {
       };
     } catch (error) {
       this.logger.error(
-        `Failed to get A2A conversation ${context.conversationId}:`,
+        `Failed to get A2A conversation ${params.conversationId}:`,
         error,
       );
       return null;
@@ -157,10 +163,14 @@ export class Agent2AgentConversationsService {
 
   /**
    * Get or create conversation
-   * A2A protocol: ensure conversation exists for task execution
+   * Internal method: ensure conversation exists for task execution
    */
   async getOrCreateConversation(
-    context: ExecutionContext,
+    params: {
+      userId: string;
+      orgSlug: string;
+      conversationId?: string;
+    },
     agentName: string,
   ): Promise<{
     id: string;
@@ -172,8 +182,11 @@ export class Agent2AgentConversationsService {
     createdAt: Date;
   }> {
     // If conversationId provided, try to get it
-    if (context.conversationId) {
-      const existing = await this.getConversationById(context);
+    if (params.conversationId) {
+      const existing = await this.getConversationById({
+        conversationId: params.conversationId,
+        userId: params.userId,
+      });
       if (existing) {
         return {
           id: existing.id,
@@ -187,20 +200,26 @@ export class Agent2AgentConversationsService {
       }
 
       this.logger.warn(
-        `Conversation ${context.conversationId} not found, creating new one`,
+        `Conversation ${params.conversationId} not found, creating new one`,
       );
     }
 
     // Create new conversation
-    return this.createConversation(context, agentName);
+    return this.createConversation(
+      { userId: params.userId, orgSlug: params.orgSlug },
+      agentName,
+    );
   }
 
   /**
    * Update conversation metadata
-   * A2A protocol: conversation state updates
+   * Internal method: conversation state updates
    */
   async updateConversation(
-    context: ExecutionContext,
+    params: {
+      conversationId: string;
+      userId: string;
+    },
     updates: {
       title?: string;
       metadata?: Record<string, unknown>;
@@ -221,8 +240,8 @@ export class Agent2AgentConversationsService {
           .getServiceClient()
           .from(getTableName('conversations'))
           .select('metadata')
-          .eq('id', context.conversationId)
-          .eq('user_id', context.userId)
+          .eq('id', params.conversationId)
+          .eq('user_id', params.userId)
           .single();
 
         const current = data as Pick<ConversationDbRecord, 'metadata'> | null;
@@ -238,19 +257,19 @@ export class Agent2AgentConversationsService {
         .getServiceClient()
         .from(getTableName('conversations'))
         .update(updateData)
-        .eq('id', context.conversationId)
-        .eq('user_id', context.userId);
+        .eq('id', params.conversationId)
+        .eq('user_id', params.userId);
 
       if (error) {
         throw new Error(`Failed to update conversation: ${error.message}`);
       }
 
       this.logger.debug(
-        `✅ Updated A2A conversation ${context.conversationId}`,
+        `✅ Updated A2A conversation ${params.conversationId}`,
       );
     } catch (error) {
       this.logger.error(
-        `Failed to update A2A conversation ${context.conversationId}:`,
+        `Failed to update A2A conversation ${params.conversationId}:`,
         error,
       );
       throw error;

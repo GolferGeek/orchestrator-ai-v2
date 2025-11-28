@@ -1,5 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ExecutionContext } from '@orchestrator-ai/transport-types';
+import {
+  ExecutionContext,
+  createMockExecutionContext,
+} from '@orchestrator-ai/transport-types';
 import { HttpService } from '@nestjs/axios';
 import { BaseLLMService } from './base-llm.service';
 import { OpenAILLMService } from './openai-llm.service';
@@ -198,12 +201,14 @@ export class LLMServiceFactory {
     // Create or get cached service
     const service = await this.createService(config, useCache);
 
-    // Build minimal context if not provided (for backward compatibility)
-    const effectiveContext: ExecutionContext = context || {
-      orgSlug: 'system',
-      userId: params.userId || 'system',
-      conversationId: params.conversationId || 'unknown',
-    };
+    // Build context if not provided (for backward compatibility)
+    const effectiveContext: ExecutionContext =
+      context ||
+      createMockExecutionContext({
+        orgSlug: 'system',
+        userId: params.userId || 'system',
+        conversationId: params.conversationId || 'unknown',
+      });
 
     // Generate response with full metadata, with retry on transient errors only
     const response = await LLMRetryHandler.withRetry(

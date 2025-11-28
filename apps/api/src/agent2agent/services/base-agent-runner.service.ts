@@ -573,12 +573,33 @@ export abstract class BaseAgentRunner implements IAgentRunner {
     const payload = (request.payload ?? {}) as {
       action?: string;
       decision?: string;
+      hitlMethod?: string;
     };
 
     // Debug: Log full payload to see what frontend sends
     this.logger.debug(
       `🔍 [HITL-HANDLER] Received payload: ${JSON.stringify(payload)}`,
     );
+
+    // Check for new HITL method routing (Session 2)
+    // hitlMethod is set by the mode router for hitl.* methods
+    if (payload.hitlMethod) {
+      // Delegate to subclass handleHitlMethod if it exists
+      const runner = this as unknown as { handleHitlMethod?: (
+        definition: AgentRuntimeDefinition | null,
+        request: TaskRequestDto,
+        organizationSlug: string | null,
+      ) => Promise<TaskResponseDto> };
+
+      if (runner.handleHitlMethod) {
+        return runner.handleHitlMethod(definition, request, organizationSlug);
+      }
+
+      // Fall through to legacy action handling if subclass doesn't implement
+      this.logger.warn(
+        `HITL method ${payload.hitlMethod} not handled - no handleHitlMethod implementation`,
+      );
+    }
 
     // If decision is present but action is not, infer action='resume'
     // Frontend sends { decision: 'approve', threadId: ... } without explicit action

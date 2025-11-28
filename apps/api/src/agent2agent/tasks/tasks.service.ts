@@ -51,6 +51,12 @@ interface TaskRow {
   metadata?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
+  // HITL pending tracking (Session 2)
+  hitl_pending?: boolean;
+  hitl_pending_since?: string;
+  // Agent info for HITL pending list
+  agent_slug?: string;
+  agent_name?: string;
 }
 @Injectable()
 export class TasksService {
@@ -646,6 +652,110 @@ export class TasksService {
       userId,
     );
     return messages;
+  }
+
+  // ============================================================================
+  // HITL Pending Methods (Session 2)
+  // ============================================================================
+
+  /**
+   * Find all tasks with pending HITL reviews for a user
+   * Note: HITL pending is on TASKS table, not conversations
+   * This is future-proof for multiple tasks per conversation
+   */
+  async findPendingHitl(
+    userId: string,
+    organizationSlug?: string,
+  ): Promise<TaskRow[]> {
+    this.logger.log(
+      `Finding pending HITL tasks for user ${userId}, org ${organizationSlug}`,
+    );
+
+    // Query tasks with hitl_pending = true
+    // Join with conversations to filter by organization if needed
+    let query = this.supabaseService
+      .getAnonClient()
+      .from('tasks')
+      .select(
+        `
+        *,
+        conversations!inner(
+          id,
+          user_id,
+          organization_slug,
+          title
+        )
+      `,
+      )
+      .eq('hitl_pending', true)
+      .eq('conversations.user_id', userId)
+      .order('hitl_pending_since', { ascending: false });
+
+    if (organizationSlug) {
+      query = query.eq('conversations.organization_slug', organizationSlug);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      this.logger.error(`Failed to find pending HITL tasks: ${error.message}`);
+      throw new Error(`Failed to find pending HITL tasks: ${error.message}`);
+    }
+
+    return (data as TaskRow[]) || [];
+  }
+
+  /**
+   * Update task HITL pending status
+   *
+   * IMPORTANT: Safe Partial Update Pattern
+   * - Only modifies specified HITL columns
+   * - Does not affect other task fields
+   */
+  async updateHitlPending(taskId: string, pending: boolean): Promise<void> {
+    this.logger.log(
+      `Updating HITL pending for task ${taskId}: pending=${pending}`,
+    );
+
+    const updateData: Partial<TaskRow> = {
+      hitl_pending: pending,
+      hitl_pending_since: pending ? new Date().toISOString() : undefined,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Remove undefined fields
+    if (!pending) {
+      delete updateData.hitl_pending_since;
+    }
+
+    const { error } = await this.supabaseService
+      .getAnonClient()
+      .from('tasks')
+      .update(updateData)
+      .eq('id', taskId);
+
+    if (error) {
+      this.logger.error(`Failed to update HITL pending: ${error.message}`);
+      throw new Error(`Failed to update HITL pending: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get a task by ID (without user restriction - for internal use)
+   */
+  async findOne(taskId: string): Promise<TaskRow | null> {
+    const { data, error } = await this.supabaseService
+      .getAnonClient()
+      .from('tasks')
+      .select('*')
+      .eq('id', taskId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      throw new Error(`Failed to fetch task: ${error.message}`);
+    }
+
+    return data as TaskRow | null;
   }
 
   /**

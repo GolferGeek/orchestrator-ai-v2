@@ -8,10 +8,7 @@
 // ============================================================================
 // CORE - EXECUTION CONTEXT
 // ============================================================================
-export type {
-  ExecutionContext,
-  PartialExecutionContext,
-} from './core/execution-context';
+export type { ExecutionContext } from './core/execution-context';
 export {
   createExecutionContext,
   createMockExecutionContext,
@@ -133,18 +130,35 @@ export type {
   HitlAction,
   HitlGeneratedContent,
   HitlContent,
-  HitlStatusResponsePayload,
-  HitlResponseMetadata,
+  // Deliverable-based types (new)
+  HitlDeliverableResponse,
+  HitlResumeRequest,
+  HitlStatusResponse,
+  HitlHistoryResponse,
+  // Pending list types (new)
+  HitlPendingItem,
+  HitlPendingListResponse,
+  // Payload types
   HitlResumePayload,
   HitlStatusPayload,
   HitlHistoryPayload,
+  HitlPendingPayload,
   HitlModePayload,
   HitlRequestMetadata,
+  HitlResponseMetadata,
+  // LangGraph types (new)
+  LangGraphInterruptValue,
+  LangGraphInterruptItem,
+  LangGraphInterruptResponse,
+  // Legacy types (for backward compatibility)
+  HitlStatusResponsePayload,
   HitlResumeResponseContent,
   HitlStatusResponseContent,
   HitlHistoryEntry,
   HitlHistoryResponseContent,
 } from './modes/hitl.types';
+
+export { isLangGraphInterruptResponse } from './modes/hitl.types';
 
 // ============================================================================
 // STREAMING (SSE) TYPES

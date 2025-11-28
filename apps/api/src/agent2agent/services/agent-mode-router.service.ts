@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { TaskRequestDto } from '../dto/task-request.dto';
+import { TaskRequestDto, AgentTaskMode } from '../dto/task-request.dto';
 import { TaskResponseDto } from '../dto/task-response.dto';
 import { AgentRecord } from '@agent-platform/interfaces/agent.interface';
 import { AgentRegistryService } from '@agent-platform/services/agent-registry.service';
@@ -34,6 +34,15 @@ export class AgentModeRouterService {
   ) {}
 
   async execute(context: AgentExecutionContext): Promise<TaskResponseDto> {
+    // Check if this is an HITL method (uses 'method' field in payload)
+    const payload = context.request.payload as Record<string, unknown> | undefined;
+    const method = payload?.method as string | undefined;
+
+    // Route HITL methods (hitl.resume, hitl.status, hitl.history, hitl.pending)
+    if (method?.startsWith('hitl.')) {
+      return this.routeHitlMethod(method, context);
+    }
+
     const hydrated = await this.hydrateContext(context);
 
     if (!hydrated) {
@@ -64,6 +73,110 @@ export class AgentModeRouterService {
       hydrated.definition,
       hydrated.request,
       hydrated.organizationSlug,
+    );
+  }
+
+  /**
+   * Route HITL-specific methods
+   * All HITL methods are handled by the API agent runner
+   *
+   * Methods:
+   * - hitl.resume: Resume workflow with decision
+   * - hitl.status: Get HITL status for a task
+   * - hitl.history: Get version history for a task
+   * - hitl.pending: Get all pending HITL reviews (cross-agent, uses _system)
+   */
+  private async routeHitlMethod(
+    method: string,
+    context: AgentExecutionContext,
+  ): Promise<TaskResponseDto> {
+    this.logger.log(`Routing HITL method: ${method}`);
+
+    // For hitl.pending, we don't need an agent - it's a cross-agent query
+    const agentSlug = context.agentSlug;
+    if (method === 'hitl.pending' || agentSlug === '_system') {
+      return this.handleSystemHitlMethod(method, context);
+    }
+
+    // For other HITL methods, we need to hydrate the context to get agent info
+    const hydrated = await this.hydrateContext(context);
+
+    if (!hydrated) {
+      return TaskResponseDto.failure(
+        AgentTaskMode.HITL,
+        'Agent record unavailable for HITL execution',
+      );
+    }
+
+    // Get API runner (handles HITL for all agent types)
+    const apiRunner = this.runnerRegistry.getRunner('api');
+
+    if (!apiRunner) {
+      this.logger.error('API runner not registered - required for HITL');
+      return TaskResponseDto.failure(
+        AgentTaskMode.HITL,
+        'API runner not available for HITL operations',
+      );
+    }
+
+    // Pass the HITL method in request so runner knows what to do
+    const hitlRequest: TaskRequestDto = {
+      ...hydrated.request,
+      mode: AgentTaskMode.HITL,
+      payload: {
+        ...(hydrated.request.payload as Record<string, unknown>),
+        hitlMethod: method, // hitl.resume, hitl.status, hitl.history
+      },
+    };
+
+    return apiRunner.execute(
+      hydrated.definition,
+      hitlRequest,
+      hydrated.organizationSlug,
+    );
+  }
+
+  /**
+   * Handle system-level HITL methods (like hitl.pending)
+   * These don't require a specific agent definition
+   */
+  private async handleSystemHitlMethod(
+    method: string,
+    context: AgentExecutionContext,
+  ): Promise<TaskResponseDto> {
+    // Only hitl.pending is supported for system-level queries
+    if (method !== 'hitl.pending') {
+      return TaskResponseDto.failure(
+        AgentTaskMode.HITL,
+        `Method ${method} not supported for _system agent. Only hitl.pending is allowed.`,
+      );
+    }
+
+    // Get API runner
+    const apiRunner = this.runnerRegistry.getRunner('api');
+
+    if (!apiRunner) {
+      return TaskResponseDto.failure(
+        AgentTaskMode.HITL,
+        'API runner not available for HITL pending query',
+      );
+    }
+
+    // Build request with null definition (system-level query)
+    const hitlRequest: TaskRequestDto = {
+      ...context.request,
+      mode: AgentTaskMode.HITL,
+      payload: {
+        ...(context.request.payload as Record<string, unknown>),
+        hitlMethod: 'hitl.pending',
+      },
+    };
+
+    // Execute with null definition - API runner will handle system queries
+    return apiRunner.execute(
+      null as unknown as AgentRuntimeDefinition, // System-level, no agent needed
+      hitlRequest,
+      context.organizationSlug ?? null,
     );
   }
 
