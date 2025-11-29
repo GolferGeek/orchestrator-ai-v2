@@ -1,6 +1,6 @@
 <template>
-  <div class="two-pane-conversation" :class="{ 'mobile-single-pane': isMobile && showWorkProductPane }">
-    <!-- Header Controls -->
+  <div class="conversation-view">
+    <!-- Header -->
     <div class="conversation-header">
       <div class="conversation-info">
         <h2>{{ conversation?.title || 'Conversation' }}</h2>
@@ -10,35 +10,10 @@
           <SovereignModeBadge variant="compact" :clickable="false" />
         </SovereignModeTooltip>
       </div>
-      <div class="header-controls">
-        <!-- Mobile pane toggle -->
-        <ion-button
-          v-if="isMobile && hasActiveWorkProduct"
-          fill="clear"
-          @click="togglePane"
-        >
-          <ion-icon :icon="showWorkProductPane ? chatbubbleOutline : documentTextOutline" />
-        </ion-button>
-        <!-- Desktop layout controls -->
-        <ion-button
-          v-if="!isMobile"
-          fill="clear"
-          @click="toggleWorkProductPane"
-        >
-          <ion-icon :icon="showWorkProductPane ? eyeOffOutline : eyeOutline" />
-          {{ showWorkProductPane ? 'Hide' : 'Show' }} {{ getWorkProductLabel() }}
-        </ion-button>
-      </div>
     </div>
-    <div class="panes-container">
-      <!-- Conversation Pane -->
-      <div 
-        class="conversation-pane" 
-        :class="{ 
-          'full-width': !showWorkProductPane || (isMobile && !showWorkProductPane),
-          'hidden': isMobile && showWorkProductPane
-        }"
-      >
+    <div class="conversation-container">
+      <!-- Conversation Content -->
+      <div class="conversation-pane">
         <!-- Loading State -->
         <div v-if="isLoading" class="loading-state">
           <ion-spinner />
@@ -118,9 +93,7 @@
               :conversation-id="conversation?.id"
               :agent="currentAgent"
               :agent-name="currentAgent?.name"
-              :show-work-product-pane="showWorkProductPane"
               @deliverable-created="handleDeliverableCreated"
-              @deliverable-updated="handleDeliverableUpdated"
               @deliverable-selected="selectDeliverable"
             />
           </div>
@@ -234,90 +207,11 @@
             <CompactLLMControl />
             <TaskExecutionControls />
           </div>
-          <!-- Enhance-here hint when a deliverable is selected -->
-          <div v-if="activeWorkProduct?.type === 'deliverable'" class="enhance-hint">
-            <ion-chip color="warning" outline>
-              Enhancing: {{ activeWorkProduct.data?.title || 'Deliverable' }} — type instructions and press send
-            </ion-chip>
-            <ion-button size="small" fill="clear" @click="cancelEnhancement">Cancel</ion-button>
-          </div>
         </div>
         <!-- Typing Indicator -->
         <div v-if="isSendingMessage" class="typing-indicator">
           <ion-spinner size="small" />
           <span>Processing...</span>
-        </div>
-      </div>
-      <!-- Work Product Pane with Tabs -->
-      <div
-        class="work-product-pane"
-        :class="{
-          'hidden': !showWorkProductPane,
-          'full-width': isMobile && showWorkProductPane,
-          'empty-work-product': !hasActiveWorkProduct && !currentPlan
-        }"
-        v-if="showWorkProductPane"
-      >
-        <!-- Tabs for Plan and Deliverable -->
-        <div v-if="currentPlan || hasActiveWorkProduct" class="work-product-tabs">
-          <ion-segment :value="activeTab" @ionChange="activeTab = $event.detail.value">
-            <ion-segment-button v-if="currentPlan" value="plan">
-              <ion-label>Plan</ion-label>
-              <ion-badge v-if="currentPlan" color="primary">{{ currentPlan.currentVersion?.versionNumber || 1 }}</ion-badge>
-            </ion-segment-button>
-            <ion-segment-button v-if="activeWorkProduct?.type === 'deliverable'" value="deliverable">
-              <ion-label>Deliverable</ion-label>
-              <ion-badge v-if="activeWorkProduct?.data" color="success">{{ activeWorkProduct.data.currentVersion?.versionNumber || 1 }}</ion-badge>
-            </ion-segment-button>
-            <!-- Project segment button removed - projects deprecated -->
-          </ion-segment>
-        </div>
-
-        <!-- Tab Content -->
-        <div class="tab-content">
-          <!-- Plan Tab -->
-          <div v-if="activeTab === 'plan' && currentPlan">
-            <PlanDisplay
-              :plan="currentPlan"
-              :conversation-id="conversation?.id"
-              :agent-slug="agentSlug"
-              @version-changed="handlePlanVersionChanged"
-              @version-created="handlePlanVersionCreated"
-              @current-version-changed="handlePlanCurrentVersionChanged"
-              @run-with-different-llm="handleRunPlanWithDifferentLLM"
-            />
-          </div>
-
-          <!-- Deliverable Tab -->
-          <div v-if="activeTab === 'deliverable' && activeWorkProduct?.type === 'deliverable' && activeWorkProduct?.data">
-            <DeliverableDisplay
-              :deliverable="activeWorkProduct.data"
-              :conversation-id="conversation?.id"
-              :agent-slug="agentSlug"
-              @version-changed="handleVersionChanged"
-              @version-created="handleVersionCreated"
-              @merge-requested="handleMergeRequested"
-              @edit-requested="handleEditRequested"
-              @run-with-different-llm="handleRunWithDifferentLLM"
-            />
-          </div>
-
-          <!-- Project Tab removed - projects deprecated -->
-        </div>
-
-        <!-- Empty work product state -->
-        <div
-          v-if="!currentPlan && !hasActiveWorkProduct"
-          class="empty-state"
-        >
-          <ion-icon :icon="documentTextOutline" size="large" color="medium" />
-          <h3>No Work Product Selected</h3>
-          <p v-if="isOrchestratorConversation">
-            Projects, deliverables, and plans will appear here when the orchestrator creates them.
-          </p>
-          <p v-else>
-            Deliverables and plans will appear here when agents create them in this conversation.
-          </p>
         </div>
       </div>
     </div>
@@ -345,21 +239,38 @@
       @execute="handleLLMExecute"
     />
 
-    <!-- HITL Approval Modal -->
-    <HitlApprovalModal
+    <!-- HITL Review Modal (new modal-based HITL UI) -->
+    <HitlReviewModal
       :is-open="showHitlModal"
+      :organization-slug="props.conversation?.organizationSlug || 'demo'"
+      :agent-slug="agentSlug"
+      :task-id="hitlData?.taskId || ''"
+      :conversation-id="props.conversation?.id || ''"
+      :deliverable-id="hitlData?.deliverableId"
       :topic="hitlData?.topic || ''"
-      :generated-content="hitlData?.generatedContent"
-      :thread-id="hitlData?.threadId"
-      @cancel="handleHitlCancel"
-      @approve="handleHitlApprove"
-      @edit="handleHitlEdit"
-      @reject="handleHitlReject"
+      :initial-content="hitlData?.generatedContent"
+      :current-version-number="hitlData?.currentVersionNumber"
+      @close="handleHitlModalClose"
+      @decision="handleHitlDecision"
+    />
+
+    <!-- Deliverables Modal (for viewing completed deliverables) -->
+    <DeliverablesModal
+      :is-open="showDeliverablesModal"
+      :deliverable-id="selectedDeliverableId || ''"
+      :title="selectedDeliverable?.title"
+      :topic="selectedDeliverable?.title"
+      :initial-content="selectedDeliverableContent"
+      :current-version-number="selectedDeliverable?.currentVersion?.versionNumber"
+      @close="handleDeliverablesModalClose"
+      @edit="handleDeliverableEdit"
+      @rerun="handleDeliverableRerun"
+      @rerun-with-different-llm="handleDeliverableRerunWithDifferentLlm"
     />
   </div>
 </template>
 <script setup lang="ts">
-import { ref, computed, nextTick, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import {
   IonIcon,
   IonButton,
@@ -369,18 +280,12 @@ import {
   IonActionSheet,
   IonModal,
   IonChip,
-  IonBadge,
-  IonSegment,
-  IonSegmentButton,
-  IonLabel,
 } from '@ionic/vue';
 import {
   alertCircleOutline,
-  chatbubbleOutline,
   documentTextOutline,
-  eyeOutline,
-  eyeOffOutline,
   hammerOutline,
+  chatbubbleOutline,
 } from 'ionicons/icons';
 import { useConversationsStore } from '@/stores/conversationsStore';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
@@ -396,8 +301,9 @@ import {
   createDeliverable as createDeliverableAction,
   type HitlWaitingResult,
 } from '@/services/agent2agent/actions';
-import { hitlService, type HitlGeneratedContent } from '@/services/hitlService';
-import HitlApprovalModal from '@/components/hitl/HitlApprovalModal.vue';
+import type { HitlGeneratedContent } from '@/services/hitlService';
+import HitlReviewModal from '@/components/hitl/HitlReviewModal.vue';
+import DeliverablesModal from '@/components/deliverables/DeliverablesModal.vue';
 import { usePrivacyStore } from '@/stores/privacyStore';
 import { useLLMPreferencesStore } from '@/stores/llmPreferencesStore';
 import { useUiStore } from '@/stores/uiStore';
@@ -414,10 +320,6 @@ import AgentTaskItem from './AgentTaskItem.vue';
 import AgentResourcesPanel from './AgentResourcesPanel.vue';
 import CompactLLMControl from './CompactLLMControl.vue';
 import TaskExecutionControls from './TaskExecutionControls.vue';
-// import ChatModeSendButton from './ChatModeSendButton.vue';
-import DeliverableDisplay from './DeliverableDisplay.vue';
-import PlanDisplay from './PlanDisplay.vue';
-// ProjectDisplay removed - projects deprecated
 import DeliverableMergeView from './DeliverableMergeView.vue';
 import LLMReselectorModal from './LLMReselectorModal.vue';
 import SovereignModeBadge from './SovereignMode/SovereignModeBadge.vue';
@@ -425,7 +327,7 @@ import SovereignModeTooltip from './SovereignMode/SovereignModeTooltip.vue';
 import SovereignModeBanner from './SovereignMode/SovereignModeBanner.vue';
 import ConversationalSpeechButton from './ConversationalSpeechButton.vue';
 import type { Deliverable, DeliverableVersion } from '@/services/deliverablesService';
-import type { PlanData, PlanVersionData } from '@orchestrator-ai/transport-types';
+import type { PlanData, PlanVersionData, HitlDeliverableResponse } from '@orchestrator-ai/transport-types';
 
 interface Props {
   conversation?: AgentConversation | null;
@@ -459,20 +361,21 @@ const agentsStore = useAgentsStore();
 // Reactive state
 const messageText = ref('');
 const messagesContainer = ref<HTMLElement | null>(null);
-const showWorkProductPane = ref(false);
 const showDeliverableSelector = ref(false);
 const showMergeModal = ref(false);
 const mergeDeliverable = ref<Deliverable | null>(null);
 const showLLMRerunModal = ref(false);
 const rerunDeliverableData = ref<RerunContext | null>(null);
-const activeWorkProduct = ref<{ type: 'deliverable'; data: Deliverable } | null>(null);
-const activeTab = ref<'plan' | 'deliverable'>('plan');
-const isMobile = ref(false);
 
 // HITL Modal State
 const showHitlModal = ref(false);
 const hitlData = ref<HitlWaitingResult | null>(null);
-const hitlDecisionInProgress = ref(false); // Prevents cancel handler when closing after decision
+
+// Deliverables Modal State
+const showDeliverablesModal = ref(false);
+const selectedDeliverableId = ref<string | null>(null);
+const selectedDeliverable = ref<Deliverable | null>(null);
+const selectedDeliverableContent = ref<HitlGeneratedContent | undefined>(undefined);
 // Computed properties
 const currentAgent = computed(() => {
   if (!props.conversation?.agentName) return null;
@@ -514,13 +417,6 @@ const messages = computed<AgentChatMessage[]>(() => {
     return msgs;
   }
   return [];
-});
-
-// Get the single plan for this conversation from planStore
-const currentPlan = computed(() => {
-  if (!props.conversation?.id) return null;
-  const plans = planStore.plansByConversationId(props.conversation.id);
-  return plans.length > 0 ? plans[0] : null;
 });
 
 // Video-related computed properties
@@ -577,19 +473,6 @@ const thinkingMessage = computed(() => {
   if (mode === 'build') return 'Building your deliverable…';
   return 'Processing…';
 });
-const hasActiveWorkProduct = computed(() => {
-  const result = activeWorkProduct.value !== null;
-  return result;
-});
-const isOrchestratorConversation = computed(() => {
-  const agentName = currentAgent.value?.name;
-  // Ensure agentName is a string before calling toLowerCase
-  if (typeof agentName === 'string') {
-    return agentName.toLowerCase().includes('orchestrator');
-  }
-  return false;
-});
-
 // Sovereign mode computed properties
 const shouldShowSovereignBanner = computed(() => {
   // Show banner for enforced policy or when there are warnings
@@ -712,7 +595,7 @@ const sendMessage = async (mode?: AgentChatMode) => {
 
       // Check if this is an HITL waiting response
       if (result && 'isHitlWaiting' in result && result.isHitlWaiting) {
-        console.log('🔄 [TwoPaneConversationView] HITL waiting - showing modal:', result);
+        console.log('🔄 [ConversationView] HITL waiting - showing modal:', result);
         hitlData.value = result;
         showHitlModal.value = true;
       }
@@ -887,18 +770,6 @@ const scrollToBottom = async () => {
     messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
   }
 };
-const togglePane = () => {
-  showWorkProductPane.value = !showWorkProductPane.value;
-};
-const toggleWorkProductPane = () => {
-  showWorkProductPane.value = !showWorkProductPane.value;
-};
-const getWorkProductLabel = () => {
-  if (!activeWorkProduct.value) {
-    return isOrchestratorConversation.value ? 'Work Product' : 'Deliverable';
-  }
-  return 'Deliverable';
-};
 const messageHasDeliverable = (message: AgentChatMessage) => {
   return Boolean(message.deliverableId || message.metadata?.deliverableId);
 };
@@ -920,34 +791,32 @@ const selectDeliverable = async (deliverable: Deliverable | null) => {
       });
     } catch (error) {
       console.error('Failed to load deliverable versions:', error);
-      // Don't let version loading failure block deliverable selection
     }
   }
-  activeWorkProduct.value = { type: 'deliverable', data: deliverable };
-  // Always open the work product pane when a deliverable is selected
-  showWorkProductPane.value = true;
+
+  // Parse content for the modal
+  let content: HitlGeneratedContent | undefined;
+  if (deliverable.currentVersion?.content) {
+    try {
+      content = JSON.parse(deliverable.currentVersion.content);
+    } catch {
+      content = { blogPost: deliverable.currentVersion.content };
+    }
+  }
+
+  // Open DeliverablesModal
+  selectedDeliverableId.value = deliverable.id;
+  selectedDeliverable.value = deliverable;
+  selectedDeliverableContent.value = content;
+  showDeliverablesModal.value = true;
   showDeliverableSelector.value = false;
-  try {
-    // Set enhancement context so user composer enhancements route to versioning
-    await deliverablesStore.startEnhancement(deliverable.id);
-  } catch {
-    // Ignore enhancement errors
-  }
 };
 
-const cancelEnhancement = async () => {
-  try { await deliverablesStore.stopEnhancement(); } catch {
-    // Ignore enhancement errors
-  }
-};
 const handleDeliverableCreated = async (deliverable: Deliverable) => {
-
-  // Use the correct camelCase field name
   // Ensure the deliverable belongs to the current conversation
   if (props.conversation?.id && deliverable.conversationId !== props.conversation.id) {
     return;
   }
-
 
   // Load versions for the newly created deliverable
   try {
@@ -956,150 +825,32 @@ const handleDeliverableCreated = async (deliverable: Deliverable) => {
       deliverablesStore.addVersion(deliverable.id, v);
     });
   } catch (error) {
-    console.error('❌ [TwoPaneConversationView.handleDeliverableCreated] Error loading versions:', error);
-    // Don't let version loading failure block deliverable creation handling
+    console.error('❌ [handleDeliverableCreated] Error loading versions:', error);
   }
 
-  // Auto-select newly created or newly loaded deliverable
-  activeWorkProduct.value = { type: 'deliverable', data: deliverable };
-
-  // FORCE show the work product pane immediately when a deliverable is created
-  showWorkProductPane.value = true;
-
-  // Force Vue reactivity update
-  await nextTick();
-
-  // Show visual debugging toast to confirm pane opened
-  try {
-    const { toastController } = await import('@ionic/vue');
-    const toast = await toastController.create({
-      message: `✅ Deliverable "${deliverable.title}" created and pane opened!`,
-      duration: 3000,
-      position: 'top',
-      color: 'success'
-    });
-    await toast.present();
-  } catch (error) {
-    console.error('❌ [TwoPaneConversationView.handleDeliverableCreated] Error showing toast:', error);
-  }
-};
-const handleDeliverableUpdated = (deliverable: Deliverable) => {
-  // Update active work product if it's the same deliverable
-  if (activeWorkProduct.value?.type === 'deliverable' && 
-      activeWorkProduct.value.data.id === deliverable.id) {
-    activeWorkProduct.value = { type: 'deliverable', data: deliverable };
-  }
-};
-const handleVersionChanged = (version: DeliverableVersion) => {
-  if (activeWorkProduct.value?.type === 'deliverable') {
-    const owningDeliverable = deliverablesStore.getDeliverableById(version.deliverableId);
-    if (owningDeliverable) {
-      activeWorkProduct.value = { type: 'deliverable', data: owningDeliverable };
+  // Parse content for the modal
+  let content: HitlGeneratedContent | undefined;
+  if (deliverable.currentVersion?.content) {
+    try {
+      content = JSON.parse(deliverable.currentVersion.content);
+    } catch {
+      // Content might be plain text
+      content = { blogPost: deliverable.currentVersion.content };
     }
   }
+
+  // Open DeliverablesModal to show the completed deliverable
+  selectedDeliverableId.value = deliverable.id;
+  selectedDeliverable.value = deliverable;
+  selectedDeliverableContent.value = content;
+  showDeliverablesModal.value = true;
 };
-const handleVersionCreated = async (newVersion: DeliverableVersion) => {
-  // When a new version is created, update the active work product to show the new version
-  if (activeWorkProduct.value?.type === 'deliverable') {
-    const owningDeliverable = deliverablesStore.getDeliverableById(newVersion.deliverableId);
-    if (owningDeliverable) {
-      activeWorkProduct.value = { type: 'deliverable', data: owningDeliverable };
-    }
-  }
-  // Reload the deliverables for this conversation to update the list
-  if (props.conversation?.id) {
-    const deliverablesList = await deliverablesService.getConversationDeliverables(props.conversation.id);
-    deliverablesList.forEach(d => {
-      deliverablesStore.addDeliverable(d);
-    });
-  }
-};
-const handleMergeRequested = (deliverable: Deliverable) => {
-  mergeDeliverable.value = deliverable;
-  showMergeModal.value = true;
-};
-const handleEditRequested = (_workProduct: { type: 'deliverable'; data: Deliverable }) => {
-  // Navigate to edit view or open edit modal
-  // Implementation depends on editing strategy
-  // const productType = activeWorkProduct.value?.type || 'deliverable';
-};
-// Project handlers removed - projects deprecated
 const closeMergeModal = () => {
   showMergeModal.value = false;
   mergeDeliverable.value = null;
 };
-const handleMergeCompleted = (mergedDeliverable: Deliverable) => {
-  activeWorkProduct.value = { type: 'deliverable', data: mergedDeliverable };
+const handleMergeCompleted = () => {
   closeMergeModal();
-};
-
-// LLM Rerun handlers
-const handleRunWithDifferentLLM = (data: DeliverableRerunContext) => {
-
-  if (messages.value.length > 0) {
-  }
-
-  // Capture the last user message from the messages store
-  let userMessage = '';
-  const allMessages = messages.value;
-
-  if (allMessages && allMessages.length > 0) {
-    const userMessages = allMessages.filter(msg =>
-      msg.role === 'user' && !msg.metadata?.isRerunRequest
-    );
-
-    if (userMessages.length > 0) {
-      userMessage = userMessages[userMessages.length - 1].content;
-    } else {
-      console.error('❌ [handleRunWithDifferentLLM] No non-rerun user messages found!');
-    }
-  } else {
-    console.error('❌ [handleRunWithDifferentLLM] No messages available in store for conversation:', props.conversation?.id);
-  }
-
-  // Store rerun data with the user message
-  rerunDeliverableData.value = {
-    ...data,
-    userMessage // Add the user message to the rerun context
-  };
-  showLLMRerunModal.value = true;
-};
-
-// Plan event handlers
-const handlePlanVersionChanged = (_version: PlanVersionData) => {
-  // TODO: Update plan state if needed
-};
-
-const handlePlanVersionCreated = (_version: PlanVersionData) => {
-  // TODO: Update plan state if needed
-};
-
-const handlePlanCurrentVersionChanged = (_version: PlanVersionData) => {
-  // TODO: Update plan state if needed
-};
-
-const handleRunPlanWithDifferentLLM = (data: PlanRerunContext) => {
-
-  // Capture the last user message from the messages store
-  let userMessage = '';
-  const allMessages = messages.value;
-
-  if (allMessages && allMessages.length > 0) {
-    const userMessages = allMessages.filter(msg =>
-      msg.role === 'user' && !msg.metadata?.isRerunRequest
-    );
-    if (userMessages.length > 0) {
-      userMessage = userMessages[userMessages.length - 1].content;
-    }
-  }
-
-  // Store plan data with the user message
-  rerunDeliverableData.value = {
-    plan: data.plan,
-    version: data.version,
-    userMessage
-  };
-  showLLMRerunModal.value = true;
 };
 
 const closeLLMRerunModal = () => {
@@ -1273,258 +1024,108 @@ const executeRerunWithConfig = async (
   }
 };
 
-// HITL Modal Handlers
-const handleHitlCancel = () => {
-  // Skip if a decision (approve/edit/reject) is in progress - modal is closing programmatically
-  if (hitlDecisionInProgress.value) {
-    console.log('🔄 [TwoPaneConversationView] HITL modal closing (decision in progress, not a cancel)');
-    return;
-  }
-  console.log('🔄 [TwoPaneConversationView] HITL cancelled by user');
+// HITL Modal Handlers (new modal-based HITL)
+const handleHitlModalClose = () => {
   showHitlModal.value = false;
   hitlData.value = null;
 };
 
-const handleHitlApprove = async (feedback?: string) => {
-  if (!hitlData.value || !props.conversation) {
-    console.error('❌ [TwoPaneConversationView] No HITL data or conversation');
-    return;
-  }
+const handleHitlDecision = async (response: HitlDeliverableResponse) => {
+  if (!props.conversation) return;
 
-  console.log('✅ [TwoPaneConversationView] HITL approved:', { threadId: hitlData.value.threadId, feedback });
+  // The HitlReviewModal handles the API call and returns the response
+  // We just need to update the conversation UI based on the result
 
-  // Set flag to prevent cancel handler from running when modal closes
-  hitlDecisionInProgress.value = true;
-
-  // Close modal immediately and show loading state
-  const savedHitlData = { ...hitlData.value };
-  showHitlModal.value = false;
-  hitlData.value = null;
-
-  // Show loading state while generating supporting content
-  chatUiStore.setIsSendingMessage(true);
-
-  // Add a progress message to show what's happening
-  const progressMessageId = `hitl-progress-${Date.now()}`;
-  conversationsStore.addMessage(props.conversation.id, {
-    id: progressMessageId,
-    role: 'assistant',
-    content: 'Blog post approved! Generating SEO description and social posts...',
-    timestamp: new Date().toISOString(),
-    metadata: {
-      hitlDecision: 'approve',
-      threadId: savedHitlData.threadId,
-      isProgress: true,
-    },
-  });
-  scrollToBottom();
-
-  try {
-    // Call hitlService to send approval to API
-    const result = await hitlService.approve(
-      savedHitlData.agentSlug,
-      savedHitlData.threadId,
-      savedHitlData.conversationId,
-      feedback,
-      savedHitlData.taskId
-    );
-
-    console.log('✅ [TwoPaneConversationView] HITL approval result:', result);
-    console.log('✅ [TwoPaneConversationView] result.data:', result.data);
-    console.log('✅ [TwoPaneConversationView] result.data.deliverable:', result.data?.deliverable);
-
-    // Build content to display from the final result
-    // After HITL approval, backend returns a BUILD response with deliverable (not HITL response with finalContent)
-    let displayContent = result.message || 'Content finalized!';
-
-    // Check for deliverable content from BUILD response (new format after HITL approval)
-    // Deliverable structure: { id, currentVersion: { content: "..." }, ... }
-    const deliverable = result.data?.deliverable;
-    const deliverableContent = deliverable?.currentVersion?.content || deliverable?.content;
-    if (deliverableContent) {
-      // Deliverable content is already formatted markdown from the backend
-      displayContent = deliverableContent;
-      console.log('✅ [TwoPaneConversationView] Using deliverable content for display');
-    }
-
-    console.log('✅ [TwoPaneConversationView] displayContent to show:', displayContent);
-    console.log('✅ [TwoPaneConversationView] Updating message with ID:', progressMessageId);
-
-    // Update the progress message with the final result
-    conversationsStore.updateMessage(props.conversation.id, progressMessageId, {
-      content: displayContent,
-    });
-    conversationsStore.updateMessageMetadata(props.conversation.id, progressMessageId, {
-      hitlCompleted: true,
-      isProgress: false,
-      deliverable: deliverable, // Store deliverable for potential later use
-    });
-
-    console.log('✅ [TwoPaneConversationView] Message updated successfully');
-
-    scrollToBottom();
-  } catch (error) {
-    console.error('❌ [TwoPaneConversationView] HITL approve failed:', error);
-
-    // Update progress message to show error
-    conversationsStore.updateMessage(props.conversation.id, progressMessageId, {
-      content: `❌ Failed to complete: ${error instanceof Error ? error.message : 'Unknown error'}`,
-    });
-    conversationsStore.updateMessageMetadata(props.conversation.id, progressMessageId, {
-      hitlCompleted: false,
-      hitlError: true,
-      isProgress: false,
-    });
-
-    chatUiStore.setError(error instanceof Error ? error.message : 'Failed to approve content');
-  } finally {
-    chatUiStore.setIsSendingMessage(false);
-    hitlDecisionInProgress.value = false; // Reset flag
-  }
-};
-
-const handleHitlEdit = async (editedContent: Partial<HitlGeneratedContent>, feedback?: string) => {
-  if (!hitlData.value || !props.conversation) {
-    console.error('❌ [TwoPaneConversationView] No HITL data or conversation');
-    return;
-  }
-
-  console.log('✏️ [TwoPaneConversationView] HITL edit submitted:', { threadId: hitlData.value.threadId, editedContent, feedback });
-
-  // Set flag to prevent cancel handler from running when modal closes
-  hitlDecisionInProgress.value = true;
-
-  // Close modal immediately and show loading state
-  const savedHitlData = { ...hitlData.value };
-  showHitlModal.value = false;
-  hitlData.value = null;
-
-  // Show loading state while generating supporting content
-  chatUiStore.setIsSendingMessage(true);
-
-  // Add a progress message to show what's happening
-  const progressMessageId = `hitl-progress-${Date.now()}`;
-  conversationsStore.addMessage(props.conversation.id, {
-    id: progressMessageId,
-    role: 'assistant',
-    content: 'Edits received! Generating SEO description and social posts based on your changes...',
-    timestamp: new Date().toISOString(),
-    metadata: {
-      hitlDecision: 'edit',
-      threadId: savedHitlData.threadId,
-      isProgress: true,
-    },
-  });
-  scrollToBottom();
-
-  try {
-    // Call hitlService to send edits to API
-    const result = await hitlService.submitEdits(
-      savedHitlData.agentSlug,
-      savedHitlData.threadId,
-      savedHitlData.conversationId,
-      editedContent,
-      feedback,
-      savedHitlData.taskId
-    );
-
-    console.log('✅ [TwoPaneConversationView] HITL edit result:', result);
-
-    // Update the progress message with the final result
-    conversationsStore.updateMessage(props.conversation.id, progressMessageId, {
-      content: result.message || 'Content finalized with your edits! All deliverables have been generated.',
-    });
-    conversationsStore.updateMessageMetadata(props.conversation.id, progressMessageId, {
-      hitlCompleted: true,
-      isProgress: false,
-    });
-
-    scrollToBottom();
-  } catch (error) {
-    console.error('❌ [TwoPaneConversationView] HITL edit failed:', error);
-
-    // Update progress message to show error
-    conversationsStore.updateMessage(props.conversation.id, progressMessageId, {
-      content: `❌ Failed to complete: ${error instanceof Error ? error.message : 'Unknown error'}`,
-    });
-    conversationsStore.updateMessageMetadata(props.conversation.id, progressMessageId, {
-      hitlCompleted: false,
-      hitlError: true,
-      isProgress: false,
-    });
-
-    chatUiStore.setError(error instanceof Error ? error.message : 'Failed to submit edits');
-  } finally {
-    chatUiStore.setIsSendingMessage(false);
-    hitlDecisionInProgress.value = false; // Reset flag
-  }
-};
-
-const handleHitlReject = async (feedback?: string) => {
-  if (!hitlData.value || !props.conversation) {
-    console.error('❌ [TwoPaneConversationView] No HITL data or conversation');
-    return;
-  }
-
-  console.log('❌ [TwoPaneConversationView] HITL rejected:', { threadId: hitlData.value.threadId, feedback });
-
-  // Set flag to prevent cancel handler from running when modal closes
-  hitlDecisionInProgress.value = true;
-
-  try {
-    chatUiStore.setIsSendingMessage(true);
-
-    // Call hitlService to send rejection to API
-    const result = await hitlService.reject(
-      hitlData.value.agentSlug,
-      hitlData.value.threadId,
-      hitlData.value.conversationId,
-      feedback,
-      hitlData.value.taskId
-    );
-
-    console.log('✅ [TwoPaneConversationView] HITL reject result:', result);
-
-    // Add rejection message to conversation
+  if (response.status === 'completed') {
+    // Add completion message to conversation
     conversationsStore.addMessage(props.conversation.id, {
+      id: `hitl-complete-${Date.now()}`,
       role: 'assistant',
-      content: result.message || 'Content rejected.',
+      content: response.message || 'Content finalized!',
       timestamp: new Date().toISOString(),
       metadata: {
         hitlCompleted: true,
-        hitlDecision: 'reject',
-        threadId: hitlData.value.threadId,
+        deliverableId: response.deliverableId,
       },
     });
 
-    // Close modal
+    // If there's a deliverable, open the DeliverablesModal
+    if (response.deliverableId) {
+      const deliverable = deliverablesStore.getDeliverableById(response.deliverableId);
+      if (deliverable) {
+        handleDeliverableCreated(deliverable);
+      }
+    }
+
+    // Close HITL modal
     showHitlModal.value = false;
     hitlData.value = null;
-
     scrollToBottom();
-  } catch (error) {
-    console.error('❌ [TwoPaneConversationView] HITL reject failed:', error);
-    chatUiStore.setError(error instanceof Error ? error.message : 'Failed to reject content');
-  } finally {
-    chatUiStore.setIsSendingMessage(false);
-    hitlDecisionInProgress.value = false; // Reset flag
+  } else if (response.status === 'hitl_waiting') {
+    // Regenerate case - update hitlData with new content
+    // The modal stays open and shows the new content
+    hitlData.value = {
+      ...hitlData.value!,
+      generatedContent: response.generatedContent,
+      currentVersionNumber: response.currentVersionNumber,
+    };
   }
 };
 
-// Responsive handling
-const checkMobile = () => {
-  isMobile.value = window.innerWidth < 768;
-  // Don't auto-show work product pane on desktop - let the conversation content determine this
+// Deliverables Modal Handlers
+const handleDeliverablesModalClose = () => {
+  showDeliverablesModal.value = false;
+  selectedDeliverableId.value = null;
+  selectedDeliverable.value = null;
+  selectedDeliverableContent.value = undefined;
 };
+
+const handleDeliverableEdit = (deliverableId: string, _versionId: string) => {
+  // For now, just close the modal - edit functionality can be implemented later
+  console.log('Edit requested for deliverable:', deliverableId);
+  handleDeliverablesModalClose();
+};
+
+const handleDeliverableRerun = (deliverableId: string, versionId: string) => {
+  // Rerun with current LLM settings (no modal)
+  const deliverable = deliverablesStore.getDeliverableById(deliverableId);
+  const version = deliverablesStore.getDeliverableVersionsSync(deliverableId)?.find(v => v.id === versionId);
+  if (deliverable && version) {
+    // TODO: Implement direct rerun with current LLM
+    console.log('Rerun deliverable:', deliverableId, 'version:', versionId);
+  }
+  handleDeliverablesModalClose();
+};
+
+const handleDeliverableRerunWithDifferentLlm = (deliverableId: string, versionId: string) => {
+  // Open the LLM reselector modal for rerun with different LLM
+  const deliverable = deliverablesStore.getDeliverableById(deliverableId);
+  const version = deliverablesStore.getDeliverableVersionsSync(deliverableId)?.find(v => v.id === versionId);
+  if (deliverable && version) {
+    // Get the last user message for the rerun context
+    let userMessage = '';
+    const allMessages = messages.value;
+    if (allMessages && allMessages.length > 0) {
+      const userMessages = allMessages.filter(msg =>
+        msg.role === 'user' && !msg.metadata?.isRerunRequest
+      );
+      if (userMessages.length > 0) {
+        userMessage = userMessages[userMessages.length - 1].content;
+      }
+    }
+
+    rerunDeliverableData.value = { deliverable, version, userMessage };
+    showLLMRerunModal.value = true;
+  }
+  handleDeliverablesModalClose();
+};
+
 onMounted(() => {
-  checkMobile();
-  window.addEventListener('resize', checkMobile);
   // Auto-scroll to bottom on mount
   scrollToBottom();
-  // Deliverable loading is now handled by the conversation watcher with immediate: true
 });
 onUnmounted(() => {
-  window.removeEventListener('resize', checkMobile);
+  // Cleanup if needed
 });
 watch(
   () => currentAgentIdentifier.value,
@@ -1540,106 +1141,42 @@ watch(
   },
   { immediate: true },
 );
-// Ensure pane opens when a work product becomes active (desktop)
-watch(() => activeWorkProduct.value, (val) => {
-  if (val && !isMobile.value && !showWorkProductPane.value) {
-    showWorkProductPane.value = true;
-  }
-});
 // Watch for new messages and scroll
 watch(() => messages.value.length, () => {
   scrollToBottom();
 });
-// Watch for conversation changes and handle deliverable/plan loading properly
-watch(() => props.conversation?.id, async (newId, _oldId) => {
+// Watch for conversation changes and load deliverables/plans
+watch(() => props.conversation?.id, async (newId) => {
   if (newId && authStore.isAuthenticated) {
-
     // Set chat mode to 'converse' for new conversations if it's an allowed mode
     if (props.conversation?.allowedChatModes?.includes('converse' as AgentChatMode)) {
       chatUiStore.setChatMode('converse');
     }
 
-    // Step 0: Load plan for this conversation (similar to deliverables)
-    let mostRecentPlan = null;
-
-    // Check if we already have the plan in the store
+    // Load plan for this conversation
     const conversationPlans = planStore.plansByConversationId(newId);
-
     if (conversationPlans.length === 0) {
-      // Load from API if not in store
       try {
-        const loadedPlan = await planStore.loadPlansByConversation(newId);
-        if (loadedPlan) {
-          mostRecentPlan = loadedPlan;
-        } else {
-        }
+        await planStore.loadPlansByConversation(newId);
       } catch (error) {
-        console.error('❌ [TwoPaneConversationView] Error loading plan:', error);
+        console.error('Error loading plan:', error);
       }
-    } else {
-      // Plan already in store
-      mostRecentPlan = conversationPlans[0]; // Already sorted by updatedAt DESC
     }
 
-
-    // Step 1: Check if deliverables are already loaded, if not load them
-    let conversationDeliverables = deliverablesStore.getDeliverablesByConversation(newId);
-
+    // Load deliverables for this conversation
+    const conversationDeliverables = deliverablesStore.getDeliverablesByConversation(newId);
     if (!conversationDeliverables || conversationDeliverables.length === 0) {
-      // Load deliverables first
       try {
         const loadedDeliverables = await deliverablesService.getConversationDeliverables(newId);
         loadedDeliverables.forEach(d => {
           deliverablesStore.addDeliverable(d);
         });
-        conversationDeliverables = loadedDeliverables || [];
       } catch (error) {
-        console.error('❌ [TwoPaneConversationView] Error loading deliverables:', error);
-        conversationDeliverables = [];
+        console.error('Error loading deliverables:', error);
       }
-    } else {
-    }
-
-    if (conversationDeliverables.length > 0) {
-      // Step 2: Get the most recent deliverable
-      const mostRecentDeliverable = conversationDeliverables
-        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())[0];
-
-      // Step 3: Load versions for the selected deliverable
-      try {
-        const versionList = await deliverablesService.getVersionHistory(mostRecentDeliverable.id);
-        versionList.forEach(v => {
-          deliverablesStore.addVersion(mostRecentDeliverable.id, v);
-        });
-      } catch (error) {
-        console.error('❌ [TwoPaneConversationView] Error loading deliverable versions:', error);
-      }
-
-      // Step 4: Set up the work product pane and select the deliverable
-      activeWorkProduct.value = { type: 'deliverable', data: mostRecentDeliverable };
-      showWorkProductPane.value = true;
-    } else if (mostRecentPlan) {
-      // If no deliverables but there's a plan, show the plan pane
-      // Plans are accessed via planStore, not activeWorkProduct
-      activeTab.value = 'plan';
-      showWorkProductPane.value = true;
-    } else {
-      // Reset active work product when no deliverables or plans
-      activeWorkProduct.value = null;
-      // Hide work product pane when no deliverables or plans (can be toggled back on)
-      if (!isMobile.value) {
-        showWorkProductPane.value = false;
-      }
-    }
-  } else {
-    // Reset active work product when switching conversations
-    activeWorkProduct.value = null;
-    // Hide work product pane when no conversation
-    if (!isMobile.value) {
-      showWorkProductPane.value = false;
     }
   }
-}, { immediate: true }); // Add immediate: true to ensure it runs on component mount
+}, { immediate: true });
 // Watch for authentication state changes and load deliverables when user logs in
 watch(() => authStore.isAuthenticated, async (isAuthenticated) => {
   if (isAuthenticated && props.conversation?.id) {
@@ -1650,28 +1187,9 @@ watch(() => authStore.isAuthenticated, async (isAuthenticated) => {
   }
 });
 
-// Watch for plan creation and show in work product pane
-watch(currentPlan, (plan) => {
-  if (plan) {
-    activeTab.value = 'plan';
-    showWorkProductPane.value = true;
-  }
-}, { immediate: true });
-
-// Watch for deliverable selection and switch tabs
-watch(() => activeWorkProduct.value, (workProduct) => {
-  if (workProduct?.type === 'deliverable') {
-    activeTab.value = 'deliverable';
-  }
-  // Project tab logic removed - projects deprecated
-});
-
-// Debug watcher for showWorkProductPane
-watch(() => showWorkProductPane.value, (_newVal, _oldVal) => {
-});
 </script>
 <style scoped>
-.two-pane-conversation {
+.conversation-view {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -1695,61 +1213,16 @@ watch(() => showWorkProductPane.value, (_newVal, _oldVal) => {
   font-size: 0.9em;
   color: var(--ion-color-medium);
 }
-.header-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.panes-container {
+.conversation-container {
   display: flex;
   flex: 1;
   overflow: hidden;
 }
 .conversation-pane {
-  width: var(--app-convo-width-desktop); /* Theme variable */
-  min-width: 320px; /* Minimum for mobile */
+  width: 100%;
   display: flex;
   flex-direction: column;
   background: white;
-  transition: all 0.3s ease;
-  flex-shrink: 0; /* Don't shrink the conversation pane */
-}
-.conversation-pane.full-width {
-  width: 100%; /* Take full width when work product pane is hidden */
-}
-.conversation-pane.hidden {
-  display: none;
-}
-.work-product-pane {
-  flex: 1; /* Take remaining space */
-  min-width: var(--app-workpane-min-width);
-  max-width: none;
-  border-left: 1px solid var(--ion-color-light);
-  background: var(--ion-color-step-25);
-  transition: all 0.3s ease;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden; /* Prevent parent from scrolling */
-}
-.work-product-tabs {
-  flex-shrink: 0; /* Don't shrink tabs */
-}
-.tab-content {
-  flex: 1;
-  overflow-y: auto; /* Make tab content scrollable */
-  padding: 16px;
-}
-.work-product-pane.full-width {
-  width: 100%;
-  border-left: none;
-}
-.work-product-pane.hidden {
-  display: none;
-}
-.work-product-pane.empty-work-product {
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 .messages-container {
   flex: 1;
@@ -2033,13 +1506,9 @@ html[data-theme="dark"] .simple-message-bubble.user .attribution-badge {
     opacity: 1;
   }
 }
-/* Mobile responsive */
-.mobile-single-pane .panes-container {
-  position: relative;
-}
 /* Dark theme support */
 @media (prefers-color-scheme: dark) {
-  .two-pane-conversation {
+  .conversation-view {
     background: #1a1a1a;
   }
   .conversation-header {
@@ -2055,10 +1524,6 @@ html[data-theme="dark"] .simple-message-bubble.user .attribution-badge {
   }
   .conversation-pane {
     background: #1f2937;
-  }
-  .work-product-pane {
-    background: #1a202c;
-    border-color: #4a5568;
   }
   .messages-container {
     background: #1f2937;
@@ -2082,7 +1547,7 @@ html[data-theme="dark"] .simple-message-bubble.user .attribution-badge {
   }
 }
 /* Manual dark theme toggle support */
-html[data-theme="dark"] .two-pane-conversation {
+html[data-theme="dark"] .conversation-view {
   background: #1a1a1a;
 }
 html[data-theme="dark"] .conversation-header {
@@ -2098,10 +1563,6 @@ html[data-theme="dark"] .agent-name {
 }
 html[data-theme="dark"] .conversation-pane {
   background: #1f2937;
-}
-html[data-theme="dark"] .work-product-pane {
-  background: #1a202c;
-  border-color: #4a5568;
 }
 html[data-theme="dark"] .messages-container {
   background: #1f2937;
@@ -2141,32 +1602,6 @@ html[data-theme="dark"] .thinking-message {
 }
 html[data-theme="dark"] .dot {
   background-color: #6b7280;
-}
-/* Tablet breakpoint */
-@media (max-width: 1024px) {
-  .conversation-pane {
-    width: var(--app-convo-width-tablet); /* Theme variable */
-    min-width: 300px;
-  }
-  .work-product-pane {
-    flex: 1; /* Take remaining space */
-    min-width: 350px;
-  }
-}
-/* Mobile breakpoint */
-@media (max-width: 768px) {
-  .work-product-pane {
-    width: 100%;
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 10;
-  }
-  .conversation-pane.hidden {
-    display: none;
-  }
 }
 
 /* Sovereign Mode Styles */

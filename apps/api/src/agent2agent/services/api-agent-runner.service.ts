@@ -18,6 +18,7 @@ import { AgentConversationsService } from '../conversations/agent-conversations.
 import * as HitlHandlers from './base-agent-runner/hitl.handlers';
 import {
   isLangGraphInterruptResponse,
+  type ExecutionContext,
   type HitlDecision,
   type HitlGeneratedContent,
   type HitlDeliverableResponse,
@@ -963,16 +964,22 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           body = interpolated.includes('{{') ? undefined : interpolated;
         }
         if (!body) {
-          // Default: Build simple request body with only immutable core fields
-          // organizationSlug is required - already validated above
-          // provider and model are included if available (validated earlier for BUILD mode)
-          body = {
-            taskId,
+          // Default: Build request body with ExecutionContext
+          // ExecutionContext is the single source of truth for all context fields
+          const context: ExecutionContext = {
+            orgSlug: organizationSlug,
             userId,
             conversationId,
+            taskId: taskId || '',
+            deliverableId: '', // Created during execution
+            agentSlug: definition.slug,
+            agentType: definition.agentType,
+            provider: provider || '',
+            model: model || '',
+          };
+          body = {
+            context,
             userMessage,
-            organizationSlug,
-            ...(provider && model ? { provider, model } : {}),
           };
         }
       }
@@ -1140,7 +1147,9 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         if (hitlStatus === 'hitl_waiting' || hitlPending === true) {
           // Extract HITL payload from response
           const source = nestedData || dataObj;
-          const threadId = source.threadId as string;
+          // Use taskId from the request - this is the ID that should be used for HITL operations
+          // LangGraph uses taskId as thread_id internally
+          const hitlTaskId = taskId || (source.taskId as string);
           const topic =
             (source.topic as string) ||
             (source.userMessage as string) ||
@@ -1151,12 +1160,12 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
             | undefined;
 
           this.logger.log(
-            `✅ [HITL-DEBUG-BUILD] Detected HITL waiting response: threadId=${threadId}, topic=${topic?.substring(0, 50)}...`,
+            `✅ [HITL-DEBUG-BUILD] Detected HITL waiting response: taskId=${hitlTaskId}, topic=${topic?.substring(0, 50)}...`,
           );
 
           return TaskResponseDto.hitlWaiting(
             {
-              threadId,
+              taskId: hitlTaskId,
               status: 'hitl_waiting',
               topic,
               hitlPending: true,
@@ -1791,7 +1800,9 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         if (status === 'hitl_waiting' || hitlPending === true) {
           // Extract HITL payload from response
           const source = nestedData || dataObj;
-          const threadId = source.threadId as string;
+          // Use taskId from the request - this is the ID that should be used for HITL operations
+          // LangGraph uses taskId as thread_id internally
+          const hitlTaskId = taskId || (source.taskId as string);
           const topic =
             (source.topic as string) ||
             (source.userMessage as string) ||
@@ -1802,12 +1813,12 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
             | undefined;
 
           this.logger.log(
-            `✅ [HITL-DEBUG] Detected HITL waiting response: threadId=${threadId}, topic=${topic?.substring(0, 50)}...`,
+            `✅ [HITL-DEBUG] Detected HITL waiting response: taskId=${hitlTaskId}, topic=${topic?.substring(0, 50)}...`,
           );
 
           return TaskResponseDto.hitlWaiting(
             {
-              threadId,
+              taskId: hitlTaskId,
               status: 'hitl_waiting',
               topic,
               hitlPending: true,

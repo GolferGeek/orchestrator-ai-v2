@@ -40,7 +40,7 @@ export interface HitlHandlerDependencies {
 
 interface HitlResumePayload {
   action: 'resume';
-  threadId: string;
+  taskId: string;
   decision: HitlDecision;
   editedContent?: Partial<HitlGeneratedContent>;
   feedback?: string;
@@ -48,12 +48,12 @@ interface HitlResumePayload {
 
 interface HitlStatusPayload {
   action: 'status';
-  threadId: string;
+  taskId: string;
 }
 
 interface HitlHistoryPayload {
   action: 'history';
-  threadId: string;
+  taskId: string;
   limit?: number;
 }
 
@@ -74,8 +74,8 @@ export async function sendHitlResume(
 
   const payload = (request.payload ?? {}) as Partial<HitlResumePayload>;
 
-  if (!payload.threadId) {
-    return { response: null, error: 'threadId is required for HITL resume' };
+  if (!payload.taskId) {
+    return { response: null, error: 'taskId is required for HITL resume' };
   }
 
   if (!payload.decision) {
@@ -104,7 +104,8 @@ export async function sendHitlResume(
   }
 
   // Build the resume request for LangGraph
-  const resumeUrl = `${endpoint}/resume/${payload.threadId}`;
+  // Note: taskId is used as the LangGraph thread_id
+  const resumeUrl = `${endpoint}/resume/${payload.taskId}`;
   console.log(`🔍 [HITL-RESUME] Resume URL: ${resumeUrl}`);
 
   const resumeBody: Record<string, unknown> = {
@@ -186,7 +187,7 @@ export async function handleHitlResume(
 
     // Build HITL response payload
     const hitlPayload: HitlResponsePayload = {
-      threadId: payload.threadId || '',
+      taskId: payload.taskId || '',
       status: (resultStatus as HitlStatus) || 'completed',
       topic: (responseData.topic as string) || '',
       hitlPending: false,
@@ -275,10 +276,10 @@ export async function handleHitlStatus(
   try {
     const payload = (request.payload ?? {}) as Partial<HitlStatusPayload>;
 
-    if (!payload.threadId) {
+    if (!payload.taskId) {
       return TaskResponseDto.failure(
         AgentTaskMode.HITL,
-        'threadId is required for HITL status',
+        'taskId is required for HITL status',
       );
     }
 
@@ -292,7 +293,8 @@ export async function handleHitlStatus(
     }
 
     // Query LangGraph for status
-    const statusUrl = `${endpoint}/status/${payload.threadId}`;
+    // Note: taskId is used as the LangGraph thread_id
+    const statusUrl = `${endpoint}/status/${payload.taskId}`;
 
     if (!services.httpService) {
       return TaskResponseDto.failure(
@@ -311,7 +313,7 @@ export async function handleHitlStatus(
 
     // Build HITL response payload
     const hitlPayload: HitlResponsePayload = {
-      threadId: payload.threadId,
+      taskId: payload.taskId,
       status: (responseData.status as HitlStatus) || 'started',
       topic: (responseData.topic as string) || '',
       hitlPending: (responseData.hitlPending as boolean) ?? false,
@@ -353,10 +355,10 @@ export async function handleHitlHistory(
   try {
     const payload = (request.payload ?? {}) as Partial<HitlHistoryPayload>;
 
-    if (!payload.threadId) {
+    if (!payload.taskId) {
       return TaskResponseDto.failure(
         AgentTaskMode.HITL,
-        'threadId is required for HITL history',
+        'taskId is required for HITL history',
       );
     }
 
@@ -370,8 +372,9 @@ export async function handleHitlHistory(
     }
 
     // Query LangGraph for history
+    // Note: taskId is used as the LangGraph thread_id
     const limit = payload.limit || 10;
-    const historyUrl = `${endpoint}/history/${payload.threadId}?limit=${limit}`;
+    const historyUrl = `${endpoint}/history/${payload.taskId}?limit=${limit}`;
 
     if (!services.httpService) {
       return TaskResponseDto.failure(
@@ -391,7 +394,7 @@ export async function handleHitlHistory(
     // Return history as task response
     return TaskResponseDto.success(AgentTaskMode.HITL, {
       content: {
-        threadId: payload.threadId,
+        taskId: payload.taskId,
         history: responseData.history || responseData.checkpoints || [],
         status: responseData.status,
       },

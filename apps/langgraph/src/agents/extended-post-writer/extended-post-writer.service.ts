@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { Command } from '@langchain/langgraph';
+import { Command, isGraphInterrupt } from '@langchain/langgraph';
 import {
   createExtendedPostWriterGraph,
   ExtendedPostWriterGraph,
@@ -15,32 +15,6 @@ import {
 import { LLMHttpClientService } from '../../services/llm-http-client.service';
 import { ObservabilityService } from '../../services/observability.service';
 import { PostgresCheckpointerService } from '../../persistence/postgres-checkpointer.service';
-
-/**
- * Result from Extended Post Writer generation
- */
-export interface ExtendedPostWriterResult {
-  threadId: string;
-  status: ExtendedPostWriterState['status'];
-  userMessage: string;
-  generatedContent?: GeneratedContent;
-  finalContent?: GeneratedContent;
-  error?: string;
-  duration?: number;
-}
-
-/**
- * Status response for checking thread state
- */
-export interface ExtendedPostWriterStatus {
-  threadId: string;
-  status: ExtendedPostWriterState['status'];
-  userMessage: string;
-  generatedContent?: GeneratedContent;
-  finalContent?: GeneratedContent;
-  hitlPending: boolean;
-  error?: string;
-}
 
 /**
  * ExtendedPostWriterService
@@ -79,75 +53,109 @@ export class ExtendedPostWriterService implements OnModuleInit {
    */
   async generate(input: ExtendedPostWriterInput): Promise<ExtendedPostWriterResult> {
     const startTime = Date.now();
-
-    // Extract context fields
     const { context } = input;
     const taskId = context.taskId;
 
-    // Input is already validated by NestJS DTOs at the controller level
-    // Use taskId as threadId - no need for separate identifier
-    const threadId = taskId;
-
-    if (!taskId) {
-      throw new Error('taskId is required in ExecutionContext');
-    }
-
-    this.logger.log(
-      `Starting content generation: taskId=${taskId}, threadId=${threadId}`,
-    );
+    this.logger.log(`Starting content generation: taskId=${taskId}`);
 
     try {
-      // Initial state - extract fields from ExecutionContext
+      // Initial state - pass ExecutionContext directly, no individual fields
       const initialState: Partial<ExtendedPostWriterState> = {
-        taskId,
-        threadId,
-        userId: context.userId,
-        conversationId: context.conversationId,
-        organizationSlug: context.orgSlug,
+        executionContext: context,
         userMessage: input.userMessage,
         context: input.additionalContext,
-        keywords: input.keywords || [],
-        tone: input.tone || 'professional',
-        provider: context.provider || 'ollama',
-        model: context.model || 'llama3.2:1b',
+        keywords: input.keywords,
+        tone: input.tone,
         status: 'started',
         startedAt: startTime,
       };
 
       const config = {
         configurable: {
-          thread_id: threadId,
+          thread_id: taskId,
         },
       };
 
-      // Run until HITL interrupt
       const result = await this.graph.invoke(initialState, config);
 
-      // Check current state
       const state = await this.graph.getState(config);
       const isInterrupted = state.next && state.next.length > 0;
 
       this.logger.log(
-        `Content generation paused at HITL: threadId=${threadId}, interrupted=${isInterrupted}`,
+        `Content generation result: taskId=${taskId}, interrupted=${isInterrupted}, status=${result.status}`,
       );
 
+      const generatedContent: GeneratedContent = {
+        blogPost: result.blogPost,
+        seoDescription: result.seoDescription,
+        socialPosts: result.socialPosts,
+      };
+
       return {
-        threadId,
+        taskId,
         status: isInterrupted ? 'hitl_waiting' : result.status,
         userMessage: input.userMessage,
-        generatedContent: result.generatedContent,
+        generatedContent,
         error: result.error,
       };
     } catch (error) {
+      // Check if this is a GraphInterrupt - this means the graph paused for HITL
+      if (isGraphInterrupt(error)) {
+        this.logger.log(
+          `Content generation paused at HITL: taskId=${taskId}`,
+        );
+
+        // Get the current state from the checkpoint
+        const config = {
+          configurable: {
+            thread_id: taskId,
+          },
+        };
+
+        try {
+          const state = await this.graph.getState(config);
+          const values = state.values as ExtendedPostWriterState;
+
+          const generatedContent: GeneratedContent = {
+            blogPost: values.blogPost,
+            seoDescription: values.seoDescription,
+            socialPosts: values.socialPosts,
+          };
+
+          return {
+            taskId,
+            status: 'hitl_waiting',
+            userMessage: input.userMessage,
+            generatedContent,
+          };
+        } catch (stateError) {
+          this.logger.error(
+            `Failed to get state after interrupt: ${stateError}`,
+          );
+          // Return with partial content if state retrieval fails
+          return {
+            taskId,
+            status: 'hitl_waiting',
+            userMessage: input.userMessage,
+            generatedContent: {
+              blogPost: '',
+              seoDescription: '',
+              socialPosts: [],
+            },
+          };
+        }
+      }
+
+      // For other errors, return failure
       const errorMessage =
         error instanceof Error ? error.message : String(error);
 
       this.logger.error(
-        `Content generation failed: threadId=${threadId}, error=${errorMessage}`,
+        `Content generation failed: taskId=${taskId}, error=${errorMessage}`,
       );
 
       return {
-        threadId,
+        taskId,
         status: 'failed',
         userMessage: input.userMessage,
         error: errorMessage,
@@ -160,29 +168,27 @@ export class ExtendedPostWriterService implements OnModuleInit {
    * Resume from HITL with decision
    */
   async resume(
-    threadId: string,
+    taskId: string,
     response: HitlResponse,
   ): Promise<ExtendedPostWriterResult> {
     this.logger.log(
-      `Resuming from HITL: threadId=${threadId}, decision=${response.decision}`,
+      `Resuming from HITL: taskId=${taskId}, decision=${response.decision}`,
     );
 
     try {
       const config = {
         configurable: {
-          thread_id: threadId,
+          thread_id: taskId,
         },
       };
 
-      // Get current state
       const currentState = await this.graph.getState(config);
       if (!currentState.values) {
-        throw new Error(`Thread not found: ${threadId}`);
+        throw new Error(`Task not found: ${taskId}`);
       }
 
       const values = currentState.values as ExtendedPostWriterState;
 
-      // Resume with the HITL response using Command
       const result = await this.graph.invoke(
         new Command({ resume: response }),
         config,
@@ -191,14 +197,20 @@ export class ExtendedPostWriterService implements OnModuleInit {
       const duration = Date.now() - values.startedAt;
 
       this.logger.log(
-        `HITL resume completed: threadId=${threadId}, status=${result.status}, duration=${duration}ms`,
+        `HITL resume completed: taskId=${taskId}, status=${result.status}, duration=${duration}ms`,
       );
 
+      const generatedContent: GeneratedContent = {
+        blogPost: result.blogPost,
+        seoDescription: result.seoDescription,
+        socialPosts: result.socialPosts,
+      };
+
       return {
-        threadId,
+        taskId,
         status: result.status,
         userMessage: values.userMessage,
-        generatedContent: result.generatedContent,
+        generatedContent,
         finalContent: result.finalContent,
         error: result.error,
         duration,
@@ -208,7 +220,7 @@ export class ExtendedPostWriterService implements OnModuleInit {
         error instanceof Error ? error.message : String(error);
 
       this.logger.error(
-        `HITL resume failed: threadId=${threadId}, error=${errorMessage}`,
+        `HITL resume failed: taskId=${taskId}, error=${errorMessage}`,
       );
 
       throw new Error(`Resume failed: ${errorMessage}`);
@@ -216,13 +228,13 @@ export class ExtendedPostWriterService implements OnModuleInit {
   }
 
   /**
-   * Get status of content generation by thread ID
+   * Get status of content generation by task ID
    */
-  async getStatus(threadId: string): Promise<ExtendedPostWriterStatus | null> {
+  async getStatus(taskId: string): Promise<ExtendedPostWriterStatus | null> {
     try {
       const config = {
         configurable: {
-          thread_id: threadId,
+          thread_id: taskId,
         },
       };
 
@@ -235,29 +247,35 @@ export class ExtendedPostWriterService implements OnModuleInit {
       const values = state.values as ExtendedPostWriterState;
       const isInterrupted = state.next && state.next.length > 0;
 
+      const generatedContent: GeneratedContent = {
+        blogPost: values.blogPost,
+        seoDescription: values.seoDescription,
+        socialPosts: values.socialPosts,
+      };
+
       return {
-        threadId,
+        taskId,
         status: isInterrupted ? 'hitl_waiting' : values.status,
         userMessage: values.userMessage,
-        generatedContent: values.generatedContent,
+        generatedContent,
         finalContent: values.finalContent,
         hitlPending: isInterrupted,
         error: values.error,
       };
     } catch (error) {
-      this.logger.error(`Failed to get status for thread ${threadId}:`, error);
+      this.logger.error(`Failed to get status for task ${taskId}:`, error);
       return null;
     }
   }
 
   /**
-   * Get full state history for a thread
+   * Get full state history for a task
    */
-  async getHistory(threadId: string): Promise<ExtendedPostWriterState[]> {
+  async getHistory(taskId: string): Promise<ExtendedPostWriterState[]> {
     try {
       const config = {
         configurable: {
-          thread_id: threadId,
+          thread_id: taskId,
         },
       };
 
@@ -268,7 +286,7 @@ export class ExtendedPostWriterService implements OnModuleInit {
 
       return history;
     } catch (error) {
-      this.logger.error(`Failed to get history for thread ${threadId}:`, error);
+      this.logger.error(`Failed to get history for task ${taskId}:`, error);
       return [];
     }
   }

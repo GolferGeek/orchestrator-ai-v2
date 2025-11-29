@@ -26,16 +26,17 @@ export interface UseHitlOptions {
   conversationId: string;
   /** Polling interval in milliseconds (default: 3000) */
   pollingInterval?: number;
-  /** Whether to automatically start polling when threadId is set */
+  /** Whether to automatically start polling when taskId is set */
   autoPolling?: boolean;
 }
 
 /**
  * Return type for useHitl composable
+ * Note: Uses taskId consistently (LangGraph uses it as thread_id internally)
  */
 export interface UseHitlReturn {
   // State
-  threadId: ReturnType<typeof ref<string | null>>;
+  taskId: ReturnType<typeof ref<string | null>>;
   status: ReturnType<typeof ref<HitlStatus | null>>;
   generatedContent: ReturnType<typeof ref<HitlGeneratedContent | null>>;
   finalContent: ReturnType<typeof ref<HitlGeneratedContent | null>>;
@@ -45,7 +46,7 @@ export interface UseHitlReturn {
   hitlPending: ReturnType<typeof computed<boolean>>;
 
   // Methods
-  setThread: (threadId: string, initialStatus?: HitlStatus) => void;
+  setTask: (taskId: string, initialStatus?: HitlStatus) => void;
   refreshStatus: () => Promise<void>;
   approve: (feedback?: string, originalTaskId?: string) => Promise<void>;
   submitEdits: (editedContent: Partial<HitlGeneratedContent>, feedback?: string, originalTaskId?: string) => Promise<void>;
@@ -64,8 +65,8 @@ export interface UseHitlReturn {
 export function useHitl(options: UseHitlOptions): UseHitlReturn {
   const { agentSlug, conversationId, pollingInterval = 3000, autoPolling = false } = options;
 
-  // Reactive state
-  const threadId = ref<string | null>(null);
+  // Reactive state - uses taskId (LangGraph uses it as thread_id internally)
+  const taskId = ref<string | null>(null);
   const status = ref<HitlStatus | null>(null);
   const generatedContent = ref<HitlGeneratedContent | null>(null);
   const finalContent = ref<HitlGeneratedContent | null>(null);
@@ -82,10 +83,10 @@ export function useHitl(options: UseHitlOptions): UseHitlReturn {
   });
 
   /**
-   * Set thread ID (used when task response includes HITL status)
+   * Set task ID (used when task response includes HITL status)
    */
-  const setThread = (newThreadId: string, initialStatus?: HitlStatus): void => {
-    threadId.value = newThreadId;
+  const setTask = (newTaskId: string, initialStatus?: HitlStatus): void => {
+    taskId.value = newTaskId;
     if (initialStatus) {
       status.value = initialStatus;
     }
@@ -100,12 +101,12 @@ export function useHitl(options: UseHitlOptions): UseHitlReturn {
    * Refresh status from server
    */
   const refreshStatus = async (): Promise<void> => {
-    if (!threadId.value) {
+    if (!taskId.value) {
       return;
     }
 
     try {
-      const response = await hitlService.getStatus(agentSlug, threadId.value, conversationId);
+      const response = await hitlService.getStatus(agentSlug, taskId.value, conversationId);
       updateFromStatusResponse(response);
     } catch (err) {
       // Don't update error state for polling failures
@@ -117,10 +118,10 @@ export function useHitl(options: UseHitlOptions): UseHitlReturn {
    * Approve content
    */
   const approve = async (feedback?: string, originalTaskId?: string): Promise<void> => {
-    console.log('[HITL-COMPOSABLE] approve() called', { threadId: threadId.value, agentSlug, conversationId, feedback, originalTaskId });
+    console.log('[HITL-COMPOSABLE] approve() called', { taskId: taskId.value, agentSlug, conversationId, feedback, originalTaskId });
 
-    if (!threadId.value) {
-      throw new Error('No active thread');
+    if (!taskId.value) {
+      throw new Error('No active task');
     }
 
     isLoading.value = true;
@@ -130,7 +131,7 @@ export function useHitl(options: UseHitlOptions): UseHitlReturn {
       console.log('[HITL-COMPOSABLE] Calling hitlService.approve...');
       const response = await hitlService.approve(
         agentSlug,
-        threadId.value,
+        taskId.value,
         conversationId,
         feedback,
         originalTaskId
@@ -171,8 +172,8 @@ export function useHitl(options: UseHitlOptions): UseHitlReturn {
     feedback?: string,
     originalTaskId?: string
   ): Promise<void> => {
-    if (!threadId.value) {
-      throw new Error('No active thread');
+    if (!taskId.value) {
+      throw new Error('No active task');
     }
 
     isLoading.value = true;
@@ -181,7 +182,7 @@ export function useHitl(options: UseHitlOptions): UseHitlReturn {
     try {
       const response = await hitlService.submitEdits(
         agentSlug,
-        threadId.value,
+        taskId.value,
         conversationId,
         editedContent,
         feedback,
@@ -209,8 +210,8 @@ export function useHitl(options: UseHitlOptions): UseHitlReturn {
    * Reject content
    */
   const reject = async (feedback?: string, originalTaskId?: string): Promise<void> => {
-    if (!threadId.value) {
-      throw new Error('No active thread');
+    if (!taskId.value) {
+      throw new Error('No active task');
     }
 
     isLoading.value = true;
@@ -219,7 +220,7 @@ export function useHitl(options: UseHitlOptions): UseHitlReturn {
     try {
       const response = await hitlService.reject(
         agentSlug,
-        threadId.value,
+        taskId.value,
         conversationId,
         feedback,
         originalTaskId
@@ -250,7 +251,7 @@ export function useHitl(options: UseHitlOptions): UseHitlReturn {
     }
 
     pollingTimer = setInterval(() => {
-      if (threadId.value && !isFinalStatus(status.value)) {
+      if (taskId.value && !isFinalStatus(status.value)) {
         refreshStatus();
       } else if (isFinalStatus(status.value)) {
         stopPolling();
@@ -273,7 +274,7 @@ export function useHitl(options: UseHitlOptions): UseHitlReturn {
    */
   const reset = (): void => {
     stopPolling();
-    threadId.value = null;
+    taskId.value = null;
     status.value = null;
     generatedContent.value = null;
     finalContent.value = null;
@@ -310,7 +311,7 @@ export function useHitl(options: UseHitlOptions): UseHitlReturn {
 
   return {
     // State
-    threadId,
+    taskId,
     status,
     generatedContent,
     finalContent,
@@ -320,7 +321,7 @@ export function useHitl(options: UseHitlOptions): UseHitlReturn {
     hitlPending,
 
     // Methods
-    setThread,
+    setTask,
     refreshStatus,
     approve,
     submitEdits,

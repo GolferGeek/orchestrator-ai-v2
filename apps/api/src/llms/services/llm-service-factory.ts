@@ -202,12 +202,13 @@ export class LLMServiceFactory {
     const service = await this.createService(config, useCache);
 
     // Build context if not provided (for backward compatibility)
+    // Note: conversationId must be a valid UUID or undefined (not 'unknown')
     const effectiveContext: ExecutionContext =
       context ||
       createMockExecutionContext({
         orgSlug: 'system',
         userId: params.userId || 'system',
-        conversationId: params.conversationId || 'unknown',
+        conversationId: params.conversationId, // Pass undefined if not provided - DB expects UUID or null
       });
 
     // Generate response with full metadata, with retry on transient errors only

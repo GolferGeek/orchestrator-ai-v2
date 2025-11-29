@@ -25,7 +25,8 @@ const AGENT_SLUG = 'extended-post-writer';
  * 4. Finalize → End
  *
  * KEY DESIGN DECISIONS:
- * - Uses taskId only (no threadId - taskId IS the thread_id in LangGraph config)
+ * - ExecutionContext flows through entire workflow - no individual context fields
+ * - Uses context.taskId as thread_id in LangGraph config
  * - hitlDecision and hitlFeedback come from HitlBaseState
  * - API Runner handles deliverable creation and version tracking
  * - interrupt() returns content structure for API Runner to process
@@ -39,16 +40,16 @@ export function createExtendedPostWriterGraph(
   async function initializeNode(
     state: ExtendedPostWriterState,
   ): Promise<Partial<ExtendedPostWriterState>> {
-    // Extract topic from user message
+    const ctx = state.executionContext;
     const topic = state.userMessage || state.topic;
 
     await observability.emitStarted({
-      taskId: state.taskId,
-      threadId: state.taskId, // Use taskId as threadId for backwards compatibility
-      agentSlug: AGENT_SLUG,
-      userId: state.userId,
-      conversationId: state.conversationId,
-      organizationSlug: state.organizationSlug,
+      taskId: ctx.taskId,
+      threadId: ctx.taskId,
+      agentSlug: ctx.agentSlug,
+      userId: ctx.userId,
+      conversationId: ctx.conversationId,
+      organizationSlug: ctx.orgSlug,
       message: `Starting content generation for topic: ${topic}`,
     });
 
@@ -64,14 +65,15 @@ export function createExtendedPostWriterGraph(
   async function generateBlogPostNode(
     state: ExtendedPostWriterState,
   ): Promise<Partial<ExtendedPostWriterState>> {
+    const ctx = state.executionContext;
     const { topic, hitlFeedback, generationCount, tone, keywords, context: additionalContext } = state;
 
     await observability.emitProgress({
-      taskId: state.taskId,
-      threadId: state.taskId,
-      agentSlug: AGENT_SLUG,
-      userId: state.userId,
-      conversationId: state.conversationId,
+      taskId: ctx.taskId,
+      threadId: ctx.taskId,
+      agentSlug: ctx.agentSlug,
+      userId: ctx.userId,
+      conversationId: ctx.conversationId,
       message: hitlFeedback ? 'Regenerating blog post with feedback' : 'Generating blog post',
       step: 'generate_blog_post',
       progress: 20,
@@ -85,7 +87,6 @@ export function createExtendedPostWriterGraph(
       ? `Additional context: ${additionalContext}`
       : '';
 
-    // Include feedback if regenerating
     const feedbackStr = hitlFeedback
       ? `\n\nPrevious feedback to incorporate: ${hitlFeedback}`
       : '';
@@ -93,7 +94,7 @@ export function createExtendedPostWriterGraph(
     const prompt = `You are a professional content writer. Create a compelling blog post for the following topic.
 
 Topic: ${topic}
-Tone: ${tone || 'professional'}
+Tone: ${tone}
 ${keywordsStr}
 ${contextStr}
 ${feedbackStr}
@@ -107,17 +108,14 @@ Return ONLY the blog post content in markdown format, no additional text or JSON
 
     try {
       const response = await llmClient.callLLM({
+        context: ctx,
         userMessage: prompt,
-        provider: state.provider,
-        model: state.model,
-        userId: state.userId,
         callerName: AGENT_SLUG,
       });
 
       return {
         blogPost: response.text.trim(),
         generationCount: generationCount + 1,
-        // Clear feedback after using it
         hitlFeedback: null,
         hitlDecision: null,
         messages: [
@@ -137,12 +135,14 @@ Return ONLY the blog post content in markdown format, no additional text or JSON
   async function generateSeoNode(
     state: ExtendedPostWriterState,
   ): Promise<Partial<ExtendedPostWriterState>> {
+    const ctx = state.executionContext;
+
     await observability.emitProgress({
-      taskId: state.taskId,
-      threadId: state.taskId,
-      agentSlug: AGENT_SLUG,
-      userId: state.userId,
-      conversationId: state.conversationId,
+      taskId: ctx.taskId,
+      threadId: ctx.taskId,
+      agentSlug: ctx.agentSlug,
+      userId: ctx.userId,
+      conversationId: ctx.conversationId,
       message: 'Generating SEO description',
       step: 'generate_seo',
       progress: 40,
@@ -157,10 +157,8 @@ Return ONLY the SEO description, no additional text.`;
 
     try {
       const response = await llmClient.callLLM({
+        context: ctx,
         userMessage: prompt,
-        provider: state.provider,
-        model: state.model,
-        userId: state.userId,
         callerName: AGENT_SLUG,
       });
 
@@ -183,12 +181,14 @@ Return ONLY the SEO description, no additional text.`;
   async function generateSocialNode(
     state: ExtendedPostWriterState,
   ): Promise<Partial<ExtendedPostWriterState>> {
+    const ctx = state.executionContext;
+
     await observability.emitProgress({
-      taskId: state.taskId,
-      threadId: state.taskId,
-      agentSlug: AGENT_SLUG,
-      userId: state.userId,
-      conversationId: state.conversationId,
+      taskId: ctx.taskId,
+      threadId: ctx.taskId,
+      agentSlug: ctx.agentSlug,
+      userId: ctx.userId,
+      conversationId: ctx.conversationId,
       message: 'Generating social media posts',
       step: 'generate_social',
       progress: 60,
@@ -213,22 +213,28 @@ Return the posts in JSON format:
 
     try {
       const response = await llmClient.callLLM({
+        context: ctx,
         userMessage: prompt,
-        provider: state.provider,
-        model: state.model,
-        userId: state.userId,
         callerName: AGENT_SLUG,
       });
 
-      const jsonMatch = response.text.match(/\{[\s\S]*\}/);
+      // Try to parse JSON, but don't fail the whole workflow if it doesn't work
       let socialPosts: string[] = [];
+      try {
+        const jsonMatch = response.text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]) as { posts: string[] };
+          socialPosts = parsed.posts || [];
+        }
+      } catch (parseError) {
+        // If JSON parsing fails, use the raw response as a single social post
+        console.warn('Failed to parse social posts JSON, using raw response');
+        socialPosts = [response.text.trim()];
+      }
 
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]) as { posts: string[] };
-        socialPosts = parsed.posts;
-      } else {
-        // Fallback: split by double newline
-        socialPosts = response.text.split('\n\n').filter(p => p.trim());
+      // If we still have no posts, create a placeholder
+      if (socialPosts.length === 0) {
+        socialPosts = ['Check out our latest blog post!'];
       }
 
       return {
@@ -239,83 +245,95 @@ Return the posts in JSON format:
         ],
       };
     } catch (error) {
+      // Don't fail the workflow for social posts - use placeholder
+      console.error(`Social posts generation error: ${error}`);
       return {
-        error: `Failed to generate social posts: ${error instanceof Error ? error.message : String(error)}`,
-        status: 'failed',
+        socialPosts: ['Check out our latest blog post!'],
+        messages: [
+          ...state.messages,
+          new AIMessage('Social posts generated with placeholder.'),
+        ],
       };
     }
   }
 
-  // Node: HITL interrupt - waits for human approval
+  // Node: HITL interrupt - waits for human approval of blog post
+  // interrupt() pauses the graph and returns the resume value when invoked with Command({ resume: value })
+  // On initial call: interrupt() pauses, checkpoints state
+  // On resume: interrupt() returns the value passed via Command({ resume: value })
+  // NOTE: At this point only blogPost is generated. SEO and social posts come after approval.
   async function hitlInterruptNode(
     state: ExtendedPostWriterState,
   ): Promise<Partial<ExtendedPostWriterState>> {
-    await observability.emitHitlWaiting({
-      taskId: state.taskId,
-      threadId: state.taskId,
-      agentSlug: AGENT_SLUG,
-      userId: state.userId,
-      conversationId: state.conversationId,
-      message: 'Content ready for review',
-      pendingContent: {
-        blogPost: state.blogPost,
-        seoDescription: state.seoDescription,
-        socialPosts: state.socialPosts,
-      },
-    });
+    const ctx = state.executionContext;
 
-    // Build content payload for interrupt
-    // This is returned to the API Runner which handles deliverable creation
+    // Only blog post is available at this point
     const content = {
       blogPost: state.blogPost,
-      seoDescription: state.seoDescription,
-      socialPosts: state.socialPosts,
+      seoDescription: '', // Not generated yet
+      socialPosts: [], // Not generated yet
     };
 
-    // Mark as pending and call interrupt
-    // The interrupt value is returned to the API Runner
-    // When resumed, state will have hitlDecision set by API Runner
-    interrupt({
+    // Emit observability event before interrupt
+    await observability.emitHitlWaiting({
+      taskId: ctx.taskId,
+      threadId: ctx.taskId,
+      agentSlug: ctx.agentSlug,
+      userId: ctx.userId,
+      conversationId: ctx.conversationId,
+      message: 'Blog post ready for review',
+      pendingContent: content,
+    });
+
+    // interrupt() pauses the graph here
+    // When resumed with Command({ resume: { decision, feedback, editedContent } }),
+    // interrupt() returns that value and execution continues
+    const hitlResponse = interrupt({
       reason: 'human_review',
       nodeName: 'hitl_interrupt',
       topic: state.topic,
       content,
-      message: 'Please review the generated content',
-    });
+      message: 'Please review the blog post before generating SEO and social content',
+    }) as { decision: string; feedback?: string; editedContent?: GeneratedContent } | undefined;
 
-    // This return is executed AFTER resume (interrupt pauses execution)
-    // hitlDecision will be set by the resume command
+    // If hitlResponse is undefined, we're still waiting (graph checkpointed)
+    // This shouldn't happen as interrupt should throw on initial call
+    if (!hitlResponse) {
+      return {
+        hitlPending: true,
+        status: 'hitl_waiting',
+      };
+    }
+
+    // We have a response - extract the decision
+    const { decision, feedback, editedContent } = hitlResponse;
+
+    // If user provided edited content with 'replace' decision, update the blog post
+    const updatedBlogPost = editedContent?.blogPost || state.blogPost;
+
     return {
       hitlPending: false,
-      status: 'hitl_waiting',
+      hitlDecision: decision as ExtendedPostWriterState['hitlDecision'],
+      hitlFeedback: feedback || null,
+      blogPost: updatedBlogPost,
+      status: decision === 'reject' ? 'failed' : 'processing', // Will continue to SEO
     };
   }
 
   // Routing function after HITL
+  // After blog post approval, continue to generate SEO and social posts
   function routeAfterHitl(state: ExtendedPostWriterState): string {
-    const decision = state.hitlDecision;
-
-    switch (decision) {
+    switch (state.hitlDecision) {
       case 'approve':
       case 'skip':
-        // Content accepted, move to finalization
-        return 'finalize';
-
       case 'replace':
-        // User provided their own content (already in state via resume)
-        return 'finalize';
-
+        return 'generate_seo'; // Continue to generate SEO and social posts
       case 'reject':
-        // Rejected completely - go to finalize with rejection status
         return 'finalize_rejected';
-
       case 'regenerate':
-        // Regenerate with feedback (feedback in state.hitlFeedback)
         return 'generate_blog_post';
-
       default:
-        // Default to finalize
-        return 'finalize';
+        throw new Error(`Invalid HITL decision: ${state.hitlDecision}`);
     }
   }
 
@@ -323,12 +341,14 @@ Return the posts in JSON format:
   async function finalizeNode(
     state: ExtendedPostWriterState,
   ): Promise<Partial<ExtendedPostWriterState>> {
+    const ctx = state.executionContext;
+
     await observability.emitProgress({
-      taskId: state.taskId,
-      threadId: state.taskId,
-      agentSlug: AGENT_SLUG,
-      userId: state.userId,
-      conversationId: state.conversationId,
+      taskId: ctx.taskId,
+      threadId: ctx.taskId,
+      agentSlug: ctx.agentSlug,
+      userId: ctx.userId,
+      conversationId: ctx.conversationId,
       message: 'Finalizing approved content',
       step: 'finalize',
       progress: 90,
@@ -341,11 +361,11 @@ Return the posts in JSON format:
     };
 
     await observability.emitCompleted({
-      taskId: state.taskId,
-      threadId: state.taskId,
-      agentSlug: AGENT_SLUG,
-      userId: state.userId,
-      conversationId: state.conversationId,
+      taskId: ctx.taskId,
+      threadId: ctx.taskId,
+      agentSlug: ctx.agentSlug,
+      userId: ctx.userId,
+      conversationId: ctx.conversationId,
       result: { content: finalContent },
       duration: Date.now() - state.startedAt,
     });
@@ -365,13 +385,15 @@ Return the posts in JSON format:
   async function finalizeRejectedNode(
     state: ExtendedPostWriterState,
   ): Promise<Partial<ExtendedPostWriterState>> {
+    const ctx = state.executionContext;
+
     await observability.emitFailed({
-      taskId: state.taskId,
-      threadId: state.taskId,
-      agentSlug: AGENT_SLUG,
-      userId: state.userId,
-      conversationId: state.conversationId,
-      error: `Content rejected: ${state.hitlFeedback || 'No reason given'}`,
+      taskId: ctx.taskId,
+      threadId: ctx.taskId,
+      agentSlug: ctx.agentSlug,
+      userId: ctx.userId,
+      conversationId: ctx.conversationId,
+      error: `Content rejected: ${state.hitlFeedback}`,
       duration: Date.now() - state.startedAt,
     });
 
@@ -386,13 +408,15 @@ Return the posts in JSON format:
   async function handleErrorNode(
     state: ExtendedPostWriterState,
   ): Promise<Partial<ExtendedPostWriterState>> {
+    const ctx = state.executionContext;
+
     await observability.emitFailed({
-      taskId: state.taskId,
-      threadId: state.taskId,
-      agentSlug: AGENT_SLUG,
-      userId: state.userId,
-      conversationId: state.conversationId,
-      error: state.error || 'Unknown error',
+      taskId: ctx.taskId,
+      threadId: ctx.taskId,
+      agentSlug: ctx.agentSlug,
+      userId: ctx.userId,
+      conversationId: ctx.conversationId,
+      error: state.error,
       duration: Date.now() - state.startedAt,
     });
 
@@ -403,12 +427,13 @@ Return the posts in JSON format:
   }
 
   // Build the graph
+  // Flow: initialize → generate_blog_post → HITL → (after approval) generate_seo → generate_social → finalize
   const graph = new StateGraph(ExtendedPostWriterStateAnnotation)
     .addNode('initialize', initializeNode)
     .addNode('generate_blog_post', generateBlogPostNode)
+    .addNode('hitl_interrupt', hitlInterruptNode)
     .addNode('generate_seo', generateSeoNode)
     .addNode('generate_social', generateSocialNode)
-    .addNode('hitl_interrupt', hitlInterruptNode)
     .addNode('finalize', finalizeNode)
     .addNode('finalize_rejected', finalizeRejectedNode)
     .addNode('handle_error', handleErrorNode)
@@ -417,7 +442,13 @@ Return the posts in JSON format:
     .addEdge('initialize', 'generate_blog_post')
     .addConditionalEdges('generate_blog_post', (state) => {
       if (state.error) return 'handle_error';
-      return 'generate_seo';
+      return 'hitl_interrupt'; // Go to HITL right after blog post
+    })
+    // After HITL - route based on decision
+    .addConditionalEdges('hitl_interrupt', routeAfterHitl, {
+      generate_blog_post: 'generate_blog_post', // Regenerate if requested
+      generate_seo: 'generate_seo', // Continue to SEO after approval
+      finalize_rejected: 'finalize_rejected',
     })
     .addConditionalEdges('generate_seo', (state) => {
       if (state.error) return 'handle_error';
@@ -425,13 +456,7 @@ Return the posts in JSON format:
     })
     .addConditionalEdges('generate_social', (state) => {
       if (state.error) return 'handle_error';
-      return 'hitl_interrupt';
-    })
-    // After HITL - route based on decision
-    .addConditionalEdges('hitl_interrupt', routeAfterHitl, {
-      generate_blog_post: 'generate_blog_post',
-      finalize: 'finalize',
-      finalize_rejected: 'finalize_rejected',
+      return 'finalize';
     })
     .addEdge('finalize', END)
     .addEdge('finalize_rejected', END)

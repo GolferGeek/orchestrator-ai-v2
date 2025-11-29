@@ -70,23 +70,33 @@ interface JsonRpcResponse<T> {
  */
 class HitlService {
   private requestId = 0;
-  private authStore: ReturnType<typeof useAuthStore> | null = null;
 
   /**
-   * Get auth store (lazy initialization to avoid circular dependencies)
+   * Get auth token from localStorage or auth store
+   * Falls back to localStorage if Pinia store isn't available yet
    */
-  private getAuthStore(): ReturnType<typeof useAuthStore> {
-    if (!this.authStore) {
-      this.authStore = useAuthStore();
+  private getToken(): string | null {
+    // First try to get from localStorage directly (most reliable)
+    const localToken = localStorage.getItem('authToken');
+    if (localToken) {
+      return localToken;
     }
-    return this.authStore;
+
+    // Fallback to auth store if available
+    try {
+      const authStore = useAuthStore();
+      return authStore.token;
+    } catch {
+      // Pinia might not be initialized yet
+      return null;
+    }
   }
 
   /**
    * Get auth headers
    */
   private getHeaders(): Record<string, string> {
-    const token = this.getAuthStore().token;
+    const token = this.getToken();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };

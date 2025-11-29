@@ -15,6 +15,31 @@ export interface DataAnalystInput {
 }
 
 /**
+ * Result from Data Analyst execution
+ */
+export interface DataAnalystResult {
+  taskId: string;
+  status: 'completed' | 'failed';
+  userMessage: string;
+  summary?: string;
+  generatedSql?: string;
+  sqlResults?: string;
+  error?: string;
+  duration: number;
+}
+
+/**
+ * Status response for checking thread state
+ */
+export interface DataAnalystStatus {
+  taskId: string;
+  status: DataAnalystState['status'];
+  userMessage: string;
+  summary?: string;
+  error?: string;
+}
+
+/**
  * Tool result structure
  */
 export interface ToolResult {
@@ -27,53 +52,29 @@ export interface ToolResult {
 /**
  * Data Analyst State Annotation
  *
- * Extends MessagesAnnotation to track:
- * - Task/user identification
- * - The user's question
- * - Discovered schema information
- * - Generated SQL and results
- * - Final summary
+ * Uses ExecutionContext for all identification and configuration.
+ * No individual fields for taskId, userId, etc.
  */
 export const DataAnalystStateAnnotation = Annotation.Root({
   // Include message history from LangGraph
   ...MessagesAnnotation.spec,
 
-  // Task identification
-  taskId: Annotation<string>({
+  // ExecutionContext - the core context that flows through the system
+  // Note: Default is a placeholder that MUST be overwritten when invoking the graph.
+  // Runtime validation happens in graph nodes, not at state initialization.
+  executionContext: Annotation<ExecutionContext>({
     reducer: (_, next) => next,
-    default: () => '',
-  }),
-
-  threadId: Annotation<string>({
-    reducer: (_, next) => next,
-    default: () => '',
-  }),
-
-  // User identification
-  userId: Annotation<string>({
-    reducer: (_, next) => next,
-    default: () => '',
-  }),
-
-  conversationId: Annotation<string | undefined>({
-    reducer: (_, next) => next,
-    default: () => undefined,
-  }),
-
-  organizationSlug: Annotation<string>({
-    reducer: (_, next) => next,
-    default: () => '',
-  }),
-
-  // LLM configuration
-  provider: Annotation<string>({
-    reducer: (_, next) => next,
-    default: () => 'anthropic',
-  }),
-
-  model: Annotation<string>({
-    reducer: (_, next) => next,
-    default: () => 'claude-sonnet-4-20250514',
+    default: () => ({
+      orgSlug: '',
+      userId: '',
+      conversationId: '',
+      taskId: '',
+      deliverableId: '',
+      agentSlug: '',
+      agentType: '',
+      provider: '',
+      model: '',
+    }),
   }),
 
   // User's message/prompt
@@ -145,4 +146,3 @@ export const DataAnalystStateAnnotation = Annotation.Root({
 });
 
 export type DataAnalystState = typeof DataAnalystStateAnnotation.State;
-

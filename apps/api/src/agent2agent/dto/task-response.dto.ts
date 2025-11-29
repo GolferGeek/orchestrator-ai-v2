@@ -16,9 +16,10 @@ export interface HumanResponsePayload {
 
 /**
  * HITL Response payload for human-in-the-loop workflows
+ * Note: Uses taskId consistently (LangGraph uses it as thread_id internally)
  */
 export interface HitlResponsePayload {
-  threadId: string;
+  taskId: string;
   status: HitlStatus;
   topic: string;
   hitlPending: boolean;

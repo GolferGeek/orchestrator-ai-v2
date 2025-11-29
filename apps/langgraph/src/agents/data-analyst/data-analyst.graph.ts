@@ -38,13 +38,15 @@ export function createDataAnalystGraph(
 
   // Node: Start analysis
   async function startNode(state: DataAnalystState): Promise<Partial<DataAnalystState>> {
+    const ctx = state.executionContext;
+
     await observability.emitStarted({
-      taskId: state.taskId,
-      threadId: state.threadId,
+      taskId: ctx.taskId,
+      threadId: ctx.taskId,
       agentSlug: AGENT_SLUG,
-      userId: state.userId,
-      conversationId: state.conversationId,
-      organizationSlug: state.organizationSlug,
+      userId: ctx.userId,
+      conversationId: ctx.conversationId,
+      organizationSlug: ctx.orgSlug,
       message: `Starting data analysis for question: ${state.userMessage}`,
     });
 
@@ -57,12 +59,14 @@ export function createDataAnalystGraph(
 
   // Node: Discover available tables
   async function discoverTablesNode(state: DataAnalystState): Promise<Partial<DataAnalystState>> {
+    const ctx = state.executionContext;
+
     await observability.emitProgress({
-      taskId: state.taskId,
-      threadId: state.threadId,
+      taskId: ctx.taskId,
+      threadId: ctx.taskId,
       agentSlug: AGENT_SLUG,
-      userId: state.userId,
-      conversationId: state.conversationId,
+      userId: ctx.userId,
+      conversationId: ctx.conversationId,
       message: 'Discovering available database tables',
       step: 'discover_tables',
       progress: 20,
@@ -97,12 +101,14 @@ export function createDataAnalystGraph(
 
   // Node: Use LLM to decide which tables to describe
   async function planSchemaNode(state: DataAnalystState): Promise<Partial<DataAnalystState>> {
+    const ctx = state.executionContext;
+
     await observability.emitProgress({
-      taskId: state.taskId,
-      threadId: state.threadId,
+      taskId: ctx.taskId,
+      threadId: ctx.taskId,
       agentSlug: AGENT_SLUG,
-      userId: state.userId,
-      conversationId: state.conversationId,
+      userId: ctx.userId,
+      conversationId: ctx.conversationId,
       message: 'Planning which tables to examine',
       step: 'plan_schema',
       progress: 30,
@@ -120,10 +126,8 @@ If no tables seem relevant, return an empty array: []`;
 
     try {
       const response = await llmClient.callLLM({
+        context: ctx,
         userMessage: prompt,
-        provider: state.provider,
-        model: state.model,
-        userId: state.userId,
         callerName: AGENT_SLUG,
       });
 
@@ -137,7 +141,7 @@ If no tables seem relevant, return an empty array: []`;
       );
 
       // If no valid tables selected, use all available tables (up to 5)
-      const tablesToUse = validTables.length > 0 
+      const tablesToUse = validTables.length > 0
         ? validTables.slice(0, 5)
         : state.availableTables.slice(0, 5);
 
@@ -160,12 +164,14 @@ If no tables seem relevant, return an empty array: []`;
 
   // Node: Describe relevant tables
   async function describeTablesNode(state: DataAnalystState): Promise<Partial<DataAnalystState>> {
+    const ctx = state.executionContext;
+
     await observability.emitProgress({
-      taskId: state.taskId,
-      threadId: state.threadId,
+      taskId: ctx.taskId,
+      threadId: ctx.taskId,
       agentSlug: AGENT_SLUG,
-      userId: state.userId,
-      conversationId: state.conversationId,
+      userId: ctx.userId,
+      conversationId: ctx.conversationId,
       message: 'Examining table schemas',
       step: 'describe_tables',
       progress: 40,
@@ -205,12 +211,14 @@ If no tables seem relevant, return an empty array: []`;
 
   // Node: Generate and execute SQL
   async function executeQueryNode(state: DataAnalystState): Promise<Partial<DataAnalystState>> {
+    const ctx = state.executionContext;
+
     await observability.emitProgress({
-      taskId: state.taskId,
-      threadId: state.threadId,
+      taskId: ctx.taskId,
+      threadId: ctx.taskId,
       agentSlug: AGENT_SLUG,
-      userId: state.userId,
-      conversationId: state.conversationId,
+      userId: ctx.userId,
+      conversationId: ctx.conversationId,
       message: 'Generating and executing SQL query',
       step: 'execute_query',
       progress: 60,
@@ -235,10 +243,10 @@ Please use only tables that exist in this list.`;
       enhancedQuestion,
       schemaContext + tablesListHeader,
       {
-        userId: state.userId,
-        taskId: state.taskId,
-        threadId: state.threadId,
-        conversationId: state.conversationId,
+        userId: ctx.userId,
+        taskId: ctx.taskId,
+        threadId: ctx.taskId,
+        conversationId: ctx.conversationId,
       },
     );
 
@@ -262,12 +270,14 @@ Please use only tables that exist in this list.`;
 
   // Node: Summarize results
   async function summarizeNode(state: DataAnalystState): Promise<Partial<DataAnalystState>> {
+    const ctx = state.executionContext;
+
     await observability.emitProgress({
-      taskId: state.taskId,
-      threadId: state.threadId,
+      taskId: ctx.taskId,
+      threadId: ctx.taskId,
       agentSlug: AGENT_SLUG,
-      userId: state.userId,
-      conversationId: state.conversationId,
+      userId: ctx.userId,
+      conversationId: ctx.conversationId,
       message: 'Formatting results',
       step: 'summarize',
       progress: 80,
@@ -312,21 +322,19 @@ Return ONLY the formatted Markdown - no explanations or meta-commentary.`;
 
     try {
       const response = await llmClient.callLLM({
+        context: ctx,
         userMessage: prompt,
-        provider: state.provider,
-        model: state.model,
-        userId: state.userId,
         callerName: AGENT_SLUG,
       });
 
       const formattedResponse = response.text.trim();
 
       await observability.emitCompleted({
-        taskId: state.taskId,
-        threadId: state.threadId,
+        taskId: ctx.taskId,
+        threadId: ctx.taskId,
         agentSlug: AGENT_SLUG,
-        userId: state.userId,
-        conversationId: state.conversationId,
+        userId: ctx.userId,
+        conversationId: ctx.conversationId,
         result: { summary: formattedResponse },
         duration: Date.now() - state.startedAt,
       });
@@ -342,11 +350,11 @@ Return ONLY the formatted Markdown - no explanations or meta-commentary.`;
       };
     } catch (error) {
       await observability.emitFailed({
-        taskId: state.taskId,
-        threadId: state.threadId,
+        taskId: ctx.taskId,
+        threadId: ctx.taskId,
         agentSlug: AGENT_SLUG,
-        userId: state.userId,
-        conversationId: state.conversationId,
+        userId: ctx.userId,
+        conversationId: ctx.conversationId,
         error: error instanceof Error ? error.message : String(error),
         duration: Date.now() - state.startedAt,
       });
@@ -361,12 +369,14 @@ Return ONLY the formatted Markdown - no explanations or meta-commentary.`;
 
   // Node: Handle errors (named 'handle_error' to avoid conflict with 'error' state channel)
   async function handleErrorNode(state: DataAnalystState): Promise<Partial<DataAnalystState>> {
+    const ctx = state.executionContext;
+
     await observability.emitFailed({
-      taskId: state.taskId,
-      threadId: state.threadId,
+      taskId: ctx.taskId,
+      threadId: ctx.taskId,
       agentSlug: AGENT_SLUG,
-      userId: state.userId,
-      conversationId: state.conversationId,
+      userId: ctx.userId,
+      conversationId: ctx.conversationId,
       error: state.error || 'Unknown error',
       duration: Date.now() - state.startedAt,
     });

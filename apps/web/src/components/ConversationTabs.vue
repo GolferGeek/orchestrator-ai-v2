@@ -25,8 +25,8 @@
     <!-- Tab Content -->
     <div class="conversation-tab-content">
       <div v-if="activeConversation" class="active-conversation">
-        <!-- Two-Pane Conversation View (shows deliverables/projects alongside chat) -->
-        <TwoPaneConversationView 
+        <!-- Conversation View (with modal-based deliverables/HITL) -->
+        <ConversationView
           v-if="shouldUseTwoPaneView"
           :conversation="activeConversation"
         />
@@ -58,7 +58,7 @@ import { useAgentsStore } from '@/stores/agentsStore';
 import { sendMessage, createPlan, createDeliverable } from '@/services/agent2agent/actions';
 import { conversation as conversationHelpers } from '@/services/conversationHelpers';
 import AgentChatView from './AgentChatView.vue';
-import TwoPaneConversationView from './TwoPaneConversationView.vue';
+import ConversationView from './ConversationView.vue';
 // const route = useRoute();
 const conversationsStore = useConversationsStore();
 const chatUiStore = useChatUiStore();

@@ -53,6 +53,7 @@
           :is-loading="isActionLoading"
           @edit="handleEdit"
           @rerun="handleRerun"
+          @rerun-with-different-llm="handleRerunWithDifferentLlm"
           @export="handleExport"
         />
       </ion-toolbar>
@@ -98,6 +99,7 @@ const emit = defineEmits<{
   close: [];
   edit: [deliverableId: string, versionId: string];
   rerun: [deliverableId: string, versionId: string];
+  rerunWithDifferentLlm: [deliverableId: string, versionId: string];
 }>();
 
 // State
@@ -202,6 +204,12 @@ function handleEdit() {
 function handleRerun() {
   if (selectedVersionId.value) {
     emit('rerun', props.deliverableId, selectedVersionId.value);
+  }
+}
+
+function handleRerunWithDifferentLlm() {
+  if (selectedVersionId.value) {
+    emit('rerunWithDifferentLlm', props.deliverableId, selectedVersionId.value);
   }
 }
 

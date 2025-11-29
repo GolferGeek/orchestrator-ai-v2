@@ -2,16 +2,21 @@ import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
+import { ExecutionContext } from '@orchestrator-ai/transport-types';
 
 export interface LLMCallRequest {
-  provider: string;
-  model: string;
+  /** ExecutionContext - the core context that flows through the system */
+  context: ExecutionContext;
+  /** System message/prompt for the LLM */
   systemMessage?: string;
+  /** User message to send to the LLM */
   userMessage: string;
+  /** Temperature for response generation */
   temperature?: number;
+  /** Maximum tokens to generate */
   maxTokens?: number;
+  /** Name of the calling agent/service */
   callerName?: string;
-  userId: string; // Required for usage tracking
 }
 
 export interface LLMCallResponse {
@@ -57,32 +62,35 @@ export class LLMHttpClientService {
    */
   async callLLM(request: LLMCallRequest): Promise<LLMCallResponse> {
     const url = `${this.llmServiceUrl}${this.llmEndpoint}`;
+    const { context } = request;
 
     this.logger.debug(`Calling LLM service: ${url}`, {
-      provider: request.provider,
-      model: request.model,
+      provider: context.provider,
+      model: context.model,
       caller: request.callerName,
+      taskId: context.taskId,
     });
 
     try {
-      if (!request.userId) {
-        throw new Error('userId is required for LLM calls');
+      if (!context.userId) {
+        throw new Error('userId is required in ExecutionContext for LLM calls');
       }
 
       const response = await firstValueFrom(
         this.httpService.post(url, {
           systemPrompt: request.systemMessage || '',
           userPrompt: request.userMessage,
+          // Pass the full ExecutionContext
+          context,
           options: {
-            // Support both provider and providerName for compatibility
-            provider: request.provider,
-            providerName: request.provider,
-            modelName: request.model,
+            // Provider and model come from context
+            provider: context.provider,
+            providerName: context.provider,
+            modelName: context.model,
             temperature: request.temperature ?? 0.7,
             maxTokens: request.maxTokens ?? 3500,
             callerType: 'langgraph',
             callerName: request.callerName || 'workflow',
-            userId: request.userId, // Pass userId for usage tracking
           },
         }),
       );
@@ -112,8 +120,9 @@ export class LLMHttpClientService {
         details: errorDetails,
         url,
         request: {
-          provider: request.provider,
-          model: request.model,
+          provider: context.provider,
+          model: context.model,
+          taskId: context.taskId,
           callerName: request.callerName,
         },
       });

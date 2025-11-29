@@ -3,11 +3,14 @@ import { ApiAgentRunnerService } from './api-agent-runner.service';
 import { HttpService } from '@nestjs/axios';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DeliverablesService } from '../deliverables/deliverables.service';
+import { DeliverableVersionsService } from '../deliverables/deliverable-versions.service';
 import { LLMService } from '../../llms/llm.service';
 import { ContextOptimizationService } from '../context-optimization/context-optimization.service';
 import { PlansService } from '../plans/services/plans.service';
 import { Agent2AgentConversationsService } from './agent-conversations.service';
 import { StreamingService } from './streaming.service';
+import { TasksService } from '../tasks/tasks.service';
+import { AgentConversationsService } from '../conversations/agent-conversations.service';
 import { AgentRuntimeDefinition } from '../../agent-platform/interfaces/agent.interface';
 import { TaskRequestDto, AgentTaskMode } from '../dto/task-request.dto';
 import { of, throwError } from 'rxjs';
@@ -93,6 +96,29 @@ describe('ApiAgentRunnerService', () => {
             sendUpdate: jest.fn(),
           },
         },
+        {
+          provide: TasksService,
+          useValue: {
+            findOne: jest.fn(),
+            update: jest.fn(),
+            create: jest.fn(),
+          },
+        },
+        {
+          provide: DeliverableVersionsService,
+          useValue: {
+            findOne: jest.fn(),
+            create: jest.fn(),
+            findByDeliverable: jest.fn(),
+          },
+        },
+        {
+          provide: AgentConversationsService,
+          useValue: {
+            findByConversationId: jest.fn(),
+            create: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -162,7 +188,7 @@ describe('ApiAgentRunnerService', () => {
         },
       });
 
-      const result = await service.execute(mockContext, definition, request);
+      const result = await service.execute(definition, request, mockContext.orgSlug);
 
       expect(result.success).toBe(true);
       expect(result.mode).toBe(AgentTaskMode.BUILD);
@@ -250,7 +276,7 @@ describe('ApiAgentRunnerService', () => {
         data: { deliverable: {}, version: {} },
       });
 
-      await service.execute(mockContext, definition, request);
+      await service.execute(definition, request, mockContext.orgSlug);
 
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(httpService.request).toHaveBeenCalledWith(
@@ -302,7 +328,7 @@ describe('ApiAgentRunnerService', () => {
         data: { deliverable: {}, version: {} },
       });
 
-      await service.execute(mockContext, definition, request);
+      await service.execute(definition, request, mockContext.orgSlug);
 
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(httpService.request).toHaveBeenCalledWith(
@@ -352,7 +378,7 @@ describe('ApiAgentRunnerService', () => {
         data: { deliverable: {}, version: {} },
       });
 
-      await service.execute(mockContext, definition, request);
+      await service.execute(definition, request, mockContext.orgSlug);
 
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(httpService.request).toHaveBeenCalledWith(
@@ -382,7 +408,7 @@ describe('ApiAgentRunnerService', () => {
         payload: {},
       };
 
-      const result = await service.execute(mockContext, definition, request);
+      const result = await service.execute(definition, request, mockContext.orgSlug);
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toContain(
@@ -412,7 +438,7 @@ describe('ApiAgentRunnerService', () => {
         metadata: { userId: 'user-123' },
       };
 
-      const result = await service.execute(mockContext, definition, request);
+      const result = await service.execute(definition, request, mockContext.orgSlug);
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toContain(
@@ -449,7 +475,7 @@ describe('ApiAgentRunnerService', () => {
         throwError(() => new Error('Network error')),
       );
 
-      const result = await service.execute(mockContext, definition, request);
+      const result = await service.execute(definition, request, mockContext.orgSlug);
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toContain('Network error');
@@ -488,7 +514,7 @@ describe('ApiAgentRunnerService', () => {
         of(createMockAxiosResponse({ error: 'Not found' }, 404, 'Not Found')),
       );
 
-      const result = await service.execute(mockContext, definition, request);
+      const result = await service.execute(definition, request, mockContext.orgSlug);
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toContain(
@@ -534,7 +560,7 @@ describe('ApiAgentRunnerService', () => {
         data: { deliverable: {}, version: {} },
       });
 
-      const result = await service.execute(mockContext, definition, request);
+      const result = await service.execute(definition, request, mockContext.orgSlug);
 
       expect(result.success).toBe(true);
     });
@@ -574,7 +600,7 @@ describe('ApiAgentRunnerService', () => {
         },
       });
 
-      const result = await service.execute(mockContext, definition, request);
+      const result = await service.execute(definition, request, mockContext.orgSlug);
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toBe(
@@ -625,7 +651,7 @@ describe('ApiAgentRunnerService', () => {
         },
       );
 
-      await service.execute(mockContext, definition, request);
+      await service.execute(definition, request, mockContext.orgSlug);
 
       expect(capturedContent).toContain('# API Response');
       expect(capturedContent).toContain('**Status Code:** 200');
@@ -692,7 +718,7 @@ describe('ApiAgentRunnerService', () => {
         },
       });
 
-      const result = await service.execute(mockContext, definition, request);
+      const result = await service.execute(definition, request, mockContext.orgSlug);
 
       expect(result.success).toBe(true);
       const content = result.payload?.content as

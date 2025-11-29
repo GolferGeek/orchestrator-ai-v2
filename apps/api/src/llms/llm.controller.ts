@@ -13,6 +13,7 @@ import { isLLMResponse } from './services/llm-interfaces';
 import { LocalModelStatusService } from './local-model-status.service';
 import { RunMetadataService } from './run-metadata.service';
 import { RecordLLMUsageDto } from './dto/record-llm-usage.dto';
+import type { ExecutionContext } from '@orchestrator-ai/transport-types';
 
 @Controller('llm')
 export class LLMController {
@@ -31,6 +32,8 @@ export class LLMController {
     request: {
       systemPrompt: string;
       userPrompt: string;
+      /** Full ExecutionContext from LangGraph/external callers */
+      context?: ExecutionContext;
       options?: {
         temperature?: number;
         maxTokens?: number;
@@ -41,9 +44,11 @@ export class LLMController {
         // Caller tracking for usage analytics
         callerType?: string;
         callerName?: string;
-        // User and conversation context for observability
+        // Individual context fields (deprecated - prefer passing full context)
         userId?: string;
         conversationId?: string;
+        taskId?: string;
+        organizationSlug?: string;
         dataClassification?: string;
       };
     },
@@ -56,10 +61,11 @@ export class LLMController {
   }> {
     try {
       // Guard: Conversation-based requests from frontend should use agent tasks endpoint
-      // But allow external API calls (like n8n) to use conversationId for observability
+      // But allow external API calls (like n8n, langgraph) to use conversationId for observability
+      const allowedCallerTypes = ['external', 'langgraph'];
       if (
         request?.options?.conversationId &&
-        request?.options?.callerType !== 'external'
+        !allowedCallerTypes.includes(request?.options?.callerType || '')
       ) {
         const guidance = {
           message:
@@ -81,10 +87,11 @@ export class LLMController {
         throw new BadRequestException(guidance);
       }
 
-      // Ensure providerName and modelName are set (use provider as fallback for compatibility)
+      // Use ExecutionContext if provided, otherwise fall back to options
+      const ctx = request.context;
       const providerName =
-        request.options?.providerName || request.options?.provider;
-      const modelName = request.options?.modelName;
+        ctx?.provider || request.options?.providerName || request.options?.provider;
+      const modelName = ctx?.model || request.options?.modelName;
 
       const result = await this.llmService.generateResponse(
         request.systemPrompt,
@@ -93,17 +100,18 @@ export class LLMController {
           temperature: request.options?.temperature,
           maxTokens: request.options?.maxTokens,
           provider: request.options?.provider,
-          // Support full LLM preferences from UI - ensure both are set
           providerName,
           modelName,
-          // Caller tracking - use provided values or defaults
+          // Caller tracking
           callerType: request.options?.callerType || 'api',
           callerName: request.options?.callerName || 'llm-controller',
-          // User and conversation context for observability and usage tracking
-          userId: request.options?.userId,
-          conversationId: request.options?.conversationId,
+          // Context fields - prefer ExecutionContext, fall back to options
+          userId: ctx?.userId || request.options?.userId,
+          conversationId: ctx?.conversationId || request.options?.conversationId,
+          taskId: ctx?.taskId || request.options?.taskId,
+          organizationSlug: ctx?.orgSlug || request.options?.organizationSlug,
+          agentSlug: ctx?.agentSlug,
           dataClassification: request.options?.dataClassification || 'public',
-          // Request metadata for Python agents
           includeMetadata: true,
         },
       );

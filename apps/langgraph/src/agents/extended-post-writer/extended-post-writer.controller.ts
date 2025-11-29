@@ -37,18 +37,12 @@ export class ExtendedPostWriterController {
   @Post('generate')
   @HttpCode(HttpStatus.OK)
   async generate(@Body() request: ExtendedPostWriterRequestDto) {
-    // Build ExecutionContext from request (supports both context object and individual fields)
-    const context: ExecutionContext = {
-      taskId: request.context?.taskId || request.taskId || '',
-      userId: request.context?.userId || request.userId || '',
-      conversationId: request.context?.conversationId || request.conversationId || '',
-      orgSlug: request.context?.orgSlug || request.orgSlug || request.organizationSlug || '',
-      agentSlug: 'extended-post-writer',
-      agentType: 'langgraph',
-      provider: request.context?.provider || request.provider,
-      model: request.context?.model || request.model,
-    };
+    // ExecutionContext is required - no fallbacks
+    if (!request.context) {
+      throw new BadRequestException('ExecutionContext is required');
+    }
 
+    const context = request.context;
     this.logger.log(`Received generation request: taskId=${context.taskId}, userId=${context.userId}`);
 
     try {

@@ -55,6 +55,7 @@ export interface LLMRequestOptions extends Record<string, unknown> {
   agentSlug?: string | null;
   conversationId?: string;
   sessionId?: string;
+  taskId?: string;
   userId?: string;
   dataClassification?: string;
   dataClass?: string;
@@ -86,6 +87,7 @@ export interface GenerateResponseParams {
   config: LLMServiceConfig;
   conversationId?: string;
   sessionId?: string;
+  taskId?: string;
   userId?: string;
   headers?: LLMRequestHeaders;
   options?: LLMRequestOptions;

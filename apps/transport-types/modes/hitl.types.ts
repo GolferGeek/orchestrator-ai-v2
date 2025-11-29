@@ -19,7 +19,17 @@
 // HITL Decision & Status
 // ============================================================================
 
-export type HitlDecision = 'approve' | 'reject' | 'regenerate' | 'replace' | 'skip';
+export type HitlDecision = 'approve' | 'reject' | 'regenerate' | 'replace' | 'skip' | 'edit';
+
+/**
+ * HITL Response structure (for resume operations)
+ * This is what comes back when resuming from a HITL interrupt
+ */
+export interface HitlResponse {
+  decision: HitlDecision;
+  editedContent?: unknown;
+  feedback?: string;
+}
 
 export type HitlStatus =
   | 'started'
@@ -27,6 +37,7 @@ export type HitlStatus =
   | 'hitl_waiting'
   | 'regenerating'
   | 'completed'
+  | 'rejected'
   | 'failed';
 
 // ============================================================================

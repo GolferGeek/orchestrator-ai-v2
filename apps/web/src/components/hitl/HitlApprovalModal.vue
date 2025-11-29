@@ -229,7 +229,7 @@ interface Props {
   isOpen: boolean;
   topic: string;
   generatedContent?: HitlGeneratedContent;
-  threadId?: string;
+  taskId?: string;
 }
 
 const props = defineProps<Props>();

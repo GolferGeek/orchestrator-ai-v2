@@ -29,16 +29,16 @@ import type {
 
 /**
  * HITL waiting result - returned when agent needs human review before completing
+ * Note: Uses taskId consistently (LangGraph uses it as thread_id internally)
  */
 export interface HitlWaitingResult {
   isHitlWaiting: true;
-  threadId: string;
+  taskId: string;
   topic: string;
   status: HitlStatus;
   generatedContent: HitlGeneratedContent;
   agentSlug: string;
   conversationId: string;
-  taskId: string;
 }
 
 /**
@@ -360,7 +360,7 @@ export async function createDeliverable(
     // Check if this is an HITL waiting response
     // HITL responses have mode='hitl' and content with status='hitl_waiting'
     const hitlContent = buildContent as {
-      threadId?: string;
+      taskId?: string;
       status?: HitlStatus;
       topic?: string;
       hitlPending?: boolean;
@@ -371,8 +371,11 @@ export async function createDeliverable(
       taskResponse?.success &&
       (taskResponse?.mode === "hitl" || hitlContent?.status === "hitl_waiting")
     ) {
+      // Use taskId from response content, falling back to result.taskId
+      const hitlTaskId = hitlContent.taskId || result.taskId;
+
       console.log("🔄 [Build Create Action] HITL waiting detected:", {
-        threadId: hitlContent.threadId,
+        taskId: hitlTaskId,
         status: hitlContent.status,
         topic: hitlContent.topic,
       });
@@ -386,9 +389,8 @@ export async function createDeliverable(
           conversationId,
           assistantMessageId,
           {
-            taskId: result.taskId,
+            taskId: hitlTaskId,
             hitlWaiting: true,
-            hitlThreadId: hitlContent.threadId,
             provider: metadata?.provider,
             model: metadata?.model,
           },
@@ -397,16 +399,15 @@ export async function createDeliverable(
 
       chatUiStore.setIsSendingMessage(false);
 
-      // Return HITL waiting result
+      // Return HITL waiting result - taskId is the primary identifier
       return {
         isHitlWaiting: true,
-        threadId: hitlContent.threadId || result.taskId,
+        taskId: hitlTaskId,
         topic: hitlContent.topic || userMessage,
         status: hitlContent.status || "hitl_waiting",
         generatedContent: hitlContent.generatedContent || {},
         agentSlug: agentName,
         conversationId,
-        taskId: result.taskId,
       } as HitlWaitingResult;
     }
 

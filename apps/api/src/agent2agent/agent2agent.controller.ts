@@ -302,10 +302,12 @@ export class Agent2AgentController {
       }
 
       // Extract data from normalized DTO (which came from adaptedBody)
+      // For JSON-RPC: taskId is preserved in dto.payload via normalizeTaskRequest
+      // For REST: taskId is in dto.payload.taskId
       const taskIdFromPayload =
-        (typeof dto.payload?.taskId === 'string'
+        typeof dto.payload?.taskId === 'string'
           ? dto.payload.taskId
-          : undefined) || body.id; // JSON-RPC id or payload.taskId
+          : undefined;
 
       // Extract LLM selection from payload
       // Frontend sends it in payload.config.provider/model format (JSON-RPC)
@@ -1206,10 +1208,28 @@ export class Agent2AgentController {
       typeof typedPayload.jsonrpc === 'string' &&
       typedPayload.jsonrpc.length > 0;
 
+    // For JSON-RPC, params may contain both standard DTO fields AND arbitrary params (like taskId for HITL)
+    // We need to preserve all params in the payload field so they're not stripped by whitelist validation
+    const paramsObj = isJsonRpc
+      ? ((typedPayload.params ?? {}) as Record<string, unknown>)
+      : {};
+
     const candidateSource = isJsonRpc
       ? (typedPayload.params ?? {})
       : typedPayload;
     const candidate = { ...(candidateSource as Record<string, unknown>) };
+
+    // For JSON-RPC, ensure all params are preserved in payload (including taskId, decision, etc.)
+    // This prevents whitelist validation from stripping non-standard DTO fields
+    if (isJsonRpc) {
+      const existingPayload =
+        (candidate as Record<string, unknown>).payload || {};
+      (candidate as Record<string, unknown>).payload = {
+        ...(existingPayload as Record<string, unknown>),
+        ...paramsObj, // Preserve all JSON-RPC params
+        method: typedPayload.method, // Also store the JSON-RPC method
+      };
+    }
 
     if (
       isJsonRpc &&

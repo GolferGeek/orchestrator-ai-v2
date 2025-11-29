@@ -27,7 +27,17 @@
       :disabled="isLoading"
     >
       <ion-icon :icon="refreshOutline" slot="start" />
-      Rerun with AI
+      Rerun
+    </ion-button>
+
+    <ion-button
+      fill="solid"
+      color="tertiary"
+      @click="emit('rerunWithDifferentLlm')"
+      :disabled="isLoading"
+    >
+      <ion-icon :icon="swapHorizontalOutline" slot="start" />
+      Rerun with Different LLM
     </ion-button>
   </div>
 
@@ -71,6 +81,7 @@ import {
   downloadOutline,
   createOutline,
   refreshOutline,
+  swapHorizontalOutline,
   documentTextOutline,
   codeOutline,
   codeSlashOutline,
@@ -87,6 +98,7 @@ defineProps<Props>();
 const emit = defineEmits<{
   edit: [];
   rerun: [];
+  rerunWithDifferentLlm: [];
   export: [format: 'markdown' | 'html' | 'json'];
 }>();
 

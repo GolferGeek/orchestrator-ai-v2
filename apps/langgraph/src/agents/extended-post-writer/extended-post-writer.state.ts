@@ -1,36 +1,13 @@
 import { Annotation } from '@langchain/langgraph';
 import { HitlBaseStateAnnotation } from '../../hitl/hitl-base.state';
-import type { HitlGeneratedContent } from '@orchestrator-ai/transport-types';
+import type {
+  HitlGeneratedContent,
+  HitlStatus,
+  ExecutionContext,
+} from '@orchestrator-ai/transport-types';
 
-/**
- * Extended Post Writer input interface
- * Validation is handled by NestJS DTOs at the controller level
- *
- * Context flows through via ExecutionContext parameter.
- * Provider/model come from context.provider and context.model.
- */
-export interface ExtendedPostWriterInput {
-  /** Task ID for tracking */
-  taskId: string;
-  /** User ID */
-  userId: string;
-  /** Conversation ID (optional) */
-  conversationId?: string;
-  /** Organization slug */
-  organizationSlug: string;
-  /** LLM provider */
-  provider: string;
-  /** LLM model */
-  model: string;
-  /** User's message/prompt */
-  userMessage: string;
-  /** Additional context */
-  additionalContext?: string;
-  /** Keywords for SEO */
-  keywords?: string[];
-  /** Writing tone */
-  tone?: string;
-}
+// Re-export HitlResponse from transport-types for backward compatibility
+export type { HitlResponse } from '@orchestrator-ai/transport-types';
 
 /**
  * Generated content structure
@@ -40,6 +17,52 @@ export interface GeneratedContent extends HitlGeneratedContent {
   blogPost: string;
   seoDescription: string;
   socialPosts: string[];
+}
+
+/**
+ * Extended Post Writer input interface
+ * Validation is handled by NestJS DTOs at the controller level
+ *
+ * The ExecutionContext flows through the entire workflow.
+ * All identification and LLM configuration comes from context.
+ */
+export interface ExtendedPostWriterInput {
+  /** ExecutionContext - the core context that flows through the system */
+  context: ExecutionContext;
+  /** User's message/prompt */
+  userMessage: string;
+  /** Additional context for content generation */
+  additionalContext?: string;
+  /** Keywords for SEO */
+  keywords?: string[];
+  /** Writing tone */
+  tone?: string;
+}
+
+/**
+ * Result from Extended Post Writer generation
+ */
+export interface ExtendedPostWriterResult {
+  taskId: string;
+  status: HitlStatus;
+  userMessage: string;
+  generatedContent?: GeneratedContent;
+  finalContent?: GeneratedContent;
+  error?: string;
+  duration?: number;
+}
+
+/**
+ * Status response for checking thread state
+ */
+export interface ExtendedPostWriterStatus {
+  taskId: string;
+  status: HitlStatus;
+  userMessage: string;
+  generatedContent?: GeneratedContent;
+  finalContent?: GeneratedContent;
+  hitlPending: boolean;
+  error?: string;
 }
 
 /**

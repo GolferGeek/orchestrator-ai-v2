@@ -132,6 +132,7 @@ export type {
   HitlContent,
   // Deliverable-based types (new)
   HitlDeliverableResponse,
+  HitlResponse,
   HitlResumeRequest,
   HitlStatusResponse,
   HitlHistoryResponse,

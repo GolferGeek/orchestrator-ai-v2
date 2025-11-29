@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4, validate as isValidUUID } from 'uuid';
 import { SupabaseService } from '@/supabase/supabase.service';
 import { getTableName } from '@/supabase/supabase.config';
 import { LLMUsageMetrics } from '@/llms/types/llm-evaluation';
@@ -275,12 +275,19 @@ export class RunMetadataService {
       const outputCost = needsCost ? estimated.outputCost : undefined;
       const totalCost = needsCost ? estimated.totalCost : params.totalCost;
 
+      // Validate conversation_id is a valid UUID (or null)
+      // Invalid UUIDs like 'unknown' or 'test-conversation-id' should be set to null
+      const conversationId =
+        params.conversationId && isValidUUID(params.conversationId)
+          ? params.conversationId
+          : null;
+
       const insertData: Record<string, unknown> = {
         run_id: runId,
         user_id: userId,
         caller_type: params.callerType || 'llm_service',
         agent_name: params.callerName || 'direct_call',
-        conversation_id: params.conversationId || null,
+        conversation_id: conversationId,
         provider_name: params.provider,
         model_name: params.model,
         is_local: !!params.isLocal,

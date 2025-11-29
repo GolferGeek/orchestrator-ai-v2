@@ -1,11 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ExtendedPostWriterController } from './extended-post-writer.controller';
+import { ExtendedPostWriterService } from './extended-post-writer.service';
 import {
-  ExtendedPostWriterService,
   ExtendedPostWriterResult,
   ExtendedPostWriterStatus,
-} from './extended-post-writer.service';
+} from './extended-post-writer.state';
 import {
   ExtendedPostWriterRequestDto,
   ExtendedPostWriterResumeDto,
@@ -21,7 +21,14 @@ import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
 describe('ExtendedPostWriterController', () => {
   let controller: ExtendedPostWriterController;
   let service: jest.Mocked<ExtendedPostWriterService>;
-  const mockContext = createMockExecutionContext();
+  const mockContext = createMockExecutionContext({
+    taskId: 'task-123',
+    userId: 'user-456',
+    orgSlug: 'test-org',
+    conversationId: 'conv-123',
+    provider: 'anthropic',
+    model: 'claude-sonnet-4-20250514',
+  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -51,20 +58,17 @@ describe('ExtendedPostWriterController', () => {
 
   describe('POST /extended-post-writer/generate', () => {
     const validRequest: ExtendedPostWriterRequestDto = {
-      taskId: 'task-123',
-      userId: 'user-456',
-      topic: 'Introduction to AI',
-      context: 'Write for beginners',
+      context: mockContext,
+      userMessage: 'Write about Introduction to AI',
+      contextInfo: 'Write for beginners',
       tone: 'casual',
-      provider: 'anthropic',
-      model: 'claude-sonnet-4-20250514',
     };
 
     it('should return success with HITL waiting status', async () => {
       const mockResult: ExtendedPostWriterResult = {
-        threadId: 'thread-abc',
+        taskId: 'task-123',
         status: 'hitl_waiting',
-        topic: validRequest.topic,
+        userMessage: validRequest.userMessage,
         generatedContent: {
           blogPost: 'Draft blog post...',
           seoDescription: 'SEO description',
@@ -83,9 +87,9 @@ describe('ExtendedPostWriterController', () => {
 
     it('should return success for completed status', async () => {
       const mockResult: ExtendedPostWriterResult = {
-        threadId: 'thread-abc',
+        taskId: 'task-123',
         status: 'completed',
-        topic: validRequest.topic,
+        userMessage: validRequest.userMessage,
         finalContent: {
           blogPost: 'Final blog post',
           seoDescription: 'Final SEO',
@@ -103,9 +107,9 @@ describe('ExtendedPostWriterController', () => {
 
     it('should return success=false for failed status', async () => {
       const mockResult: ExtendedPostWriterResult = {
-        threadId: 'thread-abc',
+        taskId: 'task-123',
         status: 'failed',
-        topic: validRequest.topic,
+        userMessage: validRequest.userMessage,
         error: 'LLM API error',
       };
 
@@ -125,40 +129,14 @@ describe('ExtendedPostWriterController', () => {
       );
     });
 
-    it('should pass all request parameters to service', async () => {
-      const fullRequest: ExtendedPostWriterRequestDto = {
-        taskId: 'task-full',
-        userId: 'user-full',
-        conversationId: 'conv-full',
-        organizationSlug: 'org-full',
-        topic: 'Full topic',
-        context: 'Full context',
-        keywords: ['key1', 'key2'],
-        tone: 'formal',
-        provider: 'openai',
-        model: 'gpt-4',
-      };
+    it('should throw BadRequestException when context is missing', async () => {
+      const invalidRequest = {
+        userMessage: 'Test message',
+      } as ExtendedPostWriterRequestDto;
 
-      service.generate.mockResolvedValue({
-        threadId: 'thread-full',
-        status: 'hitl_waiting',
-        topic: fullRequest.topic,
-      });
-
-      await controller.generate(fullRequest);
-
-      expect(service.generate).toHaveBeenCalledWith({
-        taskId: 'task-full',
-        userId: 'user-full',
-        conversationId: 'conv-full',
-        organizationSlug: 'org-full',
-        topic: 'Full topic',
-        context: 'Full context',
-        keywords: ['key1', 'key2'],
-        tone: 'formal',
-        provider: 'openai',
-        model: 'gpt-4',
-      });
+      await expect(controller.generate(invalidRequest)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -166,9 +144,9 @@ describe('ExtendedPostWriterController', () => {
     describe('approve decision', () => {
       it('should return completed status for approve', async () => {
         const mockResult: ExtendedPostWriterResult = {
-          threadId: 'thread-123',
+          taskId: 'task-123',
           status: 'completed',
-          topic: 'Test topic',
+          userMessage: 'Test topic',
           finalContent: {
             blogPost: 'Approved blog',
             seoDescription: 'SEO',
@@ -182,11 +160,11 @@ describe('ExtendedPostWriterController', () => {
           decision: 'approve',
         };
 
-        const result = await controller.resume('thread-123', request);
+        const result = await controller.resume('task-123', request);
 
         expect(result.success).toBe(true);
-        expect(result.message).toBe('Content approved and finalized.');
-        expect(service.resume).toHaveBeenCalledWith('thread-123', {
+        expect(result.message).toBe('Content finalized successfully.');
+        expect(service.resume).toHaveBeenCalledWith('task-123', {
           decision: 'approve',
           editedContent: undefined,
           feedback: undefined,
@@ -194,12 +172,12 @@ describe('ExtendedPostWriterController', () => {
       });
     });
 
-    describe('edit decision', () => {
-      it('should return completed status with edited content', async () => {
+    describe('replace decision', () => {
+      it('should return completed status with replaced content', async () => {
         const mockResult: ExtendedPostWriterResult = {
-          threadId: 'thread-123',
+          taskId: 'task-123',
           status: 'completed',
-          topic: 'Test topic',
+          userMessage: 'Test topic',
           finalContent: {
             blogPost: 'Edited blog',
             seoDescription: 'Edited SEO',
@@ -210,7 +188,7 @@ describe('ExtendedPostWriterController', () => {
         service.resume.mockResolvedValue(mockResult);
 
         const request: ExtendedPostWriterResumeDto = {
-          decision: 'edit',
+          decision: 'replace',
           editedContent: {
             blogPost: 'Edited blog',
             seoDescription: 'Edited SEO',
@@ -218,11 +196,11 @@ describe('ExtendedPostWriterController', () => {
           },
         };
 
-        const result = await controller.resume('thread-123', request);
+        const result = await controller.resume('task-123', request);
 
         expect(result.success).toBe(true);
-        expect(service.resume).toHaveBeenCalledWith('thread-123', {
-          decision: 'edit',
+        expect(service.resume).toHaveBeenCalledWith('task-123', {
+          decision: 'replace',
           editedContent: request.editedContent,
           feedback: undefined,
         });
@@ -232,9 +210,9 @@ describe('ExtendedPostWriterController', () => {
     describe('reject decision', () => {
       it('should return rejected status with feedback', async () => {
         const mockResult: ExtendedPostWriterResult = {
-          threadId: 'thread-123',
+          taskId: 'task-123',
           status: 'rejected',
-          topic: 'Test topic',
+          userMessage: 'Test topic',
         };
 
         service.resume.mockResolvedValue(mockResult);
@@ -244,11 +222,11 @@ describe('ExtendedPostWriterController', () => {
           feedback: 'Content is off-topic',
         };
 
-        const result = await controller.resume('thread-123', request);
+        const result = await controller.resume('task-123', request);
 
         expect(result.success).toBe(false);
         expect(result.message).toBe('Content rejected.');
-        expect(service.resume).toHaveBeenCalledWith('thread-123', {
+        expect(service.resume).toHaveBeenCalledWith('task-123', {
           decision: 'reject',
           editedContent: undefined,
           feedback: 'Content is off-topic',
@@ -272,9 +250,9 @@ describe('ExtendedPostWriterController', () => {
   describe('GET /extended-post-writer/status/:threadId', () => {
     it('should return status for existing thread', async () => {
       const mockStatus: ExtendedPostWriterStatus = {
-        threadId: 'thread-123',
+        taskId: 'task-123',
         status: 'hitl_waiting',
-        topic: 'Test topic',
+        userMessage: 'Test topic',
         hitlPending: true,
         generatedContent: {
           blogPost: 'Draft',
@@ -285,7 +263,7 @@ describe('ExtendedPostWriterController', () => {
 
       service.getStatus.mockResolvedValue(mockStatus);
 
-      const result = await controller.getStatus('thread-123');
+      const result = await controller.getStatus('task-123');
 
       expect(result.success).toBe(true);
       expect(result.data).toEqual(mockStatus);
@@ -302,9 +280,9 @@ describe('ExtendedPostWriterController', () => {
 
     it('should return completed status with final content', async () => {
       const mockStatus: ExtendedPostWriterStatus = {
-        threadId: 'thread-123',
+        taskId: 'task-123',
         status: 'completed',
-        topic: 'Test topic',
+        userMessage: 'Test topic',
         hitlPending: false,
         finalContent: {
           blogPost: 'Final',
@@ -315,7 +293,7 @@ describe('ExtendedPostWriterController', () => {
 
       service.getStatus.mockResolvedValue(mockStatus);
 
-      const result = await controller.getStatus('thread-123');
+      const result = await controller.getStatus('task-123');
 
       expect(result.data.hitlPending).toBe(false);
       expect(result.data.finalContent).toBeDefined();
@@ -325,15 +303,15 @@ describe('ExtendedPostWriterController', () => {
   describe('GET /extended-post-writer/history/:threadId', () => {
     it('should return history for existing thread', async () => {
       const mockHistory = [
-        { status: 'started', topic: 'Test', taskId: 't1', threadId: 'th1', userId: 'u1' },
-        { status: 'generating', topic: 'Test', taskId: 't1', threadId: 'th1', userId: 'u1' },
-        { status: 'hitl_waiting', topic: 'Test', taskId: 't1', threadId: 'th1', userId: 'u1' },
-        { status: 'completed', topic: 'Test', taskId: 't1', threadId: 'th1', userId: 'u1' },
+        { status: 'started', userMessage: 'Test' },
+        { status: 'generating', userMessage: 'Test' },
+        { status: 'hitl_waiting', userMessage: 'Test' },
+        { status: 'completed', userMessage: 'Test' },
       ];
 
       service.getHistory.mockResolvedValue(mockHistory as never);
 
-      const result = await controller.getHistory('thread-123');
+      const result = await controller.getHistory('task-123');
 
       expect(result.success).toBe(true);
       expect(result.data).toHaveLength(4);
@@ -350,19 +328,19 @@ describe('ExtendedPostWriterController', () => {
 
     it('should show HITL state transitions in history', async () => {
       const mockHistory = [
-        { status: 'started', taskId: 't', threadId: 'th', userId: 'u', topic: 'T' },
-        { status: 'hitl_waiting', taskId: 't', threadId: 'th', userId: 'u', topic: 'T' },
-        { status: 'hitl_resumed', taskId: 't', threadId: 'th', userId: 'u', topic: 'T' },
-        { status: 'completed', taskId: 't', threadId: 'th', userId: 'u', topic: 'T' },
+        { status: 'started', userMessage: 'T' },
+        { status: 'hitl_waiting', userMessage: 'T' },
+        { status: 'regenerating', userMessage: 'T' },
+        { status: 'completed', userMessage: 'T' },
       ];
 
       service.getHistory.mockResolvedValue(mockHistory as never);
 
-      const result = await controller.getHistory('thread-123');
+      const result = await controller.getHistory('task-123');
 
       const statuses = result.data.map((s: { status: string }) => s.status);
       expect(statuses).toContain('hitl_waiting');
-      expect(statuses).toContain('hitl_resumed');
+      expect(statuses).toContain('regenerating');
     });
   });
 });

@@ -19,31 +19,6 @@ import {
 } from '../../tools/data/database';
 
 /**
- * Result from Data Analyst execution
- */
-export interface DataAnalystResult {
-  threadId: string;
-  status: 'completed' | 'failed';
-  userMessage: string;
-  summary?: string;
-  generatedSql?: string;
-  sqlResults?: string;
-  error?: string;
-  duration: number;
-}
-
-/**
- * Status response for checking thread state
- */
-export interface DataAnalystStatus {
-  threadId: string;
-  status: DataAnalystState['status'];
-  userMessage: string;
-  summary?: string;
-  error?: string;
-}
-
-/**
  * DataAnalystService
  *
  * Manages the Data Analyst agent lifecycle:
@@ -85,42 +60,23 @@ export class DataAnalystService implements OnModuleInit {
    */
   async analyze(input: DataAnalystInput): Promise<DataAnalystResult> {
     const startTime = Date.now();
-
-    // Extract context fields
     const { context } = input;
     const taskId = context.taskId;
 
-    // Input is already validated by NestJS DTOs at the controller level
-    // Use taskId as threadId - no need for separate identifier
-    const threadId = taskId;
-
-    if (!taskId) {
-      throw new Error('taskId is required in ExecutionContext');
-    }
-
-    this.logger.log(
-      `Starting data analysis: taskId=${taskId}, threadId=${threadId}`,
-    );
+    this.logger.log(`Starting data analysis: taskId=${taskId}`);
 
     try {
-      // Initial state - extract fields from ExecutionContext
+      // Initial state - pass ExecutionContext directly
       const initialState: Partial<DataAnalystState> = {
-        taskId,
-        threadId,
-        userId: context.userId,
-        conversationId: context.conversationId,
-        organizationSlug: context.orgSlug,
+        executionContext: context,
         userMessage: input.userMessage,
-        provider: context.provider || 'anthropic',
-        model: context.model || 'claude-sonnet-4-20250514',
         status: 'started',
         startedAt: startTime,
       };
 
-      // Run the graph
       const config = {
         configurable: {
-          thread_id: threadId,
+          thread_id: taskId,
         },
       };
 
@@ -129,11 +85,11 @@ export class DataAnalystService implements OnModuleInit {
       const duration = Date.now() - startTime;
 
       this.logger.log(
-        `Data analysis completed: threadId=${threadId}, status=${finalState.status}, duration=${duration}ms`,
+        `Data analysis completed: taskId=${taskId}, status=${finalState.status}, duration=${duration}ms`,
       );
 
       return {
-        threadId,
+        taskId,
         status: finalState.status === 'completed' ? 'completed' : 'failed',
         userMessage: input.userMessage,
         summary: finalState.summary,
@@ -148,13 +104,13 @@ export class DataAnalystService implements OnModuleInit {
         error instanceof Error ? error.message : String(error);
 
       this.logger.error(
-        `Data analysis failed: threadId=${threadId}, error=${errorMessage}`,
+        `Data analysis failed: taskId=${taskId}, error=${errorMessage}`,
       );
 
-      // Emit failure event - use context fields
+      // Emit failure event
       await this.observability.emitFailed({
         taskId,
-        threadId,
+        threadId: taskId,
         agentSlug: 'data-analyst',
         userId: context.userId,
         conversationId: context.conversationId,
@@ -163,7 +119,7 @@ export class DataAnalystService implements OnModuleInit {
       });
 
       return {
-        threadId,
+        taskId,
         status: 'failed',
         userMessage: input.userMessage,
         error: errorMessage,
@@ -173,13 +129,13 @@ export class DataAnalystService implements OnModuleInit {
   }
 
   /**
-   * Get status of an analysis by thread ID
+   * Get status of an analysis by task ID
    */
-  async getStatus(threadId: string): Promise<DataAnalystStatus | null> {
+  async getStatus(taskId: string): Promise<DataAnalystStatus | null> {
     try {
       const config = {
         configurable: {
-          thread_id: threadId,
+          thread_id: taskId,
         },
       };
 
@@ -192,26 +148,26 @@ export class DataAnalystService implements OnModuleInit {
       const values = state.values as DataAnalystState;
 
       return {
-        threadId,
+        taskId,
         status: values.status,
         userMessage: values.userMessage,
         summary: values.summary,
         error: values.error,
       };
     } catch (error) {
-      this.logger.error(`Failed to get status for thread ${threadId}:`, error);
+      this.logger.error(`Failed to get status for task ${taskId}:`, error);
       return null;
     }
   }
 
   /**
-   * Get full state history for a thread
+   * Get full state history for a task
    */
-  async getHistory(threadId: string): Promise<DataAnalystState[]> {
+  async getHistory(taskId: string): Promise<DataAnalystState[]> {
     try {
       const config = {
         configurable: {
-          thread_id: threadId,
+          thread_id: taskId,
         },
       };
 
@@ -222,7 +178,7 @@ export class DataAnalystService implements OnModuleInit {
 
       return history;
     } catch (error) {
-      this.logger.error(`Failed to get history for thread ${threadId}:`, error);
+      this.logger.error(`Failed to get history for task ${taskId}:`, error);
       return [];
     }
   }
