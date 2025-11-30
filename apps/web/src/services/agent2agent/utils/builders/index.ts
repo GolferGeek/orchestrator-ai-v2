@@ -6,10 +6,13 @@
 export { planBuilder } from './plan.builder';
 export { buildBuilder } from './build.builder';
 export { converseBuilder } from './converse.builder';
+export { hitlBuilder } from './hitl.builder';
+export type { StrictHitlRequest } from './hitl.builder';
 
 import { planBuilder } from './plan.builder';
 import { buildBuilder } from './build.builder';
 import { converseBuilder } from './converse.builder';
+import { hitlBuilder } from './hitl.builder';
 
 /**
  * Unified request builder
@@ -19,6 +22,7 @@ export const buildRequest = {
   plan: planBuilder,
   build: buildBuilder,
   converse: converseBuilder,
+  hitl: hitlBuilder,
 };
 
 /**
