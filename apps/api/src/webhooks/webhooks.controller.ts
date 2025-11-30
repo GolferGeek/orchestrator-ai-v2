@@ -19,22 +19,22 @@ import {
 import {
   ExecutionContext,
   isExecutionContext,
-  NIL_UUID,
 } from '@orchestrator-ai/transport-types';
 
 /**
  * Workflow Status Update
- * This can come from n8n, coded function agents, or any external workflow system
- * Extended to support internal agent observability
+ * This can come from LangGraph, coded function agents, or any external workflow system.
+ * ExecutionContext is REQUIRED - it's the capsule that flows through the entire system.
  */
 interface WorkflowStatusUpdate {
   // Required fields
-  taskId: string;
+  taskId: string; // Keep for URL routing/logging
   status: string;
   timestamp: string;
 
-  // ExecutionContext capsule (from LangGraph and other callers)
-  context?: ExecutionContext;
+  // ExecutionContext capsule - REQUIRED
+  // All context (userId, conversationId, agentSlug, orgSlug) comes from here
+  context: ExecutionContext;
 
   // User message that triggered the task
   userMessage?: string;
@@ -42,14 +42,10 @@ interface WorkflowStatusUpdate {
   // Mode (plan, build, converse)
   mode?: string;
 
-  // Optional workflow identification
+  // Optional workflow identification (for n8n/external systems)
   executionId?: string;
   workflowId?: string;
   workflowName?: string;
-
-  // Optional context fields (legacy - use context object instead)
-  conversationId?: string;
-  userId?: string;
 
   // Optional progress fields
   step?: string;
@@ -59,7 +55,7 @@ interface WorkflowStatusUpdate {
   stage?: string;
   results?: Record<string, unknown>;
 
-  // Optional sequence tracking (from n8n)
+  // Optional sequence tracking
   sequence?: number;
   totalSteps?: number;
 
@@ -70,10 +66,6 @@ interface WorkflowStatusUpdate {
     [key: string]: unknown;
   };
 
-  // Observability enrichment fields
-  agentSlug?: string;
-  username?: string;
-  organizationSlug?: string;
   [key: string]: unknown;
 }
 
@@ -95,8 +87,10 @@ export class WebhooksController {
   ) {}
 
   /**
-   * Receive status updates from any workflow system (n8n, coded agents, etc.)
+   * Receive status updates from workflow systems (LangGraph, coded agents, etc.)
    * POST /webhooks/status
+   *
+   * ExecutionContext is REQUIRED - webhooks without valid context are rejected.
    */
   @Post('status')
   @HttpCode(204)
@@ -105,12 +99,20 @@ export class WebhooksController {
   ): Promise<void> {
     // Validate required fields
     if (!update.taskId) {
+      this.logger.warn('Webhook rejected: missing taskId');
+      return;
+    }
+
+    // ExecutionContext is REQUIRED - no fallbacks
+    if (!update.context || !isExecutionContext(update.context)) {
       this.logger.warn(
-        'Missing required taskId in workflow status update',
-        update,
+        `Webhook rejected: missing or invalid ExecutionContext for task ${update.taskId}`,
       );
       return;
     }
+
+    // Extract context fields - context is the single source of truth
+    const { userId, conversationId, agentSlug, orgSlug } = update.context;
 
     try {
       // Build status history for this task
@@ -121,7 +123,6 @@ export class WebhooksController {
       const history = this.taskStatusHistory.get(update.taskId)!;
 
       // Add this status update to history
-      // Check for sequence at top level first (from n8n), then in data
       const sequence =
         update.sequence || update.data?.sequence || history.length + 1;
       const totalStepsFromUpdate = update.totalSteps || update.data?.totalSteps;
@@ -157,9 +158,7 @@ export class WebhooksController {
       });
 
       // Create task message for progress update (shows in message bubble)
-      // Use context.userId if available, fall back to legacy userId field
-      const userId = update.context?.userId || update.userId;
-      if (userId && update.message) {
+      if (update.message) {
         try {
           await this.tasksService.emitTaskMessage(
             update.taskId,
@@ -183,22 +182,19 @@ export class WebhooksController {
       }
 
       // Emit SSE chunk event via StreamingService for real-time streaming to frontend (USER STREAM)
-      // Only emit if context is provided (new pattern)
-      if (update.context && isExecutionContext(update.context)) {
-        this.streamingService.emitProgress(
-          update.context,
-          update.message || stepName,
-          update.userMessage || '',
-          {
-            step: stepName,
-            sequence,
-            totalSteps: totalStepsFromUpdate,
-            status: update.status,
-            progress,
-            mode: update.mode,
-          },
-        );
-      }
+      this.streamingService.emitProgress(
+        update.context,
+        update.message || stepName,
+        update.userMessage || '',
+        {
+          step: stepName,
+          sequence,
+          totalSteps: totalStepsFromUpdate,
+          status: update.status,
+          progress,
+          mode: update.mode,
+        },
+      );
 
       // Webhooks only emit progress - never completion
       // The stream will be cleaned up when the API call completes and returns to frontend
@@ -212,8 +208,8 @@ export class WebhooksController {
         step: stepName,
         progress,
         timestamp: update.timestamp,
-        conversationId: update.context?.conversationId || update.conversationId,
-        statusHistory: history, // Send complete history
+        conversationId,
+        statusHistory: history,
         data: update,
       };
 
@@ -226,15 +222,14 @@ export class WebhooksController {
       // Emit event for other services that might care
       this.eventEmitter.emit('workflow.status_update', {
         taskId: update.taskId,
-        conversationId: update.context?.conversationId || update.conversationId,
+        conversationId,
         executionId: update.executionId,
         status: update.status,
         progress,
         data: update,
       });
 
-      // Webhook is ONLY for progress updates - completion should go through agent2agent controller
-      // NEW: Emit observability event for admin monitoring and store in database (ADMIN STREAM)
+      // Emit observability event for admin monitoring and store in database (ADMIN STREAM)
       await this.storeAndBroadcastObservabilityEvent(update, {
         stepName,
         progress,
@@ -248,6 +243,7 @@ export class WebhooksController {
 
   /**
    * Store observability event in database and broadcast to admin clients
+   * Context is guaranteed to be valid (validated in handleStatusUpdate)
    */
   private async storeAndBroadcastObservabilityEvent(
     update: WorkflowStatusUpdate,
@@ -261,41 +257,33 @@ export class WebhooksController {
     try {
       const now = Date.now();
 
-      // Use context fields if available, fall back to legacy fields
-      const userId = update.context?.userId || update.userId;
-      const conversationId =
-        update.context?.conversationId || update.conversationId;
-      const agentSlug = update.context?.agentSlug || update.agentSlug;
-      const organizationSlug =
-        update.context?.orgSlug || update.organizationSlug;
+      // Context is the single source of truth - no fallbacks
+      const { userId, conversationId, agentSlug, orgSlug } = update.context;
 
-      // Resolve username if not provided
-      let username = update.username;
-      if (userId && !username) {
-        // Resolve username from userId using AuthService
-        try {
-          const userProfile = await this.observabilityService[
-            'authService'
-          ].getUserProfile(userId);
-          username =
-            userProfile?.displayName || userProfile?.email || userId;
-        } catch {
-          username = userId; // Fallback to userId if resolution fails
-        }
+      // Resolve username from userId
+      let username: string | null = null;
+      try {
+        const userProfile = await this.observabilityService[
+          'authService'
+        ].getUserProfile(userId);
+        username = userProfile?.displayName || userProfile?.email || userId;
+      } catch {
+        username = userId; // Fallback to userId if resolution fails
       }
 
       const eventData: ObservabilityEventRecord = {
-        // Include full ExecutionContext for SSE streaming
+        // ExecutionContext capsule - REQUIRED for SSE streaming
         context: update.context,
+        // Flat fields for database storage/querying (derived from context)
         source_app: 'orchestrator-ai',
         session_id: conversationId || update.taskId,
-        hook_event_type: update.status, // 'agent.started', 'agent.progress', etc.
-        user_id: userId || null,
-        username: username || null,
-        conversation_id: conversationId || null,
+        hook_event_type: update.status,
+        user_id: userId,
+        username,
+        conversation_id: conversationId,
         task_id: update.taskId,
-        agent_slug: agentSlug || null,
-        organization_slug: organizationSlug || null,
+        agent_slug: agentSlug,
+        organization_slug: orgSlug,
         mode: update.mode || null,
         status: update.status,
         message: update.message || null,
@@ -321,7 +309,6 @@ export class WebhooksController {
       }
 
       // Emit to admin clients via EventEmitter (ADMIN STREAM)
-      // This event is picked up by /observability/stream endpoint
       this.eventEmitter.emit('observability.event', {
         ...eventData,
         eventType: update.status,

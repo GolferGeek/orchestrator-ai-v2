@@ -1061,6 +1061,11 @@ export abstract class BaseAgentRunner implements IAgentRunner {
    * @returns userId if found, null otherwise
    */
   protected resolveUserId(request: TaskRequestDto): string | null {
+    // Primary source: ExecutionContext (Phase 3.5+)
+    if (request.context?.userId) {
+      return request.context.userId;
+    }
+
     // Check top-level metadata
     const metadata = request.metadata as Record<string, unknown>;
     const fromMetadata: unknown = metadata?.userId || metadata?.createdBy;

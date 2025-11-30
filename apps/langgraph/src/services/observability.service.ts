@@ -75,23 +75,21 @@ export class ObservabilityService {
       const { context } = event;
 
       const payload = {
-        // Pass the full ExecutionContext
+        // ExecutionContext capsule - SINGLE SOURCE OF TRUTH
+        // All context fields (taskId, userId, conversationId, agentSlug, orgSlug) are in here
         context,
-        // Also extract key fields for backward compatibility with existing webhook handler
-        taskId: context.taskId,
+        // Event-specific fields
+        taskId: context.taskId, // Required by webhook for routing
         status: this.mapStatusToEventType(event.status),
         timestamp: new Date().toISOString(),
-        conversationId: context.conversationId,
-        userId: context.userId,
-        agentSlug: context.agentSlug,
-        organizationSlug: context.orgSlug,
         message: event.message,
         step: event.step,
         percent: event.progress,
+        mode: 'build',
+        userMessage: event.message,
         data: {
           hook_event_type: this.mapStatusToEventType(event.status),
           source_app: 'langgraph',
-          session_id: context.conversationId || context.taskId,
           threadId: event.threadId,
           ...event.metadata,
         },

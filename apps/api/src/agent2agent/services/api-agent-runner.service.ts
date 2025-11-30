@@ -917,17 +917,52 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
       }
 
       const userId = this.resolveUserId(request);
-      const conversationId = this.resolveConversationId(request);
+      let conversationId = this.resolveConversationId(request);
+      // Phase 3.5: Primary source is ExecutionContext, fallback to payload for legacy compat
       const taskId =
-        ((request.payload as Record<string, unknown>)?.taskId as
-          | string
-          | null) || null;
+        (request.context?.taskId && request.context.taskId !== NIL_UUID
+          ? request.context.taskId
+          : null) ||
+        ((request.payload as Record<string, unknown>)?.taskId as string | null) ||
+        null;
 
-      if (!userId || !conversationId) {
+      if (!userId) {
         return TaskResponseDto.failure(
           AgentTaskMode.BUILD,
-          'Missing required userId or conversationId for API execution',
+          'Missing required userId for API execution',
         );
+      }
+
+      // Phase 3.5: If conversationId is NIL_UUID or not provided, create a new conversation
+      // This ensures deliverables can be created with valid FK references
+      if (!conversationId || conversationId === NIL_UUID) {
+        try {
+          const conversation =
+            await this.conversationsService.getOrCreateConversation(
+              {
+                userId,
+                orgSlug: organizationSlug,
+                conversationId: undefined, // Create new
+              },
+              definition.slug,
+            );
+          conversationId = conversation.id;
+          // Update context with the new conversationId
+          if (request.context) {
+            request.context.conversationId = conversationId;
+          }
+          this.logger.log(
+            `📝 [BUILD] Created conversation ${conversationId} for user ${userId}`,
+          );
+        } catch (convError) {
+          this.logger.error(
+            `❌ [BUILD] Failed to create conversation: ${convError}`,
+          );
+          return TaskResponseDto.failure(
+            AgentTaskMode.BUILD,
+            'Failed to create conversation for API execution',
+          );
+        }
       }
 
       // Check execution mode - handle websocket/polling differently
@@ -960,15 +995,16 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         `⚡ API Agent ${definition.slug}: immediate mode - executing synchronously`,
       );
 
-      // Extract provider and model from payload (same pattern as context-agent-runner)
+      // Extract provider and model - primary source is ExecutionContext (Phase 3.5+)
+      // Fallback to legacy payload.config for backwards compatibility
       const payload = request.payload;
       const config = payload?.config as
         | { provider?: string; model?: string }
         | undefined;
 
-      // Check config for LLM settings
-      const provider = config?.provider ?? null;
-      const model = config?.model ?? null;
+      // Primary: context.provider/model (Phase 3.5+), Fallback: payload.config (legacy)
+      const provider = request.context?.provider ?? config?.provider ?? null;
+      const model = request.context?.model ?? config?.model ?? null;
 
       if (
         !provider ||
@@ -978,7 +1014,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
       ) {
         return TaskResponseDto.failure(
           AgentTaskMode.BUILD,
-          `Missing LLM configuration: provider=${provider}, model=${model}. Ensure LLM provider and model are selected in the UI.`,
+          `Missing LLM configuration: provider=${provider}, model=${model}. Send context.provider/model or payload.config.`,
         );
       }
 
@@ -1005,6 +1041,14 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           modelName: model,
         },
       };
+
+      // DEBUG: Log definition structure to trace API config extraction
+      this.logger.debug(
+        `🔧 [API-CONFIG-DEBUG] Definition transport: ${JSON.stringify(definition.transport, null, 2)?.substring(0, 800)}`,
+      );
+      this.logger.debug(
+        `🔧 [API-CONFIG-DEBUG] Definition config?.api: ${JSON.stringify(definition.config?.api, null, 2)?.substring(0, 500)}`,
+      );
 
       // Get API configuration - check both config.api and transport.api
       // transport.api is used by data analyst and extended post writer agents (stored in endpoint field)
@@ -1283,7 +1327,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
 
       // DEBUG: Log raw API response to trace HITL detection (BUILD mode)
       this.logger.debug(
-        `🔍 [HITL-DEBUG-BUILD] Raw API response for ${definition.slug}: ${JSON.stringify(responseData).substring(0, 500)}`,
+        `🔍 [HITL-DEBUG-BUILD] Raw API response for ${definition.slug}: ${JSON.stringify(responseData).substring(0, 1000)}`,
       );
 
       // Check if response indicates HITL workflow (LangGraph agents return status: 'hitl_waiting')
@@ -1305,7 +1349,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           | undefined;
 
         this.logger.debug(
-          `🔍 [HITL-DEBUG-BUILD] Checking HITL: status=${hitlStatus}, hitlPending=${hitlPending}`,
+          `🔍 [HITL-DEBUG-BUILD] Checking HITL: status=${hitlStatus}, hitlPending=${hitlPending}, nestedData=${JSON.stringify(nestedData)?.substring(0, 300)}`,
         );
 
         if (hitlStatus === 'hitl_waiting' || hitlPending === true) {

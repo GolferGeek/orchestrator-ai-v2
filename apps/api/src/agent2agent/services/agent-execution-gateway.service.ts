@@ -93,6 +93,9 @@ export class AgentExecutionGateway {
       let response: TaskResponseDto;
 
       // All modes delegate to mode router with ExecutionContext
+      this.logger.debug(
+        `🔍 [GATEWAY-DEBUG] About to call modeRouter.execute() - mode: ${request.mode}, agentType: ${definition.agentType}, agentSlug: ${context.agentSlug}`,
+      );
       switch (request.mode!) {
         case AgentTaskMode.CONVERSE:
         case AgentTaskMode.PLAN:
