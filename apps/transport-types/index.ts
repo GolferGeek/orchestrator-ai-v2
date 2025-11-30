@@ -10,6 +10,8 @@
 // ============================================================================
 export type { ExecutionContext } from './core/execution-context';
 export {
+  NIL_UUID,
+  isNilUuid,
   createExecutionContext,
   createMockExecutionContext,
   isExecutionContext,

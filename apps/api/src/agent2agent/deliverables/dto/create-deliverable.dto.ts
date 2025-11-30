@@ -99,6 +99,13 @@ export class CreateDeliverableDto {
   @MaxLength(255)
   agentName?: string;
 
+  @ApiPropertyOptional({
+    description: 'Task ID that created this deliverable (links deliverable to task)',
+  })
+  @IsOptional()
+  @IsUUID()
+  taskId?: string;
+
   // Initial version data (optional - can be added later)
   @ApiPropertyOptional({ description: 'Initial content for the first version' })
   @IsOptional()

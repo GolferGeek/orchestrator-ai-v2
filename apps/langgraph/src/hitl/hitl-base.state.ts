@@ -33,6 +33,7 @@ export const HitlBaseStateAnnotation = Annotation.Root({
       userId: '',
       conversationId: '',
       taskId: '',
+      planId: '',
       deliverableId: '',
       agentSlug: '',
       agentType: '',

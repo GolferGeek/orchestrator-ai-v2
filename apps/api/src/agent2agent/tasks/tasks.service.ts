@@ -717,16 +717,12 @@ export class TasksService {
       `Updating HITL pending for task ${taskId}: pending=${pending}`,
     );
 
-    const updateData: Partial<TaskRow> = {
+    // When clearing HITL pending, explicitly set hitl_pending_since to null
+    const updateData: Record<string, unknown> = {
       hitl_pending: pending,
-      hitl_pending_since: pending ? new Date().toISOString() : undefined,
+      hitl_pending_since: pending ? new Date().toISOString() : null,
       updated_at: new Date().toISOString(),
     };
-
-    // Remove undefined fields
-    if (!pending) {
-      delete updateData.hitl_pending_since;
-    }
 
     const { error } = await this.supabaseService
       .getAnonClient()

@@ -76,11 +76,6 @@ export class Agent2AgentTaskStatusService {
         }
       }
 
-      // Handle deliverable-related fields
-      if (updates.deliverableType) {
-        updateData.deliverable_type = updates.deliverableType;
-      }
-
       // Handle response field (for storing task results)
       if (updates.response !== undefined) {
         updateData.response = updates.response;
@@ -251,16 +246,11 @@ export class Agent2AgentTaskStatusService {
       const responseMetadata =
         responseObj?.metadata || responseObj?.payload?.metadata;
 
-      // Try to extract deliverable type from multiple locations
-      const deliverableType =
-        responseObj?.payload?.type ||
-        responseObj?.payload?.content?.deliverable?.type;
-
       this.logger.debug(
         `🔍 [completeTask] Response structure - hasTopMetadata: ${!!responseObj?.metadata}, hasPayloadMetadata: ${!!responseObj?.payload?.metadata}, hasPayload: ${!!responseObj?.payload}`,
       );
       this.logger.debug(
-        `🔍 [completeTask] Extracted metadata - hasMetadata: ${!!responseMetadata}, metadataKeys: ${responseMetadata ? Object.keys(responseMetadata).join(',') : 'none'}, deliverableType: ${deliverableType}`,
+        `🔍 [completeTask] Extracted metadata - hasMetadata: ${!!responseMetadata}, metadataKeys: ${responseMetadata ? Object.keys(responseMetadata).join(',') : 'none'}`,
       );
 
       const updateData: Record<string, unknown> = {
@@ -275,14 +265,6 @@ export class Agent2AgentTaskStatusService {
         updateData.response_metadata = responseMetadata;
         this.logger.debug(
           `✅ [completeTask] Setting response_metadata with keys: ${Object.keys(responseMetadata).join(',')}`,
-        );
-      }
-
-      // Store deliverable type if available
-      if (deliverableType) {
-        updateData.deliverable_type = deliverableType;
-        this.logger.debug(
-          `✅ [completeTask] Setting deliverable_type: ${deliverableType}`,
         );
       }
 

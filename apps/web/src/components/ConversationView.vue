@@ -1026,6 +1026,21 @@ const executeRerunWithConfig = async (
 
 // HITL Modal Handlers (new modal-based HITL)
 const handleHitlModalClose = () => {
+  // When modal closes (approve/reject/replace), show processing message
+  if (props.conversation && hitlData.value) {
+    conversationsStore.addMessage(props.conversation.id, {
+      id: `hitl-processing-${Date.now()}`,
+      role: 'assistant',
+      content: 'Finalizing your content... The approved content is being processed.',
+      timestamp: new Date().toISOString(),
+      metadata: {
+        hitlProcessing: true,
+        taskId: hitlData.value.taskId,
+      },
+    });
+    scrollToBottom();
+  }
+
   showHitlModal.value = false;
   hitlData.value = null;
 };
@@ -1049,11 +1064,26 @@ const handleHitlDecision = async (response: HitlDeliverableResponse) => {
       },
     });
 
-    // If there's a deliverable, open the DeliverablesModal
+    // If there's a deliverable, fetch it from API and open the DeliverablesModal
+    // The HITL response only contains the deliverableId, not the full deliverable data
     if (response.deliverableId) {
-      const deliverable = deliverablesStore.getDeliverableById(response.deliverableId);
-      if (deliverable) {
+      try {
+        // Fetch the deliverable from the API to populate the store
+        const deliverable = await deliverablesService.getDeliverable(response.deliverableId);
+
+        // Add to store so it's available for display
+        deliverablesStore.addDeliverable(deliverable);
+
+        // Associate with conversation
+        deliverablesStore.associateDeliverableWithConversation(
+          deliverable.id,
+          props.conversation.id,
+        );
+
+        // Open the deliverables modal
         handleDeliverableCreated(deliverable);
+      } catch (err) {
+        console.error('Failed to fetch deliverable after HITL approval:', err);
       }
     }
 

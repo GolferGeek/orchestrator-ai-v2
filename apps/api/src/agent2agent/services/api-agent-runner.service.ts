@@ -18,6 +18,7 @@ import { AgentConversationsService } from '../conversations/agent-conversations.
 import * as HitlHandlers from './base-agent-runner/hitl.handlers';
 import {
   isLangGraphInterruptResponse,
+  NIL_UUID,
   type ExecutionContext,
   type HitlDecision,
   type HitlGeneratedContent,
@@ -29,6 +30,8 @@ import {
 } from '@orchestrator-ai/transport-types';
 import {
   DeliverableVersionCreationType,
+  DeliverableFormat,
+  DeliverableType,
 } from '../deliverables/dto';
 
 // ApiCallResult interface removed - inline object typing used instead
@@ -500,11 +503,27 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
   }
 
   /**
+   * Build deliverable content from HITL generated content
+   * Handles undefined/null content gracefully
+   */
+  private buildDeliverableContentFromHitl(
+    content: HitlGeneratedContent | undefined,
+  ): string {
+    if (!content) {
+      return 'Content pending review';
+    }
+    return this.contentToString(content);
+  }
+
+  /**
    * Override handleHitlResume to process the response through normal BUILD flow.
    *
    * After sending resume to LangGraph, the response is processed exactly like
    * any other BUILD response - create deliverable and return BUILD response.
    * HITL is done once the resume is sent; everything after is normal processing.
+   *
+   * IMPORTANT: Returns HitlDeliverableResponse format so frontend can check status
+   * to decide whether to close the modal.
    */
   protected async handleHitlResume(
     definition: AgentRuntimeDefinition,
@@ -524,20 +543,167 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
 
     if (!result || result.error) {
       return TaskResponseDto.failure(
-        AgentTaskMode.BUILD,
+        AgentTaskMode.HITL,
         result?.error || 'Failed to send resume to LangGraph',
       );
     }
 
-    // 2. Extract the response - this is just a normal LangGraph response now
+    // 2. Extract the response data from LangGraph
     const axiosResponse = result.response as { status: number; data: unknown };
-    const responseData = axiosResponse.data;
+    const responseData = axiosResponse.data as Record<string, unknown>;
 
-    this.logger.log(
-      `🔍 [API-HITL-RESUME] LangGraph returned response, processing through normal BUILD flow`,
+    this.logger.debug(
+      `🔍 [API-HITL-RESUME] Raw LangGraph response: ${JSON.stringify(responseData).substring(0, 500)}...`,
     );
 
-    // 3. Process exactly like executeBuild does - create deliverable
+    // Extract status from LangGraph response (nested in data.status or data.data.status)
+    // LangGraph controller returns: { success: boolean, data: { taskId, status, ... }, message?: string }
+    const nestedData = responseData.data as Record<string, unknown> | undefined;
+    const langGraphStatus =
+      (nestedData?.status as string) || (responseData.status as string) || 'completed';
+
+    this.logger.log(
+      `🔍 [API-HITL-RESUME] LangGraph returned status: ${langGraphStatus}, success: ${responseData.success}`,
+    );
+
+    // 3. Get context data
+    const userId = this.resolveUserId(request);
+    const conversationId = this.resolveConversationId(request);
+    const payload = request.payload as Record<string, unknown>;
+    const taskId = payload.taskId as string;
+
+    // 4. If LangGraph returned hitl_waiting (e.g., for regenerate), return HITL response
+    if (langGraphStatus === 'hitl_waiting' || langGraphStatus === 'regenerating') {
+      // Extract generated content for regenerate scenario
+      const generatedContent = (nestedData?.generatedContent ||
+        responseData.generatedContent || {}) as HitlGeneratedContent;
+
+      // Get deliverable info if exists
+      const deliverable = await this.deliverablesService.findByTaskId(
+        taskId,
+        userId || '',
+      );
+
+      let currentVersionNumber = 1;
+      if (deliverable) {
+        const currentVersion = await this.versionsService.getCurrentVersion(
+          deliverable.id,
+          userId || '',
+        );
+        currentVersionNumber = currentVersion?.versionNumber || 1;
+      }
+
+      const hitlResponse: HitlDeliverableResponse = {
+        taskId,
+        conversationId: conversationId || '',
+        status: 'hitl_waiting',
+        deliverableId: deliverable?.id || '',
+        currentVersionNumber,
+        message: 'Content regenerated for review',
+        agentSlug: definition.slug,
+        generatedContent,
+      };
+
+      return TaskResponseDto.success(AgentTaskMode.HITL, {
+        content: hitlResponse,
+        metadata: {
+          action: 'resume',
+          agentSlug: definition.slug,
+        },
+      });
+    }
+
+    // 5. HITL is done - this is now a normal BUILD completion
+    // Process the response exactly like any other BUILD response
+    this.logger.log(
+      `🔍 [API-HITL-RESUME] HITL approved - processing as normal BUILD completion for taskId: ${taskId}`,
+    );
+
+    // Extract generated/final content from LangGraph response
+    const finalContent = (nestedData?.finalContent ||
+      responseData.finalContent || {}) as HitlGeneratedContent;
+
+    this.logger.debug(
+      `🔍 [API-HITL-RESUME] Final content keys: ${Object.keys(finalContent).join(',')}`,
+    );
+
+    // Find existing deliverable by taskId (created when HITL was first triggered)
+    this.logger.log(
+      `🔍 [API-HITL-RESUME] Looking for existing deliverable by taskId: ${taskId}, userId: ${userId}`,
+    );
+
+    const existingDeliverable = await this.deliverablesService.findByTaskId(
+      taskId,
+      userId || '',
+    );
+
+    if (existingDeliverable) {
+      this.logger.log(
+        `🔍 [API-HITL-RESUME] Found existing deliverable: ${existingDeliverable.id}, updating with final content`,
+      );
+
+      // Build final content string from all generated content
+      const finalContentString = this.buildDeliverableContentFromHitl(finalContent);
+
+      // Create a new version with the final approved content
+      await this.versionsService.createVersion(
+        existingDeliverable.id,
+        {
+          content: finalContentString,
+          createdByType: DeliverableVersionCreationType.AI_RESPONSE,
+          metadata: {
+            hitlDecision: 'approve',
+            approvedAt: new Date().toISOString(),
+            hasSeoDescription: !!finalContent.seoDescription,
+            hasSocialPosts: !!finalContent.socialPosts && Array.isArray(finalContent.socialPosts) && finalContent.socialPosts.length > 0,
+          },
+        },
+        userId || '',
+      );
+
+      // Get the updated version number
+      const currentVersion = await this.versionsService.getCurrentVersion(
+        existingDeliverable.id,
+        userId || '',
+      );
+      const currentVersionNumber = currentVersion?.versionNumber || 2;
+
+      this.logger.log(
+        `🔍 [API-HITL-RESUME] Created version ${currentVersionNumber} for deliverable ${existingDeliverable.id}`,
+      );
+
+      // Return HitlDeliverableResponse with status 'completed' for frontend compatibility
+      // The frontend expects this structure from hitl.resume
+      const hitlCompletedResponse: HitlDeliverableResponse = {
+        taskId,
+        conversationId: conversationId || '',
+        status: 'completed',
+        deliverableId: existingDeliverable.id,
+        currentVersionNumber,
+        message: 'Content approved and finalized!',
+        agentSlug: definition.slug,
+        generatedContent: finalContent,
+      };
+
+      // Use BUILD mode but with HitlDeliverableResponse-compatible content
+      // This allows the frontend to check response.status === 'completed'
+      return TaskResponseDto.success(AgentTaskMode.BUILD, {
+        content: hitlCompletedResponse,
+        metadata: {
+          agentSlug: definition.slug,
+          hitlCompleted: true,
+          taskId,
+          deliverableId: existingDeliverable.id,
+          currentVersionNumber,
+        },
+      });
+    }
+
+    // No existing deliverable - create one via normal BUILD flow
+    this.logger.warn(
+      `🔍 [API-HITL-RESUME] No existing deliverable found for taskId ${taskId}, creating via BUILD flow`,
+    );
+
     return await this.processApiResponseAsDeliverable(
       definition,
       request,
@@ -970,12 +1136,13 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
             orgSlug: organizationSlug,
             userId,
             conversationId,
-            taskId: taskId || '',
-            deliverableId: '', // Created during execution
+            taskId: taskId || NIL_UUID,
+            planId: NIL_UUID, // Created during execution if needed
+            deliverableId: NIL_UUID, // Created during execution
             agentSlug: definition.slug,
             agentType: definition.agentType,
-            provider: provider || '',
-            model: model || '',
+            provider: provider || NIL_UUID,
+            model: model || NIL_UUID,
           };
           body = {
             context,
@@ -1163,6 +1330,85 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
             `✅ [HITL-DEBUG-BUILD] Detected HITL waiting response: taskId=${hitlTaskId}, topic=${topic?.substring(0, 50)}...`,
           );
 
+          // Create or find existing deliverable for HITL review
+          // Deliverables track the content that needs human approval
+          let deliverableId: string | undefined;
+          try {
+            // Check if deliverable already exists for this task
+            const existingDeliverable = await this.deliverablesService.findByTaskId(
+              hitlTaskId,
+              userId,
+            );
+
+            if (existingDeliverable) {
+              deliverableId = existingDeliverable.id;
+              this.logger.log(
+                `📦 [HITL-BUILD] Found existing deliverable ${deliverableId} for task ${hitlTaskId}`,
+              );
+            } else {
+              // Create new deliverable with generated content
+              const contentForDeliverable = this.buildDeliverableContentFromHitl(
+                generatedContent as HitlGeneratedContent | undefined,
+              );
+
+              // Get deliverable type from agent config, fallback to DOCUMENT
+              const agentDeliverableType = definition.config?.deliverable?.type;
+              const deliverableType = agentDeliverableType
+                ? (Object.values(DeliverableType).includes(agentDeliverableType as DeliverableType)
+                    ? (agentDeliverableType as DeliverableType)
+                    : DeliverableType.DOCUMENT)
+                : DeliverableType.DOCUMENT;
+
+              this.logger.debug(
+                `📦 [HITL-BUILD] Using deliverable type: ${deliverableType} (from agent config: ${agentDeliverableType || 'not set'})`,
+              );
+
+              const deliverable = await this.deliverablesService.create(
+                {
+                  title: topic.substring(0, 255) || 'HITL Review Content',
+                  type: deliverableType,
+                  conversationId,
+                  agentName: definition.slug,
+                  taskId: hitlTaskId,
+                  initialContent: contentForDeliverable,
+                  initialFormat: DeliverableFormat.MARKDOWN,
+                  initialCreationType: DeliverableVersionCreationType.AI_RESPONSE,
+                  initialTaskId: hitlTaskId,
+                  initialMetadata: {
+                    hitlStatus: 'pending_review',
+                    generatedAt: new Date().toISOString(),
+                    provider,
+                    model,
+                  },
+                },
+                userId,
+              );
+              deliverableId = deliverable.id;
+              this.logger.log(
+                `📦 [HITL-BUILD] Created deliverable ${deliverableId} for HITL task ${hitlTaskId}`,
+              );
+            }
+          } catch (deliverableError) {
+            // Log error but don't fail - HITL can still proceed without deliverable
+            this.logger.error(
+              `⚠️ [HITL-BUILD] Failed to create/find deliverable for task ${hitlTaskId}:`,
+              deliverableError,
+            );
+          }
+
+          // Set hitl_pending flag on the task before returning
+          try {
+            await this.tasksService.updateHitlPending(hitlTaskId, true);
+            this.logger.log(
+              `✅ [HITL-BUILD] Set hitl_pending=true on task ${hitlTaskId}`,
+            );
+          } catch (hitlPendingError) {
+            this.logger.error(
+              `⚠️ [HITL-BUILD] Failed to set hitl_pending on task ${hitlTaskId}:`,
+              hitlPendingError,
+            );
+          }
+
           return TaskResponseDto.hitlWaiting(
             {
               taskId: hitlTaskId,
@@ -1172,6 +1418,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
               generatedContent: generatedContent as
                 | import('@orchestrator-ai/transport-types').HitlGeneratedContent
                 | undefined,
+              deliverableId,
             },
             {
               agentSlug: definition.slug,

@@ -38,8 +38,13 @@ export class AgentModeRouterService {
     const payload = context.request.payload as Record<string, unknown> | undefined;
     const method = payload?.method as string | undefined;
 
+    this.logger.log(
+      `🔍 [MODE-ROUTER] execute() called - mode: ${context.request.mode}, payload.method: ${method}, agentSlug: ${context.agentSlug}`,
+    );
+
     // Route HITL methods (hitl.resume, hitl.status, hitl.history, hitl.pending)
     if (method?.startsWith('hitl.')) {
+      this.logger.log(`🔍 [MODE-ROUTER] Routing to HITL method handler: ${method}`);
       return this.routeHitlMethod(method, context);
     }
 

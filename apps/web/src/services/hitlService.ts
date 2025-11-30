@@ -50,12 +50,17 @@ interface JsonRpcRequest {
 
 /**
  * JSON-RPC response structure
+ * The result contains the TaskResponseDto from the backend
  */
 interface JsonRpcResponse<T> {
   jsonrpc: '2.0';
   result?: {
     success: boolean;
-    payload: T;
+    mode?: string;
+    payload: {
+      content: T;
+      metadata?: Record<string, unknown>;
+    };
   };
   error?: {
     code: number;
@@ -152,7 +157,8 @@ class HitlService {
       throw new Error('HITL request failed');
     }
 
-    return jsonRpcResponse.result.payload;
+    // Extract the content from payload.content (TaskResponseDto structure)
+    return jsonRpcResponse.result.payload.content;
   }
 
   /**

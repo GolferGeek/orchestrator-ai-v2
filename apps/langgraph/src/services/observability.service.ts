@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
+import { ExecutionContext } from '@orchestrator-ai/transport-types';
 
 /**
  * Status types for LangGraph workflow execution
@@ -18,18 +19,22 @@ export type LangGraphStatus =
 
 /**
  * Observability event payload for LangGraph workflows
+ * Uses ExecutionContext as the single source of context.
  */
 export interface LangGraphObservabilityEvent {
-  taskId: string;
+  /** ExecutionContext - passed through unchanged */
+  context: ExecutionContext;
+  /** LangGraph thread ID (usually same as taskId) */
   threadId: string;
+  /** Event status */
   status: LangGraphStatus;
-  agentSlug: string;
-  userId: string;
-  conversationId?: string;
-  organizationSlug?: string;
+  /** Human-readable message */
   message?: string;
+  /** Current step/phase name */
   step?: string;
+  /** Progress percentage (0-100) */
   progress?: number;
+  /** Additional metadata */
   metadata?: Record<string, unknown>;
 }
 
@@ -37,8 +42,7 @@ export interface LangGraphObservabilityEvent {
  * ObservabilityService for LangGraph
  *
  * Sends observability events to the Orchestrator AI API's webhook endpoint.
- * This replaces WebhookStatusService and provides a cleaner interface
- * specifically designed for LangGraph workflow events.
+ * Takes ExecutionContext and passes it through - never constructs or modifies it.
  */
 @Injectable()
 export class ObservabilityService {
@@ -68,31 +72,35 @@ export class ObservabilityService {
   async emit(event: LangGraphObservabilityEvent): Promise<void> {
     try {
       const url = `${this.apiBaseUrl}/webhooks/status`;
+      const { context } = event;
 
       const payload = {
-        taskId: event.taskId,
+        // Pass the full ExecutionContext
+        context,
+        // Also extract key fields for backward compatibility with existing webhook handler
+        taskId: context.taskId,
         status: this.mapStatusToEventType(event.status),
         timestamp: new Date().toISOString(),
-        conversationId: event.conversationId,
-        userId: event.userId,
-        agentSlug: event.agentSlug,
-        organizationSlug: event.organizationSlug,
+        conversationId: context.conversationId,
+        userId: context.userId,
+        agentSlug: context.agentSlug,
+        organizationSlug: context.orgSlug,
         message: event.message,
         step: event.step,
         percent: event.progress,
         data: {
           hook_event_type: this.mapStatusToEventType(event.status),
           source_app: 'langgraph',
-          session_id: event.conversationId || event.taskId,
+          session_id: context.conversationId || context.taskId,
           threadId: event.threadId,
           ...event.metadata,
         },
       };
 
       this.logger.debug(`Emitting observability event: ${event.status}`, {
-        taskId: event.taskId,
+        taskId: context.taskId,
         threadId: event.threadId,
-        agentSlug: event.agentSlug,
+        agentSlug: context.agentSlug,
       });
 
       await firstValueFrom(
@@ -131,177 +139,154 @@ export class ObservabilityService {
   /**
    * Convenience: Emit workflow started event
    */
-  async emitStarted(params: {
-    taskId: string;
-    threadId: string;
-    agentSlug: string;
-    userId: string;
-    conversationId?: string;
-    organizationSlug?: string;
-    message?: string;
-  }): Promise<void> {
+  async emitStarted(
+    context: ExecutionContext,
+    threadId: string,
+    message?: string,
+  ): Promise<void> {
     await this.emit({
-      ...params,
+      context,
+      threadId,
       status: 'started',
-      message: params.message || 'Workflow started',
+      message: message || 'Workflow started',
     });
   }
 
   /**
    * Convenience: Emit processing/progress event
    */
-  async emitProgress(params: {
-    taskId: string;
-    threadId: string;
-    agentSlug: string;
-    userId: string;
-    conversationId?: string;
-    organizationSlug?: string;
-    message: string;
-    step?: string;
-    progress?: number;
-    metadata?: Record<string, unknown>;
-  }): Promise<void> {
+  async emitProgress(
+    context: ExecutionContext,
+    threadId: string,
+    message: string,
+    options?: {
+      step?: string;
+      progress?: number;
+      metadata?: Record<string, unknown>;
+    },
+  ): Promise<void> {
     await this.emit({
-      ...params,
+      context,
+      threadId,
       status: 'processing',
+      message,
+      step: options?.step,
+      progress: options?.progress,
+      metadata: options?.metadata,
     });
   }
 
   /**
    * Convenience: Emit HITL waiting event
    */
-  async emitHitlWaiting(params: {
-    taskId: string;
-    threadId: string;
-    agentSlug: string;
-    userId: string;
-    conversationId?: string;
-    organizationSlug?: string;
-    message?: string;
-    pendingContent?: unknown;
-  }): Promise<void> {
+  async emitHitlWaiting(
+    context: ExecutionContext,
+    threadId: string,
+    pendingContent?: unknown,
+    message?: string,
+  ): Promise<void> {
     await this.emit({
-      ...params,
+      context,
+      threadId,
       status: 'hitl_waiting',
-      message: params.message || 'Awaiting human review',
-      metadata: { pendingContent: params.pendingContent },
+      message: message || 'Awaiting human review',
+      metadata: { pendingContent },
     });
   }
 
   /**
    * Convenience: Emit HITL resumed event
    */
-  async emitHitlResumed(params: {
-    taskId: string;
-    threadId: string;
-    agentSlug: string;
-    userId: string;
-    conversationId?: string;
-    organizationSlug?: string;
-    decision: 'approve' | 'edit' | 'reject';
-    message?: string;
-  }): Promise<void> {
+  async emitHitlResumed(
+    context: ExecutionContext,
+    threadId: string,
+    decision: 'approve' | 'edit' | 'reject',
+    message?: string,
+  ): Promise<void> {
     await this.emit({
-      ...params,
+      context,
+      threadId,
       status: 'hitl_resumed',
-      message: params.message || `Human review decision: ${params.decision}`,
-      metadata: { decision: params.decision },
+      message: message || `Human review decision: ${decision}`,
+      metadata: { decision },
     });
   }
 
   /**
    * Convenience: Emit tool calling event
    */
-  async emitToolCalling(params: {
-    taskId: string;
-    threadId: string;
-    agentSlug: string;
-    userId: string;
-    conversationId?: string;
-    organizationSlug?: string;
-    toolName: string;
-    toolInput?: unknown;
-  }): Promise<void> {
+  async emitToolCalling(
+    context: ExecutionContext,
+    threadId: string,
+    toolName: string,
+    toolInput?: unknown,
+  ): Promise<void> {
     await this.emit({
-      ...params,
+      context,
+      threadId,
       status: 'tool_calling',
-      message: `Calling tool: ${params.toolName}`,
-      step: params.toolName,
-      metadata: { toolName: params.toolName, toolInput: params.toolInput },
+      message: `Calling tool: ${toolName}`,
+      step: toolName,
+      metadata: { toolName, toolInput },
     });
   }
 
   /**
    * Convenience: Emit tool completed event
    */
-  async emitToolCompleted(params: {
-    taskId: string;
-    threadId: string;
-    agentSlug: string;
-    userId: string;
-    conversationId?: string;
-    organizationSlug?: string;
-    toolName: string;
-    toolResult?: unknown;
-    success: boolean;
-    error?: string;
-  }): Promise<void> {
+  async emitToolCompleted(
+    context: ExecutionContext,
+    threadId: string,
+    toolName: string,
+    success: boolean,
+    toolResult?: unknown,
+    error?: string,
+  ): Promise<void> {
     await this.emit({
-      ...params,
+      context,
+      threadId,
       status: 'tool_completed',
-      message: params.success
-        ? `Tool completed: ${params.toolName}`
-        : `Tool failed: ${params.toolName}`,
-      step: params.toolName,
-      metadata: {
-        toolName: params.toolName,
-        toolResult: params.toolResult,
-        success: params.success,
-        error: params.error,
-      },
+      message: success
+        ? `Tool completed: ${toolName}`
+        : `Tool failed: ${toolName}`,
+      step: toolName,
+      metadata: { toolName, toolResult, success, error },
     });
   }
 
   /**
    * Convenience: Emit workflow completed event
    */
-  async emitCompleted(params: {
-    taskId: string;
-    threadId: string;
-    agentSlug: string;
-    userId: string;
-    conversationId?: string;
-    organizationSlug?: string;
-    result?: unknown;
-    duration?: number;
-  }): Promise<void> {
+  async emitCompleted(
+    context: ExecutionContext,
+    threadId: string,
+    result?: unknown,
+    duration?: number,
+  ): Promise<void> {
     await this.emit({
-      ...params,
+      context,
+      threadId,
       status: 'completed',
       message: 'Workflow completed successfully',
-      metadata: { result: params.result, duration: params.duration },
+      metadata: { result, duration },
     });
   }
 
   /**
    * Convenience: Emit workflow failed event
    */
-  async emitFailed(params: {
-    taskId: string;
-    threadId: string;
-    agentSlug: string;
-    userId: string;
-    conversationId?: string;
-    organizationSlug?: string;
-    error: string;
-    duration?: number;
-  }): Promise<void> {
+  async emitFailed(
+    context: ExecutionContext,
+    threadId: string,
+    error: string,
+    duration?: number,
+  ): Promise<void> {
     await this.emit({
-      ...params,
+      context,
+      threadId,
       status: 'failed',
-      message: `Workflow failed: ${params.error}`,
-      metadata: { error: params.error, duration: params.duration },
+      message: `Workflow failed: ${error}`,
+      metadata: { error, duration },
     });
   }
 }

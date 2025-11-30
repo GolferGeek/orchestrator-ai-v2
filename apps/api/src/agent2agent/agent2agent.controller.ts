@@ -45,6 +45,7 @@ import {
   A2ATaskSuccessResponse,
   A2ATaskErrorResponse,
   ExecutionContext,
+  NIL_UUID,
 } from '@orchestrator-ai/transport-types';
 import { Response, Request } from 'express';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -266,10 +267,18 @@ export class Agent2AgentController {
   ): Promise<TaskResponseDto | JsonRpcSuccessEnvelope | JsonRpcErrorEnvelope> {
     let org = this.normalizeOrgSlug(orgSlug);
 
+    this.logger.log(
+      `🔍 [A2A-CTRL] Request received - org: ${org}, agent: ${agentSlug}, body.method: ${(body as Record<string, unknown>)?.method}`,
+    );
+
     // ADAPTER: Transform frontend CreateTaskDto format to Agent2Agent TaskRequestDto format
     const adaptedBody = this.adaptFrontendRequest(body);
 
     const { dto, jsonrpc } = await this.normalizeTaskRequest(adaptedBody);
+
+    this.logger.log(
+      `🔍 [A2A-CTRL] After normalization - mode: ${dto.mode}, payload.method: ${(dto.payload as Record<string, unknown>)?.method}, taskId: ${(dto.payload as Record<string, unknown>)?.taskId}`,
+    );
 
     // If conversation exists, use its organization_slug for routing
     // This handles cases where frontend sends 'global' but conversation is actually in a specific org
@@ -356,34 +365,56 @@ export class Agent2AgentController {
       // Organization slug comes from the URL path parameter (already normalized by normalizeOrgSlug)
       const organizationSlug = org;
 
-      // CRITICAL: Persist task AND conversation to database BEFORE execution
-      // (like DynamicAgentsController does)
-      // TasksService.createTask automatically handles conversation creation/retrieval
-      const task = await this.tasksService.createTask(
-        {
-          userId: currentUser.id,
-          orgSlug: organizationSlug,
-          conversationId: dto.conversationId,
-        },
-        agentSlug, // agentName
-        {
-          method: dto.mode, // Use the normalized mode from DTO (guaranteed to be set)
-          prompt: dto.userMessage || '',
-          taskId: taskIdFromPayload,
-          metadata: dto.metadata || {},
-          llmSelection: llmSelectionFromPayload,
-          conversationHistory: conversationHistoryFromMessages,
-        },
-      );
+      // Check if this is an HITL method (hitl.resume, hitl.status, etc.)
+      // These methods operate on existing tasks, not create new ones
+      const payloadMethod =
+        typeof dto.payload?.method === 'string' ? dto.payload.method : null;
+      const isHitlMethod =
+        payloadMethod?.startsWith('hitl.') || dto.mode === AgentTaskMode.HITL;
+
+      let taskId: string;
+      let conversationId: string;
+
+      if (isHitlMethod && taskIdFromPayload) {
+        // HITL operations use the existing task - don't create a new one
+        this.logger.log(
+          `🔄 HITL operation (${payloadMethod || dto.mode}) using existing task: ${taskIdFromPayload}`,
+        );
+        taskId = taskIdFromPayload;
+        conversationId = dto.conversationId ?? '';
+      } else {
+        // CRITICAL: Persist task AND conversation to database BEFORE execution
+        // (like DynamicAgentsController does)
+        // TasksService.createTask automatically handles conversation creation/retrieval
+        const task = await this.tasksService.createTask(
+          {
+            userId: currentUser.id,
+            orgSlug: organizationSlug,
+            conversationId: dto.conversationId,
+          },
+          agentSlug, // agentName
+          {
+            method: dto.mode, // Use the normalized mode from DTO (guaranteed to be set)
+            prompt: dto.userMessage || '',
+            taskId: taskIdFromPayload,
+            metadata: dto.metadata || {},
+            llmSelection: llmSelectionFromPayload,
+            conversationHistory: conversationHistoryFromMessages,
+          },
+        );
+        taskId = task.id;
+        conversationId = task.agentConversationId ?? dto.conversationId ?? '';
+      }
 
       // Build full ExecutionContext now that we have taskId
-      // Note: deliverableId may be created later during execution
+      // Note: planId and deliverableId use NIL_UUID until created during execution
       const context: ExecutionContext = {
         orgSlug: organizationSlug,
         userId: currentUser.id,
-        conversationId: task.agentConversationId ?? dto.conversationId ?? '',
-        taskId: task.id,
-        deliverableId: '', // Will be set during execution if needed
+        conversationId,
+        taskId,
+        planId: NIL_UUID, // Will be set during execution if a plan is created/used
+        deliverableId: NIL_UUID, // Will be set during execution if a deliverable is created
         agentSlug,
         agentType: agentRecord.agent_type,
         provider: llmSelectionFromPayload?.provider ?? 'anthropic',
@@ -395,12 +426,12 @@ export class Agent2AgentController {
         ...dto.metadata,
         userId: currentUser.id,
         createdBy: currentUser.id,
-        taskId: task.id,
+        taskId,
       };
 
       // Also add taskId to payload for backward compatibility
       if (dto.payload) {
-        dto.payload.taskId = task.id;
+        dto.payload.taskId = taskId;
       }
 
       // Mark task as running before execution starts
@@ -415,8 +446,8 @@ export class Agent2AgentController {
         request,
         organizationSlug: org,
         agentSlug,
-        taskId: task.id,
-        conversationId: task.agentConversationId ?? null,
+        taskId,
+        conversationId: conversationId || null,
       });
 
       // Check if task completion was already handled by the agent (to avoid duplicate completion)
@@ -433,7 +464,7 @@ export class Agent2AgentController {
           await this.agentDeliverablesService.createFromTaskResult(
             result,
             currentUser.id,
-            task.id,
+            taskId,
             agentSlug,
             dto.conversationId || '',
             dto.mode,

@@ -25,6 +25,7 @@ export interface HitlResponsePayload {
   hitlPending: boolean;
   generatedContent?: HitlGeneratedContent;
   finalContent?: HitlGeneratedContent;
+  deliverableId?: string;
   error?: string;
   duration?: number;
 }

@@ -697,6 +697,7 @@ export class DeliverablesService implements IActionHandler {
               agent_name: createDto.agentName || null,
               title: createDto.title,
               type: createDto.type || null,
+              task_id: createDto.taskId || null,
             },
           ])
           .select('*')

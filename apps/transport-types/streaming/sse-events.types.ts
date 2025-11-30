@@ -4,6 +4,8 @@
  * consistent event payloads when streaming task progress.
  */
 
+import type { ExecutionContext } from '../core/execution-context';
+
 /**
  * Base SSE event contract.
  * All events inherit standard SSE fields plus strongly typed payloads.
@@ -21,20 +23,18 @@ export interface BaseSSEEvent<EventType extends string = string, Data = unknown>
 
 /**
  * Common context shared across agent stream events.
+ *
+ * Uses the full ExecutionContext capsule - context travels whole, never cherry-picked.
  */
 export interface AgentStreamContext {
+  /** Full ExecutionContext capsule (REQUIRED - never partial) */
+  context: ExecutionContext;
   /** Unique stream identifier (per execution). */
   streamId: string;
-  /** Optional conversation identifier associated with the stream. */
-  conversationId?: string;
-  /** Optional orchestration run identifier. */
-  orchestrationRunId?: string;
-  /** Organization slug; null when not scoped to an org. */
-  organizationSlug: string | null;
-  /** Agent slug responsible for the stream. */
-  agentSlug: string;
   /** Agent task mode (plan, build, converse, etc.). */
   mode: string;
+  /** The user's original message that triggered this stream (REQUIRED). */
+  userMessage: string;
   /** ISO timestamp representing when the event was emitted. */
   timestamp: string;
 }
@@ -107,10 +107,12 @@ export type AgentStreamErrorSSEEvent = BaseSSEEvent<
 
 /**
  * Payload for human-facing task progress updates.
+ *
+ * Uses full ExecutionContext capsule for complete observability.
  */
 export interface TaskProgressData {
-  /** Task identifier. */
-  taskId: string;
+  /** Full ExecutionContext capsule (REQUIRED - never partial) */
+  context: ExecutionContext;
   /** Progress percentage (0-100). */
   progress: number;
   /** Optional descriptive message. */

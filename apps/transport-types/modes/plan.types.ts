@@ -62,16 +62,17 @@ export interface PlanEditPayload {
 
 /**
  * Plan Rerun Action Payload
+ * Used to regenerate a plan version with a different LLM configuration.
  */
 export interface PlanRerunPayload {
   action: 'rerun';
   /** Version ID to rerun (REQUIRED) */
   versionId: string;
-  /** LLM configuration (REQUIRED) */
-  config: {
-    /** LLM provider (REQUIRED) */
+  /** LLM configuration for this rerun (REQUIRED - this is why you're calling rerun) */
+  llmOverride: {
+    /** LLM provider */
     provider: string;
-    /** LLM model (REQUIRED) */
+    /** LLM model */
     model: string;
     /** Temperature for generation (optional - defaults to model default) */
     temperature?: number;

@@ -64,16 +64,17 @@ export interface BuildEditPayload {
 
 /**
  * Build Rerun Action Payload
+ * Used to regenerate a deliverable version with a different LLM configuration.
  */
 export interface BuildRerunPayload {
   action: 'rerun';
   /** Version ID to rerun (REQUIRED) */
   versionId: string;
-  /** LLM configuration (REQUIRED) */
-  config: {
-    /** LLM provider (REQUIRED) */
+  /** LLM configuration for this rerun (REQUIRED - this is why you're calling rerun) */
+  llmOverride: {
+    /** LLM provider */
     provider: string;
-    /** LLM model (REQUIRED) */
+    /** LLM model */
     model: string;
     /** Temperature for generation (optional - defaults to model default) */
     temperature?: number;

@@ -565,6 +565,135 @@ export class LLMNodeExecutor {
 }
 ```
 
+#### 3.5 ExecutionContext Pass-Through (Immutable Context)
+
+**Principle:** ExecutionContext is an immutable capsule that travels through the entire system unchanged. LangGraph receives it at the endpoint and passes it through to all services (LLM, Observability) without modification.
+
+**ExecutionContext Definition (from transport-types):**
+```typescript
+// apps/transport-types/src/shared/execution-context.types.ts
+export interface ExecutionContext {
+  orgSlug: string;
+  userId: string;
+  conversationId: string;
+  taskId: string;
+  planId: string;           // NIL_UUID if no plan
+  deliverableId: string;    // NIL_UUID if no deliverable
+  agentSlug: string;
+  agentType: string;
+  provider: string;
+  model: string;
+}
+
+// Type guard for validation
+export function isExecutionContext(value: unknown): value is ExecutionContext;
+```
+
+**Implementation Requirements:**
+
+1. **DTOs use ExecutionContext from transport-types:**
+```typescript
+// apps/langgraph/src/agents/{agent}/dto/{agent}-request.dto.ts
+import { ExecutionContext } from '@orchestrator-ai/transport-types';
+import { IsValidExecutionContext } from '../../../common/validators/execution-context.validator';
+
+export class DataAnalystRequestDto {
+  @IsValidExecutionContext()  // Custom validator using isExecutionContext()
+  context!: ExecutionContext;
+
+  @IsString()
+  @IsNotEmpty()
+  userMessage!: string;
+}
+```
+
+2. **Custom validator uses transport-types type guard:**
+```typescript
+// apps/langgraph/src/common/validators/execution-context.validator.ts
+import { registerDecorator, ValidationOptions, ValidationArguments } from 'class-validator';
+import { isExecutionContext } from '@orchestrator-ai/transport-types';
+
+export function IsValidExecutionContext(validationOptions?: ValidationOptions) {
+  return function (object: object, propertyName: string) {
+    registerDecorator({
+      name: 'isValidExecutionContext',
+      target: object.constructor,
+      propertyName: propertyName,
+      options: {
+        message: 'context must be a valid ExecutionContext with all required fields',
+        ...validationOptions,
+      },
+      validator: {
+        validate(value: unknown, _args: ValidationArguments) {
+          return isExecutionContext(value);
+        },
+      },
+    });
+  };
+}
+```
+
+3. **LangGraph State stores ExecutionContext:**
+```typescript
+// In state annotation
+executionContext: Annotation<ExecutionContext>({
+  reducer: (_, next) => next,
+  default: () => ({
+    orgSlug: '',
+    userId: '',
+    conversationId: '',
+    taskId: '',
+    planId: '',
+    deliverableId: '',
+    agentSlug: '',
+    agentType: '',
+    provider: '',
+    model: '',
+  }),
+}),
+```
+
+4. **Services take ExecutionContext as first parameter:**
+```typescript
+// ObservabilityService
+async emitStarted(context: ExecutionContext, threadId: string, message?: string): Promise<void>
+async emitProgress(context: ExecutionContext, threadId: string, message: string, options?: {...}): Promise<void>
+async emitCompleted(context: ExecutionContext, threadId: string, result?: unknown, duration?: number): Promise<void>
+async emitFailed(context: ExecutionContext, threadId: string, error: string, duration?: number): Promise<void>
+
+// LLMHttpClientService
+async callLLM(params: { context: ExecutionContext; userMessage: string; callerName: string; ... }): Promise<LLMCallResponse>
+```
+
+5. **Graph nodes pass ExecutionContext through:**
+```typescript
+async function startNode(state: DataAnalystState): Promise<Partial<DataAnalystState>> {
+  const ctx = state.executionContext;  // Get from state
+
+  // Pass to observability - context travels whole, never cherry-picked
+  await observability.emitStarted(ctx, ctx.taskId, 'Starting analysis');
+
+  // Pass to LLM client
+  const response = await llmClient.callLLM({
+    context: ctx,  // Pass entire context
+    userMessage: prompt,
+    callerName: AGENT_SLUG,
+  });
+
+  return { status: 'discovering', ... };
+}
+```
+
+**Key Rules:**
+- ❌ NEVER construct ExecutionContext in LangGraph - only receive it
+- ❌ NEVER cherry-pick individual fields from context to pass to services
+- ❌ NEVER modify ExecutionContext after receiving it
+- ✅ ALWAYS pass ExecutionContext as a whole to services
+- ✅ ALWAYS use the type from transport-types
+- ✅ ALWAYS validate with isExecutionContext() type guard
+
+---
+
 #### 3.3 Build Marketing Swarm Graph
 
 **`workflows/graphs/marketing-swarm.graph.ts`:**

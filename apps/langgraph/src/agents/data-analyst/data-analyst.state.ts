@@ -69,6 +69,7 @@ export const DataAnalystStateAnnotation = Annotation.Root({
       userId: '',
       conversationId: '',
       taskId: '',
+      planId: '',
       deliverableId: '',
       agentSlug: '',
       agentType: '',

@@ -12,8 +12,25 @@
  */
 
 /**
+ * Nil UUID - used when no entity exists for a field
+ * This is the standard "zero UUID" per RFC 4122
+ */
+export const NIL_UUID = '00000000-0000-0000-0000-000000000000';
+
+/**
+ * Check if a UUID is the nil UUID (no entity)
+ */
+export function isNilUuid(uuid: string): boolean {
+  return uuid === NIL_UUID;
+}
+
+/**
  * Core execution context - always present on every A2A request
  * All fields are required as they are provided with every call through the A2A service
+ *
+ * For fields that may not have a value (e.g., planId when no plan exists),
+ * use NIL_UUID ('00000000-0000-0000-0000-000000000000') instead of null/undefined.
+ * This keeps the interface consistent and avoids null checks.
  */
 export interface ExecutionContext {
   /** Organization slug */
@@ -28,7 +45,10 @@ export interface ExecutionContext {
   /** Task ID */
   taskId: string;
 
-  /** Deliverable ID */
+  /** Plan ID (use NIL_UUID if no plan) */
+  planId: string;
+
+  /** Deliverable ID (use NIL_UUID if no deliverable) */
   deliverableId: string;
 
   /** Agent slug */
@@ -37,10 +57,10 @@ export interface ExecutionContext {
   /** Agent type (e.g., 'context', 'api', 'orchestrator', 'rag', 'langgraph') */
   agentType: string;
 
-  /** LLM provider (e.g., 'openai', 'anthropic', 'ollama', 'google') */
+  /** LLM provider (e.g., 'openai', 'anthropic', 'ollama', 'google') - use NIL_UUID if API agent with fixed provider */
   provider: string;
 
-  /** LLM model identifier (e.g., 'gpt-4', 'claude-sonnet-4-20250514') */
+  /** LLM model identifier (e.g., 'gpt-4', 'claude-sonnet-4-20250514') - use NIL_UUID if API agent with fixed model */
   model: string;
 }
 
@@ -53,6 +73,7 @@ export function createExecutionContext(params: {
   userId: string;
   conversationId: string;
   taskId: string;
+  planId: string;
   deliverableId: string;
   agentSlug: string;
   agentType: string;
@@ -73,6 +94,7 @@ export function createMockExecutionContext(
     userId: 'test-user-id',
     conversationId: 'test-conversation-id',
     taskId: 'test-task-id',
+    planId: NIL_UUID,
     deliverableId: 'test-deliverable-id',
     agentSlug: 'test-agent',
     agentType: 'context',
@@ -98,6 +120,7 @@ export function isExecutionContext(obj: unknown): obj is ExecutionContext {
     typeof candidate.userId === 'string' &&
     typeof candidate.conversationId === 'string' &&
     typeof candidate.taskId === 'string' &&
+    typeof candidate.planId === 'string' &&
     typeof candidate.deliverableId === 'string' &&
     typeof candidate.agentSlug === 'string' &&
     typeof candidate.agentType === 'string' &&

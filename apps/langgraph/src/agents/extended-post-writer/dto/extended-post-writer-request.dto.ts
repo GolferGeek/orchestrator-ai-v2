@@ -1,57 +1,17 @@
-import { IsString, IsOptional, IsArray, IsNotEmpty, ValidateNested, IsObject } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsString, IsOptional, IsArray, IsNotEmpty } from 'class-validator';
 import { ExecutionContext } from '@orchestrator-ai/transport-types';
-
-/**
- * Execution context DTO - all required fields
- */
-class ExecutionContextDto implements ExecutionContext {
-  @IsString()
-  @IsNotEmpty()
-  orgSlug!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  userId!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  conversationId!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  taskId!: string;
-
-  @IsString()
-  deliverableId!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  agentSlug!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  agentType!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  provider!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  model!: string;
-}
+import { IsValidExecutionContext } from '../../../common/validators/execution-context.validator';
 
 /**
  * Request DTO for Extended Post Writer agent
  *
- * ExecutionContext is required - no individual fields accepted
+ * Uses ExecutionContext type directly from transport-types.
+ * Validation is done via custom @IsValidExecutionContext decorator
+ * which uses the isExecutionContext() type guard from transport-types.
  */
 export class ExtendedPostWriterRequestDto {
-  @IsObject()
-  @ValidateNested()
-  @Type(() => ExecutionContextDto)
-  context!: ExecutionContextDto;
+  @IsValidExecutionContext()
+  context!: ExecutionContext;
 
   @IsString()
   @IsNotEmpty()

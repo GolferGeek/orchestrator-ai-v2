@@ -10,7 +10,7 @@ import { Request } from 'express';
 import { AgentExecutionGateway } from '../services/agent-execution-gateway.service';
 import { HumanApprovalsRepository } from '@/agent-platform/repositories/human-approvals.repository';
 import { TaskRequestDto } from '../dto/task-request.dto';
-import { ExecutionContext } from '@orchestrator-ai/transport-types';
+import { ExecutionContext, NIL_UUID } from '@orchestrator-ai/transport-types';
 
 interface StoredRequest {
   conversationId?: string;
@@ -111,13 +111,14 @@ export class AgentApprovalsActionsController {
     }
 
     // Build ExecutionContext for approval continuation
-    // Note: Some fields may not be stored in older approvals, provide defaults
+    // Note: Some fields may not be stored in older approvals, use NIL_UUID as default
     const context: ExecutionContext = {
       orgSlug: record.organization_slug ?? orgSlug ?? 'global',
       userId: userId ?? 'unknown',
-      conversationId: record.conversation_id ?? stored.conversationId ?? '',
-      taskId: stored.taskId ?? '',
-      deliverableId: stored.deliverableId ?? '',
+      conversationId: record.conversation_id ?? stored.conversationId ?? NIL_UUID,
+      taskId: stored.taskId ?? NIL_UUID,
+      planId: NIL_UUID, // Approvals don't store planId yet
+      deliverableId: stored.deliverableId ?? NIL_UUID,
       agentSlug,
       agentType: stored.agentType ?? 'context',
       provider: stored.provider ?? 'anthropic',
