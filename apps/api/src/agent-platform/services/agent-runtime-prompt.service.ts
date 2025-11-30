@@ -53,8 +53,8 @@ export class AgentRuntimePromptService {
       userMessage,
       metadata,
       optionMetadata,
-      conversationId: options.request.conversationId,
-      sessionId: options.request.sessionId,
+      conversationId: options.request.context?.conversationId,
+      sessionId: options.request.context?.taskId,
       userId: this.resolveUserId(options.request, metadata),
     };
   }

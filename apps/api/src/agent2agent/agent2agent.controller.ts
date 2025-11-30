@@ -40,26 +40,20 @@ import { AgentRegistryService } from '../agent-platform/services/agent-registry.
 import { AgentRecord } from '../agent-platform/interfaces/agent.interface';
 import { Public } from '../auth/decorators/public.decorator';
 import { Agent2AgentDeliverablesService } from './services/agent2agent-deliverables.service';
-import { SupabaseService } from '../supabase/supabase.service';
 import {
   A2ATaskSuccessResponse,
   A2ATaskErrorResponse,
-  ExecutionContext,
   NIL_UUID,
-} from '@orchestrator-ai/transport-types';
-import { Response, Request } from 'express';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import {
-  AgentStreamChunkEvent,
-  AgentStreamCompleteEvent,
-  AgentStreamErrorEvent,
-} from '../agent-platform/services/agent-runtime-stream.service';
-import {
+  AgentStreamChunkData,
+  AgentStreamCompleteData,
+  AgentStreamErrorData,
   AgentStreamChunkSSEEvent,
   AgentStreamCompleteSSEEvent,
   AgentStreamErrorSSEEvent,
   SSEEvent,
 } from '@orchestrator-ai/transport-types';
+import { Response, Request } from 'express';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CreateStreamTokenDto } from './dto/create-stream-token.dto';
 import {
   StreamTokenClaims,
@@ -84,13 +78,6 @@ interface NormalizedTaskRequest {
     id: string | number | null;
     method?: string | null;
   };
-}
-
-/**
- * Database record type for conversations table (organization_slug only)
- */
-interface ConversationOrgRecord {
-  organization_slug: string;
 }
 
 interface TaskExecutionResult {
@@ -144,7 +131,6 @@ export class Agent2AgentController {
     private readonly agentConversationsService: Agent2AgentConversationsService,
     private readonly agentRegistry: AgentRegistryService,
     private readonly agentDeliverablesService: Agent2AgentDeliverablesService,
-    private readonly supabaseService: SupabaseService,
     private readonly streamTokenService: StreamTokenService,
     private readonly eventEmitter: EventEmitter2,
     private readonly deliverablesService: DeliverablesService,
@@ -265,106 +251,54 @@ export class Agent2AgentController {
     @CurrentUser() currentUser: SupabaseAuthUserDto,
     @Req() request: RequestWithStreamData,
   ): Promise<TaskResponseDto | JsonRpcSuccessEnvelope | JsonRpcErrorEnvelope> {
-    let org = this.normalizeOrgSlug(orgSlug);
-
     this.logger.log(
-      `🔍 [A2A-CTRL] Request received - org: ${org}, agent: ${agentSlug}, body.method: ${(body as Record<string, unknown>)?.method}`,
+      `🔍 [A2A-CTRL] Request received - org: ${orgSlug}, agent: ${agentSlug}, body.method: ${(body as Record<string, unknown>)?.method}`,
     );
 
     // ADAPTER: Transform frontend CreateTaskDto format to Agent2Agent TaskRequestDto format
     const adaptedBody = this.adaptFrontendRequest(body);
-
     const { dto, jsonrpc } = await this.normalizeTaskRequest(adaptedBody);
 
     this.logger.log(
-      `🔍 [A2A-CTRL] After normalization - mode: ${dto.mode}, payload.method: ${(dto.payload as Record<string, unknown>)?.method}, taskId: ${(dto.payload as Record<string, unknown>)?.taskId}`,
+      `🔍 [A2A-CTRL] After normalization - mode: ${dto.mode}, payload.method: ${(dto.payload as Record<string, unknown>)?.method}, taskId: ${dto.context?.taskId}`,
     );
 
-    // If conversation exists, use its organization_slug for routing
-    // This handles cases where frontend sends 'global' but conversation is actually in a specific org
-    if (dto.conversationId) {
-      try {
-        const { data: result } = await this.supabaseService
-          .getAnonClient()
-          .from('conversations')
-          .select('organization_slug')
-          .eq('id', dto.conversationId)
-          .single();
+    // =========================================================================
+    // EXECUTION CONTEXT HANDLING
+    // The context is created by frontend and flows through unchanged.
+    // Backend can ONLY mutate: taskId, deliverableId, planId (when first created)
+    // Backend must VALIDATE: userId matches JWT auth
+    // =========================================================================
 
-        const conversation = result as ConversationOrgRecord | null;
-        if (conversation?.organization_slug) {
-          org = conversation.organization_slug;
-        }
-      } catch (error) {
-        // Conversation doesn't exist yet, will be created with org from URL
-        void error;
-      }
+    // 1. VALIDATE: Context must exist (created by frontend)
+    if (!dto.context) {
+      throw new BadRequestException(
+        'ExecutionContext is required. Frontend must send context in request params.',
+      );
     }
 
+    // 2. VALIDATE: userId must match authenticated user
+    if (dto.context.userId !== currentUser.id) {
+      throw new UnauthorizedException(
+        'Context userId does not match authenticated user',
+      );
+    }
+
+    // 3. VALIDATE: Agent exists
+    const agentRecord = await this.agentRegistry.getAgent(
+      dto.context.orgSlug,
+      dto.context.agentSlug,
+    );
+    if (!agentRecord) {
+      throw new NotFoundException(
+        `Agent ${dto.context.agentSlug} not found in organization ${dto.context.orgSlug || 'global'}`,
+      );
+    }
+
+    // Context reference - we only mutate taskId when creating a new task
+    const context = dto.context;
+
     try {
-      // Get the agent record to use the correct agent_type
-      const agentRecord = await this.agentRegistry.getAgent(org, agentSlug);
-      if (!agentRecord) {
-        throw new Error(
-          `Agent ${agentSlug} not found in organization ${org || 'global'}`,
-        );
-      }
-
-      // Extract data from normalized DTO (which came from adaptedBody)
-      // For JSON-RPC: taskId is preserved in dto.payload via normalizeTaskRequest
-      // For REST: taskId is in dto.payload.taskId
-      const taskIdFromPayload =
-        typeof dto.payload?.taskId === 'string'
-          ? dto.payload.taskId
-          : undefined;
-
-      // Extract LLM selection from payload
-      // Frontend sends it in payload.config.provider/model format (JSON-RPC)
-      // Legacy format was payload.llmSelection
-      let llmSelectionFromPayload: LlmSelection | undefined;
-      if (dto.payload?.config && typeof dto.payload.config === 'object') {
-        const config = dto.payload.config as {
-          provider?: string;
-          model?: string;
-          temperature?: number;
-          maxTokens?: number;
-        };
-        if (config.provider && config.model) {
-          // LlmSelection type uses 'provider' and 'model' fields (not providerName/modelName)
-          llmSelectionFromPayload = {
-            provider: config.provider,
-            model: config.model,
-            ...(config.temperature !== undefined && {
-              temperature: config.temperature,
-            }),
-            ...(config.maxTokens !== undefined && {
-              maxTokens: config.maxTokens,
-            }),
-          };
-        }
-      } else if (dto.payload?.llmSelection) {
-        // Fallback to legacy format
-        llmSelectionFromPayload = dto.payload.llmSelection as LlmSelection;
-      }
-
-      const conversationHistoryFromMessages: ConversationMessage[] =
-        dto.messages?.map((msg) => {
-          const content =
-            typeof msg.content === 'string'
-              ? msg.content
-              : msg.content && typeof msg.content === 'object'
-                ? JSON.stringify(msg.content)
-                : '';
-          return {
-            role: msg.role,
-            content,
-            timestamp: new Date().toISOString(),
-          };
-        }) || [];
-
-      // Organization slug comes from the URL path parameter (already normalized by normalizeOrgSlug)
-      const organizationSlug = org;
-
       // Check if this is an HITL method (hitl.resume, hitl.status, etc.)
       // These methods operate on existing tasks, not create new ones
       const payloadMethod =
@@ -372,85 +306,77 @@ export class Agent2AgentController {
       const isHitlMethod =
         payloadMethod?.startsWith('hitl.') || dto.mode === AgentTaskMode.HITL;
 
-      let taskId: string;
-      let conversationId: string;
+      // For HITL operations, taskId should already be set in context
+      const hasExistingTask = context.taskId && context.taskId !== NIL_UUID;
 
-      if (isHitlMethod && taskIdFromPayload) {
+      if (isHitlMethod && hasExistingTask) {
         // HITL operations use the existing task - don't create a new one
         this.logger.log(
-          `🔄 HITL operation (${payloadMethod || dto.mode}) using existing task: ${taskIdFromPayload}`,
+          `🔄 HITL operation (${payloadMethod || dto.mode}) using existing task: ${context.taskId}`,
         );
-        taskId = taskIdFromPayload;
-        conversationId = dto.conversationId ?? '';
       } else {
-        // CRITICAL: Persist task AND conversation to database BEFORE execution
-        // (like DynamicAgentsController does)
-        // TasksService.createTask automatically handles conversation creation/retrieval
+        // Build conversation history from messages
+        const conversationHistoryFromMessages: ConversationMessage[] =
+          dto.messages?.map((msg) => {
+            const content =
+              typeof msg.content === 'string'
+                ? msg.content
+                : msg.content && typeof msg.content === 'object'
+                  ? JSON.stringify(msg.content)
+                  : '';
+            return {
+              role: msg.role,
+              content,
+              timestamp: new Date().toISOString(),
+            };
+          }) || [];
+
+        // Create task - this is the ONE place we can set taskId
         const task = await this.tasksService.createTask(
           {
-            userId: currentUser.id,
-            orgSlug: organizationSlug,
-            conversationId: dto.conversationId,
+            userId: context.userId,
+            orgSlug: context.orgSlug,
+            conversationId:
+              context.conversationId !== NIL_UUID
+                ? context.conversationId
+                : undefined,
           },
-          agentSlug, // agentName
+          context.agentSlug,
           {
-            method: dto.mode, // Use the normalized mode from DTO (guaranteed to be set)
+            method: dto.mode,
             prompt: dto.userMessage || '',
-            taskId: taskIdFromPayload,
+            taskId: hasExistingTask ? context.taskId : undefined,
             metadata: dto.metadata || {},
-            llmSelection: llmSelectionFromPayload,
+            llmSelection: {
+              provider: context.provider,
+              model: context.model,
+            },
             conversationHistory: conversationHistoryFromMessages,
           },
         );
-        taskId = task.id;
-        conversationId = task.agentConversationId ?? dto.conversationId ?? '';
-      }
 
-      // Build full ExecutionContext now that we have taskId
-      // Note: planId and deliverableId use NIL_UUID until created during execution
-      const context: ExecutionContext = {
-        orgSlug: organizationSlug,
-        userId: currentUser.id,
-        conversationId,
-        taskId,
-        planId: NIL_UUID, // Will be set during execution if a plan is created/used
-        deliverableId: NIL_UUID, // Will be set during execution if a deliverable is created
-        agentSlug,
-        agentType: agentRecord.agent_type,
-        provider: llmSelectionFromPayload?.provider ?? 'anthropic',
-        model: llmSelectionFromPayload?.model ?? 'claude-sonnet-4-20250514',
-      };
-
-      // Add userId and taskId to metadata for mode router (needed for plans/deliverables services)
-      dto.metadata = {
-        ...dto.metadata,
-        userId: currentUser.id,
-        createdBy: currentUser.id,
-        taskId,
-      };
-
-      // Also add taskId to payload for backward compatibility
-      if (dto.payload) {
-        dto.payload.taskId = taskId;
+        // MUTATION: Set taskId when first created (from NIL_UUID)
+        if (context.taskId === NIL_UUID) {
+          context.taskId = task.id;
+        }
       }
 
       // Mark task as running before execution starts
-      // Pass context directly to avoid database lookup race condition
       await this.agentTaskStatusService.updateTaskStatus(context, {
         status: 'running',
       });
 
-      // Execute the agent with ExecutionContext
+      // Execute the agent - context flows through unchanged
       const result = await this.gateway.execute(context, dto);
       this.attachStreamMetadata(result, {
         request,
-        organizationSlug: org,
-        agentSlug,
-        taskId,
-        conversationId: conversationId || null,
+        organizationSlug: context.orgSlug,
+        agentSlug: context.agentSlug,
+        taskId: context.taskId,
+        conversationId: context.conversationId || null,
       });
 
-      // Check if task completion was already handled by the agent (to avoid duplicate completion)
+      // Check if task completion was already handled by the agent
       const typedResult = result as unknown as TaskExecutionResult;
       const taskAlreadyHandled =
         result &&
@@ -459,20 +385,25 @@ export class Agent2AgentController {
             typedResult.metadata.taskCompletionHandled === true));
 
       if (!taskAlreadyHandled) {
-        // Create deliverable using Agent2Agent deliverable service
+        // Create deliverable - this is where deliverableId can be set
         const deliverableId =
           await this.agentDeliverablesService.createFromTaskResult(
             result,
-            currentUser.id,
-            taskId,
-            agentSlug,
-            dto.conversationId || '',
+            context.userId,
+            context.taskId,
+            context.agentSlug,
+            context.conversationId,
             dto.mode,
           );
 
-        // Attach deliverable ID to result if created
-        if (deliverableId && typeof result === 'object' && result !== null) {
-          typedResult.deliverableId = deliverableId;
+        // MUTATION: Set deliverableId when first created (from NIL_UUID)
+        if (deliverableId) {
+          if (context.deliverableId === NIL_UUID) {
+            context.deliverableId = deliverableId;
+          }
+          if (typeof result === 'object' && result !== null) {
+            typedResult.deliverableId = deliverableId;
+          }
         }
 
         // Update task with result
@@ -480,8 +411,8 @@ export class Agent2AgentController {
       }
 
       this.logRequest({
-        org,
-        agentSlug,
+        org: context.orgSlug,
+        agentSlug: context.agentSlug,
         dto,
         jsonrpc,
         status: 'success',
@@ -489,7 +420,6 @@ export class Agent2AgentController {
       });
 
       if (jsonrpc) {
-        // Return JSON-RPC 2.0 success response
         return {
           jsonrpc: '2.0',
           id: jsonrpc.id ?? null,
@@ -506,8 +436,8 @@ export class Agent2AgentController {
 
       if (!jsonrpc) {
         this.logRequest({
-          org,
-          agentSlug,
+          org: context.orgSlug,
+          agentSlug: context.agentSlug,
           dto,
           jsonrpc: null,
           status: 'error',
@@ -517,8 +447,8 @@ export class Agent2AgentController {
       }
 
       this.logRequest({
-        org,
-        agentSlug,
+        org: context.orgSlug,
+        agentSlug: context.agentSlug,
         dto,
         jsonrpc,
         status: 'error',
@@ -641,14 +571,8 @@ export class Agent2AgentController {
     @Param('taskId') taskId: string,
     @Body() body: CreateStreamTokenDto,
     @CurrentUser() currentUser: SupabaseAuthUserDto,
-    @Req() request: RequestWithStreamData,
   ) {
     const organizationSlug = this.normalizeOrgSlug(orgSlug);
-    const sanitizedUrl =
-      request.sanitizedUrl ??
-      this.streamTokenService.stripTokenFromUrl(
-        request.originalUrl || request.url,
-      );
 
     const task = await this.ensureTaskOwnership(taskId, currentUser.id);
     this.assertTaskContext(task, agentSlug, organizationSlug);
@@ -698,12 +622,6 @@ export class Agent2AgentController {
 
     const streamId = streamIdParam || claims?.streamId;
     const expectedConversationId = task.agentConversationId ?? null;
-
-    const sanitizedUrl =
-      request.sanitizedUrl ??
-      this.streamTokenService.stripTokenFromUrl(
-        request.originalUrl || request.url,
-      );
 
     let streamSessionId: string | null = null;
     let observabilitySubscription: Subscription | null = null;
@@ -786,10 +704,10 @@ export class Agent2AgentController {
       ) {
         continue;
       }
-      this.writeSseEvent(
-        response,
-        this.toChunkSseEventFromObservability(eventRecord),
-      );
+      const chunkEvent = this.toChunkSseEventFromObservability(eventRecord);
+      if (chunkEvent) {
+        this.writeSseEvent(response, chunkEvent);
+      }
     }
 
     observabilitySubscription = this.observabilityEvents.events$.subscribe({
@@ -803,27 +721,29 @@ export class Agent2AgentController {
 
         const hookType = eventRecord.hook_event_type;
         if (hookType === 'agent.completed' || hookType === 'task.completed') {
-          this.writeSseEvent(
-            response,
-            this.toCompleteSseEventFromObservability(eventRecord),
-          );
+          const completeEvent =
+            this.toCompleteSseEventFromObservability(eventRecord);
+          if (completeEvent) {
+            this.writeSseEvent(response, completeEvent);
+          }
           endStream('complete');
           return;
         }
 
         if (hookType === 'agent.failed' || hookType === 'task.failed') {
-          this.writeSseEvent(
-            response,
-            this.toErrorSseEventFromObservability(eventRecord),
-          );
+          const errorEvent =
+            this.toErrorSseEventFromObservability(eventRecord);
+          if (errorEvent) {
+            this.writeSseEvent(response, errorEvent);
+          }
           endStream('error');
           return;
         }
 
-        this.writeSseEvent(
-          response,
-          this.toChunkSseEventFromObservability(eventRecord),
-        );
+        const chunkEvent = this.toChunkSseEventFromObservability(eventRecord);
+        if (chunkEvent) {
+          this.writeSseEvent(response, chunkEvent);
+        }
       },
       error: (error) => {
         this.logger.warn(
@@ -1011,32 +931,52 @@ export class Agent2AgentController {
 
   private toChunkSseEventFromObservability(
     event: ObservabilityEventRecord,
-  ): AgentStreamChunkSSEEvent {
-    return this.toChunkSseEvent(this.buildChunkEventFromObservability(event));
+  ): AgentStreamChunkSSEEvent | null {
+    const chunkData = this.buildChunkEventFromObservability(event);
+    if (!chunkData) {
+      return null;
+    }
+    return this.toChunkSseEvent(chunkData);
   }
 
   private toCompleteSseEventFromObservability(
     event: ObservabilityEventRecord,
-  ): AgentStreamCompleteSSEEvent {
-    const completeEvent: AgentStreamCompleteEvent = {
+  ): AgentStreamCompleteSSEEvent | null {
+    if (!event.context) {
+      this.logger.warn(
+        `Observability event missing context for task ${event.task_id}`,
+      );
+      return null;
+    }
+
+    const completeEvent: AgentStreamCompleteData = {
+      context: event.context,
       streamId: event.task_id,
-      conversationId: event.conversation_id ?? undefined,
-      organizationSlug: event.organization_slug ?? null,
-      agentSlug: event.agent_slug ?? 'unknown',
       mode: event.mode ?? 'converse',
+      userMessage: event.message || '',
+      timestamp: new Date(event.timestamp).toISOString(),
+      type: 'complete',
     };
     return this.toCompleteSseEvent(completeEvent);
   }
 
   private toErrorSseEventFromObservability(
     event: ObservabilityEventRecord,
-  ): AgentStreamErrorSSEEvent {
-    const errorEvent: AgentStreamErrorEvent = {
+  ): AgentStreamErrorSSEEvent | null {
+    if (!event.context) {
+      this.logger.warn(
+        `Observability event missing context for task ${event.task_id}`,
+      );
+      return null;
+    }
+
+    const errorEvent: AgentStreamErrorData = {
+      context: event.context,
       streamId: event.task_id,
-      conversationId: event.conversation_id ?? undefined,
-      organizationSlug: event.organization_slug ?? null,
-      agentSlug: event.agent_slug ?? 'unknown',
       mode: event.mode ?? 'converse',
+      userMessage: event.message || '',
+      timestamp: new Date(event.timestamp).toISOString(),
+      type: 'error',
       error:
         event.message ||
         (event.payload?.error as string) ||
@@ -1046,15 +986,27 @@ export class Agent2AgentController {
     return this.toErrorSseEvent(errorEvent);
   }
 
+  /**
+   * Build chunk event from observability record
+   * Uses the ExecutionContext stored with the event
+   */
   private buildChunkEventFromObservability(
     event: ObservabilityEventRecord,
-  ): AgentStreamChunkEvent {
+  ): AgentStreamChunkData | null {
+    // Context should be present - it's stored with the event
+    if (!event.context) {
+      this.logger.warn(
+        `Observability event missing context for task ${event.task_id}`,
+      );
+      return null;
+    }
+
     return {
+      context: event.context,
       streamId: event.task_id,
-      conversationId: event.conversation_id ?? undefined,
-      organizationSlug: event.organization_slug ?? null,
-      agentSlug: event.agent_slug ?? 'unknown',
       mode: event.mode ?? 'converse',
+      userMessage: event.message || '',
+      timestamp: new Date(event.timestamp).toISOString(),
       chunk: {
         type: 'progress',
         content: this.resolveObservabilityContent(event),
@@ -1067,7 +1019,6 @@ export class Agent2AgentController {
           payload: event.payload,
           sequence: event.sequence ?? undefined,
           totalSteps: event.totalSteps ?? undefined,
-          timestamp: event.timestamp,
         },
       },
     };
@@ -1094,59 +1045,42 @@ export class Agent2AgentController {
     return 'global';
   }
 
+  /**
+   * Transform chunk event data to SSE event
+   * Events now include full ExecutionContext - just wrap in SSE envelope
+   */
   private toChunkSseEvent(
-    event: AgentStreamChunkEvent,
+    event: AgentStreamChunkData,
   ): AgentStreamChunkSSEEvent {
     return {
       event: 'agent_stream_chunk',
-      data: {
-        streamId: event.streamId,
-        conversationId: event.conversationId,
-        organizationSlug: event.organizationSlug ?? null,
-        agentSlug: event.agentSlug,
-        mode: event.mode,
-        timestamp: new Date().toISOString(),
-        chunk: {
-          type: event.chunk.type,
-          content: event.chunk.content,
-          metadata: event.chunk.metadata,
-        },
-      },
+      data: event,
     };
   }
 
+  /**
+   * Transform complete event data to SSE event
+   * Events now include full ExecutionContext - just wrap in SSE envelope
+   */
   private toCompleteSseEvent(
-    event: AgentStreamCompleteEvent,
+    event: AgentStreamCompleteData,
   ): AgentStreamCompleteSSEEvent {
     return {
       event: 'agent_stream_complete',
-      data: {
-        streamId: event.streamId,
-        conversationId: event.conversationId,
-        organizationSlug: event.organizationSlug ?? null,
-        agentSlug: event.agentSlug,
-        mode: event.mode,
-        timestamp: new Date().toISOString(),
-        type: 'complete',
-      },
+      data: event,
     };
   }
 
+  /**
+   * Transform error event data to SSE event
+   * Events now include full ExecutionContext - just wrap in SSE envelope
+   */
   private toErrorSseEvent(
-    event: AgentStreamErrorEvent,
+    event: AgentStreamErrorData,
   ): AgentStreamErrorSSEEvent {
     return {
       event: 'agent_stream_error',
-      data: {
-        streamId: event.streamId,
-        conversationId: event.conversationId,
-        organizationSlug: event.organizationSlug ?? null,
-        agentSlug: event.agentSlug,
-        mode: event.mode,
-        timestamp: new Date().toISOString(),
-        type: 'error',
-        error: event.error,
-      },
+      data: event,
     };
   }
 
@@ -1478,8 +1412,8 @@ export class Agent2AgentController {
       organization: org ?? 'global',
       agent: agentSlug,
       mode: dto.mode,
-      conversationId: dto.conversationId ?? null,
-      planId: dto.planId ?? null,
+      conversationId: dto.context?.conversationId ?? null,
+      planId: dto.context?.planId ?? null,
       jsonrpc: jsonrpc
         ? {
             id: jsonrpc.id ?? null,

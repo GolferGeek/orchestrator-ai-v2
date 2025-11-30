@@ -16,6 +16,11 @@ import {
   ObservabilityEventsService,
   ObservabilityEventRecord,
 } from '../observability/observability-events.service';
+import {
+  ExecutionContext,
+  isExecutionContext,
+  NIL_UUID,
+} from '@orchestrator-ai/transport-types';
 
 /**
  * Workflow Status Update
@@ -28,12 +33,21 @@ interface WorkflowStatusUpdate {
   status: string;
   timestamp: string;
 
+  // ExecutionContext capsule (from LangGraph and other callers)
+  context?: ExecutionContext;
+
+  // User message that triggered the task
+  userMessage?: string;
+
+  // Mode (plan, build, converse)
+  mode?: string;
+
   // Optional workflow identification
   executionId?: string;
   workflowId?: string;
   workflowName?: string;
 
-  // Optional context fields
+  // Optional context fields (legacy - use context object instead)
   conversationId?: string;
   userId?: string;
 
@@ -56,11 +70,10 @@ interface WorkflowStatusUpdate {
     [key: string]: unknown;
   };
 
-  // NEW: Observability enrichment fields
-  agentSlug?: string; // Agent being executed
-  username?: string; // display_name or email (human-readable)
-  organizationSlug?: string; // Organization slug (e.g. 'demo-org')
-  mode?: string; // 'converse', 'plan', 'build', 'orchestrate'
+  // Observability enrichment fields
+  agentSlug?: string;
+  username?: string;
+  organizationSlug?: string;
   [key: string]: unknown;
 }
 
@@ -144,11 +157,13 @@ export class WebhooksController {
       });
 
       // Create task message for progress update (shows in message bubble)
-      if (update.userId && update.message) {
+      // Use context.userId if available, fall back to legacy userId field
+      const userId = update.context?.userId || update.userId;
+      if (userId && update.message) {
         try {
           await this.tasksService.emitTaskMessage(
             update.taskId,
-            update.userId,
+            userId,
             update.message,
             'progress',
             progress,
@@ -168,17 +183,22 @@ export class WebhooksController {
       }
 
       // Emit SSE chunk event via StreamingService for real-time streaming to frontend (USER STREAM)
-      this.streamingService.emitProgress(
-        update.taskId,
-        update.message || stepName,
-        {
-          step: stepName,
-          sequence,
-          totalSteps: totalStepsFromUpdate,
-          status: update.status,
-          progress,
-        },
-      );
+      // Only emit if context is provided (new pattern)
+      if (update.context && isExecutionContext(update.context)) {
+        this.streamingService.emitProgress(
+          update.context,
+          update.message || stepName,
+          update.userMessage || '',
+          {
+            step: stepName,
+            sequence,
+            totalSteps: totalStepsFromUpdate,
+            status: update.status,
+            progress,
+            mode: update.mode,
+          },
+        );
+      }
 
       // Webhooks only emit progress - never completion
       // The stream will be cleaned up when the API call completes and returns to frontend
@@ -192,7 +212,7 @@ export class WebhooksController {
         step: stepName,
         progress,
         timestamp: update.timestamp,
-        conversationId: update.conversationId,
+        conversationId: update.context?.conversationId || update.conversationId,
         statusHistory: history, // Send complete history
         data: update,
       };
@@ -206,7 +226,7 @@ export class WebhooksController {
       // Emit event for other services that might care
       this.eventEmitter.emit('workflow.status_update', {
         taskId: update.taskId,
-        conversationId: update.conversationId,
+        conversationId: update.context?.conversationId || update.conversationId,
         executionId: update.executionId,
         status: update.status,
         progress,
@@ -241,31 +261,41 @@ export class WebhooksController {
     try {
       const now = Date.now();
 
+      // Use context fields if available, fall back to legacy fields
+      const userId = update.context?.userId || update.userId;
+      const conversationId =
+        update.context?.conversationId || update.conversationId;
+      const agentSlug = update.context?.agentSlug || update.agentSlug;
+      const organizationSlug =
+        update.context?.orgSlug || update.organizationSlug;
+
       // Resolve username if not provided
       let username = update.username;
-      if (update.userId && !username) {
+      if (userId && !username) {
         // Resolve username from userId using AuthService
         try {
           const userProfile = await this.observabilityService[
             'authService'
-          ].getUserProfile(update.userId);
+          ].getUserProfile(userId);
           username =
-            userProfile?.displayName || userProfile?.email || update.userId;
+            userProfile?.displayName || userProfile?.email || userId;
         } catch {
-          username = update.userId; // Fallback to userId if resolution fails
+          username = userId; // Fallback to userId if resolution fails
         }
       }
 
       const eventData: ObservabilityEventRecord = {
+        // Include full ExecutionContext for SSE streaming
+        context: update.context,
         source_app: 'orchestrator-ai',
-        session_id: update.conversationId || update.taskId,
+        session_id: conversationId || update.taskId,
         hook_event_type: update.status, // 'agent.started', 'agent.progress', etc.
-        user_id: update.userId || null,
+        user_id: userId || null,
         username: username || null,
-        conversation_id: update.conversationId || null,
+        conversation_id: conversationId || null,
         task_id: update.taskId,
-        agent_slug: update.agentSlug || null,
-        organization_slug: update.organizationSlug || null,
+        agent_slug: agentSlug || null,
+        organization_slug: organizationSlug || null,
         mode: update.mode || null,
         status: update.status,
         message: update.message || null,

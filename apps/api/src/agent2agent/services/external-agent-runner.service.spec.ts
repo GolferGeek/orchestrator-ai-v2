@@ -107,7 +107,7 @@ describe('ExternalAgentRunnerService', () => {
 
       const request: TaskRequestDto = {
         mode: AgentTaskMode.BUILD,
-        conversationId: 'conv-123',
+        context: mockContext,
         userMessage: 'Execute external task',
         payload: {
           title: 'External Task Result',
@@ -156,7 +156,11 @@ describe('ExternalAgentRunnerService', () => {
         }) as Record<string, string>,
         data: expect.objectContaining({
           mode: AgentTaskMode.BUILD,
-          conversationId: 'conv-123',
+          context: expect.objectContaining({
+            conversationId: 'conv-123',
+            userId: 'user-123',
+            orgSlug: 'test-org',
+          }) as Record<string, unknown>,
           userMessage: 'Execute external task',
           metadata: expect.objectContaining({
             userId: 'user-123',
@@ -201,7 +205,7 @@ describe('ExternalAgentRunnerService', () => {
 
       const request: TaskRequestDto = {
         mode: AgentTaskMode.BUILD,
-        conversationId: 'conv-123',
+        context: mockContext,
         userMessage: 'Test',
         payload: {},
         metadata: { userId: 'user-123' },
@@ -252,7 +256,7 @@ describe('ExternalAgentRunnerService', () => {
 
       const request: TaskRequestDto = {
         mode: AgentTaskMode.CONVERSE,
-        conversationId: 'conv-123',
+        context: mockContext,
         userMessage: 'Hello external agent',
         payload: {},
         metadata: { userId: 'user-123' },
@@ -301,7 +305,7 @@ describe('ExternalAgentRunnerService', () => {
 
       const request: TaskRequestDto = {
         mode: AgentTaskMode.PLAN,
-        conversationId: 'conv-123',
+        context: mockContext,
         userMessage: 'Create a plan',
         payload: {},
         metadata: { userId: 'user-123' },
@@ -340,8 +344,15 @@ describe('ExternalAgentRunnerService', () => {
         execution: { canBuild: true },
       } as unknown as AgentRuntimeDefinition;
 
+      const contextWithoutUserOrConv = createMockExecutionContext({
+        orgSlug: 'test-org',
+        userId: '',
+        conversationId: '',
+      });
+
       const request: TaskRequestDto = {
         mode: AgentTaskMode.BUILD,
+        context: contextWithoutUserOrConv,
         userMessage: 'Test',
         payload: {},
       };
@@ -365,7 +376,7 @@ describe('ExternalAgentRunnerService', () => {
 
       const request: TaskRequestDto = {
         mode: AgentTaskMode.BUILD,
-        conversationId: 'conv-123',
+        context: mockContext,
         userMessage: 'Test',
         payload: {},
         metadata: { userId: 'user-123' },
@@ -392,7 +403,7 @@ describe('ExternalAgentRunnerService', () => {
 
       const request: TaskRequestDto = {
         mode: AgentTaskMode.BUILD,
-        conversationId: 'conv-123',
+        context: mockContext,
         userMessage: 'Test',
         payload: {},
         metadata: { userId: 'user-123' },
@@ -425,7 +436,7 @@ describe('ExternalAgentRunnerService', () => {
 
       const request: TaskRequestDto = {
         mode: AgentTaskMode.BUILD,
-        conversationId: 'conv-123',
+        context: mockContext,
         userMessage: 'Test',
         payload: {},
         metadata: { userId: 'user-123' },
@@ -459,7 +470,7 @@ describe('ExternalAgentRunnerService', () => {
 
       const request: TaskRequestDto = {
         mode: AgentTaskMode.BUILD,
-        conversationId: 'conv-123',
+        context: mockContext,
         userMessage: 'Test',
         payload: {},
         metadata: { userId: 'user-123' },
@@ -494,7 +505,7 @@ describe('ExternalAgentRunnerService', () => {
 
       const request: TaskRequestDto = {
         mode: AgentTaskMode.BUILD,
-        conversationId: 'conv-123',
+        context: mockContext,
         userMessage: 'Test',
         payload: {},
         metadata: { userId: 'user-123' },
@@ -543,7 +554,7 @@ describe('ExternalAgentRunnerService', () => {
 
       const request: TaskRequestDto = {
         mode: AgentTaskMode.BUILD,
-        conversationId: 'conv-123',
+        context: mockContext,
         userMessage: 'Read deliverable',
         payload: {
           action: 'read',

@@ -5,6 +5,7 @@ import {
   TaskRequestDto,
   AgentTaskMode,
 } from '@agent2agent/dto/task-request.dto';
+import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
 
 describe('AgentRuntimeRedactionService', () => {
   const makeService = (
@@ -71,7 +72,12 @@ describe('AgentRuntimeRedactionService', () => {
 
   it('applies DB regex only on remote (isLocal=false) and always applies secret masking', async () => {
     const service = makeService([{ pattern: 'secret', replacement: '[DB]' }]);
+    const mockContext = createMockExecutionContext({
+      orgSlug: 'demo',
+      conversationId: 'test-conv-123',
+    });
     const request: TaskRequestDto = {
+      context: mockContext,
       mode: AgentTaskMode.CONVERSE,
       userMessage: 'my secret is ALPHA and key sk-ABCDEFGHIJKL',
       payload: {},

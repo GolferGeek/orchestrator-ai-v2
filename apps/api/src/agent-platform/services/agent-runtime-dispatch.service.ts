@@ -499,8 +499,8 @@ export class AgentRuntimeDispatchService {
     const methodName = this.mapModeToMethod(options.request.mode!);
     const id = Date.now();
     const params = {
-      conversationId: options.request.conversationId,
-      sessionId: options.request.sessionId,
+      conversationId: options.request.context?.conversationId,
+      sessionId: options.request.context?.taskId,
       userMessage: options.prompt.userMessage,
       messages: options.request.messages ?? [],
       metadata: options.prompt.metadata,
@@ -805,9 +805,9 @@ export class AgentRuntimeDispatchService {
   ): unknown {
     const t = api?.requestTransform;
     const sessionId =
-      options.request.sessionId ?? options.request.conversationId ?? null;
+      options.request.context?.taskId ?? options.request.context?.conversationId ?? null;
     const userMessage = options.prompt.userMessage ?? '';
-    const conversationId = options.request.conversationId ?? null;
+    const conversationId = options.request.context?.conversationId ?? null;
     const agentSlug = options.definition.slug;
     const organizationSlug = options.definition.organizationSlug ?? null;
 

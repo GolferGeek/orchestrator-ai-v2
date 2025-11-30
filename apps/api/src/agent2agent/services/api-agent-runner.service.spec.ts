@@ -157,7 +157,6 @@ describe('ApiAgentRunnerService', () => {
 
       const request: TaskRequestDto = {
         mode: AgentTaskMode.BUILD,
-        conversationId: 'conv-123',
         userMessage: 'Fetch users',
         payload: {
           title: 'User List',
@@ -166,6 +165,7 @@ describe('ApiAgentRunnerService', () => {
             model: 'claude-3-5-sonnet-20241022',
           },
         },
+        context: mockContext,
         metadata: {
           userId: 'user-123',
         },
@@ -248,7 +248,6 @@ describe('ApiAgentRunnerService', () => {
 
       const request: TaskRequestDto = {
         mode: AgentTaskMode.BUILD,
-        conversationId: 'conv-123',
         userMessage: 'Create user',
         payload: {
           userName: 'John Doe',
@@ -258,6 +257,7 @@ describe('ApiAgentRunnerService', () => {
             model: 'claude-3-5-sonnet-20241022',
           },
         },
+        context: mockContext,
         metadata: { userId: 'user-123' },
       };
 
@@ -307,7 +307,6 @@ describe('ApiAgentRunnerService', () => {
 
       const request: TaskRequestDto = {
         mode: AgentTaskMode.BUILD,
-        conversationId: 'conv-123',
         userMessage: 'Fetch user',
         payload: {
           userId: '42',
@@ -316,6 +315,7 @@ describe('ApiAgentRunnerService', () => {
             model: 'claude-3-5-sonnet-20241022',
           },
         },
+        context: mockContext,
         metadata: { userId: 'user-123' },
       };
 
@@ -359,7 +359,6 @@ describe('ApiAgentRunnerService', () => {
 
       const request: TaskRequestDto = {
         mode: AgentTaskMode.BUILD,
-        conversationId: 'conv-123',
         userMessage: 'Fetch users',
         payload: {
           page: '2',
@@ -368,6 +367,7 @@ describe('ApiAgentRunnerService', () => {
             model: 'claude-3-5-sonnet-20241022',
           },
         },
+        context: mockContext,
         metadata: { userId: 'user-123' },
       };
 
@@ -402,10 +402,18 @@ describe('ApiAgentRunnerService', () => {
         execution: { canBuild: true },
       } as unknown as AgentRuntimeDefinition;
 
+      // Create a context without userId to test the error handling
+      const contextWithoutUser = createMockExecutionContext({
+        orgSlug: 'test-org',
+        userId: '', // Empty userId to trigger the error
+        conversationId: 'conv-123',
+      });
+
       const request: TaskRequestDto = {
         mode: AgentTaskMode.BUILD,
         userMessage: 'Test',
         payload: {},
+        context: contextWithoutUser,
       };
 
       const result = await service.execute(definition, request, mockContext.orgSlug);
@@ -427,7 +435,6 @@ describe('ApiAgentRunnerService', () => {
 
       const request: TaskRequestDto = {
         mode: AgentTaskMode.BUILD,
-        conversationId: 'conv-123',
         userMessage: 'Test',
         payload: {
           config: {
@@ -435,6 +442,7 @@ describe('ApiAgentRunnerService', () => {
             model: 'claude-3-5-sonnet-20241022',
           },
         },
+        context: mockContext,
         metadata: { userId: 'user-123' },
       };
 
@@ -460,7 +468,6 @@ describe('ApiAgentRunnerService', () => {
 
       const request: TaskRequestDto = {
         mode: AgentTaskMode.BUILD,
-        conversationId: 'conv-123',
         userMessage: 'Test',
         payload: {
           config: {
@@ -468,6 +475,7 @@ describe('ApiAgentRunnerService', () => {
             model: 'claude-3-5-sonnet-20241022',
           },
         },
+        context: mockContext,
         metadata: { userId: 'user-123' },
       };
 
@@ -499,7 +507,6 @@ describe('ApiAgentRunnerService', () => {
 
       const request: TaskRequestDto = {
         mode: AgentTaskMode.BUILD,
-        conversationId: 'conv-123',
         userMessage: 'Test',
         payload: {
           config: {
@@ -507,6 +514,7 @@ describe('ApiAgentRunnerService', () => {
             model: 'claude-3-5-sonnet-20241022',
           },
         },
+        context: mockContext,
         metadata: { userId: 'user-123' },
       };
 
@@ -540,7 +548,6 @@ describe('ApiAgentRunnerService', () => {
 
       const request: TaskRequestDto = {
         mode: AgentTaskMode.BUILD,
-        conversationId: 'conv-123',
         userMessage: 'Test',
         payload: {
           config: {
@@ -548,6 +555,7 @@ describe('ApiAgentRunnerService', () => {
             model: 'claude-3-5-sonnet-20241022',
           },
         },
+        context: mockContext,
         metadata: { userId: 'user-123' },
       };
 
@@ -579,7 +587,6 @@ describe('ApiAgentRunnerService', () => {
 
       const request: TaskRequestDto = {
         mode: AgentTaskMode.BUILD,
-        conversationId: 'conv-123',
         userMessage: 'Test',
         payload: {
           config: {
@@ -587,6 +594,7 @@ describe('ApiAgentRunnerService', () => {
             model: 'claude-3-5-sonnet-20241022',
           },
         },
+        context: mockContext,
         metadata: { userId: 'user-123' },
       };
 
@@ -624,7 +632,6 @@ describe('ApiAgentRunnerService', () => {
 
       const request: TaskRequestDto = {
         mode: AgentTaskMode.BUILD,
-        conversationId: 'conv-123',
         userMessage: 'Test',
         payload: {
           config: {
@@ -632,6 +639,7 @@ describe('ApiAgentRunnerService', () => {
             model: 'claude-3-5-sonnet-20241022',
           },
         },
+        context: mockContext,
         metadata: { userId: 'user-123' },
       };
 
@@ -672,7 +680,6 @@ describe('ApiAgentRunnerService', () => {
 
       const request: TaskRequestDto = {
         mode: AgentTaskMode.BUILD,
-        conversationId: 'conv-123',
         userMessage: 'Read deliverable',
         payload: {
           action: 'read',
@@ -682,6 +689,7 @@ describe('ApiAgentRunnerService', () => {
             model: 'claude-3-5-sonnet-20241022',
           },
         },
+        context: mockContext,
         metadata: { userId: 'user-123' },
       };
 

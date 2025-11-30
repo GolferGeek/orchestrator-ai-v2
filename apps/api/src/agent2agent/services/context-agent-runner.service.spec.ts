@@ -70,6 +70,7 @@ describe('ContextAgentRunnerService', () => {
           provide: StreamingService,
           useValue: {
             sendUpdate: jest.fn(),
+            emitProgress: jest.fn(),
           },
         },
         {
@@ -128,7 +129,7 @@ describe('ContextAgentRunnerService', () => {
 
       const request: TaskRequestDto = {
         mode: AgentTaskMode.BUILD,
-        conversationId: 'conv-123',
+        context: mockContext,
         userMessage: 'Generate analysis',
         payload: {
           title: 'Test Analysis',
@@ -282,13 +283,20 @@ describe('ContextAgentRunnerService', () => {
         execution: { canConverse: false, canPlan: false, canBuild: true },
       } as unknown as AgentRuntimeDefinition;
 
+      const contextWithoutUser = createMockExecutionContext({
+        orgSlug: 'test-org',
+        userId: '',
+        conversationId: 'conv-123',
+      });
+
       const request: TaskRequestDto = {
         mode: AgentTaskMode.BUILD,
+        context: contextWithoutUser,
         userMessage: 'Test',
         payload: {},
       };
 
-      const result = await service.execute(definition, request, mockContext.orgSlug);
+      const result = await service.execute(definition, request, contextWithoutUser.orgSlug);
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toContain(
@@ -316,7 +324,7 @@ describe('ContextAgentRunnerService', () => {
 
       const request: TaskRequestDto = {
         mode: AgentTaskMode.BUILD,
-        conversationId: 'conv-123',
+        context: mockContext,
         userMessage: 'Test',
         payload: {
           action: 'create',
@@ -364,7 +372,7 @@ describe('ContextAgentRunnerService', () => {
 
       const request: TaskRequestDto = {
         mode: AgentTaskMode.BUILD,
-        conversationId: 'conv-123',
+        context: mockContext,
         userMessage: 'Test',
         payload: {
           action: 'create',
@@ -430,7 +438,7 @@ describe('ContextAgentRunnerService', () => {
 
       const request: TaskRequestDto = {
         mode: AgentTaskMode.BUILD,
-        conversationId: 'conv-123',
+        context: mockContext,
         userMessage: 'Read deliverable',
         payload: {
           action: 'read',

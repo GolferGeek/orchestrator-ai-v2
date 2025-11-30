@@ -115,16 +115,14 @@ export class RagAgentRunnerService extends BaseAgentRunner {
         );
       }
 
-      const conversationId = this.resolveConversationId(request);
-      if (!conversationId) {
+      // Use ExecutionContext from request - it flows through unchanged
+      const context = request.context;
+      if (!context.conversationId) {
         return TaskResponseDto.failure(
           AgentTaskMode.BUILD,
           'Conversation context is required for RAG agent execution',
         );
       }
-      request.conversationId = conversationId;
-
-      const taskId = this.resolveTaskId(request) ?? undefined;
 
       // Get RAG configuration from agent metadata
       const ragConfig = this.extractRagConfig(definition);
@@ -135,16 +133,19 @@ export class RagAgentRunnerService extends BaseAgentRunner {
         );
       }
 
-      // Emit progress: Starting
-      if (taskId) {
-        this.streamingService.emitProgress(taskId, 'Starting RAG query...', {
+      // Emit progress: Starting using ExecutionContext
+      this.streamingService.emitProgress(
+        context,
+        'Starting RAG query...',
+        request.userMessage || '',
+        {
           step: 'Initializing',
           progress: 5,
           status: 'running',
           sequence: 1,
           totalSteps: 5,
-        });
-      }
+        },
+      );
 
       // Resolve organization slug
       const resolvedOrgSlug = this.resolveOrganizationSlug(
@@ -179,19 +180,18 @@ export class RagAgentRunnerService extends BaseAgentRunner {
       }
 
       // Emit progress: Querying collection
-      if (taskId) {
-        this.streamingService.emitProgress(
-          taskId,
-          `Searching ${collection.name}...`,
-          {
-            step: 'Querying RAG collection',
-            progress: 20,
-            status: 'running',
-            sequence: 2,
-            totalSteps: 5,
-          },
-        );
-      }
+      this.streamingService.emitProgress(
+        context,
+        `Searching ${collection.name}...`,
+        request.userMessage || '',
+        {
+          step: 'Querying RAG collection',
+          progress: 20,
+          status: 'running',
+          sequence: 2,
+          totalSteps: 5,
+        },
+      );
 
       // Get user message for query
       const userMessage = this.resolveUserMessage(request);
@@ -238,19 +238,18 @@ export class RagAgentRunnerService extends BaseAgentRunner {
       }
 
       // Emit progress: Building context
-      if (taskId) {
-        this.streamingService.emitProgress(
-          taskId,
-          `Found ${queryResponse.results.length} relevant documents...`,
-          {
-            step: 'Building context',
-            progress: 40,
-            status: 'running',
-            sequence: 3,
-            totalSteps: 5,
-          },
-        );
-      }
+      this.streamingService.emitProgress(
+        context,
+        `Found ${queryResponse.results.length} relevant documents...`,
+        request.userMessage || '',
+        {
+          step: 'Building context',
+          progress: 40,
+          status: 'running',
+          sequence: 3,
+          totalSteps: 5,
+        },
+      );
 
       // Build augmented prompt with RAG results
       const conversationHistory = await fetchConversationHistory(
@@ -271,20 +270,23 @@ export class RagAgentRunnerService extends BaseAgentRunner {
       );
 
       // Emit progress: Calling LLM
-      if (taskId) {
-        this.streamingService.emitProgress(taskId, 'Generating response...', {
+      this.streamingService.emitProgress(
+        context,
+        'Generating response...',
+        request.userMessage || '',
+        {
           step: 'Calling LLM',
           progress: 60,
           status: 'running',
           sequence: 4,
           totalSteps: 5,
-        });
-      }
+        },
+      );
 
       // Call LLM with augmented context
       const llmConfig = this.buildLlmConfig(
         definition,
-        conversationId,
+        context.conversationId,
         userId,
         resolvedOrgSlug,
         request,
@@ -303,15 +305,18 @@ export class RagAgentRunnerService extends BaseAgentRunner {
         (llmResponse.metadata as unknown as Record<string, unknown>) ?? null;
 
       // Emit progress: Complete
-      if (taskId) {
-        this.streamingService.emitProgress(taskId, 'Response generated', {
+      this.streamingService.emitProgress(
+        context,
+        'Response generated',
+        request.userMessage || '',
+        {
           step: 'Complete',
           progress: 100,
           status: 'completed',
           sequence: 5,
           totalSteps: 5,
-        });
-      }
+        },
+      );
 
       // Build response metadata
       const usage = this.normalizeUsage(llmMetadata?.usage);
@@ -338,7 +343,7 @@ export class RagAgentRunnerService extends BaseAgentRunner {
 
       // Create deliverable with the RAG response
       const executionContext = {
-        conversationId,
+        conversationId: context.conversationId,
         userId,
         organizationSlug: resolvedOrgSlug,
         agentSlug: definition.slug,
@@ -352,7 +357,7 @@ export class RagAgentRunnerService extends BaseAgentRunner {
           format: 'markdown',
           type: 'rag-response',
           agentName: definition.name ?? definition.slug,
-          taskId,
+          taskId: context.taskId,
           metadata: {
             sources: this.formatSources(queryResponse.results),
             collectionSlug: ragConfig.collection_slug,
@@ -600,7 +605,7 @@ export class RagAgentRunnerService extends BaseAgentRunner {
       temperature: llmDef?.temperature ?? 0.3,
       maxTokens: llmDef?.maxTokens ?? 2000,
       conversationId,
-      sessionId: request.sessionId,
+      sessionId: request.context.taskId, // Use taskId for session correlation
       userId,
       organizationSlug: orgSlug,
       agentSlug: definition.slug,

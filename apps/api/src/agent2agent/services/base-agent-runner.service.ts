@@ -443,32 +443,32 @@ export abstract class BaseAgentRunner implements IAgentRunner {
     organizationSlug: string | null,
     _executionMode: string,
   ): Promise<TaskResponseDto> {
-    const taskId = this.resolveTaskId(request) || `task_${Date.now()}`;
-    const userId = this.resolveUserId(request) || 'unknown';
-    const conversationId = this.resolveConversationId(request);
+    // Get ExecutionContext from request (required)
+    const context = request.context;
+    if (!context) {
+      throw new Error('ExecutionContext is required for streaming');
+    }
+
+    const userMessage = request.userMessage || '';
+    const mode = 'build';
 
     // Register stream session for progress updates (SSE will still emit chunks)
-    const _streamId = this.streamingService.registerStream(
-      taskId,
-      definition.slug,
-      organizationSlug || 'global',
-      AgentTaskMode.BUILD,
-      conversationId,
-      userId,
-    );
+    this.streamingService.registerStream(context, mode, userMessage);
 
     // Execute synchronously - wait for completion
     // Progress updates will still be streamed via SSE, but we wait for the final result
     try {
       // Emit initial progress update
       this.streamingService.emitProgress(
-        taskId,
+        context,
         'Starting build execution...',
+        userMessage,
         {
           step: 'Initializing',
           progress: 0,
           status: 'running',
           sequence: 1,
+          mode,
         },
       );
 
@@ -502,38 +502,24 @@ export abstract class BaseAgentRunner implements IAgentRunner {
           };
         }
 
-        const completionData: Record<string, unknown> = {};
-        if (buildContent?.deliverable) {
-          completionData.deliverable = buildContent.deliverable;
-        }
-        if (buildContent?.version) {
-          completionData.version = buildContent.version;
-        }
-        // Include message for conversational responses
-        if (buildContent?.isConversational && buildContent?.message) {
-          completionData.message = buildContent.message;
-          completionData.isConversational = true;
-        }
-
-        // Emit completion event with deliverable data
-        this.streamingService.emitComplete(
-          taskId,
-          Object.keys(completionData).length > 0 ? completionData : undefined,
-        );
+        // Emit completion event
+        this.streamingService.emitComplete(context, userMessage, mode);
       } else {
         const errorMsg =
           (result.payload.metadata?.reason as string) || 'Build failed';
-        this.streamingService.emitError(taskId, errorMsg);
+        this.streamingService.emitError(context, userMessage, mode, errorMsg);
       }
 
       // Return the result synchronously (same as immediate mode)
       return result;
     } catch (error) {
       this.logger.error(
-        `BUILD execution failed for task ${taskId}: ${error instanceof Error ? error.message : String(error)}`,
+        `BUILD execution failed for task ${context.taskId}: ${error instanceof Error ? error.message : String(error)}`,
       );
       this.streamingService.emitError(
-        taskId,
+        context,
+        userMessage,
+        mode,
         error instanceof Error ? error.message : 'Unknown error',
       );
       throw error;
@@ -1126,7 +1112,7 @@ export abstract class BaseAgentRunner implements IAgentRunner {
    * @returns conversationId if found, null otherwise
    */
   protected resolveConversationId(request: TaskRequestDto): string | null {
-    return request.conversationId || null;
+    return request.context?.conversationId || null;
   }
 
   /**
@@ -1241,17 +1227,16 @@ export abstract class BaseAgentRunner implements IAgentRunner {
     const results: TaskResponseDto[] = [];
 
     this.logger.log(
-      `Orchestrating ${subAgents.length} sub-agent(s) for conversation ${request.conversationId}`,
+      `Orchestrating ${subAgents.length} sub-agent(s) for conversation ${request.context?.conversationId}`,
     );
 
     for (const subAgent of subAgents) {
       try {
-        // Build sub-agent request
+        // Build sub-agent request - pass through context unchanged
         const payloadAny: unknown = subAgent.payload;
         const _subRequest: TaskRequestDto = {
           mode: subAgent.mode,
-          conversationId: request.conversationId,
-          sessionId: request.sessionId,
+          context: request.context, // Pass through ExecutionContext unchanged
           userMessage: subAgent.userMessage,
           payload: (payloadAny as Record<string, unknown>) || {},
           metadata: {

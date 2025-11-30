@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Observable, ReplaySubject } from 'rxjs';
+import { ExecutionContext } from '@orchestrator-ai/transport-types';
 
 export interface ObservabilityEventRecord {
+  /** Full ExecutionContext capsule - required for SSE streaming */
+  context?: ExecutionContext;
   source_app: string;
   session_id: string | null;
   hook_event_type: string;

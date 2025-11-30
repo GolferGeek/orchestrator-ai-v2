@@ -92,45 +92,14 @@ export class AgentExecutionGateway {
     try {
       let response: TaskResponseDto;
 
+      // All modes delegate to mode router with ExecutionContext
       switch (request.mode!) {
         case AgentTaskMode.CONVERSE:
-          response = await this.modeRouter.execute({
-            organizationSlug: context.orgSlug,
-            agentSlug: agent.slug,
-            agent,
-            definition,
-            request,
-            routingMetadata,
-          });
-          break;
         case AgentTaskMode.PLAN:
-          // Delegate to mode router (uses new plans table via PlansService)
-          response = await this.modeRouter.execute({
-            organizationSlug: context.orgSlug,
-            agentSlug: agent.slug,
-            agent,
-            definition,
-            request,
-            routingMetadata,
-          });
-          break;
         case AgentTaskMode.BUILD:
-          // Delegate to mode router (uses new deliverables table via DeliverablesService)
-          response = await this.modeRouter.execute({
-            organizationSlug: context.orgSlug,
-            agentSlug: agent.slug,
-            agent,
-            definition,
-            request,
-            routingMetadata,
-          });
-          break;
         case AgentTaskMode.HITL:
-          // Delegate to mode router for HITL actions (resume, status, history)
           response = await this.modeRouter.execute({
-            organizationSlug: context.orgSlug,
-            agentSlug: agent.slug,
-            agent,
+            context,
             definition,
             request,
             routingMetadata,
@@ -210,7 +179,7 @@ export class AgentExecutionGateway {
     agentMetadata: AgentRuntimeAgentMetadata,
     request: TaskRequestDto,
   ): Promise<TaskResponseDto> {
-    const conversationId = request.conversationId;
+    const conversationId = request.context?.conversationId;
     if (!conversationId) {
       throw new BadRequestException(
         'conversationId is required for plan generation',
@@ -260,10 +229,9 @@ export class AgentExecutionGateway {
     request: TaskRequestDto,
     routingMetadata?: Record<string, unknown>,
   ): Promise<TaskResponseDto> {
+    // AgentExecutionContext expects context from the request, definition, and routingMetadata
     return this.modeRouter.execute({
-      organizationSlug,
-      agentSlug: agent.slug,
-      agent,
+      context: request.context!,
       definition,
       request,
       routingMetadata,
@@ -280,7 +248,7 @@ export class AgentExecutionGateway {
     agent: AgentRecord,
     request: TaskRequestDto,
   ): Promise<ConversationPlanRecord> {
-    const planId = request.planId;
+    const planId = request.context?.planId;
     if (!planId) {
       throw new BadRequestException('planId is required for plan execution');
     }
@@ -300,7 +268,7 @@ export class AgentExecutionGateway {
       throw new BadRequestException('Plan is not associated with this agent');
     }
 
-    if (plan.conversation_id !== request.conversationId) {
+    if (plan.conversation_id !== request.context?.conversationId) {
       throw new BadRequestException('Plan is tied to a different conversation');
     }
 
@@ -371,8 +339,8 @@ export class AgentExecutionGateway {
 
     return this.streamService.start(
       {
-        conversationId: request.conversationId,
-        sessionId: request.sessionId,
+        conversationId: request.context?.conversationId,
+        sessionId: request.context?.taskId,
         organizationSlug,
         agentSlug: agent.slug,
         mode,
@@ -463,7 +431,7 @@ export class AgentExecutionGateway {
   ): void {
     try {
       const userId = this.resolveUserId(context.request);
-      const conversationId = context.request.conversationId || null;
+      const conversationId = context.request.context?.conversationId || null;
       const taskId = (context.request.payload as Record<string, unknown>)
         ?.taskId as string | null;
 

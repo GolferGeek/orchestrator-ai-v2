@@ -108,10 +108,7 @@ export class AgentRuntimeDeliverablesAdapter {
               this.coerceDeliverableFormat(ctx.deliverableFormat) ??
               DeliverableFormat.TEXT,
             createdByType: DeliverableVersionCreationType.AI_ENHANCEMENT,
-            taskId:
-              typeof (request as Record<string, unknown>).taskId === 'string'
-                ? ((request as Record<string, unknown>).taskId as string)
-                : undefined,
+            taskId: request.context?.taskId ?? undefined,
             metadata: {
               organizationSlug: ctx.organizationSlug,
               agentSlug: ctx.agentSlug,
@@ -139,10 +136,7 @@ export class AgentRuntimeDeliverablesAdapter {
           this.coerceDeliverableFormat(ctx.deliverableFormat) ??
           DeliverableFormat.TEXT,
         initialCreationType: DeliverableVersionCreationType.AI_RESPONSE,
-        initialTaskId:
-          typeof (request as Record<string, unknown>).taskId === 'string'
-            ? ((request as Record<string, unknown>).taskId as string)
-            : undefined,
+        initialTaskId: request.context?.taskId ?? undefined,
         initialMetadata: {
           organizationSlug: ctx.organizationSlug,
           agentSlug: ctx.agentSlug,

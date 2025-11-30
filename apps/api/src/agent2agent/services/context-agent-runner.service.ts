@@ -23,6 +23,7 @@ import {
 } from '../context-optimization/context-optimization.service';
 import type { ActionExecutionContext } from '../common/interfaces/action-handler.interface';
 import type { JsonObject } from '@orchestrator-ai/transport-types';
+import { NIL_UUID } from '@orchestrator-ai/transport-types';
 import { DeliverablesService } from '../deliverables/deliverables.service';
 import { PlansService } from '../plans/services/plans.service';
 import { StreamingService } from './streaming.service';
@@ -150,21 +151,20 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
         );
       }
 
-      const conversationId = this.resolveConversationId(request);
-      if (!conversationId) {
+      // Use ExecutionContext from request - it flows through unchanged
+      const context = request.context;
+      if (!context.conversationId) {
         return TaskResponseDto.failure(
           AgentTaskMode.BUILD,
           'Conversation context is required for build execution',
         );
       }
-      request.conversationId = conversationId;
 
-      const taskId = this.resolveTaskId(request) ?? undefined;
       const executionContext: ActionExecutionContext = {
-        conversationId,
+        conversationId: context.conversationId,
         userId,
         agentSlug: definition.slug,
-        taskId,
+        taskId: context.taskId,
         metadata: (request.metadata ?? {}) as JsonObject,
       };
 
@@ -179,25 +179,23 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
         definition,
         request,
         organizationSlug,
-        taskId,
+        taskId: context.taskId,
         progress: 10,
       });
 
-      // Emit SSE progress update
-      const taskIdForStream = taskId || this.resolveTaskId(request);
-      if (taskIdForStream) {
-        this.streamingService.emitProgress(
-          taskIdForStream,
-          'Fetching context...',
-          {
-            step: 'Fetching context',
-            progress: 10,
-            status: 'running',
-            sequence: 1,
-            totalSteps: 5,
-          },
-        );
-      }
+      // Emit SSE progress update using ExecutionContext
+      this.streamingService.emitProgress(
+        context,
+        'Fetching context...',
+        request.userMessage || '',
+        {
+          step: 'Fetching context',
+          progress: 10,
+          status: 'running',
+          sequence: 1,
+          totalSteps: 5,
+        },
+      );
 
       const buildContext = await this.gatherBuildContext(
         definition,
@@ -215,24 +213,23 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
         definition,
         request,
         organizationSlug,
-        taskId,
+        taskId: context.taskId,
         progress: 30,
       });
 
       // Emit SSE progress update
-      if (taskIdForStream) {
-        this.streamingService.emitProgress(
-          taskIdForStream,
-          'Optimizing context...',
-          {
-            step: 'Optimizing context',
-            progress: 30,
-            status: 'running',
-            sequence: 2,
-            totalSteps: 5,
-          },
-        );
-      }
+      this.streamingService.emitProgress(
+        context,
+        'Optimizing context...',
+        request.userMessage || '',
+        {
+          step: 'Optimizing context',
+          progress: 30,
+          status: 'running',
+          sequence: 2,
+          totalSteps: 5,
+        },
+      );
 
       const resolvedOrgSlug = this.resolveOrganizationSlug(
         definition,
@@ -276,29 +273,28 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
           definition,
           request,
           organizationSlug,
-          taskId,
+          taskId: context.taskId,
           progress: 50,
         });
 
         // Emit SSE progress update
-        if (taskIdForStream) {
-          this.streamingService.emitProgress(
-            taskIdForStream,
-            'Calling LLM to generate deliverable...',
-            {
-              step: 'Calling LLM',
-              progress: 50,
-              status: 'running',
-              sequence: 3,
-              totalSteps: 5,
-            },
-          );
-        }
+        this.streamingService.emitProgress(
+          context,
+          'Calling LLM to generate deliverable...',
+          request.userMessage || '',
+          {
+            step: 'Calling LLM',
+            progress: 50,
+            status: 'running',
+            sequence: 3,
+            totalSteps: 5,
+          },
+        );
 
         const llmConfig = this.buildLlmConfig(
           definition,
           payload,
-          conversationId,
+          context.conversationId,
           userId,
           resolvedOrgSlug,
           request,
@@ -368,7 +364,7 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
           type: deliverableType,
           deliverableId: targetDeliverableId ?? undefined,
           agentName: definition.name ?? definition.slug,
-          taskId,
+          taskId: context.taskId,
           metadata: this.compactMetadata({
             planId: buildContext.plan?.id ?? null,
             planVersionId:
@@ -447,19 +443,18 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
       };
 
       // Emit final progress update
-      if (taskIdForStream) {
-        this.streamingService.emitProgress(
-          taskIdForStream,
-          'Deliverable created successfully',
-          {
-            step: 'Complete',
-            progress: 100,
-            status: 'completed',
-            sequence: 5,
-            totalSteps: 5,
-          },
-        );
-      }
+      this.streamingService.emitProgress(
+        context,
+        'Deliverable created successfully',
+        request.userMessage || '',
+        {
+          step: 'Complete',
+          progress: 100,
+          status: 'completed',
+          sequence: 5,
+          totalSteps: 5,
+        },
+      );
 
       return TaskResponseDto.success(AgentTaskMode.BUILD, {
         content: {
@@ -555,8 +550,9 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
       plan = plan ?? listResult.data?.plan ?? null;
     }
 
-    if (plan?.id) {
-      request.planId = plan.id;
+    // MUTATION: Set planId when first created (from NIL_UUID)
+    if (plan?.id && request.context.planId === NIL_UUID) {
+      request.context.planId = plan.id;
     }
 
     return {
@@ -717,7 +713,7 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
   ): Record<string, unknown> {
     const config: Record<string, unknown> = {
       conversationId,
-      sessionId: request.sessionId,
+      sessionId: request.context.taskId, // Use taskId for session correlation
       userId,
       organizationSlug: orgSlug,
       agentSlug: definition.slug,

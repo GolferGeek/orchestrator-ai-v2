@@ -1,7 +1,10 @@
 import { ref, onUnmounted, computed } from 'vue';
 import { useAuthStore, useRbacStore } from '@/stores/rbacStore';
+import type { ExecutionContext } from '@orchestrator-ai/transport-types';
 
 export interface ObservabilityEvent {
+  /** Full ExecutionContext capsule (when available from SSE events) */
+  context?: ExecutionContext;
   id?: number;
   source_app?: string;
   session_id?: string;

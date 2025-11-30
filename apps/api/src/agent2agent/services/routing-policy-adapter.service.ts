@@ -81,7 +81,7 @@ export class RoutingPolicyAdapterService {
 
     if (!segments.length) {
       segments.push(
-        `Mode ${request.mode!} request for agent ${agent.slug} (conversation ${request.conversationId ?? 'unknown'}, session ${request.sessionId ?? 'n/a'})`,
+        `Mode ${request.mode!} request for agent ${agent.slug} (conversation ${request.context?.conversationId ?? 'unknown'}, task ${request.context?.taskId ?? 'n/a'})`,
       );
     }
 
@@ -94,15 +94,16 @@ export class RoutingPolicyAdapterService {
   ): Record<string, unknown> {
     const payload = request.payload ?? {};
     const metadata = this.collectMetadata(request);
+    const context = request.context;
 
     return {
       mode: request.mode!,
       agentSlug: agent.slug,
-      conversationId: request.conversationId,
-      sessionId: request.sessionId,
-      planId: request.planId,
+      conversationId: context?.conversationId,
+      taskId: context?.taskId,
+      planId: context?.planId,
       organizationSlug: agent.organization_slug ?? null,
-      userId: (metadata.userId ?? payload.userId ?? null) as string | null,
+      userId: context?.userId ?? (metadata.userId ?? payload.userId ?? null) as string | null,
       requestId: (metadata.requestId ?? payload.requestId ?? null) as
         | string
         | null,

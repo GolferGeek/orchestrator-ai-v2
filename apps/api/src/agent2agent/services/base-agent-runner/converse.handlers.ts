@@ -60,7 +60,10 @@ export async function executeConverse(
         definition.slug,
       );
 
-    request.conversationId = conversation.id;
+    // MUTATION: Update conversationId in context if this is a new conversation
+    if (request.context && request.context.conversationId !== conversation.id) {
+      request.context.conversationId = conversation.id;
+    }
 
     const history = await fetchConversationHistory(
       services.conversationsService,
@@ -75,8 +78,8 @@ export async function executeConverse(
       throw new Error('User message is required to execute Converse mode');
     }
 
-    // Extract LLM configuration from payload (required from frontend)
-    // Frontend sends config.provider and config.model in the payload
+    // Extract LLM configuration - primary source is ExecutionContext (Phase 3.5+)
+    // Fallback to legacy payload.config for backwards compatibility
     const payloadRec = payload as Record<string, unknown>;
     const llmSelection = payloadRec.llmSelection as
       | Record<string, unknown>
@@ -89,14 +92,20 @@ export async function executeConverse(
           maxTokens?: number;
         }
       | undefined;
-    const providerName = config?.provider ?? llmSelection?.providerName;
-    const modelName = config?.model ?? llmSelection?.modelName;
+
+    // Primary: context.provider/model (Phase 3.5+), Fallback: payload.config (legacy)
+    const providerName =
+      request.context?.provider ??
+      config?.provider ??
+      llmSelection?.providerName;
+    const modelName =
+      request.context?.model ?? config?.model ?? llmSelection?.modelName;
 
     // Validate LLM configuration (no fallbacks - frontend must provide)
     if (!providerName || !modelName) {
       throw new Error(
-        'LLM provider and model must be specified in the request payload. ' +
-          'Frontend must send config.provider and config.model.',
+        'LLM provider and model must be specified. ' +
+          'Send context.provider/model (Phase 3.5+) or payload.config.provider/model.',
       );
     }
 
@@ -108,7 +117,7 @@ export async function executeConverse(
       maxTokens:
         config?.maxTokens ?? llmSelection?.maxTokens ?? payload.maxTokens,
       conversationId: conversation.id,
-      sessionId: request.sessionId,
+      sessionId: request.context?.taskId, // Use taskId for session correlation
       userId,
       organizationSlug: orgSlug,
       agentSlug: definition.slug,

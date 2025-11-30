@@ -55,7 +55,7 @@ export class AgentRuntimePlansAdapter {
 
       const userId = this.resolveUserId(request) ?? ctx.userId ?? null;
       const conversationId =
-        ctx.conversationId ?? request.conversationId ?? null;
+        ctx.conversationId ?? request.context?.conversationId ?? null;
 
       if (!userId || !conversationId) {
         this.logger.warn(

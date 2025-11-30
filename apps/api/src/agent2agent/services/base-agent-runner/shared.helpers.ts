@@ -108,7 +108,7 @@ export async function fetchExistingPlan(
   const payload = request.payload as Record<string, unknown>;
   const metadata = request.metadata as Record<string, unknown>;
   const planIdCandidates: Array<unknown> = [
-    request.planId,
+    request.context?.planId,
     payload?.planId,
     (payload?.plan as Record<string, unknown>)?.id,
     metadata?.planId,
@@ -442,6 +442,11 @@ export async function callLLM(
  * @returns The resolved user identifier or null
  */
 export function resolveUserId(request: TaskRequestDto): string | null {
+  // Primary source: ExecutionContext (Phase 3.5+)
+  if (typeof request.context?.userId === 'string') {
+    return request.context.userId;
+  }
+
   const fromMetadata = request.metadata?.userId ?? request.metadata?.createdBy;
   if (fromMetadata) {
     return typeof fromMetadata === 'string'
@@ -493,8 +498,9 @@ export function resolveUserId(request: TaskRequestDto): string | null {
  * @returns The resolved conversation identifier or null
  */
 export function resolveConversationId(request: TaskRequestDto): string | null {
-  if (typeof request.conversationId === 'string') {
-    return request.conversationId;
+  // Primary source: ExecutionContext
+  if (typeof request.context?.conversationId === 'string') {
+    return request.context.conversationId;
   }
 
   const payload = request.payload;

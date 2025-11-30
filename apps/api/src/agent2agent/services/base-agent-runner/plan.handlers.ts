@@ -117,7 +117,10 @@ export async function handlePlanCreate(
         },
       );
 
-      request.planId = existingPlan.id;
+      // MUTATION: Set planId in context when plan is found
+      if (request.context) {
+        request.context.planId = existingPlan.id;
+      }
 
       return TaskResponseDto.success(AgentTaskMode.PLAN, {
         content: {
@@ -181,7 +184,7 @@ export async function handlePlanCreate(
           temperature: config?.temperature ?? payloadRec.temperature,
           maxTokens: config?.maxTokens ?? payloadRec.maxTokens,
           conversationId,
-          sessionId: request.sessionId,
+          sessionId: request.context?.taskId, // Use taskId for session correlation
           userId,
           organizationSlug: organization,
           agentSlug: definition.slug,
@@ -247,7 +250,10 @@ export async function handlePlanCreate(
       },
     );
 
-    request.planId = plan.id;
+    // MUTATION: Set planId in context when plan is created
+    if (request.context) {
+      request.context.planId = plan.id;
+    }
 
     // Create a descriptive message for the frontend
     const planTitle = plan.title || 'Untitled Plan';
@@ -295,7 +301,10 @@ export async function handlePlanRead(
       );
     }
 
-    request.planId = plan.id;
+    // MUTATION: Set planId in context when plan is found
+    if (request.context) {
+      request.context.planId = plan.id;
+    }
 
     if (payload.versionId) {
       const listResult =
@@ -507,10 +516,10 @@ export async function handlePlanRerun(
   void organizationSlug;
   try {
     const payload = (request.payload ?? {}) as unknown as PlanRerunPayload;
-    if (!payload.versionId || !payload.config) {
+    if (!payload.versionId || !payload.llmOverride) {
       return TaskResponseDto.failure(
         AgentTaskMode.PLAN,
-        'versionId and config are required for rerun action',
+        'versionId and llmOverride are required for rerun action',
       );
     }
 
@@ -552,7 +561,7 @@ export async function handlePlanRerun(
         usage: normalizeUsage(llmMetadata.usage),
         planMetadata: extractPlanMetadata(rerunResult.data.version.content),
         sourceVersionId: payload.versionId,
-        config: payload.config,
+        llmOverride: payload.llmOverride,
       },
     );
 
@@ -1063,7 +1072,7 @@ function buildPlanActionContext(
   if (!conversationId) {
     throw new Error('Missing conversationId for plan operation');
   }
-  request.conversationId = conversationId;
+  // ConversationId comes from request.context - no mutation needed
 
   const taskId = resolveTaskId(request) ?? undefined;
 

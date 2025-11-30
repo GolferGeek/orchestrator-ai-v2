@@ -6,19 +6,27 @@ import { AgentRegistryService } from '@agent-platform/services/agent-registry.se
 import { AgentRuntimeDefinitionService } from '@agent-platform/services/agent-runtime-definition.service';
 import { AgentRuntimeDefinition } from '@agent-platform/interfaces/agent.interface';
 import { AgentRunnerRegistryService } from './agent-runner-registry.service';
+import { ExecutionContext } from '@orchestrator-ai/transport-types';
 
+/**
+ * Execution context passed to mode router
+ * The ExecutionContext capsule contains all identity info (org, agent, user, task, etc.)
+ */
 export interface AgentExecutionContext {
-  organizationSlug?: string | null;
-  agentSlug?: string;
-  agent?: AgentRecord;
+  /** ExecutionContext capsule - the core context that flows through the system */
+  context: ExecutionContext;
+  /** Agent runtime definition (transport config, capabilities) - optional, will be looked up if not provided */
   definition?: AgentRuntimeDefinition;
+  /** The task request */
   request: TaskRequestDto;
+  /** Routing policy assessment results */
   routingMetadata?: Record<string, unknown>;
 }
 
+/**
+ * Hydrated context with guaranteed agent record and definition
+ */
 type HydratedExecutionContext = AgentExecutionContext & {
-  organizationSlug: string | null;
-  agentSlug: string;
   agent: AgentRecord;
   definition: AgentRuntimeDefinition;
 };
@@ -33,26 +41,28 @@ export class AgentModeRouterService {
     private readonly runnerRegistry: AgentRunnerRegistryService,
   ) {}
 
-  async execute(context: AgentExecutionContext): Promise<TaskResponseDto> {
+  async execute(execContext: AgentExecutionContext): Promise<TaskResponseDto> {
+    const { context, request } = execContext;
+
     // Check if this is an HITL method (uses 'method' field in payload)
-    const payload = context.request.payload as Record<string, unknown> | undefined;
+    const payload = request.payload as Record<string, unknown> | undefined;
     const method = payload?.method as string | undefined;
 
     this.logger.log(
-      `🔍 [MODE-ROUTER] execute() called - mode: ${context.request.mode}, payload.method: ${method}, agentSlug: ${context.agentSlug}`,
+      `🔍 [MODE-ROUTER] execute() called - mode: ${request.mode}, payload.method: ${method}, agentSlug: ${context.agentSlug}`,
     );
 
     // Route HITL methods (hitl.resume, hitl.status, hitl.history, hitl.pending)
     if (method?.startsWith('hitl.')) {
       this.logger.log(`🔍 [MODE-ROUTER] Routing to HITL method handler: ${method}`);
-      return this.routeHitlMethod(method, context);
+      return this.routeHitlMethod(method, execContext);
     }
 
-    const hydrated = await this.hydrateContext(context);
+    const hydrated = await this.hydrateContext(execContext);
 
     if (!hydrated) {
       return TaskResponseDto.failure(
-        context.request.mode!,
+        request.mode!,
         'Agent record unavailable for execution',
       );
     }
@@ -63,21 +73,23 @@ export class AgentModeRouterService {
 
     if (!runner) {
       this.logger.error(
-        `No runner registered for agent type ${agentType}. Agent: ${hydrated.agentSlug}`,
+        `No runner registered for agent type ${agentType}. Agent: ${context.agentSlug}`,
       );
       return TaskResponseDto.failure(
-        hydrated.request.mode!,
+        request.mode!,
         `No runner available for agent type: ${agentType}`,
       );
     }
 
     this.logger.log(
-      `Routing ${hydrated.request.mode} request to ${agentType} runner for agent ${hydrated.agentSlug}`,
+      `Routing ${request.mode} request to ${agentType} runner for agent ${context.agentSlug}`,
     );
+
+    // Pass to runner - context is in request.context
     return await runner.execute(
       hydrated.definition,
       hydrated.request,
-      hydrated.organizationSlug,
+      context.orgSlug,
     );
   }
 
@@ -93,18 +105,18 @@ export class AgentModeRouterService {
    */
   private async routeHitlMethod(
     method: string,
-    context: AgentExecutionContext,
+    execContext: AgentExecutionContext,
   ): Promise<TaskResponseDto> {
+    const { context, request } = execContext;
     this.logger.log(`Routing HITL method: ${method}`);
 
     // For hitl.pending, we don't need an agent - it's a cross-agent query
-    const agentSlug = context.agentSlug;
-    if (method === 'hitl.pending' || agentSlug === '_system') {
-      return this.handleSystemHitlMethod(method, context);
+    if (method === 'hitl.pending' || context.agentSlug === '_system') {
+      return this.handleSystemHitlMethod(method, execContext);
     }
 
     // For other HITL methods, we need to hydrate the context to get agent info
-    const hydrated = await this.hydrateContext(context);
+    const hydrated = await this.hydrateContext(execContext);
 
     if (!hydrated) {
       return TaskResponseDto.failure(
@@ -126,10 +138,10 @@ export class AgentModeRouterService {
 
     // Pass the HITL method in request so runner knows what to do
     const hitlRequest: TaskRequestDto = {
-      ...hydrated.request,
+      ...request,
       mode: AgentTaskMode.HITL,
       payload: {
-        ...(hydrated.request.payload as Record<string, unknown>),
+        ...(request.payload as Record<string, unknown>),
         hitlMethod: method, // hitl.resume, hitl.status, hitl.history
       },
     };
@@ -137,7 +149,7 @@ export class AgentModeRouterService {
     return apiRunner.execute(
       hydrated.definition,
       hitlRequest,
-      hydrated.organizationSlug,
+      context.orgSlug,
     );
   }
 
@@ -147,8 +159,10 @@ export class AgentModeRouterService {
    */
   private async handleSystemHitlMethod(
     method: string,
-    context: AgentExecutionContext,
+    execContext: AgentExecutionContext,
   ): Promise<TaskResponseDto> {
+    const { context, request } = execContext;
+
     // Only hitl.pending is supported for system-level queries
     if (method !== 'hitl.pending') {
       return TaskResponseDto.failure(
@@ -169,10 +183,10 @@ export class AgentModeRouterService {
 
     // Build request with null definition (system-level query)
     const hitlRequest: TaskRequestDto = {
-      ...context.request,
+      ...request,
       mode: AgentTaskMode.HITL,
       payload: {
-        ...(context.request.payload as Record<string, unknown>),
+        ...(request.payload as Record<string, unknown>),
         hitlMethod: 'hitl.pending',
       },
     };
@@ -181,62 +195,41 @@ export class AgentModeRouterService {
     return apiRunner.execute(
       null as unknown as AgentRuntimeDefinition, // System-level, no agent needed
       hitlRequest,
-      context.organizationSlug ?? null,
+      context.orgSlug,
     );
   }
 
+  /**
+   * Hydrate context by looking up agent record and building definition
+   * Uses orgSlug and agentSlug from ExecutionContext
+   */
   private async hydrateContext(
-    context: AgentExecutionContext,
+    execContext: AgentExecutionContext,
   ): Promise<HydratedExecutionContext | null> {
-    const existingAgent = context.agent;
-    const agentSlug = context.agentSlug ?? existingAgent?.slug;
-    const organizationSlug =
-      context.organizationSlug ?? existingAgent?.organization_slug ?? null;
+    const { context, definition: existingDefinition } = execContext;
+    const { orgSlug, agentSlug } = context;
 
     if (!agentSlug) {
-      this.logger.warn('Agent slug missing from execution context');
+      this.logger.warn('Agent slug missing from ExecutionContext');
       return null;
     }
 
-    let agentRecord: AgentRecord | null = existingAgent ?? null;
-    if (!agentRecord) {
-      // Convert organizationSlug to first element if array, or use as is
-      const orgSlugParam: string | null =
-        Array.isArray(organizationSlug) && organizationSlug.length > 0
-          ? (organizationSlug[0] ?? null)
-          : typeof organizationSlug === 'string'
-            ? organizationSlug
-            : null;
-
-      agentRecord = await this.agentRegistry.getAgent(orgSlugParam, agentSlug);
-    }
+    // Look up agent record from registry
+    const agentRecord = await this.agentRegistry.getAgent(orgSlug, agentSlug);
 
     if (!agentRecord) {
-      const orgDisplay = Array.isArray(organizationSlug)
-        ? organizationSlug.join(',')
-        : (organizationSlug ?? 'global');
       this.logger.warn(
-        `Agent ${agentSlug} not found for organization ${orgDisplay}`,
+        `Agent ${agentSlug} not found for organization ${orgSlug || 'global'}`,
       );
       return null;
     }
 
+    // Use existing definition or build from agent record
     const definition =
-      context.definition ??
-      this.runtimeDefinitions.buildDefinition(agentRecord);
-
-    // For organizationSlug in context, use first element if array
-    const contextOrgSlug: string | null =
-      Array.isArray(organizationSlug) && organizationSlug.length > 0
-        ? (organizationSlug[0] ?? null)
-        : typeof organizationSlug === 'string'
-          ? organizationSlug
-          : null;
+      existingDefinition ?? this.runtimeDefinitions.buildDefinition(agentRecord);
 
     return {
-      ...context,
-      organizationSlug: contextOrgSlug,
-      agentSlug,
+      ...execContext,
       agent: agentRecord,
       definition,
     };

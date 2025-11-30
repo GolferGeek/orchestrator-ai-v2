@@ -163,11 +163,11 @@ export class ExternalAgentRunnerService extends BaseAgentRunner {
         `Forwarding ${mode} request to external agent at ${endpoint}`,
       );
 
-      // 1. Build A2A request
+      // 1. Build A2A request - forward context unchanged
+
       const a2aRequest: TaskRequestDto = {
+        context: request.context, // Pass through ExecutionContext
         mode,
-        conversationId,
-        sessionId: request.sessionId,
         userMessage: request.userMessage,
         payload: request.payload,
         metadata: {

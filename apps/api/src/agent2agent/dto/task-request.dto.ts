@@ -4,7 +4,6 @@ import {
   IsObject,
   IsOptional,
   IsString,
-  IsUUID,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -12,42 +11,47 @@ import {
   AgentTaskMode,
   TaskMessage,
   TaskRequestParams,
+  ExecutionContext,
 } from '@orchestrator-ai/transport-types';
 
 // Re-export shared types
 export { AgentTaskMode, TaskMessage, TaskRequestParams };
 
-// Extended mode enum for internal orchestration modes
-export enum InternalAgentTaskMode {
-  HUMAN_RESPONSE = 'human_response',
-  ORCHESTRATE_CREATE = 'orchestrate_create',
-  ORCHESTRATE_EXECUTE = 'orchestrate_execute',
-  ORCHESTRATE_CONTINUE = 'orchestrate_continue',
-  ORCHESTRATE_SAVE_RECIPE = 'orchestrate_save_recipe',
-  ORCHESTRATOR_PLAN_CREATE = 'orchestrator_plan_create',
-  ORCHESTRATOR_PLAN_UPDATE = 'orchestrator_plan_update',
-  ORCHESTRATOR_PLAN_REVIEW = 'orchestrator_plan_review',
-  ORCHESTRATOR_PLAN_APPROVE = 'orchestrator_plan_approve',
-  ORCHESTRATOR_PLAN_REJECT = 'orchestrator_plan_reject',
-  ORCHESTRATOR_PLAN_ARCHIVE = 'orchestrator_plan_archive',
-  ORCHESTRATOR_RUN_START = 'orchestrator_run_start',
-  ORCHESTRATOR_RUN_CONTINUE = 'orchestrator_run_continue',
-  ORCHESTRATOR_RUN_PAUSE = 'orchestrator_run_pause',
-  ORCHESTRATOR_RUN_RESUME = 'orchestrator_run_resume',
-  ORCHESTRATOR_RUN_HUMAN_RESPONSE = 'orchestrator_run_human_response',
-  ORCHESTRATOR_RUN_ROLLBACK_STEP = 'orchestrator_run_rollback_step',
-  ORCHESTRATOR_RUN_CANCEL = 'orchestrator_run_cancel',
-  ORCHESTRATOR_RUN_EVALUATE = 'orchestrator_run_evaluate',
-  ORCHESTRATOR_RECIPE_SAVE = 'orchestrator_recipe_save',
-  ORCHESTRATOR_RECIPE_UPDATE = 'orchestrator_recipe_update',
-  ORCHESTRATOR_RECIPE_VALIDATE = 'orchestrator_recipe_validate',
-  ORCHESTRATOR_RECIPE_DELETE = 'orchestrator_recipe_delete',
-  ORCHESTRATOR_RECIPE_LOAD = 'orchestrator_recipe_load',
-  ORCHESTRATOR_RECIPE_LIST = 'orchestrator_recipe_list',
-}
+/**
+ * ExecutionContext DTO for validation
+ * Maps to ExecutionContext interface from transport-types
+ */
+export class ExecutionContextDto implements ExecutionContext {
+  @IsString()
+  orgSlug!: string;
 
-// Combined mode type for internal use
-export type CombinedAgentTaskMode = AgentTaskMode | InternalAgentTaskMode;
+  @IsString()
+  userId!: string;
+
+  @IsString()
+  conversationId!: string;
+
+  @IsString()
+  taskId!: string;
+
+  @IsString()
+  planId!: string;
+
+  @IsString()
+  deliverableId!: string;
+
+  @IsString()
+  agentSlug!: string;
+
+  @IsString()
+  agentType!: string;
+
+  @IsString()
+  provider!: string;
+
+  @IsString()
+  model!: string;
+}
 
 export class TaskMessageDto {
   @IsString()
@@ -57,45 +61,65 @@ export class TaskMessageDto {
   content?: unknown;
 }
 
+/**
+ * Task Request DTO
+ *
+ * The ExecutionContext is the core capsule that flows through the system.
+ * It's created by the frontend and passed with every request.
+ *
+ * Note: The server will override context.userId with the authenticated user's ID
+ * for security - we don't trust client-provided userId.
+ */
 export class TaskRequestDto {
   /**
-   * Agent task mode - Optional in raw requests but guaranteed to be set after normalization
-   * The controller ensures this is always set (defaults to CONVERSE if not provided)
+   * ExecutionContext - Required, created by frontend
+   * Contains all context needed for task execution
+   */
+  @IsObject()
+  @ValidateNested()
+  @Type(() => ExecutionContextDto)
+  context!: ExecutionContext;
+
+  /**
+   * Agent task mode - Optional, can be derived from JSON-RPC method
    */
   @IsOptional()
   @IsEnum(AgentTaskMode)
   mode?: AgentTaskMode;
 
-  @IsOptional()
-  @IsUUID()
-  conversationId?: string;
-
-  @IsOptional()
-  @IsString()
-  sessionId?: string;
-
-  @IsOptional()
-  @IsUUID()
-  planId?: string;
-
-  @IsOptional()
-  @IsObject()
-  payload?: Record<string, unknown>;
-
-  @IsOptional()
-  @IsObject()
-  promptParameters?: Record<string, unknown>;
-
+  /**
+   * User's message/prompt
+   */
   @IsOptional()
   @IsString()
   userMessage?: string;
 
+  /**
+   * Action-specific payload (action params, config, etc.)
+   */
+  @IsOptional()
+  @IsObject()
+  payload?: Record<string, unknown>;
+
+  /**
+   * Prompt template parameters
+   */
+  @IsOptional()
+  @IsObject()
+  promptParameters?: Record<string, unknown>;
+
+  /**
+   * Conversation history messages
+   */
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => TaskMessageDto)
   messages?: TaskMessageDto[];
 
+  /**
+   * Additional metadata
+   */
   @IsOptional()
   @IsObject()
   metadata?: Record<string, unknown>;

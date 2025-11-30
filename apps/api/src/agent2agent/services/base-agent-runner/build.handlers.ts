@@ -369,10 +369,10 @@ export async function handleBuildRerun(
 
   try {
     const payload = (request.payload ?? {}) as unknown as BuildRerunPayload;
-    if (!payload.versionId || !payload.config) {
+    if (!payload.versionId || !payload.llmOverride) {
       return TaskResponseDto.failure(
         AgentTaskMode.BUILD,
-        'versionId and config are required for rerun action',
+        'versionId and llmOverride are required for rerun action',
       );
     }
 
@@ -452,7 +452,7 @@ export async function handleBuildRerun(
       planVersionId: (request.payload as Record<string, unknown>)
         ?.planVersionId,
       deliverableId: deliverableRecord.id,
-      config: payload.config,
+      llmOverride: payload.llmOverride,
       rerunContext: {
         sourceVersion: serializedVersion,
         deliverable: serializedDeliverable,
@@ -466,7 +466,7 @@ export async function handleBuildRerun(
         ...(request.metadata ?? {}),
         buildRerun: {
           sourceVersionId: payload.versionId,
-          config: payload.config,
+          llmOverride: payload.llmOverride,
         },
       },
     };
@@ -485,7 +485,7 @@ export async function handleBuildRerun(
       rerunResponse.payload.metadata ?? {},
       {
         sourceVersionId: payload.versionId,
-        config: payload.config,
+        llmOverride: payload.llmOverride,
         conversationId,
         origin: 'rerun',
       },
@@ -1112,7 +1112,7 @@ function buildBuildActionContext(
   if (!conversationId) {
     throw new Error('Missing conversationId for build operation');
   }
-  request.conversationId = conversationId;
+  // Context is already populated from controller - no mutation needed
 
   const taskId = resolveTaskId(request) ?? undefined;
 

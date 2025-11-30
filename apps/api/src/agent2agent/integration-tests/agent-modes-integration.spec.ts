@@ -18,7 +18,6 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
   let app: INestApplication;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let httpServer: any;
-  const mockContext = createMockExecutionContext();
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -48,6 +47,9 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
    */
   describe('Test 1: Complete Workflow - Talk → Plan → Build', () => {
     const conversationId = `integration-test-1-${Date.now()}`;
+    const testContext = createMockExecutionContext({
+      conversationId,
+    });
 
     it('should execute complete workflow successfully', async () => {
       // 1. Start conversation
@@ -55,7 +57,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
         mode: AgentTaskMode.CONVERSE,
         userMessage:
           'I need to write a technical blog post about Kubernetes best practices',
-        conversationId,
+        context: testContext,
       };
 
       const converse1 = await request(
@@ -79,7 +81,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
         mode: AgentTaskMode.CONVERSE,
         userMessage:
           'Target audience is DevOps engineers with 2-3 years experience',
-        conversationId,
+        context: testContext,
       };
 
       const converse2 = await request(
@@ -96,7 +98,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
       // 3. Create plan
       const planCreateRequest: TaskRequestDto = {
         mode: AgentTaskMode.PLAN,
-        conversationId,
+        context: testContext,
         payload: {
           action: 'create',
           title: 'Kubernetes Best Practices Plan',
@@ -124,7 +126,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
       // 4. Read plan
       const planReadRequest: TaskRequestDto = {
         mode: AgentTaskMode.PLAN,
-        conversationId,
+        context: testContext,
         payload: { action: 'read' },
       };
 
@@ -146,7 +148,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
       // 5. Edit plan
       const planEditRequest: TaskRequestDto = {
         mode: AgentTaskMode.PLAN,
-        conversationId,
+        context: testContext,
         payload: {
           action: 'edit',
           editedContent: {
@@ -172,7 +174,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
       // 6. Build deliverable
       const buildCreateRequest: TaskRequestDto = {
         mode: AgentTaskMode.BUILD,
-        conversationId,
+        context: testContext,
         payload: {
           action: 'create',
           title: 'Kubernetes Best Practices',
@@ -196,7 +198,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
       // 7. Read deliverable
       const buildReadRequest: TaskRequestDto = {
         mode: AgentTaskMode.BUILD,
-        conversationId,
+        context: testContext,
         payload: { action: 'read' },
       };
 
@@ -227,13 +229,16 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
    */
   describe('Test 2: Skip Planning Workflow - Talk → Build', () => {
     const conversationId = `integration-test-2-${Date.now()}`;
+    const testContext = createMockExecutionContext({
+      conversationId,
+    });
 
     it('should build deliverable directly from conversation without plan', async () => {
       // 1. Conversation
       const converseRequest: TaskRequestDto = {
         mode: AgentTaskMode.CONVERSE,
         userMessage: 'Write a quick intro paragraph about Docker containers',
-        conversationId,
+        context: testContext,
       };
 
       const converse = await request(
@@ -248,7 +253,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
       // 2. Build directly (no plan)
       const buildRequest: TaskRequestDto = {
         mode: AgentTaskMode.BUILD,
-        conversationId,
+        context: testContext,
         payload: {
           action: 'create',
           title: 'Docker Intro',
@@ -281,6 +286,9 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
    */
   describe('Test 3: Multiple Plan Versions', () => {
     const conversationId = `integration-test-3-${Date.now()}`;
+    const testContext = createMockExecutionContext({
+      conversationId,
+    });
 
     it('should manage multiple plan versions correctly', async () => {
       // Setup conversation
@@ -289,7 +297,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
         .send({
           mode: AgentTaskMode.CONVERSE,
           userMessage: 'Create a blog post about TypeScript',
-          conversationId,
+          context: testContext,
         })
         .expect(201);
 
@@ -300,7 +308,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
         .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
         .send({
           mode: AgentTaskMode.PLAN,
-          conversationId,
+          context: testContext,
           payload: { action: 'create', title: 'TypeScript Blog Plan' },
         })
         .expect(201);
@@ -315,7 +323,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
         .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
         .send({
           mode: AgentTaskMode.PLAN,
-          conversationId,
+          context: testContext,
           payload: {
             action: 'edit',
             editedContent: { sections: ['Intro', 'Advanced Features'] },
@@ -334,7 +342,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
         .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
         .send({
           mode: AgentTaskMode.PLAN,
-          conversationId,
+          context: testContext,
           payload: {
             action: 'edit',
             editedContent: { sections: ['Intro', 'Advanced', 'Conclusion'] },
@@ -353,7 +361,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
         .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
         .send({
           mode: AgentTaskMode.PLAN,
-          conversationId,
+          context: testContext,
           payload: { action: 'listVersions' },
         })
         .expect(201);
@@ -375,7 +383,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
         .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
         .send({
           mode: AgentTaskMode.PLAN,
-          conversationId,
+          context: testContext,
           payload: { action: 'setCurrent', versionNumber: 2 },
         })
         .expect(201);
@@ -387,7 +395,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
         .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
         .send({
           mode: AgentTaskMode.PLAN,
-          conversationId,
+          context: testContext,
           payload: { action: 'read' },
         })
         .expect(201);
@@ -410,6 +418,9 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
    */
   describe('Test 4: Multiple Deliverable Versions', () => {
     const conversationId = `integration-test-4-${Date.now()}`;
+    const testContext = createMockExecutionContext({
+      conversationId,
+    });
 
     it('should manage multiple deliverable versions through edit and rerun', async () => {
       // Setup conversation and plan
@@ -418,7 +429,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
         .send({
           mode: AgentTaskMode.CONVERSE,
           userMessage: 'Write about React hooks',
-          conversationId,
+          context: testContext,
         })
         .expect(201);
 
@@ -429,7 +440,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
         .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
         .send({
           mode: AgentTaskMode.BUILD,
-          conversationId,
+          context: testContext,
           payload: { action: 'create', title: 'React Hooks Guide' },
         })
         .expect(201);
@@ -446,7 +457,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
         .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
         .send({
           mode: AgentTaskMode.BUILD,
-          conversationId,
+          context: testContext,
           payload: {
             action: 'edit',
             editedContent: { content: 'Updated content for v2' },
@@ -467,7 +478,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
         .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
         .send({
           mode: AgentTaskMode.BUILD,
-          conversationId,
+          context: testContext,
           payload: {
             action: 'rerun',
             llmConfig: { temperature: 0.9 },
@@ -487,7 +498,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
         .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
         .send({
           mode: AgentTaskMode.BUILD,
-          conversationId,
+          context: testContext,
           payload: { action: 'listVersions' },
         })
         .expect(201);
@@ -509,7 +520,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
         .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
         .send({
           mode: AgentTaskMode.BUILD,
-          conversationId,
+          context: testContext,
           payload: { action: 'setCurrent', versionNumber: 1 },
         })
         .expect(201);
@@ -521,7 +532,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
         .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
         .send({
           mode: AgentTaskMode.BUILD,
-          conversationId,
+          context: testContext,
           payload: { action: 'read' },
         })
         .expect(201);
@@ -543,6 +554,10 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
    * Tests error responses for invalid actions
    */
   describe('Test 5: Error Handling - Invalid Actions', () => {
+    const errorContext = createMockExecutionContext({
+      conversationId: 'test-errors',
+    });
+
     it('should return proper error for invalid PLAN action', async () => {
       const response = await request(
         httpServer as unknown as Parameters<typeof request>[0],
@@ -550,7 +565,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
         .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
         .send({
           mode: AgentTaskMode.PLAN,
-          conversationId: 'test-errors',
+          context: errorContext,
           payload: { action: 'invalid_action' },
         })
         .expect(400);
@@ -570,7 +585,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
         .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
         .send({
           mode: AgentTaskMode.BUILD,
-          conversationId: 'test-errors',
+          context: errorContext,
           payload: { action: 'bad_action' },
         })
         .expect(400);
@@ -592,7 +607,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
             .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
             .send({
               mode: AgentTaskMode.PLAN,
-              conversationId: 'test-errors',
+              context: errorContext,
               payload: { action: 'nonsense' },
             }),
         );
@@ -620,6 +635,9 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
       // If no such agent exists, this test will be skipped or modified
 
       const conversationId = `validation-test-${Date.now()}`;
+      const validationContext = createMockExecutionContext({
+        conversationId,
+      });
 
       // Try to create plan with invalid structure
       const response = await request(
@@ -628,7 +646,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
         .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
         .send({
           mode: AgentTaskMode.PLAN,
-          conversationId,
+          context: validationContext,
           payload: {
             action: 'create',
             // Missing required fields based on schema
@@ -649,6 +667,9 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
 
     it('should validate deliverable structure if agent has deliverable_structure schema', async () => {
       const conversationId = `validation-test-build-${Date.now()}`;
+      const buildValidationContext = createMockExecutionContext({
+        conversationId,
+      });
 
       const response = await request(
         httpServer as unknown as Parameters<typeof request>[0],
@@ -656,7 +677,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
         .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
         .send({
           mode: AgentTaskMode.BUILD,
-          conversationId,
+          context: buildValidationContext,
           payload: {
             action: 'create',
             // Missing required fields
@@ -677,6 +698,9 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
    */
   describe('Test 7: Null Schema Handling', () => {
     const conversationId = `null-schema-test-${Date.now()}`;
+    const nullSchemaContext = createMockExecutionContext({
+      conversationId,
+    });
 
     it('should work with agents that have no plan_structure or deliverable_structure', async () => {
       // Use agent without schemas (or default agent)
@@ -685,7 +709,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
         .send({
           mode: AgentTaskMode.CONVERSE,
           userMessage: 'Test message',
-          conversationId,
+          context: nullSchemaContext,
         })
         .expect(201);
 
@@ -696,7 +720,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
         .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
         .send({
           mode: AgentTaskMode.PLAN,
-          conversationId,
+          context: nullSchemaContext,
           payload: { action: 'create', title: 'Flexible Plan' },
         })
         .expect(201);
@@ -710,7 +734,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
         .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
         .send({
           mode: AgentTaskMode.BUILD,
-          conversationId,
+          context: nullSchemaContext,
           payload: { action: 'create', title: 'Flexible Deliverable' },
         })
         .expect(201);
@@ -726,6 +750,9 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
    */
   describe('Test 8: Transport-Types Conformance Check', () => {
     const conversationId = `transport-test-${Date.now()}`;
+    const transportContext = createMockExecutionContext({
+      conversationId,
+    });
 
     it('should return CONVERSE response matching TaskResponseDto', async () => {
       const response = await request(
@@ -735,7 +762,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
         .send({
           mode: AgentTaskMode.CONVERSE,
           userMessage: 'Hello',
-          conversationId,
+          context: transportContext,
         })
         .expect(201);
 
@@ -764,7 +791,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
         .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
         .send({
           mode: AgentTaskMode.PLAN,
-          conversationId,
+          context: transportContext,
           payload: { action: 'create', title: 'Test Plan' },
         })
         .expect(201);
@@ -787,7 +814,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
         .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
         .send({
           mode: AgentTaskMode.BUILD,
-          conversationId,
+          context: transportContext,
           payload: { action: 'create', title: 'Test Deliverable' },
         })
         .expect(201);
@@ -813,7 +840,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
           .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
           .send({
             mode: AgentTaskMode.PLAN,
-            conversationId,
+            context: transportContext,
             payload: {
               action,
               ...(action === 'getVersion' ? { versionNumber: 1 } : {}),
@@ -836,7 +863,7 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
           .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
           .send({
             mode: AgentTaskMode.BUILD,
-            conversationId,
+            context: transportContext,
             payload: {
               action,
               ...(action === 'getVersion' ? { versionNumber: 1 } : {}),
@@ -857,17 +884,22 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
    */
   describe('Test 9: Concurrent Requests', () => {
     it('should handle 5 CONVERSE requests simultaneously', async () => {
+      const timestamp = Date.now();
       const requests = Array(5)
         .fill(null)
-        .map((_, i) =>
-          request(httpServer as unknown as Parameters<typeof request>[0])
+        .map((_, i) => {
+          const conversationId = `concurrent-converse-${i}-${timestamp}`;
+          const concurrentContext = createMockExecutionContext({
+            conversationId,
+          });
+          return request(httpServer as unknown as Parameters<typeof request>[0])
             .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
             .send({
               mode: AgentTaskMode.CONVERSE,
               userMessage: `Concurrent message ${i}`,
-              conversationId: `concurrent-converse-${i}-${Date.now()}`,
-            }),
-        );
+              context: concurrentContext,
+            });
+        });
 
       const responses = await Promise.all(requests);
 
@@ -883,30 +915,38 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
       // Setup conversations first
       const setupRequests = Array(3)
         .fill(null)
-        .map((_, i) =>
-          request(httpServer as unknown as Parameters<typeof request>[0])
+        .map((_, i) => {
+          const conversationId = `concurrent-plan-${i}-${timestamp}`;
+          const setupContext = createMockExecutionContext({
+            conversationId,
+          });
+          return request(httpServer as unknown as Parameters<typeof request>[0])
             .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
             .send({
               mode: AgentTaskMode.CONVERSE,
               userMessage: `Setup for plan ${i}`,
-              conversationId: `concurrent-plan-${i}-${timestamp}`,
-            }),
-        );
+              context: setupContext,
+            });
+        });
 
       await Promise.all(setupRequests);
 
       // Create plans concurrently
       const planRequests = Array(3)
         .fill(null)
-        .map((_, i) =>
-          request(httpServer as unknown as Parameters<typeof request>[0])
+        .map((_, i) => {
+          const conversationId = `concurrent-plan-${i}-${timestamp}`;
+          const planContext = createMockExecutionContext({
+            conversationId,
+          });
+          return request(httpServer as unknown as Parameters<typeof request>[0])
             .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
             .send({
               mode: AgentTaskMode.PLAN,
-              conversationId: `concurrent-plan-${i}-${timestamp}`,
+              context: planContext,
               payload: { action: 'create', title: `Concurrent Plan ${i}` },
-            }),
-        );
+            });
+        });
 
       const responses = await Promise.all(planRequests);
 
@@ -922,30 +962,38 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
       // Setup conversations
       const setupRequests = Array(2)
         .fill(null)
-        .map((_, i) =>
-          request(httpServer as unknown as Parameters<typeof request>[0])
+        .map((_, i) => {
+          const conversationId = `concurrent-build-${i}-${timestamp}`;
+          const setupContext = createMockExecutionContext({
+            conversationId,
+          });
+          return request(httpServer as unknown as Parameters<typeof request>[0])
             .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
             .send({
               mode: AgentTaskMode.CONVERSE,
               userMessage: `Setup for build ${i}`,
-              conversationId: `concurrent-build-${i}-${timestamp}`,
-            }),
-        );
+              context: setupContext,
+            });
+        });
 
       await Promise.all(setupRequests);
 
       // Create deliverables concurrently
       const buildRequests = Array(2)
         .fill(null)
-        .map((_, i) =>
-          request(httpServer as unknown as Parameters<typeof request>[0])
+        .map((_, i) => {
+          const conversationId = `concurrent-build-${i}-${timestamp}`;
+          const buildContext = createMockExecutionContext({
+            conversationId,
+          });
+          return request(httpServer as unknown as Parameters<typeof request>[0])
             .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
             .send({
               mode: AgentTaskMode.BUILD,
-              conversationId: `concurrent-build-${i}-${timestamp}`,
+              context: buildContext,
               payload: { action: 'create', title: `Concurrent Build ${i}` },
-            }),
-        );
+            });
+        });
 
       const responses = await Promise.all(buildRequests);
 
@@ -959,6 +1007,12 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
       const timestamp = Date.now();
       const conv1 = `isolation-test-1-${timestamp}`;
       const conv2 = `isolation-test-2-${timestamp}`;
+      const context1 = createMockExecutionContext({
+        conversationId: conv1,
+      });
+      const context2 = createMockExecutionContext({
+        conversationId: conv2,
+      });
 
       // Create two conversations with different content
       await Promise.all([
@@ -967,14 +1021,14 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
           .send({
             mode: AgentTaskMode.CONVERSE,
             userMessage: 'Talk about Python',
-            conversationId: conv1,
+            context: context1,
           }),
         request(httpServer as unknown as Parameters<typeof request>[0])
           .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
           .send({
             mode: AgentTaskMode.CONVERSE,
             userMessage: 'Talk about JavaScript',
-            conversationId: conv2,
+            context: context2,
           }),
       ]);
 
@@ -984,14 +1038,14 @@ describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
           .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
           .send({
             mode: AgentTaskMode.PLAN,
-            conversationId: conv1,
+            context: context1,
             payload: { action: 'create', title: 'Python Plan' },
           }),
         request(httpServer as unknown as Parameters<typeof request>[0])
           .post('/api/a2a/agent-to-agent/demo/blog-post-writer/tasks')
           .send({
             mode: AgentTaskMode.PLAN,
-            conversationId: conv2,
+            context: context2,
             payload: { action: 'create', title: 'JavaScript Plan' },
           }),
       ]);

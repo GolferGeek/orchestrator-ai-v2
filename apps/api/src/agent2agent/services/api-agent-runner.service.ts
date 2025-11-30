@@ -942,15 +942,12 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           `🔌 API Agent ${definition.slug}: ${executionMode} mode detected - registering stream for progress updates`,
         );
 
-        if (taskId) {
+        if (request.context) {
           // Register stream session with StreamingService for progress updates
           const streamId = this.streamingService.registerStream(
-            taskId,
-            definition.slug,
-            organizationSlug, // organizationSlug is already validated above
+            request.context,
             AgentTaskMode.BUILD,
-            conversationId,
-            userId,
+            request.userMessage ?? '',
           );
           this.logger.log(
             `✅ API Agent ${definition.slug}: Stream registered with streamId=${streamId} for progress updates`,
@@ -1785,14 +1782,11 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           `🔌 API Agent ${definition.slug}: ${executionMode} mode detected - registering stream for progress updates`,
         );
 
-        if (taskId) {
+        if (request.context) {
           const streamId = this.streamingService.registerStream(
-            taskId,
-            definition.slug,
-            organizationSlug || 'global',
+            request.context,
             mode,
-            conversationId,
-            userId,
+            request.userMessage ?? '',
           );
           this.logger.log(
             `✅ API Agent ${definition.slug}: Stream registered with streamId=${streamId} for progress updates`,
