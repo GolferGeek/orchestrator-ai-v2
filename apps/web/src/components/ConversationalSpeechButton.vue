@@ -38,7 +38,7 @@ import { useChatUiStore } from '@/stores/ui/chatUiStore';
 // import { useUiStore } from '../stores/uiStore';
 // import { useLLMPreferencesStore } from '../stores/llmPreferencesStore';
 // import { useAgentChatStore } from '@/services/conversationHelpers';
-import { sendMessage, createPlan, createDeliverable } from '@/services/agent2agent/actions';
+import { sendMessage as sendMessageAction, createPlan, createDeliverable } from '@/services/agent2agent/actions';
 
 // Define conversation states
 type ConversationState = 'idle' | 'listening' | 'processing' | 'speaking' | 'error' | 'done';
@@ -543,18 +543,18 @@ const processRecordedAudio = async () => {
 
     // Step 3: Send the transcribed text through normal chat flow
     const conversation = chatUiStore.activeConversation;
-    if (conversation && conversation.agentName) {
+    if (conversation) {
       const mode = chatUiStore.chatMode || 'converse';
-      const agentName = conversation.agentName;
 
       // Route to appropriate action based on mode
+      // All actions now use the orchestrator and get context from the store
       if (mode === 'plan') {
-        await createPlan(agentName, conversation.id, transcription.text);
+        await createPlan(transcription.text);
       } else if (mode === 'build') {
-        await createDeliverable(agentName, conversation.id, transcription.text);
+        await createDeliverable(transcription.text);
       } else {
         // converse mode (default)
-        await sendMessage(agentName, conversation.id, transcription.text);
+        await sendMessageAction(transcription.text);
       }
     }
 

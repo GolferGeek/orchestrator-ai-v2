@@ -1045,11 +1045,8 @@ const makeCurrentVersion = async () => {
     }
 
     // Call the backend to set this version as current using action
-    await setCurrentVersion(
-      agentSlug,
-      actualDeliverableId.value,
-      selectedVersion.value.id
-    );
+    // Note: setCurrentVersion gets deliverableId from ExecutionContext store
+    await setCurrentVersion(selectedVersion.value.id);
 
     // Reload versions to get updated current version status
     const versionList = await deliverablesService.getVersionHistory(actualDeliverableId.value);

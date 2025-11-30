@@ -1,152 +1,99 @@
 /**
  * Converse Actions (Conversation Operations)
- * Orchestrates conversation operations: read from store → build request → send → handle response → update store
  *
- * This layer coordinates between:
- * - Store (read-only access to get data)
- * - API (send requests)
- * - Handlers (validate and extract responses)
- * - Store mutations (update state)
+ * All operations use the unified A2A orchestrator which:
+ * - Gets ExecutionContext from the store (agentSlug, conversationId, etc.)
+ * - Builds JSON-RPC requests via request-switch
+ * - Handles responses via response-switch
+ * - Updates stores automatically
+ *
+ * @see docs/prd/unified-a2a-orchestrator.md
  */
 
+import { a2aOrchestrator } from '../orchestrator';
 import { useConversationsStore } from '@/stores/conversationsStore';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
-import { useLLMPreferencesStore } from '@/stores/llmPreferencesStore';
-import { tasksService } from '@/services/tasksService';
-import { createAgent2AgentApi } from '@/services/agent2agent/api';
+import { useExecutionContextStore } from '@/stores/executionContextStore';
 import type { Conversation, Message } from '@/stores/conversationsStore';
-import type {
-  TaskResponse,
-  ConverseResponseContent,
-  ConverseResponseMetadata
-} from '@orchestrator-ai/transport-types';
 
 /**
  * Send a message in converse mode
  *
- * Component usage (no await needed - Vue reactivity handles updates):
- * ```typescript
- * function handleSendMessage() {
- *   sendMessage(agentName, conversationId, messageContent);
- *   // UI updates automatically when store changes
- * }
- * ```
- *
- * @param agentName - Name of the agent to converse with
- * @param conversationId - Conversation ID
  * @param userMessage - User's message content
  * @returns The assistant's response message
  */
 export async function sendMessage(
-  agentName: string,
-  conversationId: string,
   userMessage: string,
 ): Promise<Message> {
-
-  // 1. Get conversation from store (for context)
   const conversationsStore = useConversationsStore();
-  const conversation = conversationsStore.conversationById(conversationId);
-
-  if (!conversation) {
-    throw new Error(`Conversation ${conversationId} not found`);
-  }
-
-
-  // 2. Add user message to store immediately (optimistic update)
-  const userMessageObj: Omit<Message, 'id'> = {
-    conversationId,
-    role: 'user',
-    content: userMessage,
-    timestamp: new Date().toISOString(),
-  };
-
-  const _addedUserMessage = conversationsStore.addMessage(conversationId, userMessageObj);
-
-  // 3. Get conversation history and UI preferences
   const chatUiStore = useChatUiStore();
-  const llmStore = useLLMPreferencesStore();
-  const messages = conversationsStore.messagesByConversation(conversationId);
-  const conversationHistory = messages.map(msg => ({
-    role: msg.role,
-    content: msg.content,
-    timestamp: msg.timestamp || new Date().toISOString(),
-  }));
+  const executionContextStore = useExecutionContextStore();
+  const ctx = executionContextStore.current;
 
-  // 4. Build LLM selection from preferences store
-  const llmSelection = llmStore.selectedProvider && llmStore.selectedModel ? {
-    providerName: llmStore.selectedProvider.name,
-    modelName: llmStore.selectedModel.modelName,
-  } : undefined;
-
-  // 5. Call tasksService to create and execute the converse task
   try {
+    chatUiStore.setIsSendingMessage(true);
 
-    const result = await tasksService.createAgentTask(
-      conversation.agentType || 'custom',
-      agentName,
-      {
-        method: 'converse',
-        prompt: userMessage,
-        conversationId,
-        conversationHistory,
-        llmSelection,
-        executionMode: chatUiStore.executionMode || 'polling',
-      },
-      { organization: conversation.organizationSlug || 'global' }
-    );
-
-
-    // 5. Extract assistant message from task result - backend should provide clean response
-    let parsedResult = result.result;
-    if (typeof parsedResult === 'string') {
-      try {
-        parsedResult = JSON.parse(parsedResult);
-      } catch {
-        // Failed to parse result as JSON - using as-is
-      }
-    }
-
-    // Handle case where parsedResult is undefined or null (e.g., error response)
-    if (!parsedResult) {
-      const errorMessage = result.error || 'No response from agent';
-      console.error('❌ [Converse Action] No valid result from backend:', errorMessage);
-      conversationsStore.setError(errorMessage);
-      throw new Error(errorMessage);
-    }
-
-
-    // Parse as TaskResponse with ConverseResponseContent
-    const taskResponse = parsedResult as TaskResponse;
-    const converseContent = taskResponse?.payload?.content as ConverseResponseContent;
-    const responseMetadata = taskResponse?.payload?.metadata as ConverseResponseMetadata;
-
-    const thinkingContent = (taskResponse?.humanResponse as { thinking?: string })?.thinking;
-    const assistantContent = converseContent?.message || 'No response content';
-
-
-    // Extract provider/model metadata from proper transport type structure
-    const metadata = {
-      taskId: result.taskId,
-      provider: responseMetadata?.provider,
-      model: responseMetadata?.model,
-      thinking: thinkingContent,
-      usage: responseMetadata?.usage,
-      routingDecision: responseMetadata?.routingDecision,
-      current_sub_agent: responseMetadata?.current_sub_agent,
-    };
-
-    const assistantMessage = conversationsStore.addMessage(conversationId, {
-      role: 'assistant',
-      content: assistantContent,
+    // Add user message to conversation
+    conversationsStore.addMessage(ctx.conversationId, {
+      role: 'user',
+      content: userMessage,
       timestamp: new Date().toISOString(),
-      metadata,
     });
 
+    // Create assistant message placeholder
+    const assistantMessage = conversationsStore.addMessage(ctx.conversationId, {
+      role: 'assistant',
+      content: 'Thinking...',
+      timestamp: new Date().toISOString(),
+      metadata: { mode: 'converse' },
+    });
 
-    return assistantMessage;
+    // Execute via orchestrator
+    const result = await a2aOrchestrator.execute('converse.send', { userMessage });
+
+    // Update assistant message based on result
+    if (result.type === 'message') {
+      conversationsStore.updateMessage(ctx.conversationId, assistantMessage.id, {
+        content: result.message,
+      });
+      conversationsStore.updateMessageMetadata(ctx.conversationId, assistantMessage.id, {
+        mode: 'converse',
+        isCompleted: true,
+        ...result.metadata,
+      });
+
+      chatUiStore.setIsSendingMessage(false);
+
+      return {
+        ...assistantMessage,
+        content: result.message,
+        metadata: {
+          ...assistantMessage.metadata,
+          ...result.metadata,
+        },
+      };
+    } else if (result.type === 'error') {
+      conversationsStore.updateMessage(ctx.conversationId, assistantMessage.id, {
+        content: `Error: ${result.error}`,
+      });
+      conversationsStore.updateMessageMetadata(ctx.conversationId, assistantMessage.id, {
+        mode: 'converse',
+        error: result.error,
+      });
+
+      chatUiStore.setIsSendingMessage(false);
+      throw new Error(result.error);
+    }
+
+    // Unexpected result type
+    chatUiStore.setIsSendingMessage(false);
+    throw new Error('Unexpected response type');
   } catch (error) {
-    console.error('❌ [Converse Send Action] Error:', error);
-    conversationsStore.setError(error instanceof Error ? error.message : 'Failed to send message');
+    console.error('[Converse Send] Error:', error);
+    chatUiStore.setIsSendingMessage(false);
+    conversationsStore.setError(
+      error instanceof Error ? error.message : 'Failed to send message',
+    );
     throw error;
   }
 }
@@ -166,21 +113,22 @@ export async function createConversation(
   organizationSlug: string,
   title?: string,
 ): Promise<Conversation> {
+  // Note: createConversation needs agentName, agentType, organizationSlug parameters
+  // because these are used to SET the context, not read from it.
+  // The context doesn't exist yet when creating a new conversation.
 
-  // 1. Create API client
+  // TODO: Once the orchestrator supports conversation creation, migrate this
+  // For now, use the legacy API approach
+  const { createAgent2AgentApi } = await import('@/services/agent2agent/api');
   const api = createAgent2AgentApi(agentName);
 
-  // 2. Send create conversation request
   const response = await api.conversations.create(agentName, agentType, organizationSlug);
 
-
-  // 3. Validate response
   if (!response.success || !response.conversationId) {
-    console.error('❌ [Converse Create Action] Request failed:', response.error);
+    console.error('[Converse Create] Request failed:', response.error);
     throw new Error(response.error?.message || 'Failed to create conversation');
   }
 
-  // 4. Create conversation object
   const conversation: Conversation = {
     id: response.conversationId,
     userId: '', // Will be set by backend
@@ -193,14 +141,11 @@ export async function createConversation(
     taskCount: 0,
   };
 
-  // 5. Update store
   const conversationsStore = useConversationsStore();
   conversationsStore.addConversation(conversation);
 
-  // 6. Set as active conversation
   const chatUiStore = useChatUiStore();
   chatUiStore.setActiveConversation(conversation.id);
-
 
   return conversation;
 }
@@ -214,7 +159,6 @@ export async function createConversation(
 export async function loadConversation(
   conversationId: string,
 ): Promise<Conversation> {
-
   // This would call a backend API to load the conversation
   // For now, we'll just return what's in the store
   const conversationsStore = useConversationsStore();
@@ -223,7 +167,6 @@ export async function loadConversation(
   if (!conversation) {
     throw new Error(`Conversation ${conversationId} not found`);
   }
-
 
   return conversation;
 }
@@ -236,14 +179,12 @@ export async function loadConversation(
 export async function deleteConversation(
   conversationId: string,
 ): Promise<void> {
-
   const conversationsStore = useConversationsStore();
   const chatUiStore = useChatUiStore();
 
-  // 1. Close the conversation tab if open
+  // Close the conversation tab if open
   chatUiStore.closeConversationTab(conversationId);
 
-  // 2. Remove from store
+  // Remove from store
   conversationsStore.removeConversation(conversationId);
-
 }

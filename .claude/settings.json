@@ -42,7 +42,6 @@
     "deny": [],
     "ask": [],
     "additionalDirectories": [
-      "/Users/golfergeek/projects/golfergeek/orchestrator-ai-davids-goliath"
     ]
   },
   "hooks": {

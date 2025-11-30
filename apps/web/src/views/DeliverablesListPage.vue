@@ -651,18 +651,17 @@ const confirmDelete = async (deliverable: Record<string, unknown>) => {
       {
         text: 'Delete',
         role: 'destructive',
-        handler: () => deleteDeliverable(deliverable)
+        handler: () => deleteDeliverable()
       }
     ]
   });
   await alert.present();
 };
-const deleteDeliverable = async (deliverable: Record<string, unknown>) => {
+const deleteDeliverable = async () => {
   try {
-    await deleteDeliverableAction(
-      deliverable.agentName || 'blog_post_writer',
-      deliverable.id
-    );
+    // Note: deleteDeliverableAction gets deliverableId from ExecutionContext store
+    // The store must be set up with the correct context before calling this
+    await deleteDeliverableAction();
     // Show success toast
     const toast = await toastController.create({
       message: 'Deliverable deleted successfully',
@@ -764,11 +763,8 @@ const makeCurrentVersion = async (version: Record<string, unknown>) => {
               if (!deliverable) throw new Error('Deliverable not found');
 
               // Set the selected version as the current version using action
-              await setCurrentVersion(
-                deliverable.agentName || 'blog_post_writer',
-                selectedDeliverableId.value!,
-                version.id
-              );
+              // Note: setCurrentVersion gets deliverableId from ExecutionContext store
+              await setCurrentVersion(version.id);
 
               // Refresh the deliverables list to show the new current version
               await loadDeliverables();

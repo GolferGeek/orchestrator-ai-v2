@@ -844,9 +844,9 @@ async function handlePlanNow() {
   chatUiStore.setChatMode('plan');
   chatUiStore.setPendingAction({ mode: 'plan', taskId: props.message.taskId });
 
-  // Execute using actions
+  // Execute using actions - orchestrator gets context from store
   try {
-    await createPlan(props.agent.name, props.conversationId, 'Create a plan based on our conversation');
+    await createPlan('Create a plan based on our conversation');
   } catch (error) {
     console.error('Error creating plan:', error);
   }

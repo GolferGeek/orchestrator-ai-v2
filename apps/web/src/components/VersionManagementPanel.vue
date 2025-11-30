@@ -252,14 +252,9 @@ const createNewVersion = () => {
   // User can type their modification request there
 };
 const deleteVersion = async (versionId: string) => {
-  if (!props.deliverableId || !props.agentSlug) {
-    console.error('Missing deliverableId or agentSlug');
-    return;
-  }
-
   try {
     const { deleteVersion: deleteVersionAction } = await import('@/services/agent2agent/actions');
-    await deleteVersionAction(props.agentSlug, props.deliverableId, versionId);
+    await deleteVersionAction(versionId);
 
     // Show success toast
     const { toastController } = await import('@ionic/vue');

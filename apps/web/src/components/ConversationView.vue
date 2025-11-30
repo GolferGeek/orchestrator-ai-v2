@@ -583,16 +583,14 @@ const sendMessage = async (mode?: AgentChatMode) => {
     chatUiStore.setError(null);
 
     const effectiveMode = mode || currentChatMode.value || 'converse';
-    const agentName = agent.name;
-
 
     // Route to appropriate action based on mode
+    // All actions now use the orchestrator and get context from the store
     if (effectiveMode === 'plan') {
-      await createPlanAction(agentName, conversationId, content);
+      await createPlanAction(content);
     } else if (effectiveMode === 'build') {
-      // Always call createDeliverable - backend will automatically enhance existing deliverable if one exists
-      // and create a new version with the user's new instructions
-      const result = await createDeliverableAction(agentName, conversationId, content);
+      // Create deliverable - orchestrator gets context from store
+      const result = await createDeliverableAction(content);
 
       // Check if this is an HITL waiting response
       if (result && 'isHitlWaiting' in result && result.isHitlWaiting) {
@@ -602,7 +600,7 @@ const sendMessage = async (mode?: AgentChatMode) => {
       }
     } else {
       // converse mode (default - 'conversational' or undefined)
-      await sendMessageAction(agentName, conversationId, content);
+      await sendMessageAction(content);
     }
 
     scrollToBottom();
@@ -952,11 +950,8 @@ const executeRerunWithConfig = async (
         }
       );
     } else if (isDeliverable) {
-      // Call the rerunDeliverable action with the original user prompt
+      // Rerun deliverable - orchestrator gets context from store
       result = await rerunDeliverable(
-        agentSlug,
-        deliverable.conversationId,
-        deliverable.id,
         capturedRerunData.version.id,
         {
           provider: llmConfig.provider,

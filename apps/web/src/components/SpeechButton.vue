@@ -34,7 +34,7 @@ import { IonButton, IonIcon, toastController } from '@ionic/vue';
 import { micOutline } from 'ionicons/icons';
 import { apiService } from '../services/apiService';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
-import { sendMessage, createPlan, createDeliverable } from '@/services/agent2agent/actions';
+import { sendMessage as sendMessageAction, createPlan, createDeliverable } from '@/services/agent2agent/actions';
 
 // Define speech states
 type SpeechState = 'idle' | 'listening' | 'processing' | 'speaking' | 'error';
@@ -197,18 +197,18 @@ const processAudio = async () => {
 
     // Step 3: Send the transcribed text through normal chat flow
     const conversation = chatUiStore.activeConversation;
-    if (conversation && conversation.agentName) {
+    if (conversation) {
       const mode = chatUiStore.chatMode || 'conversational';
-      const agentName = conversation.agentName;
 
       // Route to appropriate action based on mode
+      // All actions now use the orchestrator and get context from the store
       if (mode === 'plan') {
-        await createPlan(agentName, conversation.id, transcription.text);
+        await createPlan(transcription.text);
       } else if (mode === 'build') {
-        await createDeliverable(agentName, conversation.id, transcription.text);
+        await createDeliverable(transcription.text);
       } else {
         // converse mode (default)
-        await sendMessage(agentName, conversation.id, transcription.text);
+        await sendMessageAction(transcription.text);
       }
     }
 

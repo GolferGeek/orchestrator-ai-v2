@@ -781,18 +781,10 @@ const selectAndDisplayVersion = async (version: PlanVersion) => {
 const makeCurrentVersion = async () => {
   if (!selectedVersion.value) return;
 
-  if (!props.agentSlug) {
-    alert('Cannot set current version: Agent information not available');
-    return;
-  }
-
   try {
     const { setCurrentPlanVersion } = await import('@/services/agent2agent/actions');
-    await setCurrentPlanVersion(
-      props.agentSlug,
-      props.plan.id,
-      selectedVersion.value.id
-    );
+    // setCurrentPlanVersion now uses the orchestrator and gets context from store
+    await setCurrentPlanVersion(selectedVersion.value.id);
 
     // Reload versions to get updated current version status
     const planStore = usePlanStore();

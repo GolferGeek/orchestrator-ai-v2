@@ -55,7 +55,7 @@ import { closeOutline, chatbubblesOutline } from 'ionicons/icons';
 import { useConversationsStore } from '@/stores/conversationsStore';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
 import { useAgentsStore } from '@/stores/agentsStore';
-import { sendMessage, createPlan, createDeliverable } from '@/services/agent2agent/actions';
+import { sendMessage as sendMessageAction, createPlan, createDeliverable } from '@/services/agent2agent/actions';
 import { conversation as conversationHelpers } from '@/services/conversationHelpers';
 import AgentChatView from './AgentChatView.vue';
 import ConversationView from './ConversationView.vue';
@@ -157,16 +157,16 @@ const handleSendMessage = async (content: string) => {
 
   try {
     const mode = chatUiStore.chatMode || 'conversational';
-    const agentName = activeConv.agentName;
 
     // Route to appropriate action based on mode
+    // All actions now use the orchestrator and get context from the store
     if (mode === 'plan') {
-      await createPlan(agentName, activeConv.id, content);
+      await createPlan(content);
     } else if (mode === 'build') {
-      await createDeliverable(agentName, activeConv.id, content);
+      await createDeliverable(content);
     } else {
       // converse mode (default)
-      await sendMessage(agentName, activeConv.id, content);
+      await sendMessageAction(content);
     }
   } catch (error) {
     console.error('Error sending message:', error);

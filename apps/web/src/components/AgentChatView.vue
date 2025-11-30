@@ -87,7 +87,7 @@ import {
 import { useConversationsStore } from '@/stores/conversationsStore';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
 import { usePrivacyStore } from '@/stores/privacyStore';
-import { sendMessage, createPlan, createDeliverable } from '@/services/agent2agent/actions';
+import { sendMessage as sendMessageAction, createPlan, createDeliverable } from '@/services/agent2agent/actions';
 import { tasksService } from '@/services/tasksService';
 // TTS is now handled directly in AgentTaskItem when messages are displayed
 import AgentTaskItem from './AgentTaskItem.vue';
@@ -179,16 +179,16 @@ const sendMessage = async (mode?: AgentChatMode) => {
     const activeConversation = chatUiStore.activeConversation;
     if (activeConversation && currentAgent.value) {
       const effectiveMode = chatMode.value;
-      const agentName = currentAgent.value.name;
 
       // Route to appropriate action based on mode
+      // All actions now use the orchestrator and get context from the store
       if (effectiveMode === 'plan') {
-        await createPlan(agentName, activeConversation.id, text);
+        await createPlan(text);
       } else if (effectiveMode === 'build') {
-        await createDeliverable(agentName, activeConversation.id, text);
+        await createDeliverable(text);
       } else {
         // converse mode (default)
-        await sendMessage(agentName, activeConversation.id, text);
+        await sendMessageAction(text);
       }
     }
   } catch (error) {
