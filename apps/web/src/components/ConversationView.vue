@@ -251,7 +251,8 @@
       :initial-content="hitlData?.generatedContent"
       :current-version-number="hitlData?.currentVersionNumber"
       @close="handleHitlModalClose"
-      @decision="handleHitlDecision"
+      @completed="handleHitlCompleted"
+      @regenerated="handleHitlRegenerated"
     />
 
     <!-- Deliverables Modal (for viewing completed deliverables) -->
@@ -301,7 +302,7 @@ import {
   createDeliverable as createDeliverableAction,
   type HitlWaitingResult,
 } from '@/services/agent2agent/actions';
-import type { HitlGeneratedContent } from '@/services/hitlService';
+import type { HitlGeneratedContent } from '@orchestrator-ai/transport-types';
 import HitlReviewModal from '@/components/hitl/HitlReviewModal.vue';
 import DeliverablesModal from '@/components/deliverables/DeliverablesModal.vue';
 import { usePrivacyStore } from '@/stores/privacyStore';
@@ -327,7 +328,7 @@ import SovereignModeTooltip from './SovereignMode/SovereignModeTooltip.vue';
 import SovereignModeBanner from './SovereignMode/SovereignModeBanner.vue';
 import ConversationalSpeechButton from './ConversationalSpeechButton.vue';
 import type { Deliverable, DeliverableVersion } from '@/services/deliverablesService';
-import type { PlanData, PlanVersionData, HitlDeliverableResponse } from '@orchestrator-ai/transport-types';
+import type { PlanData, PlanVersionData } from '@orchestrator-ai/transport-types';
 
 interface Props {
   conversation?: AgentConversation | null;
@@ -1045,59 +1046,37 @@ const handleHitlModalClose = () => {
   hitlData.value = null;
 };
 
-const handleHitlDecision = async (response: HitlDeliverableResponse) => {
-  if (!props.conversation) return;
+/**
+ * Handle HITL completed - per PRD, orchestrator already updated stores
+ * This is just UI reaction: close modal, open deliverables modal
+ */
+const handleHitlCompleted = (deliverableId: string | undefined) => {
+  // Close HITL modal
+  showHitlModal.value = false;
+  hitlData.value = null;
+  scrollToBottom();
 
-  // The HitlReviewModal handles the API call and returns the response
-  // We just need to update the conversation UI based on the result
-
-  if (response.status === 'completed') {
-    // Add completion message to conversation
-    conversationsStore.addMessage(props.conversation.id, {
-      id: `hitl-complete-${Date.now()}`,
-      role: 'assistant',
-      content: response.message || 'Content finalized!',
-      timestamp: new Date().toISOString(),
-      metadata: {
-        hitlCompleted: true,
-        deliverableId: response.deliverableId,
-      },
-    });
-
-    // If there's a deliverable, fetch it from API and open the DeliverablesModal
-    // The HITL response only contains the deliverableId, not the full deliverable data
-    if (response.deliverableId) {
-      try {
-        // Fetch the deliverable from the API to populate the store
-        const deliverable = await deliverablesService.getDeliverable(response.deliverableId);
-
-        // Add to store so it's available for display
-        deliverablesStore.addDeliverable(deliverable);
-
-        // Associate with conversation
-        deliverablesStore.associateDeliverableWithConversation(
-          deliverable.id,
-          props.conversation.id,
-        );
-
-        // Open the deliverables modal
-        handleDeliverableCreated(deliverable);
-      } catch (err) {
-        console.error('Failed to fetch deliverable after HITL approval:', err);
-      }
+  // If there's a deliverable, open the DeliverablesModal
+  // The orchestrator already fetched and added the deliverable to the store
+  if (deliverableId && props.conversation) {
+    const deliverable = deliverablesStore.getDeliverableById(deliverableId);
+    if (deliverable) {
+      handleDeliverableCreated(deliverable);
     }
+  }
+};
 
-    // Close HITL modal
-    showHitlModal.value = false;
-    hitlData.value = null;
-    scrollToBottom();
-  } else if (response.status === 'hitl_waiting') {
-    // Regenerate case - update hitlData with new content
-    // The modal stays open and shows the new content
+/**
+ * Handle HITL regenerated - per PRD, just update local modal state
+ * The modal stays open with new content
+ */
+const handleHitlRegenerated = (content: HitlGeneratedContent) => {
+  // Update hitlData with new content so the modal can display it
+  if (hitlData.value) {
     hitlData.value = {
-      ...hitlData.value!,
-      generatedContent: response.generatedContent,
-      currentVersionNumber: response.currentVersionNumber,
+      ...hitlData.value,
+      generatedContent: content,
+      currentVersionNumber: (hitlData.value.currentVersionNumber || 0) + 1,
     };
   }
 };

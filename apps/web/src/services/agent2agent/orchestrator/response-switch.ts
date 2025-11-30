@@ -29,12 +29,13 @@ import { useExecutionContextStore } from '@/stores/executionContextStore';
 import { useDeliverablesStore } from '@/stores/deliverablesStore';
 import { usePlanStore } from '@/stores/planStore';
 import { useConversationsStore } from '@/stores/conversationsStore';
-import type {
-  Deliverable,
-  DeliverableVersion,
-  DeliverableType,
-  DeliverableFormat,
-  DeliverableVersionCreationType,
+import {
+  deliverablesService,
+  type Deliverable,
+  type DeliverableVersion,
+  type DeliverableType,
+  type DeliverableFormat,
+  type DeliverableVersionCreationType,
 } from '@/services/deliverablesService';
 
 /**
@@ -272,38 +273,20 @@ export async function handleA2AResponse(response: TaskResponse): Promise<A2AResu
         };
       }
 
-      // HITL completed - deliverable should be in response
+      // HITL completed - fetch the deliverable from API per PRD
       if (status === 'completed') {
         const deliverablesStore = useDeliverablesStore();
         const conversationsStore = useConversationsStore();
         const deliverableId = hitlContent?.deliverableId;
 
-        if (deliverableId && hitlContent?.generatedContent) {
-          // Create a deliverable from the HITL content
-          const storeDeliverable: Deliverable = {
-            id: deliverableId,
-            userId: ctx.userId,
-            conversationId: ctx.conversationId,
-            title: hitlContent.topic || 'HITL Deliverable',
-            type: 'document' as DeliverableType,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            currentVersion: {
-              id: crypto.randomUUID(),
-              deliverableId,
-              versionNumber: hitlContent.currentVersionNumber || 1,
-              content: JSON.stringify(hitlContent.generatedContent),
-              format: 'json' as DeliverableFormat,
-              createdByType: 'ai_response' as DeliverableVersionCreationType,
-              isCurrentVersion: true,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
-          };
+        if (deliverableId) {
+          // Fetch the full deliverable from API (per PRD)
+          const deliverable = await deliverablesService.getDeliverable(deliverableId);
 
-          deliverablesStore.addDeliverable(storeDeliverable);
+          // Add to store
+          deliverablesStore.addDeliverable(deliverable);
           deliverablesStore.associateDeliverableWithConversation(
-            deliverableId,
+            deliverable.id,
             ctx.conversationId,
           );
 
@@ -311,35 +294,29 @@ export async function handleA2AResponse(response: TaskResponse): Promise<A2AResu
           conversationsStore.addMessage(ctx.conversationId, {
             conversationId: ctx.conversationId,
             role: 'assistant',
-            content: hitlContent.message || 'Content finalized!',
+            content: hitlContent?.message || 'Content finalized!',
             timestamp: new Date().toISOString(),
+            metadata: {
+              hitlCompleted: true,
+              deliverableId,
+            },
           });
 
           return {
             type: 'deliverable',
             deliverable: {
-              id: deliverableId,
+              id: deliverable.id,
               userId: ctx.userId,
               agentName: ctx.agentSlug,
               organization: ctx.orgSlug,
               conversationId: ctx.conversationId,
-              title: hitlContent.topic || '',
-              type: 'document',
-              currentVersionId: storeDeliverable.currentVersion!.id,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
+              title: deliverable.title || hitlContent?.topic || '',
+              type: deliverable.type || 'document',
+              currentVersionId: deliverable.currentVersion?.id,
+              createdAt: deliverable.createdAt,
+              updatedAt: deliverable.updatedAt,
             },
-            version: {
-              id: storeDeliverable.currentVersion!.id,
-              deliverableId,
-              versionNumber: hitlContent.currentVersionNumber || 1,
-              content: JSON.stringify(hitlContent.generatedContent),
-              format: 'json',
-              createdByType: 'agent',
-              createdById: null,
-              isCurrentVersion: true,
-              createdAt: new Date().toISOString(),
-            },
+            version: deliverable.currentVersion,
             context: responseWithContext.context || ctx,
           };
         }

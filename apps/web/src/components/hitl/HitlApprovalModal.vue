@@ -223,7 +223,7 @@ import {
   informationCircleOutline,
 } from 'ionicons/icons';
 import DOMPurify from 'dompurify';
-import type { HitlGeneratedContent } from '@/services/hitlService';
+import type { HitlGeneratedContent } from '@orchestrator-ai/transport-types';
 
 interface Props {
   isOpen: boolean;

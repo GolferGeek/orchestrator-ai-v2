@@ -16,7 +16,9 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import type { ExecutionContext } from '@orchestrator-ai/transport-types';
-import { NIL_UUID } from '@orchestrator-ai/transport-types';
+
+// NIL_UUID constant for optional UUID fields (same value as transport-types)
+const NIL_UUID = '00000000-0000-0000-0000-000000000000';
 
 /**
  * Parameters for initializing the ExecutionContext

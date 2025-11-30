@@ -155,12 +155,13 @@ import ContentEditor from '@/components/shared/ContentEditor.vue';
 import VersionSelector from '@/components/shared/VersionSelector.vue';
 import VersionBadge from '@/components/shared/VersionBadge.vue';
 import FeedbackInput from '@/components/shared/FeedbackInput.vue';
-import { hitlService } from '@/services/hitlService';
+import { a2aOrchestrator } from '@/services/agent2agent/orchestrator';
 import { deliverablesService } from '@/services/deliverablesService';
 import { useHitlPendingStore } from '@/stores/hitlPendingStore';
-import type { HitlGeneratedContent, HitlDeliverableResponse } from '@orchestrator-ai/transport-types';
+import type { HitlGeneratedContent } from '@orchestrator-ai/transport-types';
 import type { DeliverableVersion } from '@/services/deliverablesService';
 import type { VersionCreationType } from '@/components/shared/types';
+import type { A2AResult } from '@/services/agent2agent/orchestrator/types';
 
 interface Props {
   isOpen: boolean;
@@ -178,7 +179,9 @@ const props = defineProps<Props>();
 
 const emit = defineEmits<{
   close: [];
-  decision: [response: HitlDeliverableResponse];
+  // Simplified per PRD: orchestrator already updated stores, just inform parent of result type
+  completed: [deliverableId: string | undefined];
+  regenerated: [content: HitlGeneratedContent];
 }>();
 
 const hitlPendingStore = useHitlPendingStore();
@@ -318,26 +321,39 @@ async function submitDecision(
   isSubmitting.value = true;
 
   try {
-    const response = await hitlService.resume(props.organizationSlug, props.agentSlug, {
-      taskId: props.taskId,
-      decision,
-      feedback: options?.feedback,
-      content: options?.content,
-    });
-
-    // Remove from pending list if completed
-    // Note: Use taskId as key since hitl_pending is on tasks table
-    if (response.status === 'completed') {
-      hitlPendingStore.removePendingItem(props.taskId);
+    // Map decision to orchestrator trigger
+    let result: A2AResult;
+    switch (decision) {
+      case 'approve':
+        result = await a2aOrchestrator.execute('hitl.approve', {});
+        break;
+      case 'reject':
+        result = await a2aOrchestrator.execute('hitl.reject', {});
+        break;
+      case 'regenerate':
+        result = await a2aOrchestrator.execute('hitl.regenerate', {
+          feedback: options?.feedback,
+        });
+        break;
+      case 'replace':
+        result = await a2aOrchestrator.execute('hitl.replace', {
+          content: options?.content,
+        });
+        break;
     }
 
-    emit('decision', response);
+    // Handle error result
+    if (result.type === 'error') {
+      console.error('HITL decision failed:', result.error);
+      return;
+    }
 
-    // If still pending (e.g., after regenerate), update content
-    if (response.status === 'hitl_waiting') {
-      displayContent.blogPost = response.generatedContent.blogPost || '';
-      displayContent.seoDescription = response.generatedContent.seoDescription || '';
-      displayContent.socialPosts = response.generatedContent.socialPosts || [];
+    // Handle based on result type - per PRD, orchestrator already updated stores
+    if (result.type === 'hitl_waiting') {
+      // Still waiting (e.g., after regenerate) - update content in modal
+      displayContent.blogPost = result.generatedContent.blogPost || '';
+      displayContent.seoDescription = result.generatedContent.seoDescription || '';
+      displayContent.socialPosts = result.generatedContent.socialPosts || [];
 
       editedContent.blogPost = displayContent.blogPost;
       editedContent.seoDescription = displayContent.seoDescription;
@@ -351,7 +367,16 @@ async function submitDecision(
       if (props.deliverableId) {
         await loadVersions();
       }
-    } else {
+
+      // Emit simplified event - orchestrator already handles stores
+      emit('regenerated', result.generatedContent);
+    } else if (result.type === 'deliverable' || result.type === 'success') {
+      // Completed - remove from pending list and close modal
+      hitlPendingStore.removePendingItem(props.taskId);
+
+      // Emit simplified event - orchestrator already added deliverable to store and message to conversation
+      const deliverableId = result.type === 'deliverable' ? result.deliverable.id : undefined;
+      emit('completed', deliverableId);
       handleClose();
     }
   } catch (error) {
