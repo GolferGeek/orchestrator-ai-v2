@@ -2,33 +2,60 @@ import { ref, onUnmounted, computed } from 'vue';
 import { useAuthStore, useRbacStore } from '@/stores/rbacStore';
 import type { ExecutionContext } from '@orchestrator-ai/transport-types';
 
+/**
+ * ObservabilityEvent
+ *
+ * Events received from the admin observability SSE stream.
+ * The `context` field is REQUIRED and contains all context information.
+ * Flat fields (user_id, conversation_id, etc.) are kept for database storage
+ * but consumers should prefer accessing via context.
+ */
 export interface ObservabilityEvent {
-  /** Full ExecutionContext capsule (when available from SSE events) */
-  context?: ExecutionContext;
+  /** ExecutionContext capsule - REQUIRED, single source of truth */
+  context: ExecutionContext;
+  /** Database record ID */
   id?: number;
+  /** Source application identifier */
   source_app?: string;
+  /** Session identifier */
   session_id?: string;
+  /** Event type (e.g., 'langgraph.started', 'agent.progress') */
   hook_event_type?: string;
-  event_type?: string; // New field for task/agent events
+  /** Alternative event type field */
+  event_type?: string;
+  /** User ID (from context, stored flat for DB) */
   user_id?: string | null;
-  userId?: string; // Alternative casing from task events
+  /** Username (resolved from userId) */
   username?: string | null;
+  /** Conversation ID (from context, stored flat for DB) */
   conversation_id?: string | null;
+  /** Task ID (from context, stored flat for DB) */
   task_id?: string;
-  taskId?: string; // Alternative casing from task events
+  /** Agent slug (from context, stored flat for DB) */
   agent_slug?: string | null;
-  agentSlug?: string; // Alternative casing from task events
+  /** Organization slug (from context, stored flat for DB) */
   organization_slug?: string | null;
+  /** Mode (plan, build, converse) */
   mode?: string | null;
+  /** Event status */
   status?: string;
+  /** Human-readable message */
   message?: string | null;
+  /** Progress percentage (0-100) */
   progress?: number;
+  /** Current step/phase name */
   step?: string;
+  /** Full event payload */
   payload?: Record<string, unknown>;
-  data?: Record<string, unknown>; // Task events use 'data' instead of 'payload'
-  result?: unknown; // For task.completed events
-  error?: unknown; // For task.failed events
+  /** Alternative payload field */
+  data?: Record<string, unknown>;
+  /** Result for completed events */
+  result?: unknown;
+  /** Error for failed events */
+  error?: unknown;
+  /** Unix timestamp (milliseconds) */
   timestamp?: number;
+  /** ISO timestamp string */
   created_at?: string;
 }
 
@@ -83,90 +110,64 @@ export function useAdminObservabilityStream() {
   const agentActivities = computed<Record<string, AgentActivity>>(() => {
     const activities: Record<string, AgentActivity> = {};
 
-    // First pass: build a mapping of session_id -> conversation_id
-    // This allows us to correlate events that have session_id with their conversation
-    const sessionToConversation: Record<string, string> = {};
     for (const event of allEvents.value) {
-      const eventRecord = event as Record<string, unknown>;
-      const convId = event.conversation_id || eventRecord.conversationId as string;
-      const sessId = event.session_id || eventRecord.sessionId as string;
-      if (convId && sessId && !sessionToConversation[sessId]) {
-        sessionToConversation[sessId] = convId;
-      }
-    }
+      // Use context as the single source of truth
+      const { conversationId, taskId, orgSlug, userId } = event.context;
 
-    for (const event of allEvents.value) {
-      // Group by conversation_id - each conversation gets its own swim lane
-      // Use the session->conversation mapping to correlate events
-      const eventRecord = event as Record<string, unknown>;
-      const sessionId = event.session_id || eventRecord.sessionId as string;
-      const directConvId = event.conversation_id || eventRecord.conversationId as string;
+      // Group by conversationId - each conversation gets its own swim lane
+      const groupKey = conversationId || taskId;
+      if (!groupKey) continue;
 
-      // Try to get conversation_id directly, then via session mapping, then fall back
-      const conversationId = directConvId ||
-                             (sessionId ? sessionToConversation[sessionId] : undefined) ||
-                             sessionId ||
-                             event.task_id || eventRecord.taskId as string;
-      if (!conversationId) continue;
-
-      if (!activities[conversationId]) {
-        // Extract user and org info from first event
-        const username = event.username || eventRecord.userName as string || event.user_id || 'Unknown User';
-        const organizationSlug = event.organization_slug || eventRecord.organizationSlug as string || 'unknown-org';
-
+      if (!activities[groupKey]) {
         // Determine label based on what ID we're using
-        let displayLabel: string;
-        if (directConvId || (sessionId && sessionToConversation[sessionId])) {
-          displayLabel = `Conversation ${conversationId.substring(0, 8).toUpperCase()}`;
-        } else if (sessionId) {
-          displayLabel = `Session ${conversationId.substring(0, 8).toUpperCase()}`;
-        } else {
-          displayLabel = `Task ${conversationId.substring(0, 8).toUpperCase()}`;
-        }
+        const displayLabel = conversationId
+          ? `Conversation ${groupKey.substring(0, 8).toUpperCase()}`
+          : `Task ${groupKey.substring(0, 8).toUpperCase()}`;
 
-        activities[conversationId] = {
+        activities[groupKey] = {
           agentSlug: displayLabel,
-          conversationId: conversationId,
-          username: username,
-          organizationSlug: organizationSlug,
+          conversationId: conversationId || null,
+          username: event.username || userId || 'Unknown User',
+          organizationSlug: orgSlug || 'unknown-org',
           lastEvent: event,
           events: [],
           status: 'idle',
         };
       }
 
-      const activity = activities[conversationId];
+      const activity = activities[groupKey];
 
       // Update org/username if we have better data from this event
-      const eventOrg = event.organization_slug || eventRecord.organizationSlug as string;
-      const eventUser = event.username || eventRecord.userName as string;
-      if (eventOrg && activity.organizationSlug === 'unknown-org') {
-        activity.organizationSlug = eventOrg;
+      if (orgSlug && activity.organizationSlug === 'unknown-org') {
+        activity.organizationSlug = orgSlug;
       }
-      if (eventUser && activity.username === 'Unknown User') {
-        activity.username = eventUser;
+      if (event.username && activity.username === 'Unknown User') {
+        activity.username = event.username;
       }
 
       activity.events.push(event);
       activity.lastEvent = event;
 
-      // Determine status based on event type (check both hook_event_type and event_type)
+      // Determine status based on event type
       const eventType = event.hook_event_type || event.event_type;
 
-      if (eventType === 'agent.failed' || eventType === 'task.failed') {
+      if (eventType === 'agent.failed' || eventType === 'task.failed' || eventType === 'langgraph.failed') {
         activity.status = 'error';
       } else if (
         eventType === 'agent.started' ||
         eventType === 'agent.progress' ||
         eventType === 'task.started' ||
         eventType === 'task.progress' ||
-        eventType === 'agent.stream.chunk'
+        eventType === 'agent.stream.chunk' ||
+        eventType === 'langgraph.started' ||
+        eventType === 'langgraph.processing'
       ) {
         activity.status = 'active';
       } else if (
         eventType === 'agent.completed' ||
         eventType === 'task.completed' ||
-        eventType === 'agent.stream.complete'
+        eventType === 'agent.stream.complete' ||
+        eventType === 'langgraph.completed'
       ) {
         activity.status = 'idle';
       }
@@ -183,29 +184,31 @@ export function useAdminObservabilityStream() {
     return recentActivities;
   });
   
-  // Filter helpers
+  // Filter helpers - use context as single source of truth
   // Only shows conversations with events from the last 5 minutes
   const eventsByConversation = computed(() => {
     const byConv: Record<string, ObservabilityEvent[]> = {};
     for (const event of allEvents.value) {
-      if (!event.conversation_id) continue;
+      const conversationId = event.context.conversationId;
+      if (!conversationId) continue;
       if (!isRecentEvent(event)) continue; // Skip events older than 5 minutes
-      if (!byConv[event.conversation_id]) {
-        byConv[event.conversation_id] = [];
+      if (!byConv[conversationId]) {
+        byConv[conversationId] = [];
       }
-      byConv[event.conversation_id].push(event);
+      byConv[conversationId].push(event);
     }
     return byConv;
   });
-  
+
   const eventsByTask = computed(() => {
     const byTask: Record<string, ObservabilityEvent[]> = {};
     for (const event of allEvents.value) {
-      if (!event.task_id) continue;
-      if (!byTask[event.task_id]) {
-        byTask[event.task_id] = [];
+      const taskId = event.context.taskId;
+      if (!taskId) continue;
+      if (!byTask[taskId]) {
+        byTask[taskId] = [];
       }
-      byTask[event.task_id].push(event);
+      byTask[taskId].push(event);
     }
     return byTask;
   });
@@ -369,10 +372,10 @@ export function useAdminObservabilityStream() {
   }
   
   /**
-   * Get events for a specific agent
+   * Get events for a specific agent - use context as single source of truth
    */
   function getAgentEvents(agentSlug: string): ObservabilityEvent[] {
-    return allEvents.value.filter(e => e.agent_slug === agentSlug);
+    return allEvents.value.filter(e => e.context.agentSlug === agentSlug);
   }
   
   // Auto-disconnect on unmount

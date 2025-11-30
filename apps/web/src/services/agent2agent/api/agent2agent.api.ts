@@ -37,7 +37,7 @@ import {
   extractErrorDetails,
   StrictResponseValidationError,
 } from '../utils/handlers';
-import { buildExecutionContext } from '@/utils/executionContext';
+import { useExecutionContextStore } from '@/stores/executionContextStore';
 
 // Get API base URL from environment
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_NESTJS_BASE_URL || 'http://localhost:7100';
@@ -91,14 +91,13 @@ export class Agent2AgentApi {
   }
 
   /**
-   * Build execution context for API requests
+   * Get execution context from the store
+   * The store is the single source of truth for context - it's initialized when
+   * a conversation is selected and updated after every API response.
    */
-  private buildContext(conversationId: string, options?: { taskId?: string; deliverableId?: string }): ExecutionContext {
-    return buildExecutionContext(conversationId, {
-      taskId: options?.taskId,
-      deliverableId: options?.deliverableId,
-      agentSlug: this.agentSlug,
-    });
+  private getContext(): ExecutionContext {
+    const store = useExecutionContextStore();
+    return store.current; // Throws if not initialized
   }
 
   // ============================================================================
@@ -337,9 +336,8 @@ export class Agent2AgentApi {
       );
     }
 
-    // Inject execution context into request params
-    const conversationId = request.params.conversationId;
-    const context = this.buildContext(conversationId);
+    // Get execution context from store - single source of truth
+    const context = this.getContext();
 
     const enrichedRequest = {
       ...request,
@@ -459,9 +457,8 @@ export class Agent2AgentApi {
       const params = (request.params || {}) as Record<string, unknown>;
       const { message, userMessage, ...otherParams } = params;
 
-      // Build execution context
-      const conversationId = request.conversationId as string;
-      const context = this.buildContext(conversationId);
+      // Get execution context from store - single source of truth
+      const context = this.getContext();
 
       const requestBody = {
         jsonrpc: '2.0',
