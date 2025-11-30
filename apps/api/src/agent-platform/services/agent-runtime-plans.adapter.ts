@@ -1,5 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { JsonObject, JsonValue } from '@orchestrator-ai/transport-types';
+import type {
+  JsonObject,
+  JsonValue,
+  ExecutionContext,
+} from '@orchestrator-ai/transport-types';
 import type { ActionResult } from '@/agent2agent/common/interfaces/action-handler.interface';
 import { PlansService } from '@/agent2agent/plans/services/plans.service';
 import type { Plan } from '@/agent2agent/plans/types/plan.types';
@@ -89,13 +93,8 @@ export class AgentRuntimePlansAdapter {
               mode: ctx.mode,
             }),
           },
-          {
-            conversationId,
-            userId,
-            agentSlug: ctx.agentSlug,
-            taskId: taskId ?? null,
-            metadata: this.buildMetadataObject(request.metadata ?? {}),
-          },
+          // Use request.context directly - full ExecutionContext from transport-types
+          request.context,
         );
 
       const data = this.ensureSuccess(result, 'Failed to create plan');
@@ -113,9 +112,14 @@ export class AgentRuntimePlansAdapter {
     }
   }
 
+  /**
+   * Create version from manual edit
+   * @param context - Full ExecutionContext from transport-types
+   * @param editedContent - The edited plan content
+   * @param metadata - Optional additional metadata
+   */
   async createVersionFromManualEdit(
-    conversationId: string,
-    userId: string,
+    context: ExecutionContext,
     editedContent: string,
     metadata?: Record<string, unknown>,
   ): Promise<EditPlanActionResult> {
@@ -125,19 +129,20 @@ export class AgentRuntimePlansAdapter {
         content: editedContent,
         metadata: this.buildMetadataObject(metadata ?? {}),
       },
-      {
-        conversationId,
-        userId,
-        metadata: this.buildMetadataObject(metadata ?? {}),
-      },
+      context,
     );
 
     return this.ensureSuccess(result, 'Failed to save manual edit');
   }
 
+  /**
+   * Merge multiple plan versions
+   * @param context - Full ExecutionContext from transport-types
+   * @param versionIds - Array of version IDs to merge
+   * @param mergePrompt - Prompt describing how to merge
+   */
   async mergeVersions(
-    conversationId: string,
-    userId: string,
+    context: ExecutionContext,
     versionIds: string[],
     mergePrompt: string,
   ): Promise<JsonObject> {
@@ -147,27 +152,25 @@ export class AgentRuntimePlansAdapter {
         versionIds,
         mergePrompt,
       },
-      {
-        conversationId,
-        userId,
-      },
+      context,
     );
 
     return this.ensureSuccess(result, 'Failed to merge versions');
   }
 
+  /**
+   * Copy a plan version
+   * @param context - Full ExecutionContext from transport-types
+   * @param versionId - ID of the version to copy
+   */
   async copyVersion(
-    conversationId: string,
-    userId: string,
+    context: ExecutionContext,
     versionId: string,
   ): Promise<JsonObject> {
     const result = await this.plansService.executeAction<JsonObject>(
       'copy_version',
       { versionId },
-      {
-        conversationId,
-        userId,
-      },
+      context,
     );
 
     return this.ensureSuccess(result, 'Failed to copy version');

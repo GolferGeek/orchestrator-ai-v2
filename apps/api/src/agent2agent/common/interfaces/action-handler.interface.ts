@@ -3,18 +3,11 @@
  * All domain services (PlansService, DeliverablesService, etc.) implement this
  */
 
-import type { JsonObject, JsonValue } from '@orchestrator-ai/transport-types';
-
-/**
- * Context passed to action handlers containing request metadata
- */
-export interface ActionExecutionContext extends JsonObject {
-  conversationId: string;
-  userId: string;
-  agentSlug?: string | null;
-  taskId?: string | null;
-  metadata?: JsonObject | null;
-}
+import type {
+  JsonObject,
+  JsonValue,
+  ExecutionContext,
+} from '@orchestrator-ai/transport-types';
 
 /**
  * Result returned by action handlers
@@ -43,12 +36,12 @@ export interface IActionHandler<DefaultParams = JsonObject | undefined> {
    * Execute a specific action with the given parameters
    * @param action - The action to execute (e.g., 'create', 'read', 'merge_versions')
    * @param params - Action-specific parameters
-   * @param context - Execution context (user, conversation, etc.)
+   * @param context - ExecutionContext from transport-types (full context capsule)
    * @returns ActionResult with typed data
    */
   executeAction<TResult = JsonValue, TParams = DefaultParams>(
     action: string,
     params: TParams,
-    context: ActionExecutionContext,
+    context: ExecutionContext,
   ): Promise<ActionResult<TResult>>;
 }

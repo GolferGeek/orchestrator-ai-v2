@@ -263,9 +263,8 @@ export class WebhooksController {
       // Resolve username from userId
       let username: string | null = null;
       try {
-        const userProfile = await this.observabilityService[
-          'authService'
-        ].getUserProfile(userId);
+        const userProfile =
+          await this.observabilityService['authService'].getUserProfile(userId);
         username = userProfile?.displayName || userProfile?.email || userId;
       } catch {
         username = userId; // Fallback to userId if resolution fails

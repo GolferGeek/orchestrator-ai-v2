@@ -97,7 +97,7 @@ export class Agent2AgentTaskStatusService {
           .getServiceClient()
           .from(getTableName('tasks'))
           .select('params')
-          .eq('id', context.taskId!)
+          .eq('id', context.taskId)
           .eq('user_id', context.userId)
           .single();
 
@@ -129,7 +129,7 @@ export class Agent2AgentTaskStatusService {
         .getServiceClient()
         .from(getTableName('tasks'))
         .update(updateData)
-        .eq('id', context.taskId!)
+        .eq('id', context.taskId)
         .eq('user_id', context.userId);
 
       if (error) {
@@ -143,7 +143,7 @@ export class Agent2AgentTaskStatusService {
       // Send events via centralized observability service
       if (updates.status) {
         this.sendStatusEvent(
-          context.taskId!,
+          context.taskId,
           context.userId,
           updates.status,
           updates,
@@ -152,7 +152,7 @@ export class Agent2AgentTaskStatusService {
       } else if (updates.progress !== undefined) {
         // Progress updates also go through observability service
         await this.observabilityService.emitAgentProgress({
-          taskId: context.taskId!,
+          taskId: context.taskId,
           userId: context.userId,
           agentSlug: context.agentSlug || 'unknown',
           conversationId: context.conversationId,
@@ -272,7 +272,7 @@ export class Agent2AgentTaskStatusService {
         .getServiceClient()
         .from(getTableName('tasks'))
         .update(updateData)
-        .eq('id', context.taskId!)
+        .eq('id', context.taskId)
         .eq('user_id', context.userId);
 
       if (error) {
@@ -313,7 +313,7 @@ export class Agent2AgentTaskStatusService {
         .getServiceClient()
         .from(getTableName('tasks'))
         .update(updateData)
-        .eq('id', context.taskId!)
+        .eq('id', context.taskId)
         .eq('user_id', context.userId);
 
       if (error) {
@@ -344,7 +344,7 @@ export class Agent2AgentTaskStatusService {
         .getServiceClient()
         .from(getTableName('tasks'))
         .select('status, response, error, params')
-        .eq('id', context.taskId!)
+        .eq('id', context.taskId)
         .eq('user_id', context.userId)
         .single();
 

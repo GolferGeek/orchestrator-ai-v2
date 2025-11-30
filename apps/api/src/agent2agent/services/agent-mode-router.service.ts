@@ -45,7 +45,7 @@ export class AgentModeRouterService {
     const { context, request } = execContext;
 
     // Check if this is an HITL method (uses 'method' field in payload)
-    const payload = request.payload as Record<string, unknown> | undefined;
+    const payload = request.payload;
     const method = payload?.method as string | undefined;
 
     this.logger.log(
@@ -54,7 +54,9 @@ export class AgentModeRouterService {
 
     // Route HITL methods (hitl.resume, hitl.status, hitl.history, hitl.pending)
     if (method?.startsWith('hitl.')) {
-      this.logger.log(`🔍 [MODE-ROUTER] Routing to HITL method handler: ${method}`);
+      this.logger.log(
+        `🔍 [MODE-ROUTER] Routing to HITL method handler: ${method}`,
+      );
       return this.routeHitlMethod(method, execContext);
     }
 
@@ -146,11 +148,7 @@ export class AgentModeRouterService {
       },
     };
 
-    return apiRunner.execute(
-      hydrated.definition,
-      hitlRequest,
-      context.orgSlug,
-    );
+    return apiRunner.execute(hydrated.definition, hitlRequest, context.orgSlug);
   }
 
   /**
@@ -226,7 +224,8 @@ export class AgentModeRouterService {
 
     // Use existing definition or build from agent record
     const definition =
-      existingDefinition ?? this.runtimeDefinitions.buildDefinition(agentRecord);
+      existingDefinition ??
+      this.runtimeDefinitions.buildDefinition(agentRecord);
 
     return {
       ...execContext,

@@ -731,8 +731,7 @@ export class Agent2AgentController {
         }
 
         if (hookType === 'agent.failed' || hookType === 'task.failed') {
-          const errorEvent =
-            this.toErrorSseEventFromObservability(eventRecord);
+          const errorEvent = this.toErrorSseEventFromObservability(eventRecord);
           if (errorEvent) {
             this.writeSseEvent(response, errorEvent);
           }

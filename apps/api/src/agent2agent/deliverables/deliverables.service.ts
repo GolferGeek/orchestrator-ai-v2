@@ -23,9 +23,9 @@ import { getTableName } from '@/supabase/supabase.config';
 import { DeliverableVersionsService } from './deliverable-versions.service';
 import { AgentConversationsService } from '@/agent2agent/conversations/agent-conversations.service';
 import { CreateAgentConversationDto } from '@/agent2agent/types/agent-conversations.types';
+import type { ExecutionContext } from '@orchestrator-ai/transport-types';
 import {
   IActionHandler,
-  ActionExecutionContext,
   ActionResult,
 } from '../common/interfaces/action-handler.interface';
 
@@ -122,7 +122,7 @@ export class DeliverablesService implements IActionHandler {
   async executeAction<T = unknown, TParams = DeliverableActionParams>(
     action: string,
     params: TParams,
-    context: ActionExecutionContext,
+    context: ExecutionContext,
   ): Promise<ActionResult<T>> {
     try {
       this.logger.debug(
@@ -244,7 +244,11 @@ export class DeliverablesService implements IActionHandler {
                 ? 'NOT_FOUND'
                 : 'INTERNAL_ERROR',
           message: error instanceof Error ? error.message : 'Unknown error',
-          details: { action, context },
+          details: {
+            action,
+            conversationId: context.conversationId,
+            userId: context.userId,
+          },
         },
       };
     }
@@ -269,12 +273,13 @@ export class DeliverablesService implements IActionHandler {
       metadata?: Record<string, unknown>;
       deliverableId?: string;
     },
-    context: ActionExecutionContext,
+    context: ExecutionContext,
   ) {
+    // Use context.deliverableId directly from ExecutionContext
+    // Falls back to params for legacy compatibility
     const explicitDeliverableId = this.normalizeDeliverableId(
       params.deliverableId ??
-        context.metadata?.deliverableId ??
-        context.metadata?.deliverable_id ??
+        context.deliverableId ??
         params.metadata?.deliverableId ??
         params.metadata?.deliverable_id,
     );
@@ -361,7 +366,7 @@ export class DeliverablesService implements IActionHandler {
    * Action: read
    * Get current deliverable with current version
    */
-  private async getCurrentDeliverable(context: ActionExecutionContext) {
+  private async getCurrentDeliverable(context: ExecutionContext) {
     const deliverables = await this.findByConversationId(
       context.conversationId,
       context.userId,
@@ -397,7 +402,7 @@ export class DeliverablesService implements IActionHandler {
    * Action: list
    * Get version history for deliverable
    */
-  private async getVersionHistory(context: ActionExecutionContext) {
+  private async getVersionHistory(context: ExecutionContext) {
     const deliverables = await this.findByConversationId(
       context.conversationId,
       context.userId,
@@ -427,7 +432,7 @@ export class DeliverablesService implements IActionHandler {
       content: string;
       metadata?: Record<string, unknown>;
     },
-    context: ActionExecutionContext,
+    context: ExecutionContext,
   ) {
     const deliverables = await this.findByConversationId(
       context.conversationId,
@@ -485,7 +490,7 @@ export class DeliverablesService implements IActionHandler {
         maxTokens?: number;
       };
     },
-    context: ActionExecutionContext,
+    context: ExecutionContext,
   ) {
     const { provider, model, temperature, maxTokens } = params.config;
 
@@ -511,7 +516,7 @@ export class DeliverablesService implements IActionHandler {
    */
   private async setCurrentVersion(
     params: { versionId: string },
-    context: ActionExecutionContext,
+    context: ExecutionContext,
   ) {
     const version = await this.versionsService.setCurrentVersion(
       params.versionId,
@@ -532,7 +537,7 @@ export class DeliverablesService implements IActionHandler {
    */
   private async deleteVersion(
     params: { versionId: string },
-    context: ActionExecutionContext,
+    context: ExecutionContext,
   ) {
     // Get version before deletion to get deliverable ID
     const version = await this.versionsService.getVersion(
@@ -570,7 +575,7 @@ export class DeliverablesService implements IActionHandler {
       providerName?: string;
       modelName?: string;
     },
-    context: ActionExecutionContext,
+    context: ExecutionContext,
   ) {
     const deliverables = await this.findByConversationId(
       context.conversationId,
@@ -614,7 +619,7 @@ export class DeliverablesService implements IActionHandler {
    */
   private async copyVersion(
     params: { versionId: string },
-    context: ActionExecutionContext,
+    context: ExecutionContext,
   ) {
     const sourceVersion = await this.versionsService.getVersion(
       params.versionId,
@@ -644,7 +649,7 @@ export class DeliverablesService implements IActionHandler {
    * Action: delete
    * Delete entire deliverable and all versions
    */
-  private async deleteDeliverable(context: ActionExecutionContext) {
+  private async deleteDeliverable(context: ExecutionContext) {
     const deliverables = await this.findByConversationId(
       context.conversationId,
       context.userId,
@@ -950,7 +955,9 @@ export class DeliverablesService implements IActionHandler {
     } catch (versionError) {
       this.logger.warn(
         `Failed to load current version for deliverable ${deliverable.id}`,
-        versionError instanceof Error ? versionError : { message: String(versionError) },
+        versionError instanceof Error
+          ? versionError
+          : { message: String(versionError) },
       );
     }
 

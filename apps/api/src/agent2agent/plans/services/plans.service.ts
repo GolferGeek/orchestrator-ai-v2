@@ -9,10 +9,10 @@ import { PlanVersionsService } from './plan-versions.service';
 import type {
   JsonObject,
   PlanVersionData,
+  ExecutionContext,
 } from '@orchestrator-ai/transport-types';
 import {
   IActionHandler,
-  ActionExecutionContext,
   ActionResult,
 } from '../../common/interfaces/action-handler.interface';
 import type {
@@ -57,7 +57,7 @@ export class PlansService implements IActionHandler {
   async executeAction<TResult = JsonObject | null>(
     action: string,
     params: unknown,
-    context: ActionExecutionContext,
+    context: ExecutionContext,
   ): Promise<ActionResult<TResult>> {
     try {
       this.logger.debug(
@@ -163,7 +163,11 @@ export class PlansService implements IActionHandler {
                 ? 'NOT_FOUND'
                 : 'INTERNAL_ERROR',
           message: error instanceof Error ? error.message : 'Unknown error',
-          details: { action, context },
+          details: {
+            action,
+            conversationId: context.conversationId,
+            userId: context.userId,
+          },
         },
       };
     }
@@ -188,7 +192,7 @@ export class PlansService implements IActionHandler {
    */
   private async createOrRefine(
     params: PlanCreateParams,
-    context: ActionExecutionContext,
+    context: ExecutionContext,
   ) {
     // Check if plan already exists for this conversation
     const existingPlan = await this.plansRepo.findByConversationId(
@@ -244,7 +248,7 @@ export class PlansService implements IActionHandler {
    * Action: read
    * Get current plan with current version
    */
-  private async getCurrentPlan(context: ActionExecutionContext) {
+  private async getCurrentPlan(context: ExecutionContext) {
     const plan = await this.plansRepo.findByConversationId(
       context.conversationId,
       context.userId,
@@ -275,7 +279,7 @@ export class PlansService implements IActionHandler {
    * Action: list
    * Get version history for plan
    */
-  private async getVersionHistory(context: ActionExecutionContext) {
+  private async getVersionHistory(context: ExecutionContext) {
     const plan = await this.plansRepo.findByConversationId(
       context.conversationId,
       context.userId,
@@ -301,7 +305,7 @@ export class PlansService implements IActionHandler {
    */
   private async saveManualEdit(
     params: PlanEditParams,
-    context: ActionExecutionContext,
+    context: ExecutionContext,
   ) {
     this.logger.debug(
       `🔖 [saveManualEdit] Starting with conversationId=${context.conversationId}, userId=${context.userId}`,
@@ -371,7 +375,7 @@ export class PlansService implements IActionHandler {
    */
   private async rerunWithDifferentLLM(
     params: PlanRerunParams,
-    context: ActionExecutionContext,
+    context: ExecutionContext,
   ) {
     const { provider, model, temperature, maxTokens } = params.config;
 
@@ -397,7 +401,7 @@ export class PlansService implements IActionHandler {
    */
   private async setCurrentVersion(
     params: { versionId: string },
-    context: ActionExecutionContext,
+    context: ExecutionContext,
   ) {
     const version = await this.versionsService.setCurrentVersion(
       params.versionId,
@@ -415,7 +419,7 @@ export class PlansService implements IActionHandler {
    */
   private async deleteVersion(
     params: { versionId: string },
-    context: ActionExecutionContext,
+    context: ExecutionContext,
   ) {
     // Get version before deletion to get plan ID
     const version = await this.versionsService.findOne(
@@ -457,7 +461,7 @@ export class PlansService implements IActionHandler {
       llmConfig?: Record<string, unknown> | null;
       preferredFormat?: 'markdown' | 'json' | 'text';
     },
-    context: ActionExecutionContext,
+    context: ExecutionContext,
   ) {
     const plan = await this.plansRepo.findByConversationId(
       context.conversationId,
@@ -502,10 +506,7 @@ export class PlansService implements IActionHandler {
    * Action: copy_version
    * Duplicate a version as a new version
    */
-  private async copyVersion(
-    params: PlanCopyParams,
-    context: ActionExecutionContext,
-  ) {
+  private async copyVersion(params: PlanCopyParams, context: ExecutionContext) {
     const sourceVersion = await this.versionsService.findOne(
       params.versionId,
       context.userId,
@@ -537,7 +538,7 @@ export class PlansService implements IActionHandler {
    * Action: delete
    * Delete entire plan and all versions
    */
-  private async deletePlan(context: ActionExecutionContext) {
+  private async deletePlan(context: ExecutionContext) {
     const plan = await this.plansRepo.findByConversationId(
       context.conversationId,
       context.userId,

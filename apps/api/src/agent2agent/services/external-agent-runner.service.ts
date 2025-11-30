@@ -329,12 +329,8 @@ export class ExternalAgentRunnerService extends BaseAgentRunner {
               externalMetadata: a2aResponse.payload?.metadata,
             },
           },
-          {
-            conversationId,
-            userId,
-            agentSlug: definition.slug,
-            taskId: typeof taskId === 'string' ? taskId : undefined,
-          },
+          // Use request.context directly - full ExecutionContext from transport-types
+          request.context,
         );
 
         if (!deliverableResult.success) {

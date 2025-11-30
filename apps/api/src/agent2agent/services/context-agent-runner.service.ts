@@ -21,8 +21,10 @@ import {
   ContextOptimizationService,
   ConversationMessage,
 } from '../context-optimization/context-optimization.service';
-import type { ActionExecutionContext } from '../common/interfaces/action-handler.interface';
-import type { JsonObject } from '@orchestrator-ai/transport-types';
+import type {
+  JsonObject,
+  ExecutionContext,
+} from '@orchestrator-ai/transport-types';
 import { NIL_UUID } from '@orchestrator-ai/transport-types';
 import { DeliverablesService } from '../deliverables/deliverables.service';
 import { PlansService } from '../plans/services/plans.service';
@@ -160,13 +162,8 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
         );
       }
 
-      const executionContext: ActionExecutionContext = {
-        conversationId: context.conversationId,
-        userId,
-        agentSlug: definition.slug,
-        taskId: context.taskId,
-        metadata: (request.metadata ?? {}) as JsonObject,
-      };
+      // Use request.context directly - it's the full ExecutionContext from transport-types
+      const executionContext: ExecutionContext = request.context;
 
       const requestedPlanVersionId =
         typeof payload.planVersionId === 'string' &&
@@ -479,7 +476,7 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
   private async gatherBuildContext(
     definition: AgentRuntimeDefinition,
     request: TaskRequestDto,
-    executionContext: ActionExecutionContext,
+    executionContext: ExecutionContext,
     requestedPlanVersionId: string | null,
   ): Promise<BuildContextResult> {
     const conversationHistory = await fetchConversationHistory(

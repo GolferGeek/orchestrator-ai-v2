@@ -805,7 +805,9 @@ export class AgentRuntimeDispatchService {
   ): unknown {
     const t = api?.requestTransform;
     const sessionId =
-      options.request.context?.taskId ?? options.request.context?.conversationId ?? null;
+      options.request.context?.taskId ??
+      options.request.context?.conversationId ??
+      null;
     const userMessage = options.prompt.userMessage ?? '';
     const conversationId = options.request.context?.conversationId ?? null;
     const agentSlug = options.definition.slug;

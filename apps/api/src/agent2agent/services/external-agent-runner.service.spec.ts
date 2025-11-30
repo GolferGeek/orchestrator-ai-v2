@@ -140,7 +140,11 @@ describe('ExternalAgentRunnerService', () => {
         },
       });
 
-      const result = await service.execute(definition, request, mockContext.orgSlug);
+      const result = await service.execute(
+        definition,
+        request,
+        mockContext.orgSlug,
+      );
 
       expect(result.success).toBe(true);
       expect(result.mode).toBe(AgentTaskMode.BUILD);
@@ -274,7 +278,11 @@ describe('ExternalAgentRunnerService', () => {
         }) as unknown as ReturnType<typeof httpService.request>,
       );
 
-      const result = await service.execute(definition, request, mockContext.orgSlug);
+      const result = await service.execute(
+        definition,
+        request,
+        mockContext.orgSlug,
+      );
 
       expect(result.success).toBe(true);
       expect(result.mode).toBe(AgentTaskMode.CONVERSE);
@@ -323,7 +331,11 @@ describe('ExternalAgentRunnerService', () => {
         }) as unknown as ReturnType<typeof httpService.request>,
       );
 
-      const result = await service.execute(definition, request, mockContext.orgSlug);
+      const result = await service.execute(
+        definition,
+        request,
+        mockContext.orgSlug,
+      );
 
       expect(result.success).toBe(true);
       expect(result.mode).toBe(AgentTaskMode.PLAN);
@@ -357,7 +369,11 @@ describe('ExternalAgentRunnerService', () => {
         payload: {},
       };
 
-      const result = await service.execute(definition, request, mockContext.orgSlug);
+      const result = await service.execute(
+        definition,
+        request,
+        mockContext.orgSlug,
+      );
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toContain(
@@ -382,7 +398,11 @@ describe('ExternalAgentRunnerService', () => {
         metadata: { userId: 'user-123' },
       };
 
-      const result = await service.execute(definition, request, mockContext.orgSlug);
+      const result = await service.execute(
+        definition,
+        request,
+        mockContext.orgSlug,
+      );
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toContain(
@@ -415,7 +435,11 @@ describe('ExternalAgentRunnerService', () => {
         >,
       );
 
-      const result = await service.execute(definition, request, mockContext.orgSlug);
+      const result = await service.execute(
+        definition,
+        request,
+        mockContext.orgSlug,
+      );
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toContain(
@@ -449,7 +473,11 @@ describe('ExternalAgentRunnerService', () => {
         }) as unknown as ReturnType<typeof httpService.request>,
       );
 
-      const result = await service.execute(definition, request, mockContext.orgSlug);
+      const result = await service.execute(
+        definition,
+        request,
+        mockContext.orgSlug,
+      );
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toContain(
@@ -483,7 +511,11 @@ describe('ExternalAgentRunnerService', () => {
         }) as unknown as ReturnType<typeof httpService.request>,
       );
 
-      const result = await service.execute(definition, request, mockContext.orgSlug);
+      const result = await service.execute(
+        definition,
+        request,
+        mockContext.orgSlug,
+      );
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toContain(
@@ -529,7 +561,11 @@ describe('ExternalAgentRunnerService', () => {
         },
       });
 
-      const result = await service.execute(definition, request, mockContext.orgSlug);
+      const result = await service.execute(
+        definition,
+        request,
+        mockContext.orgSlug,
+      );
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toBe(
@@ -568,7 +604,11 @@ describe('ExternalAgentRunnerService', () => {
         data: { id: 'del-123', title: 'Test', content: 'Content' },
       });
 
-      const result = await service.execute(definition, request, mockContext.orgSlug);
+      const result = await service.execute(
+        definition,
+        request,
+        mockContext.orgSlug,
+      );
 
       expect(result.success).toBe(true);
       expect(

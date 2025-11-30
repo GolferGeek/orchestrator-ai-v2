@@ -103,7 +103,9 @@ export class RoutingPolicyAdapterService {
       taskId: context?.taskId,
       planId: context?.planId,
       organizationSlug: agent.organization_slug ?? null,
-      userId: context?.userId ?? (metadata.userId ?? payload.userId ?? null) as string | null,
+      userId:
+        context?.userId ??
+        ((metadata.userId ?? payload.userId ?? null) as string | null),
       requestId: (metadata.requestId ?? payload.requestId ?? null) as
         | string
         | null,

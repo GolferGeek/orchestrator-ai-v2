@@ -45,7 +45,7 @@ export class AgentExecutionGateway {
   ): Promise<TaskResponseDto> {
     const agent = await this.agentRegistry.getAgent(
       context.orgSlug,
-      context.agentSlug!,
+      context.agentSlug,
     );
 
     if (!agent) {
@@ -234,7 +234,7 @@ export class AgentExecutionGateway {
   ): Promise<TaskResponseDto> {
     // AgentExecutionContext expects context from the request, definition, and routingMetadata
     return this.modeRouter.execute({
-      context: request.context!,
+      context: request.context,
       definition,
       request,
       routingMetadata,

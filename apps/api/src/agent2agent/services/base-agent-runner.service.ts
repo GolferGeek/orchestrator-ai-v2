@@ -571,11 +571,13 @@ export abstract class BaseAgentRunner implements IAgentRunner {
     // hitlMethod is set by the mode router for hitl.* methods
     if (payload.hitlMethod) {
       // Delegate to subclass handleHitlMethod if it exists
-      const runner = this as unknown as { handleHitlMethod?: (
-        definition: AgentRuntimeDefinition | null,
-        request: TaskRequestDto,
-        organizationSlug: string | null,
-      ) => Promise<TaskResponseDto> };
+      const runner = this as unknown as {
+        handleHitlMethod?: (
+          definition: AgentRuntimeDefinition | null,
+          request: TaskRequestDto,
+          organizationSlug: string | null,
+        ) => Promise<TaskResponseDto>;
+      };
 
       if (runner.handleHitlMethod) {
         return runner.handleHitlMethod(definition, request, organizationSlug);

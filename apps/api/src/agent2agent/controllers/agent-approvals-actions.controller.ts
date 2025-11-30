@@ -115,7 +115,8 @@ export class AgentApprovalsActionsController {
     const context: ExecutionContext = {
       orgSlug: record.organization_slug ?? orgSlug ?? 'global',
       userId: userId ?? 'unknown',
-      conversationId: record.conversation_id ?? stored.conversationId ?? NIL_UUID,
+      conversationId:
+        record.conversation_id ?? stored.conversationId ?? NIL_UUID,
       taskId: stored.taskId ?? NIL_UUID,
       planId: NIL_UUID, // Approvals don't store planId yet
       deliverableId: stored.deliverableId ?? NIL_UUID,

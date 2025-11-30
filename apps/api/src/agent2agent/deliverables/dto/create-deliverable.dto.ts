@@ -100,7 +100,8 @@ export class CreateDeliverableDto {
   agentName?: string;
 
   @ApiPropertyOptional({
-    description: 'Task ID that created this deliverable (links deliverable to task)',
+    description:
+      'Task ID that created this deliverable (links deliverable to task)',
   })
   @IsOptional()
   @IsUUID()

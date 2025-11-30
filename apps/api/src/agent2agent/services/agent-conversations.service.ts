@@ -264,9 +264,7 @@ export class Agent2AgentConversationsService {
         throw new Error(`Failed to update conversation: ${error.message}`);
       }
 
-      this.logger.debug(
-        `✅ Updated A2A conversation ${params.conversationId}`,
-      );
+      this.logger.debug(`✅ Updated A2A conversation ${params.conversationId}`);
     } catch (error) {
       this.logger.error(
         `Failed to update A2A conversation ${params.conversationId}:`,

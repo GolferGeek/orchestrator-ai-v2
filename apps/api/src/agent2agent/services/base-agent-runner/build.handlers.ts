@@ -21,7 +21,11 @@ import type {
   DeliverableData,
   DeliverableVersionData,
 } from '@orchestrator-ai/transport-types/shared/data-types';
-import type { JsonObject, JsonValue } from '@orchestrator-ai/transport-types';
+import type {
+  JsonObject,
+  JsonValue,
+  ExecutionContext,
+} from '@orchestrator-ai/transport-types';
 import {
   fetchExistingDeliverable,
   buildResponseMetadata,
@@ -1088,45 +1092,36 @@ const EMPTY_BUILD_METADATA = {
   usage: EMPTY_USAGE,
 };
 
+/**
+ * Extract context from request - uses request.context directly
+ * The ExecutionContext is immutable and flows through the entire system unchanged.
+ * We only extract individual fields for convenience in handlers.
+ */
 function buildBuildActionContext(
-  definition: AgentRuntimeDefinition,
+  _definition: AgentRuntimeDefinition,
   request: TaskRequestDto,
 ): {
   userId: string;
   conversationId: string;
-  taskId?: string;
-  executionContext: {
-    conversationId: string;
-    userId: string;
-    agentSlug: string;
-    taskId?: string;
-    metadata: JsonObject;
-  };
+  taskId: string;
+  executionContext: ExecutionContext;
 } {
-  const userId = resolveUserId(request);
-  if (!userId) {
+  // Use request.context directly - it's the full ExecutionContext from transport-types
+  const ctx = request.context;
+
+  if (!ctx.userId) {
     throw new Error('Unable to determine user identity for build operation');
   }
 
-  const conversationId = resolveConversationId(request);
-  if (!conversationId) {
+  if (!ctx.conversationId) {
     throw new Error('Missing conversationId for build operation');
   }
-  // Context is already populated from controller - no mutation needed
-
-  const taskId = resolveTaskId(request) ?? undefined;
 
   return {
-    userId,
-    conversationId,
-    taskId,
-    executionContext: {
-      conversationId,
-      userId,
-      agentSlug: definition.slug,
-      taskId,
-      metadata: sanitizeMetadata(request.metadata),
-    },
+    userId: ctx.userId,
+    conversationId: ctx.conversationId,
+    taskId: ctx.taskId,
+    executionContext: ctx,
   };
 }
 

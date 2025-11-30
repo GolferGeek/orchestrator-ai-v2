@@ -188,7 +188,11 @@ describe('ApiAgentRunnerService', () => {
         },
       });
 
-      const result = await service.execute(definition, request, mockContext.orgSlug);
+      const result = await service.execute(
+        definition,
+        request,
+        mockContext.orgSlug,
+      );
 
       expect(result.success).toBe(true);
       expect(result.mode).toBe(AgentTaskMode.BUILD);
@@ -416,11 +420,15 @@ describe('ApiAgentRunnerService', () => {
         context: contextWithoutUser,
       };
 
-      const result = await service.execute(definition, request, mockContext.orgSlug);
+      const result = await service.execute(
+        definition,
+        request,
+        mockContext.orgSlug,
+      );
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toContain(
-        'Missing required userId or conversationId',
+        'Missing required userId',
       );
     });
 
@@ -446,7 +454,11 @@ describe('ApiAgentRunnerService', () => {
         metadata: { userId: 'user-123' },
       };
 
-      const result = await service.execute(definition, request, mockContext.orgSlug);
+      const result = await service.execute(
+        definition,
+        request,
+        mockContext.orgSlug,
+      );
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toContain(
@@ -483,7 +495,11 @@ describe('ApiAgentRunnerService', () => {
         throwError(() => new Error('Network error')),
       );
 
-      const result = await service.execute(definition, request, mockContext.orgSlug);
+      const result = await service.execute(
+        definition,
+        request,
+        mockContext.orgSlug,
+      );
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toContain('Network error');
@@ -522,7 +538,11 @@ describe('ApiAgentRunnerService', () => {
         of(createMockAxiosResponse({ error: 'Not found' }, 404, 'Not Found')),
       );
 
-      const result = await service.execute(definition, request, mockContext.orgSlug);
+      const result = await service.execute(
+        definition,
+        request,
+        mockContext.orgSlug,
+      );
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toContain(
@@ -568,7 +588,11 @@ describe('ApiAgentRunnerService', () => {
         data: { deliverable: {}, version: {} },
       });
 
-      const result = await service.execute(definition, request, mockContext.orgSlug);
+      const result = await service.execute(
+        definition,
+        request,
+        mockContext.orgSlug,
+      );
 
       expect(result.success).toBe(true);
     });
@@ -608,7 +632,11 @@ describe('ApiAgentRunnerService', () => {
         },
       });
 
-      const result = await service.execute(definition, request, mockContext.orgSlug);
+      const result = await service.execute(
+        definition,
+        request,
+        mockContext.orgSlug,
+      );
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toBe(
@@ -726,7 +754,11 @@ describe('ApiAgentRunnerService', () => {
         },
       });
 
-      const result = await service.execute(definition, request, mockContext.orgSlug);
+      const result = await service.execute(
+        definition,
+        request,
+        mockContext.orgSlug,
+      );
 
       expect(result.success).toBe(true);
       const content = result.payload?.content as

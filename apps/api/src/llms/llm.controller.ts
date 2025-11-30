@@ -90,7 +90,9 @@ export class LLMController {
       // Use ExecutionContext if provided, otherwise fall back to options
       const ctx = request.context;
       const providerName =
-        ctx?.provider || request.options?.providerName || request.options?.provider;
+        ctx?.provider ||
+        request.options?.providerName ||
+        request.options?.provider;
       const modelName = ctx?.model || request.options?.modelName;
 
       const result = await this.llmService.generateResponse(
@@ -107,7 +109,8 @@ export class LLMController {
           callerName: request.options?.callerName || 'llm-controller',
           // Context fields - prefer ExecutionContext, fall back to options
           userId: ctx?.userId || request.options?.userId,
-          conversationId: ctx?.conversationId || request.options?.conversationId,
+          conversationId:
+            ctx?.conversationId || request.options?.conversationId,
           taskId: ctx?.taskId || request.options?.taskId,
           organizationSlug: ctx?.orgSlug || request.options?.organizationSlug,
           agentSlug: ctx?.agentSlug,

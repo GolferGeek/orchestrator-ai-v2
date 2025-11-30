@@ -310,10 +310,7 @@ export class Agent2AgentTasksService {
    * Get a task by ID
    * Internal method: task tracking and status queries
    */
-  async getTaskById(params: {
-    taskId: string;
-    userId: string;
-  }): Promise<{
+  async getTaskById(params: { taskId: string; userId: string }): Promise<{
     id: string;
     userId: string;
     agentName: string;

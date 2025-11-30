@@ -238,7 +238,11 @@ describe('ContextAgentRunnerService', () => {
       });
 
       // Act
-      const result = await service.execute(definition, request, mockContext.orgSlug);
+      const result = await service.execute(
+        definition,
+        request,
+        mockContext.orgSlug,
+      );
 
       // Assert
       expect(result.success).toBe(true);
@@ -296,7 +300,11 @@ describe('ContextAgentRunnerService', () => {
         payload: {},
       };
 
-      const result = await service.execute(definition, request, contextWithoutUser.orgSlug);
+      const result = await service.execute(
+        definition,
+        request,
+        contextWithoutUser.orgSlug,
+      );
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toContain(
@@ -344,7 +352,11 @@ describe('ContextAgentRunnerService', () => {
         new Error('LLM service unavailable'),
       );
 
-      const result = await service.execute(definition, request, mockContext.orgSlug);
+      const result = await service.execute(
+        definition,
+        request,
+        mockContext.orgSlug,
+      );
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toContain(
@@ -417,7 +429,11 @@ describe('ContextAgentRunnerService', () => {
         },
       });
 
-      const result = await service.execute(definition, request, mockContext.orgSlug);
+      const result = await service.execute(
+        definition,
+        request,
+        mockContext.orgSlug,
+      );
 
       expect(result.success).toBe(false);
       expect(result.payload?.metadata?.reason).toBe(
@@ -480,7 +496,11 @@ describe('ContextAgentRunnerService', () => {
         },
       });
 
-      const result = await service.execute(definition, request, mockContext.orgSlug);
+      const result = await service.execute(
+        definition,
+        request,
+        mockContext.orgSlug,
+      );
 
       expect(result.success).toBe(true);
       expect(

@@ -946,32 +946,10 @@ function openGenerateModal() {
 }
 
 async function submitGenerate() {
-  try {
-    // Execute function agent "image_basic_generator" via Agent2Agent
-    const orgSlug = (await import('@/stores/rbacStore')).useRbacStore().currentOrganization || 'my-org';
-    const selectedProviders = genProviders.value || [];
-    const agentSlug = (selectedProviders.length === 1)
-      ? (selectedProviders[0] === 'gemini' ? 'image_google_generator' : 'image_openai_generator')
-      : 'image_orchestrator';
-    const { agentExecutionService } = await import('@/services/agentExecutionService');
-    const convId = (props as Props).conversationId || (await import('@/stores/ui/chatUiStore')).useChatUiStore().activeConversationId;
-    if (!convId) throw new Error('No conversation available');
-    await agentExecutionService.executeAgentTask(orgSlug, agentSlug, {
-      mode: 'build',
-      conversationId: convId,
-      userMessage: genPrompt.value || 'Generate image',
-      payload: { size: genSize.value, n: genN.value, deliverableId: (props.deliverable as Deliverable).id, providers: genProviders.value },
-    });
-    showGenerateModal.value = false;
-
-    // Refresh versions
-    const versionList = await deliverablesService.getVersionHistory(actualDeliverableId.value);
-    versionList.forEach(v => {
-      deliverablesStore.addVersion(actualDeliverableId.value, v);
-    });
-  } catch (e: unknown) {
-    alert(`Image generation failed: ${e instanceof Error ? e.message : String(e)}`);
-  }
+  // TODO: Media generation will be implemented via transport types similar to converse/plan/build/hitl
+  // For now, this is a placeholder that just closes the modal
+  console.warn('Image generation not yet implemented via unified orchestrator');
+  showGenerateModal.value = false;
 }
 const goToPreviousVersion = async () => {
   if (!canGoPrevious.value) return;

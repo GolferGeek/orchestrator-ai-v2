@@ -152,7 +152,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
     request: TaskRequestDto,
     organizationSlug: string | null,
   ): Promise<TaskResponseDto> {
-    const payload = request.payload as Record<string, unknown> | undefined;
+    const payload = request.payload;
     const hitlMethod = payload?.hitlMethod as string | undefined;
 
     this.logger.log(`Handling HITL method: ${hitlMethod}`);
@@ -165,7 +165,11 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
             'Agent definition required for hitl.resume',
           );
         }
-        return this.handleHitlResumeMethod(definition, request, organizationSlug);
+        return this.handleHitlResumeMethod(
+          definition,
+          request,
+          organizationSlug,
+        );
 
       case 'hitl.status':
         return this.executeHitlStatus(request, organizationSlug);
@@ -425,10 +429,13 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
 
     for (const task of pendingTasks) {
       // Get conversation for context (from the join)
-      const conversationData = (task as unknown as Record<string, unknown>).conversations as {
-        id: string;
-        title?: string;
-      } | undefined;
+      const conversationData = (task as unknown as Record<string, unknown>)
+        .conversations as
+        | {
+            id: string;
+            title?: string;
+          }
+        | undefined;
 
       // Get deliverable for this task (via task_id)
       const deliverable = await this.deliverablesService.findByTaskId(
@@ -486,7 +493,8 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
     }
 
     if (content.seoDescription) {
-      result += '---\n\n## SEO Description\n\n' + content.seoDescription + '\n\n';
+      result +=
+        '---\n\n## SEO Description\n\n' + content.seoDescription + '\n\n';
     }
 
     if (content.socialPosts) {
@@ -560,7 +568,9 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
     // LangGraph controller returns: { success: boolean, data: { taskId, status, ... }, message?: string }
     const nestedData = responseData.data as Record<string, unknown> | undefined;
     const langGraphStatus =
-      (nestedData?.status as string) || (responseData.status as string) || 'completed';
+      (nestedData?.status as string) ||
+      (responseData.status as string) ||
+      'completed';
 
     this.logger.log(
       `🔍 [API-HITL-RESUME] LangGraph returned status: ${langGraphStatus}, success: ${responseData.success}`,
@@ -573,10 +583,14 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
     const taskId = payload.taskId as string;
 
     // 4. If LangGraph returned hitl_waiting (e.g., for regenerate), return HITL response
-    if (langGraphStatus === 'hitl_waiting' || langGraphStatus === 'regenerating') {
+    if (
+      langGraphStatus === 'hitl_waiting' ||
+      langGraphStatus === 'regenerating'
+    ) {
       // Extract generated content for regenerate scenario
       const generatedContent = (nestedData?.generatedContent ||
-        responseData.generatedContent || {}) as HitlGeneratedContent;
+        responseData.generatedContent ||
+        {}) as HitlGeneratedContent;
 
       // Get deliverable info if exists
       const deliverable = await this.deliverablesService.findByTaskId(
@@ -621,7 +635,8 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
 
     // Extract generated/final content from LangGraph response
     const finalContent = (nestedData?.finalContent ||
-      responseData.finalContent || {}) as HitlGeneratedContent;
+      responseData.finalContent ||
+      {}) as HitlGeneratedContent;
 
     this.logger.debug(
       `🔍 [API-HITL-RESUME] Final content keys: ${Object.keys(finalContent).join(',')}`,
@@ -643,7 +658,8 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
       );
 
       // Build final content string from all generated content
-      const finalContentString = this.buildDeliverableContentFromHitl(finalContent);
+      const finalContentString =
+        this.buildDeliverableContentFromHitl(finalContent);
 
       // Create a new version with the final approved content
       await this.versionsService.createVersion(
@@ -655,7 +671,10 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
             hitlDecision: 'approve',
             approvedAt: new Date().toISOString(),
             hasSeoDescription: !!finalContent.seoDescription,
-            hasSocialPosts: !!finalContent.socialPosts && Array.isArray(finalContent.socialPosts) && finalContent.socialPosts.length > 0,
+            hasSocialPosts:
+              !!finalContent.socialPosts &&
+              Array.isArray(finalContent.socialPosts) &&
+              finalContent.socialPosts.length > 0,
           },
         },
         userId || '',
@@ -779,12 +798,8 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
             ...metadata,
           },
         },
-        {
-          conversationId,
-          userId,
-          agentSlug: definition.slug,
-          taskId: taskId ?? undefined,
-        },
+        // Use request.context directly - full ExecutionContext from transport-types
+        request.context,
       );
 
       if (!deliverableResult.success) {
@@ -923,7 +938,9 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         (request.context?.taskId && request.context.taskId !== NIL_UUID
           ? request.context.taskId
           : null) ||
-        ((request.payload as Record<string, unknown>)?.taskId as string | null) ||
+        ((request.payload as Record<string, unknown>)?.taskId as
+          | string
+          | null) ||
         null;
 
       if (!userId) {
@@ -1376,10 +1393,8 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           let deliverableId: string | undefined;
           try {
             // Check if deliverable already exists for this task
-            const existingDeliverable = await this.deliverablesService.findByTaskId(
-              hitlTaskId,
-              userId,
-            );
+            const existingDeliverable =
+              await this.deliverablesService.findByTaskId(hitlTaskId, userId);
 
             if (existingDeliverable) {
               deliverableId = existingDeliverable.id;
@@ -1388,16 +1403,19 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
               );
             } else {
               // Create new deliverable with generated content
-              const contentForDeliverable = this.buildDeliverableContentFromHitl(
-                generatedContent as HitlGeneratedContent | undefined,
-              );
+              const contentForDeliverable =
+                this.buildDeliverableContentFromHitl(
+                  generatedContent as HitlGeneratedContent | undefined,
+                );
 
               // Get deliverable type from agent config, fallback to DOCUMENT
               const agentDeliverableType = definition.config?.deliverable?.type;
               const deliverableType = agentDeliverableType
-                ? (Object.values(DeliverableType).includes(agentDeliverableType as DeliverableType)
-                    ? (agentDeliverableType as DeliverableType)
-                    : DeliverableType.DOCUMENT)
+                ? Object.values(DeliverableType).includes(
+                    agentDeliverableType as DeliverableType,
+                  )
+                  ? (agentDeliverableType as DeliverableType)
+                  : DeliverableType.DOCUMENT
                 : DeliverableType.DOCUMENT;
 
               this.logger.debug(
@@ -1413,7 +1431,8 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
                   taskId: hitlTaskId,
                   initialContent: contentForDeliverable,
                   initialFormat: DeliverableFormat.MARKDOWN,
-                  initialCreationType: DeliverableVersionCreationType.AI_RESPONSE,
+                  initialCreationType:
+                    DeliverableVersionCreationType.AI_RESPONSE,
                   initialTaskId: hitlTaskId,
                   initialMetadata: {
                     hitlStatus: 'pending_review',
@@ -1715,12 +1734,8 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
             success: isSuccess,
           },
         },
-        {
-          conversationId,
-          userId,
-          agentSlug: definition.slug,
-          taskId: taskId ?? undefined,
-        },
+        // Use request.context directly - full ExecutionContext from transport-types
+        request.context,
       );
 
       if (!deliverableResult.success) {
@@ -3001,11 +3016,8 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           type: definition.config?.deliverable?.type || 'api-response',
           deliverableId: targetDeliverableId ?? undefined,
         },
-        {
-          conversationId: conversationId || '',
-          userId: userId || 'unknown',
-          organizationSlug: organizationSlug || 'global',
-        },
+        // Use request.context directly - full ExecutionContext from transport-types
+        request.context,
       );
 
       // Emit completion event with deliverable

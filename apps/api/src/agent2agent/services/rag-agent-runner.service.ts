@@ -341,13 +341,8 @@ export class RagAgentRunnerService extends BaseAgentRunner {
         },
       );
 
-      // Create deliverable with the RAG response
-      const executionContext = {
-        conversationId: context.conversationId,
-        userId,
-        organizationSlug: resolvedOrgSlug,
-        agentSlug: definition.slug,
-      };
+      // Use request.context directly - full ExecutionContext from transport-types
+      const executionContext = request.context;
 
       const deliverableResult = await this.deliverablesService.executeAction(
         'create',
