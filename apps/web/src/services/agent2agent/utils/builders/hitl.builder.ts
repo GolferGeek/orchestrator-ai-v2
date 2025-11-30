@@ -2,28 +2,51 @@
  * HITL Request Builder
  * Creates fully-typed, validated HITL (Human-in-the-Loop) requests
  *
+ * **Store-First Approach (PRD Compliant):**
+ * Each builder function gets context from the ExecutionContext store internally.
+ * Context is NEVER passed as a parameter - builders access the store directly.
+ *
  * HITL operations use taskId for resuming workflows.
  * The taskId is used as LangGraph's thread_id internally.
  *
- * Note: Returns StrictA2ARequest for type compatibility with other builders.
- * The actual request structure follows the same pattern as plan/build builders.
+ * @see docs/prd/unified-a2a-orchestrator.md - Phase 1, Item #2
  */
 
 import type {
   AgentTaskMode,
-  HitlAction,
   HitlDecision,
   HitlGeneratedContent,
   StrictTaskMessage,
   StrictA2ARequest,
 } from '@orchestrator-ai/transport-types';
+import { useExecutionContextStore } from '@/stores/executionContextStore';
 
-interface RequestMetadata {
-  conversationId: string;
-  taskId: string;
+/**
+ * Payload types for HITL actions
+ */
+export interface HitlResumePayload {
+  decision: HitlDecision;
+  feedback?: string;
+  content?: HitlGeneratedContent;
   userMessage?: string;
   messages?: StrictTaskMessage[];
-  metadata?: Record<string, unknown>;
+}
+
+export interface HitlPendingPayload {
+  agentSlug?: string;
+}
+
+/**
+ * Export for type compatibility
+ */
+export type StrictHitlRequest = StrictA2ARequest;
+
+/**
+ * Helper to get context from store
+ */
+function getContext() {
+  const store = useExecutionContextStore();
+  return store.current;
 }
 
 /**
@@ -39,33 +62,22 @@ function validateRequired(value: unknown, fieldName: string): void {
  * HITL request builders
  * All 4 HITL actions from the transport type system
  *
- * Note: These builders follow the same pattern as plan/build builders
- * for consistency, returning StrictA2ARequest type.
+ * **Store-First Approach:** Each method gets context from the store internally.
+ * No metadata parameter - only action-specific payload data.
  */
 export const hitlBuilder = {
   /**
    * Resume HITL workflow with decision
-   *
-   * @param metadata - Request metadata with taskId
-   * @param resumeData - Decision and optional content/feedback
    */
-  resume: (
-    metadata: RequestMetadata,
-    resumeData: {
-      decision: HitlDecision;
-      feedback?: string;
-      content?: HitlGeneratedContent;
-    },
-  ): StrictA2ARequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
-    validateRequired(metadata.taskId, 'taskId');
-    validateRequired(resumeData.decision, 'decision');
+  resume: (payload: HitlResumePayload): StrictA2ARequest => {
+    const ctx = getContext();
+    validateRequired(payload.decision, 'decision');
 
     // Validate decision-specific requirements
-    if (resumeData.decision === 'regenerate' && !resumeData.feedback) {
+    if (payload.decision === 'regenerate' && !payload.feedback) {
       throw new Error('feedback is required when decision is "regenerate"');
     }
-    if (resumeData.decision === 'replace' && !resumeData.content) {
+    if (payload.decision === 'replace' && !payload.content) {
       throw new Error('content is required when decision is "replace"');
     }
 
@@ -75,30 +87,24 @@ export const hitlBuilder = {
       method: 'hitl.resume',
       params: {
         mode: 'hitl' as AgentTaskMode,
-        action: 'resume' as HitlAction,
-        conversationId: metadata.conversationId,
-        taskId: metadata.taskId,
-        userMessage: metadata.userMessage || `HITL decision: ${resumeData.decision}`,
-        messages: metadata.messages || [],
-        metadata: metadata.metadata,
+        taskId: ctx.taskId,
+        userMessage: payload.userMessage || `HITL decision: ${payload.decision}`,
+        messages: payload.messages || [],
         payload: {
           action: 'resume',
-          decision: resumeData.decision,
-          ...(resumeData.feedback && { feedback: resumeData.feedback }),
-          ...(resumeData.content && { content: resumeData.content }),
+          decision: payload.decision,
+          ...(payload.feedback && { feedback: payload.feedback }),
+          ...(payload.content && { content: payload.content }),
         },
       },
-    } as StrictA2ARequest;
+    } as unknown as StrictA2ARequest;
   },
 
   /**
    * Get current HITL status for a task
-   *
-   * @param metadata - Request metadata with taskId
    */
-  status: (metadata: RequestMetadata): StrictA2ARequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
-    validateRequired(metadata.taskId, 'taskId');
+  status: (): StrictA2ARequest => {
+    const ctx = getContext();
 
     return {
       jsonrpc: '2.0',
@@ -106,27 +112,21 @@ export const hitlBuilder = {
       method: 'hitl.status',
       params: {
         mode: 'hitl' as AgentTaskMode,
-        action: 'status' as HitlAction,
-        conversationId: metadata.conversationId,
-        taskId: metadata.taskId,
-        userMessage: metadata.userMessage || 'Get HITL status',
-        messages: metadata.messages || [],
-        metadata: metadata.metadata,
+        taskId: ctx.taskId,
+        userMessage: 'Get HITL status',
+        messages: [],
         payload: {
           action: 'status',
         },
       },
-    } as StrictA2ARequest;
+    } as unknown as StrictA2ARequest;
   },
 
   /**
    * Get HITL history for a task
-   *
-   * @param metadata - Request metadata with taskId
    */
-  history: (metadata: RequestMetadata): StrictA2ARequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
-    validateRequired(metadata.taskId, 'taskId');
+  history: (): StrictA2ARequest => {
+    const ctx = getContext();
 
     return {
       jsonrpc: '2.0',
@@ -134,30 +134,21 @@ export const hitlBuilder = {
       method: 'hitl.history',
       params: {
         mode: 'hitl' as AgentTaskMode,
-        action: 'history' as HitlAction,
-        conversationId: metadata.conversationId,
-        taskId: metadata.taskId,
-        userMessage: metadata.userMessage || 'Get HITL history',
-        messages: metadata.messages || [],
-        metadata: metadata.metadata,
+        taskId: ctx.taskId,
+        userMessage: 'Get HITL history',
+        messages: [],
         payload: {
           action: 'history',
         },
       },
-    } as StrictA2ARequest;
+    } as unknown as StrictA2ARequest;
   },
 
   /**
    * Get all pending HITL reviews
-   *
-   * @param metadata - Request metadata (taskId can be empty for pending list)
-   * @param options - Optional filter options
    */
-  pending: (
-    metadata: Omit<RequestMetadata, 'taskId'> & { taskId?: string },
-    options?: { agentSlug?: string },
-  ): StrictA2ARequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
+  pending: (payload?: HitlPendingPayload): StrictA2ARequest => {
+    const ctx = getContext();
 
     return {
       jsonrpc: '2.0',
@@ -165,17 +156,14 @@ export const hitlBuilder = {
       method: 'hitl.pending',
       params: {
         mode: 'hitl' as AgentTaskMode,
-        action: 'pending' as HitlAction,
-        conversationId: metadata.conversationId,
-        taskId: metadata.taskId || '',
-        userMessage: metadata.userMessage || 'Get pending HITL reviews',
-        messages: metadata.messages || [],
-        metadata: metadata.metadata,
+        taskId: ctx.taskId || '',
+        userMessage: 'Get pending HITL reviews',
+        messages: [],
         payload: {
           action: 'pending',
-          ...(options?.agentSlug && { agentSlug: options.agentSlug }),
+          ...(payload?.agentSlug && { agentSlug: payload.agentSlug }),
         },
       },
-    } as StrictA2ARequest;
+    } as unknown as StrictA2ARequest;
   },
 };

@@ -1,6 +1,12 @@
 /**
  * Converse Request Builder
  * Creates fully-typed, validated converse requests
+ *
+ * **Store-First Approach (PRD Compliant):**
+ * Each builder function gets context from the ExecutionContext store internally.
+ * Context is NEVER passed as a parameter - builders access the store directly.
+ *
+ * @see docs/prd/unified-a2a-orchestrator.md - Phase 1, Item #2
  */
 
 import type {
@@ -9,11 +15,12 @@ import type {
   StrictTaskMessage,
 } from '@orchestrator-ai/transport-types';
 
-interface RequestMetadata {
-  conversationId: string;
-  userMessage?: string;
+/**
+ * Payload type for converse action
+ */
+export interface ConverseSendPayload {
+  userMessage: string;
   messages?: StrictTaskMessage[];
-  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -28,16 +35,16 @@ function validateRequired(value: unknown, fieldName: string): void {
 /**
  * Converse request builder
  * Single action: send message
+ *
+ * **Store-First Approach:** Gets context from the store internally.
+ * No metadata parameter - only action-specific payload data.
  */
 export const converseBuilder = {
   /**
    * Send a conversation message
    */
-  send: (
-    metadata: RequestMetadata & { userMessage: string },
-  ): StrictConverseRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
-    validateRequired(metadata.userMessage, 'userMessage');
+  send: (payload: ConverseSendPayload): StrictConverseRequest => {
+    validateRequired(payload.userMessage, 'userMessage');
 
     return {
       jsonrpc: '2.0',
@@ -45,11 +52,12 @@ export const converseBuilder = {
       method: 'converse',
       params: {
         mode: 'converse' as AgentTaskMode,
-        conversationId: metadata.conversationId,
-        userMessage: metadata.userMessage,
-        messages: metadata.messages || [],
-        metadata: metadata.metadata,
+        userMessage: payload.userMessage,
+        messages: payload.messages || [],
+        payload: {
+          action: 'send',
+        },
       },
-    };
+    } as unknown as StrictConverseRequest;
   },
 };

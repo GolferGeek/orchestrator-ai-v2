@@ -1,20 +1,62 @@
 /**
  * Build Request Builder
  * Creates fully-typed, validated build/deliverable requests
+ *
+ * **Store-First Approach (PRD Compliant):**
+ * Each builder function gets context from the ExecutionContext store internally.
+ * Context is NEVER passed as a parameter - builders access the store directly.
+ *
+ * @see docs/prd/unified-a2a-orchestrator.md - Phase 1, Item #2
  */
 
 import type {
   StrictBuildRequest,
   AgentTaskMode,
-  BuildAction,
   StrictTaskMessage,
 } from '@orchestrator-ai/transport-types';
+import { useExecutionContextStore } from '@/stores/executionContextStore';
 
-interface RequestMetadata {
-  conversationId: string;
-  userMessage?: string;
+/**
+ * Payload types for each build action
+ */
+export interface BuildExecutePayload {
+  userMessage: string;
+  planId?: string;
   messages?: StrictTaskMessage[];
-  metadata?: Record<string, unknown>;
+}
+
+export interface BuildReadPayload {
+  versionId?: string;
+}
+
+export interface BuildEditPayload {
+  userMessage?: string;
+  content?: string;
+  versionId?: string;
+}
+
+export interface BuildRerunPayload {
+  versionId: string;
+  config: Record<string, unknown>;
+  userMessage?: string;
+}
+
+export interface BuildMergePayload {
+  versionIds: string[];
+  mergePrompt: string;
+  userMessage?: string;
+}
+
+export interface BuildVersionPayload {
+  versionId: string;
+}
+
+/**
+ * Helper to get context from store
+ */
+function getContext() {
+  const store = useExecutionContextStore();
+  return store.current;
 }
 
 /**
@@ -29,17 +71,17 @@ function validateRequired(value: unknown, fieldName: string): void {
 /**
  * Build request builders
  * All 10 build actions from the strict type system
+ *
+ * **Store-First Approach:** Each method gets context from the store internally.
+ * No metadata parameter - only action-specific payload data.
  */
 export const buildBuilder = {
   /**
    * Execute build (create deliverable)
    */
-  execute: (
-    metadata: RequestMetadata & { userMessage: string },
-    buildData?: { planId?: string; [key: string]: unknown },
-  ): StrictBuildRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
-    validateRequired(metadata.userMessage, 'userMessage');
+  execute: (payload: BuildExecutePayload): StrictBuildRequest => {
+    const ctx = getContext();
+    validateRequired(payload.userMessage, 'userMessage');
 
     return {
       jsonrpc: '2.0',
@@ -47,72 +89,62 @@ export const buildBuilder = {
       method: 'build.execute',
       params: {
         mode: 'build' as AgentTaskMode,
-        action: 'execute' as BuildAction,
-        conversationId: metadata.conversationId,
-        userMessage: metadata.userMessage,
-        messages: metadata.messages || [],
-        planId: buildData?.planId,
-        metadata: metadata.metadata,
-        payload: buildData || {},
+        userMessage: payload.userMessage,
+        messages: payload.messages || [],
+        planId: payload.planId || ctx.planId,
+        payload: {
+          action: 'execute',
+          planId: payload.planId || ctx.planId,
+        },
       },
-    };
+    } as unknown as StrictBuildRequest;
   },
 
   /**
    * Read current deliverable
    */
-  read: (metadata: RequestMetadata, deliverableId?: string): StrictBuildRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
-
+  read: (payload?: BuildReadPayload): StrictBuildRequest => {
     return {
       jsonrpc: '2.0',
       id: crypto.randomUUID(),
       method: 'build.read',
       params: {
         mode: 'build' as AgentTaskMode,
-        action: 'read' as BuildAction,
-        conversationId: metadata.conversationId,
-        userMessage: metadata.userMessage || '',
-        messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: deliverableId ? { deliverableId } : {},
+        userMessage: '',
+        messages: [],
+        payload: {
+          action: 'read',
+          ...(payload?.versionId && { versionId: payload.versionId }),
+        },
       },
-    };
+    } as unknown as StrictBuildRequest;
   },
 
   /**
    * List all deliverables in conversation
    */
-  list: (metadata: RequestMetadata): StrictBuildRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
-
+  list: (): StrictBuildRequest => {
     return {
       jsonrpc: '2.0',
       id: crypto.randomUUID(),
       method: 'build.list',
       params: {
         mode: 'build' as AgentTaskMode,
-        action: 'list' as BuildAction,
-        conversationId: metadata.conversationId,
-        userMessage: metadata.userMessage || '',
-        messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: {},
+        userMessage: '',
+        messages: [],
+        payload: {
+          action: 'list',
+        },
       },
-    };
+    } as unknown as StrictBuildRequest;
   },
 
   /**
-   * Rerun a build
+   * Rerun a build with different LLM config
    */
-  rerun: (
-    metadata: RequestMetadata & { userMessage: string },
-    rerunData: { versionId: string; config: Record<string, unknown> },
-  ): StrictBuildRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
-    validateRequired(metadata.userMessage, 'userMessage');
-    validateRequired(rerunData.versionId, 'versionId');
-    validateRequired(rerunData.config, 'config');
+  rerun: (payload: BuildRerunPayload): StrictBuildRequest => {
+    validateRequired(payload.versionId, 'versionId');
+    validateRequired(payload.config, 'config');
 
     return {
       jsonrpc: '2.0',
@@ -120,48 +152,43 @@ export const buildBuilder = {
       method: 'build.rerun',
       params: {
         mode: 'build' as AgentTaskMode,
-        action: 'rerun' as BuildAction,
-        conversationId: metadata.conversationId,
-        userMessage: metadata.userMessage,
-        messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: rerunData,
+        userMessage: payload.userMessage || 'Regenerate deliverable',
+        messages: [],
+        payload: {
+          action: 'rerun',
+          versionId: payload.versionId,
+          config: payload.config,
+        },
       },
-    };
+    } as unknown as StrictBuildRequest;
   },
 
   /**
    * Edit deliverable
    */
-  edit: (
-    metadata: RequestMetadata & { userMessage: string },
-    editData: { versionId?: string; content?: string },
-  ): StrictBuildRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
-    validateRequired(metadata.userMessage, 'userMessage');
-
+  edit: (payload: BuildEditPayload): StrictBuildRequest => {
     return {
       jsonrpc: '2.0',
       id: crypto.randomUUID(),
       method: 'build.edit',
       params: {
         mode: 'build' as AgentTaskMode,
-        action: 'edit' as BuildAction,
-        conversationId: metadata.conversationId,
-        userMessage: metadata.userMessage,
-        messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: editData,
+        userMessage: payload.userMessage || 'Edit deliverable',
+        messages: [],
+        payload: {
+          action: 'edit',
+          ...(payload.versionId && { versionId: payload.versionId }),
+          ...(payload.content && { content: payload.content }),
+        },
       },
-    };
+    } as unknown as StrictBuildRequest;
   },
 
   /**
    * Set current deliverable version
    */
-  setCurrent: (metadata: RequestMetadata, versionId: string): StrictBuildRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
-    validateRequired(versionId, 'versionId');
+  setCurrent: (payload: BuildVersionPayload): StrictBuildRequest => {
+    validateRequired(payload.versionId, 'versionId');
 
     return {
       jsonrpc: '2.0',
@@ -169,22 +196,21 @@ export const buildBuilder = {
       method: 'build.set_current',
       params: {
         mode: 'build' as AgentTaskMode,
-        action: 'set_current' as BuildAction,
-        conversationId: metadata.conversationId,
-        userMessage: metadata.userMessage || '',
-        messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: { versionId },
+        userMessage: '',
+        messages: [],
+        payload: {
+          action: 'set_current',
+          versionId: payload.versionId,
+        },
       },
-    };
+    } as unknown as StrictBuildRequest;
   },
 
   /**
    * Delete deliverable version
    */
-  deleteVersion: (metadata: RequestMetadata, versionId: string): StrictBuildRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
-    validateRequired(versionId, 'versionId');
+  deleteVersion: (payload: BuildVersionPayload): StrictBuildRequest => {
+    validateRequired(payload.versionId, 'versionId');
 
     return {
       jsonrpc: '2.0',
@@ -192,27 +218,22 @@ export const buildBuilder = {
       method: 'build.delete_version',
       params: {
         mode: 'build' as AgentTaskMode,
-        action: 'delete_version' as BuildAction,
-        conversationId: metadata.conversationId,
-        userMessage: metadata.userMessage || '',
-        messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: { versionId },
+        userMessage: '',
+        messages: [],
+        payload: {
+          action: 'delete_version',
+          versionId: payload.versionId,
+        },
       },
-    };
+    } as unknown as StrictBuildRequest;
   },
 
   /**
    * Merge deliverable versions
    */
-  mergeVersions: (
-    metadata: RequestMetadata & { userMessage: string },
-    mergeData: { versionIds: string[]; mergePrompt: string },
-  ): StrictBuildRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
-    validateRequired(metadata.userMessage, 'userMessage');
-    validateRequired(mergeData.versionIds, 'versionIds');
-    validateRequired(mergeData.mergePrompt, 'mergePrompt');
+  mergeVersions: (payload: BuildMergePayload): StrictBuildRequest => {
+    validateRequired(payload.versionIds, 'versionIds');
+    validateRequired(payload.mergePrompt, 'mergePrompt');
 
     return {
       jsonrpc: '2.0',
@@ -220,22 +241,22 @@ export const buildBuilder = {
       method: 'build.merge_versions',
       params: {
         mode: 'build' as AgentTaskMode,
-        action: 'merge_versions' as BuildAction,
-        conversationId: metadata.conversationId,
-        userMessage: metadata.userMessage,
-        messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: mergeData,
+        userMessage: payload.userMessage || 'Merge deliverable versions',
+        messages: [],
+        payload: {
+          action: 'merge_versions',
+          versionIds: payload.versionIds,
+          mergePrompt: payload.mergePrompt,
+        },
       },
-    };
+    } as unknown as StrictBuildRequest;
   },
 
   /**
    * Copy deliverable version
    */
-  copyVersion: (metadata: RequestMetadata, versionId: string): StrictBuildRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
-    validateRequired(versionId, 'versionId');
+  copyVersion: (payload: BuildVersionPayload): StrictBuildRequest => {
+    validateRequired(payload.versionId, 'versionId');
 
     return {
       jsonrpc: '2.0',
@@ -243,22 +264,22 @@ export const buildBuilder = {
       method: 'build.copy_version',
       params: {
         mode: 'build' as AgentTaskMode,
-        action: 'copy_version' as BuildAction,
-        conversationId: metadata.conversationId,
-        userMessage: metadata.userMessage || '',
-        messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: { versionId },
+        userMessage: '',
+        messages: [],
+        payload: {
+          action: 'copy_version',
+          versionId: payload.versionId,
+        },
       },
-    };
+    } as unknown as StrictBuildRequest;
   },
 
   /**
    * Delete deliverable
+   * Uses deliverableId from context
    */
-  delete: (metadata: RequestMetadata, deliverableId: string): StrictBuildRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
-    validateRequired(deliverableId, 'deliverableId');
+  delete: (): StrictBuildRequest => {
+    const ctx = getContext();
 
     return {
       jsonrpc: '2.0',
@@ -266,13 +287,13 @@ export const buildBuilder = {
       method: 'build.delete',
       params: {
         mode: 'build' as AgentTaskMode,
-        action: 'delete' as BuildAction,
-        conversationId: metadata.conversationId,
-        userMessage: metadata.userMessage || '',
-        messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: { deliverableId },
+        userMessage: '',
+        messages: [],
+        payload: {
+          action: 'delete',
+          deliverableId: ctx.deliverableId,
+        },
       },
-    };
+    } as unknown as StrictBuildRequest;
   },
 };

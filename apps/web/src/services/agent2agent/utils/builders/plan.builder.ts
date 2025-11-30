@@ -1,20 +1,62 @@
 /**
  * Plan Request Builder
  * Creates fully-typed, validated plan requests
+ *
+ * **Store-First Approach (PRD Compliant):**
+ * Each builder function gets context from the ExecutionContext store internally.
+ * Context is NEVER passed as a parameter - builders access the store directly.
+ *
+ * @see docs/prd/unified-a2a-orchestrator.md - Phase 1, Item #2
  */
 
 import type {
   StrictPlanRequest,
   AgentTaskMode,
-  PlanAction,
   StrictTaskMessage,
 } from '@orchestrator-ai/transport-types';
+import { useExecutionContextStore } from '@/stores/executionContextStore';
 
-interface RequestMetadata {
-  conversationId: string;
-  userMessage?: string;
+/**
+ * Payload types for each plan action
+ */
+export interface PlanCreatePayload {
+  userMessage: string;
+  planData?: Record<string, unknown>;
   messages?: StrictTaskMessage[];
-  metadata?: Record<string, unknown>;
+}
+
+export interface PlanReadPayload {
+  versionId?: string;
+}
+
+export interface PlanEditPayload {
+  userMessage?: string;
+  content?: string;
+  versionId?: string;
+}
+
+export interface PlanRerunPayload {
+  versionId: string;
+  config: Record<string, unknown>;
+  userMessage?: string;
+}
+
+export interface PlanMergePayload {
+  versionIds: string[];
+  mergePrompt: string;
+  userMessage?: string;
+}
+
+export interface PlanVersionPayload {
+  versionId: string;
+}
+
+/**
+ * Helper to get context from store
+ */
+function getContext() {
+  const store = useExecutionContextStore();
+  return store.current;
 }
 
 /**
@@ -28,18 +70,17 @@ function validateRequired(value: unknown, fieldName: string): void {
 
 /**
  * Plan request builders
- * All 9 plan actions from the strict type system
+ * All 10 plan actions from the strict type system
+ *
+ * **Store-First Approach:** Each method gets context from the store internally.
+ * No metadata parameter - only action-specific payload data.
  */
 export const planBuilder = {
   /**
    * Create a new plan
    */
-  create: (
-    metadata: RequestMetadata & { userMessage: string },
-    planData?: Record<string, unknown>,
-  ): StrictPlanRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
-    validateRequired(metadata.userMessage, 'userMessage');
+  create: (payload: PlanCreatePayload): StrictPlanRequest => {
+    validateRequired(payload.userMessage, 'userMessage');
 
     return {
       jsonrpc: '2.0',
@@ -47,97 +88,82 @@ export const planBuilder = {
       method: 'plan.create',
       params: {
         mode: 'plan' as AgentTaskMode,
-        action: 'create' as PlanAction,
-        conversationId: metadata.conversationId,
-        userMessage: metadata.userMessage,
-        messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: planData || {},
+        userMessage: payload.userMessage,
+        messages: payload.messages || [],
+        payload: {
+          action: 'create',
+          ...(payload.planData || {}),
+        },
       },
-    };
+    } as unknown as StrictPlanRequest;
   },
 
   /**
    * Read current plan
    */
-  read: (metadata: RequestMetadata, planId?: string): StrictPlanRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
-
+  read: (payload?: PlanReadPayload): StrictPlanRequest => {
     return {
       jsonrpc: '2.0',
       id: crypto.randomUUID(),
       method: 'plan.read',
       params: {
         mode: 'plan' as AgentTaskMode,
-        action: 'read' as PlanAction,
-        conversationId: metadata.conversationId,
-        userMessage: metadata.userMessage || '',
-        messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: planId ? { planId } : {},
+        userMessage: '',
+        messages: [],
+        payload: {
+          action: 'read',
+          ...(payload?.versionId && { versionId: payload.versionId }),
+        },
       },
-    };
-  },
-
-  /**
-   * Edit plan
-   */
-  edit: (
-    metadata: RequestMetadata & { userMessage: string },
-    editData: { versionId?: string; content?: string },
-  ): StrictPlanRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
-    validateRequired(metadata.userMessage, 'userMessage');
-
-    return {
-      jsonrpc: '2.0',
-      id: crypto.randomUUID(),
-      method: 'plan.edit',
-      params: {
-        mode: 'plan' as AgentTaskMode,
-        action: 'edit' as PlanAction,
-        conversationId: metadata.conversationId,
-        userMessage: metadata.userMessage,
-        messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: editData,
-      },
-    };
+    } as unknown as StrictPlanRequest;
   },
 
   /**
    * List all plans in conversation
    */
-  list: (metadata: RequestMetadata): StrictPlanRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
-
+  list: (): StrictPlanRequest => {
     return {
       jsonrpc: '2.0',
       id: crypto.randomUUID(),
       method: 'plan.list',
       params: {
         mode: 'plan' as AgentTaskMode,
-        action: 'list' as PlanAction,
-        conversationId: metadata.conversationId,
-        userMessage: metadata.userMessage || '',
-        messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: {},
+        userMessage: '',
+        messages: [],
+        payload: {
+          action: 'list',
+        },
       },
-    };
+    } as unknown as StrictPlanRequest;
   },
 
   /**
-   * Rerun a plan
+   * Edit plan
    */
-  rerun: (
-    metadata: RequestMetadata & { userMessage: string },
-    rerunData: { versionId: string; config: Record<string, unknown> },
-  ): StrictPlanRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
-    validateRequired(metadata.userMessage, 'userMessage');
-    validateRequired(rerunData.versionId, 'versionId');
-    validateRequired(rerunData.config, 'config');
+  edit: (payload: PlanEditPayload): StrictPlanRequest => {
+    return {
+      jsonrpc: '2.0',
+      id: crypto.randomUUID(),
+      method: 'plan.edit',
+      params: {
+        mode: 'plan' as AgentTaskMode,
+        userMessage: payload.userMessage || 'Edit plan',
+        messages: [],
+        payload: {
+          action: 'edit',
+          ...(payload.versionId && { versionId: payload.versionId }),
+          ...(payload.content && { content: payload.content }),
+        },
+      },
+    } as unknown as StrictPlanRequest;
+  },
+
+  /**
+   * Rerun a plan with different LLM config
+   */
+  rerun: (payload: PlanRerunPayload): StrictPlanRequest => {
+    validateRequired(payload.versionId, 'versionId');
+    validateRequired(payload.config, 'config');
 
     return {
       jsonrpc: '2.0',
@@ -145,45 +171,22 @@ export const planBuilder = {
       method: 'plan.rerun',
       params: {
         mode: 'plan' as AgentTaskMode,
-        action: 'rerun' as PlanAction,
-        conversationId: metadata.conversationId,
-        userMessage: metadata.userMessage,
-        messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: rerunData,
+        userMessage: payload.userMessage || 'Regenerate plan',
+        messages: [],
+        payload: {
+          action: 'rerun',
+          versionId: payload.versionId,
+          config: payload.config,
+        },
       },
-    };
-  },
-
-  /**
-   * Delete plan
-   */
-  delete: (metadata: RequestMetadata, planId: string): StrictPlanRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
-    validateRequired(planId, 'planId');
-
-    return {
-      jsonrpc: '2.0',
-      id: crypto.randomUUID(),
-      method: 'plan.delete',
-      params: {
-        mode: 'plan' as AgentTaskMode,
-        action: 'delete' as PlanAction,
-        conversationId: metadata.conversationId,
-        userMessage: metadata.userMessage || '',
-        messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: { planId },
-      },
-    };
+    } as unknown as StrictPlanRequest;
   },
 
   /**
    * Set current plan version
    */
-  setCurrent: (metadata: RequestMetadata, versionId: string): StrictPlanRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
-    validateRequired(versionId, 'versionId');
+  setCurrent: (payload: PlanVersionPayload): StrictPlanRequest => {
+    validateRequired(payload.versionId, 'versionId');
 
     return {
       jsonrpc: '2.0',
@@ -191,22 +194,21 @@ export const planBuilder = {
       method: 'plan.set_current',
       params: {
         mode: 'plan' as AgentTaskMode,
-        action: 'set_current' as PlanAction,
-        conversationId: metadata.conversationId,
-        userMessage: metadata.userMessage || '',
-        messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: { versionId },
+        userMessage: '',
+        messages: [],
+        payload: {
+          action: 'set_current',
+          versionId: payload.versionId,
+        },
       },
-    };
+    } as unknown as StrictPlanRequest;
   },
 
   /**
    * Delete plan version
    */
-  deleteVersion: (metadata: RequestMetadata, versionId: string): StrictPlanRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
-    validateRequired(versionId, 'versionId');
+  deleteVersion: (payload: PlanVersionPayload): StrictPlanRequest => {
+    validateRequired(payload.versionId, 'versionId');
 
     return {
       jsonrpc: '2.0',
@@ -214,27 +216,22 @@ export const planBuilder = {
       method: 'plan.delete_version',
       params: {
         mode: 'plan' as AgentTaskMode,
-        action: 'delete_version' as PlanAction,
-        conversationId: metadata.conversationId,
-        userMessage: metadata.userMessage || '',
-        messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: { versionId },
+        userMessage: '',
+        messages: [],
+        payload: {
+          action: 'delete_version',
+          versionId: payload.versionId,
+        },
       },
-    };
+    } as unknown as StrictPlanRequest;
   },
 
   /**
    * Merge plan versions
    */
-  mergeVersions: (
-    metadata: RequestMetadata & { userMessage: string },
-    mergeData: { versionIds: string[]; mergePrompt: string },
-  ): StrictPlanRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
-    validateRequired(metadata.userMessage, 'userMessage');
-    validateRequired(mergeData.versionIds, 'versionIds');
-    validateRequired(mergeData.mergePrompt, 'mergePrompt');
+  mergeVersions: (payload: PlanMergePayload): StrictPlanRequest => {
+    validateRequired(payload.versionIds, 'versionIds');
+    validateRequired(payload.mergePrompt, 'mergePrompt');
 
     return {
       jsonrpc: '2.0',
@@ -242,22 +239,22 @@ export const planBuilder = {
       method: 'plan.merge_versions',
       params: {
         mode: 'plan' as AgentTaskMode,
-        action: 'merge_versions' as PlanAction,
-        conversationId: metadata.conversationId,
-        userMessage: metadata.userMessage,
-        messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: mergeData,
+        userMessage: payload.userMessage || 'Merge plan versions',
+        messages: [],
+        payload: {
+          action: 'merge_versions',
+          versionIds: payload.versionIds,
+          mergePrompt: payload.mergePrompt,
+        },
       },
-    };
+    } as unknown as StrictPlanRequest;
   },
 
   /**
    * Copy plan version
    */
-  copyVersion: (metadata: RequestMetadata, versionId: string): StrictPlanRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
-    validateRequired(versionId, 'versionId');
+  copyVersion: (payload: PlanVersionPayload): StrictPlanRequest => {
+    validateRequired(payload.versionId, 'versionId');
 
     return {
       jsonrpc: '2.0',
@@ -265,13 +262,36 @@ export const planBuilder = {
       method: 'plan.copy_version',
       params: {
         mode: 'plan' as AgentTaskMode,
-        action: 'copy_version' as PlanAction,
-        conversationId: metadata.conversationId,
-        userMessage: metadata.userMessage || '',
-        messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: { versionId },
+        userMessage: '',
+        messages: [],
+        payload: {
+          action: 'copy_version',
+          versionId: payload.versionId,
+        },
       },
-    };
+    } as unknown as StrictPlanRequest;
+  },
+
+  /**
+   * Delete plan
+   * Uses planId from context
+   */
+  delete: (): StrictPlanRequest => {
+    const ctx = getContext();
+
+    return {
+      jsonrpc: '2.0',
+      id: crypto.randomUUID(),
+      method: 'plan.delete',
+      params: {
+        mode: 'plan' as AgentTaskMode,
+        userMessage: '',
+        messages: [],
+        payload: {
+          action: 'delete',
+          planId: ctx.planId,
+        },
+      },
+    } as unknown as StrictPlanRequest;
   },
 };
