@@ -2,6 +2,8 @@ import agentConversationsService, { type AgentType } from '@/services/agentConve
 import agent2AgentConversationsService from '@/services/agent2AgentConversationsService';
 import { useAgentsStore } from '@/stores/agentsStore';
 import { useAuthStore } from '@/stores/rbacStore';
+import { useExecutionContextStore } from '@/stores/executionContextStore';
+import { useLLMPreferencesStore } from '@/stores/llmPreferencesStore';
 import { tasksService } from '@/services/tasksService';
 import type { AgentConversation, AgentChatMessage, ExecutionMode, Agent, AgentChatMode } from '@/types/conversation';
 import { DEFAULT_CHAT_MODES } from '@/types/conversation';
@@ -51,6 +53,20 @@ export class ConversationService {
         source: 'frontend',
         title: title, // Include the formatted title
       },
+    });
+
+    // Initialize ExecutionContext immediately for the new conversation
+    const executionContextStore = useExecutionContextStore();
+    const llmPreferencesStore = useLLMPreferencesStore();
+
+    executionContextStore.initialize({
+      orgSlug,
+      userId: authStore.user?.id || 'anonymous',
+      conversationId: backendConversation.id,
+      agentSlug: agent.name,
+      agentType: agent.type || 'context',
+      provider: llmPreferencesStore.selectedProvider?.id || 'anthropic',
+      model: llmPreferencesStore.selectedModel?.id || 'claude-sonnet-4-20250514',
     });
 
     return backendConversation.id;

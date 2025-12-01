@@ -279,7 +279,7 @@ export const buildBuildRequest = {
       method: 'build.execute',
       params: {
         mode: 'build' as AgentTaskMode,
-        action: 'execute' as BuildAction,
+        action: 'create' as BuildAction,  // Backend expects 'create' for new deliverables
         conversationId: metadata.conversationId,
         userMessage: metadata.userMessage,
         messages: metadata.messages || [],

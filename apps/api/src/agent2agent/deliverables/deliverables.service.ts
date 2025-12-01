@@ -24,6 +24,7 @@ import { DeliverableVersionsService } from './deliverable-versions.service';
 import { AgentConversationsService } from '@/agent2agent/conversations/agent-conversations.service';
 import { CreateAgentConversationDto } from '@/agent2agent/types/agent-conversations.types';
 import type { ExecutionContext } from '@orchestrator-ai/transport-types';
+import { NIL_UUID } from '@orchestrator-ai/transport-types';
 import {
   IActionHandler,
   ActionResult,
@@ -359,7 +360,11 @@ export class DeliverablesService implements IActionHandler {
     }
 
     const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : null;
+    // Treat NIL_UUID as "no deliverable specified" - create new deliverable instead
+    if (trimmed.length === 0 || trimmed === NIL_UUID) {
+      return null;
+    }
+    return trimmed;
   }
 
   /**

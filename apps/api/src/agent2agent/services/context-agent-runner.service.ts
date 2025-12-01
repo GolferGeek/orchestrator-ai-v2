@@ -141,12 +141,15 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
     request: TaskRequestDto,
     organizationSlug: string | null,
   ): Promise<TaskResponseDto> {
+    console.log(`🔍 [CONTEXT-RUNNER] executeBuild() ENTRY - agent: ${definition.slug}`);
     const payload = (request.payload ??
       {}) as unknown as ExtendedBuildCreatePayload;
 
     try {
       const userId = this.resolveUserId(request);
+      console.log(`🔍 [CONTEXT-RUNNER] userId resolved: ${userId}`);
       if (!userId) {
+        console.log(`🔍 [CONTEXT-RUNNER] FAILURE: userId is null/undefined`);
         return TaskResponseDto.failure(
           AgentTaskMode.BUILD,
           'User identity is required for build execution',
@@ -155,7 +158,9 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
 
       // Use ExecutionContext from request - it flows through unchanged
       const context = request.context;
+      console.log(`🔍 [CONTEXT-RUNNER] context.conversationId: ${context?.conversationId}`);
       if (!context.conversationId) {
+        console.log(`🔍 [CONTEXT-RUNNER] FAILURE: conversationId missing`);
         return TaskResponseDto.failure(
           AgentTaskMode.BUILD,
           'Conversation context is required for build execution',
@@ -202,6 +207,7 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
       );
 
       if (buildContext.error) {
+        this.logger.error(`[handleBuild] gatherBuildContext failed: ${buildContext.error}`);
         return TaskResponseDto.failure(AgentTaskMode.BUILD, buildContext.error);
       }
 
@@ -311,6 +317,7 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
       }
 
       if (!finalContent || finalContent.trim().length === 0) {
+        this.logger.error(`[handleBuild] Generated deliverable content was empty`);
         return TaskResponseDto.failure(
           AgentTaskMode.BUILD,
           'Generated deliverable content was empty',
@@ -392,6 +399,7 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
       );
 
       if (!createResult.success || !createResult.data) {
+        this.logger.error(`[handleBuild] Failed to create deliverable: ${createResult.error?.message}`);
         return TaskResponseDto.failure(
           AgentTaskMode.BUILD,
           createResult.error?.message ?? 'Failed to create deliverable',
@@ -453,6 +461,7 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
         },
       );
 
+      this.logger.log(`[handleBuild] ✅ SUCCESS - returning deliverable: ${JSON.stringify(resultData.deliverable)?.substring(0, 200)}`);
       return TaskResponseDto.success(AgentTaskMode.BUILD, {
         content: {
           deliverable: resultData.deliverable,
@@ -719,7 +728,7 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
       stream: false,
     };
 
-    // Extract provider and model from payload config
+    // Extract provider and model from payload config, falling back to ExecutionContext
     const payloadAny = payload as unknown as {
       config?: {
         provider?: string;
@@ -730,8 +739,10 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
       temperature?: number; // Legacy top-level fallback
       maxTokens?: number; // Legacy top-level fallback
     };
-    const providerName = payload.config?.provider;
-    const modelName = payload.config?.model;
+
+    // Priority: payload.config (override for rerun with new LLM) > ExecutionContext (default)
+    const providerName = payload.config?.provider || request.context?.provider;
+    const modelName = payload.config?.model || request.context?.model;
 
     if (
       providerName &&

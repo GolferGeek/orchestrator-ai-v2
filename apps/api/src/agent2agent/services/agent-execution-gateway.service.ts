@@ -79,7 +79,13 @@ export class AgentExecutionGateway {
     }
 
     // Enforce execution capabilities before routing
+    this.logger.debug(`🔍 [GATEWAY-DEBUG] exec capabilities: canBuild=${definition.execution.canBuild}, canPlan=${definition.execution.canPlan}, canConverse=${definition.execution.canConverse}, modeProfile=${definition.execution.modeProfile}`);
     const unsupported = this.checkUnsupportedMode(definition, request.mode!);
+    if (unsupported) {
+      this.logger.warn(`🔍 [GATEWAY-DEBUG] Mode ${request.mode} is NOT supported by agent ${context.agentSlug}`);
+    } else {
+      this.logger.debug(`🔍 [GATEWAY-DEBUG] Mode ${request.mode} IS supported by agent ${context.agentSlug}`);
+    }
     if (unsupported) {
       this.emitAgentLifecycleEvent('agent.failed', 'Unsupported mode', {
         definition,
@@ -101,12 +107,19 @@ export class AgentExecutionGateway {
         case AgentTaskMode.PLAN:
         case AgentTaskMode.BUILD:
         case AgentTaskMode.HITL:
-          response = await this.modeRouter.execute({
-            context,
-            definition,
-            request,
-            routingMetadata,
-          });
+          this.logger.debug(`🔍 [GATEWAY-DEBUG] Entering modeRouter.execute() switch case for mode: ${request.mode}`);
+          try {
+            response = await this.modeRouter.execute({
+              context,
+              definition,
+              request,
+              routingMetadata,
+            });
+            this.logger.debug(`🔍 [GATEWAY-DEBUG] modeRouter.execute() returned: success=${response?.success}`);
+          } catch (routerError) {
+            this.logger.error(`🔍 [GATEWAY-DEBUG] modeRouter.execute() threw error:`, routerError);
+            throw routerError;
+          }
           break;
         default:
           response = TaskResponseDto.failure(request.mode!, 'Unsupported mode');

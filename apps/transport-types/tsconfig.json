@@ -17,6 +17,7 @@
   },
   "include": [
     "index.ts",
+    "core/**/*.ts",
     "shared/**/*.ts",
     "request/**/*.ts",
     "response/**/*.ts",

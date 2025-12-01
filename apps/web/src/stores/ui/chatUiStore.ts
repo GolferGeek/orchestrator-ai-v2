@@ -15,6 +15,9 @@
 import { defineStore } from 'pinia';
 import { ref, computed, readonly } from 'vue';
 import { useConversationsStore } from '../conversationsStore';
+import { useExecutionContextStore } from '../executionContextStore';
+import { useAuthStore } from '../rbacStore';
+import { useLLMPreferencesStore } from '../llmPreferencesStore';
 import type { JsonObject } from '@/types';
 import type { ExecutionMode } from '@/types/conversation';
 
@@ -174,6 +177,35 @@ export const useChatUiStore = defineStore('chatUi', () => {
           chatMode.value = preferredMode;
         }
       }
+
+      // Initialize ExecutionContext when conversation is selected
+      if (conversation) {
+        const executionContextStore = useExecutionContextStore();
+        const authStore = useAuthStore();
+        const llmPreferencesStore = useLLMPreferencesStore();
+
+        // Get agent info from conversation
+        const agentSlug = conversation.agentName || conversation.agent?.name || 'unknown';
+        const agentType = conversation.agentType || conversation.agent?.type || 'context';
+
+        // Get LLM selection (provider/model)
+        const provider = llmPreferencesStore.selectedProvider?.id || 'anthropic';
+        const model = llmPreferencesStore.selectedModel?.id || 'claude-sonnet-4-20250514';
+
+        executionContextStore.initialize({
+          orgSlug: authStore.currentOrganization || 'demo-org',
+          userId: authStore.user?.id || 'anonymous',
+          conversationId,
+          agentSlug,
+          agentType,
+          provider,
+          model,
+        });
+      }
+    } else {
+      // Clear ExecutionContext when no conversation is selected
+      const executionContextStore = useExecutionContextStore();
+      executionContextStore.clear();
     }
   }
 

@@ -97,6 +97,9 @@ export default defineConfig(({ mode }) => {
       },
       extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json']
     },
+    optimizeDeps: {
+      include: ['@orchestrator-ai/transport-types']
+    },
     server: {
       // Prefer VITE_WEB_PORT; for non-VITE values, check process.env.WEB_PORT at runtime via fallback
       port: parseInt((env.VITE_WEB_PORT || process.env.WEB_PORT || (env.VITE_ENFORCE_HTTPS === 'true' ? '7543' : '9001'))),

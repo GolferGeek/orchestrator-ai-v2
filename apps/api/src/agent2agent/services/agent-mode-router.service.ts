@@ -42,57 +42,55 @@ export class AgentModeRouterService {
   ) {}
 
   async execute(execContext: AgentExecutionContext): Promise<TaskResponseDto> {
+    console.log(`🔍 [MODE-ROUTER] execute() ENTRY`);
     const { context, request } = execContext;
 
     // Check if this is an HITL method (uses 'method' field in payload)
     const payload = request.payload;
     const method = payload?.method as string | undefined;
 
-    this.logger.log(
-      `🔍 [MODE-ROUTER] execute() called - mode: ${request.mode}, payload.method: ${method}, agentSlug: ${context.agentSlug}`,
-    );
+    console.log(`🔍 [MODE-ROUTER] mode: ${request.mode}, payload.method: ${method}, agentSlug: ${context.agentSlug}`);
 
     // Route HITL methods (hitl.resume, hitl.status, hitl.history, hitl.pending)
     if (method?.startsWith('hitl.')) {
-      this.logger.log(
-        `🔍 [MODE-ROUTER] Routing to HITL method handler: ${method}`,
-      );
+      console.log(`🔍 [MODE-ROUTER] Routing to HITL method handler: ${method}`);
       return this.routeHitlMethod(method, execContext);
     }
 
+    console.log(`🔍 [MODE-ROUTER] Calling hydrateContext...`);
     const hydrated = await this.hydrateContext(execContext);
 
     if (!hydrated) {
+      console.log(`🔍 [MODE-ROUTER] hydrateContext returned null - FAILING`);
       return TaskResponseDto.failure(
         request.mode!,
         'Agent record unavailable for execution',
       );
     }
+    console.log(`🔍 [MODE-ROUTER] hydrateContext returned successfully`);
 
     // Route to the appropriate runner based on agent type
     const agentType = hydrated.definition.agentType;
+    console.log(`🔍 [MODE-ROUTER] agentType: ${agentType}`);
     const runner = this.runnerRegistry.getRunner(agentType);
 
     if (!runner) {
-      this.logger.error(
-        `No runner registered for agent type ${agentType}. Agent: ${context.agentSlug}`,
-      );
+      console.log(`🔍 [MODE-ROUTER] No runner for agentType ${agentType} - FAILING`);
       return TaskResponseDto.failure(
         request.mode!,
         `No runner available for agent type: ${agentType}`,
       );
     }
+    console.log(`🔍 [MODE-ROUTER] Got runner for ${agentType}`);
 
-    this.logger.log(
-      `Routing ${request.mode} request to ${agentType} runner for agent ${context.agentSlug}`,
-    );
-
-    // Pass to runner - context is in request.context
-    return await runner.execute(
+    console.log(`🔍 [MODE-ROUTER] About to call runner.execute() for ${agentType}`);
+    const result = await runner.execute(
       hydrated.definition,
       hydrated.request,
       context.orgSlug,
     );
+    console.log(`🔍 [MODE-ROUTER] runner.execute() returned: success=${result.success}, mode=${result.mode}`);
+    return result;
   }
 
   /**

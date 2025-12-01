@@ -174,6 +174,17 @@ export interface ErrorResult {
 }
 
 /**
+ * Streaming result - returned when content will arrive via SSE stream
+ */
+export interface StreamingResult {
+  type: 'streaming';
+  taskId: string;
+  streamEndpoint?: string;
+  metadata?: Record<string, unknown>;
+  context: ExecutionContext;
+}
+
+/**
  * Unified result type - what the UI receives after orchestrator processes response
  *
  * Note: All successful results include the updated ExecutionContext from the response.
@@ -186,7 +197,8 @@ export type A2AResult =
   | MessageResult
   | HitlWaitingResult
   | SuccessResult
-  | ErrorResult;
+  | ErrorResult
+  | StreamingResult;
 
 // ============================================================================
 // TYPE GUARDS
@@ -214,4 +226,8 @@ export function isSuccessResult(result: A2AResult): result is SuccessResult {
 
 export function isErrorResult(result: A2AResult): result is ErrorResult {
   return result.type === 'error';
+}
+
+export function isStreamingResult(result: A2AResult): result is StreamingResult {
+  return result.type === 'streaming';
 }

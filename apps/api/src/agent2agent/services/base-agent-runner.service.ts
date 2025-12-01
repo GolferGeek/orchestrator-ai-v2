@@ -93,7 +93,9 @@ export abstract class BaseAgentRunner implements IAgentRunner {
     const organizationSlug = _organizationSlug;
 
     // Validate mode is specified
+    console.log(`🔍 [BASE-RUNNER] execute() called - mode: ${mode}, agent: ${definition.slug}`);
     if (!mode) {
+      console.log(`🔍 [BASE-RUNNER] mode not specified - FAILING`);
       this.logger.error('Task mode not specified in request');
       return TaskResponseDto.failure(
         AgentTaskMode.CONVERSE, // Default for error reporting
@@ -102,7 +104,10 @@ export abstract class BaseAgentRunner implements IAgentRunner {
     }
 
     // Validate agent supports the requested mode
-    if (!this.canExecuteMode(definition, mode)) {
+    const canExec = this.canExecuteMode(definition, mode);
+    console.log(`🔍 [BASE-RUNNER] canExecuteMode(${mode}): ${canExec}`);
+    if (!canExec) {
+      console.log(`🔍 [BASE-RUNNER] canExecuteMode returned false - FAILING`);
       this.logger.warn(
         `Agent ${definition.slug} does not support ${mode} mode`,
       );
@@ -113,6 +118,7 @@ export abstract class BaseAgentRunner implements IAgentRunner {
     }
 
     // Route to appropriate mode handler
+    console.log(`🔍 [BASE-RUNNER] Routing to mode handler: ${mode}`);
     try {
       switch (mode) {
         case AgentTaskMode.CONVERSE:
@@ -301,12 +307,14 @@ export abstract class BaseAgentRunner implements IAgentRunner {
     request: TaskRequestDto,
     organizationSlug: string | null,
   ): Promise<TaskResponseDto> {
+    console.log(`🔍 [BASE-RUNNER] handleBuild() ENTRY - agent: ${definition.slug}`);
     const payload = (request.payload ?? {}) as {
       action?: string;
       executionMode?: string;
     };
     const action =
       typeof payload.action === 'string' ? payload.action : 'create';
+    console.log(`🔍 [BASE-RUNNER] handleBuild() action: ${action}, executionMode: ${payload.executionMode}`);
 
     // Check execution mode for 'create' action - handle real-time (SSE) mode
     // Note: real-time/polling mode now executes synchronously but still streams progress updates
@@ -326,11 +334,13 @@ export abstract class BaseAgentRunner implements IAgentRunner {
     try {
       switch (action) {
         case 'create': {
+          console.log(`🔍 [BASE-RUNNER] handleBuild() calling executeBuild()...`);
           const result = await this.executeBuild(
             definition,
             request,
             organizationSlug,
           );
+          console.log(`🔍 [BASE-RUNNER] handleBuild() executeBuild() returned: success=${result.success}`);
           // Add humanResponse for conversational build responses at the base level
           const buildContent = result.payload?.content as
             | {

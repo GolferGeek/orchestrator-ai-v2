@@ -93,7 +93,7 @@ export const buildBuilder = {
         messages: payload.messages || [],
         planId: payload.planId || ctx.planId,
         payload: {
-          action: 'execute',
+          action: 'create',  // Backend expects 'create' action for new deliverables
           planId: payload.planId || ctx.planId,
         },
       },
