@@ -278,5 +278,8 @@ export const useDeliverablesStore = defineStore('deliverables', () => {
     setCurrentVersion,
     associateDeliverableWithConversation,
     deliverablesByConversation,
+
+    // Reactivity trigger for version updates
+    versionsUpdateCounter,
   };
 });

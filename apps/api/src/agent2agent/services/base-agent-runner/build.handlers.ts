@@ -366,6 +366,7 @@ export async function handleBuildRerun(
   services: BuildHandlerDependencies,
   executeBuild: ExecuteBuildFn,
 ): Promise<TaskResponseDto> {
+  console.log('🔍 [BUILD-RERUN] handleBuildRerun() ENTRY');
   void organizationSlug;
   void services.plansService;
   void services.llmService;
@@ -373,7 +374,9 @@ export async function handleBuildRerun(
 
   try {
     const payload = (request.payload ?? {}) as unknown as BuildRerunPayload;
+    console.log('🔍 [BUILD-RERUN] payload:', { versionId: payload.versionId, hasLlmOverride: !!payload.llmOverride });
     if (!payload.versionId || !payload.llmOverride) {
+      console.log('🔍 [BUILD-RERUN] FAILURE: missing versionId or llmOverride');
       return TaskResponseDto.failure(
         AgentTaskMode.BUILD,
         'versionId and llmOverride are required for rerun action',
@@ -475,13 +478,16 @@ export async function handleBuildRerun(
       },
     };
 
+    console.log('🔍 [BUILD-RERUN] Calling executeBuild with rerunPayload...');
     const rerunResponse = await executeBuild(
       definition,
       rerunRequest,
       organizationSlug,
     );
+    console.log('🔍 [BUILD-RERUN] executeBuild returned:', { success: rerunResponse.success });
 
     if (!rerunResponse.success) {
+      console.log('🔍 [BUILD-RERUN] executeBuild failed');
       return rerunResponse;
     }
 

@@ -164,9 +164,11 @@ export async function handleA2AResponse(response: TaskResponse): Promise<A2AResu
     // BUILD RESPONSES
     // =========================================================================
     case 'build': {
+      console.log('🔍 [RESPONSE-SWITCH] BUILD mode - content:', JSON.stringify(content, null, 2)?.substring(0, 500));
       const deliverablesStore = useDeliverablesStore();
       const deliverable = content?.deliverable as DeliverableData | undefined;
       const version = content?.version as DeliverableVersionData | undefined;
+      console.log('🔍 [RESPONSE-SWITCH] BUILD mode - deliverable:', deliverable?.id, 'version:', version?.id);
 
       if (deliverable) {
         // Map DeliverableData (transport type) to Deliverable (store type)
@@ -217,6 +219,7 @@ export async function handleA2AResponse(response: TaskResponse): Promise<A2AResu
         }
       }
 
+      console.log('🔍 [RESPONSE-SWITCH] BUILD mode - returning result:', { type: 'deliverable', hasDeliverable: !!deliverable, hasVersion: !!version });
       return {
         type: 'deliverable',
         deliverable: deliverable!,

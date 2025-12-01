@@ -1101,11 +1101,14 @@ const handleDeliverableRerun = (deliverableId: string, versionId: string) => {
   handleDeliverablesModalClose();
 };
 
-const handleDeliverableRerunWithDifferentLlm = (deliverableId: string, versionId: string) => {
+const handleDeliverableRerunWithDifferentLlm = (deliverableId: string, versionId: string, version?: DeliverableVersion) => {
+  console.log('ConversationView: handleDeliverableRerunWithDifferentLlm called', { deliverableId, versionId, hasVersion: !!version });
   // Open the LLM reselector modal for rerun with different LLM
   const deliverable = deliverablesStore.getDeliverableById(deliverableId);
-  const version = deliverablesStore.getDeliverableVersionsSync(deliverableId)?.find(v => v.id === versionId);
-  if (deliverable && version) {
+  // Use version from emit if provided, otherwise try to find in store
+  const resolvedVersion = version || deliverablesStore.getDeliverableVersionsSync(deliverableId)?.find(v => v.id === versionId);
+  console.log('ConversationView: deliverable found:', !!deliverable, 'version found:', !!resolvedVersion);
+  if (deliverable && resolvedVersion) {
     // Get the last user message for the rerun context
     let userMessage = '';
     const allMessages = messages.value;
@@ -1118,10 +1121,11 @@ const handleDeliverableRerunWithDifferentLlm = (deliverableId: string, versionId
       }
     }
 
-    rerunDeliverableData.value = { deliverable, version, userMessage };
+    rerunDeliverableData.value = { deliverable, version: resolvedVersion, userMessage };
     showLLMRerunModal.value = true;
   }
-  handleDeliverablesModalClose();
+  // Keep deliverables modal open so user can see the new version after rerun completes
+  // handleDeliverablesModalClose();
 };
 
 onMounted(() => {
@@ -1168,16 +1172,25 @@ watch(() => props.conversation?.id, async (newId) => {
     }
 
     // Load deliverables for this conversation
-    const conversationDeliverables = deliverablesStore.getDeliverablesByConversation(newId);
+    let conversationDeliverables = deliverablesStore.getDeliverablesByConversation(newId);
     if (!conversationDeliverables || conversationDeliverables.length === 0) {
       try {
         const loadedDeliverables = await deliverablesService.getConversationDeliverables(newId);
         loadedDeliverables.forEach(d => {
           deliverablesStore.addDeliverable(d);
         });
+        conversationDeliverables = loadedDeliverables;
       } catch (error) {
         console.error('Error loading deliverables:', error);
       }
+    }
+
+    // Auto-open deliverables modal if conversation has deliverables
+    if (conversationDeliverables && conversationDeliverables.length > 0) {
+      const firstDeliverable = conversationDeliverables[0];
+      selectedDeliverableId.value = firstDeliverable.id;
+      selectedDeliverable.value = firstDeliverable;
+      showDeliverablesModal.value = true;
     }
   }
 }, { immediate: true });

@@ -736,13 +736,23 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
         temperature?: number;
         maxTokens?: number;
       };
+      llmOverride?: {
+        provider?: string;
+        model?: string;
+      };
       temperature?: number; // Legacy top-level fallback
       maxTokens?: number; // Legacy top-level fallback
     };
 
-    // Priority: payload.config (override for rerun with new LLM) > ExecutionContext (default)
-    const providerName = payload.config?.provider || request.context?.provider;
-    const modelName = payload.config?.model || request.context?.model;
+    // Priority: llmOverride (rerun) > payload.config > ExecutionContext (default)
+    const providerName =
+      payloadAny.llmOverride?.provider ||
+      payload.config?.provider ||
+      request.context?.provider;
+    const modelName =
+      payloadAny.llmOverride?.model ||
+      payload.config?.model ||
+      request.context?.model;
 
     if (
       providerName &&

@@ -157,7 +157,7 @@ export const buildBuilder = {
         payload: {
           action: 'rerun',
           versionId: payload.versionId,
-          config: payload.config,
+          llmOverride: payload.config,  // Backend expects llmOverride, not config
         },
       },
     } as unknown as StrictBuildRequest;

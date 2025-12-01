@@ -24,6 +24,9 @@
           <div class="version-type">
             {{ formatCreationType(version.createdByType) }}
           </div>
+          <div v-if="getModelInfo(version)" class="version-model">
+            {{ getModelInfo(version) }}
+          </div>
           <div class="version-date">{{ formatDate(version.createdAt) }}</div>
         </div>
         <ion-icon
@@ -75,6 +78,36 @@ const formatCreationType = (type: string): string => {
     llm_rerun: 'AI Rerun',
   };
   return labels[type] || type;
+};
+
+const getModelInfo = (version: DeliverableVersion): string | null => {
+  const metadata = version.metadata as Record<string, unknown> | undefined;
+  if (!metadata) return null;
+
+  const provider = metadata.provider as string | undefined;
+  const model = metadata.model as string | undefined;
+
+  // Also check nested llm object
+  const llm = metadata.llm as Record<string, unknown> | undefined;
+  const llmProvider = llm?.provider as string | undefined;
+  const llmModel = llm?.model as string | undefined;
+
+  const finalProvider = provider || llmProvider;
+  const finalModel = model || llmModel;
+
+  if (finalProvider && finalModel) {
+    // Shorten common provider names
+    const shortProvider = finalProvider.replace('anthropic', 'Anthropic').replace('openai', 'OpenAI');
+    // Shorten model names (e.g., claude-3-5-sonnet-20241022 -> claude-3.5-sonnet)
+    const shortModel = finalModel
+      .replace(/-\d{8}$/, '') // Remove date suffix
+      .replace('claude-3-5', 'claude-3.5');
+    return `${shortProvider} / ${shortModel}`;
+  }
+  if (finalModel) {
+    return finalModel.replace(/-\d{8}$/, '').replace('claude-3-5', 'claude-3.5');
+  }
+  return null;
 };
 
 const formatDate = (dateStr: string): string => {
@@ -155,6 +188,12 @@ watch(showComparison, (enabled) => emit('compare', enabled));
 
 .version-type {
   font-size: 0.85rem;
+}
+
+.version-model {
+  font-size: 0.75rem;
+  color: var(--ion-color-primary);
+  font-weight: 500;
 }
 
 .version-date {

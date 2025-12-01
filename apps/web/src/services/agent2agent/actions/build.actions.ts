@@ -237,19 +237,24 @@ export async function rerunDeliverable(
   },
   userMessage?: string,
 ): Promise<{ deliverable: DeliverableData; version: DeliverableVersionData }> {
+  console.log('🔍 [RERUN-DELIVERABLE] Starting rerun with:', { versionId, llmConfig, userMessage });
   const result = await a2aOrchestrator.execute('build.rerun', {
     versionId,
     rerunLlmOverride: llmConfig,
     userMessage,
   });
+  console.log('🔍 [RERUN-DELIVERABLE] Orchestrator result:', { type: result.type, hasDeliverable: 'deliverable' in result, hasVersion: 'version' in result });
 
   if (result.type === 'error') {
+    console.log('🔍 [RERUN-DELIVERABLE] Error result:', result.error);
     throw new Error(result.error);
   }
   if (result.type !== 'deliverable') {
+    console.log('🔍 [RERUN-DELIVERABLE] Unexpected type:', result.type);
     throw new Error('Unexpected response type');
   }
 
+  console.log('🔍 [RERUN-DELIVERABLE] Success - returning deliverable and version');
   return { deliverable: result.deliverable, version: result.version as DeliverableVersionData };
 }
 

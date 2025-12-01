@@ -80,6 +80,7 @@ import VersionSelector from '@/components/shared/VersionSelector.vue';
 import VersionBadge from '@/components/shared/VersionBadge.vue';
 import DeliverableActionButtons from './DeliverableActionButtons.vue';
 import { deliverablesService } from '@/services/deliverablesService';
+import { useDeliverablesStore } from '@/stores/deliverablesStore';
 import type { DeliverableVersion } from '@/services/deliverablesService';
 import type { VersionCreationType } from '@/components/shared/types';
 import type { HitlGeneratedContent } from '@orchestrator-ai/transport-types';
@@ -99,15 +100,24 @@ const emit = defineEmits<{
   close: [];
   edit: [deliverableId: string, versionId: string];
   rerun: [deliverableId: string, versionId: string];
-  rerunWithDifferentLlm: [deliverableId: string, versionId: string];
+  rerunWithDifferentLlm: [deliverableId: string, versionId: string, version: DeliverableVersion];
 }>();
+
+// Store for reactivity to version updates
+const deliverablesStore = useDeliverablesStore();
 
 // State
 const isLoading = ref(false);
 const isLoadingVersions = ref(false);
 const isActionLoading = ref(false);
-const versions = ref<DeliverableVersion[]>([]);
 const selectedVersionId = ref<string | undefined>();
+
+// Versions from store - reactive!
+const versions = computed(() => {
+  if (!props.deliverableId) return [];
+  // This is reactive - when store updates, this recomputes
+  return deliverablesStore.getDeliverableVersionsSync(props.deliverableId) || [];
+});
 
 // Content state
 const displayContent = reactive<HitlGeneratedContent>({
@@ -139,22 +149,49 @@ watch(
         displayContent.socialPosts = props.initialContent.socialPosts || [];
       }
 
-      // Load versions
-      if (props.deliverableId) {
+      // Load versions from API to populate store (if not already there)
+      if (props.deliverableId && versions.value.length === 0) {
         await loadVersions();
+      } else if (props.deliverableId && versions.value.length > 0) {
+        // Versions already in store, just select the current one
+        const current = versions.value.find((v) => v.isCurrentVersion);
+        selectedVersionId.value = current?.id;
+        if (current && !props.initialContent) {
+          loadVersionContent(current);
+        }
       }
     }
   }
 );
 
-// Load version history
+// Watch for new versions added to store - auto-select and display new current version
+watch(
+  () => versions.value,
+  (newVersions) => {
+    if (props.isOpen && newVersions.length > 0) {
+      const current = newVersions.find((v) => v.isCurrentVersion);
+      if (current && current.id !== selectedVersionId.value) {
+        console.log('🔍 [DeliverablesModal] New version detected, selecting:', current.id);
+        selectedVersionId.value = current.id;
+        loadVersionContent(current);
+      }
+    }
+  },
+  { deep: true }
+);
+
+// Load version history from API and populate store
 async function loadVersions() {
   if (!props.deliverableId) return;
 
   isLoadingVersions.value = true;
   try {
     const history = await deliverablesService.getVersionHistory(props.deliverableId);
-    versions.value = history;
+
+    // Add each version to the store (store handles deduplication)
+    history.forEach((version) => {
+      deliverablesStore.addVersion(props.deliverableId, version);
+    });
 
     // Select current version
     const current = history.find((v) => v.isCurrentVersion);
@@ -208,8 +245,21 @@ function handleRerun() {
 }
 
 function handleRerunWithDifferentLlm() {
+  console.log('handleRerunWithDifferentLlm called', {
+    deliverableId: props.deliverableId,
+    selectedVersionId: selectedVersionId.value,
+    versionsCount: versions.value.length,
+    versionIds: versions.value.map(v => v.id)
+  });
   if (selectedVersionId.value) {
-    emit('rerunWithDifferentLlm', props.deliverableId, selectedVersionId.value);
+    const version = versions.value.find(v => v.id === selectedVersionId.value);
+    if (version) {
+      emit('rerunWithDifferentLlm', props.deliverableId, selectedVersionId.value, version);
+    } else {
+      console.warn('Cannot rerun with different LLM: version not found in store. Looking for:', selectedVersionId.value);
+    }
+  } else {
+    console.warn('Cannot rerun with different LLM: no version selected');
   }
 }
 

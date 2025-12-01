@@ -115,6 +115,7 @@ class A2AOrchestrator {
 
       // 6. Parse response
       const data = await this.tryParseJson(response);
+      console.log('🔍 [A2A-ORCHESTRATOR] Raw response data:', JSON.stringify(data, null, 2)?.substring(0, 1000));
       if (!data) {
         return {
           type: 'error',
@@ -124,6 +125,7 @@ class A2AOrchestrator {
 
       // 7. Extract TaskResponse from JSON-RPC envelope
       const taskResponse = this.extractTaskResponse(data);
+      console.log('🔍 [A2A-ORCHESTRATOR] Extracted taskResponse:', taskResponse ? { success: taskResponse.success, mode: taskResponse.mode, hasPayload: !!taskResponse.payload } : null);
       if (!taskResponse) {
         // Check if it's a JSON-RPC error
         const rpcError = (data as StrictA2AErrorResponse)?.error;
