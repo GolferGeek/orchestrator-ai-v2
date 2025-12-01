@@ -485,8 +485,8 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
 
         // Set default provider if none selected
         if (!this.selectedProvider && providers.length > 0) {
-          const anthropic = providers.find(p => p.name.toLowerCase() === 'anthropic');
-          this.selectedProvider = anthropic || providers[0];
+          const ollama = providers.find(p => p.name.toLowerCase() === 'ollama');
+          this.selectedProvider = ollama || providers[0];
         }
       } catch (error) {
         const message = resolveErrorMessage(error, 'Failed to fetch providers');
@@ -571,7 +571,10 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
         const preferredModel = targetModel ?
           providerModels.find(m => m.modelName === targetModel) : null;
 
-        // Default model priority: user preference > OSS 20B > llama3.2 > thinking models > fallback
+        // Default model priority: user preference > llama3.2:1b > OSS 20B > llama3.2 > thinking models > fallback
+        const llm32Model = providerModels.find(m =>
+          m.modelName.includes('llama3.2:1b') || m.modelName.includes('llama-3.2:1b') || m.modelName.toLowerCase().includes('llama3.2:1b')
+        );
         const ossModel = providerModels.find(m =>
           m.modelName.includes('gpt-oss:20b') || m.modelName.includes('gpt-oss')
         );
@@ -591,7 +594,7 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
           m.modelName.includes('gpt-3.5-turbo')
         );
 
-        this.selectedModel = preferredModel || ossModel || llama32Model || thinkingModel || fallbackModel || providerModels[0];
+        this.selectedModel = preferredModel || llm32Model || ossModel || llama32Model || thinkingModel || fallbackModel || providerModels[0];
       }
     },
     // Set selected provider and clear model if incompatible

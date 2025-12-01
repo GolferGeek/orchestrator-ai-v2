@@ -880,10 +880,19 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         let socialPostsText = '';
         if (Array.isArray(finalContent.socialPosts)) {
           socialPostsText = finalContent.socialPosts
-            .map((post, i) => `${i + 1}. ${String(post)}`)
+            .map((post, i) => {
+              // Handle objects by serializing them properly
+              if (typeof post === 'object' && post !== null) {
+                return `${i + 1}. ${JSON.stringify(post, null, 2)}`;
+              }
+              return `${i + 1}. ${String(post)}`;
+            })
             .join('\n\n');
         } else if (typeof finalContent.socialPosts === 'string') {
           socialPostsText = finalContent.socialPosts;
+        } else if (typeof finalContent.socialPosts === 'object') {
+          // Handle case where socialPosts is an object instead of array
+          socialPostsText = JSON.stringify(finalContent.socialPosts, null, 2);
         }
         if (socialPostsText) {
           parts.push('\n\n---\n\n## Social Media Posts\n\n' + socialPostsText);

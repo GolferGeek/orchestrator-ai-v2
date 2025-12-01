@@ -39,8 +39,8 @@
             class="social-post"
           >
             <div class="post-header">Post {{ index + 1 }}</div>
-            <div class="post-content">{{ post }}</div>
-            <div class="char-count">{{ post.length }} characters</div>
+            <div class="post-content">{{ formatSocialPost(post) }}</div>
+            <div class="char-count">{{ formatSocialPost(post).length }} characters</div>
           </div>
         </div>
       </template>
@@ -80,6 +80,41 @@ const renderedBlogPost = computed(() => {
   const html = marked(props.blogPost) as string;
   return DOMPurify.sanitize(html);
 });
+
+/**
+ * Format a social post for display
+ * Handles both string posts and object posts (with platform, content, hashtags, etc.)
+ */
+function formatSocialPost(post: unknown): string {
+  if (typeof post === 'string') {
+    return post;
+  }
+  if (typeof post === 'object' && post !== null) {
+    const postObj = post as Record<string, unknown>;
+    // Try to extract meaningful content from the object
+    // Common fields: content, text, message, post, body
+    const content = postObj.content ?? postObj.text ?? postObj.message ?? postObj.post ?? postObj.body;
+    if (typeof content === 'string') {
+      // If there's a platform, prefix it
+      const platform = postObj.platform ?? postObj.network;
+      const hashtags = postObj.hashtags;
+      let result = '';
+      if (typeof platform === 'string') {
+        result += `[${platform}]\n`;
+      }
+      result += content;
+      if (Array.isArray(hashtags) && hashtags.length > 0) {
+        result += '\n\n' + hashtags.join(' ');
+      } else if (typeof hashtags === 'string') {
+        result += '\n\n' + hashtags;
+      }
+      return result;
+    }
+    // Fallback: serialize the object nicely
+    return JSON.stringify(post, null, 2);
+  }
+  return String(post);
+}
 </script>
 
 <style scoped>

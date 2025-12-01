@@ -163,6 +163,47 @@ import type { DeliverableVersion } from '@/services/deliverablesService';
 import type { VersionCreationType } from '@/components/shared/types';
 import type { A2AResult } from '@/services/agent2agent/orchestrator/types';
 
+/**
+ * Format a social post to a string
+ * Handles both string posts and object posts (with platform, content, hashtags, etc.)
+ */
+function formatSocialPostToString(post: unknown): string {
+  if (typeof post === 'string') {
+    return post;
+  }
+  if (typeof post === 'object' && post !== null) {
+    const postObj = post as Record<string, unknown>;
+    // Try to extract meaningful content from the object
+    const content = postObj.content ?? postObj.text ?? postObj.message ?? postObj.post ?? postObj.body;
+    if (typeof content === 'string') {
+      const platform = postObj.platform ?? postObj.network;
+      const hashtags = postObj.hashtags;
+      let result = '';
+      if (typeof platform === 'string') {
+        result += `[${platform}] `;
+      }
+      result += content;
+      if (Array.isArray(hashtags) && hashtags.length > 0) {
+        result += ' ' + hashtags.join(' ');
+      } else if (typeof hashtags === 'string') {
+        result += ' ' + hashtags;
+      }
+      return result;
+    }
+    // Fallback: serialize the object
+    return JSON.stringify(post);
+  }
+  return String(post);
+}
+
+/**
+ * Convert socialPosts array (which may contain objects) to newline-separated string
+ */
+function socialPostsToString(posts: unknown[] | undefined): string {
+  if (!posts || !Array.isArray(posts)) return '';
+  return posts.map(formatSocialPostToString).join('\n');
+}
+
 interface Props {
   isOpen: boolean;
   organizationSlug: string;
@@ -237,7 +278,7 @@ watch(
 
         editedContent.blogPost = displayContent.blogPost || '';
         editedContent.seoDescription = displayContent.seoDescription || '';
-        editedContent.socialPosts = (displayContent.socialPosts || []).join('\n');
+        editedContent.socialPosts = socialPostsToString(displayContent.socialPosts);
       }
 
       // Load versions if deliverable exists
@@ -284,7 +325,7 @@ async function handleVersionSelect(version: DeliverableVersion) {
 
       editedContent.blogPost = displayContent.blogPost || '';
       editedContent.seoDescription = displayContent.seoDescription || '';
-      editedContent.socialPosts = (displayContent.socialPosts || []).join('\n');
+      editedContent.socialPosts = socialPostsToString(displayContent.socialPosts);
     } catch (e) {
       console.error('Failed to parse version content:', e);
     }
@@ -357,7 +398,7 @@ async function submitDecision(
 
       editedContent.blogPost = displayContent.blogPost;
       editedContent.seoDescription = displayContent.seoDescription;
-      editedContent.socialPosts = displayContent.socialPosts.join('\n');
+      editedContent.socialPosts = socialPostsToString(displayContent.socialPosts);
 
       feedback.value = '';
       hasEdits.value = false;

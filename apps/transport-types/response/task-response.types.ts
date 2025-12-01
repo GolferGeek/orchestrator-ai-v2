@@ -4,6 +4,7 @@
  */
 
 import { AgentTaskMode } from '../shared/enums';
+import type { ExecutionContext } from '../core/execution-context';
 
 /**
  * Task Response Payload
@@ -61,6 +62,13 @@ export interface TaskResponse {
     code?: string;
     [key: string]: any;
   };
+
+  /**
+   * The ExecutionContext capsule (optional but recommended)
+   * Backend should return this with updated IDs (taskId, planId, deliverableId)
+   * so frontend can update its store with the latest context
+   */
+  context?: ExecutionContext;
 }
 
 /**

@@ -1,18 +1,23 @@
 import { ref, onUnmounted, computed } from 'vue';
 import { useAuthStore, useRbacStore } from '@/stores/rbacStore';
-import type { ExecutionContext } from '@orchestrator-ai/transport-types';
 
 /**
  * ObservabilityEvent
  *
  * Events received from the admin observability SSE stream.
- * The `context` field is REQUIRED and contains all context information.
- * Flat fields (user_id, conversation_id, etc.) are kept for database storage
- * but consumers should prefer accessing via context.
+ * These are monitoring/display events, not part of the A2A execution flow.
+ * Use the flat properties directly for filtering and display.
  */
 export interface ObservabilityEvent {
-  /** ExecutionContext capsule - REQUIRED, single source of truth */
-  context: ExecutionContext;
+  /** ExecutionContext capsule - optional, may be present for newer events */
+  context?: {
+    conversationId?: string;
+    taskId?: string;
+    orgSlug?: string;
+    userId?: string;
+    agentSlug?: string;
+    [key: string]: unknown;
+  };
   /** Database record ID */
   id?: number;
   /** Source application identifier */
@@ -86,7 +91,7 @@ export function useAdminObservabilityStream() {
   // Events storage
   const allEvents = ref<ObservabilityEvent[]>([]);
   const recentEvents = computed(() => allEvents.value.slice(-100)); // Last 100 events
-  
+
   // Helper function to check if event is recent (within 5 minutes)
   const isRecentEvent = (event: ObservabilityEvent): boolean => {
     // Check for timestamp in various formats
@@ -111,8 +116,12 @@ export function useAdminObservabilityStream() {
     const activities: Record<string, AgentActivity> = {};
 
     for (const event of allEvents.value) {
-      // Use context as the single source of truth
-      const { conversationId, taskId, orgSlug, userId } = event.context;
+      // Use flat properties directly - these are monitoring events, not execution context
+      const conversationId = event.context?.conversationId || event.conversation_id || null;
+      const taskId = event.context?.taskId || event.task_id || null;
+      const orgSlug = event.context?.orgSlug || event.organization_slug || 'unknown-org';
+      const userId = event.context?.userId || event.user_id || null;
+      const username = event.username || userId || 'Unknown User';
 
       // Group by conversationId - each conversation gets its own swim lane
       const groupKey = conversationId || taskId;
@@ -126,9 +135,9 @@ export function useAdminObservabilityStream() {
 
         activities[groupKey] = {
           agentSlug: displayLabel,
-          conversationId: conversationId || null,
-          username: event.username || userId || 'Unknown User',
-          organizationSlug: orgSlug || 'unknown-org',
+          conversationId: conversationId,
+          username: username,
+          organizationSlug: orgSlug,
           lastEvent: event,
           events: [],
           status: 'idle',
@@ -138,11 +147,11 @@ export function useAdminObservabilityStream() {
       const activity = activities[groupKey];
 
       // Update org/username if we have better data from this event
-      if (orgSlug && activity.organizationSlug === 'unknown-org') {
+      if (orgSlug && orgSlug !== 'unknown-org' && activity.organizationSlug === 'unknown-org') {
         activity.organizationSlug = orgSlug;
       }
-      if (event.username && activity.username === 'Unknown User') {
-        activity.username = event.username;
+      if (username && username !== 'Unknown User' && activity.username === 'Unknown User') {
+        activity.username = username;
       }
 
       activity.events.push(event);
@@ -189,7 +198,7 @@ export function useAdminObservabilityStream() {
   const eventsByConversation = computed(() => {
     const byConv: Record<string, ObservabilityEvent[]> = {};
     for (const event of allEvents.value) {
-      const conversationId = event.context.conversationId;
+      const conversationId = event.context?.conversationId || event.conversation_id;
       if (!conversationId) continue;
       if (!isRecentEvent(event)) continue; // Skip events older than 5 minutes
       if (!byConv[conversationId]) {
@@ -203,7 +212,7 @@ export function useAdminObservabilityStream() {
   const eventsByTask = computed(() => {
     const byTask: Record<string, ObservabilityEvent[]> = {};
     for (const event of allEvents.value) {
-      const taskId = event.context.taskId;
+      const taskId = event.context?.taskId || event.task_id;
       if (!taskId) continue;
       if (!byTask[taskId]) {
         byTask[taskId] = [];
@@ -268,10 +277,12 @@ export function useAdminObservabilityStream() {
       // Note: EventSource doesn't support custom headers, so we'd need to send token as query param
       // OR implement a different auth strategy for SSE. For now, using query param:
       const urlWithAuth = `${url}?token=${encodeURIComponent(token)}`;
+      console.log('[Observability] Connecting to SSE stream:', urlWithAuth.replace(token, 'TOKEN_HIDDEN'));
       
       eventSource = new EventSource(urlWithAuth);
       
       eventSource.onopen = () => {
+        console.log('[Observability] SSE connection opened');
         isConnected.value = true;
         isConnecting.value = false;
         reconnectAttempts = 0;
@@ -287,7 +298,9 @@ export function useAdminObservabilityStream() {
             return;
           }
 
+          console.log('[Observability] Received SSE message:', event.data);
           const data = JSON.parse(event.data) as ObservabilityEvent;
+          console.log('[Observability] Parsed event:', data);
           allEvents.value.push(data);
           lastHeartbeat.value = new Date();
 
@@ -295,14 +308,15 @@ export function useAdminObservabilityStream() {
           if (allEvents.value.length > 1000) {
             allEvents.value = allEvents.value.slice(-500);
           }
-        } catch {
-          // Silently ignore parse errors
+        } catch (error) {
+          console.error('[Observability] Failed to parse SSE event:', error, 'Data:', event.data);
         }
       };
 
       eventSource.onerror = (_event: Event) => {
         // EventSource doesn't provide detailed error info, but we can check readyState
         const readyState = eventSource?.readyState;
+        console.error('[Observability] SSE error, readyState:', readyState);
         let errorMessage = 'SSE connection error';
 
         if (readyState === EventSource.CONNECTING) {
@@ -372,10 +386,12 @@ export function useAdminObservabilityStream() {
   }
   
   /**
-   * Get events for a specific agent - use context as single source of truth
+   * Get events for a specific agent
    */
   function getAgentEvents(agentSlug: string): ObservabilityEvent[] {
-    return allEvents.value.filter(e => e.context.agentSlug === agentSlug);
+    return allEvents.value.filter(e => 
+      e.context?.agentSlug === agentSlug || e.agent_slug === agentSlug
+    );
   }
   
   // Auto-disconnect on unmount

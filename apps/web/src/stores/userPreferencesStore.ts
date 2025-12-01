@@ -86,7 +86,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   rememberApiSelection: true,
   // LLM Preferences
   preferredProviderName: 'Ollama',
-  preferredModelName: 'gpt-oss:20b', // Default to OSS 20G, fallback to llama3.2 if not available
+  preferredModelName: 'llama3.2:1b', // Default to Ollama llama3.2:1b model
   // UI Preferences
   theme: 'auto',
   language: 'en',

@@ -90,12 +90,18 @@ export class ObservabilityEventsService {
    */
   push(event: ObservabilityEventRecord): void {
     try {
+      this.logger.log(
+        `📥 [BUFFER] Pushing event: ${event.hook_event_type} for task ${event.task_id || 'unknown'}`,
+      );
       this.buffer.push(event);
       if (this.buffer.length > this.bufferSize) {
         this.buffer.shift();
       }
 
       this.subject.next(event);
+      this.logger.log(
+        `✅ [BUFFER] Event pushed successfully, buffer size: ${this.buffer.length}, subscribers notified`,
+      );
     } catch (error) {
       this.logger.error(
         `❌ [BUFFER] Failed to push observability event: ${

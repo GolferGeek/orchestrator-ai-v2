@@ -49,8 +49,8 @@ export class ObservabilityStreamController {
     @Query('conversationId') conversationId?: string,
   ): Promise<void> {
     this.logger.log('🔌 Admin connected to observability stream');
-    this.logger.debug(
-      `Filters: userId=${userId}, agentSlug=${agentSlug}, conversationId=${conversationId}`,
+    this.logger.log(
+      `📋 Filters: userId=${userId || 'none'}, agentSlug=${agentSlug || 'none'}, conversationId=${conversationId || 'none'}`,
     );
 
     // Set SSE headers
@@ -61,10 +61,9 @@ export class ObservabilityStreamController {
     response.setHeader('X-Accel-Buffering', 'no');
 
     // Send initial connection confirmation
-    response.write(
-      `data: ${JSON.stringify({ event_type: 'connected', message: 'Observability stream connected' })}\n\n`,
-    );
-    this.logger.log('📡 SSE connection established');
+    const connectionEvent = { event_type: 'connected', message: 'Observability stream connected' };
+    response.write(`data: ${JSON.stringify(connectionEvent)}\n\n`);
+    this.logger.log('📡 SSE connection established, sent connection event');
 
     // Send recent events on connection
     try {
@@ -160,13 +159,16 @@ export class ObservabilityStreamController {
 
     // Subscribe to canonical observability stream (RxJS-based)
     this.logger.log(
-      `📡 [SSE] Subscribing to observability events stream with filters: userId=${userId}, agentSlug=${agentSlug}, conversationId=${conversationId}`,
+      `📡 [SSE] Subscribing to observability events stream with filters: userId=${userId || 'none'}, agentSlug=${agentSlug || 'none'}, conversationId=${conversationId || 'none'}`,
+    );
+    this.logger.log(
+      `📡 [SSE] Current buffer size: ${this.observabilityEvents.getSnapshot().length} events`,
     );
     const observabilitySubscription: Subscription =
       this.observabilityEvents.events$.subscribe({
         next: (event) => {
           this.logger.log(
-            `📨 [SSE] Received event from buffer: ${event.hook_event_type} for task ${event.task_id}`,
+            `📨 [SSE] Received event from buffer: ${event.hook_event_type} for task ${event.task_id || 'unknown'}`,
           );
           this.logger.debug(
             `📨 [SSE] Event fields: user_id=${event.user_id}, agent_slug=${event.agent_slug}, conversation_id=${event.conversation_id}`,

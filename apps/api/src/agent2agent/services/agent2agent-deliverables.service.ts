@@ -31,8 +31,9 @@ export class Agent2AgentDeliverablesService {
     mode: string,
   ): Promise<string | null> {
     try {
-      // Only create deliverables for build mode
-      if (mode !== 'build') {
+      // Create deliverables for build mode OR for HITL completed responses
+      // HITL completed responses contain finalContent that should become a deliverable
+      if (mode !== 'build' && mode !== 'hitl') {
         return null;
       }
 
@@ -79,8 +80,33 @@ export class Agent2AgentDeliverablesService {
         return null;
       }
 
-      const rawOutput: string =
-        typeof contentRec?.output === 'string' ? contentRec.output : '';
+      // Extract content - handle both build mode (output) and HITL mode (finalContent)
+      let rawOutput: string = '';
+      if (typeof contentRec?.output === 'string') {
+        rawOutput = contentRec.output;
+      } else if (contentRec?.finalContent) {
+        // HITL mode - build content from finalContent fields
+        const finalContent = contentRec.finalContent as Record<string, unknown>;
+        const parts: string[] = [];
+        if (finalContent.blogPost) {
+          parts.push(String(finalContent.blogPost));
+        }
+        if (finalContent.seoDescription) {
+          parts.push('\n\n---\n\n## SEO Description\n\n' + String(finalContent.seoDescription));
+        }
+        if (Array.isArray(finalContent.socialPosts) && finalContent.socialPosts.length > 0) {
+          const socialText = finalContent.socialPosts
+            .map((post, i) => {
+              if (typeof post === 'object' && post !== null) {
+                return `${i + 1}. ${JSON.stringify(post, null, 2)}`;
+              }
+              return `${i + 1}. ${String(post)}`;
+            })
+            .join('\n\n');
+          parts.push('\n\n---\n\n## Social Media Posts\n\n' + socialText);
+        }
+        rawOutput = parts.join('');
+      }
       const payloadImages: unknown[] = Array.isArray(payload.images)
         ? (payload.images as unknown[])
         : [];

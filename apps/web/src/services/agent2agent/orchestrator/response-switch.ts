@@ -38,6 +38,16 @@ import {
   type DeliverableVersionCreationType,
 } from '@/services/deliverablesService';
 
+// NIL_UUID - used to check if an ID is unset
+const NIL_UUID = '00000000-0000-0000-0000-000000000000';
+
+/**
+ * Check if an ID is a valid (non-NIL) UUID
+ */
+function isValidId(id: string | undefined | null): boolean {
+  return !!id && id !== NIL_UUID;
+}
+
 /**
  * Extended TaskResponse with context - what we expect from the backend
  * The standard TaskResponse doesn't include context, but our backend adds it
@@ -165,6 +175,58 @@ export async function handleA2AResponse(response: TaskResponse): Promise<A2AResu
     // =========================================================================
     case 'build': {
       console.log('🔍 [RESPONSE-SWITCH] BUILD mode - content:', JSON.stringify(content, null, 2)?.substring(0, 500));
+
+      // Check if this is actually a HITL completed response disguised as BUILD
+      // HITL completed responses have status='completed' and deliverableId at top level
+      const hitlContent = content as { status?: string; deliverableId?: string } | undefined;
+      if (hitlContent?.status === 'completed' && isValidId(hitlContent?.deliverableId)) {
+        console.log('🔍 [RESPONSE-SWITCH] BUILD mode - detected HITL completed response, fetching deliverable');
+        const deliverablesStore = useDeliverablesStore();
+        const conversationsStore = useConversationsStore();
+        const deliverableId = hitlContent.deliverableId;
+
+        // Fetch the full deliverable from API
+        const deliverable = await deliverablesService.getDeliverable(deliverableId);
+
+        // Add to store
+        deliverablesStore.addDeliverable(deliverable);
+        deliverablesStore.associateDeliverableWithConversation(
+          deliverable.id,
+          ctx.conversationId,
+        );
+
+        // Add completion message to conversation
+        const hitlMessage = (content as { message?: string })?.message;
+        conversationsStore.addMessage(ctx.conversationId, {
+          conversationId: ctx.conversationId,
+          role: 'assistant',
+          content: hitlMessage || 'Content finalized!',
+          timestamp: new Date().toISOString(),
+          metadata: {
+            hitlCompleted: true,
+            deliverableId,
+          },
+        });
+
+        return {
+          type: 'deliverable',
+          deliverable: {
+            id: deliverable.id,
+            userId: ctx.userId,
+            agentName: ctx.agentSlug,
+            organization: ctx.orgSlug,
+            conversationId: ctx.conversationId,
+            title: deliverable.title || '',
+            type: deliverable.type || 'document',
+            currentVersionId: deliverable.currentVersion?.id,
+            createdAt: deliverable.createdAt,
+            updatedAt: deliverable.updatedAt,
+          },
+          version: deliverable.currentVersion,
+          context: responseWithContext.context || ctx,
+        };
+      }
+
       const deliverablesStore = useDeliverablesStore();
       const deliverable = content?.deliverable as DeliverableData | undefined;
       const version = content?.version as DeliverableVersionData | undefined;
@@ -280,9 +342,11 @@ export async function handleA2AResponse(response: TaskResponse): Promise<A2AResu
       if (status === 'completed') {
         const deliverablesStore = useDeliverablesStore();
         const conversationsStore = useConversationsStore();
-        const deliverableId = hitlContent?.deliverableId;
+        // Get deliverableId from context (the capsule) - not from payload content
+        // Use isValidId to exclude NIL_UUID
+        const deliverableId = ctx.deliverableId;
 
-        if (deliverableId) {
+        if (isValidId(deliverableId)) {
           // Fetch the full deliverable from API (per PRD)
           const deliverable = await deliverablesService.getDeliverable(deliverableId);
 

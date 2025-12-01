@@ -130,7 +130,7 @@ export const useExecutionContextStore = defineStore('executionContext', () => {
    * All other mutations come from backend responses (planId/deliverableId).
    *
    * @param provider - LLM provider (e.g., 'anthropic', 'openai')
-   * @param model - Model identifier (e.g., 'claude-sonnet-4-20250514')
+   * @param model - Model identifier (e.g., 'llama3.2:1b')
    */
   function setLLM(provider: string, model: string): void {
     if (context.value) {

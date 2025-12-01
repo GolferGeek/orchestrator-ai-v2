@@ -93,6 +93,7 @@ export const hitlBuilder = {
         payload: {
           action: 'resume',
           decision: payload.decision,
+          taskId: ctx.taskId,
           ...(payload.feedback && { feedback: payload.feedback }),
           ...(payload.content && { content: payload.content }),
         },

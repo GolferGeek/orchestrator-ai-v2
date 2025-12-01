@@ -4,6 +4,7 @@ import {
   AgentTaskMode,
   HitlGeneratedContent,
   HitlStatus,
+  ExecutionContext,
 } from '@orchestrator-ai/transport-types';
 
 // Re-export shared types
@@ -36,10 +37,25 @@ export class TaskResponseDto implements TaskResponse {
     public readonly mode: string,
     public readonly payload: TaskResponsePayload,
     public readonly humanResponse?: HumanResponsePayload,
+    public readonly context?: ExecutionContext,
   ) {}
 
   static success(mode: string, payload: TaskResponsePayload) {
     return new TaskResponseDto(true, mode, payload);
+  }
+
+  /**
+   * Return a new TaskResponseDto with context attached
+   * Use this to add the ExecutionContext capsule to any response
+   */
+  withContext(ctx: ExecutionContext): TaskResponseDto {
+    return new TaskResponseDto(
+      this.success,
+      this.mode,
+      this.payload,
+      this.humanResponse,
+      ctx,
+    );
   }
 
   static human(

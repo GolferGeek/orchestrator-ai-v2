@@ -306,15 +306,27 @@ export class Agent2AgentController {
       const isHitlMethod =
         payloadMethod?.startsWith('hitl.') || dto.mode === AgentTaskMode.HITL;
 
-      // For HITL operations, taskId should already be set in context
-      const hasExistingTask = context.taskId && context.taskId !== NIL_UUID;
+      // For HITL operations, taskId should already be set in context OR in payload
+      // Check all possible locations where taskId might be
+      const contextTaskId = context.taskId && context.taskId !== NIL_UUID ? context.taskId : null;
+      const payloadTaskId = (dto.payload as Record<string, unknown>)?.taskId as string | undefined;
+      const effectiveTaskId = contextTaskId ||
+        (payloadTaskId && payloadTaskId !== NIL_UUID ? payloadTaskId : null);
 
-      if (isHitlMethod && hasExistingTask) {
-        // HITL operations use the existing task - don't create a new one
+      const hasExistingTask = !!effectiveTaskId;
+
+      // If we found a taskId in params/payload but not in context, update context
+      if (effectiveTaskId && context.taskId === NIL_UUID) {
+        context.taskId = effectiveTaskId;
+      }
+
+      if (hasExistingTask) {
+        // Task already exists for this conversation - reuse it
         this.logger.log(
-          `🔄 HITL operation (${payloadMethod || dto.mode}) using existing task: ${context.taskId}`,
+          `🔄 Using existing task: ${context.taskId} for ${isHitlMethod ? 'HITL' : dto.mode} operation`,
         );
       } else {
+        // No task yet - create one for this conversation
         // Build conversation history from messages
         const conversationHistoryFromMessages: ConversationMessage[] =
           dto.messages?.map((msg) => {
@@ -331,7 +343,7 @@ export class Agent2AgentController {
             };
           }) || [];
 
-        // Create task - this is the ONE place we can set taskId
+        // Create task - one task per conversation
         const task = await this.tasksService.createTask(
           {
             userId: context.userId,
@@ -345,7 +357,7 @@ export class Agent2AgentController {
           {
             method: dto.mode,
             prompt: dto.userMessage || '',
-            taskId: hasExistingTask ? context.taskId : undefined,
+            taskId: undefined,
             metadata: dto.metadata || {},
             llmSelection: {
               provider: context.provider,
@@ -355,10 +367,8 @@ export class Agent2AgentController {
           },
         );
 
-        // MUTATION: Set taskId when first created (from NIL_UUID)
-        if (context.taskId === NIL_UUID) {
-          context.taskId = task.id;
-        }
+        // MUTATION: Set taskId when first created
+        context.taskId = task.id;
       }
 
       // Mark task as running before execution starts
@@ -397,6 +407,7 @@ export class Agent2AgentController {
           );
 
         // MUTATION: Set deliverableId when first created (from NIL_UUID)
+        // The context (capsule) is the source of truth - frontend gets deliverableId from there
         if (deliverableId) {
           if (context.deliverableId === NIL_UUID) {
             context.deliverableId = deliverableId;
@@ -405,10 +416,15 @@ export class Agent2AgentController {
             typedResult.deliverableId = deliverableId;
           }
         }
-
-        // Update task with result
-        await this.agentTaskStatusService.completeTask(context, result);
+      } else if (typedResult.deliverableId) {
+        // Handler already created deliverable - update context with the deliverableId
+        if (context.deliverableId === NIL_UUID) {
+          context.deliverableId = typedResult.deliverableId;
+        }
       }
+
+      // Always complete the task (even if deliverable was already created by handler)
+      await this.agentTaskStatusService.completeTask(context, result);
 
       this.logRequest({
         org: context.orgSlug,
@@ -419,15 +435,27 @@ export class Agent2AgentController {
         error: null,
       });
 
+      // Attach the ExecutionContext capsule to the response
+      // This allows the frontend to update its store with the latest context
+      // (especially taskId, planId, deliverableId which may have been set)
+      let resultWithContext: TaskResponseDto | Record<string, unknown>;
+      if (result && typeof result === 'object' && 'withContext' in result) {
+        resultWithContext = (result as TaskResponseDto).withContext(context);
+      } else if (result && typeof result === 'object') {
+        resultWithContext = { ...(result as Record<string, unknown>), context };
+      } else {
+        resultWithContext = { result, context };
+      }
+
       if (jsonrpc) {
         return {
           jsonrpc: '2.0',
           id: jsonrpc.id ?? null,
-          result,
+          result: resultWithContext,
         } as A2ATaskSuccessResponse;
       }
 
-      return result;
+      return resultWithContext as TaskResponseDto;
     } catch (error) {
       this.logger.error(
         `❌ [Agent2AgentController] Error executing task:`,

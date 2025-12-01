@@ -9,8 +9,8 @@ export interface ContentViewerProps {
   blogPost?: string;
   /** SEO description */
   seoDescription?: string;
-  /** Social media posts */
-  socialPosts?: string[];
+  /** Social media posts (can be strings or objects with content/platform/hashtags) */
+  socialPosts?: unknown[];
   /** Which tab to show initially */
   initialTab?: 'blog' | 'seo' | 'social';
   /** Whether content is loading */

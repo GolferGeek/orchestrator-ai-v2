@@ -16,6 +16,11 @@ import { firstValueFrom } from 'rxjs';
 import { AgentRuntimeDefinition } from '@agent-platform/interfaces/agent.interface';
 import { Agent2AgentConversationsService } from '../agent-conversations.service';
 import { DeliverablesService } from '../../deliverables/deliverables.service';
+import {
+  DeliverableFormat,
+  DeliverableType,
+  DeliverableVersionCreationType,
+} from '../../deliverables/dto/create-deliverable.dto';
 import { TaskRequestDto, AgentTaskMode } from '../../dto/task-request.dto';
 import {
   TaskResponseDto,
@@ -198,8 +203,85 @@ export async function handleHitlResume(
       duration: (dataObj?.duration || responseData.duration) as number,
     };
 
-    // Return HITL response (for backwards compatibility)
-    // NOTE: For proper BUILD flow, the caller should use sendHitlResume() directly
+    // When HITL completes successfully, create deliverable and return BUILD format
+    // Frontend expects standard BUILD response with { deliverable, version }
+    if (resultStatus === 'completed' && services.deliverablesService) {
+      const finalContent = hitlPayload.finalContent;
+      if (finalContent) {
+        // Build deliverable content from HITL finalContent
+        const content = buildDeliverableContentFromHitl(finalContent);
+        const title = hitlPayload.topic || 'HITL Content';
+
+        // Get userId and conversationId from request context
+        const userId = resolveUserId(request);
+        const conversationId = resolveConversationId(request);
+
+        if (userId && conversationId) {
+          // Create deliverable through the service
+          const deliverable = await services.deliverablesService.create(
+            {
+              title,
+              conversationId,
+              agentName: definition.slug,
+              taskId: payload.taskId,
+              type: DeliverableType.DOCUMENT,
+              initialContent: content,
+              initialFormat: DeliverableFormat.MARKDOWN,
+              initialCreationType: DeliverableVersionCreationType.AI_RESPONSE,
+              initialTaskId: payload.taskId,
+              initialMetadata: {
+                source: 'hitl_completed',
+                decision: payload.decision,
+              },
+            },
+            userId,
+          );
+
+          // Mark task as handled so controller doesn't try to create another deliverable
+          const buildResponse = TaskResponseDto.success(AgentTaskMode.BUILD, {
+            content: {
+              deliverable: {
+                id: deliverable.id,
+                userId: deliverable.userId,
+                conversationId: deliverable.conversationId,
+                agentName: deliverable.agentName,
+                title: deliverable.title,
+                type: deliverable.type,
+                createdAt: deliverable.createdAt,
+                updatedAt: deliverable.updatedAt,
+              },
+              version: deliverable.currentVersion
+                ? {
+                    id: deliverable.currentVersion.id,
+                    deliverableId: deliverable.id,
+                    versionNumber: deliverable.currentVersion.versionNumber,
+                    content: deliverable.currentVersion.content,
+                    format: deliverable.currentVersion.format,
+                    isCurrentVersion: deliverable.currentVersion.isCurrentVersion,
+                    createdByType: deliverable.currentVersion.createdByType,
+                    createdAt: deliverable.currentVersion.createdAt,
+                    updatedAt: deliverable.currentVersion.updatedAt,
+                  }
+                : undefined,
+            },
+            metadata: {
+              source: 'hitl_completed',
+              agentSlug: definition.slug,
+              decision: payload.decision,
+            },
+          });
+
+          // Set flag to prevent duplicate deliverable creation in controller
+          // Also set deliverableId so controller can update context
+          const responseObj = buildResponse as unknown as Record<string, unknown>;
+          responseObj.taskCompletionHandled = true;
+          responseObj.deliverableId = deliverable.id;
+          return buildResponse;
+        }
+      }
+    }
+
+    // Fallback to HITL response if deliverable creation fails or no finalContent
     if (resultStatus === 'completed') {
       return TaskResponseDto.hitlCompleted(hitlPayload, {
         agentSlug: definition.slug,
@@ -245,10 +327,19 @@ function buildDeliverableContentFromHitl(
     let socialPostsText = '';
     if (Array.isArray(finalContent.socialPosts)) {
       socialPostsText = finalContent.socialPosts
-        .map((post, i) => `${i + 1}. ${post}`)
+        .map((post, i) => {
+          // Handle objects by serializing them properly
+          if (typeof post === 'object' && post !== null) {
+            return `${i + 1}. ${JSON.stringify(post, null, 2)}`;
+          }
+          return `${i + 1}. ${String(post)}`;
+        })
         .join('\n\n');
     } else if (typeof finalContent.socialPosts === 'string') {
       socialPostsText = finalContent.socialPosts;
+    } else if (typeof finalContent.socialPosts === 'object') {
+      // Handle case where socialPosts is an object instead of array
+      socialPostsText = JSON.stringify(finalContent.socialPosts, null, 2);
     }
 
     if (socialPostsText) {
