@@ -68,6 +68,16 @@ export class AgentRuntimePlansAdapter {
         return null;
       }
 
+      // Validate that request.context exists before passing to executeAction
+      // Even though conversationId might be resolved from ctx.conversationId,
+      // executeAction requires the full ExecutionContext object
+      if (!request.context) {
+        this.logger.warn(
+          'Cannot create plan: missing ExecutionContext in request',
+        );
+        return null;
+      }
+
       const title = ctx.title ?? `Plan from ${ctx.agentSlug}`;
       const content =
         ctx.content ??
