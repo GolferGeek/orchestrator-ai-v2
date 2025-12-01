@@ -1012,16 +1012,19 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         `⚡ API Agent ${definition.slug}: immediate mode - executing synchronously`,
       );
 
-      // Extract provider and model - primary source is ExecutionContext (Phase 3.5+)
-      // Fallback to legacy payload.config for backwards compatibility
-      const payload = request.payload;
+      // Extract provider and model
+      // Priority: llmOverride (rerun) > payload.config > ExecutionContext
+      const payload = request.payload as Record<string, unknown> | undefined;
+      const llmOverride = payload?.llmOverride as
+        | { provider?: string; model?: string }
+        | undefined;
       const config = payload?.config as
         | { provider?: string; model?: string }
         | undefined;
 
-      // Primary: context.provider/model (Phase 3.5+), Fallback: payload.config (legacy)
-      const provider = request.context?.provider ?? config?.provider ?? null;
-      const model = request.context?.model ?? config?.model ?? null;
+      // Priority: llmOverride (rerun) > payload.config > context
+      const provider = llmOverride?.provider ?? config?.provider ?? request.context?.provider ?? null;
+      const model = llmOverride?.model ?? config?.model ?? request.context?.model ?? null;
 
       if (
         !provider ||

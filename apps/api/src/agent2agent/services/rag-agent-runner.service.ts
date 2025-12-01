@@ -580,6 +580,7 @@ export class RagAgentRunnerService extends BaseAgentRunner {
 
   /**
    * Build LLM configuration
+   * Priority: llmOverride (rerun) > payload.config > ExecutionContext > definition.llm
    */
   private buildLlmConfig(
     definition: AgentRuntimeDefinition,
@@ -588,17 +589,34 @@ export class RagAgentRunnerService extends BaseAgentRunner {
     orgSlug: string,
     request: TaskRequestDto,
   ): Record<string, unknown> {
-    // Get provider/model from agent's llm config
-    // Default to local Ollama gpt-oss:20b for sovereign/internal use
+    const payload = request.payload as Record<string, unknown> | undefined;
+    const llmOverride = payload?.llmOverride as { provider?: string; model?: string; temperature?: number; maxTokens?: number } | undefined;
+    const payloadConfig = payload?.config as { provider?: string; model?: string; temperature?: number; maxTokens?: number } | undefined;
+
+    // Get provider/model with priority: llmOverride > payload.config > context > definition.llm
     const llmDef = definition.llm;
-    const provider = llmDef?.provider ?? 'ollama';
-    const model = llmDef?.model ?? 'gpt-oss:20b';
+    const provider =
+      llmOverride?.provider ||
+      payloadConfig?.provider ||
+      request.context?.provider ||
+      llmDef?.provider ||
+      'ollama';
+    const model =
+      llmOverride?.model ||
+      payloadConfig?.model ||
+      request.context?.model ||
+      llmDef?.model ||
+      'gpt-oss:20b';
+
+    // Temperature and maxTokens from override or defaults
+    const temperature = llmOverride?.temperature ?? payloadConfig?.temperature ?? llmDef?.temperature ?? 0.3;
+    const maxTokens = llmOverride?.maxTokens ?? payloadConfig?.maxTokens ?? llmDef?.maxTokens ?? 2000;
 
     return {
       provider,
       model,
-      temperature: llmDef?.temperature ?? 0.3,
-      maxTokens: llmDef?.maxTokens ?? 2000,
+      temperature,
+      maxTokens,
       conversationId,
       sessionId: request.context.taskId, // Use taskId for session correlation
       userId,
