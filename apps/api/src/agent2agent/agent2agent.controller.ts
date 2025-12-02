@@ -252,7 +252,7 @@ export class Agent2AgentController {
     @Req() request: RequestWithStreamData,
   ): Promise<TaskResponseDto | JsonRpcSuccessEnvelope | JsonRpcErrorEnvelope> {
     this.logger.log(
-      `🔍 [A2A-CTRL] Request received - org: ${orgSlug}, agent: ${agentSlug}, body.method: ${(body as Record<string, unknown>)?.method}`,
+      `🔍 [A2A-CTRL] Request received - org: ${orgSlug}, agent: ${agentSlug}, body.method: ${String((body as Record<string, unknown>)?.method ?? '')}`,
     );
 
     // ADAPTER: Transform frontend CreateTaskDto format to Agent2Agent TaskRequestDto format
@@ -260,7 +260,7 @@ export class Agent2AgentController {
     const { dto, jsonrpc } = await this.normalizeTaskRequest(adaptedBody);
 
     this.logger.log(
-      `🔍 [A2A-CTRL] After normalization - mode: ${dto.mode}, payload.method: ${(dto.payload as Record<string, unknown>)?.method}, taskId: ${dto.context?.taskId}`,
+      `🔍 [A2A-CTRL] After normalization - mode: ${dto.mode}, payload.method: ${String((dto.payload as Record<string, unknown>)?.method ?? '')}, taskId: ${dto.context?.taskId ?? 'none'}`,
     );
 
     // =========================================================================
@@ -299,81 +299,44 @@ export class Agent2AgentController {
     const context = dto.context;
 
     try {
-      // Check if this is an HITL method (hitl.resume, hitl.status, etc.)
-      // These methods operate on existing tasks, not create new ones
-      const payloadMethod =
-        typeof dto.payload?.method === 'string' ? dto.payload.method : null;
-      const isHitlMethod =
-        payloadMethod?.startsWith('hitl.') || dto.mode === AgentTaskMode.HITL;
+      // Build conversation history from messages
+      const conversationHistoryFromMessages: ConversationMessage[] =
+        dto.messages?.map((msg) => {
+          const content =
+            typeof msg.content === 'string'
+              ? msg.content
+              : msg.content && typeof msg.content === 'object'
+                ? JSON.stringify(msg.content)
+                : '';
+          return {
+            role: msg.role,
+            content,
+            timestamp: new Date().toISOString(),
+          };
+        }) || [];
 
-      // For HITL operations, taskId should already be set in context OR in payload
-      // Check all possible locations where taskId might be
-      const contextTaskId =
-        context.taskId && context.taskId !== NIL_UUID ? context.taskId : null;
-      const payloadTaskId = (dto.payload as Record<string, unknown>)?.taskId as
-        | string
-        | undefined;
-      const effectiveTaskId =
-        contextTaskId ||
-        (payloadTaskId && payloadTaskId !== NIL_UUID ? payloadTaskId : null);
-
-      const hasExistingTask = !!effectiveTaskId;
-
-      // If we found a taskId in params/payload but not in context, update context
-      if (effectiveTaskId && context.taskId === NIL_UUID) {
-        context.taskId = effectiveTaskId;
-      }
-
-      if (hasExistingTask) {
-        // Task already exists for this conversation - reuse it
-        this.logger.log(
-          `🔄 Using existing task: ${context.taskId} for ${isHitlMethod ? 'HITL' : dto.mode} operation`,
-        );
-      } else {
-        // No task yet - create one for this conversation
-        // Build conversation history from messages
-        const conversationHistoryFromMessages: ConversationMessage[] =
-          dto.messages?.map((msg) => {
-            const content =
-              typeof msg.content === 'string'
-                ? msg.content
-                : msg.content && typeof msg.content === 'object'
-                  ? JSON.stringify(msg.content)
-                  : '';
-            return {
-              role: msg.role,
-              content,
-              timestamp: new Date().toISOString(),
-            };
-          }) || [];
-
-        // Create task - one task per conversation
-        const task = await this.tasksService.createTask(
-          {
-            userId: context.userId,
-            orgSlug: context.orgSlug,
-            conversationId:
-              context.conversationId !== NIL_UUID
-                ? context.conversationId
-                : undefined,
+      // Create/get task using the IDs from context
+      // Frontend pre-generates both conversationId and taskId,
+      // backend creates the records if they don't exist
+      await this.tasksService.createTask(
+        {
+          userId: context.userId,
+          orgSlug: context.orgSlug,
+          conversationId: context.conversationId,
+        },
+        context.agentSlug,
+        {
+          method: dto.mode,
+          prompt: dto.userMessage || '',
+          taskId: context.taskId,
+          metadata: dto.metadata || {},
+          llmSelection: {
+            provider: context.provider,
+            model: context.model,
           },
-          context.agentSlug,
-          {
-            method: dto.mode,
-            prompt: dto.userMessage || '',
-            taskId: undefined,
-            metadata: dto.metadata || {},
-            llmSelection: {
-              provider: context.provider,
-              model: context.model,
-            },
-            conversationHistory: conversationHistoryFromMessages,
-          },
-        );
-
-        // MUTATION: Set taskId when first created
-        context.taskId = task.id;
-      }
+          conversationHistory: conversationHistoryFromMessages,
+        },
+      );
 
       // Mark task as running before execution starts
       await this.agentTaskStatusService.updateTaskStatus(context, {
@@ -636,6 +599,11 @@ export class Agent2AgentController {
     @Req() request: RequestWithStreamData,
     @Res() response: Response,
   ): Promise<void> {
+    // LOG AT VERY START OF ENDPOINT
+    this.logger.debug(
+      `🔴 [STREAM-ENDPOINT] HIT! org=${orgSlug}, agent=${agentSlug}, taskId=${taskId}`,
+    );
+
     const organizationSlug = this.normalizeOrgSlug(orgSlug);
     const claims = request.streamTokenClaims;
 
@@ -649,11 +617,22 @@ export class Agent2AgentController {
       }
     }
 
-    const task = await this.ensureTaskOwnership(taskId, currentUser.id);
-    this.assertTaskContext(task, agentSlug, organizationSlug);
+    // Try to get existing task, but allow streaming for pre-generated taskIds
+    // This enables connecting to stream BEFORE the POST creates the task
+    // Security: Events are filtered by taskId, so user can only see events for tasks
+    // that will be created with this ID (which they pre-generated)
+    const task = await this.tasksService.getTaskById({
+      taskId,
+      userId: currentUser.id,
+    });
+
+    // If task exists, validate ownership and context
+    if (task) {
+      this.assertTaskContext(task, agentSlug, organizationSlug);
+    }
 
     const streamId = streamIdParam || claims?.streamId;
-    const expectedConversationId = task.agentConversationId ?? null;
+    const expectedConversationId = task?.agentConversationId ?? null;
 
     let streamSessionId: string | null = null;
     let observabilitySubscription: Subscription | null = null;
@@ -674,6 +653,10 @@ export class Agent2AgentController {
       });
     }
 
+    this.logger.debug(
+      `[STREAM] Task stream connecting - taskId: ${taskId}, agentSlug: ${agentSlug}, org: ${organizationSlug}`,
+    );
+
     response.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache, no-transform',
@@ -683,7 +666,8 @@ export class Agent2AgentController {
     });
 
     response.flushHeaders?.();
-    response.write(': connected\n\n');
+    // Send proper connection event as JSON data (not just SSE comment)
+    response.write(`data: ${JSON.stringify({ event_type: 'connected', taskId, message: 'Stream connected' })}\n\n`);
 
     const keepAlive = setInterval(() => {
       response.write(': keepalive\n\n');
@@ -742,14 +726,31 @@ export class Agent2AgentController {
       }
     }
 
+    this.logger.debug(
+      `[STREAM] Subscribing to observability events for taskId: ${taskId}`,
+    );
+
     observabilitySubscription = this.observabilityEvents.events$.subscribe({
       next: (eventRecord) => {
+        // Log every event that comes through
+        this.logger.debug(
+          `[STREAM-V3] Event: ${eventRecord.hook_event_type}, taskId: ${eventRecord.context?.taskId}, streamActive: ${streamActive}`,
+        );
+
+        // Check filters
         if (
           !this.matchesObservabilityEvent(eventRecord, observabilityFilters) ||
           !streamActive
         ) {
+          this.logger.debug(
+            `[STREAM-V3] Filtered out - streamActive: ${streamActive}`,
+          );
           return;
         }
+
+        this.logger.debug(
+          `[STREAM-V3] ✅ Forwarding ${eventRecord.hook_event_type} for task ${taskId}`,
+        );
 
         const hookType = eventRecord.hook_event_type;
         if (hookType === 'agent.completed' || hookType === 'task.completed') {
@@ -758,6 +759,7 @@ export class Agent2AgentController {
           if (completeEvent) {
             this.writeSseEvent(response, completeEvent);
           }
+          this.logger.debug(`[STREAM-V3] Task ${taskId} completed, ending stream`);
           endStream('complete');
           return;
         }
@@ -767,12 +769,14 @@ export class Agent2AgentController {
           if (errorEvent) {
             this.writeSseEvent(response, errorEvent);
           }
+          this.logger.debug(`[STREAM-V3] Task ${taskId} failed, ending stream`);
           endStream('error');
           return;
         }
 
         const chunkEvent = this.toChunkSseEventFromObservability(eventRecord);
         if (chunkEvent) {
+          this.logger.debug(`[STREAM-V3] Writing chunk event to SSE`);
           this.writeSseEvent(response, chunkEvent);
         }
       },
@@ -785,10 +789,22 @@ export class Agent2AgentController {
       },
     });
 
-    request.on('close', () => endStream('client_closed'));
-    request.on('error', () => endStream('client_error'));
-    response.on('close', () => endStream('response_closed'));
-    response.on('error', () => endStream('response_error'));
+    request.on('close', () => {
+      this.logger.debug(`[STREAM] Client closed connection for task ${taskId}`);
+      endStream('client_closed');
+    });
+    request.on('error', (err) => {
+      this.logger.debug(`[STREAM] Client error for task ${taskId}: ${err}`);
+      endStream('client_error');
+    });
+    response.on('close', () => {
+      this.logger.debug(`[STREAM] Response closed for task ${taskId}`);
+      endStream('response_closed');
+    });
+    response.on('error', (err) => {
+      this.logger.debug(`[STREAM] Response error for task ${taskId}: ${err}`);
+      endStream('response_error');
+    });
   }
 
   /**
@@ -944,12 +960,20 @@ export class Agent2AgentController {
       conversationId?: string | null;
     },
   ): boolean {
+    // Check taskId match
     if (event.context.taskId !== filters.taskId) {
+      this.logger.debug(
+        `[STREAM-FILTER] taskId mismatch: event=${event.context.taskId}, filter=${filters.taskId}`,
+      );
       return false;
     }
 
+    // Check organization match
     const eventOrg = this.normalizeOrgValue(event.context.orgSlug);
     if (eventOrg !== filters.organizationSlug) {
+      this.logger.debug(
+        `[STREAM-FILTER] org mismatch: eventOrg=${eventOrg}, filterOrg=${filters.organizationSlug}`,
+      );
       return false;
     }
 

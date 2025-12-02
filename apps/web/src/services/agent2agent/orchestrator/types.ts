@@ -231,3 +231,27 @@ export function isErrorResult(result: A2AResult): result is ErrorResult {
 export function isStreamingResult(result: A2AResult): result is StreamingResult {
   return result.type === 'streaming';
 }
+
+// ============================================================================
+// STREAMING PROGRESS - Events received during execution
+// ============================================================================
+
+/**
+ * Progress event from observability stream during execution
+ */
+export interface StreamProgressEvent {
+  /** Event type (e.g., 'agent.started', 'agent.progress', 'agent.llm.started') */
+  hookEventType: string;
+  /** Progress percentage (0-100) or null if not applicable */
+  progress: number | null;
+  /** Human-readable message */
+  message: string | null;
+  /** Current step/phase name */
+  step: string | null;
+  /** Status string */
+  status: string | null;
+  /** Execution context for this event */
+  context: ExecutionContext;
+  /** Unix timestamp */
+  timestamp: number;
+}

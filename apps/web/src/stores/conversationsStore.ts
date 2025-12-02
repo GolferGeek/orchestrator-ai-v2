@@ -211,9 +211,14 @@ export const useConversationsStore = defineStore('conversations', () => {
 
   /**
    * Get messages by conversation ID
+   * Note: This function returns a reference to the messages array.
+   * Vue reactivity should track changes when the map is replaced.
    */
   const messagesByConversation = (conversationId: string): Message[] => {
-    return messages.value.get(conversationId) || [];
+    // Access the map to ensure Vue tracks this dependency
+    const msgMap = messages.value;
+    const result = msgMap.get(conversationId) || [];
+    return result;
   };
 
   /**
@@ -824,6 +829,9 @@ export const useConversationsStore = defineStore('conversations', () => {
     conversations: readonly(conversations),
     activeConversationId: readonly(activeConversationId),
     error: readonly(error),
+    // Expose messages Map for direct reactive access
+    // Components can use: store.messagesMap.get(conversationId)
+    messagesMap: readonly(messages),
 
     // Computed getters
     activeConversation,
@@ -834,7 +842,7 @@ export const useConversationsStore = defineStore('conversations', () => {
     completedTasks,
     failedTasks,
 
-    // Getter functions
+    // Getter functions (prefer messagesMap for reactivity)
     conversationById,
     messagesByConversation,
     tasksByConversationId,

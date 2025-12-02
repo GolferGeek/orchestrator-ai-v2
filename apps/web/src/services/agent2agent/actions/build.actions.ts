@@ -15,13 +15,14 @@ import { a2aOrchestrator } from '../orchestrator';
 import { useConversationsStore } from '@/stores/conversationsStore';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
 import { useExecutionContextStore } from '@/stores/executionContextStore';
+import { toastController } from '@ionic/vue';
 import type {
   DeliverableData,
   DeliverableVersionData,
   HitlGeneratedContent,
   HitlStatus,
 } from '@orchestrator-ai/transport-types';
-import type { A2AResult } from '../orchestrator/types';
+import type { A2AResult, StreamProgressEvent } from '../orchestrator/types';
 
 /**
  * HITL waiting result - returned when agent needs human review before completing
@@ -82,7 +83,10 @@ function convertResult(result: A2AResult): CreateDeliverableResult {
 }
 
 /**
- * Create a new deliverable
+ * Create a new deliverable with real-time streaming progress
+ *
+ * Progress is shown via toast notifications (ephemeral, non-intrusive).
+ * Only the final result is added to the conversation history.
  *
  * @param userMessage - User's message requesting the deliverable
  * @returns The created deliverable and initial version, or HITL waiting result
@@ -95,6 +99,9 @@ export async function createDeliverable(
   const executionContextStore = useExecutionContextStore();
   const ctx = executionContextStore.current;
 
+  // Toast reference for updating progress
+  let progressToast: HTMLIonToastElement | null = null;
+
   try {
     chatUiStore.setIsSendingMessage(true);
 
@@ -105,51 +112,132 @@ export async function createDeliverable(
       timestamp: new Date().toISOString(),
     });
 
-    // Create assistant message placeholder
-    const assistantMessage = conversationsStore.addMessage(ctx.conversationId, {
-      role: 'assistant',
-      content: 'Processing your request...',
-      timestamp: new Date().toISOString(),
-      metadata: { mode: 'build' },
+    // Create initial progress toast
+    progressToast = await toastController.create({
+      message: 'Starting build...',
+      position: 'bottom',
+      color: 'primary',
+      // No duration - we'll dismiss it manually when done
     });
+    await progressToast.present();
 
-    // Execute via orchestrator
-    const result = await a2aOrchestrator.execute('build.create', { userMessage });
+    // Execute via orchestrator WITH STREAMING
+    // This connects to the observability stream first, then makes the POST request
+    const result = await a2aOrchestrator.executeWithStreaming(
+      'build.create',
+      { userMessage },
+      {
+        onConnect: () => {
+          console.log('[Build Create] 🔌 Stream connected');
+        },
+        onProgress: async (event: StreamProgressEvent) => {
+          const progressPercent = event.progress ?? 0;
+          const progressMsg = event.message || event.step || 'Processing...';
 
-    // Update assistant message based on result
+          console.log(`[Build Create] 📦 Progress: ${progressPercent}% - ${progressMsg}`);
+
+          // Update toast message with current progress
+          if (progressToast) {
+            progressToast.message = `${progressMsg} (${progressPercent}%)`;
+          }
+        },
+        onComplete: () => {
+          console.log('[Build Create] ✅ Stream complete');
+        },
+        onError: (error: string) => {
+          console.error('[Build Create] ❌ Stream error:', error);
+        },
+      },
+    );
+
+    // Dismiss progress toast
+    if (progressToast) {
+      await progressToast.dismiss();
+      progressToast = null;
+    }
+
+    // Add final assistant message based on result
     if (result.type === 'deliverable') {
-      conversationsStore.updateMessage(ctx.conversationId, assistantMessage.id, {
+      conversationsStore.addMessage(ctx.conversationId, {
+        role: 'assistant',
         content: 'Deliverable created successfully',
+        timestamp: new Date().toISOString(),
         deliverableId: result.deliverable.id,
+        metadata: {
+          deliverableId: result.deliverable.id,
+          mode: 'build',
+          isCompleted: true,
+        },
       });
-      conversationsStore.updateMessageMetadata(ctx.conversationId, assistantMessage.id, {
-        deliverableId: result.deliverable.id,
-        mode: 'build',
-        isCompleted: true,
+
+      // Show success toast
+      const successToast = await toastController.create({
+        message: '✅ Deliverable created!',
+        duration: 2000,
+        position: 'bottom',
+        color: 'success',
       });
+      await successToast.present();
     } else if (result.type === 'hitl_waiting') {
-      conversationsStore.updateMessage(ctx.conversationId, assistantMessage.id, {
+      conversationsStore.addMessage(ctx.conversationId, {
+        role: 'assistant',
         content: 'Content generated. Waiting for your review...',
+        timestamp: new Date().toISOString(),
+        metadata: {
+          taskId: result.taskId,
+          hitlWaiting: true,
+          mode: 'build',
+        },
       });
-      conversationsStore.updateMessageMetadata(ctx.conversationId, assistantMessage.id, {
-        taskId: result.taskId,
-        hitlWaiting: true,
-        mode: 'build',
+
+      // Show HITL toast
+      const hitlToast = await toastController.create({
+        message: '⏳ Awaiting your review',
+        duration: 3000,
+        position: 'bottom',
+        color: 'warning',
       });
+      await hitlToast.present();
     } else if (result.type === 'error') {
-      conversationsStore.updateMessage(ctx.conversationId, assistantMessage.id, {
+      conversationsStore.addMessage(ctx.conversationId, {
+        role: 'assistant',
         content: `Error: ${result.error}`,
+        timestamp: new Date().toISOString(),
+        metadata: {
+          mode: 'build',
+          error: result.error,
+        },
       });
-      conversationsStore.updateMessageMetadata(ctx.conversationId, assistantMessage.id, {
-        mode: 'build',
-        error: result.error,
+
+      // Show error toast
+      const errorToast = await toastController.create({
+        message: `❌ ${result.error}`,
+        duration: 4000,
+        position: 'bottom',
+        color: 'danger',
       });
+      await errorToast.present();
     }
 
     chatUiStore.setIsSendingMessage(false);
     return convertResult(result);
   } catch (error) {
     console.error('[Build Create] Error:', error);
+
+    // Dismiss progress toast on error
+    if (progressToast) {
+      await progressToast.dismiss();
+    }
+
+    // Show error toast
+    const errorToast = await toastController.create({
+      message: `❌ ${error instanceof Error ? error.message : 'Failed to create deliverable'}`,
+      duration: 4000,
+      position: 'bottom',
+      color: 'danger',
+    });
+    await errorToast.present();
+
     chatUiStore.setIsSendingMessage(false);
     conversationsStore.setError(
       error instanceof Error ? error.message : 'Failed to create deliverable',

@@ -225,11 +225,12 @@ export function useAdminObservabilityStream() {
 
       console.log(`[Observability] Loaded ${response.count} historical events`);
 
-      // Merge with existing events in store
-      store.mergeEvents(response.events);
+      // Replace all events with the new set from history
+      // This ensures the view reflects only the selected time range
+      store.setEvents(response.events);
 
       console.log(
-        `[Observability] Total events after merge: ${store.events.length}`,
+        `[Observability] Total events after update: ${store.events.length}`,
       );
     } catch (err) {
       console.error('[Observability] Failed to fetch history:', err);

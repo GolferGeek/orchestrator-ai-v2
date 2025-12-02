@@ -21,6 +21,21 @@ import type { ExecutionContext } from '@orchestrator-ai/transport-types';
 const NIL_UUID = '00000000-0000-0000-0000-000000000000';
 
 /**
+ * Generate a UUID - polyfill for crypto.randomUUID()
+ */
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback implementation for browsers that don't support crypto.randomUUID()
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+/**
  * Parameters for initializing the ExecutionContext
  */
 export interface ExecutionContextInitParams {
@@ -103,11 +118,30 @@ export const useExecutionContextStore = defineStore('executionContext', () => {
       agentType: params.agentType,
       provider: params.provider,
       model: params.model,
-      // Use NIL_UUID for optional IDs until set by backend
-      taskId: params.taskId ?? NIL_UUID,
+      // Generate taskId upfront (like conversationId) so we can connect to stream before POST
+      // Backend will use this ID to create the task record
+      taskId: params.taskId ?? generateUUID(),
       planId: params.planId ?? NIL_UUID,
       deliverableId: params.deliverableId ?? NIL_UUID,
     };
+  }
+
+  /**
+   * Generate a new taskId for a new task within the same conversation.
+   * Call this before each A2A operation that creates a new task.
+   *
+   * This enables connecting to the task-specific stream BEFORE making the POST request,
+   * ensuring we receive all progress events.
+   *
+   * @returns The new taskId
+   */
+  function newTaskId(): string {
+    if (!context.value) {
+      throw new Error('ExecutionContext not initialized. Select a conversation first.');
+    }
+    const newId = generateUUID();
+    context.value = { ...context.value, taskId: newId };
+    return newId;
   }
 
   /**
@@ -178,6 +212,7 @@ export const useExecutionContextStore = defineStore('executionContext', () => {
     update,
     setLLM,
     setAgent,
+    newTaskId,
     clear,
   };
 });

@@ -310,6 +310,16 @@ export const useObservabilityStore = defineStore('observability', () => {
   }
 
   /**
+   * Replace all events with new set (for time range changes)
+   * Unlike mergeEvents, this completely replaces the events array
+   */
+  function setEvents(newEvents: ObservabilityEvent[]): void {
+    events.value = [...newEvents].sort(
+      (a, b) => (a.timestamp || 0) - (b.timestamp || 0),
+    );
+  }
+
+  /**
    * Clear all events
    */
   function clearEvents(): void {
@@ -449,6 +459,7 @@ export const useObservabilityStore = defineStore('observability', () => {
     // Actions
     addEvent,
     mergeEvents,
+    setEvents,
     clearEvents,
     setConnected,
     setConnecting,

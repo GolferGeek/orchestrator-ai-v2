@@ -1,5 +1,5 @@
 import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
-import { Observable, ReplaySubject } from 'rxjs';
+import { Observable, Subject } from 'rxjs';
 import { ExecutionContext } from '@orchestrator-ai/transport-types';
 import { AuthService } from '../auth/auth.service';
 import { SupabaseService } from '../supabase/supabase.service';
@@ -42,7 +42,17 @@ export interface ObservabilityEventRecord {
 export class ObservabilityEventsService {
   private readonly logger = new Logger(ObservabilityEventsService.name);
   private readonly bufferSize: number;
-  private readonly subject: ReplaySubject<ObservabilityEventRecord>;
+  /**
+   * Use a regular Subject (not ReplaySubject) for live events.
+   *
+   * Replay is handled manually via getSnapshot() by consumers who need it.
+   * This prevents duplicate events when a consumer:
+   * 1. First calls getSnapshot() to replay missed events
+   * 2. Then subscribes to events$ for live updates
+   *
+   * Using ReplaySubject would cause events to be delivered twice.
+   */
+  private readonly subject: Subject<ObservabilityEventRecord>;
   private readonly buffer: ObservabilityEventRecord[] = [];
 
   // Cache of userId -> username mappings
@@ -59,7 +69,8 @@ export class ObservabilityEventsService {
       Number(process.env.OBSERVABILITY_EVENT_BUFFER ?? 500),
       1,
     );
-    this.subject = new ReplaySubject<ObservabilityEventRecord>(this.bufferSize);
+    // Use regular Subject - replay is handled manually via getSnapshot()
+    this.subject = new Subject<ObservabilityEventRecord>();
   }
 
   /**

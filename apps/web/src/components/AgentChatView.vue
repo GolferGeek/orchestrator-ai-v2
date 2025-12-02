@@ -129,15 +129,16 @@ const currentAgent = computed(() => {
 });
 const messages = computed(() => {
   // Get conversation ID from props or active conversation
-  const conversationId = props.conversation?.id || chatUiStore.activeConversation?.id;
+  const convId = props.conversation?.id || chatUiStore.activeConversation?.id;
 
-  if (!conversationId) {
+  if (!convId) {
     return [];
   }
 
-  // Get messages from the store's messages Map (not from conversation.messages)
-  const msgs = conversationsStore.messagesByConversation(conversationId);
-  return msgs;
+  // Access the reactive messagesMap directly for proper Vue reactivity
+  // This ensures the computed re-runs when the Map is updated
+  const msgMap = conversationsStore.messagesMap;
+  return msgMap.get(convId) || [];
 });
 const isLoading = computed(() =>
   props.conversation?.isLoading || chatUiStore.activeConversation?.isLoading || false
