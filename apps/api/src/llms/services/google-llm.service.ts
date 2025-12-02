@@ -502,15 +502,17 @@ export async function testGoogleService() {
 
   const service = createGoogleService(config, mockDependencies);
 
+  const mockContext = createMockExecutionContext();
   const params: GenerateResponseParams = {
     systemPrompt: 'You are a helpful AI assistant powered by Google Gemini.',
     userMessage: 'Explain the benefits of multimodal AI models.',
     config,
-    conversationId: 'test-conversation',
+    options: {
+      executionContext: mockContext,
+    },
   };
 
   try {
-    const mockContext = createMockExecutionContext();
     const response = await service.generateResponse(mockContext, params);
     return response;
   } catch (error) {

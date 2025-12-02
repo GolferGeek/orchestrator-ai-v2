@@ -13,6 +13,7 @@ import {
   SupabaseExecuteRequest,
   SupabaseAnalyzeRequest,
 } from '../../interfaces/mcp.interface';
+import { ExecutionContext } from '@orchestrator-ai/transport-types';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 
@@ -404,8 +405,7 @@ export class SupabaseMCPServer implements IMCPServer {
       tables,
       domain_hint,
       max_rows = 100,
-      provider,
-      model,
+      executionContext,
     } = args;
 
     try {
@@ -418,8 +418,7 @@ export class SupabaseMCPServer implements IMCPServer {
         tables,
         schemaContext,
         max_rows,
-        provider,
-        model,
+        executionContext as ExecutionContext | undefined,
       );
 
       // Return structured JSON so clients can reliably parse { sql, ... }
@@ -577,8 +576,7 @@ export class SupabaseMCPServer implements IMCPServer {
     const {
       data,
       analysis_prompt,
-      provider = 'anthropic',
-      model = 'claude-3-5-sonnet-20241022',
+      executionContext,
     } = args;
 
     try {
@@ -586,8 +584,7 @@ export class SupabaseMCPServer implements IMCPServer {
       const analysis = await this.generateLLMAnalysis(
         data,
         analysis_prompt,
-        provider,
-        model,
+        executionContext as ExecutionContext | undefined,
       );
 
       // Format analysis as clean string for the 4-step architecture
@@ -606,8 +603,8 @@ export class SupabaseMCPServer implements IMCPServer {
         _meta: {
           query_type: 'data_analysis',
           data_points: data.length,
-          analysis_provider: provider,
-          analysis_model: model,
+          analysis_provider: (executionContext as ExecutionContext | undefined)?.provider,
+          analysis_model: (executionContext as ExecutionContext | undefined)?.model,
         },
       };
     } catch (error) {
@@ -732,12 +729,15 @@ export class SupabaseMCPServer implements IMCPServer {
     tables: string[] | undefined,
     schemaContext: string,
     maxRows: number,
-    provider?: string,
-    model?: string,
+    executionContext?: ExecutionContext,
   ): Promise<string> {
-    // Let LLMService choose the best available provider/model combination
-    // This allows the system to route to local models (Ollama) when available
-    // or fall back to external providers as needed
+    // ExecutionContext is required for LLM calls
+    if (!executionContext) {
+      throw new Error(
+        'ExecutionContext is required for SQL generation. Please provide executionContext with provider and model.',
+      );
+    }
+
     // Use LLM to generate SQL with proper schema context
     const systemPrompt = `You are an expert SQL query generator for a Supabase PostgreSQL database. 
 
@@ -773,34 +773,15 @@ ${tables ? `Available tables to query: ${tables.join(', ')}\n` : ''}Maximum rows
 Return ONLY the SQL query, no explanation or formatting.`;
 
     try {
-      // Build options for LLM service
-      const generateOptions: {
-        temperature?: number;
-        maxTokens?: number;
-        callerType?: string;
-        callerName?: string;
-        dataClassification?: string;
-        providerName?: string;
-        modelName?: string;
-        includeMetadata?: boolean;
-        provider?: 'openai' | 'anthropic' | 'google' | 'ollama';
-        cidafmOptions?: Record<string, unknown>;
-        complexity?: 'simple' | 'medium' | 'complex' | 'reasoning';
-      } = {
+      // Build options for LLM service with ExecutionContext
+      const generateOptions = {
         temperature: 0.1,
         maxTokens: 1000,
         callerType: 'service' as const,
         callerName: 'supabase-mcp-service',
         dataClassification: 'internal' as const,
-        providerName: provider,
-        modelName: model,
         includeMetadata: false,
-        provider: provider as
-          | 'openai'
-          | 'anthropic'
-          | 'google'
-          | 'ollama'
-          | undefined,
+        executionContext,
       };
 
       const response = await this.llmService.generateResponse(
@@ -959,9 +940,15 @@ Return ONLY the SQL query, no explanation or formatting.`;
   private async generateLLMAnalysis(
     data: Array<Record<string, unknown>>,
     prompt: string,
-    provider: string,
-    model: string,
+    executionContext?: ExecutionContext,
   ): Promise<Record<string, unknown>> {
+    // ExecutionContext is required for LLM calls
+    if (!executionContext) {
+      throw new Error(
+        'ExecutionContext is required for data analysis. Please provide executionContext with provider and model.',
+      );
+    }
+
     try {
       const analysisPrompt = `Analyze the following data and provide insights based on this request: "${prompt}"
 
@@ -979,48 +966,17 @@ Please provide:
 
 Format your response as a structured JSON object with these sections.`;
 
-      // Resolve local-only if requested
-      const forceLocal =
-        (process.env.MCP_LOCAL_ONLY || process.env.SOVEREIGN_MODE_ENFORCED) ===
-        'true';
-      let providerName = (
-        provider ||
-        process.env.MCP_SQL_PROVIDER ||
-        ''
-      ).toLowerCase();
-      let modelName =
-        model ||
-        process.env.MCP_SQL_ANALYSIS_MODEL ||
-        process.env.MCP_SQL_MODEL ||
-        '';
-      if (forceLocal) {
-        providerName = 'ollama';
-        if (!modelName) {
-          try {
-            // TODO: Fix this - getBestModelForTask doesn't exist on llmService
-            const best = null; // await this.llmService.getBestModelForTask('medium', false, 'fast');
-            modelName =
-              best || process.env.LOCAL_LLM_DEFAULT_MODEL || 'llama3.2:latest';
-          } catch {
-            modelName =
-              process.env.LOCAL_LLM_DEFAULT_MODEL || 'llama3.2:latest';
-          }
-        }
-      }
-
       const response = await this.llmService.generateResponse(
         'You are a data analyst providing insights on business data.',
         analysisPrompt,
         {
-          providerName: providerName || 'ollama',
-          modelName: modelName || 'gpt-oss:20b',
           temperature: 0.3,
           maxTokens: 1500,
           callerType: 'service',
           callerName: 'supabase-mcp-service',
           dataClassification: 'internal',
-          // Keep lean responses to reduce debug noise
           includeMetadata: false,
+          executionContext,
         },
       );
 

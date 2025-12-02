@@ -187,33 +187,24 @@ export class LLMServiceFactory {
    * ensuring all metadata (usage, timing, costs, provider-specific data) flows through properly.
    *
    * @param config - Configuration for the LLM service
-   * @param params - Parameters for response generation
+   * @param params - Parameters for response generation (must include options.executionContext)
    * @param useCache - Whether to use cached service instances (default: true)
-   * @param context - Optional ExecutionContext for observability (recommended)
    * @returns Promise<LLMResponse> - Complete response with full metadata
    */
   async generateResponse(
     config: LLMServiceConfig,
     params: GenerateResponseParams,
     useCache: boolean = true,
-    context?: ExecutionContext,
   ): Promise<LLMResponse> {
     // Create or get cached service
     const service = await this.createService(config, useCache);
 
-    // Build context if not provided (for backward compatibility)
-    // Note: conversationId must be a valid UUID or undefined (not 'unknown')
-    const effectiveContext: ExecutionContext =
-      context ||
-      createMockExecutionContext({
-        orgSlug: 'system',
-        userId: params.userId || 'system',
-        conversationId: params.conversationId, // Pass undefined if not provided - DB expects UUID or null
-      });
+    // ExecutionContext is required and comes from params.options
+    const executionContext = params.options.executionContext;
 
     // Generate response with full metadata, with retry on transient errors only
     const response = await LLMRetryHandler.withRetry(
-      () => service.generateResponse(effectiveContext, params),
+      () => service.generateResponse(executionContext, params),
       DEFAULT_RETRY_CONFIG,
       `LLMFactory:${config.provider}:${config.model}`,
     );

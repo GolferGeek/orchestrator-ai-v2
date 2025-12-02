@@ -450,18 +450,21 @@ export async function testOllamaService() {
     throw new Error('Ollama server is not healthy');
   }
 
+  const mockContext = createMockExecutionContext({
+    conversationId: 'test-conversation',
+  });
+
   const params: GenerateResponseParams = {
     systemPrompt: 'You are a helpful AI assistant running locally.',
     userMessage: 'Hello, tell me about yourself.',
     config,
-    conversationId: 'test-conversation',
     options: {
       preferLocal: true, // This will set tier to 'local'
+      executionContext: mockContext,
     },
   };
 
   try {
-    const mockContext = createMockExecutionContext();
     const response = await service.generateResponse(mockContext, params);
     return response;
   } catch (error) {

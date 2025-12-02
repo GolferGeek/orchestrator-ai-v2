@@ -80,20 +80,16 @@ export interface LLMRequestOptions extends Record<string, unknown> {
   piiMetadata?: PIIProcessingMetadata;
   routingDecision?: RoutingDecision;
   cidafmOptions?: CIDAFMOptions;
-  /** ExecutionContext for observability - flows from endpoint through to LLM */
-  executionContext?: ExecutionContext;
+  /** ExecutionContext for observability - flows from endpoint through to LLM. REQUIRED. */
+  executionContext: ExecutionContext;
 }
 
 export interface GenerateResponseParams {
   systemPrompt: string;
   userMessage: string;
   config: LLMServiceConfig;
-  conversationId?: string;
-  sessionId?: string;
-  taskId?: string;
-  userId?: string;
   headers?: LLMRequestHeaders;
-  options?: LLMRequestOptions;
+  options: LLMRequestOptions; // Required - must include executionContext
 }
 
 /**

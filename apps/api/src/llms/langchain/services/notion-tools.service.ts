@@ -178,6 +178,7 @@ export class LangChainNotionService {
    */
   async processNotionRequest(
     userMessage: string,
+    executionContext: import('@orchestrator-ai/transport-types').ExecutionContext,
     options?: {
       provider?: string;
       model?: string;
@@ -206,6 +207,7 @@ Respond with JSON containing:
       const llmResponse = await this.langchainClient.executeSimpleCall(
         systemPrompt,
         userMessage,
+        executionContext,
         options,
       );
 

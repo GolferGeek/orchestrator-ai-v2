@@ -243,8 +243,13 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
       );
 
       if (deliverable) {
+        // Build ExecutionContext for version creation
+        const context: ExecutionContext = {
+          ...request.context,
+          deliverableId: deliverable.id,
+        };
+
         await this.versionsService.createVersion(
-          deliverable.id,
           {
             content: this.contentToString(content),
             createdByType: DeliverableVersionCreationType.MANUAL_EDIT,
@@ -253,7 +258,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
               replacedAt: new Date().toISOString(),
             },
           },
-          userId,
+          context,
         );
       }
     }
@@ -308,9 +313,14 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
 
     let currentVersionNumber: number | undefined;
     if (deliverable) {
+      // Build ExecutionContext for version retrieval
+      const context: ExecutionContext = {
+        ...request.context,
+        deliverableId: deliverable.id,
+      };
+
       const currentVersion = await this.versionsService.getCurrentVersion(
-        deliverable.id,
-        userId,
+        context,
       );
       currentVersionNumber = currentVersion?.versionNumber;
     }
@@ -380,9 +390,14 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
     }
 
     // Get version history
+    // Build ExecutionContext for version history retrieval
+    const context: ExecutionContext = {
+      ...request.context,
+      deliverableId: deliverable.id,
+    };
+
     const versions = await this.versionsService.getVersionHistory(
-      deliverable.id,
-      userId,
+      context,
     );
 
     const currentVersion = versions.find((v) => v.isCurrentVersion);
@@ -445,9 +460,14 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
 
       let currentVersionNumber: number | undefined;
       if (deliverable) {
+        // Build ExecutionContext for version retrieval
+        const versionContext: ExecutionContext = {
+          ...request.context,
+          deliverableId: deliverable.id,
+        };
+
         const currentVersion = await this.versionsService.getCurrentVersion(
-          deliverable.id,
-          userId,
+          versionContext,
         );
         currentVersionNumber = currentVersion?.versionNumber;
       }
@@ -600,9 +620,14 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
 
       let currentVersionNumber = 1;
       if (deliverable) {
+        // Build ExecutionContext for version retrieval
+        const versionContext: ExecutionContext = {
+          ...request.context,
+          deliverableId: deliverable.id,
+        };
+
         const currentVersion = await this.versionsService.getCurrentVersion(
-          deliverable.id,
-          userId || '',
+          versionContext,
         );
         currentVersionNumber = currentVersion?.versionNumber || 1;
       }
@@ -661,9 +686,14 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
       const finalContentString =
         this.buildDeliverableContentFromHitl(finalContent);
 
+      // Build ExecutionContext for version operations
+      const versionContext: ExecutionContext = {
+        ...request.context,
+        deliverableId: existingDeliverable.id,
+      };
+
       // Create a new version with the final approved content
       await this.versionsService.createVersion(
-        existingDeliverable.id,
         {
           content: finalContentString,
           createdByType: DeliverableVersionCreationType.AI_RESPONSE,
@@ -677,13 +707,12 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
               finalContent.socialPosts.length > 0,
           },
         },
-        userId || '',
+        versionContext,
       );
 
       // Get the updated version number
       const currentVersion = await this.versionsService.getCurrentVersion(
-        existingDeliverable.id,
-        userId || '',
+        versionContext,
       );
       const currentVersionNumber = currentVersion?.versionNumber || 2;
 
@@ -1445,27 +1474,31 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
                 `📦 [HITL-BUILD] Using deliverable type: ${deliverableType} (from agent config: ${agentDeliverableType || 'not set'})`,
               );
 
-              const deliverable = await this.deliverablesService.create(
+              // Create deliverable using executeAction with ExecutionContext
+              const deliverableResult = await this.deliverablesService.executeAction(
+                'create',
                 {
                   title: topic.substring(0, 255) || 'HITL Review Content',
+                  content: contentForDeliverable,
+                  format: DeliverableFormat.MARKDOWN,
                   type: deliverableType,
-                  conversationId,
                   agentName: definition.slug,
                   taskId: hitlTaskId,
-                  initialContent: contentForDeliverable,
-                  initialFormat: DeliverableFormat.MARKDOWN,
-                  initialCreationType:
-                    DeliverableVersionCreationType.AI_RESPONSE,
-                  initialTaskId: hitlTaskId,
-                  initialMetadata: {
+                  metadata: {
                     hitlStatus: 'pending_review',
                     generatedAt: new Date().toISOString(),
                     provider,
                     model,
                   },
                 },
-                userId,
+                request.context,
               );
+
+              if (!deliverableResult.success) {
+                throw new Error(deliverableResult.error?.message || 'Failed to create deliverable');
+              }
+
+              const deliverable = deliverableResult.data as { id: string };
               deliverableId = deliverable.id;
               this.logger.log(
                 `📦 [HITL-BUILD] Created deliverable ${deliverableId} for HITL task ${hitlTaskId}`,

@@ -462,15 +462,17 @@ export async function testOpenAIService() {
 
   const service = createOpenAIService(config, mockDependencies);
 
+  const mockContext = createMockExecutionContext();
   const params: GenerateResponseParams = {
     systemPrompt: 'You are a helpful assistant.',
     userMessage: 'Hello, how are you?',
     config,
-    conversationId: 'test-conversation',
+    options: {
+      executionContext: mockContext,
+    },
   };
 
   try {
-    const mockContext = createMockExecutionContext();
     const response = await service.generateResponse(mockContext, params);
     return response;
   } catch (error) {

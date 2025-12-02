@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ExecutionContext } from '@orchestrator-ai/transport-types';
+import { ExecutionContext, NIL_UUID } from '@orchestrator-ai/transport-types';
 import OpenAI from 'openai';
 import { ChatOllama } from '@langchain/ollama';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
@@ -145,44 +145,56 @@ export class LLMService {
     const startTime = Date.now();
     const executionContext = options?.executionContext;
 
-    // Emit LLM started event - use direct push when ExecutionContext is available
-    if (executionContext) {
-      this.emitLlmObservabilityEvent('agent.llm.started', executionContext, {
-        provider: options?.providerName || options?.provider,
-        model: options?.modelName,
-        message: 'LLM call started',
-        systemPromptPreview: systemPrompt.substring(0, 500),
-        userMessagePreview: userMessage.substring(0, 500),
-      });
+    // ExecutionContext is required - it contains provider, model, and all context
+    if (!executionContext) {
+      throw new Error(
+        'ExecutionContext is required for generateResponse. Pass executionContext in options.',
+      );
     }
 
+    // Extract provider/model from ExecutionContext - it's the single source of truth
+    const providerName = executionContext.provider;
+    const modelName = executionContext.model;
+
+    if (!providerName || !modelName) {
+      throw new Error(
+        'ExecutionContext must contain provider and model. These are required fields.',
+      );
+    }
+
+    // Emit LLM started event
+    this.emitLlmObservabilityEvent('agent.llm.started', executionContext, {
+      provider: providerName,
+      model: modelName,
+      message: 'LLM call started',
+      systemPromptPreview: systemPrompt.substring(0, 500),
+      userMessagePreview: userMessage.substring(0, 500),
+    });
+
     try {
+      // === PII PROCESSING BEFORE FACTORY CALL ===
+      let processedUserMessage = userMessage;
+      let dictionaryMappings: DictionaryPseudonymMapping[] = [];
+      let enhancedPiiMetadata: PIIProcessingMetadata | undefined =
+        options?.piiMetadata ?? undefined;
 
-      // If providerName/modelName are provided, use the unified method
-      if (options?.providerName && options?.modelName) {
-        // === PII PROCESSING BEFORE FACTORY CALL ===
-        let processedUserMessage = userMessage;
-        let dictionaryMappings: DictionaryPseudonymMapping[] = [];
-        let enhancedPiiMetadata: PIIProcessingMetadata | undefined =
-          options?.piiMetadata ?? undefined;
-
-        // Always apply dictionary pseudonymization for external providers (non-Ollama), unless quick bypass
-        const skipPII = options?.quick === true;
-        if (!skipPII && options.providerName.toLowerCase() !== 'ollama') {
-          const pseudonymResult =
-            await this.dictionaryPseudonymizerService.pseudonymizeText(
-              userMessage,
-              {
-                organizationSlug: options?.organizationSlug ?? null,
-                agentSlug: options?.agentSlug ?? null,
-              },
-            );
+      // Always apply dictionary pseudonymization for external providers (non-Ollama), unless quick bypass
+      const skipPII = options?.quick === true;
+      if (!skipPII && providerName.toLowerCase() !== 'ollama') {
+        const pseudonymResult =
+          await this.dictionaryPseudonymizerService.pseudonymizeText(
+            userMessage,
+            {
+              organizationSlug: executionContext.orgSlug ?? null,
+              agentSlug: executionContext.agentSlug ?? null,
+            },
+          );
           processedUserMessage = pseudonymResult.pseudonymizedText;
           dictionaryMappings = pseudonymResult.mappings;
 
           const requestId =
-            options.conversationId ||
-            options.sessionId ||
+            executionContext.conversationId ||
+            executionContext.taskId ||
             `pii-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
           const dictionaryMatches = pseudonymResult.mappings.map((m) => ({
             value: m.originalValue,
@@ -255,8 +267,8 @@ export class LLMService {
             const piiPolicyResult = await this.piiService.checkPolicy(
               userMessage,
               {
-                provider: options.providerName,
-                providerName: options.providerName,
+                provider: providerName,
+                providerName: providerName,
               },
             );
 
@@ -304,10 +316,10 @@ export class LLMService {
 
         // Use the new unified LLM service factory approach
         const config: LLMServiceConfig = {
-          provider: options.providerName,
-          model: options.modelName,
-          temperature: options.temperature,
-          maxTokens: options.maxTokens,
+          provider: providerName,
+          model: modelName,
+          temperature: options?.temperature,
+          maxTokens: options?.maxTokens,
         };
 
         const factoryParams: GenerateResponseParams = {
@@ -315,19 +327,19 @@ export class LLMService {
           userMessage: processedUserMessage, // Use processed message
           config,
           options: {
-            callerType: options.callerType,
-            callerName: options.callerName,
-            conversationId: options.conversationId,
-            sessionId: options.sessionId,
-            userId: options.userId || options.currentUser?.id,
-            authToken: options.authToken,
-            currentUser: options.currentUser,
-            dataClassification: options.dataClassification,
-            // Pass enhanced PII metadata and mappings
+            // Caller tracking
+            callerType: options?.callerType,
+            callerName: options?.callerName,
+            // Optional overrides
+            authToken: options?.authToken,
+            currentUser: options?.currentUser,
+            dataClassification: options?.dataClassification,
+            // PII processing
             piiMetadata: enhancedPiiMetadata,
             dictionaryMappings: dictionaryMappings,
-            routingDecision: (options as Record<string, unknown>)
-              ?.routingDecision as RoutingDecision | undefined,
+            routingDecision: options?.routingDecision,
+            // ExecutionContext is the single source of truth
+            executionContext,
           },
         };
 
@@ -354,243 +366,27 @@ export class LLMService {
         if (enhancedPiiMetadata) {
           unifiedResult.piiMetadata = enhancedPiiMetadata;
         }
-        // Emit LLM completed event - use direct push when ExecutionContext is available
-        if (executionContext) {
-          this.emitLlmObservabilityEvent('agent.llm.completed', executionContext, {
-            provider: options?.providerName || options?.provider,
-            model: options?.modelName,
-            message: 'LLM call completed',
-            responsePreview: unifiedResult.content?.substring(0, 500),
-            metadata: unifiedResult.metadata,
-          });
-        }
+        // Emit LLM completed event
+        this.emitLlmObservabilityEvent('agent.llm.completed', executionContext, {
+          provider: providerName,
+          model: modelName,
+          message: 'LLM call completed',
+          responsePreview: unifiedResult.content?.substring(0, 500),
+          metadata: unifiedResult.metadata,
+        });
 
         return unifiedResult;
-      }
+    } catch (error) {
+      // Emit LLM failed event
+      this.emitLlmObservabilityEvent('agent.llm.failed', executionContext, {
+        provider: providerName,
+        model: modelName,
+        message: 'LLM call failed',
+        error: error instanceof Error ? error.message : String(error),
+      });
 
-      // If only partial provider/model info or CIDAFM options are provided, require explicit specification
-      if (
-        options?.providerName ||
-        options?.modelName ||
-        options?.cidafmOptions
-      ) {
-        throw new Error(
-          'Both provider and model must be explicitly specified. ' +
-            'The enhanced response method has been removed. ' +
-            'Please provide both providerName and modelName in options.',
-        );
-      }
-
-      // No fallback routing - require explicit provider/model specification
-      throw new Error(
-        'No LLM provider and model specified. The centralized routing fallback has been removed. ' +
-          'Please provide both "providerName" and "modelName" in options. ' +
-          'Available providers: openai, anthropic, google, grok, ollama',
-      );
-
-      // Original simple implementation for backward compatibility
-      const provider = options?.provider || options?.providerName;
-
-      // No fallback - require explicit provider configuration
-      if (!provider) {
-        throw new Error(
-          'No LLM provider specified. Please provide either "provider" or "providerName" in options. ' +
-            'Available providers: ollama, anthropic, openai, google',
-        );
-      }
-
-      // TypeScript assertion: provider is guaranteed to be defined after the check above
-      const validProvider = provider!; // Non-null assertion since we checked above
-
-      const isLocalProvider = validProvider === 'ollama';
-
-      // Apply conditional sanitization using unified PII service
-      // Generate request ID for pseudonymization context
-      const _requestId =
-        options?.conversationId ||
-        options?.sessionId ||
-        `simple-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-      // Step 1: Dictionary-based pseudonymization for external providers only
-      let sanitizedUserMessage = userMessage;
-      let sanitizationContext: {
-        mappings: DictionaryPseudonymMapping[];
-        processingTimeMs: number;
-      } | null = null;
-
-      if (!isLocalProvider) {
-        const pseudonymResult =
-          await this.dictionaryPseudonymizerService.pseudonymizeText(
-            userMessage,
-          );
-        sanitizedUserMessage = pseudonymResult.pseudonymizedText;
-        sanitizationContext = {
-          mappings: pseudonymResult.mappings,
-          processingTimeMs: pseudonymResult.processingTimeMs,
-        };
-      }
-
-      const sanitizedSystemPrompt = systemPrompt; // System prompts typically don't contain user PII
-
-      // No DB usage tracking in simple path to avoid partial rows
-
-      try {
-        // Use LangChain LLM instead of raw OpenAI - this gets automatic LangSmith tracing
-        const llm =
-          options?.temperature || options?.maxTokens || options?.provider
-            ? this.createCustomLangGraphLLM({
-                provider: validProvider as
-                  | 'openai'
-                  | 'anthropic'
-                  | 'ollama'
-                  | 'google',
-                model: options?.modelName,
-                temperature: options?.temperature,
-                maxTokens: options?.maxTokens,
-              })
-            : this.getLangGraphLLM(
-                validProvider as 'openai' | 'anthropic' | 'ollama' | 'google',
-              );
-
-        // Format messages for the specific provider - LLM service controls the format
-        const messages = this.formatMessagesForProvider(
-          sanitizedSystemPrompt,
-          sanitizedUserMessage,
-          validProvider,
-          options?.modelName,
-        );
-
-        const response = await llm.invoke(messages);
-        let content =
-          (response.content as string) ||
-          'I apologize, but I was unable to generate a response.';
-
-        // Step 2: Reverse pseudonyms in the response
-        if (
-          sanitizationContext !== null &&
-          sanitizationContext!.mappings &&
-          sanitizationContext!.mappings.length > 0
-        ) {
-          const mappings = sanitizationContext!.mappings;
-          const reversalResult =
-            await this.dictionaryPseudonymizerService.reversePseudonyms(
-              content,
-              mappings,
-            );
-          content = reversalResult.originalText;
-
-          if (reversalResult.reversalCount === 0) {
-            this.logger.warn(
-              `🔄 [DICTIONARY-PSEUDONYMIZER] Expected reversals but none found - LLM may not have used the pseudonyms`,
-            );
-          }
-        }
-
-        // No DB usage write here — providers handle their own one-pass insert
-
-        // Return metadata if requested (for HTTP API calls)
-        if (options?.includeMetadata) {
-          const endTime = Date.now();
-
-          let pseudonymizationMetadata;
-          if (
-            sanitizationContext !== null &&
-            sanitizationContext!.mappings &&
-            sanitizationContext!.mappings.length > 0
-          ) {
-            pseudonymizationMetadata = {
-              pseudonymizationApplied: true,
-              pseudonymCount: sanitizationContext!.mappings.length,
-              processingTimeMs: sanitizationContext!.processingTimeMs,
-              mappings: sanitizationContext!.mappings.map((m) => ({
-                type: m.dataType,
-                originalLength: m.originalValue.length,
-                pseudonymLength: m.pseudonym.length,
-              })),
-            };
-          } else {
-            pseudonymizationMetadata = {
-              pseudonymizationApplied: false,
-              pseudonymCount: 0,
-              processingTimeMs: 0,
-              mappings: [],
-            };
-          }
-
-          const metadata: ResponseMetadata = {
-            provider: options?.providerName ?? 'unknown',
-            model: options?.modelName ?? 'unknown',
-            requestId: `legacy-${startTime}`,
-            timestamp: new Date(endTime).toISOString(),
-            usage: {
-              inputTokens: 0,
-              outputTokens: 0,
-              totalTokens: 0,
-            },
-            timing: {
-              startTime,
-              endTime,
-              duration: endTime - startTime,
-            },
-            tier:
-              options?.providerName?.toLowerCase() === 'ollama'
-                ? 'local'
-                : 'external',
-            status: 'completed',
-            providerSpecific: {
-              sanitizationMetadata: pseudonymizationMetadata,
-            },
-          };
-
-          return {
-            content,
-            metadata,
-            piiMetadata: options?.piiMetadata ?? null,
-            sanitizationMetadata: pseudonymizationMetadata as Record<
-              string,
-              unknown
-            >,
-          };
-        }
-
-        // Emit LLM completed event for legacy path - use direct push when ExecutionContext is available
-        if (executionContext) {
-          this.emitLlmObservabilityEvent('agent.llm.completed', executionContext!, {
-            provider: options?.providerName || options?.provider,
-            model: options?.modelName,
-            message: 'LLM call completed',
-            responsePreview: content.substring(0, 500),
-          });
-        }
-
-        return content;
-      } catch (error: unknown) {
-        let errorMessage: string;
-        if (error instanceof Error) {
-          errorMessage = (error as Error).message;
-        } else {
-          errorMessage = String(error);
-        }
-        throw new Error(`LLM service error: ${errorMessage}`);
-      }
-    } catch (_outerError) {
-      // Emit LLM failed event - use direct push when ExecutionContext is available
-      if (executionContext) {
-        this.emitLlmObservabilityEvent('agent.llm.failed', executionContext, {
-          provider: options?.providerName || options?.provider,
-          model: options?.modelName,
-          message: 'LLM call failed',
-          error:
-            _outerError instanceof Error
-              ? _outerError.message
-              : String(_outerError),
-        });
-      }
-      // Handle any errors in the try block setup
       const errorMessage =
-        _outerError instanceof Error
-          ? _outerError.message
-          : String(_outerError);
+        error instanceof Error ? error.message : String(error);
       throw new Error(`LLM service error: ${errorMessage}`);
     }
   }
@@ -670,6 +466,9 @@ export class LLMService {
       }
       if (!params.userMessage) {
         throw new Error('Missing required parameter: userMessage is required');
+      }
+      if (!executionContext) {
+        throw new Error('Missing required parameter: executionContext is required in options');
       }
 
       // Validate provider is supported
@@ -805,9 +604,6 @@ export class LLMService {
         systemPrompt: params.systemPrompt,
         userMessage: processedUserMessage, // Use processed message with pseudonyms
         config,
-        conversationId: params.options?.conversationId,
-        sessionId: params.options?.sessionId,
-        userId: params.options?.userId,
         options: {
           temperature: params.options?.temperature,
           maxTokens: params.options?.maxTokens,
@@ -816,10 +612,15 @@ export class LLMService {
           dataClassification: params.options?.dataClassification,
           authToken: params.options?.authToken,
           currentUser: params.options?.currentUser,
+          conversationId: params.options?.conversationId,
+          sessionId: params.options?.sessionId,
+          userId: params.options?.userId,
           // Pass enhanced PII metadata and dictionary mappings
           piiMetadata: enhancedPiiMetadata,
           dictionaryMappings: dictionaryMappings,
           routingDecision: params.options?.routingDecision,
+          // ExecutionContext is the single source of truth (validated above)
+          executionContext,
         },
       };
 
@@ -1361,6 +1162,20 @@ export class LLMService {
         throw new Error('User preferences must include a valid modelName');
       }
 
+      // Create ExecutionContext for this user content generation
+      const executionContext: ExecutionContext = {
+        orgSlug: 'user-content', // Default org slug for user content
+        userId: authToken || 'user',
+        conversationId: sessionId || NIL_UUID,
+        taskId: NIL_UUID, // No task for user content
+        planId: NIL_UUID,
+        deliverableId: NIL_UUID,
+        agentSlug: 'user-content-agent',
+        agentType: 'user',
+        provider: userPreferences.providerName,
+        model: userPreferences.modelName,
+      };
+
       // Use the unified response method
       const result = await this.generateUnifiedResponse({
         provider: userPreferences.providerName,
@@ -1373,6 +1188,7 @@ export class LLMService {
           sessionId: sessionId,
           userId: authToken || 'user',
           includeMetadata: true, // This method expects rich metadata
+          executionContext,
         },
       });
 

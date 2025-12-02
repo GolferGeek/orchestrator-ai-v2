@@ -98,8 +98,19 @@ export class AgentRuntimeDeliverablesAdapter {
           ? payloadMeta.deliverableId
           : undefined);
       if (targetDeliverableId) {
+        const executionContext = {
+          orgSlug: ctx.organizationSlug || 'default',
+          userId: userId,
+          conversationId: conversationId,
+          taskId: request.context?.taskId ?? '00000000-0000-0000-0000-000000000000',
+          planId: '00000000-0000-0000-0000-000000000000',
+          deliverableId: targetDeliverableId,
+          agentSlug: ctx.agentSlug,
+          agentType: 'context',
+          provider: '00000000-0000-0000-0000-000000000000',
+          model: '00000000-0000-0000-0000-000000000000',
+        };
         const version = await this.versions.createVersion(
-          targetDeliverableId,
           {
             content:
               content || (hasImages ? this.describeImageSet(storedImages) : ''),
@@ -117,7 +128,7 @@ export class AgentRuntimeDeliverablesAdapter {
             },
             fileAttachments: hasImages ? { images: storedImages } : undefined,
           },
-          userId,
+          executionContext,
         );
         return { kind: 'version', deliverableId: targetDeliverableId, version };
       }

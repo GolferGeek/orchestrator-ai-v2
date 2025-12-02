@@ -1,6 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import { LLMService } from '@llm/llm.service';
-import type { LLMResponse } from '@llm/services/llm-interfaces';
+import type { LLMResponse, LLMRequestOptions } from '@llm/services/llm-interfaces';
 import type { ConversationMessage } from '../../context-optimization/context-optimization.service';
 import { PlansService } from '../../plans/services/plans.service';
 import { DeliverablesService } from '../../deliverables/deliverables.service';
@@ -122,16 +122,22 @@ export async function fetchExistingPlan(
   );
 
   try {
-    if (planId) {
-      return await plansService.findOne(planId, userId);
-    }
-
-    const conversationId = resolveConversationId(request);
-    if (!conversationId) {
+    // Use the ExecutionContext from the request, updating planId if found
+    const executionContext = request.context;
+    if (!executionContext) {
       return null;
     }
 
-    return await plansService.findByConversationId(conversationId, userId);
+    // If we found a planId from various sources, use a context with that planId
+    const contextWithPlan: ExecutionContext = planId
+      ? { ...executionContext, planId }
+      : executionContext;
+
+    if (planId) {
+      return await plansService.findOne(contextWithPlan);
+    }
+
+    return await plansService.findByConversationId(contextWithPlan);
   } catch (error) {
     if (error instanceof NotFoundException) {
       return null;
@@ -317,81 +323,35 @@ export async function callLLM(
     throw new Error('User message is required for LLM invocation');
   }
 
+  // Extract LLM config overrides only - context comes from ExecutionContext
   const config = llmConfig ?? {};
-  const provider =
-    typeof config.provider === 'string'
-      ? config.provider
-      : typeof config.providerName === 'string'
-        ? config.providerName
-        : null;
-  const model =
-    typeof config.model === 'string'
-      ? config.model
-      : typeof config.modelName === 'string'
-        ? config.modelName
-        : null;
-
-  if (!provider || !model) {
-    throw new Error(
-      'LLM provider and model must be explicitly specified in the configuration',
-    );
-  }
-
   const temperature =
     typeof config.temperature === 'number' ? config.temperature : undefined;
   const maxTokens =
     typeof config.maxTokens === 'number' ? config.maxTokens : undefined;
   const stream = typeof config.stream === 'boolean' ? config.stream : undefined;
-  const conversationId =
-    typeof config.conversationId === 'string'
-      ? config.conversationId
-      : undefined;
-  const sessionId =
-    typeof config.sessionId === 'string' ? config.sessionId : undefined;
-  const userId = typeof config.userId === 'string' ? config.userId : undefined;
   const callerType =
     typeof config.callerType === 'string' ? config.callerType : 'agent';
   const callerName =
     typeof config.callerName === 'string'
       ? config.callerName
       : 'agent-converse-mode';
-  const organizationSlug =
-    typeof config.organizationSlug === 'string'
-      ? config.organizationSlug
-      : config.organizationSlug === null
-        ? null
-        : undefined;
-  const agentSlug =
-    typeof config.agentSlug === 'string' ? config.agentSlug : undefined;
 
   try {
-    const options: Record<string, unknown> = {
-      temperature,
-      maxTokens,
-      stream,
-      provider,
-      providerName: provider,
-      conversationId,
-      sessionId,
-      userId,
-      callerType,
-      callerName,
-      organizationSlug,
-      agentSlug,
-      // Pass conversation history for providers that support it.
-      previousMessages: conversationHistory,
-      // Pass ExecutionContext for observability - events are emitted in generateResponse
-      executionContext,
-    };
-
-    if (model) {
-      options.modelName = model;
-    }
-
     const response = await llmService.generateResponse(
       systemPrompt,
       userMessage,
-      options,
+      {
+        // LLM config overrides (if provided in llmConfig)
+        temperature,
+        maxTokens,
+        stream,
+        // Caller tracking
+        callerType,
+        callerName,
+        // ExecutionContext is the single source of truth for context fields
+        executionContext,
+      },
     );
 
     if (!isLLMResponse(response)) {

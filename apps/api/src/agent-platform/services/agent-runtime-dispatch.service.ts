@@ -15,12 +15,14 @@ import {
   AgentTaskMode,
 } from '@agent2agent/dto/task-request.dto';
 import { AgentRuntimeMetricsService } from './agent-runtime-metrics.service';
+import type { ExecutionContext } from '@orchestrator-ai/transport-types';
 
 export interface AgentRuntimeDispatchOptions {
   definition: AgentRuntimeDefinition;
   routingDecision: RoutingDecision;
   prompt: PromptPayload;
   request: TaskRequestDto;
+  executionContext: ExecutionContext;
   stream?: boolean;
   onStreamChunk?: (chunk: AgentRuntimeStreamChunk) => void;
   overrides?: {
@@ -243,12 +245,6 @@ export class AgentRuntimeDispatchService {
         confidence: 1.0,
       } as LLMRoutingDecision,
       preferLocal: routingDecision.isLocal,
-      organizationSlug:
-        (Array.isArray(options.definition.organizationSlug) &&
-        options.definition.organizationSlug.length > 0
-          ? options.definition.organizationSlug[0]
-          : null) ?? null,
-      agentSlug: options.definition.slug,
       stream:
         overrideStream ??
         options.stream ??
@@ -257,18 +253,14 @@ export class AgentRuntimeDispatchService {
       maxComplexity: finalMaxComplexity,
       ...restOptions,
       ...otherOverrides,
-      metadata: {
-        ...prompt.optionMetadata,
-      },
+      // ExecutionContext is the single source of truth
+      executionContext: options.executionContext,
     };
 
     return {
       systemPrompt: prompt.systemPrompt,
       userMessage: prompt.userMessage,
       config,
-      conversationId: prompt.conversationId,
-      sessionId: prompt.sessionId,
-      userId: prompt.userId ?? undefined,
       options: finalOptions,
     };
   }
@@ -474,6 +466,9 @@ export class AgentRuntimeDispatchService {
         systemPrompt: options.prompt.systemPrompt,
         userMessage: options.prompt.userMessage,
         config: { provider: 'external_api', model: 'api_endpoint' },
+        options: {
+          executionContext: options.executionContext,
+        },
       },
       routingDecision: options.routingDecision,
     };
@@ -610,6 +605,9 @@ export class AgentRuntimeDispatchService {
         systemPrompt: options.prompt.systemPrompt,
         userMessage: options.prompt.userMessage,
         config: { provider: 'external_a2a', model: 'a2a' },
+        options: {
+          executionContext: options.executionContext,
+        },
       },
       routingDecision: options.routingDecision,
     };

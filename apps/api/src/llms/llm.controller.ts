@@ -87,35 +87,29 @@ export class LLMController {
         throw new BadRequestException(guidance);
       }
 
-      // Use ExecutionContext if provided, otherwise fall back to options
       const ctx = request.context;
-      const providerName =
-        ctx?.provider ||
-        request.options?.providerName ||
-        request.options?.provider;
-      const modelName = ctx?.model || request.options?.modelName;
+
+      // Require ExecutionContext - callers must pass it
+      if (!ctx) {
+        throw new BadRequestException(
+          'ExecutionContext is required. Pass "context" in the request body with conversationId, taskId, userId, orgSlug, agentSlug, provider, and model.',
+        );
+      }
 
       const result = await this.llmService.generateResponse(
         request.systemPrompt,
         request.userPrompt,
         {
+          // LLM config overrides from options
           temperature: request.options?.temperature,
           maxTokens: request.options?.maxTokens,
-          provider: request.options?.provider,
-          providerName,
-          modelName,
           // Caller tracking
           callerType: request.options?.callerType || 'api',
           callerName: request.options?.callerName || 'llm-controller',
-          // Context fields - prefer ExecutionContext, fall back to options
-          userId: ctx?.userId || request.options?.userId,
-          conversationId:
-            ctx?.conversationId || request.options?.conversationId,
-          taskId: ctx?.taskId || request.options?.taskId,
-          organizationSlug: ctx?.orgSlug || request.options?.organizationSlug,
-          agentSlug: ctx?.agentSlug,
           dataClassification: request.options?.dataClassification || 'public',
           includeMetadata: true,
+          // ExecutionContext is the single source of truth
+          executionContext: ctx,
         },
       );
 

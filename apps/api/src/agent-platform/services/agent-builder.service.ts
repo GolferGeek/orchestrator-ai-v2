@@ -4,7 +4,7 @@ import { AgentPolicyService } from './agent-policy.service';
 import { AgentDryRunService } from './agent-dry-run.service';
 import { AgentsRepository } from '../repositories/agents.repository';
 import { LLMService } from '@/llms/llm.service';
-import type { JsonObject } from '@orchestrator-ai/transport-types';
+import type { JsonObject, ExecutionContext } from '@orchestrator-ai/transport-types';
 import type { AgentType } from '../schemas/agent-schemas';
 
 interface ValidationIssue {
@@ -31,6 +31,7 @@ export interface AgentBuilderContext {
     description: string,
     inputModes: string[],
     outputModes: string[],
+    executionContext: ExecutionContext,
   ) => Promise<{ code: string; error?: string }>;
 }
 
@@ -227,6 +228,7 @@ export class AgentBuilderService {
     description: string,
     inputModes: string[],
     outputModes: string[],
+    executionContext: ExecutionContext,
   ): Promise<{ code: string; error?: string }> {
     try {
       const systemPrompt = `You are a JavaScript code generator for function agents. Generate clean, production-ready JavaScript code based on the user's requirements.
@@ -269,12 +271,11 @@ Generate the complete handler function. Return ONLY the code, nothing else.`;
         systemPrompt,
         userPrompt,
         {
-          providerName: 'openai',
-          modelName: 'gpt-4o-mini',
           temperature: 0.3,
           maxTokens: 2000,
           callerType: 'service',
           callerName: 'agent-builder-code-gen',
+          executionContext,
         },
       );
 

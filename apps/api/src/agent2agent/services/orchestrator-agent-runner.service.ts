@@ -151,6 +151,7 @@ Respond with ONLY the agent slug (e.g., "marketing", "analytics"). Choose the si
       prompt,
       '', // No user message needed
       {
+        executionContext: request.context,
         maxTokens: 50,
         temperature: 0.1, // Low temperature for consistent selection
       },

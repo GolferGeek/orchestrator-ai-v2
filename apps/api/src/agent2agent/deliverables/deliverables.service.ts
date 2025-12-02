@@ -311,8 +311,11 @@ export class DeliverablesService implements IActionHandler {
 
     if (existingDeliverable) {
       // Enhance existing deliverable - create new version
+      const enhanceContext: ExecutionContext = {
+        ...context,
+        deliverableId: existingDeliverable.id,
+      };
       const newVersion = await this.versionsService.createVersion(
-        existingDeliverable.id,
         {
           content: params.content,
           format:
@@ -321,7 +324,7 @@ export class DeliverablesService implements IActionHandler {
           taskId: params.taskId ?? context.taskId ?? undefined,
           metadata: params.metadata || {},
         },
-        context.userId,
+        enhanceContext,
       );
 
       return {
@@ -420,10 +423,12 @@ export class DeliverablesService implements IActionHandler {
       );
     }
 
-    const versions = await this.versionsService.getVersionHistory(
-      deliverable.id,
-      context.userId,
-    );
+    const historyContext: ExecutionContext = {
+      ...context,
+      deliverableId: deliverable.id,
+    };
+    const versions =
+      await this.versionsService.getVersionHistory(historyContext);
 
     return { deliverable, versions };
   }
@@ -451,17 +456,18 @@ export class DeliverablesService implements IActionHandler {
       );
     }
 
-    const currentVersion = await this.versionsService.getCurrentVersion(
-      deliverable.id,
-      context.userId,
-    );
+    const editContext: ExecutionContext = {
+      ...context,
+      deliverableId: deliverable.id,
+    };
+    const currentVersion =
+      await this.versionsService.getCurrentVersion(editContext);
 
     if (!currentVersion) {
       throw new NotFoundException(`No current version found for deliverable`);
     }
 
     const newVersion = await this.versionsService.createVersion(
-      deliverable.id,
       {
         content: params.content,
         format: currentVersion.format,
@@ -472,7 +478,7 @@ export class DeliverablesService implements IActionHandler {
           editedAt: new Date().toISOString(),
         },
       },
-      context.userId,
+      editContext,
     );
 
     return {
@@ -511,7 +517,7 @@ export class DeliverablesService implements IActionHandler {
         temperature,
         maxTokens,
       },
-      context.userId,
+      context,
     );
   }
 
@@ -525,7 +531,7 @@ export class DeliverablesService implements IActionHandler {
   ) {
     const version = await this.versionsService.setCurrentVersion(
       params.versionId,
-      context.userId,
+      context,
     );
 
     const deliverable = await this.findOne(
@@ -547,19 +553,21 @@ export class DeliverablesService implements IActionHandler {
     // Get version before deletion to get deliverable ID
     const version = await this.versionsService.getVersion(
       params.versionId,
-      context.userId,
+      context,
     );
 
-    await this.versionsService.deleteVersion(params.versionId, context.userId);
+    await this.versionsService.deleteVersion(params.versionId, context);
 
     const deliverable = await this.findOne(
       version.deliverableId,
       context.userId,
     );
-    const remainingVersions = await this.versionsService.getVersionHistory(
-      version.deliverableId,
-      context.userId,
-    );
+    const versionsContext: ExecutionContext = {
+      ...context,
+      deliverableId: version.deliverableId,
+    };
+    const remainingVersions =
+      await this.versionsService.getVersionHistory(versionsContext);
 
     // Return in strict A2A protocol format for BuildDeleteVersionResponse
     return {
@@ -594,19 +602,20 @@ export class DeliverablesService implements IActionHandler {
       );
     }
 
+    const mergeContext: ExecutionContext = {
+      ...context,
+      deliverableId: deliverable.id,
+    };
     const result = await this.versionsService.mergeVersions(
-      deliverable.id,
       params.versionIds,
       params.mergePrompt,
-      context.userId,
-      params.providerName,
-      params.modelName,
+      mergeContext,
     );
 
     // Get source versions
     const sourceVersions = await Promise.all(
       params.versionIds.map((id) =>
-        this.versionsService.getVersion(id, context.userId),
+        this.versionsService.getVersion(id, context),
       ),
     );
 
@@ -628,12 +637,12 @@ export class DeliverablesService implements IActionHandler {
   ) {
     const sourceVersion = await this.versionsService.getVersion(
       params.versionId,
-      context.userId,
+      context,
     );
 
     const copiedVersion = await this.versionsService.copyVersion(
       params.versionId,
-      context.userId,
+      context,
     );
 
     const deliverable = await this.findOne(
@@ -668,10 +677,12 @@ export class DeliverablesService implements IActionHandler {
     }
 
     // Get version count before deletion
-    const versions = await this.versionsService.getVersionHistory(
-      deliverable.id,
-      context.userId,
-    );
+    const deleteContext: ExecutionContext = {
+      ...context,
+      deliverableId: deliverable.id,
+    };
+    const versions =
+      await this.versionsService.getVersionHistory(deleteContext);
     const versionCount = versions.length;
 
     await this.remove(deliverable.id, context.userId);
@@ -950,10 +961,20 @@ export class DeliverablesService implements IActionHandler {
 
     // Get current version
     try {
-      const currentVersion = await this.versionsService.getCurrentVersion(
-        deliverable.id,
+      const versionContext: ExecutionContext = {
+        orgSlug: NIL_UUID,
         userId,
-      );
+        conversationId: NIL_UUID,
+        taskId: NIL_UUID,
+        planId: NIL_UUID,
+        deliverableId: deliverable.id,
+        agentSlug: NIL_UUID,
+        agentType: 'context',
+        provider: NIL_UUID,
+        model: NIL_UUID,
+      };
+      const currentVersion =
+        await this.versionsService.getCurrentVersion(versionContext);
       if (currentVersion) {
         deliverable.currentVersion = currentVersion;
       }
@@ -1002,10 +1023,20 @@ export class DeliverablesService implements IActionHandler {
 
       // Get current version using the versions service
       try {
-        const currentVersion = await this.versionsService.getCurrentVersion(
-          id,
+        const versionContext: ExecutionContext = {
+          orgSlug: NIL_UUID,
           userId,
-        );
+          conversationId: NIL_UUID,
+          taskId: NIL_UUID,
+          planId: NIL_UUID,
+          deliverableId: id,
+          agentSlug: NIL_UUID,
+          agentType: 'context',
+          provider: NIL_UUID,
+          model: NIL_UUID,
+        };
+        const currentVersion =
+          await this.versionsService.getCurrentVersion(versionContext);
         if (currentVersion) {
           deliverable.currentVersion = currentVersion;
         }
@@ -1070,10 +1101,20 @@ export class DeliverablesService implements IActionHandler {
 
           // Get current version using the versions service
           try {
-            const currentVersion = await this.versionsService.getCurrentVersion(
-              typedData.id,
+            const versionContext: ExecutionContext = {
+              orgSlug: NIL_UUID,
               userId,
-            );
+              conversationId: NIL_UUID,
+              taskId: NIL_UUID,
+              planId: NIL_UUID,
+              deliverableId: typedData.id,
+              agentSlug: NIL_UUID,
+              agentType: 'context',
+              provider: NIL_UUID,
+              model: NIL_UUID,
+            };
+            const currentVersion =
+              await this.versionsService.getCurrentVersion(versionContext);
             if (currentVersion) {
               deliverable.currentVersion = currentVersion;
             }

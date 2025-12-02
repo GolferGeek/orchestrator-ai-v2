@@ -130,22 +130,24 @@ export async function testOllamaGolfBlogPost(): Promise<{
     console.log(`📋 Available models: ${health.models?.join(', ') || 'none'}`);
     console.log('');
 
+    // Create ExecutionContext for the test
+    const mockContext = createMockExecutionContext({
+      conversationId: `golf-test-${Date.now()}`,
+    });
+
     // Prepare request parameters
     const params: GenerateResponseParams = {
       systemPrompt: testPrompt.systemPrompt,
       userMessage: testPrompt.userMessage,
       config: testConfig,
-      conversationId: `golf-test-${Date.now()}`,
       options: {
         preferLocal: true, // This will set tier to 'local'
+        executionContext: mockContext,
       },
     };
 
     // Generate response
     console.log('🤖 Generating blog post...');
-    const mockContext = createMockExecutionContext({
-      conversationId: `golf-test-${Date.now()}`,
-    });
     const response = await ollamaService.generateResponse(mockContext, params);
 
     const duration = Date.now() - startTime;

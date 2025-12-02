@@ -202,9 +202,13 @@ export class PlansService implements IActionHandler {
 
     if (existingPlan) {
       // Refine existing plan - create new version
+      const planContext: ExecutionContext = {
+        ...context,
+        planId: existingPlan.id,
+      };
+
       const newVersion = await this.versionsService.createVersion(
-        existingPlan.id,
-        context.userId,
+        planContext,
         {
           content: params.content,
           format: params.format || 'markdown',
@@ -214,7 +218,7 @@ export class PlansService implements IActionHandler {
         },
       );
 
-      const plan = await this.findOne(existingPlan.id, context.userId);
+      const plan = await this.findOne(planContext);
       return { plan, version: newVersion, isNew: false };
     } else {
       // Create new plan
@@ -227,9 +231,13 @@ export class PlansService implements IActionHandler {
       });
 
       // Create initial version
+      const planContext: ExecutionContext = {
+        ...context,
+        planId: planData.id,
+      };
+
       const initialVersion = await this.versionsService.createVersion(
-        planData.id,
-        context.userId,
+        planContext,
         {
           content: params.content,
           format: params.format || 'markdown',
@@ -239,7 +247,7 @@ export class PlansService implements IActionHandler {
         },
       );
 
-      const plan = await this.findOne(planData.id, context.userId);
+      const plan = await this.findOne(planContext);
       return { plan, version: initialVersion, isNew: true };
     }
   }
@@ -260,7 +268,12 @@ export class PlansService implements IActionHandler {
       );
     }
 
-    const planWithVersion = await this.findOne(plan.id, context.userId);
+    const planContext: ExecutionContext = {
+      ...context,
+      planId: plan.id,
+    };
+
+    const planWithVersion = await this.findOne(planContext);
 
     // Return in strict A2A protocol format: { plan, version }
     return {
@@ -291,10 +304,12 @@ export class PlansService implements IActionHandler {
       );
     }
 
-    const versions = await this.versionsService.getVersionHistory(
-      plan.id,
-      context.userId,
-    );
+    const planContext: ExecutionContext = {
+      ...context,
+      planId: plan.id,
+    };
+
+    const versions = await this.versionsService.getVersionHistory(planContext);
 
     return { plan: this.mapToPlan(plan), versions };
   }
@@ -334,9 +349,13 @@ export class PlansService implements IActionHandler {
 
     this.logger.debug(`🔖 [saveManualEdit] Found plan ${plan.id}`);
 
+    const planContext: ExecutionContext = {
+      ...context,
+      planId: plan.id,
+    };
+
     const currentVersion = await this.versionsService.getCurrentVersion(
-      plan.id,
-      context.userId,
+      planContext,
     );
 
     if (!currentVersion) {
@@ -348,8 +367,7 @@ export class PlansService implements IActionHandler {
     );
 
     const newVersion = await this.versionsService.createVersion(
-      plan.id,
-      context.userId,
+      planContext,
       {
         content: params.content,
         format: currentVersion.format,
@@ -383,6 +401,22 @@ export class PlansService implements IActionHandler {
       `🔄 [PLAN RERUN] versionId=${params.versionId}, provider=${provider}, model=${model}`,
     );
 
+    const plan = await this.plansRepo.findByConversationId(
+      context.conversationId,
+      context.userId,
+    );
+
+    if (!plan) {
+      throw new NotFoundException(
+        `No plan found for conversation ${context.conversationId}`,
+      );
+    }
+
+    const planContext: ExecutionContext = {
+      ...context,
+      planId: plan.id,
+    };
+
     return this.versionsService.rerunWithDifferentLLM(
       params.versionId,
       {
@@ -391,7 +425,7 @@ export class PlansService implements IActionHandler {
         temperature,
         maxTokens,
       },
-      context.userId,
+      planContext,
     );
   }
 
@@ -403,14 +437,31 @@ export class PlansService implements IActionHandler {
     params: { versionId: string },
     context: ExecutionContext,
   ) {
-    const version = await this.versionsService.setCurrentVersion(
-      params.versionId,
+    // First, get the plan to construct full context
+    const plan = await this.plansRepo.findByConversationId(
+      context.conversationId,
       context.userId,
     );
 
-    const plan = await this.findOne(version.planId, context.userId);
+    if (!plan) {
+      throw new NotFoundException(
+        `No plan found for conversation ${context.conversationId}`,
+      );
+    }
 
-    return { plan, version };
+    const planContext: ExecutionContext = {
+      ...context,
+      planId: plan.id,
+    };
+
+    const version = await this.versionsService.setCurrentVersion(
+      params.versionId,
+      planContext,
+    );
+
+    const planWithVersion = await this.findOne(planContext);
+
+    return { plan: planWithVersion, version };
   }
 
   /**
@@ -421,13 +472,29 @@ export class PlansService implements IActionHandler {
     params: { versionId: string },
     context: ExecutionContext,
   ) {
-    // Get version before deletion to get plan ID
-    const version = await this.versionsService.findOne(
-      params.versionId,
+    const plan = await this.plansRepo.findByConversationId(
+      context.conversationId,
       context.userId,
     );
 
-    await this.versionsService.deleteVersion(params.versionId, context.userId);
+    if (!plan) {
+      throw new NotFoundException(
+        `No plan found for conversation ${context.conversationId}`,
+      );
+    }
+
+    const planContext: ExecutionContext = {
+      ...context,
+      planId: plan.id,
+    };
+
+    // Get version before deletion to get plan ID
+    const version = await this.versionsService.findOne(
+      params.versionId,
+      planContext,
+    );
+
+    await this.versionsService.deleteVersion(params.versionId, planContext);
 
     const planData = await this.plansRepo.findById(
       version.planId,
@@ -437,8 +504,7 @@ export class PlansService implements IActionHandler {
       throw new NotFoundException(`Plan not found: ${version.planId}`);
     }
     const remainingVersions = await this.versionsService.getVersionHistory(
-      version.planId,
-      context.userId,
+      planContext,
     );
 
     // Return in strict A2A protocol format for PlanDeleteVersionResponse
@@ -474,9 +540,13 @@ export class PlansService implements IActionHandler {
       );
     }
 
+    const planContext: ExecutionContext = {
+      ...context,
+      planId: plan.id,
+    };
+
     const result = await this.versionsService.mergeVersions(
-      plan.id,
-      context.userId,
+      planContext,
       params.versionIds,
       params.mergePrompt,
       {
@@ -489,7 +559,7 @@ export class PlansService implements IActionHandler {
     // Get source versions
     const sourceVersions = await Promise.all(
       params.versionIds.map((id) =>
-        this.versionsService.findOne(id, context.userId),
+        this.versionsService.findOne(id, planContext),
       ),
     );
 
@@ -507,14 +577,30 @@ export class PlansService implements IActionHandler {
    * Duplicate a version as a new version
    */
   private async copyVersion(params: PlanCopyParams, context: ExecutionContext) {
+    const plan = await this.plansRepo.findByConversationId(
+      context.conversationId,
+      context.userId,
+    );
+
+    if (!plan) {
+      throw new NotFoundException(
+        `No plan found for conversation ${context.conversationId}`,
+      );
+    }
+
+    const planContext: ExecutionContext = {
+      ...context,
+      planId: plan.id,
+    };
+
     const sourceVersion = await this.versionsService.findOne(
       params.versionId,
-      context.userId,
+      planContext,
     );
 
     const copiedVersion = await this.versionsService.copyVersion(
       params.versionId,
-      context.userId,
+      planContext,
     );
 
     const planData = await this.plansRepo.findById(
@@ -550,11 +636,13 @@ export class PlansService implements IActionHandler {
       );
     }
 
+    const planContext: ExecutionContext = {
+      ...context,
+      planId: plan.id,
+    };
+
     // Get version count before deletion
-    const versions = await this.versionsService.getVersionHistory(
-      plan.id,
-      context.userId,
-    );
+    const versions = await this.versionsService.getVersionHistory(planContext);
     const versionCount = versions.length;
 
     await this.plansRepo.delete(plan.id, context.userId);
@@ -573,10 +661,13 @@ export class PlansService implements IActionHandler {
   /**
    * Find a plan by ID with current version
    */
-  async findOne(planId: string, userId: string): Promise<Plan> {
-    const planData = await this.plansRepo.findById(planId, userId);
+  async findOne(executionContext: ExecutionContext): Promise<Plan> {
+    const planData = await this.plansRepo.findById(
+      executionContext.planId,
+      executionContext.userId,
+    );
     if (!planData) {
-      throw new NotFoundException(`Plan not found: ${planId}`);
+      throw new NotFoundException(`Plan not found: ${executionContext.planId}`);
     }
 
     const plan = this.mapToPlan(planData);
@@ -584,8 +675,7 @@ export class PlansService implements IActionHandler {
     // Get current version
     try {
       const currentVersion = await this.versionsService.getCurrentVersion(
-        planId,
-        userId,
+        executionContext,
       );
       if (currentVersion) {
         plan.currentVersion = this.mapPlanVersion(currentVersion);
@@ -593,7 +683,7 @@ export class PlansService implements IActionHandler {
     } catch (error) {
       // Continue without current version
       this.logger.warn(
-        `No current version found for plan ${planId}`,
+        `No current version found for plan ${executionContext.planId}`,
         error instanceof Error ? error : { message: String(error) },
       );
     }
@@ -605,19 +695,23 @@ export class PlansService implements IActionHandler {
    * Find plan by conversation ID
    */
   async findByConversationId(
-    conversationId: string,
-    userId: string,
+    executionContext: ExecutionContext,
   ): Promise<Plan | null> {
     const planData = await this.plansRepo.findByConversationId(
-      conversationId,
-      userId,
+      executionContext.conversationId,
+      executionContext.userId,
     );
 
     if (!planData) {
       return null;
     }
 
-    return this.findOne(planData.id, userId);
+    const planContext: ExecutionContext = {
+      ...executionContext,
+      planId: planData.id,
+    };
+
+    return this.findOne(planContext);
   }
 
   /**

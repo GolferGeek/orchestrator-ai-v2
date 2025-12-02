@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { LLMService } from '@/llms/llm.service';
 import { isLLMResponse } from '@/llms/services/llm-interfaces';
+import { ExecutionContext } from '@orchestrator-ai/transport-types';
 
 /**
  * LangChain Client Service
@@ -26,6 +27,7 @@ export class LangChainClientService {
   async executeSimpleCall(
     systemPrompt: string,
     userMessage: string,
+    executionContext: ExecutionContext,
     options?: {
       provider?: string;
       model?: string;
@@ -48,6 +50,7 @@ export class LangChainClientService {
         callerType: 'service',
         callerName: 'langchain-client-service',
         dataClassification: 'internal',
+        executionContext,
       },
     );
 

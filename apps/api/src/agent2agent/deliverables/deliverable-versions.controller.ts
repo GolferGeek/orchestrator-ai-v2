@@ -11,6 +11,7 @@ import {
   HttpCode,
   HttpStatus,
   Patch,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -23,6 +24,7 @@ import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { DeliverableVersionsService } from './deliverable-versions.service';
 import { CreateVersionDto, RerunWithLLMDto, EnhanceVersionDto } from './dto';
 import { DeliverableVersion } from './entities/deliverable.entity';
+import type { ExecutionContext } from '@orchestrator-ai/transport-types';
 
 interface AuthenticatedRequest {
   user?: {
@@ -30,6 +32,10 @@ interface AuthenticatedRequest {
     id?: string;
     userId?: string;
   };
+}
+
+interface RequestWithContext {
+  context?: ExecutionContext;
 }
 
 @ApiTags('deliverable-versions')
@@ -55,19 +61,28 @@ export class DeliverableVersionsController {
   @ApiResponse({ status: 404, description: 'Deliverable not found' })
   async createVersion(
     @Param('deliverableId', ParseUUIDPipe) deliverableId: string,
-    @Body() createVersionDto: CreateVersionDto,
+    @Body() body: CreateVersionDto & RequestWithContext,
     @Req() req: AuthenticatedRequest,
   ): Promise<DeliverableVersion> {
     const userId: string =
       req.user?.sub || req.user?.id || req.user?.userId || '';
     if (!userId) {
-      throw new Error('User not authenticated');
+      throw new BadRequestException('User not authenticated');
     }
-    return this.versionsService.createVersion(
-      deliverableId,
-      createVersionDto,
-      userId,
-    );
+
+    const context = body.context;
+    if (!context) {
+      throw new BadRequestException(
+        'ExecutionContext is required in request body',
+      );
+    }
+
+    // Override userId from authenticated user for security
+    context.userId = userId;
+    // Override deliverableId from route parameter
+    context.deliverableId = deliverableId;
+
+    return this.versionsService.createVersion(body, context);
   }
 
   @Get(':deliverableId/history')
@@ -90,9 +105,24 @@ export class DeliverableVersionsController {
     const userId: string =
       req.user?.sub || req.user?.id || req.user?.userId || '';
     if (!userId) {
-      throw new Error('User not authenticated');
+      throw new BadRequestException('User not authenticated');
     }
-    return this.versionsService.getVersionHistory(deliverableId, userId);
+
+    // Build minimal ExecutionContext for GET request
+    const context: ExecutionContext = {
+      userId,
+      deliverableId,
+      orgSlug: '',
+      conversationId: '',
+      taskId: '',
+      planId: '',
+      agentSlug: '',
+      agentType: '',
+      provider: '',
+      model: '',
+    };
+
+    return this.versionsService.getVersionHistory(context);
   }
 
   @Get(':deliverableId/current')
@@ -118,9 +148,24 @@ export class DeliverableVersionsController {
     const userId: string =
       req.user?.sub || req.user?.id || req.user?.userId || '';
     if (!userId) {
-      throw new Error('User not authenticated');
+      throw new BadRequestException('User not authenticated');
     }
-    return this.versionsService.getCurrentVersion(deliverableId, userId);
+
+    // Build minimal ExecutionContext for GET request
+    const context: ExecutionContext = {
+      userId,
+      deliverableId,
+      orgSlug: '',
+      conversationId: '',
+      taskId: '',
+      planId: '',
+      agentSlug: '',
+      agentType: '',
+      provider: '',
+      model: '',
+    };
+
+    return this.versionsService.getCurrentVersion(context);
   }
 
   @Get('version/:versionId')
@@ -143,9 +188,24 @@ export class DeliverableVersionsController {
     const userId: string =
       req.user?.sub || req.user?.id || req.user?.userId || '';
     if (!userId) {
-      throw new Error('User not authenticated');
+      throw new BadRequestException('User not authenticated');
     }
-    return this.versionsService.getVersion(versionId, userId);
+
+    // Build minimal ExecutionContext for GET request
+    const context: ExecutionContext = {
+      userId,
+      deliverableId: '', // Not needed for getVersion
+      orgSlug: '',
+      conversationId: '',
+      taskId: '',
+      planId: '',
+      agentSlug: '',
+      agentType: '',
+      provider: '',
+      model: '',
+    };
+
+    return this.versionsService.getVersion(versionId, context);
   }
 
   @Patch('version/:versionId/set-current')
@@ -164,14 +224,26 @@ export class DeliverableVersionsController {
   @ApiResponse({ status: 404, description: 'Version not found' })
   async setCurrentVersion(
     @Param('versionId', ParseUUIDPipe) versionId: string,
+    @Body() body: RequestWithContext,
     @Req() req: AuthenticatedRequest,
   ): Promise<DeliverableVersion> {
     const userId: string =
       req.user?.sub || req.user?.id || req.user?.userId || '';
     if (!userId) {
-      throw new Error('User not authenticated');
+      throw new BadRequestException('User not authenticated');
     }
-    return this.versionsService.setCurrentVersion(versionId, userId);
+
+    const context = body.context;
+    if (!context) {
+      throw new BadRequestException(
+        'ExecutionContext is required in request body',
+      );
+    }
+
+    // Override userId from authenticated user for security
+    context.userId = userId;
+
+    return this.versionsService.setCurrentVersion(versionId, context);
   }
 
   @Delete('version/:versionId')
@@ -188,14 +260,26 @@ export class DeliverableVersionsController {
   @ApiResponse({ status: 404, description: 'Version not found' })
   async deleteVersion(
     @Param('versionId', ParseUUIDPipe) versionId: string,
+    @Body() body: RequestWithContext,
     @Req() req: AuthenticatedRequest,
   ): Promise<{ success: boolean; message: string }> {
     const userId: string =
       req.user?.sub || req.user?.id || req.user?.userId || '';
     if (!userId) {
-      throw new Error('User not authenticated');
+      throw new BadRequestException('User not authenticated');
     }
-    return this.versionsService.deleteVersion(versionId, userId);
+
+    const context = body.context;
+    if (!context) {
+      throw new BadRequestException(
+        'ExecutionContext is required in request body',
+      );
+    }
+
+    // Override userId from authenticated user for security
+    context.userId = userId;
+
+    return this.versionsService.deleteVersion(versionId, context);
   }
 
   @Post('version/:versionId/rerun')
@@ -218,20 +302,30 @@ export class DeliverableVersionsController {
   @ApiResponse({ status: 404, description: 'Source version not found' })
   async rerunWithDifferentLLM(
     @Param('versionId', ParseUUIDPipe) versionId: string,
-    @Body() rerunDto: RerunWithLLMDto,
+    @Body() body: RerunWithLLMDto & RequestWithContext,
     @Req() req: AuthenticatedRequest,
   ): Promise<DeliverableVersion> {
     const userId: string =
       req.user?.sub || req.user?.id || req.user?.userId || '';
 
     if (!userId) {
-      throw new Error('User not authenticated');
+      throw new BadRequestException('User not authenticated');
     }
+
+    const context = body.context;
+    if (!context) {
+      throw new BadRequestException(
+        'ExecutionContext is required in request body',
+      );
+    }
+
+    // Override userId from authenticated user for security
+    context.userId = userId;
 
     return this.versionsService.rerunWithDifferentLLM(
       versionId,
-      rerunDto,
-      userId,
+      body,
+      context,
     );
   }
 
@@ -249,12 +343,26 @@ export class DeliverableVersionsController {
   })
   async copyVersion(
     @Param('versionId', ParseUUIDPipe) versionId: string,
+    @Body() body: RequestWithContext,
     @Req() req: AuthenticatedRequest,
   ): Promise<DeliverableVersion> {
     const userId: string =
       req.user?.sub || req.user?.id || req.user?.userId || '';
-    if (!userId) throw new Error('User not authenticated');
-    return this.versionsService.copyVersion(versionId, userId);
+    if (!userId) {
+      throw new BadRequestException('User not authenticated');
+    }
+
+    const context = body.context;
+    if (!context) {
+      throw new BadRequestException(
+        'ExecutionContext is required in request body',
+      );
+    }
+
+    // Override userId from authenticated user for security
+    context.userId = userId;
+
+    return this.versionsService.copyVersion(versionId, context);
   }
 
   @Post('version/:versionId/enhance')
@@ -274,12 +382,25 @@ export class DeliverableVersionsController {
   })
   async enhanceVersion(
     @Param('versionId', ParseUUIDPipe) versionId: string,
-    @Body() dto: EnhanceVersionDto,
+    @Body() body: EnhanceVersionDto & RequestWithContext,
     @Req() req: AuthenticatedRequest,
   ): Promise<DeliverableVersion> {
     const userId: string =
       req.user?.sub || req.user?.id || req.user?.userId || '';
-    if (!userId) throw new Error('User not authenticated');
-    return this.versionsService.enhanceVersion(versionId, dto, userId);
+    if (!userId) {
+      throw new BadRequestException('User not authenticated');
+    }
+
+    const context = body.context;
+    if (!context) {
+      throw new BadRequestException(
+        'ExecutionContext is required in request body',
+      );
+    }
+
+    // Override userId from authenticated user for security
+    context.userId = userId;
+
+    return this.versionsService.enhanceVersion(versionId, body, context);
   }
 }

@@ -223,9 +223,8 @@ export interface SupabaseSQLRequest {
   tables: string[];
   domain_hint?: string;
   max_rows?: number;
-  // Optional LLM routing passthrough from callers (e.g., frontend -> agent -> MCP)
-  provider?: string;
-  model?: string;
+  // ExecutionContext contains provider, model, userId, conversationId, etc.
+  executionContext?: unknown; // Using unknown to avoid circular dependency
 }
 
 export interface SupabaseExecuteRequest {
@@ -236,6 +235,6 @@ export interface SupabaseExecuteRequest {
 export interface SupabaseAnalyzeRequest {
   data: Array<Record<string, unknown>>;
   analysis_prompt: string;
-  provider?: string;
-  model?: string;
+  // ExecutionContext contains provider, model, userId, conversationId, etc.
+  executionContext?: unknown; // Using unknown to avoid circular dependency
 }

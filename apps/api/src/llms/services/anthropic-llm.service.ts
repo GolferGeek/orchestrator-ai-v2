@@ -472,15 +472,17 @@ export async function testAnthropicService() {
 
   const service = createAnthropicService(config, mockDependencies);
 
+  const mockContext = createMockExecutionContext();
   const params: GenerateResponseParams = {
     systemPrompt: 'You are Claude, an AI assistant created by Anthropic.',
     userMessage: 'Hello, how are you today?',
     config,
-    conversationId: 'test-conversation',
+    options: {
+      executionContext: mockContext,
+    },
   };
 
   try {
-    const mockContext = createMockExecutionContext();
     const response = await service.generateResponse(mockContext, params);
     return response;
   } catch (error) {

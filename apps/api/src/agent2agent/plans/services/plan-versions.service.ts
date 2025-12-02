@@ -1,5 +1,8 @@
 import Ajv from 'ajv';
-import type { JsonObject } from '@orchestrator-ai/transport-types';
+import type {
+  JsonObject,
+  ExecutionContext,
+} from '@orchestrator-ai/transport-types';
 import {
   Injectable,
   Logger,
@@ -38,10 +41,11 @@ export class PlanVersionsService {
    * Create a new version of a plan
    */
   async createVersion(
-    planId: string,
-    userId: string,
+    executionContext: ExecutionContext,
     dto: CreatePlanVersionDto,
   ): Promise<PlanVersion> {
+    const { planId, userId } = executionContext;
+
     // Verify plan exists and belongs to user
     const plan = await this.plansRepo.findById(planId, userId);
     if (!plan) {
@@ -77,9 +81,10 @@ export class PlanVersionsService {
    * Get current version of a plan
    */
   async getCurrentVersion(
-    planId: string,
-    userId: string,
+    executionContext: ExecutionContext,
   ): Promise<PlanVersion | null> {
+    const { planId, userId } = executionContext;
+
     // Verify plan exists and belongs to user
     const plan = await this.plansRepo.findById(planId, userId);
     if (!plan) {
@@ -94,9 +99,10 @@ export class PlanVersionsService {
    * Get version history for a plan
    */
   async getVersionHistory(
-    planId: string,
-    userId: string,
+    executionContext: ExecutionContext,
   ): Promise<PlanVersion[]> {
+    const { planId, userId } = executionContext;
+
     // Verify plan exists and belongs to user
     const plan = await this.plansRepo.findById(planId, userId);
     if (!plan) {
@@ -110,7 +116,12 @@ export class PlanVersionsService {
   /**
    * Get specific version by ID
    */
-  async findOne(versionId: string, userId: string): Promise<PlanVersion> {
+  async findOne(
+    versionId: string,
+    executionContext: ExecutionContext,
+  ): Promise<PlanVersion> {
+    const { userId } = executionContext;
+
     const versionData = await this.versionsRepo.findById(versionId);
     if (!versionData) {
       throw new NotFoundException(`Plan version not found: ${versionId}`);
@@ -131,15 +142,15 @@ export class PlanVersionsService {
    */
   async update(
     versionId: string,
-    userId: string,
+    executionContext: ExecutionContext,
     content: string,
     metadata?: JsonObject,
   ): Promise<PlanVersion> {
     // Get the source version
-    const sourceVersion = await this.findOne(versionId, userId);
+    const sourceVersion = await this.findOne(versionId, executionContext);
 
     // Create a new version with updated content
-    return this.createVersion(sourceVersion.planId, userId, {
+    return this.createVersion(executionContext, {
       content,
       format: sourceVersion.format,
       createdByType: 'user',
@@ -156,10 +167,12 @@ export class PlanVersionsService {
    */
   async setCurrentVersion(
     versionId: string,
-    userId: string,
+    executionContext: ExecutionContext,
   ): Promise<PlanVersion> {
+    const { userId } = executionContext;
+
     // Verify version exists and user owns the plan
-    const version = await this.findOne(versionId, userId);
+    const version = await this.findOne(versionId, executionContext);
 
     // Mark all versions as not current
     await this.versionsRepo.markAllAsNotCurrent(version.planId);
@@ -176,10 +189,13 @@ export class PlanVersionsService {
   /**
    * Copy a version to create a new version
    */
-  async copyVersion(versionId: string, userId: string): Promise<PlanVersion> {
-    const sourceVersion = await this.findOne(versionId, userId);
+  async copyVersion(
+    versionId: string,
+    executionContext: ExecutionContext,
+  ): Promise<PlanVersion> {
+    const sourceVersion = await this.findOne(versionId, executionContext);
 
-    return this.createVersion(sourceVersion.planId, userId, {
+    return this.createVersion(executionContext, {
       content: sourceVersion.content,
       format: sourceVersion.format,
       createdByType: 'user',
@@ -196,9 +212,9 @@ export class PlanVersionsService {
    */
   async deleteVersion(
     versionId: string,
-    userId: string,
+    executionContext: ExecutionContext,
   ): Promise<{ success: boolean; message: string }> {
-    const version = await this.findOne(versionId, userId);
+    const version = await this.findOne(versionId, executionContext);
 
     // Prevent deletion of current version
     if (version.isCurrentVersion) {
@@ -221,8 +237,7 @@ export class PlanVersionsService {
    * Merge multiple versions into a new version using LLM assistance.
    */
   async mergeVersions(
-    planId: string,
-    userId: string,
+    executionContext: ExecutionContext,
     versionIds: string[],
     mergePrompt: string,
     options?: {
@@ -235,6 +250,8 @@ export class PlanVersionsService {
     conflictSummary?: string;
     llmMetadata?: JsonObject;
   }> {
+    const { planId, userId } = executionContext;
+
     // Verify plan exists
     const plan = await this.plansRepo.findById(planId, userId);
     if (!plan) {
@@ -250,7 +267,7 @@ export class PlanVersionsService {
 
     // Get all versions to merge
     const versions = await Promise.all(
-      versionIds.map((id) => this.findOne(id, userId)),
+      versionIds.map((id) => this.findOne(id, executionContext)),
     );
 
     if (versions.length !== versionIds.length) {
@@ -297,10 +314,9 @@ export class PlanVersionsService {
         options: {
           temperature: llmConfig.temperature,
           maxTokens: llmConfig.maxTokens,
-          userId,
+          executionContext,
           callerType: 'plan_merge',
           callerName: `plan_merge_${plan.id}`,
-          conversationId: plan.conversation_id,
           includeMetadata: true,
         },
       });
@@ -365,7 +381,7 @@ export class PlanVersionsService {
       targetFormat: normalizedContent.format,
     } as JsonObject);
 
-    const newVersion = await this.createVersion(planId, userId, {
+    const newVersion = await this.createVersion(executionContext, {
       content: normalizedContent.content,
       format: normalizedContent.format,
       createdByType: 'agent',
@@ -649,11 +665,13 @@ export class PlanVersionsService {
       temperature?: number;
       maxTokens?: number;
     },
-    userId: string,
+    executionContext: ExecutionContext,
   ): Promise<{ plan: Plan; version: PlanVersion }> {
+    const { userId } = executionContext;
+
     try {
       // 1. Get the source version
-      const sourceVersion = await this.findOne(versionId, userId);
+      const sourceVersion = await this.findOne(versionId, executionContext);
       if (!sourceVersion) {
         throw new NotFoundException('Source version not found');
       }
@@ -697,10 +715,9 @@ export class PlanVersionsService {
         options: {
           temperature: config.temperature,
           maxTokens: config.maxTokens,
-          userId: userId,
+          executionContext,
           callerType: 'plan_rerun',
           callerName: `plan_rerun`,
-          conversationId: plan.conversation_id,
           includeMetadata: true,
         },
       });
@@ -736,7 +753,7 @@ export class PlanVersionsService {
           : null,
       } as JsonObject);
 
-      const newVersion = await this.createVersion(plan.id, userId, {
+      const newVersion = await this.createVersion(executionContext, {
         content: responseContent,
         format: sourceVersion.format || 'markdown',
         createdByType: 'agent',

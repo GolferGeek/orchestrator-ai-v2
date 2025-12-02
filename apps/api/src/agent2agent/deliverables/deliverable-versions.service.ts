@@ -18,6 +18,7 @@ import { getTableName } from '@/supabase/supabase.config';
 import { LLMService } from '@/llms/llm.service';
 import { Task } from '@/agent2agent/types/agent-conversations.types';
 import { snakeToCamel } from '@/utils/case-converter';
+import { ExecutionContext } from '@orchestrator-ai/transport-types';
 
 /**
  * Database record type for deliverable_versions table
@@ -52,13 +53,13 @@ export class DeliverableVersionsService {
    * Create a new version of an existing deliverable
    */
   async createVersion(
-    deliverableId: string,
     createVersionDto: CreateVersionDto,
-    userId: string,
+    executionContext: ExecutionContext,
   ): Promise<DeliverableVersion> {
+    const deliverableId = executionContext.deliverableId;
     try {
       // Verify deliverable exists and belongs to user
-      await this.verifyDeliverableOwnership(deliverableId, userId);
+      await this.verifyDeliverableOwnership(executionContext);
 
       // Get the next version number
       const nextVersionNumber = await this.getNextVersionNumber(deliverableId);
@@ -123,12 +124,12 @@ export class DeliverableVersionsService {
    * Get version history for a deliverable
    */
   async getVersionHistory(
-    deliverableId: string,
-    userId: string,
+    executionContext: ExecutionContext,
   ): Promise<DeliverableVersion[]> {
+    const deliverableId = executionContext.deliverableId;
     try {
       // Verify deliverable ownership
-      await this.verifyDeliverableOwnership(deliverableId, userId);
+      await this.verifyDeliverableOwnership(executionContext);
 
       // Get all versions for this deliverable
       const { data: result, error } = await this.supabaseService
@@ -165,7 +166,7 @@ export class DeliverableVersionsService {
    */
   async getVersion(
     versionId: string,
-    userId: string,
+    executionContext: ExecutionContext,
   ): Promise<DeliverableVersion> {
     try {
       const {
@@ -198,10 +199,11 @@ export class DeliverableVersionsService {
       }
 
       // Verify the deliverable belongs to the user
-      await this.verifyDeliverableOwnership(
-        data.deliverable_id as string,
-        userId,
-      );
+      const deliverableExecutionContext: ExecutionContext = {
+        ...executionContext,
+        deliverableId: data.deliverable_id as string,
+      };
+      await this.verifyDeliverableOwnership(deliverableExecutionContext);
 
       return this.mapToVersion(data);
     } catch (error) {
@@ -220,12 +222,12 @@ export class DeliverableVersionsService {
    * Get the current version of a deliverable
    */
   async getCurrentVersion(
-    deliverableId: string,
-    userId: string,
+    executionContext: ExecutionContext,
   ): Promise<DeliverableVersion | null> {
+    const deliverableId = executionContext.deliverableId;
     try {
       // Verify deliverable ownership
-      await this.verifyDeliverableOwnership(deliverableId, userId);
+      await this.verifyDeliverableOwnership(executionContext);
 
       const {
         data,
@@ -294,11 +296,11 @@ export class DeliverableVersionsService {
    */
   async setCurrentVersion(
     versionId: string,
-    userId: string,
+    executionContext: ExecutionContext,
   ): Promise<DeliverableVersion> {
     try {
       // Get the version and verify ownership
-      const version = await this.getVersion(versionId, userId);
+      const version = await this.getVersion(versionId, executionContext);
 
       // Mark all versions for this deliverable as not current
       await this.markPreviousVersionsAsNotCurrent(version.deliverableId);
@@ -346,11 +348,11 @@ export class DeliverableVersionsService {
    */
   async deleteVersion(
     versionId: string,
-    userId: string,
+    executionContext: ExecutionContext,
   ): Promise<{ success: boolean; message: string }> {
     try {
       // Get the version and verify ownership
-      const version = await this.getVersion(versionId, userId);
+      const version = await this.getVersion(versionId, executionContext);
 
       // Prevent deletion of current version (as per PRD requirement)
       if (version.isCurrentVersion) {
@@ -393,9 +395,9 @@ export class DeliverableVersionsService {
    */
   async copyVersion(
     versionId: string,
-    userId: string,
+    executionContext: ExecutionContext,
   ): Promise<DeliverableVersion> {
-    const source = await this.getVersion(versionId, userId);
+    const source = await this.getVersion(versionId, executionContext);
     const createVersionDto: CreateVersionDto = {
       content: source.content || '',
       format: source.format,
@@ -406,7 +408,7 @@ export class DeliverableVersionsService {
         copiedAt: new Date().toISOString(),
       },
     };
-    return this.createVersion(source.deliverableId, createVersionDto, userId);
+    return this.createVersion(createVersionDto, executionContext);
   }
 
   /**
@@ -416,27 +418,22 @@ export class DeliverableVersionsService {
     versionId: string,
     dto: {
       instruction: string;
-      providerName?: string;
-      modelName?: string;
       temperature?: number;
       maxTokens?: number;
     },
-    userId: string,
+    executionContext: ExecutionContext,
   ): Promise<DeliverableVersion> {
-    const source = await this.getVersion(versionId, userId);
+    const source = await this.getVersion(versionId, executionContext);
 
     // Build prompts
     const systemPrompt =
       'You are a concise, high-quality editor. Improve the given content according to the user instruction without changing factual meaning. Maintain original format.';
     const userMessage = `Instruction:\n${dto.instruction}\n\n---\n\nOriginal Content (${source.format}):\n\n${source.content}`;
 
-    // Choose provider/model or fall back to defaults (let LLMService route if not provided)
-    const provider = dto.providerName || 'openai';
-    const model = dto.modelName || 'gpt-4o-mini';
-
+    // Provider/model comes from ExecutionContext
     const response = await this.llmService.generateUnifiedResponse({
-      provider,
-      model,
+      provider: executionContext.provider,
+      model: executionContext.model,
       systemPrompt,
       userMessage,
       options: {
@@ -445,6 +442,7 @@ export class DeliverableVersionsService {
         includeMetadata: true,
         callerType: 'service',
         callerName: 'deliverable-versions',
+        executionContext,
       },
     });
 
@@ -490,23 +488,25 @@ export class DeliverableVersionsService {
       },
     };
 
-    return this.createVersion(source.deliverableId, createVersionDto, userId);
+    const enhanceExecutionContext: ExecutionContext = {
+      ...executionContext,
+      deliverableId: source.deliverableId,
+    };
+    return this.createVersion(createVersionDto, enhanceExecutionContext);
   }
 
   /**
    * Merge multiple versions into a new version using LLM
    */
   async mergeVersions(
-    deliverableId: string,
     versionIds: string[],
     mergePrompt: string,
-    userId: string,
-    providerName?: string,
-    modelName?: string,
+    executionContext: ExecutionContext,
   ): Promise<{ newVersion: DeliverableVersion; conflictSummary?: string }> {
+    const deliverableId = executionContext.deliverableId;
     try {
       // Verify deliverable ownership
-      await this.verifyDeliverableOwnership(deliverableId, userId);
+      await this.verifyDeliverableOwnership(executionContext);
 
       // Validate that we have at least 2 versions to merge
       if (versionIds.length < 2) {
@@ -518,7 +518,7 @@ export class DeliverableVersionsService {
       // Get all versions to merge and verify they exist and belong to the deliverable
       const versions = await Promise.all(
         versionIds.map(async (versionId) => {
-          const version = await this.getVersion(versionId, userId);
+          const version = await this.getVersion(versionId, executionContext);
           if (version.deliverableId !== deliverableId) {
             throw new BadRequestException(
               `Version ${versionId} does not belong to deliverable ${deliverableId}`,
@@ -532,8 +532,7 @@ export class DeliverableVersionsService {
       const mergedContent = await this.performLLMMerge(
         versions,
         mergePrompt,
-        providerName,
-        modelName,
+        executionContext,
       );
 
       // Create new version with merged content
@@ -564,9 +563,8 @@ export class DeliverableVersionsService {
       };
 
       const newVersion = await this.createVersion(
-        deliverableId,
         createVersionDto,
-        userId,
+        executionContext,
       );
 
       return {
@@ -589,19 +587,18 @@ export class DeliverableVersionsService {
    * Create a new version from a task-based prompt
    */
   async createVersionFromTask(
-    deliverableId: string,
     taskPrompt: string,
-    userId: string,
+    executionContext: ExecutionContext,
     baseVersionId?: string,
   ): Promise<DeliverableVersion> {
     try {
       // Verify deliverable ownership
-      await this.verifyDeliverableOwnership(deliverableId, userId);
+      await this.verifyDeliverableOwnership(executionContext);
 
       // Get base version (current version if not specified)
       const baseVersion = baseVersionId
-        ? await this.getVersion(baseVersionId, userId)
-        : await this.getCurrentVersion(deliverableId, userId);
+        ? await this.getVersion(baseVersionId, executionContext)
+        : await this.getCurrentVersion(executionContext);
 
       if (!baseVersion) {
         throw new BadRequestException(
@@ -629,7 +626,7 @@ export class DeliverableVersionsService {
         },
       };
 
-      return await this.createVersion(deliverableId, createVersionDto, userId);
+      return await this.createVersion(createVersionDto, executionContext);
     } catch (error) {
       if (
         error instanceof NotFoundException ||
@@ -647,8 +644,9 @@ export class DeliverableVersionsService {
    */
   private async getTaskById(
     taskId: string,
-    userId: string,
+    executionContext: ExecutionContext,
   ): Promise<Task | null> {
+    const userId = executionContext.userId;
     try {
       const {
         data,
@@ -685,20 +683,21 @@ export class DeliverableVersionsService {
   async rerunWithDifferentLLM(
     versionId: string,
     rerunDto: RerunWithLLMDto,
-    userId: string,
+    executionContext: ExecutionContext,
   ): Promise<DeliverableVersion> {
     try {
       // Get the source version
-      const sourceVersion = await this.getVersion(versionId, userId);
+      const sourceVersion = await this.getVersion(versionId, executionContext);
       if (!sourceVersion) {
         throw new NotFoundException('Source version not found');
       }
 
       // Verify deliverable ownership
-      await this.verifyDeliverableOwnership(
-        sourceVersion.deliverableId,
-        userId,
-      );
+      const verifyExecutionContext: ExecutionContext = {
+        ...executionContext,
+        deliverableId: sourceVersion.deliverableId,
+      };
+      await this.verifyDeliverableOwnership(verifyExecutionContext);
 
       // Get the original task to retrieve the prompt
       if (!sourceVersion.taskId) {
@@ -707,7 +706,7 @@ export class DeliverableVersionsService {
         );
       }
 
-      const originalTask = await this.getTaskById(sourceVersion.taskId, userId);
+      const originalTask = await this.getTaskById(sourceVersion.taskId, executionContext);
       if (!originalTask) {
         throw new BadRequestException('Cannot rerun: original task not found');
       }
@@ -743,11 +742,10 @@ export class DeliverableVersionsService {
         options: {
           temperature: rerunDto.temperature,
           maxTokens: rerunDto.maxTokens,
-          userId: userId,
           callerType: 'deliverable_rerun',
           callerName: `${agentName}_rerun`,
-          conversationId: metadata?.conversationId as string | undefined,
           includeMetadata: true, // We need the full response object
+          executionContext,
         },
       });
 
@@ -793,10 +791,13 @@ export class DeliverableVersionsService {
         },
       };
 
+      const rerunExecutionContext: ExecutionContext = {
+        ...executionContext,
+        deliverableId: sourceVersion.deliverableId,
+      };
       const newVersion = await this.createVersion(
-        sourceVersion.deliverableId,
         createVersionDto,
-        userId,
+        rerunExecutionContext,
       );
 
       this.logger.log(
@@ -834,9 +835,10 @@ export class DeliverableVersionsService {
   // Private helper methods
 
   private async verifyDeliverableOwnership(
-    deliverableId: string,
-    userId: string,
+    executionContext: ExecutionContext,
   ): Promise<void> {
+    const deliverableId = executionContext.deliverableId;
+    const userId = executionContext.userId;
     try {
       // First, check if the deliverable exists at all (without user_id filter for debugging)
       const { data: result, error: checkError } = await this.supabaseService
@@ -933,8 +935,7 @@ export class DeliverableVersionsService {
   private async performLLMMerge(
     versions: DeliverableVersion[],
     mergePrompt: string,
-    providerName?: string,
-    modelName?: string,
+    executionContext: ExecutionContext,
   ): Promise<{
     content: string;
     conflictSummary?: string;
@@ -968,13 +969,10 @@ ${versionContents}
 
 Please output ONLY the merged content, maintaining the same format as the original versions.`;
 
-    // Use LLM to generate merged content
-    const provider = providerName || 'openai';
-    const model = modelName || 'gpt-4o-mini';
-
+    // Use LLM to generate merged content - provider/model comes from ExecutionContext
     const response = await this.llmService.generateUnifiedResponse({
-      provider,
-      model,
+      provider: executionContext.provider,
+      model: executionContext.model,
       systemPrompt,
       userMessage,
       options: {
@@ -983,6 +981,7 @@ Please output ONLY the merged content, maintaining the same format as the origin
         includeMetadata: true,
         callerType: 'service',
         callerName: 'deliverable-versions-merge',
+        executionContext,
       },
     });
 
@@ -994,7 +993,7 @@ Please output ONLY the merged content, maintaining the same format as the origin
 
     return {
       content,
-      conflictSummary: `Successfully merged ${versions.length} versions using LLM (${provider}/${model})`,
+      conflictSummary: `Successfully merged ${versions.length} versions using LLM (${executionContext.provider}/${executionContext.model})`,
       metadata: responseMetadata,
     };
   }

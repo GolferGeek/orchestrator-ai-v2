@@ -5,6 +5,7 @@ import { AgentPolicyService } from './agent-policy.service';
 import { AgentDryRunService } from './agent-dry-run.service';
 import { AgentsRepository } from '../repositories/agents.repository';
 import { LLMService } from '@/llms/llm.service';
+import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
 
 describe('AgentBuilderService - Code Generation', () => {
   let service: AgentBuilderService;
@@ -48,10 +49,12 @@ describe('AgentBuilderService - Code Generation', () => {
   });
 
   it('should generate function code from description', async () => {
+    const mockContext = createMockExecutionContext();
     const result = await service.generateFunctionCode(
       'Count the words in the input text and return the count',
       ['text/plain'],
       ['application/json'],
+      mockContext,
     );
 
     expect(result.code).toBeDefined();
@@ -63,10 +66,12 @@ describe('AgentBuilderService - Code Generation', () => {
   });
 
   it('should call LLM service with correct parameters', async () => {
+    const mockContext = createMockExecutionContext();
     await service.generateFunctionCode(
       'Process the input and return a greeting',
       ['text/plain'],
       ['text/markdown'],
+      mockContext,
     );
 
     const generateResponseMock = llmService['generateResponse'] as jest.Mock;
@@ -74,17 +79,17 @@ describe('AgentBuilderService - Code Generation', () => {
       expect.stringContaining('JavaScript code generator'),
       expect.stringContaining('Process the input and return a greeting'),
       expect.objectContaining({
-        providerName: 'openai',
-        modelName: 'gpt-4o-mini',
         temperature: 0.3,
         maxTokens: 2000,
         callerType: 'service',
         callerName: 'agent-builder-code-gen',
+        executionContext: mockContext,
       }),
     );
   });
 
   it('should remove markdown code fences from generated code', async () => {
+    const mockContext = createMockExecutionContext();
     // Mock response with code fences
     (llmService.generateResponse as jest.Mock)
       .mockResolvedValueOnce(`\`\`\`javascript
@@ -97,6 +102,7 @@ async function handler(input, ctx) {
       'Simple handler',
       ['text/plain'],
       ['application/json'],
+      mockContext,
     );
 
     expect(result.code).not.toContain('```');
@@ -104,6 +110,7 @@ async function handler(input, ctx) {
   });
 
   it('should handle LLM service errors gracefully', async () => {
+    const mockContext = createMockExecutionContext();
     (llmService.generateResponse as jest.Mock).mockRejectedValueOnce(
       new Error('LLM service unavailable'),
     );
@@ -112,6 +119,7 @@ async function handler(input, ctx) {
       'Generate something',
       ['text/plain'],
       ['application/json'],
+      mockContext,
     );
 
     expect(result.code).toBe('');
@@ -119,10 +127,12 @@ async function handler(input, ctx) {
   });
 
   it('should include input/output modes in the prompt', async () => {
+    const mockContext = createMockExecutionContext();
     await service.generateFunctionCode(
       'Transform data',
       ['application/json', 'text/plain'],
       ['text/markdown'],
+      mockContext,
     );
 
     const mockCalls = (llmService.generateResponse as jest.Mock).mock.calls;
@@ -132,10 +142,12 @@ async function handler(input, ctx) {
   });
 
   it('should mention ctx helpers in system prompt', async () => {
+    const mockContext = createMockExecutionContext();
     await service.generateFunctionCode(
       'Generate an image',
       ['text/plain'],
       ['application/json'],
+      mockContext,
     );
 
     const mockCalls = (llmService.generateResponse as jest.Mock).mock.calls;

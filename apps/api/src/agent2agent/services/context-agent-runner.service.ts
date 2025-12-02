@@ -537,10 +537,7 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
 
     let plan: Plan | null = null;
     if (executionContext.conversationId) {
-      plan = await this.plansService.findByConversationId(
-        executionContext.conversationId,
-        executionContext.userId,
-      );
+      plan = await this.plansService.findByConversationId(executionContext);
     }
 
     let planVersion: PlanVersion | null =

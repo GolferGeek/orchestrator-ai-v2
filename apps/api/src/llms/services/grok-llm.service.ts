@@ -382,15 +382,17 @@ export async function testGrokService() {
 
   const service = createGrokService(config, mockDependencies);
 
+  const mockContext = createMockExecutionContext();
   const params: GenerateResponseParams = {
     systemPrompt: 'You are Grok, a witty and helpful AI assistant.',
     userMessage: 'Tell me something interesting about space exploration.',
     config,
-    conversationId: 'test-conversation',
+    options: {
+      executionContext: mockContext,
+    },
   };
 
   try {
-    const mockContext = createMockExecutionContext();
     const response = await service.generateResponse(mockContext, params);
     return response;
   } catch (error) {
