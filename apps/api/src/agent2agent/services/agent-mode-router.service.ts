@@ -49,7 +49,9 @@ export class AgentModeRouterService {
     const payload = request.payload;
     const method = payload?.method as string | undefined;
 
-    console.log(`🔍 [MODE-ROUTER] mode: ${request.mode}, payload.method: ${method}, agentSlug: ${context.agentSlug}`);
+    console.log(
+      `🔍 [MODE-ROUTER] mode: ${request.mode}, payload.method: ${method}, agentSlug: ${context.agentSlug}`,
+    );
 
     // Route HITL methods (hitl.resume, hitl.status, hitl.history, hitl.pending)
     if (method?.startsWith('hitl.')) {
@@ -75,7 +77,9 @@ export class AgentModeRouterService {
     const runner = this.runnerRegistry.getRunner(agentType);
 
     if (!runner) {
-      console.log(`🔍 [MODE-ROUTER] No runner for agentType ${agentType} - FAILING`);
+      console.log(
+        `🔍 [MODE-ROUTER] No runner for agentType ${agentType} - FAILING`,
+      );
       return TaskResponseDto.failure(
         request.mode!,
         `No runner available for agent type: ${agentType}`,
@@ -83,13 +87,17 @@ export class AgentModeRouterService {
     }
     console.log(`🔍 [MODE-ROUTER] Got runner for ${agentType}`);
 
-    console.log(`🔍 [MODE-ROUTER] About to call runner.execute() for ${agentType}`);
+    console.log(
+      `🔍 [MODE-ROUTER] About to call runner.execute() for ${agentType}`,
+    );
     const result = await runner.execute(
       hydrated.definition,
       hydrated.request,
       context.orgSlug,
     );
-    console.log(`🔍 [MODE-ROUTER] runner.execute() returned: success=${result.success}, mode=${result.mode}`);
+    console.log(
+      `🔍 [MODE-ROUTER] runner.execute() returned: success=${result.success}, mode=${result.mode}`,
+    );
     return result;
   }
 

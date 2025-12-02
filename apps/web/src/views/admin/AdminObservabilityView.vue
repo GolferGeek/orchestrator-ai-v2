@@ -294,10 +294,14 @@ function handleCloseConversationDetail() {
 
 // Lifecycle
 onMounted(async () => {
+  console.log('[AdminObservabilityView] 🚀 Component mounted');
+  console.log('[AdminObservabilityView] Attempting to connect to observability stream...');
   await streamStore.connect();
+  console.log('[AdminObservabilityView] Connection attempt complete. isConnected:', isConnected.value, 'error:', error.value);
 });
 
 onUnmounted(() => {
+  console.log('[AdminObservabilityView] 👋 Component unmounting, disconnecting...');
   streamStore.disconnect();
 });
 </script>

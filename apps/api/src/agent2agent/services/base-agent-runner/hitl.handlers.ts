@@ -257,7 +257,8 @@ export async function handleHitlResume(
                     versionNumber: deliverable.currentVersion.versionNumber,
                     content: deliverable.currentVersion.content,
                     format: deliverable.currentVersion.format,
-                    isCurrentVersion: deliverable.currentVersion.isCurrentVersion,
+                    isCurrentVersion:
+                      deliverable.currentVersion.isCurrentVersion,
                     createdByType: deliverable.currentVersion.createdByType,
                     createdAt: deliverable.currentVersion.createdAt,
                     updatedAt: deliverable.currentVersion.updatedAt,
@@ -273,7 +274,10 @@ export async function handleHitlResume(
 
           // Set flag to prevent duplicate deliverable creation in controller
           // Also set deliverableId so controller can update context
-          const responseObj = buildResponse as unknown as Record<string, unknown>;
+          const responseObj = buildResponse as unknown as Record<
+            string,
+            unknown
+          >;
           responseObj.taskCompletionHandled = true;
           responseObj.deliverableId = deliverable.id;
           return buildResponse;

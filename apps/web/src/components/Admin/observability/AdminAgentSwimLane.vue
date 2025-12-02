@@ -92,7 +92,7 @@ const displayedEvents = computed(() => {
 
 // Helpers
 function eventKey(event: ObservabilityEvent): string {
-  return `${event.id || event.timestamp}-${event.task_id || event.taskId}-${event.hook_event_type || event.event_type}`;
+  return `${event.id || event.timestamp}-${event.context?.taskId}-${event.hook_event_type}`;
 }
 
 function handleConversationClick(conversationId: string) {

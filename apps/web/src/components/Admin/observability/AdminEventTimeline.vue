@@ -155,7 +155,8 @@ const noEventsMessage = computed(() => {
 
 // Generate unique key for each event
 function eventKey(event: ObservabilityEvent): string {
-  return `${event.id || event.timestamp}-${event.task_id}-${event.hook_event_type}`;
+  const taskId = event.context?.taskId;
+  return `${event.id || event.timestamp}-${taskId}-${event.hook_event_type}`;
 }
 
 function handleConversationClick(conversationId: string) {

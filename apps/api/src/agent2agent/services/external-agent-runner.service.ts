@@ -219,13 +219,8 @@ export class ExternalAgentRunnerService extends BaseAgentRunner {
       this.emitObservabilityEvent(
         'agent.progress',
         'Forwarding request to external agent',
-        {
-          definition,
-          request,
-          organizationSlug,
-          taskId: taskId ?? undefined,
-          progress: 20,
-        },
+        request.context,
+        { mode: request.mode, progress: 20 },
       );
 
       const startTime = Date.now();
@@ -236,13 +231,8 @@ export class ExternalAgentRunnerService extends BaseAgentRunner {
         this.emitObservabilityEvent(
           'agent.progress',
           'Waiting for external agent response',
-          {
-            definition,
-            request,
-            organizationSlug,
-            taskId: taskId ?? undefined,
-            progress: 40,
-          },
+          request.context,
+          { mode: request.mode, progress: 40 },
         );
 
         const observable = this.httpService.request({
@@ -272,13 +262,8 @@ export class ExternalAgentRunnerService extends BaseAgentRunner {
       this.emitObservabilityEvent(
         'agent.progress',
         'Processing external agent response',
-        {
-          definition,
-          request,
-          organizationSlug,
-          taskId: taskId ?? undefined,
-          progress: 70,
-        },
+        request.context,
+        { mode: request.mode, progress: 70 },
       );
 
       // 4. Check response status

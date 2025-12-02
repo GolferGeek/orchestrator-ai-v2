@@ -44,34 +44,25 @@ export function useAgentChartData(agentIdFilter?: string) {
   };
   
   const getEventType = (event: ObservabilityEvent): string => {
-    // Check for hook_event_type (snake_case from observability events)
-    if (event.hook_event_type) return event.hook_event_type;
-    // Check for event_type (snake_case alternative)
-    if (event.event_type) return event.event_type;
-    // Check for eventType (camelCase from legacy events)
-    const eventRecord = event as Record<string, unknown>;
-    if ('eventType' in event && typeof eventRecord.eventType === 'string') {
-      return eventRecord.eventType;
-    }
-    return 'unknown';
+    return event.hook_event_type || 'unknown';
   };
   
   const getSessionId = (event: ObservabilityEvent): string => {
-    return event.session_id || event.task_id || event.taskId || 'unknown';
+    return event.context?.taskId || 'unknown';
   };
-  
+
   const processEventBuffer = () => {
     const eventsToProcess = [...eventBuffer];
     eventBuffer = [];
-    
+
     allEvents.value.push(...eventsToProcess);
-    
+
     eventsToProcess.forEach(event => {
       const timestamp = getEventTimestamp(event);
-      
+
       // Skip if event doesn't match agent ID filter
       if (agentIdFilter) {
-        const agentKey = event.agent_slug || event.agentSlug || event.task_id || event.taskId;
+        const agentKey = event.context?.agentSlug || event.context?.taskId;
         if (agentKey !== agentIdFilter) return;
       }
       
@@ -174,7 +165,7 @@ export function useAgentChartData(agentIdFilter?: string) {
     
     if (agentIdFilter) {
       relevantEvents = relevantEvents.filter(event => {
-        const agentKey = event.agent_slug || event.agentSlug || event.task_id || event.taskId;
+        const agentKey = event.context?.agentSlug || event.context?.taskId;
         return agentKey === agentIdFilter;
       });
     }
@@ -261,6 +252,7 @@ export function useAgentChartData(agentIdFilter?: string) {
     eventTimingMetrics
   };
 }
+
 
 
 

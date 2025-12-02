@@ -194,6 +194,7 @@ export async function handlePlanCreate(
         },
         planningPrompt,
         userMessage,
+        request.context,
         conversationHistory,
       );
 

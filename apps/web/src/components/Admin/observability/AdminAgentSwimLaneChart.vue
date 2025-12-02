@@ -332,19 +332,19 @@ const processNewEvents = () => {
   
   // Find events that haven't been processed yet
   currentEvents.forEach(event => {
-    const eventKey = `${event.id || event.timestamp}-${event.task_id || event.taskId}`;
+    const eventKey = `${event.id || event.timestamp}-${event.context?.taskId}`;
     if (!processedEventIds.has(eventKey)) {
       processedEventIds.add(eventKey);
       newEventsToProcess.push(event);
     }
   });
-  
+
   // Process new events
   newEventsToProcess.forEach(event => {
-    const eventType = event.hook_event_type || event.event_type;
+    const eventType = event.hook_event_type;
     if (eventType !== 'heartbeat' && eventType !== 'connected') {
       addEvent(event);
-      
+
       // Trigger pulse animation for new event
       if (renderer && canvas.value) {
         const chartArea = getDimensions();
@@ -354,10 +354,10 @@ const processNewEvents = () => {
       }
     }
   });
-  
+
   // Clean up old event IDs to prevent memory leak
   const currentEventIds = new Set(
-    currentEvents.map(e => `${e.id || e.timestamp}-${e.task_id || e.taskId}`)
+    currentEvents.map(e => `${e.id || e.timestamp}-${e.context?.taskId}`)
   );
   processedEventIds.forEach(id => {
     if (!currentEventIds.has(id)) {

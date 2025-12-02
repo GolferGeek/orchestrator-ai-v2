@@ -6,48 +6,48 @@
     
     <div class="event-content">
       <div class="event-header">
-        <span class="event-type">{{ event.hook_event_type || event.event_type || 'unknown' }}</span>
+        <span class="event-type">{{ event.hook_event_type || 'unknown' }}</span>
         <span class="event-time">{{ formattedTime }}</span>
       </div>
-      
+
       <div class="event-details">
         <div class="event-detail-row">
-          <ion-chip 
-            v-if="event.username"
+          <ion-chip
+            v-if="displayUsername"
             size="small"
             color="secondary"
           >
             <ion-icon :icon="personOutline" />
-            <ion-label>{{ event.username }}</ion-label>
+            <ion-label>{{ displayUsername }}</ion-label>
           </ion-chip>
           
-          <ion-chip 
-            v-if="event.agent_slug"
+          <ion-chip
+            v-if="event.context?.agentSlug"
             size="small"
             color="primary"
           >
             <ion-icon :icon="constructOutline" />
-            <ion-label>{{ event.agent_slug }}</ion-label>
+            <ion-label>{{ event.context.agentSlug }}</ion-label>
           </ion-chip>
-          
-          <ion-chip 
-            v-if="event.conversation_id"
+
+          <ion-chip
+            v-if="event.context?.conversationId"
             size="small"
             color="tertiary"
             @click="handleConversationClick"
             class="clickable"
           >
             <ion-icon :icon="chatbubbleOutline" />
-            <ion-label>{{ truncateId(event.conversation_id) }}</ion-label>
+            <ion-label>{{ truncateId(event.context.conversationId) }}</ion-label>
           </ion-chip>
-          
-          <ion-chip 
-            v-if="event.task_id"
+
+          <ion-chip
+            v-if="event.context?.taskId"
             size="small"
             color="medium"
           >
             <ion-icon :icon="documentOutline" />
-            <ion-label>{{ truncateId(event.task_id) }}</ion-label>
+            <ion-label>{{ truncateId(event.context.taskId) }}</ion-label>
           </ion-chip>
         </div>
         
@@ -74,13 +74,13 @@
           
           <div v-if="showDetails" class="details-content">
             <!-- Organization -->
-            <div v-if="event.organization_slug" class="detail-item">
-              <strong>Organization:</strong> {{ event.organization_slug }}
+            <div v-if="event.context?.orgSlug" class="detail-item">
+              <strong>Organization:</strong> {{ event.context.orgSlug }}
             </div>
-            
+
             <!-- Mode -->
-            <div v-if="event.mode" class="detail-item">
-              <strong>Mode:</strong> {{ event.mode }}
+            <div v-if="event.payload?.mode" class="detail-item">
+              <strong>Mode:</strong> {{ event.payload.mode }}
             </div>
             
             <!-- Status -->
@@ -177,9 +177,14 @@ const formattedTime = computed(() => {
   });
 });
 
+// Username from payload or context
+const displayUsername = computed(() => {
+  return (props.event.payload?.username as string) || props.event.context?.userId || null;
+});
+
 // Determine event icon and color based on event type
 const eventIcon = computed(() => {
-  const type = props.event.hook_event_type || props.event.event_type || '';
+  const type = props.event.hook_event_type || '';
 
   // Task lifecycle events
   if (type === 'task.created') return addCircleOutline;
@@ -216,7 +221,7 @@ const eventIcon = computed(() => {
 });
 
 const eventColor = computed(() => {
-  const type = props.event.hook_event_type || props.event.event_type || '';
+  const type = props.event.hook_event_type || '';
 
   // Task lifecycle colors
   if (type === 'task.created') return 'secondary';
@@ -240,7 +245,7 @@ const eventColor = computed(() => {
 });
 
 const eventTypeClass = computed(() => {
-  const type = props.event.hook_event_type || props.event.event_type || 'unknown';
+  const type = props.event.hook_event_type || 'unknown';
   return type.replace(/\./g, '-');
 });
 
@@ -257,8 +262,8 @@ const progressColor = computed(() => {
 
 // Handlers
 function handleConversationClick() {
-  if (props.event.conversation_id) {
-    emit('conversation-click', props.event.conversation_id);
+  if (props.event.context?.conversationId) {
+    emit('conversation-click', props.event.context.conversationId);
   }
 }
 
@@ -271,19 +276,15 @@ function truncateId(id: string): string {
 const hasAdditionalDetails = computed(() => {
   return !!(
     props.event.payload ||
-    props.event.data ||
-    props.event.result ||
-    props.event.error ||
-    props.event.organization_slug ||
-    props.event.mode ||
+    props.event.context?.orgSlug ||
     props.event.status ||
     props.event.step
   );
 });
 
-// Get payload (check both payload and data fields)
+// Get payload
 const eventPayload = computed(() => {
-  return props.event.payload || props.event.data || null;
+  return props.event.payload || null;
 });
 
 // Format JSON for display

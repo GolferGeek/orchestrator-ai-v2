@@ -297,6 +297,7 @@ export class RagAgentRunnerService extends BaseAgentRunner {
         llmConfig,
         systemPrompt,
         userMessage,
+        context,
         optimizedHistory,
       );
 
@@ -589,9 +590,23 @@ export class RagAgentRunnerService extends BaseAgentRunner {
     orgSlug: string,
     request: TaskRequestDto,
   ): Record<string, unknown> {
-    const payload = request.payload as Record<string, unknown> | undefined;
-    const llmOverride = payload?.llmOverride as { provider?: string; model?: string; temperature?: number; maxTokens?: number } | undefined;
-    const payloadConfig = payload?.config as { provider?: string; model?: string; temperature?: number; maxTokens?: number } | undefined;
+    const payload = request.payload;
+    const llmOverride = payload?.llmOverride as
+      | {
+          provider?: string;
+          model?: string;
+          temperature?: number;
+          maxTokens?: number;
+        }
+      | undefined;
+    const payloadConfig = payload?.config as
+      | {
+          provider?: string;
+          model?: string;
+          temperature?: number;
+          maxTokens?: number;
+        }
+      | undefined;
 
     // Get provider/model with priority: llmOverride > payload.config > context > definition.llm
     const llmDef = definition.llm;
@@ -609,8 +624,16 @@ export class RagAgentRunnerService extends BaseAgentRunner {
       'gpt-oss:20b';
 
     // Temperature and maxTokens from override or defaults
-    const temperature = llmOverride?.temperature ?? payloadConfig?.temperature ?? llmDef?.temperature ?? 0.3;
-    const maxTokens = llmOverride?.maxTokens ?? payloadConfig?.maxTokens ?? llmDef?.maxTokens ?? 2000;
+    const temperature =
+      llmOverride?.temperature ??
+      payloadConfig?.temperature ??
+      llmDef?.temperature ??
+      0.3;
+    const maxTokens =
+      llmOverride?.maxTokens ??
+      payloadConfig?.maxTokens ??
+      llmDef?.maxTokens ??
+      2000;
 
     return {
       provider,

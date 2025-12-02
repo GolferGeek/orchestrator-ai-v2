@@ -1023,7 +1023,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
 
       // Extract provider and model
       // Priority: llmOverride (rerun) > payload.config > ExecutionContext
-      const payload = request.payload as Record<string, unknown> | undefined;
+      const payload = request.payload;
       const llmOverride = payload?.llmOverride as
         | { provider?: string; model?: string }
         | undefined;
@@ -1032,8 +1032,13 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         | undefined;
 
       // Priority: llmOverride (rerun) > payload.config > context
-      const provider = llmOverride?.provider ?? config?.provider ?? request.context?.provider ?? null;
-      const model = llmOverride?.model ?? config?.model ?? request.context?.model ?? null;
+      const provider =
+        llmOverride?.provider ??
+        config?.provider ??
+        request.context?.provider ??
+        null;
+      const model =
+        llmOverride?.model ?? config?.model ?? request.context?.model ?? null;
 
       if (
         !provider ||
@@ -1233,13 +1238,15 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
 
       // 5. Execute HTTP request
       // Observability: Calling external API
-      this.emitObservabilityEvent('agent.progress', 'Calling external API', {
-        definition,
-        request,
-        organizationSlug,
-        taskId: taskId ?? undefined,
-        progress: 30,
-      });
+      this.emitObservabilityEvent(
+        'agent.progress',
+        'Calling external API',
+        request.context,
+        {
+          mode: request.mode,
+          progress: 30,
+        },
+      );
 
       const startTime = Date.now();
       let response: unknown;
@@ -1318,13 +1325,15 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
       const duration = Date.now() - startTime;
 
       // Observability: Processing API response
-      this.emitObservabilityEvent('agent.progress', 'Processing API response', {
-        definition,
-        request,
-        organizationSlug,
-        taskId: taskId ?? undefined,
-        progress: 60,
-      });
+      this.emitObservabilityEvent(
+        'agent.progress',
+        'Processing API response',
+        request.context,
+        {
+          mode: request.mode,
+          progress: 60,
+        },
+      );
 
       // 6. Check response status
       const responseTyped = response as {
@@ -1344,13 +1353,15 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
 
       // 7. Format response data
       // Observability: Formatting response
-      this.emitObservabilityEvent('agent.progress', 'Formatting response', {
-        definition,
-        request,
-        organizationSlug,
-        taskId: taskId ?? undefined,
-        progress: 80,
-      });
+      this.emitObservabilityEvent(
+        'agent.progress',
+        'Formatting response',
+        request.context,
+        {
+          mode: request.mode,
+          progress: 80,
+        },
+      );
 
       const responseData = responseTyped.data;
 
@@ -1935,13 +1946,15 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
       };
 
       // Observability: Starting API call
-      this.emitObservabilityEvent('agent.progress', 'Calling external API', {
-        definition,
-        request,
-        organizationSlug,
-        taskId: taskId ?? undefined,
-        progress: 30,
-      });
+      this.emitObservabilityEvent(
+        'agent.progress',
+        'Calling external API',
+        request.context,
+        {
+          mode: request.mode,
+          progress: 30,
+        },
+      );
 
       // Interpolate URL
       const url = this.interpolateString(urlTemplate, enrichedRequest);
@@ -2067,13 +2080,15 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
       const duration = Date.now() - startTime;
 
       // Observability: Processing API response
-      this.emitObservabilityEvent('agent.progress', 'Processing API response', {
-        definition,
-        request,
-        organizationSlug,
-        taskId: taskId ?? undefined,
-        progress: 60,
-      });
+      this.emitObservabilityEvent(
+        'agent.progress',
+        'Processing API response',
+        request.context,
+        {
+          mode: request.mode,
+          progress: 60,
+        },
+      );
 
       // Transform response using responseTransform if available
       // responseTransform extracts conversation message from API response
@@ -2383,13 +2398,15 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           });
 
       // Observability: Completed
-      this.emitObservabilityEvent('agent.completed', 'API call completed', {
-        definition,
-        request,
-        organizationSlug,
-        taskId: taskId ?? undefined,
-        progress: 100,
-      });
+      this.emitObservabilityEvent(
+        'agent.completed',
+        'API call completed',
+        request.context,
+        {
+          mode: request.mode,
+          progress: 100,
+        },
+      );
 
       return TaskResponseDto.success(mode, {
         content: { message },

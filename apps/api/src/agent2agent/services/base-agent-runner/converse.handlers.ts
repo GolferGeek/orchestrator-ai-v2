@@ -131,6 +131,7 @@ export async function executeConverse(
       llmConfig,
       systemPrompt,
       userMessage,
+      request.context,
       history,
     );
 

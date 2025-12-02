@@ -9,6 +9,7 @@ import { ContextOptimizationService } from '../../context-optimization/context-o
 import { TaskRequestDto, AgentTaskMode } from '../../dto/task-request.dto';
 import { TaskResponseDto } from '../../dto/task-response.dto';
 import type { AgentRuntimeDefinition } from '../../../agent-platform/interfaces/agent.interface';
+import { ExecutionContext } from '@orchestrator-ai/transport-types';
 
 /**
  * Fetches conversation history required for agent execution.
@@ -309,6 +310,7 @@ export async function callLLM(
   llmConfig: Record<string, unknown> | null | undefined,
   systemPrompt: string,
   userMessage: string,
+  executionContext: ExecutionContext,
   conversationHistory?: ConversationMessage[],
 ): Promise<LLMResponse> {
   if (!userMessage || !userMessage.trim()) {
@@ -378,49 +380,19 @@ export async function callLLM(
       agentSlug,
       // Pass conversation history for providers that support it.
       previousMessages: conversationHistory,
+      // Pass ExecutionContext for observability - events are emitted in generateResponse
+      executionContext,
     };
 
     if (model) {
       options.modelName = model;
     }
 
-    llmService.emitLlmObservabilityEvent('agent.llm.started', {
-      provider,
-      model,
-      conversationId,
-      sessionId,
-      userId,
-      agentSlug,
-      organizationSlug,
-      payload: {
-        systemPrompt: systemPrompt.substring(0, 2000),
-        userMessage: userMessage.substring(0, 2000),
-        options,
-      },
-    });
-
     const response = await llmService.generateResponse(
       systemPrompt,
       userMessage,
       options,
     );
-
-    llmService.emitLlmObservabilityEvent('agent.llm.completed', {
-      provider,
-      model,
-      conversationId,
-      sessionId,
-      userId,
-      agentSlug,
-      organizationSlug,
-      payload: {
-        responsePreview:
-          typeof response === 'string'
-            ? response.substring(0, 2000)
-            : response.content,
-        metadata: typeof response === 'string' ? undefined : response.metadata,
-      },
-    });
 
     if (!isLLMResponse(response)) {
       throw new Error('LLM returned an unexpected response');

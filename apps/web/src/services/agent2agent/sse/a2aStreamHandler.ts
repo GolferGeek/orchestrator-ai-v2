@@ -45,19 +45,29 @@ export class A2AStreamHandler {
   private disposeFns: Array<() => void> = [];
 
   constructor(defaultOptions?: SSEConnectionOptions) {
-    this.client = new SSEClient(defaultOptions);
+    console.log('[A2AStreamHandler] 🔧 Constructing handler with options:', defaultOptions);
+    this.client = new SSEClient({ ...defaultOptions, debug: true });
     this.disposeFns.push(
       this.client.onStateChange((state) => {
+        console.log('[A2AStreamHandler] 🔄 State changed:', state);
         this.handlers.onStateChange?.(state);
       }),
       this.client.onError((error) => {
-        console.error('[SSE] stream error', error);
+        console.error('[A2AStreamHandler] ❌ Stream error:', error);
       }),
     );
   }
 
   async connect(params: ConnectParams): Promise<void> {
+    console.log('[A2AStreamHandler] 🔌 connect() called with metadata:', {
+      hasStreamUrl: !!params.metadata?.streamUrl,
+      hasStreamTokenUrl: !!params.metadata?.streamTokenUrl,
+      streamId: params.metadata?.streamId,
+    });
+
     this.metadata = this.normalizeMetadata(params.metadata);
+    console.log('[A2AStreamHandler] 📋 Normalized metadata:', this.metadata);
+
     this.handlers = {
       onChunk: params.onChunk,
       onComplete: params.onComplete,
@@ -69,11 +79,13 @@ export class A2AStreamHandler {
     this.attachEventListeners();
 
     this.client.setReconnectUrlProvider(async () => {
+      console.log('[A2AStreamHandler] 🔄 Reconnect URL provider called');
       const nextUrl = await this.buildStreamUrl();
       return nextUrl;
     });
 
     const initialUrl = await this.buildStreamUrl();
+    console.log('[A2AStreamHandler] 🔌 Connecting to URL:', initialUrl.replace(/token=[^&]+/, 'token=HIDDEN'));
     await this.client.connect(initialUrl);
   }
 
@@ -170,28 +182,44 @@ export class A2AStreamHandler {
   }
 
   private handleChunk(event: MessageEvent): void {
+    console.log('[A2AStreamHandler] 📦 handleChunk called');
     const data = this.safeParse<AgentStreamChunkSSEEvent['data']>(event.data);
     if (!data) {
+      console.warn('[A2AStreamHandler] ⚠️ Failed to parse chunk data');
       return;
     }
+    console.log('[A2AStreamHandler] 📦 Chunk data:', {
+      hasMessage: !!data.message,
+      messageLength: data.message?.length,
+      status: data.status,
+      progress: data.progress,
+    });
     this.handlers.onChunk?.(data);
   }
 
   private handleComplete(event: MessageEvent): void {
+    console.log('[A2AStreamHandler] ✅ handleComplete called');
     const data =
       this.safeParse<AgentStreamCompleteSSEEvent['data']>(event.data);
     if (!data) {
+      console.warn('[A2AStreamHandler] ⚠️ Failed to parse complete data');
       return;
     }
+    console.log('[A2AStreamHandler] ✅ Complete data:', {
+      hasResult: !!data.result,
+      status: data.status,
+    });
     this.handlers.onComplete?.(data);
   }
 
   private handleError(event: MessageEvent): void {
+    console.log('[A2AStreamHandler] ❌ handleError called');
     const data = this.safeParse<AgentStreamErrorSSEEvent['data']>(event.data);
     if (!data) {
+      console.warn('[A2AStreamHandler] ⚠️ Failed to parse error data');
       return;
     }
-
+    console.error('[A2AStreamHandler] ❌ Error data:', data);
     this.handlers.onError?.(data);
   }
 

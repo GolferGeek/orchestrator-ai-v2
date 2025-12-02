@@ -192,33 +192,50 @@ class TasksService {
    * Stream task progress via SSE
    */
   async *streamTaskProgress(taskId: string): AsyncGenerator<TaskProgressEvent> {
-    const response = await fetch(`${apiService.getBaseUrl()}${this.baseUrl}/${taskId}/progress`, {
+    const streamUrl = `${apiService.getBaseUrl()}${this.baseUrl}/${taskId}/progress`;
+    console.log(`[TasksService] 🔌 streamTaskProgress starting for taskId: ${taskId}`);
+    console.log(`[TasksService] 🔌 Stream URL: ${streamUrl}`);
+
+    const response = await fetch(streamUrl, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
         'Accept': 'text/event-stream',
       },
     });
+    console.log(`[TasksService] 🔌 Fetch response status: ${response.status} ${response.statusText}`);
+
     if (!response.ok) {
+      console.error(`[TasksService] ❌ Failed to stream task progress: ${response.statusText}`);
       throw new Error(`Failed to stream task progress: ${response.statusText}`);
     }
     const reader = response.body?.getReader();
     if (!reader) {
+      console.error(`[TasksService] ❌ Response body is not readable`);
       throw new Error('Response body is not readable');
     }
+    console.log(`[TasksService] ✅ Reader obtained, starting to read stream`);
+
     const decoder = new TextDecoder();
     let buffer = '';
+    let eventCount = 0;
     try {
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          console.log(`[TasksService] 📭 Stream ended. Total events received: ${eventCount}`);
+          break;
+        }
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             try {
-              const parsed = JSON.parse(line.slice(6));
+              const rawData = line.slice(6);
+              console.log(`[TasksService] 📨 Raw SSE data: ${rawData.substring(0, 200)}...`);
+              const parsed = JSON.parse(rawData);
               if (!isTaskProgressEvent(parsed)) {
+                console.log(`[TasksService] ⚠️ Parsed data is not a valid TaskProgressEvent:`, parsed);
                 continue;
               }
 
@@ -234,18 +251,22 @@ class TasksService {
                 message,
               };
 
+              eventCount++;
+              console.log(`[TasksService] ✅ Event ${eventCount}: progress=${event.progress}%, status=${event.status}, message=${event.message?.substring(0, 50)}`);
               yield event;
 
               if (status && (status === 'completed' || status === 'failed' || status === 'cancelled')) {
+                console.log(`[TasksService] 🏁 Terminal status reached: ${status}`);
                 return;
               }
-            } catch {
-              // Error parsing SSE data - skip this line
+            } catch (parseError) {
+              console.error(`[TasksService] ❌ Error parsing SSE data:`, parseError, `Line: ${line}`);
             }
           }
         }
       }
     } finally {
+      console.log(`[TasksService] 🔌 Releasing reader lock`);
       reader.releaseLock();
     }
   }

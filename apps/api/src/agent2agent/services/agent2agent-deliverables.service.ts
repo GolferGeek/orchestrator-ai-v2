@@ -92,9 +92,15 @@ export class Agent2AgentDeliverablesService {
           parts.push(String(finalContent.blogPost));
         }
         if (finalContent.seoDescription) {
-          parts.push('\n\n---\n\n## SEO Description\n\n' + String(finalContent.seoDescription));
+          parts.push(
+            '\n\n---\n\n## SEO Description\n\n' +
+              String(finalContent.seoDescription),
+          );
         }
-        if (Array.isArray(finalContent.socialPosts) && finalContent.socialPosts.length > 0) {
+        if (
+          Array.isArray(finalContent.socialPosts) &&
+          finalContent.socialPosts.length > 0
+        ) {
           const socialText = finalContent.socialPosts
             .map((post, i) => {
               if (typeof post === 'object' && post !== null) {

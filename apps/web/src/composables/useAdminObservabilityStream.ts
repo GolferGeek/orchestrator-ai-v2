@@ -5,11 +5,10 @@ import { useAuthStore, useRbacStore } from '@/stores/rbacStore';
  * ObservabilityEvent
  *
  * Events received from the admin observability SSE stream.
- * These are monitoring/display events, not part of the A2A execution flow.
- * Use the flat properties directly for filtering and display.
+ * All identity fields come from context - no duplication.
  */
 export interface ObservabilityEvent {
-  /** ExecutionContext capsule - optional, may be present for newer events */
+  /** ExecutionContext capsule - contains all identity fields */
   context?: {
     conversationId?: string;
     taskId?: string;
@@ -22,26 +21,8 @@ export interface ObservabilityEvent {
   id?: number;
   /** Source application identifier */
   source_app?: string;
-  /** Session identifier */
-  session_id?: string;
   /** Event type (e.g., 'langgraph.started', 'agent.progress') */
   hook_event_type?: string;
-  /** Alternative event type field */
-  event_type?: string;
-  /** User ID (from context, stored flat for DB) */
-  user_id?: string | null;
-  /** Username (resolved from userId) */
-  username?: string | null;
-  /** Conversation ID (from context, stored flat for DB) */
-  conversation_id?: string | null;
-  /** Task ID (from context, stored flat for DB) */
-  task_id?: string;
-  /** Agent slug (from context, stored flat for DB) */
-  agent_slug?: string | null;
-  /** Organization slug (from context, stored flat for DB) */
-  organization_slug?: string | null;
-  /** Mode (plan, build, converse) */
-  mode?: string | null;
   /** Event status */
   status?: string;
   /** Human-readable message */
@@ -50,17 +31,11 @@ export interface ObservabilityEvent {
   progress?: number;
   /** Current step/phase name */
   step?: string;
-  /** Full event payload */
+  /** Full event payload (includes mode, sequence, totalSteps, username, etc.) */
   payload?: Record<string, unknown>;
-  /** Alternative payload field */
-  data?: Record<string, unknown>;
-  /** Result for completed events */
-  result?: unknown;
-  /** Error for failed events */
-  error?: unknown;
   /** Unix timestamp (milliseconds) */
   timestamp?: number;
-  /** ISO timestamp string */
+  /** ISO timestamp from database */
   created_at?: string;
 }
 
@@ -107,25 +82,32 @@ export function useAdminObservabilityStream() {
     }
 
     const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
-    return eventTime > fiveMinutesAgo;
+    const isRecent = eventTime > fiveMinutesAgo;
+    console.log(`[Observability] isRecentEvent check: eventTime=${eventTime}, now=${Date.now()}, fiveMinAgo=${fiveMinutesAgo}, isRecent=${isRecent}, event.timestamp=${event.timestamp}, event.created_at=${event.created_at}`);
+    return isRecent;
   };
 
   // Agent activities (grouped by conversation ID)
   // Only shows activities with events from the last 5 minutes
   const agentActivities = computed<Record<string, AgentActivity>>(() => {
+    console.log(`[Observability] agentActivities computing... allEvents.length=${allEvents.value.length}`);
     const activities: Record<string, AgentActivity> = {};
 
     for (const event of allEvents.value) {
-      // Use flat properties directly - these are monitoring events, not execution context
-      const conversationId = event.context?.conversationId || event.conversation_id || null;
-      const taskId = event.context?.taskId || event.task_id || null;
-      const orgSlug = event.context?.orgSlug || event.organization_slug || 'unknown-org';
-      const userId = event.context?.userId || event.user_id || null;
-      const username = event.username || userId || 'Unknown User';
+      const conversationId = event.context?.conversationId || null;
+      const taskId = event.context?.taskId || null;
+      const orgSlug = event.context?.orgSlug || 'unknown-org';
+      const userId = event.context?.userId || null;
+      const username = (event.payload?.username as string) || userId || 'Unknown User';
+
+      console.log(`[Observability] Processing event: conversationId=${conversationId}, taskId=${taskId}, hook_event_type=${event.hook_event_type}`);
 
       // Group by conversationId - each conversation gets its own swim lane
       const groupKey = conversationId || taskId;
-      if (!groupKey) continue;
+      if (!groupKey) {
+        console.log(`[Observability] ⚠️ Skipping event - no groupKey (conversationId or taskId)`);
+        continue;
+      }
 
       if (!activities[groupKey]) {
         // Determine label based on what ID we're using
@@ -158,7 +140,7 @@ export function useAdminObservabilityStream() {
       activity.lastEvent = event;
 
       // Determine status based on event type
-      const eventType = event.hook_event_type || event.event_type;
+      const eventType = event.hook_event_type;
 
       if (eventType === 'agent.failed' || eventType === 'task.failed' || eventType === 'langgraph.failed') {
         activity.status = 'error';
@@ -183,13 +165,17 @@ export function useAdminObservabilityStream() {
     }
 
     // Filter out activities where the last event is older than 5 minutes
+    console.log(`[Observability] Built ${Object.keys(activities).length} activities before time filtering`);
     const recentActivities: Record<string, AgentActivity> = {};
     for (const [key, activity] of Object.entries(activities)) {
-      if (isRecentEvent(activity.lastEvent)) {
+      const recent = isRecentEvent(activity.lastEvent);
+      console.log(`[Observability] Activity ${key}: ${activity.events.length} events, status=${activity.status}, isRecent=${recent}`);
+      if (recent) {
         recentActivities[key] = activity;
       }
     }
 
+    console.log(`[Observability] Returning ${Object.keys(recentActivities).length} recent activities`);
     return recentActivities;
   });
   
@@ -198,7 +184,7 @@ export function useAdminObservabilityStream() {
   const eventsByConversation = computed(() => {
     const byConv: Record<string, ObservabilityEvent[]> = {};
     for (const event of allEvents.value) {
-      const conversationId = event.context?.conversationId || event.conversation_id;
+      const conversationId = event.context?.conversationId;
       if (!conversationId) continue;
       if (!isRecentEvent(event)) continue; // Skip events older than 5 minutes
       if (!byConv[conversationId]) {
@@ -212,7 +198,7 @@ export function useAdminObservabilityStream() {
   const eventsByTask = computed(() => {
     const byTask: Record<string, ObservabilityEvent[]> = {};
     for (const event of allEvents.value) {
-      const taskId = event.context?.taskId || event.task_id;
+      const taskId = event.context?.taskId;
       if (!taskId) continue;
       if (!byTask[taskId]) {
         byTask[taskId] = [];
@@ -232,37 +218,50 @@ export function useAdminObservabilityStream() {
    * Connect to the admin observability SSE stream
    */
   async function connect(): Promise<void> {
+    console.log('[Observability] 🔌 connect() called');
+    console.log('[Observability] Current state: isConnecting=', isConnecting.value, 'isConnected=', isConnected.value);
+
     if (isConnecting.value || isConnected.value) {
+      console.log('[Observability] Already connecting or connected, returning');
       return;
     }
-    
+
     // Ensure we have an auth token
     const token = authStore.token;
+    console.log('[Observability] Auth token present:', !!token, 'length:', token?.length);
     if (!token) {
       error.value = 'Authentication token required - please log in again';
+      console.error('[Observability] ❌ No auth token');
       return;
     }
 
     // Validate token format (basic check)
     if (typeof token !== 'string' || token.length < 10) {
       error.value = 'Invalid authentication token format';
+      console.error('[Observability] ❌ Invalid token format');
       return;
     }
 
     // Check if user has required permission
+    console.log('[Observability] Checking RBAC permissions...');
     if (!rbacStore.isInitialized) {
+      console.log('[Observability] RBAC not initialized, initializing...');
       try {
         await rbacStore.initialize();
-      } catch {
+        console.log('[Observability] RBAC initialized');
+      } catch (e) {
         error.value = 'Failed to check permissions - please refresh the page';
+        console.error('[Observability] ❌ RBAC initialization failed:', e);
         return;
       }
     }
 
     // Check for admin:audit permission
     const hasPermission = rbacStore.hasPermission('admin:audit');
+    console.log('[Observability] Has admin:audit permission:', hasPermission);
     if (!hasPermission) {
       error.value = 'Permission denied: This endpoint requires admin:audit permission. Please contact your administrator.';
+      console.error('[Observability] ❌ Missing admin:audit permission');
       return;
     }
 
@@ -272,77 +271,108 @@ export function useAdminObservabilityStream() {
 
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:6100';
       const url = `${apiUrl}/observability/stream`;
+      console.log('[Observability] API URL:', apiUrl);
+      console.log('[Observability] Stream URL:', url);
 
       // Create EventSource with authorization header (via query param as workaround)
       // Note: EventSource doesn't support custom headers, so we'd need to send token as query param
       // OR implement a different auth strategy for SSE. For now, using query param:
       const urlWithAuth = `${url}?token=${encodeURIComponent(token)}`;
-      console.log('[Observability] Connecting to SSE stream:', urlWithAuth.replace(token, 'TOKEN_HIDDEN'));
+      console.log('[Observability] 🔌 Connecting to SSE stream:', urlWithAuth.replace(token, 'TOKEN_HIDDEN'));
       
       eventSource = new EventSource(urlWithAuth);
-      
+      console.log('[Observability] EventSource created');
+
       eventSource.onopen = () => {
-        console.log('[Observability] SSE connection opened');
+        console.log('[Observability] ✅ SSE connection opened successfully');
         isConnected.value = true;
         isConnecting.value = false;
         reconnectAttempts = 0;
         lastHeartbeat.value = new Date();
         error.value = null;
       };
-      
+
       eventSource.onmessage = (event: MessageEvent) => {
+        console.log('[Observability] 📨 onmessage triggered');
         try {
           // Handle heartbeat (SSE comments are not received as messages)
           if (event.data.startsWith(':')) {
+            console.log('[Observability] 💓 Heartbeat received');
             lastHeartbeat.value = new Date();
             return;
           }
 
-          console.log('[Observability] Received SSE message:', event.data);
+          console.log('[Observability] 📨 Received SSE message, raw data length:', event.data?.length);
+          console.log('[Observability] 📨 Raw data (first 500 chars):', event.data?.substring(0, 500));
           const data = JSON.parse(event.data) as ObservabilityEvent;
-          console.log('[Observability] Parsed event:', data);
+
+          // Skip connection confirmation events (they don't have context or hook_event_type)
+          const eventType = data.hook_event_type || (data as { event_type?: string }).event_type;
+          if (eventType === 'connected') {
+            console.log('[Observability] ✅ Connection confirmed, skipping storage');
+            return;
+          }
+
+          console.log('[Observability] ✅ Parsed event:', {
+            hook_event_type: data.hook_event_type,
+            conversationId: data.context?.conversationId,
+            taskId: data.context?.taskId,
+            agentSlug: data.context?.agentSlug,
+            status: data.status,
+            message: data.message?.substring(0, 50),
+          });
           allEvents.value.push(data);
+          console.log('[Observability] Total events stored:', allEvents.value.length);
           lastHeartbeat.value = new Date();
 
           // Limit stored events to prevent memory issues
           if (allEvents.value.length > 1000) {
             allEvents.value = allEvents.value.slice(-500);
+            console.log('[Observability] Events trimmed to 500');
           }
-        } catch (error) {
-          console.error('[Observability] Failed to parse SSE event:', error, 'Data:', event.data);
+        } catch (parseError) {
+          console.error('[Observability] ❌ Failed to parse SSE event:', parseError);
+          console.error('[Observability] ❌ Raw data:', event.data);
         }
       };
 
-      eventSource.onerror = (_event: Event) => {
+      eventSource.onerror = (errorEvent: Event) => {
         // EventSource doesn't provide detailed error info, but we can check readyState
         const readyState = eventSource?.readyState;
-        console.error('[Observability] SSE error, readyState:', readyState);
+        console.error('[Observability] ❌ SSE error event:', errorEvent);
+        console.error('[Observability] ❌ ReadyState:', readyState, '(0=CONNECTING, 1=OPEN, 2=CLOSED)');
         let errorMessage = 'SSE connection error';
 
         if (readyState === EventSource.CONNECTING) {
           errorMessage = 'Connection failed - check authentication and network';
+          console.error('[Observability] ❌ State: CONNECTING - likely auth or network issue');
         } else if (readyState === EventSource.CLOSED) {
           errorMessage = 'Connection closed - Authentication or permission issue. This endpoint requires admin:audit permission.';
+          console.error('[Observability] ❌ State: CLOSED - server closed connection');
         }
 
         disconnect();
-        
+
         // Attempt to reconnect with exponential backoff
         if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
           reconnectAttempts++;
           const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
           error.value = `${errorMessage} Reconnecting in ${delay / 1000}s... (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`;
-          
+          console.log('[Observability] 🔄 Scheduling reconnect attempt', reconnectAttempts, 'in', delay, 'ms');
+
           reconnectTimeout = setTimeout(() => {
+            console.log('[Observability] 🔄 Reconnecting...');
             connect();
           }, delay);
         } else {
           error.value = `${errorMessage} Maximum reconnection attempts reached. Please verify: 1) User has admin:audit permission, 2) Token is valid, 3) Server is running.`;
+          console.error('[Observability] ❌ Max reconnect attempts reached');
         }
       };
     } catch (err) {
       isConnecting.value = false;
       error.value = err instanceof Error ? err.message : 'Connection failed';
+      console.error('[Observability] ❌ Connection exception:', err);
     }
   }
   
@@ -389,9 +419,7 @@ export function useAdminObservabilityStream() {
    * Get events for a specific agent
    */
   function getAgentEvents(agentSlug: string): ObservabilityEvent[] {
-    return allEvents.value.filter(e => 
-      e.context?.agentSlug === agentSlug || e.agent_slug === agentSlug
-    );
+    return allEvents.value.filter(e => e.context?.agentSlug === agentSlug);
   }
   
   // Auto-disconnect on unmount

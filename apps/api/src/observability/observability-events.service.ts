@@ -6,33 +6,15 @@ import { ExecutionContext } from '@orchestrator-ai/transport-types';
  * ObservabilityEventRecord
  *
  * Record structure for observability events.
- * - `context` is REQUIRED - the ExecutionContext capsule for SSE streaming
- * - Flat fields (user_id, conversation_id, etc.) are kept for database storage/querying
- *   These are derived from context and stored flat for SQL index efficiency
+ * All identity fields come from context - no duplication.
  */
 export interface ObservabilityEventRecord {
-  /** ExecutionContext capsule - REQUIRED for SSE streaming */
+  /** ExecutionContext capsule - contains all identity fields */
   context: ExecutionContext;
   /** Source application identifier */
   source_app: string;
-  /** Session identifier (usually conversationId or taskId) */
-  session_id: string | null;
   /** Event type (e.g., 'langgraph.started', 'agent.progress') */
   hook_event_type: string;
-  /** User ID (from context, stored flat for DB queries) */
-  user_id: string | null;
-  /** Username (resolved from userId) */
-  username: string | null;
-  /** Conversation ID (from context, stored flat for DB queries) */
-  conversation_id: string | null;
-  /** Task ID (from context, stored flat for DB queries) */
-  task_id: string;
-  /** Agent slug (from context, stored flat for DB queries) */
-  agent_slug: string | null;
-  /** Organization slug (from context, stored flat for DB queries) */
-  organization_slug: string | null;
-  /** Mode (plan, build, converse) */
-  mode: string | null;
   /** Event status */
   status: string;
   /** Human-readable message */
@@ -45,8 +27,6 @@ export interface ObservabilityEventRecord {
   payload: Record<string, unknown>;
   /** Unix timestamp (milliseconds) */
   timestamp: number;
-  /** Additional fields for extensibility */
-  [key: string]: unknown;
 }
 
 /**
@@ -91,7 +71,7 @@ export class ObservabilityEventsService {
   push(event: ObservabilityEventRecord): void {
     try {
       this.logger.log(
-        `📥 [BUFFER] Pushing event: ${event.hook_event_type} for task ${event.task_id || 'unknown'}`,
+        `📥 [BUFFER] Pushing event: ${event.hook_event_type} for task ${event.context.taskId || 'unknown'}`,
       );
       this.buffer.push(event);
       if (this.buffer.length > this.bufferSize) {

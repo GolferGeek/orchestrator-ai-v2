@@ -141,7 +141,9 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
     request: TaskRequestDto,
     organizationSlug: string | null,
   ): Promise<TaskResponseDto> {
-    console.log(`🔍 [CONTEXT-RUNNER] executeBuild() ENTRY - agent: ${definition.slug}`);
+    console.log(
+      `🔍 [CONTEXT-RUNNER] executeBuild() ENTRY - agent: ${definition.slug}`,
+    );
     const payload = (request.payload ??
       {}) as unknown as ExtendedBuildCreatePayload;
 
@@ -158,7 +160,9 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
 
       // Use ExecutionContext from request - it flows through unchanged
       const context = request.context;
-      console.log(`🔍 [CONTEXT-RUNNER] context.conversationId: ${context?.conversationId}`);
+      console.log(
+        `🔍 [CONTEXT-RUNNER] context.conversationId: ${context?.conversationId}`,
+      );
       if (!context.conversationId) {
         console.log(`🔍 [CONTEXT-RUNNER] FAILURE: conversationId missing`);
         return TaskResponseDto.failure(
@@ -176,14 +180,27 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
           ? payload.planVersionId.trim()
           : null;
 
+      // Observability: Agent started
+      this.emitObservabilityEvent(
+        'agent.started',
+        `Starting BUILD for ${definition.name}`,
+        context,
+        {
+          mode: request.mode,
+          progress: 0,
+        },
+      );
+
       // Observability: Fetching context
-      this.emitObservabilityEvent('agent.progress', 'Fetching context', {
-        definition,
-        request,
-        organizationSlug,
-        taskId: context.taskId,
-        progress: 10,
-      });
+      this.emitObservabilityEvent(
+        'agent.progress',
+        'Fetching context',
+        context,
+        {
+          mode: request.mode,
+          progress: 10,
+        },
+      );
 
       // Emit SSE progress update using ExecutionContext
       this.streamingService.emitProgress(
@@ -207,18 +224,22 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
       );
 
       if (buildContext.error) {
-        this.logger.error(`[handleBuild] gatherBuildContext failed: ${buildContext.error}`);
+        this.logger.error(
+          `[handleBuild] gatherBuildContext failed: ${buildContext.error}`,
+        );
         return TaskResponseDto.failure(AgentTaskMode.BUILD, buildContext.error);
       }
 
       // Observability: Context fetched, optimizing
-      this.emitObservabilityEvent('agent.progress', 'Optimizing context', {
-        definition,
-        request,
-        organizationSlug,
-        taskId: context.taskId,
-        progress: 30,
-      });
+      this.emitObservabilityEvent(
+        'agent.progress',
+        'Optimizing context',
+        context,
+        {
+          mode: request.mode,
+          progress: 30,
+        },
+      );
 
       // Emit SSE progress update
       this.streamingService.emitProgress(
@@ -272,11 +293,8 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
 
       if (!finalContent) {
         // Observability: Calling LLM
-        this.emitObservabilityEvent('agent.progress', 'Calling LLM', {
-          definition,
-          request,
-          organizationSlug,
-          taskId: context.taskId,
+        this.emitObservabilityEvent('agent.progress', 'Calling LLM', context, {
+          mode: request.mode,
           progress: 50,
         });
 
@@ -308,6 +326,7 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
           llmConfig,
           systemPrompt,
           userMessage,
+          context,
           conversationForPrompt,
         );
 
@@ -317,7 +336,9 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
       }
 
       if (!finalContent || finalContent.trim().length === 0) {
-        this.logger.error(`[handleBuild] Generated deliverable content was empty`);
+        this.logger.error(
+          `[handleBuild] Generated deliverable content was empty`,
+        );
         return TaskResponseDto.failure(
           AgentTaskMode.BUILD,
           'Generated deliverable content was empty',
@@ -399,7 +420,9 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
       );
 
       if (!createResult.success || !createResult.data) {
-        this.logger.error(`[handleBuild] Failed to create deliverable: ${createResult.error?.message}`);
+        this.logger.error(
+          `[handleBuild] Failed to create deliverable: ${createResult.error?.message}`,
+        );
         return TaskResponseDto.failure(
           AgentTaskMode.BUILD,
           createResult.error?.message ?? 'Failed to create deliverable',
@@ -461,7 +484,21 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
         },
       );
 
-      this.logger.log(`[handleBuild] ✅ SUCCESS - returning deliverable: ${JSON.stringify(resultData.deliverable)?.substring(0, 200)}`);
+      this.logger.log(
+        `[handleBuild] ✅ SUCCESS - returning deliverable: ${JSON.stringify(resultData.deliverable)?.substring(0, 200)}`,
+      );
+
+      // Observability: Agent completed
+      this.emitObservabilityEvent(
+        'agent.completed',
+        `BUILD completed for ${definition.name}`,
+        context,
+        {
+          mode: request.mode,
+          progress: 100,
+        },
+      );
+
       return TaskResponseDto.success(AgentTaskMode.BUILD, {
         content: {
           deliverable: resultData.deliverable,

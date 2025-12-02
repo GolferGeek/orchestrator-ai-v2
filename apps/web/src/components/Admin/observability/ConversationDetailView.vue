@@ -341,7 +341,7 @@ async function copyToClipboard(text: string) {
 }
 
 function eventKey(event: ObservabilityEvent): string {
-  return `${event.id || event.timestamp}-${event.task_id}-${event.hook_event_type}`;
+  return `${event.id || event.timestamp}-${event.context?.taskId}-${event.hook_event_type}`;
 }
 </script>
 

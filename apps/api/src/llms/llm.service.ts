@@ -47,6 +47,10 @@ import { mapProviderFromDb, mapModelFromDb } from '@/utils/case-converter';
 import { ModelConfigurationService } from './config/model-configuration.service';
 import type { EnvironmentName } from './config/model-configuration.service';
 import { ObservabilityWebhookService } from '@/observability/observability-webhook.service';
+import {
+  ObservabilityEventsService,
+  ObservabilityEventRecord,
+} from '@/observability/observability-events.service';
 import { getTableName } from '@/supabase/supabase.config';
 import {
   LLMError,
@@ -111,6 +115,7 @@ export class LLMService {
     private readonly llmServiceFactoryInstance: LLMServiceFactory,
     private readonly modelConfigurationService: ModelConfigurationService,
     private readonly observabilityService: ObservabilityWebhookService,
+    private readonly observabilityEventsService: ObservabilityEventsService,
   ) {
     // Initialize OpenAI client only if API key is available
     if (process.env.OPENAI_API_KEY) {
@@ -138,17 +143,20 @@ export class LLMService {
     options?: GenerateResponseOptions,
   ): Promise<string | LLMResponse> {
     const startTime = Date.now();
-    const observabilityContext = this.extractObservabilityContext(options);
+    const executionContext = options?.executionContext;
+
+    // Emit LLM started event - use direct push when ExecutionContext is available
+    if (executionContext) {
+      this.emitLlmObservabilityEvent('agent.llm.started', executionContext, {
+        provider: options?.providerName || options?.provider,
+        model: options?.modelName,
+        message: 'LLM call started',
+        systemPromptPreview: systemPrompt.substring(0, 500),
+        userMessagePreview: userMessage.substring(0, 500),
+      });
+    }
 
     try {
-      await this.emitLlmEvent('agent.llm.started', {
-        ...observabilityContext,
-        payload: {
-          systemPrompt: systemPrompt.substring(0, 2000),
-          userMessage: userMessage.substring(0, 2000),
-          options,
-        },
-      });
 
       // If providerName/modelName are provided, use the unified method
       if (options?.providerName && options?.modelName) {
@@ -346,22 +354,16 @@ export class LLMService {
         if (enhancedPiiMetadata) {
           unifiedResult.piiMetadata = enhancedPiiMetadata;
         }
-        // Return the result (string or object based on includeMetadata)
-        const isStringResult = typeof unifiedResult === 'string';
-        const preview = isStringResult
-          ? (unifiedResult as string).substring(0, 2000)
-          : unifiedResult.content?.substring(0, 2000);
-        const metadata = isStringResult
-          ? undefined
-          : (unifiedResult.metadata as unknown as Record<string, unknown>);
-
-        await this.emitLlmEvent('agent.llm.completed', {
-          ...observabilityContext,
-          payload: {
-            responsePreview: preview,
-            metadata,
-          },
-        });
+        // Emit LLM completed event - use direct push when ExecutionContext is available
+        if (executionContext) {
+          this.emitLlmObservabilityEvent('agent.llm.completed', executionContext, {
+            provider: options?.providerName || options?.provider,
+            model: options?.modelName,
+            message: 'LLM call completed',
+            responsePreview: unifiedResult.content?.substring(0, 500),
+            metadata: unifiedResult.metadata,
+          });
+        }
 
         return unifiedResult;
       }
@@ -551,13 +553,15 @@ export class LLMService {
           };
         }
 
-        await this.emitLlmEvent('agent.llm.completed', {
-          ...observabilityContext,
-          payload: {
-            responsePreview: content.substring(0, 2000),
-            metadata: undefined,
-          },
-        });
+        // Emit LLM completed event for legacy path - use direct push when ExecutionContext is available
+        if (executionContext) {
+          this.emitLlmObservabilityEvent('agent.llm.completed', executionContext!, {
+            provider: options?.providerName || options?.provider,
+            model: options?.modelName,
+            message: 'LLM call completed',
+            responsePreview: content.substring(0, 500),
+          });
+        }
 
         return content;
       } catch (error: unknown) {
@@ -570,15 +574,18 @@ export class LLMService {
         throw new Error(`LLM service error: ${errorMessage}`);
       }
     } catch (_outerError) {
-      await this.emitLlmEvent('agent.llm.failed', {
-        ...observabilityContext,
-        payload: {
+      // Emit LLM failed event - use direct push when ExecutionContext is available
+      if (executionContext) {
+        this.emitLlmObservabilityEvent('agent.llm.failed', executionContext, {
+          provider: options?.providerName || options?.provider,
+          model: options?.modelName,
+          message: 'LLM call failed',
           error:
             _outerError instanceof Error
               ? _outerError.message
               : String(_outerError),
-        },
-      });
+        });
+      }
       // Handle any errors in the try block setup
       const errorMessage =
         _outerError instanceof Error
@@ -590,116 +597,38 @@ export class LLMService {
 
   /**
    * Emit observability event for LLM lifecycle
+   *
+   * @param hook_event_type - Event type (e.g., 'agent.llm.started', 'agent.llm.completed')
+   * @param executionContext - The ExecutionContext passed from the request
+   * @param payload - Additional event payload (provider, model, etc.)
    */
   emitLlmObservabilityEvent(
     hook_event_type: string,
-    event: {
-      provider?: string | null;
-      model?: string | null;
-      conversationId?: string | null;
-      sessionId?: string | null;
-      userId?: string | null;
-      agentSlug?: string | null;
-      organizationSlug?: string | null;
-      payload?: Record<string, unknown>;
-    },
+    executionContext: ExecutionContext,
+    payload?: Record<string, unknown>,
   ): void {
     try {
-      this.observabilityService
-        .sendEvent({
-          source_app: 'orchestrator-ai',
-          session_id: event.conversationId || event.sessionId || 'unknown',
-          hook_event_type,
-          conversationId: event.conversationId || undefined,
-          taskId: event.sessionId || event.conversationId || 'unknown',
-          agentSlug: event.agentSlug || undefined,
-          organizationSlug: event.organizationSlug || undefined,
-          userId: event.userId || undefined,
-          mode: 'llm',
-          payload: {
-            provider: event.provider,
-            model: event.model,
-            ...event.payload,
-          },
-        })
-        .catch((err) => {
-          this.logger.warn(
-            `Failed to emit LLM observability event (${hook_event_type}): ${err.message}`,
-          );
-        });
-    } catch (error) {
-      // Silently ignore observability errors to avoid disrupting main flow
-    }
-  }
-
-  private async emitLlmEvent(
-    hook_event_type: string,
-    event: {
-      provider?: string | null;
-      model?: string | null;
-      conversationId?: string | null;
-      sessionId?: string | null;
-      userId?: string | null;
-      agentSlug?: string | null;
-      organizationSlug?: string | null;
-      payload?: Record<string, unknown>;
-    },
-  ): Promise<void> {
-    try {
-      await this.observabilityService.sendEvent({
+      const event: ObservabilityEventRecord = {
+        context: executionContext,
         source_app: 'orchestrator-ai',
-        session_id: event.conversationId || event.sessionId || 'unknown',
         hook_event_type,
-        conversationId: event.conversationId || undefined,
-        taskId: event.sessionId || event.conversationId || 'unknown',
-        agentSlug: event.agentSlug || undefined,
-        organizationSlug: event.organizationSlug || undefined,
-        userId: event.userId || undefined,
-        mode: 'llm',
-        payload: {
-          provider: event.provider,
-          model: event.model,
-          ...event.payload,
-        },
-      });
+        status: hook_event_type,
+        message: payload?.message as string | null ?? null,
+        progress: null,
+        step: 'llm',
+        payload: payload ?? {},
+        timestamp: Date.now(),
+      };
+
+      this.observabilityEventsService.push(event);
     } catch (error) {
       // Silently ignore observability errors to avoid disrupting main flow
+      this.logger.debug(
+        `Failed to emit LLM observability event: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
-  private extractObservabilityContext(options?: Record<string, unknown>): {
-    provider?: string | null;
-    model?: string | null;
-    conversationId?: string | null;
-    sessionId?: string | null;
-    userId?: string | null;
-    agentSlug?: string | null;
-    organizationSlug?: string | null;
-  } {
-    if (!options) {
-      return {};
-    }
-    return {
-      provider:
-        (options.providerName as string) ||
-        (options.provider as string) ||
-        null,
-      model: (options.modelName as string) || (options.model as string) || null,
-      conversationId:
-        (options.conversationId as string) ||
-        (options.streamId as string) ||
-        null,
-      sessionId: (options.sessionId as string) || null,
-      userId: (options.userId as string) || null,
-      agentSlug: (options.agentSlug as string) || null,
-      organizationSlug:
-        typeof options.organizationSlug === 'string'
-          ? options.organizationSlug
-          : options.organizationSlug === null
-            ? null
-            : undefined,
-    };
-  }
 
   /**
    * Unified generateResponse method - the new entry point for all LLM requests
@@ -714,20 +643,20 @@ export class LLMService {
   async generateUnifiedResponse(
     params: UnifiedGenerateResponseParams,
   ): Promise<string | LLMResponse> {
-    const observabilityContext = this.extractObservabilityContext(
-      params.options,
-    );
+    const executionContext = params.options?.executionContext;
+
+    // Emit LLM started event - use direct push when ExecutionContext is available
+    if (executionContext) {
+      this.emitLlmObservabilityEvent('agent.llm.started', executionContext, {
+        provider: params.provider,
+        model: params.model,
+        message: 'LLM call started',
+        systemPromptPreview: params.systemPrompt.substring(0, 500),
+        userMessagePreview: params.userMessage.substring(0, 500),
+      });
+    }
 
     try {
-      await this.emitLlmEvent('agent.llm.started', {
-        ...observabilityContext,
-        payload: {
-          systemPrompt: params.systemPrompt.substring(0, 2000),
-          userMessage: params.userMessage.substring(0, 2000),
-          provider: params.provider,
-          model: params.model,
-        },
-      });
 
       // Validate required parameters
       if (!params.provider) {
@@ -924,26 +853,28 @@ export class LLMService {
         ? response
         : response.content;
 
-      await this.emitLlmEvent('agent.llm.completed', {
-        ...observabilityContext,
-        payload: {
-          responsePreview:
-            typeof responsePayload === 'string'
-              ? responsePayload.substring(0, 2000)
-              : responsePayload,
-          metadata:
-            typeof response === 'string' ? undefined : response.metadata,
-        },
-      });
+      // Emit LLM completed event - use direct push when ExecutionContext is available
+      if (executionContext) {
+        this.emitLlmObservabilityEvent('agent.llm.completed', executionContext, {
+          provider: params.provider,
+          model: params.model,
+          message: 'LLM call completed',
+          responsePreview: response.content?.substring(0, 500),
+          metadata: response.metadata,
+        });
+      }
 
       return responsePayload;
     } catch (error) {
-      await this.emitLlmEvent('agent.llm.failed', {
-        ...observabilityContext,
-        payload: {
+      // Emit LLM failed event - use direct push when ExecutionContext is available
+      if (executionContext) {
+        this.emitLlmObservabilityEvent('agent.llm.failed', executionContext, {
+          provider: params.provider,
+          model: params.model,
+          message: 'LLM call failed',
           error: error instanceof Error ? error.message : String(error),
-        },
-      });
+        });
+      }
 
       // Standardized error handling
       try {

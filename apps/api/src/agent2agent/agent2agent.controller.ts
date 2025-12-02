@@ -308,9 +308,13 @@ export class Agent2AgentController {
 
       // For HITL operations, taskId should already be set in context OR in payload
       // Check all possible locations where taskId might be
-      const contextTaskId = context.taskId && context.taskId !== NIL_UUID ? context.taskId : null;
-      const payloadTaskId = (dto.payload as Record<string, unknown>)?.taskId as string | undefined;
-      const effectiveTaskId = contextTaskId ||
+      const contextTaskId =
+        context.taskId && context.taskId !== NIL_UUID ? context.taskId : null;
+      const payloadTaskId = (dto.payload as Record<string, unknown>)?.taskId as
+        | string
+        | undefined;
+      const effectiveTaskId =
+        contextTaskId ||
         (payloadTaskId && payloadTaskId !== NIL_UUID ? payloadTaskId : null);
 
       const hasExistingTask = !!effectiveTaskId;
@@ -440,7 +444,7 @@ export class Agent2AgentController {
       // (especially taskId, planId, deliverableId which may have been set)
       let resultWithContext: TaskResponseDto | Record<string, unknown>;
       if (result && typeof result === 'object' && 'withContext' in result) {
-        resultWithContext = (result as TaskResponseDto).withContext(context);
+        resultWithContext = result.withContext(context);
       } else if (result && typeof result === 'object') {
         resultWithContext = { ...(result as Record<string, unknown>), context };
       } else {
@@ -940,17 +944,17 @@ export class Agent2AgentController {
       conversationId?: string | null;
     },
   ): boolean {
-    if (event.task_id !== filters.taskId) {
+    if (event.context.taskId !== filters.taskId) {
       return false;
     }
 
-    const eventOrg = this.normalizeOrgValue(event.organization_slug);
+    const eventOrg = this.normalizeOrgValue(event.context.orgSlug);
     if (eventOrg !== filters.organizationSlug) {
       return false;
     }
 
     if (filters.conversationId) {
-      return event.conversation_id === filters.conversationId;
+      return event.context.conversationId === filters.conversationId;
     }
 
     return true;
@@ -970,16 +974,14 @@ export class Agent2AgentController {
     event: ObservabilityEventRecord,
   ): AgentStreamCompleteSSEEvent | null {
     if (!event.context) {
-      this.logger.warn(
-        `Observability event missing context for task ${event.task_id}`,
-      );
+      this.logger.warn(`Observability event missing context`);
       return null;
     }
 
     const completeEvent: AgentStreamCompleteData = {
       context: event.context,
-      streamId: event.task_id,
-      mode: event.mode ?? 'converse',
+      streamId: event.context.taskId,
+      mode: (event.payload?.mode as string) ?? 'converse',
       userMessage: event.message || '',
       timestamp: new Date(event.timestamp).toISOString(),
       type: 'complete',
@@ -991,16 +993,14 @@ export class Agent2AgentController {
     event: ObservabilityEventRecord,
   ): AgentStreamErrorSSEEvent | null {
     if (!event.context) {
-      this.logger.warn(
-        `Observability event missing context for task ${event.task_id}`,
-      );
+      this.logger.warn(`Observability event missing context`);
       return null;
     }
 
     const errorEvent: AgentStreamErrorData = {
       context: event.context,
-      streamId: event.task_id,
-      mode: event.mode ?? 'converse',
+      streamId: event.context.taskId,
+      mode: (event.payload?.mode as string) ?? 'converse',
       userMessage: event.message || '',
       timestamp: new Date(event.timestamp).toISOString(),
       type: 'error',
@@ -1022,16 +1022,14 @@ export class Agent2AgentController {
   ): AgentStreamChunkData | null {
     // Context should be present - it's stored with the event
     if (!event.context) {
-      this.logger.warn(
-        `Observability event missing context for task ${event.task_id}`,
-      );
+      this.logger.warn(`Observability event missing context`);
       return null;
     }
 
     return {
       context: event.context,
-      streamId: event.task_id,
-      mode: event.mode ?? 'converse',
+      streamId: event.context.taskId,
+      mode: (event.payload?.mode as string) ?? 'converse',
       userMessage: event.message || '',
       timestamp: new Date(event.timestamp).toISOString(),
       chunk: {
@@ -1044,8 +1042,8 @@ export class Agent2AgentController {
           status: event.status,
           hookEventType: event.hook_event_type,
           payload: event.payload,
-          sequence: event.sequence ?? undefined,
-          totalSteps: event.totalSteps ?? undefined,
+          sequence: (event.payload?.sequence as number) ?? undefined,
+          totalSteps: (event.payload?.totalSteps as number) ?? undefined,
         },
       },
     };

@@ -97,22 +97,35 @@ export class WebhooksController {
   async handleStatusUpdate(
     @Body() update: WorkflowStatusUpdate,
   ): Promise<void> {
+    this.logger.log(
+      `🔔 [WEBHOOK] Received status update: ${JSON.stringify({
+        taskId: update.taskId,
+        status: update.status,
+        step: update.step,
+        message: update.message?.substring(0, 50),
+        hasContext: !!update.context,
+      })}`,
+    );
+
     // Validate required fields
     if (!update.taskId) {
-      this.logger.warn('Webhook rejected: missing taskId');
+      this.logger.warn('🔔 [WEBHOOK] Rejected: missing taskId');
       return;
     }
 
     // ExecutionContext is REQUIRED - no fallbacks
     if (!update.context || !isExecutionContext(update.context)) {
       this.logger.warn(
-        `Webhook rejected: missing or invalid ExecutionContext for task ${update.taskId}`,
+        `🔔 [WEBHOOK] Rejected: missing or invalid ExecutionContext for task ${update.taskId}. Context: ${JSON.stringify(update.context)}`,
       );
       return;
     }
 
     // Extract context fields - context is the single source of truth
     const { userId, conversationId, agentSlug, orgSlug } = update.context;
+    this.logger.log(
+      `🔔 [WEBHOOK] Context validated: userId=${userId}, conversationId=${conversationId}, agentSlug=${agentSlug}, orgSlug=${orgSlug}`,
+    );
 
     try {
       // Build status history for this task
@@ -230,14 +243,23 @@ export class WebhooksController {
       });
 
       // Emit observability event for admin monitoring and store in database (ADMIN STREAM)
+      this.logger.log(
+        `🔔 [WEBHOOK] Storing observability event for admin stream...`,
+      );
       await this.storeAndBroadcastObservabilityEvent(update, {
         stepName,
         progress,
         sequence,
         totalStepsFromUpdate,
       });
+      this.logger.log(
+        `🔔 [WEBHOOK] ✅ Status update processed successfully for task ${update.taskId}`,
+      );
     } catch (error) {
-      this.logger.error('Error processing workflow status update', error);
+      this.logger.error(
+        '🔔 [WEBHOOK] ❌ Error processing workflow status update',
+        error,
+      );
     }
   }
 
@@ -254,11 +276,14 @@ export class WebhooksController {
       totalStepsFromUpdate?: number;
     },
   ): Promise<void> {
+    this.logger.log(
+      `📊 [OBSERVABILITY] Building event for task ${update.taskId}, status: ${update.status}`,
+    );
     try {
       const now = Date.now();
 
       // Context is the single source of truth - no fallbacks
-      const { userId, conversationId, agentSlug, orgSlug } = update.context;
+      const { userId, conversationId, agentSlug } = update.context;
 
       // Resolve username from userId
       let username: string | null = null;
@@ -271,52 +296,62 @@ export class WebhooksController {
       }
 
       const eventData: ObservabilityEventRecord = {
-        // ExecutionContext capsule - REQUIRED for SSE streaming
         context: update.context,
-        // Flat fields for database storage/querying (derived from context)
         source_app: 'orchestrator-ai',
-        session_id: conversationId || update.taskId,
         hook_event_type: update.status,
-        user_id: userId,
-        username,
-        conversation_id: conversationId,
-        task_id: update.taskId,
-        agent_slug: agentSlug,
-        organization_slug: orgSlug,
-        mode: update.mode || null,
         status: update.status,
         message: update.message || null,
         progress: computed.progress,
         step: computed.stepName,
-        sequence: computed.sequence,
-        total_steps: computed.totalStepsFromUpdate ?? null,
-        payload: update,
+        payload: {
+          ...update,
+          sequence: computed.sequence,
+          totalSteps: computed.totalStepsFromUpdate,
+          username,
+        },
         timestamp: now,
       };
 
-      // Store in database
+      // Store in database (flatten context fields for DB schema)
+      this.logger.log(`📊 [OBSERVABILITY] Storing event in database...`);
       const { error: dbError } = await this.supabaseService
         .getServiceClient()
         .from('observability_events')
-        .insert(eventData);
+        .insert({
+          event_type: update.status,
+          source_app: 'orchestrator-ai',
+          user_id: userId || null,
+          conversation_id: conversationId || null,
+          agent_name: agentSlug || null,
+          event_data: eventData,
+        });
 
       if (dbError) {
         this.logger.error(
-          `Failed to store observability event: ${dbError.message}`,
+          `📊 [OBSERVABILITY] ❌ Failed to store observability event: ${dbError.message}`,
           dbError,
         );
+      } else {
+        this.logger.log(`📊 [OBSERVABILITY] ✅ Event stored in database`);
       }
 
       // Emit to admin clients via EventEmitter (ADMIN STREAM)
+      this.logger.log(
+        `📊 [OBSERVABILITY] Emitting observability.event via EventEmitter...`,
+      );
       this.eventEmitter.emit('observability.event', {
         ...eventData,
         eventType: update.status,
       });
       // Push into in-memory reactive buffer for shared SSE streams
+      this.logger.log(
+        `📊 [OBSERVABILITY] Pushing to ObservabilityEventsService buffer...`,
+      );
       this.observabilityEvents.push(eventData);
+      this.logger.log(`📊 [OBSERVABILITY] ✅ Event broadcast complete`);
     } catch (error) {
       this.logger.error(
-        'Failed to process observability event',
+        '📊 [OBSERVABILITY] ❌ Failed to process observability event',
         error instanceof Error ? error.message : error,
       );
     }

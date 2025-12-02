@@ -13,7 +13,7 @@ const DEFAULT_OPTIONS: Required<SSEConnectionOptions> = {
   maxReconnectAttempts: 5,
   reconnectDelay: 2000,
   timeout: 0,
-  debug: false,
+  debug: true, // Enable debug by default for troubleshooting
 };
 
 export class SSEClient {
@@ -173,24 +173,34 @@ export class SSEClient {
   }
 
   private emitEvent(eventName: string, event: MessageEvent): void {
+    this.debug(`📨 Received event: "${eventName}"`);
 
     // Parse and log detailed info about the event - for debugging only
     try {
-      void JSON.parse(event.data);
+      const parsed = JSON.parse(event.data);
+      this.debug(`📨 Event data parsed:`, {
+        eventName,
+        dataKeys: Object.keys(parsed),
+        taskId: parsed.taskId || parsed.task_id,
+        status: parsed.status,
+        message: parsed.message?.substring(0, 50),
+      });
     } catch {
-      // Failed to parse event data
+      this.debug(`📨 Failed to parse event data as JSON`);
     }
 
     const handlers = this.eventListeners.get(eventName);
     if (!handlers || handlers.size === 0) {
+      this.debug(`📨 No handlers registered for event "${eventName}"`);
       return;
     }
 
+    this.debug(`📨 Dispatching to ${handlers.size} handler(s)`);
     handlers.forEach((handler) => {
       try {
         handler(event);
       } catch (error) {
-        this.debug(`Error in handler for event "${eventName}"`, error);
+        this.debug(`❌ Error in handler for event "${eventName}"`, error);
       }
     });
   }
@@ -267,9 +277,9 @@ export class SSEClient {
       return;
     }
     if (detail) {
-      // Debug with detail
+      console.log(`[SSEClient] ${message}`, detail);
     } else {
-      // Debug message only
+      console.log(`[SSEClient] ${message}`);
     }
   }
 }

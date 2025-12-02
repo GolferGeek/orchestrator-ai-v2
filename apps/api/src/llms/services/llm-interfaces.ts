@@ -9,6 +9,7 @@
 import { PIIProcessingMetadata } from '../types/pii-metadata.types';
 import { LLMUsageMetrics, CIDAFMOptions } from '../types/llm-evaluation';
 import type { DictionaryPseudonymMapping } from '../pii/dictionary-pseudonymizer.service';
+import { ExecutionContext } from '@orchestrator-ai/transport-types';
 
 /**
  * Configuration interface for LLM services
@@ -79,6 +80,8 @@ export interface LLMRequestOptions extends Record<string, unknown> {
   piiMetadata?: PIIProcessingMetadata;
   routingDecision?: RoutingDecision;
   cidafmOptions?: CIDAFMOptions;
+  /** ExecutionContext for observability - flows from endpoint through to LLM */
+  executionContext?: ExecutionContext;
 }
 
 export interface GenerateResponseParams {

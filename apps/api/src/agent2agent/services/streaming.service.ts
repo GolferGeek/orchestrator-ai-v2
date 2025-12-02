@@ -7,6 +7,10 @@ import {
 } from '@orchestrator-ai/transport-types';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { TaskStatusService } from '../tasks/task-status.service';
+import {
+  ObservabilityEventsService,
+  ObservabilityEventRecord,
+} from '../../observability/observability-events.service';
 
 /**
  * StreamingService
@@ -14,6 +18,7 @@ import { TaskStatusService } from '../tasks/task-status.service';
  * Centralized service for managing SSE streaming:
  * - Registers stream sessions and creates taskId <-> streamId mappings
  * - Emits properly formatted A2A SSE events with full ExecutionContext
+ * - Pushes events to ObservabilityEventsService for admin monitoring
  * - Used by both BaseAgentRunner (when creating tasks) and WebhookController (when receiving updates)
  *
  * This ensures all streaming logic follows the A2A protocol consistently.
@@ -28,6 +33,7 @@ export class StreamingService {
   constructor(
     private readonly eventEmitter: EventEmitter2,
     private readonly taskStatusService: TaskStatusService,
+    private readonly observabilityEvents: ObservabilityEventsService,
   ) {}
 
   /**
@@ -89,8 +95,57 @@ export class StreamingService {
       },
     };
 
-    // Emit A2A formatted stream chunk event
+    // Emit A2A formatted stream chunk event (for user-facing SSE)
     this.eventEmitter.emit('agent.stream.chunk', eventPayload);
+
+    // Push to observability buffer (for admin monitoring)
+    this.pushToObservability(context, 'agent.stream.chunk', content, metadata);
+  }
+
+  /**
+   * Push event to ObservabilityEventsService for admin monitoring
+   */
+  private pushToObservability(
+    context: ExecutionContext,
+    eventType: string,
+    message: string | null,
+    metadata?: Record<string, unknown>,
+  ): void {
+    const observabilityEvent: ObservabilityEventRecord = {
+      context,
+      source_app: 'orchestrator-ai',
+      hook_event_type: eventType,
+      status: eventType,
+      message,
+      progress: (metadata?.progress as number) ?? null,
+      step: (metadata?.step as string) ?? null,
+      payload: metadata || {},
+      timestamp: Date.now(),
+    };
+
+    this.logger.log(
+      `📊 Pushing ${eventType} to observability buffer for task ${context.taskId}`,
+    );
+    this.observabilityEvents.push(observabilityEvent);
+  }
+
+  /**
+   * Emit an observability-only event (no user-facing SSE)
+   * Used by emitObservabilityEvent in BaseAgentRunner for agent lifecycle events
+   *
+   * @param context - ExecutionContext
+   * @param eventType - Event type (e.g., 'agent.started', 'agent.progress', 'agent.completed')
+   * @param message - Human-readable message
+   * @param metadata - Additional metadata (progress, step, mode, etc.)
+   */
+  emitObservabilityOnly(
+    context: ExecutionContext,
+    eventType: string,
+    message: string,
+    metadata?: Record<string, unknown>,
+  ): void {
+    // Push directly to observability buffer without emitting user-facing SSE
+    this.pushToObservability(context, eventType, message, metadata);
   }
 
   /**
