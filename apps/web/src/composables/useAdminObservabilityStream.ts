@@ -1,381 +1,163 @@
-import { ref, onUnmounted, computed } from 'vue';
-import { useAuthStore, useRbacStore } from '@/stores/rbacStore';
-
 /**
- * ObservabilityEvent
+ * useAdminObservabilityStream Composable
  *
- * Events received from the admin observability SSE stream.
- * All identity fields come from context - no duplication.
+ * Provides SSE connection management and history fetching for observability.
+ * Uses observabilityStore for state and observabilityService for API calls.
+ *
+ * This composable handles:
+ * - SSE connection lifecycle
+ * - Historical data fetching
+ * - Reconnection logic
+ *
+ * Components should use the store directly for reactive state access.
  */
-export interface ObservabilityEvent {
-  /** ExecutionContext capsule - contains all identity fields */
-  context?: {
-    conversationId?: string;
-    taskId?: string;
-    orgSlug?: string;
-    userId?: string;
-    agentSlug?: string;
-    [key: string]: unknown;
-  };
-  /** Database record ID */
-  id?: number;
-  /** Source application identifier */
-  source_app?: string;
-  /** Event type (e.g., 'langgraph.started', 'agent.progress') */
-  hook_event_type?: string;
-  /** Event status */
-  status?: string;
-  /** Human-readable message */
-  message?: string | null;
-  /** Progress percentage (0-100) */
-  progress?: number;
-  /** Current step/phase name */
-  step?: string;
-  /** Full event payload (includes mode, sequence, totalSteps, username, etc.) */
-  payload?: Record<string, unknown>;
-  /** Unix timestamp (milliseconds) */
-  timestamp?: number;
-  /** ISO timestamp from database */
-  created_at?: string;
-}
 
-export interface AgentActivity {
-  agentSlug: string;
-  conversationId: string | null;
-  username: string | null;
-  organizationSlug: string | null;
-  lastEvent: ObservabilityEvent;
-  events: ObservabilityEvent[];
-  status: 'active' | 'idle' | 'error';
-}
+import { onUnmounted, computed } from 'vue';
+import { useAuthStore } from '@/stores/rbacStore';
+import {
+  useObservabilityStore,
+  HISTORY_TIME_RANGES,
+  type HistoryTimeRange,
+  type ObservabilityEvent,
+  type AgentActivity,
+} from '@/stores/observabilityStore';
+import { observabilityService } from '@/services/observabilityService';
+
+// Re-export types and constants for backwards compatibility
+export { HISTORY_TIME_RANGES };
+export type { HistoryTimeRange, ObservabilityEvent, AgentActivity };
 
 /**
- * Composable for connecting to the admin observability SSE stream
- * Provides real-time monitoring of all agent executions
+ * Composable for admin observability stream management
  */
 export function useAdminObservabilityStream() {
   const authStore = useAuthStore();
-  const rbacStore = useRbacStore();
-  
-  // Connection state
-  const isConnected = ref(false);
-  const isConnecting = ref(false);
-  const error = ref<string | null>(null);
-  const lastHeartbeat = ref<Date | null>(null);
-  
-  // Events storage
-  const allEvents = ref<ObservabilityEvent[]>([]);
-  const recentEvents = computed(() => allEvents.value.slice(-100)); // Last 100 events
+  const store = useObservabilityStore();
 
-  // Helper function to check if event is recent (within 5 minutes)
-  const isRecentEvent = (event: ObservabilityEvent): boolean => {
-    // Check for timestamp in various formats
-    let eventTime: number;
-    if (event.timestamp) {
-      eventTime = typeof event.timestamp === 'number' ? event.timestamp : parseInt(event.timestamp as string, 10);
-    } else if (event.created_at) {
-      eventTime = new Date(event.created_at).getTime();
-    } else if ('createdAt' in event && typeof (event as Record<string, unknown>).createdAt === 'string') {
-      eventTime = new Date((event as Record<string, unknown>).createdAt as string).getTime();
-    } else {
-      eventTime = Date.now();
-    }
-
-    const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
-    const isRecent = eventTime > fiveMinutesAgo;
-    console.log(`[Observability] isRecentEvent check: eventTime=${eventTime}, now=${Date.now()}, fiveMinAgo=${fiveMinutesAgo}, isRecent=${isRecent}, event.timestamp=${event.timestamp}, event.created_at=${event.created_at}`);
-    return isRecent;
-  };
-
-  // Agent activities (grouped by conversation ID)
-  // Only shows activities with events from the last 5 minutes
-  const agentActivities = computed<Record<string, AgentActivity>>(() => {
-    console.log(`[Observability] agentActivities computing... allEvents.length=${allEvents.value.length}`);
-    const activities: Record<string, AgentActivity> = {};
-
-    for (const event of allEvents.value) {
-      const conversationId = event.context?.conversationId || null;
-      const taskId = event.context?.taskId || null;
-      const orgSlug = event.context?.orgSlug || 'unknown-org';
-      const userId = event.context?.userId || null;
-      const username = (event.payload?.username as string) || userId || 'Unknown User';
-
-      console.log(`[Observability] Processing event: conversationId=${conversationId}, taskId=${taskId}, hook_event_type=${event.hook_event_type}`);
-
-      // Group by conversationId - each conversation gets its own swim lane
-      const groupKey = conversationId || taskId;
-      if (!groupKey) {
-        console.log(`[Observability] ⚠️ Skipping event - no groupKey (conversationId or taskId)`);
-        continue;
-      }
-
-      if (!activities[groupKey]) {
-        // Determine label based on what ID we're using
-        const displayLabel = conversationId
-          ? `Conversation ${groupKey.substring(0, 8).toUpperCase()}`
-          : `Task ${groupKey.substring(0, 8).toUpperCase()}`;
-
-        activities[groupKey] = {
-          agentSlug: displayLabel,
-          conversationId: conversationId,
-          username: username,
-          organizationSlug: orgSlug,
-          lastEvent: event,
-          events: [],
-          status: 'idle',
-        };
-      }
-
-      const activity = activities[groupKey];
-
-      // Update org/username if we have better data from this event
-      if (orgSlug && orgSlug !== 'unknown-org' && activity.organizationSlug === 'unknown-org') {
-        activity.organizationSlug = orgSlug;
-      }
-      if (username && username !== 'Unknown User' && activity.username === 'Unknown User') {
-        activity.username = username;
-      }
-
-      activity.events.push(event);
-      activity.lastEvent = event;
-
-      // Determine status based on event type
-      const eventType = event.hook_event_type;
-
-      if (eventType === 'agent.failed' || eventType === 'task.failed' || eventType === 'langgraph.failed') {
-        activity.status = 'error';
-      } else if (
-        eventType === 'agent.started' ||
-        eventType === 'agent.progress' ||
-        eventType === 'task.started' ||
-        eventType === 'task.progress' ||
-        eventType === 'agent.stream.chunk' ||
-        eventType === 'langgraph.started' ||
-        eventType === 'langgraph.processing'
-      ) {
-        activity.status = 'active';
-      } else if (
-        eventType === 'agent.completed' ||
-        eventType === 'task.completed' ||
-        eventType === 'agent.stream.complete' ||
-        eventType === 'langgraph.completed'
-      ) {
-        activity.status = 'idle';
-      }
-    }
-
-    // Filter out activities where the last event is older than 5 minutes
-    console.log(`[Observability] Built ${Object.keys(activities).length} activities before time filtering`);
-    const recentActivities: Record<string, AgentActivity> = {};
-    for (const [key, activity] of Object.entries(activities)) {
-      const recent = isRecentEvent(activity.lastEvent);
-      console.log(`[Observability] Activity ${key}: ${activity.events.length} events, status=${activity.status}, isRecent=${recent}`);
-      if (recent) {
-        recentActivities[key] = activity;
-      }
-    }
-
-    console.log(`[Observability] Returning ${Object.keys(recentActivities).length} recent activities`);
-    return recentActivities;
-  });
-  
-  // Filter helpers - use context as single source of truth
-  // Only shows conversations with events from the last 5 minutes
-  const eventsByConversation = computed(() => {
-    const byConv: Record<string, ObservabilityEvent[]> = {};
-    for (const event of allEvents.value) {
-      const conversationId = event.context?.conversationId;
-      if (!conversationId) continue;
-      if (!isRecentEvent(event)) continue; // Skip events older than 5 minutes
-      if (!byConv[conversationId]) {
-        byConv[conversationId] = [];
-      }
-      byConv[conversationId].push(event);
-    }
-    return byConv;
-  });
-
-  const eventsByTask = computed(() => {
-    const byTask: Record<string, ObservabilityEvent[]> = {};
-    for (const event of allEvents.value) {
-      const taskId = event.context?.taskId;
-      if (!taskId) continue;
-      if (!byTask[taskId]) {
-        byTask[taskId] = [];
-      }
-      byTask[taskId].push(event);
-    }
-    return byTask;
-  });
-  
-  // SSE connection
+  // SSE connection management
   let eventSource: EventSource | null = null;
   let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
   let reconnectAttempts = 0;
-  const MAX_RECONNECT_ATTEMPTS = 5;
-  
+  const maxReconnectAttempts = 5;
+  const baseReconnectDelay = 1000;
+
   /**
-   * Connect to the admin observability SSE stream
+   * Connect to the observability SSE stream
    */
-  async function connect(): Promise<void> {
-    console.log('[Observability] 🔌 connect() called');
-    console.log('[Observability] Current state: isConnecting=', isConnecting.value, 'isConnected=', isConnected.value);
-
-    if (isConnecting.value || isConnected.value) {
-      console.log('[Observability] Already connecting or connected, returning');
+  async function connect(filters?: {
+    userId?: string;
+    agentSlug?: string;
+    conversationId?: string;
+  }): Promise<void> {
+    // Don't reconnect if already connected
+    if (store.isConnected || store.isConnecting) {
+      console.log('[Observability] Already connected or connecting, skipping');
       return;
     }
 
-    // Ensure we have an auth token
     const token = authStore.token;
-    console.log('[Observability] Auth token present:', !!token, 'length:', token?.length);
     if (!token) {
-      error.value = 'Authentication token required - please log in again';
-      console.error('[Observability] ❌ No auth token');
+      store.setConnectionError('Authentication required');
+      console.error('[Observability] No auth token available');
       return;
     }
 
-    // Validate token format (basic check)
-    if (typeof token !== 'string' || token.length < 10) {
-      error.value = 'Invalid authentication token format';
-      console.error('[Observability] ❌ Invalid token format');
-      return;
-    }
-
-    // Check if user has required permission
-    console.log('[Observability] Checking RBAC permissions...');
-    if (!rbacStore.isInitialized) {
-      console.log('[Observability] RBAC not initialized, initializing...');
-      try {
-        await rbacStore.initialize();
-        console.log('[Observability] RBAC initialized');
-      } catch (e) {
-        error.value = 'Failed to check permissions - please refresh the page';
-        console.error('[Observability] ❌ RBAC initialization failed:', e);
-        return;
-      }
-    }
-
-    // Check for admin:audit permission
-    const hasPermission = rbacStore.hasPermission('admin:audit');
-    console.log('[Observability] Has admin:audit permission:', hasPermission);
-    if (!hasPermission) {
-      error.value = 'Permission denied: This endpoint requires admin:audit permission. Please contact your administrator.';
-      console.error('[Observability] ❌ Missing admin:audit permission');
-      return;
-    }
+    store.setConnecting(true);
+    store.setConnectionError(null);
+    console.log('[Observability] Connecting to SSE stream...');
 
     try {
-      isConnecting.value = true;
-      error.value = null;
-
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:6100';
-      const url = `${apiUrl}/observability/stream`;
-      console.log('[Observability] API URL:', apiUrl);
-      console.log('[Observability] Stream URL:', url);
+      const queryParams = new URLSearchParams();
 
-      // Create EventSource with authorization header (via query param as workaround)
-      // Note: EventSource doesn't support custom headers, so we'd need to send token as query param
-      // OR implement a different auth strategy for SSE. For now, using query param:
-      const urlWithAuth = `${url}?token=${encodeURIComponent(token)}`;
-      console.log('[Observability] 🔌 Connecting to SSE stream:', urlWithAuth.replace(token, 'TOKEN_HIDDEN'));
-      
-      eventSource = new EventSource(urlWithAuth);
-      console.log('[Observability] EventSource created');
+      if (filters?.userId) queryParams.append('userId', filters.userId);
+      if (filters?.agentSlug) queryParams.append('agentSlug', filters.agentSlug);
+      if (filters?.conversationId)
+        queryParams.append('conversationId', filters.conversationId);
+
+      // EventSource doesn't support Authorization header, so we use a different approach
+      // The backend SSE endpoint uses cookie-based auth or we pass token via query param
+      queryParams.append('token', token);
+
+      const url = `${apiUrl}/observability/stream?${queryParams.toString()}`;
+      eventSource = new EventSource(url);
 
       eventSource.onopen = () => {
-        console.log('[Observability] ✅ SSE connection opened successfully');
-        isConnected.value = true;
-        isConnecting.value = false;
+        console.log('[Observability] SSE connection opened');
+        store.setConnected(true);
+        store.setConnecting(false);
+        store.setConnectionError(null);
         reconnectAttempts = 0;
-        lastHeartbeat.value = new Date();
-        error.value = null;
       };
 
-      eventSource.onmessage = (event: MessageEvent) => {
-        console.log('[Observability] 📨 onmessage triggered');
+      eventSource.onmessage = (event) => {
         try {
-          // Handle heartbeat (SSE comments are not received as messages)
-          if (event.data.startsWith(':')) {
-            console.log('[Observability] 💓 Heartbeat received');
-            lastHeartbeat.value = new Date();
+          const data = JSON.parse(event.data);
+
+          // Handle connection event
+          if (data.event_type === 'connected') {
+            console.log('[Observability] Received connection confirmation');
+            store.updateHeartbeat();
             return;
           }
 
-          console.log('[Observability] 📨 Received SSE message, raw data length:', event.data?.length);
-          console.log('[Observability] 📨 Raw data (first 500 chars):', event.data?.substring(0, 500));
-          const data = JSON.parse(event.data) as ObservabilityEvent;
-
-          // Skip connection confirmation events (they don't have context or hook_event_type)
-          const eventType = data.hook_event_type || (data as { event_type?: string }).event_type;
-          if (eventType === 'connected') {
-            console.log('[Observability] ✅ Connection confirmed, skipping storage');
+          // Handle heartbeat (SSE comment lines)
+          if (!data.hook_event_type) {
+            store.updateHeartbeat();
             return;
           }
 
-          console.log('[Observability] ✅ Parsed event:', {
-            hook_event_type: data.hook_event_type,
-            conversationId: data.context?.conversationId,
-            taskId: data.context?.taskId,
-            agentSlug: data.context?.agentSlug,
-            status: data.status,
-            message: data.message?.substring(0, 50),
-          });
-          allEvents.value.push(data);
-          console.log('[Observability] Total events stored:', allEvents.value.length);
-          lastHeartbeat.value = new Date();
-
-          // Limit stored events to prevent memory issues
-          if (allEvents.value.length > 1000) {
-            allEvents.value = allEvents.value.slice(-500);
-            console.log('[Observability] Events trimmed to 500');
-          }
-        } catch (parseError) {
-          console.error('[Observability] ❌ Failed to parse SSE event:', parseError);
-          console.error('[Observability] ❌ Raw data:', event.data);
+          // Add event to store
+          store.addEvent(data as ObservabilityEvent);
+          store.updateHeartbeat();
+        } catch (err) {
+          console.error('[Observability] Failed to parse SSE event:', err);
         }
       };
 
-      eventSource.onerror = (errorEvent: Event) => {
-        // EventSource doesn't provide detailed error info, but we can check readyState
-        const readyState = eventSource?.readyState;
-        console.error('[Observability] ❌ SSE error event:', errorEvent);
-        console.error('[Observability] ❌ ReadyState:', readyState, '(0=CONNECTING, 1=OPEN, 2=CLOSED)');
-        let errorMessage = 'SSE connection error';
+      eventSource.onerror = (err) => {
+        console.error('[Observability] SSE error:', err);
+        store.setConnected(false);
+        store.setConnecting(false);
 
-        if (readyState === EventSource.CONNECTING) {
-          errorMessage = 'Connection failed - check authentication and network';
-          console.error('[Observability] ❌ State: CONNECTING - likely auth or network issue');
-        } else if (readyState === EventSource.CLOSED) {
-          errorMessage = 'Connection closed - Authentication or permission issue. This endpoint requires admin:audit permission.';
-          console.error('[Observability] ❌ State: CLOSED - server closed connection');
-        }
-
-        disconnect();
-
-        // Attempt to reconnect with exponential backoff
-        if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-          reconnectAttempts++;
-          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
-          error.value = `${errorMessage} Reconnecting in ${delay / 1000}s... (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`;
-          console.log('[Observability] 🔄 Scheduling reconnect attempt', reconnectAttempts, 'in', delay, 'ms');
-
-          reconnectTimeout = setTimeout(() => {
-            console.log('[Observability] 🔄 Reconnecting...');
-            connect();
-          }, delay);
-        } else {
-          error.value = `${errorMessage} Maximum reconnection attempts reached. Please verify: 1) User has admin:audit permission, 2) Token is valid, 3) Server is running.`;
-          console.error('[Observability] ❌ Max reconnect attempts reached');
+        if (eventSource?.readyState === EventSource.CLOSED) {
+          store.setConnectionError('Connection closed');
+          scheduleReconnect();
         }
       };
     } catch (err) {
-      isConnecting.value = false;
-      error.value = err instanceof Error ? err.message : 'Connection failed';
-      console.error('[Observability] ❌ Connection exception:', err);
+      store.setConnectionError(
+        err instanceof Error ? err.message : 'Connection failed',
+      );
+      store.setConnecting(false);
+      console.error('[Observability] Connection exception:', err);
     }
   }
-  
+
+  /**
+   * Schedule a reconnection attempt
+   */
+  function scheduleReconnect(): void {
+    if (reconnectAttempts >= maxReconnectAttempts) {
+      console.error(
+        '[Observability] Max reconnect attempts reached, giving up',
+      );
+      store.setConnectionError('Max reconnection attempts reached');
+      return;
+    }
+
+    const delay = baseReconnectDelay * Math.pow(2, reconnectAttempts);
+    reconnectAttempts++;
+
+    console.log(
+      `[Observability] Scheduling reconnect attempt ${reconnectAttempts}/${maxReconnectAttempts} in ${delay}ms`,
+    );
+
+    reconnectTimeout = setTimeout(() => {
+      connect();
+    }, delay);
+  }
+
   /**
    * Disconnect from the SSE stream
    */
@@ -384,72 +166,146 @@ export function useAdminObservabilityStream() {
       eventSource.close();
       eventSource = null;
     }
-    
+
     if (reconnectTimeout) {
       clearTimeout(reconnectTimeout);
       reconnectTimeout = null;
     }
-    
-    isConnected.value = false;
-    isConnecting.value = false;
+
+    store.setConnected(false);
+    store.setConnecting(false);
   }
-  
+
   /**
-   * Clear all stored events
+   * Fetch historical events from the database
    */
-  function clearEvents(): void {
-    allEvents.value = [];
+  async function fetchHistory(range?: HistoryTimeRange): Promise<void> {
+    const rangeToUse = range || store.selectedHistoryRange;
+    const rangeConfig = HISTORY_TIME_RANGES[rangeToUse];
+
+    if (!rangeConfig) {
+      console.error('[Observability] Invalid history range:', rangeToUse);
+      return;
+    }
+
+    const token = authStore.token;
+    if (!token) {
+      store.setHistoryError('Authentication required');
+      return;
+    }
+
+    store.setLoadingHistory(true);
+    store.setHistoryError(null);
+
+    try {
+      // Calculate timestamps
+      let since: number;
+      let until: number | undefined;
+
+      if (rangeToUse === 'custom') {
+        since = store.customStartTime
+          ? new Date(store.customStartTime).getTime()
+          : Date.now() - 60 * 60 * 1000;
+        until = store.customEndTime
+          ? new Date(store.customEndTime).getTime()
+          : undefined;
+      } else {
+        since = Date.now() - rangeConfig.ms;
+      }
+
+      console.log(
+        `[Observability] Fetching history for ${rangeConfig.label} (since ${new Date(since).toISOString()}${until ? ` until ${new Date(until).toISOString()}` : ''})`,
+      );
+
+      const response = await observabilityService.fetchHistoricalEvents({
+        since,
+        until,
+        limit: 5000,
+      });
+
+      console.log(`[Observability] Loaded ${response.count} historical events`);
+
+      // Merge with existing events in store
+      store.mergeEvents(response.events);
+
+      console.log(
+        `[Observability] Total events after merge: ${store.events.length}`,
+      );
+    } catch (err) {
+      console.error('[Observability] Failed to fetch history:', err);
+      store.setHistoryError(
+        err instanceof Error ? err.message : 'Failed to load history',
+      );
+    } finally {
+      store.setLoadingHistory(false);
+    }
   }
-  
+
   /**
-   * Get events for a specific conversation
+   * Set history range and fetch events
    */
-  function getConversationEvents(conversationId: string): ObservabilityEvent[] {
-    return eventsByConversation.value[conversationId] || [];
+  function setHistoryRange(range: HistoryTimeRange): void {
+    store.setHistoryRange(range);
+    fetchHistory(range);
   }
-  
+
   /**
-   * Get events for a specific task
+   * Set custom start time
    */
-  function getTaskEvents(taskId: string): ObservabilityEvent[] {
-    return eventsByTask.value[taskId] || [];
+  function setCustomStartTime(time: string): void {
+    store.setCustomStartTime(time);
   }
-  
+
   /**
-   * Get events for a specific agent
+   * Set custom end time
    */
-  function getAgentEvents(agentSlug: string): ObservabilityEvent[] {
-    return allEvents.value.filter(e => e.context?.agentSlug === agentSlug);
+  function setCustomEndTime(time: string): void {
+    store.setCustomEndTime(time);
   }
-  
+
   // Auto-disconnect on unmount
   onUnmounted(() => {
     disconnect();
   });
-  
+
+  // ===================
+  // RETURN PUBLIC API
+  // ===================
+
+  // Expose store state as computed refs for backwards compatibility
   return {
-    // Connection state
-    isConnected,
-    isConnecting,
-    error,
-    lastHeartbeat,
-    
-    // Events
-    allEvents,
-    recentEvents,
-    agentActivities,
-    
-    // Filtered views
-    eventsByConversation,
-    eventsByTask,
-    
+    // Connection state (from store)
+    isConnected: computed(() => store.isConnected),
+    isConnecting: computed(() => store.isConnecting),
+    error: computed(() => store.connectionError),
+    lastHeartbeat: computed(() => store.lastHeartbeat),
+
+    // Events (from store)
+    allEvents: computed(() => store.events),
+    recentEvents: computed(() => store.recentEvents),
+    agentActivities: computed(() => store.agentActivities),
+
+    // Filtered views (from store)
+    eventsByConversation: computed(() => store.eventsByConversation),
+    eventsByTask: computed(() => store.eventsByTask),
+
+    // History (from store)
+    selectedHistoryRange: computed(() => store.selectedHistoryRange),
+    isLoadingHistory: computed(() => store.isLoadingHistory),
+    historyError: computed(() => store.historyError),
+    customStartTime: computed(() => store.customStartTime),
+    customEndTime: computed(() => store.customEndTime),
+
     // Actions
     connect,
     disconnect,
-    clearEvents,
-    getConversationEvents,
-    getTaskEvents,
-    getAgentEvents,
+    clearEvents: () => store.clearEvents(),
+    getConversationEvents: (id: string) => store.getConversationEvents(id),
+    getTaskEvents: (id: string) => store.getTaskEvents(id),
+    getAgentEvents: (slug: string) => store.getAgentEvents(slug),
+    fetchHistory,
+    setHistoryRange,
+    setCustomStartTime,
+    setCustomEndTime,
   };
 }
-

@@ -39,26 +39,78 @@
 
     <ion-content>
       <!-- Error Display -->
-      <ion-card v-if="error" color="danger">
+      <ion-card v-if="error || historyError" color="danger">
         <ion-card-content>
           <ion-text color="light">
-            <strong>Connection Error:</strong> {{ error }}
+            <strong>{{ error ? 'Connection Error' : 'History Error' }}:</strong> {{ error || historyError }}
           </ion-text>
         </ion-card-content>
       </ion-card>
 
+      <!-- History Range Selector -->
+      <div class="history-selector">
+        <ion-select
+          v-model="selectedHistoryRange"
+          interface="popover"
+          label="History"
+          label-placement="stacked"
+          class="history-select"
+          @ion-change="onHistoryRangeChange"
+        >
+          <ion-select-option
+            v-for="(config, key) in HISTORY_TIME_RANGES"
+            :key="key"
+            :value="key"
+          >
+            {{ config.label }}
+          </ion-select-option>
+        </ion-select>
+
+        <!-- Custom Date Range Inputs (shown when 'custom' is selected) -->
+        <template v-if="selectedHistoryRange === 'custom'">
+          <ion-input
+            :value="customStartTime"
+            @ion-input="onCustomStartChange"
+            type="datetime-local"
+            label="From"
+            label-placement="stacked"
+            class="date-input"
+          />
+          <ion-input
+            :value="customEndTime"
+            @ion-input="onCustomEndChange"
+            type="datetime-local"
+            label="To"
+            label-placement="stacked"
+            class="date-input"
+          />
+          <ion-button
+            size="small"
+            @click="onFetchCustomRange"
+            :disabled="isLoadingHistory"
+          >
+            Load
+          </ion-button>
+        </template>
+
+        <ion-spinner v-if="isLoadingHistory" name="crescent" class="history-spinner" />
+        <ion-chip size="small" color="medium" class="event-count-chip">
+          {{ allEvents.length }} events
+        </ion-chip>
+      </div>
+
       <!-- Tab Navigation -->
       <ion-segment v-model="selectedTab" @ion-change="onTabChange">
-        <ion-segment-button value="timeline">
-          <ion-icon :icon="listOutline" />
-          <ion-label>Timeline</ion-label>
-        </ion-segment-button>
-        
         <ion-segment-button value="swimlanes">
           <ion-icon :icon="layersOutline" />
           <ion-label>Swim Lanes</ion-label>
         </ion-segment-button>
-        
+
+        <ion-segment-button value="timeline">
+          <ion-icon :icon="listOutline" />
+          <ion-label>Timeline</ion-label>
+        </ion-segment-button>
+
         <ion-segment-button value="analytics">
           <ion-icon :icon="pulseOutline" />
           <ion-label>Analytics</ion-label>
@@ -204,6 +256,10 @@ import {
   IonCol,
   IonList,
   IonItem,
+  IonSelect,
+  IonSelectOption,
+  IonSpinner,
+  IonInput,
 } from '@ionic/vue';
 import {
   checkmarkCircle,
@@ -218,7 +274,11 @@ import {
   statsChartOutline,
   pieChartOutline,
 } from 'ionicons/icons';
-import { useAdminObservabilityStream } from '@/composables/useAdminObservabilityStream';
+import {
+  useAdminObservabilityStream,
+  HISTORY_TIME_RANGES,
+  type HistoryTimeRange,
+} from '@/composables/useAdminObservabilityStream';
 import AdminEventTimeline from '@/components/Admin/observability/AdminEventTimeline.vue';
 import AdminAgentSwimLane from '@/components/Admin/observability/AdminAgentSwimLane.vue';
 import ConversationDetailView from '@/components/Admin/observability/ConversationDetailView.vue';
@@ -234,10 +294,15 @@ const {
   agentActivities,
   eventsByConversation,
   allEvents,
+  selectedHistoryRange,
+  isLoadingHistory,
+  historyError,
+  customStartTime,
+  customEndTime,
 } = streamStore;
 
 // UI state
-const selectedTab = ref('timeline');
+const selectedTab = ref('swimlanes');
 const showConversationDetail = ref(false);
 const selectedConversationId = ref<string | null>(null);
 
@@ -282,6 +347,26 @@ function onTabChange() {
   // Tab changed
 }
 
+function onHistoryRangeChange(event: CustomEvent) {
+  const range = event.detail.value as HistoryTimeRange;
+  // Only fetch automatically for non-custom ranges
+  if (range !== 'custom') {
+    streamStore.setHistoryRange(range);
+  }
+}
+
+function onCustomStartChange(event: CustomEvent) {
+  streamStore.setCustomStartTime(event.detail.value || '');
+}
+
+function onCustomEndChange(event: CustomEvent) {
+  streamStore.setCustomEndTime(event.detail.value || '');
+}
+
+function onFetchCustomRange() {
+  streamStore.fetchHistory('custom');
+}
+
 function handleConversationClick(conversationId: string) {
   selectedConversationId.value = conversationId;
   showConversationDetail.value = true;
@@ -298,6 +383,11 @@ onMounted(async () => {
   console.log('[AdminObservabilityView] Attempting to connect to observability stream...');
   await streamStore.connect();
   console.log('[AdminObservabilityView] Connection attempt complete. isConnected:', isConnected.value, 'error:', error.value);
+
+  // Fetch initial history (last hour by default)
+  if (isConnected.value) {
+    await streamStore.fetchHistory();
+  }
 });
 
 onUnmounted(() => {
@@ -345,6 +435,36 @@ onUnmounted(() => {
   font-size: 0.875rem;
   color: var(--ion-color-medium);
   margin-top: 4px;
+}
+
+/* History selector styles */
+.history-selector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: var(--ion-color-step-50);
+  border-bottom: 1px solid var(--ion-color-step-150);
+  flex-wrap: wrap;
+}
+
+.history-select {
+  min-width: 150px;
+  max-width: 180px;
+}
+
+.date-input {
+  min-width: 180px;
+  max-width: 200px;
+}
+
+.history-spinner {
+  width: 20px;
+  height: 20px;
+}
+
+.event-count-chip {
+  margin-left: auto;
 }
 </style>
 

@@ -3,20 +3,19 @@ import type { ObservabilityEvent } from './useAdminObservabilityStream';
 import type { ChartDataPoint, TimeRange } from '../types/observability';
 
 export function useAgentChartData(agentIdFilter?: string) {
-  const timeRange = ref<TimeRange>('1m');
+  const timeRange = ref<TimeRange>('20s');
   const dataPoints = ref<ChartDataPoint[]>([]);
   const allEvents = ref<ObservabilityEvent[]>([]);
-  
+
   // Debounce for high-frequency events
   let eventBuffer: ObservabilityEvent[] = [];
   let debounceTimer: number | null = null;
   const DEBOUNCE_DELAY = 50; // 50ms debounce
-  
+
   const timeRangeConfig = {
-    '1m': { duration: 60 * 1000, bucketSize: 1000, maxPoints: 60 },
-    '3m': { duration: 3 * 60 * 1000, bucketSize: 3000, maxPoints: 60 },
-    '5m': { duration: 5 * 60 * 1000, bucketSize: 5000, maxPoints: 60 },
-    '10m': { duration: 10 * 60 * 1000, bucketSize: 10000, maxPoints: 60 }
+    '20s': { duration: 20 * 1000, bucketSize: 500, maxPoints: 40 },
+    '1m': { duration: 60 * 1000, bucketSize: 1500, maxPoints: 40 },
+    '2m': { duration: 2 * 60 * 1000, bucketSize: 3000, maxPoints: 40 },
   };
   
   const currentConfig = computed(() => timeRangeConfig[timeRange.value]);
@@ -57,13 +56,27 @@ export function useAgentChartData(agentIdFilter?: string) {
 
     allEvents.value.push(...eventsToProcess);
 
+    console.log(`[ChartData] Processing ${eventsToProcess.length} events, filter=${agentIdFilter}`);
+
     eventsToProcess.forEach(event => {
       const timestamp = getEventTimestamp(event);
 
       // Skip if event doesn't match agent ID filter
+      // Filter can be conversationId, taskId, or agentSlug
       if (agentIdFilter) {
-        const agentKey = event.context?.agentSlug || event.context?.taskId;
-        if (agentKey !== agentIdFilter) return;
+        const eventConversationId = event.context?.conversationId;
+        const eventTaskId = event.context?.taskId;
+        const eventAgentSlug = event.context?.agentSlug;
+
+        // Match if any of these identifiers match the filter
+        const matches =
+          eventConversationId === agentIdFilter ||
+          eventTaskId === agentIdFilter ||
+          eventAgentSlug === agentIdFilter;
+
+        console.log(`[ChartData] Event check: filter=${agentIdFilter}, convId=${eventConversationId}, taskId=${eventTaskId}, agentSlug=${eventAgentSlug}, matches=${matches}`);
+
+        if (!matches) return;
       }
       
       const bucketTime = getBucketTimestamp(timestamp);
@@ -78,6 +91,7 @@ export function useAgentChartData(agentIdFilter?: string) {
         bucket.eventTypes[eventType] = (bucket.eventTypes[eventType] || 0) + 1;
         if (!bucket.sessions) bucket.sessions = {};
         bucket.sessions[sessionId] = (bucket.sessions[sessionId] || 0) + 1;
+        console.log(`[ChartData] ✅ Updated bucket at ${bucketTime}, count now ${bucket.count}`);
       } else {
         dataPoints.value.push({
           timestamp: bucketTime,
@@ -85,9 +99,12 @@ export function useAgentChartData(agentIdFilter?: string) {
           eventTypes: { [eventType]: 1 },
           sessions: { [sessionId]: 1 }
         });
+        console.log(`[ChartData] ✅ Created new bucket at ${bucketTime}`);
       }
     });
-    
+
+    console.log(`[ChartData] Total dataPoints: ${dataPoints.value.length}, total count: ${dataPoints.value.reduce((s, d) => s + d.count, 0)}`);
+
     cleanOldData();
     cleanOldEvents();
   };
@@ -165,8 +182,15 @@ export function useAgentChartData(agentIdFilter?: string) {
     
     if (agentIdFilter) {
       relevantEvents = relevantEvents.filter(event => {
-        const agentKey = event.context?.agentSlug || event.context?.taskId;
-        return agentKey === agentIdFilter;
+        const eventConversationId = event.context?.conversationId;
+        const eventTaskId = event.context?.taskId;
+        const eventAgentSlug = event.context?.agentSlug;
+
+        return (
+          eventConversationId === agentIdFilter ||
+          eventTaskId === agentIdFilter ||
+          eventAgentSlug === agentIdFilter
+        );
       });
     }
     
@@ -252,6 +276,7 @@ export function useAgentChartData(agentIdFilter?: string) {
     eventTimingMetrics
   };
 }
+
 
 
 

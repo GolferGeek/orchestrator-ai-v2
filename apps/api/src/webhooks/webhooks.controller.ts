@@ -285,15 +285,9 @@ export class WebhooksController {
       // Context is the single source of truth - no fallbacks
       const { userId, conversationId, agentSlug } = update.context;
 
-      // Resolve username from userId
-      let username: string | null = null;
-      try {
-        const userProfile =
-          await this.observabilityService['authService'].getUserProfile(userId);
-        username = userProfile?.displayName || userProfile?.email || userId;
-      } catch {
-        username = userId; // Fallback to userId if resolution fails
-      }
+      // Username will be resolved by ObservabilityWebhookService if available
+      // For now, use userId as placeholder - the sendEvent method enriches it
+      const username = userId;
 
       const eventData: ObservabilityEventRecord = {
         context: update.context,

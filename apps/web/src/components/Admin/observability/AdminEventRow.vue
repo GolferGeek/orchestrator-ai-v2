@@ -1,136 +1,186 @@
 <template>
-  <div class="event-row" :class="`event-${eventTypeClass}`">
-    <div class="event-icon">
+  <div
+    class="event-row"
+    :class="[`event-${eventTypeClass}`, { 'is-new': isNewEvent }]"
+    :style="newEventStyle"
+  >
+    <!-- Compact inline layout -->
+    <div class="event-icon-compact">
       <ion-icon :icon="eventIcon" :color="eventColor" />
     </div>
-    
-    <div class="event-content">
-      <div class="event-header">
-        <span class="event-type">{{ event.hook_event_type || 'unknown' }}</span>
-        <span class="event-time">{{ formattedTime }}</span>
-      </div>
 
-      <div class="event-details">
-        <div class="event-detail-row">
-          <ion-chip
-            v-if="displayUsername"
-            size="small"
-            color="secondary"
-          >
-            <ion-icon :icon="personOutline" />
-            <ion-label>{{ displayUsername }}</ion-label>
-          </ion-chip>
-          
-          <ion-chip
-            v-if="event.context?.agentSlug"
-            size="small"
-            color="primary"
-          >
-            <ion-icon :icon="constructOutline" />
-            <ion-label>{{ event.context.agentSlug }}</ion-label>
-          </ion-chip>
+    <span class="event-type-compact">{{ eventTypeShort }}</span>
 
-          <ion-chip
-            v-if="event.context?.conversationId"
-            size="small"
-            color="tertiary"
-            @click="handleConversationClick"
-            class="clickable"
-          >
-            <ion-icon :icon="chatbubbleOutline" />
-            <ion-label>{{ truncateId(event.context.conversationId) }}</ion-label>
-          </ion-chip>
-
-          <ion-chip
-            v-if="event.context?.taskId"
-            size="small"
-            color="medium"
-          >
-            <ion-icon :icon="documentOutline" />
-            <ion-label>{{ truncateId(event.context.taskId) }}</ion-label>
-          </ion-chip>
-        </div>
-        
-        <div v-if="event.message" class="event-message">
-          {{ event.message }}
-        </div>
-        
-        <ion-progress-bar 
-          v-if="showProgress"
-          :value="event.progress / 100"
-          :color="progressColor"
-        />
-        
-        <!-- Expandable Details -->
-        <div v-if="hasAdditionalDetails" class="additional-details">
-          <ion-button
-            fill="clear"
-            size="small"
-            @click="showDetails = !showDetails"
-          >
-            <ion-icon :icon="showDetails ? chevronUpOutline : chevronDownOutline" />
-            {{ showDetails ? 'Hide' : 'Show' }} Details
-          </ion-button>
-          
-          <div v-if="showDetails" class="details-content">
-            <!-- Organization -->
-            <div v-if="event.context?.orgSlug" class="detail-item">
-              <strong>Organization:</strong> {{ event.context.orgSlug }}
-            </div>
-
-            <!-- Mode -->
-            <div v-if="event.payload?.mode" class="detail-item">
-              <strong>Mode:</strong> {{ event.payload.mode }}
-            </div>
-            
-            <!-- Status -->
-            <div v-if="event.status" class="detail-item">
-              <strong>Status:</strong> {{ event.status }}
-            </div>
-            
-            <!-- Step -->
-            <div v-if="event.step" class="detail-item">
-              <strong>Step:</strong> {{ event.step }}
-            </div>
-            
-            <!-- Result (for completed events) -->
-            <div v-if="event.result" class="detail-item">
-              <strong>Result:</strong>
-              <pre class="detail-json">{{ formatJSON(event.result) }}</pre>
-            </div>
-            
-            <!-- Error (for failed events) -->
-            <div v-if="event.error" class="detail-item error-detail">
-              <strong>Error:</strong>
-              <pre class="detail-json">{{ formatJSON(event.error) }}</pre>
-            </div>
-            
-            <!-- Payload/Data -->
-            <div v-if="eventPayload" class="detail-item">
-              <strong>Payload:</strong>
-              <pre class="detail-json">{{ formatJSON(eventPayload) }}</pre>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div class="event-chips-compact">
+      <span v-if="event.context?.agentSlug" class="chip-compact chip-agent" :title="event.context.agentSlug">
+        {{ truncateLabel(event.context.agentSlug, 12) }}
+      </span>
+      <span v-if="displayUsername" class="chip-compact chip-user" :title="displayUsername">
+        {{ truncateLabel(displayUsername, 10) }}
+      </span>
+      <span
+        v-if="event.context?.conversationId"
+        class="chip-compact chip-conv clickable"
+        :title="event.context.conversationId"
+        @click="handleConversationClick"
+      >
+        {{ truncateId(event.context.conversationId) }}
+      </span>
     </div>
+
+    <span v-if="event.message" class="event-message-compact" :title="event.message">
+      {{ truncateLabel(event.message, 40) }}
+    </span>
+
+    <span class="event-time-compact">{{ formattedTime }}</span>
+
+    <!-- Expand button for details - opens modal -->
+    <ion-button
+      v-if="hasAdditionalDetails"
+      fill="clear"
+      size="small"
+      class="expand-btn"
+      @click="showDetailsModal = true"
+    >
+      <ion-icon :icon="chevronDownOutline" />
+    </ion-button>
   </div>
+
+  <!-- Event Details Modal -->
+  <ion-modal :is-open="showDetailsModal" @did-dismiss="showDetailsModal = false">
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>Event Details</ion-title>
+        <ion-buttons slot="end">
+          <ion-button @click="showDetailsModal = false">
+            <ion-icon :icon="closeOutline" />
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content class="ion-padding">
+      <!-- Event Header -->
+      <div class="modal-event-header">
+        <ion-icon :icon="eventIcon" :color="eventColor" class="modal-event-icon" />
+        <div class="modal-event-title">
+          <h2>{{ event.hook_event_type || 'Unknown Event' }}</h2>
+          <p class="modal-event-time">{{ formattedTime }} &bull; {{ formattedDate }}</p>
+        </div>
+      </div>
+
+      <!-- Context Section -->
+      <ion-card>
+        <ion-card-header>
+          <ion-card-title>Context</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>
+          <ion-list lines="none">
+            <ion-item v-if="event.context?.agentSlug">
+              <ion-label>
+                <p>Agent</p>
+                <h3>{{ event.context.agentSlug }}</h3>
+              </ion-label>
+            </ion-item>
+            <ion-item v-if="displayUsername">
+              <ion-label>
+                <p>User</p>
+                <h3>{{ displayUsername }}</h3>
+              </ion-label>
+            </ion-item>
+            <ion-item v-if="event.context?.orgSlug">
+              <ion-label>
+                <p>Organization</p>
+                <h3>{{ event.context.orgSlug }}</h3>
+              </ion-label>
+            </ion-item>
+            <ion-item v-if="event.context?.conversationId">
+              <ion-label>
+                <p>Conversation ID</p>
+                <h3 class="mono-text">{{ event.context.conversationId }}</h3>
+              </ion-label>
+            </ion-item>
+            <ion-item v-if="event.context?.taskId">
+              <ion-label>
+                <p>Task ID</p>
+                <h3 class="mono-text">{{ event.context.taskId }}</h3>
+              </ion-label>
+            </ion-item>
+          </ion-list>
+        </ion-card-content>
+      </ion-card>
+
+      <!-- Status Section -->
+      <ion-card v-if="event.status || event.step || event.progress !== null">
+        <ion-card-header>
+          <ion-card-title>Status</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>
+          <ion-list lines="none">
+            <ion-item v-if="event.status">
+              <ion-label>
+                <p>Status</p>
+                <h3>{{ event.status }}</h3>
+              </ion-label>
+            </ion-item>
+            <ion-item v-if="event.step">
+              <ion-label>
+                <p>Step</p>
+                <h3>{{ event.step }}</h3>
+              </ion-label>
+            </ion-item>
+            <ion-item v-if="event.progress !== null">
+              <ion-label>
+                <p>Progress</p>
+                <h3>{{ event.progress }}%</h3>
+              </ion-label>
+            </ion-item>
+          </ion-list>
+        </ion-card-content>
+      </ion-card>
+
+      <!-- Message Section -->
+      <ion-card v-if="event.message">
+        <ion-card-header>
+          <ion-card-title>Message</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>
+          <p class="message-text">{{ event.message }}</p>
+        </ion-card-content>
+      </ion-card>
+
+      <!-- Payload Section -->
+      <ion-card v-if="eventPayload">
+        <ion-card-header>
+          <ion-card-title>Payload</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>
+          <pre class="payload-json">{{ formatJSON(eventPayload) }}</pre>
+        </ion-card-content>
+      </ion-card>
+    </ion-content>
+  </ion-modal>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import {
   IonIcon,
-  IonChip,
-  IonLabel,
-  IonProgressBar,
   IonButton,
+  IonModal,
+  IonHeader,
+  IonToolbar,
+  IonTitle,
+  IonButtons,
+  IonContent,
+  IonCard,
+  IonCardHeader,
+  IonCardTitle,
+  IonCardContent,
+  IonList,
+  IonItem,
+  IonLabel,
 } from '@ionic/vue';
 import {
-  personOutline,
-  constructOutline,
-  chatbubbleOutline,
-  documentOutline,
   playCircleOutline,
   pauseCircleOutline,
   checkmarkCircleOutline,
@@ -150,6 +200,8 @@ import {
   informationCircleOutline,
   chevronUpOutline,
   chevronDownOutline,
+  chatbubbleOutline,
+  closeOutline,
 } from 'ionicons/icons';
 import type { ObservabilityEvent } from '@/composables/useAdminObservabilityStream';
 
@@ -162,18 +214,96 @@ const emit = defineEmits<{
   (e: 'conversation-click', conversationId: string): void;
 }>();
 
-const showDetails = ref(false);
+const showDetailsModal = ref(false);
+const currentTime = ref(Date.now());
+let timeUpdateInterval: ReturnType<typeof setInterval> | null = null;
+
+// Update current time every second for gradient calculation
+onMounted(() => {
+  timeUpdateInterval = setInterval(() => {
+    currentTime.value = Date.now();
+  }, 1000);
+});
+
+onUnmounted(() => {
+  if (timeUpdateInterval) {
+    clearInterval(timeUpdateInterval);
+  }
+});
+
+// Calculate event age for gradient effect (fades over 20 seconds)
+const eventAge = computed(() => {
+  const eventTime = props.event.timestamp || (props.event.created_at ? new Date(props.event.created_at).getTime() : currentTime.value);
+  return currentTime.value - eventTime;
+});
+
+const isNewEvent = computed(() => eventAge.value < 20000); // Under 20 seconds
+
+// Gradient background style - bright yellow fading to white over 20 seconds
+const newEventStyle = computed(() => {
+  if (!isNewEvent.value) return {};
+
+  const age = eventAge.value;
+  const maxAge = 20000; // 20 seconds
+  const progress = Math.min(age / maxAge, 1); // 0 to 1
+
+  // Start with bright yellow (rgb(255, 255, 150)), fade to white
+  const r = 255;
+  const g = 255;
+  const b = Math.round(150 + (105 * progress)); // 150 -> 255
+
+  return {
+    backgroundColor: `rgb(${r}, ${g}, ${b})`,
+    transition: 'background-color 1s ease',
+  };
+});
+
+// Shortened event type for compact display
+const eventTypeShort = computed(() => {
+  const type = props.event.hook_event_type || 'unknown';
+  // Remove common prefixes and shorten
+  return type
+    .replace('agent.', '')
+    .replace('task.', '')
+    .replace('langgraph.', 'lg.')
+    .replace('.stream', '')
+    .replace('human_input.', 'hitl.');
+});
 
 // Format timestamp
 const formattedTime = computed(() => {
-  const date = props.event.created_at 
-    ? new Date(props.event.created_at)
-    : new Date(props.event.timestamp);
-  
+  let date: Date;
+  if (props.event.created_at) {
+    date = new Date(props.event.created_at);
+  } else if (props.event.timestamp) {
+    date = new Date(props.event.timestamp);
+  } else {
+    date = new Date();
+  }
+
   return date.toLocaleTimeString('en-US', {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
+  });
+});
+
+// Format date for modal
+const formattedDate = computed(() => {
+  let date: Date;
+  if (props.event.created_at) {
+    date = new Date(props.event.created_at);
+  } else if (props.event.timestamp) {
+    date = new Date(props.event.timestamp);
+  } else {
+    date = new Date();
+  }
+
+  return date.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
   });
 });
 
@@ -272,6 +402,12 @@ function truncateId(id: string): string {
   return `${id.substring(0, 8)}...`;
 }
 
+function truncateLabel(text: string, maxLen: number): string {
+  if (!text) return '';
+  if (text.length <= maxLen) return text;
+  return `${text.substring(0, maxLen - 2)}..`;
+}
+
 // Check if event has additional details worth showing
 const hasAdditionalDetails = computed(() => {
   return !!(
@@ -299,146 +435,220 @@ function formatJSON(obj: unknown): string {
 </script>
 
 <style scoped>
+/* Compact single-line event row */
 .event-row {
   display: flex;
-  gap: 12px;
-  padding: 12px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  min-height: 32px;
   border-left: 3px solid var(--ion-color-medium);
   background: var(--ion-color-step-50);
   border-radius: 4px;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
+  font-size: 12px;
+  flex-wrap: wrap;
+  position: relative;
 }
 
 .event-row:hover {
   background: var(--ion-color-step-100);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.event-agent-started {
+.event-row.is-new {
+  border-left-color: var(--ion-color-warning);
+  border-left-width: 4px;
+}
+
+
+/* Border colors by event type */
+.event-agent-started,
+.event-task-started {
   border-left-color: var(--ion-color-primary);
 }
 
-.event-agent-completed {
+.event-agent-completed,
+.event-task-completed {
   border-left-color: var(--ion-color-success);
 }
 
-.event-agent-failed {
+.event-agent-failed,
+.event-task-failed {
   border-left-color: var(--ion-color-danger);
 }
 
-.event-agent-progress {
+.event-agent-progress,
+.event-task-progress {
   border-left-color: var(--ion-color-tertiary);
 }
 
-.event-icon {
-  font-size: 24px;
-  padding-top: 2px;
-}
-
-.event-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.event-header {
+/* Compact icon */
+.event-icon-compact {
+  font-size: 16px;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  flex-shrink: 0;
 }
 
-.event-type {
-  font-weight: 600;
-  font-size: 0.875rem;
+/* Event type label */
+.event-type-compact {
+  font-weight: 700;
   color: var(--ion-color-dark);
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 80px;
+  font-size: 12px;
 }
 
-.event-time {
-  font-size: 0.75rem;
-  color: var(--ion-color-medium);
-}
-
-.event-details {
+/* Compact chips container */
+.event-chips-compact {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.event-detail-row {
-  display: flex;
-  flex-wrap: wrap;
   gap: 6px;
+  flex-shrink: 0;
 }
 
-.event-message {
-  font-size: 0.875rem;
-  color: var(--ion-color-step-700);
-  margin-top: 4px;
+/* Mini chip style */
+.chip-compact {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chip-agent {
+  background: #3880ff;
+  color: white;
+}
+
+.chip-user {
+  background: #3dc2ff;
+  color: #000;
+}
+
+.chip-conv {
+  background: #5260ff;
+  color: white;
 }
 
 .clickable {
   cursor: pointer;
-  transition: transform 0.2s ease;
 }
 
 .clickable:hover {
-  transform: scale(1.05);
+  opacity: 0.8;
+  text-decoration: underline;
 }
 
-.additional-details {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--ion-color-step-150);
+/* Message preview */
+.event-message-compact {
+  flex: 1;
+  min-width: 0;
+  color: var(--ion-color-step-700);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
 }
 
-.details-content {
-  margin-top: 8px;
-  padding: 12px;
-  background: var(--ion-color-step-100);
-  border-radius: 4px;
-  border: 1px solid var(--ion-color-step-200);
+/* Time display */
+.event-time-compact {
+  font-size: 11px;
+  color: var(--ion-color-medium-shade);
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: auto;
+  font-weight: 500;
 }
 
-.detail-item {
-  margin-bottom: 12px;
-  font-size: 0.875rem;
+/* Expand button */
+.expand-btn {
+  --padding-start: 6px;
+  --padding-end: 6px;
+  height: 24px;
+  font-size: 14px;
+  flex-shrink: 0;
 }
 
-.detail-item:last-child {
-  margin-bottom: 0;
-}
-
-.detail-item strong {
-  color: var(--ion-color-dark);
-  display: block;
-  margin-bottom: 4px;
-}
-
-.detail-json {
+/* Modal styles */
+.modal-event-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 16px;
   background: var(--ion-color-step-50);
-  padding: 8px;
-  border-radius: 4px;
-  border: 1px solid var(--ion-color-step-200);
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 0.75rem;
-  overflow-x: auto;
-  max-height: 300px;
-  overflow-y: auto;
-  color: var(--ion-color-step-850);
-  margin: 4px 0 0 0;
+  border-radius: 8px;
 }
 
-.error-detail {
-  border-left: 3px solid var(--ion-color-danger);
-  padding-left: 8px;
+.modal-event-icon {
+  font-size: 40px;
 }
 
-.error-detail strong {
-  color: var(--ion-color-danger);
+.modal-event-title h2 {
+  margin: 0 0 4px 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--ion-color-dark);
 }
 
-ion-chip {
+.modal-event-time {
   margin: 0;
+  font-size: 0.875rem;
+  color: var(--ion-color-medium);
+}
+
+.mono-text {
+  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+  font-size: 0.85rem;
+  word-break: break-all;
+}
+
+.message-text {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--ion-color-dark);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.payload-json {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  padding: 16px;
+  border-radius: 8px;
+  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+  font-size: 12px;
+  overflow-x: auto;
+  max-height: 400px;
+  overflow-y: auto;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+ion-card {
+  margin-bottom: 16px;
+}
+
+ion-card-title {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+ion-item ion-label p {
+  font-size: 0.75rem;
+  color: var(--ion-color-medium);
+  margin-bottom: 2px;
+}
+
+ion-item ion-label h3 {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--ion-color-dark);
 }
 </style>
 

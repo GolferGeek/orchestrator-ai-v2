@@ -1,4 +1,4 @@
-import { Controller, Get, Res, UseGuards, Logger, Query } from '@nestjs/common';
+import { Controller, Get, Post, Res, UseGuards, Logger, Query } from '@nestjs/common';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RequirePermission } from '../rbac/decorators/require-permission.decorator';
@@ -7,6 +7,7 @@ import {
   ObservabilityEventRecord,
 } from './observability-events.service';
 import { Subscription } from 'rxjs';
+import { NIL_UUID } from '@orchestrator-ai/transport-types';
 
 /**
  * Observability Stream Controller
@@ -149,5 +150,47 @@ export class ObservabilityStreamController {
     } catch (error) {
       this.logger.error(`❌ Failed to write event to stream:`, error);
     }
+  }
+
+  /**
+   * Get historical events from database
+   * GET /observability/history?since=<timestamp>&until=<timestamp>&limit=<number>
+   *
+   * Query params:
+   * - since: Unix timestamp (ms) - defaults to 1 hour ago
+   * - until: Unix timestamp (ms) - defaults to now (optional end time for custom ranges)
+   * - limit: Max events to return (default 1000, max 5000)
+   */
+  @Get('history')
+  @RequirePermission('admin:audit')
+  async getHistory(
+    @Query('since') sinceParam?: string,
+    @Query('until') untilParam?: string,
+    @Query('limit') limitParam?: string,
+  ): Promise<{ events: ObservabilityEventRecord[]; count: number }> {
+    const oneHourAgo = Date.now() - 60 * 60 * 1000;
+    const since = sinceParam ? parseInt(sinceParam, 10) : oneHourAgo;
+    const until = untilParam ? parseInt(untilParam, 10) : undefined;
+    const limit = Math.min(
+      Math.max(parseInt(limitParam || '1000', 10), 1),
+      5000,
+    );
+
+    this.logger.log(
+      `📚 Fetching historical events since ${new Date(since).toISOString()}${until ? ` until ${new Date(until).toISOString()}` : ''}, limit ${limit}`,
+    );
+
+    const events = await this.observabilityEvents.getHistoricalEvents(
+      since,
+      limit,
+      until,
+    );
+
+    this.logger.log(`📚 Found ${events.length} historical events`);
+
+    return {
+      events,
+      count: events.length,
+    };
   }
 }

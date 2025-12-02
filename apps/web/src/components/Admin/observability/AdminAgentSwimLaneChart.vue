@@ -62,19 +62,36 @@
         
         <!-- Time Range Selector -->
         <ion-segment v-model="selectedTimeRange" size="small" class="time-range-selector">
+          <ion-segment-button value="20s">
+            <ion-label>20s</ion-label>
+          </ion-segment-button>
           <ion-segment-button value="1m">
             <ion-label>1m</ion-label>
           </ion-segment-button>
-          <ion-segment-button value="3m">
-            <ion-label>3m</ion-label>
-          </ion-segment-button>
-          <ion-segment-button value="5m">
-            <ion-label>5m</ion-label>
+          <ion-segment-button value="2m">
+            <ion-label>2m</ion-label>
           </ion-segment-button>
         </ion-segment>
       </div>
     </div>
     
+    <!-- Completed Events Stack (events that scrolled off the left) -->
+    <div v-if="completedEvents.length > 0" class="completed-events-stack">
+      <div class="stack-label">Completed:</div>
+      <div class="stack-items">
+        <div
+          v-for="(event, index) in completedEvents"
+          :key="`completed-${event.timestamp}-${index}`"
+          class="completed-event-chip"
+          :class="getEventChipClass(event)"
+          :title="getEventTooltip(event)"
+          @click="handleCompletedEventClick(event)"
+        >
+          {{ getEventEmoji(event) }}
+        </div>
+      </div>
+    </div>
+
     <!-- Canvas Chart -->
     <div ref="chartContainer" class="chart-wrapper">
       <canvas
@@ -87,7 +104,7 @@
         role="img"
         :aria-label="chartAriaLabel"
       />
-      
+
       <!-- Tooltip -->
       <div
         v-if="tooltip.visible"
@@ -96,7 +113,7 @@
       >
         {{ tooltip.text }}
       </div>
-      
+
       <!-- No Data Message -->
       <div v-if="!hasData" class="no-data-message">
         <span class="mr-1">⏳</span>
@@ -140,9 +157,11 @@ const emit = defineEmits<{
 const canvas = ref<HTMLCanvasElement>();
 const chartContainer = ref<HTMLDivElement>();
 const chartHeight = 80;
-const selectedTimeRange = ref<TimeRange>('1m');
+const selectedTimeRange = ref<TimeRange>('20s');
 const hoveredEventCount = ref(false);
 const hoveredAvgTime = ref(false);
+const currentTime = ref(Date.now()); // Reactive time for computed properties
+let timeUpdateInterval: ReturnType<typeof setInterval> | null = null;
 
 // Get agent identifier and metadata
 const agentId = computed(() => props.activity.conversationId || props.activity.agentSlug);
@@ -192,10 +211,10 @@ const totalEventCount = computed(() => {
 
 const timeRangeLabel = computed(() => {
   switch (selectedTimeRange.value) {
+    case '20s': return '20 seconds';
     case '1m': return '1 minute';
-    case '3m': return '3 minutes';
-    case '5m': return '5 minutes';
-    default: return '1 minute';
+    case '2m': return '2 minutes';
+    default: return '20 seconds';
   }
 });
 
@@ -220,6 +239,65 @@ const statusIcon = computed(() => {
     default: return pauseCircleOutline;
   }
 });
+
+// Time range durations in milliseconds
+const timeRangeDurations: Record<string, number> = {
+  '20s': 20 * 1000,
+  '1m': 60 * 1000,
+  '2m': 2 * 60 * 1000,
+};
+
+// Completed events - events that have scrolled off the left side of the time window
+// Uses currentTime.value for reactivity (updates every second)
+const completedEvents = computed(() => {
+  const now = currentTime.value;
+  const duration = timeRangeDurations[selectedTimeRange.value] || 20000;
+  const cutoffTime = now - duration;
+
+  // Get events older than the current time window
+  return props.activity.events
+    .filter(event => {
+      const eventTime = event.timestamp || (event.created_at ? new Date(event.created_at).getTime() : now);
+      return eventTime < cutoffTime;
+    })
+    .slice(-20); // Limit to last 20 completed events
+});
+
+// Helper functions for completed events display
+const getEventEmoji = (event: typeof props.activity.events[0]): string => {
+  const eventType = event.hook_event_type || 'unknown';
+  if (eventType.includes('completed') || eventType.includes('complete')) return '✅';
+  if (eventType.includes('failed') || eventType.includes('error')) return '❌';
+  if (eventType.includes('started') || eventType.includes('start')) return '🚀';
+  if (eventType.includes('progress')) return '⏳';
+  if (eventType.includes('chunk')) return '📦';
+  return '📍';
+};
+
+const getEventChipClass = (event: typeof props.activity.events[0]): string => {
+  const eventType = event.hook_event_type || 'unknown';
+  if (eventType.includes('completed') || eventType.includes('complete')) return 'chip-success';
+  if (eventType.includes('failed') || eventType.includes('error')) return 'chip-error';
+  if (eventType.includes('started') || eventType.includes('start')) return 'chip-primary';
+  return 'chip-default';
+};
+
+const getEventTooltip = (event: typeof props.activity.events[0]): string => {
+  const eventType = event.hook_event_type || 'unknown';
+  const message = event.message || '';
+  const time = event.timestamp ? new Date(event.timestamp).toLocaleTimeString() : '';
+  return `${eventType}${message ? ': ' + message : ''}${time ? ' @ ' + time : ''}`;
+};
+
+const handleCompletedEventClick = (event: typeof props.activity.events[0]) => {
+  // Emit bucket-click with this single event
+  emit('bucket-click', {
+    timestamp: event.timestamp || Date.now(),
+    events: [event],
+    eventTypes: { [event.hook_event_type || 'unknown']: 1 },
+    count: 1
+  });
+};
 
 const tooltip = ref({
   visible: false,
@@ -462,32 +540,37 @@ const handleCanvasClick = (event: MouseEvent) => {
 // Lifecycle
 onMounted(() => {
   if (!canvas.value || !chartContainer.value) return;
-  
+
   const dimensions = getDimensions();
   const config = getActiveConfig();
-  
+
   renderer = createChartRenderer(canvas.value, dimensions, config);
-  
+
   // Set up resize observer
   resizeObserver = new ResizeObserver(handleResize);
   resizeObserver.observe(chartContainer.value);
-  
+
+  // Update currentTime every second for reactive completed events calculation
+  timeUpdateInterval = setInterval(() => {
+    currentTime.value = Date.now();
+  }, 1000);
+
   // Initial render
   render();
-  
+
   // Start optimized render loop with FPS limiting
   let lastRenderTime = 0;
   const targetFPS = 30;
   const frameInterval = 1000 / targetFPS;
-  
-  const renderLoop = (currentTime: number) => {
-    const deltaTime = currentTime - lastRenderTime;
-    
+
+  const renderLoop = (frameTime: number) => {
+    const deltaTime = frameTime - lastRenderTime;
+
     if (deltaTime >= frameInterval) {
       render();
-      lastRenderTime = currentTime - (deltaTime % frameInterval);
+      lastRenderTime = frameTime - (deltaTime % frameInterval);
     }
-    
+
     requestAnimationFrame(renderLoop);
   };
   requestAnimationFrame(renderLoop);
@@ -495,15 +578,19 @@ onMounted(() => {
 
 onUnmounted(() => {
   cleanupChartData();
-  
+
+  if (timeUpdateInterval) {
+    clearInterval(timeUpdateInterval);
+  }
+
   if (renderer) {
     renderer.stopAnimation();
   }
-  
+
   if (resizeObserver && chartContainer.value) {
     resizeObserver.disconnect();
   }
-  
+
   if (animationFrame) {
     cancelAnimationFrame(animationFrame);
   }
@@ -644,6 +731,71 @@ onUnmounted(() => {
 
 ion-chip {
   margin: 0;
+}
+
+/* Completed events stack - events that scrolled off the timeline */
+.completed-events-stack {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--ion-color-step-100);
+  border-radius: 6px;
+  border: 1px dashed var(--ion-color-step-300);
+  min-height: 36px;
+}
+
+.stack-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ion-color-medium);
+  white-space: nowrap;
+}
+
+.stack-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.completed-event-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 12px;
+  background: var(--ion-color-step-150);
+  border: 1px solid var(--ion-color-step-250);
+}
+
+.completed-event-chip:hover {
+  transform: scale(1.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  z-index: 1;
+}
+
+.completed-event-chip.chip-success {
+  background: var(--ion-color-success-tint);
+  border-color: var(--ion-color-success);
+}
+
+.completed-event-chip.chip-error {
+  background: var(--ion-color-danger-tint);
+  border-color: var(--ion-color-danger);
+}
+
+.completed-event-chip.chip-primary {
+  background: var(--ion-color-primary-tint);
+  border-color: var(--ion-color-primary);
+}
+
+.completed-event-chip.chip-default {
+  background: var(--ion-color-medium-tint);
+  border-color: var(--ion-color-medium);
 }
 </style>
 

@@ -19,7 +19,7 @@
         <ion-searchbar
           v-model="searchQuery"
           placeholder="Search events..."
-          debounce="300"
+          :debounce="300"
         />
         
         <div class="filter-chips">
@@ -130,11 +130,12 @@ const filteredEvents = computed(() => {
     result = result.filter(e => {
       return (
         e.hook_event_type?.toLowerCase().includes(query) ||
-        e.agent_slug?.toLowerCase().includes(query) ||
-        e.username?.toLowerCase().includes(query) ||
+        e.context?.agentSlug?.toLowerCase().includes(query) ||
+        (e.payload?.username as string | undefined)?.toLowerCase().includes(query) ||
+        e.context?.userId?.toLowerCase().includes(query) ||
         e.message?.toLowerCase().includes(query) ||
-        e.conversation_id?.toLowerCase().includes(query) ||
-        e.task_id?.toLowerCase().includes(query)
+        e.context?.conversationId?.toLowerCase().includes(query) ||
+        e.context?.taskId?.toLowerCase().includes(query)
       );
     });
   }
@@ -184,7 +185,7 @@ function handleConversationClick(conversationId: string) {
 .events-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 3px;
   max-height: 70vh;
   overflow-y: auto;
 }

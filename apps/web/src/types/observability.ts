@@ -18,7 +18,8 @@ export interface ChartConfig {
   };
 }
 
-export type TimeRange = '1m' | '3m' | '5m' | '10m';
+export type TimeRange = '20s' | '1m' | '2m';
+
 
 
 
