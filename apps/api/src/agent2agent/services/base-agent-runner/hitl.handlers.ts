@@ -130,9 +130,14 @@ export async function sendHitlResume(
   );
 
   try {
+    // Use a longer timeout for resume requests (120 seconds)
+    // Resume requests may take longer as they trigger workflow continuation
+    const timeout = 120000; // 120 seconds
+
     const response = await firstValueFrom(
       services.httpService.post(resumeUrl, resumeBody, {
         headers: { 'Content-Type': 'application/json' },
+        timeout,
       }),
     );
 
@@ -142,7 +147,31 @@ export async function sendHitlResume(
     return { response: response };
   } catch (error) {
     console.log(`🔍 [HITL-RESUME] Error sending resume:`, error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    
+    // Provide more detailed error information
+    let errorMessage = 'Unknown error';
+    if (error && typeof error === 'object') {
+      const axiosError = error as {
+        message?: string;
+        code?: string;
+        response?: { status?: number; statusText?: string; data?: unknown };
+      };
+      
+      if (axiosError.code === 'ECONNRESET' || axiosError.code === 'ETIMEDOUT') {
+        errorMessage = `Connection error: ${axiosError.message || axiosError.code}. The LangGraph service may have closed the connection or timed out.`;
+      } else if (axiosError.response) {
+        errorMessage = `HTTP ${axiosError.response.status} ${axiosError.response.statusText || ''}: ${JSON.stringify(axiosError.response.data)}`;
+      } else if (axiosError.message) {
+        errorMessage = axiosError.message;
+      } else if (axiosError.code) {
+        errorMessage = `Error code: ${axiosError.code}`;
+      }
+    } else if (error instanceof Error) {
+      errorMessage = error.message;
+    } else {
+      errorMessage = String(error);
+    }
+    
     return { response: null, error: errorMessage };
   }
 }

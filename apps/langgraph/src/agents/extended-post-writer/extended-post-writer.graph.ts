@@ -43,15 +43,11 @@ export function createExtendedPostWriterGraph(
     const ctx = state.executionContext;
     const topic = state.userMessage || state.topic;
 
-    await observability.emitStarted({
-      taskId: ctx.taskId,
-      threadId: ctx.taskId,
-      agentSlug: ctx.agentSlug,
-      userId: ctx.userId,
-      conversationId: ctx.conversationId,
-      organizationSlug: ctx.orgSlug,
-      message: `Starting content generation for topic: ${topic}`,
-    });
+    await observability.emitStarted(
+      ctx,
+      ctx.taskId,
+      `Starting content generation for topic: ${topic}`,
+    );
 
     return {
       status: 'generating',
@@ -68,16 +64,15 @@ export function createExtendedPostWriterGraph(
     const ctx = state.executionContext;
     const { topic, hitlFeedback, generationCount, tone, keywords, context: additionalContext } = state;
 
-    await observability.emitProgress({
-      taskId: ctx.taskId,
-      threadId: ctx.taskId,
-      agentSlug: ctx.agentSlug,
-      userId: ctx.userId,
-      conversationId: ctx.conversationId,
-      message: hitlFeedback ? 'Regenerating blog post with feedback' : 'Generating blog post',
-      step: 'generate_blog_post',
-      progress: 20,
-    });
+    await observability.emitProgress(
+      ctx,
+      ctx.taskId,
+      hitlFeedback ? 'Regenerating blog post with feedback' : 'Generating blog post',
+      {
+        step: 'generate_blog_post',
+        progress: 20,
+      },
+    );
 
     const keywordsStr = keywords && keywords.length > 0
       ? `Keywords to include: ${keywords.join(', ')}`
@@ -137,16 +132,15 @@ Return ONLY the blog post content in markdown format, no additional text or JSON
   ): Promise<Partial<ExtendedPostWriterState>> {
     const ctx = state.executionContext;
 
-    await observability.emitProgress({
-      taskId: ctx.taskId,
-      threadId: ctx.taskId,
-      agentSlug: ctx.agentSlug,
-      userId: ctx.userId,
-      conversationId: ctx.conversationId,
-      message: 'Generating SEO description',
-      step: 'generate_seo',
-      progress: 40,
-    });
+    await observability.emitProgress(
+      ctx,
+      ctx.taskId,
+      'Generating SEO description',
+      {
+        step: 'generate_seo',
+        progress: 40,
+      },
+    );
 
     const prompt = `Based on the following blog post, create a compelling SEO meta description (150-160 characters) that captures the main value proposition.
 
@@ -183,16 +177,15 @@ Return ONLY the SEO description, no additional text.`;
   ): Promise<Partial<ExtendedPostWriterState>> {
     const ctx = state.executionContext;
 
-    await observability.emitProgress({
-      taskId: ctx.taskId,
-      threadId: ctx.taskId,
-      agentSlug: ctx.agentSlug,
-      userId: ctx.userId,
-      conversationId: ctx.conversationId,
-      message: 'Generating social media posts',
-      step: 'generate_social',
-      progress: 60,
-    });
+    await observability.emitProgress(
+      ctx,
+      ctx.taskId,
+      'Generating social media posts',
+      {
+        step: 'generate_social',
+        progress: 60,
+      },
+    );
 
     const prompt = `Based on the following blog post, create 3 social media posts:
 1. Twitter/X post (under 280 characters) - engaging hook with key insight
@@ -218,23 +211,95 @@ Return the posts in JSON format:
         callerName: AGENT_SLUG,
       });
 
+      // Log the raw response for debugging
+      const responseText = response.text.trim();
+      await observability.emitProgress(
+        ctx,
+        ctx.taskId,
+        `LLM response received (${responseText.length} chars)`,
+        {
+          step: 'generate_social_parse',
+          progress: 65,
+          metadata: {
+            responsePreview: responseText.substring(0, 200),
+            responseLength: responseText.length,
+          },
+        },
+      );
+
       // Try to parse JSON, but don't fail the whole workflow if it doesn't work
       let socialPosts: string[] = [];
       try {
-        const jsonMatch = response.text.match(/\{[\s\S]*\}/);
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]) as { posts: string[] };
           socialPosts = parsed.posts || [];
         }
       } catch (parseError) {
-        // If JSON parsing fails, use the raw response as a single social post
-        console.warn('Failed to parse social posts JSON, using raw response');
-        socialPosts = [response.text.trim()];
+        // If JSON parsing fails, try to extract posts from the raw response
+        // Look for numbered lists or bullet points
+        await observability.emitProgress(
+          ctx,
+          ctx.taskId,
+          'Failed to parse social posts JSON, attempting to extract from raw response',
+          {
+            step: 'generate_social_fallback',
+            progress: 70,
+            metadata: {
+              parseError: parseError instanceof Error ? parseError.message : String(parseError),
+              responseText: responseText.substring(0, 500),
+            },
+          },
+        );
+        
+        // Try to find numbered list items (1., 2., 3., etc.)
+        const numberedMatches = responseText.match(/\d+\.\s+(.+?)(?=\d+\.|$)/gs);
+        if (numberedMatches && numberedMatches.length > 0) {
+          socialPosts = numberedMatches.map(match => {
+            // Remove the number prefix and clean up
+            return match.replace(/^\d+\.\s+/, '').trim();
+          }).filter(post => post.length > 0);
+        }
+        
+        // If no numbered list, try bullet points
+        if (socialPosts.length === 0) {
+          const bulletMatches = responseText.match(/[-*•]\s+(.+?)(?=[-*•]|$)/gs);
+          if (bulletMatches && bulletMatches.length > 0) {
+            socialPosts = bulletMatches.map(match => {
+              return match.replace(/^[-*•]\s+/, '').trim();
+            }).filter(post => post.length > 0);
+          }
+        }
+        
+        // If still no posts found, use the raw response as a single post (if it's meaningful)
+        if (socialPosts.length === 0 && responseText.length > 20) {
+          socialPosts = [responseText];
+        }
       }
 
-      // If we still have no posts, create a placeholder
+      // If we still have no posts after all parsing attempts, return empty array
+      // Don't use placeholder - let the frontend handle empty social posts gracefully
       if (socialPosts.length === 0) {
-        socialPosts = ['Check out our latest blog post!'];
+        await observability.emitProgress(
+          ctx,
+          ctx.taskId,
+          'No social posts could be extracted from LLM response',
+          {
+            step: 'generate_social_empty',
+            progress: 75,
+            metadata: {
+              responseText: responseText.substring(0, 500),
+              responseLength: responseText.length,
+            },
+          },
+        );
+        return {
+          socialPosts: [],
+          messages: [
+            ...state.messages,
+            new AIMessage('Social posts generation completed (no posts extracted).'),
+          ],
+        };
       }
 
       return {
@@ -245,13 +310,13 @@ Return the posts in JSON format:
         ],
       };
     } catch (error) {
-      // Don't fail the workflow for social posts - use placeholder
+      // Don't fail the workflow for social posts - return empty array instead of placeholder
       console.error(`Social posts generation error: ${error}`);
       return {
-        socialPosts: ['Check out our latest blog post!'],
+        socialPosts: [],
         messages: [
           ...state.messages,
-          new AIMessage('Social posts generated with placeholder.'),
+          new AIMessage('Social posts generation failed (returning empty array).'),
         ],
       };
     }
@@ -275,15 +340,12 @@ Return the posts in JSON format:
     };
 
     // Emit observability event before interrupt
-    await observability.emitHitlWaiting({
-      taskId: ctx.taskId,
-      threadId: ctx.taskId,
-      agentSlug: ctx.agentSlug,
-      userId: ctx.userId,
-      conversationId: ctx.conversationId,
-      message: 'Blog post ready for review',
-      pendingContent: content,
-    });
+    await observability.emitHitlWaiting(
+      ctx,
+      ctx.taskId,
+      content,
+      'Blog post ready for review',
+    );
 
     // interrupt() pauses the graph here
     // When resumed with Command({ resume: { decision, feedback, editedContent } }),
@@ -316,7 +378,7 @@ Return the posts in JSON format:
       hitlDecision: decision as ExtendedPostWriterState['hitlDecision'],
       hitlFeedback: feedback || null,
       blogPost: updatedBlogPost,
-      status: decision === 'reject' ? 'failed' : 'processing', // Will continue to SEO
+      status: decision === 'reject' ? 'rejected' : 'generating', // Will continue to SEO
     };
   }
 
@@ -343,16 +405,15 @@ Return the posts in JSON format:
   ): Promise<Partial<ExtendedPostWriterState>> {
     const ctx = state.executionContext;
 
-    await observability.emitProgress({
-      taskId: ctx.taskId,
-      threadId: ctx.taskId,
-      agentSlug: ctx.agentSlug,
-      userId: ctx.userId,
-      conversationId: ctx.conversationId,
-      message: 'Finalizing approved content',
-      step: 'finalize',
-      progress: 90,
-    });
+    await observability.emitProgress(
+      ctx,
+      ctx.taskId,
+      'Finalizing approved content',
+      {
+        step: 'finalize',
+        progress: 90,
+      },
+    );
 
     const finalContent: GeneratedContent = {
       blogPost: state.blogPost,
@@ -360,15 +421,12 @@ Return the posts in JSON format:
       socialPosts: state.socialPosts,
     };
 
-    await observability.emitCompleted({
-      taskId: ctx.taskId,
-      threadId: ctx.taskId,
-      agentSlug: ctx.agentSlug,
-      userId: ctx.userId,
-      conversationId: ctx.conversationId,
-      result: { content: finalContent },
-      duration: Date.now() - state.startedAt,
-    });
+    await observability.emitCompleted(
+      ctx,
+      ctx.taskId,
+      { content: finalContent },
+      Date.now() - state.startedAt,
+    );
 
     return {
       finalContent,
@@ -387,15 +445,12 @@ Return the posts in JSON format:
   ): Promise<Partial<ExtendedPostWriterState>> {
     const ctx = state.executionContext;
 
-    await observability.emitFailed({
-      taskId: ctx.taskId,
-      threadId: ctx.taskId,
-      agentSlug: ctx.agentSlug,
-      userId: ctx.userId,
-      conversationId: ctx.conversationId,
-      error: `Content rejected: ${state.hitlFeedback}`,
-      duration: Date.now() - state.startedAt,
-    });
+    await observability.emitFailed(
+      ctx,
+      ctx.taskId,
+      `Content rejected: ${state.hitlFeedback}`,
+      Date.now() - state.startedAt,
+    );
 
     return {
       status: 'failed',
@@ -410,15 +465,12 @@ Return the posts in JSON format:
   ): Promise<Partial<ExtendedPostWriterState>> {
     const ctx = state.executionContext;
 
-    await observability.emitFailed({
-      taskId: ctx.taskId,
-      threadId: ctx.taskId,
-      agentSlug: ctx.agentSlug,
-      userId: ctx.userId,
-      conversationId: ctx.conversationId,
-      error: state.error,
-      duration: Date.now() - state.startedAt,
-    });
+    await observability.emitFailed(
+      ctx,
+      ctx.taskId,
+      state.error,
+      Date.now() - state.startedAt,
+    );
 
     return {
       status: 'failed',

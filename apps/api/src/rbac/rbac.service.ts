@@ -409,11 +409,12 @@ export class RbacService {
 
   /**
    * Check if user is super-admin
-   * Super-admin is determined by having the 'super-admin' role with organization_slug = '*'
-   * The '*' indicates global access across all organizations
+   * Super-admin is determined by having the 'super-admin' role
+   * Can be assigned with organization_slug = '*' (global access) or to specific organizations
+   * If user has super-admin role in ANY organization, they are considered super-admin
    */
   async isSuperAdmin(userId: string): Promise<boolean> {
-    // Check if user has super-admin role with organization_slug = '*' (global access)
+    // Check if user has super-admin role (either global '*' or in any organization)
     const { data, error } = await this.supabase
       .getServiceClient()
       .from('rbac_user_org_roles')
@@ -426,8 +427,7 @@ export class RbacService {
       `,
       )
       .eq('user_id', userId)
-      .eq('organization_slug', '*')
-      .limit(10);
+      .limit(100); // Check all org assignments, not just '*'
 
     if (error) {
       this.logger.error(

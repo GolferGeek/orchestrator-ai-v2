@@ -866,7 +866,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
 
   /**
    * Extract message content and metadata from API response.
-   * Handles both regular responses and HITL finalContent responses.
+   * Handles both regular responses and HITL finalContent/generatedContent responses.
    */
   private extractContentFromResponse(
     responseData: unknown,
@@ -888,50 +888,75 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         ? (dataObj.data as Record<string, unknown>)
         : null;
 
-    // Check for finalContent (HITL completed response)
-    const finalContent = (nestedData?.finalContent || dataObj.finalContent) as
-      | Record<string, unknown>
-      | undefined;
-    if (finalContent) {
-      // Build content from finalContent fields
+    // Helper function to format content with blogPost, seoDescription, and socialPosts
+    const formatContent = (
+      content: Record<string, unknown>,
+    ): { message: string; metadata: Record<string, unknown> } => {
       const parts: string[] = [];
 
-      if (finalContent.blogPost) {
-        parts.push(String(finalContent.blogPost));
+      if (content.blogPost) {
+        parts.push(String(content.blogPost));
       }
-      if (finalContent.seoDescription) {
+      if (content.seoDescription) {
         parts.push(
           '\n\n---\n\n## SEO Description\n\n' +
-            String(finalContent.seoDescription),
+            String(content.seoDescription),
         );
       }
-      if (finalContent.socialPosts) {
+      if (content.socialPosts) {
         let socialPostsText = '';
-        if (Array.isArray(finalContent.socialPosts)) {
-          socialPostsText = finalContent.socialPosts
+        if (Array.isArray(content.socialPosts)) {
+          socialPostsText = content.socialPosts
             .map((post, i) => {
               // Handle objects by serializing them properly
               if (typeof post === 'object' && post !== null) {
+                // If it's an object with a 'text' or 'content' field, use that
+                if ('text' in post && typeof post.text === 'string') {
+                  return `${i + 1}. ${post.text}`;
+                }
+                if ('content' in post && typeof post.content === 'string') {
+                  return `${i + 1}. ${post.content}`;
+                }
+                // Otherwise, format the whole object
                 return `${i + 1}. ${JSON.stringify(post, null, 2)}`;
               }
               return `${i + 1}. ${String(post)}`;
             })
             .join('\n\n');
-        } else if (typeof finalContent.socialPosts === 'string') {
-          socialPostsText = finalContent.socialPosts;
-        } else if (typeof finalContent.socialPosts === 'object') {
+        } else if (typeof content.socialPosts === 'string') {
+          socialPostsText = content.socialPosts;
+        } else if (typeof content.socialPosts === 'object') {
           // Handle case where socialPosts is an object instead of array
-          socialPostsText = JSON.stringify(finalContent.socialPosts, null, 2);
+          socialPostsText = JSON.stringify(content.socialPosts, null, 2);
         }
-        if (socialPostsText) {
+        if (socialPostsText && socialPostsText.trim().length > 0) {
           parts.push('\n\n---\n\n## Social Media Posts\n\n' + socialPostsText);
         }
       }
 
-      message = parts.join('') || 'No content generated';
-      metadata.topic = (nestedData?.topic || dataObj.topic) as string;
-      metadata.duration = (nestedData?.duration || dataObj.duration) as number;
-      return { message, metadata };
+      const formattedMessage = parts.join('') || 'No content generated';
+      return {
+        message: formattedMessage,
+        metadata: {
+          topic: (nestedData?.topic || dataObj.topic) as string,
+          duration: (nestedData?.duration || dataObj.duration) as number,
+        },
+      };
+    };
+
+    // Check for finalContent (HITL completed response)
+    const finalContent = (nestedData?.finalContent || dataObj.finalContent) as
+      | Record<string, unknown>
+      | undefined;
+    if (finalContent) {
+      return formatContent(finalContent);
+    }
+
+    // Check for generatedContent (HITL waiting response)
+    const generatedContent = (nestedData?.generatedContent ||
+      dataObj.generatedContent) as Record<string, unknown> | undefined;
+    if (generatedContent) {
+      return formatContent(generatedContent);
     }
 
     // Regular response - extract summary/message/content

@@ -127,7 +127,15 @@ export async function handleA2AResponse(response: TaskResponse): Promise<A2AResu
   // Fail-fast on error responses
   // Note: HITL responses use success=true with status='hitl_waiting', so this is safe
   if (!response.success) {
-    const errorMessage = response.error?.message || 'Request failed';
+    // TaskResponseDto.failure() stores error in payload.metadata.reason
+    // Also check response.error?.message for other error formats
+    const payload = response.payload as Record<string, unknown> | undefined;
+    const metadata = payload?.metadata as Record<string, unknown> | undefined;
+    const errorMessage =
+      (metadata?.reason as string) ||
+      response.error?.message ||
+      (payload?.error as string) ||
+      'Request failed';
     const errorCode = response.error?.code;
     return {
       type: 'error',
@@ -294,28 +302,22 @@ export async function handleA2AResponse(response: TaskResponse): Promise<A2AResu
     // CONVERSE RESPONSES
     // =========================================================================
     case 'converse': {
-      const conversationsStore = useConversationsStore();
+      // NOTE: Do NOT add message here - converse.actions.ts already handles
+      // message creation/updating. Adding here would cause duplicates.
+      // The action handler creates a placeholder and updates it with the response.
       const message =
         (content?.message as string) ||
         response.humanResponse?.message ||
         '';
       const thinking = response.humanResponse?.thinking as string | undefined;
 
-      if (message && ctx.conversationId) {
-        conversationsStore.addMessage(ctx.conversationId, {
-          conversationId: ctx.conversationId,
-          role: 'assistant',
-          content: message,
-          timestamp: new Date().toISOString(),
-          // Only add metadata if there's thinking content
-          ...(thinking ? { metadata: { source: 'agent' as const } } : {}),
-        });
-      }
-
       return {
         type: 'message',
         message,
-        metadata,
+        metadata: {
+          ...metadata,
+          ...(thinking ? { thinking } : {}),
+        },
         context: responseWithContext.context || ctx,
       };
     }

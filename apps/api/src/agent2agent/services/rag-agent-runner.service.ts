@@ -7,6 +7,7 @@ import {
   callLLM,
   fetchConversationHistory,
   optimizeContext,
+  shouldStreamResponse,
 } from './base-agent-runner/shared.helpers';
 import { Agent2AgentConversationsService } from './agent-conversations.service';
 import { TaskRequestDto, AgentTaskMode } from '../dto/task-request.dto';
@@ -96,6 +97,243 @@ export class RagAgentRunnerService extends BaseAgentRunner {
       deliverablesService,
       streamingService,
     );
+  }
+
+  /**
+   * CONVERSE mode - Query RAG collection and generate conversational response
+   */
+  protected async handleConverse(
+    definition: AgentRuntimeDefinition,
+    request: TaskRequestDto,
+    organizationSlug: string | null,
+  ): Promise<TaskResponseDto> {
+    try {
+      const userId = this.resolveUserId(request);
+      if (!userId) {
+        return TaskResponseDto.failure(
+          AgentTaskMode.CONVERSE,
+          'User identity is required for RAG agent execution',
+        );
+      }
+
+      const context = request.context;
+      if (!context?.conversationId) {
+        return TaskResponseDto.failure(
+          AgentTaskMode.CONVERSE,
+          'Conversation context is required for RAG agent execution',
+        );
+      }
+
+      // Get RAG configuration from agent metadata
+      const ragConfig = this.extractRagConfig(definition);
+      if (!ragConfig) {
+        // Fallback to base handler if no RAG config
+        return await super.handleConverse(definition, request, organizationSlug);
+      }
+
+      // Resolve organization slug
+      const resolvedOrgSlug = this.resolveOrganizationSlug(
+        definition,
+        organizationSlug,
+      );
+
+      // Get collection by slug
+      const collection = await this.getCollectionBySlug(
+        ragConfig.collection_slug,
+        resolvedOrgSlug,
+        userId,
+      );
+
+      if (!collection) {
+        const noAccessMessage =
+          ragConfig.no_access_message ||
+          "I don't have access to the information needed to answer that question.";
+        return TaskResponseDto.success(AgentTaskMode.CONVERSE, {
+          content: {
+            message: noAccessMessage,
+            hasAccess: false,
+            isConversational: true,
+          },
+          metadata: {
+            agentSlug: definition.slug,
+            collectionSlug: ragConfig.collection_slug,
+            accessDenied: true,
+          },
+        });
+      }
+
+      // Get user message for query
+      const userMessage = this.resolveUserMessage(request);
+      if (!userMessage || userMessage.trim().length === 0) {
+        return TaskResponseDto.failure(
+          AgentTaskMode.CONVERSE,
+          'User message is required for RAG query',
+        );
+      }
+
+      // Query the collection
+      const queryResponse = await this.queryService.queryCollection(
+        collection.id,
+        resolvedOrgSlug,
+        {
+          query: userMessage,
+          topK: ragConfig.top_k ?? 5,
+          similarityThreshold: ragConfig.similarity_threshold ?? 0.5,
+          strategy: 'basic',
+          includeMetadata: true,
+        },
+      );
+
+      // Build augmented prompt with RAG results
+      const conversationHistory = await fetchConversationHistory(
+        this.conversationsService,
+        request,
+      );
+      const optimizedHistory = await optimizeContext(
+        this.contextOptimization,
+        conversationHistory,
+        definition,
+      );
+
+      // Build system prompt with RAG context
+      const systemPrompt = this.buildRagPrompt(
+        definition,
+        collection,
+        queryResponse.results.length > 0 ? queryResponse.results : [],
+        optimizedHistory,
+      );
+
+      // Handle no results
+      if (queryResponse.results.length === 0) {
+        const noResultsMessage =
+          ragConfig.no_results_message ||
+          "I don't have enough information in my knowledge base to answer that question.";
+        return TaskResponseDto.success(AgentTaskMode.CONVERSE, {
+          content: {
+            message: noResultsMessage,
+            hasResults: false,
+            searchDurationMs: queryResponse.searchDurationMs,
+            isConversational: true,
+          },
+          metadata: {
+            agentSlug: definition.slug,
+            collectionSlug: ragConfig.collection_slug,
+            collectionName: collection.name,
+            noResults: true,
+          },
+        });
+      }
+
+      // Build LLM config
+      const llmConfig = this.buildLlmConfig(
+        definition,
+        context.conversationId,
+        userId,
+        resolvedOrgSlug,
+        request,
+      );
+
+      // Update caller name for converse mode
+      llmConfig.callerName = `${definition.slug}-rag-converse`;
+      llmConfig.stream = shouldStreamResponse(request);
+
+      // Call LLM with augmented context
+      const llmResponse = await callLLM(
+        this.llmService,
+        llmConfig,
+        systemPrompt,
+        userMessage,
+        context,
+        optimizedHistory,
+      );
+
+      const content = this.normalizeContent(llmResponse.content);
+      const llmMetadata =
+        (llmResponse.metadata as unknown as Record<string, unknown>) ?? null;
+
+      // Build response metadata
+      const usage = this.normalizeUsage(llmMetadata?.usage);
+      const provider = this.resolveProvider(llmMetadata, definition);
+      const model = this.resolveModel(llmMetadata, definition);
+
+      const metadata = buildResponseMetadata(
+        {
+          provider,
+          model,
+          usage,
+          thinking: llmMetadata?.thinking,
+        },
+        {
+          agentSlug: definition.slug,
+          collectionSlug: ragConfig.collection_slug,
+          collectionName: collection.name,
+          resultsCount: queryResponse.results.length,
+          searchDurationMs: queryResponse.searchDurationMs,
+          topK: ragConfig.top_k ?? 5,
+          similarityThreshold: ragConfig.similarity_threshold ?? 0.5,
+          sources: this.formatSources(queryResponse.results),
+        },
+      );
+
+      // Save conversation history (same as base handler)
+      const timestamp = new Date().toISOString();
+      const updatedHistory: ConversationMessage[] = [...optimizedHistory];
+
+      if (userMessage.length > 0) {
+        updatedHistory.push({
+          role: 'user',
+          content: userMessage,
+          timestamp,
+        });
+      }
+
+      updatedHistory.push({
+        role: 'assistant',
+        content: content,
+        timestamp,
+        metadata: {
+          provider,
+          model,
+        },
+      });
+
+      const maxHistoryEntries = 50;
+      const trimmedHistory =
+        updatedHistory.length > maxHistoryEntries
+          ? updatedHistory.slice(updatedHistory.length - maxHistoryEntries)
+          : updatedHistory;
+
+      await this.conversationsService.updateConversation(
+        {
+          conversationId: context.conversationId,
+          userId,
+        },
+        {
+          metadata: {
+            history: trimmedHistory,
+            lastAssistantMessageAt: timestamp,
+          },
+        },
+      );
+
+      return TaskResponseDto.success(AgentTaskMode.CONVERSE, {
+        content: {
+          message: content,
+          sources: this.formatSources(queryResponse.results),
+          isConversational: true,
+        },
+        metadata,
+      });
+    } catch (error) {
+      this.logger.error(
+        `RAG agent ${definition.slug} CONVERSE failed: ${error instanceof Error ? error.message : String(error)}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      return TaskResponseDto.failure(
+        AgentTaskMode.CONVERSE,
+        error instanceof Error ? error.message : 'Unknown error',
+      );
+    }
   }
 
   /**

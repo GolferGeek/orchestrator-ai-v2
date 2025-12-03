@@ -47,9 +47,19 @@ export interface DeliverableResult {
 }
 
 /**
- * Result type that can be either HITL waiting or normal deliverable
+ * Error result
  */
-export type CreateDeliverableResult = HitlWaitingResult | DeliverableResult | null;
+export interface ErrorResult {
+  isHitlWaiting: false;
+  deliverable: null;
+  version: null;
+  error: string;
+}
+
+/**
+ * Result type that can be either HITL waiting, normal deliverable, or error
+ */
+export type CreateDeliverableResult = HitlWaitingResult | DeliverableResult | ErrorResult | null;
 
 /**
  * Convert orchestrator result to CreateDeliverableResult format
@@ -76,7 +86,13 @@ function convertResult(result: A2AResult): CreateDeliverableResult {
         version: result.version as DeliverableVersionData,
       };
     case 'error':
-      throw new Error(result.error);
+      console.error('[Build Actions] convertResult received an error:', result.error, result.code);
+      return {
+        isHitlWaiting: false,
+        deliverable: null,
+        version: null,
+        error: result.error || 'Unknown error occurred',
+      };
     default:
       return null;
   }
