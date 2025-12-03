@@ -3,7 +3,7 @@
 .temp
 
 # Backup data files (keep system, exclude data)
-backups/
+# backups/ - Removed to allow committing backups to git
 *.sql.backup
 
 # dotenvx
