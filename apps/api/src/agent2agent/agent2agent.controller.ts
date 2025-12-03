@@ -315,10 +315,10 @@ export class Agent2AgentController {
           };
         }) || [];
 
-      // Create/get task using the IDs from context
+      // Get or create task using the IDs from context
       // Frontend pre-generates both conversationId and taskId,
       // backend creates the records if they don't exist
-      await this.tasksService.createTask(
+      await this.tasksService.getOrCreateTask(
         {
           userId: context.userId,
           orgSlug: context.orgSlug,

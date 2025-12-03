@@ -113,6 +113,61 @@ export class Agent2AgentTasksService {
   constructor(private readonly supabaseService: SupabaseService) {}
 
   /**
+   * Get or create a task for an A2A agent
+   * If taskId is provided and task exists, returns the existing task
+   * Otherwise creates a new task
+   */
+  async getOrCreateTask(
+    taskContext: {
+      userId: string;
+      orgSlug: string;
+      conversationId?: string;
+    },
+    agentName: string,
+    params: {
+      method: string;
+      prompt: string;
+      taskId?: string;
+      metadata?: Record<string, unknown>;
+      llmSelection?: LlmSelection;
+      conversationHistory?: ConversationMessage[];
+    },
+  ): Promise<{
+    id: string;
+    userId: string;
+    agentName: string;
+    organization: string | null;
+    agentConversationId: string | null;
+    status: string;
+    params: TaskParams;
+    createdAt: Date;
+  }> {
+    // If taskId provided, check if task already exists
+    if (params.taskId) {
+      const existing = await this.getTaskById({
+        taskId: params.taskId,
+        userId: taskContext.userId,
+      });
+      if (existing) {
+        this.logger.debug(`✅ Found existing task ${params.taskId}`);
+        return {
+          id: existing.id,
+          userId: existing.userId,
+          agentName: existing.agentName,
+          organization: existing.organization,
+          agentConversationId: existing.agentConversationId,
+          status: existing.status,
+          params: existing.params,
+          createdAt: existing.createdAt,
+        };
+      }
+    }
+
+    // Task doesn't exist, create it
+    return this.createTask(taskContext, agentName, params);
+  }
+
+  /**
    * Create a task for an A2A agent
    * Conforms to A2A Google protocol standards
    */
