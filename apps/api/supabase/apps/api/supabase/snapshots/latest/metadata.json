@@ -1,0 +1,36 @@
+{
+  "timestamp": "2025-12-03-063651",
+  "created_at": "2025-12-03 12:36:53 UTC",
+  "type": "educational-snapshot",
+  "description": "Production-ready educational database snapshot - perfect starting point for learning",
+  "schemas": ["public", "auth", "storage", "n8n", "company", "observability", "rag"],
+  "includes": {
+    "schema": true,
+    "agents": true,
+    "llm_providers": true,
+    "llm_models": true,
+    "organizations": true,
+    "users": true,
+    "auth_users": true,
+    "rbac": true,
+    "system_settings": true,
+    "organization_credentials": true,
+    "pseudonym_dictionaries": true,
+    "redaction_patterns": true
+  },
+  "excludes": {
+    "langgraph_checkpoints": true,
+    "conversations": true,
+    "tasks": true,
+    "deliverables": true,
+    "plans": true,
+    "observability_events": true,
+    "llm_usage": true,
+    "assets": true,
+    "human_approvals": true
+  },
+  "purpose": "educational",
+  "production_ready": true,
+  "db_container": "supabase_db_api-dev",
+  "restore_command": "cd apps/api/supabase && ./scripts/apply-snapshot.sh snapshots/2025-12-03-063651"
+}
