@@ -117,6 +117,27 @@ class RbacService {
     return response.data.permissions;
   }
 
+  /**
+   * Add permission to a role
+   */
+  async addPermissionToRole(roleId: string, permissionId: string): Promise<void> {
+    await axios.post(
+      `${API_BASE_URL}/api/rbac/roles/${roleId}/permissions/${permissionId}`,
+      {},
+      { headers: this.getAuthHeaders() }
+    );
+  }
+
+  /**
+   * Remove permission from a role
+   */
+  async removePermissionFromRole(roleId: string, permissionId: string): Promise<void> {
+    await axios.delete(
+      `${API_BASE_URL}/api/rbac/roles/${roleId}/permissions/${permissionId}`,
+      { headers: this.getAuthHeaders() }
+    );
+  }
+
   // ==================== CURRENT USER ====================
 
   /**

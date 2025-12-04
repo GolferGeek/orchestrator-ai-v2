@@ -79,6 +79,32 @@ export class RbacController {
     return { permissions };
   }
 
+  /**
+   * Add permission to a role
+   */
+  @Post('roles/:roleId/permissions/:permissionId')
+  @RequirePermission('admin:roles')
+  async addPermissionToRole(
+    @Param('roleId') roleId: string,
+    @Param('permissionId') permissionId: string,
+  ) {
+    await this.rbacService.addPermissionToRole(roleId, permissionId);
+    return { success: true, message: 'Permission added to role' };
+  }
+
+  /**
+   * Remove permission from a role
+   */
+  @Delete('roles/:roleId/permissions/:permissionId')
+  @RequirePermission('admin:roles')
+  async removePermissionFromRole(
+    @Param('roleId') roleId: string,
+    @Param('permissionId') permissionId: string,
+  ) {
+    await this.rbacService.removePermissionFromRole(roleId, permissionId);
+    return { success: true, message: 'Permission removed from role' };
+  }
+
   // ==================== CURRENT USER ====================
 
   /**

@@ -94,7 +94,7 @@
                         <ion-checkbox
                           slot="start"
                           :checked="roleHasPermission(perm.name)"
-                          :disabled="selectedRole?.isSystem"
+                          :disabled="selectedRole?.isSystem && !rbacStore.isSuperAdmin"
                           @ionChange="togglePermission(perm, $event)"
                         ></ion-checkbox>
                         <ion-label>
@@ -212,15 +212,72 @@ function roleHasPermission(permName: string): boolean {
   return rolePermissions.value.includes(permName);
 }
 
-async function togglePermission(_perm: RbacPermission, _event: CustomEvent) {
-  if (!selectedRole.value || selectedRole.value.isSystem) return;
+async function togglePermission(perm: RbacPermission, event: CustomEvent) {
+  if (!selectedRole.value) return;
 
-  const toast = await toastController.create({
-    message: `Permission changes require backend implementation`,
-    duration: 2000,
-    color: 'warning'
-  });
-  await toast.present();
+  // Only prevent modification of system roles if user is not super-admin
+  if (selectedRole.value.isSystem && !rbacStore.isSuperAdmin) {
+    const toast = await toastController.create({
+      message: 'Only super-admins can modify system roles',
+      duration: 2000,
+      color: 'warning'
+    });
+    await toast.present();
+    return;
+  }
+
+  const isChecked = event.detail.checked;
+  const wasChecked = roleHasPermission(perm.name);
+
+  try {
+    if (isChecked && !wasChecked) {
+      // Add permission to role
+      await rbacService.addPermissionToRole(selectedRole.value.id, perm.id);
+      rolePermissions.value.push(perm.name);
+
+      const toast = await toastController.create({
+        message: `Added ${perm.displayName} to ${selectedRole.value.displayName}`,
+        duration: 2000,
+        color: 'success'
+      });
+      await toast.present();
+
+      // Reload user permissions if the store is initialized
+      if (rbacStore.isInitialized && rbacStore.currentOrganization) {
+        await rbacStore.loadUserPermissions(rbacStore.currentOrganization);
+      }
+    } else if (!isChecked && wasChecked) {
+      // Remove permission from role
+      await rbacService.removePermissionFromRole(selectedRole.value.id, perm.id);
+      rolePermissions.value = rolePermissions.value.filter(p => p !== perm.name);
+
+      const toast = await toastController.create({
+        message: `Removed ${perm.displayName} from ${selectedRole.value.displayName}`,
+        duration: 2000,
+        color: 'success'
+      });
+      await toast.present();
+
+      // Reload user permissions if the store is initialized
+      if (rbacStore.isInitialized && rbacStore.currentOrganization) {
+        await rbacStore.loadUserPermissions(rbacStore.currentOrganization);
+      }
+    }
+  } catch (error) {
+    console.error('Failed to toggle permission:', error);
+
+    // Reload permissions to reset checkbox state
+    if (selectedRole.value) {
+      rolePermissions.value = await rbacService.getRolePermissions(selectedRole.value.id);
+    }
+
+    const toast = await toastController.create({
+      message: `Failed to update permission: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      duration: 3000,
+      color: 'danger'
+    });
+    await toast.present();
+  }
 }
 
 function getRoleBadgeColor(roleName: string): string {

@@ -429,6 +429,55 @@ export class RbacService {
   }
 
   /**
+   * Add permission to a role
+   */
+  async addPermissionToRole(
+    roleId: string,
+    permissionId: string,
+  ): Promise<void> {
+    const { error } = await this.supabase
+      .getServiceClient()
+      .from('rbac_role_permissions')
+      .insert({
+        role_id: roleId,
+        permission_id: permissionId,
+      });
+
+    if (error) {
+      this.logger.error(
+        `Failed to add permission to role: ${error.message}`,
+        error,
+      );
+      throw new Error(`Failed to add permission to role: ${error.message}`);
+    }
+  }
+
+  /**
+   * Remove permission from a role
+   */
+  async removePermissionFromRole(
+    roleId: string,
+    permissionId: string,
+  ): Promise<void> {
+    const { error } = await this.supabase
+      .getServiceClient()
+      .from('rbac_role_permissions')
+      .delete()
+      .eq('role_id', roleId)
+      .eq('permission_id', permissionId);
+
+    if (error) {
+      this.logger.error(
+        `Failed to remove permission from role: ${error.message}`,
+        error,
+      );
+      throw new Error(
+        `Failed to remove permission from role: ${error.message}`,
+      );
+    }
+  }
+
+  /**
    * Assign role to user in organization
    */
   async assignRole(
