@@ -331,6 +331,7 @@ import {
   IonItem,
   IonLabel,
   IonBadge,
+  IonChip,
   IonSpinner,
   IonList,
 } from '@ionic/vue';

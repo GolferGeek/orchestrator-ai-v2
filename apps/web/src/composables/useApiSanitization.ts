@@ -162,15 +162,16 @@ export function useApiSanitization() {
 
   /**
    * Sanitize PII test request
+   * IMPORTANT: We exclude the 'text' field from sanitization because the whole point
+   * of PII testing is to detect PII in the original unsanitized text.
+   * Sanitizing it would defeat the purpose and prevent proper PII detection.
    */
   function sanitizePIIRequest(request: {
     text: string;
     [key: string]: unknown;
   }): typeof request {
     const result = sanitizeApiData(request, {
-      fieldProfiles: {
-        'text': 'moderate' // Allow some formatting for PII testing
-      },
+      excludeFields: ['text'], // Do NOT sanitize the text field - we need to detect PII in it!
       logSanitization: true
     });
 

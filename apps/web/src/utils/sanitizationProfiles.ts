@@ -264,6 +264,13 @@ export function sanitizeWithProfile(
  */
 export const SanitizationHelpers = {
   /**
+   * Generic sanitize string with profile options
+   */
+  sanitizeString(value: string, options: SanitizationOptions = {}): string {
+    return sanitizeWithProfile(value, options).sanitized;
+  },
+
+  /**
    * Sanitize user input for API calls
    */
   forApiInput(value: string): string {

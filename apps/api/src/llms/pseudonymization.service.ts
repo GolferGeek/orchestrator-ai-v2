@@ -114,7 +114,37 @@ export class PseudonymizationService {
     const pseudonyms: PseudonymResult[] = [];
 
     try {
-      // Use PIIPatternService to detect PII in text
+      // STEP 1: Check dictionary for known values (names, usernames, etc.)
+      const client = this.supabaseService.getServiceClient();
+      const { data: dictionaryEntries } = await client
+        .from('pseudonym_dictionaries')
+        .select('original_value, pseudonym, data_type')
+        .eq('is_active', true);
+
+      if (dictionaryEntries && dictionaryEntries.length > 0) {
+        // Sort by length descending to match longer strings first (e.g., "Matt Weber" before "Matt")
+        const sortedEntries = dictionaryEntries.sort(
+          (a, b) => (b.original_value?.length || 0) - (a.original_value?.length || 0)
+        );
+
+        for (const entry of sortedEntries) {
+          if (entry.original_value && processedText.includes(entry.original_value)) {
+            // Replace all occurrences (case-sensitive)
+            const regex = new RegExp(entry.original_value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+            processedText = processedText.replace(regex, entry.pseudonym);
+
+            pseudonyms.push({
+              originalValue: entry.original_value,
+              pseudonym: entry.pseudonym,
+              dataType: entry.data_type as PIIDataType,
+              isNew: false,
+              context: options?.context,
+            });
+          }
+        }
+      }
+
+      // STEP 2: Use PIIPatternService to detect PII in text (SSN, Email, etc.)
       const detectionResult = await this.piiPatternService.detectPII(text, {
         dataTypes: options?.dataTypes,
         minConfidence: 0.8,
@@ -199,11 +229,34 @@ export class PseudonymizationService {
   }
 
   /**
+   * Get available PII patterns async (ensures patterns are loaded from DB)
+   */
+  async getPIIPatternsAsync(): Promise<PIIPattern[]> {
+    return await this.piiPatternService.getAllPatternsAsync();
+  }
+
+  /**
    * Add custom PII pattern (delegates to PIIPatternService)
    */
   async addPIIPattern(pattern: Omit<PIIPattern, 'enabled'>): Promise<void> {
     await this.piiPatternService.addCustomPattern(pattern);
     this.logger.debug(`Added custom PII pattern: ${pattern.name}`);
+  }
+
+  /**
+   * Update custom PII pattern (delegates to PIIPatternService)
+   */
+  async updatePIIPattern(id: string, updates: Partial<Omit<PIIPattern, 'enabled'>>): Promise<void> {
+    await this.piiPatternService.updateCustomPattern(id, updates);
+    this.logger.debug(`Updated custom PII pattern: ${id}`);
+  }
+
+  /**
+   * Delete custom PII pattern (delegates to PIIPatternService)
+   */
+  async deletePIIPattern(id: string): Promise<void> {
+    await this.piiPatternService.deleteCustomPattern(id);
+    this.logger.debug(`Deleted custom PII pattern: ${id}`);
   }
 
   /**

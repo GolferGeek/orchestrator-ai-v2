@@ -218,7 +218,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import {
   IonModal,
   IonHeader,
@@ -245,6 +245,7 @@ import {
 } from '@ionic/vue';
 import { closeOutline } from 'ionicons/icons';
 import { usePrivacyStore } from '@/stores/privacyStore';
+import * as privacyService from '@/services/privacyService';
 import type { PIIPattern, PIIPatternCreate, PIIPatternUpdate } from '@/types/pii';
 
 // Props
@@ -335,17 +336,17 @@ const resetForm = () => {
 const loadPattern = (pattern: PIIPattern) => {
   formData.value = {
     name: pattern.name,
-    regex: pattern.regex,
+    regex: pattern.pattern, // Backend returns 'pattern', form expects 'regex'
     dataType: pattern.dataType,
     description: pattern.description || '',
     priority: pattern.priority || 'medium',
     category: pattern.category || '',
-    enabled: pattern.enabled
+    enabled: pattern.enabled !== undefined ? pattern.enabled : true
   };
-  
+
   // Set sample text based on data type
   sampleText.value = sampleTexts.value[pattern.dataType] || sampleTexts.value.custom;
-  
+
   // Validate regex and update preview
   nextTick(() => {
     validateRegex();
@@ -381,8 +382,8 @@ const validateName = async () => {
 };
 
 const validateRegex = () => {
-  const regex = formData.value.regex.trim();
-  
+  const regex = formData.value.regex?.trim() || '';
+
   if (!regex) {
     validationErrors.value.regex = 'Regular expression is required';
     isRegexValid.value = false;
@@ -475,22 +476,21 @@ const handleSubmit = async () => {
 
     if (isEditMode.value && props.pattern) {
       // Update existing pattern
-      const updateData: PIIPatternUpdate = {
-        ...formData.value,
-        id: props.pattern.id
+      const updateData: Partial<PIIPattern> = {
+        ...formData.value
       };
-      savedPattern = await piiStore.updatePattern(props.pattern.id, updateData);
+      savedPattern = await privacyService.updatePatternEntry(props.pattern.id, updateData);
       await presentToast('Pattern updated successfully!');
     } else {
       // Create new pattern
-      savedPattern = await piiStore.createPattern(formData.value);
+      savedPattern = await privacyService.createPattern(formData.value);
       await presentToast('Pattern created successfully!');
     }
 
     emit('saved', savedPattern);
     handleClose();
-  } catch {
-    console.error('Error saving pattern');
+  } catch (error) {
+    console.error('Error saving pattern:', error);
     await presentToast(
       `Failed to ${isEditMode.value ? 'update' : 'create'} pattern. Please try again.`,
       'danger'
@@ -520,6 +520,10 @@ watch(() => props.isOpen, (isOpen) => {
 
 watch(() => formData.value.dataType, () => {
   updateSampleText();
+});
+
+watch(() => formData.value.regex, () => {
+  validateRegex();
 });
 </script>
 

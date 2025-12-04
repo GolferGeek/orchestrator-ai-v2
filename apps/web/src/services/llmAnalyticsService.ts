@@ -468,6 +468,92 @@ class LLMAnalyticsService {
   private formatDate(date: Date): string {
     return date.toISOString().split('T')[0];
   }
+
+  /**
+   * Get icon for caller type
+   */
+  getCallerTypeIcon(callerType: string): string {
+    switch (callerType.toLowerCase()) {
+      case 'agent':
+        return 'person-circle-outline';
+      case 'system':
+        return 'settings-outline';
+      case 'user':
+        return 'person-outline';
+      case 'service':
+        return 'server-outline';
+      default:
+        return 'help-circle-outline';
+    }
+  }
+
+  /**
+   * Format cost as currency string
+   */
+  formatCost(cost: number | null | undefined): string {
+    if (cost === null || cost === undefined || isNaN(cost)) {
+      return '$0.00';
+    }
+    return `$${cost.toFixed(4)}`;
+  }
+
+  /**
+   * Format duration in milliseconds to human-readable string
+   */
+  formatDuration(durationMs: number | null | undefined): string {
+    if (durationMs === null || durationMs === undefined || isNaN(durationMs)) {
+      return '0ms';
+    }
+
+    if (durationMs < 1000) {
+      return `${Math.round(durationMs)}ms`;
+    } else if (durationMs < 60000) {
+      return `${(durationMs / 1000).toFixed(2)}s`;
+    } else {
+      const minutes = Math.floor(durationMs / 60000);
+      const seconds = ((durationMs % 60000) / 1000).toFixed(0);
+      return `${minutes}m ${seconds}s`;
+    }
+  }
+
+  /**
+   * Get Ionic color for status
+   */
+  getStatusColor(status: string): string {
+    switch (status?.toLowerCase()) {
+      case 'completed':
+      case 'success':
+        return 'success';
+      case 'failed':
+      case 'error':
+        return 'danger';
+      case 'running':
+      case 'in_progress':
+        return 'warning';
+      case 'pending':
+      case 'queued':
+        return 'medium';
+      default:
+        return 'medium';
+    }
+  }
+
+  /**
+   * Format token count with appropriate suffix
+   */
+  formatTokens(tokens: number | null | undefined): string {
+    if (tokens === null || tokens === undefined || isNaN(tokens)) {
+      return '0';
+    }
+
+    if (tokens < 1000) {
+      return tokens.toString();
+    } else if (tokens < 1000000) {
+      return `${(tokens / 1000).toFixed(1)}K`;
+    } else {
+      return `${(tokens / 1000000).toFixed(2)}M`;
+    }
+  }
 }
 
 // Export singleton instance

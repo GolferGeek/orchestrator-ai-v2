@@ -94,19 +94,17 @@
     </div>
 
     <!-- Loading State -->
-    <div v-if="piiStore.isLoading" class="loading-container">
+    <div v-if="piiStore.patternsLoading" class="loading-container">
       <ion-spinner />
       <p>Loading PII patterns...</p>
     </div>
 
     <!-- Error State -->
-    <ion-card v-else-if="piiStore.error" color="danger">
+    <ion-card v-else-if="piiStore.patternsError" color="danger">
       <ion-card-content>
         <ion-icon :icon="alertCircleOutline" />
-        <p>{{ piiStore.error }}</p>
-        <ion-button fill="outline" @click="piiStore.fetchPatterns()">
-          Retry
-        </ion-button>
+        <p>{{ piiStore.patternsError }}</p>
+        <!-- Note: Store is sync-only. Parent component should handle data loading/retry. -->
       </ion-card-content>
     </ion-card>
 
@@ -355,20 +353,28 @@ const searchQuery = ref('');
 const showBulkActions = ref(false);
 
 // Computed
-const filters = computed(() => piiStore.filters);
-const sortOptions = computed(() => piiStore.sortOptions);
+const filters = computed(() => piiStore.patternFilters);
+const sortOptions = computed(() => piiStore.patternSortOptions);
 const filteredPatterns = computed(() => piiStore.filteredAndSortedPatterns);
-const selectedPatterns = computed(() => piiStore.selectedPatterns);
-const isLoading = computed(() => piiStore.isLoading);
+const selectedPatterns = computed(() =>
+  piiStore.patterns.filter(p => piiStore.selectedPatternIds.includes(p.id || p.name))
+);
+const isLoading = computed(() => piiStore.patternsLoading);
 
 // Selection state
 const selectAll = computed({
   get: () => filteredPatterns.value.length > 0 && selectedPatterns.value.length === filteredPatterns.value.length,
   set: (value: boolean) => {
     if (value) {
-      piiStore.selectAllPatterns(filteredPatterns.value.map(p => p.id || p.name));
+      // Select all filtered patterns
+      filteredPatterns.value.forEach(p => {
+        const id = p.id || p.name;
+        if (!piiStore.selectedPatternIds.includes(id)) {
+          piiStore.togglePatternSelection(id);
+        }
+      });
     } else {
-      piiStore.clearSelection();
+      piiStore.clearPatternSelection();
     }
   }
 });
@@ -379,7 +385,7 @@ const isIndeterminate = computed(() =>
 
 // Methods
 const handleSearch = () => {
-  piiStore.updateFilters({ search: searchQuery.value });
+  piiStore.updatePatternFilters({ search: searchQuery.value });
 };
 
 const applyFilters = () => {
@@ -387,10 +393,9 @@ const applyFilters = () => {
 };
 
 const sortBy = (field: string) => {
-  piiStore.updateSort({
-    field,
-    direction: sortOptions.value.field === field && sortOptions.value.direction === 'asc' ? 'desc' : 'asc'
-  });
+  piiStore.patternSortOptions.field = field;
+  piiStore.patternSortOptions.direction =
+    sortOptions.value.field === field && sortOptions.value.direction === 'asc' ? 'desc' : 'asc';
 };
 
 const getSortIcon = (field: string) => {
@@ -399,16 +404,12 @@ const getSortIcon = (field: string) => {
 };
 
 const isSelected = (pattern: PIIPattern) => {
-  return selectedPatterns.value.some(p => (p.id || p.name) === (pattern.id || pattern.name));
+  return piiStore.selectedPatternIds.includes(pattern.id || pattern.name);
 };
 
 const toggleSelection = (pattern: PIIPattern) => {
   const id = pattern.id || pattern.name;
-  if (isSelected(pattern)) {
-    piiStore.deselectPattern(id);
-  } else {
-    piiStore.selectPattern(pattern);
-  }
+  piiStore.togglePatternSelection(id);
 };
 
 const handleSelectAll = () => {
@@ -454,7 +455,7 @@ const showPatternActions = async (pattern: PIIPattern) => {
                 role: 'destructive',
                 handler: async () => {
                   try {
-                    await piiStore.deletePattern(pattern.id || pattern.name);
+                    piiStore.removePattern(pattern.id || pattern.name);
                   } catch (error) {
                     console.error('Failed to delete pattern:', error);
                   }
@@ -476,14 +477,21 @@ const showPatternActions = async (pattern: PIIPattern) => {
 
 const performBulkAction = async (action: 'enable' | 'disable' | 'delete') => {
   const selectedIds = selectedPatterns.value.map(p => p.id || p.name);
-  
+
   try {
-    await piiStore.bulkOperation({
-      operation: action,
-      patternIds: selectedIds
-    });
+    // Note: Store doesn't have bulkOperation. Perform individual operations.
+    for (const id of selectedIds) {
+      if (action === 'delete') {
+        piiStore.removePattern(id);
+      } else {
+        const pattern = piiStore.patterns.find(p => (p.id || p.name) === id);
+        if (pattern) {
+          piiStore.updatePattern(id, { enabled: action === 'enable' });
+        }
+      }
+    }
     showBulkActions.value = false;
-    piiStore.clearSelection();
+    piiStore.clearPatternSelection();
   } catch (error) {
     console.error(`Failed to perform bulk ${action}:`, error);
   }
@@ -524,12 +532,13 @@ const emit = defineEmits<{
 
 // Lifecycle
 onMounted(async () => {
-  await piiStore.fetchPatterns();
+  // Note: Store is sync-only. Data should be loaded by parent component or service.
+  // The patterns state should already be populated when this component mounts.
 });
 
 // Watch for search changes
 watch(searchQuery, (newValue) => {
-  piiStore.updateFilters({ search: newValue });
+  piiStore.updatePatternFilters({ search: newValue });
 });
 </script>
 

@@ -13,14 +13,18 @@ export type PIIDataType =
   | 'custom';
 
 export interface PIIPattern {
+  id?: string;
   name: string;
   dataType: PIIDataType;
   pattern: RegExp;
   validator?: (match: string) => boolean;
   description: string;
+  category?: string; // 'pii_builtin' or 'pii_custom'
   priority?: number; // Lower number = higher priority
   enabled?: boolean;
   severity?: 'showstopper' | 'flagger'; // Severity level for policy decisions
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface PIIMatch {
@@ -40,13 +44,17 @@ export interface PIIDetectionResult {
 }
 
 interface RedactionPatternRow {
+  id: string;
   name: string;
   data_type: string;
   pattern_regex: string;
   description: string | null;
+  category: string | null;
   priority: number | null;
-  severity: string;
+  severity: string | null;
   is_active: boolean;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
 @Injectable()
@@ -201,9 +209,105 @@ export class PIIPatternService {
   }
 
   /**
-   * Get all available patterns
+   * Update custom PII pattern
+   */
+  async updateCustomPattern(id: string, updates: Partial<Omit<PIIPattern, 'enabled'>>): Promise<void> {
+    try {
+      const client = this.supabaseService.getServiceClient();
+
+      // Build update object
+      const updateData: Record<string, unknown> = {};
+
+      if (updates.name !== undefined) {
+        updateData.name = updates.name;
+      }
+      if (updates.pattern !== undefined) {
+        // Test pattern compilation
+        new RegExp(updates.pattern.source, updates.pattern.flags);
+        updateData.pattern_regex = updates.pattern.source;
+      }
+      if (updates.description !== undefined) {
+        updateData.description = updates.description;
+      }
+      if (updates.priority !== undefined) {
+        updateData.priority = updates.priority;
+      }
+      if (updates.severity !== undefined) {
+        updateData.severity = updates.severity;
+      }
+      if (updates.dataType !== undefined) {
+        updateData.data_type = updates.dataType;
+        updateData.replacement = `[${updates.dataType.toUpperCase()}_REDACTED]`;
+      }
+      if (updates.category !== undefined) {
+        updateData.category = updates.category;
+      }
+
+      // Update in database - check if id is a UUID or a name
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+      const { error } = await client
+        .from('redaction_patterns')
+        .update(updateData)
+        .eq(isUUID ? 'id' : 'name', id);
+
+      if (error) {
+        throw error;
+      }
+
+      // Reload patterns from database to include the updated one
+      await this.loadPatternsFromDatabase();
+
+      this.logger.log(`Updated custom PII pattern: ${id}`);
+    } catch (error) {
+      this.logger.error(
+        `Failed to update custom pattern: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Delete custom PII pattern
+   */
+  async deleteCustomPattern(id: string): Promise<void> {
+    try {
+      const client = this.supabaseService.getServiceClient();
+
+      // Delete from database - check if id is a UUID or a name
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+      const { error } = await client
+        .from('redaction_patterns')
+        .delete()
+        .eq(isUUID ? 'id' : 'name', id);
+
+      if (error) {
+        throw error;
+      }
+
+      // Reload patterns from database
+      await this.loadPatternsFromDatabase();
+
+      this.logger.log(`Deleted custom PII pattern: ${id}`);
+    } catch (error) {
+      this.logger.error(
+        `Failed to delete custom pattern: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Get all available patterns (sync - may be empty if not loaded yet)
    */
   getAllPatterns(): PIIPattern[] {
+    return [...this.databasePatterns];
+  }
+
+  /**
+   * Get all available patterns (async - ensures patterns are loaded from DB)
+   */
+  async getAllPatternsAsync(): Promise<PIIPattern[]> {
+    await this.ensurePatternsLoaded();
     return [...this.databasePatterns];
   }
 
@@ -277,13 +381,17 @@ export class PIIPatternService {
       if (data) {
         // Load ALL patterns from database (built-in and custom)
         this.databasePatterns = (data as RedactionPatternRow[]).map((row) => ({
+          id: row.id,
           name: row.name,
           dataType: row.data_type as PIIDataType,
           pattern: new RegExp(row.pattern_regex, 'g'),
           description: row.description || '',
+          category: row.category || 'pii_custom',
           priority: row.priority || 50,
           enabled: true,
           severity: row.severity as 'showstopper' | 'flagger',
+          createdAt: row.created_at || undefined,
+          updatedAt: row.updated_at || undefined,
           validator: undefined, // No hardcoded validators - rely on regex patterns only
         }));
 

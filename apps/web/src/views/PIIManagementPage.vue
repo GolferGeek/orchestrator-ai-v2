@@ -33,7 +33,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import {
   IonPage,
   IonHeader,
@@ -45,10 +45,27 @@ import {
 import PIIPatternTable from '@/components/PII/PIIPatternTable.vue';
 import PIIPatternEditor from '@/components/PII/PIIPatternEditor.vue';
 import type { PIIPattern } from '@/types/pii';
+import * as privacyService from '@/services/privacyService';
 
 // Modal state
 const isEditorOpen = ref(false);
 const selectedPattern = ref<PIIPattern | null>(null);
+
+// Load patterns on mount
+onMounted(async () => {
+  try {
+    await privacyService.loadPatterns();
+  } catch (error) {
+    console.error('Failed to load PII patterns:', error);
+    const toast = await toastController.create({
+      message: 'Failed to load PII patterns',
+      duration: 3000,
+      color: 'danger',
+      position: 'bottom'
+    });
+    await toast.present();
+  }
+});
 
 // Event handlers
 const handleEditPattern = (pattern: PIIPattern) => {
@@ -67,6 +84,13 @@ const handleCloseEditor = () => {
 };
 
 const handlePatternSaved = async (pattern: PIIPattern) => {
+  // Reload patterns to ensure the list is fresh
+  try {
+    await privacyService.loadPatterns(true); // Force reload
+  } catch (error) {
+    console.error('Failed to reload patterns after save:', error);
+  }
+
   const toast = await toastController.create({
     message: `Pattern "${pattern.name}" ${selectedPattern.value ? 'updated' : 'created'} successfully!`,
     duration: 3000,

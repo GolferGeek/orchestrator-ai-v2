@@ -20,7 +20,7 @@
             <strong>{{ agentDisplayName }}</strong>
           </p>
           <p class="warning-text">
-            This action cannot be undone and will delete all tasks and conversation data.
+            This action cannot be undone and will delete all tasks, deliverables, and conversation data.
           </p>
           <p v-if="activeTasks > 0" class="active-tasks-warning">
             <ion-icon :icon="alertCircleOutline" color="danger" />
@@ -30,13 +30,13 @@
         <!-- Deliverable Deletion Option -->
         <div v-if="hasDeliverables" class="deliverable-section">
           <ion-item lines="none" class="deliverable-checkbox">
-            <ion-checkbox 
-              v-model="deleteDeliverables" 
+            <ion-checkbox
+              v-model="deleteDeliverables"
               slot="start"
             />
             <ion-label>
-              <h3>Also delete associated deliverables</h3>
-              <p>This will permanently delete any documents or outputs created in this conversation.</p>
+              <h3>Delete associated tasks and deliverables</h3>
+              <p><strong>Required:</strong> You must delete associated tasks and deliverables when deleting this conversation. Unchecking this box will disable the delete button.</p>
             </ion-label>
           </ion-item>
         </div>
@@ -50,10 +50,11 @@
           >
             Cancel
           </ion-button>
-          <ion-button 
-            fill="solid" 
-            color="danger" 
+          <ion-button
+            fill="solid"
+            color="danger"
             @click="confirmDelete"
+            :disabled="hasDeliverables && !deleteDeliverables"
             class="delete-button"
           >
             Delete Conversation
@@ -94,14 +95,13 @@ const emit = defineEmits<{
   cancel: [];
   confirm: [deleteDeliverables: boolean];
 }>();
-const deleteDeliverables = ref(false);
-// Debug logging
-// watch(() => props.hasDeliverables, (hasDeliverables) => {
-// });
+const deleteDeliverables = ref(true);
+
 watch(() => props.isOpen, (isOpen) => {
   if (isOpen) {
-    // Reset checkbox when modal opens
-    deleteDeliverables.value = false;
+    // Default checkbox to checked when modal opens
+    // Users must delete associated tasks and deliverables with the conversation
+    deleteDeliverables.value = true;
   }
 });
 const confirmDelete = () => {

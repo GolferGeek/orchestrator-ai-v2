@@ -1288,9 +1288,11 @@ export class DeliverablesService implements IActionHandler {
       };
 
       // Create the conversation
+      // Use 'function' as the agentType since we don't know the actual type from deliverable data
+      // The agent name will determine which agent actually handles the conversation
       const conversationDto: CreateAgentConversationDto = {
         agentName,
-        agentType: 'marketing', // Use marketing for blog_post agent
+        agentType: 'function', // Generic type - actual agent is determined by agentName
         metadata: conversationMetadata,
         workProduct: {
           type: 'deliverable',

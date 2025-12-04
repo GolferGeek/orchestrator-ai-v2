@@ -326,6 +326,7 @@ import {
   IonSelect,
   IonSelectOption,
   IonIcon,
+  IonButton,
   IonSpinner
 } from '@ionic/vue';
 import {
@@ -335,6 +336,11 @@ import {
   checkmarkCircleOutline,
   timeOutline,
   analyticsOutline,
+  personCircleOutline,
+  settingsOutline,
+  personOutline,
+  serverOutline,
+  helpCircleOutline
 } from 'ionicons/icons';
 
 import { useLLMAnalyticsStore } from '@/stores/llmAnalyticsStore';
@@ -538,7 +544,15 @@ const formatChartDate = (dateString: string) => {
 };
 
 const getCallerIcon = (callerType: string) => {
-  return llmAnalyticsService.getCallerTypeIcon(callerType);
+  const iconName = llmAnalyticsService.getCallerTypeIcon(callerType);
+  switch (iconName) {
+    case 'person-circle-outline': return personCircleOutline;
+    case 'settings-outline': return settingsOutline;
+    case 'person-outline': return personOutline;
+    case 'server-outline': return serverOutline;
+    case 'help-circle-outline': return helpCircleOutline;
+    default: return helpCircleOutline;
+  }
 };
 
 const getCallerColor = (callerType: string) => {

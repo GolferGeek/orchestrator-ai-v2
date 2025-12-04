@@ -26,20 +26,25 @@
               <!-- Test Options -->
               <div class="test-options">
                 <ion-item lines="none">
-                  <ion-checkbox 
-                    v-model="testOptions.enableRedaction" 
+                  <ion-checkbox
+                    v-model="testOptions.enableRedaction"
                     @ionChange="scheduleDetection"
                   />
                   <ion-label class="ion-margin-start">Enable Redaction</ion-label>
                 </ion-item>
-                
+
                 <ion-item lines="none">
-                  <ion-checkbox 
-                    v-model="testOptions.enablePseudonymization" 
+                  <ion-checkbox
+                    v-model="testOptions.enablePseudonymization"
                     @ionChange="scheduleDetection"
                   />
                   <ion-label class="ion-margin-start">Enable Pseudonymization</ion-label>
                 </ion-item>
+
+                <ion-note v-if="testOptions.enableRedaction && testOptions.enablePseudonymization" color="warning" class="options-note">
+                  <ion-icon :icon="informationCircleOutline" size="small" />
+                  When both are enabled, redaction takes priority over pseudonymization.
+                </ion-note>
               </div>
 
               <!-- Simplified Text Input Area -->
@@ -146,21 +151,36 @@ Examples to try:
                         <h3>{{ match.patternName }}</h3>
                         <p>
                           <strong>{{ match.value }}</strong>
-                          <ion-chip 
-                            :color="getDataTypeColor(match.dataType)" 
+                          <ion-chip
+                            :color="getDataTypeColor(match.dataType)"
                             size="small"
                             outline
                           >
                             {{ match.dataType }}
                           </ion-chip>
+                          <ion-chip
+                            v-if="match.severity === 'showstopper'"
+                            color="danger"
+                            size="small"
+                          >
+                            <ion-icon :icon="warningOutline" size="small" />
+                            Showstopper
+                          </ion-chip>
+                          <ion-chip
+                            v-else-if="match.severity === 'flagger'"
+                            color="warning"
+                            size="small"
+                          >
+                            Flagger
+                          </ion-chip>
                         </p>
                         <p class="match-details">
-                          Position: {{ match.startIndex }}-{{ match.endIndex }} | 
+                          Position: {{ match.startIndex }}-{{ match.endIndex }} |
                           Confidence: {{ Math.round(match.confidence * 100) }}%
                         </p>
                       </ion-label>
-                      
-                      <ion-badge 
+
+                      <ion-badge
                         :color="getConfidenceColor(match.confidence)"
                         slot="end"
                       >
@@ -301,7 +321,9 @@ import {
   globeOutline,
   cardOutline,
   keyOutline,
-  fingerPrintOutline
+  fingerPrintOutline,
+  warningOutline,
+  informationCircleOutline
 } from 'ionicons/icons';
 
 import { piiService } from '@/services/piiService';
