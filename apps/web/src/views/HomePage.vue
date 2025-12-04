@@ -7,13 +7,13 @@
         </ion-buttons>
         <ion-title>{{ pageTitle }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button 
-            fill="clear" 
+          <ion-button
+            fill="clear"
             @click="toggleDarkMode"
             :title="isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'"
           >
-            <ion-icon 
-              :icon="isDarkMode ? sunnyOutline : moonOutline" 
+            <ion-icon
+              :icon="isDarkMode ? sunnyOutline : moonOutline"
               slot="icon-only"
             />
           </ion-button>

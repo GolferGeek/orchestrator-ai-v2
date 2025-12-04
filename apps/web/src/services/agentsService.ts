@@ -13,8 +13,8 @@ class AgentsService {
   /**
    * Get all available agents
    */
-  async getAvailableAgents(): Promise<AgentInfo[]> {
-    return apiService.getAvailableAgents();
+  async getAvailableAgents(organization?: string): Promise<AgentInfo[]> {
+    return apiService.getAvailableAgents(organization);
   }
 
   /**

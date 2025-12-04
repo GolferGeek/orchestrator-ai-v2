@@ -1,0 +1,27 @@
+{
+  "timestamp": "2025-12-04-124849",
+  "date": "2025-12-04",
+  "created_at": "2025-12-04 18:48:51 UTC",
+  "type": "intern-snapshot",
+  "description": "Complete database snapshot for intern/new developer setup",
+  "schemas": ["public", "rag_data", "company_data", "n8n_data", "langgraph"],
+  "includes": {
+    "schema": true,
+    "auth_users": true,
+    "public_users": true,
+    "llm_providers": true,
+    "llm_models": true,
+    "organizations": true,
+    "agents": true,
+    "rbac": true,
+    "system_settings": true,
+    "organization_credentials": true,
+    "pseudonym_dictionaries": true,
+    "redaction_patterns": true
+  },
+  "purpose": "intern-setup",
+  "production_ready": true,
+  "db_container": "supabase_db_api-dev",
+  "db_port": "6012",
+  "restore_command": "cd apps/api/supabase && ./scripts/restore-intern-snapshot.sh"
+}

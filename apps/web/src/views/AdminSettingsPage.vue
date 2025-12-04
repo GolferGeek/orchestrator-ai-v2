@@ -114,7 +114,7 @@
               </ion-col>
               
               <ion-col size="12" size-md="6" size-lg="4">
-                <ion-card class="action-card system-health" :class="{ 'health-warning': !systemHealth.healthy }">
+                <ion-card button @click="navigateTo('/app/admin/system-health')" class="action-card system-health" :class="{ 'health-warning': !systemHealth.healthy }">
                   <ion-card-content>
                     <div class="card-icon">
                       <ion-icon :icon="systemHealth.healthy ? checkmarkCircleOutline : alertCircleOutline" />

@@ -368,7 +368,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import {
   IonSearchbar,
   IonButton,
@@ -439,6 +439,7 @@ const agentsStore = useAgentsStore();
 const { agentHierarchy, isLoading, error } = storeToRefs(agentsStore);
 const conversationsStore = useConversationsStore();
 const deliverablesStore = useDeliverablesStore();
+const authStore = useAuthStore();
 
 // Convert conversations Map to array for easier filtering
 const storeConversations = computed(() => Array.from(conversationsStore.conversations.values()));
@@ -821,23 +822,24 @@ const hierarchyGroups = computed(() => {
 // Removed unused computed property
 
 // Methods
-const refreshData = async () => {
+const refreshDataForOrganization = async (organization: string) => {
   try {
-    const authStore = useAuthStore();
-    const organization = authStore.currentOrganization;
-
     if (!organization) {
       return;
     }
 
+    console.log('📡 Fetching agents for organization:', organization);
+
     agentsStore.setLoading(true);
     agentsStore.clearError();
 
-    // Load agents and hierarchy from service
+    // Load agents and hierarchy from service with organization filter
     const [agents, hierarchy] = await Promise.all([
-      agentsService.getAvailableAgents(),
+      agentsService.getAvailableAgents(organization),
       agentsService.getAgentHierarchy(organization).catch(() => null),
     ]);
+
+    console.log('✅ Received agents:', agents?.length || 0, 'for org:', organization);
 
     // Filter agents by organization
     const filteredAgents = Array.isArray(agents)
@@ -865,6 +867,14 @@ const refreshData = async () => {
     console.error('Failed to refresh data:', err);
     agentsStore.setError('Failed to refresh agents');
     agentsStore.setLoading(false);
+  }
+};
+
+const refreshData = async () => {
+  const authStore = useAuthStore();
+  const organization = authStore.currentOrganization;
+  if (organization) {
+    await refreshDataForOrganization(organization);
   }
 };
 
@@ -900,7 +910,7 @@ onMounted(async () => {
   if (!agentHierarchy.value) {
     await refreshData();
   }
-  
+
   // Ensure conversations are loaded
   // Check if conversations are already loaded
   const hasConversations = storeConversations.value.length > 0;
@@ -912,6 +922,23 @@ onMounted(async () => {
     }
   }
 });
+
+// Watch for organization changes and refresh agents
+watch(
+  () => authStore.currentOrganization,
+  async (newOrg, oldOrg) => {
+    if (newOrg && newOrg !== oldOrg) {
+      console.log('🔄 Organization changed in AgentTreeView, refreshing agents:', { oldOrg, newOrg });
+
+      // Clear stores first to avoid showing stale data
+      agentsStore.resetAgents();
+
+      // Then refresh with new org data - pass newOrg directly to avoid timing issues
+      await refreshDataForOrganization(newOrg);
+      await conversationsStore.fetchConversations(true);
+    }
+  }
+);
 </script>
 
 <style scoped>

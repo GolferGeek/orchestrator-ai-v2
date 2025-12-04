@@ -4,7 +4,7 @@
       <ion-menu content-id="agents-main-content" type="overlay" :disabled="!auth.isAuthenticated" @ionWillOpen="handleMenuOpen" @ionWillClose="handleMenuClose">
         <ion-header>
           <ion-toolbar>
-            <ion-title 
+            <ion-title
               class="clickable-title"
               @click="navigateToLanding"
             >
@@ -161,6 +161,11 @@
         </ion-content>
       </ion-menu>
       <ion-router-outlet id="agents-main-content"></ion-router-outlet>
+
+      <!-- Fixed floating org switcher - always visible -->
+      <div class="fixed-org-switcher" v-if="auth.isAuthenticated">
+        <OrganizationSwitcherApp />
+      </div>
     </ion-split-pane>
   </ion-page>
 </template>
@@ -176,6 +181,7 @@ import { useConversationsStore } from '@/stores/conversationsStore';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
 import { useRouter } from 'vue-router';
 import AgentTreeView from '@/components/AgentTreeView.vue';
+import OrganizationSwitcherApp from '@/components/common/OrganizationSwitcherApp.vue';
 const auth = useAuthStore();
 const conversationsStore = useConversationsStore();
 const chatUiStore = useChatUiStore();
@@ -243,6 +249,22 @@ const handleAgentSelected = async (agent: Record<string, unknown>) => {
 };
 </script>
 <style scoped>
+/* Fixed floating org switcher - always visible on all pages */
+.fixed-org-switcher {
+  position: fixed;
+  top: 8px;
+  right: 16px;
+  z-index: 9999;
+  pointer-events: auto;
+}
+
+/* Organization switcher in toolbar */
+.org-switcher-container {
+  padding-right: 12px;
+  display: flex;
+  align-items: center;
+}
+
 /* Clickable title styling */
 .clickable-title {
   cursor: pointer;

@@ -148,6 +148,16 @@ const routes: Array<RouteRecordRaw> = [
         }
       },
       {
+        path: 'admin/system-health',
+        name: 'AdminSystemHealth',
+        component: () => import('../views/admin/SystemHealthView.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresPermission: 'admin:audit',
+          title: 'System Health'
+        }
+      },
+      {
         path: 'admin/function-agents',
         name: 'AdminFunctionAgents',
         component: () => import('../views/admin/AdminFunctionAgentsView.vue'),
