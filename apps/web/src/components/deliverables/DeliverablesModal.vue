@@ -43,6 +43,12 @@
         :social-posts="displayContent.socialPosts"
         :loading="isLoading"
       />
+
+      <!-- Evaluation Section -->
+      <div class="evaluation-section" v-if="currentTaskId">
+        <h3>Rate this agent's work</h3>
+        <TaskRating :task-id="currentTaskId" />
+      </div>
     </ion-content>
 
     <ion-footer>
@@ -79,6 +85,7 @@ import ContentViewer from '@/components/shared/ContentViewer.vue';
 import VersionSelector from '@/components/shared/VersionSelector.vue';
 import VersionBadge from '@/components/shared/VersionBadge.vue';
 import DeliverableActionButtons from './DeliverableActionButtons.vue';
+import TaskRating from '@/components/TaskRating.vue';
 import { deliverablesService } from '@/services/deliverablesService';
 import { useDeliverablesStore } from '@/stores/deliverablesStore';
 import type { DeliverableVersion } from '@/services/deliverablesService';
@@ -135,6 +142,11 @@ const displayVersionNumber = computed(() => {
 const currentCreationType = computed<VersionCreationType>(() => {
   const current = versions.value.find((v) => v.id === selectedVersionId.value);
   return (current?.createdByType as VersionCreationType) || 'ai_response';
+});
+
+const currentTaskId = computed(() => {
+  const current = versions.value.find((v) => v.id === selectedVersionId.value);
+  return current?.taskId;
 });
 
 // Initialize content when modal opens
@@ -338,5 +350,18 @@ function handleClose() {
 
 .version-section {
   margin-bottom: 1rem;
+}
+
+.evaluation-section {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--ion-color-light-shade);
+}
+
+.evaluation-section h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--ion-color-medium);
 }
 </style>

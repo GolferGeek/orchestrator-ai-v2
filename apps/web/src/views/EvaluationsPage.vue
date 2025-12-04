@@ -18,19 +18,6 @@
       </ion-toolbar>
     </ion-header>
     <ion-content :fullscreen="true" class="ion-padding">
-      <!-- Evaluation Type Tabs -->
-      <ion-card class="tabs-card">
-        <ion-card-content>
-          <ion-segment v-model="selectedTab" @ionChange="handleTabChange">
-            <ion-segment-button value="tasks">
-              <ion-label>Task Evaluations</ion-label>
-            </ion-segment-button>
-            <ion-segment-button value="deliverables">
-              <ion-label>Deliverable Evaluations</ion-label>
-            </ion-segment-button>
-          </ion-segment>
-        </ion-card-content>
-      </ion-card>
       <!-- Filters Section -->
       <ion-card class="filters-card">
         <ion-card-header>
@@ -114,11 +101,8 @@
       <ion-card v-else-if="(!evaluationsStore.hasEvaluations || filteredEvaluations.length === 0) && !evaluationsStore.isLoading">
         <ion-card-content class="ion-text-center">
           <ion-icon :icon="starOutline" size="large" color="medium"></ion-icon>
-          <h3>No {{ selectedTab === 'deliverables' ? 'Deliverable' : 'Task' }} Evaluations Found</h3>
-          <p v-if="!evaluationsStore.hasEvaluations">You haven't rated any messages yet.</p>
-          <p v-else-if="filteredEvaluations.length === 0 && selectedTab === 'deliverables'">
-            No evaluations found for deliverable-associated tasks. Switch to "Task Evaluations" to see all your ratings.
-          </p>
+          <h3>No Task Evaluations Found</h3>
+          <p v-if="!evaluationsStore.hasEvaluations">You haven't rated any tasks yet.</p>
           <p v-else>No evaluations match your current filters.</p>
           <ion-button fill="clear" @click="clearAllFilters">
             Clear Filters
@@ -131,7 +115,7 @@
         <ion-item lines="none" class="pagination-info">
           <ion-label>
             <p>
-              Showing {{ filteredEvaluations.length }} {{ selectedTab === 'deliverables' ? 'deliverable' : 'task' }} evaluations
+              Showing {{ filteredEvaluations.length }} task evaluations
               of {{ evaluationsStore.pagination.total }} total
               (Page {{ evaluationsStore.currentPageInfo }})
             </p>
@@ -150,14 +134,6 @@
               <ion-col size="8">
                 <ion-card-subtitle>
                   {{ evaluation.metadata?.agentName || 'Task Agent' }}
-                  <ion-chip 
-                    v-if="selectedTab === 'deliverables' && evaluation.metadata?.deliverableType" 
-                    outline 
-                    color="tertiary"
-                    size="small"
-                  >
-                    {{ evaluation.metadata.deliverableType }}
-                  </ion-chip>
                 </ion-card-subtitle>
                 <ion-card-title class="evaluation-title">
                   {{ truncateContent(evaluation.content) }}
@@ -277,9 +253,7 @@ import {
   IonLabel,
   IonSpinner,
   IonText,
-  IonChip,
-  IonSegment,
-  IonSegmentButton
+  IonChip
 } from '@ionic/vue';
 import {
   refreshOutline,
@@ -297,7 +271,6 @@ import EvaluationDetailsModal from '@/components/EvaluationDetailsModal.vue';
 const evaluationsStore = useEvaluationsStore();
 const showDetailsModal = ref(false);
 const selectedEvaluation = ref<EvaluationWithMessage | null>(null);
-const selectedTab = ref('tasks'); // Default to task evaluations
 const localFilters = ref<AllEvaluationsFilters>({
   page: 1,
   limit: 20
@@ -305,35 +278,15 @@ const localFilters = ref<AllEvaluationsFilters>({
 let filterTimeout: NodeJS.Timeout | null = null;
 // Computed property for star icon
 const starIcon = computed(() => star);
-// Computed property to filter evaluations based on selected tab
+// Computed property to get all evaluations
 const filteredEvaluations = computed(() => {
-  const allEvaluations = evaluationsStore.evaluations;
-  if (selectedTab.value === 'deliverables') {
-    // Show evaluations that have deliverable type (indicating they're from deliverable-associated tasks)
-    // This includes tasks that created deliverables, regardless of whether they were rated before or after the task_id was linked
-    return allEvaluations.filter(evaluation =>
-      evaluation.metadata?.deliverableType ||
-      // Also include evaluations where the task likely created a deliverable based on agent name patterns
-      (evaluation.metadata?.agentName &&
-       (evaluation.metadata.agentName.includes('content') ||
-        evaluation.metadata.agentName.includes('document') ||
-        evaluation.metadata.agentName.includes('report') ||
-        evaluation.metadata.agentName.includes('analysis')))
-    );
-  } else {
-    // Show all task evaluations (including those that may have created deliverables)
-    return allEvaluations;
-  }
+  return evaluationsStore.evaluations;
 });
 onMounted(() => {
   evaluationsStore.fetchEvaluations();
 });
 function refreshEvaluations() {
   evaluationsStore.refreshEvaluations();
-}
-function handleTabChange() {
-  // Optionally reset pagination when switching tabs
-  localFilters.value.page = 1;
 }
 function applyFilters() {
   evaluationsStore.applyFilters(localFilters.value);
@@ -375,12 +328,6 @@ function formatDate(dateString: string): string {
 }
 </script>
 <style scoped>
-.tabs-card {
-  margin-bottom: 1rem;
-}
-.tabs-card ion-segment {
-  width: 100%;
-}
 .filters-card {
   margin-bottom: 1rem;
 }

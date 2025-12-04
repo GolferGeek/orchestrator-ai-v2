@@ -75,6 +75,12 @@
         :disabled="isSubmitting"
         class="feedback-section"
       />
+
+      <!-- Evaluation Section -->
+      <div class="evaluation-section" v-if="taskId">
+        <h3>Rate this agent's work</h3>
+        <TaskRating :task-id="taskId" />
+      </div>
     </ion-content>
 
     <ion-footer>
@@ -155,6 +161,7 @@ import ContentEditor from '@/components/shared/ContentEditor.vue';
 import VersionSelector from '@/components/shared/VersionSelector.vue';
 import VersionBadge from '@/components/shared/VersionBadge.vue';
 import FeedbackInput from '@/components/shared/FeedbackInput.vue';
+import TaskRating from '@/components/TaskRating.vue';
 import { a2aOrchestrator } from '@/services/agent2agent/orchestrator';
 import { deliverablesService } from '@/services/deliverablesService';
 import { useHitlPendingStore } from '@/stores/hitlPendingStore';
@@ -461,6 +468,19 @@ function handleClose() {
 
 .feedback-section {
   margin-top: 1rem;
+}
+
+.evaluation-section {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--ion-color-light-shade);
+}
+
+.evaluation-section h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--ion-color-medium);
 }
 
 .action-buttons {
