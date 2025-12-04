@@ -199,13 +199,16 @@ async function refreshData() {
 
 async function selectRole(role: RbacRole) {
   selectedRole.value = role;
-  // In a full implementation, load role's permissions from API
-  rolePermissions.value = [];
+  // Load permissions for this role
+  try {
+    rolePermissions.value = await rbacService.getRolePermissions(role.id);
+  } catch (error) {
+    console.error('Failed to load role permissions:', error);
+    rolePermissions.value = [];
+  }
 }
 
 function roleHasPermission(permName: string): boolean {
-  // This would check if the selected role has this permission
-  // For now, return false - would need backend endpoint
   return rolePermissions.value.includes(permName);
 }
 

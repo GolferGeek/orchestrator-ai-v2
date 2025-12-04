@@ -26,6 +26,18 @@ interface RpcOrganizationRow {
   is_global: boolean;
 }
 
+interface RpcOrganizationUserRow {
+  user_id: string;
+  email: string;
+  display_name?: string;
+  role_id: string;
+  role_name: string;
+  role_display_name: string;
+  is_global: boolean;
+  assigned_at: string;
+  expires_at?: string;
+}
+
 interface RbacRoleDbRow {
   id: string;
   name: string;
@@ -79,6 +91,20 @@ export interface UserOrganization {
   organizationName: string;
   roleName: string;
   isGlobal: boolean;
+}
+
+export interface OrganizationUser {
+  userId: string;
+  email: string;
+  displayName?: string;
+  roles: Array<{
+    id: string;
+    name: string;
+    displayName: string;
+    isGlobal: boolean;
+    assignedAt: Date;
+    expiresAt?: Date;
+  }>;
 }
 
 export interface RbacRole {
@@ -250,6 +276,77 @@ export class RbacService {
   }
 
   /**
+   * Get all users in an organization with their roles
+   */
+  async getOrganizationUsers(
+    organizationSlug: string,
+  ): Promise<OrganizationUser[]> {
+    const { data, error } = (await this.supabase
+      .getServiceClient()
+      .rpc('rbac_get_organization_users', {
+        p_organization_slug: organizationSlug,
+      })) as {
+      data: RpcOrganizationUserRow[] | null;
+      error: { message: string } | null;
+    };
+
+    if (error) {
+      this.logger.error(
+        `Failed to get organization users: ${error.message}`,
+        error,
+      );
+      return [];
+    }
+
+    // Group roles by user and deduplicate
+    const userMap = new Map<string, OrganizationUser>();
+
+    (data || []).forEach((row) => {
+      if (!userMap.has(row.user_id)) {
+        userMap.set(row.user_id, {
+          userId: row.user_id,
+          email: row.email,
+          displayName: row.display_name,
+          roles: [],
+        });
+      }
+
+      const user = userMap.get(row.user_id)!;
+
+      // Check if this role already exists for this user
+      // Prefer org-specific role over global role for this org
+      const existingRoleIndex = user.roles.findIndex(
+        (r) => r.name === row.role_name,
+      );
+
+      if (existingRoleIndex === -1) {
+        // Role doesn't exist, add it
+        user.roles.push({
+          id: row.role_id,
+          name: row.role_name,
+          displayName: row.role_display_name,
+          isGlobal: row.is_global,
+          assignedAt: new Date(row.assigned_at),
+          expiresAt: row.expires_at ? new Date(row.expires_at) : undefined,
+        });
+      } else if (!row.is_global) {
+        // Role exists but this one is org-specific, prefer it over global
+        user.roles[existingRoleIndex] = {
+          id: row.role_id,
+          name: row.role_name,
+          displayName: row.role_display_name,
+          isGlobal: row.is_global,
+          assignedAt: new Date(row.assigned_at),
+          expiresAt: row.expires_at ? new Date(row.expires_at) : undefined,
+        };
+      }
+      // If role exists and new one is global, skip it (keep org-specific)
+    });
+
+    return Array.from(userMap.values());
+  }
+
+  /**
    * Get all available roles
    */
   async getAllRoles(): Promise<RbacRole[]> {
@@ -278,7 +375,7 @@ export class RbacService {
    * Get all available permissions
    */
   async getAllPermissions(): Promise<RbacPermission[]> {
-    const { data, error } = await this.supabase
+    const { data, error} = await this.supabase
       .getServiceClient()
       .from('rbac_permissions')
       .select('id, name, display_name, description, category')
@@ -297,6 +394,38 @@ export class RbacService {
       description: row.description,
       category: row.category,
     }));
+  }
+
+  /**
+   * Get permissions for a specific role
+   */
+  async getRolePermissions(roleId: string): Promise<string[]> {
+    const { data, error } = await this.supabase
+      .getServiceClient()
+      .from('rbac_role_permissions')
+      .select('permission_id, rbac_permissions!inner(name)')
+      .eq('role_id', roleId);
+
+    if (error) {
+      this.logger.error(
+        `Failed to get role permissions: ${error.message}`,
+        error,
+      );
+      return [];
+    }
+
+    if (!data) {
+      return [];
+    }
+
+    // Extract permission names from the nested structure
+    // Supabase returns rbac_permissions as a single object when using !inner
+    const results = data as unknown as Array<{
+      permission_id: string;
+      rbac_permissions: { name: string };
+    }>;
+
+    return results.map((row) => row.rbac_permissions.name);
   }
 
   /**

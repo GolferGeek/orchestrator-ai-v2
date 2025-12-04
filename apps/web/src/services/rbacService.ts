@@ -45,6 +45,13 @@ export interface UserOrganization {
   isGlobal: boolean;
 }
 
+export interface OrganizationUser {
+  userId: string;
+  email: string;
+  displayName?: string;
+  roles: UserRole[];
+}
+
 export interface AuditLogEntry {
   id: string;
   action: string;
@@ -97,6 +104,17 @@ class RbacService {
       grouped: Record<string, RbacPermission[]>;
     }>(`${API_BASE_URL}/api/rbac/permissions`, { headers: this.getAuthHeaders() });
     return response.data;
+  }
+
+  /**
+   * Get permissions for a specific role
+   */
+  async getRolePermissions(roleId: string): Promise<string[]> {
+    const response = await axios.get<{ permissions: string[] }>(
+      `${API_BASE_URL}/api/rbac/roles/${roleId}/permissions`,
+      { headers: this.getAuthHeaders() }
+    );
+    return response.data.permissions;
   }
 
   // ==================== CURRENT USER ====================
@@ -218,6 +236,19 @@ class RbacService {
       `${API_BASE_URL}/api/rbac/users/${userId}/roles/${roleName}`,
       { headers: this.getOrgHeaders(organizationSlug), params: { organizationSlug } }
     );
+  }
+
+  // ==================== ORGANIZATION USER MANAGEMENT ====================
+
+  /**
+   * Get all users in an organization with their roles
+   */
+  async getOrganizationUsers(organizationSlug: string): Promise<OrganizationUser[]> {
+    const response = await axios.get<{ users: OrganizationUser[] }>(
+      `${API_BASE_URL}/api/rbac/organizations/${organizationSlug}/users`,
+      { headers: this.getOrgHeaders(organizationSlug) }
+    );
+    return response.data.users;
   }
 
   // ==================== AUDIT LOG ====================

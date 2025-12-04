@@ -20,7 +20,11 @@
         <ion-card-content>
           <ion-item>
             <ion-label>Organization</ion-label>
-            <ion-select v-model="selectedOrg" @ionChange="onOrgChange">
+            <ion-select
+              :value="selectedOrg"
+              @ionChange="onOrgChange($event)"
+              interface="popover"
+            >
               <ion-select-option
                 v-for="org in organizations"
                 :key="org.slug"
@@ -116,6 +120,28 @@
 
           <ion-card>
             <ion-card-header>
+              <ion-card-title>Effective Permissions</ion-card-title>
+              <ion-card-subtitle>Permissions granted through assigned roles</ion-card-subtitle>
+            </ion-card-header>
+            <ion-card-content>
+              <div v-if="userPermissions.length > 0" class="permissions-grid">
+                <ion-chip
+                  v-for="permission in userPermissions"
+                  :key="permission.name"
+                  color="primary"
+                  outline
+                >
+                  <ion-label>{{ permission.displayName }}</ion-label>
+                </ion-chip>
+              </div>
+              <p v-else class="ion-text-center">
+                No permissions assigned
+              </p>
+            </ion-card-content>
+          </ion-card>
+
+          <ion-card>
+            <ion-card-header>
               <ion-card-title>Add Role</ion-card-title>
             </ion-card-header>
             <ion-card-content>
@@ -158,7 +184,7 @@ import {
   closeCircleOutline, addCircleOutline
 } from 'ionicons/icons';
 import { useRbacStore } from '@/stores/rbacStore';
-import rbacService, { type UserRole, type RbacRole } from '@/services/rbacService';
+import rbacService, { type UserRole, type RbacRole, type RbacPermission } from '@/services/rbacService';
 
 interface UserWithRoles {
   id: string;
@@ -170,19 +196,30 @@ interface UserWithRoles {
 const rbacStore = useRbacStore();
 
 const loading = ref(false);
-const users = ref<UserWithRoles[]>([]);
-const selectedOrg = ref<string>('');
 const showUserModal = ref(false);
 const selectedUser = ref<UserWithRoles | null>(null);
+const selectedUserPermissions = ref<RbacPermission[]>([]);
 
 const organizations = computed(() => rbacStore.userOrganizations.map(org => ({
   slug: org.organizationSlug,
   name: org.organizationName
 })));
 
+const selectedOrg = computed(() => rbacStore.currentOrganization || '');
+
 const selectedOrgName = computed(() => {
   const org = organizations.value.find(o => o.slug === selectedOrg.value);
   return org?.name || selectedOrg.value;
+});
+
+// Users come from the store - reactive to org changes
+const users = computed(() => {
+  return rbacStore.currentOrgUsers.map(user => ({
+    id: user.userId,
+    email: user.email,
+    displayName: user.displayName,
+    roles: user.roles
+  }));
 });
 
 const availableRolesToAdd = computed(() => {
@@ -191,68 +228,125 @@ const availableRolesToAdd = computed(() => {
   return rbacStore.allRoles.filter(r => !userRoleNames.includes(r.name) && !r.isSystem);
 });
 
+const userPermissions = computed(() => selectedUserPermissions.value);
+
 onMounted(async () => {
   if (!rbacStore.isInitialized) {
     await rbacStore.initialize();
   }
-  if (rbacStore.currentOrganization) {
-    selectedOrg.value = rbacStore.currentOrganization;
-  } else if (organizations.value.length > 0) {
-    selectedOrg.value = organizations.value[0].slug;
+
+  // Set initial organization if not already set
+  if (!rbacStore.currentOrganization && organizations.value.length > 0) {
+    await rbacStore.setOrganization(organizations.value[0].slug);
   }
-  await refreshUsers();
 });
 
 async function refreshUsers() {
-  if (!selectedOrg.value) return;
+  // Reload users for current organization
+  if (rbacStore.currentOrganization) {
+    loading.value = true;
+    try {
+      await rbacStore.loadOrganizationUsers(rbacStore.currentOrganization);
+    } catch (error) {
+      console.error('Failed to load users:', error);
+      const toast = await toastController.create({
+        message: 'Failed to load users. Please try again.',
+        duration: 2000,
+        color: 'danger'
+      });
+      await toast.present();
+    } finally {
+      loading.value = false;
+    }
+  }
+}
+
+async function onOrgChange(event: CustomEvent) {
+  const newOrg = event.detail.value;
+  if (newOrg === rbacStore.currentOrganization) return; // No change
+
   loading.value = true;
   try {
-    // For now, we'll show a placeholder - in a real implementation,
-    // you'd have an endpoint to list all users in an organization
-    users.value = [];
+    // Store handles loading users automatically
+    await rbacStore.setOrganization(newOrg);
+  } catch (error) {
+    console.error('Failed to change organization:', error);
     const toast = await toastController.create({
-      message: 'User listing requires additional backend endpoint',
+      message: 'Failed to load organization data',
       duration: 2000,
-      color: 'warning'
+      color: 'danger'
     });
     await toast.present();
-  } catch (error) {
-    console.error('Failed to load users:', error);
   } finally {
     loading.value = false;
   }
 }
 
-async function onOrgChange() {
-  await rbacStore.setOrganization(selectedOrg.value);
-  await refreshUsers();
+async function refreshUserPermissions() {
+  if (!selectedUser.value) return;
+
+  try {
+    const userPerms = await rbacService.getUserPermissions(selectedUser.value.id, selectedOrg.value);
+
+    // Map permission names to full permission objects with display names
+    const permNames = userPerms.map(p => p.permission);
+
+    // If user has wildcard permission, show all permissions
+    if (permNames.includes('*:*')) {
+      selectedUserPermissions.value = rbacStore.allPermissions;
+    } else {
+      // Map permission names to permission objects
+      selectedUserPermissions.value = rbacStore.allPermissions.filter(p =>
+        permNames.includes(p.name)
+      );
+    }
+  } catch (error) {
+    console.error('Failed to load user permissions:', error);
+    selectedUserPermissions.value = [];
+  }
 }
 
-function openUserModal(user: UserWithRoles) {
+async function openUserModal(user: UserWithRoles) {
   selectedUser.value = user;
+  selectedUserPermissions.value = [];
   showUserModal.value = true;
+
+  // Fetch user's permissions
+  await refreshUserPermissions();
 }
 
 function closeUserModal() {
   showUserModal.value = false;
   selectedUser.value = null;
+  selectedUserPermissions.value = [];
 }
 
 async function addRole(role: RbacRole) {
-  if (!selectedUser.value) return;
+  if (!selectedUser.value || !rbacStore.currentOrganization) return;
   try {
     await rbacService.assignRole(
       selectedUser.value.id,
-      selectedOrg.value,
+      rbacStore.currentOrganization,
       role.name
     );
-    selectedUser.value.roles.push({
-      id: role.id,
-      name: role.name,
-      displayName: role.displayName,
-      isGlobal: false,
-      assignedAt: new Date().toISOString()
-    });
+
+    // Reload users from store to get updated data
+    await rbacStore.loadOrganizationUsers(rbacStore.currentOrganization);
+
+    // Update the selected user reference to the newly loaded data
+    const updatedUser = rbacStore.currentOrgUsers.find(u => u.userId === selectedUser.value!.id);
+    if (updatedUser) {
+      selectedUser.value = {
+        id: updatedUser.userId,
+        email: updatedUser.email,
+        displayName: updatedUser.displayName,
+        roles: updatedUser.roles
+      };
+    }
+
+    // Refresh permissions to reflect the new role
+    await refreshUserPermissions();
+
     const toast = await toastController.create({
       message: `Role "${role.displayName}" added`,
       duration: 2000,
@@ -287,14 +381,31 @@ async function confirmRemoveRole(role: UserRole) {
 }
 
 async function removeRole(role: UserRole) {
-  if (!selectedUser.value) return;
+  if (!selectedUser.value || !rbacStore.currentOrganization) return;
   try {
     await rbacService.revokeRole(
       selectedUser.value.id,
-      selectedOrg.value,
+      rbacStore.currentOrganization,
       role.name
     );
-    selectedUser.value.roles = selectedUser.value.roles.filter(r => r.name !== role.name);
+
+    // Reload users from store to get updated data
+    await rbacStore.loadOrganizationUsers(rbacStore.currentOrganization);
+
+    // Update the selected user reference to the newly loaded data
+    const updatedUser = rbacStore.currentOrgUsers.find(u => u.userId === selectedUser.value!.id);
+    if (updatedUser) {
+      selectedUser.value = {
+        id: updatedUser.userId,
+        email: updatedUser.email,
+        displayName: updatedUser.displayName,
+        roles: updatedUser.roles
+      };
+    }
+
+    // Refresh permissions to reflect the role removal
+    await refreshUserPermissions();
+
     const toast = await toastController.create({
       message: `Role "${role.displayName}" removed`,
       duration: 2000,
@@ -352,5 +463,11 @@ function getRoleBadgeColor(roleName: string): string {
 
 ion-chip {
   margin: 4px;
+}
+
+.permissions-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 </style>

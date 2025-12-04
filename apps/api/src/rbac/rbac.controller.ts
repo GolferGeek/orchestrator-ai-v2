@@ -70,6 +70,15 @@ export class RbacController {
     return { permissions, grouped };
   }
 
+  /**
+   * Get permissions for a specific role
+   */
+  @Get('roles/:roleId/permissions')
+  async getRolePermissions(@Param('roleId') roleId: string) {
+    const permissions = await this.rbacService.getRolePermissions(roleId);
+    return { permissions };
+  }
+
   // ==================== CURRENT USER ====================
 
   /**
@@ -214,6 +223,18 @@ export class RbacController {
       currentUser.id,
     );
     return { success: true, message: `Role '${roleName}' revoked from user` };
+  }
+
+  // ==================== ORGANIZATION USER MANAGEMENT ====================
+
+  /**
+   * Get all users in an organization with their roles (admin only)
+   */
+  @Get('organizations/:orgSlug/users')
+  @RequirePermission('admin:users')
+  async getOrganizationUsers(@Param('orgSlug') orgSlug: string) {
+    const users = await this.rbacService.getOrganizationUsers(orgSlug);
+    return { users };
   }
 
   // ==================== AUDIT LOG ====================

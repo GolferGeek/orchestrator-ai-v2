@@ -13,6 +13,7 @@ import rbacService, {
   type RbacPermission,
   type UserRole,
   type UserOrganization,
+  type OrganizationUser,
 } from '@/services/rbacService';
 import type { SignupData } from '@/types/auth';
 
@@ -89,6 +90,7 @@ export const useRbacStore = defineStore('rbac', () => {
   const userRoles = ref<Map<string, UserRole[]>>(new Map());
   const userPermissions = ref<Map<string, string[]>>(new Map());
   const userOrganizations = ref<UserOrganization[]>([]);
+  const organizationUsers = ref<Map<string, OrganizationUser[]>>(new Map());
   const isSuperAdmin = ref(false);
   const allRoles = ref<RbacRole[]>([]);
   const allPermissions = ref<RbacPermission[]>([]);
@@ -109,6 +111,11 @@ export const useRbacStore = defineStore('rbac', () => {
   const currentOrgPermissions = computed(() => {
     if (!currentOrganization.value) return [];
     return userPermissions.value.get(currentOrganization.value) || [];
+  });
+
+  const currentOrgUsers = computed(() => {
+    if (!currentOrganization.value) return [];
+    return organizationUsers.value.get(currentOrganization.value) || [];
   });
 
   const hasAnyOrganization = computed(() => userOrganizations.value.length > 0);
@@ -254,7 +261,10 @@ export const useRbacStore = defineStore('rbac', () => {
 
   async function setOrganization(orgSlug: string): Promise<void> {
     currentOrganization.value = orgSlug;
-    await loadUserPermissions(orgSlug);
+    await Promise.all([
+      loadUserPermissions(orgSlug),
+      loadOrganizationUsers(orgSlug),
+    ]);
   }
 
   async function loadUserPermissions(orgSlug: string): Promise<void> {
@@ -269,6 +279,16 @@ export const useRbacStore = defineStore('rbac', () => {
       console.error(`Failed to load permissions for org ${orgSlug}:`, error);
       userRoles.value.set(orgSlug, []);
       userPermissions.value.set(orgSlug, []);
+    }
+  }
+
+  async function loadOrganizationUsers(orgSlug: string): Promise<void> {
+    try {
+      const users = await rbacService.getOrganizationUsers(orgSlug);
+      organizationUsers.value.set(orgSlug, users);
+    } catch (error) {
+      console.error(`Failed to load users for org ${orgSlug}:`, error);
+      organizationUsers.value.set(orgSlug, []);
     }
   }
 
@@ -371,6 +391,7 @@ export const useRbacStore = defineStore('rbac', () => {
     userRoles,
     userPermissions,
     userOrganizations,
+    organizationUsers,
     allRoles,
     allPermissions,
     permissionsByCategory,
@@ -379,6 +400,7 @@ export const useRbacStore = defineStore('rbac', () => {
     // RBAC computed
     currentOrgRoles,
     currentOrgPermissions,
+    currentOrgUsers,
     hasAnyOrganization,
 
     // Auth actions
@@ -394,6 +416,7 @@ export const useRbacStore = defineStore('rbac', () => {
     initialize,
     setOrganization,
     loadUserPermissions,
+    loadOrganizationUsers,
     loadRolesAndPermissions,
     hasPermission,
     hasAnyPermission,
