@@ -12,7 +12,7 @@ import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { SupabaseService } from '../supabase/supabase.service';
 import { IsOptional, IsObject, IsString } from 'class-validator';
 import { ConfigService } from '@nestjs/config';
-import { cpus } from 'os';
+import { cpus, totalmem, freemem, uptime as osUptime, loadavg, platform } from 'os';
 
 class UpdateGlobalModelConfigDto {
   @IsObject()
@@ -35,14 +35,79 @@ export class SystemController {
   ) {}
 
   /**
-   * Get basic system health status
+   * Get basic system health status (system-wide resources)
    */
   @Get('health')
   @ApiOperation({ summary: 'Get system health status' })
   @ApiResponse({ status: 200, description: 'System health data' })
   async getSystemHealth() {
     try {
-      const uptime = process.uptime() * 1000;
+      // System-wide resources
+      const totalMemory = totalmem();
+      const freeMemory = freemem();
+      const currentPlatform = platform();
+
+      let usedMemory = totalMemory - freeMemory;
+      let memoryUtilization = Math.round((usedMemory / totalMemory) * 100);
+
+      // On macOS, get more accurate memory from vm_stat
+      if (currentPlatform === 'darwin') {
+        try {
+          const { execSync } = await import('child_process');
+          const vmStat = execSync('vm_stat').toString();
+          const lines = vmStat.split('\n');
+
+          // Parse page size from first line (16KB on Apple Silicon, 4KB on Intel)
+          const pageSizeMatch = lines[0]?.match(/page size of (\d+) bytes/);
+          const pageSize = pageSizeMatch && pageSizeMatch[1] ? parseInt(pageSizeMatch[1], 10) : 4096;
+
+          let pagesAnonymous = 0; // App Memory
+          let pagesWired = 0; // Wired Memory
+          let pagesCompressed = 0; // Compressed Memory
+
+          for (const line of lines) {
+            // Match: "Pages anonymous:                        1384784."
+            if (line.includes('Anonymous pages:')) {
+              const match = line.match(/:\s+(\d+)\./);
+              if (match && match[1]) {
+                pagesAnonymous = parseInt(match[1], 10);
+              }
+            }
+            // Match: "Pages wired down:                        323104."
+            else if (line.includes('Pages wired down:')) {
+              const match = line.match(/:\s+(\d+)\./);
+              if (match && match[1]) {
+                pagesWired = parseInt(match[1], 10);
+              }
+            }
+            // Match: "Pages occupied by compressor:           1073198."
+            else if (line.includes('Pages occupied by compressor:')) {
+              const match = line.match(/:\s+(\d+)\./);
+              if (match && match[1]) {
+                pagesCompressed = parseInt(match[1], 10);
+              }
+            }
+          }
+
+          // Calculate actual used memory (anonymous + wired + compressed)
+          // This matches Activity Monitor's "Memory Used" calculation
+          const usedPages = pagesAnonymous + pagesWired + pagesCompressed;
+          usedMemory = usedPages * pageSize;
+          memoryUtilization = Math.round((usedMemory / totalMemory) * 100);
+        } catch (error) {
+          // Fall back to basic calculation if vm_stat fails
+          this.logger.warn('Failed to get accurate macOS memory, using basic calculation', error);
+        }
+      }
+
+      const systemUptime = osUptime() * 1000; // Convert to milliseconds
+      const cpuInfo = cpus();
+
+      // Load average (Unix-like systems only - returns [0,0,0] on Windows)
+      const load = loadavg();
+
+      // API process resources (for debugging)
+      const processUptime = process.uptime() * 1000;
       const memoryUsage = process.memoryUsage();
 
       // Test database connectivity
@@ -56,15 +121,36 @@ export class SystemController {
         success: true,
         status: 'healthy',
         timestamp: new Date().toISOString(),
-        uptime: uptime,
-        memory: {
-          rss: Math.round(memoryUsage.rss / 1024 / 1024),
-          heapTotal: Math.round(memoryUsage.heapTotal / 1024 / 1024),
-          heapUsed: Math.round(memoryUsage.heapUsed / 1024 / 1024),
-          heapUtilization: Math.round(
-            (memoryUsage.heapUsed / memoryUsage.heapTotal) * 100,
-          ),
+
+        // System-wide resources
+        uptime: systemUptime,
+        system: {
+          platform: currentPlatform,
+          cpuCores: cpuInfo.length,
+          cpuModel: cpuInfo[0]?.model || 'Unknown',
+          loadAverage: load, // [1min, 5min, 15min] - Unix only
         },
+        memory: {
+          // System-wide memory
+          total: Math.round(totalMemory / 1024 / 1024),
+          free: Math.round(freeMemory / 1024 / 1024),
+          used: Math.round(usedMemory / 1024 / 1024),
+          utilization: memoryUtilization,
+
+          // API process memory (for debugging)
+          process: {
+            rss: Math.round(memoryUsage.rss / 1024 / 1024),
+            heapTotal: Math.round(memoryUsage.heapTotal / 1024 / 1024),
+            heapUsed: Math.round(memoryUsage.heapUsed / 1024 / 1024),
+            heapUtilization: Math.round(
+              (memoryUsage.heapUsed / memoryUsage.heapTotal) * 100,
+            ),
+          }
+        },
+
+        // API process uptime (for comparison)
+        apiUptime: processUptime,
+
         services: {
           database: dbError ? 'unhealthy' : 'healthy',
           api: 'healthy',

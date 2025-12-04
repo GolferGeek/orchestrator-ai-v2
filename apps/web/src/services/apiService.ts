@@ -562,15 +562,9 @@ class ApiService {
    * Get available NestJS agents
    */
   async getAvailableAgents(organization?: string): Promise<AgentInfo[]> {
-    const headers = organization ? { 'x-organization-slug': organization } : {};
-    console.log('🔍 Frontend calling /agents with headers:', JSON.stringify(headers, null, 2));
-    console.log('🔍 Organization parameter:', organization);
-
     const response = await this.axiosInstance.get<{ agents: AgentInfo[] }>('/agents', {
-      headers
+      headers: organization ? { 'x-organization-slug': organization } : {}
     });
-
-    console.log('🔍 Response data:', response.data);
     return response.data.agents || [];
   }
 

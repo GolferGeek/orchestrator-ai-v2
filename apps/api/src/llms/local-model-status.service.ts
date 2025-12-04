@@ -523,13 +523,56 @@ export class LocalModelStatusService {
   }
 
   /**
-   * Get overall Ollama status
+   * Get overall Ollama status (fast - no health checks)
+   * For system health dashboard, we just want to know if Ollama is running
+   * and how many models are available/loaded
    */
   async getOllamaStatus(): Promise<OllamaStatus> {
     await this.checkOllamaConnection();
 
     if (this.ollamaStatus.connected) {
-      this.ollamaStatus.models = await this.getAvailableModels();
+      // Get list of available models (fast - just metadata, no health checks)
+      try {
+        const response = await firstValueFrom(
+          this.httpService.get<OllamaTagsResponse>(
+            `${this.ollamaBaseUrl}/api/tags`,
+            {
+              timeout: 5000,
+            },
+          ),
+        );
+
+        const models: OllamaModel[] = response.data?.models || [];
+
+        // Get currently loaded models for comparison
+        const loadedResponse = await firstValueFrom(
+          this.httpService.get<OllamaProcessResponse>(
+            `${this.ollamaBaseUrl}/api/ps`,
+            {
+              timeout: 5000,
+            },
+          ),
+        );
+
+        const loadedModelNames = new Set(
+          (loadedResponse.data?.models || []).map(m => m.name)
+        );
+
+        // Mark models as loaded or available (no expensive health checks)
+        this.ollamaStatus.models = models.map((model) => ({
+          name: model.name,
+          status: loadedModelNames.has(model.name) ? ('loaded' as const) : ('unavailable' as const),
+          size: this.formatBytes(model.size),
+          digest: model.digest,
+          details: model.details as Record<string, unknown>,
+          modifiedAt: model.modified_at,
+        }));
+      } catch (error) {
+        this.logger.error(
+          `Failed to get model list: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        );
+        this.ollamaStatus.models = [];
+      }
     }
 
     return { ...this.ollamaStatus };

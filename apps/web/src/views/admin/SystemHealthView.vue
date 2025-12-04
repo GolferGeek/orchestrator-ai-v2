@@ -61,12 +61,16 @@
                     </div>
                     <div class="service-metrics" v-if="systemHealth">
                       <div class="metric">
-                        <span class="metric-label">Uptime</span>
+                        <span class="metric-label">System Uptime</span>
                         <span class="metric-value">{{ formatUptime(systemHealth.uptime) }}</span>
                       </div>
                       <div class="metric">
                         <span class="metric-label">Memory Usage</span>
-                        <span class="metric-value">{{ systemHealth.memory?.heapUtilization }}%</span>
+                        <span class="metric-value">{{ systemHealth.memory?.utilization }}%</span>
+                      </div>
+                      <div class="metric" v-if="systemHealth.system">
+                        <span class="metric-label">CPU Cores</span>
+                        <span class="metric-value">{{ systemHealth.system.cpuCores }}</span>
                       </div>
                     </div>
                   </ion-card-content>
@@ -116,11 +120,19 @@
                     <div class="service-metrics" v-if="localModelStatus">
                       <div class="metric">
                         <span class="metric-label">Ollama</span>
-                        <span class="metric-value">{{ localModelStatus.running ? 'Running' : 'Stopped' }}</span>
+                        <span class="metric-value">{{ localModelStatus.connected ? 'Running' : 'Stopped' }}</span>
+                      </div>
+                      <div class="metric" v-if="localModelStatus.version">
+                        <span class="metric-label">Version</span>
+                        <span class="metric-value">{{ localModelStatus.version }}</span>
                       </div>
                       <div class="metric" v-if="localModelStatus.models && localModelStatus.models.length !== undefined">
-                        <span class="metric-label">Models Available</span>
+                        <span class="metric-label">Models Downloaded</span>
                         <span class="metric-value">{{ localModelStatus.models.length }}</span>
+                      </div>
+                      <div class="metric" v-if="localModelStatus.models && localModelStatus.models.length !== undefined">
+                        <span class="metric-label">Loaded in Memory</span>
+                        <span class="metric-value">{{ localModelStatus.models.filter((m: any) => m.status === 'loaded').length }}</span>
                       </div>
                     </div>
                     <div class="service-metrics" v-else>
@@ -234,32 +246,33 @@
                 <ion-row>
                   <ion-col size="12" size-md="4">
                     <div class="resource-item">
-                      <h3>Memory</h3>
+                      <h3>System Memory</h3>
                       <div class="resource-bar">
                         <div
                           class="resource-bar-fill"
-                          :style="{ width: systemHealth.memory?.heapUtilization + '%', backgroundColor: getResourceColor(systemHealth.memory?.heapUtilization) }"
+                          :style="{ width: systemHealth.memory?.utilization + '%', backgroundColor: getResourceColor(systemHealth.memory?.utilization) }"
                         ></div>
                       </div>
                       <div class="resource-details">
-                        <span>{{ systemHealth.memory?.heapUsed }} MB / {{ systemHealth.memory?.heapTotal }} MB</span>
-                        <span>{{ systemHealth.memory?.heapUtilization }}%</span>
+                        <span>{{ (systemHealth.memory?.used / 1024).toFixed(1) }} GB / {{ (systemHealth.memory?.total / 1024).toFixed(1) }} GB</span>
+                        <span>{{ systemHealth.memory?.utilization }}%</span>
                       </div>
                     </div>
                   </ion-col>
 
                   <ion-col size="12" size-md="4">
                     <div class="resource-item">
-                      <h3>RSS Memory</h3>
+                      <h3>System Info</h3>
                       <div class="resource-details">
-                        <span>{{ systemHealth.memory?.rss }} MB</span>
+                        <span v-if="systemHealth.system">{{ systemHealth.system.cpuCores }} CPU Cores</span>
+                        <span v-if="systemHealth.system">{{ systemHealth.system.platform }}</span>
                       </div>
                     </div>
                   </ion-col>
 
                   <ion-col size="12" size-md="4">
                     <div class="resource-item">
-                      <h3>Uptime</h3>
+                      <h3>System Uptime</h3>
                       <div class="resource-details">
                         <span>{{ formatUptime(systemHealth.uptime) }}</span>
                       </div>
@@ -347,12 +360,15 @@ const overallHealthy = computed(() => {
   const dbHealthy = systemHealth.value.services?.database === 'healthy';
 
   // Local models are optional - only check if Ollama is expected to be running
-  const localModelsOk = !localModelStatus.value || localModelStatus.value.running !== false;
+  const localModelsOk = !localModelStatus.value || localModelStatus.value.connected !== false;
 
   // Agents are critical - must have at least one
   const agentsOk = agentsData.value.discoveredAgents > 0;
 
-  return apiHealthy && dbHealthy && localModelsOk && agentsOk;
+  // System memory check - warn if above 90%
+  const memoryOk = !systemHealth.value || systemHealth.value.memory?.utilization < 90;
+
+  return apiHealthy && dbHealthy && localModelsOk && agentsOk && memoryOk;
 });
 
 const issues = computed(() => {
@@ -372,7 +388,7 @@ const issues = computed(() => {
     });
   }
 
-  if (localModelStatus.value && localModelStatus.value.running === false) {
+  if (localModelStatus.value && localModelStatus.value.connected === false) {
     issuesList.push({
       service: 'Local Models',
       message: 'Ollama service is not running (local models unavailable)'
@@ -383,6 +399,15 @@ const issues = computed(() => {
     issuesList.push({
       service: 'Agents',
       message: 'No agents are currently available'
+    });
+  }
+
+  if (systemHealth.value && systemHealth.value.memory?.utilization >= 90) {
+    const usedGB = (systemHealth.value.memory.used / 1024).toFixed(1);
+    const totalGB = (systemHealth.value.memory.total / 1024).toFixed(1);
+    issuesList.push({
+      service: 'System Memory',
+      message: `High memory usage: ${systemHealth.value.memory.utilization}% (${usedGB} GB / ${totalGB} GB)`
     });
   }
 
@@ -400,15 +425,15 @@ const getStatusColor = (status: string | undefined) => {
 
 const getLocalModelsStatus = () => {
   if (!localModelStatus.value) return 'Not Configured';
-  if (localModelStatus.value.running) return 'Running';
-  if (localModelStatus.value.running === false) return 'Stopped';
+  if (localModelStatus.value.connected) return 'Running';
+  if (localModelStatus.value.connected === false) return 'Stopped';
   return 'Not Configured';
 };
 
 const getLocalModelsColor = () => {
   if (!localModelStatus.value) return 'medium';
-  if (localModelStatus.value.running) return 'success';
-  if (localModelStatus.value.running === false) return 'warning';
+  if (localModelStatus.value.connected) return 'success';
+  if (localModelStatus.value.connected === false) return 'warning';
   return 'medium';
 };
 

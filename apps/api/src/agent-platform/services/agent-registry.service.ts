@@ -81,37 +81,24 @@ export class AgentRegistryService {
       ),
     );
 
-    console.log('🔍 Registry service querying for organizations:', uniqueOrganizations);
-
     // Always include global agents alongside organization-specific agents
     if (!uniqueOrganizations.includes(null)) {
       uniqueOrganizations.push(null);
     }
 
-    console.log('🔍 Registry service will query these orgs (with global):', uniqueOrganizations);
-
     const results = await Promise.all(
       uniqueOrganizations.map((organization) => this.listAgents(organization)),
     );
 
-    console.log('🔍 Registry service got results:', results.map(r => r.length));
-
     // Deduplicate by slug (agents can belong to multiple orgs)
     const seen = new Set<string>();
-    const filtered = results.flat().filter((agent) => {
+    return results.flat().filter((agent) => {
       if (seen.has(agent.slug)) {
         return false;
       }
       seen.add(agent.slug);
       return true;
     });
-
-    console.log('🔍 Registry service returning', filtered.length, 'agents after dedup');
-    if (filtered.length > 0 && filtered[0]) {
-      console.log('🔍 First agent org_slugs:', filtered[0].organization_slug);
-    }
-
-    return filtered;
   }
 
   invalidate(organizationSlug: string | null, agentSlug?: string): void {

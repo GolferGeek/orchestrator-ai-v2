@@ -691,6 +691,7 @@ import { useLLMAnalyticsStore } from '@/stores/llmAnalyticsStore';
 import { useAnalyticsStore } from '@/stores/analyticsStore';
 import { fetchGlobalModelConfig, updateGlobalModelConfig } from '@/services/systemSettingsService';
 import { fetchProvidersWithModels, type ProviderWithModels } from '@/services/modelCatalogService';
+import { apiService } from '@/services/apiService';
 
 // Store and router
 const auth = useAuthStore();
@@ -900,11 +901,26 @@ const dictionaryStats = computed(() => ({
   activeWords: privacyStore.dictionaries.filter(d => d.isActive).reduce((sum, d) => sum + d.words.length, 0) || 0
 }));
 
-const systemHealth = computed(() => ({
-  healthy: privacyStore.dashboardData?.systemHealth?.apiStatus === 'operational' && privacyStore.dashboardData?.systemHealth?.dbStatus === 'operational',
-  uptime: privacyStore.dashboardData?.systemHealth?.uptime || 0,
-  issues: (privacyStore.dashboardData?.systemHealth?.apiStatus !== 'operational' ? 1 : 0) + (privacyStore.dashboardData?.systemHealth?.dbStatus !== 'operational' ? 1 : 0)
-}));
+// System health state
+const actualSystemHealth = ref<any>(null);
+
+const systemHealth = computed(() => {
+  if (actualSystemHealth.value) {
+    const apiHealthy = actualSystemHealth.value.services?.api === 'healthy';
+    const dbHealthy = actualSystemHealth.value.services?.database === 'healthy';
+    return {
+      healthy: apiHealthy && dbHealthy,
+      uptime: actualSystemHealth.value.uptime || 0,
+      issues: (apiHealthy ? 0 : 1) + (dbHealthy ? 0 : 1)
+    };
+  }
+  // Fallback to privacy store data if system health hasn't loaded yet
+  return {
+    healthy: privacyStore.dashboardData?.systemHealth?.apiStatus === 'operational' && privacyStore.dashboardData?.systemHealth?.dbStatus === 'operational',
+    uptime: privacyStore.dashboardData?.systemHealth?.uptime || 0,
+    issues: (privacyStore.dashboardData?.systemHealth?.apiStatus !== 'operational' ? 1 : 0) + (privacyStore.dashboardData?.systemHealth?.dbStatus !== 'operational' ? 1 : 0)
+  };
+});
 
 const systemStats = computed(() => ({
   activeUsers: auth.users?.filter(u => u.isActive).length || 0,
@@ -1022,12 +1038,23 @@ const _loadStats = async () => {
   }
 };
 
+// Fetch actual system health
+const fetchSystemHealth = async () => {
+  try {
+    const response = await apiService.get('/system/health');
+    actualSystemHealth.value = response;
+  } catch (error) {
+    console.error('Failed to fetch system health:', error);
+  }
+};
+
 // Lifecycle - Initialize all stores for reactive data
 onMounted(async () => {
   try {
     await Promise.all([
       llmAnalyticsStore.initialize(),
-      analyticsStore.initialize?.() || Promise.resolve()
+      analyticsStore.initialize?.() || Promise.resolve(),
+      fetchSystemHealth()
     ]);
     await loadGlobalModelConfig();
   } catch (error) {
