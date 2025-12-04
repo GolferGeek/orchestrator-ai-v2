@@ -16,7 +16,7 @@ if [ -f ".env" ]; then
 fi
 
 # Database connection - use Docker exec for psql
-DB_URL="${DATABASE_URL:-postgresql://postgres:postgres@127.0.0.1:7012/postgres}"
+DB_URL="${DATABASE_URL:-postgresql://postgres:postgres@127.0.0.1:6012/postgres}"
 DOCKER_PSQL="/Applications/Docker.app/Contents/Resources/bin/docker exec -i supabase_db_api-dev psql -U postgres -d postgres"
 
 # Check if jq is available

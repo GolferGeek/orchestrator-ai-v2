@@ -61,7 +61,7 @@ fi
 echo -e "${GREEN}✅ Supabase is running${NC}"
 
 # Test database connection
-DB_URL="postgresql://postgres:postgres@127.0.0.1:7012/postgres"
+DB_URL="postgresql://postgres:postgres@127.0.0.1:6012/postgres"
 if psql "$DB_URL" -c "SELECT 1;" > /dev/null 2>&1; then
   echo -e "${GREEN}✅ Database connection successful${NC}"
 else

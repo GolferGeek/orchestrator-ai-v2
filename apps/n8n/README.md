@@ -5,7 +5,7 @@ This directory contains a single shared n8n instance that both development and p
 ## What gets provisioned
 
 ### Single Shared Instance (Port 5678)
-- `docker-compose.yml` – runs the official `docker.n8n.io/n8nio/n8n` image
+- `docker-compose.yml` – runs the official `docker.n8n.io/n8nio/n8n` image (always gets the latest stable version)
 - Named Docker volume `orchestrator-n8n-data` that persists credentials, encryption keys, and logs
 - Uses `n8n` database schema in your Supabase instance
 - Environment variables sourced from your root `.env`
