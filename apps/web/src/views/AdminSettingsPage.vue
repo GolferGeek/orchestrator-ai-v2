@@ -555,9 +555,9 @@
               <ion-select v-model="flat.model" interface="popover" :disabled="!flat.provider" placeholder="Select model">
                 <ion-select-option
                   v-for="m in flatModelOptions"
-                  :key="m.model_name"
-                  :value="m.model_name"
-                >{{ m.display_name || m.model_name }}</ion-select-option>
+                  :key="m.modelName"
+                  :value="m.modelName"
+                >{{ m.displayName || m.modelName }}</ion-select-option>
               </ion-select>
             </ion-item>
             <ion-item>
@@ -583,9 +583,9 @@
               <ion-select v-model="dual.default.model" interface="popover" :disabled="!dual.default.provider" placeholder="Select model">
                 <ion-select-option
                   v-for="m in dualDefaultModelOptions"
-                  :key="m.model_name"
-                  :value="m.model_name"
-                >{{ m.display_name || m.model_name }}</ion-select-option>
+                  :key="m.modelName"
+                  :value="m.modelName"
+                >{{ m.displayName || m.modelName }}</ion-select-option>
               </ion-select>
             </ion-item>
             <ion-item>
@@ -600,7 +600,7 @@
             <ion-item>
               <ion-label position="stacked">Provider</ion-label>
               <ion-select v-model="dual.localOnly.provider" interface="popover" placeholder="Select provider">
-                <ion-select-option v-for="p in providers" :key="p.name" :value="p.name">{{ p.display_name || p.name }}</ion-select-option>
+                <ion-select-option v-for="p in localProviders" :key="p.name" :value="p.name">{{ p.display_name || p.name }}</ion-select-option>
               </ion-select>
             </ion-item>
             <ion-item>
@@ -608,9 +608,9 @@
               <ion-select v-model="dual.localOnly.model" interface="popover" :disabled="!dual.localOnly.provider" placeholder="Select model">
                 <ion-select-option
                   v-for="m in dualLocalModelOptions"
-                  :key="m.model_name"
-                  :value="m.model_name"
-                >{{ m.display_name || m.model_name }}</ion-select-option>
+                  :key="m.modelName"
+                  :value="m.modelName"
+                >{{ m.displayName || m.modelName }}</ion-select-option>
               </ion-select>
             </ion-item>
             <ion-item>
@@ -732,6 +732,11 @@ const isConfigValid = computed(() => {
   return defOK && localOK;
 });
 
+// Filter providers for "Local Only" section
+const localProviders = computed(() => {
+  return providers.value.filter(p => p.is_local || p.name.toLowerCase() === 'ollama');
+});
+
 function openModelConfigModal() {
   showModelConfigModal.value = true;
 }
@@ -743,6 +748,7 @@ async function loadGlobalModelConfig() {
   try {
     // Load catalog first
     providers.value = await fetchProvidersWithModels({ status: 'active' });
+    console.log('🔍 Loaded providers:', providers.value);
     const res = await fetchGlobalModelConfig();
     envOverrideActive.value = !!res?.envOverrideActive;
     const cfg = res?.dbConfig;
@@ -773,24 +779,24 @@ async function loadGlobalModelConfig() {
 // Computed model lists with fallback to show DB-selected values
 const flatModelOptions = computed(() => {
   const list = providers.value.find(p => p.name === flat.value.provider)?.models || [];
-  if (flat.value.model && !list.some(m => m.model_name === flat.value.model)) {
-    return [...list, { id: 'custom', model_name: flat.value.model, display_name: flat.value.model } as Record<string, unknown>];
+  if (flat.value.model && !list.some(m => m.modelName === flat.value.model)) {
+    return [...list, { modelName: flat.value.model, displayName: flat.value.model } as Record<string, unknown>];
   }
   return list;
 });
 
 const dualDefaultModelOptions = computed(() => {
   const list = providers.value.find(p => p.name === dual.value.default.provider)?.models || [];
-  if (dual.value.default.model && !list.some(m => m.model_name === dual.value.default.model)) {
-    return [...list, { id: 'custom', model_name: dual.value.default.model, display_name: dual.value.default.model } as Record<string, unknown>];
+  if (dual.value.default.model && !list.some(m => m.modelName === dual.value.default.model)) {
+    return [...list, { modelName: dual.value.default.model, displayName: dual.value.default.model } as Record<string, unknown>];
   }
   return list;
 });
 
 const dualLocalModelOptions = computed(() => {
   const list = providers.value.find(p => p.name === dual.value.localOnly.provider)?.models || [];
-  if (dual.value.localOnly.model && !list.some(m => m.model_name === dual.value.localOnly.model)) {
-    return [...list, { id: 'custom', model_name: dual.value.localOnly.model, display_name: dual.value.localOnly.model } as Record<string, unknown>];
+  if (dual.value.localOnly.model && !list.some(m => m.modelName === dual.value.localOnly.model)) {
+    return [...list, { modelName: dual.value.localOnly.model, displayName: dual.value.localOnly.model } as Record<string, unknown>];
   }
   return list;
 });

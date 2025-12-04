@@ -101,6 +101,7 @@ export interface Provider {
   apiBaseUrl?: string;
   authType: AuthType;
   status: ProviderStatus;
+  isLocal?: boolean;
   createdAt: string;
   updatedAt: string;
 }

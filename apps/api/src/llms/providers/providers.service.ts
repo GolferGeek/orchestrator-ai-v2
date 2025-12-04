@@ -85,11 +85,18 @@ export class ProvidersService {
     // First get providers
     let providerQuery = client
       .from(getTableName('llm_providers'))
-      .select('name')
+      .select('name, display_name, is_local')
       .order('name');
 
     if (status) {
-      providerQuery = providerQuery.eq('status', status);
+      // Map status to is_active boolean
+      const isActive = status === 'active';
+      providerQuery = providerQuery.eq('is_active', isActive);
+    }
+
+    if (sovereignMode) {
+      // In sovereign mode, only show local providers (is_local = true OR name = 'ollama')
+      providerQuery = providerQuery.or('is_local.eq.true,name.ilike.ollama');
     }
 
     const { data: providers, error: providerError } = await providerQuery;
@@ -105,18 +112,19 @@ export class ProvidersService {
     const result: ProviderWithModelsDto[] = [];
 
     for (const provider of providers || []) {
-      const providerName = (provider as { name: string }).name;
+      const typedProvider = provider as {
+        name: string;
+        display_name?: string;
+        is_local?: boolean;
+      };
+      const providerName = typedProvider.name;
+
       let modelQuery = client
         .from(getTableName('llm_models'))
-        .select('provider_name, model_name, display_name')
+        .select('provider_name, model_name, display_name, is_active')
         .eq('provider_name', providerName)
         .eq('is_active', true)
         .order('display_name');
-
-      if (sovereignMode) {
-        // In sovereign mode, only show local models (ollama - case insensitive)
-        modelQuery = modelQuery.ilike('provider_name', 'ollama');
-      }
 
       const { data: models, error: modelError } = await modelQuery;
 
@@ -128,12 +136,16 @@ export class ProvidersService {
       }
 
       result.push({
-        providerName: providerName,
+        id: providerName, // Use name as id since it's the primary key
+        name: providerName,
+        display_name: typedProvider.display_name,
+        is_local: typedProvider.is_local,
         models: (models || []).map((model) => {
           const typedModel = model as {
             provider_name: string;
             model_name: string;
             display_name: string;
+            is_active: boolean;
           };
           return {
             providerName: typedModel.provider_name,
@@ -170,8 +182,8 @@ export class ProvidersService {
     }
 
     if (sovereignMode) {
-      // In sovereign mode, only show local providers (Ollama - case insensitive)
-      query = query.ilike('name', 'ollama');
+      // In sovereign mode, only show local providers (is_local = true OR name = 'ollama')
+      query = query.or('is_local.eq.true,name.ilike.ollama');
     }
 
     const { data, error } = await query;
@@ -267,6 +279,7 @@ export class ProvidersService {
       api_base_url: createProviderDto.apiBaseUrl,
       auth_type: createProviderDto.authType,
       status: createProviderDto.status || 'active',
+      is_local: createProviderDto.isLocal || false,
     };
 
     const { data, error } = (await client
@@ -325,6 +338,8 @@ export class ProvidersService {
       dbPayload.auth_type = updateProviderDto.authType;
     if (updateProviderDto.status !== undefined)
       dbPayload.status = updateProviderDto.status;
+    if (updateProviderDto.isLocal !== undefined)
+      dbPayload.is_local = updateProviderDto.isLocal;
     dbPayload.updated_at = new Date().toISOString();
 
     const { data, error } = (await client

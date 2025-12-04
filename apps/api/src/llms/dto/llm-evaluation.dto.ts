@@ -55,6 +55,14 @@ export class CreateProviderDto {
   @IsEnum(['active', 'inactive', 'deprecated'])
   @IsOptional()
   status?: ProviderStatus;
+
+  @ApiPropertyOptional({
+    description: 'Whether this provider runs locally (e.g., Ollama)',
+    default: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  isLocal?: boolean;
 }
 
 export class UpdateProviderDto {
@@ -77,6 +85,13 @@ export class UpdateProviderDto {
   @IsEnum(['active', 'inactive', 'deprecated'])
   @IsOptional()
   status?: ProviderStatus;
+
+  @ApiPropertyOptional({
+    description: 'Whether this provider runs locally (e.g., Ollama)',
+  })
+  @IsBoolean()
+  @IsOptional()
+  isLocal?: boolean;
 }
 
 export class ProviderResponseDto {
@@ -97,6 +112,11 @@ export class ProviderResponseDto {
 
   @ApiProperty({ description: 'Last update timestamp' })
   updatedAt!: string;
+
+  @ApiPropertyOptional({
+    description: 'Whether this provider runs locally (e.g., Ollama)',
+  })
+  isLocal?: boolean;
 }
 
 // ==================== Simple Name List DTOs ====================
@@ -124,8 +144,19 @@ export class ModelNameDto {
 }
 
 export class ProviderWithModelsDto {
+  @ApiProperty({ description: 'Provider ID' })
+  id!: string;
+
   @ApiProperty({ description: 'Provider name', example: 'openai' })
-  providerName!: string;
+  name!: string;
+
+  @ApiPropertyOptional({ description: 'Display name' })
+  display_name?: string;
+
+  @ApiPropertyOptional({
+    description: 'Whether this provider runs locally (e.g., Ollama)',
+  })
+  is_local?: boolean;
 
   @ApiProperty({ description: 'Available models', type: [ModelNameDto] })
   models!: ModelNameDto[];

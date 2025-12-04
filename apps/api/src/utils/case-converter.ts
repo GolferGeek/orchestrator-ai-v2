@@ -172,6 +172,7 @@ export function mapLLMProviderFromDb(
       (dbProvider.api_base_url as string) || (dbProvider.base_url as string),
     authType: (dbProvider.auth_type as Provider['authType']) || 'api_key',
     status: (dbProvider.is_active as boolean) ? 'active' : 'inactive',
+    isLocal: dbProvider.is_local as boolean | undefined,
     createdAt: dbProvider.created_at as string,
     updatedAt: dbProvider.updated_at as string,
   };
