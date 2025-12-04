@@ -505,7 +505,7 @@ export class SanitizationController {
     const client = this.supabaseService.getServiceClient();
     const { data, error } = await client
       .from('pseudonym_dictionaries')
-      .select('id, category, data_type, pseudonym, is_active, created_at');
+      .select('id, category, data_type, original_value, pseudonym, is_active, created_at');
 
     if (error) {
       this.logger.error('Failed to load pseudonym dictionaries', error);
@@ -529,6 +529,7 @@ export class SanitizationController {
         id: string;
         category: string | null;
         data_type: string | null;
+        original_value: string | null;
         pseudonym: string | null;
         is_active: boolean | null;
         created_at: string | null;
@@ -544,12 +545,362 @@ export class SanitizationController {
           createdAt: typedRow.created_at || undefined,
         };
       }
-      if (typedRow.pseudonym && groups[key]) {
+      // Show both original value and pseudonym
+      if (typedRow.original_value && typedRow.pseudonym && groups[key]) {
+        groups[key].words.push(`${typedRow.original_value} → ${typedRow.pseudonym}`);
+      } else if (typedRow.original_value && groups[key]) {
+        groups[key].words.push(typedRow.original_value);
+      } else if (typedRow.pseudonym && groups[key]) {
         groups[key].words.push(typedRow.pseudonym);
       }
     }
 
     const dictionaries = Object.values(groups);
     return { dictionaries };
+  }
+
+  /**
+   * Get raw dictionary data (for export)
+   */
+  private async getRawDictionaries() {
+    const client = this.supabaseService.getServiceClient();
+    const { data, error } = await client
+      .from('pseudonym_dictionaries')
+      .select('id, category, data_type, original_value, pseudonym, is_active, created_at');
+
+    if (error) {
+      this.logger.error('Failed to load pseudonym dictionaries', error);
+      return [];
+    }
+
+    // Group by category + data_type, keep both original values and pseudonyms
+    const groups: Record<
+      string,
+      {
+        category: string;
+        dataType: string;
+        isActive: boolean;
+        entries: Array<{ originalValue: string; pseudonym: string }>;
+      }
+    > = {};
+
+    for (const row of data || []) {
+      const typedRow = row as {
+        id: string;
+        category: string | null;
+        data_type: string | null;
+        original_value: string | null;
+        pseudonym: string | null;
+        is_active: boolean | null;
+        created_at: string | null;
+      };
+      const key = `${typedRow.category || 'uncategorized'}::${typedRow.data_type || 'custom'}::${typedRow.is_active ? '1' : '0'}`;
+
+      if (!groups[key]) {
+        groups[key] = {
+          category: typedRow.category || 'uncategorized',
+          dataType: typedRow.data_type || 'custom',
+          isActive: !!typedRow.is_active,
+          entries: [],
+        };
+      }
+
+      // Include both original value and pseudonym
+      if (typedRow.original_value && typedRow.pseudonym && groups[key]) {
+        groups[key].entries.push({
+          originalValue: typedRow.original_value,
+          pseudonym: typedRow.pseudonym,
+        });
+      }
+    }
+
+    return Object.values(groups);
+  }
+
+  /**
+   * Create a new pseudonym dictionary entry
+   */
+  @Post('pseudonym/dictionaries')
+  async createPseudonymDictionary(@Body() body: {
+    category: string;
+    dataType: string;
+    words?: string[]; // Old format - for backward compatibility
+    entries?: Array<{ originalValue: string; pseudonym?: string }>; // New format
+    description?: string;
+    isActive?: boolean;
+  }) {
+    const client = this.supabaseService.getServiceClient();
+
+    // Support both old format (words) and new format (entries)
+    let entriesToInsert;
+
+    if (body.entries) {
+      // New format: entries with optional pseudonyms
+      entriesToInsert = body.entries.map(entry => ({
+        category: body.category,
+        data_type: body.dataType,
+        original_value: entry.originalValue,
+        pseudonym: entry.pseudonym || this.generatePseudonym(body.category, entry.originalValue),
+        is_active: body.isActive ?? true,
+      }));
+    } else if (body.words) {
+      // Old format: just words, auto-generate pseudonyms
+      entriesToInsert = body.words.map(word => ({
+        category: body.category,
+        data_type: body.dataType,
+        original_value: word,
+        pseudonym: this.generatePseudonym(body.category, word),
+        is_active: body.isActive ?? true,
+      }));
+    } else {
+      throw new Error('Either words or entries must be provided');
+    }
+
+    const { data, error } = await client
+      .from('pseudonym_dictionaries')
+      .insert(entriesToInsert)
+      .select();
+
+    if (error) {
+      this.logger.error('Failed to create pseudonym dictionary', error);
+      throw new Error(`Failed to create dictionary: ${error.message}`);
+    }
+
+    return {
+      success: true,
+      dictionary: {
+        id: data[0]?.id,
+        category: body.category,
+        dataType: body.dataType,
+        entries: body.entries || body.words?.map(w => ({ originalValue: w, pseudonym: this.generatePseudonym(body.category, w) })),
+        isActive: body.isActive ?? true,
+      }
+    };
+  }
+
+  /**
+   * Update a pseudonym dictionary entry
+   */
+  @Put('pseudonym/dictionaries/:id')
+  async updatePseudonymDictionary(
+    @Param('id') id: string,
+    @Body() body: {
+      category?: string;
+      dataType?: string;
+      words?: string[]; // Old format
+      entries?: Array<{ originalValue: string; pseudonym?: string }>; // New format
+      isActive?: boolean;
+    }
+  ) {
+    const client = this.supabaseService.getServiceClient();
+
+    // If words/entries are being updated, we need to delete old entries and create new ones
+    if (body.words || body.entries) {
+      // Get the current entry to know its category/data_type
+      const { data: existing } = await client
+        .from('pseudonym_dictionaries')
+        .select('category, data_type')
+        .eq('id', id)
+        .single();
+
+      if (!existing) {
+        throw new Error('Dictionary not found');
+      }
+
+      const category = body.category || existing.category;
+      const dataType = body.dataType || existing.data_type;
+
+      // Delete all entries with same category and data_type
+      await client
+        .from('pseudonym_dictionaries')
+        .delete()
+        .eq('category', existing.category)
+        .eq('data_type', existing.data_type);
+
+      // Insert new entries
+      let entriesToInsert;
+
+      if (body.entries) {
+        // New format: entries with optional pseudonyms
+        entriesToInsert = body.entries.map(entry => ({
+          category,
+          data_type: dataType,
+          original_value: entry.originalValue,
+          pseudonym: entry.pseudonym || this.generatePseudonym(category, entry.originalValue),
+          is_active: body.isActive ?? true,
+        }));
+      } else if (body.words) {
+        // Old format: just words, auto-generate pseudonyms
+        entriesToInsert = body.words.map(word => ({
+          category,
+          data_type: dataType,
+          original_value: word,
+          pseudonym: this.generatePseudonym(category, word),
+          is_active: body.isActive ?? true,
+        }));
+      } else {
+        throw new Error('Either words or entries must be provided');
+      }
+
+      const { data, error } = await client
+        .from('pseudonym_dictionaries')
+        .insert(entriesToInsert)
+        .select();
+
+      if (error) {
+        this.logger.error('Failed to update pseudonym dictionary', error);
+        throw new Error(`Failed to update dictionary: ${error.message}`);
+      }
+
+      return {
+        success: true,
+        dictionary: {
+          id: data[0]?.id,
+          category,
+          dataType,
+          entries: body.entries || body.words?.map(w => ({ originalValue: w, pseudonym: this.generatePseudonym(category, w) })),
+          isActive: body.isActive ?? true,
+        }
+      };
+    } else {
+      // Just update isActive status
+      const { data, error } = await client
+        .from('pseudonym_dictionaries')
+        .update({ is_active: body.isActive })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        this.logger.error('Failed to update pseudonym dictionary', error);
+        throw new Error(`Failed to update dictionary: ${error.message}`);
+      }
+
+      return { success: true, dictionary: data };
+    }
+  }
+
+  /**
+   * Delete a pseudonym dictionary entry
+   */
+  @Delete('pseudonym/dictionaries/:id')
+  async deletePseudonymDictionary(@Param('id') id: string) {
+    const client = this.supabaseService.getServiceClient();
+
+    // Get the entry to know its category/data_type
+    const { data: existing } = await client
+      .from('pseudonym_dictionaries')
+      .select('category, data_type')
+      .eq('id', id)
+      .single();
+
+    if (!existing) {
+      throw new Error('Dictionary not found');
+    }
+
+    // Delete all entries with same category and data_type
+    const { error } = await client
+      .from('pseudonym_dictionaries')
+      .delete()
+      .eq('category', existing.category)
+      .eq('data_type', existing.data_type);
+
+    if (error) {
+      this.logger.error('Failed to delete pseudonym dictionary', error);
+      throw new Error(`Failed to delete dictionary: ${error.message}`);
+    }
+
+    return { success: true };
+  }
+
+  /**
+   * Import pseudonym dictionaries from JSON
+   */
+  @Post('pseudonym/dictionaries/import')
+  async importPseudonymDictionaries(@Body() body: {
+    dictionaries: Array<{
+      category: string;
+      dataType: string;
+      words?: string[]; // Old format
+      entries?: Array<{ originalValue: string; pseudonym?: string }>; // New format
+      description?: string;
+      isActive?: boolean;
+    }>;
+  }) {
+    const client = this.supabaseService.getServiceClient();
+    const errors: string[] = [];
+    let imported = 0;
+
+    for (const dict of body.dictionaries) {
+      try {
+        let entriesToInsert;
+
+        if (dict.entries) {
+          // New format: entries with optional pseudonyms
+          entriesToInsert = dict.entries.map(entry => ({
+            category: dict.category,
+            data_type: dict.dataType,
+            original_value: entry.originalValue,
+            pseudonym: entry.pseudonym || this.generatePseudonym(dict.category, entry.originalValue),
+            is_active: dict.isActive ?? true,
+          }));
+        } else if (dict.words) {
+          // Old format: just words, auto-generate pseudonyms
+          entriesToInsert = dict.words.map(word => ({
+            category: dict.category,
+            data_type: dict.dataType,
+            original_value: word,
+            pseudonym: this.generatePseudonym(dict.category, word),
+            is_active: dict.isActive ?? true,
+          }));
+        } else {
+          errors.push(`${dict.category}: Either words or entries must be provided`);
+          continue;
+        }
+
+        const { error } = await client
+          .from('pseudonym_dictionaries')
+          .insert(entriesToInsert);
+
+        if (error) {
+          errors.push(`${dict.category}: ${error.message}`);
+        } else {
+          imported++;
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        errors.push(`${dict.category}: ${message}`);
+      }
+    }
+
+    return {
+      success: errors.length === 0,
+      imported,
+      errors: errors.length > 0 ? errors : undefined,
+    };
+  }
+
+  /**
+   * Export all pseudonym dictionaries to JSON (importable format)
+   */
+  @Get('pseudonym/dictionaries/export')
+  async exportPseudonymDictionaries() {
+    const dictionaries = await this.getRawDictionaries();
+    return {
+      dictionaries,
+      exportedAt: new Date().toISOString(),
+      version: '1.0',
+    };
+  }
+
+  /**
+   * Generate a pseudonym for a value
+   */
+  private generatePseudonym(category: string, value: string): string {
+    const sanitized = value.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const prefix = category === 'person' ? 'person' :
+                   category === 'business' ? 'company' :
+                   category.toLowerCase();
+    return `@${prefix}_${sanitized}`;
   }
 }

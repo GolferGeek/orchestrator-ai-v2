@@ -113,20 +113,20 @@
     </ion-card>
 
     <!-- Loading State -->
-    <div v-if="store.isLoading" class="loading-container">
+    <div v-if="store.dictionariesLoading" class="loading-container">
       <ion-spinner />
       <p>Loading dictionaries...</p>
     </div>
 
     <!-- Error State -->
-    <ion-card v-else-if="store.error" color="danger">
+    <ion-card v-else-if="store.dictionariesError" color="danger">
       <ion-card-content>
         <h3>
           <ion-icon :icon="alertCircleOutline" />
           Error Loading Dictionaries
         </h3>
-        <p>{{ store.error }}</p>
-        <ion-button fill="outline" @click="store.fetchDictionaries()">
+        <p>{{ store.dictionariesError }}</p>
+        <ion-button fill="outline" @click="privacyService.loadDictionaries(true)">
           <ion-icon :icon="refreshOutline" slot="start" />
           Retry
         </ion-button>
@@ -345,15 +345,18 @@
           <ion-item>
             <ion-label position="stacked">
               Words * (one per line)
-              <ion-note>{{ editorForm.words.split('\n').filter(w => w.trim()).length }} words</ion-note>
+              <ion-note>{{ editorForm.words.split('\n').filter(w => w.trim()).length }} entries</ion-note>
             </ion-label>
             <ion-textarea
               v-model="editorForm.words"
-              placeholder="John&#10;Jane&#10;Michael&#10;Sarah&#10;David"
+              placeholder="John&#10;Jane | @person_jane&#10;Michael&#10;Company Name | @company_custom"
               :rows="8"
               :disabled="isLoading"
               class="words-textarea"
             />
+            <ion-note class="help-text">
+              Format: "Original Value" or "Original Value | @custom_pseudonym"
+            </ion-note>
           </ion-item>
           
           <ion-item>
@@ -554,10 +557,11 @@ import {
 import Papa from 'papaparse';
 
 import { usePrivacyStore } from '@/stores/privacyStore';
-import type { 
-  PseudonymDictionaryEntry, 
+import { privacyService } from '@/services/privacyService';
+import type {
+  PseudonymDictionaryEntry,
   PseudonymDictionaryImportData,
-  PIIDataType 
+  PIIDataType
 } from '@/types/pii';
 
 // Store
@@ -650,7 +654,7 @@ const handleSearch = () => {
 };
 
 const applyFilters = () => {
-  store.updateFilters(filters.value);
+  store.updateDictionaryFilters(filters.value);
   currentPage.value = 1;
 };
 
@@ -668,11 +672,22 @@ const openCreateModal = () => {
 
 const openEditModal = (dictionary: PseudonymDictionaryEntry) => {
   editingDictionary.value = dictionary;
+
+  // Parse the display format "Original → Pseudonym" back to editable format
+  // Format each line as: originalValue | pseudonym
+  const editableWords = dictionary.words.map(word => {
+    if (word.includes(' → ')) {
+      const [original, pseudonym] = word.split(' → ').map(s => s.trim());
+      return `${original} | ${pseudonym}`;
+    }
+    return word;
+  }).join('\n');
+
   editorForm.value = {
     category: dictionary.category,
     dataType: dictionary.dataType,
     description: dictionary.description || '',
-    words: dictionary.words.join('\n'),
+    words: editableWords,
     isActive: dictionary.isActive
   };
   isEditorOpen.value = true;
@@ -685,31 +700,44 @@ const closeEditorModal = () => {
 
 const saveDictionary = async () => {
   if (!canSave.value) return;
-  
+
   isLoading.value = true;
-  
+
   try {
-    const words = editorForm.value.words
+    const lines = editorForm.value.words
       .split('\n')
       .map(w => w.trim())
       .filter(w => w);
-    
+
+    // Parse lines: support both "word" and "word | pseudonym" formats
+    const entries = lines.map(line => {
+      if (line.includes(' | ')) {
+        const [originalValue, pseudonym] = line.split(' | ').map(s => s.trim());
+        return { originalValue, pseudonym };
+      }
+      // If no pipe, just the original value (pseudonym will be auto-generated)
+      return { originalValue: line };
+    });
+
     const dictionaryData = {
       category: editorForm.value.category.trim(),
       dataType: editorForm.value.dataType,
       description: editorForm.value.description.trim() || undefined,
-      words,
+      entries, // Use new entries format
       isActive: editorForm.value.isActive
     };
-    
+
     if (editingDictionary.value) {
-      await store.updateDictionary(editingDictionary.value.id!, dictionaryData);
+      await privacyService.updateDictionaryEntry(editingDictionary.value.id!, dictionaryData);
       showToast('Dictionary updated successfully!', 'success');
     } else {
-      await store.createDictionary(dictionaryData);
+      await privacyService.createDictionary(dictionaryData);
       showToast('Dictionary created successfully!', 'success');
     }
-    
+
+    // Refresh the store to show updated data
+    await privacyService.loadDictionaries(true);
+
     closeEditorModal();
   } catch (error) {
     console.error('Error saving dictionary:', error);
@@ -721,11 +749,13 @@ const saveDictionary = async () => {
 
 const toggleDictionaryStatus = async (dictionary: PseudonymDictionaryEntry) => {
   try {
-    await store.updateDictionary(dictionary.id!, { isActive: !dictionary.isActive });
+    await privacyService.updateDictionaryEntry(dictionary.id!, { isActive: !dictionary.isActive });
     showToast(
       `Dictionary ${dictionary.isActive ? 'deactivated' : 'activated'} successfully!`,
       'success'
     );
+    // Refresh the store to show updated data
+    await privacyService.loadDictionaries(true);
   } catch (error) {
     console.error('Error toggling dictionary status:', error);
     showToast('Failed to update dictionary status.', 'danger');
@@ -746,8 +776,10 @@ const deleteDictionary = async (dictionary: PseudonymDictionaryEntry) => {
         role: 'destructive',
         handler: async () => {
           try {
-            await store.deleteDictionary(dictionary.id!);
+            await privacyService.deleteDictionary(dictionary.id!);
             showToast('Dictionary deleted successfully!', 'success');
+            // Refresh the store to show updated data
+            await privacyService.loadDictionaries(true);
           } catch (error) {
             console.error('Error deleting dictionary:', error);
             showToast('Failed to delete dictionary.', 'danger');
@@ -756,7 +788,7 @@ const deleteDictionary = async (dictionary: PseudonymDictionaryEntry) => {
       }
     ]
   });
-  
+
   await alert.present();
 };
 
@@ -840,27 +872,43 @@ const parseCSVFile = (file: File): Promise<void> => {
 const parseJSONFile = (file: File): Promise<void> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    
+
     reader.onload = (e) => {
       try {
         const content = e.target?.result as string;
         const data = JSON.parse(content);
-        
+
+        let dictionaries = [];
         if (Array.isArray(data)) {
-          importPreview.value = data;
+          dictionaries = data;
         } else if (data.dictionaries && Array.isArray(data.dictionaries)) {
-          importPreview.value = data.dictionaries;
+          dictionaries = data.dictionaries;
         } else {
           throw new Error('Invalid JSON format');
         }
-        
+
+        // Normalize: convert new format (entries) to include words array for display
+        importPreview.value = dictionaries.map(dict => {
+          // If it has entries (new format), convert to words for display
+          if (dict.entries && Array.isArray(dict.entries)) {
+            return {
+              ...dict,
+              words: dict.entries.map((e: { originalValue: string; pseudonym?: string }) =>
+                e.pseudonym ? `${e.originalValue} → ${e.pseudonym}` : e.originalValue
+              )
+            };
+          }
+          // Old format already has words
+          return dict;
+        });
+
         validateImportData();
         resolve();
       } catch (error) {
         reject(error);
       }
     };
-    
+
     reader.onerror = reject;
     reader.readAsText(file);
   });
@@ -868,7 +916,7 @@ const parseJSONFile = (file: File): Promise<void> => {
 
 const validateImportData = () => {
   importErrors.value = [];
-  
+
   importPreview.value.forEach((dict, index) => {
     if (!dict.category) {
       importErrors.value.push(`Row ${index + 1}: Category is required`);
@@ -876,7 +924,10 @@ const validateImportData = () => {
     if (!dict.dataType) {
       importErrors.value.push(`Row ${index + 1}: Data type is required`);
     }
-    if (!dict.words || dict.words.length === 0) {
+    // Check for either words or entries
+    const hasWords = dict.words && dict.words.length > 0;
+    const hasEntries = dict.entries && dict.entries.length > 0;
+    if (!hasWords && !hasEntries) {
       importErrors.value.push(`Row ${index + 1}: At least one word is required`);
     }
   });
@@ -884,17 +935,21 @@ const validateImportData = () => {
 
 const performImport = async () => {
   if (!canImport.value) return;
-  
+
   isLoading.value = true;
-  
+
   try {
-    const result = await store.importFromJSON(importPreview.value);
-    
+    const result = await privacyService.importFromJSON(importPreview.value);
+
     if (result.success) {
       showToast(`Successfully imported ${result.imported} dictionaries!`, 'success');
+      // Refresh the store to show imported data
+      await privacyService.loadDictionaries(true);
       closeImportModal();
     } else {
       showToast('Import completed with some errors. Check the results.', 'warning');
+      // Still refresh to show any successfully imported items
+      await privacyService.loadDictionaries(true);
     }
   } catch (error) {
     console.error('Error importing dictionaries:', error);
@@ -906,17 +961,17 @@ const performImport = async () => {
 
 const exportDictionaries = async () => {
   try {
-    const data = await store.exportToJSON();
+    const data = await privacyService.exportToJSON();
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    
+
     const link = document.createElement('a');
     link.href = url;
     link.download = `pseudonym-dictionaries-${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
+
     URL.revokeObjectURL(url);
     showToast('Dictionaries exported successfully!', 'success');
   } catch (error) {
@@ -967,7 +1022,7 @@ watch(() => currentPage.value, () => {
 
 // Lifecycle
 onMounted(async () => {
-  await store.fetchDictionaries();
+  await privacyService.loadDictionaries();
 });
 </script>
 
@@ -1095,6 +1150,14 @@ onMounted(async () => {
 .words-textarea {
   font-family: monospace;
   font-size: 0.9rem;
+}
+
+.help-text {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--ion-color-medium);
+  font-style: italic;
 }
 
 .import-options {

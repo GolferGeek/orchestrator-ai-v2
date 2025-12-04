@@ -217,7 +217,8 @@ export interface PseudonymDictionarySortOptions {
 export interface PseudonymDictionaryImportData {
   category: string;
   dataType: PIIDataType;
-  words: string[];
+  words?: string[]; // Old format - for backward compatibility
+  entries?: Array<{ originalValue: string; pseudonym?: string }>; // New format
   frequencyWeights?: Record<string, number>;
   description?: string;
 }
