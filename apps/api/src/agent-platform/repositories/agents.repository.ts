@@ -105,9 +105,16 @@ export class AgentsRepository {
     const client = this.getClient();
     let query = client.from(AGENTS_TABLE).select('*');
 
+    console.log('🔍 Repository filtering agents by organization:', organizationSlug);
+
     // Filter by organization using array contains operator
     if (organizationSlug) {
+      // Query for agents that belong to this specific organization
       query = query.contains('organization_slug', [organizationSlug]);
+    } else {
+      // Query for truly global agents (organization_slug is empty array or contains only null)
+      // Use 'or' to match either empty array or array with single null value
+      query = query.or('organization_slug.eq.{},organization_slug.eq.{null}');
     }
 
     const { data, error } = (await query.order('slug', {
@@ -119,6 +126,11 @@ export class AgentsRepository {
         `Failed to list agents for ${organizationSlug ?? 'all'}: ${error.message}`,
       );
       throw new Error(`Failed to list agents: ${error.message}`);
+    }
+
+    console.log('🔍 Repository found', data?.length || 0, 'agents for org:', organizationSlug);
+    if (data && data.length > 0 && data[0]) {
+      console.log('🔍 First agent:', data[0].slug, 'org_slugs:', data[0].organization_slug);
     }
 
     return data ?? [];
