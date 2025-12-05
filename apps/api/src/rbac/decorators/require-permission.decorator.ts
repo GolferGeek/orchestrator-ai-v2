@@ -41,7 +41,7 @@ export const RequirePermission = (
   return applyDecorators(
     SetMetadata(PERMISSION_KEY, permission),
     SetMetadata(RESOURCE_PARAM_KEY, resourceParam),
-    UseGuards(RbacGuard),
+    // Note: RbacGuard must be added separately via @UseGuards
   );
 };
 

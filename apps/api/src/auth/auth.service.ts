@@ -565,4 +565,193 @@ export class AuthService {
       );
     }
   }
+
+  /**
+   * Delete user (admin only)
+   * Removes user from auth, profile, and all RBAC assignments
+   */
+  async deleteUser(
+    userId: string,
+    adminUserId: string,
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const serviceClient = this.supabaseService.getServiceClient();
+
+      // Prevent self-deletion
+      if (userId === adminUserId) {
+        throw new BadRequestException('You cannot delete your own account');
+      }
+
+      // Check if user exists in public.users (may not exist if only in auth.users)
+      const { data: existingUser, error: checkError } = await serviceClient
+        .from(getTableName('users'))
+        .select('id, email')
+        .eq('id', userId)
+        .single();
+
+      // If user doesn't exist in public.users, try to get email from auth.users
+      let userEmail = '';
+      if (checkError || !existingUser) {
+        // User might only exist in auth.users, try to get email from there
+        const { data: authUser, error: authUserError } =
+          await serviceClient.auth.admin.getUserById(userId);
+        
+        if (authUserError || !authUser?.user) {
+          throw new BadRequestException('User not found in auth.users or public.users');
+        }
+        
+        userEmail = authUser.user.email || userId;
+        this.logger.warn(
+          `User ${userId} exists in auth.users but not in public.users. Will delete from auth.users only.`,
+        );
+      } else {
+        userEmail = (existingUser as { email: string }).email;
+      }
+
+      // Delete RBAC audit log entries where user is actor or target
+      // These constraints don't cascade, so we must delete them explicitly
+      await serviceClient
+        .from('rbac_audit_log')
+        .delete()
+        .or(`actor_id.eq.${userId},target_user_id.eq.${userId}`);
+
+      // Update RBAC assignments where user is assigned_by (set to NULL)
+      // This constraint doesn't cascade, so we must update it explicitly
+      await serviceClient
+        .from('rbac_user_org_roles')
+        .update({ assigned_by: null })
+        .eq('assigned_by', userId);
+
+      // Delete RBAC assignments for this user (cascade should handle this, but explicit is better)
+      await serviceClient
+        .from('rbac_user_org_roles')
+        .delete()
+        .eq('user_id', userId);
+
+      // Delete from Supabase Auth FIRST (before deleting from public.users)
+      // This ensures foreign key constraints don't prevent deletion.
+      // Note: Deleting from auth.users will cascade delete from public.users
+      // due to the foreign key constraint (ON DELETE CASCADE)
+      const { error: authError } =
+        await serviceClient.auth.admin.deleteUser(userId);
+
+      if (authError) {
+        // Log the full error for debugging
+        this.logger.error(
+          `Failed to delete auth user ${userId}: ${authError.message}`,
+          authError,
+        );
+        
+        // If it's a database constraint error, provide more helpful message
+        const errorMessage = authError.message || 'Unknown error';
+        if (errorMessage.includes('Database error') || errorMessage.includes('constraint')) {
+          throw new Error(
+            `Failed to delete auth user: ${errorMessage}. ` +
+            `This may be due to foreign key constraints or active sessions. ` +
+            `Try deleting through Supabase dashboard or ensure all user data is cleaned up first.`,
+          );
+        }
+        
+        throw new Error(
+          `Failed to delete auth user: ${errorMessage}. User may still exist in auth.users.`,
+        );
+      }
+
+      // Attempt to delete user profile from public.users (only if it exists)
+      // This should already be deleted by cascade, but we try anyway for cleanup
+      // If it fails, it's likely because it was already cascade-deleted or never existed, which is fine
+      if (existingUser) {
+        const { error: profileError } = await serviceClient
+          .from(getTableName('users'))
+          .delete()
+          .eq('id', userId);
+
+        if (profileError) {
+          // This is expected if cascade deletion already removed the record
+          // Log at debug level since this is normal behavior
+          this.logger.debug(
+            `User profile ${userId} may have been cascade-deleted: ${profileError.message}`,
+          );
+        }
+      }
+
+      return {
+        success: true,
+        message: `User ${userEmail} deleted successfully`,
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        `Failed to delete user: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Change user password (admin only)
+   * Allows admin to set a new password for any user
+   */
+  async changeUserPassword(
+    userId: string,
+    newPassword: string,
+    _adminUserId: string,
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const serviceClient = this.supabaseService.getServiceClient();
+
+      // Update password using Admin API
+      const { error } = await serviceClient.auth.admin.updateUserById(userId, {
+        password: newPassword,
+      });
+
+      if (error) {
+        throw new Error(`Failed to update password: ${error.message}`);
+      }
+
+      return {
+        success: true,
+        message: 'Password updated successfully',
+      };
+    } catch (error) {
+      throw new HttpException(
+        `Failed to change password: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Initiate password reset
+   * Sends password reset email to user
+   */
+  async initiatePasswordReset(
+    email: string,
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const supabaseClient = this.supabaseService.getAnonClient();
+
+      const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+        redirectTo: `${process.env.FRONTEND_URL || 'http://localhost:8100'}/reset-password`,
+      });
+
+      if (error) {
+        throw new Error(`Failed to send reset email: ${error.message}`);
+      }
+
+      return {
+        success: true,
+        message: 'Password reset email sent',
+      };
+    } catch (error) {
+      // Don't leak information about whether email exists
+      this.logger.warn(`Password reset attempted for: ${email}`);
+      return {
+        success: true,
+        message: 'If the email exists, a password reset link has been sent',
+      };
+    }
+  }
 }

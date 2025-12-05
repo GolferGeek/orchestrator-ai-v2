@@ -76,10 +76,10 @@ export class RbacGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<TypedRequest>();
     const user = request.user;
 
-    // Ensure user is authenticated (should be handled by JwtAuthGuard first)
+    // Ensure user is authenticated (JwtAuthGuard should have run first)
     if (!user || !user.id) {
       this.logger.warn(
-        '[RbacGuard] No user found on request - JwtAuthGuard may not have run first',
+        '[RbacGuard] No user found on request - JwtAuthGuard should run first',
       );
       throw new ForbiddenException('Authentication required');
     }
@@ -161,7 +161,7 @@ export class RbacGuard implements CanActivate {
    */
   private getOrganizationSlug(request: TypedRequest): string | undefined {
     return (
-      request.headers?.[' x-organization-slug'] ||
+      request.headers?.['x-organization-slug'] ||
       request.query?.organizationSlug ||
       request.body?.organizationSlug ||
       undefined

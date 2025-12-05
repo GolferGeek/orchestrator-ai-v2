@@ -1,4 +1,4 @@
-import { onMounted, onUnmounted, getCurrentInstance, ref, computed, watchEffect } from 'vue';
+import { onMounted, onUnmounted, getCurrentInstance, ref, computed } from 'vue';
 import { useErrorStore } from '@/stores/errorStore';
 import type { ErrorLogger } from '@/stores/errorStore';
 
@@ -11,22 +11,32 @@ export function useGlobalErrorHandler() {
   const instance = getCurrentInstance();
 
   const errorLoggerService = ref<ErrorLogger | null>(null);
+  const isProcessingErrors = ref(false);
 
   // Computed property to check if the error logger service is available
   const isErrorLoggerReady = computed(() => errorLoggerService.value !== null);
 
   // Set up error logger in the store (lazy import to avoid circular references)
   onMounted(async () => {
-    const imported = await import('@/services/errorLoggerService');
+    try {
+      const imported = await import('@/services/errorLoggerService');
 
-    errorLoggerService.value = imported.errorLoggerService;
-    errorStore.setErrorLogger(imported.errorLoggerService);
-  });
+      errorLoggerService.value = imported.errorLoggerService;
+      errorStore.setErrorLogger(imported.errorLoggerService);
 
-  // Reactively process retry queue when service becomes available
-  watchEffect(() => {
-    if (errorLoggerService.value) {
-      errorLoggerService.value.processRetryQueue();
+      // Process retry queue once after service is loaded (not in watchEffect to avoid loops)
+      if (errorLoggerService.value && !isProcessingErrors.value) {
+        isProcessingErrors.value = true;
+        try {
+          await errorLoggerService.value.processRetryQueue();
+        } catch (err) {
+          console.error('Error processing retry queue:', err);
+        } finally {
+          isProcessingErrors.value = false;
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load error logger service:', err);
     }
   });
 
@@ -253,15 +263,22 @@ export function useGlobalErrorHandler() {
   // Set up listeners on mount
   onMounted(() => {
     setupGlobalListeners();
-    
-    // Set up periodic cleanup (watchEffect handles initial retry queue processing)
-    const cleanupInterval = setInterval(() => {
+
+    // Set up periodic cleanup with guard to prevent infinite loops
+    const cleanupInterval = setInterval(async () => {
       clearOldErrors(24); // Clear errors older than 24 hours
-      if (errorLoggerService.value) {
-        errorLoggerService.value.processRetryQueue();
+      if (errorLoggerService.value && !isProcessingErrors.value) {
+        isProcessingErrors.value = true;
+        try {
+          await errorLoggerService.value.processRetryQueue();
+        } catch (err) {
+          console.error('Error in periodic cleanup:', err);
+        } finally {
+          isProcessingErrors.value = false;
+        }
       }
     }, 60 * 60 * 1000); // Every hour
-    
+
     // Store interval for cleanup
     if (instance) {
       (instance as Record<string, unknown>).cleanupInterval = cleanupInterval;

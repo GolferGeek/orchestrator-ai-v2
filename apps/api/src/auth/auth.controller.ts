@@ -11,6 +11,7 @@ import {
   HttpCode,
   HttpStatus,
   Logger,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -24,6 +25,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { RequirePermission } from '../rbac/decorators/require-permission.decorator';
 import { RbacService } from '../rbac/rbac.service';
+import { RbacGuard } from '../rbac/guards/rbac.guard';
 import {
   UserCreateDto,
   UserLoginDto,
@@ -181,7 +183,7 @@ export class AuthController {
   // Admin User Management Endpoints
 
   @Post('admin/users')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RbacGuard)
   @RequirePermission('admin:users')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create new user (admin only)' })
@@ -198,7 +200,7 @@ export class AuthController {
   }
 
   @Get('admin/users')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RbacGuard)
   @RequirePermission('admin:users')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all users (admin only)' })
@@ -216,7 +218,7 @@ export class AuthController {
   }
 
   @Get('admin/users/:userId')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RbacGuard)
   @RequirePermission('admin:users')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get user by ID (admin only)' })
@@ -225,18 +227,34 @@ export class AuthController {
     description: 'User details with roles',
     type: UserListResponseDto,
   })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+  })
   async getUserById(
     @Param('userId') userId: string,
     @CurrentUser() currentAuthUser: SupabaseAuthUserDto,
   ): Promise<UserListResponseDto> {
-    return this.authService.getUserById(
-      userId,
-      currentAuthUser.id,
-    ) as Promise<UserListResponseDto>;
+    try {
+      return this.authService.getUserById(
+        userId,
+        currentAuthUser.id,
+      ) as Promise<UserListResponseDto>;
+    } catch (error) {
+      // If error message contains "not found" or Supabase single() error, return 404 instead of 500
+      if (
+        error instanceof Error &&
+        (error.message.toLowerCase().includes('not found') ||
+          error.message.includes('Cannot coerce the result to a single JSON object'))
+      ) {
+        throw new NotFoundException(`User with ID ${userId} not found`);
+      }
+      throw error;
+    }
   }
 
   @Put('admin/users/:userId/roles')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RbacGuard)
   @RequirePermission('admin:users')
   @ApiBearerAuth()
   @ApiOperation({
@@ -268,7 +286,7 @@ export class AuthController {
   }
 
   @Post('admin/users/:userId/roles')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RbacGuard)
   @RequirePermission('admin:users')
   @ApiBearerAuth()
   @ApiOperation({
@@ -297,7 +315,7 @@ export class AuthController {
   }
 
   @Delete('admin/users/:userId/roles/:role')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RbacGuard)
   @RequirePermission('admin:users')
   @ApiBearerAuth()
   @ApiOperation({
@@ -324,5 +342,41 @@ export class AuthController {
       success: true,
       message: `Role '${role}' removed from user`,
     };
+  }
+
+  @Delete('admin/users/:userId')
+  @UseGuards(JwtAuthGuard, RbacGuard)
+  @RequirePermission('admin:users')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete user (admin only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'User deleted successfully',
+  })
+  async deleteUser(
+    @Param('userId') userId: string,
+    @CurrentUser() currentAuthUser: SupabaseAuthUserDto,
+  ): Promise<{ success: boolean; message: string }> {
+    return this.authService.deleteUser(userId, currentAuthUser.id);
+  }
+
+  @Put('admin/users/:userId/password')
+  @UseGuards(JwtAuthGuard, RbacGuard)
+  @RequirePermission('admin:users')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Change user password (admin only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Password changed successfully',
+  })
+  async changeUserPassword(
+    @Param('userId') userId: string,
+    @Body('newPassword') newPassword: string,
+    @CurrentUser() currentAuthUser: SupabaseAuthUserDto,
+  ): Promise<{ success: boolean; message: string }> {
+    if (!newPassword || newPassword.length < 6) {
+      throw new Error('Password must be at least 6 characters');
+    }
+    return this.authService.changeUserPassword(userId, newPassword, currentAuthUser.id);
   }
 }

@@ -29,6 +29,7 @@ export interface CreateUserRequest {
   displayName?: string;
   roles?: string[];
   emailConfirm?: boolean;
+  organizationAccess?: string[];
 }
 
 export interface CreateUserResponse {
@@ -47,11 +48,23 @@ export interface UserManagementResponse {
 
 class UserManagementService {
   /**
+   * Get organization headers for API requests
+   * For admin operations, use '*' as organization slug (global operations)
+   * Auth token is handled automatically by apiService
+   */
+  private getOrgHeaders(): Record<string, string> {
+    return {
+      'x-organization-slug': '*',
+    };
+  }
+  /**
    * Create new user (admin only)
    */
   async createUser(request: CreateUserRequest): Promise<CreateUserResponse> {
     try {
-      const response = await apiService.axiosInstance.post('/auth/admin/users', request);
+      const response = await apiService.axiosInstance.post('/auth/admin/users', request, {
+        headers: this.getOrgHeaders()
+      });
       return response.data;
     } catch (error) {
       console.error('Failed to create user:', error);
@@ -64,7 +77,9 @@ class UserManagementService {
    */
   async getAllUsers(): Promise<User[]> {
     try {
-      const response = await apiService.axiosInstance.get('/auth/admin/users');
+      const response = await apiService.axiosInstance.get('/auth/admin/users', {
+        headers: this.getOrgHeaders()
+      });
       return response.data;
     } catch (error) {
       console.error('Failed to fetch users:', error);
@@ -77,7 +92,9 @@ class UserManagementService {
    */
   async getUserById(userId: string): Promise<User> {
     try {
-      const response = await apiService.axiosInstance.get(`/auth/admin/users/${userId}`);
+      const response = await apiService.axiosInstance.get(`/auth/admin/users/${userId}`, {
+        headers: this.getOrgHeaders()
+      });
       return response.data;
     } catch (error) {
       console.error('Failed to fetch user:', error);
@@ -90,7 +107,9 @@ class UserManagementService {
    */
   async setUserRoles(userId: string, request: UpdateUserRolesRequest): Promise<UserManagementResponse> {
     try {
-      const response = await apiService.axiosInstance.put(`/auth/admin/users/${userId}/roles`, request);
+      const response = await apiService.axiosInstance.put(`/auth/admin/users/${userId}/roles`, request, {
+        headers: this.getOrgHeaders()
+      });
       return response.data;
     } catch (error) {
       console.error('Failed to set user roles:', error);
@@ -103,7 +122,9 @@ class UserManagementService {
    */
   async addUserRole(userId: string, request: AddUserRoleRequest): Promise<UserManagementResponse> {
     try {
-      const response = await apiService.axiosInstance.post(`/auth/admin/users/${userId}/roles`, request);
+      const response = await apiService.axiosInstance.post(`/auth/admin/users/${userId}/roles`, request, {
+        headers: this.getOrgHeaders()
+      });
       return response.data;
     } catch (error) {
       console.error('Failed to add user role:', error);
@@ -114,14 +135,64 @@ class UserManagementService {
   /**
    * Remove role from user (admin only)
    */
-  async removeUserRole(userId: string, role: UserRole, request: RemoveUserRoleRequest): Promise<UserManagementResponse> {
+  async removeUserRole(userId: string, role: string, request: RemoveUserRoleRequest): Promise<UserManagementResponse> {
     try {
       const response = await apiService.axiosInstance.delete(`/auth/admin/users/${userId}/roles/${role}`, {
-        data: request
+        data: request,
+        headers: this.getOrgHeaders()
       });
       return response.data;
     } catch (error) {
       console.error('Failed to remove user role:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete user (admin only)
+   */
+  async deleteUser(userId: string): Promise<UserManagementResponse> {
+    try {
+      const response = await apiService.axiosInstance.delete(`/auth/admin/users/${userId}`, {
+        headers: this.getOrgHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Failed to delete user:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Change user password (admin only)
+   */
+  async changeUserPassword(userId: string, newPassword: string): Promise<UserManagementResponse> {
+    try {
+      const response = await apiService.axiosInstance.put(`/auth/admin/users/${userId}/password`, {
+        newPassword
+      }, {
+        headers: this.getOrgHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Failed to change user password:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Initiate password reset for a user
+   */
+  async initiatePasswordReset(email: string): Promise<UserManagementResponse> {
+    try {
+      const response = await apiService.axiosInstance.post('/auth/password-reset', {
+        email
+      }, {
+        headers: this.getOrgHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Failed to initiate password reset:', error);
       throw error;
     }
   }
