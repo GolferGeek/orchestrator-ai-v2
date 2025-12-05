@@ -45,11 +45,15 @@
             </ion-card-content>
           </ion-card>
 
-          <!-- Create User Button -->
+          <!-- Action Buttons -->
           <div class="action-buttons">
             <ion-button expand="block" @click="showCreateUserForm = true">
               <ion-icon :icon="addCircleOutline" slot="start"></ion-icon>
               Create User
+            </ion-button>
+            <ion-button expand="block" fill="outline" @click="showAddUserToOrgForm = true">
+              <ion-icon :icon="personAddOutline" slot="start"></ion-icon>
+              Add User to Organization
             </ion-button>
           </div>
 
@@ -109,14 +113,24 @@
                   <ion-card-title>{{ selectedUser.displayName || selectedUser.email }}</ion-card-title>
                   <ion-card-subtitle>{{ selectedUser.email }}</ion-card-subtitle>
                 </div>
-                <ion-button
-                  color="danger"
-                  fill="outline"
-                  @click="confirmDeleteUser"
-                >
-                  <ion-icon :icon="trashOutline" slot="start"></ion-icon>
-                  Delete User
-                </ion-button>
+                <div class="user-actions">
+                  <ion-button
+                    color="warning"
+                    fill="outline"
+                    @click="confirmRemoveFromOrg"
+                  >
+                    <ion-icon :icon="removeCircleOutline" slot="start"></ion-icon>
+                    Remove from Org
+                  </ion-button>
+                  <ion-button
+                    color="danger"
+                    fill="outline"
+                    @click="confirmDeleteUser"
+                  >
+                    <ion-icon :icon="trashOutline" slot="start"></ion-icon>
+                    Delete User
+                  </ion-button>
+                </div>
               </div>
             </ion-card-header>
           </ion-card>
@@ -247,6 +261,28 @@
                 <ion-input v-model="newUser.password" type="password" required></ion-input>
               </ion-item>
               <ion-item>
+                <ion-label position="stacked">Organizations *</ion-label>
+                <ion-select 
+                  v-if="organizations.length > 0" 
+                  v-model="newUser.organizationAccess" 
+                  multiple
+                  interface="popover"
+                  :placeholder="rbacStore.currentOrganization || 'Select organizations'"
+                >
+                  <ion-select-option 
+                    v-for="org in organizations" 
+                    :key="org.slug" 
+                    :value="org.slug"
+                  >
+                    {{ org.name }}
+                  </ion-select-option>
+                </ion-select>
+                <ion-spinner v-else name="dots"></ion-spinner>
+                <p v-if="organizations.length > 0" class="form-hint">
+                  Select one or more organizations to add this user to
+                </p>
+              </ion-item>
+              <ion-item>
                 <ion-label position="stacked">Initial Roles</ion-label>
                 <ion-select v-if="rbacStore.allRoles.length > 0" v-model="newUser.roles" multiple>
                   <ion-select-option v-for="role in rbacStore.allRoles" :key="role.name" :value="role.name">
@@ -262,12 +298,77 @@
               <ion-button
                 expand="block"
                 @click="createUser"
-                :disabled="!newUser.email || !newUser.password || creatingUser"
+                :disabled="!newUser.email || !newUser.password || !newUser.organizationAccess || newUser.organizationAccess.length === 0 || creatingUser"
                 class="create-button"
               >
                 <ion-spinner v-if="creatingUser" slot="start"></ion-spinner>
                 <ion-icon v-else :icon="addCircleOutline" slot="start"></ion-icon>
                 {{ creatingUser ? 'Creating...' : 'Create User' }}
+              </ion-button>
+            </ion-card-content>
+          </ion-card>
+        </ion-content>
+      </ion-modal>
+
+      <!-- Add User to Organization Modal -->
+      <ion-modal :is-open="showAddUserToOrgForm" @didDismiss="resetAddUserToOrgForm">
+        <ion-header>
+          <ion-toolbar>
+            <ion-title>Add User to {{ rbacStore.currentOrganization }}</ion-title>
+            <ion-buttons slot="end">
+              <ion-button @click="showAddUserToOrgForm = false">Cancel</ion-button>
+            </ion-buttons>
+          </ion-toolbar>
+        </ion-header>
+        <ion-content class="ion-padding">
+          <ion-card>
+            <ion-card-content>
+              <ion-item>
+                <ion-label position="stacked">Select User *</ion-label>
+                <ion-select 
+                  v-model="selectedUserToAdd.id" 
+                  interface="popover"
+                  placeholder="Choose a user"
+                >
+                  <ion-select-option 
+                    v-for="user in availableUsersToAdd" 
+                    :key="user.id" 
+                    :value="user.id"
+                  >
+                    {{ user.displayName || user.email }} ({{ user.email }})
+                  </ion-select-option>
+                </ion-select>
+                <p v-if="availableUsersToAdd.length === 0" class="form-hint">
+                  All users are already in this organization
+                </p>
+              </ion-item>
+              <ion-item>
+                <ion-label position="stacked">Role *</ion-label>
+                <ion-select 
+                  v-if="rbacStore.allRoles.length > 0" 
+                  v-model="selectedUserToAdd.role" 
+                  interface="popover"
+                  placeholder="Select a role"
+                >
+                  <ion-select-option 
+                    v-for="role in rbacStore.allRoles" 
+                    :key="role.name" 
+                    :value="role.name"
+                  >
+                    {{ role.displayName }}
+                  </ion-select-option>
+                </ion-select>
+                <ion-spinner v-else name="dots"></ion-spinner>
+              </ion-item>
+              <ion-button
+                expand="block"
+                @click="addUserToOrganization"
+                :disabled="!selectedUserToAdd.id || !selectedUserToAdd.role || addingUserToOrg || availableUsersToAdd.length === 0"
+                class="create-button"
+              >
+                <ion-spinner v-if="addingUserToOrg" slot="start"></ion-spinner>
+                <ion-icon v-else :icon="personAddOutline" slot="start"></ion-icon>
+                {{ addingUserToOrg ? 'Adding...' : 'Add User' }}
               </ion-button>
             </ion-card-content>
           </ion-card>
@@ -320,7 +421,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonCard,
   IonCardHeader, IonCardTitle, IonCardSubtitle, IonCardContent,
@@ -332,7 +433,7 @@ import {
 import {
   refreshOutline, chevronForwardOutline, peopleOutline,
   closeCircleOutline, addCircleOutline, trashOutline, keyOutline,
-  mailOutline, personCircleOutline
+  mailOutline, personCircleOutline, personAddOutline, removeCircleOutline
 } from 'ionicons/icons';
 import { useRbacStore } from '@/stores/rbacStore';
 import rbacService, { type UserRole, type RbacRole, type RbacPermission } from '@/services/rbacService';
@@ -359,8 +460,15 @@ const newUser = ref<CreateUserRequest>({
   password: '',
   displayName: '',
   roles: ['member'],
-  emailConfirm: true
+  emailConfirm: true,
+  organizationAccess: []
 });
+
+// Add User to Organization Form
+const showAddUserToOrgForm = ref(false);
+const addingUserToOrg = ref(false);
+const allUsers = ref<Array<{ id: string; email: string; displayName?: string }>>([]);
+const selectedUserToAdd = ref<{ id: string; role: string }>({ id: '', role: 'member' });
 
 // Change Password Form
 const showPasswordChangeForm = ref(false);
@@ -391,6 +499,13 @@ const availableRolesToAdd = computed(() => {
   return rbacStore.allRoles.filter(r => !userRoleNames.includes(r.name) && !r.isSystem);
 });
 
+// Filter users to show only those NOT already in the current organization
+const availableUsersToAdd = computed(() => {
+  if (!rbacStore.currentOrganization) return [];
+  const currentOrgUserIds = new Set(rbacStore.currentOrgUsers.map(u => u.userId));
+  return allUsers.value.filter(user => !currentOrgUserIds.has(user.id));
+});
+
 const userPermissions = computed(() => selectedUserPermissions.value);
 
 onMounted(async () => {
@@ -402,13 +517,44 @@ onMounted(async () => {
   if (!rbacStore.currentOrganization && organizations.value.length > 0) {
     await rbacStore.setOrganization(organizations.value[0].slug);
   }
+  
+  // Load all users for the "Add User to Organization" feature
+  await loadAllUsers();
+  
+  // Initialize organizationAccess with current organization when form opens
+  watch(showCreateUserForm, (isOpen) => {
+    if (isOpen && rbacStore.currentOrganization) {
+      if (!newUser.value.organizationAccess || newUser.value.organizationAccess.length === 0) {
+        newUser.value.organizationAccess = [rbacStore.currentOrganization];
+      }
+    }
+  });
+  
+  // Reload users when organization changes
+  watch(() => rbacStore.currentOrganization, async () => {
+    await loadAllUsers();
+  });
 });
+
+async function loadAllUsers() {
+  try {
+    const users = await userManagementService.getAllUsers();
+    allUsers.value = users.map(u => ({
+      id: u.id,
+      email: u.email,
+      displayName: u.displayName
+    }));
+  } catch (error) {
+    console.error('Failed to load all users:', error);
+  }
+}
 
 async function refreshUsers() {
   if (rbacStore.currentOrganization) {
     loading.value = true;
     try {
       await rbacStore.loadOrganizationUsers(rbacStore.currentOrganization);
+      await loadAllUsers();
     } catch (error) {
       console.error('Failed to load users:', error);
       const toast = await toastController.create({
@@ -547,6 +693,9 @@ async function removeRole(role: UserRole) {
         displayName: updatedUser.displayName,
         roles: updatedUser.roles
       };
+    } else {
+      // User no longer in this organization, clear selection
+      selectedUser.value = null;
     }
 
     await refreshUserPermissions();
@@ -565,6 +714,103 @@ async function removeRole(role: UserRole) {
       color: 'danger'
     });
     await toast.present();
+  }
+}
+
+async function confirmRemoveFromOrg() {
+  if (!selectedUser.value || !rbacStore.currentOrganization) return;
+  
+  const alert = await alertController.create({
+    header: 'Remove from Organization',
+    message: `Remove ${selectedUser.value.displayName || selectedUser.value.email} from "${rbacStore.currentOrganization}"? This will remove all their roles in this organization.`,
+    buttons: [
+      { text: 'Cancel', role: 'cancel' },
+      {
+        text: 'Remove',
+        role: 'destructive',
+        handler: () => removeUserFromOrganization()
+      }
+    ]
+  });
+  await alert.present();
+}
+
+async function removeUserFromOrganization() {
+  if (!selectedUser.value || !rbacStore.currentOrganization) return;
+  
+  try {
+    // Remove all roles for this user in the current organization
+    const rolesToRemove = selectedUser.value.roles || [];
+    
+    for (const role of rolesToRemove) {
+      await rbacService.revokeRole(
+        selectedUser.value.id,
+        rbacStore.currentOrganization,
+        role.name
+      );
+    }
+
+    await rbacStore.loadOrganizationUsers(rbacStore.currentOrganization);
+    await loadAllUsers();
+
+    // Clear selection since user is no longer in this org
+    selectedUser.value = null;
+
+    const toast = await toastController.create({
+      message: 'User removed from organization',
+      duration: 2000,
+      color: 'success'
+    });
+    await toast.present();
+  } catch (error) {
+    console.error('Failed to remove user from organization:', error);
+    const toast = await toastController.create({
+      message: 'Failed to remove user from organization',
+      duration: 2000,
+      color: 'danger'
+    });
+    await toast.present();
+  }
+}
+
+function resetAddUserToOrgForm() {
+  showAddUserToOrgForm.value = false;
+  selectedUserToAdd.value = { id: '', role: 'member' };
+}
+
+async function addUserToOrganization() {
+  if (!selectedUserToAdd.value.id || !selectedUserToAdd.value.role || !rbacStore.currentOrganization) return;
+  
+  addingUserToOrg.value = true;
+  try {
+    await rbacService.assignRole(
+      selectedUserToAdd.value.id,
+      rbacStore.currentOrganization,
+      selectedUserToAdd.value.role
+    );
+
+    await rbacStore.loadOrganizationUsers(rbacStore.currentOrganization);
+    await loadAllUsers();
+
+    const toast = await toastController.create({
+      message: 'User added to organization successfully',
+      duration: 2000,
+      color: 'success'
+    });
+    await toast.present();
+
+    showAddUserToOrgForm.value = false;
+    resetAddUserToOrgForm();
+  } catch (error) {
+    console.error('Failed to add user to organization:', error);
+    const toast = await toastController.create({
+      message: 'Failed to add user to organization',
+      duration: 2000,
+      color: 'danger'
+    });
+    await toast.present();
+  } finally {
+    addingUserToOrg.value = false;
   }
 }
 
@@ -619,22 +865,26 @@ function resetCreateUserForm() {
     password: '',
     displayName: '',
     roles: ['member'],
-    emailConfirm: true
+    emailConfirm: true,
+    organizationAccess: rbacStore.currentOrganization ? [rbacStore.currentOrganization] : []
   };
 }
 
 async function createUser() {
   if (!newUser.value.email || !newUser.value.password) return;
+  if (!newUser.value.organizationAccess || newUser.value.organizationAccess.length === 0) {
+    const toast = await toastController.create({
+      message: 'Please select at least one organization',
+      duration: 2000,
+      color: 'warning'
+    });
+    await toast.present();
+    return;
+  }
 
   creatingUser.value = true;
   try {
-    // Add organization access
-    const createRequest = {
-      ...newUser.value,
-      organizationAccess: rbacStore.currentOrganization ? [rbacStore.currentOrganization] : undefined
-    };
-
-    await userManagementService.createUser(createRequest);
+    await userManagementService.createUser(newUser.value);
 
     const toast = await toastController.create({
       message: 'User created successfully',
@@ -645,8 +895,12 @@ async function createUser() {
 
     showCreateUserForm.value = false;
 
-    if (rbacStore.currentOrganization) {
-      await rbacStore.loadOrganizationUsers(rbacStore.currentOrganization);
+    // Refresh users for all organizations the user was added to
+    const addedOrgs = newUser.value.organizationAccess || [];
+    if (addedOrgs.length > 0) {
+      for (const orgSlug of addedOrgs) {
+        await rbacStore.loadOrganizationUsers(orgSlug);
+      }
     }
   } catch (error) {
     console.error('Failed to create user:', error);
@@ -857,10 +1111,12 @@ ion-chip {
   margin-top: 1rem;
 }
 
-.password-hint {
-  color: var(--ion-color-warning);
+.password-hint,
+.form-hint {
+  color: var(--ion-color-medium);
   font-size: 0.875rem;
   margin: 0.5rem 0;
+  padding-left: 16px;
 }
 
 .password-error {
