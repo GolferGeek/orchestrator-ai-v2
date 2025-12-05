@@ -9,7 +9,7 @@ INSERT INTO public.llm_providers (name, display_name, api_base_url, configuratio
 ('anthropic', 'Anthropic', 'https://api.anthropic.com/v1', '{"api_key_env_var": "ANTHROPIC_API_KEY", "provider_type": "cloud"}'::jsonb, true),
 ('openai', 'OpenAI', 'https://api.openai.com/v1', '{"api_key_env_var": "OPENAI_API_KEY", "provider_type": "cloud"}'::jsonb, true),
 ('google', 'Google AI', 'https://generativelanguage.googleapis.com/v1', '{"api_key_env_var": "GOOGLE_API_KEY", "provider_type": "cloud"}'::jsonb, true),
-('ollama', 'Ollama', 'http://localhost:11434', '{"provider_type": "local"}'::jsonb, true),
+('ollama', 'Ollama', 'http://localhost:11434', '{"provider_type": "local", "cloud_api_key_env_var": "OLLAMA_CLOUD_API_KEY", "cloud_base_url": "https://ollama.com", "supports_cloud_mode": true}'::jsonb, true),
 ('xai', 'xAI', 'https://api.x.ai/v1', '{"api_key_env_var": "XAI_API_KEY", "provider_type": "cloud"}'::jsonb, true)
 ON CONFLICT (name) DO UPDATE SET
   display_name = EXCLUDED.display_name,
@@ -55,7 +55,7 @@ INSERT INTO public.llm_models (
 ('gemini-1.5-pro', 'google', 'Gemini 1.5 Pro', 'text-generation', '1.5', 2000000, 8192, 'premium', 'medium', '["chat", "text-generation", "function-calling", "vision"]'::jsonb),
 ('gemini-1.5-flash', 'google', 'Gemini 1.5 Flash', 'text-generation', '1.5', 1000000, 8192, 'standard', 'very-fast', '["chat", "text-generation", "function-calling", "vision"]'::jsonb),
 
--- Ollama Models (Local - including user-requested models)
+-- Ollama Models (Local - can run on your machine)
 ('llama3.2:1b', 'ollama', 'Llama 3.2 1B', 'text-generation', '3.2', 128000, 4096, 'local', 'very-fast', '["chat", "text-generation"]'::jsonb),
 ('llama3.2', 'ollama', 'Llama 3.2', 'text-generation', '3.2', 128000, 4096, 'local', 'medium', '["chat", "text-generation"]'::jsonb),
 ('llama3.2:3b', 'ollama', 'Llama 3.2 3B', 'text-generation', '3.2', 128000, 4096, 'local', 'fast', '["chat", "text-generation"]'::jsonb),
@@ -65,6 +65,13 @@ INSERT INTO public.llm_models (
 ('mistral', 'ollama', 'Mistral 7B', 'text-generation', '7b', 32768, 4096, 'local', 'fast', '["chat", "text-generation"]'::jsonb),
 ('phi4', 'ollama', 'Phi 4', 'text-generation', '4', 16384, 4096, 'local', 'very-fast', '["chat", "text-generation"]'::jsonb),
 ('gemma3', 'ollama', 'Gemma 3', 'text-generation', '3', 32768, 4096, 'local', 'fast', '["chat", "text-generation"]'::jsonb),
+
+-- Ollama Cloud Models (Large models best run via Ollama Cloud - set OLLAMA_CLOUD_API_KEY)
+('llama3.2:70b', 'ollama', 'Llama 3.2 70B (Cloud)', 'text-generation', '3.2', 128000, 4096, 'cloud', 'medium', '["chat", "text-generation"]'::jsonb),
+('llama3.3:70b', 'ollama', 'Llama 3.3 70B (Cloud)', 'text-generation', '3.3', 128000, 4096, 'cloud', 'medium', '["chat", "text-generation"]'::jsonb),
+('qwen2.5:72b', 'ollama', 'Qwen 2.5 72B (Cloud)', 'text-generation', '2.5', 32768, 4096, 'cloud', 'medium', '["chat", "text-generation"]'::jsonb),
+('deepseek-r1:671b', 'ollama', 'DeepSeek R1 671B (Cloud)', 'text-generation', 'r1', 65536, 4096, 'cloud', 'slow', '["chat", "text-generation", "reasoning"]'::jsonb),
+('mixtral:8x22b', 'ollama', 'Mixtral 8x22B (Cloud)', 'text-generation', '8x22b', 65536, 4096, 'cloud', 'medium', '["chat", "text-generation"]'::jsonb),
 
 -- xAI Grok Models (Latest: Grok 4.1)
 ('grok-4-1-fast-reasoning', 'xai', 'Grok 4.1 Fast (Reasoning)', 'text-generation', '4.1', 131072, 32768, 'premium', 'fast', '["chat", "text-generation", "reasoning"]'::jsonb),
@@ -104,8 +111,8 @@ BEGIN
     RAISE EXCEPTION 'Expected at least 5 providers, found %', provider_count;
   END IF;
 
-  IF model_count < 38 THEN
-    RAISE EXCEPTION 'Expected at least 38 models, found %', model_count;
+  IF model_count < 43 THEN
+    RAISE EXCEPTION 'Expected at least 43 models, found %', model_count;
   END IF;
 
   RAISE NOTICE 'All providers and models seeded successfully ✓';

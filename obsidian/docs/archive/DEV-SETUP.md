@@ -77,7 +77,27 @@ SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ANTHROPIC_API_KEY=your_key_here
 OPENAI_API_KEY=your_key_here
 PERPLEXITY_API_KEY=your_key_here
+
+# Ollama Cloud (Recommended for students/interns - see below)
+OLLAMA_CLOUD_API_KEY=your_ollama_cloud_api_key_here
 ```
+
+### 🤖 Ollama Cloud Setup (Recommended for Students/Interns)
+
+**Ollama Cloud** is a hosted service that lets you run AI models without needing powerful local hardware. Perfect for getting started quickly!
+
+**To get your API key:**
+1. Visit [https://ollama.com](https://ollama.com) and sign up for a free account
+2. Navigate to your account settings/API keys section
+3. Copy your API key and add it to your `.env` file as `OLLAMA_CLOUD_API_KEY`
+
+**Benefits:**
+- ✅ No local installation required
+- ✅ Works on any computer (even basic laptops)
+- ✅ Access to large models without powerful hardware
+- ✅ Free tier available for development
+
+**Note:** When `OLLAMA_CLOUD_API_KEY` is set, the system automatically uses cloud mode. You don't need to configure local Ollama!
 
 ## 🛠️ Manual Setup (Alternative)
 
@@ -150,6 +170,7 @@ cat .env | grep -E "(API_PORT|WEB_PORT|SUPABASE_URL)"
 ## 📚 Additional Resources
 
 - [Supabase Local Development](https://supabase.com/docs/guides/local-development)
+- [Ollama Cloud Documentation](https://ollama.com/docs/cloud)
 - [NestJS Documentation](https://docs.nestjs.com/)
 - [Vue.js Documentation](https://vuejs.org/guide/)
 - [Ionic Vue Documentation](https://ionicframework.com/docs/vue/overview)

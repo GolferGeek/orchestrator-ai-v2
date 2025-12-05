@@ -44,13 +44,23 @@ interface OllamaResponseMetadata extends ResponseMetadata {
 /**
  * Ollama LLM Service Implementation
  *
- * This example shows how to extend BaseLLMService for local Ollama models
- * with local-specific functionality, model management, and performance metrics.
+ * This service supports both local Ollama and Ollama Cloud:
+ * - Local mode: No API key required, connects to localhost:11434
+ * - Cloud mode: Requires OLLAMA_CLOUD_API_KEY, connects to ollama.com
+ *
+ * Cloud mode is automatically activated when OLLAMA_CLOUD_API_KEY is set.
+ * This enables running large models without requiring powerful local hardware.
+ *
+ * NOTE for production deployments: Consider enabling PII pseudonymization
+ * for cloud mode since data leaves the local machine. Currently disabled
+ * for simplicity in development/learning environments.
  */
 @Injectable()
 export class OllamaLLMService extends BaseLLMService {
   private readonly ollamaBaseUrl: string;
   private readonly loadedModels = new Set<string>();
+  private readonly isCloudMode: boolean;
+  private readonly ollamaApiKey: string | undefined;
 
   constructor(
     config: LLMServiceConfig,
@@ -68,8 +78,26 @@ export class OllamaLLMService extends BaseLLMService {
       providerConfigService,
     );
 
-    this.ollamaBaseUrl =
-      config.baseUrl || process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+    // Detect cloud mode based on API key presence
+    this.ollamaApiKey = config.apiKey || process.env.OLLAMA_CLOUD_API_KEY;
+    this.isCloudMode = !!this.ollamaApiKey;
+
+    // Set base URL based on mode
+    if (this.isCloudMode) {
+      this.ollamaBaseUrl =
+        process.env.OLLAMA_CLOUD_BASE_URL || 'https://ollama.com';
+      this.logger.log(
+        `Ollama service initialized in CLOUD mode (${this.ollamaBaseUrl})`,
+      );
+    } else {
+      this.ollamaBaseUrl =
+        config.baseUrl ||
+        process.env.OLLAMA_BASE_URL ||
+        'http://localhost:11434';
+      this.logger.log(
+        `Ollama service initialized in LOCAL mode (${this.ollamaBaseUrl})`,
+      );
+    }
   }
 
   /**
@@ -86,18 +114,29 @@ export class OllamaLLMService extends BaseLLMService {
       // Validate configuration
       this.validateConfig(params.config);
 
-      // Skip PII processing for local models (data never leaves the machine)
+      // Skip PII processing for both local and cloud modes
+      // NOTE: For production cloud deployments, consider enabling PII pseudonymization
+      // since data leaves the local machine when using Ollama Cloud
       const piiResult = await this.handlePiiInput(params.userMessage, {
         enablePseudonymization: false,
         useDictionaryPseudonymizer: false,
       });
 
-      // Ensure model is loaded
-      const modelLoadResult = await this.ensureModelLoaded(params.config.model);
-      if (!modelLoadResult.success) {
-        throw new Error(
-          `Failed to load model ${params.config.model}: ${modelLoadResult.message}`,
-        );
+      // Ensure model is loaded (skip for cloud mode - cloud handles model availability)
+      let modelLoadResult: {
+        success: boolean;
+        message?: string;
+        loadTime?: number;
+      } = {
+        success: true,
+      };
+      if (!this.isCloudMode) {
+        modelLoadResult = await this.ensureModelLoaded(params.config.model);
+        if (!modelLoadResult.success) {
+          throw new Error(
+            `Failed to load model ${params.config.model}: ${modelLoadResult.message}`,
+          );
+        }
       }
 
       // Prepare Ollama request
@@ -115,6 +154,12 @@ export class OllamaLLMService extends BaseLLMService {
         },
       };
 
+      // Build request headers (add auth for cloud mode)
+      const requestHeaders: Record<string, string> = {};
+      if (this.isCloudMode && this.ollamaApiKey) {
+        requestHeaders['Authorization'] = `Bearer ${this.ollamaApiKey}`;
+      }
+
       // Make Ollama API call
       const response = await firstValueFrom(
         this.httpService.post(
@@ -130,7 +175,8 @@ export class OllamaLLMService extends BaseLLMService {
             },
           },
           {
-            timeout: 120000, // 2 minute timeout for local models
+            timeout: this.isCloudMode ? 60000 : 120000, // 1 min for cloud, 2 min for local
+            headers: requestHeaders,
           },
         ),
       );
@@ -161,14 +207,16 @@ export class OllamaLLMService extends BaseLLMService {
         modelLoadResult,
       );
 
-      // Track usage with full metadata for database persistence (local models have different cost structure)
+      // Track usage with full metadata for database persistence
+      // Cloud models may have costs in the future; local models are free
+      const estimatedCost = this.isCloudMode ? 0 : 0; // Placeholder: update when Ollama Cloud pricing is available
       await this.trackUsage(
         context,
         params.config.provider,
         params.config.model,
         metadata.usage.inputTokens,
         metadata.usage.outputTokens,
-        0, // Local models typically have no cost
+        estimatedCost,
         {
           requestId,
           callerType: params.options?.callerType,
@@ -264,7 +312,7 @@ export class OllamaLLMService extends BaseLLMService {
   }
 
   /**
-   * Create Ollama-specific metadata with local model performance metrics
+   * Create Ollama-specific metadata with performance metrics
    */
   private createOllamaMetadata(
     ollamaResponse: OllamaResponseParsed,
@@ -274,7 +322,7 @@ export class OllamaLLMService extends BaseLLMService {
     requestId: string,
     modelLoadResult: { success: boolean; loadTime?: number },
   ): OllamaResponseMetadata {
-    // Estimate tokens for local models (Ollama doesn't always provide exact counts)
+    // Estimate tokens (Ollama doesn't always provide exact counts)
     const inputTokens =
       ollamaResponse.prompt_eval_count ||
       this.estimateTokens(params.systemPrompt + params.userMessage);
@@ -290,14 +338,14 @@ export class OllamaLLMService extends BaseLLMService {
         inputTokens,
         outputTokens,
         totalTokens: inputTokens + outputTokens,
-        cost: 0, // Local models typically have no API cost
+        cost: 0, // Placeholder: update when Ollama Cloud pricing is available
       },
       timing: {
         startTime,
         endTime,
         duration: endTime - startTime,
       },
-      tier: 'local', // Ollama is always local
+      tier: this.isCloudMode ? 'external' : 'local', // 'external' for cloud, 'local' for local Ollama
       status: 'completed',
       // Ollama-specific performance metrics
       providerSpecific: {
@@ -347,12 +395,29 @@ export class OllamaLLMService extends BaseLLMService {
   }
 
   /**
-   * Get available models from Ollama
+   * Get HTTP request config with auth headers for cloud mode
+   */
+  private getHttpConfig(): { headers?: Record<string, string> } {
+    if (this.isCloudMode && this.ollamaApiKey) {
+      return {
+        headers: {
+          Authorization: `Bearer ${this.ollamaApiKey}`,
+        },
+      };
+    }
+    return {};
+  }
+
+  /**
+   * Get available models from Ollama (local or cloud)
    */
   async getAvailableModels(): Promise<string[]> {
     try {
       const response = await firstValueFrom(
-        this.httpService.get(`${this.ollamaBaseUrl}/api/tags`),
+        this.httpService.get(
+          `${this.ollamaBaseUrl}/api/tags`,
+          this.getHttpConfig(),
+        ),
       );
       const models = (response.data as Record<string, unknown>).models as
         | Array<{ name: string }>
@@ -365,19 +430,23 @@ export class OllamaLLMService extends BaseLLMService {
   }
 
   /**
-   * Check Ollama server health
+   * Check Ollama server health (local or cloud)
    */
   async checkHealth(): Promise<{
     healthy: boolean;
     version?: string;
     models?: string[];
+    isCloudMode?: boolean;
   }> {
     try {
+      const httpConfig = this.getHttpConfig();
       const [versionResponse, modelsResponse] = await Promise.all([
         firstValueFrom(
-          this.httpService.get(`${this.ollamaBaseUrl}/api/version`),
+          this.httpService.get(`${this.ollamaBaseUrl}/api/version`, httpConfig),
         ),
-        firstValueFrom(this.httpService.get(`${this.ollamaBaseUrl}/api/tags`)),
+        firstValueFrom(
+          this.httpService.get(`${this.ollamaBaseUrl}/api/tags`, httpConfig),
+        ),
       ]);
 
       const models = (modelsResponse.data as Record<string, unknown>).models as
@@ -389,9 +458,10 @@ export class OllamaLLMService extends BaseLLMService {
           | string
           | undefined,
         models: models?.map((m) => m.name) || [],
+        isCloudMode: this.isCloudMode,
       };
     } catch {
-      return { healthy: false };
+      return { healthy: false, isCloudMode: this.isCloudMode };
     }
   }
 }
@@ -464,10 +534,5 @@ export async function testOllamaService() {
     },
   };
 
-  try {
-    const response = await service.generateResponse(mockContext, params);
-    return response;
-  } catch (error) {
-    throw error;
-  }
+  return service.generateResponse(mockContext, params);
 }
