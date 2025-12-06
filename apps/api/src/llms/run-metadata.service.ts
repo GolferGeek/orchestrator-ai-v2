@@ -696,11 +696,21 @@ export class RunMetadataService {
           updates.enhancedMetrics.dataSanitizationApplied,
         sanitization_level: updates.enhancedMetrics.sanitizationLevel,
         pii_detected: updates.enhancedMetrics.piiDetected,
-        pii_types: updates.enhancedMetrics.piiTypes,
+        showstopper_detected:
+          updates.enhancedMetrics.showstopperDetected || false,
+        pii_types: Array.isArray(updates.enhancedMetrics.piiTypes)
+          ? updates.enhancedMetrics.piiTypes
+          : updates.enhancedMetrics.piiTypes || [],
         pseudonyms_used: updates.enhancedMetrics.pseudonymsUsed,
         pseudonym_types: updates.enhancedMetrics.pseudonymTypes,
-        redactions_applied: updates.enhancedMetrics.redactionsApplied,
-        redaction_types: updates.enhancedMetrics.redactionTypes,
+        redactions_applied:
+          updates.enhancedMetrics.patternRedactionsApplied ||
+          updates.enhancedMetrics.redactionsApplied ||
+          0,
+        redaction_types:
+          updates.enhancedMetrics.patternRedactionTypes ||
+          updates.enhancedMetrics.redactionTypes ||
+          [],
         source_blinding_applied: updates.enhancedMetrics.sourceBlindingApplied,
         headers_stripped: updates.enhancedMetrics.headersStripped,
         custom_user_agent_used: updates.enhancedMetrics.customUserAgentUsed,

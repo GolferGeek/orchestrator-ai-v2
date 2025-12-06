@@ -8,8 +8,10 @@ import {
 } from '../config/feature-flag.service';
 import { PIIService } from './pii/pii.service';
 import { DictionaryPseudonymizerService } from './pii/dictionary-pseudonymizer.service';
+import { PatternRedactionService } from './pii/pattern-redaction.service';
 import { PIIProcessingMetadata } from './types/pii-metadata.types';
 import { DictionaryPseudonymMapping } from './pii/dictionary-pseudonymizer.service';
+import type { PatternRedactionMapping } from './pii/pattern-redaction.service';
 import { RunMetadataService } from './run-metadata.service';
 import { createHash } from 'crypto';
 
@@ -97,6 +99,7 @@ export class CentralizedRoutingService {
     private readonly featureFlagService: FeatureFlagService,
     private readonly piiService: PIIService,
     private readonly dictionaryPseudonymizerService: DictionaryPseudonymizerService,
+    private readonly patternRedactionService: PatternRedactionService,
     private readonly runMetadataService: RunMetadataService,
   ) {
     this.logger.log('CentralizedRoutingService initialized');
@@ -129,59 +132,106 @@ export class CentralizedRoutingService {
 
     try {
       let processedResponse = agentResponse;
-      let reversalCount = 0;
+      let pseudonymReversalCount = 0;
+      let patternReversalCount = 0;
 
-      // If we have pseudonym instructions, reverse them
+      // Step 1: Reverse pattern redactions first (to restore original values)
       if (
-        piiMetadata.pseudonymInstructions &&
-        piiMetadata.pseudonymInstructions.targetMatches.length > 0
+        piiMetadata.patternRedactionMappings &&
+        piiMetadata.patternRedactionMappings.length > 0
       ) {
-        const requestId =
-          options.conversationId ||
-          options.requestId ||
-          `agent-response-${Date.now()}`;
-
         try {
-          const reversalResult =
-            await this.dictionaryPseudonymizerService.reversePseudonyms(
-              agentResponse,
-              requestId as unknown as DictionaryPseudonymMapping[],
+          const patternReverseResult =
+            await this.patternRedactionService.reverseRedactions(
+              processedResponse,
+              piiMetadata.patternRedactionMappings as PatternRedactionMapping[],
             );
 
-          processedResponse = reversalResult.originalText;
-          reversalCount = reversalResult.reversalCount || 0;
+          processedResponse = patternReverseResult.originalText;
+          patternReversalCount = patternReverseResult.reversalCount || 0;
 
           this.logger.debug(
-            `🔄 [CENTRALIZED-ROUTING] Successfully reversed ${reversalCount} pseudonyms`,
+            `🔄 [CENTRALIZED-ROUTING] Successfully reversed ${patternReversalCount} pattern redactions`,
           );
         } catch (error) {
           this.logger.warn(
-            `🔄 [CENTRALIZED-ROUTING] Pseudonym reversal failed - returning original response: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            `🔄 [CENTRALIZED-ROUTING] Pattern reversal failed - continuing: ${error instanceof Error ? error.message : 'Unknown error'}`,
           );
         }
       }
 
+      // Step 2: Reverse dictionary pseudonyms (to restore dictionary values)
+      if (
+        piiMetadata.pseudonymInstructions &&
+        piiMetadata.pseudonymInstructions.targetMatches.length > 0
+      ) {
+        // Extract mappings from pseudonymInstructions or use provided mappings
+        const mappings: DictionaryPseudonymMapping[] =
+          piiMetadata.pseudonymInstructions.targetMatches
+            .filter((m) => m.pseudonym)
+            .map((m) => ({
+              originalValue: m.value,
+              pseudonym: m.pseudonym!,
+              dataType: m.dataType,
+              category: 'dictionary',
+            }));
+
+        if (mappings.length > 0) {
+          try {
+            const pseudonymReverseResult =
+              await this.dictionaryPseudonymizerService.reversePseudonyms(
+                processedResponse,
+                mappings,
+              );
+
+            processedResponse = pseudonymReverseResult.originalText;
+            pseudonymReversalCount = pseudonymReverseResult.reversalCount || 0;
+
+            this.logger.debug(
+              `🔄 [CENTRALIZED-ROUTING] Successfully reversed ${pseudonymReversalCount} pseudonyms`,
+            );
+          } catch (error) {
+            this.logger.warn(
+              `🔄 [CENTRALIZED-ROUTING] Pseudonym reversal failed - returning original response: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            );
+          }
+        }
+      }
+
       // Update metadata with processing results
+      const totalReversals = pseudonymReversalCount + patternReversalCount;
       const updatedMetadata: PIIProcessingMetadata = {
         ...piiMetadata,
         processingFlow: piiMetadata.processingFlow, // Keep original flow status
         pseudonymResults: piiMetadata.pseudonymResults
           ? {
               ...piiMetadata.pseudonymResults,
-              reversalSuccess: reversalCount > 0,
+              reversalSuccess: pseudonymReversalCount > 0,
               reversalMatches:
                 piiMetadata.pseudonymInstructions?.targetMatches || [],
+            }
+          : undefined,
+        patternRedactionResults: piiMetadata.patternRedactionResults
+          ? {
+              ...piiMetadata.patternRedactionResults,
+              reversalSuccess: patternReversalCount > 0,
+              reversalCount: patternReversalCount,
             }
           : undefined,
         userMessage: {
           ...piiMetadata.userMessage,
           summary:
             piiMetadata.userMessage.summary +
-            (reversalCount > 0 ? ` (${reversalCount} items restored)` : ''),
+            (totalReversals > 0
+              ? ` (${totalReversals} items restored)`
+              : ''),
           actionsTaken: [
             ...piiMetadata.userMessage.actionsTaken,
-            ...(reversalCount > 0
-              ? [`Restored ${reversalCount} original values in response`]
+            ...(patternReversalCount > 0
+              ? [`Restored ${patternReversalCount} pattern redactions`]
+              : []),
+            ...(pseudonymReversalCount > 0
+              ? [`Restored ${pseudonymReversalCount} pseudonyms`]
               : []),
           ],
         },
@@ -304,15 +354,26 @@ export class CentralizedRoutingService {
         const explicitLocal =
           explicitProvider &&
           String(explicitProvider).toLowerCase() === 'ollama';
+        const explicitExternal =
+          explicitProvider &&
+          String(explicitProvider).toLowerCase() !== 'ollama' &&
+          explicitProvider.toLowerCase() !== 'local';
 
-        // Analyze complexity/tier to check local availability when not explicitly local
-        const complexity = this.analyzeComplexity({ prompt, options });
-        const tier = this.selectTierForComplexity(complexity);
-        const localModelAvailable =
-          await this.checkLocalModelAvailability(tier);
+        // If external provider is explicitly requested, block showstoppers (don't route to local)
+        if (explicitExternal) {
+          this.logger.warn(
+            `🛑 [CENTRALIZED-ROUTING] External provider explicitly requested with showstopper - BLOCKING`,
+          );
+          // Fall through to blocking logic below
+        } else {
+          // Analyze complexity/tier to check local availability when not explicitly external
+          const complexity = this.analyzeComplexity({ prompt, options });
+          const tier = this.selectTierForComplexity(complexity);
+          const localModelAvailable =
+            await this.checkLocalModelAvailability(tier);
 
-        if (explicitLocal || sovereignModeActive || localModelAvailable) {
-          reasoningPath.push(
+          if (explicitLocal || sovereignModeActive || localModelAvailable) {
+            reasoningPath.push(
             'Showstopper detected, but routing to local model (bypass enforcement)',
           );
           const localModel = explicitLocal
@@ -355,10 +416,13 @@ export class CentralizedRoutingService {
             startTime,
           );
 
-          return localDecision;
+            return localDecision;
+          }
         }
 
-        // Otherwise, block (remote enforcement)
+        // Block showstoppers when:
+        // 1. External provider explicitly requested, OR
+        // 2. No local model available and not in sovereign mode
         try {
           await this.runMetadataService.insertCompletedUsage({
             provider: 'policy',
@@ -378,6 +442,7 @@ export class CentralizedRoutingService {
               dataSanitizationApplied: false,
               sanitizationLevel: 'none',
               piiDetected: true,
+              showstopperDetected: true, // Critical: Mark showstopper as detected
               piiTypes: Object.keys(
                 piiResult.metadata.detectionResults?.dataTypesSummary || {},
               ),

@@ -29,6 +29,7 @@ import { BlindedLLMService } from './blinded-llm.service';
 import { BlindedHttpService } from './blinded-http.service';
 import { PIIService } from './pii/pii.service';
 import { DictionaryPseudonymizerService } from './pii/dictionary-pseudonymizer.service';
+import { PatternRedactionService } from './pii/pattern-redaction.service';
 import { LLMServiceFactory } from './services/llm-service-factory';
 import { ObservabilityModule } from '../observability/observability.module';
 
@@ -70,6 +71,7 @@ import { ObservabilityModule } from '../observability/observability.module';
     BlindedHttpService,
     PIIService,
     DictionaryPseudonymizerService,
+    PatternRedactionService,
     LLMServiceFactory,
     // Note: LLM Provider Services (OpenAI, Anthropic, etc.) are NOT registered as providers
     // They are manually instantiated by LLMServiceFactory with specific configurations
@@ -91,6 +93,7 @@ import { ObservabilityModule } from '../observability/observability.module';
     BlindedHttpService,
     PIIService,
     DictionaryPseudonymizerService,
+    PatternRedactionService,
     LLMServiceFactory,
     // Note: LLM Provider Services are not exported as they're factory-created
   ],

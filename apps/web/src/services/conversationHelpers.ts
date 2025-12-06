@@ -65,8 +65,8 @@ export class ConversationService {
       conversationId: backendConversation.id,
       agentSlug: agent.name,
       agentType: agent.type || 'context',
-      provider: llmPreferencesStore.selectedProvider?.id || 'ollama',
-      model: llmPreferencesStore.selectedModel?.id || 'llama3.2:1b',
+      provider: llmPreferencesStore.selectedProvider?.name || 'ollama',
+      model: llmPreferencesStore.selectedModel?.modelName || 'llama3.2:1b',
     });
 
     return backendConversation.id;

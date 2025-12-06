@@ -165,6 +165,28 @@ export interface PIIProcessingMetadata {
   // Processing Results (populated at LLM boundary, never for showstoppers)
   pseudonymResults?: PseudonymResults;
 
+  // Pattern Redaction (applied alongside pseudonymization)
+  patternRedactionsApplied?: Array<{
+    original: string;
+    redacted: string;
+    dataType: string;
+  }>;
+  patternRedactionMappings?: Array<{
+    originalValue: string;
+    redactedValue: string;
+    dataType: string;
+    startIndex: number;
+    endIndex: number;
+    patternName: string;
+  }>;
+  patternRedactionResults?: {
+    applied: boolean;
+    redactionCount: number;
+    processingTimeMs: number;
+    reversalSuccess?: boolean;
+    reversalCount?: number;
+  };
+
   // User-Facing Messages
   userMessage: UserMessage;
 

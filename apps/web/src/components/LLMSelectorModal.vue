@@ -133,6 +133,7 @@ import {
 } from 'ionicons/icons';
 import { useLLMPreferencesStore } from '@/stores/llmPreferencesStore';
 import { useUserPreferencesStore } from '@/stores/userPreferencesStore';
+import { useExecutionContextStore } from '@/stores/executionContextStore';
 import type { Provider, Model } from '@/types/llm';
 
 interface Props {
@@ -149,6 +150,7 @@ const emit = defineEmits<Emits>();
 // Stores
 const llmStore = useLLMPreferencesStore();
 const userPreferencesStore = useUserPreferencesStore();
+const executionContextStore = useExecutionContextStore();
 
 // Local state
 const selectedProvider = ref<Provider | ''>('');
@@ -207,6 +209,11 @@ const handleApplySelection = async () => {
 
   // Save to user preferences
   userPreferencesStore.setLLMPreferences(provider.name, model.modelName);
+
+  // Update ExecutionContext so the new selection is used for API calls
+  if (executionContextStore.isInitialized) {
+    executionContextStore.setLLM(provider.name, model.modelName);
+  }
 
   // Show confirmation
   const toast = await toastController.create({

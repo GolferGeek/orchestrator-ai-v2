@@ -189,8 +189,8 @@ export const useChatUiStore = defineStore('chatUi', () => {
         const agentType = conversation.agentType || conversation.agent?.type || 'context';
 
         // Get LLM selection (provider/model)
-        const provider = llmPreferencesStore.selectedProvider?.id || 'ollama';
-        const model = llmPreferencesStore.selectedModel?.id || 'llama3.2:1b';
+        const provider = llmPreferencesStore.selectedProvider?.name || 'ollama';
+        const model = llmPreferencesStore.selectedModel?.modelName || 'llama3.2:1b';
 
         executionContextStore.initialize({
           orgSlug: authStore.currentOrganization || 'demo-org',

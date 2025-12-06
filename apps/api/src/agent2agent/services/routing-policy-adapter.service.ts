@@ -109,12 +109,22 @@ export class RoutingPolicyAdapterService {
       requestId: (metadata.requestId ?? payload.requestId ?? null) as
         | string
         | null,
-      providerName: (metadata.providerName ?? payload.providerName ?? null) as
-        | string
-        | null,
-      modelName: (metadata.modelName ?? payload.modelName ?? null) as
-        | string
-        | null,
+      providerName: (context?.provider ??
+        metadata.providerName ??
+        payload.providerName ??
+        null) as string | null,
+      provider: (context?.provider ??
+        metadata.provider ??
+        payload.provider ??
+        null) as string | null,
+      modelName: (context?.model ??
+        metadata.modelName ??
+        payload.modelName ??
+        null) as string | null,
+      model: (context?.model ??
+        metadata.model ??
+        payload.model ??
+        null) as string | null,
       metadata,
       promptInputs: request.promptParameters ?? {},
     };

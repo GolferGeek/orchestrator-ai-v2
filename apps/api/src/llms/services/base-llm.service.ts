@@ -337,81 +337,101 @@ export abstract class BaseLLMService {
           }
         };
 
-        const enhancedMetrics = requestMetadata.piiMetadata
+        const piiMeta = requestMetadata.piiMetadata as
+          | Record<string, unknown>
+          | undefined;
+
+        const enhancedMetrics = piiMeta
           ? {
               dataSanitizationApplied:
-                (requestMetadata.piiMetadata.piiDetected as
-                  | boolean
-                  | undefined) || false,
+                (piiMeta.piiDetected as boolean | undefined) ||
+                (piiMeta.patternRedactionResults as
+                  | Record<string, unknown>
+                  | undefined)?.applied ||
+                false,
               sanitizationLevel:
-                (requestMetadata.piiMetadata.processingFlow as
-                  | string
-                  | undefined) || 'none',
-              piiDetected:
-                (requestMetadata.piiMetadata.piiDetected as
-                  | boolean
-                  | undefined) || false,
-              piiTypes:
-                (
-                  requestMetadata.piiMetadata.detectionResults as
-                    | Record<string, unknown>
-                    | undefined
-                )?.dataTypesSummary || {},
+                (piiMeta.sanitizationLevel as string | undefined) || 'none',
+              piiDetected: (piiMeta.piiDetected as boolean | undefined) || false,
+              showstopperDetected:
+                (piiMeta.showstopperDetected as boolean | undefined) || false,
+              piiTypes: Object.keys(
+                (piiMeta.detectionResults as
+                  | Record<string, unknown>
+                  | undefined)?.dataTypesSummary || {},
+              ),
               // Extract pseudonym information from pseudonymInstructions
               pseudonymsUsed:
                 (
-                  (
-                    requestMetadata.piiMetadata.pseudonymInstructions as
-                      | Record<string, unknown>
-                      | undefined
-                  )?.targetMatches as unknown[] | undefined
+                  (piiMeta.pseudonymInstructions as
+                    | Record<string, unknown>
+                    | undefined)?.targetMatches as unknown[] | undefined
                 )?.length || 0,
               pseudonymTypes:
                 (
-                  (
-                    requestMetadata.piiMetadata.pseudonymInstructions as
-                      | Record<string, unknown>
-                      | undefined
-                  )?.targetMatches as unknown[] | undefined
+                  (piiMeta.pseudonymInstructions as
+                    | Record<string, unknown>
+                    | undefined)?.targetMatches as unknown[] | undefined
                 )?.map(
                   (m: unknown) =>
                     (m as Record<string, unknown>).dataType as string,
                 ) || [],
-              pseudonymMappings: derivePseudonymMappings(
-                requestMetadata.piiMetadata,
-              ),
-              // Also include flagged items count
-              redactionsApplied:
+              pseudonymMappings: derivePseudonymMappings(piiMeta),
+              // Pattern redaction information
+              patternRedactionsApplied:
+                (piiMeta.patternRedactionResults as
+                  | Record<string, unknown>
+                  | undefined)?.redactionCount || 0,
+              patternRedactionTypes:
                 (
-                  (
-                    requestMetadata.piiMetadata.detectionResults as
-                      | Record<string, unknown>
-                      | undefined
-                  )?.flaggedMatches as unknown[] | undefined
-                )?.length || 0,
+                  (piiMeta.patternRedactionMappings as
+                    | Array<Record<string, unknown>>
+                    | undefined) || []
+                )
+                  .map((m) => m.dataType as string)
+                  .filter((t): t is string => !!t),
+              // Pattern redactions count (actual redactions applied)
+              redactionsApplied:
+                (piiMeta.patternRedactionResults as
+                  | Record<string, unknown>
+                  | undefined)?.redactionCount ||
+                (
+                  (piiMeta.detectionResults as
+                    | Record<string, unknown>
+                    | undefined)?.flaggedMatches as unknown[] | undefined
+                )?.length ||
+                0,
               redactionTypes:
                 (
-                  (
-                    requestMetadata.piiMetadata.detectionResults as
-                      | Record<string, unknown>
-                      | undefined
-                  )?.flaggedMatches as unknown[] | undefined
+                  (piiMeta.patternRedactionMappings as
+                    | Array<Record<string, unknown>>
+                    | undefined) || []
+                )
+                  .map((m) => m.dataType as string)
+                  .filter((t): t is string => !!t) ||
+                (
+                  (piiMeta.detectionResults as
+                    | Record<string, unknown>
+                    | undefined)?.flaggedMatches as unknown[] | undefined
                 )?.map(
                   (m: unknown) =>
                     (m as Record<string, unknown>).dataType as string,
-                ) || [],
+                ) ||
+                [],
             }
           : ({
               dataSanitizationApplied: false,
               sanitizationLevel:
                 provider === 'ollama' ? 'local-bypass' : 'none',
               piiDetected: false,
-              piiTypes: {},
+              showstopperDetected: false,
+              piiTypes: [],
               pseudonymsUsed: 0,
               pseudonymTypes: [],
               pseudonymMappings: [],
               redactionsApplied: 0,
               redactionTypes: [],
+              patternRedactionsApplied: 0,
+              patternRedactionTypes: [],
             } as Record<string, unknown>);
 
         await this.runMetadataService.insertCompletedUsage({

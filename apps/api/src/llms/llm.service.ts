@@ -16,6 +16,8 @@ import { ProviderConfigService } from './provider-config.service';
 import { PIIService } from './pii/pii.service';
 import { DictionaryPseudonymizerService } from './pii/dictionary-pseudonymizer.service';
 import type { DictionaryPseudonymMapping } from './pii/dictionary-pseudonymizer.service';
+import { PatternRedactionService } from './pii/pattern-redaction.service';
+import type { PatternRedactionMapping } from './pii/pattern-redaction.service';
 import { LocalModelStatusService } from './local-model-status.service';
 import { LocalLLMService } from './local-llm.service';
 import { BlindedLLMService } from './blinded-llm.service';
@@ -109,6 +111,7 @@ export class LLMService {
     private readonly providerConfigService: ProviderConfigService,
     private readonly piiService: PIIService,
     private readonly dictionaryPseudonymizerService: DictionaryPseudonymizerService,
+    private readonly patternRedactionService: PatternRedactionService,
     private readonly localModelStatusService: LocalModelStatusService,
     private readonly localLLMService: LocalLLMService,
     private readonly blindedLLMService: BlindedLLMService,
@@ -175,12 +178,14 @@ export class LLMService {
       // === PII PROCESSING BEFORE FACTORY CALL ===
       let processedUserMessage = userMessage;
       let dictionaryMappings: DictionaryPseudonymMapping[] = [];
+      let patternRedactionMappings: PatternRedactionMapping[] = [];
       let enhancedPiiMetadata: PIIProcessingMetadata | undefined =
         options?.piiMetadata ?? undefined;
 
       // Always apply dictionary pseudonymization for external providers (non-Ollama), unless quick bypass
       const skipPII = options?.quick === true;
       if (!skipPII && providerName.toLowerCase() !== 'ollama') {
+        // Step 1: Apply dictionary pseudonymization
         const pseudonymResult =
           await this.dictionaryPseudonymizerService.pseudonymizeText(
             userMessage,
@@ -189,25 +194,38 @@ export class LLMService {
               agentSlug: executionContext.agentSlug ?? null,
             },
           );
-          processedUserMessage = pseudonymResult.pseudonymizedText;
-          dictionaryMappings = pseudonymResult.mappings;
+        processedUserMessage = pseudonymResult.pseudonymizedText;
+        dictionaryMappings = pseudonymResult.mappings;
 
-          const requestId =
-            executionContext.conversationId ||
-            executionContext.taskId ||
-            `pii-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-          const dictionaryMatches = pseudonymResult.mappings.map((m) => ({
-            value: m.originalValue,
-            dataType: m.dataType,
-            severity: 'warning',
-            confidence: 1.0,
-            startIndex: -1,
-            endIndex: -1,
-            pattern: 'dictionary_match',
-            pseudonym: m.pseudonym,
-          }));
+        // Step 2: Apply pattern-based redaction (after pseudonymization)
+        const patternRedactionResult =
+          await this.patternRedactionService.redactPatterns(
+            processedUserMessage,
+            {
+              minConfidence: 0.8,
+              maxMatches: 100,
+              excludeShowstoppers: true, // Don't redact showstoppers - they should block
+            },
+          );
+        processedUserMessage = patternRedactionResult.redactedText;
+        patternRedactionMappings = patternRedactionResult.mappings;
 
-          if (enhancedPiiMetadata) {
+        const requestId =
+          executionContext.conversationId ||
+          executionContext.taskId ||
+          `pii-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const dictionaryMatches = pseudonymResult.mappings.map((m) => ({
+          value: m.originalValue,
+          dataType: m.dataType,
+          severity: 'warning',
+          confidence: 1.0,
+          startIndex: -1,
+          endIndex: -1,
+          pattern: 'dictionary_match',
+          pseudonym: m.pseudonym,
+        }));
+
+        if (enhancedPiiMetadata) {
             // Merge pseudonym info into existing metadata
             enhancedPiiMetadata = {
               ...enhancedPiiMetadata,
@@ -258,9 +276,24 @@ export class LLMService {
               },
               piiDetected: true,
               sanitizationLevel:
-                pseudonymResult.mappings.length > 0
+                pseudonymResult.mappings.length > 0 ||
+                patternRedactionResult.redactionCount > 0
                   ? 'standard'
                   : enhancedPiiMetadata.sanitizationLevel || 'none',
+              // Add pattern redaction info
+              patternRedactionsApplied: patternRedactionResult.mappings.map(
+                (m) => ({
+                  original: m.originalValue,
+                  redacted: m.redactedValue,
+                  dataType: m.dataType,
+                }),
+              ),
+              patternRedactionMappings: patternRedactionResult.mappings,
+              patternRedactionResults: {
+                applied: patternRedactionResult.redactionCount > 0,
+                redactionCount: patternRedactionResult.redactionCount,
+                processingTimeMs: patternRedactionResult.processingTimeMs,
+              },
             };
           } else {
             // No metadata provided – compute detection once, then attach pseudonym fields
@@ -298,7 +331,8 @@ export class LLMService {
               },
               piiDetected:
                 piiPolicyResult.metadata.piiDetected ||
-                pseudonymResult.mappings.length > 0,
+                pseudonymResult.mappings.length > 0 ||
+                patternRedactionResult.redactionCount > 0,
               processingTimeMs:
                 (piiPolicyResult.metadata.timestamps?.policyCheck ||
                   Date.now()) -
@@ -306,11 +340,28 @@ export class LLMService {
                   Date.now()) +
                 pseudonymResult.processingTimeMs,
               sanitizationLevel:
-                pseudonymResult.mappings.length > 0 ? 'standard' : 'none',
+                pseudonymResult.mappings.length > 0 ||
+                patternRedactionResult.redactionCount > 0
+                  ? 'standard'
+                  : 'none',
+              // Add pattern redaction info
+              patternRedactionsApplied: patternRedactionResult.mappings.map(
+                (m) => ({
+                  original: m.originalValue,
+                  redacted: m.redactedValue,
+                  dataType: m.dataType,
+                }),
+              ),
+              patternRedactionMappings: patternRedactionResult.mappings,
+              patternRedactionResults: {
+                applied: patternRedactionResult.redactionCount > 0,
+                redactionCount: patternRedactionResult.redactionCount,
+                processingTimeMs: patternRedactionResult.processingTimeMs,
+              },
             } as unknown as PIIProcessingMetadata;
           }
         } else {
-          // Quick/local path – no pseudonymization
+          // Quick/local path – no pseudonymization or pattern redaction
           processedUserMessage = userMessage;
         }
 
@@ -348,18 +399,49 @@ export class LLMService {
           factoryParams,
         );
 
-        // Apply reverse pseudonymization if we have mappings
-        if (
-          dictionaryMappings &&
-          dictionaryMappings.length > 0 &&
-          unifiedResult.content
-        ) {
-          const reverseResult =
-            await this.dictionaryPseudonymizerService.reversePseudonyms(
-              unifiedResult.content,
-              dictionaryMappings,
-            );
-          unifiedResult.content = reverseResult.originalText;
+        // Apply reverse processing: pattern redactions first, then pseudonyms
+        if (unifiedResult.content) {
+          let reversedContent = unifiedResult.content;
+
+          // Step 1: Reverse pattern redactions first (to restore original values)
+          if (
+            patternRedactionMappings &&
+            patternRedactionMappings.length > 0
+          ) {
+            const patternReverseResult =
+              await this.patternRedactionService.reverseRedactions(
+                reversedContent,
+                patternRedactionMappings,
+              );
+            reversedContent = patternReverseResult.originalText;
+
+            // Update metadata with reversal results
+            if (enhancedPiiMetadata?.patternRedactionResults) {
+              enhancedPiiMetadata.patternRedactionResults.reversalSuccess =
+                true;
+              enhancedPiiMetadata.patternRedactionResults.reversalCount =
+                patternReverseResult.reversalCount;
+            }
+          }
+
+          // Step 2: Reverse dictionary pseudonyms (to restore dictionary values)
+          if (dictionaryMappings && dictionaryMappings.length > 0) {
+            const pseudonymReverseResult =
+              await this.dictionaryPseudonymizerService.reversePseudonyms(
+                reversedContent,
+                dictionaryMappings,
+              );
+            reversedContent = pseudonymReverseResult.originalText;
+
+            // Update metadata with reversal results
+            if (enhancedPiiMetadata?.pseudonymResults) {
+              enhancedPiiMetadata.pseudonymResults.reversalSuccess = true;
+              enhancedPiiMetadata.pseudonymResults.reversalMatches =
+                enhancedPiiMetadata.pseudonymInstructions?.targetMatches;
+            }
+          }
+
+          unifiedResult.content = reversedContent;
         }
 
         // Ensure PII metadata is included in response

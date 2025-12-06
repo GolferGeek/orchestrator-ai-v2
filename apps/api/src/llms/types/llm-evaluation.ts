@@ -210,6 +210,9 @@ export interface LLMUsageMetrics {
   }>;
   redactionsApplied?: number;
   redactionTypes?: string[]; // e.g., ['secret_key', 'password', 'api_key']
+  showstopperDetected?: boolean; // Whether showstopper PII was detected
+  patternRedactionsApplied?: number; // Count of pattern-based redactions
+  patternRedactionTypes?: string[]; // Types of patterns that were redacted
   sourceBlindingApplied?: boolean;
   headersStripped?: number;
   customUserAgentUsed?: boolean;
