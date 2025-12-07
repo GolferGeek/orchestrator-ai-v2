@@ -1,20 +1,16 @@
 <template>
-  <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-back-button default-href="/app/admin/settings" />
-        </ion-buttons>
-        <ion-title>Providers & Models</ion-title>
-        <ion-buttons slot="end">
-          <ion-button fill="clear" @click="refreshData" :disabled="loading">
-            <ion-icon :icon="refreshOutline" slot="icon-only" />
-          </ion-button>
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
+  <div class="detail-view">
+    <!-- Detail Header -->
+    <div class="detail-header">
+      <h2>LLM Providers & Models</h2>
+      <div class="header-actions">
+        <ion-button fill="clear" size="small" @click="refreshData" :disabled="loading">
+          <ion-icon :icon="refreshOutline" slot="icon-only" />
+        </ion-button>
+      </div>
+    </div>
 
-    <ion-content :fullscreen="true">
+    <div class="detail-body">
       <div class="providers-container">
         <!-- Default Model Banner -->
         <div class="default-model-banner" v-if="defaultModel">
@@ -176,21 +172,14 @@
 
         <ion-loading :is-open="loading" message="Loading providers..." />
       </div>
-    </ion-content>
-  </ion-page>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import {
-  IonPage,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonContent,
-  IonButtons,
   IonButton,
-  IonBackButton,
   IonIcon,
   IonChip,
   IonLabel,
@@ -300,7 +289,7 @@ const setAsDefault = async (providerName: string, modelName: string) => {
       color: 'success',
     });
     await toast.present();
-  } catch (error) {
+  } catch (_error) {
     const toast = await toastController.create({
       message: 'Failed to set default model',
       duration: 3000,
@@ -326,7 +315,14 @@ const toggleProvider = async (provider: ProviderWithModels, event: CustomEvent) 
   await toast.present();
 };
 
-const toggleModel = async (providerName: string, model: any, event: CustomEvent) => {
+interface ModelWithActive {
+  modelName?: string;
+  model_name?: string;
+  name?: string;
+  is_active?: boolean;
+}
+
+const toggleModel = async (providerName: string, model: ModelWithActive, event: CustomEvent) => {
   const newValue = event.detail.checked;
   // TODO: Implement model toggle via API
   console.log('Toggle model:', providerName, model.model_name, newValue);
@@ -343,7 +339,7 @@ const toggleModel = async (providerName: string, model: any, event: CustomEvent)
 };
 
 // Helpers
-const getModelName = (model: any) => {
+const getModelName = (model: ModelWithActive) => {
   return model.modelName || model.model_name || model.name || '';
 };
 
@@ -375,8 +371,41 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.providers-container {
+/* Detail View Container */
+.detail-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--ion-color-light-shade);
+  background: var(--ion-color-light);
+}
+
+.detail-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.detail-body {
+  flex: 1;
+  overflow-y: auto;
   padding: 1rem;
+}
+
+.providers-container {
   max-width: 1400px;
   margin: 0 auto;
   height: 100%;

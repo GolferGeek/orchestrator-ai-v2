@@ -1,43 +1,41 @@
 <template>
-  <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-menu-button />
-        </ion-buttons>
-        <ion-title>System Observability</ion-title>
-        <ion-buttons slot="end">
-          <!-- Connection Status -->
-          <ion-chip 
-            :color="isConnected ? 'success' : (isConnecting ? 'warning' : 'danger')"
-            size="small"
-          >
-            <ion-icon 
-              :icon="isConnected ? checkmarkCircle : (isConnecting ? hourglassOutline : closeCircle)" 
-            />
-            {{ isConnected ? 'Connected' : (isConnecting ? 'Connecting...' : 'Disconnected') }}
-          </ion-chip>
-          
-          <!-- Control Buttons -->
-          <ion-button 
-            fill="clear" 
-            @click="streamStore.clearEvents()"
-            :disabled="!isConnected"
-          >
-            <ion-icon :icon="trashOutline" />
-          </ion-button>
-          
-          <ion-button 
-            fill="clear" 
-            @click="isConnected ? streamStore.disconnect() : streamStore.connect()"
-          >
-            <ion-icon :icon="isConnected ? stopCircle : playCircle" />
-          </ion-button>
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
+  <div class="detail-view">
+    <!-- Detail Header -->
+    <div class="detail-header">
+      <h2>System Observability</h2>
+      <div class="header-actions">
+        <!-- Connection Status -->
+        <ion-chip
+          :color="isConnected ? 'success' : (isConnecting ? 'warning' : 'danger')"
+          size="small"
+        >
+          <ion-icon
+            :icon="isConnected ? checkmarkCircle : (isConnecting ? hourglassOutline : closeCircle)"
+          />
+          {{ isConnected ? 'Connected' : (isConnecting ? 'Connecting...' : 'Disconnected') }}
+        </ion-chip>
 
-    <ion-content>
+        <!-- Control Buttons -->
+        <ion-button
+          fill="clear"
+          size="small"
+          @click="streamStore.clearEvents()"
+          :disabled="!isConnected"
+        >
+          <ion-icon :icon="trashOutline" slot="icon-only" />
+        </ion-button>
+
+        <ion-button
+          fill="clear"
+          size="small"
+          @click="isConnected ? streamStore.disconnect() : streamStore.connect()"
+        >
+          <ion-icon :icon="isConnected ? stopCircle : playCircle" slot="icon-only" />
+        </ion-button>
+      </div>
+    </div>
+
+    <div class="detail-body">
       <!-- Error Display -->
       <ion-card v-if="error || historyError" color="danger">
         <ion-card-content>
@@ -218,28 +216,21 @@
           </ion-card>
         </div>
       </div>
-    </ion-content>
 
     <!-- Conversation Detail Modal -->
-    <ConversationDetailView 
+    <ConversationDetailView
       v-if="selectedConversationId"
       :conversation-id="selectedConversationId"
       :is-open="showConversationDetail"
       @close="handleCloseConversationDetail"
     />
-  </ion-page>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import {
-  IonPage,
-  IonHeader,
-  IonToolbar,
-  IonButtons,
-  IonMenuButton,
-  IonTitle,
-  IonContent,
   IonButton,
   IonIcon,
   IonChip,
@@ -397,6 +388,40 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* Detail View Container */
+.detail-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--ion-color-light-shade);
+  background: var(--ion-color-light);
+}
+
+.detail-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.detail-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
 .tab-content {
   padding: 16px;
 }

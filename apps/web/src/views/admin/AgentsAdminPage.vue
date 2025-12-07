@@ -1,237 +1,229 @@
 <template>
-  <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-back-button default-href="/app/admin/settings" />
-        </ion-buttons>
-        <ion-title>Agents Administration</ion-title>
-        <ion-buttons slot="end">
-          <ion-button fill="clear" @click="refreshData" :disabled="loading">
-            <ion-icon :icon="refreshOutline" slot="icon-only" />
-          </ion-button>
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
-
-    <ion-content :fullscreen="true">
-      <div class="agents-admin-container">
-        <!-- Stats Banner -->
-        <div class="stats-banner">
-          <div class="stat">
-            <span class="stat-value">{{ agents.length }}</span>
-            <span class="stat-label">Total Agents</span>
-          </div>
-          <div class="stat">
-            <span class="stat-value">{{ contextAgents.length }}</span>
-            <span class="stat-label">Context</span>
-          </div>
-          <div class="stat">
-            <span class="stat-value">{{ apiAgents.length }}</span>
-            <span class="stat-label">API</span>
-          </div>
-          <div class="stat">
-            <span class="stat-value">{{ externalAgents.length }}</span>
-            <span class="stat-label">External</span>
-          </div>
-        </div>
-
-        <!-- Filter Bar -->
-        <div class="filter-bar">
-          <ion-segment v-model="typeFilter" @ionChange="applyFilters">
-            <ion-segment-button value="all">
-              <ion-label>All</ion-label>
-            </ion-segment-button>
-            <ion-segment-button value="context">
-              <ion-label>Context</ion-label>
-            </ion-segment-button>
-            <ion-segment-button value="api">
-              <ion-label>API</ion-label>
-            </ion-segment-button>
-            <ion-segment-button value="external">
-              <ion-label>External</ion-label>
-            </ion-segment-button>
-          </ion-segment>
-
-          <ion-searchbar
-            v-model="searchQuery"
-            placeholder="Search agents..."
-            @ionInput="applyFilters"
-            debounce="300"
-          />
-        </div>
-
-        <!-- Agents List -->
-        <div class="agents-list">
-          <div
-            class="agent-card"
-            v-for="agent in filteredAgents"
-            :key="agent.slug"
-            @click="openAgentDetail(agent)"
-          >
-            <div class="agent-header">
-              <div class="agent-icon" :class="agent.agent_type">
-                <ion-icon :icon="getAgentIcon(agent.agent_type)" />
-              </div>
-              <div class="agent-info">
-                <h4>{{ agent.name }}</h4>
-                <span class="agent-slug">{{ agent.slug }}</span>
-              </div>
-              <ion-chip size="small" :color="getTypeColor(agent.agent_type)">
-                <ion-label>{{ agent.agent_type }}</ion-label>
-              </ion-chip>
-            </div>
-
-            <p class="agent-description">{{ truncateText(agent.description, 120) }}</p>
-
-            <div class="agent-meta">
-              <div class="meta-item">
-                <ion-icon :icon="folderOutline" />
-                <span>{{ agent.department }}</span>
-              </div>
-              <div class="meta-item" v-if="agent.capabilities?.length">
-                <ion-icon :icon="extensionPuzzleOutline" />
-                <span>{{ agent.capabilities.length }} capabilities</span>
-              </div>
-              <div class="meta-item" v-if="agent.version">
-                <ion-icon :icon="pricetagOutline" />
-                <span>v{{ agent.version }}</span>
-              </div>
-            </div>
-
-            <div class="agent-tags" v-if="agent.tags?.length">
-              <ion-chip size="small" v-for="tag in agent.tags.slice(0, 3)" :key="tag">
-                <ion-label>{{ tag }}</ion-label>
-              </ion-chip>
-              <span v-if="agent.tags.length > 3" class="more-tags">+{{ agent.tags.length - 3 }} more</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="empty-state" v-if="!loading && filteredAgents.length === 0">
-          <ion-icon :icon="alertCircleOutline" />
-          <h3>No Agents Found</h3>
-          <p v-if="searchQuery || typeFilter !== 'all'">Try adjusting your filters</p>
-          <p v-else>No agents have been configured yet</p>
-        </div>
-
-        <!-- Agent Detail Modal -->
-        <ion-modal :is-open="showDetailModal" @didDismiss="closeAgentDetail">
-          <ion-header>
-            <ion-toolbar>
-              <ion-title>{{ selectedAgent?.name }}</ion-title>
-              <ion-buttons slot="end">
-                <ion-button @click="closeAgentDetail">Close</ion-button>
-              </ion-buttons>
-            </ion-toolbar>
-          </ion-header>
-          <ion-content class="ion-padding" v-if="selectedAgent">
-            <div class="agent-detail">
-              <div class="detail-section">
-                <h4>Basic Information</h4>
-                <div class="detail-row">
-                  <span class="detail-label">Slug</span>
-                  <span class="detail-value mono">{{ selectedAgent.slug }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Type</span>
-                  <ion-chip size="small" :color="getTypeColor(selectedAgent.agent_type)">
-                    <ion-label>{{ selectedAgent.agent_type }}</ion-label>
-                  </ion-chip>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Department</span>
-                  <span class="detail-value">{{ selectedAgent.department }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Version</span>
-                  <span class="detail-value">{{ selectedAgent.version }}</span>
-                </div>
-              </div>
-
-              <div class="detail-section">
-                <h4>Description</h4>
-                <p>{{ selectedAgent.description }}</p>
-              </div>
-
-              <div class="detail-section" v-if="selectedAgent.capabilities?.length">
-                <h4>Capabilities</h4>
-                <div class="capabilities-list">
-                  <ion-chip v-for="cap in selectedAgent.capabilities" :key="cap" color="primary">
-                    <ion-label>{{ cap }}</ion-label>
-                  </ion-chip>
-                </div>
-              </div>
-
-              <div class="detail-section" v-if="selectedAgent.tags?.length">
-                <h4>Tags</h4>
-                <div class="tags-list">
-                  <ion-chip v-for="tag in selectedAgent.tags" :key="tag" color="medium">
-                    <ion-label>{{ tag }}</ion-label>
-                  </ion-chip>
-                </div>
-              </div>
-
-              <div class="detail-section" v-if="selectedAgent.llm_config">
-                <h4>LLM Configuration</h4>
-                <div class="detail-row">
-                  <span class="detail-label">Provider</span>
-                  <span class="detail-value">{{ selectedAgent.llm_config.provider }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Model</span>
-                  <span class="detail-value mono">{{ selectedAgent.llm_config.model }}</span>
-                </div>
-                <div class="detail-row" v-if="selectedAgent.llm_config.parameters?.temperature">
-                  <span class="detail-label">Temperature</span>
-                  <span class="detail-value">{{ selectedAgent.llm_config.parameters.temperature }}</span>
-                </div>
-              </div>
-
-              <div class="detail-section" v-if="selectedAgent.endpoint">
-                <h4>Endpoint Configuration</h4>
-                <div class="detail-row">
-                  <span class="detail-label">URL</span>
-                  <span class="detail-value mono">{{ selectedAgent.endpoint.url }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Method</span>
-                  <span class="detail-value">{{ selectedAgent.endpoint.method || 'POST' }}</span>
-                </div>
-              </div>
-
-              <div class="detail-section">
-                <h4>Timestamps</h4>
-                <div class="detail-row">
-                  <span class="detail-label">Created</span>
-                  <span class="detail-value">{{ formatDateTime(selectedAgent.created_at) }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Updated</span>
-                  <span class="detail-value">{{ formatDateTime(selectedAgent.updated_at) }}</span>
-                </div>
-              </div>
-            </div>
-          </ion-content>
-        </ion-modal>
-
-        <ion-loading :is-open="loading" message="Loading agents..." />
+  <div class="detail-view">
+    <!-- Detail Header -->
+    <div class="detail-header">
+      <h2>Agents Administration</h2>
+      <div class="header-actions">
+        <ion-button fill="clear" size="small" @click="refreshData" :disabled="loading">
+          <ion-icon :icon="refreshOutline" slot="icon-only" />
+        </ion-button>
       </div>
-    </ion-content>
-  </ion-page>
+    </div>
+
+    <div class="detail-body">
+      <!-- Stats Banner -->
+      <div class="stats-banner">
+        <div class="stat">
+          <span class="stat-value">{{ agents.length }}</span>
+          <span class="stat-label">Total Agents</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value">{{ contextAgents.length }}</span>
+          <span class="stat-label">Context</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value">{{ apiAgents.length }}</span>
+          <span class="stat-label">API</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value">{{ externalAgents.length }}</span>
+          <span class="stat-label">External</span>
+        </div>
+      </div>
+
+      <!-- Filter Bar -->
+      <div class="filter-bar">
+        <ion-segment v-model="typeFilter" @ionChange="applyFilters">
+          <ion-segment-button value="all">
+            <ion-label>All</ion-label>
+          </ion-segment-button>
+          <ion-segment-button value="context">
+            <ion-label>Context</ion-label>
+          </ion-segment-button>
+          <ion-segment-button value="api">
+            <ion-label>API</ion-label>
+          </ion-segment-button>
+          <ion-segment-button value="external">
+            <ion-label>External</ion-label>
+          </ion-segment-button>
+        </ion-segment>
+
+        <ion-searchbar
+          v-model="searchQuery"
+          placeholder="Search agents..."
+          @ionInput="applyFilters"
+          debounce="300"
+        />
+      </div>
+
+      <!-- Agents List -->
+      <div class="agents-list">
+        <div
+          class="agent-card"
+          v-for="agent in filteredAgents"
+          :key="agent.slug"
+          @click="openAgentDetail(agent)"
+        >
+          <div class="agent-header">
+            <div class="agent-icon" :class="agent.agent_type">
+              <ion-icon :icon="getAgentIcon(agent.agent_type)" />
+            </div>
+            <div class="agent-info">
+              <h4>{{ agent.name }}</h4>
+              <span class="agent-slug">{{ agent.slug }}</span>
+            </div>
+            <ion-chip size="small" :color="getTypeColor(agent.agent_type)">
+              <ion-label>{{ agent.agent_type }}</ion-label>
+            </ion-chip>
+          </div>
+
+          <p class="agent-description">{{ truncateText(agent.description, 120) }}</p>
+
+          <div class="agent-meta">
+            <div class="meta-item">
+              <ion-icon :icon="folderOutline" />
+              <span>{{ agent.department }}</span>
+            </div>
+            <div class="meta-item" v-if="agent.capabilities?.length">
+              <ion-icon :icon="extensionPuzzleOutline" />
+              <span>{{ agent.capabilities.length }} capabilities</span>
+            </div>
+            <div class="meta-item" v-if="agent.version">
+              <ion-icon :icon="pricetagOutline" />
+              <span>v{{ agent.version }}</span>
+            </div>
+          </div>
+
+          <div class="agent-tags" v-if="agent.tags?.length">
+            <ion-chip size="small" v-for="tag in agent.tags.slice(0, 3)" :key="tag">
+              <ion-label>{{ tag }}</ion-label>
+            </ion-chip>
+            <span v-if="agent.tags.length > 3" class="more-tags">+{{ agent.tags.length - 3 }} more</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="empty-state" v-if="!loading && filteredAgents.length === 0">
+        <ion-icon :icon="alertCircleOutline" />
+        <h3>No Agents Found</h3>
+        <p v-if="searchQuery || typeFilter !== 'all'">Try adjusting your filters</p>
+        <p v-else>No agents have been configured yet</p>
+      </div>
+
+      <!-- Agent Detail Modal -->
+      <ion-modal :is-open="showDetailModal" @didDismiss="closeAgentDetail">
+        <ion-header>
+          <ion-toolbar>
+            <ion-title>{{ selectedAgent?.name }}</ion-title>
+            <ion-buttons slot="end">
+              <ion-button @click="closeAgentDetail">Close</ion-button>
+            </ion-buttons>
+          </ion-toolbar>
+        </ion-header>
+        <ion-content class="ion-padding" v-if="selectedAgent">
+          <div class="agent-detail">
+            <div class="detail-section">
+              <h4>Basic Information</h4>
+              <div class="detail-row">
+                <span class="detail-label">Slug</span>
+                <span class="detail-value mono">{{ selectedAgent.slug }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Type</span>
+                <ion-chip size="small" :color="getTypeColor(selectedAgent.agent_type)">
+                  <ion-label>{{ selectedAgent.agent_type }}</ion-label>
+                </ion-chip>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Department</span>
+                <span class="detail-value">{{ selectedAgent.department }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Version</span>
+                <span class="detail-value">{{ selectedAgent.version }}</span>
+              </div>
+            </div>
+
+            <div class="detail-section">
+              <h4>Description</h4>
+              <p>{{ selectedAgent.description }}</p>
+            </div>
+
+            <div class="detail-section" v-if="selectedAgent.capabilities?.length">
+              <h4>Capabilities</h4>
+              <div class="capabilities-list">
+                <ion-chip v-for="cap in selectedAgent.capabilities" :key="cap" color="primary">
+                  <ion-label>{{ cap }}</ion-label>
+                </ion-chip>
+              </div>
+            </div>
+
+            <div class="detail-section" v-if="selectedAgent.tags?.length">
+              <h4>Tags</h4>
+              <div class="tags-list">
+                <ion-chip v-for="tag in selectedAgent.tags" :key="tag" color="medium">
+                  <ion-label>{{ tag }}</ion-label>
+                </ion-chip>
+              </div>
+            </div>
+
+            <div class="detail-section" v-if="selectedAgent.llm_config">
+              <h4>LLM Configuration</h4>
+              <div class="detail-row">
+                <span class="detail-label">Provider</span>
+                <span class="detail-value">{{ selectedAgent.llm_config.provider }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Model</span>
+                <span class="detail-value mono">{{ selectedAgent.llm_config.model }}</span>
+              </div>
+              <div class="detail-row" v-if="selectedAgent.llm_config.parameters?.temperature">
+                <span class="detail-label">Temperature</span>
+                <span class="detail-value">{{ selectedAgent.llm_config.parameters.temperature }}</span>
+              </div>
+            </div>
+
+            <div class="detail-section" v-if="selectedAgent.endpoint">
+              <h4>Endpoint Configuration</h4>
+              <div class="detail-row">
+                <span class="detail-label">URL</span>
+                <span class="detail-value mono">{{ selectedAgent.endpoint.url }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Method</span>
+                <span class="detail-value">{{ selectedAgent.endpoint.method || 'POST' }}</span>
+              </div>
+            </div>
+
+            <div class="detail-section">
+              <h4>Timestamps</h4>
+              <div class="detail-row">
+                <span class="detail-label">Created</span>
+                <span class="detail-value">{{ formatDateTime(selectedAgent.created_at) }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Updated</span>
+                <span class="detail-value">{{ formatDateTime(selectedAgent.updated_at) }}</span>
+              </div>
+            </div>
+          </div>
+        </ion-content>
+      </ion-modal>
+
+      <ion-loading :is-open="loading" message="Loading agents..." />
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import {
-  IonPage,
   IonHeader,
   IonToolbar,
   IonTitle,
   IonContent,
   IonButtons,
   IonButton,
-  IonBackButton,
   IonIcon,
   IonChip,
   IonLabel,
@@ -263,11 +255,11 @@ interface Agent {
   tags: string[];
   capabilities: string[];
   context: string;
-  endpoint?: any;
-  llm_config?: any;
-  metadata?: any;
+  endpoint?: Record<string, unknown>;
+  llm_config?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
   organization_slug: string[];
-  io_schema: any;
+  io_schema: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
@@ -314,7 +306,8 @@ const fetchAgents = async () => {
   try {
     const response = await apiService.get('/agents');
     // Response could be { agents: [...] } or just array
-    agents.value = response?.agents || response || [];
+    const data = response as { agents?: Agent[] } | Agent[];
+    agents.value = Array.isArray(data) ? data : (data?.agents || []);
   } catch (error) {
     console.error('Failed to fetch agents:', error);
     agents.value = [];
@@ -378,10 +371,38 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.agents-admin-container {
+/* Detail View Container */
+.detail-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--ion-color-light-shade);
+  background: var(--ion-color-light);
+}
+
+.detail-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.detail-body {
+  flex: 1;
+  overflow-y: auto;
   padding: 1rem;
-  max-width: 1200px;
-  margin: 0 auto;
 }
 
 /* Stats Banner */

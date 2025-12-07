@@ -1,16 +1,19 @@
 <template>
-  <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-title>PII Pattern Management</ion-title>
-      </ion-toolbar>
-    </ion-header>
+  <div class="detail-view">
+    <!-- Detail Header -->
+    <div class="detail-header">
+      <h2>PII Pattern Management</h2>
+      <div class="header-actions">
+        <ion-button fill="clear" size="small" @click="handleCreatePattern">
+          <ion-icon :icon="addOutline" slot="icon-only" />
+        </ion-button>
+      </div>
+    </div>
 
-    <ion-content :fullscreen="true">
+    <div class="detail-body">
       <div class="pii-management-container">
         <!-- Page Header -->
         <div class="page-header">
-          <h1>PII Pattern Management</h1>
           <p>Manage patterns for detecting and handling personally identifiable information (PII)</p>
         </div>
 
@@ -28,20 +31,18 @@
           @saved="handlePatternSaved"
         />
       </div>
-    </ion-content>
-  </ion-page>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import {
-  IonPage,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonContent,
+  IonButton,
+  IonIcon,
   toastController
 } from '@ionic/vue';
+import { addOutline } from 'ionicons/icons';
 import PIIPatternTable from '@/components/PII/PIIPatternTable.vue';
 import PIIPatternEditor from '@/components/PII/PIIPatternEditor.vue';
 import type { PIIPattern } from '@/types/pii';
@@ -102,6 +103,39 @@ const handlePatternSaved = async (pattern: PIIPattern) => {
 </script>
 
 <style scoped>
+/* Detail View Container */
+.detail-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--ion-color-light-shade);
+  background: var(--ion-color-light);
+}
+
+.detail-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.detail-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
 .pii-management-container {
   padding: 1rem;
   max-width: 1200px;
@@ -109,18 +143,12 @@ const handlePatternSaved = async (pattern: PIIPattern) => {
 }
 
 .page-header {
-  margin-bottom: 2rem;
-  text-align: center;
-}
-
-.page-header h1 {
-  font-size: 2rem;
-  color: var(--ion-color-primary);
-  margin-bottom: 0.5rem;
+  margin-bottom: 1.5rem;
 }
 
 .page-header p {
   color: var(--ion-color-medium);
-  font-size: 1rem;
+  font-size: 0.95rem;
+  margin: 0;
 }
 </style>

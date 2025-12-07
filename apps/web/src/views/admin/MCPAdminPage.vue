@@ -1,20 +1,16 @@
 <template>
-  <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-back-button default-href="/app/admin/settings" />
-        </ion-buttons>
-        <ion-title>MCP Servers & Tools</ion-title>
-        <ion-buttons slot="end">
-          <ion-button fill="clear" @click="refreshData" :disabled="loading">
-            <ion-icon :icon="refreshOutline" slot="icon-only" />
-          </ion-button>
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
+  <div class="detail-view">
+    <!-- Detail Header -->
+    <div class="detail-header">
+      <h2>MCP Servers & Tools</h2>
+      <div class="header-actions">
+        <ion-button fill="clear" size="small" @click="refreshData" :disabled="loading">
+          <ion-icon :icon="refreshOutline" slot="icon-only" />
+        </ion-button>
+      </div>
+    </div>
 
-    <ion-content :fullscreen="true">
+    <div class="detail-body">
       <div class="mcp-admin-container">
         <!-- Status Banner -->
         <div class="status-banner" :class="mcpHealth.status">
@@ -196,26 +192,24 @@
 
         <ion-loading :is-open="loading" message="Loading MCP data..." />
       </div>
-    </ion-content>
-  </ion-page>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import {
-  IonPage,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonContent,
-  IonButtons,
   IonButton,
-  IonBackButton,
   IonIcon,
   IonChip,
   IonLabel,
   IonSearchbar,
   IonModal,
+  IonHeader,
+  IonToolbar,
+  IonTitle,
+  IonButtons,
+  IonContent,
   IonLoading,
 } from '@ionic/vue';
 import {
@@ -231,13 +225,18 @@ import {
 } from 'ionicons/icons';
 import { apiService } from '@/services/apiService';
 
+interface MCPToolProperty {
+  type?: string;
+  description?: string;
+}
+
 interface MCPTool {
   name: string;
   description: string;
   namespace: string;
   inputSchema?: {
     type: string;
-    properties?: Record<string, any>;
+    properties?: Record<string, MCPToolProperty>;
     required?: string[];
   };
 }
@@ -250,9 +249,18 @@ interface Namespace {
   toolCount: number;
 }
 
+interface MCPServerInfo {
+  protocolVersion?: string;
+  serverInfo?: {
+    name?: string;
+    version?: string;
+    description?: string;
+  };
+}
+
 // State
 const loading = ref(false);
-const serverInfo = ref<any>({});
+const serverInfo = ref<MCPServerInfo>({});
 const mcpHealth = ref<{ status: string; namespaceCount: number; toolCount: number }>({
   status: 'healthy',
   namespaceCount: 0,
@@ -328,7 +336,7 @@ const fetchTools = async () => {
     });
 
     const rawTools = response.result?.tools || [];
-    tools.value = rawTools.map((t: any) => ({
+    tools.value = rawTools.map((t: Omit<MCPTool, 'namespace'>) => ({
       ...t,
       namespace: t.name.split('/')[0] || 'unknown',
     }));
@@ -391,7 +399,7 @@ const getNamespaceType = (name: string) => {
 };
 
 const getNamespaceIcon = (name: string) => {
-  const icons: Record<string, any> = {
+  const icons: Record<string, string> = {
     supabase: databaseIcon,
     slack: chatbubbleOutline,
     notion: documentTextOutline,
@@ -422,8 +430,41 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.mcp-admin-container {
+/* Detail View Container */
+.detail-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--ion-color-light-shade);
+  background: var(--ion-color-light);
+}
+
+.detail-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.detail-body {
+  flex: 1;
+  overflow-y: auto;
   padding: 1rem;
+}
+
+.mcp-admin-container {
   max-width: 1200px;
   margin: 0 auto;
 }

@@ -1,20 +1,16 @@
 <template>
-  <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-menu-button />
-        </ion-buttons>
-        <ion-title>RAG Collections</ion-title>
-        <ion-buttons slot="end">
-          <ion-button @click="openCreateModal" v-permission="'rag:write'">
-            <ion-icon slot="icon-only" :icon="addOutline" />
-          </ion-button>
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
+  <div class="detail-view">
+    <!-- Detail Header -->
+    <div class="detail-header">
+      <h2>RAG Collections</h2>
+      <div class="header-actions">
+        <ion-button fill="clear" size="small" @click="openCreateModal" v-permission="'rag:write'">
+          <ion-icon :icon="addOutline" slot="icon-only" />
+        </ion-button>
+      </div>
+    </div>
 
-    <ion-content :fullscreen="true">
+    <div class="detail-body">
       <div class="rag-collections-container">
         <!-- Header Section -->
         <div class="page-header">
@@ -281,22 +277,15 @@
         @dismiss="showAccessControlModal = false"
         @save="handleAccessControlSave"
       />
-    </ion-content>
-  </ion-page>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  IonPage,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonContent,
-  IonButtons,
   IonButton,
-  IonMenuButton,
   IonIcon,
   IonCard,
   IonCardHeader,
@@ -310,6 +299,11 @@ import {
   IonLabel,
   IonSpinner,
   IonModal,
+  IonHeader,
+  IonToolbar,
+  IonTitle,
+  IonButtons,
+  IonContent,
   IonList,
   IonItem,
   IonInput,
@@ -548,6 +542,39 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* Detail View Container */
+.detail-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--ion-color-light-shade);
+  background: var(--ion-color-light);
+}
+
+.detail-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.detail-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
 .rag-collections-container {
   padding: 1rem;
   max-width: 1200px;

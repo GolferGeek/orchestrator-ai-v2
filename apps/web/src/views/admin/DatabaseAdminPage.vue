@@ -1,163 +1,150 @@
 <template>
-  <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-back-button default-href="/app/admin/settings" />
-        </ion-buttons>
-        <ion-title>Database Administration</ion-title>
-        <ion-buttons slot="end">
-          <ion-button fill="clear" @click="refreshData" :disabled="loading">
-            <ion-icon :icon="refreshOutline" slot="icon-only" />
-          </ion-button>
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
+  <div class="detail-view">
+    <!-- Detail Header -->
+    <div class="detail-header">
+      <h2>Database Administration</h2>
+      <div class="header-actions">
+        <ion-button fill="clear" size="small" @click="refreshData" :disabled="loading">
+          <ion-icon :icon="refreshOutline" slot="icon-only" />
+        </ion-button>
+      </div>
+    </div>
 
-    <ion-content :fullscreen="true">
-      <div class="database-admin-container">
-        <!-- Connection Status -->
-        <div class="status-banner" :class="connectionStatus.status">
-          <ion-icon :icon="connectionStatus.status === 'ok' ? checkmarkCircleOutline : alertCircleOutline" />
-          <div class="status-info">
-            <h3>{{ connectionStatus.status === 'ok' ? 'Database Connected' : 'Connection Issue' }}</h3>
-            <p>{{ connectionStatus.message }}</p>
-          </div>
-          <div class="status-meta" v-if="dbConfig">
-            <span class="meta-item">Mode: <strong>{{ dbConfig.mode }}</strong></span>
-            <span class="meta-item">Environment: <strong>{{ dbConfig.environment }}</strong></span>
+    <div class="detail-body">
+      <!-- Connection Status -->
+      <div class="status-banner" :class="connectionStatus.status">
+        <ion-icon :icon="connectionStatus.status === 'ok' ? checkmarkCircleOutline : alertCircleOutline" />
+        <div class="status-info">
+          <h3>{{ connectionStatus.status === 'ok' ? 'Database Connected' : 'Connection Issue' }}</h3>
+          <p>{{ connectionStatus.message }}</p>
+        </div>
+        <div class="status-meta" v-if="dbConfig">
+          <span class="meta-item">Mode: <strong>{{ dbConfig.mode }}</strong></span>
+          <span class="meta-item">Environment: <strong>{{ dbConfig.environment }}</strong></span>
+        </div>
+      </div>
+
+      <!-- Database Stats Grid -->
+      <div class="stats-grid" v-if="dbStats">
+        <div class="stat-card">
+          <ion-icon :icon="layersOutline" />
+          <div class="stat-content">
+            <span class="stat-value">{{ dbStats.tableCount }}</span>
+            <span class="stat-label">Tables</span>
           </div>
         </div>
-
-        <!-- Database Stats Grid -->
-        <div class="stats-grid" v-if="dbStats">
-          <div class="stat-card">
-            <ion-icon :icon="layersOutline" />
-            <div class="stat-content">
-              <span class="stat-value">{{ dbStats.tableCount }}</span>
-              <span class="stat-label">Tables</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <ion-icon :icon="gitBranchOutline" />
-            <div class="stat-content">
-              <span class="stat-value">{{ dbStats.migrationCount }}</span>
-              <span class="stat-label">Migrations</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <ion-icon :icon="peopleOutline" />
-            <div class="stat-content">
-              <span class="stat-value">{{ dbStats.userCount }}</span>
-              <span class="stat-label">Users</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <ion-icon :icon="chatbubblesOutline" />
-            <div class="stat-content">
-              <span class="stat-value">{{ dbStats.conversationCount }}</span>
-              <span class="stat-label">Conversations</span>
-            </div>
+        <div class="stat-card">
+          <ion-icon :icon="gitBranchOutline" />
+          <div class="stat-content">
+            <span class="stat-value">{{ dbStats.migrationCount }}</span>
+            <span class="stat-label">Migrations</span>
           </div>
         </div>
-
-        <!-- Tables Section -->
-        <div class="section">
-          <h3 class="section-title">
-            <ion-icon :icon="layersOutline" />
-            Database Tables
-          </h3>
-          <div class="tables-list" v-if="tables.length > 0">
-            <div class="table-item" v-for="table in tables" :key="table.name">
-              <div class="table-info">
-                <span class="table-name">{{ table.name }}</span>
-                <span class="table-schema">{{ table.schema }}</span>
-              </div>
-              <div class="table-stats">
-                <ion-chip size="small" color="primary">
-                  <ion-label>{{ table.rowCount }} rows</ion-label>
-                </ion-chip>
-              </div>
-            </div>
-          </div>
-          <div class="empty-state" v-else-if="!loading">
-            <p>No tables found</p>
+        <div class="stat-card">
+          <ion-icon :icon="peopleOutline" />
+          <div class="stat-content">
+            <span class="stat-value">{{ dbStats.userCount }}</span>
+            <span class="stat-label">Users</span>
           </div>
         </div>
+        <div class="stat-card">
+          <ion-icon :icon="chatbubblesOutline" />
+          <div class="stat-content">
+            <span class="stat-value">{{ dbStats.conversationCount }}</span>
+            <span class="stat-label">Conversations</span>
+          </div>
+        </div>
+      </div>
 
-        <!-- Recent Migrations Section -->
-        <div class="section">
-          <h3 class="section-title">
-            <ion-icon :icon="gitBranchOutline" />
-            Recent Migrations
-          </h3>
-          <div class="migrations-list" v-if="migrations.length > 0">
-            <div class="migration-item" v-for="migration in migrations" :key="migration.name">
-              <div class="migration-info">
-                <span class="migration-name">{{ migration.name }}</span>
-                <span class="migration-date">{{ formatDate(migration.executed_at) }}</span>
-              </div>
-              <ion-chip size="small" :color="migration.success ? 'success' : 'danger'">
-                <ion-label>{{ migration.success ? 'Applied' : 'Failed' }}</ion-label>
+      <!-- Tables Section -->
+      <div class="section">
+        <h3 class="section-title">
+          <ion-icon :icon="layersOutline" />
+          Database Tables
+        </h3>
+        <div class="tables-list" v-if="tables.length > 0">
+          <div class="table-item" v-for="table in tables" :key="table.name">
+            <div class="table-info">
+              <span class="table-name">{{ table.name }}</span>
+              <span class="table-schema">{{ table.schema }}</span>
+            </div>
+            <div class="table-stats">
+              <ion-chip size="small" color="primary">
+                <ion-label>{{ table.rowCount }} rows</ion-label>
               </ion-chip>
             </div>
           </div>
-          <div class="empty-state" v-else-if="!loading">
-            <p>No migration history available</p>
-          </div>
         </div>
-
-        <!-- Connection Details -->
-        <div class="section">
-          <h3 class="section-title">
-            <ion-icon :icon="settingsOutline" />
-            Connection Details
-          </h3>
-          <div class="connection-details" v-if="dbConfig">
-            <div class="detail-row">
-              <span class="detail-label">URL</span>
-              <span class="detail-value">{{ maskUrl(dbConfig.url) }}</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Database</span>
-              <span class="detail-value">{{ dbConfig.database || 'postgres' }}</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Anon Client</span>
-              <span class="detail-value">
-                <ion-chip size="small" :color="dbConfig.clientsAvailable?.anon ? 'success' : 'danger'">
-                  <ion-label>{{ dbConfig.clientsAvailable?.anon ? 'Available' : 'Unavailable' }}</ion-label>
-                </ion-chip>
-              </span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Service Client</span>
-              <span class="detail-value">
-                <ion-chip size="small" :color="dbConfig.clientsAvailable?.service ? 'success' : 'danger'">
-                  <ion-label>{{ dbConfig.clientsAvailable?.service ? 'Available' : 'Unavailable' }}</ion-label>
-                </ion-chip>
-              </span>
-            </div>
-          </div>
+        <div class="empty-state" v-else-if="!loading">
+          <p>No tables found</p>
         </div>
-
-        <ion-loading :is-open="loading" message="Loading database info..." />
       </div>
-    </ion-content>
-  </ion-page>
+
+      <!-- Recent Migrations Section -->
+      <div class="section">
+        <h3 class="section-title">
+          <ion-icon :icon="gitBranchOutline" />
+          Recent Migrations
+        </h3>
+        <div class="migrations-list" v-if="migrations.length > 0">
+          <div class="migration-item" v-for="migration in migrations" :key="migration.name">
+            <div class="migration-info">
+              <span class="migration-name">{{ migration.name }}</span>
+              <span class="migration-date">{{ formatDate(migration.executed_at) }}</span>
+            </div>
+            <ion-chip size="small" :color="migration.success ? 'success' : 'danger'">
+              <ion-label>{{ migration.success ? 'Applied' : 'Failed' }}</ion-label>
+            </ion-chip>
+          </div>
+        </div>
+        <div class="empty-state" v-else-if="!loading">
+          <p>No migration history available</p>
+        </div>
+      </div>
+
+      <!-- Connection Details -->
+      <div class="section">
+        <h3 class="section-title">
+          <ion-icon :icon="settingsOutline" />
+          Connection Details
+        </h3>
+        <div class="connection-details" v-if="dbConfig">
+          <div class="detail-row">
+            <span class="detail-label">URL</span>
+            <span class="detail-value">{{ maskUrl(dbConfig.url) }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Database</span>
+            <span class="detail-value">{{ dbConfig.database || 'postgres' }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Anon Client</span>
+            <span class="detail-value">
+              <ion-chip size="small" :color="dbConfig.clientsAvailable?.anon ? 'success' : 'danger'">
+                <ion-label>{{ dbConfig.clientsAvailable?.anon ? 'Available' : 'Unavailable' }}</ion-label>
+              </ion-chip>
+            </span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Service Client</span>
+            <span class="detail-value">
+              <ion-chip size="small" :color="dbConfig.clientsAvailable?.service ? 'success' : 'danger'">
+                <ion-label>{{ dbConfig.clientsAvailable?.service ? 'Available' : 'Unavailable' }}</ion-label>
+              </ion-chip>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <ion-loading :is-open="loading" message="Loading database info..." />
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import {
-  IonPage,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonContent,
-  IonButtons,
   IonButton,
-  IonBackButton,
   IonIcon,
   IonChip,
   IonLabel,
@@ -178,17 +165,17 @@ import { apiService } from '@/services/apiService';
 // State
 const loading = ref(false);
 const connectionStatus = ref<{ status: string; message: string }>({ status: 'ok', message: 'Connected' });
-const dbConfig = ref<any>(null);
-const dbStats = ref<any>(null);
-const tables = ref<any[]>([]);
-const migrations = ref<any[]>([]);
+const dbConfig = ref<Record<string, unknown> | null>(null);
+const dbStats = ref<Record<string, unknown> | null>(null);
+const tables = ref<Array<{ name: string; schema: string; rowCount: string }>>([]);
+const migrations = ref<Array<{ name: string; executed_at: string; success: boolean }>>([]);
 
 // Fetch data
 const fetchConnectionStatus = async () => {
   try {
     const response = await apiService.get('/health/db');
-    connectionStatus.value = response;
-  } catch (error) {
+    connectionStatus.value = response as { status: string; message: string };
+  } catch {
     connectionStatus.value = { status: 'error', message: 'Failed to connect to database' };
   }
 };
@@ -196,7 +183,7 @@ const fetchConnectionStatus = async () => {
 const fetchDbConfig = async () => {
   try {
     const response = await apiService.get('/health/supabase/config');
-    dbConfig.value = response;
+    dbConfig.value = response as Record<string, unknown>;
   } catch (error) {
     console.error('Failed to fetch DB config:', error);
   }
@@ -204,7 +191,6 @@ const fetchDbConfig = async () => {
 
 const fetchDbStats = async () => {
   try {
-    // Try to get stats from a dedicated endpoint, or build from available data
     const [usersResponse, conversationsResponse] = await Promise.allSettled([
       apiService.get('/admin/users'),
       apiService.get('/conversations'),
@@ -213,8 +199,8 @@ const fetchDbStats = async () => {
     dbStats.value = {
       tableCount: tables.value.length || 0,
       migrationCount: migrations.value.length || 0,
-      userCount: usersResponse.status === 'fulfilled' ? (usersResponse.value?.length || 0) : 0,
-      conversationCount: conversationsResponse.status === 'fulfilled' ? (conversationsResponse.value?.length || 0) : 0,
+      userCount: usersResponse.status === 'fulfilled' ? ((usersResponse.value as unknown[])?.length || 0) : 0,
+      conversationCount: conversationsResponse.status === 'fulfilled' ? ((conversationsResponse.value as unknown[])?.length || 0) : 0,
     };
   } catch (error) {
     console.error('Failed to fetch DB stats:', error);
@@ -224,8 +210,6 @@ const fetchDbStats = async () => {
 
 const fetchTables = async () => {
   try {
-    // This would need a backend endpoint - using placeholder data for now
-    // In production, create an endpoint that queries information_schema.tables
     tables.value = [
       { name: 'agents', schema: 'public', rowCount: '~' },
       { name: 'conversations', schema: 'public', rowCount: '~' },
@@ -245,7 +229,6 @@ const fetchTables = async () => {
 
 const fetchMigrations = async () => {
   try {
-    // This would need a backend endpoint - using placeholder based on migration files
     migrations.value = [
       { name: '20251205000001_add_ollama_cloud_models', executed_at: '2025-12-05', success: true },
       { name: '20250204000002_add_justin_and_nick_users', executed_at: '2025-02-04', success: true },
@@ -293,10 +276,38 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.database-admin-container {
+/* Detail View Container */
+.detail-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--ion-color-light-shade);
+  background: var(--ion-color-light);
+}
+
+.detail-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.detail-body {
+  flex: 1;
+  overflow-y: auto;
   padding: 1rem;
-  max-width: 1200px;
-  margin: 0 auto;
 }
 
 /* Status Banner */

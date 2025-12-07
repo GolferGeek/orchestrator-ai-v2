@@ -1,222 +1,214 @@
 <template>
-  <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-back-button default-href="/app/admin/settings" />
-        </ion-buttons>
-        <ion-title>Organizations</ion-title>
-        <ion-buttons slot="end">
-          <ion-button fill="clear" @click="openCreateModal">
-            <ion-icon :icon="addOutline" slot="icon-only" />
-          </ion-button>
-          <ion-button fill="clear" @click="refreshData" :disabled="loading">
-            <ion-icon :icon="refreshOutline" slot="icon-only" />
-          </ion-button>
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
-
-    <ion-content :fullscreen="true">
-      <div class="orgs-admin-container">
-        <!-- Stats Banner -->
-        <div class="stats-banner">
-          <div class="stat">
-            <span class="stat-value">{{ organizations.length }}</span>
-            <span class="stat-label">Total Organizations</span>
-          </div>
-        </div>
-
-        <!-- Search Bar and Actions -->
-        <div class="filter-bar">
-          <ion-searchbar
-            v-model="searchQuery"
-            placeholder="Search organizations..."
-            @ionInput="applyFilters"
-            debounce="300"
-          />
-          <ion-button @click="openCreateModal">
-            <ion-icon :icon="addOutline" slot="start" />
-            New Organization
-          </ion-button>
-        </div>
-
-        <!-- Organizations Table -->
-        <div class="table-container">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Slug</th>
-                <th>Name</th>
-                <th>Description</th>
-                <th>URL</th>
-                <th>Created</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="org in filteredOrganizations"
-                :key="org.slug"
-                @click="openDetailModal(org)"
-                class="clickable-row"
-              >
-                <td class="mono">{{ org.slug }}</td>
-                <td>{{ org.name }}</td>
-                <td>{{ truncateText(org.description, 50) }}</td>
-                <td>
-                  <a v-if="org.url" :href="org.url" target="_blank" @click.stop>{{ truncateText(org.url, 30) }}</a>
-                  <span v-else class="muted">-</span>
-                </td>
-                <td>{{ formatDateTime(org.created_at) }}</td>
-                <td class="actions-cell" @click.stop>
-                  <ion-button fill="clear" size="small" @click="openEditModal(org)">
-                    <ion-icon :icon="createOutline" slot="icon-only" />
-                  </ion-button>
-                  <ion-button fill="clear" size="small" color="danger" @click="confirmDelete(org)">
-                    <ion-icon :icon="trashOutline" slot="icon-only" />
-                  </ion-button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="empty-state" v-if="!loading && filteredOrganizations.length === 0">
-          <ion-icon :icon="businessOutline" />
-          <h3>No Organizations Found</h3>
-          <p v-if="searchQuery">Try adjusting your search</p>
-          <p v-else>Click the + button to create your first organization</p>
-        </div>
-
-        <!-- Create/Edit Modal -->
-        <ion-modal :is-open="showFormModal" @didDismiss="closeFormModal">
-          <ion-header>
-            <ion-toolbar>
-              <ion-title>{{ editingOrg ? 'Edit Organization' : 'Create Organization' }}</ion-title>
-              <ion-buttons slot="end">
-                <ion-button @click="closeFormModal">Cancel</ion-button>
-              </ion-buttons>
-            </ion-toolbar>
-          </ion-header>
-          <ion-content class="ion-padding">
-            <div class="form-container">
-              <ion-item v-if="!editingOrg">
-                <ion-label position="stacked">Slug *</ion-label>
-                <ion-input
-                  v-model="formData.slug"
-                  placeholder="my-organization"
-                  :disabled="!!editingOrg"
-                />
-              </ion-item>
-              <p class="hint" v-if="!editingOrg">Unique identifier, cannot be changed later</p>
-
-              <ion-item>
-                <ion-label position="stacked">Name *</ion-label>
-                <ion-input v-model="formData.name" placeholder="My Organization" />
-              </ion-item>
-
-              <ion-item>
-                <ion-label position="stacked">Description</ion-label>
-                <ion-textarea v-model="formData.description" placeholder="Optional description..." auto-grow />
-              </ion-item>
-
-              <ion-item>
-                <ion-label position="stacked">URL</ion-label>
-                <ion-input v-model="formData.url" placeholder="https://example.com" type="url" />
-              </ion-item>
-
-              <div class="form-actions">
-                <ion-button expand="block" :disabled="!isFormValid || saving" @click="saveOrganization">
-                  {{ saving ? 'Saving...' : (editingOrg ? 'Update' : 'Create') }}
-                </ion-button>
-              </div>
-            </div>
-          </ion-content>
-        </ion-modal>
-
-        <!-- Detail Modal -->
-        <ion-modal :is-open="showDetailModal" @didDismiss="closeDetailModal">
-          <ion-header>
-            <ion-toolbar>
-              <ion-title>{{ selectedOrg?.name }}</ion-title>
-              <ion-buttons slot="end">
-                <ion-button @click="closeDetailModal">Close</ion-button>
-              </ion-buttons>
-            </ion-toolbar>
-          </ion-header>
-          <ion-content class="ion-padding" v-if="selectedOrg">
-            <div class="org-detail">
-              <div class="detail-section">
-                <h4>Basic Information</h4>
-                <div class="detail-row">
-                  <span class="detail-label">Slug</span>
-                  <span class="detail-value mono">{{ selectedOrg.slug }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Name</span>
-                  <span class="detail-value">{{ selectedOrg.name }}</span>
-                </div>
-                <div class="detail-row" v-if="selectedOrg.description">
-                  <span class="detail-label">Description</span>
-                  <span class="detail-value">{{ selectedOrg.description }}</span>
-                </div>
-                <div class="detail-row" v-if="selectedOrg.url">
-                  <span class="detail-label">URL</span>
-                  <a :href="selectedOrg.url" target="_blank" class="detail-value">{{ selectedOrg.url }}</a>
-                </div>
-              </div>
-
-              <div class="detail-section" v-if="selectedOrg.settings && Object.keys(selectedOrg.settings).length > 0">
-                <h4>Settings</h4>
-                <pre class="settings-json">{{ JSON.stringify(selectedOrg.settings, null, 2) }}</pre>
-              </div>
-
-              <div class="detail-section">
-                <h4>Timestamps</h4>
-                <div class="detail-row">
-                  <span class="detail-label">Created</span>
-                  <span class="detail-value">{{ formatDateTime(selectedOrg.created_at) }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Updated</span>
-                  <span class="detail-value">{{ formatDateTime(selectedOrg.updated_at) }}</span>
-                </div>
-              </div>
-
-              <div class="detail-actions">
-                <ion-button expand="block" @click="openEditFromDetail">Edit Organization</ion-button>
-              </div>
-            </div>
-          </ion-content>
-        </ion-modal>
-
-        <!-- Delete Confirmation -->
-        <ion-alert
-          :is-open="showDeleteAlert"
-          header="Delete Organization"
-          :message="`Are you sure you want to delete '${orgToDelete?.name}'? This action cannot be undone.`"
-          :buttons="deleteAlertButtons"
-          @didDismiss="showDeleteAlert = false"
-        />
-
-        <ion-loading :is-open="loading" message="Loading organizations..." />
+  <div class="detail-view">
+    <!-- Detail Header -->
+    <div class="detail-header">
+      <h2>Organizations</h2>
+      <div class="header-actions">
+        <ion-button fill="clear" size="small" @click="openCreateModal">
+          <ion-icon :icon="addOutline" slot="icon-only" />
+        </ion-button>
+        <ion-button fill="clear" size="small" @click="refreshData" :disabled="loading">
+          <ion-icon :icon="refreshOutline" slot="icon-only" />
+        </ion-button>
       </div>
-    </ion-content>
-  </ion-page>
+    </div>
+
+    <div class="detail-body">
+      <!-- Stats Banner -->
+      <div class="stats-banner">
+        <div class="stat">
+          <span class="stat-value">{{ organizations.length }}</span>
+          <span class="stat-label">Total Organizations</span>
+        </div>
+      </div>
+
+      <!-- Search Bar and Actions -->
+      <div class="filter-bar">
+        <ion-searchbar
+          v-model="searchQuery"
+          placeholder="Search organizations..."
+          @ionInput="applyFilters"
+          debounce="300"
+        />
+        <ion-button @click="openCreateModal">
+          <ion-icon :icon="addOutline" slot="start" />
+          New Organization
+        </ion-button>
+      </div>
+
+      <!-- Organizations Table -->
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Slug</th>
+              <th>Name</th>
+              <th>Description</th>
+              <th>URL</th>
+              <th>Created</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="org in filteredOrganizations"
+              :key="org.slug"
+              @click="openDetailModal(org)"
+              class="clickable-row"
+            >
+              <td class="mono">{{ org.slug }}</td>
+              <td>{{ org.name }}</td>
+              <td>{{ truncateText(org.description, 50) }}</td>
+              <td>
+                <a v-if="org.url" :href="org.url" target="_blank" @click.stop>{{ truncateText(org.url, 30) }}</a>
+                <span v-else class="muted">-</span>
+              </td>
+              <td>{{ formatDateTime(org.created_at) }}</td>
+              <td class="actions-cell" @click.stop>
+                <ion-button fill="clear" size="small" @click="openEditModal(org)">
+                  <ion-icon :icon="createOutline" slot="icon-only" />
+                </ion-button>
+                <ion-button fill="clear" size="small" color="danger" @click="confirmDelete(org)">
+                  <ion-icon :icon="trashOutline" slot="icon-only" />
+                </ion-button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="empty-state" v-if="!loading && filteredOrganizations.length === 0">
+        <ion-icon :icon="businessOutline" />
+        <h3>No Organizations Found</h3>
+        <p v-if="searchQuery">Try adjusting your search</p>
+        <p v-else>Click the + button to create your first organization</p>
+      </div>
+
+      <!-- Create/Edit Modal -->
+      <ion-modal :is-open="showFormModal" @didDismiss="closeFormModal">
+        <ion-header>
+          <ion-toolbar>
+            <ion-title>{{ editingOrg ? 'Edit Organization' : 'Create Organization' }}</ion-title>
+            <ion-buttons slot="end">
+              <ion-button @click="closeFormModal">Cancel</ion-button>
+            </ion-buttons>
+          </ion-toolbar>
+        </ion-header>
+        <ion-content class="ion-padding">
+          <div class="form-container">
+            <ion-item v-if="!editingOrg">
+              <ion-label position="stacked">Slug *</ion-label>
+              <ion-input
+                v-model="formData.slug"
+                placeholder="my-organization"
+                :disabled="!!editingOrg"
+              />
+            </ion-item>
+            <p class="hint" v-if="!editingOrg">Unique identifier, cannot be changed later</p>
+
+            <ion-item>
+              <ion-label position="stacked">Name *</ion-label>
+              <ion-input v-model="formData.name" placeholder="My Organization" />
+            </ion-item>
+
+            <ion-item>
+              <ion-label position="stacked">Description</ion-label>
+              <ion-textarea v-model="formData.description" placeholder="Optional description..." auto-grow />
+            </ion-item>
+
+            <ion-item>
+              <ion-label position="stacked">URL</ion-label>
+              <ion-input v-model="formData.url" placeholder="https://example.com" type="url" />
+            </ion-item>
+
+            <div class="form-actions">
+              <ion-button expand="block" :disabled="!isFormValid || saving" @click="saveOrganization">
+                {{ saving ? 'Saving...' : (editingOrg ? 'Update' : 'Create') }}
+              </ion-button>
+            </div>
+          </div>
+        </ion-content>
+      </ion-modal>
+
+      <!-- Detail Modal -->
+      <ion-modal :is-open="showDetailModal" @didDismiss="closeDetailModal">
+        <ion-header>
+          <ion-toolbar>
+            <ion-title>{{ selectedOrg?.name }}</ion-title>
+            <ion-buttons slot="end">
+              <ion-button @click="closeDetailModal">Close</ion-button>
+            </ion-buttons>
+          </ion-toolbar>
+        </ion-header>
+        <ion-content class="ion-padding" v-if="selectedOrg">
+          <div class="org-detail">
+            <div class="detail-section">
+              <h4>Basic Information</h4>
+              <div class="detail-row">
+                <span class="detail-label">Slug</span>
+                <span class="detail-value mono">{{ selectedOrg.slug }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Name</span>
+                <span class="detail-value">{{ selectedOrg.name }}</span>
+              </div>
+              <div class="detail-row" v-if="selectedOrg.description">
+                <span class="detail-label">Description</span>
+                <span class="detail-value">{{ selectedOrg.description }}</span>
+              </div>
+              <div class="detail-row" v-if="selectedOrg.url">
+                <span class="detail-label">URL</span>
+                <a :href="selectedOrg.url" target="_blank" class="detail-value">{{ selectedOrg.url }}</a>
+              </div>
+            </div>
+
+            <div class="detail-section" v-if="selectedOrg.settings && Object.keys(selectedOrg.settings).length > 0">
+              <h4>Settings</h4>
+              <pre class="settings-json">{{ JSON.stringify(selectedOrg.settings, null, 2) }}</pre>
+            </div>
+
+            <div class="detail-section">
+              <h4>Timestamps</h4>
+              <div class="detail-row">
+                <span class="detail-label">Created</span>
+                <span class="detail-value">{{ formatDateTime(selectedOrg.created_at) }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Updated</span>
+                <span class="detail-value">{{ formatDateTime(selectedOrg.updated_at) }}</span>
+              </div>
+            </div>
+
+            <div class="detail-actions">
+              <ion-button expand="block" @click="openEditFromDetail">Edit Organization</ion-button>
+            </div>
+          </div>
+        </ion-content>
+      </ion-modal>
+
+      <!-- Delete Confirmation -->
+      <ion-alert
+        :is-open="showDeleteAlert"
+        header="Delete Organization"
+        :message="`Are you sure you want to delete '${orgToDelete?.name}'? This action cannot be undone.`"
+        :buttons="deleteAlertButtons"
+        @didDismiss="showDeleteAlert = false"
+      />
+
+      <ion-loading :is-open="loading" message="Loading organizations..." />
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import {
-  IonPage,
   IonHeader,
   IonToolbar,
   IonTitle,
   IonContent,
   IonButtons,
   IonButton,
-  IonBackButton,
   IonIcon,
   IonSearchbar,
   IonModal,
@@ -304,7 +296,7 @@ const fetchOrganizations = async () => {
   loading.value = true;
   try {
     const response = await apiService.get('/admin/organizations');
-    organizations.value = response || [];
+    organizations.value = (response as Organization[]) || [];
   } catch (error) {
     console.error('Failed to fetch organizations:', error);
     organizations.value = [];
@@ -475,10 +467,38 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.orgs-admin-container {
+/* Detail View Container */
+.detail-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--ion-color-light-shade);
+  background: var(--ion-color-light);
+}
+
+.detail-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.detail-body {
+  flex: 1;
+  overflow-y: auto;
   padding: 1rem;
-  max-width: 1200px;
-  margin: 0 auto;
 }
 
 /* Stats Banner */

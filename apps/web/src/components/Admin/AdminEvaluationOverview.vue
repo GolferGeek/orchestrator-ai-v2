@@ -240,7 +240,7 @@ import {
 import type { EvaluationAnalytics } from '@/types/analytics';
 
 interface Props {
-  analytics: EvaluationAnalytics;
+  analytics: EvaluationAnalytics | null;
   isLoading: boolean;
 }
 defineProps<Props>();

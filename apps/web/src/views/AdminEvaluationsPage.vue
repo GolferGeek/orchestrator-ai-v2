@@ -1,25 +1,22 @@
 <template>
-  <ion-page>
-    <ion-header :translucent="true">
-      <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-menu-button></ion-menu-button>
-        </ion-buttons>
-        <ion-title>Admin Evaluations</ion-title>
-        <ion-buttons slot="end">
-          <ion-button fill="clear" @click="toggleAutoRefresh" :color="autoRefreshEnabled ? 'primary' : 'medium'">
-            <ion-icon :icon="refreshOutline" slot="icon-only"></ion-icon>
-          </ion-button>
-          <ion-button fill="clear" @click="manualRefresh" :disabled="isLoading">
-            <ion-icon :icon="refreshOutline" slot="icon-only" :class="{ 'rotating': isLoading }"></ion-icon>
-          </ion-button>
-          <ion-button fill="clear" @click="showExportModal = true">
-            <ion-icon :icon="downloadOutline" slot="icon-only"></ion-icon>
-          </ion-button>
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
-    <ion-content :fullscreen="true" class="ion-padding">
+  <div class="detail-view">
+    <!-- Detail Header -->
+    <div class="detail-header">
+      <h2>Evaluations</h2>
+      <div class="header-actions">
+        <ion-button fill="clear" size="small" @click="toggleAutoRefresh" :color="autoRefreshEnabled ? 'primary' : 'medium'">
+          <ion-icon :icon="refreshOutline" slot="icon-only"></ion-icon>
+        </ion-button>
+        <ion-button fill="clear" size="small" @click="manualRefresh" :disabled="isLoading">
+          <ion-icon :icon="refreshOutline" slot="icon-only" :class="{ 'rotating': isLoading }"></ion-icon>
+        </ion-button>
+        <ion-button fill="clear" size="small" @click="showExportModal = true">
+          <ion-icon :icon="downloadOutline" slot="icon-only"></ion-icon>
+        </ion-button>
+      </div>
+    </div>
+
+    <div class="detail-body">
       <!-- Last Refresh Indicator -->
       <ion-item lines="none" class="refresh-indicator">
         <ion-icon :icon="refreshOutline" slot="start" size="small" color="medium"></ion-icon>
@@ -95,28 +92,22 @@
           </ion-button>
         </ion-card-content>
       </ion-card>
-    </ion-content>
+
     <!-- Export Modal -->
-    <AdminExportModal 
+    <AdminExportModal
       :is-open="showExportModal"
       @dismiss="showExportModal = false"
       @export="onExport"
     />
-  </ion-page>
+    </div>
+  </div>
 </template>
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, reactive, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
-  IonPage,
-  IonHeader,
-  IonToolbar,
-  IonButtons,
-  IonMenuButton,
-  IonTitle,
   IonButton,
   IonIcon,
-  IonContent,
   IonSegment,
   IonSegmentButton,
   IonLabel,
@@ -341,7 +332,37 @@ async function onExport(exportOptions: Record<string, unknown>) {
 }
 </script>
 <style scoped>
-.ion-padding {
+/* Detail View Container */
+.detail-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--ion-color-light-shade);
+  background: var(--ion-color-light);
+}
+
+.detail-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.detail-body {
+  flex: 1;
+  overflow-y: auto;
   padding: 16px;
 }
 ion-segment {

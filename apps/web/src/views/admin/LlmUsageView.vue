@@ -1,24 +1,21 @@
 <template>
-  <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-menu-button />
-        </ion-buttons>
-        <ion-title>LLM Usage Dashboard</ion-title>
-        <ion-buttons slot="end">
-          <ion-button 
-            fill="clear" 
-            @click="toggleAutoRefresh"
-            :color="autoRefreshEnabled ? 'success' : 'medium'"
-          >
-            <ion-icon :icon="autoRefreshEnabled ? refreshCircleOutline : refreshOutline" />
-          </ion-button>
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
+  <div class="detail-view">
+    <!-- Detail Header -->
+    <div class="detail-header">
+      <h2>LLM Usage Dashboard</h2>
+      <div class="header-actions">
+        <ion-button
+          fill="clear"
+          size="small"
+          @click="toggleAutoRefresh"
+          :color="autoRefreshEnabled ? 'success' : 'medium'"
+        >
+          <ion-icon :icon="autoRefreshEnabled ? refreshCircleOutline : refreshOutline" slot="icon-only" />
+        </ion-button>
+      </div>
+    </div>
 
-    <ion-content>
+    <div class="detail-body">
       <!-- Tab Navigation -->
       <ion-segment v-model="selectedTab" @ion-change="onTabChange">
         <ion-segment-button value="overview">
@@ -314,21 +311,14 @@
           </div>
         </div>
       </div>
-    </ion-content>
-  </ion-page>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import {
-  IonPage,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonContent,
-  IonButtons,
   IonButton,
-  IonMenuButton,
   IonIcon,
   IonSegment,
   IonSegmentButton,
@@ -522,6 +512,39 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* Detail View Container */
+.detail-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--ion-color-light-shade);
+  background: var(--ion-color-light);
+}
+
+.detail-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.detail-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
 .tab-content {
   padding: 0;
 }

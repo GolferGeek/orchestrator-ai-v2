@@ -1,20 +1,16 @@
 <template>
-  <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-back-button default-href="/app/admin/settings"></ion-back-button>
-        </ion-buttons>
-        <ion-title>Roles & Permissions</ion-title>
-        <ion-buttons slot="end">
-          <ion-button @click="refreshData">
-            <ion-icon :icon="refreshOutline"></ion-icon>
-          </ion-button>
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
+  <div class="detail-view">
+    <!-- Detail Header -->
+    <div class="detail-header">
+      <h2>Roles & Permissions</h2>
+      <div class="header-actions">
+        <ion-button fill="clear" size="small" @click="refreshData">
+          <ion-icon :icon="refreshOutline" slot="icon-only"></ion-icon>
+        </ion-button>
+      </div>
+    </div>
 
-    <ion-content class="ion-padding">
+    <div class="detail-body">
       <!-- Loading State -->
       <div v-if="loading" class="ion-text-center ion-padding">
         <ion-spinner></ion-spinner>
@@ -139,17 +135,17 @@
           </ion-card-content>
         </ion-card>
       </template>
-    </ion-content>
-  </ion-page>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import {
-  IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonCard,
+  IonCard,
   IonCardHeader, IonCardTitle, IonCardSubtitle, IonCardContent,
-  IonList, IonItem, IonLabel, IonIcon, IonButton, IonButtons,
-  IonBackButton, IonSpinner, IonBadge, IonAccordionGroup, IonAccordion,
+  IonList, IonItem, IonLabel, IonIcon, IonButton,
+  IonSpinner, IonBadge, IonAccordionGroup, IonAccordion,
   IonCheckbox, toastController
 } from '@ionic/vue';
 import {
@@ -329,6 +325,40 @@ function formatDate(dateStr: string): string {
 </script>
 
 <style scoped>
+/* Detail View Container */
+.detail-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--ion-color-light-shade);
+  background: var(--ion-color-light);
+}
+
+.detail-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.detail-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
 .section-icon {
   margin-right: 8px;
   vertical-align: middle;
