@@ -645,23 +645,29 @@ onMounted(async () => {
 }
 
 .nav-group {
-  margin-bottom: 0.75rem;
+  margin-bottom: 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 0.5rem;
+  border: 1px solid var(--ion-color-light-shade);
 }
 
 .nav-group-header {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
+  padding: 0.5rem 0.5rem 0.75rem;
   font-size: 0.7rem;
   font-weight: 700;
-  color: #888;
+  color: var(--ion-color-primary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--ion-color-light-shade);
+  margin-bottom: 0.5rem;
 }
 
 .nav-group-header ion-icon {
-  font-size: 0.9rem;
+  font-size: 1rem;
   color: var(--ion-color-primary);
 }
 
@@ -675,16 +681,19 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.6rem 0.75rem;
+  padding: 0.5rem 0.75rem;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.15s ease;
   font-size: 0.85rem;
   color: #444;
+  background: white;
+  min-height: 36px;
+  box-sizing: border-box;
 }
 
 .nav-item:hover {
-  background: var(--ion-color-light);
+  background: var(--ion-color-light-tint);
 }
 
 .nav-item.active {
@@ -710,6 +719,8 @@ onMounted(async () => {
   font-size: 0.6rem;
   --padding-start: 6px;
   --padding-end: 6px;
+  margin: 0;
+  flex-shrink: 0;
 }
 
 /* ============================================================================
