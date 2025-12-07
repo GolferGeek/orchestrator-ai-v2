@@ -114,21 +114,6 @@
               </ion-col>
               
               <ion-col size="12" size-md="6" size-lg="4">
-                <ion-card button @click="navigateTo('/app/admin/system-health')" class="action-card system-health" :class="{ 'health-warning': !systemHealth.healthy }">
-                  <ion-card-content>
-                    <div class="card-icon">
-                      <ion-icon :icon="systemHealth.healthy ? checkmarkCircleOutline : alertCircleOutline" />
-                    </div>
-                    <h3>System Health</h3>
-                    <p>{{ systemHealth.healthy ? 'All systems operational' : 'Issues detected' }}</p>
-                    <ion-chip :color="systemHealth.healthy ? 'success' : 'danger'" size="small">
-                      <ion-label>{{ systemHealth.healthy ? 'Healthy' : 'Warning' }}</ion-label>
-                    </ion-chip>
-                  </ion-card-content>
-                </ion-card>
-              </ion-col>
-
-              <ion-col size="12" size-md="6" size-lg="4">
                 <ion-card button @click="navigateTo('/app/admin/rag/collections')" class="action-card rag-collections">
                   <ion-card-content>
                     <div class="card-icon">
@@ -178,347 +163,297 @@
           </ion-grid>
         </div>
 
-        <!-- Privacy & Data Protection Settings -->
-        <div class="privacy-settings-section">
-          <h2>
-            <ion-icon :icon="lockClosedOutline" />
-            Privacy & Data Protection
-          </h2>
-          
-          <ion-card>
-            <ion-card-header>
-              <ion-card-title>Global Privacy Controls</ion-card-title>
-              <ion-card-subtitle>Configure system-wide privacy and data protection settings</ion-card-subtitle>
-            </ion-card-header>
-            
-            <ion-card-content>
-              <ion-grid>
-                <ion-row>
-                  <ion-col size="12" size-lg="6">
-                    <!-- PII Detection Settings -->
-                    <div class="setting-group">
-                      <h3>PII Detection & Sanitization</h3>
-                  
-                  <ion-item>
-                    <ion-label>
-                      <h3>Enable PII Detection</h3>
-                      <p>Automatically detect personally identifiable information</p>
-                    </ion-label>
-                    <ion-toggle
-                      v-model="privacySettings.enablePIIDetection"
-                      @ionChange="updatePrivacySetting('enablePIIDetection', $event.detail.checked)"
-                      :disabled="isUpdating"
-                    />
-                  </ion-item>
-                  
-                  <ion-item>
-                    <ion-label>
-                      <h3>Enable Redaction</h3>
-                      <p>Automatically redact sensitive information</p>
-                    </ion-label>
-                    <ion-toggle
-                      v-model="privacySettings.enableRedaction"
-                      @ionChange="updatePrivacySetting('enableRedaction', $event.detail.checked)"
-                      :disabled="isUpdating || !privacySettings.enablePIIDetection"
-                    />
-                  </ion-item>
-                  
-                  <ion-item>
-                    <ion-label>
-                      <h3>Enable Pseudonymization</h3>
-                      <p>Replace PII with pseudonyms for privacy</p>
-                    </ion-label>
-                    <ion-toggle
-                      v-model="privacySettings.enablePseudonymization"
-                      @ionChange="updatePrivacySetting('enablePseudonymization', $event.detail.checked)"
-                      :disabled="isUpdating || !privacySettings.enablePIIDetection"
-                    />
-                  </ion-item>
-                  
-                  <ion-item>
-                    <ion-label>
-                      <h3>Default Sanitization Level</h3>
-                      <p>Default protection level for new conversations</p>
-                    </ion-label>
-                    <ion-select
-                      v-model="privacySettings.defaultSanitizationLevel"
-                      interface="popover"
-                      @ionChange="updatePrivacySetting('defaultSanitizationLevel', $event.detail.value)"
-                      :disabled="isUpdating"
-                    >
-                      <ion-select-option value="none">None</ion-select-option>
-                      <ion-select-option value="basic">Basic</ion-select-option>
-                      <ion-select-option value="standard">Standard</ion-select-option>
-                      <ion-select-option value="strict">Strict</ion-select-option>
-                    </ion-select>
-                  </ion-item>
-                    </div>
-                  </ion-col>
-                  <ion-col size="12" size-lg="6">
-                    <!-- Data Classification Settings -->
-                    <div class="setting-group">
-                      <h3>Data Classification</h3>
-                  
-                  <ion-item>
-                    <ion-label>
-                      <h3>Auto-Classify Data</h3>
-                      <p>Automatically classify data sensitivity levels</p>
-                    </ion-label>
-                    <ion-toggle
-                      v-model="privacySettings.autoClassifyData"
-                      @ionChange="updatePrivacySetting('autoClassifyData', $event.detail.checked)"
-                      :disabled="isUpdating"
-                    />
-                  </ion-item>
-                  
-                  <ion-item>
-                    <ion-label>
-                      <h3>Default Classification</h3>
-                      <p>Default classification for unclassified data</p>
-                    </ion-label>
-                    <ion-select
-                      v-model="privacySettings.defaultClassification"
-                      interface="popover"
-                      @ionChange="updatePrivacySetting('defaultClassification', $event.detail.value)"
-                      :disabled="isUpdating"
-                    >
-                      <ion-select-option value="public">Public</ion-select-option>
-                      <ion-select-option value="internal">Internal</ion-select-option>
-                      <ion-select-option value="confidential">Confidential</ion-select-option>
-                      <ion-select-option value="restricted">Restricted</ion-select-option>
-                    </ion-select>
-                  </ion-item>
-                    </div>
-                  </ion-col>
-                </ion-row>
-                <ion-row>
-                  <ion-col size="12" size-lg="6">
-                    <!-- Compliance Settings -->
-                    <div class="setting-group">
-                      <h3>Compliance & Regulations</h3>
-                  
-                  <ion-item>
-                    <ion-label>
-                      <h3>GDPR Compliance Mode</h3>
-                      <p>Enable GDPR-specific privacy protections</p>
-                    </ion-label>
-                    <ion-toggle
-                      v-model="privacySettings.gdprCompliance"
-                      @ionChange="updatePrivacySetting('gdprCompliance', $event.detail.checked)"
-                      :disabled="isUpdating"
-                    />
-                  </ion-item>
-                  
-                  <ion-item>
-                    <ion-label>
-                      <h3>HIPAA Compliance Mode</h3>
-                      <p>Enable HIPAA-specific healthcare protections</p>
-                    </ion-label>
-                    <ion-toggle
-                      v-model="privacySettings.hipaaCompliance"
-                      @ionChange="updatePrivacySetting('hipaaCompliance', $event.detail.checked)"
-                      :disabled="isUpdating"
-                    />
-                  </ion-item>
-                  
-                  <ion-item>
-                    <ion-label>
-                      <h3>PCI DSS Compliance Mode</h3>
-                      <p>Enable PCI DSS payment data protections</p>
-                    </ion-label>
-                    <ion-toggle
-                      v-model="privacySettings.pciCompliance"
-                      @ionChange="updatePrivacySetting('pciCompliance', $event.detail.checked)"
-                      :disabled="isUpdating"
-                    />
-                  </ion-item>
-                    </div>
-                  </ion-col>
-                  <ion-col size="12" size-lg="6">
-                    <!-- Source Protection Settings -->
-                    <div class="setting-group">
-                      <h3>Source Protection</h3>
-                  
-                  <ion-item>
-                    <ion-label>
-                      <h3>Enable Source Blinding</h3>
-                      <p>Hide source information from external providers</p>
-                    </ion-label>
-                    <ion-toggle
-                      v-model="privacySettings.enableSourceBlinding"
-                      @ionChange="updatePrivacySetting('enableSourceBlinding', $event.detail.checked)"
-                      :disabled="isUpdating"
-                    />
-                  </ion-item>
-                  
-                  <ion-item>
-                    <ion-label>
-                      <h3>Send No-Train Headers</h3>
-                      <p>Request providers not to train on your data</p>
-                    </ion-label>
-                    <ion-toggle
-                      v-model="privacySettings.sendNoTrainHeaders"
-                      @ionChange="updatePrivacySetting('sendNoTrainHeaders', $event.detail.checked)"
-                      :disabled="isUpdating"
-                    />
-                  </ion-item>
-                  
-                  <ion-item>
-                    <ion-label>
-                      <h3>Custom User Agent</h3>
-                      <p>Use custom user agent for external requests</p>
-                    </ion-label>
-                    <ion-toggle
-                      v-model="privacySettings.useCustomUserAgent"
-                      @ionChange="updatePrivacySetting('useCustomUserAgent', $event.detail.checked)"
-                      :disabled="isUpdating"
-                    />
-                  </ion-item>
-                    </div>
-                  </ion-col>
-                </ion-row>
-              </ion-grid>
-            </ion-card-content>
-          </ion-card>
-        </div>
+        <!-- System Health Section -->
+        <div class="system-health-section">
+          <div class="section-header">
+            <h2>
+              <ion-icon :icon="hardwareChipOutline" />
+              System Health
+            </h2>
+            <ion-button fill="clear" size="small" @click="refreshSystemHealth" :disabled="healthLoading">
+              <ion-icon :icon="refreshOutline" />
+            </ion-button>
+          </div>
 
-        <!-- Audit & Logging Settings -->
-        <div class="audit-settings-section">
-          <h2>
-            <ion-icon :icon="documentTextOutline" />
-            Audit & Logging
-          </h2>
-          
-          <ion-card>
-            <ion-card-header>
-              <ion-card-title>Audit Trail Configuration</ion-card-title>
-              <ion-card-subtitle>Configure audit logging and compliance tracking</ion-card-subtitle>
-            </ion-card-header>
-            
+          <!-- Overall Status Banner -->
+          <ion-card :class="overallHealthy ? 'health-card-healthy' : 'health-card-warning'">
             <ion-card-content>
-              <ion-grid>
-                <ion-row>
-                  <ion-col size="12" size-lg="6">
-                    <div class="setting-group">
-                      <h3>Audit Logging</h3>
-                  
-                  <ion-item>
-                    <ion-label>
-                      <h3>Enable Audit Logging</h3>
-                      <p>Log all administrative actions and privacy operations</p>
-                    </ion-label>
-                    <ion-toggle
-                      v-model="auditSettings.enableAuditLogging"
-                      @ionChange="updateAuditSetting('enableAuditLogging', $event.detail.checked)"
-                      :disabled="isUpdating"
-                    />
-                  </ion-item>
-                  
-                  <ion-item>
-                    <ion-label>
-                      <h3>Log Privacy Operations</h3>
-                      <p>Log PII detection, redaction, and pseudonymization</p>
-                    </ion-label>
-                    <ion-toggle
-                      v-model="auditSettings.logPrivacyOperations"
-                      @ionChange="updateAuditSetting('logPrivacyOperations', $event.detail.checked)"
-                      :disabled="isUpdating || !auditSettings.enableAuditLogging"
-                    />
-                  </ion-item>
-                  
-                  <ion-item>
-                    <ion-label>
-                      <h3>Log Access Attempts</h3>
-                      <p>Log all admin panel access attempts</p>
-                    </ion-label>
-                    <ion-toggle
-                      v-model="auditSettings.logAccessAttempts"
-                      @ionChange="updateAuditSetting('logAccessAttempts', $event.detail.checked)"
-                      :disabled="isUpdating || !auditSettings.enableAuditLogging"
-                    />
-                  </ion-item>
-                  
-                  <ion-item>
-                    <ion-label>
-                      <h3>Audit Retention Period</h3>
-                      <p>How long to keep audit logs (days)</p>
-                    </ion-label>
-                    <ion-input
-                      v-model.number="auditSettings.retentionPeriodDays"
-                      type="number"
-                      min="30"
-                      max="2555"
-                      @ionBlur="updateAuditSetting('retentionPeriodDays', auditSettings.retentionPeriodDays)"
-                      :disabled="isUpdating"
-                    />
-                  </ion-item>
-                    </div>
-                  </ion-col>
-                </ion-row>
-              </ion-grid>
+              <div class="overall-status">
+                <div class="status-icon-large">
+                  <ion-icon :icon="overallHealthy ? checkmarkCircleOutline : alertCircleOutline" />
+                </div>
+                <div class="health-status-info">
+                  <h1>{{ overallHealthy ? 'All Systems Operational' : 'Issues Detected' }}</h1>
+                  <p>Last checked: {{ lastHealthChecked }}</p>
+                </div>
+              </div>
             </ion-card-content>
           </ion-card>
-        </div>
 
-        <!-- System Status -->
-        <div class="system-status-section">
-          <h2>
-            <ion-icon :icon="hardwareChipOutline" />
-            System Status
-          </h2>
-          
-          <ion-card>
-            <ion-card-content>
-              <ion-grid>
-                <ion-row>
-                  <ion-col size="12" size-md="6" size-lg="3">
-                    <div class="status-item">
-                  <div class="status-icon" :class="{ 'status-healthy': systemHealth.healthy }">
-                    <ion-icon :icon="systemHealth.healthy ? checkmarkCircleOutline : alertCircleOutline" />
-                  </div>
-                  <div class="status-info">
-                    <h3>System Health</h3>
-                    <p>{{ systemHealth.healthy ? 'All systems operational' : 'Issues detected' }}</p>
-                  </div>
-                    </div>
-                  </ion-col>
-                  <ion-col size="12" size-md="6" size-lg="3">
-                    <div class="status-item">
-                      <div class="status-icon status-info">
-                        <ion-icon :icon="peopleOutline" />
-                  </div>
-                  <div class="status-info">
-                    <h3>Active Users</h3>
-                    <p>{{ systemStats.activeUsers }} users online</p>
-                  </div>
-                    </div>
-                  </ion-col>
-                  <ion-col size="12" size-md="6" size-lg="3">
-                    <div class="status-item">
-                      <div class="status-icon status-info">
-                        <ion-icon :icon="chatbubblesOutline" />
-                  </div>
-                  <div class="status-info">
-                    <h3>Daily Conversations</h3>
-                    <p>{{ systemStats.dailyConversations }} conversations today</p>
-                  </div>
-                    </div>
-                  </ion-col>
-                  <ion-col size="12" size-md="6" size-lg="3">
-                    <div class="status-item">
-                      <div class="status-icon status-success">
-                        <ion-icon :icon="shieldCheckmarkOutline" />
+          <!-- Core Services Grid -->
+          <div class="services-section">
+            <h3>
+              <ion-icon :icon="hardwareChipOutline" />
+              Core Services
+            </h3>
+
+            <ion-grid>
+              <ion-row>
+                <!-- API Status -->
+                <ion-col size="12" size-md="6" size-lg="4">
+                  <ion-card class="service-card">
+                    <ion-card-content>
+                      <div class="service-header">
+                        <div class="service-icon">
+                          <ion-icon :icon="cloudOutline" />
+                        </div>
+                        <div class="service-details">
+                          <h4>API Service</h4>
+                          <ion-chip :color="getStatusColor(healthData?.services?.api)" size="small">
+                            <ion-label>{{ healthData?.services?.api || 'Unknown' }}</ion-label>
+                          </ion-chip>
+                        </div>
                       </div>
-                      <div class="status-info">
-                        <h3>Privacy Protection Rate</h3>
-                        <p>{{ systemStats.privacyProtectionRate }}% of data protected</p>
+                      <div class="service-metrics" v-if="healthData">
+                        <div class="metric">
+                          <span class="metric-label">System Uptime</span>
+                          <span class="metric-value">{{ formatUptime(healthData.uptime) }}</span>
+                        </div>
+                        <div class="metric">
+                          <span class="metric-label">Memory Usage</span>
+                          <span class="metric-value">{{ healthData.memory?.utilization }}%</span>
+                        </div>
+                        <div class="metric" v-if="healthData.system">
+                          <span class="metric-label">CPU Cores</span>
+                          <span class="metric-value">{{ healthData.system.cpuCores }}</span>
+                        </div>
                       </div>
-                    </div>
-                  </ion-col>
-                </ion-row>
-              </ion-grid>
-            </ion-card-content>
-          </ion-card>
+                    </ion-card-content>
+                  </ion-card>
+                </ion-col>
+
+                <!-- Database Status -->
+                <ion-col size="12" size-md="6" size-lg="4">
+                  <ion-card class="service-card">
+                    <ion-card-content>
+                      <div class="service-header">
+                        <div class="service-icon">
+                          <ion-icon :icon="serverOutline" />
+                        </div>
+                        <div class="service-details">
+                          <h4>Database</h4>
+                          <ion-chip :color="getStatusColor(healthData?.services?.database)" size="small">
+                            <ion-label>{{ healthData?.services?.database || 'Unknown' }}</ion-label>
+                          </ion-chip>
+                        </div>
+                      </div>
+                      <div class="service-metrics" v-if="dbHealthData">
+                        <div class="metric">
+                          <span class="metric-label">Connection</span>
+                          <span class="metric-value">{{ dbHealthData.status || 'Unknown' }}</span>
+                        </div>
+                      </div>
+                    </ion-card-content>
+                  </ion-card>
+                </ion-col>
+
+                <!-- Local Models Status -->
+                <ion-col size="12" size-md="6" size-lg="4">
+                  <ion-card class="service-card">
+                    <ion-card-content>
+                      <div class="service-header">
+                        <div class="service-icon">
+                          <ion-icon :icon="cubeOutline" />
+                        </div>
+                        <div class="service-details">
+                          <h4>Local Models</h4>
+                          <ion-chip :color="getLocalModelsColor()" size="small">
+                            <ion-label>{{ getLocalModelsStatus() }}</ion-label>
+                          </ion-chip>
+                        </div>
+                      </div>
+                      <div class="service-metrics" v-if="localModelStatusData">
+                        <div class="metric">
+                          <span class="metric-label">Ollama</span>
+                          <span class="metric-value">{{ localModelStatusData.connected ? 'Running' : 'Stopped' }}</span>
+                        </div>
+                        <div class="metric" v-if="localModelStatusData.version">
+                          <span class="metric-label">Version</span>
+                          <span class="metric-value">{{ localModelStatusData.version }}</span>
+                        </div>
+                        <div class="metric" v-if="localModelStatusData.models && localModelStatusData.models.length !== undefined">
+                          <span class="metric-label">Models Downloaded</span>
+                          <span class="metric-value">{{ localModelStatusData.models.length }}</span>
+                        </div>
+                      </div>
+                      <div class="service-metrics" v-else>
+                        <div class="metric">
+                          <span class="metric-label">Ollama</span>
+                          <span class="metric-value">Not Configured</span>
+                        </div>
+                      </div>
+                    </ion-card-content>
+                  </ion-card>
+                </ion-col>
+
+                <!-- Agents Status -->
+                <ion-col size="12" size-md="6" size-lg="4">
+                  <ion-card class="service-card">
+                    <ion-card-content>
+                      <div class="service-header">
+                        <div class="service-icon">
+                          <ion-icon :icon="peopleOutline" />
+                        </div>
+                        <div class="service-details">
+                          <h4>Agents</h4>
+                          <ion-chip :color="agentsHealthData.discoveredAgents > 0 ? 'success' : 'danger'" size="small">
+                            <ion-label>{{ agentsHealthData.discoveredAgents > 0 ? 'Available' : 'Unavailable' }}</ion-label>
+                          </ion-chip>
+                        </div>
+                      </div>
+                      <div class="service-metrics">
+                        <div class="metric">
+                          <span class="metric-label">Registered</span>
+                          <span class="metric-value">{{ agentsHealthData.discoveredAgents }}</span>
+                        </div>
+                        <div class="metric">
+                          <span class="metric-label">Running Instances</span>
+                          <span class="metric-value">{{ agentsHealthData.runningInstances }}</span>
+                        </div>
+                      </div>
+                    </ion-card-content>
+                  </ion-card>
+                </ion-col>
+
+                <!-- MCP Servers Status -->
+                <ion-col size="12" size-md="6" size-lg="4">
+                  <ion-card class="service-card">
+                    <ion-card-content>
+                      <div class="service-header">
+                        <div class="service-icon">
+                          <ion-icon :icon="extensionPuzzleOutline" />
+                        </div>
+                        <div class="service-details">
+                          <h4>MCP Servers</h4>
+                          <ion-chip color="primary" size="small">
+                            <ion-label>Active</ion-label>
+                          </ion-chip>
+                        </div>
+                      </div>
+                      <div class="service-metrics">
+                        <div class="metric">
+                          <span class="metric-label">Status</span>
+                          <span class="metric-value">Operational</span>
+                        </div>
+                      </div>
+                    </ion-card-content>
+                  </ion-card>
+                </ion-col>
+
+                <!-- Monitoring Status -->
+                <ion-col size="12" size-md="6" size-lg="4">
+                  <ion-card class="service-card">
+                    <ion-card-content>
+                      <div class="service-header">
+                        <div class="service-icon">
+                          <ion-icon :icon="pulseOutline" />
+                        </div>
+                        <div class="service-details">
+                          <h4>Monitoring</h4>
+                          <ion-chip :color="getMonitoringColor()" size="small">
+                            <ion-label>{{ getMonitoringStatus() }}</ion-label>
+                          </ion-chip>
+                        </div>
+                      </div>
+                      <div class="service-metrics" v-if="monitoringStatusData && monitoringStatusData.enabled">
+                        <div class="metric">
+                          <span class="metric-label">Active Monitors</span>
+                          <span class="metric-value">{{ monitoringStatusData.activeMonitors || 0 }}</span>
+                        </div>
+                      </div>
+                      <div class="service-metrics" v-else>
+                        <div class="metric">
+                          <span class="metric-label">Status</span>
+                          <span class="metric-value">Operational</span>
+                        </div>
+                      </div>
+                    </ion-card-content>
+                  </ion-card>
+                </ion-col>
+              </ion-row>
+            </ion-grid>
+          </div>
+
+          <!-- System Resources -->
+          <div class="resources-section" v-if="healthData">
+            <h3>
+              <ion-icon :icon="speedometerOutline" />
+              System Resources
+            </h3>
+
+            <ion-card>
+              <ion-card-content>
+                <ion-grid>
+                  <ion-row>
+                    <ion-col size="12" size-md="4">
+                      <div class="resource-item">
+                        <h4>System Memory</h4>
+                        <div class="resource-bar">
+                          <div
+                            class="resource-bar-fill"
+                            :style="{ width: healthData.memory?.utilization + '%', backgroundColor: getResourceColor(healthData.memory?.utilization) }"
+                          ></div>
+                        </div>
+                        <div class="resource-details">
+                          <span>{{ (healthData.memory?.used / 1024).toFixed(1) }} GB / {{ (healthData.memory?.total / 1024).toFixed(1) }} GB</span>
+                          <span>{{ healthData.memory?.utilization }}%</span>
+                        </div>
+                      </div>
+                    </ion-col>
+
+                    <ion-col size="12" size-md="4">
+                      <div class="resource-item">
+                        <h4>System Info</h4>
+                        <div class="resource-details">
+                          <span v-if="healthData.system">{{ healthData.system.cpuCores }} CPU Cores</span>
+                          <span v-if="healthData.system">{{ healthData.system.platform }}</span>
+                        </div>
+                      </div>
+                    </ion-col>
+
+                    <ion-col size="12" size-md="4">
+                      <div class="resource-item">
+                        <h4>System Uptime</h4>
+                        <div class="resource-details">
+                          <span>{{ formatUptime(healthData.uptime) }}</span>
+                        </div>
+                      </div>
+                    </ion-col>
+                  </ion-row>
+                </ion-grid>
+              </ion-card-content>
+            </ion-card>
+          </div>
+
+          <!-- Issues List -->
+          <div class="issues-section" v-if="healthIssues.length > 0">
+            <h3>
+              <ion-icon :icon="warningOutline" />
+              Issues Detected
+            </h3>
+
+            <ion-card v-for="issue in healthIssues" :key="issue.service" color="danger">
+              <ion-card-content>
+                <div class="issue-item">
+                  <ion-icon :icon="alertCircleOutline" />
+                  <div class="issue-details">
+                    <h4>{{ issue.service }}</h4>
+                    <p>{{ issue.message }}</p>
+                  </div>
+                </div>
+              </ion-card-content>
+            </ion-card>
+          </div>
         </div>
       </div>
     
@@ -676,13 +611,17 @@ import {
   libraryOutline,
   checkmarkCircleOutline,
   alertCircleOutline,
-  lockClosedOutline,
-  documentTextOutline,
   hardwareChipOutline,
   peopleOutline,
-  chatbubblesOutline,
   settingsOutline,
   serverOutline,
+  refreshOutline,
+  cloudOutline,
+  cubeOutline,
+  extensionPuzzleOutline,
+  pulseOutline,
+  speedometerOutline,
+  warningOutline,
 } from 'ionicons/icons';
 import { useAuthStore } from '@/stores/rbacStore';
 import { usePrivacyStore } from '@/stores/privacyStore';
@@ -849,30 +788,6 @@ async function saveModelConfig() {
   } finally { saving.value = false; }
 }
 
-// Reactive computed properties from stores (no mock data)
-const privacySettings = computed(() => ({
-  enablePIIDetection: privacyStore.patterns.filter(p => p.enabled).length > 0,
-  enableRedaction: privacyStore.dashboardData?.sanitizationMethods?.find(m => m.method === 'redaction')?.enabled || false,
-  enablePseudonymization: privacyStore.dashboardData?.sanitizationMethods?.find(m => m.method === 'pseudonymization')?.enabled || true,
-  defaultSanitizationLevel: 'standard', // TODO: Get from settings store when available
-  autoClassifyData: true,
-  defaultClassification: 'internal',
-  gdprCompliance: false, // TODO: Get from compliance store when available
-  hipaaCompliance: false,
-  pciCompliance: false,
-  enableSourceBlinding: true,
-  sendNoTrainHeaders: true,
-  useCustomUserAgent: true
-}));
-
-// Reactive computed properties from stores (no mock data)
-const auditSettings = computed(() => ({
-  enableAuditLogging: privacyStore.dashboardData?.systemHealth?.apiStatus === 'operational' || true,
-  logPrivacyOperations: true,
-  logAccessAttempts: true, // TODO: Get from audit store when available
-  retentionPeriodDays: 365 // TODO: Get from settings store when available
-}));
-
 // Reactive stats from stores (no mock data)
 const evaluationStats = computed(() => ({
   total: analyticsStore.evaluations?.length || 0,
@@ -901,151 +816,183 @@ const dictionaryStats = computed(() => ({
   activeWords: privacyStore.dictionaries.filter(d => d.isActive).reduce((sum, d) => sum + d.words.length, 0) || 0
 }));
 
-// System health state
-const actualSystemHealth = ref<any>(null);
+// ============================================================================
+// System Health State (from SystemHealthView)
+// ============================================================================
+const healthLoading = ref(false);
+const healthData = ref<any>(null);
+const dbHealthData = ref<any>(null);
+const localModelStatusData = ref<any>(null);
+const agentsHealthData = ref<any>({ discoveredAgents: 0, runningInstances: 0, agents: [] });
+const monitoringStatusData = ref<any>(null);
+const lastHealthChecked = ref('');
 
-const systemHealth = computed(() => {
-  if (actualSystemHealth.value) {
-    const apiHealthy = actualSystemHealth.value.services?.api === 'healthy';
-    const dbHealthy = actualSystemHealth.value.services?.database === 'healthy';
-    return {
-      healthy: apiHealthy && dbHealthy,
-      uptime: actualSystemHealth.value.uptime || 0,
-      issues: (apiHealthy ? 0 : 1) + (dbHealthy ? 0 : 1)
-    };
-  }
-  // Fallback to privacy store data if system health hasn't loaded yet
-  return {
-    healthy: privacyStore.dashboardData?.systemHealth?.apiStatus === 'operational' && privacyStore.dashboardData?.systemHealth?.dbStatus === 'operational',
-    uptime: privacyStore.dashboardData?.systemHealth?.uptime || 0,
-    issues: (privacyStore.dashboardData?.systemHealth?.apiStatus !== 'operational' ? 1 : 0) + (privacyStore.dashboardData?.systemHealth?.dbStatus !== 'operational' ? 1 : 0)
-  };
+// Overall health computed
+const overallHealthy = computed(() => {
+  if (!healthData.value) return false;
+  const apiHealthy = healthData.value.services?.api === 'healthy';
+  const dbHealthy = healthData.value.services?.database === 'healthy';
+  const localModelsOk = !localModelStatusData.value || localModelStatusData.value.connected !== false;
+  const agentsOk = agentsHealthData.value.discoveredAgents > 0;
+  const memoryOk = !healthData.value || healthData.value.memory?.utilization < 90;
+  return apiHealthy && dbHealthy && localModelsOk && agentsOk && memoryOk;
 });
 
-const systemStats = computed(() => ({
-  activeUsers: auth.users?.filter(u => u.isActive).length || 0,
-  dailyConversations: analyticsStore.dailyConversations || 0,
-  privacyProtectionRate: privacyStore.dashboardMetrics?.protectionRate || 0
-}));
-
-// Methods
-const navigateTo = (path: string) => {
-  router.push(path);
-};
-
-  const updatePrivacySetting = async (setting: string, _value: unknown) => {
-  if (isUpdating.value) return;
-  
-  isUpdating.value = true;
-  
-  try {
-    // In real app, this would call an API to update backend settings
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Show success toast
-    const toast = await toastController.create({
-      message: `Privacy setting updated: ${setting}`,
-      duration: 2000,
-      color: 'success',
-      position: 'bottom'
-    });
-    await toast.present();
-    
-  } catch (error) {
-    console.error('Error updating privacy setting:', error);
-    
-    // Revert the change
-    (privacySettings.value as Record<string, unknown>)[setting] = !(privacySettings.value as Record<string, unknown>)[setting];
-    
-    // Show error toast
-    const toast = await toastController.create({
-      message: 'Failed to update privacy setting',
-      duration: 3000,
-      color: 'danger',
-      position: 'bottom'
-    });
-    await toast.present();
-  } finally {
-    isUpdating.value = false;
+// Health issues computed
+const healthIssues = computed(() => {
+  const issuesList: Array<{ service: string; message: string }> = [];
+  if (healthData.value?.services?.api !== 'healthy') {
+    issuesList.push({ service: 'API Service', message: 'API service is not responding or unhealthy' });
   }
-};
-
-  const updateAuditSetting = async (setting: string, _value: unknown) => {
-  if (isUpdating.value) return;
-  
-  isUpdating.value = true;
-  
-  try {
-    // In real app, this would call an API to update backend settings
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Show success toast
-    const toast = await toastController.create({
-      message: `Audit setting updated: ${setting}`,
-      duration: 2000,
-      color: 'success',
-      position: 'bottom'
-    });
-    await toast.present();
-    
-  } catch (error) {
-    console.error('Error updating audit setting:', error);
-    
-    // Revert the change
-    (auditSettings.value as Record<string, unknown>)[setting] = !(auditSettings.value as Record<string, unknown>)[setting];
-    
-    // Show error toast
-    const toast = await toastController.create({
-      message: 'Failed to update audit setting',
-      duration: 3000,
-      color: 'danger',
-      position: 'bottom'
-    });
-    await toast.present();
-  } finally {
-    isUpdating.value = false;
+  if (healthData.value?.services?.database !== 'healthy') {
+    issuesList.push({ service: 'Database', message: 'Database connection is unavailable or unhealthy' });
   }
-};
-
-const _loadSettings = async () => {
-  try {
-    // In real app, this would load settings from API/environment variables
-    
-    // Load privacy settings from environment or API
-    // privacySettings.value = await api.getPrivacySettings();
-    // auditSettings.value = await api.getAuditSettings();
-    
-  } catch (error) {
-    console.error('Error loading settings:', error);
+  if (localModelStatusData.value && localModelStatusData.value.connected === false) {
+    issuesList.push({ service: 'Local Models', message: 'Ollama service is not running (local models unavailable)' });
   }
-};
-
-const _loadStats = async () => {
-  try {
-    // In real app, this would load stats from various APIs
-    
-    // Load stats from APIs
-    // evaluationStats.value = await api.getEvaluationStats();
-    // llmStats.value = await api.getLLMStats();
-    // etc.
-    
-  } catch (error) {
-    console.error('Error loading stats:', error);
+  if (agentsHealthData.value.discoveredAgents === 0) {
+    issuesList.push({ service: 'Agents', message: 'No agents are currently available' });
   }
+  if (healthData.value && healthData.value.memory?.utilization >= 90) {
+    const usedGB = (healthData.value.memory.used / 1024).toFixed(1);
+    const totalGB = (healthData.value.memory.total / 1024).toFixed(1);
+    issuesList.push({ service: 'System Memory', message: `High memory usage: ${healthData.value.memory.utilization}% (${usedGB} GB / ${totalGB} GB)` });
+  }
+  return issuesList;
+});
+
+// Health helper methods
+const getStatusColor = (status: string | undefined) => {
+  if (!status) return 'medium';
+  const s = status.toLowerCase();
+  if (s === 'healthy' || s === 'ok' || s === 'operational') return 'success';
+  if (s === 'unhealthy' || s === 'error') return 'danger';
+  return 'warning';
 };
 
-// Fetch actual system health
-const fetchSystemHealth = async () => {
+const getLocalModelsStatus = () => {
+  if (!localModelStatusData.value) return 'Not Configured';
+  if (localModelStatusData.value.connected) return 'Running';
+  if (localModelStatusData.value.connected === false) return 'Stopped';
+  return 'Not Configured';
+};
+
+const getLocalModelsColor = () => {
+  if (!localModelStatusData.value) return 'medium';
+  if (localModelStatusData.value.connected) return 'success';
+  if (localModelStatusData.value.connected === false) return 'warning';
+  return 'medium';
+};
+
+const getMonitoringStatus = () => {
+  if (!monitoringStatusData.value) return 'Active';
+  if (monitoringStatusData.value.enabled) return 'Active';
+  return 'Active';
+};
+
+const getMonitoringColor = () => {
+  if (!monitoringStatusData.value) return 'success';
+  if (monitoringStatusData.value.enabled !== false) return 'success';
+  return 'warning';
+};
+
+const getResourceColor = (utilization: number | undefined) => {
+  if (!utilization) return '#10dc60';
+  if (utilization < 60) return '#10dc60';
+  if (utilization < 80) return '#ffce00';
+  return '#f04141';
+};
+
+const formatUptime = (ms: number | undefined) => {
+  if (!ms) return 'N/A';
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  if (days > 0) return `${days}d ${hours % 24}h`;
+  if (hours > 0) return `${hours}h ${minutes % 60}m`;
+  if (minutes > 0) return `${minutes}m`;
+  return `${seconds}s`;
+};
+
+// Health fetch methods
+const fetchHealthData = async () => {
   try {
     const response = await apiService.get('/system/health');
-    actualSystemHealth.value = response;
+    healthData.value = response;
   } catch (error) {
     console.error('Failed to fetch system health:', error);
   }
+};
+
+const fetchDbHealth = async () => {
+  try {
+    const response = await apiService.get('/health/db');
+    dbHealthData.value = response;
+  } catch (error) {
+    console.error('Failed to fetch database health:', error);
+  }
+};
+
+const fetchLocalModelStatus = async () => {
+  try {
+    const response = await apiService.get('/llm/local-models/status');
+    localModelStatusData.value = response;
+  } catch (error) {
+    console.error('Failed to fetch local model status:', error);
+    localModelStatusData.value = null;
+  }
+};
+
+const fetchAgentsHealth = async () => {
+  try {
+    const response = await apiService.get('/agents');
+    if (response && typeof response === 'object') {
+      agentsHealthData.value = {
+        discoveredAgents: response.discoveredAgents || 0,
+        runningInstances: response.runningInstances || 0,
+        agents: response.agents || []
+      };
+    } else {
+      agentsHealthData.value = { discoveredAgents: 0, runningInstances: 0, agents: [] };
+    }
+  } catch (error) {
+    console.error('Failed to fetch agents:', error);
+    agentsHealthData.value = { discoveredAgents: 0, runningInstances: 0, agents: [] };
+  }
+};
+
+const fetchMonitoringStatus = async () => {
+  try {
+    const response = await apiService.get('/llm/production/monitoring/status');
+    monitoringStatusData.value = response;
+  } catch (error) {
+    console.error('Failed to fetch monitoring status:', error);
+    monitoringStatusData.value = { enabled: true, activeMonitors: 0 };
+  }
+};
+
+const refreshSystemHealth = async () => {
+  healthLoading.value = true;
+  try {
+    await Promise.all([
+      fetchHealthData(),
+      fetchDbHealth(),
+      fetchLocalModelStatus(),
+      fetchAgentsHealth(),
+      fetchMonitoringStatus(),
+    ]);
+    lastHealthChecked.value = new Date().toLocaleString();
+  } finally {
+    healthLoading.value = false;
+  }
+};
+
+// ============================================================================
+// Methods
+// ============================================================================
+const navigateTo = (path: string) => {
+  router.push(path);
 };
 
 // Lifecycle - Initialize all stores for reactive data
@@ -1054,7 +1001,7 @@ onMounted(async () => {
     await Promise.all([
       llmAnalyticsStore.initialize(),
       analyticsStore.initialize?.() || Promise.resolve(),
-      fetchSystemHealth()
+      refreshSystemHealth()
     ]);
     await loadGlobalModelConfig();
   } catch (error) {
@@ -1086,21 +1033,28 @@ onMounted(async () => {
 }
 
 .quick-actions-section,
-.privacy-settings-section,
-.audit-settings-section,
-.system-status-section {
+.system-health-section {
   margin-bottom: 3rem;
 }
 
 .quick-actions-section h2,
-.privacy-settings-section h2,
-.audit-settings-section h2,
-.system-status-section h2 {
+.system-health-section h2 {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   color: var(--ion-color-primary);
   margin-bottom: 1rem;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.section-header h2 {
+  margin: 0;
 }
 
 .action-card {
@@ -1232,16 +1186,191 @@ onMounted(async () => {
   margin-top: 16px;
 }
 
+/* ============================================================================
+   System Health Section Styles
+   ============================================================================ */
+
+.health-card-healthy {
+  background: linear-gradient(135deg, var(--ion-color-success-tint), var(--ion-color-success));
+  color: white;
+}
+
+.health-card-warning {
+  background: linear-gradient(135deg, var(--ion-color-danger-tint), var(--ion-color-danger));
+  color: white;
+}
+
+.overall-status {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.status-icon-large {
+  font-size: 4rem;
+}
+
+.status-icon-large ion-icon {
+  font-size: 4rem;
+}
+
+.health-status-info h1 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.75rem;
+}
+
+.health-status-info p {
+  margin: 0;
+  opacity: 0.9;
+}
+
+.services-section,
+.resources-section,
+.issues-section {
+  margin-top: 2rem;
+}
+
+.services-section h3,
+.resources-section h3,
+.issues-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--ion-color-primary);
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+}
+
+.service-card {
+  height: 100%;
+}
+
+.service-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.service-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--ion-color-primary-tint);
+}
+
+.service-icon ion-icon {
+  font-size: 1.5rem;
+  color: var(--ion-color-primary);
+}
+
+.service-details {
+  flex: 1;
+}
+
+.service-details h4 {
+  margin: 0 0 0.5rem 0;
+  color: var(--ion-color-primary);
+}
+
+.service-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.metric {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem;
+  background: var(--ion-color-light);
+  border-radius: 8px;
+}
+
+.metric-label {
+  color: var(--ion-color-medium);
+  font-size: 0.9rem;
+}
+
+.metric-value {
+  font-weight: 600;
+  color: var(--ion-color-primary);
+}
+
+.resource-item {
+  padding: 1rem;
+}
+
+.resource-item h4 {
+  margin: 0 0 1rem 0;
+  color: var(--ion-color-primary);
+}
+
+.resource-bar {
+  width: 100%;
+  height: 24px;
+  background: var(--ion-color-light);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.resource-bar-fill {
+  height: 100%;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.resource-details {
+  display: flex;
+  justify-content: space-between;
+  color: var(--ion-color-medium);
+  font-size: 0.9rem;
+}
+
+.issue-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.issue-item ion-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.issue-details h4 {
+  margin: 0 0 0.25rem 0;
+  color: white;
+}
+
+.issue-details p {
+  margin: 0;
+  color: white;
+  opacity: 0.9;
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
   .admin-settings-container {
     padding: 0.5rem;
   }
-  
+
   /* Responsive handled by Ionic grid */
-  
+
   .setting-group {
     padding: 1rem;
+  }
+
+  .overall-status {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .health-status-info h1 {
+    font-size: 1.5rem;
   }
 }
 </style>
