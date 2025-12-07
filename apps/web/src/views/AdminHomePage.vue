@@ -19,14 +19,6 @@
             <ion-icon :icon="analyticsOutline" slot="start"></ion-icon>
             <ion-label>LLM Usage Analytics</ion-label>
           </ion-item>
-          <ion-item button router-link="/app/admin/data-sanitization">
-            <ion-icon :icon="shieldCheckmarkOutline" slot="start"></ion-icon>
-            <ion-label>Data Sanitization</ion-label>
-          </ion-item>
-          <ion-item button router-link="/app/admin/audit">
-            <ion-icon :icon="documentTextOutline" slot="start"></ion-icon>
-            <ion-label>Audit Dashboard</ion-label>
-          </ion-item>
         </ion-list>
       </div>
     </ion-content>
@@ -45,11 +37,9 @@ import {
   IonLabel, 
   IonIcon 
 } from '@ionic/vue';
-import { 
-  settingsOutline, 
-  analyticsOutline, 
-  shieldCheckmarkOutline, 
-  documentTextOutline 
+import {
+  settingsOutline,
+  analyticsOutline
 } from 'ionicons/icons';
 </script>
 

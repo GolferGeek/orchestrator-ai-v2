@@ -75,29 +75,6 @@
                         <ion-icon aria-hidden="true" :icon="settingsOutline" slot="start"></ion-icon>
                         <ion-label>Admin Settings</ion-label>
                       </ion-item>
-                      <ion-item 
-                        v-if="auth.hasAdminAccess"
-                        :button="true"
-                        lines="none" 
-                        :detail="false"
-                        @click="$router.push('/app/admin/audit')"
-                        :class="{ 'selected': $route.path === '/app/admin/audit' }"
-                      >
-                        <ion-icon aria-hidden="true" :icon="shieldCheckmarkOutline" slot="start"></ion-icon>
-                        <ion-label>Audit Dashboard</ion-label>
-                      </ion-item>
-                      
-                      <ion-item 
-                        v-if="auth.hasAdminAccess"
-                        :button="true"
-                        lines="none" 
-                        :detail="false"
-                        @click="$router.push('/app/admin/data-sanitization')"
-                        :class="{ 'selected': $route.path.includes('/app/admin/data-sanitization') || $route.path.includes('/app/admin/pii-') || $route.path.includes('/app/admin/pseudonym-') }"
-                      >
-                        <ion-icon aria-hidden="true" :icon="shieldCheckmarkOutline" slot="start"></ion-icon>
-                        <ion-label>Data Sanitization</ion-label>
-                      </ion-item>
                       <ion-menu-toggle v-if="auth.hasEvaluationAccess">
                         <ion-item 
                           :button="true"

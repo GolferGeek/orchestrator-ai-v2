@@ -104,17 +104,6 @@ const routes: Array<RouteRecordRaw> = [
         meta: { requiresAuth: true }
       },
       {
-        path: 'admin/data-sanitization',
-        name: 'DataSanitization',
-        component: () => import('../views/admin/DataSanitizationPage.vue'),
-        meta: {
-          requiresAuth: true,
-          requiresPermission: 'admin:settings',
-          title: 'Data Sanitization Dashboard',
-          description: 'Manage PII detection, pseudonymization, and data protection policies'
-        }
-      },
-      {
         path: 'admin/pii-patterns',
         name: 'PIIManagement',
         component: () => import('../views/PIIManagementPage.vue'),
