@@ -82,10 +82,10 @@ export class ProvidersService {
 
     const client = this.supabaseService.getServiceClient();
 
-    // First get providers
+    // First get providers (include is_active for admin purposes)
     let providerQuery = client
       .from(getTableName('llm_providers'))
-      .select('name, display_name, is_local')
+      .select('name, display_name, is_local, is_active')
       .order('name');
 
     if (status) {
@@ -116,14 +116,15 @@ export class ProvidersService {
         name: string;
         display_name?: string;
         is_local?: boolean;
+        is_active?: boolean;
       };
       const providerName = typedProvider.name;
 
+      // Get all models for admin purposes (include model_tier, context_window)
       let modelQuery = client
         .from(getTableName('llm_models'))
-        .select('provider_name, model_name, display_name, is_active')
+        .select('provider_name, model_name, display_name, is_active, model_tier, context_window')
         .eq('provider_name', providerName)
-        .eq('is_active', true)
         .order('display_name');
 
       const { data: models, error: modelError } = await modelQuery;
@@ -140,17 +141,23 @@ export class ProvidersService {
         name: providerName,
         display_name: typedProvider.display_name,
         is_local: typedProvider.is_local,
+        is_active: typedProvider.is_active,
         models: (models || []).map((model) => {
           const typedModel = model as {
             provider_name: string;
             model_name: string;
             display_name: string;
             is_active: boolean;
+            model_tier?: string;
+            context_window?: number;
           };
           return {
             providerName: typedModel.provider_name,
             modelName: typedModel.model_name,
             displayName: typedModel.display_name,
+            is_active: typedModel.is_active,
+            model_tier: typedModel.model_tier,
+            context_window: typedModel.context_window,
           };
         }),
       });

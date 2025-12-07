@@ -5,454 +5,249 @@
         <ion-buttons slot="start">
           <ion-menu-button />
         </ion-buttons>
-        <ion-title>Admin Settings</ion-title>
+        <ion-title>Admin Dashboard</ion-title>
+        <ion-buttons slot="end">
+          <ion-button fill="clear" size="small" @click="refreshSystemHealth" :disabled="healthLoading">
+            <ion-icon :icon="refreshOutline" slot="icon-only" />
+          </ion-button>
+        </ion-buttons>
       </ion-toolbar>
     </ion-header>
-    
+
     <ion-content :fullscreen="true">
-      <div class="admin-settings-container">
-        <!-- Header Section -->
-        <div class="settings-header">
-          <h1>System Administration</h1>
-          <p>Manage privacy settings, system configuration, and access controls</p>
+      <div class="dashboard-container">
+        <!-- Health Status Bar -->
+        <div class="health-status-bar" :class="overallHealthy ? 'healthy' : 'warning'">
+          <div class="health-status-content">
+            <ion-icon :icon="overallHealthy ? checkmarkCircleOutline : alertCircleOutline" />
+            <span class="health-text">{{ overallHealthy ? 'All Systems Operational' : 'Issues Detected' }}</span>
+            <span class="health-time">{{ lastHealthChecked }}</span>
+          </div>
+          <div class="quick-stats" v-if="healthData">
+            <div class="stat">
+              <span class="stat-value">{{ formatUptime(healthData.uptime) }}</span>
+              <span class="stat-label">Uptime</span>
+            </div>
+            <div class="stat">
+              <span class="stat-value">{{ healthData.memory?.utilization }}%</span>
+              <span class="stat-label">Memory</span>
+            </div>
+            <div class="stat">
+              <span class="stat-value">{{ agentsHealthData.discoveredAgents }}</span>
+              <span class="stat-label">Agents</span>
+            </div>
+          </div>
         </div>
 
-        <!-- Quick Actions Grid -->
-        <div class="quick-actions-section">
-          <h2>Quick Actions</h2>
-          <ion-grid>
-            <ion-row>
-              <ion-col size="12" size-md="6" size-lg="4">
-                <ion-card button @click="navigateTo('/app/admin/evaluations')" class="action-card evaluations">
-                  <ion-card-content>
-                    <div class="card-icon">
-                      <ion-icon :icon="analyticsOutline" />
-                    </div>
-                    <h3>Admin Evaluations</h3>
-                    <p>View and manage all user evaluations</p>
-                    <ion-chip color="primary" size="small">
-                      <ion-label>{{ evaluationStats.total }} total</ion-label>
-                    </ion-chip>
-                  </ion-card-content>
-                </ion-card>
-              </ion-col>
-              
-              <ion-col size="12" size-md="6" size-lg="4">
-                <ion-card button @click="navigateTo('/app/admin/llm-usage')" class="action-card llm-usage">
-                  <ion-card-content>
-                    <div class="card-icon">
-                      <ion-icon :icon="barChartOutline" />
-                    </div>
-                    <h3>LLM Usage Analytics</h3>
-                    <p>Monitor AI model usage and costs</p>
-                    <ion-chip color="success" size="small">
-                      <ion-label>${{ llmStats.totalCost.toFixed(2) }} today</ion-label>
-                    </ion-chip>
-                  </ion-card-content>
-                </ion-card>
-              </ion-col>
-              
-              <ion-col size="12" size-md="6" size-lg="4">
-                <ion-card button @click="navigateTo('/app/admin/pii-patterns')" class="action-card pii-patterns">
-                  <ion-card-content>
-                    <div class="card-icon">
-                      <ion-icon :icon="shieldCheckmarkOutline" />
-                    </div>
-                    <h3>PII Patterns</h3>
-                    <p>Manage PII detection patterns</p>
-                    <ion-chip color="warning" size="small">
-                      <ion-label>{{ piiStats.patterns }} patterns</ion-label>
-                    </ion-chip>
-                  </ion-card-content>
-                </ion-card>
-              </ion-col>
-              
-              <ion-col size="12" size-md="6" size-lg="4">
-                <ion-card button @click="navigateTo('/app/admin/pii-testing')" class="action-card pii-testing">
-                  <ion-card-content>
-                    <div class="card-icon">
-                      <ion-icon :icon="flaskOutline" />
-                    </div>
-                    <h3>PII Testing</h3>
-                    <p>Test PII detection in real-time</p>
-                    <ion-chip color="tertiary" size="small">
-                      <ion-label>Live Testing</ion-label>
-                    </ion-chip>
-                  </ion-card-content>
-                </ion-card>
-              </ion-col>
-              
-              <ion-col size="12" size-md="6" size-lg="4">
-                <ion-card button @click="navigateTo('/app/admin/pseudonym-dictionary')" class="action-card dictionary">
-                  <ion-card-content>
-                    <div class="card-icon">
-                      <ion-icon :icon="libraryOutline" />
-                    </div>
-                    <h3>Pseudonym Dictionary</h3>
-                    <p>Manage replacement dictionaries</p>
-                    <ion-chip color="secondary" size="small">
-                      <ion-label>{{ dictionaryStats.dictionaries }} dictionaries</ion-label>
-                    </ion-chip>
-                  </ion-card-content>
-                </ion-card>
-              </ion-col>
-
-              <!-- Maintain Default Models Card -->
-              <ion-col size="12" size-md="6" size-lg="4">
-                <ion-card class="action-card default-models" button @click="openModelConfigModal">
-                  <ion-card-content>
-                    <div class="card-icon">
-                      <ion-icon :icon="settingsOutline" />
-                    </div>
-                    <h3>Maintain Default Models</h3>
-                    <p>View or update global default model configuration</p>
-                    <ion-chip :color="envOverrideActive ? 'warning' : 'primary'" size="small">
-                      <ion-label>{{ envOverrideActive ? 'Env Override Active' : 'DB Backed' }}</ion-label>
-                    </ion-chip>
-                  </ion-card-content>
-                </ion-card>
-              </ion-col>
-              
-              <ion-col size="12" size-md="6" size-lg="4">
-                <ion-card button @click="navigateTo('/app/admin/rag/collections')" class="action-card rag-collections">
-                  <ion-card-content>
-                    <div class="card-icon">
-                      <ion-icon :icon="serverOutline" />
-                    </div>
-                    <h3>RAG Collections</h3>
-                    <p>Manage knowledge base collections</p>
-                    <ion-chip color="tertiary" size="small">
-                      <ion-label>Knowledge Base</ion-label>
-                    </ion-chip>
-                  </ion-card-content>
-                </ion-card>
-              </ion-col>
-
-              <!-- User Management Card -->
-              <ion-col size="12" size-md="6" size-lg="4" v-permission="'admin:users'">
-                <ion-card button @click="navigateTo('/app/admin/users')" class="action-card user-management">
-                  <ion-card-content>
-                    <div class="card-icon">
-                      <ion-icon :icon="peopleOutline" />
-                    </div>
-                    <h3>User Management</h3>
-                    <p>Manage users and role assignments</p>
-                    <ion-chip color="primary" size="small">
-                      <ion-label>RBAC</ion-label>
-                    </ion-chip>
-                  </ion-card-content>
-                </ion-card>
-              </ion-col>
-
-              <!-- Role Management Card -->
-              <ion-col size="12" size-md="6" size-lg="4" v-permission="'admin:roles'">
-                <ion-card button @click="navigateTo('/app/admin/roles')" class="action-card role-management">
-                  <ion-card-content>
-                    <div class="card-icon">
-                      <ion-icon :icon="shieldOutline" />
-                    </div>
-                    <h3>Roles & Permissions</h3>
-                    <p>View and configure system roles</p>
-                    <ion-chip color="warning" size="small">
-                      <ion-label>RBAC</ion-label>
-                    </ion-chip>
-                  </ion-card-content>
-                </ion-card>
-              </ion-col>
-            </ion-row>
-          </ion-grid>
-        </div>
-
-        <!-- System Health Section -->
-        <div class="system-health-section">
-          <div class="section-header">
-            <h2>
-              <ion-icon :icon="hardwareChipOutline" />
-              System Health
-            </h2>
-            <ion-button fill="clear" size="small" @click="refreshSystemHealth" :disabled="healthLoading">
-              <ion-icon :icon="refreshOutline" />
-            </ion-button>
+        <!-- Quick Actions Grid - Compact Cards -->
+        <div class="quick-actions-grid">
+          <div class="action-tile" @click="navigateTo('/app/admin/evaluations')">
+            <div class="tile-icon"><ion-icon :icon="analyticsOutline" /></div>
+            <div class="tile-content">
+              <h4>Evaluations</h4>
+              <ion-chip color="primary" size="small"><ion-label>{{ evaluationStats.total }}</ion-label></ion-chip>
+            </div>
           </div>
 
-          <!-- Overall Status Banner -->
-          <ion-card :class="overallHealthy ? 'health-card-healthy' : 'health-card-warning'">
-            <ion-card-content>
-              <div class="overall-status">
-                <div class="status-icon-large">
-                  <ion-icon :icon="overallHealthy ? checkmarkCircleOutline : alertCircleOutline" />
-                </div>
-                <div class="health-status-info">
-                  <h1>{{ overallHealthy ? 'All Systems Operational' : 'Issues Detected' }}</h1>
-                  <p>Last checked: {{ lastHealthChecked }}</p>
+          <div class="action-tile" @click="navigateTo('/app/admin/llm-usage')">
+            <div class="tile-icon"><ion-icon :icon="barChartOutline" /></div>
+            <div class="tile-content">
+              <h4>LLM Usage</h4>
+              <ion-chip color="success" size="small"><ion-label>${{ llmStats.totalCost.toFixed(2) }}</ion-label></ion-chip>
+            </div>
+          </div>
+
+          <div class="action-tile" @click="navigateTo('/app/admin/pii-patterns')">
+            <div class="tile-icon"><ion-icon :icon="shieldCheckmarkOutline" /></div>
+            <div class="tile-content">
+              <h4>PII Patterns</h4>
+              <ion-chip color="warning" size="small"><ion-label>{{ piiStats.patterns }}</ion-label></ion-chip>
+            </div>
+          </div>
+
+          <div class="action-tile" @click="navigateTo('/app/admin/pii-testing')">
+            <div class="tile-icon"><ion-icon :icon="flaskOutline" /></div>
+            <div class="tile-content">
+              <h4>PII Testing</h4>
+              <ion-chip color="tertiary" size="small"><ion-label>Live</ion-label></ion-chip>
+            </div>
+          </div>
+
+          <div class="action-tile" @click="navigateTo('/app/admin/pseudonym-dictionary')">
+            <div class="tile-icon"><ion-icon :icon="libraryOutline" /></div>
+            <div class="tile-content">
+              <h4>Dictionaries</h4>
+              <ion-chip color="secondary" size="small"><ion-label>{{ dictionaryStats.dictionaries }}</ion-label></ion-chip>
+            </div>
+          </div>
+
+          <div class="action-tile" @click="navigateTo('/app/admin/models')">
+            <div class="tile-icon"><ion-icon :icon="cubeOutline" /></div>
+            <div class="tile-content">
+              <h4>Providers & Models</h4>
+              <ion-chip color="primary" size="small"><ion-label>LLM</ion-label></ion-chip>
+            </div>
+          </div>
+
+          <div class="action-tile" @click="navigateTo('/app/admin/rag/collections')">
+            <div class="tile-icon"><ion-icon :icon="serverOutline" /></div>
+            <div class="tile-content">
+              <h4>RAG Collections</h4>
+              <ion-chip color="tertiary" size="small"><ion-label>KB</ion-label></ion-chip>
+            </div>
+          </div>
+
+          <div class="action-tile" v-permission="'admin:users'" @click="navigateTo('/app/admin/users')">
+            <div class="tile-icon"><ion-icon :icon="peopleOutline" /></div>
+            <div class="tile-content">
+              <h4>Users</h4>
+              <ion-chip color="primary" size="small"><ion-label>RBAC</ion-label></ion-chip>
+            </div>
+          </div>
+
+          <div class="action-tile" v-permission="'admin:roles'" @click="navigateTo('/app/admin/roles')">
+            <div class="tile-icon"><ion-icon :icon="shieldOutline" /></div>
+            <div class="tile-content">
+              <h4>Roles</h4>
+              <ion-chip color="warning" size="small"><ion-label>RBAC</ion-label></ion-chip>
+            </div>
+          </div>
+
+          <div class="action-tile" @click="navigateTo('/app/admin/organizations')">
+            <div class="tile-icon"><ion-icon :icon="businessOutline" /></div>
+            <div class="tile-content">
+              <h4>Organizations</h4>
+              <ion-chip color="secondary" size="small"><ion-label>Manage</ion-label></ion-chip>
+            </div>
+          </div>
+        </div>
+
+        <!-- Services Grid - Compact -->
+        <div class="services-grid">
+          <h3 class="section-title">
+            <ion-icon :icon="hardwareChipOutline" />
+            Core Services
+          </h3>
+
+          <div class="service-tiles">
+            <!-- Database - links to database admin -->
+            <div class="service-tile clickable" @click="navigateTo('/app/admin/database')">
+              <div class="service-tile-header">
+                <ion-icon :icon="serverOutline" class="service-tile-icon" />
+                <span class="service-name">Database</span>
+                <ion-chip :color="getStatusColor(healthData?.services?.database)" size="small">
+                  <ion-label>{{ healthData?.services?.database || '...' }}</ion-label>
+                </ion-chip>
+              </div>
+              <div class="service-tile-metrics" v-if="dbHealthData">
+                <div class="mini-metric">
+                  <span class="mini-label">Conn</span>
+                  <span class="mini-value">{{ dbHealthData.status || 'OK' }}</span>
                 </div>
               </div>
-            </ion-card-content>
-          </ion-card>
+            </div>
 
-          <!-- Core Services Grid -->
-          <div class="services-section">
-            <h3>
-              <ion-icon :icon="hardwareChipOutline" />
-              Core Services
-            </h3>
-
-            <ion-grid>
-              <ion-row>
-                <!-- API Status -->
-                <ion-col size="12" size-md="6" size-lg="4">
-                  <ion-card class="service-card">
-                    <ion-card-content>
-                      <div class="service-header">
-                        <div class="service-icon">
-                          <ion-icon :icon="cloudOutline" />
-                        </div>
-                        <div class="service-details">
-                          <h4>API Service</h4>
-                          <ion-chip :color="getStatusColor(healthData?.services?.api)" size="small">
-                            <ion-label>{{ healthData?.services?.api || 'Unknown' }}</ion-label>
-                          </ion-chip>
-                        </div>
-                      </div>
-                      <div class="service-metrics" v-if="healthData">
-                        <div class="metric">
-                          <span class="metric-label">System Uptime</span>
-                          <span class="metric-value">{{ formatUptime(healthData.uptime) }}</span>
-                        </div>
-                        <div class="metric">
-                          <span class="metric-label">Memory Usage</span>
-                          <span class="metric-value">{{ healthData.memory?.utilization }}%</span>
-                        </div>
-                        <div class="metric" v-if="healthData.system">
-                          <span class="metric-label">CPU Cores</span>
-                          <span class="metric-value">{{ healthData.system.cpuCores }}</span>
-                        </div>
-                      </div>
-                    </ion-card-content>
-                  </ion-card>
-                </ion-col>
-
-                <!-- Database Status -->
-                <ion-col size="12" size-md="6" size-lg="4">
-                  <ion-card class="service-card">
-                    <ion-card-content>
-                      <div class="service-header">
-                        <div class="service-icon">
-                          <ion-icon :icon="serverOutline" />
-                        </div>
-                        <div class="service-details">
-                          <h4>Database</h4>
-                          <ion-chip :color="getStatusColor(healthData?.services?.database)" size="small">
-                            <ion-label>{{ healthData?.services?.database || 'Unknown' }}</ion-label>
-                          </ion-chip>
-                        </div>
-                      </div>
-                      <div class="service-metrics" v-if="dbHealthData">
-                        <div class="metric">
-                          <span class="metric-label">Connection</span>
-                          <span class="metric-value">{{ dbHealthData.status || 'Unknown' }}</span>
-                        </div>
-                      </div>
-                    </ion-card-content>
-                  </ion-card>
-                </ion-col>
-
-                <!-- Local Models Status -->
-                <ion-col size="12" size-md="6" size-lg="4">
-                  <ion-card class="service-card">
-                    <ion-card-content>
-                      <div class="service-header">
-                        <div class="service-icon">
-                          <ion-icon :icon="cubeOutline" />
-                        </div>
-                        <div class="service-details">
-                          <h4>Local Models</h4>
-                          <ion-chip :color="getLocalModelsColor()" size="small">
-                            <ion-label>{{ getLocalModelsStatus() }}</ion-label>
-                          </ion-chip>
-                        </div>
-                      </div>
-                      <div class="service-metrics" v-if="localModelStatusData">
-                        <div class="metric">
-                          <span class="metric-label">Ollama</span>
-                          <span class="metric-value">{{ localModelStatusData.connected ? 'Running' : 'Stopped' }}</span>
-                        </div>
-                        <div class="metric" v-if="localModelStatusData.version">
-                          <span class="metric-label">Version</span>
-                          <span class="metric-value">{{ localModelStatusData.version }}</span>
-                        </div>
-                        <div class="metric" v-if="localModelStatusData.models && localModelStatusData.models.length !== undefined">
-                          <span class="metric-label">Models Downloaded</span>
-                          <span class="metric-value">{{ localModelStatusData.models.length }}</span>
-                        </div>
-                      </div>
-                      <div class="service-metrics" v-else>
-                        <div class="metric">
-                          <span class="metric-label">Ollama</span>
-                          <span class="metric-value">Not Configured</span>
-                        </div>
-                      </div>
-                    </ion-card-content>
-                  </ion-card>
-                </ion-col>
-
-                <!-- Agents Status -->
-                <ion-col size="12" size-md="6" size-lg="4">
-                  <ion-card class="service-card">
-                    <ion-card-content>
-                      <div class="service-header">
-                        <div class="service-icon">
-                          <ion-icon :icon="peopleOutline" />
-                        </div>
-                        <div class="service-details">
-                          <h4>Agents</h4>
-                          <ion-chip :color="agentsHealthData.discoveredAgents > 0 ? 'success' : 'danger'" size="small">
-                            <ion-label>{{ agentsHealthData.discoveredAgents > 0 ? 'Available' : 'Unavailable' }}</ion-label>
-                          </ion-chip>
-                        </div>
-                      </div>
-                      <div class="service-metrics">
-                        <div class="metric">
-                          <span class="metric-label">Registered</span>
-                          <span class="metric-value">{{ agentsHealthData.discoveredAgents }}</span>
-                        </div>
-                        <div class="metric">
-                          <span class="metric-label">Running Instances</span>
-                          <span class="metric-value">{{ agentsHealthData.runningInstances }}</span>
-                        </div>
-                      </div>
-                    </ion-card-content>
-                  </ion-card>
-                </ion-col>
-
-                <!-- MCP Servers Status -->
-                <ion-col size="12" size-md="6" size-lg="4">
-                  <ion-card class="service-card">
-                    <ion-card-content>
-                      <div class="service-header">
-                        <div class="service-icon">
-                          <ion-icon :icon="extensionPuzzleOutline" />
-                        </div>
-                        <div class="service-details">
-                          <h4>MCP Servers</h4>
-                          <ion-chip color="primary" size="small">
-                            <ion-label>Active</ion-label>
-                          </ion-chip>
-                        </div>
-                      </div>
-                      <div class="service-metrics">
-                        <div class="metric">
-                          <span class="metric-label">Status</span>
-                          <span class="metric-value">Operational</span>
-                        </div>
-                      </div>
-                    </ion-card-content>
-                  </ion-card>
-                </ion-col>
-
-                <!-- Monitoring Status -->
-                <ion-col size="12" size-md="6" size-lg="4">
-                  <ion-card class="service-card">
-                    <ion-card-content>
-                      <div class="service-header">
-                        <div class="service-icon">
-                          <ion-icon :icon="pulseOutline" />
-                        </div>
-                        <div class="service-details">
-                          <h4>Monitoring</h4>
-                          <ion-chip :color="getMonitoringColor()" size="small">
-                            <ion-label>{{ getMonitoringStatus() }}</ion-label>
-                          </ion-chip>
-                        </div>
-                      </div>
-                      <div class="service-metrics" v-if="monitoringStatusData && monitoringStatusData.enabled">
-                        <div class="metric">
-                          <span class="metric-label">Active Monitors</span>
-                          <span class="metric-value">{{ monitoringStatusData.activeMonitors || 0 }}</span>
-                        </div>
-                      </div>
-                      <div class="service-metrics" v-else>
-                        <div class="metric">
-                          <span class="metric-label">Status</span>
-                          <span class="metric-value">Operational</span>
-                        </div>
-                      </div>
-                    </ion-card-content>
-                  </ion-card>
-                </ion-col>
-              </ion-row>
-            </ion-grid>
-          </div>
-
-          <!-- System Resources -->
-          <div class="resources-section" v-if="healthData">
-            <h3>
-              <ion-icon :icon="speedometerOutline" />
-              System Resources
-            </h3>
-
-            <ion-card>
-              <ion-card-content>
-                <ion-grid>
-                  <ion-row>
-                    <ion-col size="12" size-md="4">
-                      <div class="resource-item">
-                        <h4>System Memory</h4>
-                        <div class="resource-bar">
-                          <div
-                            class="resource-bar-fill"
-                            :style="{ width: healthData.memory?.utilization + '%', backgroundColor: getResourceColor(healthData.memory?.utilization) }"
-                          ></div>
-                        </div>
-                        <div class="resource-details">
-                          <span>{{ (healthData.memory?.used / 1024).toFixed(1) }} GB / {{ (healthData.memory?.total / 1024).toFixed(1) }} GB</span>
-                          <span>{{ healthData.memory?.utilization }}%</span>
-                        </div>
-                      </div>
-                    </ion-col>
-
-                    <ion-col size="12" size-md="4">
-                      <div class="resource-item">
-                        <h4>System Info</h4>
-                        <div class="resource-details">
-                          <span v-if="healthData.system">{{ healthData.system.cpuCores }} CPU Cores</span>
-                          <span v-if="healthData.system">{{ healthData.system.platform }}</span>
-                        </div>
-                      </div>
-                    </ion-col>
-
-                    <ion-col size="12" size-md="4">
-                      <div class="resource-item">
-                        <h4>System Uptime</h4>
-                        <div class="resource-details">
-                          <span>{{ formatUptime(healthData.uptime) }}</span>
-                        </div>
-                      </div>
-                    </ion-col>
-                  </ion-row>
-                </ion-grid>
-              </ion-card-content>
-            </ion-card>
-          </div>
-
-          <!-- Issues List -->
-          <div class="issues-section" v-if="healthIssues.length > 0">
-            <h3>
-              <ion-icon :icon="warningOutline" />
-              Issues Detected
-            </h3>
-
-            <ion-card v-for="issue in healthIssues" :key="issue.service" color="danger">
-              <ion-card-content>
-                <div class="issue-item">
-                  <ion-icon :icon="alertCircleOutline" />
-                  <div class="issue-details">
-                    <h4>{{ issue.service }}</h4>
-                    <p>{{ issue.message }}</p>
-                  </div>
+            <!-- Models & Providers (Ollama) - future: /app/admin/models -->
+            <div class="service-tile clickable" @click="navigateTo('/app/admin/models')">
+              <div class="service-tile-header">
+                <ion-icon :icon="cubeOutline" class="service-tile-icon" />
+                <span class="service-name">Models</span>
+                <ion-chip :color="getLocalModelsColor()" size="small">
+                  <ion-label>{{ getLocalModelsStatus() }}</ion-label>
+                </ion-chip>
+              </div>
+              <div class="service-tile-metrics" v-if="localModelStatusData">
+                <div class="mini-metric" v-if="localModelStatusData.models">
+                  <span class="mini-label">Ollama</span>
+                  <span class="mini-value">{{ localModelStatusData.models.length }}</span>
                 </div>
-              </ion-card-content>
-            </ion-card>
+                <div class="mini-metric" v-if="localModelStatusData.version">
+                  <span class="mini-label">Ver</span>
+                  <span class="mini-value">{{ localModelStatusData.version }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Agents - links to agents admin -->
+            <div class="service-tile clickable" @click="navigateTo('/app/admin/agents')">
+              <div class="service-tile-header">
+                <ion-icon :icon="peopleOutline" class="service-tile-icon" />
+                <span class="service-name">Agents</span>
+                <ion-chip :color="agentsHealthData.discoveredAgents > 0 ? 'success' : 'danger'" size="small">
+                  <ion-label>{{ agentsHealthData.discoveredAgents > 0 ? 'OK' : 'None' }}</ion-label>
+                </ion-chip>
+              </div>
+              <div class="service-tile-metrics">
+                <div class="mini-metric">
+                  <span class="mini-label">Reg</span>
+                  <span class="mini-value">{{ agentsHealthData.discoveredAgents }}</span>
+                </div>
+                <div class="mini-metric">
+                  <span class="mini-label">Run</span>
+                  <span class="mini-value">{{ agentsHealthData.runningInstances }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- MCP - future: /app/admin/mcp -->
+            <div class="service-tile clickable" @click="navigateTo('/app/admin/mcp')">
+              <div class="service-tile-header">
+                <ion-icon :icon="extensionPuzzleOutline" class="service-tile-icon" />
+                <span class="service-name">MCP & Tools</span>
+                <ion-chip color="success" size="small">
+                  <ion-label>Active</ion-label>
+                </ion-chip>
+              </div>
+            </div>
+
+            <!-- Monitoring - links to observability -->
+            <div class="service-tile clickable" @click="navigateTo('/app/admin/observability')">
+              <div class="service-tile-header">
+                <ion-icon :icon="pulseOutline" class="service-tile-icon" />
+                <span class="service-name">Observability</span>
+                <ion-chip :color="getMonitoringColor()" size="small">
+                  <ion-label>{{ getMonitoringStatus() }}</ion-label>
+                </ion-chip>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resource Bar -->
+        <div class="resource-bar-section" v-if="healthData">
+          <h3 class="section-title">
+            <ion-icon :icon="speedometerOutline" />
+            System Resources
+          </h3>
+          <div class="resource-bar-container">
+            <div class="resource-bar-item">
+              <div class="resource-bar-header">
+                <span>Memory</span>
+                <span>{{ healthData.memory?.utilization }}%</span>
+              </div>
+              <div class="resource-progress">
+                <div class="resource-progress-fill" :style="{ width: healthData.memory?.utilization + '%', backgroundColor: getResourceColor(healthData.memory?.utilization) }"></div>
+              </div>
+              <div class="resource-bar-footer">
+                {{ (healthData.memory?.used / 1024).toFixed(1) }} / {{ (healthData.memory?.total / 1024).toFixed(1) }} GB
+              </div>
+            </div>
+            <div class="resource-info-item" v-if="healthData.system">
+              <span class="resource-info-label">Platform</span>
+              <span class="resource-info-value">{{ healthData.system.platform }}</span>
+            </div>
+            <div class="resource-info-item" v-if="healthData.system">
+              <span class="resource-info-label">CPU Cores</span>
+              <span class="resource-info-value">{{ healthData.system.cpuCores }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Issues Section - Compact -->
+        <div class="issues-bar" v-if="healthIssues.length > 0">
+          <div class="issue-alert" v-for="issue in healthIssues" :key="issue.service">
+            <ion-icon :icon="alertCircleOutline" />
+            <strong>{{ issue.service }}:</strong> {{ issue.message }}
           </div>
         </div>
       </div>
@@ -622,6 +417,7 @@ import {
   pulseOutline,
   speedometerOutline,
   warningOutline,
+  businessOutline,
 } from 'ionicons/icons';
 import { useAuthStore } from '@/stores/rbacStore';
 import { usePrivacyStore } from '@/stores/privacyStore';
@@ -1011,366 +807,405 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.admin-settings-container {
-  padding: 1rem;
-  max-width: 1400px;
+/* ============================================================================
+   Dashboard Container
+   ============================================================================ */
+.dashboard-container {
+  padding: 0.75rem;
+  max-width: 1600px;
   margin: 0 auto;
 }
 
-.settings-header {
-  text-align: center;
-  margin-bottom: 2rem;
-}
-
-.settings-header h1 {
-  color: var(--ion-color-primary);
-  margin-bottom: 0.5rem;
-}
-
-.settings-header p {
-  color: var(--ion-color-medium);
-  font-size: 1.1rem;
-}
-
-.quick-actions-section,
-.system-health-section {
-  margin-bottom: 3rem;
-}
-
-.quick-actions-section h2,
-.system-health-section h2 {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--ion-color-primary);
-  margin-bottom: 1rem;
-}
-
-.section-header {
+/* ============================================================================
+   Health Status Bar - Top Banner
+   ============================================================================ */
+.health-status-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  padding: 1rem 1.25rem;
+  border-radius: 10px;
+  margin-bottom: 1.25rem;
+  color: white;
 }
 
-.section-header h2 {
-  margin: 0;
+.health-status-bar.healthy {
+  background: linear-gradient(135deg, #27ae60, #1e8449);
 }
 
-.action-card {
-  height: 100%;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  cursor: pointer;
+.health-status-bar.warning {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
 }
 
-.action-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.action-card.health-warning {
-  border-left: 4px solid var(--ion-color-danger);
-}
-
-.action-card.default-models {
-  border-left: 4px solid var(--ion-color-primary);
-}
-
-.card-icon {
-  text-align: center;
-  margin-bottom: 1rem;
-}
-
-.card-icon ion-icon {
-  font-size: 2.5rem;
-  color: var(--ion-color-primary);
-}
-
-.action-card h3 {
-  margin: 0 0 0.5rem 0;
-  color: var(--ion-color-primary);
-}
-
-.action-card p {
-  color: var(--ion-color-medium);
-  font-size: 0.9rem;
-  margin-bottom: 1rem;
-}
-
-/* Removed: Using Ionic grid instead */
-
-.setting-group {
-  border: 1px solid var(--ion-color-light);
-  border-radius: 8px;
-  padding: 1.5rem;
-  background: var(--ion-color-light-tint);
-}
-
-.setting-group h3 {
-  margin: 0 0 1rem 0;
-  color: var(--ion-color-primary);
-  font-size: 1.1rem;
-}
-
-/* Removed: Using Ionic grid instead */
-
-.status-item {
+.health-status-content {
   display: flex;
   align-items: center;
   gap: 1rem;
-  padding: 1rem;
-  border: 1px solid var(--ion-color-light);
-  border-radius: 8px;
-  background: var(--ion-color-light-tint);
 }
 
-.status-icon {
+.health-status-content ion-icon {
+  font-size: 1.75rem;
+}
+
+.health-text {
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.health-time {
+  font-size: 0.85rem;
+  opacity: 0.9;
+  margin-left: 0.5rem;
+}
+
+.quick-stats {
+  display: flex;
+  gap: 2rem;
+}
+
+.stat {
+  text-align: center;
+}
+
+.stat-value {
+  display: block;
+  font-weight: 700;
+  font-size: 1.25rem;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  opacity: 0.9;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ============================================================================
+   Quick Actions Grid - Readable Tiles
+   ============================================================================ */
+.quick-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.85rem;
+  margin-bottom: 1.5rem;
+}
+
+.action-tile {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  background: white;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid var(--ion-color-light-shade);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.action-tile:hover {
+  border-color: var(--ion-color-primary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.tile-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: var(--ion-color-medium-tint);
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: var(--ion-color-primary);
+  flex-shrink: 0;
 }
 
-.status-icon ion-icon {
-  font-size: 1.5rem;
-  color: var(--ion-color-medium);
+.tile-icon ion-icon {
+  font-size: 1.25rem;
+  color: white;
 }
 
-.status-icon.status-healthy {
-  background: var(--ion-color-success-tint);
+.tile-content {
+  flex: 1;
+  min-width: 0;
 }
 
-.status-icon.status-healthy ion-icon {
-  color: var(--ion-color-success);
+.tile-content h4 {
+  margin: 0 0 4px 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #333;
 }
 
-.status-icon.status-info {
-  background: var(--ion-color-primary-tint);
+.tile-content ion-chip {
+  height: 20px;
+  font-size: 0.7rem;
 }
 
-.status-icon.status-info ion-icon {
-  color: var(--ion-color-primary);
-}
-
-.status-icon.status-success {
-  background: var(--ion-color-success-tint);
-}
-
-.status-icon.status-success ion-icon {
-  color: var(--ion-color-success);
-}
-
-.status-info h3 {
-  margin: 0 0 0.25rem 0;
-  color: var(--ion-color-primary);
-  font-size: 1rem;
-}
-
-.status-info p {
-  margin: 0;
-  color: var(--ion-color-medium);
+/* ============================================================================
+   Section Titles
+   ============================================================================ */
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   font-size: 0.9rem;
+  font-weight: 700;
+  color: #555;
+  margin: 0 0 0.75rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
+.section-title ion-icon {
+  font-size: 1.1rem;
+  color: var(--ion-color-primary);
+}
+
+/* ============================================================================
+   Services Grid - Readable Tiles
+   ============================================================================ */
+.services-grid {
+  margin-bottom: 1.25rem;
+}
+
+.service-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.service-tile {
+  background: white;
+  border: 1px solid var(--ion-color-light-shade);
+  border-radius: 10px;
+  padding: 0.85rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.15s ease;
+}
+
+.service-tile.clickable {
+  cursor: pointer;
+}
+
+.service-tile.clickable:hover {
+  border-color: var(--ion-color-primary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.service-tile-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.service-tile-icon {
+  font-size: 1.15rem;
+  color: var(--ion-color-primary);
+}
+
+.service-name {
+  flex: 1;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.service-tile ion-chip {
+  height: 20px;
+  font-size: 0.65rem;
+}
+
+.service-tile-metrics {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+}
+
+.mini-metric {
+  display: flex;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+}
+
+.mini-label {
+  color: #888;
+}
+
+.mini-value {
+  font-weight: 600;
+  color: #333;
+}
+
+/* ============================================================================
+   Resource Bar Section
+   ============================================================================ */
+.resource-bar-section {
+  margin-bottom: 1.25rem;
+}
+
+.resource-bar-container {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  background: white;
+  border: 1px solid var(--ion-color-light-shade);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.resource-bar-item {
+  flex: 1;
+  max-width: 350px;
+}
+
+.resource-bar-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 0.35rem;
+}
+
+.resource-progress {
+  height: 10px;
+  background: var(--ion-color-light);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.resource-progress-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.resource-bar-footer {
+  font-size: 0.8rem;
+  color: #666;
+  margin-top: 0.3rem;
+}
+
+.resource-info-item {
+  display: flex;
+  flex-direction: column;
+  padding: 0 1.25rem;
+  border-left: 1px solid var(--ion-color-light-shade);
+}
+
+.resource-info-label {
+  font-size: 0.7rem;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.resource-info-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+/* ============================================================================
+   Issues Bar
+   ============================================================================ */
+.issues-bar {
+  margin-bottom: 1.25rem;
+}
+
+.issue-alert {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--ion-color-danger-tint);
+  border-left: 4px solid var(--ion-color-danger);
+  border-radius: 0 8px 8px 0;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  color: #c0392b;
+}
+
+.issue-alert ion-icon {
+  font-size: 1.2rem;
+  color: var(--ion-color-danger);
+}
+
+.issue-alert strong {
+  color: #a93226;
+}
+
+/* ============================================================================
+   Modal Styles (preserved)
+   ============================================================================ */
 .model-config .hint {
   color: var(--ion-color-warning);
   margin-bottom: 12px;
 }
+
 .model-config .segment-pane {
   margin-top: 12px;
 }
+
 .model-config .actions {
   margin-top: 16px;
 }
 
 /* ============================================================================
-   System Health Section Styles
+   Responsive Design
    ============================================================================ */
-
-.health-card-healthy {
-  background: linear-gradient(135deg, var(--ion-color-success-tint), var(--ion-color-success));
-  color: white;
-}
-
-.health-card-warning {
-  background: linear-gradient(135deg, var(--ion-color-danger-tint), var(--ion-color-danger));
-  color: white;
-}
-
-.overall-status {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-}
-
-.status-icon-large {
-  font-size: 4rem;
-}
-
-.status-icon-large ion-icon {
-  font-size: 4rem;
-}
-
-.health-status-info h1 {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.75rem;
-}
-
-.health-status-info p {
-  margin: 0;
-  opacity: 0.9;
-}
-
-.services-section,
-.resources-section,
-.issues-section {
-  margin-top: 2rem;
-}
-
-.services-section h3,
-.resources-section h3,
-.issues-section h3 {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--ion-color-primary);
-  margin-bottom: 1rem;
-  font-size: 1.1rem;
-}
-
-.service-card {
-  height: 100%;
-}
-
-.service-header {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.service-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: var(--ion-color-primary-tint);
-}
-
-.service-icon ion-icon {
-  font-size: 1.5rem;
-  color: var(--ion-color-primary);
-}
-
-.service-details {
-  flex: 1;
-}
-
-.service-details h4 {
-  margin: 0 0 0.5rem 0;
-  color: var(--ion-color-primary);
-}
-
-.service-metrics {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.metric {
-  display: flex;
-  justify-content: space-between;
-  padding: 0.5rem;
-  background: var(--ion-color-light);
-  border-radius: 8px;
-}
-
-.metric-label {
-  color: var(--ion-color-medium);
-  font-size: 0.9rem;
-}
-
-.metric-value {
-  font-weight: 600;
-  color: var(--ion-color-primary);
-}
-
-.resource-item {
-  padding: 1rem;
-}
-
-.resource-item h4 {
-  margin: 0 0 1rem 0;
-  color: var(--ion-color-primary);
-}
-
-.resource-bar {
-  width: 100%;
-  height: 24px;
-  background: var(--ion-color-light);
-  border-radius: 12px;
-  overflow: hidden;
-  margin-bottom: 0.5rem;
-}
-
-.resource-bar-fill {
-  height: 100%;
-  transition: width 0.3s ease, background-color 0.3s ease;
-}
-
-.resource-details {
-  display: flex;
-  justify-content: space-between;
-  color: var(--ion-color-medium);
-  font-size: 0.9rem;
-}
-
-.issue-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-}
-
-.issue-item ion-icon {
-  font-size: 1.5rem;
-  flex-shrink: 0;
-}
-
-.issue-details h4 {
-  margin: 0 0 0.25rem 0;
-  color: white;
-}
-
-.issue-details p {
-  margin: 0;
-  color: white;
-  opacity: 0.9;
-}
-
-/* Responsive design */
 @media (max-width: 768px) {
-  .admin-settings-container {
+  .dashboard-container {
     padding: 0.5rem;
   }
 
-  /* Responsive handled by Ionic grid */
-
-  .setting-group {
-    padding: 1rem;
-  }
-
-  .overall-status {
+  .health-status-bar {
     flex-direction: column;
+    gap: 0.5rem;
     text-align: center;
   }
 
-  .health-status-info h1 {
-    font-size: 1.5rem;
+  .quick-stats {
+    gap: 1rem;
+  }
+
+  .quick-actions-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .service-tiles {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .resource-bar-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .resource-bar-item {
+    max-width: none;
+  }
+
+  .resource-info-item {
+    flex-direction: row;
+    justify-content: space-between;
+    border-left: none;
+    border-top: 1px solid var(--ion-color-light-shade);
+    padding: 0.5rem 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .quick-actions-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .service-tiles {
+    grid-template-columns: 1fr;
   }
 }
 </style>

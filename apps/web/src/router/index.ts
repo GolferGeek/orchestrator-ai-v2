@@ -137,10 +137,59 @@ const routes: Array<RouteRecordRaw> = [
         }
       },
       {
-        path: 'admin/function-agents',
-        name: 'AdminFunctionAgents',
-        component: () => import('../views/admin/AdminFunctionAgentsView.vue'),
-        meta: { requiresAuth: true, requiresPermission: 'agents:admin' }
+        path: 'admin/database',
+        name: 'AdminDatabase',
+        component: () => import('../views/admin/DatabaseAdminPage.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresPermission: 'admin:settings',
+          title: 'Database Administration',
+          description: 'View database status, tables, and migrations'
+        }
+      },
+      {
+        path: 'admin/models',
+        name: 'AdminModels',
+        component: () => import('../views/admin/ProvidersModelsPage.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresPermission: 'admin:settings',
+          title: 'Providers & Models',
+          description: 'Manage LLM providers and models'
+        }
+      },
+      {
+        path: 'admin/agents',
+        name: 'AdminAgents',
+        component: () => import('../views/admin/AgentsAdminPage.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresPermission: 'agents:admin',
+          title: 'Agents Administration',
+          description: 'View and manage AI agents'
+        }
+      },
+      {
+        path: 'admin/mcp',
+        name: 'AdminMCP',
+        component: () => import('../views/admin/MCPAdminPage.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresPermission: 'admin:settings',
+          title: 'MCP Servers & Tools',
+          description: 'Manage MCP servers and available tools'
+        }
+      },
+      {
+        path: 'admin/organizations',
+        name: 'AdminOrganizations',
+        component: () => import('../views/admin/OrganizationsAdminPage.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresPermission: 'admin:settings',
+          title: 'Organizations',
+          description: 'Manage organizations'
+        }
       },
       {
         path: 'admin/pii-testing',

@@ -141,6 +141,15 @@ export class ModelNameDto {
     example: 'GPT-4o Mini',
   })
   displayName!: string;
+
+  @ApiPropertyOptional({ description: 'Whether the model is active' })
+  is_active?: boolean;
+
+  @ApiPropertyOptional({ description: 'Model tier (flagship, premium, standard, economy)' })
+  model_tier?: string;
+
+  @ApiPropertyOptional({ description: 'Context window size in tokens' })
+  context_window?: number;
 }
 
 export class ProviderWithModelsDto {
@@ -157,6 +166,9 @@ export class ProviderWithModelsDto {
     description: 'Whether this provider runs locally (e.g., Ollama)',
   })
   is_local?: boolean;
+
+  @ApiPropertyOptional({ description: 'Whether the provider is active' })
+  is_active?: boolean;
 
   @ApiProperty({ description: 'Available models', type: [ModelNameDto] })
   models!: ModelNameDto[];

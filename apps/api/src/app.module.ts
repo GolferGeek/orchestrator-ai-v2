@@ -23,6 +23,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
 import { ObservabilityModule } from './observability/observability.module';
 import { RagModule } from './rag/rag.module';
 import { RbacModule } from './rbac/rbac.module';
+import { OrganizationsModule } from './admin/organizations/organizations.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { RbacModule } from './rbac/rbac.module';
     ObservabilityModule,
     RagModule,
     RbacModule,
+    OrganizationsModule,
   ],
   controllers: [AppController, AnalyticsController],
   providers: [AppService, AgentRegistryService],

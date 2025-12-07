@@ -5,10 +5,16 @@ export interface ProviderWithModels {
   name: string; // provider name like 'openai', 'ollama'
   display_name?: string;
   is_local?: boolean; // whether this provider runs locally (e.g., Ollama)
+  is_active?: boolean; // whether the provider is enabled
   models: Array<{
     providerName: string;
     modelName: string; // API model name like 'o4-mini', 'gpt-oss:220b'
     displayName?: string;
+    model_name?: string; // alias for modelName
+    display_name?: string; // alias for displayName
+    is_active?: boolean;
+    model_tier?: string;
+    context_window?: number;
   }>;
 }
 
