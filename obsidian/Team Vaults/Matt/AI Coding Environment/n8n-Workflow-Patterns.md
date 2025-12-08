@@ -53,7 +53,7 @@ Return Result
 **Status Tracking:**
 - `sendStartStatus` (boolean) - Send start status webhook (default: false)
 - `sendEndStatus` (boolean) - Send end status webhook (default: false)
-- `statusWebhook` (string) - Webhook URL for status updates (default: "http://host.docker.internal:7100/webhooks/status")
+- `statusWebhook` (string) - Webhook URL for status updates (default: "http://host.docker.internal:6100/webhooks/status")
 - `taskId` (string) - Task identifier for tracking
 - `conversationId` (string) - Conversation context
 - `userId` (string) - User identifier
@@ -287,7 +287,7 @@ Each task calls the Helper LLM workflow (`9jxl03jCcqg17oOy`) via "Execute Workfl
   "taskId": "uuid",
   "conversationId": "uuid",
   "userId": "uuid",
-  "statusWebhook": "http://localhost:7100/webhooks/status"
+  "statusWebhook": "http://localhost:6100/webhooks/status"
 }
 ```
 
@@ -350,7 +350,7 @@ maxTokens: 1000            // Task-specific
 ## Organization Standards (Extracted)
 
 ### **Webhook Defaults**
-- Status webhook: `http://host.docker.internal:7100/webhooks/status`
+- Status webhook: `http://host.docker.internal:6100/webhooks/status`
 - Paths: `/webhook/workflow-name`
 
 ### **Error Handling**

@@ -94,7 +94,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $json.body.statusWebhook || 'http://host.docker.internal:7100/webhooks/status' }}",
+        "url": "={{ $json.body.statusWebhook || 'http://host.docker.internal:6100/webhooks/status' }}",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json) }}",
@@ -203,7 +203,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $json.statusWebhook || 'http://host.docker.internal:7100/webhooks/status' }}",
+        "url": "={{ $json.statusWebhook || 'http://host.docker.internal:6100/webhooks/status' }}",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json) }}",
@@ -312,7 +312,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $json.statusWebhook || 'http://host.docker.internal:7100/webhooks/status' }}",
+        "url": "={{ $json.statusWebhook || 'http://host.docker.internal:6100/webhooks/status' }}",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json) }}",
@@ -421,7 +421,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $json.statusWebhook || 'http://host.docker.internal:7100/webhooks/status' }}",
+        "url": "={{ $json.statusWebhook || 'http://host.docker.internal:6100/webhooks/status' }}",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json) }}",
@@ -511,7 +511,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $json.statusWebhook || 'http://host.docker.internal:7100/webhooks/status' }}",
+        "url": "={{ $json.statusWebhook || 'http://host.docker.internal:6100/webhooks/status' }}",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json) }}",

@@ -15,9 +15,9 @@ PROJECT_NAME="api"
 # Environment-specific configuration
 DEV_CONTAINER="supabase_db_${PROJECT_NAME}-dev"
 PROD_CONTAINER="supabase_db_${PROJECT_NAME}-production"
-DEV_PORT="7012"
+DEV_PORT="6012"
 PROD_PORT="9012"
-DEV_API_PORT="7010"
+DEV_API_PORT="6010"
 PROD_API_PORT="9010"
 
 # Colors for output
@@ -97,9 +97,9 @@ detect_environment() {
             if lsof -i :9012 >/dev/null 2>&1; then
                 ENVIRONMENT="prod"
                 info "Auto-detected production environment (port 9012 in use)"
-            elif lsof -i :7012 >/dev/null 2>&1; then
+            elif lsof -i :6012 >/dev/null 2>&1; then
                 ENVIRONMENT="dev"
-                info "Auto-detected development environment (port 7012 in use)"
+                info "Auto-detected development environment (port 6012 in use)"
             else
                 error "Cannot detect environment. No Supabase containers or ports found."
                 error "Please specify --env=dev or --env=prod"
@@ -291,7 +291,7 @@ show_usage() {
     echo "Environment Detection:"
     echo "  The script can auto-detect the environment by checking:"
     echo "  1. Running Docker containers"
-    echo "  2. Active ports (7012=dev, 9012=prod)"
+    echo "  2. Active ports (6012=dev, 9012=prod)"
     echo "  3. Or specify explicitly with --env=dev|prod"
     echo
     echo "Default Configuration:"

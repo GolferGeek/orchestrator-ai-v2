@@ -17,7 +17,7 @@ config({ path: path.join(__dirname, '../../.env') });
 import { createClient } from '@supabase/supabase-js';
 import * as fs from 'fs';
 
-const SUPABASE_URL = process.env.SUPABASE_URL || 'http://127.0.0.1:7010';
+const SUPABASE_URL = process.env.SUPABASE_URL || 'http://127.0.0.1:6010';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!SUPABASE_SERVICE_ROLE_KEY) {

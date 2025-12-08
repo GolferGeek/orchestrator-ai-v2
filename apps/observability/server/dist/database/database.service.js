@@ -15,10 +15,10 @@ let DatabaseService = DatabaseService_1 = class DatabaseService {
         this.logger = new common_1.Logger(DatabaseService_1.name);
     }
     onModuleInit() {
-        const supabaseUrl = process.env.SUPABASE_URL || 'http://127.0.0.1:7010';
+        const supabaseUrl = process.env.SUPABASE_URL || 'http://127.0.0.1:6010';
         const url = new URL(supabaseUrl);
         const host = url.hostname;
-        const apiPort = parseInt(url.port || '7010');
+        const apiPort = parseInt(url.port || '6010');
         const pgPort = apiPort + 2;
         this.pool = new pg_1.Pool({
             host: host,

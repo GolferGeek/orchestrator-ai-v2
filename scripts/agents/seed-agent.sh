@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-API_BASE=${API_BASE:-"http://localhost:7100"}
+API_BASE=${API_BASE:-"http://localhost:6100"}
 TOKEN=${TOKEN:-""}
 
 if [ $# -lt 1 ]; then

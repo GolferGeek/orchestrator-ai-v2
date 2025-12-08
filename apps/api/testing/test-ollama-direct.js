@@ -4,7 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 async function testOllamaDirect() {
   try {
     console.log('🔐 Logging in...');
-    const loginResponse = await axios.post('http://localhost:7100/auth/login', {
+    const loginResponse = await axios.post('http://localhost:6100/auth/login', {
       email: 'demo.user@playground.com',
       password: 'demouser'
     });
@@ -28,7 +28,7 @@ async function testOllamaDirect() {
       
       const startTime = Date.now();
       
-      const agentResponse = await axios.post('http://localhost:7100/agents/marketing/blog_post/tasks', {
+      const agentResponse = await axios.post('http://localhost:6100/agents/marketing/blog_post/tasks', {
         method: 'process',
         prompt: hrIssue,
         conversationId: conversationId,
@@ -89,7 +89,7 @@ async function testOllamaDirect() {
         console.log('\n🗄️ Checking database for pseudonym mappings...');
         
         try {
-          const mappingsResponse = await axios.get('http://localhost:7100/llm/sanitization/pseudonym/mappings', {
+          const mappingsResponse = await axios.get('http://localhost:6100/llm/sanitization/pseudonym/mappings', {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           

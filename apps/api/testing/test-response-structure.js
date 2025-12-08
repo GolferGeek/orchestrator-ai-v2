@@ -4,7 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 async function testResponseStructure() {
   try {
     console.log('🔐 Logging in...');
-    const loginResponse = await axios.post('http://localhost:7100/auth/login', {
+    const loginResponse = await axios.post('http://localhost:6100/auth/login', {
       email: 'demo.user@playground.com',
       password: 'demouser'
     });
@@ -14,7 +14,7 @@ async function testResponseStructure() {
     
     console.log('🧪 Testing response structure...');
     
-    const response = await axios.post('http://localhost:7100/agents/marketing/blog_post/tasks', {
+    const response = await axios.post('http://localhost:6100/agents/marketing/blog_post/tasks', {
       method: 'process',
       prompt: 'Write about Matt Weber and GolferGeek at Orchestrator AI.',
       conversationId: uuidv4(),

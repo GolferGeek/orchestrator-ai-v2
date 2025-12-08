@@ -26,7 +26,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 DB_HOST="${DB_HOST:-127.0.0.1}"
-DB_PORT="${DB_PORT:-7012}"
+DB_PORT="${DB_PORT:-6012}"
 DB_USER="${DB_USER:-postgres}"
 DB_PASS="${DB_PASS:-postgres}"
 DB_NAME="${DB_NAME:-postgres}"

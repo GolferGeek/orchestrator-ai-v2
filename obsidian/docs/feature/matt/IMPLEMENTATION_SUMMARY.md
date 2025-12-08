@@ -122,7 +122,7 @@ Both scripts:
 ./apps/api/scripts/seed-agents.sh
 
 # TypeScript version
-API_BASE_URL=http://localhost:7100 \
+API_BASE_URL=http://localhost:6100 \
 ADMIN_TOKEN=<token> \
 ts-node apps/api/scripts/seed-agents.ts
 ```
@@ -196,7 +196,7 @@ cd apps/api
 ./scripts/seed-agents.sh
 
 # Or use TypeScript version with auth
-API_BASE_URL=http://localhost:7100 \
+API_BASE_URL=http://localhost:6100 \
 ADMIN_TOKEN=your-token \
 ts-node scripts/seed-agents.ts
 ```
@@ -285,11 +285,11 @@ docs/feature/matt/
 ### Environment Variables
 ```bash
 # API
-API_PORT=7100
-API_BASE_URL=http://localhost:7100
+API_PORT=6100
+API_BASE_URL=http://localhost:6100
 
 # Supabase
-SUPABASE_URL=http://127.0.0.1:7010
+SUPABASE_URL=http://127.0.0.1:6010
 SUPABASE_ANON_KEY=...
 SUPABASE_SERVICE_ROLE_KEY=...
 

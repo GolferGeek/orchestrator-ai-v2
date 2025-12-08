@@ -38,7 +38,7 @@ Restore a database from a backup file. **WARNING: This is DESTRUCTIVE and will r
 
 **Database types:**
 - `supabase` - Main Supabase database (host: 127.0.0.1:54322)
-- `n8n` - N8N workflow database (host: 127.0.0.1:7012)
+- `n8n` - N8N workflow database (host: 127.0.0.1:6012)
 
 ### 3. Verify Backup File
 

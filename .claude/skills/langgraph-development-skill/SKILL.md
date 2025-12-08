@@ -189,14 +189,14 @@ export class LangGraphController {
 
 ```typescript
 // ❌ WRONG
-const statusWebhook = 'http://host.docker.internal:7100/webhooks/status';
+const statusWebhook = 'http://host.docker.internal:6100/webhooks/status';
 ```
 
 ### ✅ CORRECT - Environment Variable
 
 ```typescript
 // ✅ CORRECT
-const apiBaseUrl = process.env.API_BASE_URL || process.env.VITE_API_BASE_URL || 'http://host.docker.internal:7100';
+const apiBaseUrl = process.env.API_BASE_URL || process.env.VITE_API_BASE_URL || 'http://host.docker.internal:6100';
 const statusWebhook = `${apiBaseUrl}/webhooks/status`;
 ```
 

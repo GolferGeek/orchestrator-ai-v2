@@ -46,7 +46,7 @@ This is your organization's standard building block. See `/n8n:create` command f
 - **1200+** - Longer, detailed content
 
 ### **Webhook Defaults**
-- Status webhook: `http://host.docker.internal:7100/webhooks/status`
+- Status webhook: `http://host.docker.internal:6100/webhooks/status`
 - Path pattern: `/webhook/workflow-name-from-prd`
 
 ## Steps to Create Workflow

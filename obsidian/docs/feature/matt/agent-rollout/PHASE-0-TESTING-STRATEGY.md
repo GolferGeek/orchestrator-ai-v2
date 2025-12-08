@@ -270,7 +270,7 @@ describe('AgentModeRouterService (Unit)', () => {
 set -e  # Exit on error
 
 # Configuration
-API_URL="http://localhost:7100/api"
+API_URL="http://localhost:6100/api"
 SUPABASE_URL="http://localhost:54321"
 TEST_EMAIL="test@example.com"
 TEST_PASSWORD="testpassword123"

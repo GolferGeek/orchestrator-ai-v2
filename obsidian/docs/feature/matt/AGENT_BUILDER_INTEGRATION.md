@@ -260,7 +260,7 @@ Response:
 CONV_ID=$(uuidgen)
 
 # 2. Start conversation
-curl -X POST http://localhost:7100/agents/my-org/agent_builder_chat/tasks \
+curl -X POST http://localhost:6100/agents/my-org/agent_builder_chat/tasks \
   -H "Content-Type: application/json" \
   -d '{
     "mode": "converse",
@@ -275,7 +275,7 @@ curl -X POST http://localhost:7100/agents/my-org/agent_builder_chat/tasks \
   }'
 
 # 3. Continue conversation (copy state from previous response)
-curl -X POST http://localhost:7100/agents/my-org/agent_builder_chat/tasks \
+curl -X POST http://localhost:6100/agents/my-org/agent_builder_chat/tasks \
   -H "Content-Type: application/json" \
   -d '{
     "mode": "converse",
@@ -303,7 +303,7 @@ async function testAgentBuilder() {
 
   const sendMessage = async (userMessage) => {
     const response = await axios.post(
-      'http://localhost:7100/agents/my-org/agent_builder_chat/tasks',
+      'http://localhost:6100/agents/my-org/agent_builder_chat/tasks',
       {
         mode: 'converse',
         conversationId,
@@ -349,7 +349,7 @@ cd apps/api
 Or manually:
 
 ```bash
-curl -X POST http://localhost:7100/api/admin/agents \
+curl -X POST http://localhost:6100/api/admin/agents \
   -H "Content-Type: application/json" \
   -d @docs/feature/matt/payloads/agent_builder_chat.json
 ```
@@ -357,7 +357,7 @@ curl -X POST http://localhost:7100/api/admin/agents \
 ### 2. Verify Agent is Active
 
 ```bash
-curl http://localhost:7100/agents/my-org/agent_builder_chat/.well-known/agent.json
+curl http://localhost:6100/agents/my-org/agent_builder_chat/.well-known/agent.json
 ```
 
 Expected: Agent card with `status: "active"`

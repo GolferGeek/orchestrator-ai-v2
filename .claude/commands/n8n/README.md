@@ -52,7 +52,7 @@ Every LLM call in your workflows should use this reusable sub-workflow:
 
 ### **Status Tracking**
 All workflows should send status updates to:
-`http://host.docker.internal:7100/webhooks/status`
+`http://host.docker.internal:6100/webhooks/status`
 
 Format:
 ```json

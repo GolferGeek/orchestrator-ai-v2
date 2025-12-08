@@ -42,7 +42,7 @@ apps/web/src/
 
 ### **Required Services**
 1. **Web Server**: `npm run dev` (port 7102 for testing)
-2. **API Server**: `npm run start:dev` (port 7100)
+2. **API Server**: `npm run start:dev` (port 6100)
 3. **Browser**: Single Chrome instance with Playwright
 4. **Logs**: Real-time monitoring for both servers
 
@@ -60,7 +60,7 @@ cd apps/api && npm run start:dev > ../../api-server.log 2>&1 &
 sleep 5
 
 # 4. Verify servers are running
-lsof -i :7102 -i :7100
+lsof -i :7102 -i :6100
 
 # 5. Check startup logs
 tail -20 web-server.log
@@ -82,7 +82,7 @@ tail -f web-server.log &
 ### **Health Checks**
 - **Web (Tester)**: `http://localhost:7102`
 - **Web (User)**: `http://localhost:7101`
-- **API**: `http://localhost:7100/health`
+- **API**: `http://localhost:6100/health`
 - **Logs**: Check both `web-server.log` and `api-server.log`
 - **Browser**: Single Chrome instance ready for testing
 
@@ -93,12 +93,12 @@ The project uses a root-level `.env` file with the following key configurations:
 
 ```bash
 # Port Configuration
-API_PORT=7100
+API_PORT=6100
 WEB_PORT=7101
 VITE_WEB_PORT=7101
 
 # Supabase Configuration
-SUPABASE_URL=http://127.0.0.1:7010
+SUPABASE_URL=http://127.0.0.1:6010
 SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
@@ -111,7 +111,7 @@ SUPABASE_TEST_USERID=b29a590e-b07f-49df-a25b-574c956b5035
 #### Database Management
 - **Backup Location**: `storage/backups/` directory
 - **Latest Backup**: `golfergeek_supabase_backup_20251013_164353.sql.gz`
-- **Restore Command**: `gunzip -c storage/backups/golfergeek_supabase_backup_20251013_164353.sql.gz | psql postgresql://postgres:postgres@127.0.0.1:7012/postgres`
+- **Restore Command**: `gunzip -c storage/backups/golfergeek_supabase_backup_20251013_164353.sql.gz | psql postgresql://postgres:postgres@127.0.0.1:6012/postgres`
 - **Important**: Never reset the database without explicit permission from the user
 
 #### Agent Configuration
@@ -241,9 +241,9 @@ const response = await page.waitForResponse(response =>
 
 ### **9. Port and Connection Issues**
 **Web Server**: Should run on port 7102 (not 7101 as configured in .env)
-**API Server**: Should run on port 7100
-**Supabase**: Should run on port 7010
-**Database**: Should run on port 7012
+**API Server**: Should run on port 6100
+**Supabase**: Should run on port 6010
+**Database**: Should run on port 6012
 
 ---
 
@@ -285,7 +285,7 @@ find apps/web/src -name "*.vue" | grep -i component
 
 ### **Pre-Test Setup**
 - [ ] Web server running (port 7102)
-- [ ] API server running (port 7100) 
+- [ ] API server running (port 6100) 
 - [ ] Browser open at app URL
 - [ ] Console monitoring active
 - [ ] Previous test completed successfully

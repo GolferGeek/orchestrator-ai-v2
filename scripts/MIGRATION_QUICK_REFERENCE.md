@@ -29,11 +29,11 @@ cd ../..
 
 ```bash
 # Schema
-PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres \
+PGPASSWORD=postgres psql -h 127.0.0.1 -p 6012 -U postgres -d postgres \
   -f apps/api/supabase/migrations/20251013160000_complete_schema.sql
 
 # Data
-PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres \
+PGPASSWORD=postgres psql -h 127.0.0.1 -p 6012 -U postgres -d postgres \
   -f apps/api/supabase/migrations/20251013160000_complete_data.sql
 ```
 
@@ -41,11 +41,11 @@ PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres \
 
 ```bash
 # Check table counts
-PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres \
+PGPASSWORD=postgres psql -h 127.0.0.1 -p 6012 -U postgres -d postgres \
   -c "SELECT schemaname, COUNT(*) FROM pg_stat_user_tables WHERE schemaname IN ('public', 'n8n', 'company') GROUP BY schemaname;"
 
 # Check users
-PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres \
+PGPASSWORD=postgres psql -h 127.0.0.1 -p 6012 -U postgres -d postgres \
   -c "SELECT COUNT(*) FROM auth.users;"
 ```
 
@@ -53,7 +53,7 @@ PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres \
 
 ```bash
 # Drop everything and start fresh
-PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres << 'SQL'
+PGPASSWORD=postgres psql -h 127.0.0.1 -p 6012 -U postgres -d postgres << 'SQL'
 DROP SCHEMA IF EXISTS public CASCADE;
 DROP SCHEMA IF EXISTS n8n CASCADE;
 DROP SCHEMA IF EXISTS company CASCADE;

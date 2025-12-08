@@ -8,12 +8,12 @@ Phase 0 establishes consistent port assignments and comprehensive environment co
 
 | Service | Current Port | New Port | Purpose |
 |---------|--------------|----------|---------|
-| API (NestJS) | 7100 | **6100** | Main Orchestrator AI API |
+| API (NestJS) | 6100 | **6100** | Main Orchestrator AI API |
 | Web/Frontend | 7101 | 6101 | Vue + Ionic frontend |
 | LangGraph | 7200 | **6200** | LangGraph agents service |
-| Supabase API | 7010 | **6010** | Local Supabase API |
+| Supabase API | 6010 | **6010** | Local Supabase API |
 | Supabase Studio | 7011 | 6011 | Supabase Studio UI |
-| Supabase DB | 7012 | 6012 | PostgreSQL database |
+| Supabase DB | 6012 | 6012 | PostgreSQL database |
 | N8n | 5678 | 5678 | N8n workflows (keep same) |
 | Observability | ? | 6300 | Observability server (if needed) |
 
@@ -27,7 +27,7 @@ Phase 0 establishes consistent port assignments and comprehensive environment co
 **Current Issues:**
 - Duplicate sections (API keys repeated, Helicone repeated)
 - Disorganized structure
-- Port 7100 used throughout
+- Port 6100 used throughout
 - Missing clear categories
 - **Both files need same organization and structure**
 
@@ -161,14 +161,14 @@ VITE_SUPABASE_URL=http://127.0.0.1:6010
 
 **Search patterns:**
 ```bash
-# Search for port 7100
-grep -r "7100" --include="*.ts" --include="*.js" --exclude-dir=node_modules
+# Search for port 6100
+grep -r "6100" --include="*.ts" --include="*.js" --exclude-dir=node_modules
 
 # Search for port 7200
 grep -r "7200" --include="*.ts" --include="*.js" --exclude-dir=node_modules
 
-# Search for port 7010
-grep -r "7010" --include="*.ts" --include="*.js" --exclude-dir=node_modules
+# Search for port 6010
+grep -r "6010" --include="*.ts" --include="*.js" --exclude-dir=node_modules
 ```
 
 **Common locations:**
@@ -214,7 +214,7 @@ grep -r "7010" --include="*.ts" --include="*.js" --exclude-dir=node_modules
 3. Document Supabase setup process
 
 ### Step 4: Search and Replace Hardcoded Ports
-1. Run grep searches for 7100, 7200, 7010
+1. Run grep searches for 6100, 7200, 6010
 2. Update TypeScript/JavaScript files
 3. Update configuration files
 4. Update test files

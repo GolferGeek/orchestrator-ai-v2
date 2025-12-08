@@ -75,7 +75,7 @@ export SUPABASE_DB_PASSWORD="postgres"
 
 # n8n database connection
 export N8N_DB_HOST="127.0.0.1"
-export N8N_DB_PORT="7012"
+export N8N_DB_PORT="6012"
 export N8N_DB_NAME="postgres"
 export N8N_DB_USER="postgres"
 export N8N_DB_PASSWORD="postgres"

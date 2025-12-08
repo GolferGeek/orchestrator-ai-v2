@@ -18,7 +18,7 @@ Export a complete database snapshot including all schemas (public, n8n, company,
 ### 1. Verify Prerequisites
 
 - Ensure Supabase database is running and accessible
-- Check database connection (host: 127.0.0.1, port: 7012)
+- Check database connection (host: 127.0.0.1, port: 6012)
 - Verify `storage/scripts/export-snapshot.sh` exists and is executable
 
 ### 2. Execute Export Script

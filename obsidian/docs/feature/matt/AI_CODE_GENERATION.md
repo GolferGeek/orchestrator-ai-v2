@@ -114,7 +114,7 @@ Ready to create? (yes/no)
 ### Via API
 
 ```bash
-curl -X POST http://localhost:7100/api/admin/agents \
+curl -X POST http://localhost:6100/api/admin/agents \
   -H "Content-Type: application/json" \
   -d '{
     "slug": "word_counter",

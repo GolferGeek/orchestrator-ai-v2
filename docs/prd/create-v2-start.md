@@ -239,7 +239,7 @@ This PRD defines the **v2-start** state of the repository. Advanced and producti
 ### 4.1 Port Configuration
 
 **Priority:** High  
-**Description:** Change default port from 7100 to 6100.
+**Description:** Change default port from 6100 to 6100.
 
 **Requirements:**
 - Update all port references to 6100
@@ -251,7 +251,7 @@ This PRD defines the **v2-start** state of the repository. Advanced and producti
 - Application runs on port 6100
 - All references updated
 - Documentation updated
-- No hardcoded 7100 references
+- No hardcoded 6100 references
 
 ### 4.2 Service Auto-Start Removal
 

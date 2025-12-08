@@ -70,7 +70,7 @@ For full details on the wrapping process, see `/api-agent:wrap-langgraph` comman
 📤 Next Steps:
    1. Test agent: /api-agent:test research-agent
    2. Import to database: /supabase:agent:import
-   3. Verify in UI: http://localhost:7100/agents
+   3. Verify in UI: http://localhost:6100/agents
 ```
 
 ## Important Notes

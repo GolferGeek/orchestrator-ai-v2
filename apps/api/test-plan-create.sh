@@ -25,7 +25,7 @@ echo "Task ID: $TASK_ID"
 
 # Make API call
 echo "Calling API..."
-curl -v -X POST http://localhost:7100/agent-to-agent/my-org/blog_post_writer/tasks \
+curl -v -X POST http://localhost:6100/agent-to-agent/my-org/blog_post_writer/tasks \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{

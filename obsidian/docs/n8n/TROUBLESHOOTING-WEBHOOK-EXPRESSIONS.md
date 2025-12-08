@@ -106,7 +106,7 @@ Instead of all nulls!
   "taskId": "postman-test-123",
   "conversationId": "postman-conv-123",
   "userId": "postman-user-123",
-  "callback_url": "http://host.docker.internal:7100/webhooks/status",
+  "callback_url": "http://host.docker.internal:6100/webhooks/status",
   "announcement": "Testing webhook expressions",
   "product": "OrchestratorAI",
   "target_audience": "developers",

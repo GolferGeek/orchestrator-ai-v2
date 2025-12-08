@@ -37,7 +37,7 @@ POST /agents/my-org/agent_builder_chat/tasks
 
 ```bash
 # Simple test
-curl -X POST http://localhost:7100/agents/my-org/agent_builder_chat/tasks \
+curl -X POST http://localhost:6100/agents/my-org/agent_builder_chat/tasks \
   -H "Content-Type: application/json" \
   -d '{
     "mode": "converse",
@@ -260,7 +260,7 @@ All tables exist and work:
 
 ```bash
 # Create directly
-curl -X POST http://localhost:7100/api/admin/agents \
+curl -X POST http://localhost:6100/api/admin/agents \
   -H "Content-Type: application/json" \
   -d '{
     "slug": "my-agent",
@@ -277,7 +277,7 @@ curl -X POST http://localhost:7100/api/admin/agents \
   }'
 
 # Promote to active
-curl -X POST http://localhost:7100/api/admin/agents/{id}/promote
+curl -X POST http://localhost:6100/api/admin/agents/{id}/promote
 ```
 
 ### Option 3: Via Seed Scripts
@@ -422,7 +422,7 @@ Agent: 🎉 Success! Agent Word Counter created!
 ### Agent Not Found
 **Fix:** Run seed script or check agent exists:
 ```bash
-curl http://localhost:7100/agents/my-org/agent_builder_chat/.well-known/agent.json
+curl http://localhost:6100/agents/my-org/agent_builder_chat/.well-known/agent.json
 ```
 
 ### Code Generation Fails

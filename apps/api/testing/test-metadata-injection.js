@@ -7,7 +7,7 @@
 
 const { randomUUID } = require('crypto');
 
-const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:7100';
+const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:6100';
 const TEST_USER = process.env.SUPABASE_TEST_USER || 'demo.user@orchestratorai.io';
 const TEST_PASSWORD = process.env.SUPABASE_TEST_PASSWORD || 'DemoUser123!';
 

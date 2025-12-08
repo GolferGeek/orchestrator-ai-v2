@@ -197,7 +197,7 @@ Yes! Test on a clean database:
 
 ```bash
 # Drop everything
-PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres << 'SQL'
+PGPASSWORD=postgres psql -h 127.0.0.1 -p 6012 -U postgres -d postgres << 'SQL'
 DROP SCHEMA IF EXISTS public CASCADE;
 DROP SCHEMA IF EXISTS n8n CASCADE;
 DROP SCHEMA IF EXISTS company CASCADE;
@@ -207,7 +207,7 @@ SQL
 ./scripts/apply-complete-migration.sh <timestamp>
 
 # Verify
-PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres \
+PGPASSWORD=postgres psql -h 127.0.0.1 -p 6012 -U postgres -d postgres \
   -c "SELECT schemaname, COUNT(*) FROM pg_stat_user_tables WHERE schemaname IN ('public', 'n8n', 'company') GROUP BY schemaname;"
 ```
 

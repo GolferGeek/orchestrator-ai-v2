@@ -53,7 +53,7 @@ Build a comprehensive frontend interface to showcase and manage the privacy-firs
 - **Framework**: Vue.js 3 + Composition API
 - **UI Library**: Ionic Vue (existing)
 - **State Management**: Pinia stores
-- **API Integration**: Axios hitting `http://localhost:7100/llm/sanitization` endpoints
+- **API Integration**: Axios hitting `http://localhost:6100/llm/sanitization` endpoints
 - **Real-time Updates**: Event-driven architecture
 
 ### Component Architecture
@@ -335,7 +335,7 @@ interface PIIDetectionResult {
 ## Dependencies and Prerequisites
 
 ### Technical Dependencies
-- **Backend API**: PII management endpoints at `http://localhost:7100/llm/sanitization`
+- **Backend API**: PII management endpoints at `http://localhost:6100/llm/sanitization`
 - **Database**: Supabase with PII pattern tables
 - **Frontend Framework**: Vue.js 3 + Ionic Vue setup
 - **Development Environment**: Node.js, npm/yarn

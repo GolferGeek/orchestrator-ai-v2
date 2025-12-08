@@ -260,7 +260,7 @@ response_transform:
 
 ```yaml
 # ❌ NEVER DO THIS
-"statusWebhook": "http://host.docker.internal:7100/webhooks/status"
+"statusWebhook": "http://host.docker.internal:6100/webhooks/status"
 ```
 
 ### ✅ CORRECT - Environment Variable
@@ -412,7 +412,7 @@ Available in request_transform templates:
 | `{{userId}}` | User identifier | `"user-101"` |
 | `{{agentSlug}}` | Agent slug | `"marketing-swarm-n8n"` |
 | `{{organizationSlug}}` | Organization slug | `"demo"` |
-| `{{env.API_BASE_URL}}` | Environment variable | `"http://localhost:7100"` |
+| `{{env.API_BASE_URL}}` | Environment variable | `"http://localhost:6100"` |
 | `{{env.API_KEY}}` | Environment variable | API key value |
 
 ## Workflow-Specific Requirements

@@ -3,7 +3,7 @@ const axios = require('axios');
 async function testGrokSpecific() {
   try {
     console.log('🔐 Logging in...');
-    const loginResponse = await axios.post('http://localhost:7100/auth/login', {
+    const loginResponse = await axios.post('http://localhost:6100/auth/login', {
       email: 'demo.user@playground.com',
       password: 'demouser'
     });
@@ -14,7 +14,7 @@ async function testGrokSpecific() {
     console.log('🧪 Testing Grok with detailed error logging...');
     
     try {
-      const response = await axios.post('http://localhost:7100/llm/generate', {
+      const response = await axios.post('http://localhost:6100/llm/generate', {
         systemPrompt: 'You are a helpful assistant.',
         userPrompt: 'Say hello.',
         options: {

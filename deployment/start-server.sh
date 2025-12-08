@@ -110,11 +110,11 @@ if command -v supabase &> /dev/null; then
         SUPABASE_CONFIG="$PROJECT_DIR/apps/api/supabase/config.production.toml"
         echo -e "${BLUE}Using production Supabase configuration (port 9010)${NC}"
     else
-        SUPABASE_PORT=7010
-        SUPABASE_DB_PORT=7012
+        SUPABASE_PORT=6010
+        SUPABASE_DB_PORT=6012
         SUPABASE_STUDIO_PORT=7015
         SUPABASE_CONFIG="$PROJECT_DIR/apps/api/supabase/config.dev.toml"
-        echo -e "${BLUE}Using development Supabase configuration (port 7010)${NC}"
+        echo -e "${BLUE}Using development Supabase configuration (port 6010)${NC}"
     fi
 
     # Check if Supabase ports are already in use (indicating it's running)
@@ -382,10 +382,10 @@ if [ "$IS_PRODUCTION" = true ]; then
         echo -e "${YELLOW}⚠️  Production Supabase not running${NC}"
     fi
 else
-    if check_port 7010 && check_port 7012; then
+    if check_port 6010 && check_port 6012; then
         echo -e "${GREEN}✅ Development Supabase running${NC}"
-        echo -e "  API URL: http://127.0.0.1:7010"
-        echo -e "  DB URL: postgres://postgres:postgres@127.0.0.1:7012/postgres"
+        echo -e "  API URL: http://127.0.0.1:6010"
+        echo -e "  DB URL: postgres://postgres:postgres@127.0.0.1:6012/postgres"
         echo -e "  Studio URL: http://127.0.0.1:7015"
     else
         echo -e "${YELLOW}⚠️  Development Supabase not running${NC}"

@@ -62,7 +62,7 @@ Common issues and solutions for Supabase management operations in Orchestrator A
 **Solutions:**
 1. Verify Docker containers are running: `docker ps | grep supabase`
 2. Check container name: Should be `supabase_db_api-dev`
-3. Verify port: Should be `7012` for Supabase, `7013` for N8N
+3. Verify port: Should be `6012` for Supabase, `7013` for N8N
 4. Check database is accessible: `docker exec -it supabase_db_api-dev psql -U postgres -d postgres -c "SELECT 1;"`
 
 ### Issue: "Permission denied" when running scripts

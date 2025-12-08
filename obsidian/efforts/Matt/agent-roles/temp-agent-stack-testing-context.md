@@ -14,12 +14,12 @@
 
 **Servers**:
 - Web Server: http://localhost:7101 (running in background bash 26738d)
-- API Server: http://localhost:7100 (running in background bash f74bf0)
+- API Server: http://localhost:6100 (running in background bash f74bf0)
 - Browser: Firefox at localhost:7101 (manually opened)
 
 **Testing Environment**:
 1. ✅ **Web Server Running** - localhost:7101 (Vite dev server)
-2. ✅ **API Server Running** - localhost:7100 (NestJS with hot reload)
+2. ✅ **API Server Running** - localhost:6100 (NestJS with hot reload)
 3. ✅ **Browser Open** - Firefox at localhost:7101
 4. ✅ **Console Monitoring** - Real-time logs from web and API
 5. ✅ **Browser Console** - Client-side JavaScript logs and errors
@@ -202,7 +202,7 @@ Uncaught TypeError: Cannot read property 'id' of undefined
 When you start a new session:
 
 - [ ] Check branch: `git branch` (should be on test-agent-stack)
-- [ ] Check servers: Are web (7101) and API (7100) running?
+- [ ] Check servers: Are web (7101) and API (6100) running?
 - [ ] Check browser: Is Firefox open at localhost:7101?
 - [ ] Read test tracking doc: Where did I leave off?
 - [ ] Check console output: Any errors or issues since last session?

@@ -286,7 +286,7 @@ The chat agent uses the same backend services as the API:
 
 ### Via API (for testing)
 ```bash
-curl -X POST http://localhost:7100/api/agents/my-org/agent_builder_chat/task \
+curl -X POST http://localhost:6100/api/agents/my-org/agent_builder_chat/task \
   -H "Content-Type: application/json" \
   -d '{
     "mode": "converse",

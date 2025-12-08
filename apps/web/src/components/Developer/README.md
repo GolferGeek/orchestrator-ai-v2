@@ -219,7 +219,7 @@ interface StatusResponse {
 
 ```bash
 # API Base URL (if different from current domain)
-VITE_API_BASE_URL=http://localhost:7100
+VITE_API_BASE_URL=http://localhost:6100
 
 # Auto-refresh intervals (milliseconds)
 VITE_DEV_TOOLS_REFRESH_INTERVAL=10000

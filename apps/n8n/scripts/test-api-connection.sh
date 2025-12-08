@@ -52,8 +52,8 @@ fi
 # Test Supabase connection
 echo -e "${BLUE}🗄️  Testing Supabase connection...${NC}"
 
-if ! curl -s http://127.0.0.1:7010/health > /dev/null; then
-  echo -e "${RED}❌ Supabase is not running on port 7010${NC}"
+if ! curl -s http://127.0.0.1:6010/health > /dev/null; then
+  echo -e "${RED}❌ Supabase is not running on port 6010${NC}"
   echo -e "${YELLOW}Start Supabase with: npm run dev:supabase:start${NC}"
   exit 1
 fi

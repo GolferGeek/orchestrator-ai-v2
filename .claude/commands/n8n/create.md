@@ -35,7 +35,7 @@ Use "Execute Workflow" node with these parameters:
       { "name": "maxTokens", "value": 1000 },
       { "name": "sendStartStatus", "value": true },
       { "name": "sendEndStatus", "value": true },
-      { "name": "statusWebhook", "value": "http://host.docker.internal:7100/webhooks/status" },
+      { "name": "statusWebhook", "value": "http://host.docker.internal:6100/webhooks/status" },
       { "name": "taskId", "value": "{{ $input.taskId }}" },
       { "name": "conversationId", "value": "{{ $input.conversationId }}" },
       { "name": "userId", "value": "{{ $input.userId }}" },
@@ -52,7 +52,7 @@ Use "Execute Workflow" node with these parameters:
 - Model: gpt-4
 - Temperature: 0.7 (general), 0.5 (factual), 0.8 (creative)
 - MaxTokens: 1000 (general), 800 (factual), 1200 (creative)
-- Status Webhook: `http://host.docker.internal:7100/webhooks/status`
+- Status Webhook: `http://host.docker.internal:6100/webhooks/status`
 
 ## Organization Standards
 

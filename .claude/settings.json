@@ -7,7 +7,7 @@
   },
   "permissions": {
     "allow": [
-      "Bash(PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres -c \"\\d auth.users\")",
+      "Bash(PGPASSWORD=postgres psql -h 127.0.0.1 -p 6012 -U postgres -d postgres -c \"\\d auth.users\")",
       "Bash(docker exec:*)",
       "Bash(export:*)",
       "Bash(for:*)",
@@ -20,7 +20,7 @@
       "Bash(psql:*)",
       "Bash(do [ \"$file\" != \"apps/api/supabase/migrations/20251026000000_create_observability_schema.sql\" ])",
       "Bash(echo \"Applying: $file\")",
-      "Bash(PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres -f \"$file\")",
+      "Bash(PGPASSWORD=postgres psql -h 127.0.0.1 -p 6012 -U postgres -d postgres -f \"$file\")",
       "Bash(docker restart:*)",
       "Bash(docker ps:*)",
       "Bash(docker run:*)",

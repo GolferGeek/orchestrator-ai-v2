@@ -3,7 +3,7 @@
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 
-const API_BASE = 'http://localhost:7100';
+const API_BASE = 'http://localhost:6100';
 const TEST_USER = 'demo.user@orchestratorai.io';
 const TEST_PASSWORD = 'DemoUser123!';
 

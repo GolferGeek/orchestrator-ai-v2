@@ -36,7 +36,7 @@ echo ""
 
 # Load database connection from environment or use defaults
 DB_HOST="${DB_HOST:-127.0.0.1}"
-DB_PORT="${DB_PORT:-7012}"
+DB_PORT="${DB_PORT:-6012}"
 DB_USER="${DB_USER:-postgres}"
 DB_NAME="${DB_NAME:-postgres}"
 

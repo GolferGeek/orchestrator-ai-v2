@@ -6,7 +6,7 @@ import type { HookEvent, FilterOptions, Theme, ThemeSearchQuery } from './types.
 // This allows us to access the observability schema without exposing it through PostgREST
 const pool = new Pool({
   host: process.env.PGHOST || '127.0.0.1',
-  port: parseInt(process.env.PGPORT || '7012'),
+  port: parseInt(process.env.PGPORT || '6012'),
   user: process.env.PGUSER || 'postgres',
   password: process.env.PGPASSWORD || 'postgres',
   database: process.env.PGDATABASE || 'postgres',

@@ -145,7 +145,7 @@ storage/snapshots/<timestamp>/
 
 ### Supabase Database
 - **Host**: `127.0.0.1`
-- **Port**: `7012`
+- **Port**: `6012`
 - **User**: `postgres`
 - **Database**: `postgres`
 - **Container**: `supabase_db_api-dev`

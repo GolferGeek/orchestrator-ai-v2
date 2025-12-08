@@ -46,17 +46,17 @@ These parameters are **REQUIRED** if you want webhook status tracking to work:
 
 ```javascript
 // ❌ WRONG - Hardcoded
-"statusWebhook": "http://host.docker.internal:7100/webhooks/status"
+"statusWebhook": "http://host.docker.internal:6100/webhooks/status"
 
 // ✅ CORRECT - Read from environment
-"statusWebhook": "={{ process.env.API_BASE_URL || process.env.VITE_API_BASE_URL || 'http://host.docker.internal:7100' }}/webhooks/status"
+"statusWebhook": "={{ process.env.API_BASE_URL || process.env.VITE_API_BASE_URL || 'http://host.docker.internal:6100' }}/webhooks/status"
 ```
 
 ### Default Behavior
 
 1. **Read from `.env` file:**
    - Primary: `API_BASE_URL` or `VITE_API_BASE_URL`
-   - Development fallback: `http://host.docker.internal:7100`
+   - Development fallback: `http://host.docker.internal:6100`
    - Production fallback: Read from production `.env` (should be production URL)
 
 2. **URL Construction:**
@@ -64,7 +64,7 @@ These parameters are **REQUIRED** if you want webhook status tracking to work:
    - Example: `${API_BASE_URL}/webhooks/status`
 
 3. **Environment-Specific:**
-   - **Development (Docker)**: `http://host.docker.internal:7100/webhooks/status`
+   - **Development (Docker)**: `http://host.docker.internal:6100/webhooks/status`
    - **Production**: `${API_BASE_URL}/webhooks/status` (from `.env`)
 
 ## Complete Parameter Set for Helper LLM Call

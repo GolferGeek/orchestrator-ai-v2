@@ -734,7 +734,7 @@ export class N8nMCPService {
     }
 
     if (request.preferences?.includeProgressUpdates) {
-      prompt += `- Add HTTP nodes to send progress updates to http://localhost:7100/api/agent-to-agent/api-progress/:taskId at key milestones\n`;
+      prompt += `- Add HTTP nodes to send progress updates to http://localhost:6100/api/agent-to-agent/api-progress/:taskId at key milestones\n`;
     }
 
     if (request.preferences?.includeLogging) {
@@ -742,7 +742,7 @@ export class N8nMCPService {
     }
 
     prompt += `\n- Start with a Webhook trigger node
-- End with an HTTP Request node that calls back to http://localhost:7100/api/agent-to-agent/api-callback/:taskId
+- End with an HTTP Request node that calls back to http://localhost:6100/api/agent-to-agent/api-callback/:taskId
 - Use efficient node arrangements
 - Include all necessary nodes for the functionality described`;
 

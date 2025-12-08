@@ -9,10 +9,10 @@ npm run dev:api
 ```
 
 This will start:
-- ✅ Supabase (port 7012)
+- ✅ Supabase (port 6012)
 - ✅ n8n (port 5678)
 - ✅ **LangGraph (port 7200)** ← NEW!
-- ✅ NestJS API (port 7100)
+- ✅ NestJS API (port 6100)
 
 ## Manual Control
 
@@ -48,7 +48,7 @@ curl -X POST http://localhost:7200/workflows/marketing-swarm \
     "provider": "anthropic",
     "model": "claude-3-sonnet",
     "prompt": "Announce the launch of our new AI analytics platform",
-    "statusWebhook": "http://localhost:7100/webhooks/status"
+    "statusWebhook": "http://localhost:6100/webhooks/status"
   }'
 ```
 
@@ -61,7 +61,7 @@ The 3 workflows are available as API agents in the database:
 
 Test via A2A protocol:
 ```bash
-curl -X POST http://localhost:7100/a2a/agents/marketing/marketing-swarm-langgraph/tasks \
+curl -X POST http://localhost:6100/a2a/agents/marketing/marketing-swarm-langgraph/tasks \
   -H "Content-Type: application/json" \
   -d '{
     "method": "process",
@@ -106,13 +106,13 @@ npm run start:dev
 ### LLM Service Connection Failed
 Ensure the main API is running:
 ```bash
-curl http://localhost:7100/health
+curl http://localhost:6100/health
 ```
 
 ### Webhook Not Working
 Check the API webhooks controller:
 ```bash
-curl -X POST http://localhost:7100/webhooks/status \
+curl -X POST http://localhost:6100/webhooks/status \
   -H "Content-Type: application/json" \
   -d '{"taskId":"test","status":"progress","timestamp":"2025-01-04T12:00:00Z"}'
 ```
@@ -124,9 +124,9 @@ LangGraph uses these environment variables (in `apps/langgraph/.env`):
 ```env
 LANGGRAPH_PORT=7200
 LANGGRAPH_HOST=0.0.0.0
-LLM_SERVICE_URL=http://localhost:7100
+LLM_SERVICE_URL=http://localhost:6100
 LLM_ENDPOINT=/llm/generate
-WEBHOOK_STATUS_URL=http://localhost:7100/webhooks/status
+WEBHOOK_STATUS_URL=http://localhost:6100/webhooks/status
 ```
 
 ## Integration Flow
@@ -136,13 +136,13 @@ User Request
     ↓
 Orchestrator UI (port 4100)
     ↓
-NestJS API (port 7100) - Routes to API agent
+NestJS API (port 6100) - Routes to API agent
     ↓
 LangGraph Server (port 7200) - Executes workflow
     ↓ (calls)
-LLM Service (port 7100) - /llm/generate
+LLM Service (port 6100) - /llm/generate
     ↓ (streams to)
-Webhook Service (port 7100) - /webhooks/status
+Webhook Service (port 6100) - /webhooks/status
     ↓ (updates)
 Task Status in Database
     ↓ (displays in)
@@ -174,7 +174,7 @@ nano apps/langgraph/sql/insert-api-agents.sql
 
 # Re-run the SQL
 export PGPASSWORD=postgres && \
-psql -h 127.0.0.1 -p 7012 -U postgres -d postgres \
+psql -h 127.0.0.1 -p 6012 -U postgres -d postgres \
   -f apps/langgraph/sql/insert-api-agents.sql
 ```
 

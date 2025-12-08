@@ -177,7 +177,7 @@ npm run start:dev
 
 ### 2. Health Check
 ```bash
-curl http://localhost:7100/health
+curl http://localhost:6100/health
 ```
 **Response**:
 ```json

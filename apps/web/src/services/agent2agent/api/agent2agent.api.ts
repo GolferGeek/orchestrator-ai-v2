@@ -40,7 +40,7 @@ import {
 import { useExecutionContextStore } from '@/stores/executionContextStore';
 
 // Get API base URL from environment
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_NESTJS_BASE_URL || 'http://localhost:7100';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_NESTJS_BASE_URL || 'http://localhost:6100';
 
 /**
  * Base API client configuration

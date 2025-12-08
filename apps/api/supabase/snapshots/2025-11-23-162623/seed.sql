@@ -810,7 +810,7 @@ INSERT INTO auth.schema_migrations (version) VALUES ('20180108183307');
 INSERT INTO auth.schema_migrations (version) VALUES ('20180119214651');
 INSERT INTO auth.schema_migrations (version) VALUES ('20180125194653');
 INSERT INTO auth.schema_migrations (version) VALUES ('00');
-INSERT INTO auth.schema_migrations (version) VALUES ('20210710035447');
+INSERT INTO auth.schema_migrations (version) VALUES ('20210610035447');
 INSERT INTO auth.schema_migrations (version) VALUES ('20210722035447');
 INSERT INTO auth.schema_migrations (version) VALUES ('20210730183235');
 INSERT INTO auth.schema_migrations (version) VALUES ('20210909172000');

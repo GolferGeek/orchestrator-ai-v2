@@ -82,7 +82,7 @@ Orchestrator AI uses **4 schemas**:
 
 ### Database Connection Details
 - **Host**: `127.0.0.1` (or `localhost`)
-- **Port**: `7012` (Supabase), `7013` (N8N)
+- **Port**: `6012` (Supabase), `7013` (N8N)
 - **User**: `postgres`
 - **Database**: `postgres`
 - **Container**: `supabase_db_api-dev`

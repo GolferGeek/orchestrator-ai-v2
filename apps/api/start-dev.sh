@@ -301,7 +301,7 @@ NESTJS_PID=$!
 sleep 2
 
 echo -e "${GREEN}✅ Development environment ready!${NC}"
-echo -e "${BLUE}📡 NestJS API: http://localhost:${API_PORT:-7100}${NC}"
+echo -e "${BLUE}📡 NestJS API: http://localhost:${API_PORT:-6100}${NC}"
 if [ "$LANGGRAPH_STARTED_BY_SCRIPT" = true ]; then
     echo -e "${BLUE}🔄 LangGraph Workflows: http://localhost:6200${NC}"
 fi

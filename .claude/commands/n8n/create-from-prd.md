@@ -49,7 +49,7 @@ This is your organization's standard building block for LLM-backed workflows. Se
 - **1200-1500** - Longer output (blog posts, detailed analysis)
 
 ### **Default Status Webhook**
-`http://host.docker.internal:7100/webhooks/status`
+`http://host.docker.internal:6100/webhooks/status`
 
 ## Reference: Marketing Swarm Pattern
 

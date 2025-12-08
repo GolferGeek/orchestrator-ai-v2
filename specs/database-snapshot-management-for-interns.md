@@ -186,7 +186,7 @@ TIMESTAMP=$(date +%Y-%m-%d-%H%M%S)
 SNAPSHOT_DIR="storage/snapshots/$TIMESTAMP"
 LATEST_DIR="storage/snapshots/latest"
 DB_HOST="127.0.0.1"
-DB_PORT="7012"
+DB_PORT="6012"
 DB_USER="postgres"
 DB_NAME="postgres"
 
@@ -311,7 +311,7 @@ set -e  # Exit on error
 # Configuration
 SNAPSHOT_DIR="${1:-storage/snapshots/latest}"
 DB_HOST="127.0.0.1"
-DB_PORT="7012"
+DB_PORT="6012"
 DB_USER="postgres"
 DB_NAME="postgres"
 
@@ -415,7 +415,7 @@ echo "  3. Start developing!"
 set -e
 
 DB_HOST="127.0.0.1"
-DB_PORT="7012"
+DB_PORT="6012"
 DB_USER="postgres"
 DB_NAME="postgres"
 
@@ -539,7 +539,7 @@ When the lead developer tells you there's a new database snapshot:
 
 **Error: "Connection refused"**
 - Supabase might not be running. Run `npx supabase start`
-- Check that Supabase is running on port 7012: `lsof -i :7012`
+- Check that Supabase is running on port 6012: `lsof -i :6012`
 
 **Error: "Permission denied"**
 - On Mac/Linux, you might need to make scripts executable:
@@ -597,7 +597,7 @@ Contact the lead developer if:
 **Implementation**:
 ```bash
 # Check if Supabase is running
-if ! lsof -i :7012 > /dev/null 2>&1; then
+if ! lsof -i :6012 > /dev/null 2>&1; then
   echo "⚠️  Supabase is not running!"
   echo "Starting Supabase..."
   npx supabase start
@@ -744,7 +744,7 @@ set -e
 AGENT_NAME="$1"
 OUTPUT_DIR="storage/snapshots/agents"
 DB_HOST="127.0.0.1"
-DB_PORT="7012"
+DB_PORT="6012"
 DB_USER="postgres"
 DB_NAME="postgres"
 
@@ -804,7 +804,7 @@ set -e
 
 AGENT_FILE="$1"
 DB_HOST="127.0.0.1"
-DB_PORT="7012"
+DB_PORT="6012"
 DB_USER="postgres"
 DB_NAME="postgres"
 
@@ -867,7 +867,7 @@ set -e
 
 OUTPUT_DIR="storage/snapshots/agents"
 DB_HOST="127.0.0.1"
-DB_PORT="7012"
+DB_PORT="6012"
 DB_USER="postgres"
 DB_NAME="postgres"
 
@@ -905,7 +905,7 @@ set -e
 WORKFLOW_NAME="$1"
 OUTPUT_DIR="storage/snapshots/n8n"
 DB_HOST="127.0.0.1"
-DB_PORT="7012"
+DB_PORT="6012"
 DB_USER="postgres"
 DB_NAME="postgres"
 
@@ -945,7 +945,7 @@ set -e
 
 WORKFLOW_FILE="$1"
 DB_HOST="127.0.0.1"
-DB_PORT="7012"
+DB_PORT="6012"
 DB_USER="postgres"
 DB_NAME="postgres"
 

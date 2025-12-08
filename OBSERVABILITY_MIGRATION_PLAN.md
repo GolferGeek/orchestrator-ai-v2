@@ -112,7 +112,7 @@ apps/api/supabase/migrations/
 ```
 
 #### Port Assignment:
-- Server: **4100** (to avoid conflicts with existing 7100, 9000, etc.)
+- Server: **4100** (to avoid conflicts with existing 6100, 9000, etc.)
 - Client: **4101** (Vite dev server)
 
 ### Phase 3: Frontend Migration

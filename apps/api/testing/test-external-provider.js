@@ -4,7 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 async function testExternalProvider() {
   try {
     console.log('🔐 Logging in...');
-    const loginResponse = await axios.post('http://localhost:7100/auth/login', {
+    const loginResponse = await axios.post('http://localhost:6100/auth/login', {
       email: 'demo.user@playground.com',
       password: 'demouser'
     });
@@ -14,7 +14,7 @@ async function testExternalProvider() {
     
     console.log('🧪 Testing with EXTERNAL provider (should trigger dictionary pseudonymization)...');
     
-    const response = await axios.post('http://localhost:7100/llm/generate', {
+    const response = await axios.post('http://localhost:6100/llm/generate', {
       systemPrompt: 'You are a helpful assistant.',
       userPrompt: 'Write about Matt Weber and GolferGeek at Orchestrator AI.',
       options: {

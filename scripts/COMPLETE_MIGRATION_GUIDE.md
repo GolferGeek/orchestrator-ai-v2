@@ -78,19 +78,19 @@ npx supabase start
 
 # This will output connection details like:
 # API URL: http://127.0.0.1:54321
-# DB URL: postgresql://postgres:postgres@127.0.0.1:7012/postgres
+# DB URL: postgresql://postgres:postgres@127.0.0.1:6012/postgres
 # ...
 
 # 5. Apply the schema migration
-PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres \
+PGPASSWORD=postgres psql -h 127.0.0.1 -p 6012 -U postgres -d postgres \
   -f supabase/migrations/<TIMESTAMP>_complete_schema.sql
 
 # 6. Apply the data migration
-PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres \
+PGPASSWORD=postgres psql -h 127.0.0.1 -p 6012 -U postgres -d postgres \
   -f supabase/migrations/<TIMESTAMP>_complete_data.sql
 
 # 7. Verify the migration worked
-PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres \
+PGPASSWORD=postgres psql -h 127.0.0.1 -p 6012 -U postgres -d postgres \
   -c "SELECT schemaname, tablename, n_live_tup FROM pg_stat_user_tables WHERE schemaname IN ('public', 'n8n', 'company');"
 
 # 8. Copy environment file and configure
@@ -113,7 +113,7 @@ cd /path/to/orchestrator-ai
 
 # Set connection details
 export DB_HOST=127.0.0.1
-export DB_PORT=7012
+export DB_PORT=6012
 export DB_USER=postgres
 export DB_PASS=postgres
 export DB_NAME=postgres
@@ -156,11 +156,11 @@ PGPASSWORD=${DB_PASS} pg_dump \
 
 ```bash
 # Apply schema
-PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres \
+PGPASSWORD=postgres psql -h 127.0.0.1 -p 6012 -U postgres -d postgres \
   -f apps/api/supabase/migrations/<TIMESTAMP>_complete_schema.sql
 
 # Apply data
-PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres \
+PGPASSWORD=postgres psql -h 127.0.0.1 -p 6012 -U postgres -d postgres \
   -f apps/api/supabase/migrations/<TIMESTAMP>_complete_data.sql
 ```
 
@@ -211,11 +211,11 @@ Contains all data inserts:
 **Solution:**
 ```bash
 # Re-run the schema file
-PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres \
+PGPASSWORD=postgres psql -h 127.0.0.1 -p 6012 -U postgres -d postgres \
   -f apps/api/supabase/migrations/<TIMESTAMP>_complete_schema.sql
 
 # Then run the data file
-PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres \
+PGPASSWORD=postgres psql -h 127.0.0.1 -p 6012 -U postgres -d postgres \
   -f apps/api/supabase/migrations/<TIMESTAMP>_complete_data.sql
 ```
 
@@ -230,7 +230,7 @@ PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres \
 
 ```bash
 # Drop and recreate
-PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres << 'SQL'
+PGPASSWORD=postgres psql -h 127.0.0.1 -p 6012 -U postgres -d postgres << 'SQL'
 DROP SCHEMA IF EXISTS public CASCADE;
 DROP SCHEMA IF EXISTS n8n CASCADE;
 DROP SCHEMA IF EXISTS company CASCADE;
@@ -285,7 +285,7 @@ To migrate only specific schemas, edit the script or use manual pg_dump commands
 # Only public and company schemas
 PGPASSWORD=postgres pg_dump \
   -h 127.0.0.1 \
-  -p 7012 \
+  -p 6012 \
   -U postgres \
   -d postgres \
   --schema-only \
@@ -300,7 +300,7 @@ If you only want to refresh data without changing the schema:
 
 ```bash
 # Just run the data file
-PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres \
+PGPASSWORD=postgres psql -h 127.0.0.1 -p 6012 -U postgres -d postgres \
   -f apps/api/supabase/migrations/<TIMESTAMP>_complete_data.sql
 ```
 

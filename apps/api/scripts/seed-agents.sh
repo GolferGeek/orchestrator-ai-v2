@@ -3,7 +3,7 @@
 # Agent Seeding Script
 # Seeds blog_post_writer, hr_assistant, and agent_builder_orchestrator_v2
 
-API_BASE_URL="${API_BASE_URL:-http://localhost:7100}"
+API_BASE_URL="${API_BASE_URL:-http://localhost:6100}"
 ROOT_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
 
 echo "🚀 Agent Seeding Script"

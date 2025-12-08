@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Test all 9 Plan actions for blog_post_writer
-# Prerequisites: API running on localhost:7100
+# Prerequisites: API running on localhost:6100
 
 ORG="my-org"
 AGENT="blog_post_writer"
-API_URL="http://localhost:7100"
+API_URL="http://localhost:6100"
 CONVERSATION_ID=""
 
 echo "🧪 Testing Plan Actions for $AGENT"

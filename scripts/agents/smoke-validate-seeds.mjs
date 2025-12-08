@@ -2,7 +2,7 @@
 import { readFile } from 'fs/promises';
 import { resolve } from 'path';
 
-const API_BASE = process.env.API_BASE || 'http://localhost:7100';
+const API_BASE = process.env.API_BASE || 'http://localhost:6100';
 const TOKEN = process.env.TOKEN;
 const headers = { 'Content-Type': 'application/json', ...(TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {}) };
 

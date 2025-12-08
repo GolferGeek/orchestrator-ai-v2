@@ -3,7 +3,7 @@ const axios = require('axios');
 async function testDictionaryService() {
   try {
     console.log('🔐 Logging in...');
-    const loginResponse = await axios.post('http://localhost:7100/auth/login', {
+    const loginResponse = await axios.post('http://localhost:6100/auth/login', {
       email: 'demo.user@playground.com',
       password: 'demouser'
     });
@@ -14,7 +14,7 @@ async function testDictionaryService() {
     // Test a simple LLM call that should trigger our dictionary service
     console.log('🧪 Testing dictionary pseudonymization with direct LLM call...');
     
-    const response = await axios.post('http://localhost:7100/llm/generate', {
+    const response = await axios.post('http://localhost:6100/llm/generate', {
       systemPrompt: 'You are a helpful assistant.',
       userPrompt: 'Write a short paragraph about Matt Weber and GolferGeek working at Orchestrator AI.',
       options: {

@@ -4,7 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 async function testAgentSimple() {
   try {
     console.log('🔐 Logging in...');
-    const loginResponse = await axios.post('http://localhost:7100/auth/login', {
+    const loginResponse = await axios.post('http://localhost:6100/auth/login', {
       email: 'demo.user@playground.com',
       password: 'demouser'
     });
@@ -14,7 +14,7 @@ async function testAgentSimple() {
     
     console.log('🧪 Testing agent with automatic routing (no provider specified)...');
     
-    const response = await axios.post('http://localhost:7100/agents/marketing/blog_post/tasks', {
+    const response = await axios.post('http://localhost:6100/agents/marketing/blog_post/tasks', {
       method: 'process',
       prompt: 'Write a short paragraph about Matt Weber and GolferGeek working at Orchestrator AI.',
       conversationId: uuidv4(),

@@ -58,7 +58,7 @@ Create a "Set" node that prepares all parameters for Helper LLM:
               "name": "announcement",
               "type": "string",
               "value": "={{ $json.body.announcement }}",
-              "id": "37100b7a-3727-4855-824f-2725e80d0440"
+              "id": "36100b7a-3727-4855-824f-2725e80d0440"
             },
             {
               "name": "taskId",
@@ -171,7 +171,7 @@ Configure the "Execute Workflow" node:
 When an API agent wraps an N8N workflow, here's the agent configuration from `storage/snapshots/agents/demo_marketing_swarm_n8n.json`:
 
 ```11:11:storage/snapshots/agents/demo_marketing_swarm_n8n.json
-  "yaml": "\n{\n    \"metadata\": {\n        \"name\": \"marketing-swarm-n8n\",\n        \"displayName\": \"Marketing Swarm N8N\",\n        \"description\": \"API agent that calls n8n webhook for marketing campaign swarm processing\",\n        \"version\": \"0.1.0\",\n        \"type\": \"api\"\n    },\n    \"configuration\": {\n        \"api\": {\n            \"endpoint\": \"http://localhost:5678/webhook/marketing-swarm-flexible\",\n            \"method\": \"POST\",\n            \"headers\": {\n                \"Content-Type\": \"application/json\"\n            },\n            \"body\": {\n                \"taskId\": \"{{taskId}}\",\n                \"conversationId\": \"{{conversationId}}\",\n                \"userId\": \"{{userId}}\",\n                \"announcement\": \"{{userMessage}}\",\n                \"statusWebhook\": \"http://host.docker.internal:7100/webhooks/status\",\n                \"provider\": \"{{payload.provider}}\",\n                \"model\": \"{{payload.model}}\"\n            },\n            \"authentication\": {\n                \"type\": \"none\"\n            },\n            \"response_mapping\": {\n                \"status_field\": \"status\",\n                \"result_field\": \"payload\"\n            },\n            \"timeout\": 120000\n        },\n        \"deliverable\": {\n            \"format\": \"markdown\",\n            \"type\": \"marketing-campaign\"\n        },\n        \"execution_capabilities\": {\n            \"supports_converse\": false,\n            \"supports_plan\": false,\n            \"supports_build\": true\n        }\n    }\n}\n",
+  "yaml": "\n{\n    \"metadata\": {\n        \"name\": \"marketing-swarm-n8n\",\n        \"displayName\": \"Marketing Swarm N8N\",\n        \"description\": \"API agent that calls n8n webhook for marketing campaign swarm processing\",\n        \"version\": \"0.1.0\",\n        \"type\": \"api\"\n    },\n    \"configuration\": {\n        \"api\": {\n            \"endpoint\": \"http://localhost:5678/webhook/marketing-swarm-flexible\",\n            \"method\": \"POST\",\n            \"headers\": {\n                \"Content-Type\": \"application/json\"\n            },\n            \"body\": {\n                \"taskId\": \"{{taskId}}\",\n                \"conversationId\": \"{{conversationId}}\",\n                \"userId\": \"{{userId}}\",\n                \"announcement\": \"{{userMessage}}\",\n                \"statusWebhook\": \"http://host.docker.internal:6100/webhooks/status\",\n                \"provider\": \"{{payload.provider}}\",\n                \"model\": \"{{payload.model}}\"\n            },\n            \"authentication\": {\n                \"type\": \"none\"\n            },\n            \"response_mapping\": {\n                \"status_field\": \"status\",\n                \"result_field\": \"payload\"\n            },\n            \"timeout\": 120000\n        },\n        \"deliverable\": {\n            \"format\": \"markdown\",\n            \"type\": \"marketing-campaign\"\n        },\n        \"execution_capabilities\": {\n            \"supports_converse\": false,\n            \"supports_plan\": false,\n            \"supports_build\": true\n        }\n    }\n}\n",
 ```
 
 **Key Points:**
@@ -190,7 +190,7 @@ When the API agent calls the N8N webhook, the request body looks like:
   "conversationId": "123e4567-e89b-12d3-a456-426614174001",
   "userId": "123e4567-e89b-12d3-a456-426614174002",
   "announcement": "We're launching our new AI agent platform!",
-  "statusWebhook": "http://host.docker.internal:7100/webhooks/status",
+  "statusWebhook": "http://host.docker.internal:6100/webhooks/status",
   "provider": "openai",
   "model": "gpt-4"
 }
@@ -201,14 +201,14 @@ When the API agent calls the N8N webhook, the request body looks like:
 **❌ WRONG - Hardcoded:**
 ```json
 {
-  "statusWebhook": "http://host.docker.internal:7100/webhooks/status"
+  "statusWebhook": "http://host.docker.internal:6100/webhooks/status"
 }
 ```
 
 **✅ CORRECT - From Environment:**
 ```json
 {
-  "statusWebhook": "={{ process.env.API_BASE_URL || process.env.VITE_API_BASE_URL || 'http://host.docker.internal:7100' }}/webhooks/status"
+  "statusWebhook": "={{ process.env.API_BASE_URL || process.env.VITE_API_BASE_URL || 'http://host.docker.internal:6100' }}/webhooks/status"
 }
 ```
 
@@ -473,7 +473,7 @@ Three "Set" nodes prepare parameters for three Helper LLM calls:
 ```json
 // ❌ WRONG
 {
-  "statusWebhook": "http://host.docker.internal:7100/webhooks/status"
+  "statusWebhook": "http://host.docker.internal:6100/webhooks/status"
 }
 ```
 

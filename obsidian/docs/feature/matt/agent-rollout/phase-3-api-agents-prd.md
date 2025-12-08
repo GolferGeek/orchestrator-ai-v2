@@ -841,7 +841,7 @@ const progress = computed(() =>
 // HTTP Request Node: Send Progress Update
 {
   "method": "POST",
-  "url": "http://localhost:7100/api/agent-to-agent/api-progress/{{$json.taskId}}",
+  "url": "http://localhost:6100/api/agent-to-agent/api-progress/{{$json.taskId}}",
   "authentication": "headerAuth",
   "body": {
     "task_id": "{{$json.taskId}}",
@@ -875,7 +875,7 @@ const progress = computed(() =>
 // HTTP Request Node: Send Completion Callback
 {
   "method": "POST",
-  "url": "http://localhost:7100/api/agent-to-agent/api-callback/{{$json.taskId}}",
+  "url": "http://localhost:6100/api/agent-to-agent/api-callback/{{$json.taskId}}",
   "body": {
     "task_id": "{{$json.taskId}}",
     "status": "completed",
@@ -961,7 +961,7 @@ interface WebSocketTaskEvents {
 
 ```bash
 # 1. Connect to WebSocket (frontend)
-const ws = new WebSocket('ws://localhost:7100');
+const ws = new WebSocket('ws://localhost:6100');
 ws.send(JSON.stringify({
   type: 'subscribe',
   channel: 'conversation:conv-123'
@@ -1224,7 +1224,7 @@ POST /agent-to-agent/api-callback/:taskId
       auth_token: '${N8N_WEBHOOK_TOKEN}',
       timeout_ms: 180000, // 3 minutes for complex analysis
       supports_progress_updates: true,
-      progress_callback_url: 'http://localhost:7100/api/agent-to-agent/api-progress/:taskId'
+      progress_callback_url: 'http://localhost:6100/api/agent-to-agent/api-progress/:taskId'
     },
     systemPrompt: `You are a Marketing Swarm Coordinator.
 
@@ -1397,7 +1397,7 @@ The system SHALL support OAuth 2.0 authentication via Google and GitHub provider
       auth_token: '${N8N_WEBHOOK_TOKEN}',
       timeout_ms: 120000, // 2 minutes
       supports_progress_updates: true,
-      progress_callback_url: 'http://localhost:7100/api/agent-to-agent/api-progress/:taskId'
+      progress_callback_url: 'http://localhost:6100/api/agent-to-agent/api-progress/:taskId'
     },
     systemPrompt: `You are a Technical Requirements Writer following IEEE 830 and ISO/IEC/IEEE 29148 standards.
 

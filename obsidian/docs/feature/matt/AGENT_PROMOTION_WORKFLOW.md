@@ -280,7 +280,7 @@ npm test -- agent-promotion.service.spec.ts
 
 ```bash
 # 1. Create agent
-curl -X POST http://localhost:7100/api/admin/agents \
+curl -X POST http://localhost:6100/api/admin/agents \
   -H "Content-Type: application/json" \
   -d '{
     "slug": "faq-bot",
@@ -296,7 +296,7 @@ curl -X POST http://localhost:7100/api/admin/agents \
 # Response: { "success": true, "data": { "id": "agent-123", "status": "draft", ... } }
 
 # 2. Request promotion (auto-approved)
-curl -X POST http://localhost:7100/api/admin/agents/agent-123/promote
+curl -X POST http://localhost:6100/api/admin/agents/agent-123/promote
 
 # Response: { "success": true, "newStatus": "active" }
 ```
@@ -305,16 +305,16 @@ curl -X POST http://localhost:7100/api/admin/agents/agent-123/promote
 
 ```bash
 # 1. Create agent
-curl -X POST http://localhost:7100/api/admin/agents \
+curl -X POST http://localhost:6100/api/admin/agents \
   -d '{ "agent_type": "function", ... "code": "<6000 char code with fetch()>" }'
 
 # 2. Request promotion
-curl -X POST http://localhost:7100/api/admin/agents/agent-456/promote
+curl -X POST http://localhost:6100/api/admin/agents/agent-456/promote
 
 # Response: { "success": true, "requiresApproval": true, "approvalId": "approval-789" }
 
 # 3. Admin approves
-curl -X POST http://localhost:7100/api/agent-approvals/approval-789/approve
+curl -X POST http://localhost:6100/api/agent-approvals/approval-789/approve
 
 # Response: {
 #   "success": true,
@@ -326,15 +326,15 @@ curl -X POST http://localhost:7100/api/agent-approvals/approval-789/approve
 
 ```bash
 # Agent needs urgent security fix
-curl -X POST http://localhost:7100/api/admin/agents/agent-123/demote \
+curl -X POST http://localhost:6100/api/admin/agents/agent-123/demote \
   -d '{ "reason": "CVE-2025-1234 fix required" }'
 
 # Fix the agent
-curl -X PATCH http://localhost:7100/api/admin/agents/agent-123 \
+curl -X PATCH http://localhost:6100/api/admin/agents/agent-123 \
   -d '{ "config": { ... updated config ... } }'
 
 # Re-promote
-curl -X POST http://localhost:7100/api/admin/agents/agent-123/promote
+curl -X POST http://localhost:6100/api/admin/agents/agent-123/promote
 ```
 
 ## Security Considerations

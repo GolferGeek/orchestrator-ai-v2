@@ -29,7 +29,7 @@ npm run db:import-langgraph-agents
 npm run db:generate-sql-from-json apps/langgraph/sql/insert-api-agents.sql
 
 # Then run the SQL file manually or via psql
-psql -h 127.0.0.1 -p 7012 -U postgres -d postgres -f apps/langgraph/sql/insert-api-agents.sql
+psql -h 127.0.0.1 -p 6012 -U postgres -d postgres -f apps/langgraph/sql/insert-api-agents.sql
 ```
 
 **Option C: Import all agents**

@@ -35,7 +35,7 @@ This NestJS application serves as a dedicated workflow execution engine, running
             │ HTTP POST /llm/generate
             ▼
 ┌─────────────────────────────────────────────────────────────┐
-│              apps/api (Port 7100)                           │
+│              apps/api (Port 6100)                           │
 │  ┌──────────────────────────────────────────────────────┐  │
 │  │  LLM Service: POST /llm/generate                     │  │
 │  │  Webhook Service: POST /webhooks/status              │  │
@@ -94,11 +94,11 @@ LANGGRAPH_PORT=7200
 LANGGRAPH_HOST=0.0.0.0
 
 # LLM Service Integration
-LLM_SERVICE_URL=http://localhost:7100
+LLM_SERVICE_URL=http://localhost:6100
 LLM_ENDPOINT=/llm/generate
 
 # Webhook Configuration
-WEBHOOK_STATUS_URL=http://localhost:7100/webhooks/status
+WEBHOOK_STATUS_URL=http://localhost:6100/webhooks/status
 
 # Optional
 NODE_ENV=development
@@ -232,7 +232,7 @@ Three API agents have been created in the database to wrap these workflows:
 These can be invoked through the Orchestrator AI A2A protocol:
 
 ```bash
-curl -X POST http://localhost:7100/a2a/agents/marketing/marketing-swarm-langgraph/tasks \
+curl -X POST http://localhost:6100/a2a/agents/marketing/marketing-swarm-langgraph/tasks \
   -H "Content-Type: application/json" \
   -d '{
     "method": "process",
@@ -252,7 +252,7 @@ curl -X POST http://localhost:7200/workflows/marketing-swarm \
     "provider": "anthropic",
     "model": "claude-3-sonnet",
     "prompt": "Announce the launch of our new AI-powered analytics platform",
-    "statusWebhook": "http://localhost:7100/webhooks/status"
+    "statusWebhook": "http://localhost:6100/webhooks/status"
   }'
 ```
 
@@ -342,7 +342,7 @@ lsof -ti:7200 | xargs kill -9
 ```
 
 ### LLM Service Connection Failed
-- Ensure `apps/api` is running on port 7100
+- Ensure `apps/api` is running on port 6100
 - Check `LLM_SERVICE_URL` in `.env`
 
 ### Webhook Delivery Failed

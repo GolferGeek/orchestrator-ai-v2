@@ -13,7 +13,7 @@ Your local Supabase data can be lost if:
 ## 🏗️ Architecture
 
 ### **Two Environment Support**
-- **Development**: Port 7012, container `supabase_db_api-dev`
+- **Development**: Port 6012, container `supabase_db_api-dev`
 - **Production**: Port 9012, container `supabase_db_api-production`
 
 ### **Separate Backup Directories**
@@ -93,7 +93,7 @@ This will:
 
 The backup system automatically detects environments by checking:
 1. Running Docker containers
-2. Active ports (7012=dev, 9012=prod)
+2. Active ports (6012=dev, 9012=prod)
 3. Or specify explicitly with `--env=dev|prod`
 
 ### Environment Detection

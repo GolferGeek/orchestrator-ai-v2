@@ -3,7 +3,7 @@ const axios = require('axios');
 async function checkProvidersModels() {
   try {
     console.log('🔐 Logging in...');
-    const loginResponse = await axios.post('http://localhost:7100/auth/login', {
+    const loginResponse = await axios.post('http://localhost:6100/auth/login', {
       email: 'demo.user@playground.com',
       password: 'demouser'
     });
@@ -13,7 +13,7 @@ async function checkProvidersModels() {
     
     console.log('📊 Checking available providers...');
     try {
-      const providersResponse = await axios.get('http://localhost:7100/llm/providers', {
+      const providersResponse = await axios.get('http://localhost:6100/llm/providers', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -27,7 +27,7 @@ async function checkProvidersModels() {
     
     console.log('\n📊 Checking available models...');
     try {
-      const modelsResponse = await axios.get('http://localhost:7100/llm/models', {
+      const modelsResponse = await axios.get('http://localhost:6100/llm/models', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       

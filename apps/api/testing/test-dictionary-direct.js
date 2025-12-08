@@ -7,7 +7,7 @@ async function testDictionaryDirect() {
     // Test the dictionary data in the database
     console.log('📊 Checking dictionary data in database...');
     
-    const loginResponse = await axios.post('http://localhost:7100/auth/login', {
+    const loginResponse = await axios.post('http://localhost:6100/auth/login', {
       email: 'demo.user@playground.com',
       password: 'demouser'
     });
@@ -15,7 +15,7 @@ async function testDictionaryDirect() {
     const token = loginResponse.data.accessToken;
     
     // Check if we can query the pseudonym_dictionaries table
-    const dbResponse = await axios.post('http://localhost:7100/llm/generate', {
+    const dbResponse = await axios.post('http://localhost:6100/llm/generate', {
       systemPrompt: 'You are a helpful assistant.',
       userPrompt: 'Just say hello.',
       options: {
@@ -36,7 +36,7 @@ async function testDictionaryDirect() {
     // Now test with our pseudonym entities
     console.log('\n🎯 Testing with pseudonym entities...');
     
-    const testResponse = await axios.post('http://localhost:7100/llm/generate', {
+    const testResponse = await axios.post('http://localhost:6100/llm/generate', {
       systemPrompt: 'You are a helpful assistant.',
       userPrompt: 'Tell me about Matt Weber and GolferGeek at Orchestrator AI.',
       options: {

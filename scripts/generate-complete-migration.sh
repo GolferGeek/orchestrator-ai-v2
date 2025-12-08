@@ -22,7 +22,7 @@ README_FILE="${MIGRATIONS_DIR}/${TIMESTAMP}_MIGRATION_README.md"
 
 # Database connection (adjust if needed)
 DB_HOST="${DB_HOST:-127.0.0.1}"
-DB_PORT="${DB_PORT:-7012}"
+DB_PORT="${DB_PORT:-6012}"
 DB_USER="${DB_USER:-postgres}"
 DB_PASS="${DB_PASS:-postgres}"
 DB_NAME="${DB_NAME:-postgres}"
@@ -331,15 +331,15 @@ cd apps/api
 npx supabase start
 
 # 2. Apply schema (structure)
-PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres \\
+PGPASSWORD=postgres psql -h 127.0.0.1 -p 6012 -U postgres -d postgres \\
   -f supabase/migrations/${TIMESTAMP}_complete_schema.sql
 
 # 3. Apply data (seed)
-PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres \\
+PGPASSWORD=postgres psql -h 127.0.0.1 -p 6012 -U postgres -d postgres \\
   -f supabase/migrations/${TIMESTAMP}_complete_data.sql
 
 # 4. Verify
-PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres \\
+PGPASSWORD=postgres psql -h 127.0.0.1 -p 6012 -U postgres -d postgres \\
   -c "SELECT schemaname, tablename, n_live_tup FROM pg_stat_user_tables WHERE schemaname IN ('public', 'n8n', 'company') ORDER BY schemaname;"
 \`\`\`
 
@@ -349,14 +349,14 @@ PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres \\
 
 \`\`\`bash
 # Option 1: Use the schema file (it includes DROP SCHEMA CASCADE)
-PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres \\
+PGPASSWORD=postgres psql -h 127.0.0.1 -p 6012 -U postgres -d postgres \\
   -f supabase/migrations/${TIMESTAMP}_complete_schema.sql
 
-PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres \\
+PGPASSWORD=postgres psql -h 127.0.0.1 -p 6012 -U postgres -d postgres \\
   -f supabase/migrations/${TIMESTAMP}_complete_data.sql
 
 # Option 2: Manual drop and recreate
-PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres << 'SQL'
+PGPASSWORD=postgres psql -h 127.0.0.1 -p 6012 -U postgres -d postgres << 'SQL'
 DROP SCHEMA IF EXISTS public CASCADE;
 DROP SCHEMA IF EXISTS n8n CASCADE;
 DROP SCHEMA IF EXISTS company CASCADE;
@@ -400,10 +400,10 @@ cd apps/api
 npx supabase start
 
 # 4. Apply migrations in order
-PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres \\
+PGPASSWORD=postgres psql -h 127.0.0.1 -p 6012 -U postgres -d postgres \\
   -f supabase/migrations/${TIMESTAMP}_complete_schema.sql
 
-PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres \\
+PGPASSWORD=postgres psql -h 127.0.0.1 -p 6012 -U postgres -d postgres \\
   -f supabase/migrations/${TIMESTAMP}_complete_data.sql
 
 # 5. Start the API
@@ -487,8 +487,8 @@ echo ""
 echo -e "${YELLOW}Next steps:${NC}"
 echo -e "  1. Review the generated files"
 echo -e "  2. Test on a clean database:"
-echo -e "     ${GREEN}PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres -f ${SCHEMA_FILE}${NC}"
-echo -e "     ${GREEN}PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres -f ${DATA_FILE}${NC}"
+echo -e "     ${GREEN}PGPASSWORD=postgres psql -h 127.0.0.1 -p 6012 -U postgres -d postgres -f ${SCHEMA_FILE}${NC}"
+echo -e "     ${GREEN}PGPASSWORD=postgres psql -h 127.0.0.1 -p 6012 -U postgres -d postgres -f ${DATA_FILE}${NC}"
 echo -e "  3. Commit the files to git"
 echo -e "  4. Share with your nephew"
 echo ""

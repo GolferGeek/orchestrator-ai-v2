@@ -60,7 +60,7 @@ fi
 # Determine Supabase connection
 if [ -z "$DATABASE_URL" ]; then
   # Default to local Supabase
-  DB_URL="postgresql://postgres:postgres@127.0.0.1:7012/postgres"
+  DB_URL="postgresql://postgres:postgres@127.0.0.1:6012/postgres"
   echo -e "${BLUE}📍 Using local Supabase${NC}"
 else
   DB_URL="$DATABASE_URL"
@@ -126,7 +126,7 @@ echo -e "${BLUE}🔍 Searching for workflow: ${WORKFLOW_NAME}${NC}"
 if [ -f "../../.env" ]; then
   source ../../.env
 fi
-DB_URL="${DATABASE_URL:-postgresql://postgres:postgres@127.0.0.1:7012/postgres}"
+DB_URL="${DATABASE_URL:-postgresql://postgres:postgres@127.0.0.1:6012/postgres}"
 
 # Query workflow from database
 WORKFLOW_JSON=$(psql "$DB_URL" -t -c "

@@ -86,7 +86,7 @@ The agent will create:
 📤 Next Steps:
    1. Import agent to database: /supabase:agent:import
    2. Test agent: /api-agent:test marketing-swarm-n8n
-   3. Verify in UI: http://localhost:7100/agents
+   3. Verify in UI: http://localhost:6100/agents
 ```
 
 ## Important Notes

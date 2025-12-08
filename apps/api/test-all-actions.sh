@@ -5,7 +5,7 @@
 
 set -e  # Exit on any error
 
-API_BASE="http://localhost:7100"
+API_BASE="http://localhost:6100"
 AGENT_SLUG="blog_post_writer"
 ORG_SLUG="my-org"
 

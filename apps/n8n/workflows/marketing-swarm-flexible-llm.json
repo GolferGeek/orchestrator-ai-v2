@@ -130,7 +130,7 @@
               "name": "announcement",
               "type": "string",
               "value": "={{ $json.body.announcement }}",
-              "id": "37100b7a-3727-4855-824f-2725e80d0440"
+              "id": "36100b7a-3727-4855-824f-2725e80d0440"
             },
             {
               "name": "taskId",
@@ -219,7 +219,7 @@
               "name": "announcement",
               "type": "string",
               "value": "={{ $json.body.announcement }}",
-              "id": "37100b7a-3727-4855-824f-2725e80d0440"
+              "id": "36100b7a-3727-4855-824f-2725e80d0440"
             },
             {
               "name": "taskId",
@@ -242,7 +242,7 @@
             {
               "name": "statusWebhook",
               "type": "string",
-              "value": "={{ $json.body.statusWebhook || 'http://host.docker.internal:7100/webhooks/status' }}",
+              "value": "={{ $json.body.statusWebhook || 'http://host.docker.internal:6100/webhooks/status' }}",
               "id": "5b5c4d3a-93bf-4f2d-aadf-e31b89a41079"
             },
             {
@@ -308,7 +308,7 @@
               "name": "announcement",
               "type": "string",
               "value": "={{ $json.body.announcement }}",
-              "id": "37100b7a-3727-4855-824f-2725e80d0440"
+              "id": "36100b7a-3727-4855-824f-2725e80d0440"
             },
             {
               "name": "taskId",
@@ -331,7 +331,7 @@
             {
               "name": "statusWebhook",
               "type": "string",
-              "value": "={{ $json.body.statusWebhook || 'http://host.docker.internal:7100/webhooks/status' }}",
+              "value": "={{ $json.body.statusWebhook || 'http://host.docker.internal:6100/webhooks/status' }}",
               "id": "5b5c4d3a-93bf-4f2d-aadf-e31b89a41079"
             },
             {

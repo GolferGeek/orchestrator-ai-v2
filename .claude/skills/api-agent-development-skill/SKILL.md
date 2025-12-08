@@ -161,7 +161,7 @@ From `apps/api/src/agent-platform/services/agent-runtime-dispatch.service.ts`:
 | `{{agentSlug}}` | Agent slug | `"marketing-swarm-n8n"` |
 | `{{organizationSlug}}` | Organization slug | `"demo"` |
 | `{{org}}` | Alias for `organizationSlug` | Same as above |
-| `{{env.API_BASE_URL}}` | Environment variable | `"http://localhost:7100"` |
+| `{{env.API_BASE_URL}}` | Environment variable | `"http://localhost:6100"` |
 
 ### Request Transform Examples
 
@@ -328,7 +328,7 @@ response_transform:
 From `storage/snapshots/agents/demo_marketing_swarm_n8n.json`:
 
 ```11:11:storage/snapshots/agents/demo_marketing_swarm_n8n.json
-  "yaml": "\n{\n    \"metadata\": {\n        \"name\": \"marketing-swarm-n8n\",\n        \"displayName\": \"Marketing Swarm N8N\",\n        \"description\": \"API agent that calls n8n webhook for marketing campaign swarm processing\",\n        \"version\": \"0.1.0\",\n        \"type\": \"api\"\n    },\n    \"configuration\": {\n        \"api\": {\n            \"endpoint\": \"http://localhost:5678/webhook/marketing-swarm-flexible\",\n            \"method\": \"POST\",\n            \"headers\": {\n                \"Content-Type\": \"application/json\"\n            },\n            \"body\": {\n                \"taskId\": \"{{taskId}}\",\n                \"conversationId\": \"{{conversationId}}\",\n                \"userId\": \"{{userId}}\",\n                \"announcement\": \"{{userMessage}}\",\n                \"statusWebhook\": \"http://host.docker.internal:7100/webhooks/status\",\n                \"provider\": \"{{payload.provider}}\",\n                \"model\": \"{{payload.model}}\"\n            },\n            \"authentication\": {\n                \"type\": \"none\"\n            },\n            \"response_mapping\": {\n                \"status_field\": \"status\",\n                \"result_field\": \"payload\"\n            },\n            \"timeout\": 120000\n        },\n        \"deliverable\": {\n            \"format\": \"markdown\",\n            \"type\": \"marketing-campaign\"\n        },\n        \"execution_capabilities\": {\n            \"supports_converse\": false,\n            \"supports_plan\": false,\n            \"supports_build\": true\n        }\n    }\n}\n",
+  "yaml": "\n{\n    \"metadata\": {\n        \"name\": \"marketing-swarm-n8n\",\n        \"displayName\": \"Marketing Swarm N8N\",\n        \"description\": \"API agent that calls n8n webhook for marketing campaign swarm processing\",\n        \"version\": \"0.1.0\",\n        \"type\": \"api\"\n    },\n    \"configuration\": {\n        \"api\": {\n            \"endpoint\": \"http://localhost:5678/webhook/marketing-swarm-flexible\",\n            \"method\": \"POST\",\n            \"headers\": {\n                \"Content-Type\": \"application/json\"\n            },\n            \"body\": {\n                \"taskId\": \"{{taskId}}\",\n                \"conversationId\": \"{{conversationId}}\",\n                \"userId\": \"{{userId}}\",\n                \"announcement\": \"{{userMessage}}\",\n                \"statusWebhook\": \"http://host.docker.internal:6100/webhooks/status\",\n                \"provider\": \"{{payload.provider}}\",\n                \"model\": \"{{payload.model}}\"\n            },\n            \"authentication\": {\n                \"type\": \"none\"\n            },\n            \"response_mapping\": {\n                \"status_field\": \"status\",\n                \"result_field\": \"payload\"\n            },\n            \"timeout\": 120000\n        },\n        \"deliverable\": {\n            \"format\": \"markdown\",\n            \"type\": \"marketing-campaign\"\n        },\n        \"execution_capabilities\": {\n            \"supports_converse\": false,\n            \"supports_plan\": false,\n            \"supports_build\": true\n        }\n    }\n}\n",
 ```
 
 **Note**: This example has hardcoded `statusWebhook`. The correct format should use `{{env.API_BASE_URL}}`.
@@ -361,7 +361,7 @@ The `buildApiRequestBody` function processes the template:
   "conversationId": "conv-123",       // From request.conversationId
   "userId": "user-456",               // From request.userId
   "announcement": "We're launching...", // From prompt.userMessage
-  "statusWebhook": "http://localhost:7100/webhooks/status", // From env
+  "statusWebhook": "http://localhost:6100/webhooks/status", // From env
   "provider": "openai",                // From payload.provider
   "model": "gpt-4"                     // From payload.model
 }
@@ -378,7 +378,7 @@ Content-Type: application/json
   "conversationId": "conv-123",
   "userId": "user-456",
   "announcement": "We're launching our new AI agent platform!",
-  "statusWebhook": "http://localhost:7100/webhooks/status",
+  "statusWebhook": "http://localhost:6100/webhooks/status",
   "provider": "openai",
   "model": "gpt-4"
 }
@@ -438,7 +438,7 @@ request_transform:
   format: "custom"
   template: |
     {
-      "statusWebhook": "http://host.docker.internal:7100/webhooks/status"
+      "statusWebhook": "http://host.docker.internal:6100/webhooks/status"
     }
 ```
 
@@ -457,7 +457,7 @@ request_transform:
 ```yaml
 template: |
   {
-    "statusWebhook": "{{env.API_BASE_URL || env.VITE_API_BASE_URL || 'http://host.docker.internal:7100'}}/webhooks/status"
+    "statusWebhook": "{{env.API_BASE_URL || env.VITE_API_BASE_URL || 'http://host.docker.internal:6100'}}/webhooks/status"
   }
 ```
 
@@ -694,7 +694,7 @@ api_configuration:
 
 ```yaml
 # ❌ WRONG
-"statusWebhook": "http://host.docker.internal:7100/webhooks/status"
+"statusWebhook": "http://host.docker.internal:6100/webhooks/status"
 ```
 
 **Fix:**

@@ -129,12 +129,12 @@ LANGGRAPH_PORT=7200
 LANGGRAPH_HOST=0.0.0.0
 
 # LLM Service Integration
-LLM_SERVICE_URL=http://localhost:7100
+LLM_SERVICE_URL=http://localhost:6100
 LLM_STREAM_ENDPOINT=/llms/stream
 LLM_COMPLETE_ENDPOINT=/llms/complete
 
 # Webhook Configuration
-DEFAULT_STATUS_WEBHOOK_URL=http://localhost:7100/webhooks/status
+DEFAULT_STATUS_WEBHOOK_URL=http://localhost:6100/webhooks/status
 
 # Optional
 NODE_ENV=development
@@ -1034,7 +1034,7 @@ describe('Marketing Swarm Workflow (e2e)', () => {
         provider: 'openai',
         model: 'gpt-4',
         prompt: 'Launch of our new AI product',
-        statusWebhook: 'http://localhost:7100/webhooks/status',
+        statusWebhook: 'http://localhost:6100/webhooks/status',
       });
 
     expect(response.status).toBe(200);
@@ -1341,7 +1341,7 @@ const response = await firstValueFrom(
 **Usage in LangGraph:**
 ```typescript
 // The WebhookStatusService already sends to this format
-await this.httpService.post('http://localhost:7100/webhooks/status', {
+await this.httpService.post('http://localhost:6100/webhooks/status', {
   taskId: state.taskId,
   status: 'progress',
   timestamp: new Date().toISOString(),
@@ -1366,11 +1366,11 @@ LANGGRAPH_PORT=7200
 LANGGRAPH_HOST=0.0.0.0
 
 # LLM Service Integration (UPDATED)
-LLM_SERVICE_URL=http://localhost:7100
+LLM_SERVICE_URL=http://localhost:6100
 LLM_ENDPOINT=/llm/generate              # Actual endpoint
 
 # Webhook Configuration (UPDATED)
-WEBHOOK_STATUS_URL=http://localhost:7100/webhooks/status
+WEBHOOK_STATUS_URL=http://localhost:6100/webhooks/status
 
 # Optional
 NODE_ENV=development

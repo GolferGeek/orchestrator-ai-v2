@@ -5,7 +5,7 @@ set -e
 
 MIGRATION_FILE="$1"
 DB_HOST="127.0.0.1"
-DB_PORT="7012"
+DB_PORT="6012"
 DB_USER="postgres"
 DB_NAME="postgres"
 

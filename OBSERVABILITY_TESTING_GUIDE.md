@@ -12,7 +12,7 @@ cd ~/projects/golfergeek/orchestrator-ai
 npm run dev:api
 ```
 Wait for: `✅ Development environment ready!`  
-API will be at: `http://localhost:7100`
+API will be at: `http://localhost:6100`
 
 **Terminal 2 - Web Client:**
 ```bash
@@ -106,11 +106,11 @@ supabase start --config ./supabase/config.dev.toml
 
 ### Connection Status Shows "Disconnected"
 1. Check console for errors (F12 → Console)
-2. Verify API is running: `curl http://localhost:7100/health`
+2. Verify API is running: `curl http://localhost:6100/health`
 3. Check auth token in localStorage
 
 ### No Events Appearing
-1. Verify webhook endpoint: `curl -X POST http://localhost:7100/webhooks/status -H "Content-Type: application/json" -d '{"taskId":"test","status":"agent.started","timestamp":"2024-01-01T00:00:00Z"}'`
+1. Verify webhook endpoint: `curl -X POST http://localhost:6100/webhooks/status -H "Content-Type: application/json" -d '{"taskId":"test","status":"agent.started","timestamp":"2024-01-01T00:00:00Z"}'`
 2. Check browser console for SSE connection errors
 3. Verify admin role: Check user profile in web UI
 
@@ -209,7 +209,7 @@ wait
 const axios = require('axios');
 
 async function customTest() {
-  await axios.post('http://localhost:7100/webhooks/status', {
+  await axios.post('http://localhost:6100/webhooks/status', {
     taskId: 'custom-task',
     status: 'agent.progress',
     timestamp: new Date().toISOString(),

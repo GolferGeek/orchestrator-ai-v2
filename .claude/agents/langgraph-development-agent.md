@@ -111,7 +111,7 @@ export class AppController {
 
     // Get status webhook from payload or environment
     const statusWebhook = payload.statusWebhook || 
-      `${process.env.API_BASE_URL || 'http://localhost:7100'}/webhooks/status`;
+      `${process.env.API_BASE_URL || 'http://localhost:6100'}/webhooks/status`;
 
     // Send start status
     await this.sendStatusUpdate(statusWebhook, {

@@ -140,8 +140,8 @@ export function getSecureApiBaseUrl(): string {
   const candidates = [
     import.meta.env.VITE_API_BASE_URL,
     import.meta.env.VITE_API_NESTJS_BASE_URL,
-    import.meta.env.VITE_BASE_URL ? `${import.meta.env.VITE_BASE_URL}:7100` : null,
-    'http://localhost:7100' // Final fallback
+    import.meta.env.VITE_BASE_URL ? `${import.meta.env.VITE_BASE_URL}:6100` : null,
+    'http://localhost:6100' // Final fallback
   ].filter(Boolean);
   
   const baseUrl = candidates[0];

@@ -1,6 +1,6 @@
 # 🚀 Local Development Setup
 
-This guide will help you set up the Orchestrator AI development environment with local ports 7100/7101 and a local Supabase instance.
+This guide will help you set up the Orchestrator AI development environment with local ports 6100/7101 and a local Supabase instance.
 
 ## 📋 Prerequisites
 
@@ -29,7 +29,7 @@ This guide will help you set up the Orchestrator AI development environment with
 
 3. **Start Development Environment**
    ```bash
-   # This will start everything: Supabase, API (port 7100), and Web (port 7101)
+   # This will start everything: Supabase, API (port 6100), and Web (port 7101)
    ./start-dev-local.sh
    ```
 
@@ -38,15 +38,15 @@ This guide will help you set up the Orchestrator AI development environment with
 Once everything is running, you can access:
 
 - **Web Application**: http://localhost:7101
-- **API Server**: http://localhost:7100
+- **API Server**: http://localhost:6100
 - **Supabase Studio**: http://127.0.0.1:7015
 - **Email Testing (Inbucket)**: http://127.0.0.1:7016
 
 ## 🗄️ Database Setup
 
 The local Supabase instance includes:
-- **Database**: PostgreSQL on port 7012
-- **API**: REST and GraphQL APIs on port 7010
+- **Database**: PostgreSQL on port 6012
+- **API**: REST and GraphQL APIs on port 6010
 - **Auth**: Built-in authentication system
 - **Storage**: File storage system
 - **Realtime**: WebSocket connections
@@ -54,7 +54,7 @@ The local Supabase instance includes:
 ### Database Connection Details
 ```
 Host: 127.0.0.1
-Port: 7012
+Port: 6012
 Database: postgres
 Username: postgres
 Password: postgres
@@ -66,7 +66,7 @@ Key environment variables for development:
 
 ```bash
 # Ports
-API_PORT=7100
+API_PORT=6100
 WEB_PORT=7101
 
 # Supabase Local
@@ -127,7 +127,7 @@ This development version uses different ports from the server version:
 
 | Service | Server Version | Dev Version |
 |---------|---------------|-------------|
-| API     | 9000          | 7100        |
+| API     | 9000          | 6100        |
 | Web     | 9001          | 7101        |
 | HTTPS   | 9443          | 7543        |
 
@@ -144,7 +144,7 @@ supabase start
 ### Port Conflicts
 ```bash
 # Check what's using the ports
-lsof -i :7100
+lsof -i :6100
 lsof -i :7101
 ```
 

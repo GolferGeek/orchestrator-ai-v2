@@ -57,7 +57,7 @@ Test a LangGraph workflow by sending a test request to its webhook endpoint and 
   "conversationId": "test-conv-id",
   "userId": "test-user-id",
   "userMessage": "test message",
-  "statusWebhook": "http://localhost:7100/webhooks/status",
+  "statusWebhook": "http://localhost:6100/webhooks/status",
   "provider": "openai",
   "model": "gpt-4",
   "stepName": "test-step",

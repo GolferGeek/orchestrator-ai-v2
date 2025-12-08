@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 const { randomUUID } = require('crypto');
 
-const API_BASE_URL = 'http://localhost:7100';
+const API_BASE_URL = 'http://localhost:6100';
 const TEST_USER = 'demo.user@orchestratorai.io';
 const TEST_PASSWORD = 'DemoUser123!';
 

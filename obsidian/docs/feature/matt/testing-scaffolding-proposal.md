@@ -223,7 +223,7 @@ export class WebhookServerMock {
 ```typescript
 it('emits SSE events during orchestration', async () => {
   const sseCapture = SSETestHelper.captureSSEStream(
-    'http://localhost:7100/api/orchestrations/stream/run-123'
+    'http://localhost:6100/api/orchestrations/stream/run-123'
   );
 
   // Start orchestration

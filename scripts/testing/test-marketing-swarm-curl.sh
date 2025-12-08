@@ -28,7 +28,7 @@ N8N_RESPONSE=$(curl -s -X POST http://localhost:5678/webhook/marketing-swarm \
     \"taskId\": \"${TEST_TASK_ID}\",
     \"conversationId\": \"${TEST_CONVERSATION_ID}\",
     \"userId\": \"${TEST_USER_ID}\",
-    \"callback_url\": \"http://host.docker.internal:7100/webhooks/status\",
+    \"callback_url\": \"http://host.docker.internal:6100/webhooks/status\",
     \"announcement\": \"Testing our revolutionary AI automation platform\",
     \"product\": \"OrchestratorAI\",
     \"target_audience\": \"developers\",
@@ -43,7 +43,7 @@ echo ""
 echo "2️⃣  Expected flow:"
 echo "   ✓ n8n workflow receives the trigger"
 echo "   ✓ n8n executes and sends status updates to API webhook"
-echo "   ✓ API webhook endpoint: http://host.docker.internal:7100/webhooks/status"
+echo "   ✓ API webhook endpoint: http://host.docker.internal:6100/webhooks/status"
 echo "   ✓ Webhook broadcasts via WebSocket to room: task:${TEST_TASK_ID}"
 echo ""
 
@@ -54,7 +54,7 @@ echo ""
 
 # Step 4: Check if webhook received any updates
 echo "4️⃣  Testing webhook endpoint directly..."
-WEBHOOK_TEST=$(curl -s -X POST http://localhost:7100/webhooks/status \
+WEBHOOK_TEST=$(curl -s -X POST http://localhost:6100/webhooks/status \
   -H "Content-Type: application/json" \
   -d "{
     \"taskId\": \"${TEST_TASK_ID}\",
@@ -93,7 +93,7 @@ echo "   Install wscat if needed:"
 echo "   npm install -g wscat"
 echo ""
 echo "   Connect and subscribe:"
-echo "   wscat -c 'ws://localhost:7100/task-progress'"
+echo "   wscat -c 'ws://localhost:6100/task-progress'"
 echo ""
 echo "   Send subscription message:"
 echo "   {\"event\":\"subscribe_task\",\"data\":{\"taskId\":\"${TEST_TASK_ID}\"}}"

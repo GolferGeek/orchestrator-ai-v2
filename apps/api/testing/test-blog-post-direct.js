@@ -7,7 +7,7 @@
 
 const axios = require('axios');
 
-const API_BASE = 'http://localhost:7100';
+const API_BASE = 'http://localhost:6100';
 
 // Test credentials (from working tests)
 const TEST_USER = 'demo.user@orchestratorai.io';

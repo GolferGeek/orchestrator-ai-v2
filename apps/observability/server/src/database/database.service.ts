@@ -14,12 +14,12 @@ export class DatabaseService implements OnModuleInit {
 
   onModuleInit() {
     // Parse Supabase URL to get database connection details
-    const supabaseUrl = process.env.SUPABASE_URL || 'http://127.0.0.1:7010';
+    const supabaseUrl = process.env.SUPABASE_URL || 'http://127.0.0.1:6010';
     const url = new URL(supabaseUrl);
     const host = url.hostname;
 
-    // Supabase local: PostgreSQL runs on port offset +2 from API (7010 -> 7012)
-    const apiPort = parseInt(url.port || '7010');
+    // Supabase local: PostgreSQL runs on port offset +2 from API (6010 -> 6012)
+    const apiPort = parseInt(url.port || '6010');
     const pgPort = apiPort + 2;
 
     this.pool = new Pool({

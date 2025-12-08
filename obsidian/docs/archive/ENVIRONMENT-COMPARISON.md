@@ -4,10 +4,10 @@
 
 | Component | Development | Production |
 |-----------|-------------|------------|
-| **API Port** | 7100 | 9000 |
+| **API Port** | 6100 | 9000 |
 | **Web Port** | 7101 | 9001 |
 | **Supabase Type** | Local Docker | Cloud/Remote |
-| **Supabase URL** | http://127.0.0.1:7010 | Your production URL |
+| **Supabase URL** | http://127.0.0.1:6010 | Your production URL |
 | **Database** | Local PostgreSQL | Production database |
 | **Data** | Test/dev data | Real production data |
 | **Environment File** | `.env` (local) | Production env vars |
@@ -16,15 +16,15 @@
 
 ### **Supabase Local Instance**
 - **Type**: Docker containers running locally
-- **API**: http://127.0.0.1:7010
-- **Database**: postgresql://postgres:postgres@127.0.0.1:7012/postgres
+- **API**: http://127.0.0.1:6010
+- **Database**: postgresql://postgres:postgres@127.0.0.1:6012/postgres
 - **Studio**: http://127.0.0.1:7015
 - **Email Testing**: http://127.0.0.1:7016
 - **Data**: Completely isolated test data
 - **Reset**: Can be reset anytime with `npm run dev:supabase:reset`
 
 ### **Application Ports**
-- **API**: http://localhost:7100
+- **API**: http://localhost:6100
 - **Web**: http://localhost:7101
 
 ### **Quick Commands**
@@ -83,7 +83,7 @@ npm run server:status
 ### **Development (.env file)**
 ```bash
 # Development ports
-API_PORT=7100
+API_PORT=6100
 WEB_PORT=7101
 
 # Local Supabase
@@ -133,7 +133,7 @@ npm run server:start
 ### **Check Development**
 ```bash
 npm run dev:ports
-# Should show ports 7100/7101 and local Supabase
+# Should show ports 6100/7101 and local Supabase
 ```
 
 ### **Check Production**

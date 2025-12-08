@@ -163,7 +163,7 @@ INSERT INTO public.agents (id, organization_slug, slug, display_name, descriptio
                 "conversationId": "{{conversationId}}",
                 "userId": "{{userId}}",
                 "announcement": "{{userMessage}}",
-                "statusWebhook": "http://host.docker.internal:7100/webhooks/status",
+                "statusWebhook": "http://host.docker.internal:6100/webhooks/status",
                 "provider": "{{payload.provider}}",
                 "model": "{{payload.model}}"
             },

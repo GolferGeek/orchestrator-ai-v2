@@ -58,7 +58,7 @@ echo ""
 # Create a temporary database to load the backup
 echo -e "${YELLOW}Step 2: Loading backup into temporary database...${NC}"
 DB_HOST="${DB_HOST:-127.0.0.1}"
-DB_PORT="${DB_PORT:-7012}"
+DB_PORT="${DB_PORT:-6012}"
 DB_USER="${DB_USER:-postgres}"
 DB_PASS="${DB_PASS:-postgres}"
 TEMP_DB="temp_migration_$$"
@@ -244,11 +244,11 @@ cat > "$README_FILE" << EOF
 
 \`\`\`bash
 # Apply schema
-PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres \\
+PGPASSWORD=postgres psql -h 127.0.0.1 -p 6012 -U postgres -d postgres \\
   -f apps/api/supabase/migrations/${TIMESTAMP}_complete_schema.sql
 
 # Apply data
-PGPASSWORD=postgres psql -h 127.0.0.1 -p 7012 -U postgres -d postgres \\
+PGPASSWORD=postgres psql -h 127.0.0.1 -p 6012 -U postgres -d postgres \\
   -f apps/api/supabase/migrations/${TIMESTAMP}_complete_data.sql
 \`\`\`
 

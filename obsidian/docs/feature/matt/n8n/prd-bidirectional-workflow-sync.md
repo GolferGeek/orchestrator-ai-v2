@@ -355,7 +355,7 @@ PROD_SUPABASE_URL=https://xxx.supabase.co
 PROD_SUPABASE_SERVICE_KEY=eyJxxx
 
 # Local Supabase (for dev)
-LOCAL_SUPABASE_URL=http://127.0.0.1:7010
+LOCAL_SUPABASE_URL=http://127.0.0.1:6010
 LOCAL_SUPABASE_KEY=eyJxxx
 ```
 

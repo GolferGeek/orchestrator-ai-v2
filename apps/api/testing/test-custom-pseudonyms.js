@@ -4,7 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 async function testCustomPseudonyms() {
   try {
     console.log('🔐 Logging in...');
-    const loginResponse = await axios.post('http://localhost:7100/auth/login', {
+    const loginResponse = await axios.post('http://localhost:6100/auth/login', {
       email: 'demo.user@playground.com',
       password: 'demouser'
     });
@@ -27,7 +27,7 @@ async function testCustomPseudonyms() {
       console.log(`Test ${i + 1}: "${message}"`);
       
       try {
-        const response = await axios.post('http://localhost:7100/agents/marketing/blog_post/tasks', {
+        const response = await axios.post('http://localhost:6100/agents/marketing/blog_post/tasks', {
           method: 'process',
           prompt: message,
           conversationId: uuidv4(),

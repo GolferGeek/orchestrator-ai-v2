@@ -200,7 +200,7 @@ jobs:
 # Good review comment
 ```typescript
 // Consider using environment variable instead of hardcoded value
-const apiUrl = process.env.API_URL || 'http://localhost:7100';
+const apiUrl = process.env.API_URL || 'http://localhost:6100';
 ```
 
 ```markdown

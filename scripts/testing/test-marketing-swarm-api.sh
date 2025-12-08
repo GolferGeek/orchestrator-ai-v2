@@ -12,7 +12,7 @@ source .env
 
 # Step 1: Login and get token
 echo "1️⃣  Logging in as ${SUPABASE_TEST_USER}..."
-LOGIN_RESPONSE=$(curl -s -X POST http://localhost:7100/auth/login \
+LOGIN_RESPONSE=$(curl -s -X POST http://localhost:6100/auth/login \
   -H "Content-Type: application/json" \
   -d "{
     \"email\": \"${SUPABASE_TEST_USER}\",
@@ -32,7 +32,7 @@ echo ""
 
 # Step 2: Create or get a conversation
 echo "2️⃣  Creating agent conversation..."
-CONVERSATION_RESPONSE=$(curl -s -X POST http://localhost:7100/agent-conversations \
+CONVERSATION_RESPONSE=$(curl -s -X POST http://localhost:6100/agent-conversations \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
@@ -60,7 +60,7 @@ echo "3️⃣  Triggering marketing-swarm agent..."
 echo "📝 Request: Create marketing content for AI automation launch"
 echo ""
 
-TASK_RESPONSE=$(curl -s -X POST "http://localhost:7100/agent-conversations/${CONVERSATION_ID}/tasks" \
+TASK_RESPONSE=$(curl -s -X POST "http://localhost:6100/agent-conversations/${CONVERSATION_ID}/tasks" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
@@ -85,7 +85,7 @@ echo ""
 # Step 4: Show what to expect
 echo "4️⃣  Expected flow:"
 echo "   ✓ Agent triggers n8n workflow"
-echo "   ✓ n8n sends status updates to http://host.docker.internal:7100/webhooks/status"
+echo "   ✓ n8n sends status updates to http://host.docker.internal:6100/webhooks/status"
 echo "   ✓ Webhook broadcasts via WebSocket to room: task:${TASK_ID}"
 echo "   ✓ UI receives real-time progress updates"
 echo ""
@@ -102,7 +102,7 @@ echo "$TASK_RESPONSE" | jq '{
 echo ""
 
 echo "🎯 To monitor WebSocket messages in real-time, use:"
-echo "   wscat -c 'ws://localhost:7100/task-progress?token=$TOKEN'"
+echo "   wscat -c 'ws://localhost:6100/task-progress?token=$TOKEN'"
 echo "   Then subscribe: {\"event\":\"subscribe_task\",\"data\":{\"taskId\":\"$TASK_ID\"}}"
 echo ""
 

@@ -3,7 +3,7 @@
 # Test LLM Recommendations Endpoint
 # This script tests the /evaluation/agents/:agentIdentifier/llm-recommendations endpoint
 
-API_URL=${API_URL:-"http://localhost:7100"}
+API_URL=${API_URL:-"http://localhost:6100"}
 AGENT_ID=${1:-"marketing_swarm"}
 MIN_RATING=${2:-3}
 
@@ -16,7 +16,7 @@ echo ""
 echo "Step 1: Authenticating..."
 
 # Create a test user if needed (using Supabase direct API)
-SUPABASE_URL="http://localhost:7010"
+SUPABASE_URL="http://localhost:6010"
 SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
 
 # Try to sign up a test user (will fail if already exists)

@@ -153,7 +153,7 @@ async function main() {
 
   console.log('✅ SQL generated successfully!');
   console.log(`\n📝 To apply to database:`);
-  console.log(`   psql -h 127.0.0.1 -p 7012 -U postgres -d postgres -f ${outputFile}`);
+  console.log(`   psql -h 127.0.0.1 -p 6012 -U postgres -d postgres -f ${outputFile}`);
   console.log(`\n💡 Or use the import script:`);
   console.log(`   npm run db:import-all-agents`);
 }

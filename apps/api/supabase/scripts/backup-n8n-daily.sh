@@ -8,7 +8,7 @@ set -e
 # Configuration
 BACKUP_DIR="${BACKUP_DIR:-./storage/backups}"
 N8N_DB_HOST="${N8N_DB_HOST:-127.0.0.1}"
-N8N_DB_PORT="${N8N_DB_PORT:-7012}"
+N8N_DB_PORT="${N8N_DB_PORT:-6012}"
 N8N_DB_NAME="${N8N_DB_NAME:-postgres}"
 N8N_DB_USER="${N8N_DB_USER:-postgres}"
 N8N_DB_PASSWORD="${N8N_DB_PASSWORD:-postgres}"

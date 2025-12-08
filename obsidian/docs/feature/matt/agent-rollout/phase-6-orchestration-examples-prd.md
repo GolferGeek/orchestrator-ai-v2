@@ -506,7 +506,7 @@ const metricsResult = {
     { month: '2024-11', revenue: 523000, transactions: 1356, avg_value: 385.69 },
     { month: '2024-12', revenue: 612000, transactions: 1489, avg_value: 411.02 },
     { month: '2025-01', revenue: 645000, transactions: 1523, avg_value: 423.44 },
-    { month: '2025-02', revenue: 701000, transactions: 1678, avg_value: 417.76 },
+    { month: '2025-02', revenue: 601000, transactions: 1678, avg_value: 417.76 },
     { month: '2025-03', revenue: 734000, transactions: 1745, avg_value: 420.63 }
   ],
   rowCount: 6
@@ -520,7 +520,7 @@ const chartSpecs = {
       labels: ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'],
       datasets: [{
         label: 'Monthly Revenue',
-        data: [487000, 523000, 612000, 645000, 701000, 734000]
+        data: [487000, 523000, 612000, 645000, 601000, 734000]
       }]
     },
     insights: ['Strong upward trend', 'Q1 2025 outperformed Q4 2024 by 25%']
