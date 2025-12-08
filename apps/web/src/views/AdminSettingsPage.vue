@@ -609,7 +609,7 @@ onMounted(async () => {
   border-radius: 0 6px 6px 0;
   margin-bottom: 0.25rem;
   font-size: 0.85rem;
-  color: #c0392b;
+  color: var(--ion-color-danger-shade);
 }
 
 .issue-alert ion-icon {
@@ -632,9 +632,9 @@ onMounted(async () => {
    Navigation Panel
    ============================================================================ */
 .nav-panel {
-  background: white;
+  background: var(--ion-background-color);
   border-radius: 8px;
-  border: 1px solid var(--ion-color-light-shade);
+  border: 1px solid var(--ion-border-color, var(--ion-color-light-shade));
   overflow: hidden;
 }
 
@@ -646,10 +646,10 @@ onMounted(async () => {
 
 .nav-group {
   margin-bottom: 1rem;
-  background: #f8f9fa;
+  background: var(--ion-color-light);
   border-radius: 8px;
   padding: 0.5rem;
-  border: 1px solid var(--ion-color-light-shade);
+  border: 1px solid var(--ion-border-color, var(--ion-color-light-shade));
 }
 
 .nav-group-header {
@@ -686,8 +686,8 @@ onMounted(async () => {
   cursor: pointer;
   transition: all 0.15s ease;
   font-size: 0.85rem;
-  color: #444;
-  background: white;
+  color: var(--ion-text-color);
+  background: var(--ion-background-color);
   min-height: 36px;
   box-sizing: border-box;
 }
@@ -727,9 +727,9 @@ onMounted(async () => {
    Detail Panel
    ============================================================================ */
 .detail-panel {
-  background: white;
+  background: var(--ion-background-color);
   border-radius: 8px;
-  border: 1px solid var(--ion-color-light-shade);
+  border: 1px solid var(--ion-border-color, var(--ion-color-light-shade));
   overflow: hidden;
 }
 
@@ -749,7 +749,7 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #888;
+  color: var(--ion-color-medium);
   text-align: center;
   padding: 2rem;
 }
@@ -762,7 +762,7 @@ onMounted(async () => {
 
 .detail-placeholder h3 {
   margin: 0 0 0.5rem;
-  color: #555;
+  color: var(--ion-text-color);
 }
 
 .detail-placeholder p {

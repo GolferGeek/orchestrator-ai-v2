@@ -85,33 +85,52 @@
       </ion-menu>
       <ion-router-outlet id="agents-main-content"></ion-router-outlet>
 
-      <!-- Fixed floating org switcher - always visible -->
-      <div class="fixed-org-switcher" v-if="auth.isAuthenticated">
+      <!-- Fixed floating toolbar - org switcher and theme toggle -->
+      <div class="fixed-toolbar" v-if="auth.isAuthenticated">
         <OrganizationSwitcherApp />
+        <button class="theme-toggle" @click="toggleTheme" :title="isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'">
+          <ion-icon :icon="isDarkMode ? sunnyOutline : moonOutline"></ion-icon>
+        </button>
       </div>
     </ion-split-pane>
   </ion-page>
 </template>
 <script lang="ts" setup>
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { 
   IonPage, IonContent, IonIcon, IonItem, IonLabel, IonList, IonMenu, IonMenuToggle, IonNote, IonRouterOutlet, IonSplitPane, IonHeader, IonToolbar, IonTitle, IonAccordion, IonAccordionGroup
 } from '@ionic/vue';
-import { logOutOutline, starOutline, chatbubblesOutline, documentTextOutline, shieldCheckmarkOutline, analyticsOutline, barChartOutline, pulseOutline, settingsOutline } from 'ionicons/icons';
+import { logOutOutline, starOutline, chatbubblesOutline, documentTextOutline, shieldCheckmarkOutline, analyticsOutline, barChartOutline, pulseOutline, settingsOutline, sunnyOutline, moonOutline } from 'ionicons/icons';
 import { useAuthStore } from '@/stores/rbacStore';
 import { conversation } from '@/services/conversationHelpers';
 import { useConversationsStore } from '@/stores/conversationsStore';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
+import { useUserPreferencesStore } from '@/stores/userPreferencesStore';
 import { useRouter } from 'vue-router';
 import AgentTreeView from '@/components/AgentTreeView.vue';
 import OrganizationSwitcherApp from '@/components/common/OrganizationSwitcherApp.vue';
 const auth = useAuthStore();
 const conversationsStore = useConversationsStore();
 const chatUiStore = useChatUiStore();
+const userPreferencesStore = useUserPreferencesStore();
 const router = useRouter();
 // State for accordion and search
 const _mainNavExpanded = ref(true); // Main navigation accordion starts expanded
 const agentsExpanded = ref(true);
+
+// Theme - use the preferences store
+const isDarkMode = computed(() => userPreferencesStore.effectiveTheme === 'dark');
+
+function toggleTheme() {
+  const newTheme = isDarkMode.value ? 'light' : 'dark';
+  userPreferencesStore.setTheme(newTheme);
+}
+
+// Initialize preferences on mount
+onMounted(() => {
+  userPreferencesStore.initializePreferences();
+});
+
 // Dynamic titles based on current route
 const menuTitle = computed(() => {
   return 'Orchestrator AI';
@@ -171,13 +190,38 @@ const handleAgentSelected = async (agent: Record<string, unknown>) => {
 };
 </script>
 <style scoped>
-/* Fixed floating org switcher - always visible on all pages */
-.fixed-org-switcher {
+/* Fixed floating toolbar - org switcher and theme toggle */
+.fixed-toolbar {
   position: fixed;
   top: 8px;
-  right: 16px;
+  right: 60px;
   z-index: 9999;
   pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--ion-border-color, var(--ion-color-light-shade));
+  border-radius: 4px;
+  background: var(--ion-background-color);
+  color: var(--ion-text-color);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.theme-toggle:hover {
+  background: var(--ion-color-light);
+}
+
+.theme-toggle ion-icon {
+  font-size: 18px;
 }
 
 /* Organization switcher in toolbar */

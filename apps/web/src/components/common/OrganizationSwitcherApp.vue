@@ -103,48 +103,46 @@ function formatOrgName(slug: string): string {
 .org-switcher-app {
   display: flex;
   align-items: center;
-  margin-right: 8px;
 }
 
 .org-pill-app {
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  background: var(--ion-color-primary);
-  color: white;
-  font-size: 0.875rem;
-  font-weight: 600;
-  border: 1px solid var(--ion-color-primary-shade);
+  padding: 0.35rem 0.75rem;
+  border-radius: 4px;
+  background: var(--ion-background-color);
+  color: var(--ion-text-color);
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid var(--ion-border-color, var(--ion-color-light-shade));
   white-space: nowrap;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 ion-select {
-  min-width: 160px;
-  max-width: 200px;
-  --padding-start: 0.75rem;
-  --padding-end: 0.75rem;
-  --padding-top: 0.5rem;
-  --padding-bottom: 0.5rem;
-  --min-height: 40px;
-  --background: var(--ion-color-primary);
-  --color: white;
-  --placeholder-color: rgba(255, 255, 255, 0.7);
-  font-size: 0.875rem;
+  min-width: 120px;
+  max-width: 160px;
+  --padding-start: 0.5rem;
+  --padding-end: 0.5rem;
+  --padding-top: 0.25rem;
+  --padding-bottom: 0.25rem;
+  --min-height: 32px;
+  --background: var(--ion-background-color);
+  --color: var(--ion-text-color);
+  --placeholder-color: var(--ion-color-medium);
+  font-size: 0.8rem;
   font-weight: 500;
-  border-radius: 6px;
-  border: 1px solid var(--ion-color-primary-shade);
+  border-radius: 4px;
+  border: 1px solid var(--ion-border-color, var(--ion-color-light-shade));
 }
 
 ion-select::part(text) {
-  color: white;
+  color: var(--ion-text-color);
 }
 
 ion-select::part(icon) {
-  color: white;
-  opacity: 0.9;
+  color: var(--ion-color-medium);
+  opacity: 0.8;
 }
 
 ion-select::part(container) {
-  border-radius: 6px;
+  border-radius: 4px;
 }
 </style>

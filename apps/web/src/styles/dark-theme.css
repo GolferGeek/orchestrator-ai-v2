@@ -172,3 +172,46 @@ html[data-theme="dark"] .dark-text-muted { color: var(--dark-text-muted) !import
 
 html[data-theme="dark"] .dark-border { border-color: var(--dark-border-primary) !important; }
 html[data-theme="dark"] .dark-border-subtle { border-color: var(--dark-border-subtle) !important; }
+
+/* ============================================================================
+   Admin Detail View Dark Mode Styles
+   ============================================================================ */
+
+/* Dark mode for detail-view components */
+@media (prefers-color-scheme: dark) {
+  .detail-view {
+    background: var(--dark-bg-primary);
+    color: var(--dark-text-secondary);
+  }
+
+  .detail-header {
+    background: var(--dark-bg-tertiary) !important;
+    border-color: var(--dark-border-subtle) !important;
+  }
+
+  .detail-header h2 {
+    color: var(--dark-text-primary) !important;
+  }
+
+  .detail-body {
+    background: var(--dark-bg-primary);
+  }
+}
+
+html[data-theme="dark"] .detail-view {
+  background: var(--dark-bg-primary);
+  color: var(--dark-text-secondary);
+}
+
+html[data-theme="dark"] .detail-header {
+  background: var(--dark-bg-tertiary) !important;
+  border-color: var(--dark-border-subtle) !important;
+}
+
+html[data-theme="dark"] .detail-header h2 {
+  color: var(--dark-text-primary) !important;
+}
+
+html[data-theme="dark"] .detail-body {
+  background: var(--dark-bg-primary);
+}
