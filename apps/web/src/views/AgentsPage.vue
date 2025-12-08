@@ -14,7 +14,15 @@
         </ion-header>
         <ion-content>
           <div v-if="auth.isAuthenticated">
-            <ion-note v-if="auth.user && auth.user.email" class="ion-padding-top">{{ auth.user.email }}</ion-note>
+            <div class="user-header">
+              <ion-note v-if="auth.user" class="user-email">{{ auth.user.displayName || auth.user.email }}</ion-note>
+              <a
+                v-if="auth.hasAdminAccess || auth.hasEvaluationAccess"
+                class="admin-link"
+                :class="{ 'active': $route.path.startsWith('/app/admin') }"
+                @click="$router.push('/app/admin/settings')"
+              >Admin</a>
+            </div>
             <ion-item lines="none" :detail="false" :button="true" @click="handleLogout">
               <ion-icon aria-hidden="true" :icon="logOutOutline" slot="start"></ion-icon>
               <ion-label>Logout</ion-label>
@@ -55,68 +63,6 @@
               </ion-accordion>
             </ion-accordion-group>
               
-              <!-- Admin Accordion -->
-              <ion-accordion-group v-if="auth.hasAdminAccess || auth.hasEvaluationAccess" :value="adminExpanded ? 'admin' : undefined">
-                <ion-accordion value="admin">
-                  <ion-item slot="header" color="none" class="accordion-header-custom">
-                    <ion-icon aria-hidden="true" :icon="settingsOutline" slot="start"></ion-icon>
-                    <ion-label>Admin</ion-label>
-                  </ion-item>
-                  <div slot="content" class="admin-content">
-                    <ion-list>
-                      <ion-item 
-                        v-if="auth.hasAdminAccess"
-                        :button="true"
-                        lines="none" 
-                        :detail="false"
-                        @click="$router.push('/app/admin/settings')"
-                        :class="{ 'selected': $route.path === '/app/admin/settings' }"
-                      >
-                        <ion-icon aria-hidden="true" :icon="settingsOutline" slot="start"></ion-icon>
-                        <ion-label>Admin Settings</ion-label>
-                      </ion-item>
-                      <ion-menu-toggle v-if="auth.hasEvaluationAccess">
-                        <ion-item 
-                          :button="true"
-                          router-direction="root" 
-                          router-link="/app/admin/evaluations" 
-                          lines="none" 
-                          :detail="false"
-                          :class="{ 'selected': $route.path === '/app/admin/evaluations' }"
-                        >
-                          <ion-icon aria-hidden="true" :icon="analyticsOutline" slot="start"></ion-icon>
-                          <ion-label>Admin Evaluations</ion-label>
-                        </ion-item>
-                      </ion-menu-toggle>
-                      <ion-menu-toggle v-if="auth.hasAdminAccess">
-                        <ion-item 
-                          :button="true"
-                          router-direction="root" 
-                          router-link="/app/admin/llm-usage" 
-                          lines="none" 
-                          :detail="false"
-                          :class="{ 'selected': $route.path === '/app/admin/llm-usage' }"
-                        >
-                          <ion-icon aria-hidden="true" :icon="barChartOutline" slot="start"></ion-icon>
-                          <ion-label>LLM Usage</ion-label>
-                        </ion-item>
-                      </ion-menu-toggle>
-                      <ion-item 
-                        v-if="auth.hasAdminAccess"
-                        :button="true"
-                        router-direction="root" 
-                        router-link="/app/admin/observability" 
-                        lines="none" 
-                        :detail="false"
-                        :class="{ 'selected': $route.path === '/app/admin/observability' }"
-                      >
-                        <ion-icon aria-hidden="true" :icon="pulseOutline" slot="start"></ion-icon>
-                        <ion-label>System Observability</ion-label>
-                      </ion-item>
-                    </ion-list>
-                  </div>
-                </ion-accordion>
-              </ion-accordion-group>
               <!-- Agents & Conversations Accordion - Takes remaining space -->
               <ion-accordion-group :value="agentsExpanded ? 'agents' : undefined">
                 <ion-accordion value="agents">
@@ -166,7 +112,6 @@ const router = useRouter();
 // State for accordion and search
 const _mainNavExpanded = ref(true); // Main navigation accordion starts expanded
 const agentsExpanded = ref(true);
-const adminExpanded = ref(false); // Admin accordion starts collapsed
 // Dynamic titles based on current route
 const menuTitle = computed(() => {
   return 'Orchestrator AI';
@@ -330,25 +275,38 @@ ion-split-pane {
   --side-min-width: var(--app-sidebar-width);
   --side-max-width: var(--app-sidebar-width);
 }
-/* Admin accordion content */
-.admin-content {
-  padding: 0;
-  background: white !important;
+/* User header with admin link */
+.user-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px 4px 16px;
 }
 
-.admin-content ion-list {
+.user-email {
+  font-size: 0.85rem;
+  color: var(--ion-color-medium);
   padding: 0;
-  background: white !important;
 }
 
-.admin-content ion-item {
-  --padding-start: 32px;
-  --padding-end: 16px;
-  font-size: 0.9rem;
-  --background: white !important;
-  background: white !important;
-  --color: #333 !important;
-  color: #333 !important;
+.admin-link {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--ion-color-primary);
+  cursor: pointer;
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.admin-link:hover {
+  background: var(--ion-color-primary-tint);
+}
+
+.admin-link.active {
+  background: var(--ion-color-primary);
+  color: white;
 }
 
 
