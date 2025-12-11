@@ -406,7 +406,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import {
   IonPage,
@@ -544,15 +544,45 @@ const handleFileSelect = (event: Event) => {
 
 const handleFolderSelect = (event: Event) => {
   const input = event.target as HTMLInputElement;
-  if (input.files) {
+  if (input.files && input.files.length > 0) {
     // Filter to only supported file types
     const supportedExtensions = ['.pdf', '.docx', '.doc', '.txt', '.md'];
     const files = Array.from(input.files).filter(file => {
       const ext = '.' + file.name.split('.').pop()?.toLowerCase();
       return supportedExtensions.includes(ext);
     });
+    
+    if (files.length === 0) {
+      const toast = toastController.create({
+        message: 'No supported files found in the selected folder. Supported: .pdf, .docx, .doc, .txt, .md',
+        duration: 3000,
+        color: 'warning',
+      });
+      toast.then(t => t.present());
+      return;
+    }
+    
     folderFiles.value = files;
-    selectedFolderFiles.value = files; // Select all by default
+    // Don't set selectedFolderFiles here - let FolderTreeSelector handle it via emit
+    // The FolderTreeSelector will emit the selected files after building the tree
+    
+    // Ensure modal stays open after folder selection
+    if (!showUploadModal.value) {
+      showUploadModal.value = true;
+    }
+    
+    // Switch to folder mode if not already
+    if (uploadMode.value !== 'folder') {
+      uploadMode.value = 'folder';
+    }
+  } else {
+    // If no files selected, show a message
+    const toast = toastController.create({
+      message: 'No files found in the selected folder',
+      duration: 2000,
+      color: 'warning',
+    });
+    toast.then(t => t.present());
   }
 };
 
@@ -605,38 +635,73 @@ const uploadFiles = async () => {
 
 // Upload folder files (batch processing) - calls service which updates store
 const uploadFolderFiles = async () => {
-  if (selectedFolderFiles.value.length === 0 || !collectionId.value) return;
+  // Validate inputs
+  if (selectedFolderFiles.value.length === 0) {
+    const toast = await toastController.create({
+      message: 'Please select at least one file to upload',
+      duration: 2000,
+      color: 'warning',
+    });
+    await toast.present();
+    return;
+  }
+
+  if (!collectionId.value) {
+    const toast = await toastController.create({
+      message: 'Collection ID is missing',
+      duration: 2000,
+      color: 'danger',
+    });
+    await toast.present();
+    return;
+  }
 
   isUploading.value = true;
 
-  // Service handles all the logic and updates the store
-  const result = await ragService.uploadFolderFiles(
-    collectionId.value,
-    getOrgSlug(),
-    selectedFolderFiles.value,
-  );
+  try {
+    // Service handles all the logic and updates the store
+    const result = await ragService.uploadFolderFiles(
+      collectionId.value,
+      getOrgSlug(),
+      selectedFolderFiles.value,
+    );
 
-  isUploading.value = false;
+    // Show summary toast
+    const { success, failed } = result;
+    const wasCancelled = ragStore.batchUploadCancelled;
+    const message = wasCancelled
+      ? `Cancelled. ${success} succeeded, ${failed} failed`
+      : `${success} file(s) uploaded${failed > 0 ? `, ${failed} failed` : ''}`;
 
-  // Show summary toast
-  const { success, failed } = result;
-  const wasCancelled = ragStore.batchUploadCancelled;
-  const message = wasCancelled
-    ? `Cancelled. ${success} succeeded, ${failed} failed`
-    : `${success} file(s) uploaded${failed > 0 ? `, ${failed} failed` : ''}`;
+    const toast = await toastController.create({
+      message,
+      duration: 3000,
+      color: failed > 0 ? 'warning' : 'success',
+    });
+    await toast.present();
 
-  const toast = await toastController.create({
-    message,
-    duration: 3000,
-    color: failed > 0 ? 'warning' : 'success',
-  });
-  await toast.present();
-
-  // Refresh collection stats and close modal
-  if (success > 0) {
-    await loadCollection();
+    // Refresh collection stats and close modal
+    if (success > 0) {
+      await loadCollection();
+      await loadDocuments();
+    }
+    
+    // Only close modal if upload completed (not cancelled)
+    if (!wasCancelled) {
+      closeUploadModal();
+    }
+  } catch (error) {
+    console.error('Error uploading folder files:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to upload files';
+    const toast = await toastController.create({
+      message: `Upload failed: ${errorMessage}`,
+      duration: 3000,
+      color: 'danger',
+    });
+    await toast.present();
+  } finally {
+    isUploading.value = false;
   }
-  closeUploadModal();
 };
 
 // Cancel processing - tells store to cancel
@@ -765,7 +830,10 @@ const openUploadModal = () => {
   selectedFolderFiles.value = [];
   uploadMode.value = 'files';
   ragStore.clearBatchUpload();
-  showUploadModal.value = true;
+  // Use nextTick to ensure modal opens after DOM updates
+  nextTick(() => {
+    showUploadModal.value = true;
+  });
 };
 const closeUploadModal = () => {
   showUploadModal.value = false;

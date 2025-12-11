@@ -26,7 +26,7 @@ $$;
 
 -- Insert the default Ollama/llama3.2:1b configuration into system_settings
 -- Using INSERT ... ON CONFLICT to handle case where it already exists
-INSERT INTO public.system_settings (key, value, description, updated_at)
+INSERT INTO public.system_settings (key, value, updated_at)
 VALUES (
   'model_config_global',
   jsonb_build_object(
@@ -37,13 +37,11 @@ VALUES (
       'maxTokens', 8000
     )
   ),
-  'Global default LLM model configuration. Used when no user preference is set.',
   CURRENT_TIMESTAMP
 )
 ON CONFLICT (key) 
 DO UPDATE SET
   value = EXCLUDED.value,
-  description = EXCLUDED.description,
   updated_at = CURRENT_TIMESTAMP;
 
 -- Grant execute permission to authenticated users (if not already granted)

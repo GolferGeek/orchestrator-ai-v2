@@ -269,9 +269,16 @@ export class AppService implements OnModuleInit {
       ? (metadataObj.supported_modes as string[])
       : [];
 
+    // Normalize organization_slug: database returns TEXT but code expects string[]
+    const orgSlug = Array.isArray(record.organization_slug)
+      ? record.organization_slug
+      : record.organization_slug
+        ? [record.organization_slug as unknown as string]
+        : [];
+
     const supportedModes = supportedModesRaw.length
       ? supportedModesRaw
-      : record.capabilities.includes('orchestrate')
+      : (record.capabilities && Array.isArray(record.capabilities) && record.capabilities.includes('orchestrate'))
         ? ['converse', 'plan', 'build']
         : ['converse', 'build'];
 
@@ -304,7 +311,7 @@ export class AppService implements OnModuleInit {
       name: record.slug,
       displayName: record.name,
       type: isTool ? 'tool' : record.agent_type,
-      organizationSlug: record.organization_slug[0] || undefined,
+      organizationSlug: orgSlug[0] || undefined,
       description: record.description,
       serviceClass: undefined,
       hasInstance: true,

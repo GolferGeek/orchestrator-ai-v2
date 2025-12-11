@@ -80,6 +80,7 @@
     "@types/node": "^22.10.7",
     "@types/passport": "^1.0.17",
     "@types/passport-jwt": "^4.0.1",
+    "@types/pg": "^8.15.6",
     "@types/supertest": "^6.0.2",
     "ajv": "^8.17.1",
     "eslint": "^9.18.0",

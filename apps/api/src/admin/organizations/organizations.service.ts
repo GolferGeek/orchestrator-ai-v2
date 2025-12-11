@@ -195,7 +195,7 @@ export class OrganizationsService {
     const { data: agents, error: agentsError } = await client
       .from(getTableName('agents'))
       .select('slug')
-      .contains('organization_slug', [slug])
+      .eq('organization_slug', slug)
       .limit(1);
 
     if (agentsError) {

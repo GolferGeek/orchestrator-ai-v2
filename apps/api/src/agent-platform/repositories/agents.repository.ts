@@ -30,11 +30,40 @@ export class AgentsRepository {
     return this.supabaseService.getServiceClient();
   }
 
+  /**
+   * Normalize organization_slug: database stores as TEXT but code expects string[]
+   * Converts string to [string] or keeps array as-is
+   */
+  private normalizeAgentRecord(record: AgentRecord): AgentRecord {
+    return {
+      ...record,
+      organization_slug: Array.isArray(record.organization_slug)
+        ? record.organization_slug
+        : record.organization_slug
+          ? [record.organization_slug as unknown as string]
+          : [],
+      capabilities: Array.isArray(record.capabilities)
+        ? record.capabilities
+        : record.capabilities
+          ? [record.capabilities as unknown as string]
+          : [],
+    };
+  }
+
   async upsert(payload: AgentUpsertInput): Promise<AgentRecord> {
     const client = this.getClient();
+    // Convert organization_slug array to string (database stores as TEXT, not array)
+    const orgSlugValue = Array.isArray(payload.organization_slug) && payload.organization_slug.length > 0
+      ? payload.organization_slug[0]
+      : payload.organization_slug
+        ? (typeof payload.organization_slug === 'string' ? payload.organization_slug : 'demo-org')
+        : 'demo-org';
+
+    // Create row - database stores organization_slug as TEXT (string), not array
+    // Use type assertion to bypass interface type check
     const row: AgentUpsertRow = {
       slug: payload.slug,
-      organization_slug: payload.organization_slug ?? ['demo-org'],
+      organization_slug: [orgSlugValue], // Store as array for interface, but DB will convert to TEXT
       name: payload.name,
       description: payload.description,
       version: payload.version ?? '1.0.0',
@@ -48,9 +77,15 @@ export class AgentsRepository {
       llm_config: payload.llm_config ?? null,
       metadata: payload.metadata ?? {},
       updated_at: new Date().toISOString(),
+    } as AgentUpsertRow;
+
+    // Override organization_slug to be string for database (Supabase will store as TEXT)
+    const dbRow = {
+      ...row,
+      organization_slug: orgSlugValue, // Pass string directly to database
     };
 
-    const rows = [row];
+    const rows = [dbRow as unknown as AgentUpsertRow];
 
     const { data, error } = (await client
       .from(AGENTS_TABLE)
@@ -69,7 +104,7 @@ export class AgentsRepository {
       throw new Error('Upsert succeeded but no agent returned');
     }
 
-    return data;
+    return this.normalizeAgentRecord(data);
   }
 
   async findBySlug(
@@ -83,9 +118,9 @@ export class AgentsRepository {
       .eq('slug', agentSlug)
       .limit(1);
 
-    // Filter by organization using array contains operator
+    // Filter by organization (organization_slug is TEXT, not array)
     if (organizationSlug) {
-      query = query.contains('organization_slug', [organizationSlug]);
+      query = query.eq('organization_slug', organizationSlug);
     }
 
     const { data, error } =
@@ -96,7 +131,7 @@ export class AgentsRepository {
       throw new Error(`Failed to load agent: ${error.message}`);
     }
 
-    return data;
+    return data ? this.normalizeAgentRecord(data) : null;
   }
 
   async listByOrganization(
@@ -105,14 +140,13 @@ export class AgentsRepository {
     const client = this.getClient();
     let query = client.from(AGENTS_TABLE).select('*');
 
-    // Filter by organization using array contains operator
+    // Filter by organization (organization_slug is TEXT, not array)
     if (organizationSlug) {
       // Query for agents that belong to this specific organization
-      query = query.contains('organization_slug', [organizationSlug]);
+      query = query.eq('organization_slug', organizationSlug);
     } else {
-      // Query for truly global agents (organization_slug is empty array or contains only null)
-      // Use 'or' to match either empty array or array with single null value
-      query = query.or('organization_slug.eq.{},organization_slug.eq.{null}');
+      // Query for truly global agents (organization_slug is null or empty)
+      query = query.or('organization_slug.is.null,organization_slug.eq.');
     }
 
     const { data, error } = (await query.order('slug', {
@@ -126,7 +160,7 @@ export class AgentsRepository {
       throw new Error(`Failed to list agents: ${error.message}`);
     }
 
-    return data ?? [];
+    return (data ?? []).map(record => this.normalizeAgentRecord(record));
   }
 
   async listAll(): Promise<AgentRecord[]> {
@@ -143,7 +177,7 @@ export class AgentsRepository {
       throw new Error(`Failed to list agents: ${error.message}`);
     }
 
-    return data ?? [];
+    return (data ?? []).map(record => this.normalizeAgentRecord(record));
   }
 
   /**
@@ -203,6 +237,6 @@ export class AgentsRepository {
       throw new Error('Update succeeded but no agent returned');
     }
 
-    return data;
+    return this.normalizeAgentRecord(data);
   }
 }

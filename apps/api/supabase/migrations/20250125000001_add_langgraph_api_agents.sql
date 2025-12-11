@@ -17,9 +17,12 @@ INSERT INTO public.agents (
   slug,
   organization_slug,
   name,
+  display_name,
   description,
   version,
   agent_type,
+  mode_profile,
+  yaml,
   department,
   tags,
   io_schema,
@@ -30,11 +33,14 @@ INSERT INTO public.agents (
   metadata
 ) VALUES (
   'data-analyst',
-  ARRAY['demo-org']::TEXT[],
+  'demo-org',
+  'Data Analyst',
   'Data Analyst',
   'LangGraph-powered data analyst agent that uses natural language to query databases, list tables, describe schemas, and generate SQL queries with comprehensive result summaries.',
   '1.0.0',
   'api',
+  'full_cycle',
+  'agent: {}',
   'analytics',
   ARRAY['data-analysis', 'sql', 'database', 'langgraph', 'tool-calling']::TEXT[],
 
@@ -89,29 +95,8 @@ INSERT INTO public.agents (
   -- Capabilities
   ARRAY['database-query', 'sql-generation', 'schema-analysis', 'data-summarization']::TEXT[],
 
-  -- Context (markdown)
-  '# Data Analyst Agent
-
-A LangGraph-powered agent that analyzes databases using natural language queries.
-
-## Capabilities
-- **Schema Discovery**: Lists and describes database tables
-- **SQL Generation**: Generates SQL from natural language using Ollama/SQLCoder
-- **Query Execution**: Executes read-only SQL queries safely
-- **Result Summarization**: Provides clear summaries of query results
-
-## Flow
-1. User asks a question about data
-2. Agent discovers relevant tables
-3. Agent describes table schemas
-4. Agent generates SQL query
-5. Agent executes query (read-only)
-6. Agent summarizes results
-
-## Safety
-- All SQL queries are read-only (SELECT only)
-- Query execution is sandboxed
-- Results are validated before returning',
+  -- Context (markdown as JSONB)
+  '{"markdown": "# Data Analyst Agent\n\nA LangGraph-powered agent that analyzes databases using natural language queries.\n\n## Capabilities\n- **Schema Discovery**: Lists and describes database tables\n- **SQL Generation**: Generates SQL from natural language using Ollama/SQLCoder\n- **Query Execution**: Executes read-only SQL queries safely\n- **Result Summarization**: Provides clear summaries of query results\n\n## Flow\n1. User asks a question about data\n2. Agent discovers relevant tables\n3. Agent describes table schemas\n4. Agent generates SQL query\n5. Agent executes query (read-only)\n6. Agent summarizes results\n\n## Safety\n- All SQL queries are read-only (SELECT only)\n- Query execution is sandboxed\n- Results are validated before returning"}'::JSONB,
 
   -- Endpoint configuration (API agent)
   '{
@@ -151,8 +136,9 @@ A LangGraph-powered agent that analyzes databases using natural language queries
     }
   }'::JSONB
 )
-ON CONFLICT (slug) DO UPDATE SET
+ON CONFLICT (organization_slug, slug) DO UPDATE SET
   name = EXCLUDED.name,
+  display_name = EXCLUDED.display_name,
   description = EXCLUDED.description,
   version = EXCLUDED.version,
   agent_type = EXCLUDED.agent_type,
@@ -179,9 +165,12 @@ INSERT INTO public.agents (
   slug,
   organization_slug,
   name,
+  display_name,
   description,
   version,
   agent_type,
+  mode_profile,
+  yaml,
   department,
   tags,
   io_schema,
@@ -192,11 +181,14 @@ INSERT INTO public.agents (
   metadata
 ) VALUES (
   'extended-post-writer',
-  ARRAY['demo-org']::TEXT[],
+  'demo-org',
+  'Extended Post Writer',
   'Extended Post Writer',
   'LangGraph-powered content generation agent with Human-in-the-Loop (HITL) approval. Generates blog posts, SEO descriptions, and social media posts, then pauses for human review before finalizing.',
   '1.0.0',
   'api',
+  'full_cycle',
+  'agent: {}',
   'marketing',
   ARRAY['content-creation', 'blog', 'seo', 'social-media', 'langgraph', 'hitl']::TEXT[],
 
@@ -258,37 +250,8 @@ INSERT INTO public.agents (
   -- Capabilities
   ARRAY['content-generation', 'blog-writing', 'seo-optimization', 'social-media', 'human-in-the-loop']::TEXT[],
 
-  -- Context (markdown)
-  '# Extended Post Writer Agent
-
-A LangGraph-powered content generation agent with Human-in-the-Loop (HITL) approval workflow.
-
-## Capabilities
-- **Blog Post Generation**: Creates comprehensive blog posts on any topic
-- **SEO Description**: Generates optimized meta descriptions
-- **Social Media Posts**: Creates multiple social media posts for different platforms
-- **HITL Approval**: Pauses for human review before finalizing content
-
-## HITL Workflow
-1. User provides topic and preferences
-2. Agent generates all content types
-3. Workflow pauses with `hitl_waiting` status
-4. Human reviews content in approval modal
-5. Human can:
-   - **Approve**: Accept content as-is
-   - **Edit**: Modify content then approve
-   - **Reject**: Reject and provide feedback
-6. Workflow completes with final content
-
-## Resume Actions
-- `approve`: Accept generated content
-- `edit`: Accept with modifications (provide editedContent)
-- `reject`: Reject content (provide feedback)
-
-## Endpoints
-- `POST /extended-post-writer/generate` - Start generation
-- `POST /extended-post-writer/resume/:threadId` - Resume with decision
-- `GET /extended-post-writer/status/:threadId` - Check status',
+  -- Context (markdown as JSONB)
+  '{"markdown": "# Extended Post Writer Agent\n\nA LangGraph-powered content generation agent with Human-in-the-Loop (HITL) approval workflow.\n\n## Capabilities\n- **Blog Post Generation**: Creates comprehensive blog posts on any topic\n- **SEO Description**: Generates optimized meta descriptions\n- **Social Media Posts**: Creates multiple social media posts for different platforms\n- **HITL Approval**: Pauses for human review before finalizing content\n\n## HITL Workflow\n1. User provides topic and preferences\n2. Agent generates all content types\n3. Workflow pauses with `hitl_waiting` status\n4. Human reviews content in approval modal\n5. Human can:\n   - **Approve**: Accept content as-is\n   - **Edit**: Modify content then approve\n   - **Reject**: Reject and provide feedback\n6. Workflow completes with final content\n\n## Resume Actions\n- `approve`: Accept generated content\n- `edit`: Accept with modifications (provide editedContent)\n- `reject`: Reject content (provide feedback)\n\n## Endpoints\n- `POST /extended-post-writer/generate` - Start generation\n- `POST /extended-post-writer/resume/:threadId` - Resume with decision\n- `GET /extended-post-writer/status/:threadId` - Check status"}'::JSONB,
 
   -- Endpoint configuration (API agent)
   '{
@@ -330,8 +293,9 @@ A LangGraph-powered content generation agent with Human-in-the-Loop (HITL) appro
     }
   }'::JSONB
 )
-ON CONFLICT (slug) DO UPDATE SET
+ON CONFLICT (organization_slug, slug) DO UPDATE SET
   name = EXCLUDED.name,
+  display_name = EXCLUDED.display_name,
   description = EXCLUDED.description,
   version = EXCLUDED.version,
   agent_type = EXCLUDED.agent_type,

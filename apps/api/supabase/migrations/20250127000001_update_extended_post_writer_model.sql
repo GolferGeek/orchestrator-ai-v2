@@ -7,6 +7,8 @@
 
 UPDATE public.agents
 SET
+  agent_type = 'context',
+  endpoint = NULL,
   llm_config = '{
     "provider": "ollama",
     "model": "llama3.2:1b"

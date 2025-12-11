@@ -61,7 +61,9 @@ const _buildTree = (files: File[]): FileNode[] => {
   const root: Record<string, FileNode> = {};
 
   for (const file of files) {
-    const pathParts = file.webkitRelativePath.split('/');
+    // Handle files that might not have webkitRelativePath (fallback to filename)
+    const relativePath = file.webkitRelativePath || file.name;
+    const pathParts = relativePath.split('/');
     let current = root;
 
     for (let i = 0; i < pathParts.length; i++) {
@@ -104,7 +106,9 @@ const rebuildTree = (files: File[]): FileNode[] => {
   const root: Map<string, FileNode> = new Map();
 
   for (const file of files) {
-    const pathParts = file.webkitRelativePath.split('/');
+    // Handle files that might not have webkitRelativePath (fallback to filename)
+    const relativePath = file.webkitRelativePath || file.name;
+    const pathParts = relativePath.split('/');
 
     // Ensure all folders exist
     for (let i = 0; i < pathParts.length; i++) {
@@ -239,12 +243,21 @@ const emitSelectedFiles = () => {
 // Watch for file changes and rebuild tree (must be after selectAllFiles and emitSelectedFiles)
 watch(() => props.files, (files) => {
   if (files.length > 0) {
-    treeData.value = rebuildTree(files);
-    // Select all by default
-    selectAllFiles();
+    try {
+      treeData.value = rebuildTree(files);
+      // Select all by default
+      selectAllFiles();
+    } catch (error) {
+      console.error('Error building folder tree:', error);
+      treeData.value = [];
+      selectedPaths.value = new Set();
+      // Emit empty array to clear selections
+      emit('update:selectedFiles', []);
+    }
   } else {
     treeData.value = [];
     selectedPaths.value = new Set();
+    emit('update:selectedFiles', []);
   }
 }, { immediate: true });
 
