@@ -706,7 +706,10 @@ export class DeliverableVersionsService {
         );
       }
 
-      const originalTask = await this.getTaskById(sourceVersion.taskId, executionContext);
+      const originalTask = await this.getTaskById(
+        sourceVersion.taskId,
+        executionContext,
+      );
       if (!originalTask) {
         throw new BadRequestException('Cannot rerun: original task not found');
       }

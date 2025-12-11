@@ -21,10 +21,7 @@ import {
   ContextOptimizationService,
   ConversationMessage,
 } from '../context-optimization/context-optimization.service';
-import type {
-  JsonObject,
-  ExecutionContext,
-} from '@orchestrator-ai/transport-types';
+import type { ExecutionContext } from '@orchestrator-ai/transport-types';
 import { NIL_UUID } from '@orchestrator-ai/transport-types';
 import { DeliverablesService } from '../deliverables/deliverables.service';
 import { PlansService } from '../plans/services/plans.service';

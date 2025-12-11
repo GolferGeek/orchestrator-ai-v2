@@ -147,7 +147,7 @@ export async function sendHitlResume(
     return { response: response };
   } catch (error) {
     console.log(`🔍 [HITL-RESUME] Error sending resume:`, error);
-    
+
     // Provide more detailed error information
     let errorMessage = 'Unknown error';
     if (error && typeof error === 'object') {
@@ -156,7 +156,7 @@ export async function sendHitlResume(
         code?: string;
         response?: { status?: number; statusText?: string; data?: unknown };
       };
-      
+
       if (axiosError.code === 'ECONNRESET' || axiosError.code === 'ETIMEDOUT') {
         errorMessage = `Connection error: ${axiosError.message || axiosError.code}. The LangGraph service may have closed the connection or timed out.`;
       } else if (axiosError.response) {
@@ -171,7 +171,7 @@ export async function sendHitlResume(
     } else {
       errorMessage = String(error);
     }
-    
+
     return { response: null, error: errorMessage };
   }
 }

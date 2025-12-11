@@ -121,10 +121,9 @@ export class RoutingPolicyAdapterService {
         metadata.modelName ??
         payload.modelName ??
         null) as string | null,
-      model: (context?.model ??
-        metadata.model ??
-        payload.model ??
-        null) as string | null,
+      model: (context?.model ?? metadata.model ?? payload.model ?? null) as
+        | string
+        | null,
       metadata,
       promptInputs: request.promptParameters ?? {},
     };

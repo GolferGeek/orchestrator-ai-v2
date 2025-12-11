@@ -289,7 +289,7 @@ const setAsDefault = async (providerName: string, modelName: string) => {
       color: 'success',
     });
     await toast.present();
-  } catch (_error) {
+  } catch {
     const toast = await toastController.create({
       message: 'Failed to set default model',
       duration: 3000,

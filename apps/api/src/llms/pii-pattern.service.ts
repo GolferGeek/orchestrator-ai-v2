@@ -211,7 +211,10 @@ export class PIIPatternService {
   /**
    * Update custom PII pattern
    */
-  async updateCustomPattern(id: string, updates: Partial<Omit<PIIPattern, 'enabled'>>): Promise<void> {
+  async updateCustomPattern(
+    id: string,
+    updates: Partial<Omit<PIIPattern, 'enabled'>>,
+  ): Promise<void> {
     try {
       const client = this.supabaseService.getServiceClient();
 
@@ -244,7 +247,10 @@ export class PIIPatternService {
       }
 
       // Update in database - check if id is a UUID or a name
-      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+      const isUUID =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          id,
+        );
       const { error } = await client
         .from('redaction_patterns')
         .update(updateData)
@@ -274,7 +280,10 @@ export class PIIPatternService {
       const client = this.supabaseService.getServiceClient();
 
       // Delete from database - check if id is a UUID or a name
-      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+      const isUUID =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          id,
+        );
       const { error } = await client
         .from('redaction_patterns')
         .delete()

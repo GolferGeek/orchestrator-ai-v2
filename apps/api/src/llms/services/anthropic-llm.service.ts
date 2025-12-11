@@ -482,10 +482,6 @@ export async function testAnthropicService() {
     },
   };
 
-  try {
-    const response = await service.generateResponse(mockContext, params);
-    return response;
-  } catch (error) {
-    throw error;
-  }
+  const response = await service.generateResponse(mockContext, params);
+  return response;
 }

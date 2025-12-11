@@ -1,5 +1,4 @@
-import { SetMetadata, applyDecorators, UseGuards } from '@nestjs/common';
-import { RbacGuard } from '../guards/rbac.guard';
+import { SetMetadata, applyDecorators } from '@nestjs/common';
 
 /**
  * Metadata key for storing required permission

@@ -1,8 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import {
-  ExecutionContext,
-  createMockExecutionContext,
-} from '@orchestrator-ai/transport-types';
+import type { ExecutionContext as _ExecutionContext } from '@orchestrator-ai/transport-types';
 import { HttpService } from '@nestjs/axios';
 import { BaseLLMService } from './base-llm.service';
 import { OpenAILLMService } from './openai-llm.service';

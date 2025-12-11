@@ -24,6 +24,7 @@ import { ObservabilityModule } from './observability/observability.module';
 import { RagModule } from './rag/rag.module';
 import { RbacModule } from './rbac/rbac.module';
 import { OrganizationsModule } from './admin/organizations/organizations.module';
+import { MarketingModule } from './marketing/marketing.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { OrganizationsModule } from './admin/organizations/organizations.module'
     RagModule,
     RbacModule,
     OrganizationsModule,
+    MarketingModule,
   ],
   controllers: [AppController, AnalyticsController],
   providers: [AppService, AgentRegistryService],

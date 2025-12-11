@@ -1,5 +1,4 @@
 import Ajv from 'ajv';
-import type { JsonObject } from '@orchestrator-ai/transport-types';
 import { AgentRuntimeDefinition } from '@agent-platform/interfaces/agent.interface';
 import { LLMService } from '@llm/llm.service';
 import type { LLMResponse } from '@llm/services/llm-interfaces';
@@ -14,9 +13,6 @@ import {
   buildResponseMetadata,
   callLLM,
   handleError,
-  resolveConversationId,
-  resolveTaskId,
-  resolveUserId,
 } from './shared.helpers';
 import { AgentTaskMode, TaskRequestDto } from '../../dto/task-request.dto';
 import { TaskResponseDto } from '../../dto/task-response.dto';

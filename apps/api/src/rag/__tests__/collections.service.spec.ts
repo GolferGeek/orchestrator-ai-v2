@@ -2,12 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { CollectionsService } from '../collections.service';
 import { RagDatabaseService } from '../rag-database.service';
-import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
 
 describe('CollectionsService', () => {
   let service: CollectionsService;
   let ragDb: jest.Mocked<RagDatabaseService>;
-  const mockContext = createMockExecutionContext({ orgSlug: 'test-org' });
 
   const mockCollection = {
     id: '123e4567-e89b-12d3-a456-426614174000',

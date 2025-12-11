@@ -145,7 +145,9 @@ export class ModelNameDto {
   @ApiPropertyOptional({ description: 'Whether the model is active' })
   is_active?: boolean;
 
-  @ApiPropertyOptional({ description: 'Model tier (flagship, premium, standard, economy)' })
+  @ApiPropertyOptional({
+    description: 'Model tier (flagship, premium, standard, economy)',
+  })
   model_tier?: string;
 
   @ApiPropertyOptional({ description: 'Context window size in tokens' })

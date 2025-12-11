@@ -85,33 +85,10 @@ export class Agent2AgentDeliverablesService {
       if (typeof contentRec?.output === 'string') {
         rawOutput = contentRec.output;
       } else if (contentRec?.finalContent) {
-        // HITL mode - build content from finalContent fields
-        const finalContent = contentRec.finalContent as Record<string, unknown>;
-        const parts: string[] = [];
-        if (finalContent.blogPost) {
-          parts.push(String(finalContent.blogPost));
-        }
-        if (finalContent.seoDescription) {
-          parts.push(
-            '\n\n---\n\n## SEO Description\n\n' +
-              String(finalContent.seoDescription),
-          );
-        }
-        if (
-          Array.isArray(finalContent.socialPosts) &&
-          finalContent.socialPosts.length > 0
-        ) {
-          const socialText = finalContent.socialPosts
-            .map((post, i) => {
-              if (typeof post === 'object' && post !== null) {
-                return `${i + 1}. ${JSON.stringify(post, null, 2)}`;
-              }
-              return `${i + 1}. ${String(post)}`;
-            })
-            .join('\n\n');
-          parts.push('\n\n---\n\n## Social Media Posts\n\n' + socialText);
-        }
-        rawOutput = parts.join('');
+        // HITL mode - dynamically format finalContent fields
+        rawOutput = this.formatFinalContent(
+          contentRec.finalContent as Record<string, unknown>,
+        );
       }
       const payloadImages: unknown[] = Array.isArray(payload.images)
         ? (payload.images as unknown[])
@@ -191,6 +168,52 @@ export class Agent2AgentDeliverablesService {
       );
       return null;
     }
+  }
+
+  /**
+   * Format finalContent object into markdown dynamically
+   * Handles any content structure without hard-coding specific field names
+   */
+  private formatFinalContent(finalContent: Record<string, unknown>): string {
+    const parts: string[] = [];
+
+    for (const [key, value] of Object.entries(finalContent)) {
+      if (value === null || value === undefined) {
+        continue;
+      }
+
+      // Convert camelCase to Title Case for section headers
+      const sectionTitle = key
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/^./, (str) => str.toUpperCase())
+        .trim();
+
+      if (typeof value === 'string') {
+        // For the first/main content field, don't add a header
+        if (parts.length === 0) {
+          parts.push(value);
+        } else {
+          parts.push(`\n\n---\n\n## ${sectionTitle}\n\n${value}`);
+        }
+      } else if (Array.isArray(value) && value.length > 0) {
+        const formattedItems = value
+          .map((item, i) => {
+            if (typeof item === 'object' && item !== null) {
+              return `${i + 1}. ${JSON.stringify(item, null, 2)}`;
+            }
+            return `${i + 1}. ${String(item)}`;
+          })
+          .join('\n\n');
+        parts.push(`\n\n---\n\n## ${sectionTitle}\n\n${formattedItems}`);
+      } else if (typeof value === 'object') {
+        // Handle nested objects
+        parts.push(
+          `\n\n---\n\n## ${sectionTitle}\n\n${JSON.stringify(value, null, 2)}`,
+        );
+      }
+    }
+
+    return parts.join('');
   }
 
   /**

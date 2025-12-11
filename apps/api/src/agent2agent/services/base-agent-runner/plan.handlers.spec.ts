@@ -8,7 +8,7 @@ import {
 import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
 
 describe('Plan Handlers', () => {
-  const mockContext = createMockExecutionContext();
+  const _mockContext = createMockExecutionContext();
 
   describe('buildPlanningPrompt', () => {
     const baseDefinition: Partial<AgentRuntimeDefinition> = {

@@ -573,11 +573,7 @@ export class SupabaseMCPServer implements IMCPServer {
   private async handleAnalyzeResults(
     args: SupabaseAnalyzeRequest,
   ): Promise<MCPToolResponse> {
-    const {
-      data,
-      analysis_prompt,
-      executionContext,
-    } = args;
+    const { data, analysis_prompt, executionContext } = args;
 
     try {
       // Use LLM service for analysis
@@ -603,8 +599,10 @@ export class SupabaseMCPServer implements IMCPServer {
         _meta: {
           query_type: 'data_analysis',
           data_points: data.length,
-          analysis_provider: (executionContext as ExecutionContext | undefined)?.provider,
-          analysis_model: (executionContext as ExecutionContext | undefined)?.model,
+          analysis_provider: (executionContext as ExecutionContext | undefined)
+            ?.provider,
+          analysis_model: (executionContext as ExecutionContext | undefined)
+            ?.model,
         },
       };
     } catch (error) {

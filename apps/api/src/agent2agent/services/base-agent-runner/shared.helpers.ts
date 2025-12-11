@@ -1,6 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import { LLMService } from '@llm/llm.service';
-import type { LLMResponse, LLMRequestOptions } from '@llm/services/llm-interfaces';
+import type { LLMResponse } from '@llm/services/llm-interfaces';
 import type { ConversationMessage } from '../../context-optimization/context-optimization.service';
 import { PlansService } from '../../plans/services/plans.service';
 import { DeliverablesService } from '../../deliverables/deliverables.service';
@@ -317,7 +317,7 @@ export async function callLLM(
   systemPrompt: string,
   userMessage: string,
   executionContext: ExecutionContext,
-  conversationHistory?: ConversationMessage[],
+  _conversationHistory?: ConversationMessage[],
 ): Promise<LLMResponse> {
   if (!userMessage || !userMessage.trim()) {
     throw new Error('User message is required for LLM invocation');

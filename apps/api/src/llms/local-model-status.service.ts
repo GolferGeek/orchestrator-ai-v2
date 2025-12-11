@@ -555,13 +555,15 @@ export class LocalModelStatusService {
         );
 
         const loadedModelNames = new Set(
-          (loadedResponse.data?.models || []).map(m => m.name)
+          (loadedResponse.data?.models || []).map((m) => m.name),
         );
 
         // Mark models as loaded or available (no expensive health checks)
         this.ollamaStatus.models = models.map((model) => ({
           name: model.name,
-          status: loadedModelNames.has(model.name) ? ('loaded' as const) : ('unavailable' as const),
+          status: loadedModelNames.has(model.name)
+            ? ('loaded' as const)
+            : ('unavailable' as const),
           size: this.formatBytes(model.size),
           digest: model.digest,
           details: model.details as Record<string, unknown>,

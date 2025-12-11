@@ -17,7 +17,6 @@ import { TasksService } from '../tasks/tasks.service';
 import { AgentConversationsService } from '../conversations/agent-conversations.service';
 import * as HitlHandlers from './base-agent-runner/hitl.handlers';
 import {
-  isLangGraphInterruptResponse,
   NIL_UUID,
   type ExecutionContext,
   type HitlDecision,
@@ -35,6 +34,92 @@ import {
 } from '../deliverables/dto';
 
 // ApiCallResult interface removed - inline object typing used instead
+
+/**
+ * Safe string conversion - throws if value would stringify to [object Object]
+ * This helps catch cases where we're accidentally stringifying objects
+ */
+function safeToString(value: unknown, context: string): string {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  if (typeof value === 'object') {
+    // Instead of returning [object Object], throw an error so we know to fix it
+    throw new Error(
+      `[safeToString] Attempted to stringify object in ${context}. ` +
+        `Use JSON.stringify() for objects. Keys: ${Object.keys(value).join(', ')}`,
+    );
+  }
+  // For symbols, functions, etc - use extractString instead
+  return extractString(value);
+}
+
+// Export for potential use in tests
+export { safeToString };
+
+/**
+ * Extract string from unknown value, falling back to JSON for objects
+ * Use this when you expect a string but want to handle objects gracefully
+ */
+function extractString(value: unknown): string {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  if (typeof value === 'object') {
+    return JSON.stringify(value, null, 2);
+  }
+  // For symbols, functions, bigint - serialize to JSON which handles these
+  return JSON.stringify(value);
+}
+
+/**
+ * Extract message content from a response object by checking common string fields
+ * Falls back to JSON stringification if no string fields found
+ */
+function extractMessageFromObject(
+  obj: Record<string, unknown>,
+  fallbackData: unknown,
+): string {
+  // Check common string fields in order of preference
+  if (typeof obj.summary === 'string') return obj.summary;
+  if (typeof obj.message === 'string') return obj.message;
+  if (typeof obj.content === 'string') return obj.content;
+  // Fall back to JSON serialization
+  return JSON.stringify(fallbackData, null, 2);
+}
+
+/**
+ * Extract message from potentially nested response data
+ * Handles { data: { summary/message/content } } pattern
+ */
+function extractMessageFromResponse(responseData: unknown): string {
+  if (!responseData || typeof responseData !== 'object') {
+    return extractString(responseData) || 'No response content';
+  }
+
+  const dataObj = responseData as Record<string, unknown>;
+
+  // Check for nested data object first
+  if (dataObj.data && typeof dataObj.data === 'object') {
+    const nestedData = dataObj.data as Record<string, unknown>;
+    return extractMessageFromObject(nestedData, responseData);
+  }
+
+  // Otherwise check the top-level object
+  return extractMessageFromObject(dataObj, responseData);
+}
 
 /**
  * API Agent Runner
@@ -319,9 +404,8 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         deliverableId: deliverable.id,
       };
 
-      const currentVersion = await this.versionsService.getCurrentVersion(
-        context,
-      );
+      const currentVersion =
+        await this.versionsService.getCurrentVersion(context);
       currentVersionNumber = currentVersion?.versionNumber;
     }
 
@@ -396,9 +480,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
       deliverableId: deliverable.id,
     };
 
-    const versions = await this.versionsService.getVersionHistory(
-      context,
-    );
+    const versions = await this.versionsService.getVersionHistory(context);
 
     const currentVersion = versions.find((v) => v.isCurrentVersion);
 
@@ -466,9 +548,8 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           deliverableId: deliverable.id,
         };
 
-        const currentVersion = await this.versionsService.getCurrentVersion(
-          versionContext,
-        );
+        const currentVersion =
+          await this.versionsService.getCurrentVersion(versionContext);
         currentVersionNumber = currentVersion?.versionNumber;
       }
 
@@ -504,30 +585,47 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
 
   /**
    * Convert HITL content to string for deliverable
+   * Handles any content structure dynamically
    */
   private contentToString(content: HitlGeneratedContent): string {
-    let result = '';
+    const parts: string[] = [];
 
-    if (content.blogPost) {
-      result += content.blogPost + '\n\n';
+    for (const [key, value] of Object.entries(content)) {
+      if (value === null || value === undefined) {
+        continue;
+      }
+
+      // Convert camelCase to Title Case for section headers
+      const sectionTitle = key
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/^./, (str) => str.toUpperCase())
+        .trim();
+
+      if (typeof value === 'string') {
+        // For the first/main content field, don't add a header
+        if (parts.length === 0) {
+          parts.push(value);
+        } else {
+          parts.push(`\n\n---\n\n## ${sectionTitle}\n\n${value}`);
+        }
+      } else if (Array.isArray(value) && value.length > 0) {
+        const formattedItems = value
+          .map((item, i) => {
+            if (typeof item === 'object' && item !== null) {
+              return `### Item ${i + 1}\n\n${JSON.stringify(item, null, 2)}`;
+            }
+            return `### Item ${i + 1}\n\n${String(item)}`;
+          })
+          .join('\n\n');
+        parts.push(`\n\n---\n\n## ${sectionTitle}\n\n${formattedItems}`);
+      } else if (typeof value === 'object') {
+        parts.push(
+          `\n\n---\n\n## ${sectionTitle}\n\n${JSON.stringify(value, null, 2)}`,
+        );
+      }
     }
 
-    if (content.seoDescription) {
-      result +=
-        '---\n\n## SEO Description\n\n' + content.seoDescription + '\n\n';
-    }
-
-    if (content.socialPosts) {
-      result += '---\n\n## Social Posts\n\n';
-      const posts = Array.isArray(content.socialPosts)
-        ? content.socialPosts
-        : [content.socialPosts];
-      posts.forEach((post, i) => {
-        result += `### Post ${i + 1}\n\n${post}\n\n`;
-      });
-    }
-
-    return result.trim() || JSON.stringify(content, null, 2);
+    return parts.join('').trim() || JSON.stringify(content, null, 2);
   }
 
   /**
@@ -593,7 +691,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
       'completed';
 
     this.logger.log(
-      `🔍 [API-HITL-RESUME] LangGraph returned status: ${langGraphStatus}, success: ${responseData.success}`,
+      `🔍 [API-HITL-RESUME] LangGraph returned status: ${langGraphStatus}, success: ${String(responseData.success)}`,
     );
 
     // 3. Get context data
@@ -626,9 +724,8 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           deliverableId: deliverable.id,
         };
 
-        const currentVersion = await this.versionsService.getCurrentVersion(
-          versionContext,
-        );
+        const currentVersion =
+          await this.versionsService.getCurrentVersion(versionContext);
         currentVersionNumber = currentVersion?.versionNumber || 1;
       }
 
@@ -692,6 +789,24 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         deliverableId: existingDeliverable.id,
       };
 
+      // Build metadata with info about which content fields are present
+      const contentFields: Record<string, boolean> = {};
+      if (finalContent) {
+        for (const [key, value] of Object.entries(finalContent)) {
+          if (value !== null && value !== undefined) {
+            const hasContent = Array.isArray(value)
+              ? value.length > 0
+              : typeof value === 'string'
+                ? value.trim().length > 0
+                : true;
+            if (hasContent) {
+              const fieldName = `has${key.charAt(0).toUpperCase()}${key.slice(1)}`;
+              contentFields[fieldName] = true;
+            }
+          }
+        }
+      }
+
       // Create a new version with the final approved content
       await this.versionsService.createVersion(
         {
@@ -700,20 +815,15 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           metadata: {
             hitlDecision: 'approve',
             approvedAt: new Date().toISOString(),
-            hasSeoDescription: !!finalContent.seoDescription,
-            hasSocialPosts:
-              !!finalContent.socialPosts &&
-              Array.isArray(finalContent.socialPosts) &&
-              finalContent.socialPosts.length > 0,
+            ...contentFields,
           },
         },
         versionContext,
       );
 
       // Get the updated version number
-      const currentVersion = await this.versionsService.getCurrentVersion(
-        versionContext,
-      );
+      const currentVersion =
+        await this.versionsService.getCurrentVersion(versionContext);
       const currentVersionNumber = currentVersion?.versionNumber || 2;
 
       this.logger.log(
@@ -877,7 +987,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
 
     if (!responseData || typeof responseData !== 'object') {
       return {
-        message: String(responseData || 'No response content'),
+        message: extractString(responseData) || 'No response content',
         metadata,
       };
     }
@@ -888,49 +998,56 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         ? (dataObj.data as Record<string, unknown>)
         : null;
 
-    // Helper function to format content with blogPost, seoDescription, and socialPosts
+    // Helper function to format content dynamically (handles any content structure)
     const formatContent = (
       content: Record<string, unknown>,
     ): { message: string; metadata: Record<string, unknown> } => {
       const parts: string[] = [];
 
-      if (content.blogPost) {
-        parts.push(String(content.blogPost));
-      }
-      if (content.seoDescription) {
-        parts.push(
-          '\n\n---\n\n## SEO Description\n\n' +
-            String(content.seoDescription),
-        );
-      }
-      if (content.socialPosts) {
-        let socialPostsText = '';
-        if (Array.isArray(content.socialPosts)) {
-          socialPostsText = content.socialPosts
-            .map((post, i) => {
-              // Handle objects by serializing them properly
-              if (typeof post === 'object' && post !== null) {
+      for (const [key, value] of Object.entries(content)) {
+        if (value === null || value === undefined) {
+          continue;
+        }
+
+        // Convert camelCase to Title Case for section headers
+        const sectionTitle = key
+          .replace(/([A-Z])/g, ' $1')
+          .replace(/^./, (str) => str.toUpperCase())
+          .trim();
+
+        if (typeof value === 'string') {
+          // For the first/main content field, don't add a header
+          if (parts.length === 0) {
+            parts.push(value);
+          } else {
+            parts.push(`\n\n---\n\n## ${sectionTitle}\n\n${value}`);
+          }
+        } else if (Array.isArray(value) && value.length > 0) {
+          const formattedItems = value
+            .map((item, i) => {
+              if (typeof item === 'object' && item !== null) {
                 // If it's an object with a 'text' or 'content' field, use that
-                if ('text' in post && typeof post.text === 'string') {
-                  return `${i + 1}. ${post.text}`;
+                const itemObj = item as Record<string, unknown>;
+                if ('text' in itemObj && typeof itemObj.text === 'string') {
+                  return `${i + 1}. ${itemObj.text}`;
                 }
-                if ('content' in post && typeof post.content === 'string') {
-                  return `${i + 1}. ${post.content}`;
+                if (
+                  'content' in itemObj &&
+                  typeof itemObj.content === 'string'
+                ) {
+                  return `${i + 1}. ${itemObj.content}`;
                 }
-                // Otherwise, format the whole object
-                return `${i + 1}. ${JSON.stringify(post, null, 2)}`;
+                return `${i + 1}. ${JSON.stringify(item, null, 2)}`;
               }
-              return `${i + 1}. ${String(post)}`;
+              return `${i + 1}. ${String(item)}`;
             })
             .join('\n\n');
-        } else if (typeof content.socialPosts === 'string') {
-          socialPostsText = content.socialPosts;
-        } else if (typeof content.socialPosts === 'object') {
-          // Handle case where socialPosts is an object instead of array
-          socialPostsText = JSON.stringify(content.socialPosts, null, 2);
-        }
-        if (socialPostsText && socialPostsText.trim().length > 0) {
-          parts.push('\n\n---\n\n## Social Media Posts\n\n' + socialPostsText);
+          parts.push(`\n\n---\n\n## ${sectionTitle}\n\n${formattedItems}`);
+        } else if (typeof value === 'object') {
+          // Handle nested objects
+          parts.push(
+            `\n\n---\n\n## ${sectionTitle}\n\n${JSON.stringify(value, null, 2)}`,
+          );
         }
       }
 
@@ -961,12 +1078,17 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
 
     // Regular response - extract summary/message/content
     const source = nestedData || dataObj;
-    message = String(
-      source.summary ||
-        source.message ||
-        source.content ||
-        JSON.stringify(responseData),
-    );
+    // Try to extract a string field, fall back to JSON stringification
+    if (typeof source.summary === 'string') {
+      message = source.summary;
+    } else if (typeof source.message === 'string') {
+      message = source.message;
+    } else if (typeof source.content === 'string') {
+      message = source.content;
+    } else {
+      // None of the expected string fields exist, serialize the whole response
+      message = JSON.stringify(responseData, null, 2);
+    }
 
     // Extract topic if present
     if (source.topic) {
@@ -1036,7 +1158,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           );
         } catch (convError) {
           this.logger.error(
-            `❌ [BUILD] Failed to create conversation: ${convError}`,
+            `❌ [BUILD] Failed to create conversation: ${convError instanceof Error ? convError.message : String(convError)}`,
           );
           return TaskResponseDto.failure(
             AgentTaskMode.BUILD,
@@ -1150,8 +1272,9 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
                 definition.transport.api.endpoint ||
                 (definition.transport.raw &&
                 typeof definition.transport.raw === 'object' &&
-                'url' in definition.transport.raw
-                  ? String(definition.transport.raw.url)
+                'url' in definition.transport.raw &&
+                typeof definition.transport.raw.url === 'string'
+                  ? definition.transport.raw.url
                   : ''),
               method: definition.transport.api.method,
               headers: definition.transport.api.headers,
@@ -1500,27 +1623,31 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
               );
 
               // Create deliverable using executeAction with ExecutionContext
-              const deliverableResult = await this.deliverablesService.executeAction(
-                'create',
-                {
-                  title: topic.substring(0, 255) || 'HITL Review Content',
-                  content: contentForDeliverable,
-                  format: DeliverableFormat.MARKDOWN,
-                  type: deliverableType,
-                  agentName: definition.slug,
-                  taskId: hitlTaskId,
-                  metadata: {
-                    hitlStatus: 'pending_review',
-                    generatedAt: new Date().toISOString(),
-                    provider,
-                    model,
+              const deliverableResult =
+                await this.deliverablesService.executeAction(
+                  'create',
+                  {
+                    title: topic.substring(0, 255) || 'HITL Review Content',
+                    content: contentForDeliverable,
+                    format: DeliverableFormat.MARKDOWN,
+                    type: deliverableType,
+                    agentName: definition.slug,
+                    taskId: hitlTaskId,
+                    metadata: {
+                      hitlStatus: 'pending_review',
+                      generatedAt: new Date().toISOString(),
+                      provider,
+                      model,
+                    },
                   },
-                },
-                request.context,
-              );
+                  request.context,
+                );
 
               if (!deliverableResult.success) {
-                throw new Error(deliverableResult.error?.message || 'Failed to create deliverable');
+                throw new Error(
+                  deliverableResult.error?.message ||
+                    'Failed to create deliverable',
+                );
               }
 
               const deliverable = deliverableResult.data as { id: string };
@@ -1599,7 +1726,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           }
 
           if (value !== undefined && value !== null) {
-            message = String(value);
+            message = extractString(value);
           } else {
             // Fallback paths
             const fallbackPaths = [
@@ -1639,7 +1766,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
             }
 
             if (!extracted) {
-              message = String(responseData || 'No response content');
+              message = extractString(responseData) || 'No response content';
             }
           }
 
@@ -1667,31 +1794,11 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
             }
           }
         } else {
-          message = String(responseData || 'No response content');
+          message = extractString(responseData) || 'No response content';
         }
       } else {
-        // Default extraction
-        if (responseData && typeof responseData === 'object') {
-          const dataObj = responseData as Record<string, unknown>;
-          if (dataObj.data && typeof dataObj.data === 'object') {
-            const nestedData = dataObj.data as Record<string, unknown>;
-            message = String(
-              nestedData.summary ||
-                nestedData.message ||
-                nestedData.content ||
-                JSON.stringify(responseData),
-            );
-          } else {
-            message = String(
-              dataObj.summary ||
-                dataObj.message ||
-                dataObj.content ||
-                JSON.stringify(responseData),
-            );
-          }
-        } else {
-          message = String(responseData || 'No response content');
-        }
+        // Default extraction using helper function
+        message = extractMessageFromResponse(responseData);
       }
 
       // For BUILD mode: Create deliverable with extracted message (markdown) instead of full JSON
@@ -1954,8 +2061,9 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
                 definition.transport.api.endpoint ||
                 (definition.transport.raw &&
                 typeof definition.transport.raw === 'object' &&
-                'url' in definition.transport.raw
-                  ? String(definition.transport.raw.url)
+                'url' in definition.transport.raw &&
+                typeof definition.transport.raw.url === 'string'
+                  ? definition.transport.raw.url
                   : ''),
               method: definition.transport.api.method,
               headers: definition.transport.api.headers,
@@ -2253,7 +2361,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           }
 
           if (value !== undefined && value !== null) {
-            message = String(value);
+            message = extractString(value);
             this.logger.debug(
               `✅ Extracted message from path "${path}": ${message.substring(0, 100)}...`,
             );
@@ -2378,7 +2486,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
             }
           }
         } else {
-          message = String(responseData || 'No response content');
+          message = extractString(responseData) || 'No response content';
         }
 
         // Extract metadata if specified
@@ -2408,28 +2516,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
       } else {
         // Default: try to extract summary or message from response
         // Handle LangGraph response format: { success: true, data: { summary: "..." } }
-        if (responseData && typeof responseData === 'object') {
-          const dataObj = responseData as Record<string, unknown>;
-          // Check for nested data.summary (LangGraph format)
-          if (dataObj.data && typeof dataObj.data === 'object') {
-            const nestedData = dataObj.data as Record<string, unknown>;
-            message = String(
-              nestedData.summary ||
-                nestedData.message ||
-                nestedData.content ||
-                JSON.stringify(responseData),
-            );
-          } else {
-            message = String(
-              dataObj.summary ||
-                dataObj.message ||
-                dataObj.content ||
-                JSON.stringify(responseData),
-            );
-          }
-        } else {
-          message = String(responseData || 'No response content');
-        }
+        message = extractMessageFromResponse(responseData);
       }
 
       // For BUILD mode: Create deliverable with extracted message (markdown) instead of full JSON
@@ -2447,7 +2534,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         ? 'markdown'
         : definition.config?.deliverable?.format || 'json';
 
-      const formattedContent = isMarkdown
+      const _formattedContent = isMarkdown
         ? message
         : this.formatApiResponse(responseData, deliverableFormat, {
             statusCode,
@@ -2521,7 +2608,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         }
 
         if (value !== undefined && value !== null) {
-          message = String(value);
+          message = extractString(value);
         } else {
           // Fallback paths
           const fallbackPaths = [
@@ -2622,7 +2709,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           }
         }
       } else {
-        message = String(responseData || 'No response content');
+        message = extractString(responseData) || 'No response content';
       }
 
       // Extract metadata if specified
@@ -2649,28 +2736,8 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         }
       }
     } else {
-      // Default extraction
-      if (responseData && typeof responseData === 'object') {
-        const dataObj = responseData as Record<string, unknown>;
-        if (dataObj.data && typeof dataObj.data === 'object') {
-          const nestedData = dataObj.data as Record<string, unknown>;
-          message = String(
-            nestedData.summary ||
-              nestedData.message ||
-              nestedData.content ||
-              JSON.stringify(responseData),
-          );
-        } else {
-          message = String(
-            dataObj.summary ||
-              dataObj.message ||
-              dataObj.content ||
-              JSON.stringify(responseData),
-          );
-        }
-      } else {
-        message = String(responseData || 'No response content');
-      }
+      // Default extraction using helper function
+      message = extractMessageFromResponse(responseData);
     }
 
     return { message, metadata };

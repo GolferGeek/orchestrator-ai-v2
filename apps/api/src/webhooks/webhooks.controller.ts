@@ -341,7 +341,7 @@ export class WebhooksController {
       this.logger.log(
         `📊 [OBSERVABILITY] Pushing to ObservabilityEventsService buffer...`,
       );
-      this.observabilityEvents.push(eventData);
+      void this.observabilityEvents.push(eventData);
       this.logger.log(`📊 [OBSERVABILITY] ✅ Event broadcast complete`);
     } catch (error) {
       this.logger.error(

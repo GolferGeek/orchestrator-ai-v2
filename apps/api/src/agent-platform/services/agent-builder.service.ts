@@ -4,7 +4,10 @@ import { AgentPolicyService } from './agent-policy.service';
 import { AgentDryRunService } from './agent-dry-run.service';
 import { AgentsRepository } from '../repositories/agents.repository';
 import { LLMService } from '@/llms/llm.service';
-import type { JsonObject, ExecutionContext } from '@orchestrator-ai/transport-types';
+import type {
+  JsonObject,
+  ExecutionContext,
+} from '@orchestrator-ai/transport-types';
 import type { AgentType } from '../schemas/agent-schemas';
 
 interface ValidationIssue {

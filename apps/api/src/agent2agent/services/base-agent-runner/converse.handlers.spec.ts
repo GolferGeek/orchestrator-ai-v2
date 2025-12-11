@@ -4,7 +4,7 @@ import { buildConversationalPrompt } from './converse.handlers';
 import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
 
 describe('Converse Handlers', () => {
-  const mockContext = createMockExecutionContext();
+  const _mockContext = createMockExecutionContext();
 
   describe('buildConversationalPrompt', () => {
     it('should build a basic prompt from agent definition', () => {

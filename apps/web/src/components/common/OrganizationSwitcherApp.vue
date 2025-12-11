@@ -39,7 +39,7 @@ const deliverablesStore = useDeliverablesStore();
 
 const availableOrgs = computed(() => rbacStore.userOrganizations || []);
 const currentOrg = computed(() => rbacStore.currentOrganization || 'demo-org');
-const hasMultipleOrgs = computed(() => availableOrgs.value.length > 1);
+const _hasMultipleOrgs = computed(() => availableOrgs.value.length > 1);
 
 // Debug logging
 onMounted(() => {

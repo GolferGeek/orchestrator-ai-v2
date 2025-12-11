@@ -98,7 +98,7 @@ function makeService(
 }
 
 describe('CentralizedRoutingService showstopper behavior', () => {
-  const mockContext = createMockExecutionContext();
+  const _mockContext = createMockExecutionContext();
 
   it('blocks remote route when showstopper and no local available', async () => {
     const { service } = makeService({

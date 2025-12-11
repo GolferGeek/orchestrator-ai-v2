@@ -156,7 +156,7 @@ describe('ContextAgentRunnerService', () => {
         },
       ];
 
-      const llmResponse = {
+      const _llmResponse = {
         content: 'Generated analysis content',
         metadata: {
           provider: 'anthropic',

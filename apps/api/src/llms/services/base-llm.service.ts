@@ -337,40 +337,47 @@ export abstract class BaseLLMService {
           }
         };
 
-        const piiMeta = requestMetadata.piiMetadata as
-          | Record<string, unknown>
-          | undefined;
+        const piiMeta = requestMetadata.piiMetadata;
 
         const enhancedMetrics = piiMeta
           ? {
               dataSanitizationApplied:
                 (piiMeta.piiDetected as boolean | undefined) ||
-                (piiMeta.patternRedactionResults as
-                  | Record<string, unknown>
-                  | undefined)?.applied ||
+                (
+                  piiMeta.patternRedactionResults as
+                    | Record<string, unknown>
+                    | undefined
+                )?.applied ||
                 false,
               sanitizationLevel:
                 (piiMeta.sanitizationLevel as string | undefined) || 'none',
-              piiDetected: (piiMeta.piiDetected as boolean | undefined) || false,
+              piiDetected:
+                (piiMeta.piiDetected as boolean | undefined) || false,
               showstopperDetected:
                 (piiMeta.showstopperDetected as boolean | undefined) || false,
               piiTypes: Object.keys(
-                (piiMeta.detectionResults as
-                  | Record<string, unknown>
-                  | undefined)?.dataTypesSummary || {},
+                (
+                  piiMeta.detectionResults as
+                    | Record<string, unknown>
+                    | undefined
+                )?.dataTypesSummary || {},
               ),
               // Extract pseudonym information from pseudonymInstructions
               pseudonymsUsed:
                 (
-                  (piiMeta.pseudonymInstructions as
-                    | Record<string, unknown>
-                    | undefined)?.targetMatches as unknown[] | undefined
+                  (
+                    piiMeta.pseudonymInstructions as
+                      | Record<string, unknown>
+                      | undefined
+                  )?.targetMatches as unknown[] | undefined
                 )?.length || 0,
               pseudonymTypes:
                 (
-                  (piiMeta.pseudonymInstructions as
-                    | Record<string, unknown>
-                    | undefined)?.targetMatches as unknown[] | undefined
+                  (
+                    piiMeta.pseudonymInstructions as
+                      | Record<string, unknown>
+                      | undefined
+                  )?.targetMatches as unknown[] | undefined
                 )?.map(
                   (m: unknown) =>
                     (m as Record<string, unknown>).dataType as string,
@@ -378,26 +385,31 @@ export abstract class BaseLLMService {
               pseudonymMappings: derivePseudonymMappings(piiMeta),
               // Pattern redaction information
               patternRedactionsApplied:
-                (piiMeta.patternRedactionResults as
-                  | Record<string, unknown>
-                  | undefined)?.redactionCount || 0,
-              patternRedactionTypes:
                 (
-                  (piiMeta.patternRedactionMappings as
-                    | Array<Record<string, unknown>>
-                    | undefined) || []
-                )
-                  .map((m) => m.dataType as string)
-                  .filter((t): t is string => !!t),
+                  piiMeta.patternRedactionResults as
+                    | Record<string, unknown>
+                    | undefined
+                )?.redactionCount || 0,
+              patternRedactionTypes: (
+                (piiMeta.patternRedactionMappings as
+                  | Array<Record<string, unknown>>
+                  | undefined) || []
+              )
+                .map((m) => m.dataType as string)
+                .filter((t): t is string => !!t),
               // Pattern redactions count (actual redactions applied)
               redactionsApplied:
-                (piiMeta.patternRedactionResults as
-                  | Record<string, unknown>
-                  | undefined)?.redactionCount ||
                 (
-                  (piiMeta.detectionResults as
+                  piiMeta.patternRedactionResults as
                     | Record<string, unknown>
-                    | undefined)?.flaggedMatches as unknown[] | undefined
+                    | undefined
+                )?.redactionCount ||
+                (
+                  (
+                    piiMeta.detectionResults as
+                      | Record<string, unknown>
+                      | undefined
+                  )?.flaggedMatches as unknown[] | undefined
                 )?.length ||
                 0,
               redactionTypes:
@@ -409,9 +421,11 @@ export abstract class BaseLLMService {
                   .map((m) => m.dataType as string)
                   .filter((t): t is string => !!t) ||
                 (
-                  (piiMeta.detectionResults as
-                    | Record<string, unknown>
-                    | undefined)?.flaggedMatches as unknown[] | undefined
+                  (
+                    piiMeta.detectionResults as
+                      | Record<string, unknown>
+                      | undefined
+                  )?.flaggedMatches as unknown[] | undefined
                 )?.map(
                   (m: unknown) =>
                     (m as Record<string, unknown>).dataType as string,
@@ -598,9 +612,9 @@ export abstract class BaseLLMService {
    * Log request/response for debugging and monitoring
    */
   protected logRequestResponse(
-    params: GenerateResponseParams,
-    response: LLMResponse,
-    duration: number,
+    _params: GenerateResponseParams,
+    _response: LLMResponse,
+    _duration: number,
   ): void {
     // Logging removed for performance
   }

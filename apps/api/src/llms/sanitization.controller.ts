@@ -1,6 +1,46 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Logger } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Logger,
+} from '@nestjs/common';
 import { SupabaseService } from '@/supabase/supabase.service';
 import { PseudonymizationService } from './pseudonymization.service';
+import {
+  PIIPatternService,
+  PIIDataType,
+  PIIDetectionResult,
+} from './pii-pattern.service';
+
+// Interface for pattern service stats
+interface PatternServiceStats {
+  totalPatterns: number;
+  enabledPatterns: number;
+  showstopperPatterns: number;
+  flaggerPatterns: number;
+  patternsLoaded: boolean;
+  builtInPatterns?: number;
+  customPatterns?: number;
+}
+
+// Interface for dictionary entries from database
+interface DictionaryEntry {
+  original_value: string | null;
+  pseudonym: string | null;
+  data_type: string | null;
+  category: string | null;
+}
+
+// Interface for database insert results
+interface DatabaseInsertResult {
+  id: string;
+  category?: string;
+  data_type?: string;
+}
 
 @Controller('llm/sanitization')
 export class SanitizationController {
@@ -9,6 +49,7 @@ export class SanitizationController {
   constructor(
     private readonly supabaseService: SupabaseService,
     private readonly pseudonymizationService: PseudonymizationService,
+    private readonly piiPatternService: PIIPatternService,
   ) {}
 
   /**
@@ -18,15 +59,8 @@ export class SanitizationController {
   async getStats() {
     try {
       const patternStats = await this.pseudonymizationService.getStats();
-      const stats = patternStats.patternServiceStats as {
-        totalPatterns: number;
-        enabledPatterns: number;
-        showstopperPatterns: number;
-        flaggerPatterns: number;
-        patternsLoaded: boolean;
-        builtInPatterns?: number;
-        customPatterns?: number;
-      };
+      const stats =
+        patternStats.patternServiceStats as unknown as PatternServiceStats;
 
       const client = this.supabaseService.getServiceClient();
       const { count: dictCount } = await client
@@ -93,7 +127,7 @@ export class SanitizationController {
   async getPIIPatterns() {
     const patterns = await this.pseudonymizationService.getPIIPatternsAsync();
     // Convert RegExp patterns to strings for JSON serialization
-    const serializedPatterns = patterns.map(p => ({
+    const serializedPatterns = patterns.map((p) => ({
       id: p.id || p.name, // Use ID if available, fallback to name
       name: p.name,
       pattern: p.pattern.source, // Convert RegExp to string
@@ -114,17 +148,20 @@ export class SanitizationController {
    * Create a new custom PII pattern
    */
   @Post('pii/patterns')
-  async createPIIPattern(@Body() body: {
-    name: string;
-    pattern: string;
-    regex?: string;
-    dataType: string;
-    description: string;
-    priority?: number | string;
-    category?: string;
-    severity?: 'showstopper' | 'flagger';
-    enabled?: boolean;
-  }) {
+  async createPIIPattern(
+    @Body()
+    body: {
+      name: string;
+      pattern: string;
+      regex?: string;
+      dataType: string;
+      description: string;
+      priority?: number | string;
+      category?: string;
+      severity?: 'showstopper' | 'flagger';
+      enabled?: boolean;
+    },
+  ) {
     try {
       // Handle both 'pattern' and 'regex' field names from frontend
       const patternString = body.pattern || body.regex;
@@ -140,9 +177,9 @@ export class SanitizationController {
       if (body.priority) {
         if (typeof body.priority === 'string') {
           const priorityMap: Record<string, number> = {
-            'high': 10,
-            'medium': 50,
-            'low': 90,
+            high: 10,
+            medium: 50,
+            low: 90,
           };
           priority = priorityMap[body.priority] || 50;
         } else {
@@ -153,7 +190,7 @@ export class SanitizationController {
       const pattern = {
         name: body.name,
         pattern: new RegExp(patternString, 'g'),
-        dataType: body.dataType as any,
+        dataType: body.dataType as PIIDataType,
         description: body.description,
         priority,
         severity: body.severity,
@@ -163,27 +200,33 @@ export class SanitizationController {
 
       // Return the created pattern
       const updatedPatterns = this.pseudonymizationService.getPIIPatterns();
-      const createdPattern = updatedPatterns.find(p => p.name === body.name);
+      const createdPattern = updatedPatterns.find((p) => p.name === body.name);
 
       return {
         success: true,
-        pattern: createdPattern ? {
-          id: body.name, // Use name as ID for now
-          name: createdPattern.name,
-          pattern: patternString,
-          dataType: createdPattern.dataType,
-          description: createdPattern.description,
-          priority: createdPattern.priority,
-          enabled: createdPattern.enabled,
-          category: body.category,
-          severity: createdPattern.severity,
-        } : null,
+        pattern: createdPattern
+          ? {
+              id: body.name, // Use name as ID for now
+              name: createdPattern.name,
+              pattern: patternString,
+              dataType: createdPattern.dataType,
+              description: createdPattern.description,
+              priority: createdPattern.priority,
+              enabled: createdPattern.enabled,
+              category: body.category,
+              severity: createdPattern.severity,
+            }
+          : null,
       };
     } catch (error) {
-      this.logger.error('Failed to create PII pattern', error instanceof Error ? error : String(error));
+      this.logger.error(
+        'Failed to create PII pattern',
+        error instanceof Error ? error : String(error),
+      );
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to create pattern',
+        error:
+          error instanceof Error ? error.message : 'Failed to create pattern',
       };
     }
   }
@@ -194,7 +237,8 @@ export class SanitizationController {
   @Put('pii/patterns/:id')
   async updatePIIPattern(
     @Param('id') id: string,
-    @Body() body: {
+    @Body()
+    body: {
       name?: string;
       pattern?: string;
       regex?: string;
@@ -204,7 +248,7 @@ export class SanitizationController {
       category?: string;
       severity?: 'showstopper' | 'flagger';
       enabled?: boolean;
-    }
+    },
   ) {
     try {
       const updates: Record<string, unknown> = {};
@@ -225,9 +269,9 @@ export class SanitizationController {
       if (body.priority !== undefined) {
         if (typeof body.priority === 'string') {
           const priorityMap: Record<string, number> = {
-            'high': 10,
-            'medium': 50,
-            'low': 90,
+            high: 10,
+            medium: 50,
+            low: 90,
           };
           updates.priority = priorityMap[body.priority] || 50;
         } else {
@@ -241,33 +285,42 @@ export class SanitizationController {
         updates.category = body.category;
       }
 
-      await this.pseudonymizationService.updatePIIPattern(id, updates as any);
+      await this.pseudonymizationService.updatePIIPattern(id, updates);
 
       // Return the updated pattern (reload from DB to ensure freshness)
-      const updatedPatterns = await this.pseudonymizationService.getPIIPatternsAsync();
-      const updatedPattern = updatedPatterns.find(p => p.id === id || p.name === id || p.name === body.name);
+      const updatedPatterns =
+        await this.pseudonymizationService.getPIIPatternsAsync();
+      const updatedPattern = updatedPatterns.find(
+        (p) => p.id === id || p.name === id || p.name === body.name,
+      );
 
       return {
         success: true,
-        pattern: updatedPattern ? {
-          id: updatedPattern.id || updatedPattern.name,
-          name: updatedPattern.name,
-          pattern: updatedPattern.pattern.source,
-          dataType: updatedPattern.dataType,
-          description: updatedPattern.description,
-          priority: updatedPattern.priority,
-          enabled: updatedPattern.enabled,
-          category: updatedPattern.category,
-          severity: updatedPattern.severity,
-          createdAt: updatedPattern.createdAt,
-          updatedAt: updatedPattern.updatedAt,
-        } : null,
+        pattern: updatedPattern
+          ? {
+              id: updatedPattern.id || updatedPattern.name,
+              name: updatedPattern.name,
+              pattern: updatedPattern.pattern.source,
+              dataType: updatedPattern.dataType,
+              description: updatedPattern.description,
+              priority: updatedPattern.priority,
+              enabled: updatedPattern.enabled,
+              category: updatedPattern.category,
+              severity: updatedPattern.severity,
+              createdAt: updatedPattern.createdAt,
+              updatedAt: updatedPattern.updatedAt,
+            }
+          : null,
       };
     } catch (error) {
-      this.logger.error('Failed to update PII pattern', error instanceof Error ? error : String(error));
+      this.logger.error(
+        'Failed to update PII pattern',
+        error instanceof Error ? error : String(error),
+      );
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to update pattern',
+        error:
+          error instanceof Error ? error.message : 'Failed to update pattern',
       };
     }
   }
@@ -285,10 +338,14 @@ export class SanitizationController {
         message: `Pattern ${id} deleted successfully`,
       };
     } catch (error) {
-      this.logger.error('Failed to delete PII pattern', error instanceof Error ? error : String(error));
+      this.logger.error(
+        'Failed to delete PII pattern',
+        error instanceof Error ? error : String(error),
+      );
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to delete pattern',
+        error:
+          error instanceof Error ? error.message : 'Failed to delete pattern',
       };
     }
   }
@@ -297,21 +354,24 @@ export class SanitizationController {
    * Sanitize text (full sanitization with detection, redaction, and/or pseudonymization)
    */
   @Post('sanitize')
-  async sanitizeText(@Body() body: {
-    text: string;
-    enableRedaction?: boolean;
-    enablePseudonymization?: boolean;
-    context?: string;
-  }) {
+  async sanitizeText(
+    @Body()
+    body: {
+      text: string;
+      enableRedaction?: boolean;
+      enablePseudonymization?: boolean;
+      context?: string;
+    },
+  ) {
     try {
       const startTime = Date.now();
 
       // Get PII pattern service to detect PII
-      const piiPatternService = (this.pseudonymizationService as any).piiPatternService;
-      const detectionResult = await piiPatternService.detectPII(body.text, {
-        minConfidence: 0.8,
-        maxMatches: 100,
-      });
+      const detectionResult: PIIDetectionResult =
+        await this.piiPatternService.detectPII(body.text, {
+          minConfidence: 0.8,
+          maxMatches: 100,
+        });
 
       // Also check dictionary for known values (names, usernames, etc.)
       const client = this.supabaseService.getServiceClient();
@@ -320,14 +380,20 @@ export class SanitizationController {
         .select('original_value, pseudonym, data_type, category')
         .eq('is_active', true);
 
-      if (dictionaryEntries && dictionaryEntries.length > 0) {
-        for (const entry of dictionaryEntries) {
-          if (entry.original_value && body.text.includes(entry.original_value)) {
+      const typedDictionaryEntries = (dictionaryEntries ||
+        []) as DictionaryEntry[];
+
+      if (typedDictionaryEntries.length > 0) {
+        for (const entry of typedDictionaryEntries) {
+          if (
+            entry.original_value &&
+            body.text.includes(entry.original_value)
+          ) {
             const startIndex = body.text.indexOf(entry.original_value);
             // Add dictionary match to detection results
             detectionResult.matches.push({
               value: entry.original_value,
-              dataType: entry.data_type || 'custom',
+              dataType: (entry.data_type as PIIDataType) || 'custom',
               patternName: `${entry.category || 'Dictionary'} - ${entry.data_type || 'Custom'}`,
               startIndex,
               endIndex: startIndex + entry.original_value.length,
@@ -345,7 +411,9 @@ export class SanitizationController {
       if (body.enableRedaction && detectionResult.matches.length > 0) {
         sanitizedText = body.text;
         // Sort matches by position in reverse to avoid index issues
-        const sortedMatches = [...detectionResult.matches].sort((a, b) => b.startIndex - a.startIndex);
+        const sortedMatches = [...detectionResult.matches].sort(
+          (a, b) => b.startIndex - a.startIndex,
+        );
 
         for (const match of sortedMatches) {
           const replacement = `[${match.dataType.toUpperCase()}_REDACTED]`;
@@ -359,11 +427,15 @@ export class SanitizationController {
 
       // Apply pseudonymization if requested (only if redaction wasn't applied - they're mutually exclusive)
       let pseudonymizationApplied = false;
-      if (body.enablePseudonymization && !redactionApplied && detectionResult.matches.length > 0) {
-        const pseudonymResult = await this.pseudonymizationService.pseudonymizeText(
-          body.text,
-          { context: body.context }
-        );
+      if (
+        body.enablePseudonymization &&
+        !redactionApplied &&
+        detectionResult.matches.length > 0
+      ) {
+        const pseudonymResult =
+          await this.pseudonymizationService.pseudonymizeText(body.text, {
+            context: body.context,
+          });
         sanitizedText = pseudonymResult.pseudonymizedText;
         pseudonymizationApplied = true;
       }
@@ -387,10 +459,14 @@ export class SanitizationController {
         },
       };
     } catch (error) {
-      this.logger.error('Failed to sanitize text', error instanceof Error ? error : String(error));
+      this.logger.error(
+        'Failed to sanitize text',
+        error instanceof Error ? error : String(error),
+      );
       return {
         success: false,
-        message: error instanceof Error ? error.message : 'Failed to sanitize text',
+        message:
+          error instanceof Error ? error.message : 'Failed to sanitize text',
       };
     }
   }
@@ -399,21 +475,24 @@ export class SanitizationController {
    * Test PII detection on provided text
    */
   @Post('pii/test')
-  async testPIIDetection(@Body() body: {
-    text: string;
-    enableRedaction?: boolean;
-    enablePseudonymization?: boolean;
-    context?: string;
-  }) {
+  async testPIIDetection(
+    @Body()
+    body: {
+      text: string;
+      enableRedaction?: boolean;
+      enablePseudonymization?: boolean;
+      context?: string;
+    },
+  ) {
     try {
       const startTime = Date.now();
 
       // Get PII pattern service to detect PII
-      const piiPatternService = (this.pseudonymizationService as any).piiPatternService;
-      const detectionResult = await piiPatternService.detectPII(body.text, {
-        minConfidence: 0.8,
-        maxMatches: 100,
-      });
+      const detectionResult: PIIDetectionResult =
+        await this.piiPatternService.detectPII(body.text, {
+          minConfidence: 0.8,
+          maxMatches: 100,
+        });
 
       // Also check dictionary for known values (names, usernames, etc.)
       const client = this.supabaseService.getServiceClient();
@@ -422,14 +501,20 @@ export class SanitizationController {
         .select('original_value, pseudonym, data_type, category')
         .eq('is_active', true);
 
-      if (dictionaryEntries && dictionaryEntries.length > 0) {
-        for (const entry of dictionaryEntries) {
-          if (entry.original_value && body.text.includes(entry.original_value)) {
+      const typedDictionaryEntries = (dictionaryEntries ||
+        []) as DictionaryEntry[];
+
+      if (typedDictionaryEntries.length > 0) {
+        for (const entry of typedDictionaryEntries) {
+          if (
+            entry.original_value &&
+            body.text.includes(entry.original_value)
+          ) {
             const startIndex = body.text.indexOf(entry.original_value);
             // Add dictionary match to detection results
             detectionResult.matches.push({
               value: entry.original_value,
-              dataType: entry.data_type || 'custom',
+              dataType: (entry.data_type as PIIDataType) || 'custom',
               patternName: `${entry.category || 'Dictionary'} - ${entry.data_type || 'Custom'}`,
               startIndex,
               endIndex: startIndex + entry.original_value.length,
@@ -447,7 +532,9 @@ export class SanitizationController {
       if (body.enableRedaction && detectionResult.matches.length > 0) {
         sanitizedText = body.text;
         // Sort matches by position in reverse to avoid index issues
-        const sortedMatches = [...detectionResult.matches].sort((a, b) => b.startIndex - a.startIndex);
+        const sortedMatches = [...detectionResult.matches].sort(
+          (a, b) => b.startIndex - a.startIndex,
+        );
 
         for (const match of sortedMatches) {
           const replacement = `[${match.dataType.toUpperCase()}_REDACTED]`;
@@ -461,11 +548,15 @@ export class SanitizationController {
 
       // Apply pseudonymization if requested (only if redaction wasn't applied - they're mutually exclusive)
       let pseudonymizationApplied = false;
-      if (body.enablePseudonymization && !redactionApplied && detectionResult.matches.length > 0) {
-        const pseudonymResult = await this.pseudonymizationService.pseudonymizeText(
-          body.text,
-          { context: body.context }
-        );
+      if (
+        body.enablePseudonymization &&
+        !redactionApplied &&
+        detectionResult.matches.length > 0
+      ) {
+        const pseudonymResult =
+          await this.pseudonymizationService.pseudonymizeText(body.text, {
+            context: body.context,
+          });
         sanitizedText = pseudonymResult.pseudonymizedText;
         pseudonymizationApplied = true;
       }
@@ -489,10 +580,16 @@ export class SanitizationController {
         },
       };
     } catch (error) {
-      this.logger.error('Failed to test PII detection', error instanceof Error ? error : String(error));
+      this.logger.error(
+        'Failed to test PII detection',
+        error instanceof Error ? error : String(error),
+      );
       return {
         success: false,
-        message: error instanceof Error ? error.message : 'Failed to test PII detection',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Failed to test PII detection',
       };
     }
   }
@@ -505,7 +602,9 @@ export class SanitizationController {
     const client = this.supabaseService.getServiceClient();
     const { data, error } = await client
       .from('pseudonym_dictionaries')
-      .select('id, category, data_type, original_value, pseudonym, is_active, created_at');
+      .select(
+        'id, category, data_type, original_value, pseudonym, is_active, created_at',
+      );
 
     if (error) {
       this.logger.error('Failed to load pseudonym dictionaries', error);
@@ -547,7 +646,9 @@ export class SanitizationController {
       }
       // Show both original value and pseudonym
       if (typedRow.original_value && typedRow.pseudonym && groups[key]) {
-        groups[key].words.push(`${typedRow.original_value} → ${typedRow.pseudonym}`);
+        groups[key].words.push(
+          `${typedRow.original_value} → ${typedRow.pseudonym}`,
+        );
       } else if (typedRow.original_value && groups[key]) {
         groups[key].words.push(typedRow.original_value);
       } else if (typedRow.pseudonym && groups[key]) {
@@ -566,7 +667,9 @@ export class SanitizationController {
     const client = this.supabaseService.getServiceClient();
     const { data, error } = await client
       .from('pseudonym_dictionaries')
-      .select('id, category, data_type, original_value, pseudonym, is_active, created_at');
+      .select(
+        'id, category, data_type, original_value, pseudonym, is_active, created_at',
+      );
 
     if (error) {
       this.logger.error('Failed to load pseudonym dictionaries', error);
@@ -621,14 +724,17 @@ export class SanitizationController {
    * Create a new pseudonym dictionary entry
    */
   @Post('pseudonym/dictionaries')
-  async createPseudonymDictionary(@Body() body: {
-    category: string;
-    dataType: string;
-    words?: string[]; // Old format - for backward compatibility
-    entries?: Array<{ originalValue: string; pseudonym?: string }>; // New format
-    description?: string;
-    isActive?: boolean;
-  }) {
+  async createPseudonymDictionary(
+    @Body()
+    body: {
+      category: string;
+      dataType: string;
+      words?: string[]; // Old format - for backward compatibility
+      entries?: Array<{ originalValue: string; pseudonym?: string }>; // New format
+      description?: string;
+      isActive?: boolean;
+    },
+  ) {
     const client = this.supabaseService.getServiceClient();
 
     // Support both old format (words) and new format (entries)
@@ -636,16 +742,18 @@ export class SanitizationController {
 
     if (body.entries) {
       // New format: entries with optional pseudonyms
-      entriesToInsert = body.entries.map(entry => ({
+      entriesToInsert = body.entries.map((entry) => ({
         category: body.category,
         data_type: body.dataType,
         original_value: entry.originalValue,
-        pseudonym: entry.pseudonym || this.generatePseudonym(body.category, entry.originalValue),
+        pseudonym:
+          entry.pseudonym ||
+          this.generatePseudonym(body.category, entry.originalValue),
         is_active: body.isActive ?? true,
       }));
     } else if (body.words) {
       // Old format: just words, auto-generate pseudonyms
-      entriesToInsert = body.words.map(word => ({
+      entriesToInsert = body.words.map((word) => ({
         category: body.category,
         data_type: body.dataType,
         original_value: word,
@@ -666,15 +774,22 @@ export class SanitizationController {
       throw new Error(`Failed to create dictionary: ${error.message}`);
     }
 
+    const typedData = (data || []) as DatabaseInsertResult[];
+
     return {
       success: true,
       dictionary: {
-        id: data[0]?.id,
+        id: typedData[0]?.id || '',
         category: body.category,
         dataType: body.dataType,
-        entries: body.entries || body.words?.map(w => ({ originalValue: w, pseudonym: this.generatePseudonym(body.category, w) })),
+        entries:
+          body.entries ||
+          body.words?.map((w) => ({
+            originalValue: w,
+            pseudonym: this.generatePseudonym(body.category, w),
+          })),
         isActive: body.isActive ?? true,
-      }
+      },
     };
   }
 
@@ -684,13 +799,14 @@ export class SanitizationController {
   @Put('pseudonym/dictionaries/:id')
   async updatePseudonymDictionary(
     @Param('id') id: string,
-    @Body() body: {
+    @Body()
+    body: {
       category?: string;
       dataType?: string;
       words?: string[]; // Old format
       entries?: Array<{ originalValue: string; pseudonym?: string }>; // New format
       isActive?: boolean;
-    }
+    },
   ) {
     const client = this.supabaseService.getServiceClient();
 
@@ -703,35 +819,42 @@ export class SanitizationController {
         .eq('id', id)
         .single();
 
-      if (!existing) {
+      const typedExisting = existing as {
+        category: string;
+        data_type: string;
+      } | null;
+
+      if (!typedExisting) {
         throw new Error('Dictionary not found');
       }
 
-      const category = body.category || existing.category;
-      const dataType = body.dataType || existing.data_type;
+      const category = body.category || typedExisting.category;
+      const dataType = body.dataType || typedExisting.data_type;
 
       // Delete all entries with same category and data_type
       await client
         .from('pseudonym_dictionaries')
         .delete()
-        .eq('category', existing.category)
-        .eq('data_type', existing.data_type);
+        .eq('category', typedExisting.category)
+        .eq('data_type', typedExisting.data_type);
 
       // Insert new entries
       let entriesToInsert;
 
       if (body.entries) {
         // New format: entries with optional pseudonyms
-        entriesToInsert = body.entries.map(entry => ({
+        entriesToInsert = body.entries.map((entry) => ({
           category,
           data_type: dataType,
           original_value: entry.originalValue,
-          pseudonym: entry.pseudonym || this.generatePseudonym(category, entry.originalValue),
+          pseudonym:
+            entry.pseudonym ||
+            this.generatePseudonym(category, entry.originalValue),
           is_active: body.isActive ?? true,
         }));
       } else if (body.words) {
         // Old format: just words, auto-generate pseudonyms
-        entriesToInsert = body.words.map(word => ({
+        entriesToInsert = body.words.map((word) => ({
           category,
           data_type: dataType,
           original_value: word,
@@ -752,31 +875,43 @@ export class SanitizationController {
         throw new Error(`Failed to update dictionary: ${error.message}`);
       }
 
+      const typedData = (data || []) as DatabaseInsertResult[];
+
       return {
         success: true,
         dictionary: {
-          id: data[0]?.id,
+          id: typedData[0]?.id || '',
           category,
           dataType,
-          entries: body.entries || body.words?.map(w => ({ originalValue: w, pseudonym: this.generatePseudonym(category, w) })),
+          entries:
+            body.entries ||
+            body.words?.map((w) => ({
+              originalValue: w,
+              pseudonym: this.generatePseudonym(category, w),
+            })),
           isActive: body.isActive ?? true,
-        }
+        },
       };
     } else {
       // Just update isActive status
-      const { data, error } = await client
+      const result = await client
         .from('pseudonym_dictionaries')
         .update({ is_active: body.isActive })
         .eq('id', id)
         .select()
         .single();
 
-      if (error) {
-        this.logger.error('Failed to update pseudonym dictionary', error);
-        throw new Error(`Failed to update dictionary: ${error.message}`);
+      if (result.error) {
+        this.logger.error(
+          'Failed to update pseudonym dictionary',
+          result.error,
+        );
+        throw new Error(`Failed to update dictionary: ${result.error.message}`);
       }
 
-      return { success: true, dictionary: data };
+      const typedData = result.data as DatabaseInsertResult | null;
+
+      return { success: true, dictionary: typedData };
     }
   }
 
@@ -794,7 +929,12 @@ export class SanitizationController {
       .eq('id', id)
       .single();
 
-    if (!existing) {
+    const typedExisting = existing as {
+      category: string;
+      data_type: string;
+    } | null;
+
+    if (!typedExisting) {
       throw new Error('Dictionary not found');
     }
 
@@ -802,8 +942,8 @@ export class SanitizationController {
     const { error } = await client
       .from('pseudonym_dictionaries')
       .delete()
-      .eq('category', existing.category)
-      .eq('data_type', existing.data_type);
+      .eq('category', typedExisting.category)
+      .eq('data_type', typedExisting.data_type);
 
     if (error) {
       this.logger.error('Failed to delete pseudonym dictionary', error);
@@ -817,16 +957,19 @@ export class SanitizationController {
    * Import pseudonym dictionaries from JSON
    */
   @Post('pseudonym/dictionaries/import')
-  async importPseudonymDictionaries(@Body() body: {
-    dictionaries: Array<{
-      category: string;
-      dataType: string;
-      words?: string[]; // Old format
-      entries?: Array<{ originalValue: string; pseudonym?: string }>; // New format
-      description?: string;
-      isActive?: boolean;
-    }>;
-  }) {
+  async importPseudonymDictionaries(
+    @Body()
+    body: {
+      dictionaries: Array<{
+        category: string;
+        dataType: string;
+        words?: string[]; // Old format
+        entries?: Array<{ originalValue: string; pseudonym?: string }>; // New format
+        description?: string;
+        isActive?: boolean;
+      }>;
+    },
+  ) {
     const client = this.supabaseService.getServiceClient();
     const errors: string[] = [];
     let imported = 0;
@@ -837,16 +980,18 @@ export class SanitizationController {
 
         if (dict.entries) {
           // New format: entries with optional pseudonyms
-          entriesToInsert = dict.entries.map(entry => ({
+          entriesToInsert = dict.entries.map((entry) => ({
             category: dict.category,
             data_type: dict.dataType,
             original_value: entry.originalValue,
-            pseudonym: entry.pseudonym || this.generatePseudonym(dict.category, entry.originalValue),
+            pseudonym:
+              entry.pseudonym ||
+              this.generatePseudonym(dict.category, entry.originalValue),
             is_active: dict.isActive ?? true,
           }));
         } else if (dict.words) {
           // Old format: just words, auto-generate pseudonyms
-          entriesToInsert = dict.words.map(word => ({
+          entriesToInsert = dict.words.map((word) => ({
             category: dict.category,
             data_type: dict.dataType,
             original_value: word,
@@ -854,7 +999,9 @@ export class SanitizationController {
             is_active: dict.isActive ?? true,
           }));
         } else {
-          errors.push(`${dict.category}: Either words or entries must be provided`);
+          errors.push(
+            `${dict.category}: Either words or entries must be provided`,
+          );
           continue;
         }
 
@@ -898,9 +1045,12 @@ export class SanitizationController {
    */
   private generatePseudonym(category: string, value: string): string {
     const sanitized = value.toLowerCase().replace(/[^a-z0-9]/g, '_');
-    const prefix = category === 'person' ? 'person' :
-                   category === 'business' ? 'company' :
-                   category.toLowerCase();
+    const prefix =
+      category === 'person'
+        ? 'person'
+        : category === 'business'
+          ? 'company'
+          : category.toLowerCase();
     return `@${prefix}_${sanitized}`;
   }
 }

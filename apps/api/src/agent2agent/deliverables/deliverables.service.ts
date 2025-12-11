@@ -930,7 +930,8 @@ export class DeliverablesService implements IActionHandler {
     this.logger.log(`Finding deliverable by taskId: ${taskId}`);
 
     // Query deliverables by task_id with user access check
-    const { data: result, error } = await this.supabaseService
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const { data: rawData, error } = await this.supabaseService
       .getServiceClient()
       .from(getTableName('deliverables'))
       .select('*')
@@ -952,12 +953,12 @@ export class DeliverablesService implements IActionHandler {
       );
     }
 
-    const data = result as DeliverableDbRecord | null;
-    if (!data) {
+    const dbRecord = rawData as DeliverableDbRecord | null;
+    if (!dbRecord) {
       return null;
     }
 
-    const deliverable = this.mapToDeliverable(data);
+    const deliverable = this.mapToDeliverable(dbRecord);
 
     // Get current version
     try {

@@ -111,9 +111,8 @@ export class PatternRedactionService {
         // Create unique placeholder for each instance to enable accurate reversal
         // Format: [TYPE_REDACTED_N] where N is the instance number
         const baseReplacement =
-          replacementMap[dataType] ||
-          `[${dataType.toUpperCase()}_REDACTED]`;
-        
+          replacementMap[dataType] || `[${dataType.toUpperCase()}_REDACTED]`;
+
         // If there are multiple instances of the same type, add index
         const replacement =
           instanceNumber > 1
@@ -232,7 +231,10 @@ export class PatternRedactionService {
 
       const map: Record<string, string> = {};
       if (data) {
-        for (const row of data as Array<{ data_type: string; replacement: string }>) {
+        for (const row of data as Array<{
+          data_type: string;
+          replacement: string;
+        }>) {
           if (row.data_type && row.replacement) {
             // Use the first replacement found for each data type
             if (!map[row.data_type]) {
@@ -258,4 +260,3 @@ export class PatternRedactionService {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 }
-

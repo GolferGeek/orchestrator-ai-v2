@@ -245,7 +245,9 @@ export class AuthController {
       if (
         error instanceof Error &&
         (error.message.toLowerCase().includes('not found') ||
-          error.message.includes('Cannot coerce the result to a single JSON object'))
+          error.message.includes(
+            'Cannot coerce the result to a single JSON object',
+          ))
       ) {
         throw new NotFoundException(`User with ID ${userId} not found`);
       }
@@ -377,6 +379,10 @@ export class AuthController {
     if (!newPassword || newPassword.length < 6) {
       throw new Error('Password must be at least 6 characters');
     }
-    return this.authService.changeUserPassword(userId, newPassword, currentAuthUser.id);
+    return this.authService.changeUserPassword(
+      userId,
+      newPassword,
+      currentAuthUser.id,
+    );
   }
 }

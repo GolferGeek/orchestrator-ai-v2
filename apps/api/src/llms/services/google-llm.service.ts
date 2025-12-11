@@ -113,7 +113,7 @@ export class GoogleLLMService extends BaseLLMService {
       // Use LLM Service level PII pre-processing when provided
       const processedText = params.userMessage;
       const piiMetadata = params.options?.piiMetadata || null;
-      const dictionaryMappings = params.options?.dictionaryMappings || [];
+      const _dictionaryMappings = params.options?.dictionaryMappings || [];
       if (!piiMetadata) {
         this.logger.warn(
           `⚠️ [PII-METADATA-DEBUG] GoogleLLMService - No PII metadata from LLM Service, using raw message`,
@@ -306,8 +306,8 @@ export class GoogleLLMService extends BaseLLMService {
    * Override LangSmith integration for Google-specific tracing
    */
   protected integrateLangSmith(
-    params: GenerateResponseParams,
-    response: LLMResponse,
+    _params: GenerateResponseParams,
+    _response: LLMResponse,
   ): Promise<string | undefined> {
     // Example Google-specific LangSmith integration
     if (
@@ -512,10 +512,6 @@ export async function testGoogleService() {
     },
   };
 
-  try {
-    const response = await service.generateResponse(mockContext, params);
-    return response;
-  } catch (error) {
-    throw error;
-  }
+  const response = await service.generateResponse(mockContext, params);
+  return response;
 }

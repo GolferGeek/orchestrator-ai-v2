@@ -251,16 +251,18 @@ export class Agent2AgentController {
     @CurrentUser() currentUser: SupabaseAuthUserDto,
     @Req() request: RequestWithStreamData,
   ): Promise<TaskResponseDto | JsonRpcSuccessEnvelope | JsonRpcErrorEnvelope> {
+    const bodyMethod = (body as Record<string, unknown>)?.method;
     this.logger.log(
-      `🔍 [A2A-CTRL] Request received - org: ${orgSlug}, agent: ${agentSlug}, body.method: ${String((body as Record<string, unknown>)?.method ?? '')}`,
+      `🔍 [A2A-CTRL] Request received - org: ${orgSlug}, agent: ${agentSlug}, body.method: ${typeof bodyMethod === 'string' || typeof bodyMethod === 'number' ? bodyMethod : JSON.stringify(bodyMethod)}`,
     );
 
     // ADAPTER: Transform frontend CreateTaskDto format to Agent2Agent TaskRequestDto format
     const adaptedBody = this.adaptFrontendRequest(body);
     const { dto, jsonrpc } = await this.normalizeTaskRequest(adaptedBody);
 
+    const payloadMethod = (dto.payload as Record<string, unknown>)?.method;
     this.logger.log(
-      `🔍 [A2A-CTRL] After normalization - mode: ${dto.mode}, payload.method: ${String((dto.payload as Record<string, unknown>)?.method ?? '')}, taskId: ${dto.context?.taskId ?? 'none'}`,
+      `🔍 [A2A-CTRL] After normalization - mode: ${dto.mode}, payload.method: ${typeof payloadMethod === 'string' || typeof payloadMethod === 'number' ? payloadMethod : JSON.stringify(payloadMethod)}, taskId: ${dto.context?.taskId ?? 'none'}`,
     );
 
     // =========================================================================
@@ -667,7 +669,9 @@ export class Agent2AgentController {
 
     response.flushHeaders?.();
     // Send proper connection event as JSON data (not just SSE comment)
-    response.write(`data: ${JSON.stringify({ event_type: 'connected', taskId, message: 'Stream connected' })}\n\n`);
+    response.write(
+      `data: ${JSON.stringify({ event_type: 'connected', taskId, message: 'Stream connected' })}\n\n`,
+    );
 
     const keepAlive = setInterval(() => {
       response.write(': keepalive\n\n');
@@ -759,7 +763,9 @@ export class Agent2AgentController {
           if (completeEvent) {
             this.writeSseEvent(response, completeEvent);
           }
-          this.logger.debug(`[STREAM-V3] Task ${taskId} completed, ending stream`);
+          this.logger.debug(
+            `[STREAM-V3] Task ${taskId} completed, ending stream`,
+          );
           endStream('complete');
           return;
         }

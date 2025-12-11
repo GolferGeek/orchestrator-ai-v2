@@ -595,11 +595,13 @@ export class AuthService {
         // User might only exist in auth.users, try to get email from there
         const { data: authUser, error: authUserError } =
           await serviceClient.auth.admin.getUserById(userId);
-        
+
         if (authUserError || !authUser?.user) {
-          throw new BadRequestException('User not found in auth.users or public.users');
+          throw new BadRequestException(
+            'User not found in auth.users or public.users',
+          );
         }
-        
+
         userEmail = authUser.user.email || userId;
         this.logger.warn(
           `User ${userId} exists in auth.users but not in public.users. Will delete from auth.users only.`,
@@ -641,17 +643,20 @@ export class AuthService {
           `Failed to delete auth user ${userId}: ${authError.message}`,
           authError,
         );
-        
+
         // If it's a database constraint error, provide more helpful message
         const errorMessage = authError.message || 'Unknown error';
-        if (errorMessage.includes('Database error') || errorMessage.includes('constraint')) {
+        if (
+          errorMessage.includes('Database error') ||
+          errorMessage.includes('constraint')
+        ) {
           throw new Error(
             `Failed to delete auth user: ${errorMessage}. ` +
-            `This may be due to foreign key constraints or active sessions. ` +
-            `Try deleting through Supabase dashboard or ensure all user data is cleaned up first.`,
+              `This may be due to foreign key constraints or active sessions. ` +
+              `Try deleting through Supabase dashboard or ensure all user data is cleaned up first.`,
           );
         }
-        
+
         throw new Error(
           `Failed to delete auth user: ${errorMessage}. User may still exist in auth.users.`,
         );
@@ -745,7 +750,7 @@ export class AuthService {
         success: true,
         message: 'Password reset email sent',
       };
-    } catch (error) {
+    } catch {
       // Don't leak information about whether email exists
       this.logger.warn(`Password reset attempted for: ${email}`);
       return {

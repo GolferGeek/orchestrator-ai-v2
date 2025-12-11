@@ -10,7 +10,7 @@
 import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
 
 describe('Agent Platform Smoke Tests', () => {
-  const mockContext = createMockExecutionContext();
+  const _mockContext = createMockExecutionContext();
   let agentId: string;
   let conversationId: string;
 

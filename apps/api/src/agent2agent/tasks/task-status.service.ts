@@ -145,7 +145,10 @@ export class TaskStatusService {
     return session.sessionId;
   }
 
-  unregisterStreamSession(sessionId: string, reason: string = 'cleanup'): void {
+  unregisterStreamSession(
+    sessionId: string,
+    _reason: string = 'cleanup',
+  ): void {
     const session = this.streamSessionsById.get(sessionId);
     if (!session) {
       return;
@@ -864,11 +867,12 @@ export class TaskStatusService {
           .single();
 
         if (taskResponse.data) {
-          conversationId = taskResponse.data.conversation_id;
-          const metadata = taskResponse.data.metadata as Record<
-            string,
-            unknown
-          >;
+          const taskData = taskResponse.data as {
+            conversation_id: string | null;
+            metadata: Record<string, unknown> | null;
+          };
+          conversationId = taskData.conversation_id;
+          const metadata = taskData.metadata as Record<string, unknown>;
           organizationSlug =
             (metadata?.organizationSlug as string) ||
             (metadata?.organization_slug as string) ||

@@ -114,7 +114,7 @@ export class CentralizedRoutingService {
   async processAgentResponse(
     agentResponse: string,
     piiMetadata: PIIProcessingMetadata,
-    options: {
+    _options: {
       conversationId?: string;
       requestId?: string;
       userId?: string;
@@ -222,9 +222,7 @@ export class CentralizedRoutingService {
           ...piiMetadata.userMessage,
           summary:
             piiMetadata.userMessage.summary +
-            (totalReversals > 0
-              ? ` (${totalReversals} items restored)`
-              : ''),
+            (totalReversals > 0 ? ` (${totalReversals} items restored)` : ''),
           actionsTaken: [
             ...piiMetadata.userMessage.actionsTaken,
             ...(patternReversalCount > 0
@@ -374,47 +372,47 @@ export class CentralizedRoutingService {
 
           if (explicitLocal || sovereignModeActive || localModelAvailable) {
             reasoningPath.push(
-            'Showstopper detected, but routing to local model (bypass enforcement)',
-          );
-          const localModel = explicitLocal
-            ? options.model ||
-              options.modelName ||
-              (await this.selectBestLocalModel(tier))
-            : await this.selectBestLocalModel(tier);
+              'Showstopper detected, but routing to local model (bypass enforcement)',
+            );
+            const localModel = explicitLocal
+              ? options.model ||
+                options.modelName ||
+                (await this.selectBestLocalModel(tier))
+              : await this.selectBestLocalModel(tier);
 
-          // Create minimal local PII metadata (no-op) for consistency
-          const localPii = await this.piiService.checkPolicy(prompt, {
-            conversationId: options.conversationId,
-            userId: options.userId,
-            requestId: options.requestId,
-            providerName: 'ollama',
-          });
+            // Create minimal local PII metadata (no-op) for consistency
+            const localPii = await this.piiService.checkPolicy(prompt, {
+              conversationId: options.conversationId,
+              userId: options.userId,
+              requestId: options.requestId,
+              providerName: 'ollama',
+            });
 
-          const localDecision: RoutingDecision = {
-            provider: 'ollama',
-            model: String(localModel),
-            isLocal: true,
-            modelTier: tier,
-            fallbackUsed: false,
-            complexityScore: this.getComplexityScore(complexity),
-            reasoningPath,
-            sovereignModeEnforced: sovereignModeActive,
-            sovereignModeViolation: false,
-            piiMetadata: localPii.metadata,
-            originalPrompt: prompt,
-            routeToAgent: true,
-          };
+            const localDecision: RoutingDecision = {
+              provider: 'ollama',
+              model: String(localModel),
+              isLocal: true,
+              modelTier: tier,
+              fallbackUsed: false,
+              complexityScore: this.getComplexityScore(complexity),
+              reasoningPath,
+              sovereignModeEnforced: sovereignModeActive,
+              sovereignModeViolation: false,
+              piiMetadata: localPii.metadata,
+              originalPrompt: prompt,
+              routeToAgent: true,
+            };
 
-          this.logRoutingDecision(
-            request,
-            localDecision,
-            sovereignPolicy,
-            sovereignModeActive,
-            sovereignRoutingEnabled,
-            violations,
-            warnings,
-            startTime,
-          );
+            this.logRoutingDecision(
+              request,
+              localDecision,
+              sovereignPolicy,
+              sovereignModeActive,
+              sovereignRoutingEnabled,
+              violations,
+              warnings,
+              startTime,
+            );
 
             return localDecision;
           }

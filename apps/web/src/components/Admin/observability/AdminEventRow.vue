@@ -198,7 +198,6 @@ import {
   checkmarkDoneOutline,
   timeOutline,
   informationCircleOutline,
-  chevronUpOutline,
   chevronDownOutline,
   chatbubbleOutline,
   closeOutline,
@@ -379,11 +378,11 @@ const eventTypeClass = computed(() => {
   return type.replace(/\./g, '-');
 });
 
-const showProgress = computed(() => {
+const _showProgress = computed(() => {
   return props.event.progress !== undefined && props.event.progress > 0;
 });
 
-const progressColor = computed(() => {
+const _progressColor = computed(() => {
   const progress = props.event.progress || 0;
   if (progress >= 100) return 'success';
   if (progress >= 50) return 'primary';

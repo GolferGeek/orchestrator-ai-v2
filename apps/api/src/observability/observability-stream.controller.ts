@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Res, UseGuards, Logger, Query } from '@nestjs/common';
+import { Controller, Get, Res, UseGuards, Logger, Query } from '@nestjs/common';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RequirePermission } from '../rbac/decorators/require-permission.decorator';
@@ -7,7 +7,7 @@ import {
   ObservabilityEventRecord,
 } from './observability-events.service';
 import { Subscription } from 'rxjs';
-import { NIL_UUID } from '@orchestrator-ai/transport-types';
+// NIL_UUID removed - unused
 
 /**
  * Observability Stream Controller
@@ -42,12 +42,12 @@ export class ObservabilityStreamController {
    */
   @Get('stream')
   @RequirePermission('admin:audit')
-  async streamEvents(
+  streamEvents(
     @Res() response: Response,
     @Query('userId') filterUserId?: string,
     @Query('agentSlug') filterAgentSlug?: string,
     @Query('conversationId') filterConversationId?: string,
-  ): Promise<void> {
+  ): void {
     this.logger.log('🔌 Admin connected to observability stream');
     this.logger.log(
       `📋 Filters: userId=${filterUserId || 'none'}, agentSlug=${filterAgentSlug || 'none'}, conversationId=${filterConversationId || 'none'}`,

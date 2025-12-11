@@ -112,7 +112,7 @@ export class DocumentsController {
     }
 
     // Additional MIME type check for safety (but allow common variations)
-    const allowedMimeTypes = [
+    const _allowedMimeTypes = [
       'application/pdf',
       'text/plain',
       'text/markdown',

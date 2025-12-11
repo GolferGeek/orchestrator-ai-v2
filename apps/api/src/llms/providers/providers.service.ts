@@ -121,9 +121,11 @@ export class ProvidersService {
       const providerName = typedProvider.name;
 
       // Get all models for admin purposes (include model_tier, context_window)
-      let modelQuery = client
+      const modelQuery = client
         .from(getTableName('llm_models'))
-        .select('provider_name, model_name, display_name, is_active, model_tier, context_window')
+        .select(
+          'provider_name, model_name, display_name, is_active, model_tier, context_window',
+        )
         .eq('provider_name', providerName)
         .order('display_name');
 

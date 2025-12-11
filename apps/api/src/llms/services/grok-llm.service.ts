@@ -392,10 +392,6 @@ export async function testGrokService() {
     },
   };
 
-  try {
-    const response = await service.generateResponse(mockContext, params);
-    return response;
-  } catch (error) {
-    throw error;
-  }
+  const response = await service.generateResponse(mockContext, params);
+  return response;
 }
