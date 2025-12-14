@@ -2534,7 +2534,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         ? 'markdown'
         : definition.config?.deliverable?.format || 'json';
 
-      const _formattedContent = isMarkdown
+      const formattedContent = isMarkdown
         ? message
         : this.formatApiResponse(responseData, deliverableFormat, {
             statusCode,
@@ -2554,7 +2554,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
       );
 
       return TaskResponseDto.success(mode, {
-        content: { message },
+        content: { message: formattedContent },
         metadata: {
           ...metadata,
           provider,
