@@ -314,77 +314,81 @@ ON CONFLICT (slug) DO UPDATE SET
 -- Each agent can be configured with multiple LLMs for comparison
 
 -- Writers with multiple LLM options
-INSERT INTO marketing.agent_llm_configs (agent_slug, llm_provider, llm_model, display_name, is_default)
+-- is_local = true for Ollama (local GPU), false for cloud providers
+INSERT INTO marketing.agent_llm_configs (agent_slug, llm_provider, llm_model, display_name, is_default, is_local)
 VALUES
     -- Creative Writer
-    ('writer-creative', 'anthropic', 'claude-sonnet-4-20250514', 'Claude Sonnet 4', true),
-    ('writer-creative', 'openai', 'gpt-4o', 'GPT-4o', false),
-    ('writer-creative', 'ollama', 'llama3.2', 'Llama 3.2 (Local)', false),
+    ('writer-creative', 'anthropic', 'claude-sonnet-4-20250514', 'Claude Sonnet 4', true, false),
+    ('writer-creative', 'openai', 'gpt-4o', 'GPT-4o', false, false),
+    ('writer-creative', 'ollama', 'llama3.2', 'Llama 3.2 (Local)', false, true),
 
     -- Technical Writer
-    ('writer-technical', 'anthropic', 'claude-sonnet-4-20250514', 'Claude Sonnet 4', true),
-    ('writer-technical', 'openai', 'gpt-4o', 'GPT-4o', false),
-    ('writer-technical', 'ollama', 'llama3.2', 'Llama 3.2 (Local)', false),
+    ('writer-technical', 'anthropic', 'claude-sonnet-4-20250514', 'Claude Sonnet 4', true, false),
+    ('writer-technical', 'openai', 'gpt-4o', 'GPT-4o', false, false),
+    ('writer-technical', 'ollama', 'llama3.2', 'Llama 3.2 (Local)', false, true),
 
     -- Conversational Writer
-    ('writer-conversational', 'anthropic', 'claude-sonnet-4-20250514', 'Claude Sonnet 4', true),
-    ('writer-conversational', 'openai', 'gpt-4o', 'GPT-4o', false),
-    ('writer-conversational', 'ollama', 'llama3.2', 'Llama 3.2 (Local)', false),
+    ('writer-conversational', 'anthropic', 'claude-sonnet-4-20250514', 'Claude Sonnet 4', true, false),
+    ('writer-conversational', 'openai', 'gpt-4o', 'GPT-4o', false, false),
+    ('writer-conversational', 'ollama', 'llama3.2', 'Llama 3.2 (Local)', false, true),
 
     -- Persuasive Writer
-    ('writer-persuasive', 'anthropic', 'claude-sonnet-4-20250514', 'Claude Sonnet 4', true),
-    ('writer-persuasive', 'openai', 'gpt-4o', 'GPT-4o', false),
-    ('writer-persuasive', 'ollama', 'llama3.2', 'Llama 3.2 (Local)', false)
+    ('writer-persuasive', 'anthropic', 'claude-sonnet-4-20250514', 'Claude Sonnet 4', true, false),
+    ('writer-persuasive', 'openai', 'gpt-4o', 'GPT-4o', false, false),
+    ('writer-persuasive', 'ollama', 'llama3.2', 'Llama 3.2 (Local)', false, true)
 ON CONFLICT (agent_slug, llm_provider, llm_model) DO UPDATE SET
     display_name = EXCLUDED.display_name,
-    is_default = EXCLUDED.is_default;
+    is_default = EXCLUDED.is_default,
+    is_local = EXCLUDED.is_local;
 
 -- Editors with multiple LLM options
-INSERT INTO marketing.agent_llm_configs (agent_slug, llm_provider, llm_model, display_name, is_default)
+INSERT INTO marketing.agent_llm_configs (agent_slug, llm_provider, llm_model, display_name, is_default, is_local)
 VALUES
     -- Clarity Editor
-    ('editor-clarity', 'anthropic', 'claude-sonnet-4-20250514', 'Claude Sonnet 4', true),
-    ('editor-clarity', 'openai', 'gpt-4o', 'GPT-4o', false),
-    ('editor-clarity', 'ollama', 'llama3.2', 'Llama 3.2 (Local)', false),
+    ('editor-clarity', 'anthropic', 'claude-sonnet-4-20250514', 'Claude Sonnet 4', true, false),
+    ('editor-clarity', 'openai', 'gpt-4o', 'GPT-4o', false, false),
+    ('editor-clarity', 'ollama', 'llama3.2', 'Llama 3.2 (Local)', false, true),
 
     -- Brand Voice Editor
-    ('editor-brand', 'anthropic', 'claude-sonnet-4-20250514', 'Claude Sonnet 4', true),
-    ('editor-brand', 'openai', 'gpt-4o', 'GPT-4o', false),
-    ('editor-brand', 'ollama', 'llama3.2', 'Llama 3.2 (Local)', false),
+    ('editor-brand', 'anthropic', 'claude-sonnet-4-20250514', 'Claude Sonnet 4', true, false),
+    ('editor-brand', 'openai', 'gpt-4o', 'GPT-4o', false, false),
+    ('editor-brand', 'ollama', 'llama3.2', 'Llama 3.2 (Local)', false, true),
 
     -- Engagement Editor
-    ('editor-engagement', 'anthropic', 'claude-sonnet-4-20250514', 'Claude Sonnet 4', true),
-    ('editor-engagement', 'openai', 'gpt-4o', 'GPT-4o', false),
-    ('editor-engagement', 'ollama', 'llama3.2', 'Llama 3.2 (Local)', false),
+    ('editor-engagement', 'anthropic', 'claude-sonnet-4-20250514', 'Claude Sonnet 4', true, false),
+    ('editor-engagement', 'openai', 'gpt-4o', 'GPT-4o', false, false),
+    ('editor-engagement', 'ollama', 'llama3.2', 'Llama 3.2 (Local)', false, true),
 
     -- SEO Editor
-    ('editor-seo', 'anthropic', 'claude-sonnet-4-20250514', 'Claude Sonnet 4', true),
-    ('editor-seo', 'openai', 'gpt-4o', 'GPT-4o', false),
-    ('editor-seo', 'ollama', 'llama3.2', 'Llama 3.2 (Local)', false)
+    ('editor-seo', 'anthropic', 'claude-sonnet-4-20250514', 'Claude Sonnet 4', true, false),
+    ('editor-seo', 'openai', 'gpt-4o', 'GPT-4o', false, false),
+    ('editor-seo', 'ollama', 'llama3.2', 'Llama 3.2 (Local)', false, true)
 ON CONFLICT (agent_slug, llm_provider, llm_model) DO UPDATE SET
     display_name = EXCLUDED.display_name,
-    is_default = EXCLUDED.is_default;
+    is_default = EXCLUDED.is_default,
+    is_local = EXCLUDED.is_local;
 
 -- Evaluators with multiple LLM options
-INSERT INTO marketing.agent_llm_configs (agent_slug, llm_provider, llm_model, display_name, is_default)
+INSERT INTO marketing.agent_llm_configs (agent_slug, llm_provider, llm_model, display_name, is_default, is_local)
 VALUES
     -- Quality Evaluator
-    ('evaluator-quality', 'anthropic', 'claude-sonnet-4-20250514', 'Claude Sonnet 4', true),
-    ('evaluator-quality', 'openai', 'gpt-4o', 'GPT-4o', false),
-    ('evaluator-quality', 'ollama', 'llama3.2', 'Llama 3.2 (Local)', false),
+    ('evaluator-quality', 'anthropic', 'claude-sonnet-4-20250514', 'Claude Sonnet 4', true, false),
+    ('evaluator-quality', 'openai', 'gpt-4o', 'GPT-4o', false, false),
+    ('evaluator-quality', 'ollama', 'llama3.2', 'Llama 3.2 (Local)', false, true),
 
     -- Conversion Evaluator
-    ('evaluator-conversion', 'anthropic', 'claude-sonnet-4-20250514', 'Claude Sonnet 4', true),
-    ('evaluator-conversion', 'openai', 'gpt-4o', 'GPT-4o', false),
-    ('evaluator-conversion', 'ollama', 'llama3.2', 'Llama 3.2 (Local)', false),
+    ('evaluator-conversion', 'anthropic', 'claude-sonnet-4-20250514', 'Claude Sonnet 4', true, false),
+    ('evaluator-conversion', 'openai', 'gpt-4o', 'GPT-4o', false, false),
+    ('evaluator-conversion', 'ollama', 'llama3.2', 'Llama 3.2 (Local)', false, true),
 
     -- Creativity Evaluator
-    ('evaluator-creativity', 'anthropic', 'claude-sonnet-4-20250514', 'Claude Sonnet 4', true),
-    ('evaluator-creativity', 'openai', 'gpt-4o', 'GPT-4o', false),
-    ('evaluator-creativity', 'ollama', 'llama3.2', 'Llama 3.2 (Local)', false)
+    ('evaluator-creativity', 'anthropic', 'claude-sonnet-4-20250514', 'Claude Sonnet 4', true, false),
+    ('evaluator-creativity', 'openai', 'gpt-4o', 'GPT-4o', false, false),
+    ('evaluator-creativity', 'ollama', 'llama3.2', 'Llama 3.2 (Local)', false, true)
 ON CONFLICT (agent_slug, llm_provider, llm_model) DO UPDATE SET
     display_name = EXCLUDED.display_name,
-    is_default = EXCLUDED.is_default;
+    is_default = EXCLUDED.is_default,
+    is_local = EXCLUDED.is_local;
 
 DO $$
 BEGIN

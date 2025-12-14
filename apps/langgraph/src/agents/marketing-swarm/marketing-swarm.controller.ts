@@ -16,10 +16,16 @@ import { MarketingSwarmRequestDto } from './dto';
 /**
  * MarketingSwarmController
  *
- * REST API endpoints for the Marketing Swarm agent:
- * - POST /marketing-swarm/execute - Start a new swarm execution
+ * Phase 2: REST API endpoints for the Marketing Swarm agent.
+ *
+ * Key change: The task and its configuration must already exist in the database
+ * (created by the frontend when user submits the config form).
+ * This endpoint just triggers execution.
+ *
+ * Endpoints:
+ * - POST /marketing-swarm/execute - Start execution for an existing task
  * - GET /marketing-swarm/status/:taskId - Check execution status
- * - GET /marketing-swarm/state/:taskId - Get full execution state
+ * - GET /marketing-swarm/state/:taskId - Get full execution state from DB
  */
 @Controller('marketing-swarm')
 export class MarketingSwarmController {
@@ -29,6 +35,10 @@ export class MarketingSwarmController {
 
   /**
    * Execute the marketing swarm
+   *
+   * Phase 2: The task must already exist in marketing.swarm_tasks table.
+   * The frontend creates the task with config when user submits the form.
+   * This endpoint triggers the actual processing.
    */
   @Post('execute')
   @HttpCode(HttpStatus.OK)
@@ -39,25 +49,18 @@ export class MarketingSwarmController {
     }
 
     const context = request.context;
-    this.logger.log(
-      `Received swarm execution request: taskId=${context.taskId}, topic=${request.promptData.topic}`,
-    );
+    const taskId = context.taskId;
 
-    // Validate minimum configuration
-    if (!request.config.writers || request.config.writers.length === 0) {
-      throw new BadRequestException('At least one writer is required');
+    this.logger.log(`Received swarm execution request: taskId=${taskId}`);
+
+    if (!taskId) {
+      throw new BadRequestException('taskId is required in context');
     }
 
     try {
       const result = await this.marketingSwarmService.execute({
         context,
-        contentTypeSlug: request.contentTypeSlug,
-        contentTypeContext: request.contentTypeContext,
-        promptData: request.promptData,
-        config: {
-          ...request.config,
-          maxEditCycles: request.config.maxEditCycles || 3,
-        },
+        taskId,
       });
 
       return {
@@ -94,6 +97,9 @@ export class MarketingSwarmController {
 
   /**
    * Get full execution state by task ID
+   *
+   * Returns all outputs and evaluations from the database.
+   * Used for reconnection - frontend rebuilds UI from this data.
    */
   @Get('state/:taskId')
   @HttpCode(HttpStatus.OK)
@@ -110,16 +116,8 @@ export class MarketingSwarmController {
       success: true,
       data: {
         taskId,
-        phase: state.phase,
-        contentTypeSlug: state.contentTypeSlug,
-        promptData: state.promptData,
-        config: state.config,
-        executionQueue: state.executionQueue,
         outputs: state.outputs,
         evaluations: state.evaluations,
-        error: state.error,
-        startedAt: state.startedAt,
-        completedAt: state.completedAt,
       },
     };
   }

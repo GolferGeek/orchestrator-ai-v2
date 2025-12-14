@@ -1,109 +1,102 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import {
-  createMarketingSwarmGraph,
-  MarketingSwarmGraph,
-} from './marketing-swarm.graph';
-import {
-  MarketingSwarmInput,
-  MarketingSwarmState,
-  MarketingSwarmResult,
-} from './marketing-swarm.state';
-import { LLMHttpClientService } from '../../services/llm-http-client.service';
+import { Injectable, Logger } from '@nestjs/common';
+import { ExecutionContext } from '@orchestrator-ai/transport-types';
+import { DualTrackProcessorService } from './dual-track-processor.service';
+import { MarketingDbService, OutputRow, EvaluationRow } from './marketing-db.service';
 import { ObservabilityService } from '../../services/observability.service';
-import { PostgresCheckpointerService } from '../../persistence/postgres-checkpointer.service';
+
+/**
+ * Input for starting a marketing swarm task
+ */
+export interface MarketingSwarmInput {
+  context: ExecutionContext;
+  taskId: string;
+}
+
+/**
+ * Result of a marketing swarm execution
+ */
+export interface MarketingSwarmResult {
+  taskId: string;
+  status: 'completed' | 'failed';
+  outputs: OutputRow[];
+  evaluations: EvaluationRow[];
+  winner?: OutputRow;
+  error?: string;
+  duration: number;
+}
+
+/**
+ * Status response for a task
+ */
+export interface TaskStatus {
+  taskId: string;
+  status: string;
+  phase?: string;
+  progress: {
+    total: number;
+    completed: number;
+    percentage: number;
+  };
+  error?: string;
+}
 
 /**
  * MarketingSwarmService
  *
- * Manages the Marketing Swarm agent lifecycle:
- * - Creates and initializes the graph
- * - Handles swarm execution requests
- * - Provides status checking
+ * Phase 2: Database-driven Marketing Swarm service.
+ *
+ * This service acts as the entry point for Marketing Swarm execution.
+ * All state is managed in the database, not in memory.
+ *
+ * Key changes from Phase 1:
+ * - No LangGraph state graph (database IS the state)
+ * - Uses DualTrackProcessorService for execution
+ * - Fat SSE messages with full row data
+ * - Two-stage evaluation with weighted ranking
  */
 @Injectable()
-export class MarketingSwarmService implements OnModuleInit {
+export class MarketingSwarmService {
   private readonly logger = new Logger(MarketingSwarmService.name);
-  private graph!: MarketingSwarmGraph;
 
   constructor(
-    private readonly llmClient: LLMHttpClientService,
+    private readonly processor: DualTrackProcessorService,
+    private readonly db: MarketingDbService,
     private readonly observability: ObservabilityService,
-    private readonly checkpointer: PostgresCheckpointerService,
   ) {}
-
-  async onModuleInit() {
-    this.logger.log('Initializing Marketing Swarm graph...');
-    this.graph = createMarketingSwarmGraph(
-      this.llmClient,
-      this.observability,
-      this.checkpointer,
-    );
-    this.logger.log('Marketing Swarm graph initialized');
-  }
 
   /**
    * Execute the marketing swarm
+   *
+   * This is the main entry point called by the controller.
+   * The actual processing is handled by DualTrackProcessorService.
    */
   async execute(input: MarketingSwarmInput): Promise<MarketingSwarmResult> {
     const startTime = Date.now();
-    const { context } = input;
-    const taskId = context.taskId;
+    const { context, taskId } = input;
 
-    this.logger.log(
-      `Starting Marketing Swarm: taskId=${taskId}, topic=${input.promptData.topic}`,
-    );
+    this.logger.log(`Starting Marketing Swarm: taskId=${taskId}`);
 
     try {
-      // Initial state
-      const initialState: Partial<MarketingSwarmState> = {
-        executionContext: context,
-        contentTypeSlug: input.contentTypeSlug,
-        contentTypeContext: input.contentTypeContext,
-        promptData: input.promptData,
-        config: input.config,
-        phase: 'initializing',
-        startedAt: startTime,
-      };
-
-      const config = {
-        configurable: {
-          thread_id: taskId,
-        },
-      };
-
-      const finalState = await this.graph.invoke(initialState, config);
+      // Process the task using the dual-track processor
+      await this.processor.processTask(taskId, context);
 
       const duration = Date.now() - startTime;
 
+      // Get final results from database
+      const outputs = await this.db.getAllOutputs(taskId);
+      const evaluations = await this.db.getAllEvaluations(taskId);
+      const winner = outputs.find((o) => o.final_rank === 1);
+
       this.logger.log(
-        `Marketing Swarm completed: taskId=${taskId}, phase=${finalState.phase}, duration=${duration}ms`,
+        `Marketing Swarm completed: taskId=${taskId}, duration=${duration}ms`,
       );
-
-      // Calculate ranked results
-      const rankedResults = finalState.outputs.map((output) => {
-        const outputEvals = finalState.evaluations.filter(
-          (e) => e.outputId === output.id,
-        );
-        const avgScore =
-          outputEvals.length > 0
-            ? outputEvals.reduce((sum, e) => sum + e.score, 0) /
-              outputEvals.length
-            : 0;
-        return {
-          outputId: output.id,
-          averageScore: Math.round(avgScore * 10) / 10,
-        };
-      });
-
-      rankedResults.sort((a, b) => b.averageScore - a.averageScore);
 
       return {
         taskId,
-        status: finalState.phase === 'completed' ? 'completed' : 'failed',
-        outputs: finalState.outputs,
-        evaluations: finalState.evaluations,
-        rankedResults,
-        error: finalState.error,
+        status: 'completed',
+        outputs,
+        evaluations,
+        winner,
         duration,
       };
     } catch (error) {
@@ -115,15 +108,11 @@ export class MarketingSwarmService implements OnModuleInit {
         `Marketing Swarm failed: taskId=${taskId}, error=${errorMessage}`,
       );
 
-      // Emit failure event
-      await this.observability.emitFailed(context, taskId, errorMessage, duration);
-
       return {
         taskId,
         status: 'failed',
         outputs: [],
         evaluations: [],
-        rankedResults: [],
         error: errorMessage,
         duration,
       };
@@ -132,45 +121,75 @@ export class MarketingSwarmService implements OnModuleInit {
 
   /**
    * Get status of a swarm execution by task ID
+   *
+   * Reads directly from the database (not from in-memory state).
    */
-  async getStatus(taskId: string): Promise<{
-    taskId: string;
-    phase: MarketingSwarmState['phase'];
-    progress: {
-      total: number;
-      completed: number;
-      percentage: number;
-    };
-    error?: string;
-  } | null> {
+  async getStatus(taskId: string): Promise<TaskStatus | null> {
     try {
-      const config = {
-        configurable: {
-          thread_id: taskId,
-        },
-      };
+      // Get task from database
+      const outputs = await this.db.getAllOutputs(taskId);
+      const evaluations = await this.db.getAllEvaluations(taskId);
 
-      const state = await this.graph.getState(config);
-
-      if (!state.values) {
+      if (outputs.length === 0) {
         return null;
       }
 
-      const values = state.values as MarketingSwarmState;
-      const total = values.executionQueue.length;
-      const completed = values.executionQueue.filter(
-        (q) => q.status === 'completed' || q.status === 'skipped',
+      // Calculate progress based on outputs and evaluations
+      const writingComplete = outputs.filter(
+        (o) => o.status === 'approved' || o.status === 'failed',
       ).length;
+      const totalOutputs = outputs.length;
+
+      const initialEvalsComplete = evaluations.filter(
+        (e) => e.stage === 'initial' && e.status === 'completed',
+      ).length;
+      const totalInitialEvals = evaluations.filter(
+        (e) => e.stage === 'initial',
+      ).length;
+
+      const finalEvalsComplete = evaluations.filter(
+        (e) => e.stage === 'final' && e.status === 'completed',
+      ).length;
+      const totalFinalEvals = evaluations.filter(
+        (e) => e.stage === 'final',
+      ).length;
+
+      // Determine phase
+      let phase: string;
+      if (writingComplete < totalOutputs) {
+        phase = 'writing';
+      } else if (
+        totalInitialEvals > 0 &&
+        initialEvalsComplete < totalInitialEvals
+      ) {
+        phase = 'evaluating_initial';
+      } else if (
+        totalFinalEvals > 0 &&
+        finalEvalsComplete < totalFinalEvals
+      ) {
+        phase = 'evaluating_final';
+      } else if (outputs.some((o) => o.final_rank !== null)) {
+        phase = 'completed';
+      } else {
+        phase = 'processing';
+      }
+
+      // Calculate overall progress
+      const totalSteps =
+        totalOutputs + totalInitialEvals + totalFinalEvals;
+      const completedSteps =
+        writingComplete + initialEvalsComplete + finalEvalsComplete;
 
       return {
         taskId,
-        phase: values.phase,
+        status: phase === 'completed' ? 'completed' : 'running',
+        phase,
         progress: {
-          total,
-          completed,
-          percentage: total > 0 ? Math.round((completed / total) * 100) : 0,
+          total: totalSteps,
+          completed: completedSteps,
+          percentage:
+            totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0,
         },
-        error: values.error,
       };
     } catch (error) {
       this.logger.error(`Failed to get status for task ${taskId}:`, error);
@@ -179,18 +198,17 @@ export class MarketingSwarmService implements OnModuleInit {
   }
 
   /**
-   * Get full state for a task
+   * Get full state for a task from database
    */
-  async getFullState(taskId: string): Promise<MarketingSwarmState | null> {
+  async getFullState(taskId: string): Promise<{
+    outputs: OutputRow[];
+    evaluations: EvaluationRow[];
+  } | null> {
     try {
-      const config = {
-        configurable: {
-          thread_id: taskId,
-        },
-      };
+      const outputs = await this.db.getAllOutputs(taskId);
+      const evaluations = await this.db.getAllEvaluations(taskId);
 
-      const state = await this.graph.getState(config);
-      return state.values as MarketingSwarmState;
+      return { outputs, evaluations };
     } catch (error) {
       this.logger.error(`Failed to get full state for task ${taskId}:`, error);
       return null;
