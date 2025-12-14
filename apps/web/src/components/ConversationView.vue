@@ -1,5 +1,19 @@
 <template>
   <div class="conversation-view">
+    <!-- Custom UI for agents with hasCustomUI (like Marketing Swarm) -->
+    <template v-if="hasCustomUI">
+      <MarketingSwarmTab
+        v-if="customUIComponent === 'marketing-swarm'"
+        :conversation="conversation"
+      />
+      <!-- Add more custom UI components here as needed -->
+      <div v-else class="custom-ui-not-found">
+        <p>Custom UI component "{{ customUIComponent }}" not found.</p>
+      </div>
+    </template>
+
+    <!-- Standard Conversation UI -->
+    <template v-else>
     <!-- Header -->
     <div class="conversation-header">
       <div class="conversation-info">
@@ -268,6 +282,7 @@
       @rerun="handleDeliverableRerun"
       @rerun-with-different-llm="handleDeliverableRerunWithDifferentLlm"
     />
+    </template>
   </div>
 </template>
 <script setup lang="ts">
@@ -327,6 +342,7 @@ import SovereignModeBadge from './SovereignMode/SovereignModeBadge.vue';
 import SovereignModeTooltip from './SovereignMode/SovereignModeTooltip.vue';
 import SovereignModeBanner from './SovereignMode/SovereignModeBanner.vue';
 import ConversationalSpeechButton from './ConversationalSpeechButton.vue';
+import MarketingSwarmTab from './custom-ui/MarketingSwarmTab.vue';
 import type { Deliverable, DeliverableVersion } from '@/services/deliverablesService';
 import type { PlanData, PlanVersionData } from '@orchestrator-ai/transport-types';
 
@@ -410,6 +426,22 @@ const currentAgent = computed(() => {
     execution_capabilities: defaultCapabilities,
   };
 });
+
+// Custom UI detection for agents like Marketing Swarm
+const hasCustomUI = computed(() => {
+  const agent = currentAgent.value;
+  if (!agent) return false;
+  // Check for hasCustomUI in the agent info (from agentsStore)
+  // The agent info is populated from the backend agent metadata
+  return Boolean((agent as Record<string, unknown>).hasCustomUI);
+});
+
+const customUIComponent = computed(() => {
+  const agent = currentAgent.value;
+  if (!agent) return null;
+  return (agent as Record<string, unknown>).customUIComponent as string | null;
+});
+
 const currentAgentIdentifier = computed(() => currentAgent.value?.name ?? '');
 const messages = computed<AgentChatMessage[]>(() => {
   // Always read from store - conversation.messages is legacy and may be empty/stale
@@ -1454,6 +1486,15 @@ html[data-theme="dark"] .simple-message-bubble.user .attribution-badge {
 .empty-state p {
   margin: 0;
   line-height: 1.5;
+}
+/* Custom UI not found fallback */
+.custom-ui-not-found {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--ion-color-medium);
+  font-size: 0.9em;
 }
 /* Prominent thinking indicator */
 .prominent-thinking-indicator {

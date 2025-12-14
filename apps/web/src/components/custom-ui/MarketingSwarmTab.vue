@@ -1,20 +1,21 @@
 <template>
-  <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-menu-button></ion-menu-button>
-        </ion-buttons>
-        <ion-title>Marketing Swarm</ion-title>
-        <ion-buttons slot="end" v-if="uiState.currentView !== 'config'">
-          <ion-button @click="handleRestart">
-            <ion-icon :icon="arrowBackOutline" slot="icon-only" />
-          </ion-button>
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
+  <div class="marketing-swarm-tab">
+    <!-- Header (simplified for tab context) -->
+    <div class="swarm-header">
+      <div class="header-info">
+        <h2>Marketing Swarm</h2>
+        <span v-if="conversation" class="conversation-title">{{ conversation.title }}</span>
+      </div>
+      <div class="header-actions" v-if="uiState.currentView !== 'config'">
+        <ion-button fill="clear" size="small" @click="handleRestart">
+          <ion-icon :icon="refreshOutline" slot="start" />
+          Start Over
+        </ion-button>
+      </div>
+    </div>
 
-    <ion-content>
+    <!-- Content Area -->
+    <div class="swarm-content">
       <!-- Loading State -->
       <div v-if="isLoading" class="loading-container">
         <ion-spinner name="crescent" />
@@ -44,35 +45,33 @@
         v-else-if="uiState.currentView === 'results'"
         @restart="handleRestart"
       />
-    </ion-content>
-  </ion-page>
+    </div>
+  </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, ref } from 'vue';
-import { useRoute } from 'vue-router';
+import { computed, onMounted, watch } from 'vue';
 import {
-  IonPage,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonButtons,
-  IonMenuButton,
   IonButton,
-  IonContent,
   IonSpinner,
   IonIcon,
 } from '@ionic/vue';
-import { arrowBackOutline, alertCircleOutline } from 'ionicons/icons';
+import { refreshOutline, alertCircleOutline } from 'ionicons/icons';
 import { useMarketingSwarmStore } from '@/stores/marketingSwarmStore';
 import { marketingSwarmService } from '@/services/marketingSwarmService';
 import { useRbacStore } from '@/stores/rbacStore';
-import SwarmConfigForm from './components/SwarmConfigForm.vue';
-import SwarmProgress from './components/SwarmProgress.vue';
-import SwarmResults from './components/SwarmResults.vue';
+import SwarmConfigForm from '@/views/agents/marketing-swarm/components/SwarmConfigForm.vue';
+import SwarmProgress from '@/views/agents/marketing-swarm/components/SwarmProgress.vue';
+import SwarmResults from '@/views/agents/marketing-swarm/components/SwarmResults.vue';
 import type { PromptData, SwarmConfig } from '@/types/marketing-swarm';
+import type { AgentConversation } from '@/types/conversation';
 
-const route = useRoute();
+interface Props {
+  conversation: AgentConversation | null;
+}
+
+const props = defineProps<Props>();
+
 const store = useMarketingSwarmStore();
 const rbacStore = useRbacStore();
 
@@ -81,12 +80,9 @@ const isExecuting = computed(() => store.isExecuting);
 const error = computed(() => store.error);
 const uiState = computed(() => store.uiState);
 
-// Get conversationId from route query (passed from AgentsPage when creating conversation)
-const conversationId = ref<string | null>(null);
-
-// Get org slug from route or context
+// Get org slug from conversation or context
 const orgSlug = computed(() => {
-  return (route.params.orgSlug as string) || rbacStore.currentOrganization || 'demo-org';
+  return props.conversation?.organizationSlug || rbacStore.currentOrganization || 'demo-org';
 });
 
 const userId = computed(() => {
@@ -103,11 +99,18 @@ async function loadConfiguration() {
 }
 
 onMounted(() => {
-  // Get conversationId from route query
-  conversationId.value = route.query.conversationId as string || null;
-  console.log('[MarketingSwarm] Mounted with conversationId:', conversationId.value);
-
+  console.log('[MarketingSwarmTab] Mounted with conversation:', props.conversation?.id);
   loadConfiguration();
+});
+
+// Watch for conversation changes
+watch(() => props.conversation?.id, (newId) => {
+  if (newId) {
+    console.log('[MarketingSwarmTab] Conversation changed:', newId);
+    // Reset state when switching to a new conversation
+    store.resetTaskState();
+    store.setUIView('config');
+  }
 });
 
 // Handle execute from config form
@@ -141,28 +144,23 @@ async function handleExecute(data: {
       });
     }
 
-    // Use conversationId from route query (created when user clicked on agent in sidebar)
-    // or create a new one if not provided (direct navigation to page)
-    let currentConversationId = conversationId.value;
+    // Use conversationId from props (created when user clicked on agent in sidebar)
+    const currentConversationId = props.conversation?.id;
 
     if (!currentConversationId) {
-      // Fallback: Create conversation if not provided (e.g., direct URL access)
-      currentConversationId = await marketingSwarmService.createSwarmConversation(
-        orgSlug.value,
-        userId.value,
-        data.config
-      );
-      console.log('[MarketingSwarm] Created new conversation:', currentConversationId);
-    } else {
-      // Initialize ExecutionContext with existing conversation from sidebar
-      marketingSwarmService.initializeWithExistingConversation(
-        currentConversationId,
-        orgSlug.value,
-        userId.value,
-        data.config
-      );
-      console.log('[MarketingSwarm] Using existing conversation:', currentConversationId);
+      console.error('[MarketingSwarmTab] No conversation ID provided');
+      store.setError('No conversation ID. Please try again.');
+      return;
     }
+
+    // Initialize ExecutionContext with existing conversation from sidebar
+    marketingSwarmService.initializeWithExistingConversation(
+      currentConversationId,
+      orgSlug.value,
+      userId.value,
+      data.config
+    );
+    console.log('[MarketingSwarmTab] Using conversation:', currentConversationId);
 
     // Start execution (uses the initialized ExecutionContext)
     const response = await marketingSwarmService.startSwarmExecution(
@@ -186,6 +184,45 @@ function handleRestart() {
 </script>
 
 <style scoped>
+.marketing-swarm-tab {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--ion-color-step-50);
+}
+
+.swarm-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--ion-color-light);
+  background: white;
+}
+
+.header-info h2 {
+  margin: 0;
+  font-size: 1.2em;
+  font-weight: 600;
+  color: var(--ion-color-dark);
+}
+
+.conversation-title {
+  font-size: 0.9em;
+  color: var(--ion-color-medium);
+  margin-left: 8px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.swarm-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
 .loading-container,
 .error-container {
   display: flex;
@@ -204,5 +241,42 @@ function handleRestart() {
   color: var(--ion-color-medium);
   text-align: center;
   max-width: 300px;
+}
+
+/* Dark theme support */
+@media (prefers-color-scheme: dark) {
+  .marketing-swarm-tab {
+    background: #1a1a1a;
+  }
+
+  .swarm-header {
+    background: #2d3748;
+    border-color: #4a5568;
+  }
+
+  .header-info h2 {
+    color: #f7fafc;
+  }
+
+  .conversation-title {
+    color: #a0aec0;
+  }
+}
+
+html[data-theme="dark"] .marketing-swarm-tab {
+  background: #1a1a1a;
+}
+
+html[data-theme="dark"] .swarm-header {
+  background: #2d3748;
+  border-color: #4a5568;
+}
+
+html[data-theme="dark"] .header-info h2 {
+  color: #f7fafc;
+}
+
+html[data-theme="dark"] .conversation-title {
+  color: #a0aec0;
 }
 </style>

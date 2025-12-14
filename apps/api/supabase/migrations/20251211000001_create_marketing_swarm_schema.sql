@@ -308,7 +308,7 @@ ALTER TABLE marketing.execution_queue ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "content_types_org_read" ON marketing.content_types
     FOR SELECT USING (
         organization_slug IN (
-            SELECT organization_slug FROM public.user_organizations
+            SELECT organization_slug FROM public.rbac_user_org_roles
             WHERE user_id = auth.uid()
         )
     );
@@ -317,7 +317,7 @@ CREATE POLICY "content_types_org_read" ON marketing.content_types
 CREATE POLICY "agents_org_read" ON marketing.agents
     FOR SELECT USING (
         organization_slug IN (
-            SELECT organization_slug FROM public.user_organizations
+            SELECT organization_slug FROM public.rbac_user_org_roles
             WHERE user_id = auth.uid()
         )
     );
@@ -328,7 +328,7 @@ CREATE POLICY "agent_llm_configs_read" ON marketing.agent_llm_configs
         agent_slug IN (
             SELECT slug FROM marketing.agents
             WHERE organization_slug IN (
-                SELECT organization_slug FROM public.user_organizations
+                SELECT organization_slug FROM public.rbac_user_org_roles
                 WHERE user_id = auth.uid()
             )
         )
@@ -338,7 +338,7 @@ CREATE POLICY "agent_llm_configs_read" ON marketing.agent_llm_configs
 CREATE POLICY "swarm_tasks_org_read" ON marketing.swarm_tasks
     FOR SELECT USING (
         organization_slug IN (
-            SELECT organization_slug FROM public.user_organizations
+            SELECT organization_slug FROM public.rbac_user_org_roles
             WHERE user_id = auth.uid()
         )
     );
@@ -352,7 +352,7 @@ CREATE POLICY "outputs_task_read" ON marketing.outputs
         task_id IN (
             SELECT task_id FROM marketing.swarm_tasks
             WHERE organization_slug IN (
-                SELECT organization_slug FROM public.user_organizations
+                SELECT organization_slug FROM public.rbac_user_org_roles
                 WHERE user_id = auth.uid()
             )
         )
@@ -364,7 +364,7 @@ CREATE POLICY "evaluations_task_read" ON marketing.evaluations
         task_id IN (
             SELECT task_id FROM marketing.swarm_tasks
             WHERE organization_slug IN (
-                SELECT organization_slug FROM public.user_organizations
+                SELECT organization_slug FROM public.rbac_user_org_roles
                 WHERE user_id = auth.uid()
             )
         )
@@ -376,7 +376,7 @@ CREATE POLICY "execution_queue_task_read" ON marketing.execution_queue
         task_id IN (
             SELECT task_id FROM marketing.swarm_tasks
             WHERE organization_slug IN (
-                SELECT organization_slug FROM public.user_organizations
+                SELECT organization_slug FROM public.rbac_user_org_roles
                 WHERE user_id = auth.uid()
             )
         )

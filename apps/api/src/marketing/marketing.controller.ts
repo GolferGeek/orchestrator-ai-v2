@@ -18,14 +18,14 @@ import {
  *
  * All endpoints are read-only and require authentication.
  */
-@Controller('api/marketing')
+@Controller('marketing')
 @UseGuards(JwtAuthGuard)
 export class MarketingController {
   constructor(private marketingService: MarketingService) {}
 
   /**
    * Get full swarm configuration in a single request
-   * GET /api/marketing/config
+   * GET /marketing/config
    *
    * Returns all content types and agents grouped by role with their LLM configs.
    * This is the primary endpoint for the Marketing Swarm UI initialization.
@@ -42,7 +42,7 @@ export class MarketingController {
 
   /**
    * Get all active content types
-   * GET /api/marketing/content-types
+   * GET /marketing/content-types
    */
   @Get('content-types')
   async getContentTypes(): Promise<ContentTypeDto[]> {
@@ -51,7 +51,7 @@ export class MarketingController {
 
   /**
    * Get a single content type by slug
-   * GET /api/marketing/content-types/:slug
+   * GET /marketing/content-types/:slug
    */
   @Get('content-types/:slug')
   async getContentTypeBySlug(
@@ -62,9 +62,9 @@ export class MarketingController {
 
   /**
    * Get all active marketing agents
-   * GET /api/marketing/agents
-   * GET /api/marketing/agents?role=writer|editor|evaluator
-   * GET /api/marketing/agents?includeConfigs=true
+   * GET /marketing/agents
+   * GET /marketing/agents?role=writer|editor|evaluator
+   * GET /marketing/agents?includeConfigs=true
    */
   @Get('agents')
   async getAgents(
@@ -86,7 +86,7 @@ export class MarketingController {
 
   /**
    * Get a single agent by slug
-   * GET /api/marketing/agents/:slug
+   * GET /marketing/agents/:slug
    */
   @Get('agents/:slug')
   async getAgentBySlug(
@@ -97,7 +97,7 @@ export class MarketingController {
 
   /**
    * Get all LLM configs for an agent
-   * GET /api/marketing/agents/:agentId/llm-configs
+   * GET /marketing/agents/:agentId/llm-configs
    */
   @Get('agents/:agentId/llm-configs')
   async getLLMConfigsForAgent(
@@ -108,7 +108,7 @@ export class MarketingController {
 
   /**
    * Get all active LLM configs
-   * GET /api/marketing/llm-configs
+   * GET /marketing/llm-configs
    */
   @Get('llm-configs')
   async getAllLLMConfigs(): Promise<AgentLLMConfigDto[]> {

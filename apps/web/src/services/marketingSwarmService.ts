@@ -3,13 +3,19 @@
  *
  * Handles all async operations for the Marketing Swarm feature:
  * - Fetching configuration data (content types, agents, LLM configs)
- * - Starting swarm executions
+ * - Starting swarm executions through the A2A framework
  * - Polling for status updates
  * - Fetching results
+ *
+ * IMPORTANT: All executions go through the A2A tasks endpoint to ensure
+ * proper conversation/task creation and LLM usage tracking.
  */
 
 import { apiService } from './apiService';
 import { useMarketingSwarmStore } from '@/stores/marketingSwarmStore';
+import { a2aOrchestrator } from './agent2agent/orchestrator/a2a-orchestrator';
+import agent2AgentConversationsService from './agent2AgentConversationsService';
+import { useExecutionContextStore } from '@/stores/executionContextStore';
 import type {
   MarketingContentType,
   MarketingAgent,
@@ -23,7 +29,7 @@ import type {
   SwarmConfig,
 } from '@/types/marketing-swarm';
 
-// API Base URL for LangGraph (different port from main API)
+// API Base URL for LangGraph status/state endpoints (different port from main API)
 const LANGGRAPH_BASE_URL = import.meta.env.VITE_LANGGRAPH_BASE_URL || 'http://localhost:6200';
 
 class MarketingSwarmService {
@@ -127,13 +133,84 @@ class MarketingSwarmService {
   }
 
   /**
-   * Start a new swarm execution
+   * Create a new conversation for the Marketing Swarm
+   *
+   * This follows the same pattern as normal conversations:
+   * 1. Creates conversation in database via agent2AgentConversationsService
+   * 2. Initializes executionContextStore with the context
+   *
+   * @returns The conversation ID
    */
-  async startSwarmExecution(
+  async createSwarmConversation(
     orgSlug: string,
     userId: string,
+    config: SwarmConfig
+  ): Promise<string> {
+    // Generate conversation ID upfront
+    const conversationId = crypto.randomUUID();
+
+    // Create conversation in database (same as normal conversations)
+    await agent2AgentConversationsService.createConversation({
+      agentName: 'marketing-swarm',
+      agentType: 'api',
+      organizationSlug: orgSlug,
+      conversationId,
+      metadata: {
+        source: 'marketing-swarm-ui',
+        contentType: 'marketing-content',
+      },
+    });
+
+    // Initialize ExecutionContext (same as normal conversations)
+    const executionContextStore = useExecutionContextStore();
+    executionContextStore.initialize({
+      orgSlug,
+      userId,
+      conversationId,
+      agentSlug: 'marketing-swarm',
+      agentType: 'api',
+      provider: config.writers[0]?.llmProvider || 'anthropic',
+      model: config.writers[0]?.llmModel || 'claude-sonnet-4-20250514',
+    });
+
+    return conversationId;
+  }
+
+  /**
+   * Initialize ExecutionContext with an existing conversation
+   *
+   * Used when the conversation was already created by AgentsPage (via conversationHelpers)
+   * and passed to the Marketing Swarm page via route query.
+   */
+  initializeWithExistingConversation(
     conversationId: string,
-    taskId: string,
+    orgSlug: string,
+    userId: string,
+    config: SwarmConfig
+  ): void {
+    const executionContextStore = useExecutionContextStore();
+    executionContextStore.initialize({
+      orgSlug,
+      userId,
+      conversationId,
+      agentSlug: 'marketing-swarm',
+      agentType: 'api',
+      provider: config.writers[0]?.llmProvider || 'anthropic',
+      model: config.writers[0]?.llmModel || 'claude-sonnet-4-20250514',
+    });
+  }
+
+  /**
+   * Start a new swarm execution through the A2A framework
+   *
+   * This uses the same flow as normal conversations:
+   * 1. ExecutionContext must be initialized (via createSwarmConversation or initializeWithExistingConversation)
+   * 2. Uses a2aOrchestrator.execute() which POSTs to /agent-to-agent/:org/:agent/tasks
+   * 3. Backend creates task record, then hands to API runner which calls LangGraph
+   *
+   * This ensures proper conversation/task creation and LLM usage tracking.
+   */
+  async startSwarmExecution(
     contentTypeSlug: string,
     contentTypeContext: string,
     promptData: PromptData,
@@ -145,24 +222,31 @@ class MarketingSwarmService {
     store.setUIView('progress');
 
     try {
-      // Call the LangGraph endpoint
-      const response = await fetch(`${LANGGRAPH_BASE_URL}/marketing-swarm/execute`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('authToken')}`,
-        },
-        body: JSON.stringify({
-          context: {
-            orgSlug,
-            userId,
-            conversationId,
-            taskId,
-            agentSlug: 'marketing-swarm',
-            agentType: 'api',
-            provider: config.writers[0]?.llmProvider || 'anthropic',
-            model: config.writers[0]?.llmModel || 'claude-sonnet-4-20250514',
-          },
+      // Verify ExecutionContext is initialized
+      const executionContextStore = useExecutionContextStore();
+      if (!executionContextStore.isInitialized) {
+        throw new Error('ExecutionContext not initialized. Call createSwarmConversation first.');
+      }
+
+      // Generate a new taskId for this execution
+      const taskId = executionContextStore.newTaskId();
+      const ctx = executionContextStore.current;
+
+      console.log('[MarketingSwarm] Starting execution via A2A framework', {
+        conversationId: ctx.conversationId,
+        taskId,
+        agentSlug: ctx.agentSlug,
+      });
+
+      // Execute through A2A orchestrator (same as normal conversations)
+      // The A2A orchestrator will:
+      // 1. POST to /agent-to-agent/:org/marketing-swarm/tasks
+      // 2. Backend creates task record with conversationId/taskId
+      // 3. Backend routes to API runner which calls LangGraph
+      // 4. LLM usage is properly tracked with valid conversationId
+      const result = await a2aOrchestrator.execute('converse.send', {
+        userMessage: JSON.stringify({
+          type: 'marketing-swarm-request',
           contentTypeSlug,
           contentTypeContext,
           promptData,
@@ -170,13 +254,38 @@ class MarketingSwarmService {
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to start swarm execution');
+      console.log('[MarketingSwarm] A2A execution result:', result);
+
+      // Handle A2A result
+      if (result.type === 'error') {
+        throw new Error(result.error || 'Swarm execution failed');
       }
 
-      const result = await response.json();
-      const taskResponse: SwarmTaskResponse = result.data;
+      // Extract swarm response from A2A result
+      // The response payload contains the Marketing Swarm results
+      const taskResponse: SwarmTaskResponse = {
+        taskId,
+        status: result.type === 'message' ? 'completed' : 'running',
+        outputs: [],
+        evaluations: [],
+        rankedResults: [],
+      };
+
+      // Parse the response message if it's JSON
+      if (result.type === 'message' && result.message) {
+        try {
+          const parsed = typeof result.message === 'string'
+            ? JSON.parse(result.message)
+            : result.message;
+
+          if (parsed.outputs) taskResponse.outputs = parsed.outputs;
+          if (parsed.evaluations) taskResponse.evaluations = parsed.evaluations;
+          if (parsed.rankedResults) taskResponse.rankedResults = parsed.rankedResults;
+        } catch {
+          // Message is not JSON, use as-is
+          console.log('[MarketingSwarm] Response message is not JSON:', result.message);
+        }
+      }
 
       // Update store with results
       if (taskResponse.outputs) {

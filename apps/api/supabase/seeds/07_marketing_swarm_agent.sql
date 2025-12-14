@@ -18,7 +18,6 @@ INSERT INTO public.agents (
     capabilities,
     context,
     endpoint,
-    llm_config,
     metadata
 ) VALUES (
     'marketing-swarm',
@@ -147,44 +146,8 @@ INSERT INTO public.agents (
     -- Capabilities
     ARRAY['content-generation', 'multi-agent-orchestration', 'iterative-editing', 'content-evaluation', 'llm-comparison']::TEXT[],
 
-    -- Context (markdown)
-    '# Marketing Swarm Agent
-
-A sophisticated multi-agent system for generating high-quality marketing content through collaboration and competition.
-
-## How It Works
-
-1. **Configuration**: Select content type, provide prompts, choose writer/editor/evaluator agents with LLM configurations
-2. **Writing Phase**: Multiple writer agents generate initial drafts in parallel (or sequentially for local LLMs)
-3. **Editing Phase**: Each draft is reviewed by selected editors (up to 5 revision cycles until approved)
-4. **Evaluation Phase**: All approved outputs are scored by evaluator agents
-5. **Ranking**: Outputs are ranked by weighted evaluation scores
-
-## Key Features
-
-- **Personality + LLM Separation**: Same agent personality can use different LLMs for comparison
-- **Multiplicative Combinations**: Writers × Editors × LLMs = comprehensive content exploration
-- **Iterative Refinement**: Edit cycles continue until editor approves or max cycles reached
-- **Full Audit Trail**: Every draft, revision, and evaluation is stored for analysis
-- **Reconnection Support**: Resume viewing progress from database state
-
-## Custom UI
-
-This agent has a custom UI at `/agents/{org}/marketing-swarm` that provides:
-- Interactive configuration wizard
-- Real-time progress dashboard with agent cards
-- Side-by-side content comparison
-- Detailed audit trail viewer
-
-## SSE Progress Events
-
-The agent streams progress via SSE messages:
-- `queue_built`: Initial execution plan ready
-- `step_started`: Agent beginning work
-- `step_completed`: Agent finished with results
-- `edit_cycle_added`: New revision cycle needed
-- `phase_changed`: Major workflow phase transition
-- `error`: Something went wrong',
+    -- Context (JSONB with markdown content)
+    '{"markdown": "# Marketing Swarm Agent\n\nA sophisticated multi-agent system for generating high-quality marketing content through collaboration and competition.\n\n## How It Works\n\n1. **Configuration**: Select content type, provide prompts, choose writer/editor/evaluator agents with LLM configurations\n2. **Writing Phase**: Multiple writer agents generate initial drafts in parallel (or sequentially for local LLMs)\n3. **Editing Phase**: Each draft is reviewed by selected editors (up to 5 revision cycles until approved)\n4. **Evaluation Phase**: All approved outputs are scored by evaluator agents\n5. **Ranking**: Outputs are ranked by weighted evaluation scores\n\n## Key Features\n\n- **Personality + LLM Separation**: Same agent personality can use different LLMs for comparison\n- **Multiplicative Combinations**: Writers × Editors × LLMs = comprehensive content exploration\n- **Iterative Refinement**: Edit cycles continue until editor approves or max cycles reached\n- **Full Audit Trail**: Every draft, revision, and evaluation is stored for analysis\n- **Reconnection Support**: Resume viewing progress from database state\n\n## Custom UI\n\nThis agent has a custom UI at `/agents/{org}/marketing-swarm` that provides:\n- Interactive configuration wizard\n- Real-time progress dashboard with agent cards\n- Side-by-side content comparison\n- Detailed audit trail viewer\n\n## SSE Progress Events\n\nThe agent streams progress via SSE messages:\n- `queue_built`: Initial execution plan ready\n- `step_started`: Agent beginning work\n- `step_completed`: Agent finished with results\n- `edit_cycle_added`: New revision cycle needed\n- `phase_changed`: Major workflow phase transition\n- `error`: Something went wrong"}'::JSONB,
 
     -- Endpoint configuration (API agent calling LangGraph)
     '{
@@ -204,9 +167,6 @@ The agent streams progress via SSE messages:
         }
     }'::JSONB,
 
-    -- LLM config (null for API agents - uses internal LLM calls)
-    NULL,
-
     -- Metadata
     '{
         "provider": "langgraph",
@@ -223,7 +183,7 @@ The agent streams progress via SSE messages:
         }
     }'::JSONB
 )
-ON CONFLICT (slug) DO UPDATE SET
+ON CONFLICT (organization_slug, slug) DO UPDATE SET
     name = EXCLUDED.name,
     description = EXCLUDED.description,
     version = EXCLUDED.version,
@@ -234,7 +194,6 @@ ON CONFLICT (slug) DO UPDATE SET
     capabilities = EXCLUDED.capabilities,
     context = EXCLUDED.context,
     endpoint = EXCLUDED.endpoint,
-    llm_config = EXCLUDED.llm_config,
     metadata = EXCLUDED.metadata,
     updated_at = NOW();
 

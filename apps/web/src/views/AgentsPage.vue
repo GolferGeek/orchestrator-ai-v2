@@ -176,13 +176,17 @@ const handleConversationSelected = async (conversation: Record<string, unknown>)
 };
 const handleAgentSelected = async (agent: Record<string, unknown>) => {
   try {
+    // Always create a conversation first - this shows up in the sidebar under the agent
     const conversationId = await conversation.createConversation(agent);
 
-    // Refresh conversations list to show the new conversation
+    // Refresh conversations list to show the new conversation in sidebar
     await conversationsStore.fetchConversations(true);
 
     // Set flag in sessionStorage to indicate active conversation for admin users
     sessionStorage.setItem('activeConversation', 'true');
+
+    // All conversations (including custom UI agents) go through the tab system
+    // The ConversationView will detect hasCustomUI and render the appropriate custom component
     router.push({ path: '/app/home', query: { forceHome: 'true', conversationId } });
   } catch (error) {
     console.error('Failed to handle agent selection:', error);
