@@ -16,11 +16,19 @@ export interface AgentConfig {
   displayName?: string;
 }
 
+export interface ExecutionConfig {
+  maxLocalConcurrent: number;
+  maxCloudConcurrent: number;
+  maxEditCycles: number;
+  topNForFinalRanking: number;
+}
+
 export interface SwarmConfig {
   writers: AgentConfig[];
   editors: AgentConfig[];
   evaluators: AgentConfig[];
   maxEditCycles: number;
+  execution?: ExecutionConfig; // Optional for backward compatibility, but should be provided
 }
 
 // =============================================================================
@@ -174,7 +182,30 @@ export interface SwarmEvaluation {
 // =============================================================================
 
 export type SwarmTaskStatus = 'pending' | 'running' | 'completed' | 'failed';
-export type SwarmPhase = 'initializing' | 'writing' | 'editing' | 'evaluating' | 'ranking' | 'completed' | 'failed';
+
+// Phase 2: More granular phases for dual-track execution
+export type SwarmPhase =
+  | 'initializing'
+  | 'building_queue'
+  | 'writing'
+  | 'editing'
+  | 'evaluating_initial'
+  | 'selecting_finalists'
+  | 'evaluating_final'
+  | 'ranking'
+  | 'completed'
+  | 'failed';
+
+// Phase 2: Output status from database-driven state machine
+export type OutputStatusPhase2 =
+  | 'pending_write'
+  | 'writing'
+  | 'pending_edit'
+  | 'editing'
+  | 'pending_rewrite'
+  | 'rewriting'
+  | 'approved'
+  | 'failed';
 
 export interface SwarmTask {
   taskId: string;
@@ -206,6 +237,87 @@ export interface RankedResult {
   averageScore: number;
   weightedScore?: number;
   rank?: number;
+}
+
+// =============================================================================
+// Phase 2: Enhanced Types for Dual-Track Execution
+// =============================================================================
+
+/**
+ * Agent info as returned in SSE messages
+ */
+export interface SSEAgentInfo {
+  slug: string;
+  name?: string;
+  llmProvider?: string;
+  llmModel?: string;
+  isLocal?: boolean;
+}
+
+/**
+ * Output record as returned from dual-track processor SSE
+ */
+export interface SwarmOutputPhase2 {
+  id: string;
+  status: OutputStatusPhase2;
+  writerAgent: SSEAgentInfo;
+  editorAgent: SSEAgentInfo | null;
+  content?: string;
+  editCycle: number;
+  editorFeedback?: string;
+  initialAvgScore?: number;
+  initialRank?: number;
+  isFinalist?: boolean;
+  finalTotalScore?: number;
+  finalRank?: number;
+  llmMetadata?: {
+    tokensUsed?: number;
+    latencyMs?: number;
+  };
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/**
+ * Evaluation record as returned from dual-track processor SSE
+ */
+export interface SwarmEvaluationPhase2 {
+  id: string;
+  outputId: string;
+  stage: 'initial' | 'final';
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  evaluatorAgent: SSEAgentInfo;
+  score?: number;
+  rank?: number;
+  weightedScore?: number;
+  reasoning?: string;
+  llmMetadata?: {
+    tokensUsed?: number;
+    latencyMs?: number;
+  };
+}
+
+/**
+ * Ranking entry from SSE ranking_updated event
+ */
+export interface RankingEntry {
+  outputId: string;
+  rank: number;
+  totalScore: number;
+  avgScore?: number;
+  writerAgentSlug: string;
+  editorAgentSlug?: string;
+}
+
+/**
+ * Finalist info from SSE finalists_selected event
+ */
+export interface FinalistInfo {
+  id: string;
+  rank: number;
+  avgScore: number;
+  writerAgentSlug: string;
+  editorAgentSlug?: string;
 }
 
 // =============================================================================
@@ -255,7 +367,113 @@ export interface SwarmStateResponse {
 }
 
 // =============================================================================
-// SSE Message Types
+// SSE Message Types (Phase 2: Fat Messages from Observability Stream)
+// =============================================================================
+
+/**
+ * Phase 2 SSE message types from dual-track processor
+ * These are "fat messages" containing full data, no lookups needed
+ */
+export type SSEMessageTypePhase2 =
+  | 'phase_changed'
+  | 'queue_built'
+  | 'output_updated'
+  | 'evaluation_updated'
+  | 'finalists_selected'
+  | 'ranking_updated';
+
+/**
+ * Base observability event structure from backend
+ */
+export interface ObservabilityEvent {
+  hook_event_type: string;
+  context: {
+    taskId?: string;
+    conversationId?: string;
+    userId?: string;
+    agentSlug?: string;
+  };
+  message?: string;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Phase changed event metadata
+ */
+export interface PhaseChangedMetadata {
+  type: 'phase_changed';
+  phase: SwarmPhase;
+}
+
+/**
+ * Queue built event metadata - lists all output combinations
+ */
+export interface QueueBuiltMetadata {
+  type: 'queue_built';
+  taskId: string;
+  totalOutputs: number;
+  writers: number;
+  editors: number;
+  evaluators: number;
+  outputs: {
+    id: string;
+    status: string;
+    writerAgentSlug: string;
+    editorAgentSlug?: string;
+  }[];
+}
+
+/**
+ * Output updated event metadata - contains full output data
+ */
+export interface OutputUpdatedMetadata {
+  type: 'output_updated';
+  taskId: string;
+  output: SwarmOutputPhase2;
+}
+
+/**
+ * Evaluation updated event metadata - contains full evaluation data
+ */
+export interface EvaluationUpdatedMetadata {
+  type: 'evaluation_updated';
+  taskId: string;
+  evaluation: SwarmEvaluationPhase2;
+}
+
+/**
+ * Finalists selected event metadata
+ */
+export interface FinalistsSelectedMetadata {
+  type: 'finalists_selected';
+  taskId: string;
+  count: number;
+  finalists: FinalistInfo[];
+}
+
+/**
+ * Ranking updated event metadata
+ */
+export interface RankingUpdatedMetadata {
+  type: 'ranking_updated';
+  taskId: string;
+  stage: 'initial' | 'final';
+  rankings: RankingEntry[];
+}
+
+/**
+ * Union type for all Phase 2 SSE metadata payloads
+ */
+export type SSEMetadataPhase2 =
+  | PhaseChangedMetadata
+  | QueueBuiltMetadata
+  | OutputUpdatedMetadata
+  | EvaluationUpdatedMetadata
+  | FinalistsSelectedMetadata
+  | RankingUpdatedMetadata;
+
+// =============================================================================
+// Legacy SSE Types (for backward compatibility)
 // =============================================================================
 
 export type SSEMessageType =

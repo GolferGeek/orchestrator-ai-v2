@@ -16,6 +16,7 @@ import { useMarketingSwarmStore } from '@/stores/marketingSwarmStore';
 import { a2aOrchestrator } from './agent2agent/orchestrator/a2a-orchestrator';
 import agent2AgentConversationsService from './agent2AgentConversationsService';
 import { useExecutionContextStore } from '@/stores/executionContextStore';
+import { useConversationsStore } from '@/stores/conversationsStore';
 import type {
   MarketingContentType,
   MarketingAgent,
@@ -27,12 +28,26 @@ import type {
   SwarmStateResponse,
   PromptData,
   SwarmConfig,
+  ObservabilityEvent,
+  PhaseChangedMetadata,
+  QueueBuiltMetadata,
+  OutputUpdatedMetadata,
+  EvaluationUpdatedMetadata,
+  FinalistsSelectedMetadata,
+  RankingUpdatedMetadata,
+  SSEMetadataPhase2,
 } from '@/types/marketing-swarm';
+import { SSEClient } from './agent2agent/sse/sseClient';
 
 // API Base URL for LangGraph status/state endpoints (different port from main API)
 const LANGGRAPH_BASE_URL = import.meta.env.VITE_LANGGRAPH_BASE_URL || 'http://localhost:6200';
 
+// API Base URL for main API (observability stream)
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:6100';
+
 class MarketingSwarmService {
+  private sseClient: SSEClient | null = null;
+  private sseCleanup: (() => void)[] = [];
   /**
    * Fetch all configuration data in a single request
    * Uses the /api/marketing/config endpoint which returns all data efficiently
@@ -244,13 +259,27 @@ class MarketingSwarmService {
       // 2. Backend creates task record with conversationId/taskId
       // 3. Backend routes to API runner which calls LangGraph
       // 4. LLM usage is properly tracked with valid conversationId
-      const result = await a2aOrchestrator.execute('converse.send', {
+      // Note: Marketing Swarm agent supports 'build' mode, not 'converse' mode
+      // (see seed file: execution_capabilities.can_build=true, can_converse=false)
+      
+      // Ensure execution config is present (required by backend)
+      const configWithExecution = {
+        ...config,
+        execution: config.execution || {
+          maxLocalConcurrent: 1,
+          maxCloudConcurrent: 5,
+          maxEditCycles: config.maxEditCycles || 2,
+          topNForFinalRanking: 1,
+        },
+      };
+      
+      const result = await a2aOrchestrator.execute('build.create', {
         userMessage: JSON.stringify({
           type: 'marketing-swarm-request',
           contentTypeSlug,
           contentTypeContext,
           promptData,
-          config,
+          config: configWithExecution,
         }),
       });
 
@@ -262,16 +291,57 @@ class MarketingSwarmService {
       }
 
       // Extract swarm response from A2A result
-      // The response payload contains the Marketing Swarm results
+      // For BUILD mode, the response is a deliverable with content as JSON string
       const taskResponse: SwarmTaskResponse = {
         taskId,
-        status: result.type === 'message' ? 'completed' : 'running',
+        status: 'running',
         outputs: [],
         evaluations: [],
         rankedResults: [],
       };
 
-      // Parse the response message if it's JSON
+      // Handle deliverable response (BUILD mode returns deliverable)
+      if (result.type === 'deliverable' && result.version?.content) {
+        try {
+          // The content is a JSON string containing the LangGraph response
+          const contentStr = typeof result.version.content === 'string'
+            ? result.version.content
+            : JSON.stringify(result.version.content);
+          
+          const parsed = JSON.parse(contentStr);
+          
+          // The LangGraph response structure: { statusCode: 200, data: { success: true/false, data: {...} } }
+          const langGraphData = parsed.data?.data || parsed.data || parsed;
+          
+          // Check for errors
+          if (langGraphData.success === false) {
+            const errorMsg = langGraphData.error || langGraphData.message || 'Marketing Swarm execution failed';
+            throw new Error(errorMsg);
+          }
+          
+          // Extract Marketing Swarm results
+          if (langGraphData.outputs) taskResponse.outputs = langGraphData.outputs;
+          if (langGraphData.evaluations) taskResponse.evaluations = langGraphData.evaluations;
+          if (langGraphData.rankedResults) taskResponse.rankedResults = langGraphData.rankedResults;
+          
+          // Update status based on LangGraph response
+          if (langGraphData.status === 'completed') {
+            taskResponse.status = 'completed';
+          } else if (langGraphData.status === 'failed') {
+            throw new Error(langGraphData.error || 'Marketing Swarm execution failed');
+          }
+        } catch (parseError) {
+          console.error('[MarketingSwarm] Failed to parse deliverable content:', parseError);
+          // If it's already an Error, re-throw it
+          if (parseError instanceof Error) {
+            throw parseError;
+          }
+          // Otherwise, try to extract error from content
+          throw new Error('Failed to parse Marketing Swarm response');
+        }
+      }
+
+      // Handle message response (fallback for other response types)
       if (result.type === 'message' && result.message) {
         try {
           const parsed = typeof result.message === 'string'
@@ -281,6 +351,7 @@ class MarketingSwarmService {
           if (parsed.outputs) taskResponse.outputs = parsed.outputs;
           if (parsed.evaluations) taskResponse.evaluations = parsed.evaluations;
           if (parsed.rankedResults) taskResponse.rankedResults = parsed.rankedResults;
+          if (parsed.status === 'completed') taskResponse.status = 'completed';
         } catch {
           // Message is not JSON, use as-is
           console.log('[MarketingSwarm] Response message is not JSON:', result.message);
@@ -298,19 +369,49 @@ class MarketingSwarmService {
         store.setRankedResults(taskResponse.rankedResults);
       }
 
-      // Switch to results view if completed
+      // Switch to results view if completed (only if already completed synchronously)
+      // Otherwise, SSE events will handle status updates
       if (taskResponse.status === 'completed') {
         store.setUIView('results');
+        store.setExecuting(false);
+        
+        // Add completion message to conversation so it shows up when user clicks on conversation later
+        if (result.type === 'deliverable' && result.deliverable?.id) {
+          const conversationsStore = useConversationsStore();
+          const deliverableId = result.deliverable.id;
+          const outputCount = taskResponse.outputs?.length || 0;
+          const evalCount = taskResponse.evaluations?.length || 0;
+          
+          conversationsStore.addMessage(ctx.conversationId, {
+            conversationId: ctx.conversationId,
+            role: 'assistant',
+            content: `Marketing Swarm execution completed! Generated ${outputCount} output${outputCount !== 1 ? 's' : ''} with ${evalCount} evaluation${evalCount !== 1 ? 's' : ''}.`,
+            timestamp: new Date().toISOString(),
+            metadata: {
+              marketingSwarmCompleted: true,
+              deliverableId,
+              taskId,
+              outputCount,
+              evaluationCount: evalCount,
+            },
+          });
+          
+          console.log('[MarketingSwarm] Added completion message to conversation:', ctx.conversationId);
+        }
+      } else {
+        // Execution is running asynchronously - keep executing state true
+        // SSE events will update status and set executing to false when done
+        console.log('[MarketingSwarm] Execution started, waiting for SSE updates...');
       }
 
       return taskResponse;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Swarm execution failed';
       store.setError(message);
-      throw error;
-    } finally {
       store.setExecuting(false);
+      throw error;
     }
+    // Note: Don't set executing(false) in finally block - let SSE events control execution state
   }
 
   /**
@@ -426,6 +527,230 @@ class MarketingSwarmService {
     } catch (error) {
       console.error('Failed to fetch user swarm tasks:', error);
       return [];
+    }
+  }
+
+  // ============================================================================
+  // Phase 2: SSE Streaming for Real-Time Updates
+  // ============================================================================
+
+  /**
+   * Connect to the observability SSE stream and filter for marketing swarm events.
+   * Uses conversationId to filter events for the current task.
+   */
+  connectToSSEStream(conversationId: string): void {
+    const store = useMarketingSwarmStore();
+
+    // Disconnect existing connection if any
+    this.disconnectSSEStream();
+
+    // Get auth token for SSE connection
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      console.error('[MarketingSwarm] No auth token available for SSE connection');
+      store.setError('Authentication required for real-time updates');
+      return;
+    }
+
+    // Create new SSE client
+    this.sseClient = new SSEClient({
+      maxReconnectAttempts: 10,
+      reconnectDelay: 2000,
+      debug: true,
+    });
+
+    // Build SSE URL with conversationId filter and token
+    // EventSource doesn't support custom headers, so auth must be via query param
+    const sseUrl = `${API_BASE_URL}/observability/stream?conversationId=${conversationId}&token=${encodeURIComponent(token)}`;
+
+    console.log('[MarketingSwarm] Connecting to SSE stream:', sseUrl.replace(token, '***'));
+
+    // Listen for state changes
+    const stateCleanup = this.sseClient.onStateChange((sseState) => {
+      console.log('[MarketingSwarm] SSE state changed:', sseState);
+      store.setSSEConnected(sseState === 'connected');
+      
+      // Log errors
+      if (sseState === 'error') {
+        console.error('[MarketingSwarm] SSE connection error - check authentication and network');
+      }
+    });
+    this.sseCleanup.push(stateCleanup);
+
+    // Listen for errors
+    const errorCleanup = this.sseClient.onError((error) => {
+      console.error('[MarketingSwarm] SSE error:', error);
+      store.setError('Failed to connect to real-time updates stream');
+    });
+    this.sseCleanup.push(errorCleanup);
+
+    // Listen for data events (observability events come as 'message' events)
+    const messageCleanup = this.sseClient.addEventListener('message', (event) => {
+      try {
+        const data = JSON.parse(event.data) as ObservabilityEvent;
+        
+        // Skip connection confirmation events
+        if (data.event_type === 'connected') {
+          console.log('[MarketingSwarm] SSE connection confirmed');
+          return;
+        }
+        
+        this.handleObservabilityEvent(data);
+      } catch (err) {
+        console.error('[MarketingSwarm] Failed to parse SSE event:', err, event.data);
+      }
+    });
+    this.sseCleanup.push(messageCleanup);
+
+    // Connect to SSE stream
+    this.sseClient.connect(sseUrl);
+    // Don't set connected immediately - wait for onopen event
+  }
+
+  /**
+   * Disconnect from the SSE stream
+   */
+  disconnectSSEStream(): void {
+    const store = useMarketingSwarmStore();
+
+    // Clean up event listeners
+    this.sseCleanup.forEach((cleanup) => cleanup());
+    this.sseCleanup = [];
+
+    // Disconnect SSE client
+    if (this.sseClient) {
+      this.sseClient.disconnect();
+      this.sseClient = null;
+    }
+
+    store.setSSEConnected(false);
+    console.log('[MarketingSwarm] Disconnected from SSE stream');
+  }
+
+  /**
+   * Handle incoming observability events and update store
+   */
+  private handleObservabilityEvent(event: ObservabilityEvent): void {
+    const metadata = event.metadata as SSEMetadataPhase2 | undefined;
+
+    if (!metadata || !metadata.type) {
+      // Not a marketing swarm event or missing type
+      return;
+    }
+
+    console.log('[MarketingSwarm] Processing SSE event:', metadata.type);
+
+    switch (metadata.type) {
+      case 'phase_changed':
+        this.handlePhaseChanged(metadata as PhaseChangedMetadata);
+        break;
+
+      case 'queue_built':
+        this.handleQueueBuilt(metadata as QueueBuiltMetadata);
+        break;
+
+      case 'output_updated':
+        this.handleOutputUpdated(metadata as OutputUpdatedMetadata);
+        break;
+
+      case 'evaluation_updated':
+        this.handleEvaluationUpdated(metadata as EvaluationUpdatedMetadata);
+        break;
+
+      case 'finalists_selected':
+        this.handleFinalistsSelected(metadata as FinalistsSelectedMetadata);
+        break;
+
+      case 'ranking_updated':
+        this.handleRankingUpdated(metadata as RankingUpdatedMetadata);
+        break;
+
+      default:
+        console.log('[MarketingSwarm] Unknown event type:', (metadata as Record<string, unknown>).type);
+    }
+  }
+
+  private handlePhaseChanged(metadata: PhaseChangedMetadata): void {
+    const store = useMarketingSwarmStore();
+    console.log('[MarketingSwarm] Phase changed to:', metadata.phase);
+    store.setPhase(metadata.phase);
+
+    // Auto-switch to results view when completed
+    if (metadata.phase === 'completed') {
+      store.setExecuting(false);
+      store.setUIView('results');
+      
+      // Add completion message to conversation so it shows up when user clicks on conversation later
+      const executionContextStore = useExecutionContextStore();
+      if (executionContextStore.isInitialized) {
+        const ctx = executionContextStore.current;
+        const conversationsStore = useConversationsStore();
+        const outputCount = store.outputsPhase2?.length || store.outputs?.length || 0;
+        const evalCount = store.evaluationsPhase2?.length || store.evaluations?.length || 0;
+        
+        conversationsStore.addMessage(ctx.conversationId, {
+          conversationId: ctx.conversationId,
+          role: 'assistant',
+          content: `Marketing Swarm execution completed! Generated ${outputCount} output${outputCount !== 1 ? 's' : ''} with ${evalCount} evaluation${evalCount !== 1 ? 's' : ''}.`,
+          timestamp: new Date().toISOString(),
+          metadata: {
+            marketingSwarmCompleted: true,
+            taskId: ctx.taskId,
+            outputCount,
+            evaluationCount: evalCount,
+          },
+        });
+        
+        console.log('[MarketingSwarm] Added completion message to conversation via SSE:', ctx.conversationId);
+      }
+    } else if (metadata.phase === 'failed') {
+      store.setExecuting(false);
+    }
+  }
+
+  private handleQueueBuilt(metadata: QueueBuiltMetadata): void {
+    const store = useMarketingSwarmStore();
+    console.log('[MarketingSwarm] Queue built:', metadata.totalOutputs, 'outputs');
+    store.setTotalOutputsCount(metadata.totalOutputs);
+
+    // Initialize phase 2 outputs from queue
+    metadata.outputs.forEach((output) => {
+      store.upsertPhase2Output({
+        id: output.id,
+        status: output.status as 'pending_write',
+        writerAgent: { slug: output.writerAgentSlug },
+        editorAgent: output.editorAgentSlug ? { slug: output.editorAgentSlug } : null,
+        editCycle: 0,
+      });
+    });
+  }
+
+  private handleOutputUpdated(metadata: OutputUpdatedMetadata): void {
+    const store = useMarketingSwarmStore();
+    console.log('[MarketingSwarm] Output updated:', metadata.output.id, metadata.output.status);
+    store.upsertPhase2Output(metadata.output);
+  }
+
+  private handleEvaluationUpdated(metadata: EvaluationUpdatedMetadata): void {
+    const store = useMarketingSwarmStore();
+    console.log('[MarketingSwarm] Evaluation updated:', metadata.evaluation.id, metadata.evaluation.status);
+    store.upsertPhase2Evaluation(metadata.evaluation);
+  }
+
+  private handleFinalistsSelected(metadata: FinalistsSelectedMetadata): void {
+    const store = useMarketingSwarmStore();
+    console.log('[MarketingSwarm] Finalists selected:', metadata.count);
+    store.setFinalists(metadata.finalists);
+  }
+
+  private handleRankingUpdated(metadata: RankingUpdatedMetadata): void {
+    const store = useMarketingSwarmStore();
+    console.log('[MarketingSwarm] Rankings updated:', metadata.stage);
+
+    if (metadata.stage === 'initial') {
+      store.setInitialRankings(metadata.rankings);
+    } else {
+      store.setFinalRankings(metadata.rankings);
     }
   }
 }

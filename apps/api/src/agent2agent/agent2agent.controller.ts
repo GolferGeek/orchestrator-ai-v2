@@ -1238,6 +1238,14 @@ export class Agent2AgentController {
       ? (typedPayload.params ?? {})
       : typedPayload;
     const candidate = { ...(candidateSource as Record<string, unknown>) };
+    
+    // DEBUG: Log userMessage extraction for Marketing Swarm debugging
+    if (isJsonRpc && (candidate as Record<string, unknown>).userMessage) {
+      const userMsg = (candidate as Record<string, unknown>).userMessage;
+      this.logger.log(
+        `[MarketingSwarm-DEBUG] Found userMessage in candidate: type=${typeof userMsg}, length=${typeof userMsg === 'string' ? userMsg.length : 'N/A'}, preview=${typeof userMsg === 'string' ? userMsg.substring(0, 100) : 'N/A'}`,
+      );
+    }
 
     // For JSON-RPC, ensure all params are preserved in payload (including taskId, decision, etc.)
     // This prevents whitelist validation from stripping non-standard DTO fields
@@ -1263,6 +1271,16 @@ export class Agent2AgentController {
     }
 
     const dto = plainToInstance(TaskRequestDto, candidate);
+    
+    // DEBUG: Log userMessage after DTO transformation for Marketing Swarm debugging
+    if (dto.userMessage || ((dto.payload as Record<string, unknown>)?.userMessage)) {
+      const topLevel = dto.userMessage;
+      const inPayload = ((dto.payload as Record<string, unknown>)?.userMessage) as string | undefined;
+      this.logger.log(
+        `[MarketingSwarm-DEBUG] After DTO: userMessage=${!!topLevel}, payload.userMessage=${!!inPayload}, topLevelLength=${topLevel?.length || 0}, payloadLength=${inPayload?.length || 0}`,
+      );
+    }
+    
     const errors = await validate(dto, {
       whitelist: true,
       forbidUnknownValues: false,

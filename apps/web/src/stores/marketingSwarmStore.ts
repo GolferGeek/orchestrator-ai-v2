@@ -19,6 +19,10 @@ import type {
   SwarmPhase,
   MarketingSwarmUIState,
   AgentCardState,
+  SwarmOutputPhase2,
+  SwarmEvaluationPhase2,
+  RankingEntry,
+  FinalistInfo,
 } from '@/types/marketing-swarm';
 
 interface MarketingSwarmState {
@@ -34,6 +38,19 @@ interface MarketingSwarmState {
   outputs: SwarmOutput[];
   evaluations: SwarmEvaluation[];
   rankedResults: RankedResult[];
+
+  // Phase 2: Enhanced state for dual-track execution
+  phase2Outputs: Map<string, SwarmOutputPhase2>;
+  phase2Evaluations: Map<string, SwarmEvaluationPhase2>;
+  initialRankings: RankingEntry[];
+  finalRankings: RankingEntry[];
+  finalists: FinalistInfo[];
+  currentPhaseOverride: SwarmPhase | null;
+  sseConnected: boolean;
+  totalOutputsCount: number;
+  completedOutputsCount: number;
+  completedInitialEvalsCount: number;
+  completedFinalEvalsCount: number;
 
   // UI state
   uiState: MarketingSwarmUIState;
@@ -60,6 +77,18 @@ export const useMarketingSwarmStore = defineStore('marketingSwarm', () => {
     outputs: [],
     evaluations: [],
     rankedResults: [],
+    // Phase 2 state
+    phase2Outputs: new Map(),
+    phase2Evaluations: new Map(),
+    initialRankings: [],
+    finalRankings: [],
+    finalists: [],
+    currentPhaseOverride: null,
+    sseConnected: false,
+    totalOutputsCount: 0,
+    completedOutputsCount: 0,
+    completedInitialEvalsCount: 0,
+    completedFinalEvalsCount: 0,
     uiState: {
       currentView: 'config',
       showDetailedEvaluations: false,
@@ -137,8 +166,23 @@ export const useMarketingSwarmStore = defineStore('marketingSwarm', () => {
     };
   });
 
-  // Current phase based on queue state
+  // Phase 2: Computed properties
+  const phase2Outputs = computed(() => Array.from(state.value.phase2Outputs.values()));
+  const phase2Evaluations = computed(() => Array.from(state.value.phase2Evaluations.values()));
+  const initialRankings = computed(() => state.value.initialRankings);
+  const finalRankings = computed(() => state.value.finalRankings);
+  const finalists = computed(() => state.value.finalists);
+  const sseConnected = computed(() => state.value.sseConnected);
+  const totalOutputsCount = computed(() => state.value.totalOutputsCount);
+  const completedOutputsCount = computed(() => state.value.completedOutputsCount);
+
+  // Current phase based on queue state or Phase 2 override
   const currentPhase = computed<SwarmPhase>(() => {
+    // Phase 2: Use phase override from SSE if available
+    if (state.value.currentPhaseOverride) {
+      return state.value.currentPhaseOverride;
+    }
+
     if (!state.value.currentTask) return 'initializing';
     if (state.value.currentTask.status === 'failed') return 'failed';
     if (state.value.currentTask.status === 'completed') return 'completed';
@@ -153,7 +197,7 @@ export const useMarketingSwarmStore = defineStore('marketingSwarm', () => {
         case 'edit':
           return 'editing';
         case 'evaluate':
-          return 'evaluating';
+          return 'evaluating_initial';
       }
     }
 
@@ -205,6 +249,23 @@ export const useMarketingSwarmStore = defineStore('marketingSwarm', () => {
 
   function getAgentCardState(agentSlug: string, llmConfigId: string): AgentCardState | undefined {
     return state.value.agentCardStates.get(`${agentSlug}:${llmConfigId}`);
+  }
+
+  // Phase 2: Get output by ID from phase2Outputs map
+  function getPhase2OutputById(id: string): SwarmOutputPhase2 | undefined {
+    return state.value.phase2Outputs.get(id);
+  }
+
+  // Phase 2: Get evaluations for an output
+  function getPhase2EvaluationsForOutput(outputId: string): SwarmEvaluationPhase2[] {
+    return Array.from(state.value.phase2Evaluations.values())
+      .filter((e) => e.outputId === outputId);
+  }
+
+  // Phase 2: Get the winning output (final_rank === 1)
+  function getWinnerOutput(): SwarmOutputPhase2 | undefined {
+    return Array.from(state.value.phase2Outputs.values())
+      .find((o) => o.finalRank === 1);
   }
 
   // ============================================================================
@@ -328,6 +389,52 @@ export const useMarketingSwarmStore = defineStore('marketingSwarm', () => {
     }
   }
 
+  // ============================================================================
+  // PHASE 2: SSE/Dual-Track Mutations
+  // ============================================================================
+
+  function setPhase(phase: SwarmPhase) {
+    state.value.currentPhaseOverride = phase;
+  }
+
+  function setSSEConnected(connected: boolean) {
+    state.value.sseConnected = connected;
+  }
+
+  function setTotalOutputsCount(count: number) {
+    state.value.totalOutputsCount = count;
+  }
+
+  function upsertPhase2Output(output: SwarmOutputPhase2) {
+    state.value.phase2Outputs.set(output.id, output);
+    // Update completed count
+    const approvedCount = Array.from(state.value.phase2Outputs.values())
+      .filter((o) => o.status === 'approved' || o.status === 'failed').length;
+    state.value.completedOutputsCount = approvedCount;
+  }
+
+  function upsertPhase2Evaluation(evaluation: SwarmEvaluationPhase2) {
+    state.value.phase2Evaluations.set(evaluation.id, evaluation);
+    // Update completed counts by stage
+    const allEvals = Array.from(state.value.phase2Evaluations.values());
+    state.value.completedInitialEvalsCount = allEvals
+      .filter((e) => e.stage === 'initial' && e.status === 'completed').length;
+    state.value.completedFinalEvalsCount = allEvals
+      .filter((e) => e.stage === 'final' && e.status === 'completed').length;
+  }
+
+  function setInitialRankings(rankings: RankingEntry[]) {
+    state.value.initialRankings = rankings;
+  }
+
+  function setFinalRankings(rankings: RankingEntry[]) {
+    state.value.finalRankings = rankings;
+  }
+
+  function setFinalists(finalists: FinalistInfo[]) {
+    state.value.finalists = finalists;
+  }
+
   // Reset state
   function resetTaskState() {
     state.value.currentTaskId = null;
@@ -336,6 +443,19 @@ export const useMarketingSwarmStore = defineStore('marketingSwarm', () => {
     state.value.outputs = [];
     state.value.evaluations = [];
     state.value.rankedResults = [];
+    // Phase 2 reset
+    state.value.phase2Outputs.clear();
+    state.value.phase2Evaluations.clear();
+    state.value.initialRankings = [];
+    state.value.finalRankings = [];
+    state.value.finalists = [];
+    state.value.currentPhaseOverride = null;
+    state.value.sseConnected = false;
+    state.value.totalOutputsCount = 0;
+    state.value.completedOutputsCount = 0;
+    state.value.completedInitialEvalsCount = 0;
+    state.value.completedFinalEvalsCount = 0;
+    // UI reset
     state.value.agentCardStates.clear();
     state.value.uiState = {
       currentView: 'config',
@@ -381,6 +501,16 @@ export const useMarketingSwarmStore = defineStore('marketingSwarm', () => {
     currentPhase,
     bestOutput,
 
+    // Phase 2: Derived state
+    phase2Outputs,
+    phase2Evaluations,
+    initialRankings,
+    finalRankings,
+    finalists,
+    sseConnected,
+    totalOutputsCount,
+    completedOutputsCount,
+
     // Getters (functions)
     getAgentBySlug,
     getLLMConfigsForAgent,
@@ -388,6 +518,11 @@ export const useMarketingSwarmStore = defineStore('marketingSwarm', () => {
     getEvaluationsForOutput,
     getAverageScoreForOutput,
     getAgentCardState,
+
+    // Phase 2: Getters
+    getPhase2OutputById,
+    getPhase2EvaluationsForOutput,
+    getWinnerOutput,
 
     // Mutations
     setLoading,
@@ -414,5 +549,15 @@ export const useMarketingSwarmStore = defineStore('marketingSwarm', () => {
     updateAgentCardStatus,
     resetTaskState,
     clearAll,
+
+    // Phase 2: Mutations
+    setPhase,
+    setSSEConnected,
+    setTotalOutputsCount,
+    upsertPhase2Output,
+    upsertPhase2Evaluation,
+    setInitialRankings,
+    setFinalRankings,
+    setFinalists,
   };
 });

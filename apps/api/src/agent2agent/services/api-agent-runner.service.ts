@@ -15,6 +15,9 @@ import { Agent2AgentConversationsService } from './agent-conversations.service';
 import { StreamingService } from './streaming.service';
 import { TasksService } from '../tasks/tasks.service';
 import { AgentConversationsService } from '../conversations/agent-conversations.service';
+import { SupabaseService } from '../../supabase/supabase.service';
+import { ConfigService } from '@nestjs/config';
+import { createClient } from '@supabase/supabase-js';
 import * as HitlHandlers from './base-agent-runner/hitl.handlers';
 import {
   NIL_UUID,
@@ -177,6 +180,8 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
     @Inject(forwardRef(() => DeliverableVersionsService))
     private readonly versionsService: DeliverableVersionsService,
     private readonly agentConversationsService: AgentConversationsService,
+    private readonly supabaseService: SupabaseService,
+    private readonly configService: ConfigService,
   ) {
     super(
       llmService,
@@ -1410,6 +1415,149 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         queryParams = this.interpolateObject(
           this.toPlainRecord(queryParamsRecord),
           enrichedRequest,
+        );
+      }
+
+      // 4.5. Special handling for Marketing Swarm: Create task in marketing.swarm_tasks before calling LangGraph
+      // The LangGraph endpoint expects the task to already exist in marketing.swarm_tasks table
+      this.logger.log(
+        `[MarketingSwarm] Checking if task creation needed: slug=${definition.slug}, taskId=${taskId}, hasUserMessage=${!!userMessage}`,
+      );
+      // DEBUG: Log request structure to understand what we're receiving
+      this.logger.log(
+        `[MarketingSwarm] Request structure: userMessage=${!!request.userMessage}, payload.userMessage=${!!((request.payload as Record<string, unknown>)?.userMessage)}, payload.prompt=${!!((request.payload as Record<string, unknown>)?.prompt)}, extractedUserMessage=${!!userMessage}, userMessageLength=${userMessage?.length || 0}`,
+      );
+      if (definition.slug === 'marketing-swarm' && taskId && userMessage) {
+        this.logger.log(
+          `[MarketingSwarm] Task creation check passed: taskId=${taskId}, userMessage length=${userMessage.length}`,
+        );
+        try {
+          // Parse the userMessage JSON to extract marketing swarm request data
+          let swarmRequestData: {
+            type?: string;
+            contentTypeSlug?: string;
+            contentTypeContext?: string;
+            promptData?: Record<string, unknown>;
+            config?: {
+              writers?: Array<{ agentSlug: string; llmConfigId: string }>;
+              editors?: Array<{ agentSlug: string; llmConfigId: string }>;
+              evaluators?: Array<{ agentSlug: string; llmConfigId: string }>;
+              execution?: Record<string, unknown>;
+            };
+          } | null = null;
+
+          try {
+            swarmRequestData = JSON.parse(userMessage);
+            this.logger.log(
+              `[MarketingSwarm] Parsed userMessage: type=${swarmRequestData?.type}, hasContentTypeSlug=${!!swarmRequestData?.contentTypeSlug}, hasPromptData=${!!swarmRequestData?.promptData}, hasConfig=${!!swarmRequestData?.config}`,
+            );
+          } catch (parseError) {
+            this.logger.warn(
+              `[MarketingSwarm] Failed to parse userMessage as JSON: ${parseError instanceof Error ? parseError.message : String(parseError)}`,
+            );
+            // userMessage is not JSON, try to extract from body if it's already parsed
+            if (body && typeof body === 'object') {
+              const bodyObj = body as Record<string, unknown>;
+              if (bodyObj.userMessage && typeof bodyObj.userMessage === 'string') {
+                try {
+                  swarmRequestData = JSON.parse(bodyObj.userMessage);
+                  this.logger.log(
+                    `[MarketingSwarm] Parsed userMessage from body: type=${swarmRequestData?.type}`,
+                  );
+                } catch {
+                  this.logger.warn(
+                    `[MarketingSwarm] Failed to parse userMessage from body`,
+                  );
+                  // Ignore parse errors
+                }
+              }
+            }
+          }
+
+          // Only create task if we have valid swarm request data
+          if (
+            swarmRequestData &&
+            swarmRequestData.type === 'marketing-swarm-request' &&
+            swarmRequestData.contentTypeSlug &&
+            swarmRequestData.promptData &&
+            swarmRequestData.config
+          ) {
+            this.logger.log(
+              `[MarketingSwarm] Valid swarm request data found, proceeding with task creation`,
+            );
+            this.logger.log(
+              `Creating marketing swarm task in database: taskId=${taskId}`,
+            );
+
+            // Create a Supabase client with marketing schema configured
+            // LangGraph uses db: { schema: 'marketing' }, so we need to match that
+            const supabaseUrl =
+              this.configService.get<string>('supabase.url') ||
+              this.configService.get<string>('SUPABASE_URL') ||
+              'http://127.0.0.1:6010';
+            const supabaseKey =
+              this.configService.get<string>('supabase.serviceKey') ||
+              this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY') ||
+              '';
+            const marketingSupabase = createClient(supabaseUrl, supabaseKey, {
+              auth: { persistSession: false },
+              db: { schema: 'marketing' },
+            });
+
+            // Check if task already exists (idempotency)
+            const { data: existingTask } = await marketingSupabase
+              .from('swarm_tasks')
+              .select('task_id')
+              .eq('task_id', taskId)
+              .single();
+
+            if (!existingTask) {
+              // Create the task in marketing.swarm_tasks
+              const { error: insertError } = await marketingSupabase
+                .from('swarm_tasks')
+                .insert({
+                  task_id: taskId,
+                  organization_slug: organizationSlug,
+                  user_id: userId,
+                  conversation_id: conversationId,
+                  content_type_slug: swarmRequestData.contentTypeSlug,
+                  prompt_data: swarmRequestData.promptData,
+                  config: swarmRequestData.config,
+                  status: 'pending',
+                });
+
+              if (insertError) {
+                this.logger.error(
+                  `Failed to create marketing swarm task: ${insertError.message}`,
+                );
+                // Don't fail the request - LangGraph might handle missing task gracefully
+                // or we can retry
+              } else {
+                this.logger.log(
+                  `✅ Created marketing swarm task in database: taskId=${taskId}`,
+                );
+              }
+            } else {
+              this.logger.log(
+                `Marketing swarm task already exists: taskId=${taskId}`,
+              );
+            }
+          } else {
+            this.logger.warn(
+              `[MarketingSwarm] Invalid swarm request data - missing required fields. type=${swarmRequestData?.type}, hasContentTypeSlug=${!!swarmRequestData?.contentTypeSlug}, hasPromptData=${!!swarmRequestData?.promptData}, hasConfig=${!!swarmRequestData?.config}`,
+            );
+          }
+        } catch (error) {
+          // Log error but don't fail - allow the request to proceed
+          // LangGraph will handle the missing task error
+          this.logger.error(
+            `Failed to create marketing swarm task (continuing anyway): ${error instanceof Error ? error.message : String(error)}`,
+            error instanceof Error ? error.stack : undefined,
+          );
+        }
+      } else {
+        this.logger.log(
+          `[MarketingSwarm] Skipping task creation: slug=${definition.slug}, taskId=${taskId}, hasUserMessage=${!!userMessage}`,
         );
       }
 

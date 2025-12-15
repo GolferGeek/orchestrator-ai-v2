@@ -1,6 +1,6 @@
 <template>
   <div class="swarm-results">
-    <!-- Summary Card -->
+    <!-- Summary Card (Phase 2: Enhanced stats) -->
     <ion-card>
       <ion-card-header>
         <ion-card-title>Results Summary</ion-card-title>
@@ -8,54 +8,89 @@
       <ion-card-content>
         <div class="summary-stats">
           <div class="stat">
-            <div class="stat-value">{{ outputs.length }}</div>
+            <div class="stat-value">{{ phase2Outputs.length }}</div>
             <div class="stat-label">Outputs Generated</div>
           </div>
           <div class="stat">
-            <div class="stat-value">{{ evaluations.length }}</div>
+            <div class="stat-value">{{ phase2Evaluations.length }}</div>
             <div class="stat-label">Evaluations</div>
           </div>
-          <div class="stat" v-if="bestOutput">
-            <div class="stat-value">{{ bestScore }}/10</div>
-            <div class="stat-label">Best Score</div>
+          <div class="stat">
+            <div class="stat-value">{{ finalists.length }}</div>
+            <div class="stat-label">Finalists</div>
+          </div>
+          <div class="stat" v-if="winnerOutput">
+            <div class="stat-value">{{ winnerOutput.finalRank === 1 ? '#1' : '-' }}</div>
+            <div class="stat-label">Winner</div>
           </div>
         </div>
       </ion-card-content>
     </ion-card>
 
-    <!-- Ranked Results -->
-    <ion-card>
+    <!-- Phase 2: Final Rankings (top outputs after final evaluation) -->
+    <ion-card v-if="finalRankings.length > 0">
       <ion-card-header>
-        <ion-card-title>Ranked Outputs</ion-card-title>
+        <ion-card-title>Final Rankings</ion-card-title>
+        <ion-card-subtitle>Ranked by weighted evaluation scores</ion-card-subtitle>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-list>
+          <ion-item
+            v-for="ranking in finalRankings"
+            :key="ranking.outputId"
+            :button="true"
+            :detail="true"
+            @click="selectOutput(ranking.outputId)"
+            :class="{ 'selected': selectedOutputId === ranking.outputId }"
+          >
+            <ion-badge slot="start" :color="getRankColor(ranking.rank)">
+              #{{ ranking.rank }}
+            </ion-badge>
+            <ion-label>
+              <h2>{{ ranking.writerAgentSlug }}</h2>
+              <p v-if="ranking.editorAgentSlug">+ {{ ranking.editorAgentSlug }}</p>
+            </ion-label>
+            <div slot="end" class="score-badges">
+              <ion-badge color="primary">{{ ranking.totalScore }} pts</ion-badge>
+            </div>
+          </ion-item>
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Fallback: Initial Rankings if no final rankings yet -->
+    <ion-card v-else-if="initialRankings.length > 0">
+      <ion-card-header>
+        <ion-card-title>Initial Rankings</ion-card-title>
         <ion-card-subtitle>Sorted by average evaluation score</ion-card-subtitle>
       </ion-card-header>
       <ion-card-content>
         <ion-list>
           <ion-item
-            v-for="(result, index) in rankedResults"
-            :key="result.outputId"
+            v-for="ranking in initialRankings"
+            :key="ranking.outputId"
             :button="true"
             :detail="true"
-            @click="selectOutput(result.outputId)"
-            :class="{ 'selected': selectedOutputId === result.outputId }"
+            @click="selectOutput(ranking.outputId)"
+            :class="{ 'selected': selectedOutputId === ranking.outputId }"
           >
-            <ion-badge slot="start" :color="getRankColor(index)">
-              #{{ index + 1 }}
+            <ion-badge slot="start" :color="getRankColor(ranking.rank)">
+              #{{ ranking.rank }}
             </ion-badge>
             <ion-label>
-              <h2>{{ getOutputTitle(result.outputId) }}</h2>
-              <p>{{ getOutputAgentInfo(result.outputId) }}</p>
+              <h2>{{ ranking.writerAgentSlug }}</h2>
+              <p v-if="ranking.editorAgentSlug">+ {{ ranking.editorAgentSlug }}</p>
             </ion-label>
             <ion-badge slot="end" color="primary">
-              {{ result.averageScore.toFixed(1) }}/10
+              {{ ranking.avgScore?.toFixed(1) || ranking.totalScore }}/10
             </ion-badge>
           </ion-item>
         </ion-list>
       </ion-card-content>
     </ion-card>
 
-    <!-- Selected Output Detail -->
-    <ion-card v-if="selectedOutput">
+    <!-- Phase 2: Selected Output Detail -->
+    <ion-card v-if="selectedPhase2Output">
       <ion-card-header>
         <ion-card-title>
           Output Detail
@@ -64,45 +99,84 @@
           </ion-button>
         </ion-card-title>
         <ion-card-subtitle>
-          {{ getOutputAgentInfo(selectedOutput.id) }}
+          <div class="output-agents-info">
+            <span>{{ selectedPhase2Output.writerAgent.name || selectedPhase2Output.writerAgent.slug }}</span>
+            <ion-badge v-if="selectedPhase2Output.writerAgent.isLocal" color="warning" size="small">Local</ion-badge>
+            <ion-badge v-else color="tertiary" size="small">Cloud</ion-badge>
+            <span v-if="selectedPhase2Output.editorAgent">
+              + {{ selectedPhase2Output.editorAgent.name || selectedPhase2Output.editorAgent.slug }}
+            </span>
+          </div>
         </ion-card-subtitle>
       </ion-card-header>
       <ion-card-content>
+        <!-- Ranking Info -->
+        <div v-if="selectedPhase2Output.finalRank || selectedPhase2Output.initialRank" class="ranking-info">
+          <ion-badge v-if="selectedPhase2Output.finalRank" :color="getRankColor(selectedPhase2Output.finalRank)">
+            Final Rank: #{{ selectedPhase2Output.finalRank }}
+          </ion-badge>
+          <ion-badge v-if="selectedPhase2Output.initialAvgScore" color="primary">
+            Score: {{ selectedPhase2Output.initialAvgScore.toFixed(1) }}/10
+          </ion-badge>
+          <ion-badge v-if="selectedPhase2Output.isFinalist" color="warning">
+            Finalist
+          </ion-badge>
+        </div>
+
         <!-- Content -->
         <div class="output-content">
           <h4>Content</h4>
           <!-- eslint-disable-next-line vue/no-v-html -- AI-generated content with basic formatting -->
-          <div class="content-preview" v-html="formatContent(selectedOutput.content)"></div>
+          <div class="content-preview" v-html="formatContent(selectedPhase2Output.content || '')"></div>
         </div>
 
         <!-- Edit History -->
-        <div v-if="selectedOutput.editCycle > 0" class="edit-history">
-          <h4>Edit Cycles: {{ selectedOutput.editCycle }}</h4>
-          <p v-if="selectedOutput.editorFeedback">
-            <strong>Editor Feedback:</strong> {{ selectedOutput.editorFeedback }}
+        <div v-if="selectedPhase2Output.editCycle > 0" class="edit-history">
+          <h4>Edit Cycles: {{ selectedPhase2Output.editCycle }}</h4>
+          <p v-if="selectedPhase2Output.editorFeedback">
+            <strong>Editor Feedback:</strong> {{ selectedPhase2Output.editorFeedback }}
           </p>
-          <ion-badge :color="selectedOutput.editorApproved ? 'success' : 'warning'">
-            {{ selectedOutput.editorApproved ? 'Approved' : 'Revised' }}
+          <ion-badge :color="selectedPhase2Output.status === 'approved' ? 'success' : 'warning'">
+            {{ selectedPhase2Output.status === 'approved' ? 'Approved' : 'In Progress' }}
           </ion-badge>
         </div>
 
-        <!-- Evaluations -->
+        <!-- LLM Metadata -->
+        <div v-if="selectedPhase2Output.llmMetadata" class="llm-metadata">
+          <h4>LLM Usage</h4>
+          <p v-if="selectedPhase2Output.llmMetadata.tokensUsed">
+            Tokens: {{ selectedPhase2Output.llmMetadata.tokensUsed }}
+          </p>
+          <p v-if="selectedPhase2Output.llmMetadata.latencyMs">
+            Latency: {{ selectedPhase2Output.llmMetadata.latencyMs }}ms
+          </p>
+        </div>
+
+        <!-- Phase 2: Evaluations for this output -->
         <div class="output-evaluations">
-          <h4>Evaluations</h4>
-          <div v-for="evaluation in selectedOutputEvaluations" :key="evaluation.id" class="evaluation-item">
+          <h4>Evaluations ({{ selectedOutputEvaluationsPhase2.length }})</h4>
+          <div v-for="evaluation in selectedOutputEvaluationsPhase2" :key="evaluation.id" class="evaluation-item">
             <div class="evaluation-header">
-              <span class="evaluator-name">{{ getAgentName(evaluation.evaluatorAgentSlug) }}</span>
-              <ion-badge :color="getScoreColor(evaluation.score)">
+              <span class="evaluator-name">
+                {{ evaluation.evaluatorAgent.name || evaluation.evaluatorAgent.slug }}
+              </span>
+              <ion-badge :color="evaluation.stage === 'final' ? 'tertiary' : 'medium'" size="small">
+                {{ evaluation.stage }}
+              </ion-badge>
+              <ion-badge v-if="evaluation.score" :color="getScoreColor(evaluation.score)">
                 {{ evaluation.score }}/10
               </ion-badge>
+              <ion-badge v-if="evaluation.rank" color="primary">
+                Rank: {{ evaluation.rank }}
+              </ion-badge>
             </div>
-            <p class="evaluation-reasoning">{{ evaluation.reasoning }}</p>
+            <p v-if="evaluation.reasoning" class="evaluation-reasoning">{{ evaluation.reasoning }}</p>
           </div>
         </div>
 
         <!-- Actions -->
         <div class="output-actions">
-          <ion-button expand="block" @click="copyContent(selectedOutput.content)">
+          <ion-button expand="block" @click="copyContent(selectedPhase2Output.content || '')">
             <ion-icon :icon="copyOutline" slot="start" />
             Copy Content
           </ion-button>
@@ -121,7 +195,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import {
   IonCard,
   IonCardHeader,
@@ -141,7 +215,7 @@ import {
   refreshOutline,
 } from 'ionicons/icons';
 import { useMarketingSwarmStore } from '@/stores/marketingSwarmStore';
-import type { SwarmOutput } from '@/types/marketing-swarm';
+import type { SwarmOutputPhase2, SwarmEvaluationPhase2 } from '@/types/marketing-swarm';
 
 defineEmits<{
   (e: 'restart'): void;
@@ -149,68 +223,51 @@ defineEmits<{
 
 const store = useMarketingSwarmStore();
 
-const outputs = computed(() => store.outputs);
-const evaluations = computed(() => store.evaluations);
-const rankedResults = computed(() => store.rankedResults);
-const bestOutput = computed(() => store.bestOutput);
+// Phase 2: Use phase2 computed properties
+const phase2Outputs = computed(() => store.phase2Outputs);
+const phase2Evaluations = computed(() => store.phase2Evaluations);
+const initialRankings = computed(() => store.initialRankings);
+const finalRankings = computed(() => store.finalRankings);
+const finalists = computed(() => store.finalists);
+const winnerOutput = computed(() => store.getWinnerOutput());
 
-const bestScore = computed(() => {
-  if (rankedResults.value.length === 0) return 0;
-  return rankedResults.value[0].averageScore.toFixed(1);
-});
+const selectedOutputId = ref<string | undefined>(undefined);
 
-const selectedOutputId = ref<string | undefined>(
-  bestOutput.value?.id
+// Auto-select the winner or first ranked output when results are loaded
+watch(
+  [finalRankings, initialRankings],
+  ([finalRanks, initialRanks]) => {
+    if (!selectedOutputId.value) {
+      if (finalRanks.length > 0) {
+        selectedOutputId.value = finalRanks[0].outputId;
+      } else if (initialRanks.length > 0) {
+        selectedOutputId.value = initialRanks[0].outputId;
+      }
+    }
+  },
+  { immediate: true }
 );
 
-const selectedOutput = computed<SwarmOutput | undefined>(() => {
+// Phase 2: Get selected output from phase2Outputs
+const selectedPhase2Output = computed<SwarmOutputPhase2 | undefined>(() => {
   if (!selectedOutputId.value) return undefined;
-  return store.getOutputById(selectedOutputId.value);
+  return store.getPhase2OutputById(selectedOutputId.value);
 });
 
-const selectedOutputEvaluations = computed(() => {
+// Phase 2: Get evaluations for selected output
+const selectedOutputEvaluationsPhase2 = computed<SwarmEvaluationPhase2[]>(() => {
   if (!selectedOutputId.value) return [];
-  return store.getEvaluationsForOutput(selectedOutputId.value);
+  return store.getPhase2EvaluationsForOutput(selectedOutputId.value);
 });
 
 function selectOutput(outputId: string) {
   selectedOutputId.value = outputId;
 }
 
-function getOutputTitle(outputId: string): string {
-  const output = store.getOutputById(outputId);
-  if (!output) return 'Unknown Output';
-  // Extract first line or first 50 chars as title
-  const firstLine = output.content.split('\n')[0];
-  return firstLine.slice(0, 50) + (firstLine.length > 50 ? '...' : '');
-}
-
-function getOutputAgentInfo(outputId: string): string {
-  const output = store.getOutputById(outputId);
-  if (!output) return '';
-  const writer = store.getAgentBySlug(output.writerAgentSlug);
-  const writerConfigs = store.getLLMConfigsForAgent(output.writerAgentSlug);
-  const writerConfig = writerConfigs.find((c) => c.id === output.writerLlmConfigId);
-
-  let info = `${writer?.name || output.writerAgentSlug} (${writerConfig?.displayName || writerConfig?.llmModel})`;
-
-  if (output.editorAgentSlug) {
-    const editor = store.getAgentBySlug(output.editorAgentSlug);
-    info += ` + ${editor?.name || output.editorAgentSlug}`;
-  }
-
-  return info;
-}
-
-function getAgentName(agentSlug: string): string {
-  const agent = store.getAgentBySlug(agentSlug);
-  return agent?.name || agentSlug;
-}
-
-function getRankColor(index: number): string {
-  if (index === 0) return 'success';
-  if (index === 1) return 'warning';
-  if (index === 2) return 'tertiary';
+function getRankColor(rank: number): string {
+  if (rank === 1) return 'success';
+  if (rank === 2) return 'warning';
+  if (rank === 3) return 'tertiary';
   return 'medium';
 }
 
@@ -248,25 +305,53 @@ async function copyContent(content: string) {
   display: flex;
   justify-content: space-around;
   text-align: center;
+  flex-wrap: wrap;
 }
 
 .stat {
   padding: 12px;
+  min-width: 80px;
 }
 
 .stat-value {
-  font-size: 2rem;
+  font-size: 1.75rem;
   font-weight: 700;
   color: var(--ion-color-primary);
 }
 
 .stat-label {
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   color: var(--ion-color-medium);
 }
 
 ion-item.selected {
   --background: var(--ion-color-primary-tint);
+}
+
+.score-badges {
+  display: flex;
+  gap: 4px;
+}
+
+/* Output Agents Info */
+.output-agents-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.output-agents-info ion-badge {
+  font-size: 0.65rem;
+  padding: 2px 6px;
+}
+
+/* Ranking Info */
+.ranking-info {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
 }
 
 .output-content {
@@ -275,7 +360,8 @@ ion-item.selected {
 
 .output-content h4,
 .edit-history h4,
-.output-evaluations h4 {
+.output-evaluations h4,
+.llm-metadata h4 {
   font-size: 1rem;
   font-weight: 600;
   margin-bottom: 12px;
@@ -298,6 +384,18 @@ ion-item.selected {
   border-radius: 8px;
 }
 
+.llm-metadata {
+  margin-bottom: 24px;
+  padding: 12px;
+  background: var(--ion-color-light);
+  border-radius: 8px;
+}
+
+.llm-metadata p {
+  margin: 4px 0;
+  font-size: 0.875rem;
+}
+
 .output-evaluations {
   margin-bottom: 24px;
 }
@@ -311,9 +409,10 @@ ion-item.selected {
 
 .evaluation-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 8px;
   margin-bottom: 8px;
+  flex-wrap: wrap;
 }
 
 .evaluator-name {
@@ -324,6 +423,7 @@ ion-item.selected {
   font-size: 0.875rem;
   color: var(--ion-color-medium-shade);
   margin: 0;
+  line-height: 1.5;
 }
 
 .output-actions {

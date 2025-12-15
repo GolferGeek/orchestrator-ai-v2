@@ -49,7 +49,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import {
   IonPage,
@@ -110,6 +110,11 @@ onMounted(() => {
   loadConfiguration();
 });
 
+// Clean up SSE connection on unmount
+onUnmounted(() => {
+  marketingSwarmService.disconnectSSEStream();
+});
+
 // Handle execute from config form
 async function handleExecute(data: {
   contentTypeSlug: string;
@@ -164,6 +169,9 @@ async function handleExecute(data: {
       console.log('[MarketingSwarm] Using existing conversation:', currentConversationId);
     }
 
+    // Phase 2: Connect to SSE stream for real-time updates
+    marketingSwarmService.connectToSSEStream(currentConversationId);
+
     // Start execution (uses the initialized ExecutionContext)
     const response = await marketingSwarmService.startSwarmExecution(
       data.contentTypeSlug,
@@ -175,11 +183,15 @@ async function handleExecute(data: {
     console.log('Swarm execution completed:', response);
   } catch (err) {
     console.error('Swarm execution failed:', err);
+    // Disconnect SSE on error
+    marketingSwarmService.disconnectSSEStream();
   }
 }
 
 // Handle restart - go back to config
 function handleRestart() {
+  // Disconnect SSE when restarting
+  marketingSwarmService.disconnectSSEStream();
   store.resetTaskState();
   store.setUIView('config');
 }

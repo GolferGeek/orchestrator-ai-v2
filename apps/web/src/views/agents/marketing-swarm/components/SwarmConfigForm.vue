@@ -433,6 +433,12 @@ function handleExecute() {
       editors: [...selectedEditors.value],
       evaluators: [...selectedEvaluators.value],
       maxEditCycles: maxEditCycles.value,
+      execution: {
+        maxLocalConcurrent: 1, // Default: 1 local LLM can run concurrently
+        maxCloudConcurrent: 5, // Default: 5 cloud LLMs can run concurrently
+        maxEditCycles: maxEditCycles.value, // Use the same value from form
+        topNForFinalRanking: 1, // Default: rank top 1 for final evaluation
+      },
     },
   });
 }

@@ -18,6 +18,15 @@
 
 set -e
 
+# Load environment variables from .env file if it exists
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../../.." && pwd)"
+if [ -f "$PROJECT_ROOT/.env" ]; then
+  set -a
+  source "$PROJECT_ROOT/.env"
+  set +a
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -39,6 +48,13 @@ TEST_EMAIL="${SUPABASE_TEST_USER:-golfergeek@orchestratorai.io}"
 TEST_PASSWORD="${SUPABASE_TEST_PASSWORD:-GolferGeek123!}"
 # NOTE: TEST_USER_ID will be set from the auth response
 TEST_ORG="demo-org"
+
+# Validate required environment variables
+if [ "$SUPABASE_SERVICE_ROLE_KEY" = "your-service-role-key" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+  echo -e "${RED}Error: SUPABASE_SERVICE_ROLE_KEY is not set${NC}"
+  echo "Please set it in your .env file or export it before running this script"
+  exit 1
+fi
 
 # Generate unique task ID for this test run (must be valid UUID)
 TASK_ID=$(uuidgen | tr '[:upper:]' '[:lower:]')
@@ -151,114 +167,107 @@ else
 fi
 
 # =============================================================================
-# Test 2: Create task in database
+# Test 2: Execute the Marketing Swarm via A2A API (API will create the task)
 # =============================================================================
 
-log_test "2. Create Task in Database"
-
-CREATE_TASK_RESPONSE=$(curl -s -X POST "$SUPABASE_URL/rest/v1/swarm_tasks" \
-  -H "Content-Type: application/json" \
-  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Accept-Profile: marketing" \
-  -H "Content-Profile: marketing" \
-  -H "Prefer: return=representation" \
-  -d "{
-    \"task_id\": \"$TASK_ID\",
-    \"organization_slug\": \"$TEST_ORG\",
-    \"user_id\": \"$TEST_USER_ID\",
-    \"content_type_slug\": \"blog-post\",
-    \"prompt_data\": {
-      \"topic\": \"The Future of AI in Marketing\",
-      \"audience\": \"Marketing professionals\",
-      \"goal\": \"Educate and inspire action\",
-      \"tone\": \"professional but approachable\",
-      \"keyPoints\": [
-        \"AI is transforming content creation\",
-        \"Personalization at scale is now possible\",
-        \"Human creativity remains essential\"
-      ]
-    },
-    \"config\": {
-      \"writers\": [
-        { \"agentSlug\": \"writer-creative\", \"llmConfigId\": \"$CLOUD_WRITER_ID\" }
-      ],
-      \"editors\": [
-        { \"agentSlug\": \"editor-clarity\", \"llmConfigId\": \"$CLOUD_EDITOR_ID\" }
-      ],
-      \"evaluators\": [
-        { \"agentSlug\": \"evaluator-quality\", \"llmConfigId\": \"$CLOUD_EVALUATOR_ID\" }
-      ],
-      \"execution\": {
-        \"maxLocalConcurrent\": 0,
-        \"maxCloudConcurrent\": 5,
-        \"maxEditCycles\": 2,
-        \"topNForFinalRanking\": 1
-      }
-    },
-    \"status\": \"pending\"
-  }")
-
-CREATED_TASK_ID=$(echo "$CREATE_TASK_RESPONSE" | jq -r '.[0].task_id // .task_id // empty')
-
-if [ "$CREATED_TASK_ID" = "$TASK_ID" ]; then
-  log_success "Task created successfully"
-else
-  log_fail "Failed to create task"
-  echo "$CREATE_TASK_RESPONSE" | jq .
-  exit 1
-fi
-
-# =============================================================================
-# Test 3: Execute the Marketing Swarm via A2A API
-# =============================================================================
-
-log_test "3. Execute Marketing Swarm via A2A API"
+log_test "2. Execute Marketing Swarm via A2A API (API creates task from userMessage)"
 
 log_info "This may take 1-2 minutes depending on LLM response times..."
+log_info "The API will automatically create the task in marketing.swarm_tasks from the userMessage payload"
+
+# Build the userMessage payload (JSON-stringified object matching frontend format)
+# This matches what the frontend sends: a JSON-stringified object with type, contentTypeSlug, promptData, and config
+USER_MESSAGE_PAYLOAD=$(jq -n \
+  --arg taskId "$TASK_ID" \
+  --arg contentTypeSlug "blog-post" \
+  --arg cloudWriterId "$CLOUD_WRITER_ID" \
+  --arg cloudEditorId "$CLOUD_EDITOR_ID" \
+  --arg cloudEvaluatorId "$CLOUD_EVALUATOR_ID" \
+  '{
+    "type": "marketing-swarm-request",
+    "contentTypeSlug": $contentTypeSlug,
+    "contentTypeContext": null,
+    "promptData": {
+      "topic": "The Future of AI in Marketing",
+      "audience": "Marketing professionals",
+      "goal": "Educate and inspire action",
+      "tone": "professional but approachable",
+      "keyPoints": [
+        "AI is transforming content creation",
+        "Personalization at scale is now possible",
+        "Human creativity remains essential"
+      ]
+    },
+    "config": {
+      "writers": [
+        { "agentSlug": "writer-creative", "llmConfigId": $cloudWriterId }
+      ],
+      "editors": [
+        { "agentSlug": "editor-clarity", "llmConfigId": $cloudEditorId }
+      ],
+      "evaluators": [
+        { "agentSlug": "evaluator-quality", "llmConfigId": $cloudEvaluatorId }
+      ],
+      "execution": {
+        "maxLocalConcurrent": 0,
+        "maxCloudConcurrent": 5,
+        "maxEditCycles": 2,
+        "topNForFinalRanking": 1
+      }
+    }
+  }' | jq -c .)
 
 # Build the ExecutionContext as required by A2A protocol
-EXECUTION_CONTEXT="{
-  \"orgSlug\": \"$TEST_ORG\",
-  \"userId\": \"$TEST_USER_ID\",
-  \"conversationId\": \"$CONVERSATION_ID\",
-  \"taskId\": \"$TASK_ID\",
-  \"planId\": \"00000000-0000-0000-0000-000000000000\",
-  \"deliverableId\": \"00000000-0000-0000-0000-000000000000\",
-  \"agentSlug\": \"marketing-swarm\",
-  \"agentType\": \"api\",
-  \"provider\": \"anthropic\",
-  \"model\": \"claude-sonnet-4-20250514\"
-}"
+EXECUTION_CONTEXT=$(jq -n \
+  --arg orgSlug "$TEST_ORG" \
+  --arg userId "$TEST_USER_ID" \
+  --arg conversationId "$CONVERSATION_ID" \
+  --arg taskId "$TASK_ID" \
+  '{
+    "orgSlug": $orgSlug,
+    "userId": $userId,
+    "conversationId": $conversationId,
+    "taskId": $taskId,
+    "planId": "00000000-0000-0000-0000-000000000000",
+    "deliverableId": "00000000-0000-0000-0000-000000000000",
+    "agentSlug": "marketing-swarm",
+    "agentType": "api",
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-20250514"
+  }' | jq -c .)
 
 # Call the A2A endpoint (API routes to LangGraph internally)
+# Note: Using build.execute method to match frontend (not agent.build)
 EXECUTE_RESPONSE=$(curl -s -X POST "$API_URL/agent-to-agent/$TEST_ORG/marketing-swarm/tasks" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $AUTH_TOKEN" \
   -d "{
     \"jsonrpc\": \"2.0\",
     \"id\": \"1\",
-    \"method\": \"agent.build\",
+    \"method\": \"build.execute\",
     \"params\": {
       \"mode\": \"build\",
       \"context\": $EXECUTION_CONTEXT,
-      \"userMessage\": \"Execute marketing swarm task $TASK_ID\"
+      \"userMessage\": $(echo "$USER_MESSAGE_PAYLOAD" | jq -R .)
     }
   }")
 
-EXECUTE_STATUS=$(echo "$EXECUTE_RESPONSE" | jq -r '.result.status // .result.data.status // .data.status // .status // empty')
+# Extract status from nested response structure
+# Response can be: .result.payload.content.data.status or .result.data.status or .result.status
+EXECUTE_STATUS=$(echo "$EXECUTE_RESPONSE" | jq -r '.result.payload.content.data.status // .result.data.status // .result.status // .data.status // .status // empty')
 
 if [ "$EXECUTE_STATUS" = "completed" ]; then
   log_success "Swarm execution completed"
 
-  OUTPUTS_COUNT=$(echo "$EXECUTE_RESPONSE" | jq -r '.result.data.outputs | length // .data.outputs | length // 0')
-  EVALS_COUNT=$(echo "$EXECUTE_RESPONSE" | jq -r '.result.data.evaluations | length // .data.evaluations | length // 0')
+  # Extract outputs and evaluations from nested response structure
+  OUTPUTS_COUNT=$(echo "$EXECUTE_RESPONSE" | jq -r '.result.payload.content.data.outputs | length // .result.data.outputs | length // .data.outputs | length // 0')
+  EVALS_COUNT=$(echo "$EXECUTE_RESPONSE" | jq -r '.result.payload.content.data.evaluations | length // .result.data.evaluations | length // .data.evaluations | length // 0')
 
   log_info "Outputs: $OUTPUTS_COUNT"
   log_info "Evaluations: $EVALS_COUNT"
 
   # Show winner if exists
-  WINNER=$(echo "$EXECUTE_RESPONSE" | jq -r '.result.data.winner // .data.winner // empty')
+  WINNER=$(echo "$EXECUTE_RESPONSE" | jq -r '.result.payload.content.data.winner // .result.data.winner // .data.winner // empty')
   if [ -n "$WINNER" ] && [ "$WINNER" != "null" ]; then
     log_info "Winner ID: $(echo "$WINNER" | jq -r '.id')"
     log_info "Winner Final Rank: $(echo "$WINNER" | jq -r '.final_rank')"
@@ -272,10 +281,10 @@ else
 fi
 
 # =============================================================================
-# Test 4: Check Task Status (via LangGraph directly for status endpoints)
+# Test 3: Check Task Status (via LangGraph directly for status endpoints)
 # =============================================================================
 
-log_test "4. Check Task Status"
+log_test "3. Check Task Status"
 
 STATUS_RESPONSE=$(curl -s -X GET "$LANGGRAPH_URL/marketing-swarm/status/$TASK_ID" \
   -H "Authorization: Bearer $AUTH_TOKEN")
@@ -293,10 +302,10 @@ else
 fi
 
 # =============================================================================
-# Test 5: Get Full State (for frontend reconnection)
+# Test 4: Get Full State (for frontend reconnection)
 # =============================================================================
 
-log_test "5. Get Full State"
+log_test "4. Get Full State"
 
 STATE_RESPONSE=$(curl -s -X GET "$LANGGRAPH_URL/marketing-swarm/state/$TASK_ID" \
   -H "Authorization: Bearer $AUTH_TOKEN")
@@ -323,10 +332,10 @@ else
 fi
 
 # =============================================================================
-# Test 6: Verify Database State
+# Test 5: Verify Database State
 # =============================================================================
 
-log_test "6. Verify Database State"
+log_test "5. Verify Database State"
 
 # Check outputs
 OUTPUTS=$(curl -s "$SUPABASE_URL/rest/v1/outputs?task_id=eq.$TASK_ID&select=id,status,writer_agent_slug,editor_agent_slug,edit_cycle,initial_rank,final_rank" \
@@ -349,10 +358,10 @@ log_info "Evaluations in DB: $EVAL_COUNT"
 echo "$EVALUATIONS" | jq -c '.[] | {id: .id[:8], stage, status, score, rank, weighted_score}'
 
 # =============================================================================
-# Test 7: Verify Edit Cycles
+# Test 6: Verify Edit Cycles
 # =============================================================================
 
-log_test "7. Verify Edit Cycles"
+log_test "6. Verify Edit Cycles"
 
 EDIT_CYCLE=$(echo "$OUTPUTS" | jq -r '.[0].edit_cycle // 0')
 log_info "Edit cycles completed: $EDIT_CYCLE"
@@ -364,10 +373,10 @@ else
 fi
 
 # =============================================================================
-# Test 8: Verify Two-Stage Evaluation
+# Test 7: Verify Two-Stage Evaluation
 # =============================================================================
 
-log_test "8. Verify Two-Stage Evaluation"
+log_test "7. Verify Two-Stage Evaluation"
 
 INITIAL_EVALS=$(echo "$EVALUATIONS" | jq '[.[] | select(.stage == "initial")] | length')
 FINAL_EVALS=$(echo "$EVALUATIONS" | jq '[.[] | select(.stage == "final")] | length')

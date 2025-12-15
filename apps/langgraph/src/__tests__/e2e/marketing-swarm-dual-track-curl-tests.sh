@@ -17,6 +17,15 @@
 
 set -e
 
+# Load environment variables from .env file if it exists
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../../.." && pwd)"
+if [ -f "$PROJECT_ROOT/.env" ]; then
+  set -a
+  source "$PROJECT_ROOT/.env"
+  set +a
+fi
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -37,6 +46,13 @@ TEST_EMAIL="${SUPABASE_TEST_USER:-golfergeek@orchestratorai.io}"
 TEST_PASSWORD="${SUPABASE_TEST_PASSWORD:-GolferGeek123!}"
 # NOTE: TEST_USER_ID will be set from the auth response
 TEST_ORG="demo-org"
+
+# Validate required environment variables
+if [ "$SUPABASE_SERVICE_ROLE_KEY" = "your-service-role-key" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+  echo -e "${RED}Error: SUPABASE_SERVICE_ROLE_KEY is not set${NC}"
+  echo "Please set it in your .env file or export it before running this script"
+  exit 1
+fi
 
 # Generate unique task ID for this test run (must be valid UUID)
 TASK_ID=$(uuidgen | tr '[:upper:]' '[:lower:]')
@@ -159,65 +175,7 @@ fi
 echo -e "${GREEN}Got config IDs${NC}"
 
 # =============================================================================
-# Create Task with Mixed Local/Cloud Writers
-# =============================================================================
-
-echo ""
-echo -e "${YELLOW}Creating dual-track task...${NC}"
-
-# This task has:
-# - 2 cloud writers (parallel)
-# - 2 local writers (sequential)
-# - 1 editor
-# - 1 evaluator
-# Total outputs: 4 writers × 1 editor = 4
-
-CREATE_TASK=$(curl -s -X POST "$SUPABASE_URL/rest/v1/swarm_tasks" \
-  -H "Content-Type: application/json" \
-  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Accept-Profile: marketing" \
-  -H "Content-Profile: marketing" \
-  -H "Prefer: return=representation" \
-  -d "{
-    \"task_id\": \"$TASK_ID\",
-    \"organization_slug\": \"$TEST_ORG\",
-    \"user_id\": \"$TEST_USER_ID\",
-    \"content_type_slug\": \"blog-post\",
-    \"prompt_data\": {
-      \"topic\": \"Testing Dual-Track Execution\",
-      \"audience\": \"Developers\",
-      \"goal\": \"Verify local and cloud LLMs work together\",
-      \"tone\": \"technical\",
-      \"keyPoints\": [\"Dual-track model\", \"Local vs Cloud\", \"Concurrent execution\"]
-    },
-    \"config\": {
-      \"writers\": [
-        { \"agentSlug\": \"writer-creative\", \"llmConfigId\": \"$CLOUD_WRITER_1\" },
-        { \"agentSlug\": \"writer-technical\", \"llmConfigId\": \"$CLOUD_WRITER_2\" },
-        { \"agentSlug\": \"writer-conversational\", \"llmConfigId\": \"$LOCAL_WRITER_1\" },
-        { \"agentSlug\": \"writer-persuasive\", \"llmConfigId\": \"$LOCAL_WRITER_2\" }
-      ],
-      \"editors\": [
-        { \"agentSlug\": \"editor-clarity\", \"llmConfigId\": \"$CLOUD_EDITOR\" }
-      ],
-      \"evaluators\": [
-        { \"agentSlug\": \"evaluator-quality\", \"llmConfigId\": \"$CLOUD_EVALUATOR\" }
-      ],
-      \"execution\": {
-        \"maxLocalConcurrent\": 1,
-        \"maxCloudConcurrent\": 3,
-        \"maxEditCycles\": 1,
-        \"topNForFinalRanking\": 2
-      }
-    },
-    \"status\": \"pending\"
-  }")
-
-echo -e "${GREEN}Task created: $TASK_ID${NC}"
-
-# =============================================================================
-# Execute the Swarm via A2A API
+# Execute the Swarm via A2A API (API will create the task)
 # =============================================================================
 
 echo ""
@@ -226,43 +184,101 @@ echo "Dual-track execution:"
 echo "  - Cloud: Up to 3 concurrent"
 echo "  - Local: 1 at a time (sequential)"
 echo ""
+echo -e "${BLUE}The API will automatically create the task in marketing.swarm_tasks from the userMessage payload${NC}"
+echo ""
+
+# Build the userMessage payload (JSON-stringified object matching frontend format)
+# This task has:
+# - 2 cloud writers (parallel)
+# - 2 local writers (sequential)
+# - 1 editor
+# - 1 evaluator
+# Total outputs: 4 writers × 1 editor = 4
+USER_MESSAGE_PAYLOAD=$(jq -n \
+  --arg taskId "$TASK_ID" \
+  --arg contentTypeSlug "blog-post" \
+  --arg cloudWriter1 "$CLOUD_WRITER_1" \
+  --arg cloudWriter2 "$CLOUD_WRITER_2" \
+  --arg localWriter1 "$LOCAL_WRITER_1" \
+  --arg localWriter2 "$LOCAL_WRITER_2" \
+  --arg cloudEditor "$CLOUD_EDITOR" \
+  --arg cloudEvaluator "$CLOUD_EVALUATOR" \
+  '{
+    "type": "marketing-swarm-request",
+    "contentTypeSlug": $contentTypeSlug,
+    "contentTypeContext": null,
+    "promptData": {
+      "topic": "Testing Dual-Track Execution",
+      "audience": "Developers",
+      "goal": "Verify local and cloud LLMs work together",
+      "tone": "technical",
+      "keyPoints": ["Dual-track model", "Local vs Cloud", "Concurrent execution"]
+    },
+    "config": {
+      "writers": [
+        { "agentSlug": "writer-creative", "llmConfigId": $cloudWriter1 },
+        { "agentSlug": "writer-technical", "llmConfigId": $cloudWriter2 },
+        { "agentSlug": "writer-conversational", "llmConfigId": $localWriter1 },
+        { "agentSlug": "writer-persuasive", "llmConfigId": $localWriter2 }
+      ],
+      "editors": [
+        { "agentSlug": "editor-clarity", "llmConfigId": $cloudEditor }
+      ],
+      "evaluators": [
+        { "agentSlug": "evaluator-quality", "llmConfigId": $cloudEvaluator }
+      ],
+      "execution": {
+        "maxLocalConcurrent": 1,
+        "maxCloudConcurrent": 3,
+        "maxEditCycles": 1,
+        "topNForFinalRanking": 2
+      }
+    }
+  }' | jq -c .)
 
 # Build the ExecutionContext as required by A2A protocol
-EXECUTION_CONTEXT="{
-  \"orgSlug\": \"$TEST_ORG\",
-  \"userId\": \"$TEST_USER_ID\",
-  \"conversationId\": \"$CONVERSATION_ID\",
-  \"taskId\": \"$TASK_ID\",
-  \"planId\": \"00000000-0000-0000-0000-000000000000\",
-  \"deliverableId\": \"00000000-0000-0000-0000-000000000000\",
-  \"agentSlug\": \"marketing-swarm\",
-  \"agentType\": \"api\",
-  \"provider\": \"anthropic\",
-  \"model\": \"claude-sonnet-4-20250514\"
-}"
+EXECUTION_CONTEXT=$(jq -n \
+  --arg orgSlug "$TEST_ORG" \
+  --arg userId "$TEST_USER_ID" \
+  --arg conversationId "$CONVERSATION_ID" \
+  --arg taskId "$TASK_ID" \
+  '{
+    "orgSlug": $orgSlug,
+    "userId": $userId,
+    "conversationId": $conversationId,
+    "taskId": $taskId,
+    "planId": "00000000-0000-0000-0000-000000000000",
+    "deliverableId": "00000000-0000-0000-0000-000000000000",
+    "agentSlug": "marketing-swarm",
+    "agentType": "api",
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-20250514"
+  }' | jq -c .)
 
 # Record start time
 START_TIME=$(date +%s)
 
 # Call the A2A endpoint (API routes to LangGraph internally)
+# Note: Using build.execute method to match frontend (not agent.build)
 EXECUTE_RESPONSE=$(curl -s -X POST "$API_URL/agent-to-agent/$TEST_ORG/marketing-swarm/tasks" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $AUTH_TOKEN" \
   -d "{
     \"jsonrpc\": \"2.0\",
     \"id\": \"1\",
-    \"method\": \"agent.build\",
+    \"method\": \"build.execute\",
     \"params\": {
       \"mode\": \"build\",
       \"context\": $EXECUTION_CONTEXT,
-      \"userMessage\": \"Execute marketing swarm task $TASK_ID with dual-track execution\"
+      \"userMessage\": $(echo "$USER_MESSAGE_PAYLOAD" | jq -R .)
     }
   }")
 
 END_TIME=$(date +%s)
 DURATION=$((END_TIME - START_TIME))
 
-EXECUTE_STATUS=$(echo "$EXECUTE_RESPONSE" | jq -r '.result.status // .result.data.status // .data.status // .status // empty')
+# Extract status from nested response structure
+EXECUTE_STATUS=$(echo "$EXECUTE_RESPONSE" | jq -r '.result.payload.content.data.status // .result.data.status // .result.status // .data.status // .status // empty')
 
 echo ""
 echo -e "${BLUE}Execution completed in ${DURATION} seconds${NC}"

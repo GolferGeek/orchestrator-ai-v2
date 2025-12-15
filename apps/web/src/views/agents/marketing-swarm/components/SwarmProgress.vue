@@ -1,6 +1,12 @@
 <template>
   <div class="swarm-progress">
-    <!-- Phase Indicator -->
+    <!-- SSE Connection Status -->
+    <div class="sse-status" :class="{ connected: sseConnected }">
+      <ion-icon :icon="sseConnected ? wifiOutline : cloudOfflineOutline" />
+      <span>{{ sseConnected ? 'Live updates' : 'Connecting...' }}</span>
+    </div>
+
+    <!-- Phase Indicator (Phase 2: More granular phases) -->
     <ion-card>
       <ion-card-header>
         <ion-card-title>Execution Progress</ion-card-title>
@@ -27,107 +33,93 @@
         </div>
 
         <ion-progress-bar
-          :value="progress.percentage / 100"
+          :value="progressPercentage / 100"
           :color="currentPhase === 'failed' ? 'danger' : 'primary'"
         ></ion-progress-bar>
 
         <div class="progress-text">
-          {{ progress.completed }} / {{ progress.total }} steps completed
-          ({{ progress.percentage }}%)
+          {{ completedOutputsCount }} / {{ totalOutputsCount }} outputs completed
+          ({{ progressPercentage }}%)
         </div>
       </ion-card-content>
     </ion-card>
 
-    <!-- Agent Cards Grid -->
-    <div class="agent-cards-grid">
-      <!-- Writers -->
-      <div class="agent-section" v-if="writerSteps.length > 0">
-        <h3>Writers</h3>
-        <div class="cards-row">
-          <div
-            v-for="step in writerSteps"
-            :key="step.id"
-            class="agent-card"
-            :class="step.status"
-          >
-            <div class="card-header">
-              <ion-icon :icon="createOutline" />
-              <span>{{ getAgentName(step.agentSlug) }}</span>
-            </div>
-            <div class="card-llm">
-              {{ getLLMDisplayName(step.agentSlug, step.llmConfigId) }}
-            </div>
-            <div class="card-status">
-              <ion-spinner v-if="step.status === 'processing'" name="crescent" />
-              <ion-icon v-else-if="step.status === 'completed'" :icon="checkmarkCircle" color="success" />
-              <ion-icon v-else-if="step.status === 'failed'" :icon="closeCircle" color="danger" />
-              <ion-icon v-else :icon="timeOutline" color="medium" />
-              <span>{{ formatStatus(step.status) }}</span>
-            </div>
-            <div v-if="step.resultId && getOutputPreview(step.resultId)" class="card-preview">
-              {{ getOutputPreview(step.resultId) }}
-            </div>
+    <!-- Phase 2: Output Cards Grid (shows writer/editor combinations) -->
+    <div class="output-cards-grid">
+      <h3>Content Outputs</h3>
+      <div class="cards-row">
+        <div
+          v-for="output in phase2Outputs"
+          :key="output.id"
+          class="output-card"
+          :class="getOutputStatusClass(output.status)"
+        >
+          <div class="card-header">
+            <ion-icon :icon="documentTextOutline" />
+            <span>{{ output.writerAgent.name || output.writerAgent.slug }}</span>
+            <ion-badge v-if="output.writerAgent.isLocal" color="warning" size="small">Local</ion-badge>
+            <ion-badge v-else color="tertiary" size="small">Cloud</ion-badge>
           </div>
-        </div>
-      </div>
-
-      <!-- Editors -->
-      <div class="agent-section" v-if="editorSteps.length > 0">
-        <h3>Editors</h3>
-        <div class="cards-row">
-          <div
-            v-for="step in editorSteps"
-            :key="step.id"
-            class="agent-card"
-            :class="step.status"
-          >
-            <div class="card-header">
-              <ion-icon :icon="pencilOutline" />
-              <span>{{ getAgentName(step.agentSlug) }}</span>
-            </div>
-            <div class="card-llm">
-              {{ getLLMDisplayName(step.agentSlug, step.llmConfigId) }}
-            </div>
-            <div class="card-status">
-              <ion-spinner v-if="step.status === 'processing'" name="crescent" />
-              <ion-icon v-else-if="step.status === 'completed'" :icon="checkmarkCircle" color="success" />
-              <ion-icon v-else-if="step.status === 'failed'" :icon="closeCircle" color="danger" />
-              <ion-icon v-else-if="step.status === 'skipped'" :icon="removeCircle" color="medium" />
-              <ion-icon v-else :icon="timeOutline" color="medium" />
-              <span>{{ formatStatus(step.status) }}</span>
-            </div>
+          <div class="card-llm">
+            {{ output.writerAgent.llmProvider }}/{{ output.writerAgent.llmModel }}
           </div>
-        </div>
-      </div>
-
-      <!-- Evaluators -->
-      <div class="agent-section" v-if="evaluatorSteps.length > 0">
-        <h3>Evaluators</h3>
-        <div class="cards-row">
-          <div
-            v-for="step in evaluatorSteps"
-            :key="step.id"
-            class="agent-card"
-            :class="step.status"
-          >
-            <div class="card-header">
-              <ion-icon :icon="starOutline" />
-              <span>{{ getAgentName(step.agentSlug) }}</span>
-            </div>
-            <div class="card-llm">
-              {{ getLLMDisplayName(step.agentSlug, step.llmConfigId) }}
-            </div>
-            <div class="card-status">
-              <ion-spinner v-if="step.status === 'processing'" name="crescent" />
-              <ion-icon v-else-if="step.status === 'completed'" :icon="checkmarkCircle" color="success" />
-              <ion-icon v-else-if="step.status === 'failed'" :icon="closeCircle" color="danger" />
-              <ion-icon v-else :icon="timeOutline" color="medium" />
-              <span>{{ formatStatus(step.status) }}</span>
-            </div>
+          <div v-if="output.editorAgent" class="card-editor">
+            <ion-icon :icon="pencilOutline" />
+            {{ output.editorAgent.name || output.editorAgent.slug }}
+            (Cycle {{ output.editCycle }})
+          </div>
+          <div class="card-status">
+            <ion-spinner v-if="isOutputInProgress(output.status)" name="crescent" />
+            <ion-icon v-else-if="output.status === 'approved'" :icon="checkmarkCircle" color="success" />
+            <ion-icon v-else-if="output.status === 'failed'" :icon="closeCircle" color="danger" />
+            <ion-icon v-else :icon="timeOutline" color="medium" />
+            <span>{{ formatOutputStatus(output.status) }}</span>
+          </div>
+          <div v-if="output.initialAvgScore" class="card-score">
+            Score: {{ output.initialAvgScore.toFixed(1) }}/10
+            <span v-if="output.isFinalist" class="finalist-badge">Finalist</span>
+          </div>
+          <div v-if="output.content" class="card-preview">
+            {{ output.content.slice(0, 80) }}{{ output.content.length > 80 ? '...' : '' }}
           </div>
         </div>
       </div>
     </div>
+
+    <!-- Phase 2: Initial Rankings -->
+    <ion-card v-if="initialRankings.length > 0">
+      <ion-card-header>
+        <ion-card-title>Initial Rankings</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-list>
+          <ion-item v-for="ranking in initialRankings" :key="ranking.outputId">
+            <ion-badge slot="start" :color="getRankColor(ranking.rank)">#{{ ranking.rank }}</ion-badge>
+            <ion-label>
+              <h3>{{ ranking.writerAgentSlug }}</h3>
+              <p v-if="ranking.editorAgentSlug">+ {{ ranking.editorAgentSlug }}</p>
+            </ion-label>
+            <ion-badge slot="end">{{ ranking.avgScore?.toFixed(1) || ranking.totalScore }}/10</ion-badge>
+          </ion-item>
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Finalists Section -->
+    <ion-card v-if="finalists.length > 0">
+      <ion-card-header>
+        <ion-card-title>Finalists (Top {{ finalists.length }})</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <div class="finalists-grid">
+          <div v-for="finalist in finalists" :key="finalist.id" class="finalist-card">
+            <ion-badge :color="getRankColor(finalist.rank)">#{{ finalist.rank }}</ion-badge>
+            <span class="finalist-agent">{{ finalist.writerAgentSlug }}</span>
+            <span class="finalist-score">{{ finalist.avgScore.toFixed(1) }}/10</span>
+          </div>
+        </div>
+      </ion-card-content>
+    </ion-card>
 
     <!-- Error Display -->
     <ion-card v-if="error" color="danger">
@@ -151,11 +143,14 @@ import {
   IonProgressBar,
   IonSpinner,
   IonIcon,
+  IonBadge,
+  IonList,
+  IonItem,
+  IonLabel,
 } from '@ionic/vue';
 import {
   checkmarkCircle,
   closeCircle,
-  removeCircle,
   timeOutline,
   createOutline,
   pencilOutline,
@@ -163,34 +158,66 @@ import {
   documentTextOutline,
   ribbonOutline,
   trophyOutline,
+  wifiOutline,
+  cloudOfflineOutline,
+  layersOutline,
+  filterOutline,
 } from 'ionicons/icons';
 import { useMarketingSwarmStore } from '@/stores/marketingSwarmStore';
+import type { OutputStatusPhase2 } from '@/types/marketing-swarm';
 
 const store = useMarketingSwarmStore();
 
+// Phase 2: More granular phases
 const phases = [
   { id: 'initializing', label: 'Setup', icon: documentTextOutline },
+  { id: 'building_queue', label: 'Queue', icon: layersOutline },
   { id: 'writing', label: 'Writing', icon: createOutline },
   { id: 'editing', label: 'Editing', icon: pencilOutline },
-  { id: 'evaluating', label: 'Evaluating', icon: starOutline },
+  { id: 'evaluating_initial', label: 'Evaluating', icon: starOutline },
+  { id: 'selecting_finalists', label: 'Finalists', icon: filterOutline },
+  { id: 'evaluating_final', label: 'Final Eval', icon: starOutline },
   { id: 'ranking', label: 'Ranking', icon: ribbonOutline },
   { id: 'completed', label: 'Done', icon: trophyOutline },
 ];
 
+// Phase 2: Computed properties from store
 const currentPhase = computed(() => store.currentPhase);
-const progress = computed(() => store.progress);
 const error = computed(() => store.error);
+const sseConnected = computed(() => store.sseConnected);
+const phase2Outputs = computed(() => store.phase2Outputs);
+const initialRankings = computed(() => store.initialRankings);
+const finalists = computed(() => store.finalists);
+const totalOutputsCount = computed(() => store.totalOutputsCount);
+const completedOutputsCount = computed(() => store.completedOutputsCount);
+
+// Progress calculation for Phase 2
+const progressPercentage = computed(() => {
+  if (totalOutputsCount.value === 0) return 0;
+  return Math.round((completedOutputsCount.value / totalOutputsCount.value) * 100);
+});
 
 const failedPhase = computed(() => {
   if (currentPhase.value !== 'failed') return null;
-  // Determine which phase failed based on queue state
-  const queue = store.executionQueue;
-  const failedStep = queue.find((s) => s.status === 'failed');
-  if (failedStep) return failedStep.stepType === 'write' ? 'writing' : failedStep.stepType === 'edit' ? 'editing' : 'evaluating';
+  // Determine which phase failed based on outputs
+  const failedOutput = phase2Outputs.value.find((o) => o.status === 'failed');
+  if (failedOutput) {
+    return 'writing';
+  }
   return 'initializing';
 });
 
-const phaseOrder = ['initializing', 'writing', 'editing', 'evaluating', 'ranking', 'completed'];
+const phaseOrder = [
+  'initializing',
+  'building_queue',
+  'writing',
+  'editing',
+  'evaluating_initial',
+  'selecting_finalists',
+  'evaluating_final',
+  'ranking',
+  'completed',
+];
 
 function isPhaseCompleted(phaseId: string): boolean {
   const currentIndex = phaseOrder.indexOf(currentPhase.value);
@@ -198,52 +225,52 @@ function isPhaseCompleted(phaseId: string): boolean {
   return phaseIndex < currentIndex;
 }
 
-// Filter steps by type
-const writerSteps = computed(() =>
-  store.executionQueue.filter((s) => s.stepType === 'write')
-);
-
-const editorSteps = computed(() =>
-  store.executionQueue.filter((s) => s.stepType === 'edit')
-);
-
-const evaluatorSteps = computed(() =>
-  store.executionQueue.filter((s) => s.stepType === 'evaluate')
-);
-
-// Helper functions
-function getAgentName(agentSlug: string): string {
-  const agent = store.getAgentBySlug(agentSlug);
-  return agent?.name || agentSlug;
+// Phase 2: Helper functions
+function getOutputStatusClass(status: OutputStatusPhase2): string {
+  if (['writing', 'editing', 'rewriting'].includes(status)) {
+    return 'processing';
+  }
+  if (status === 'approved') {
+    return 'completed';
+  }
+  if (status === 'failed') {
+    return 'failed';
+  }
+  return 'pending';
 }
 
-function getLLMDisplayName(agentSlug: string, llmConfigId: string): string {
-  const configs = store.getLLMConfigsForAgent(agentSlug);
-  const config = configs.find((c) => c.id === llmConfigId);
-  return config?.displayName || config?.llmModel || 'Unknown';
+function isOutputInProgress(status: OutputStatusPhase2): boolean {
+  return ['writing', 'editing', 'rewriting', 'pending_write', 'pending_edit', 'pending_rewrite'].includes(status);
 }
 
-function getOutputPreview(outputId: string): string {
-  const output = store.getOutputById(outputId);
-  if (!output) return '';
-  return output.content.slice(0, 100) + (output.content.length > 100 ? '...' : '');
-}
-
-function formatStatus(status: string): string {
+function formatOutputStatus(status: OutputStatusPhase2): string {
   switch (status) {
-    case 'pending':
-      return 'Waiting';
-    case 'processing':
-      return 'Processing...';
-    case 'completed':
-      return 'Complete';
+    case 'pending_write':
+      return 'Waiting to write';
+    case 'writing':
+      return 'Writing...';
+    case 'pending_edit':
+      return 'Waiting for edit';
+    case 'editing':
+      return 'Editing...';
+    case 'pending_rewrite':
+      return 'Waiting for rewrite';
+    case 'rewriting':
+      return 'Rewriting...';
+    case 'approved':
+      return 'Approved';
     case 'failed':
       return 'Failed';
-    case 'skipped':
-      return 'Skipped';
     default:
       return status;
   }
+}
+
+function getRankColor(rank: number): string {
+  if (rank === 1) return 'success';
+  if (rank === 2) return 'warning';
+  if (rank === 3) return 'tertiary';
+  return 'medium';
 }
 </script>
 
@@ -252,10 +279,34 @@ function formatStatus(status: string): string {
   padding: 16px;
 }
 
+/* SSE Connection Status */
+.sse-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--ion-color-light);
+  border-radius: 4px;
+  margin-bottom: 16px;
+  font-size: 0.875rem;
+  color: var(--ion-color-medium);
+}
+
+.sse-status.connected {
+  color: var(--ion-color-success);
+}
+
+.sse-status ion-icon {
+  font-size: 16px;
+}
+
+/* Phase Steps */
 .phase-steps {
   display: flex;
   justify-content: space-between;
   margin-bottom: 20px;
+  overflow-x: auto;
+  padding-bottom: 8px;
 }
 
 .phase-step {
@@ -264,6 +315,7 @@ function formatStatus(status: string): string {
   align-items: center;
   opacity: 0.5;
   transition: opacity 0.3s, transform 0.3s;
+  min-width: 60px;
 }
 
 .phase-step.active {
@@ -284,12 +336,12 @@ function formatStatus(status: string): string {
 }
 
 .phase-icon {
-  font-size: 24px;
+  font-size: 20px;
   margin-bottom: 4px;
 }
 
 .phase-label {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   text-align: center;
 }
 
@@ -300,15 +352,12 @@ function formatStatus(status: string): string {
   color: var(--ion-color-medium);
 }
 
-.agent-cards-grid {
+/* Output Cards Grid (Phase 2) */
+.output-cards-grid {
   margin-top: 24px;
 }
 
-.agent-section {
-  margin-bottom: 24px;
-}
-
-.agent-section h3 {
+.output-cards-grid h3 {
   font-size: 1rem;
   font-weight: 600;
   margin-bottom: 12px;
@@ -321,26 +370,28 @@ function formatStatus(status: string): string {
   gap: 12px;
 }
 
-.agent-card {
+.output-card {
   background: var(--ion-color-light);
   border-radius: 8px;
   padding: 12px;
-  min-width: 180px;
-  max-width: 220px;
+  min-width: 200px;
+  max-width: 280px;
+  flex: 1;
   transition: all 0.3s;
+  border: 2px solid transparent;
 }
 
-.agent-card.processing {
-  border: 2px solid var(--ion-color-primary);
+.output-card.processing {
+  border-color: var(--ion-color-primary);
   animation: pulse 1.5s infinite;
 }
 
-.agent-card.completed {
-  border: 2px solid var(--ion-color-success);
+.output-card.completed {
+  border-color: var(--ion-color-success);
 }
 
-.agent-card.failed {
-  border: 2px solid var(--ion-color-danger);
+.output-card.failed {
+  border-color: var(--ion-color-danger);
 }
 
 @keyframes pulse {
@@ -355,30 +406,96 @@ function formatStatus(status: string): string {
 .card-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-weight: 600;
   margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+
+.card-header ion-badge {
+  font-size: 0.65rem;
+  padding: 2px 6px;
 }
 
 .card-llm {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--ion-color-medium);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+}
+
+.card-editor {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--ion-color-medium-shade);
+  margin-bottom: 6px;
+}
+
+.card-editor ion-icon {
+  font-size: 14px;
 }
 
 .card-status {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.875rem;
+  font-size: 0.8rem;
+  margin-bottom: 6px;
+}
+
+.card-score {
+  font-size: 0.8rem;
+  color: var(--ion-color-primary);
+  font-weight: 500;
+}
+
+.finalist-badge {
+  background: var(--ion-color-warning);
+  color: var(--ion-color-warning-contrast);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  margin-left: 8px;
 }
 
 .card-preview {
   margin-top: 8px;
   font-size: 0.75rem;
   color: var(--ion-color-medium-shade);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.4;
+  background: var(--ion-background-color);
+  padding: 8px;
+  border-radius: 4px;
+}
+
+/* Finalists Grid */
+.finalists-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.finalist-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--ion-color-light);
+  border-radius: 4px;
+}
+
+.finalist-agent {
+  font-weight: 500;
+}
+
+.finalist-score {
+  color: var(--ion-color-medium);
+  font-size: 0.875rem;
+}
+
+/* Cards */
+ion-card {
+  margin-bottom: 16px;
 }
 </style>

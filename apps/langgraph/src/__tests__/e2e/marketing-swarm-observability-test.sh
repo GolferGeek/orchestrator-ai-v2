@@ -19,6 +19,15 @@
 
 set -e
 
+# Load environment variables from .env file if it exists
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../../.." && pwd)"
+if [ -f "$PROJECT_ROOT/.env" ]; then
+  set -a
+  source "$PROJECT_ROOT/.env"
+  set +a
+fi
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -36,6 +45,13 @@ API_URL="${API_URL:-http://127.0.0.1:6100}"
 TEST_EMAIL="${SUPABASE_TEST_USER:-golfergeek@orchestratorai.io}"
 TEST_PASSWORD="${SUPABASE_TEST_PASSWORD:-GolferGeek123!}"
 TEST_ORG="demo-org"
+
+# Validate required environment variables
+if [ "$SUPABASE_SERVICE_ROLE_KEY" = "your-service-role-key" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+  echo -e "${RED}Error: SUPABASE_SERVICE_ROLE_KEY is not set${NC}"
+  echo "Please set it in your .env file or export it before running this script"
+  exit 1
+fi
 
 TASK_ID=$(uuidgen | tr '[:upper:]' '[:lower:]')
 CONVERSATION_ID=$(uuidgen | tr '[:upper:]' '[:lower:]')
@@ -141,86 +157,83 @@ CLOUD_EVALUATOR_ID=$(curl -s "$SUPABASE_URL/rest/v1/agent_llm_configs?agent_slug
 echo -e "${GREEN}Got config IDs${NC}"
 
 # =============================================================================
-# 4. Create Task in Database
+# 4. Execute Marketing Swarm (API will create task, collect events while running)
 # =============================================================================
 
-echo -e "${CYAN}[4/6] Creating task in database...${NC}"
-
-curl -s -X POST "$SUPABASE_URL/rest/v1/swarm_tasks" \
-  -H "Content-Type: application/json" \
-  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Accept-Profile: marketing" \
-  -H "Content-Profile: marketing" \
-  -H "Prefer: return=representation" \
-  -d "{
-    \"task_id\": \"$TASK_ID\",
-    \"organization_slug\": \"$TEST_ORG\",
-    \"user_id\": \"$TEST_USER_ID\",
-    \"content_type_slug\": \"blog-post\",
-    \"prompt_data\": {
-      \"topic\": \"Observability Test - AI in Marketing\",
-      \"audience\": \"Marketing professionals\",
-      \"goal\": \"Test SSE event streaming\",
-      \"tone\": \"professional\",
-      \"keyPoints\": [\"Event streaming\", \"Real-time updates\", \"Visualization\"]
-    },
-    \"config\": {
-      \"writers\": [
-        { \"agentSlug\": \"writer-creative\", \"llmConfigId\": \"$CLOUD_WRITER_ID\" }
-      ],
-      \"editors\": [
-        { \"agentSlug\": \"editor-clarity\", \"llmConfigId\": \"$CLOUD_EDITOR_ID\" }
-      ],
-      \"evaluators\": [
-        { \"agentSlug\": \"evaluator-quality\", \"llmConfigId\": \"$CLOUD_EVALUATOR_ID\" }
-      ],
-      \"execution\": {
-        \"maxLocalConcurrent\": 1,
-        \"maxCloudConcurrent\": 3,
-        \"maxEditCycles\": 1,
-        \"topNForFinalRanking\": 1
-      }
-    },
-    \"status\": \"pending\"
-  }" > /dev/null
-
-echo -e "${GREEN}Task created: $TASK_ID${NC}"
-
-# =============================================================================
-# 5. Execute Marketing Swarm (collect events while running)
-# =============================================================================
-
-echo -e "${CYAN}[5/6] Executing marketing swarm...${NC}"
+echo -e "${CYAN}[4/6] Executing marketing swarm via A2A API...${NC}"
+echo -e "${YELLOW}The API will automatically create the task in marketing.swarm_tasks from the userMessage payload${NC}"
 echo -e "${YELLOW}Collecting SSE events during execution...${NC}"
 
-EXECUTION_CONTEXT="{
-  \"orgSlug\": \"$TEST_ORG\",
-  \"userId\": \"$TEST_USER_ID\",
-  \"conversationId\": \"$CONVERSATION_ID\",
-  \"taskId\": \"$TASK_ID\",
-  \"planId\": \"00000000-0000-0000-0000-000000000000\",
-  \"deliverableId\": \"00000000-0000-0000-0000-000000000000\",
-  \"agentSlug\": \"marketing-swarm\",
-  \"agentType\": \"api\",
-  \"provider\": \"anthropic\",
-  \"model\": \"claude-sonnet-4-20250514\"
-}"
+# Build the userMessage payload (JSON-stringified object matching frontend format)
+USER_MESSAGE_PAYLOAD=$(jq -n \
+  --arg taskId "$TASK_ID" \
+  --arg contentTypeSlug "blog-post" \
+  --arg cloudWriterId "$CLOUD_WRITER_ID" \
+  --arg cloudEditorId "$CLOUD_EDITOR_ID" \
+  --arg cloudEvaluatorId "$CLOUD_EVALUATOR_ID" \
+  '{
+    "type": "marketing-swarm-request",
+    "contentTypeSlug": $contentTypeSlug,
+    "contentTypeContext": null,
+    "promptData": {
+      "topic": "Observability Test - AI in Marketing",
+      "audience": "Marketing professionals",
+      "goal": "Test SSE event streaming",
+      "tone": "professional",
+      "keyPoints": ["Event streaming", "Real-time updates", "Visualization"]
+    },
+    "config": {
+      "writers": [
+        { "agentSlug": "writer-creative", "llmConfigId": $cloudWriterId }
+      ],
+      "editors": [
+        { "agentSlug": "editor-clarity", "llmConfigId": $cloudEditorId }
+      ],
+      "evaluators": [
+        { "agentSlug": "evaluator-quality", "llmConfigId": $cloudEvaluatorId }
+      ],
+      "execution": {
+        "maxLocalConcurrent": 1,
+        "maxCloudConcurrent": 3,
+        "maxEditCycles": 1,
+        "topNForFinalRanking": 1
+      }
+    }
+  }' | jq -c .)
+
+EXECUTION_CONTEXT=$(jq -n \
+  --arg orgSlug "$TEST_ORG" \
+  --arg userId "$TEST_USER_ID" \
+  --arg conversationId "$CONVERSATION_ID" \
+  --arg taskId "$TASK_ID" \
+  '{
+    "orgSlug": $orgSlug,
+    "userId": $userId,
+    "conversationId": $conversationId,
+    "taskId": $taskId,
+    "planId": "00000000-0000-0000-0000-000000000000",
+    "deliverableId": "00000000-0000-0000-0000-000000000000",
+    "agentSlug": "marketing-swarm",
+    "agentType": "api",
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-20250514"
+  }' | jq -c .)
 
 START_TIME=$(date +%s)
 
 # Execute the swarm
+# Note: Using build.execute method to match frontend (not agent.build)
 EXECUTE_RESPONSE=$(curl -s -X POST "$API_URL/agent-to-agent/$TEST_ORG/marketing-swarm/tasks" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $AUTH_TOKEN" \
   -d "{
     \"jsonrpc\": \"2.0\",
     \"id\": \"1\",
-    \"method\": \"agent.build\",
+    \"method\": \"build.execute\",
     \"params\": {
       \"mode\": \"build\",
       \"context\": $EXECUTION_CONTEXT,
-      \"userMessage\": \"Execute observability test task\"
+      \"userMessage\": $(echo "$USER_MESSAGE_PAYLOAD" | jq -R .)
     }
   }")
 
