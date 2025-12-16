@@ -10,6 +10,108 @@ export interface ExecutionConfig {
   maxCloudConcurrent: number;
   maxEditCycles: number;
   topNForFinalRanking: number;
+  topNForDeliverable: number;
+}
+
+/**
+ * Output version row from marketing.output_versions
+ */
+export interface OutputVersionRow {
+  id: string;
+  output_id: string;
+  task_id: string;
+  version_number: number;
+  content: string;
+  action_type: 'write' | 'rewrite';
+  editor_feedback: string | null;
+  llm_metadata: Record<string, unknown> | null;
+  created_at: string;
+}
+
+/**
+ * Deliverable output with full edit history
+ */
+export interface DeliverableOutput {
+  rank: number;
+  outputId: string;
+  writerAgentSlug: string;
+  editorAgentSlug: string | null;
+  finalContent: string;
+  initialScore: number | null;
+  finalScore: number | null;
+  editHistory: {
+    version: number;
+    content: string;
+    actionType: 'write' | 'rewrite';
+    editorFeedback: string | null;
+    createdAt: string;
+  }[];
+  evaluations: {
+    stage: 'initial' | 'final';
+    evaluatorSlug: string;
+    score: number | null;
+    rank: number | null;
+    reasoning: string | null;
+  }[];
+}
+
+/**
+ * Complete deliverable structure
+ */
+export interface Deliverable {
+  taskId: string;
+  contentTypeSlug: string;
+  promptData: Record<string, unknown>;
+  totalOutputs: number;
+  deliveredCount: number;
+  rankedOutputs: DeliverableOutput[];
+  generatedAt: string;
+}
+
+/**
+ * Version format for API runner compatibility
+ *
+ * Versions are returned in reverse rank order so the BEST content is the latest version:
+ * - Version 1 = lowest ranked (e.g., 5th best)
+ * - Version N = highest ranked (1st place winner)
+ *
+ * This matches typical versioning semantics where "latest is best"
+ */
+export interface DeliverableVersion {
+  version: number;        // 1, 2, 3... (ascending, latest = best)
+  rank: number;           // Original rank from evaluation (1 = best)
+  content: string;        // The final content
+  writerAgent: string;    // Writer agent slug
+  editorAgent: string | null;  // Editor agent slug
+  score: number | null;   // Final evaluation score
+  metadata: {
+    outputId: string;
+    editCycles: number;
+    initialScore: number | null;
+    finalScore: number | null;
+    writerLlmProvider: string;
+    writerLlmModel: string;
+    editorLlmProvider: string | null;
+    editorLlmModel: string | null;
+  };
+}
+
+/**
+ * Versioned deliverable for API runner
+ * The versions array contains ranked outputs in reverse order (best = last)
+ *
+ * The `type: 'versioned'` field signals the API runner to create
+ * multiple deliverable versions from the versions array.
+ */
+export interface VersionedDeliverable {
+  type: 'versioned';      // Signals API runner to create multiple versions
+  taskId: string;
+  contentTypeSlug: string;
+  promptData: Record<string, unknown>;
+  totalCandidates: number;
+  versions: DeliverableVersion[];
+  winner: DeliverableVersion | null;
+  generatedAt: string;
 }
 
 /**
@@ -124,7 +226,8 @@ export interface RunningCounts {
 @Injectable()
 export class MarketingDbService {
   private readonly logger = new Logger(MarketingDbService.name);
-  private supabase: SupabaseClient<unknown, 'marketing'>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private supabase: SupabaseClient<any, 'marketing'>;
 
   constructor() {
     // Use API URL (6010), not database port (6012)
@@ -834,5 +937,350 @@ export class MarketingDbService {
     }
 
     return (count ?? 0) > 0;
+  }
+
+  /**
+   * Save an output version (for edit history tracking)
+   *
+   * Call this every time content is generated (initial write or rewrite).
+   */
+  async saveOutputVersion(
+    outputId: string,
+    taskId: string,
+    content: string,
+    actionType: 'write' | 'rewrite',
+    editorFeedback: string | null,
+    llmMetadata?: Record<string, unknown>,
+  ): Promise<OutputVersionRow | null> {
+    // Get current max version number for this output
+    const { data: maxVersionData, error: maxError } = await this.supabase
+      .from('output_versions')
+      .select('version_number')
+      .eq('output_id', outputId)
+      .order('version_number', { ascending: false })
+      .limit(1);
+
+    if (maxError) {
+      this.logger.error(`Failed to get max version: ${maxError.message}`);
+      return null;
+    }
+
+    const nextVersion =
+      maxVersionData && maxVersionData.length > 0
+        ? (maxVersionData[0].version_number as number) + 1
+        : 1;
+
+    const { data, error } = await this.supabase
+      .from('output_versions')
+      .insert({
+        id: uuidv4(),
+        output_id: outputId,
+        task_id: taskId,
+        version_number: nextVersion,
+        content,
+        action_type: actionType,
+        editor_feedback: editorFeedback,
+        llm_metadata: llmMetadata,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      this.logger.error(`Failed to save output version: ${error.message}`);
+      return null;
+    }
+
+    this.logger.log(
+      `Saved output version ${nextVersion} for output ${outputId}`,
+    );
+    return data as OutputVersionRow;
+  }
+
+  /**
+   * Get all versions for an output (edit history)
+   */
+  async getOutputVersions(outputId: string): Promise<OutputVersionRow[]> {
+    const { data, error } = await this.supabase
+      .from('output_versions')
+      .select('*')
+      .eq('output_id', outputId)
+      .order('version_number', { ascending: true });
+
+    if (error) {
+      this.logger.error(`Failed to get output versions: ${error.message}`);
+      return [];
+    }
+
+    return data as OutputVersionRow[];
+  }
+
+  /**
+   * Get all versions for a task (for deliverable)
+   */
+  async getAllVersionsForTask(taskId: string): Promise<OutputVersionRow[]> {
+    const { data, error } = await this.supabase
+      .from('output_versions')
+      .select('*')
+      .eq('task_id', taskId)
+      .order('output_id')
+      .order('version_number', { ascending: true });
+
+    if (error) {
+      this.logger.error(`Failed to get all versions for task: ${error.message}`);
+      return [];
+    }
+
+    return data as OutputVersionRow[];
+  }
+
+  /**
+   * Generate the deliverable with top N ranked outputs and their edit histories
+   */
+  async getDeliverable(taskId: string, topN?: number): Promise<Deliverable | null> {
+    // Get task info
+    const { data: taskData, error: taskError } = await this.supabase
+      .from('swarm_tasks')
+      .select('task_id, content_type_slug, prompt_data, config')
+      .eq('task_id', taskId)
+      .single();
+
+    if (taskError || !taskData) {
+      this.logger.error(`Failed to get task for deliverable: ${taskError?.message}`);
+      return null;
+    }
+
+    const config = taskData.config as TaskConfig;
+    const deliveryCount = topN ?? config.execution.topNForDeliverable ?? 3;
+
+    // Get all outputs ordered by final_rank (or initial_rank if no final)
+    const { data: outputs, error: outputsError } = await this.supabase
+      .from('outputs')
+      .select('*')
+      .eq('task_id', taskId)
+      .eq('status', 'approved')
+      .not('final_rank', 'is', null)
+      .order('final_rank', { ascending: true })
+      .limit(deliveryCount);
+
+    if (outputsError) {
+      this.logger.error(`Failed to get outputs for deliverable: ${outputsError.message}`);
+      return null;
+    }
+
+    // If no final rankings, fall back to initial rankings
+    let rankedOutputs = outputs as OutputRow[];
+    if (rankedOutputs.length === 0) {
+      const { data: initialRanked, error: initialError } = await this.supabase
+        .from('outputs')
+        .select('*')
+        .eq('task_id', taskId)
+        .eq('status', 'approved')
+        .not('initial_rank', 'is', null)
+        .order('initial_rank', { ascending: true })
+        .limit(deliveryCount);
+
+      if (initialError) {
+        this.logger.error(`Failed to get initial ranked outputs: ${initialError.message}`);
+        return null;
+      }
+
+      rankedOutputs = initialRanked as OutputRow[];
+    }
+
+    // Get total count
+    const { count: totalCount } = await this.supabase
+      .from('outputs')
+      .select('*', { count: 'exact', head: true })
+      .eq('task_id', taskId);
+
+    // Get all versions and evaluations for the task
+    const allVersions = await this.getAllVersionsForTask(taskId);
+    const allEvaluations = await this.getAllEvaluations(taskId);
+
+    // Build deliverable outputs with edit history
+    const deliverableOutputs: DeliverableOutput[] = rankedOutputs.map(
+      (output, index) => {
+        // Get versions for this output
+        const versions = allVersions.filter((v) => v.output_id === output.id);
+
+        // Get evaluations for this output
+        const evals = allEvaluations.filter((e) => e.output_id === output.id);
+
+        return {
+          rank: index + 1,
+          outputId: output.id,
+          writerAgentSlug: output.writer_agent_slug,
+          editorAgentSlug: output.editor_agent_slug,
+          finalContent: output.content || '',
+          initialScore: output.initial_avg_score,
+          finalScore: output.final_total_score,
+          editHistory: versions.map((v) => ({
+            version: v.version_number,
+            content: v.content,
+            actionType: v.action_type,
+            editorFeedback: v.editor_feedback,
+            createdAt: v.created_at,
+          })),
+          evaluations: evals.map((e) => ({
+            stage: e.stage,
+            evaluatorSlug: e.evaluator_agent_slug,
+            score: e.score,
+            rank: e.rank,
+            reasoning: e.reasoning,
+          })),
+        };
+      },
+    );
+
+    return {
+      taskId,
+      contentTypeSlug: taskData.content_type_slug,
+      promptData: taskData.prompt_data as Record<string, unknown>,
+      totalOutputs: totalCount ?? 0,
+      deliveredCount: deliverableOutputs.length,
+      rankedOutputs: deliverableOutputs,
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Get versioned deliverable for API runner
+   *
+   * Returns top N ranked outputs as versions in REVERSE rank order:
+   * - Version 1 = lowest ranked (e.g., 5th place)
+   * - Version N = highest ranked (1st place, the winner)
+   *
+   * This matches typical versioning where "latest is best"
+   */
+  async getVersionedDeliverable(
+    taskId: string,
+    topN?: number,
+  ): Promise<VersionedDeliverable | null> {
+    // Get task info
+    const { data: taskData, error: taskError } = await this.supabase
+      .from('swarm_tasks')
+      .select('task_id, content_type_slug, prompt_data, config')
+      .eq('task_id', taskId)
+      .single();
+
+    if (taskError || !taskData) {
+      this.logger.error(
+        `Failed to get task for versioned deliverable: ${taskError?.message}`,
+      );
+      return null;
+    }
+
+    const config = taskData.config as TaskConfig;
+    const deliveryCount = topN ?? config.execution.topNForDeliverable ?? 3;
+
+    // Get all outputs ordered by final_rank (best first)
+    const { data: outputs, error: outputsError } = await this.supabase
+      .from('outputs')
+      .select('*')
+      .eq('task_id', taskId)
+      .eq('status', 'approved')
+      .not('final_rank', 'is', null)
+      .order('final_rank', { ascending: true })
+      .limit(deliveryCount);
+
+    if (outputsError) {
+      this.logger.error(
+        `Failed to get outputs for versioned deliverable: ${outputsError.message}`,
+      );
+      return null;
+    }
+
+    // If no final rankings, fall back to initial rankings
+    let rankedOutputs = outputs as OutputRow[];
+    if (rankedOutputs.length === 0) {
+      const { data: initialRanked, error: initialError } = await this.supabase
+        .from('outputs')
+        .select('*')
+        .eq('task_id', taskId)
+        .eq('status', 'approved')
+        .not('initial_rank', 'is', null)
+        .order('initial_rank', { ascending: true })
+        .limit(deliveryCount);
+
+      if (initialError) {
+        this.logger.error(
+          `Failed to get initial ranked outputs: ${initialError.message}`,
+        );
+        return null;
+      }
+
+      rankedOutputs = initialRanked as OutputRow[];
+    }
+
+    // Get total count
+    const { count: totalCount } = await this.supabase
+      .from('outputs')
+      .select('*', { count: 'exact', head: true })
+      .eq('task_id', taskId);
+
+    // Get LLM configs for metadata
+    const llmConfigCache = new Map<string, AgentLlmConfig>();
+
+    // Build versions in REVERSE rank order (worst to best)
+    // So version 1 = worst in selection, version N = winner
+    const reversedOutputs = [...rankedOutputs].reverse();
+
+    const versions: DeliverableVersion[] = await Promise.all(
+      reversedOutputs.map(async (output, index) => {
+        // Get writer LLM config
+        let writerConfig = llmConfigCache.get(output.writer_llm_config_id);
+        if (!writerConfig) {
+          writerConfig = (await this.getLlmConfig(output.writer_llm_config_id)) ?? undefined;
+          if (writerConfig) {
+            llmConfigCache.set(output.writer_llm_config_id, writerConfig);
+          }
+        }
+
+        // Get editor LLM config if exists
+        let editorConfig: AgentLlmConfig | undefined;
+        if (output.editor_llm_config_id) {
+          editorConfig = llmConfigCache.get(output.editor_llm_config_id);
+          if (!editorConfig) {
+            editorConfig = (await this.getLlmConfig(output.editor_llm_config_id)) ?? undefined;
+            if (editorConfig) {
+              llmConfigCache.set(output.editor_llm_config_id, editorConfig);
+            }
+          }
+        }
+
+        return {
+          version: index + 1, // 1, 2, 3... (ascending)
+          rank: output.final_rank ?? output.initial_rank ?? 0, // Original rank
+          content: output.content || '',
+          writerAgent: output.writer_agent_slug,
+          editorAgent: output.editor_agent_slug,
+          score: output.final_total_score ?? output.initial_avg_score,
+          metadata: {
+            outputId: output.id,
+            editCycles: output.edit_cycle,
+            initialScore: output.initial_avg_score,
+            finalScore: output.final_total_score,
+            writerLlmProvider: writerConfig?.llm_provider ?? 'unknown',
+            writerLlmModel: writerConfig?.llm_model ?? 'unknown',
+            editorLlmProvider: editorConfig?.llm_provider ?? null,
+            editorLlmModel: editorConfig?.llm_model ?? null,
+          },
+        };
+      }),
+    );
+
+    // Winner is the last version (highest version number = best rank)
+    const winner = versions.length > 0 ? versions[versions.length - 1] : null;
+
+    return {
+      type: 'versioned' as const,  // Signal to API runner to create versions
+      taskId,
+      contentTypeSlug: taskData.content_type_slug,
+      promptData: taskData.prompt_data as Record<string, unknown>,
+      totalCandidates: totalCount ?? 0,
+      versions,
+      winner,
+      generatedAt: new Date().toISOString(),
+    };
   }
 }

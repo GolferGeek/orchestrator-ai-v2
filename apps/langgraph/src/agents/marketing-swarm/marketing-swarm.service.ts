@@ -1,7 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ExecutionContext } from '@orchestrator-ai/transport-types';
 import { DualTrackProcessorService } from './dual-track-processor.service';
-import { MarketingDbService, OutputRow, EvaluationRow } from './marketing-db.service';
+import {
+  MarketingDbService,
+  OutputRow,
+  EvaluationRow,
+  Deliverable,
+  VersionedDeliverable,
+} from './marketing-db.service';
 import { ObservabilityService } from '../../services/observability.service';
 
 /**
@@ -21,6 +27,8 @@ export interface MarketingSwarmResult {
   outputs: OutputRow[];
   evaluations: EvaluationRow[];
   winner?: OutputRow;
+  deliverable?: Deliverable;
+  versionedDeliverable?: VersionedDeliverable;
   error?: string;
   duration: number;
 }
@@ -87,6 +95,10 @@ export class MarketingSwarmService {
       const evaluations = await this.db.getAllEvaluations(taskId);
       const winner = outputs.find((o) => o.final_rank === 1);
 
+      // Generate deliverables with top N ranked outputs
+      const deliverable = await this.db.getDeliverable(taskId);
+      const versionedDeliverable = await this.db.getVersionedDeliverable(taskId);
+
       this.logger.log(
         `Marketing Swarm completed: taskId=${taskId}, duration=${duration}ms`,
       );
@@ -97,6 +109,8 @@ export class MarketingSwarmService {
         outputs,
         evaluations,
         winner,
+        deliverable: deliverable ?? undefined,
+        versionedDeliverable: versionedDeliverable ?? undefined,
         duration,
       };
     } catch (error) {
@@ -213,6 +227,44 @@ export class MarketingSwarmService {
       this.logger.error(`Failed to get full state for task ${taskId}:`, error);
       return null;
     }
+  }
+
+  /**
+   * Get deliverable for a completed task
+   *
+   * Returns the top N ranked outputs with their full edit histories.
+   * This is what gets returned to the API runner.
+   *
+   * @param taskId - The task ID
+   * @param topN - Optional override for number of outputs to include
+   */
+  async getDeliverable(
+    taskId: string,
+    topN?: number,
+  ): Promise<Deliverable | null> {
+    this.logger.log(`Getting deliverable for task: ${taskId}`);
+    return this.db.getDeliverable(taskId, topN);
+  }
+
+  /**
+   * Get versioned deliverable for API runner
+   *
+   * Returns top N ranked outputs as versions in reverse order:
+   * - Version 1 = lowest ranked (e.g., 5th place)
+   * - Version N = highest ranked (1st place, winner)
+   *
+   * The `type: 'versioned'` field signals the API runner to create
+   * multiple deliverable versions from the versions array.
+   *
+   * @param taskId - The task ID
+   * @param topN - Optional override for number of outputs to include
+   */
+  async getVersionedDeliverable(
+    taskId: string,
+    topN?: number,
+  ): Promise<VersionedDeliverable | null> {
+    this.logger.log(`Getting versioned deliverable for task: ${taskId}`);
+    return this.db.getVersionedDeliverable(taskId, topN);
   }
 
   /**

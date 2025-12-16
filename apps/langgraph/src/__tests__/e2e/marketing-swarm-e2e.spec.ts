@@ -40,6 +40,8 @@ const SWARM_TIMEOUT = 300000; // 5 minutes for full swarm execution
 describeE2E('Marketing Swarm E2E Tests', () => {
   let app: INestApplication;
   let supabase: SupabaseClient;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let marketingSupabase: SupabaseClient<any, 'marketing'>; // Client with marketing schema
   let authToken: string;
   let testUserId: string;
   let testOrgSlug: string;
@@ -58,9 +60,15 @@ describeE2E('Marketing Swarm E2E Tests', () => {
   let observabilityEvents: any[] = [];
 
   beforeAll(async () => {
-    // Initialize Supabase client
+    // Initialize Supabase client for public schema
     supabase = createClient(supabaseUrl, supabaseKey, {
       auth: { persistSession: false },
+    });
+
+    // Initialize Supabase client for marketing schema
+    marketingSupabase = createClient(supabaseUrl, supabaseKey, {
+      auth: { persistSession: false },
+      db: { schema: 'marketing' },
     });
 
     // Authenticate
@@ -73,9 +81,13 @@ describeE2E('Marketing Swarm E2E Tests', () => {
 
     if (authError) {
       console.warn('Auth failed, tests may fail:', authError.message);
+      // Use a default test UUID for user when auth fails
+      testUserId = NIL_UUID;
     } else if (authData?.session?.access_token) {
       authToken = authData.session.access_token;
-      testUserId = authData.user?.id || 'test-user-id';
+      testUserId = authData.user?.id || NIL_UUID;
+    } else {
+      testUserId = NIL_UUID;
     }
 
     testOrgSlug = 'demo-org';
@@ -111,6 +123,7 @@ describeE2E('Marketing Swarm E2E Tests', () => {
       maxCloudConcurrent?: number;
       maxEditCycles?: number;
       topNForFinalRanking?: number;
+      topNForDeliverable?: number;
     };
   }): Promise<void> {
     const config = {
@@ -122,6 +135,7 @@ describeE2E('Marketing Swarm E2E Tests', () => {
         maxCloudConcurrent: options.execution?.maxCloudConcurrent ?? 5,
         maxEditCycles: options.execution?.maxEditCycles ?? 2,
         topNForFinalRanking: options.execution?.topNForFinalRanking ?? 3,
+        topNForDeliverable: options.execution?.topNForDeliverable ?? 3,
       },
     };
 
@@ -133,7 +147,7 @@ describeE2E('Marketing Swarm E2E Tests', () => {
       keyPoints: ['Point 1', 'Point 2', 'Point 3'],
     };
 
-    const { error } = await supabase.from('marketing.swarm_tasks').insert({
+    const { error } = await marketingSupabase.from('swarm_tasks').insert({
       task_id: options.taskId,
       organization_slug: testOrgSlug,
       user_id: testUserId,
@@ -160,58 +174,75 @@ describeE2E('Marketing Swarm E2E Tests', () => {
     cloudEvaluator: string;
   }> {
     // Get a local (Ollama) writer config
-    const { data: localWriterConfig } = await supabase
-      .from('marketing.agent_llm_configs')
+    const { data: localWriterConfig, error: lwErr } = await marketingSupabase
+      .from('agent_llm_configs')
       .select('id')
       .eq('agent_slug', 'writer-creative')
       .eq('is_local', true)
       .single();
+    if (lwErr) console.warn('localWriter lookup failed:', lwErr.message);
 
     // Get a cloud (Anthropic) writer config
-    const { data: cloudWriterConfig } = await supabase
-      .from('marketing.agent_llm_configs')
+    const { data: cloudWriterConfig, error: cwErr } = await marketingSupabase
+      .from('agent_llm_configs')
       .select('id')
       .eq('agent_slug', 'writer-creative')
       .eq('llm_provider', 'anthropic')
       .single();
+    if (cwErr) console.warn('cloudWriter lookup failed:', cwErr.message);
 
     // Get editor configs
-    const { data: localEditorConfig } = await supabase
-      .from('marketing.agent_llm_configs')
+    const { data: localEditorConfig, error: leErr } = await marketingSupabase
+      .from('agent_llm_configs')
       .select('id')
       .eq('agent_slug', 'editor-clarity')
       .eq('is_local', true)
       .single();
+    if (leErr) console.warn('localEditor lookup failed:', leErr.message);
 
-    const { data: cloudEditorConfig } = await supabase
-      .from('marketing.agent_llm_configs')
+    const { data: cloudEditorConfig, error: ceErr } = await marketingSupabase
+      .from('agent_llm_configs')
       .select('id')
       .eq('agent_slug', 'editor-clarity')
       .eq('llm_provider', 'anthropic')
       .single();
+    if (ceErr) console.warn('cloudEditor lookup failed:', ceErr.message);
 
     // Get evaluator configs
-    const { data: localEvaluatorConfig } = await supabase
-      .from('marketing.agent_llm_configs')
+    const { data: localEvaluatorConfig, error: levErr } = await marketingSupabase
+      .from('agent_llm_configs')
       .select('id')
       .eq('agent_slug', 'evaluator-quality')
       .eq('is_local', true)
       .single();
+    if (levErr) console.warn('localEvaluator lookup failed:', levErr.message);
 
-    const { data: cloudEvaluatorConfig } = await supabase
-      .from('marketing.agent_llm_configs')
+    const { data: cloudEvaluatorConfig, error: cevErr } = await marketingSupabase
+      .from('agent_llm_configs')
       .select('id')
       .eq('agent_slug', 'evaluator-quality')
       .eq('llm_provider', 'anthropic')
       .single();
+    if (cevErr) console.warn('cloudEvaluator lookup failed:', cevErr.message);
+
+    // Throw if required configs are missing (they should be seeded)
+    if (!cloudWriterConfig?.id) {
+      throw new Error('Cloud writer config not found - ensure marketing.agent_llm_configs is seeded');
+    }
+    if (!cloudEditorConfig?.id) {
+      throw new Error('Cloud editor config not found - ensure marketing.agent_llm_configs is seeded');
+    }
+    if (!cloudEvaluatorConfig?.id) {
+      throw new Error('Cloud evaluator config not found - ensure marketing.agent_llm_configs is seeded');
+    }
 
     return {
-      localWriter: localWriterConfig?.id || '',
-      cloudWriter: cloudWriterConfig?.id || '',
-      localEditor: localEditorConfig?.id || '',
-      cloudEditor: cloudEditorConfig?.id || '',
-      localEvaluator: localEvaluatorConfig?.id || '',
-      cloudEvaluator: cloudEvaluatorConfig?.id || '',
+      localWriter: localWriterConfig?.id || NIL_UUID,
+      cloudWriter: cloudWriterConfig.id,
+      localEditor: localEditorConfig?.id || NIL_UUID,
+      cloudEditor: cloudEditorConfig.id,
+      localEvaluator: localEvaluatorConfig?.id || NIL_UUID,
+      cloudEvaluator: cloudEvaluatorConfig.id,
     };
   }
 
@@ -236,16 +267,16 @@ describeE2E('Marketing Swarm E2E Tests', () => {
    */
   async function cleanupTestData(taskId: string): Promise<void> {
     // Delete evaluations
-    await supabase
-      .from('marketing.evaluations')
+    await marketingSupabase
+      .from('evaluations')
       .delete()
       .eq('task_id', taskId);
 
     // Delete outputs
-    await supabase.from('marketing.outputs').delete().eq('task_id', taskId);
+    await marketingSupabase.from('outputs').delete().eq('task_id', taskId);
 
     // Delete task
-    await supabase.from('marketing.swarm_tasks').delete().eq('task_id', taskId);
+    await marketingSupabase.from('swarm_tasks').delete().eq('task_id', taskId);
   }
 
   /**
@@ -544,8 +575,8 @@ describeE2E('Marketing Swarm E2E Tests', () => {
         .select('*, writer_llm_config:marketing.agent_llm_configs!writer_llm_config_id(is_local, llm_provider)')
         .eq('task_id', taskId);
 
-      for (const output of outputs || []) {
-        if ((output as any).writer_llm_config?.is_local) {
+      for (const output of (outputs || []) as any[]) {
+        if (output.writer_llm_config?.is_local) {
           expect(['approved', 'failed']).toContain(output.status);
         }
       }
@@ -993,7 +1024,7 @@ describeE2E('Marketing Swarm E2E Tests', () => {
       const configs = await getLlmConfigIds();
 
       // Create task with no writers (invalid config)
-      const { error } = await supabase.from('marketing.swarm_tasks').insert({
+      const { error } = await marketingSupabase.from('swarm_tasks').insert({
         task_id: taskId,
         organization_slug: testOrgSlug,
         user_id: testUserId,
@@ -1121,10 +1152,202 @@ describeE2E('Marketing Swarm E2E Tests', () => {
   });
 
   // ============================================================================
-  // TEST SUITE 10: LLM Metadata Tracking
+  // TEST SUITE 10: Deliverable and Versioned Deliverable Output
   // ============================================================================
 
-  describe('10. LLM Metadata Tracking', () => {
+  describe('10. Deliverable and Versioned Deliverable Output', () => {
+    const taskId = uuidv4(); // Must be a valid UUID
+    let configs: Awaited<ReturnType<typeof getLlmConfigIds>>;
+    const topNForDeliverable = 3; // Configure to return top 3 outputs as versions
+
+    beforeAll(async () => {
+      configs = await getLlmConfigIds();
+
+      // Create task with multiple writers to generate multiple outputs
+      // and set topNForDeliverable to control number of versions
+      await createTestTask({
+        taskId,
+        writers: [
+          { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
+          { agentSlug: 'writer-technical', llmConfigId: configs.cloudWriter },
+          { agentSlug: 'writer-persuasive', llmConfigId: configs.cloudWriter },
+        ],
+        editors: [
+          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
+        ],
+        evaluators: [
+          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
+        ],
+        execution: {
+          maxLocalConcurrent: 0,
+          maxCloudConcurrent: 5,
+          maxEditCycles: 1,
+          topNForFinalRanking: 3,
+          topNForDeliverable, // This controls versioned deliverable count
+        },
+      });
+
+      // Execute the task
+      const context = createTestContext(taskId);
+      await request(app.getHttpServer())
+        .post('/marketing-swarm/execute')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ context });
+    }, SWARM_TIMEOUT);
+
+    afterAll(async () => {
+      await cleanupTestData(taskId);
+    });
+
+    it('should return deliverable with ranked outputs', async () => {
+      const response = await request(app.getHttpServer())
+        .get(`/marketing-swarm/deliverable/${taskId}`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect([200]).toContain(response.status);
+      const data = getData(response.body) as any;
+
+      expect(data).toHaveProperty('taskId', taskId);
+      expect(data).toHaveProperty('contentTypeSlug');
+      expect(data).toHaveProperty('promptData');
+      expect(data).toHaveProperty('rankedOutputs');
+      expect(data).toHaveProperty('totalOutputs');
+      expect(data).toHaveProperty('deliveredCount');
+
+      // Should have ranked outputs (winner is first)
+      expect(Array.isArray(data.rankedOutputs)).toBe(true);
+      expect(data.rankedOutputs.length).toBeGreaterThan(0);
+
+      // Winner is the first ranked output
+      const winner = data.rankedOutputs[0];
+      expect(winner).toHaveProperty('rank', 1);
+      expect(winner).toHaveProperty('finalContent');
+      expect(winner.finalContent.length).toBeGreaterThan(0);
+      expect(winner).toHaveProperty('writerAgentSlug');
+      expect(winner).toHaveProperty('editorAgentSlug');
+    });
+
+    it('should return versioned deliverable with correct number of versions', async () => {
+      const response = await request(app.getHttpServer())
+        .get(`/marketing-swarm/versioned-deliverable/${taskId}`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect([200]).toContain(response.status);
+      const data = getData(response.body) as any;
+
+      expect(data).toHaveProperty('type', 'versioned');
+      expect(data).toHaveProperty('taskId', taskId);
+      expect(data).toHaveProperty('versions');
+      expect(Array.isArray(data.versions)).toBe(true);
+
+      // Should have topNForDeliverable versions (or fewer if not enough outputs)
+      // We created 3 writers × 1 editor = 3 outputs, and topNForDeliverable = 3
+      expect(data.versions.length).toBeGreaterThan(0);
+      expect(data.versions.length).toBeLessThanOrEqual(topNForDeliverable);
+
+      // Versions should be in reverse rank order (lowest rank first, highest rank last)
+      // Version 1 = lowest ranked in selection, Version N = winner (rank 1)
+      if (data.versions.length > 1) {
+        // First version should have higher rank number (worse)
+        // Last version should have rank 1 (best)
+        const lastVersion = data.versions[data.versions.length - 1];
+        expect(lastVersion.rank).toBe(1); // Best ranked is last version
+      }
+
+      // Each version should have required fields
+      for (const version of data.versions) {
+        expect(version).toHaveProperty('version');
+        expect(version).toHaveProperty('rank');
+        expect(version).toHaveProperty('content');
+        expect(version).toHaveProperty('writerAgent');
+        expect(version).toHaveProperty('score');
+        expect(version.content.length).toBeGreaterThan(0);
+      }
+    });
+
+    it('should have correct version numbering (1 to N)', async () => {
+      const response = await request(app.getHttpServer())
+        .get(`/marketing-swarm/versioned-deliverable/${taskId}`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect([200]).toContain(response.status);
+      const data = getData(response.body) as any;
+
+      // Verify version numbers are sequential starting from 1
+      const versionNumbers = data.versions.map((v: any) => v.version).sort((a: number, b: number) => a - b);
+
+      for (let i = 0; i < versionNumbers.length; i++) {
+        expect(versionNumbers[i]).toBe(i + 1);
+      }
+    });
+
+    it('should have winner matching the highest version', async () => {
+      const response = await request(app.getHttpServer())
+        .get(`/marketing-swarm/versioned-deliverable/${taskId}`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect([200]).toContain(response.status);
+      const data = getData(response.body) as any;
+
+      expect(data).toHaveProperty('winner');
+
+      if (data.winner && data.versions.length > 0) {
+        // Winner should match the last version (highest version number)
+        const lastVersion = data.versions[data.versions.length - 1];
+        expect(data.winner.rank).toBe(1);
+        expect(data.winner.content).toBe(lastVersion.content);
+      }
+    });
+
+    it('should include total candidates count', async () => {
+      const response = await request(app.getHttpServer())
+        .get(`/marketing-swarm/versioned-deliverable/${taskId}`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect([200]).toContain(response.status);
+      const data = getData(response.body) as any;
+
+      expect(data).toHaveProperty('totalCandidates');
+      // totalCandidates should reflect all approved outputs
+      expect(data.totalCandidates).toBeGreaterThanOrEqual(data.versions.length);
+    });
+
+    it('should include generation timestamp', async () => {
+      const response = await request(app.getHttpServer())
+        .get(`/marketing-swarm/versioned-deliverable/${taskId}`)
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect([200]).toContain(response.status);
+      const data = getData(response.body) as any;
+
+      expect(data).toHaveProperty('generatedAt');
+      // Should be a valid ISO date string
+      const timestamp = new Date(data.generatedAt);
+      expect(timestamp.getTime()).not.toBeNaN();
+    });
+
+    it('should return 404 for non-existent task deliverable', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/marketing-swarm/deliverable/non-existent-task-12345')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect([404]).toContain(response.status);
+    });
+
+    it('should return 404 for non-existent task versioned-deliverable', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/marketing-swarm/versioned-deliverable/non-existent-task-12345')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect([404]).toContain(response.status);
+    });
+  });
+
+  // ============================================================================
+  // TEST SUITE 11: LLM Metadata Tracking
+  // ============================================================================
+
+  describe('11. LLM Metadata Tracking', () => {
     it('should store LLM metadata for outputs', async () => {
       const taskId = `test-metadata-${Date.now()}`;
       const configs = await getLlmConfigIds();

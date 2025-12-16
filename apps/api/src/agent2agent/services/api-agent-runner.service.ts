@@ -2328,20 +2328,12 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
             body = this.filterUnresolvedTemplates(body);
           }
         } else {
-          // Default: Build simple request body with only immutable core fields
-          // Just pass userMessage - the external service handles mapping to their internal format
-          // organizationSlug is required - fail fast if missing
-          if (!organizationSlug) {
-            throw new Error(
-              'organizationSlug is required but was null or undefined',
-            );
-          }
+          // Default: Use ExecutionContext capsule as the single source of truth
+          // All identity fields (taskId, userId, conversationId, agentSlug, orgSlug) are in context
+          // Context is the capsule that flows through the entire system - no duplication
           body = {
-            taskId,
-            userId,
-            conversationId,
+            context: request.context,
             userMessage: request.userMessage || '',
-            organizationSlug,
           };
         }
       }

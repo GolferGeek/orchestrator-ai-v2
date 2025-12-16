@@ -312,6 +312,16 @@ export class DualTrackProcessorService {
       latencyMs,
     });
 
+    // Save version for edit history tracking
+    await this.db.saveOutputVersion(
+      output.id,
+      taskId,
+      response.text,
+      'write',
+      null,
+      { tokensUsed: response.usage?.totalTokens, latencyMs },
+    );
+
     // Emit update with full data
     const updatedOutput = await this.db.getOutputById(output.id);
     if (updatedOutput) {
@@ -464,6 +474,16 @@ export class DualTrackProcessorService {
       tokensUsed: response.usage?.totalTokens,
       latencyMs,
     });
+
+    // Save version for edit history tracking (include editor feedback that triggered rewrite)
+    await this.db.saveOutputVersion(
+      output.id,
+      taskId,
+      response.text,
+      'rewrite',
+      editorFeedback,
+      { tokensUsed: response.usage?.totalTokens, latencyMs },
+    );
 
     // Emit update
     const updatedOutput = await this.db.getOutputById(output.id);

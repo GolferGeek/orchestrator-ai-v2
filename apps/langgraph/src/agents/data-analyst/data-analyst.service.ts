@@ -108,15 +108,18 @@ export class DataAnalystService implements OnModuleInit {
       );
 
       // Emit failure event
-      await this.observability.emitFailed({
+      const failContext = {
         taskId,
-        threadId: taskId,
         agentSlug: 'data-analyst',
         userId: context.userId,
         conversationId: context.conversationId,
-        error: errorMessage,
+      } as Parameters<typeof this.observability.emitFailed>[0];
+      await this.observability.emitFailed(
+        failContext,
+        taskId, // threadId
+        errorMessage,
         duration,
-      });
+      );
 
       return {
         taskId,

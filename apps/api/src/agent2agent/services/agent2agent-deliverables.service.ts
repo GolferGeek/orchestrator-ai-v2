@@ -13,6 +13,34 @@ interface DeliverableIdRecord {
   id: string;
 }
 
+/**
+ * Version data from a versioned deliverable (e.g., Marketing Swarm)
+ */
+interface VersionedDeliverableVersion {
+  version: number;
+  rank: number;
+  content: string;
+  writerAgent: string;
+  editorAgent: string | null;
+  score: number | null;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Versioned deliverable data structure from Marketing Swarm
+ * type: 'versioned' signals that versions array should become multiple deliverable versions
+ */
+interface VersionedDeliverableData {
+  type: 'versioned';
+  taskId: string;
+  contentTypeSlug: string;
+  promptData: Record<string, unknown>;
+  totalCandidates: number;
+  versions: VersionedDeliverableVersion[];
+  winner: VersionedDeliverableVersion | null;
+  generatedAt: string;
+}
+
 @Injectable()
 export class Agent2AgentDeliverablesService {
   private readonly logger = new Logger(Agent2AgentDeliverablesService.name);
@@ -78,6 +106,21 @@ export class Agent2AgentDeliverablesService {
         status !== 'succeeded'
       ) {
         return null;
+      }
+
+      // Check for versioned deliverable (e.g., from Marketing Swarm)
+      // Format: { type: 'versioned', versions: [...], winner: {...} }
+      const versionedDeliverable = this.extractVersionedDeliverable(contentRec);
+      if (versionedDeliverable) {
+        return this.createVersionedDeliverable(
+          versionedDeliverable,
+          userId,
+          taskId,
+          agentSlug,
+          conversationId,
+          mode,
+          metadataRec,
+        );
       }
 
       // Extract content - handle both build mode (output) and HITL mode (finalContent)
@@ -168,6 +211,113 @@ export class Agent2AgentDeliverablesService {
       );
       return null;
     }
+  }
+
+  /**
+   * Extract versioned deliverable from content if present
+   * Marketing Swarm returns: { type: 'versioned', versions: [...], winner: {...} }
+   */
+  private extractVersionedDeliverable(
+    contentRec: Record<string, unknown> | undefined,
+  ): VersionedDeliverableData | null {
+    if (!contentRec) return null;
+
+    // Check direct content for versioned type
+    if (contentRec.type === 'versioned' && Array.isArray(contentRec.versions)) {
+      return contentRec as unknown as VersionedDeliverableData;
+    }
+
+    // Check nested output for versioned type (API agent response wrapper)
+    const output = contentRec.output as Record<string, unknown> | undefined;
+    if (output?.type === 'versioned' && Array.isArray(output.versions)) {
+      return output as unknown as VersionedDeliverableData;
+    }
+
+    // Check for data wrapper (from marketing swarm endpoint response)
+    const data = contentRec.data as Record<string, unknown> | undefined;
+    if (data?.type === 'versioned' && Array.isArray(data.versions)) {
+      return data as unknown as VersionedDeliverableData;
+    }
+
+    return null;
+  }
+
+  /**
+   * Create deliverable with multiple versions from a versioned deliverable structure
+   * Versions are already ordered: version 1 = lowest ranked, version N = best (winner)
+   */
+  private async createVersionedDeliverable(
+    versionedData: VersionedDeliverableData,
+    userId: string,
+    taskId: string,
+    agentSlug: string,
+    conversationId: string,
+    mode: string,
+    metadataRec: Record<string, unknown> | undefined,
+  ): Promise<string> {
+    const versions = versionedData.versions || [];
+    const winner = versionedData.winner;
+
+    if (versions.length === 0) {
+      throw new Error('Versioned deliverable has no versions');
+    }
+
+    // Extract title from winner content or first version
+    const winnerContent = winner?.content || versions[versions.length - 1]?.content || '';
+    const title =
+      this.extractTitleFromContent(winnerContent) ||
+      `${agentSlug} Output ${this.currentDateSuffix()}`;
+
+    // Create the deliverable record
+    const deliverableId = await this.createDeliverable({
+      title,
+      type: 'document',
+      conversationId,
+      agentName: agentSlug,
+      userId,
+    });
+
+    // Create all versions in order (version 1, 2, 3... N)
+    // Version N (highest) is the winner and will be marked as current
+    for (let i = 0; i < versions.length; i++) {
+      const version = versions[i];
+      if (!version) continue; // Skip undefined entries
+
+      const versionNumber = i + 1;
+      const isCurrentVersion = versionNumber === versions.length; // Last version is current
+
+      await this.createDeliverableVersionWithNumber({
+        deliverableId,
+        versionNumber,
+        content: version.content || '',
+        format: DeliverableFormat.MARKDOWN,
+        createdByType: DeliverableVersionCreationType.CONVERSATION_TASK,
+        taskId,
+        userId,
+        isCurrentVersion,
+        metadata: {
+          agentName: agentSlug,
+          agentType: (metadataRec && metadataRec.agentType) || 'swarm',
+          mode,
+          taskId,
+          source: 'marketing-swarm',
+          createdAt: new Date().toISOString(),
+          // Include ranking metadata
+          rank: version.rank,
+          originalVersion: version.version,
+          writerAgent: version.writerAgent,
+          editorAgent: version.editorAgent,
+          score: version.score,
+          outputMetadata: version.metadata,
+        },
+      });
+    }
+
+    this.logger.log(
+      `📄 Created versioned deliverable ${deliverableId} with ${versions.length} versions from Marketing Swarm task ${taskId}`,
+    );
+
+    return deliverableId;
   }
 
   /**
@@ -456,6 +606,58 @@ export class Agent2AgentDeliverablesService {
     if (!data) {
       throw new BadRequestException(
         'Failed to create deliverable version: No data returned',
+      );
+    }
+
+    return data.id;
+  }
+
+  /**
+   * Create deliverable version with explicit version number
+   * Used for versioned deliverables (e.g., Marketing Swarm) where we need to create
+   * multiple versions in order
+   */
+  private async createDeliverableVersionWithNumber(params: {
+    deliverableId: string;
+    versionNumber: number;
+    content: string;
+    format: string;
+    createdByType: string;
+    taskId?: string;
+    userId: string;
+    isCurrentVersion: boolean;
+    metadata: Record<string, unknown>;
+    fileAttachments?: Record<string, unknown>;
+  }): Promise<string> {
+    const { data: result, error } = await this.supabaseService
+      .getServiceClient()
+      .from(getTableName('deliverable_versions'))
+      .insert([
+        {
+          deliverable_id: params.deliverableId,
+          content: params.content,
+          format: params.format,
+          created_by_type: params.createdByType,
+          task_id: params.taskId || null,
+          metadata: params.metadata,
+          file_attachments: params.fileAttachments || {},
+          version_number: params.versionNumber,
+          is_current_version: params.isCurrentVersion,
+        },
+      ])
+      .select('id')
+      .single();
+
+    if (error) {
+      throw new BadRequestException(
+        `Failed to create deliverable version ${params.versionNumber}: ${error.message}`,
+      );
+    }
+
+    const data = result as DeliverableIdRecord | null;
+    if (!data) {
+      throw new BadRequestException(
+        `Failed to create deliverable version ${params.versionNumber}: No data returned`,
       );
     }
 

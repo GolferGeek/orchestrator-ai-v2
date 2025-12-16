@@ -500,7 +500,9 @@ async function testMarketingSwarm() {
                 await cb.click();
                 await page.waitForTimeout(500);
               }
-            } catch (e) {}
+            } catch {
+              // Checkbox click failed, continue
+            }
           }
         }
       } catch (e) {

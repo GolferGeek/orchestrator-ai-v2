@@ -78,17 +78,21 @@ export class HITLHelperService {
       `Preparing HITL interrupt for task ${request.taskId}, thread ${request.threadId}`,
     );
 
-    // Emit observability event
-    await this.observability.emitHitlWaiting({
+    // Emit observability event - cast to ExecutionContext for observability service
+    // Only taskId, agentSlug, userId, conversationId, and orgSlug are needed for event routing
+    const context = {
       taskId: request.taskId,
-      threadId: request.threadId,
       agentSlug: request.agentSlug,
       userId: request.userId,
       conversationId: request.conversationId,
-      organizationSlug: request.organizationSlug,
-      message: request.message || `Awaiting review for ${request.contentType}`,
-      pendingContent: request.pendingContent,
-    });
+      orgSlug: request.organizationSlug,
+    } as Parameters<typeof this.observability.emitHitlWaiting>[0];
+    await this.observability.emitHitlWaiting(
+      context,
+      request.threadId,
+      request.pendingContent,
+      request.message || `Awaiting review for ${request.contentType}`,
+    );
 
     return {
       ...currentState,
@@ -116,17 +120,21 @@ export class HITLHelperService {
       `Processing HITL resume for task ${request.taskId}: ${response.decision}`,
     );
 
-    // Emit observability event
-    await this.observability.emitHitlResumed({
+    // Emit observability event - cast to ExecutionContext for observability service
+    // Only taskId, agentSlug, userId, conversationId, and orgSlug are needed for event routing
+    const context = {
       taskId: request.taskId,
-      threadId: request.threadId,
       agentSlug: request.agentSlug,
       userId: request.userId,
       conversationId: request.conversationId,
-      organizationSlug: request.organizationSlug,
-      decision: response.decision,
-      message: response.feedback || `Decision: ${response.decision}`,
-    });
+      orgSlug: request.organizationSlug,
+    } as Parameters<typeof this.observability.emitHitlResumed>[0];
+    await this.observability.emitHitlResumed(
+      context,
+      request.threadId,
+      response.decision,
+      response.feedback || `Decision: ${response.decision}`,
+    );
 
     return {
       ...currentState,

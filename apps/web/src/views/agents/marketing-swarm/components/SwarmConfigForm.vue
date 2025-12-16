@@ -227,6 +227,23 @@
             </ion-range>
           </ion-item>
 
+          <!-- Top N for Deliverable -->
+          <ion-item>
+            <ion-label>Top N in Deliverable</ion-label>
+            <ion-range
+              v-model="topNForDeliverable"
+              :min="1"
+              :max="10"
+              :step="1"
+              :pin="true"
+              :snaps="true"
+              :ticks="true"
+            >
+              <ion-label slot="start">1</ion-label>
+              <ion-label slot="end">10</ion-label>
+            </ion-range>
+          </ion-item>
+
           <!-- Max Local Concurrent -->
           <ion-item>
             <ion-label>Max Local Concurrent</ion-label>
@@ -275,6 +292,7 @@
         <p><strong>Evaluators:</strong> {{ selectedEvaluatorCount }} configurations</p>
         <p><strong>Max Edit Cycles:</strong> {{ maxEditCycles }}</p>
         <p><strong>Top N for Final Ranking:</strong> {{ topNForFinalRanking }}</p>
+        <p><strong>Top N in Deliverable:</strong> {{ topNForDeliverable }}</p>
         <p><strong>Concurrency:</strong> {{ maxLocalConcurrent }} local / {{ maxCloudConcurrent }} cloud</p>
         <p class="total-combinations">
           <strong>Total Combinations:</strong> {{ totalCombinations }}
@@ -384,6 +402,7 @@ const selectedEvaluators = ref<AgentConfig[]>([]);
 // Execution config
 const maxEditCycles = ref(3);
 const topNForFinalRanking = ref(3);
+const topNForDeliverable = ref(3);
 const maxLocalConcurrent = ref(1);
 const maxCloudConcurrent = ref(5);
 
@@ -538,6 +557,7 @@ function handleExecute() {
         maxCloudConcurrent: maxCloudConcurrent.value,
         maxEditCycles: maxEditCycles.value,
         topNForFinalRanking: topNForFinalRanking.value,
+        topNForDeliverable: topNForDeliverable.value,
       },
     },
   });

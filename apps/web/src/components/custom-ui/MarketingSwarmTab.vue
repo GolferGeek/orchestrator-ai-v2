@@ -98,18 +98,63 @@ async function loadConfiguration() {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   console.log('[MarketingSwarmTab] Mounted with conversation:', props.conversation?.id);
-  loadConfiguration();
+  await loadConfiguration();
+
+  // Check if the initial conversation has completed results
+  if (props.conversation?.id) {
+    const messages = props.conversation?.messages || [];
+    const completedMessage = messages.find((msg) =>
+      msg.metadata?.marketingSwarmCompleted === true
+    );
+
+    if (completedMessage?.metadata?.taskId) {
+      console.log('[MarketingSwarmTab] Initial load - found completed task:', completedMessage.metadata.taskId);
+      try {
+        const state = await marketingSwarmService.getSwarmState(completedMessage.metadata.taskId as string);
+        console.log('[MarketingSwarmTab] Initial load - loaded state:', state);
+        store.setUIView('results');
+      } catch (err) {
+        console.error('[MarketingSwarmTab] Initial load - failed to load state:', err);
+        // Fall back to config view
+        store.setUIView('config');
+      }
+    }
+  }
 });
 
 // Watch for conversation changes
-watch(() => props.conversation?.id, (newId) => {
+watch(() => props.conversation?.id, async (newId) => {
   if (newId) {
     console.log('[MarketingSwarmTab] Conversation changed:', newId);
     // Reset state when switching to a new conversation
     store.resetTaskState();
-    store.setUIView('config');
+
+    // Check if this conversation has completed results
+    // Look for marketingSwarmCompleted in message metadata
+    const messages = props.conversation?.messages || [];
+    const completedMessage = messages.find((msg) =>
+      msg.metadata?.marketingSwarmCompleted === true
+    );
+
+    if (completedMessage?.metadata?.taskId) {
+      console.log('[MarketingSwarmTab] Found completed task:', completedMessage.metadata.taskId);
+      // Fetch the full state from LangGraph and display results
+      try {
+        const state = await marketingSwarmService.getSwarmState(completedMessage.metadata.taskId as string);
+        console.log('[MarketingSwarmTab] Loaded completed state:', state);
+        // State is already populated in store by getSwarmState
+        store.setUIView('results');
+      } catch (err) {
+        console.error('[MarketingSwarmTab] Failed to load completed state:', err);
+        // Fall back to config view if we can't load the state
+        store.setUIView('config');
+      }
+    } else {
+      // No completed results, show config
+      store.setUIView('config');
+    }
   }
 });
 

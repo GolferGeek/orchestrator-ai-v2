@@ -40,6 +40,9 @@ export class MarketingSwarmController {
    * Phase 2: The task must already exist in marketing.swarm_tasks table.
    * The frontend creates the task with config when user submits the form.
    * This endpoint triggers the actual processing.
+   *
+   * Returns: Versioned deliverable structure that API runner can parse
+   * to create multiple deliverable versions.
    */
   @Post('execute')
   @HttpCode(HttpStatus.OK)
@@ -64,8 +67,28 @@ export class MarketingSwarmController {
         taskId,
       });
 
+      // If execution failed, return error response
+      if (result.status !== 'completed') {
+        return {
+          success: false,
+          status: 'failed',
+          error: result.error || 'Execution failed',
+        };
+      }
+
+      // Return versioned deliverable for API runner to parse
+      // This structure has type: 'versioned' which signals the API runner
+      // to create multiple deliverable versions from the versions array
+      if (result.versionedDeliverable) {
+        return {
+          success: true,
+          data: result.versionedDeliverable,
+        };
+      }
+
+      // Fallback to raw result if no versioned deliverable available
       return {
-        success: result.status === 'completed',
+        success: true,
         data: result,
       };
     } catch (error) {
@@ -120,6 +143,59 @@ export class MarketingSwarmController {
         outputs: state.outputs,
         evaluations: state.evaluations,
       },
+    };
+  }
+
+  /**
+   * Get deliverable for a completed task
+   *
+   * Returns the top N ranked outputs with their full edit histories.
+   * This is the JSON structure suitable for returning to API runner.
+   */
+  @Get('deliverable/:taskId')
+  @HttpCode(HttpStatus.OK)
+  async getDeliverable(@Param('taskId') taskId: string) {
+    this.logger.log(`Getting deliverable for task: ${taskId}`);
+
+    const deliverable = await this.marketingSwarmService.getDeliverable(taskId);
+
+    if (!deliverable) {
+      throw new NotFoundException(`Deliverable not found for task: ${taskId}`);
+    }
+
+    return {
+      success: true,
+      data: deliverable,
+    };
+  }
+
+  /**
+   * Get versioned deliverable for API runner
+   *
+   * Returns top N ranked outputs as versions in reverse order:
+   * - Version 1 = lowest ranked (e.g., 5th place)
+   * - Version N = highest ranked (1st place, winner)
+   *
+   * The `type: 'versioned'` field signals the API runner to create
+   * multiple deliverable versions from the versions array.
+   */
+  @Get('versioned-deliverable/:taskId')
+  @HttpCode(HttpStatus.OK)
+  async getVersionedDeliverable(@Param('taskId') taskId: string) {
+    this.logger.log(`Getting versioned deliverable for task: ${taskId}`);
+
+    const deliverable =
+      await this.marketingSwarmService.getVersionedDeliverable(taskId);
+
+    if (!deliverable) {
+      throw new NotFoundException(
+        `Versioned deliverable not found for task: ${taskId}`,
+      );
+    }
+
+    return {
+      success: true,
+      data: deliverable,
     };
   }
 
