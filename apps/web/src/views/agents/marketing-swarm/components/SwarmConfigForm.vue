@@ -189,22 +189,78 @@
           </div>
         </div>
 
-        <!-- Max Edit Cycles -->
-        <ion-item>
-          <ion-label>Max Edit Cycles</ion-label>
-          <ion-range
-            v-model="maxEditCycles"
-            :min="1"
-            :max="5"
-            :step="1"
-            :pin="true"
-            :snaps="true"
-            :ticks="true"
-          >
-            <ion-label slot="start">1</ion-label>
-            <ion-label slot="end">5</ion-label>
-          </ion-range>
-        </ion-item>
+        <!-- Execution Configuration -->
+        <div class="execution-config-section">
+          <h3>Execution Settings</h3>
+
+          <!-- Max Edit Cycles -->
+          <ion-item>
+            <ion-label>Max Edit Cycles</ion-label>
+            <ion-range
+              v-model="maxEditCycles"
+              :min="1"
+              :max="5"
+              :step="1"
+              :pin="true"
+              :snaps="true"
+              :ticks="true"
+            >
+              <ion-label slot="start">1</ion-label>
+              <ion-label slot="end">5</ion-label>
+            </ion-range>
+          </ion-item>
+
+          <!-- Top N for Final Ranking -->
+          <ion-item>
+            <ion-label>Top N for Final Ranking</ion-label>
+            <ion-range
+              v-model="topNForFinalRanking"
+              :min="1"
+              :max="10"
+              :step="1"
+              :pin="true"
+              :snaps="true"
+              :ticks="true"
+            >
+              <ion-label slot="start">1</ion-label>
+              <ion-label slot="end">10</ion-label>
+            </ion-range>
+          </ion-item>
+
+          <!-- Max Local Concurrent -->
+          <ion-item>
+            <ion-label>Max Local Concurrent</ion-label>
+            <ion-range
+              v-model="maxLocalConcurrent"
+              :min="1"
+              :max="3"
+              :step="1"
+              :pin="true"
+              :snaps="true"
+              :ticks="true"
+            >
+              <ion-label slot="start">1</ion-label>
+              <ion-label slot="end">3</ion-label>
+            </ion-range>
+          </ion-item>
+
+          <!-- Max Cloud Concurrent -->
+          <ion-item>
+            <ion-label>Max Cloud Concurrent</ion-label>
+            <ion-range
+              v-model="maxCloudConcurrent"
+              :min="1"
+              :max="10"
+              :step="1"
+              :pin="true"
+              :snaps="true"
+              :ticks="true"
+            >
+              <ion-label slot="start">1</ion-label>
+              <ion-label slot="end">10</ion-label>
+            </ion-range>
+          </ion-item>
+        </div>
       </ion-card-content>
     </ion-card>
 
@@ -218,6 +274,8 @@
         <p><strong>Editors:</strong> {{ selectedEditorCount }} configurations</p>
         <p><strong>Evaluators:</strong> {{ selectedEvaluatorCount }} configurations</p>
         <p><strong>Max Edit Cycles:</strong> {{ maxEditCycles }}</p>
+        <p><strong>Top N for Final Ranking:</strong> {{ topNForFinalRanking }}</p>
+        <p><strong>Concurrency:</strong> {{ maxLocalConcurrent }} local / {{ maxCloudConcurrent }} cloud</p>
         <p class="total-combinations">
           <strong>Total Combinations:</strong> {{ totalCombinations }}
         </p>
@@ -239,7 +297,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import {
   IonCard,
   IonCardHeader,
@@ -271,8 +329,8 @@ const emit = defineEmits<{
 
 const store = useMarketingSwarmStore();
 
-// Content type selection
-const selectedContentType = ref<string>('');
+// Content type selection - default to blog-post for faster testing
+const selectedContentType = ref<string>('blog-post');
 
 const contentTypes = computed(() => store.contentTypes);
 
@@ -286,19 +344,26 @@ const selectedContentTypeContext = computed(() => {
   return type?.systemPromptTemplate || '';
 });
 
-// Prompt data
+// Prompt data - pre-filled with test defaults for faster testing
 const promptData = ref<PromptData>({
-  topic: '',
-  audience: '',
-  goal: '',
-  keyPoints: [],
+  topic: 'AI-Powered Marketing Automation: How Small Businesses Can Compete with Enterprise',
+  audience: 'Small business owners and marketing managers looking to leverage AI tools',
+  goal: 'Educate readers on practical AI marketing tools and inspire them to start automating',
+  keyPoints: [
+    'AI marketing tools are now affordable for small businesses',
+    'Start with email automation and social media scheduling',
+    'Use AI for content generation and personalization',
+    'Measure ROI and iterate on your strategy',
+  ],
   tone: 'professional',
   constraints: '',
   examples: '',
   additionalContext: '',
 });
 
-const keyPointsText = ref('');
+const keyPointsText = ref(
+  'AI marketing tools are now affordable for small businesses\nStart with email automation and social media scheduling\nUse AI for content generation and personalization\nMeasure ROI and iterate on your strategy'
+);
 
 watch(keyPointsText, (text) => {
   promptData.value.keyPoints = text
@@ -315,7 +380,12 @@ const evaluatorAgents = computed(() => store.evaluatorAgents);
 const selectedWriters = ref<AgentConfig[]>([]);
 const selectedEditors = ref<AgentConfig[]>([]);
 const selectedEvaluators = ref<AgentConfig[]>([]);
+
+// Execution config
 const maxEditCycles = ref(3);
+const topNForFinalRanking = ref(3);
+const maxLocalConcurrent = ref(1);
+const maxCloudConcurrent = ref(5);
 
 function getLLMConfigsForAgent(agentSlug: string): AgentLLMConfig[] {
   return store.getLLMConfigsForAgent(agentSlug);
@@ -420,6 +490,36 @@ const validationMessage = computed(() => {
   return '';
 });
 
+// Auto-select first writer on mount for faster testing
+onMounted(() => {
+  // Wait for store to load agents, then select defaults
+  let unwatchFn: (() => void) | null = null;
+
+  const selectFirstWriter = (agents: MarketingAgent[]) => {
+    if (agents.length > 0 && selectedWriters.value.length === 0) {
+      // Select first writer with its default config
+      const firstWriter = agents[0];
+      const configs = getLLMConfigsForAgent(firstWriter.slug);
+      const defaultConfig = configs.find((c) => c.isDefault) || configs[0];
+      if (defaultConfig) {
+        selectedWriters.value.push({
+          agentSlug: firstWriter.slug,
+          llmConfigId: defaultConfig.id,
+          llmProvider: defaultConfig.llmProvider,
+          llmModel: defaultConfig.llmModel,
+          displayName: defaultConfig.displayName,
+        });
+      }
+      // Stop watching after selection (use nextTick to avoid immediate call issue)
+      if (unwatchFn) {
+        unwatchFn();
+      }
+    }
+  };
+
+  unwatchFn = watch(() => writerAgents.value, selectFirstWriter, { immediate: true });
+});
+
 // Execute
 function handleExecute() {
   if (!canExecute.value) return;
@@ -434,10 +534,10 @@ function handleExecute() {
       evaluators: [...selectedEvaluators.value],
       maxEditCycles: maxEditCycles.value,
       execution: {
-        maxLocalConcurrent: 1, // Default: 1 local LLM can run concurrently
-        maxCloudConcurrent: 5, // Default: 5 cloud LLMs can run concurrently
-        maxEditCycles: maxEditCycles.value, // Use the same value from form
-        topNForFinalRanking: 1, // Default: rank top 1 for final evaluation
+        maxLocalConcurrent: maxLocalConcurrent.value,
+        maxCloudConcurrent: maxCloudConcurrent.value,
+        maxEditCycles: maxEditCycles.value,
+        topNForFinalRanking: topNForFinalRanking.value,
       },
     },
   });
@@ -462,11 +562,18 @@ function handleExecute() {
   margin-bottom: 24px;
 }
 
-.agent-section h3 {
+.agent-section h3,
+.execution-config-section h3 {
   font-size: 1rem;
   font-weight: 600;
   margin-bottom: 12px;
   color: var(--ion-color-primary);
+}
+
+.execution-config-section {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--ion-color-light);
 }
 
 .agent-item {

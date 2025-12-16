@@ -394,7 +394,14 @@ export interface ObservabilityEvent {
     agentSlug?: string;
   };
   message?: string;
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, unknown>; // Legacy - may not be present
+  payload?: {
+    data?: {
+      metadata?: Record<string, unknown>; // Marketing Swarm metadata from LangGraph
+    };
+    metadata?: Record<string, unknown>; // Direct metadata (alternative location)
+    [key: string]: unknown;
+  };
 }
 
 /**

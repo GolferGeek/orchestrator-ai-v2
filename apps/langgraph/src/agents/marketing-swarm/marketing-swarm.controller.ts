@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Delete,
   Body,
   Param,
   HttpCode,
@@ -119,6 +120,29 @@ export class MarketingSwarmController {
         outputs: state.outputs,
         evaluations: state.evaluations,
       },
+    };
+  }
+
+  /**
+   * Delete a task and all associated data
+   *
+   * Deletes evaluations, outputs, and the swarm_task from the database.
+   * Called when a conversation/deliverable is deleted from the API.
+   */
+  @Delete(':taskId')
+  @HttpCode(HttpStatus.OK)
+  async deleteTask(@Param('taskId') taskId: string) {
+    this.logger.log(`Deleting task: ${taskId}`);
+
+    const success = await this.marketingSwarmService.deleteTask(taskId);
+
+    if (!success) {
+      throw new NotFoundException(`Swarm task not found: ${taskId}`);
+    }
+
+    return {
+      success: true,
+      message: `Task ${taskId} and all associated data deleted`,
     };
   }
 }

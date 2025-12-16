@@ -214,4 +214,35 @@ export class MarketingSwarmService {
       return null;
     }
   }
+
+  /**
+   * Delete a task and all associated data
+   *
+   * Deletes evaluations, outputs, and the swarm_task from the database.
+   * Called when a conversation/deliverable is deleted.
+   *
+   * @param taskId - The task ID to delete
+   * @returns true if deletion was successful
+   */
+  async deleteTask(taskId: string): Promise<boolean> {
+    this.logger.log(`Deleting task: ${taskId}`);
+
+    // Check if task exists
+    const exists = await this.db.taskExists(taskId);
+    if (!exists) {
+      this.logger.warn(`Task not found for deletion: ${taskId}`);
+      return false;
+    }
+
+    // Delete all task data
+    const success = await this.db.deleteTaskData(taskId);
+
+    if (success) {
+      this.logger.log(`Successfully deleted task: ${taskId}`);
+    } else {
+      this.logger.error(`Failed to delete task: ${taskId}`);
+    }
+
+    return success;
+  }
 }

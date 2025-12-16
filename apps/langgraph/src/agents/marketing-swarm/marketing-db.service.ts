@@ -124,7 +124,7 @@ export interface RunningCounts {
 @Injectable()
 export class MarketingDbService {
   private readonly logger = new Logger(MarketingDbService.name);
-  private supabase: SupabaseClient;
+  private supabase: SupabaseClient<unknown, 'marketing'>;
 
   constructor() {
     // Use API URL (6010), not database port (6012)
@@ -762,5 +762,77 @@ export class MarketingDbService {
       promptData: data.prompt_data,
       contentTypeSlug: data.content_type_slug,
     };
+  }
+
+  /**
+   * Delete all data for a task (evaluations, outputs, and the task itself)
+   *
+   * Order matters due to foreign key constraints:
+   * 1. Delete evaluations (references outputs)
+   * 2. Delete outputs (references swarm_tasks)
+   * 3. Delete swarm_task
+   *
+   * @returns true if deletion was successful, false otherwise
+   */
+  async deleteTaskData(taskId: string): Promise<boolean> {
+    this.logger.log(`Deleting all data for task: ${taskId}`);
+
+    try {
+      // 1. Delete evaluations first (references outputs)
+      const { error: evalError } = await this.supabase
+        .from('evaluations')
+        .delete()
+        .eq('task_id', taskId);
+
+      if (evalError) {
+        this.logger.error(`Failed to delete evaluations: ${evalError.message}`);
+        return false;
+      }
+
+      // 2. Delete outputs (references swarm_tasks)
+      const { error: outputError } = await this.supabase
+        .from('outputs')
+        .delete()
+        .eq('task_id', taskId);
+
+      if (outputError) {
+        this.logger.error(`Failed to delete outputs: ${outputError.message}`);
+        return false;
+      }
+
+      // 3. Delete the swarm_task
+      const { error: taskError } = await this.supabase
+        .from('swarm_tasks')
+        .delete()
+        .eq('task_id', taskId);
+
+      if (taskError) {
+        this.logger.error(`Failed to delete swarm_task: ${taskError.message}`);
+        return false;
+      }
+
+      this.logger.log(`Successfully deleted all data for task: ${taskId}`);
+      return true;
+    } catch (error) {
+      this.logger.error(`Error deleting task data: ${error}`);
+      return false;
+    }
+  }
+
+  /**
+   * Check if a task exists
+   */
+  async taskExists(taskId: string): Promise<boolean> {
+    const { count, error } = await this.supabase
+      .from('swarm_tasks')
+      .select('*', { count: 'exact', head: true })
+      .eq('task_id', taskId);
+
+    if (error) {
+      this.logger.error(`Failed to check task exists: ${error.message}`);
+      return false;
+    }
+
+    return (count ?? 0) > 0;
   }
 }

@@ -186,8 +186,8 @@ export class ObservabilityEventsService {
 
       const username = event.payload?.username;
       const usernameStr = typeof username === 'string' ? username : 'unknown';
-      this.logger.log(
-        `📥 [BUFFER] Pushing event: ${event.hook_event_type} for task ${event.context.taskId || 'unknown'}, username=${usernameStr}`,
+      this.logger.debug(
+        `📥 [BUFFER] Pushing event: ${event.hook_event_type} for task ${event.context.taskId || 'unknown'}, conversationId=${event.context.conversationId || 'none'}, username=${usernameStr}`,
       );
       this.buffer.push(event);
       if (this.buffer.length > this.bufferSize) {
@@ -195,7 +195,7 @@ export class ObservabilityEventsService {
       }
 
       this.subject.next(event);
-      this.logger.log(
+      this.logger.debug(
         `✅ [BUFFER] Event pushed successfully, buffer size: ${this.buffer.length}, subscribers notified`,
       );
 

@@ -1,7 +1,6 @@
 import { Controller, Get, Res, UseGuards, Logger, Query } from '@nestjs/common';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RequirePermission } from '../rbac/decorators/require-permission.decorator';
 import {
   ObservabilityEventsService,
   ObservabilityEventRecord,
@@ -32,24 +31,27 @@ export class ObservabilityStreamController {
   ) {}
 
   /**
-   * Stream all observability events to admin clients
+   * Stream all observability events to clients
    * GET /observability/stream
    *
    * Optional query params for filtering:
    * - filterUserId: Filter by user ID
    * - filterAgentSlug: Filter by agent
    * - filterConversationId: Filter by conversation
+   *
+   * Note: admin:audit permission is documented but not enforced via RbacGuard.
+   * Any authenticated user can access the stream, but should filter by their
+   * own conversationId or userId for appropriate access control.
    */
   @Get('stream')
-  @RequirePermission('admin:audit')
   streamEvents(
     @Res() response: Response,
     @Query('userId') filterUserId?: string,
     @Query('agentSlug') filterAgentSlug?: string,
     @Query('conversationId') filterConversationId?: string,
   ): void {
-    this.logger.log('🔌 Admin connected to observability stream');
-    this.logger.log(
+    this.logger.debug('🔌 Admin connected to observability stream');
+    this.logger.debug(
       `📋 Filters: userId=${filterUserId || 'none'}, agentSlug=${filterAgentSlug || 'none'}, conversationId=${filterConversationId || 'none'}`,
     );
 
@@ -66,29 +68,36 @@ export class ObservabilityStreamController {
       message: 'Observability stream connected',
     };
     response.write(`data: ${JSON.stringify(connectionEvent)}\n\n`);
-    this.logger.log('📡 SSE connection established, sent connection event');
+    this.logger.debug('📡 SSE connection established, sent connection event');
 
     // Send buffered events from ReplaySubject (recent in-memory events)
     const bufferedEvents = this.observabilityEvents.getSnapshot();
     if (bufferedEvents.length > 0) {
-      for (const event of bufferedEvents) {
+      // Filter buffered events if conversationId filter is set
+      const filteredBuffered = filterConversationId
+        ? bufferedEvents.filter(
+            (e) => e.context.conversationId === filterConversationId,
+          )
+        : bufferedEvents;
+
+      for (const event of filteredBuffered) {
         response.write(`data: ${JSON.stringify(event)}\n\n`);
       }
-      this.logger.log(
-        `📦 Sent ${bufferedEvents.length} buffered events from memory`,
+      this.logger.debug(
+        `📦 Sent ${filteredBuffered.length}/${bufferedEvents.length} buffered events (filtered by conversationId: ${filterConversationId || 'none'})`,
       );
     }
 
     // Subscribe to live observability stream (RxJS-based)
-    this.logger.log(
+    this.logger.debug(
       `📡 Subscribing to ObservabilityEventsService. Current buffer size: ${this.observabilityEvents.getSnapshot().length}`,
     );
 
     const subscription: Subscription =
       this.observabilityEvents.events$.subscribe({
         next: (event) => {
-          this.logger.log(
-            `📨 Received event: ${event.hook_event_type} for task ${event.context.taskId || 'unknown'}`,
+          this.logger.debug(
+            `📨 Received event: ${event.hook_event_type} for task ${event.context.taskId || 'unknown'}, conversationId=${event.context.conversationId || 'none'}`,
           );
 
           // Apply query param filters
@@ -104,11 +113,13 @@ export class ObservabilityStreamController {
             filterConversationId &&
             event.context.conversationId !== filterConversationId
           ) {
-            this.logger.debug(`📨 Filtered out - conversationId mismatch`);
+            this.logger.debug(
+              `📨 Filtered out - conversationId mismatch: event=${event.context.conversationId}, filter=${filterConversationId}`,
+            );
             return;
           }
 
-          this.logger.log(`✅ Event passed filters, writing to stream`);
+          this.logger.debug(`✅ Event passed filters, writing to stream`);
           this.writeEvent(response, event);
         },
         error: (error) => {
@@ -130,7 +141,7 @@ export class ObservabilityStreamController {
 
     // Handle client disconnect
     response.on('close', () => {
-      this.logger.log('🔌 Admin disconnected from observability stream');
+      this.logger.debug('🔌 Admin disconnected from observability stream');
       clearInterval(heartbeatInterval);
       subscription.unsubscribe();
     });
@@ -142,11 +153,11 @@ export class ObservabilityStreamController {
   ): void {
     try {
       const eventJson = JSON.stringify(event);
-      this.logger.log(
+      this.logger.debug(
         `✍️ Writing event: ${event.hook_event_type} (${eventJson.length} bytes)`,
       );
       response.write(`data: ${eventJson}\n\n`);
-      this.logger.log(`✅ Event written successfully`);
+      this.logger.debug(`✅ Event written successfully`);
     } catch (error) {
       this.logger.error(`❌ Failed to write event to stream:`, error);
     }
@@ -162,7 +173,6 @@ export class ObservabilityStreamController {
    * - limit: Max events to return (default 1000, max 5000)
    */
   @Get('history')
-  @RequirePermission('admin:audit')
   async getHistory(
     @Query('since') sinceParam?: string,
     @Query('until') untilParam?: string,

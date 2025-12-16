@@ -1425,7 +1425,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
       );
       // DEBUG: Log request structure to understand what we're receiving
       this.logger.log(
-        `[MarketingSwarm] Request structure: userMessage=${!!request.userMessage}, payload.userMessage=${!!((request.payload as Record<string, unknown>)?.userMessage)}, payload.prompt=${!!((request.payload as Record<string, unknown>)?.prompt)}, extractedUserMessage=${!!userMessage}, userMessageLength=${userMessage?.length || 0}`,
+        `[MarketingSwarm] Request structure: userMessage=${!!request.userMessage}, payload.userMessage=${!!(request.payload as Record<string, unknown>)?.userMessage}, payload.prompt=${!!(request.payload as Record<string, unknown>)?.prompt}, extractedUserMessage=${!!userMessage}, userMessageLength=${userMessage?.length || 0}`,
       );
       if (definition.slug === 'marketing-swarm' && taskId && userMessage) {
         this.logger.log(
@@ -1433,7 +1433,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         );
         try {
           // Parse the userMessage JSON to extract marketing swarm request data
-          let swarmRequestData: {
+          interface SwarmRequestData {
             type?: string;
             contentTypeSlug?: string;
             contentTypeContext?: string;
@@ -1444,10 +1444,11 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
               evaluators?: Array<{ agentSlug: string; llmConfigId: string }>;
               execution?: Record<string, unknown>;
             };
-          } | null = null;
+          }
+          let swarmRequestData: SwarmRequestData | null = null;
 
           try {
-            swarmRequestData = JSON.parse(userMessage);
+            swarmRequestData = JSON.parse(userMessage) as SwarmRequestData;
             this.logger.log(
               `[MarketingSwarm] Parsed userMessage: type=${swarmRequestData?.type}, hasContentTypeSlug=${!!swarmRequestData?.contentTypeSlug}, hasPromptData=${!!swarmRequestData?.promptData}, hasConfig=${!!swarmRequestData?.config}`,
             );
@@ -1458,9 +1459,14 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
             // userMessage is not JSON, try to extract from body if it's already parsed
             if (body && typeof body === 'object') {
               const bodyObj = body as Record<string, unknown>;
-              if (bodyObj.userMessage && typeof bodyObj.userMessage === 'string') {
+              if (
+                bodyObj.userMessage &&
+                typeof bodyObj.userMessage === 'string'
+              ) {
                 try {
-                  swarmRequestData = JSON.parse(bodyObj.userMessage);
+                  swarmRequestData = JSON.parse(
+                    bodyObj.userMessage,
+                  ) as SwarmRequestData;
                   this.logger.log(
                     `[MarketingSwarm] Parsed userMessage from body: type=${swarmRequestData?.type}`,
                   );

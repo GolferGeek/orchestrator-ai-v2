@@ -563,16 +563,18 @@ class MarketingSwarmService {
     // EventSource doesn't support custom headers, so auth must be via query param
     const sseUrl = `${API_BASE_URL}/observability/stream?conversationId=${conversationId}&token=${encodeURIComponent(token)}`;
 
-    console.log('[MarketingSwarm] Connecting to SSE stream:', sseUrl.replace(token, '***'));
+    // Use console.log for connection status so it's always visible (not filtered)
+    console.log('[MarketingSwarm] 🔌 Connecting to SSE stream:', sseUrl.replace(token, '***'));
+    console.log('[MarketingSwarm] 🔌 Filtering by conversationId:', conversationId);
 
     // Listen for state changes
     const stateCleanup = this.sseClient.onStateChange((sseState) => {
-      console.log('[MarketingSwarm] SSE state changed:', sseState);
+      console.log('[MarketingSwarm] 🔌 SSE state changed:', sseState);
       store.setSSEConnected(sseState === 'connected');
-      
-      // Log errors
+
+      // Log errors prominently
       if (sseState === 'error') {
-        console.error('[MarketingSwarm] SSE connection error - check authentication and network');
+        console.error('[MarketingSwarm] ❌ SSE connection error - check authentication and network');
       }
     });
     this.sseCleanup.push(stateCleanup);
@@ -588,13 +590,23 @@ class MarketingSwarmService {
     const messageCleanup = this.sseClient.addEventListener('message', (event) => {
       try {
         const data = JSON.parse(event.data) as ObservabilityEvent;
-        
+
         // Skip connection confirmation events
         if (data.event_type === 'connected') {
-          console.log('[MarketingSwarm] SSE connection confirmed');
+          console.log('[MarketingSwarm] ✅ SSE connection confirmed by server');
           return;
         }
-        
+
+        // Log all received events with full payload structure
+        console.log('[MarketingSwarm] 📨 SSE event received:', {
+          hook_event_type: data.hook_event_type,
+          event_type: data.event_type,
+          context: data.context,
+          payloadKeys: Object.keys((data as unknown as { payload?: Record<string, unknown> }).payload || {}),
+          payloadDataKeys: Object.keys(((data as unknown as { payload?: Record<string, unknown> }).payload?.data as Record<string, unknown>) || {}),
+          fullPayload: (data as unknown as { payload?: Record<string, unknown> }).payload,
+        });
+
         this.handleObservabilityEvent(data);
       } catch (err) {
         console.error('[MarketingSwarm] Failed to parse SSE event:', err, event.data);
@@ -624,21 +636,39 @@ class MarketingSwarmService {
     }
 
     store.setSSEConnected(false);
-    console.log('[MarketingSwarm] Disconnected from SSE stream');
+    console.debug('[MarketingSwarm] 🔌 Disconnected from SSE stream');
   }
 
   /**
    * Handle incoming observability events and update store
    */
   private handleObservabilityEvent(event: ObservabilityEvent): void {
-    const metadata = event.metadata as SSEMetadataPhase2 | undefined;
+    // Marketing Swarm metadata structure follows transport-types pattern:
+    // ObservabilityEventRecord has payload.data where LangGraph puts metadata directly
+    // LangGraph emits: observability.emitProgress(ctx, taskId, msg, { metadata: { type, ... } })
+    // ObservabilityService spreads metadata into payload.data: { type, phase, ... }
+    // So we look for type directly in payload.data (not payload.data.metadata)
+    const payload = (event as unknown as { payload?: Record<string, unknown> })?.payload;
+    const data = payload?.data as Record<string, unknown> | undefined;
+
+    // Marketing swarm metadata is directly in data (not nested in data.metadata)
+    // Fallback to payload.metadata for backward compatibility
+    const metadata = (data && 'type' in data ? data : payload?.metadata) as SSEMetadataPhase2 | undefined;
 
     if (!metadata || !metadata.type) {
       // Not a marketing swarm event or missing type
+      // Debug for troubleshooting
+      console.debug('[MarketingSwarm] ⏭️ Event skipped - no metadata.type:', {
+        hook_event_type: event.hook_event_type,
+        hasPayload: !!payload,
+        hasData: !!data,
+        dataKeys: data ? Object.keys(data) : [],
+        payloadKeys: payload ? Object.keys(payload) : [],
+      });
       return;
     }
 
-    console.log('[MarketingSwarm] Processing SSE event:', metadata.type);
+    console.debug('[MarketingSwarm] ✅ Processing SSE event:', metadata.type, metadata);
 
     switch (metadata.type) {
       case 'phase_changed':

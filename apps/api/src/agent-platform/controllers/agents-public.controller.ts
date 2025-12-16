@@ -133,7 +133,8 @@ export class AgentsPublicController {
             execution_modes: executionModes,
             // Custom UI fields for agents with specialized UIs (e.g., Marketing Swarm)
             hasCustomUI: (metadataConfig?.hasCustomUI as boolean) ?? false,
-            customUIComponent: (metadataConfig?.customUIComponent as string | null) ?? null,
+            customUIComponent:
+              (metadataConfig?.customUIComponent as string | null) ?? null,
           },
           children: [],
         };
