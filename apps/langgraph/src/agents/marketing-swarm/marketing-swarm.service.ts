@@ -7,6 +7,7 @@ import {
   EvaluationRow,
   Deliverable,
   VersionedDeliverable,
+  OutputVersionRow,
 } from './marketing-db.service';
 import { ObservabilityService } from '../../services/observability.service';
 
@@ -296,5 +297,32 @@ export class MarketingSwarmService {
     }
 
     return success;
+  }
+
+  /**
+   * Get version history for a specific output
+   *
+   * Returns all versions of an output including:
+   * - Initial write
+   * - Any rewrites after editor feedback
+   * - Editor feedback that triggered each rewrite
+   *
+   * @param outputId - The output ID to get versions for
+   * @returns Array of output versions ordered by version number
+   */
+  async getOutputVersions(outputId: string): Promise<OutputVersionRow[]> {
+    this.logger.log(`Getting versions for output: ${outputId}`);
+    return this.db.getOutputVersions(outputId);
+  }
+
+  /**
+   * Get a specific output by ID with full details
+   *
+   * @param outputId - The output ID
+   * @returns The output row or null if not found
+   */
+  async getOutputById(outputId: string): Promise<OutputRow | null> {
+    this.logger.log(`Getting output: ${outputId}`);
+    return this.db.getOutputById(outputId);
   }
 }

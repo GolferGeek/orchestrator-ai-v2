@@ -221,4 +221,53 @@ export class MarketingSwarmController {
       message: `Task ${taskId} and all associated data deleted`,
     };
   }
+
+  /**
+   * Get version history for a specific output
+   *
+   * Returns all versions of an output including:
+   * - Initial write content
+   * - Any rewrites after editor feedback
+   * - Editor feedback that triggered each rewrite
+   *
+   * Used by frontend to show write/edit history in modal.
+   */
+  @Get('output/:outputId/versions')
+  @HttpCode(HttpStatus.OK)
+  async getOutputVersions(@Param('outputId') outputId: string) {
+    this.logger.log(`Getting versions for output: ${outputId}`);
+
+    const versions = await this.marketingSwarmService.getOutputVersions(outputId);
+
+    return {
+      success: true,
+      data: {
+        outputId,
+        versions,
+      },
+    };
+  }
+
+  /**
+   * Get a specific output by ID
+   *
+   * Returns full output details including current content, status,
+   * writer/editor info, and scoring.
+   */
+  @Get('output/:outputId')
+  @HttpCode(HttpStatus.OK)
+  async getOutput(@Param('outputId') outputId: string) {
+    this.logger.log(`Getting output: ${outputId}`);
+
+    const output = await this.marketingSwarmService.getOutputById(outputId);
+
+    if (!output) {
+      throw new NotFoundException(`Output not found: ${outputId}`);
+    }
+
+    return {
+      success: true,
+      data: output,
+    };
+  }
 }

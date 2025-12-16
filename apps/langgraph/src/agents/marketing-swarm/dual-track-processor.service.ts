@@ -394,8 +394,14 @@ export class DualTrackProcessorService {
 
     // Determine next status
     let nextStatus: string;
-    if (approved || newEditCycle >= maxCycles) {
+    if (approved) {
       nextStatus = 'approved';
+    } else if (newEditCycle >= maxCycles) {
+      // Hit max cycles without approval - content should NOT proceed to evaluation
+      nextStatus = 'max_cycles_reached';
+      this.logger.warn(
+        `Output ${output.id} reached max edit cycles (${maxCycles}) without approval`,
+      );
     } else {
       nextStatus = 'pending_rewrite';
     }

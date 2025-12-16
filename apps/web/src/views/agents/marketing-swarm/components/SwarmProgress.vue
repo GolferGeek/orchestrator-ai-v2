@@ -47,12 +47,14 @@
     <!-- Phase 2: Output Cards Grid (shows writer/editor combinations) -->
     <div class="output-cards-grid">
       <h3>Content Outputs</h3>
+      <p class="cards-hint">Click a card to view version history</p>
       <div class="cards-row">
         <div
           v-for="output in phase2Outputs"
           :key="output.id"
           class="output-card"
           :class="getOutputStatusClass(output.status)"
+          @click="openVersionModal(output)"
         >
           <div class="card-header">
             <ion-icon :icon="documentTextOutline" />
@@ -71,6 +73,7 @@
           <div class="card-status">
             <ion-spinner v-if="isOutputInProgress(output.status)" name="crescent" />
             <ion-icon v-else-if="output.status === 'approved'" :icon="checkmarkCircle" color="success" />
+            <ion-icon v-else-if="output.status === 'max_cycles_reached'" :icon="alertCircleOutline" color="warning" />
             <ion-icon v-else-if="output.status === 'failed'" :icon="closeCircle" color="danger" />
             <ion-icon v-else :icon="timeOutline" color="medium" />
             <span>{{ formatOutputStatus(output.status) }}</span>
@@ -85,6 +88,14 @@
         </div>
       </div>
     </div>
+
+    <!-- Output Version Modal -->
+    <OutputVersionModal
+      :is-open="isVersionModalOpen"
+      :output-id="selectedOutputId"
+      :output="selectedOutput"
+      @close="closeVersionModal"
+    />
 
     <!-- Phase 2: Initial Rankings -->
     <ion-card v-if="initialRankings.length > 0">
@@ -134,7 +145,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import {
   IonCard,
   IonCardHeader,
@@ -162,11 +173,30 @@ import {
   cloudOfflineOutline,
   layersOutline,
   filterOutline,
+  alertCircleOutline,
 } from 'ionicons/icons';
 import { useMarketingSwarmStore } from '@/stores/marketingSwarmStore';
-import type { OutputStatusPhase2 } from '@/types/marketing-swarm';
+import OutputVersionModal from './OutputVersionModal.vue';
+import type { OutputStatusPhase2, SwarmOutputPhase2 } from '@/types/marketing-swarm';
 
 const store = useMarketingSwarmStore();
+
+// Modal state for version history
+const isVersionModalOpen = ref(false);
+const selectedOutputId = ref<string | null>(null);
+const selectedOutput = ref<SwarmOutputPhase2 | null>(null);
+
+function openVersionModal(output: SwarmOutputPhase2) {
+  selectedOutputId.value = output.id;
+  selectedOutput.value = output;
+  isVersionModalOpen.value = true;
+}
+
+function closeVersionModal() {
+  isVersionModalOpen.value = false;
+  selectedOutputId.value = null;
+  selectedOutput.value = null;
+}
 
 // Phase 2: More granular phases
 const phases = [
@@ -233,6 +263,9 @@ function getOutputStatusClass(status: OutputStatusPhase2): string {
   if (status === 'approved') {
     return 'completed';
   }
+  if (status === 'max_cycles_reached') {
+    return 'max-cycles';
+  }
   if (status === 'failed') {
     return 'failed';
   }
@@ -259,6 +292,8 @@ function formatOutputStatus(status: OutputStatusPhase2): string {
       return 'Rewriting...';
     case 'approved':
       return 'Approved';
+    case 'max_cycles_reached':
+      return 'Max Cycles';
     case 'failed':
       return 'Failed';
     default:
@@ -360,8 +395,14 @@ function getRankColor(rank: number): string {
 .output-cards-grid h3 {
   font-size: 1rem;
   font-weight: 600;
-  margin-bottom: 12px;
+  margin-bottom: 4px;
   color: var(--ion-color-primary);
+}
+
+.cards-hint {
+  font-size: 0.8rem;
+  color: var(--ion-color-medium);
+  margin-bottom: 12px;
 }
 
 .cards-row {
@@ -379,6 +420,12 @@ function getRankColor(rank: number): string {
   flex: 1;
   transition: all 0.3s;
   border: 2px solid transparent;
+  cursor: pointer;
+}
+
+.output-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .output-card.processing {
@@ -388,6 +435,10 @@ function getRankColor(rank: number): string {
 
 .output-card.completed {
   border-color: var(--ion-color-success);
+}
+
+.output-card.max-cycles {
+  border-color: var(--ion-color-warning);
 }
 
 .output-card.failed {

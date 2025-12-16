@@ -205,6 +205,7 @@ export type OutputStatusPhase2 =
   | 'pending_rewrite'
   | 'rewriting'
   | 'approved'
+  | 'max_cycles_reached'
   | 'failed';
 
 export interface SwarmTask {
@@ -584,4 +585,34 @@ export interface AgentCardState {
   status: 'idle' | 'processing' | 'completed' | 'failed';
   outputId?: string;
   score?: number;
+}
+
+// =============================================================================
+// Output Version Types (for edit history modal)
+// =============================================================================
+
+/**
+ * Single version of an output (from write or rewrite)
+ */
+export interface OutputVersion {
+  id: string;
+  output_id: string;
+  task_id: string;
+  version_number: number;
+  content: string;
+  action_type: 'write' | 'rewrite';
+  editor_feedback: string | null;
+  llm_metadata: {
+    tokensUsed?: number;
+    latencyMs?: number;
+  } | null;
+  created_at: string;
+}
+
+/**
+ * Response from getOutputVersions API
+ */
+export interface OutputVersionsResponse {
+  outputId: string;
+  versions: OutputVersion[];
 }

@@ -518,14 +518,14 @@ export class MarketingDbService {
   }
 
   /**
-   * Check if all outputs are complete (approved or failed)
+   * Check if all outputs are complete (approved, failed, or max_cycles_reached)
    */
   async areAllOutputsComplete(taskId: string): Promise<boolean> {
     const { count, error } = await this.supabase
       .from('outputs')
       .select('*', { count: 'exact', head: true })
       .eq('task_id', taskId)
-      .not('status', 'in', '("approved","failed")');
+      .not('status', 'in', '("approved","failed","max_cycles_reached")');
 
     if (error) {
       this.logger.error(`Failed to check outputs complete: ${error.message}`);

@@ -36,6 +36,7 @@ import type {
   FinalistsSelectedMetadata,
   RankingUpdatedMetadata,
   SSEMetadataPhase2,
+  OutputVersionsResponse,
 } from '@/types/marketing-swarm';
 import { SSEClient } from './agent2agent/sse/sseClient';
 
@@ -781,6 +782,40 @@ class MarketingSwarmService {
       store.setInitialRankings(metadata.rankings);
     } else {
       store.setFinalRankings(metadata.rankings);
+    }
+  }
+
+  // ============================================================================
+  // Output Version History
+  // ============================================================================
+
+  /**
+   * Get version history for a specific output
+   *
+   * Returns all versions of an output including:
+   * - Initial write content
+   * - Any rewrites after editor feedback
+   * - Editor feedback that triggered each rewrite
+   *
+   * Used by modal to show write/edit history.
+   */
+  async getOutputVersions(outputId: string): Promise<OutputVersionsResponse> {
+    try {
+      const response = await fetch(`${LANGGRAPH_BASE_URL}/marketing-swarm/output/${outputId}/versions`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('authToken')}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get output versions');
+      }
+
+      const result = await response.json();
+      return result.data as OutputVersionsResponse;
+    } catch (error) {
+      console.error('Failed to get output versions:', error);
+      throw error;
     }
   }
 }
