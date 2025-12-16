@@ -50,7 +50,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, watch } from 'vue';
+import { computed, onMounted, onUnmounted, watch } from 'vue';
 import {
   IonButton,
   IonSpinner,
@@ -122,6 +122,12 @@ onMounted(async () => {
       }
     }
   }
+});
+
+// Cleanup SSE connection when component unmounts
+onUnmounted(() => {
+  console.log('[MarketingSwarmTab] Unmounting - disconnecting SSE');
+  marketingSwarmService.disconnectSSEStream();
 });
 
 // Watch for conversation changes
@@ -207,6 +213,10 @@ async function handleExecute(data: {
     );
     console.log('[MarketingSwarmTab] Using conversation:', currentConversationId);
 
+    // Connect to SSE stream for real-time updates BEFORE starting execution
+    marketingSwarmService.connectToSSEStream(currentConversationId);
+    console.log('[MarketingSwarmTab] Connected to SSE stream');
+
     // Start execution (uses the initialized ExecutionContext)
     const response = await marketingSwarmService.startSwarmExecution(
       data.contentTypeSlug,
@@ -218,11 +228,15 @@ async function handleExecute(data: {
     console.log('Swarm execution completed:', response);
   } catch (err) {
     console.error('Swarm execution failed:', err);
+    // Disconnect SSE on error
+    marketingSwarmService.disconnectSSEStream();
   }
 }
 
 // Handle restart - go back to config
 function handleRestart() {
+  // Disconnect SSE when restarting
+  marketingSwarmService.disconnectSSEStream();
   store.resetTaskState();
   store.setUIView('config');
 }
