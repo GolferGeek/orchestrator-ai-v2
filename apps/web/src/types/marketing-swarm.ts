@@ -21,6 +21,7 @@ export interface ExecutionConfig {
   maxCloudConcurrent: number;
   maxEditCycles: number;
   topNForFinalRanking: number;
+  topNForDeliverable?: number;
 }
 
 export interface SwarmConfig {
@@ -157,6 +158,7 @@ export interface SwarmOutput {
   llmMetadata?: {
     tokensUsed?: number;
     latencyMs?: number;
+    cost?: number;
   };
   createdAt: string;
 }
@@ -173,6 +175,7 @@ export interface SwarmEvaluation {
   llmMetadata?: {
     tokensUsed?: number;
     latencyMs?: number;
+    cost?: number;
   };
   createdAt: string;
 }
@@ -272,7 +275,16 @@ export interface SwarmOutputPhase2 {
   finalTotalScore?: number;
   finalRank?: number;
   llmMetadata?: {
+    // Accumulated totals (running total for this output)
     tokensUsed?: number;
+    cost?: number;
+    totalLatencyMs?: number;
+    llmCallCount?: number;
+    lastLatencyMs?: number;
+    // Breakdown by type (for drill-down view)
+    evaluationCost?: number;
+    evaluationTokens?: number;
+    // Legacy field for backward compatibility
     latencyMs?: number;
   };
   createdAt?: string;
@@ -295,6 +307,7 @@ export interface SwarmEvaluationPhase2 {
   llmMetadata?: {
     tokensUsed?: number;
     latencyMs?: number;
+    cost?: number;
   };
 }
 

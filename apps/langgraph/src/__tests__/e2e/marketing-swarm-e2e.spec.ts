@@ -272,6 +272,12 @@ describeE2E('Marketing Swarm E2E Tests', () => {
       .delete()
       .eq('task_id', taskId);
 
+    // Delete output versions
+    await marketingSupabase
+      .from('output_versions')
+      .delete()
+      .eq('task_id', taskId);
+
     // Delete outputs
     await marketingSupabase.from('outputs').delete().eq('task_id', taskId);
 
@@ -294,7 +300,7 @@ describeE2E('Marketing Swarm E2E Tests', () => {
   // ============================================================================
 
   describe('1. Database Setup and Task Creation', () => {
-    const taskId = `test-setup-${Date.now()}`;
+    const taskId = uuidv4();
 
     afterAll(async () => {
       await cleanupTestData(taskId);
@@ -398,7 +404,7 @@ describeE2E('Marketing Swarm E2E Tests', () => {
   // ============================================================================
 
   describe('2. Basic Execution Flow (Cloud Only)', () => {
-    const taskId = `test-basic-${Date.now()}`;
+    const taskId = uuidv4();
     let configs: Awaited<ReturnType<typeof getLlmConfigIds>>;
 
     beforeAll(async () => {
@@ -495,7 +501,7 @@ describeE2E('Marketing Swarm E2E Tests', () => {
   // ============================================================================
 
   describe('3. Dual-Track Execution', () => {
-    const taskId = `test-dual-${Date.now()}`;
+    const taskId = uuidv4();
     let configs: Awaited<ReturnType<typeof getLlmConfigIds>>;
 
     beforeAll(async () => {
@@ -588,7 +594,7 @@ describeE2E('Marketing Swarm E2E Tests', () => {
   // ============================================================================
 
   describe('4. Edit Cycle Loop', () => {
-    const taskId = `test-edit-${Date.now()}`;
+    const taskId = uuidv4();
     let configs: Awaited<ReturnType<typeof getLlmConfigIds>>;
 
     beforeAll(async () => {
@@ -669,7 +675,7 @@ describeE2E('Marketing Swarm E2E Tests', () => {
   // ============================================================================
 
   describe('5. Two-Stage Evaluation', () => {
-    const taskId = `test-eval-${Date.now()}`;
+    const taskId = uuidv4();
     let configs: Awaited<ReturnType<typeof getLlmConfigIds>>;
 
     beforeAll(async () => {
@@ -812,7 +818,7 @@ describeE2E('Marketing Swarm E2E Tests', () => {
   // ============================================================================
 
   describe('6. Status and State Endpoints', () => {
-    const taskId = `test-status-${Date.now()}`;
+    const taskId = uuidv4();
     let configs: Awaited<ReturnType<typeof getLlmConfigIds>>;
 
     beforeAll(async () => {
@@ -915,7 +921,7 @@ describeE2E('Marketing Swarm E2E Tests', () => {
 
   describe('7. SSE/Observability Messages', () => {
     it('should emit events with correct metadata structure', async () => {
-      const taskId = `test-sse-${Date.now()}`;
+      const taskId = uuidv4();
       const configs = await getLlmConfigIds();
 
       // Create simple task
@@ -973,6 +979,115 @@ describeE2E('Marketing Swarm E2E Tests', () => {
       // Clean up
       await cleanupTestData(taskId);
     }, SWARM_TIMEOUT);
+
+    it('should include cost data in output_updated SSE events', async () => {
+      const taskId = uuidv4();
+      const configs = await getLlmConfigIds();
+
+      await createTestTask({
+        taskId,
+        writers: [
+          { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
+        ],
+        editors: [
+          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
+        ],
+        evaluators: [
+          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
+        ],
+      });
+
+      const context = createTestContext(taskId);
+
+      // Execute and wait for completion
+      await request(app.getHttpServer())
+        .post('/marketing-swarm/execute')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ context });
+
+      // The SSE events would have been emitted during execution
+      // We verify that the database reflects cost data that would be sent via SSE
+      // (The dual-track processor emits output_updated events with full output data including llm_metadata)
+
+      const { data: outputs } = await marketingSupabase
+        .from('outputs')
+        .select('id, llm_metadata')
+        .eq('task_id', taskId);
+
+      expect(outputs).toBeDefined();
+      expect(outputs!.length).toBeGreaterThan(0);
+
+      // Each output should have cost data that was included in SSE events
+      for (const output of outputs!) {
+        const metadata = output.llm_metadata as Record<string, unknown>;
+
+        // These fields are included in SSE output_updated events
+        expect(metadata).toBeDefined();
+        expect(metadata.cost).toBeDefined();
+        expect(metadata.tokensUsed).toBeDefined();
+
+        // The frontend receives these via SSE and displays them
+        console.log(`Output ${output.id} cost data for SSE:`, {
+          cost: metadata.cost,
+          tokensUsed: metadata.tokensUsed,
+          llmCallCount: metadata.llmCallCount,
+          evaluationCost: metadata.evaluationCost,
+        });
+      }
+
+      await cleanupTestData(taskId);
+    }, SWARM_TIMEOUT);
+
+    it('should include cost data in evaluation_updated SSE events', async () => {
+      const taskId = uuidv4();
+      const configs = await getLlmConfigIds();
+
+      await createTestTask({
+        taskId,
+        writers: [
+          { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
+        ],
+        editors: [
+          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
+        ],
+        evaluators: [
+          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
+        ],
+      });
+
+      const context = createTestContext(taskId);
+
+      await request(app.getHttpServer())
+        .post('/marketing-swarm/execute')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ context });
+
+      // Verify evaluation data includes costs (sent via SSE evaluation_updated events)
+      const { data: evaluations } = await marketingSupabase
+        .from('evaluations')
+        .select('id, llm_metadata, score, stage')
+        .eq('task_id', taskId);
+
+      expect(evaluations).toBeDefined();
+      expect(evaluations!.length).toBeGreaterThan(0);
+
+      for (const evaluation of evaluations!) {
+        const metadata = evaluation.llm_metadata as Record<string, unknown>;
+
+        // These fields are included in SSE evaluation_updated events
+        expect(metadata).toBeDefined();
+        expect(metadata.cost).toBeDefined();
+        expect(metadata.tokensUsed).toBeDefined();
+
+        console.log(`Evaluation ${evaluation.id} (${evaluation.stage}) cost data for SSE:`, {
+          cost: metadata.cost,
+          tokensUsed: metadata.tokensUsed,
+          score: evaluation.score,
+        });
+      }
+
+      await cleanupTestData(taskId);
+    }, SWARM_TIMEOUT);
   });
 
   // ============================================================================
@@ -1020,7 +1135,7 @@ describeE2E('Marketing Swarm E2E Tests', () => {
     });
 
     it('should handle empty writers array', async () => {
-      const taskId = `test-empty-writers-${Date.now()}`;
+      const taskId = uuidv4();
       const configs = await getLlmConfigIds();
 
       // Create task with no writers (invalid config)
@@ -1054,7 +1169,7 @@ describeE2E('Marketing Swarm E2E Tests', () => {
     });
 
     it('should handle concurrent execution requests', async () => {
-      const taskId = `test-concurrent-${Date.now()}`;
+      const taskId = uuidv4();
       const configs = await getLlmConfigIds();
 
       await createTestTask({
@@ -1100,7 +1215,7 @@ describeE2E('Marketing Swarm E2E Tests', () => {
 
   describe('9. Output Matrix Validation', () => {
     it('should create correct number of outputs (writers × editors)', async () => {
-      const taskId = `test-matrix-${Date.now()}`;
+      const taskId = uuidv4();
       const configs = await getLlmConfigIds();
 
       // 2 writers × 3 editors = 6 outputs
@@ -1349,7 +1464,7 @@ describeE2E('Marketing Swarm E2E Tests', () => {
 
   describe('11. LLM Metadata Tracking', () => {
     it('should store LLM metadata for outputs', async () => {
-      const taskId = `test-metadata-${Date.now()}`;
+      const taskId = uuidv4();
       const configs = await getLlmConfigIds();
 
       await createTestTask({
@@ -1390,7 +1505,7 @@ describeE2E('Marketing Swarm E2E Tests', () => {
     }, SWARM_TIMEOUT);
 
     it('should store LLM metadata for evaluations', async () => {
-      const taskId = `test-eval-metadata-${Date.now()}`;
+      const taskId = uuidv4();
       const configs = await getLlmConfigIds();
 
       await createTestTask({
@@ -1423,6 +1538,446 @@ describeE2E('Marketing Swarm E2E Tests', () => {
       // LLM metadata should include latency
       if (evaluations!.length > 0 && evaluations![0].llm_metadata) {
         expect(evaluations![0].llm_metadata).toHaveProperty('latencyMs');
+      }
+
+      await cleanupTestData(taskId);
+    }, SWARM_TIMEOUT);
+  });
+
+  // ============================================================================
+  // TEST SUITE 12: LLM Cost Tracking (Database-driven pricing)
+  // ============================================================================
+
+  describe('12. LLM Cost Tracking', () => {
+    /**
+     * Test that costs are calculated and stored for each write operation
+     */
+    it('should store cost in outputs table after writing', async () => {
+      const taskId = uuidv4();
+      const configs = await getLlmConfigIds();
+
+      await createTestTask({
+        taskId,
+        writers: [
+          { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
+        ],
+        editors: [
+          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
+        ],
+        evaluators: [
+          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
+        ],
+      });
+
+      const context = createTestContext(taskId);
+
+      await request(app.getHttpServer())
+        .post('/marketing-swarm/execute')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ context });
+
+      // Check outputs table has cost in llm_metadata
+      const { data: outputs } = await marketingSupabase
+        .from('outputs')
+        .select('id, llm_metadata, status')
+        .eq('task_id', taskId);
+
+      expect(outputs).toBeDefined();
+      expect(outputs!.length).toBeGreaterThan(0);
+
+      // Each output should have cost tracking fields
+      for (const output of outputs!) {
+        expect(output.llm_metadata).toBeDefined();
+        const metadata = output.llm_metadata as Record<string, unknown>;
+
+        // Cost should be present and > 0 (from LLMPricingService)
+        expect(metadata.cost).toBeDefined();
+        expect(typeof metadata.cost).toBe('number');
+        expect(metadata.cost as number).toBeGreaterThan(0);
+
+        // Token count should be present
+        expect(metadata.tokensUsed).toBeDefined();
+        expect(typeof metadata.tokensUsed).toBe('number');
+        expect(metadata.tokensUsed as number).toBeGreaterThan(0);
+
+        // Latency should be present
+        expect(metadata.latencyMs).toBeDefined();
+        expect(typeof metadata.latencyMs).toBe('number');
+
+        // LLM call count should track accumulation
+        expect(metadata.llmCallCount).toBeDefined();
+        expect(typeof metadata.llmCallCount).toBe('number');
+        expect(metadata.llmCallCount as number).toBeGreaterThanOrEqual(1);
+      }
+
+      await cleanupTestData(taskId);
+    }, SWARM_TIMEOUT);
+
+    /**
+     * Test that costs accumulate across write + edit cycles
+     */
+    it('should accumulate costs across edit cycles', async () => {
+      const taskId = uuidv4();
+      const configs = await getLlmConfigIds();
+
+      await createTestTask({
+        taskId,
+        writers: [
+          { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
+        ],
+        editors: [
+          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
+        ],
+        evaluators: [
+          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
+        ],
+        execution: {
+          maxEditCycles: 3, // Allow up to 3 edit cycles
+        },
+      });
+
+      const context = createTestContext(taskId);
+
+      await request(app.getHttpServer())
+        .post('/marketing-swarm/execute')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ context });
+
+      // Check outputs have accumulated costs
+      const { data: outputs } = await marketingSupabase
+        .from('outputs')
+        .select('id, llm_metadata, edit_cycle')
+        .eq('task_id', taskId);
+
+      expect(outputs).toBeDefined();
+
+      for (const output of outputs!) {
+        const metadata = output.llm_metadata as Record<string, unknown>;
+        const editCycle = output.edit_cycle as number;
+
+        // If output went through edit cycles, llmCallCount should reflect that
+        // write (1) + edit cycles (editCycle rewrites)
+        if (editCycle > 0) {
+          // At minimum: 1 write + editCycle number of edit calls
+          expect(metadata.llmCallCount as number).toBeGreaterThanOrEqual(1 + editCycle);
+        }
+
+        // Total latency should be accumulated
+        if (metadata.totalLatencyMs) {
+          expect(metadata.totalLatencyMs as number).toBeGreaterThan(0);
+        }
+      }
+
+      await cleanupTestData(taskId);
+    }, SWARM_TIMEOUT);
+
+    /**
+     * Test that evaluation costs are stored in evaluations table
+     */
+    it('should store cost in evaluations table', async () => {
+      const taskId = uuidv4();
+      const configs = await getLlmConfigIds();
+
+      await createTestTask({
+        taskId,
+        writers: [
+          { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
+        ],
+        editors: [
+          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
+        ],
+        evaluators: [
+          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
+        ],
+      });
+
+      const context = createTestContext(taskId);
+
+      await request(app.getHttpServer())
+        .post('/marketing-swarm/execute')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ context });
+
+      // Check evaluations table has cost
+      const { data: evaluations } = await marketingSupabase
+        .from('evaluations')
+        .select('id, llm_metadata, score, stage')
+        .eq('task_id', taskId);
+
+      expect(evaluations).toBeDefined();
+      expect(evaluations!.length).toBeGreaterThan(0);
+
+      for (const evaluation of evaluations!) {
+        expect(evaluation.llm_metadata).toBeDefined();
+        const metadata = evaluation.llm_metadata as Record<string, unknown>;
+
+        // Cost should be present for each evaluation
+        expect(metadata.cost).toBeDefined();
+        expect(typeof metadata.cost).toBe('number');
+        expect(metadata.cost as number).toBeGreaterThan(0);
+
+        // Token count should be present
+        expect(metadata.tokensUsed).toBeDefined();
+        expect(typeof metadata.tokensUsed).toBe('number');
+
+        // Latency should be present
+        expect(metadata.latencyMs).toBeDefined();
+        expect(typeof metadata.latencyMs).toBe('number');
+      }
+
+      await cleanupTestData(taskId);
+    }, SWARM_TIMEOUT);
+
+    /**
+     * Test that evaluation costs are added to output's running total
+     */
+    it('should add evaluation costs to output running total', async () => {
+      const taskId = uuidv4();
+      const configs = await getLlmConfigIds();
+
+      await createTestTask({
+        taskId,
+        writers: [
+          { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
+        ],
+        editors: [
+          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
+        ],
+        evaluators: [
+          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
+        ],
+      });
+
+      const context = createTestContext(taskId);
+
+      await request(app.getHttpServer())
+        .post('/marketing-swarm/execute')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ context });
+
+      // Get outputs with their metadata
+      const { data: outputs } = await marketingSupabase
+        .from('outputs')
+        .select('id, llm_metadata')
+        .eq('task_id', taskId);
+
+      expect(outputs).toBeDefined();
+
+      for (const output of outputs!) {
+        const metadata = output.llm_metadata as Record<string, unknown>;
+
+        // If evaluations were done on this output, evaluationCost should be tracked
+        if (metadata.evaluationCost !== undefined) {
+          expect(typeof metadata.evaluationCost).toBe('number');
+          expect(metadata.evaluationCost as number).toBeGreaterThan(0);
+
+          // evaluationTokens should also be tracked
+          expect(metadata.evaluationTokens).toBeDefined();
+          expect(typeof metadata.evaluationTokens).toBe('number');
+        }
+
+        // Total cost should include evaluation costs
+        const totalCost = metadata.cost as number;
+        const evalCost = (metadata.evaluationCost as number) || 0;
+
+        // Total cost should be >= evaluation cost (since it includes write/edit costs too)
+        expect(totalCost).toBeGreaterThanOrEqual(evalCost);
+      }
+
+      await cleanupTestData(taskId);
+    }, SWARM_TIMEOUT);
+
+    /**
+     * Test that output_versions table stores per-version costs
+     */
+    it('should store costs in output_versions for each write/rewrite', async () => {
+      const taskId = uuidv4();
+      const configs = await getLlmConfigIds();
+
+      await createTestTask({
+        taskId,
+        writers: [
+          { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
+        ],
+        editors: [
+          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
+        ],
+        evaluators: [
+          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
+        ],
+        execution: {
+          maxEditCycles: 2,
+        },
+      });
+
+      const context = createTestContext(taskId);
+
+      await request(app.getHttpServer())
+        .post('/marketing-swarm/execute')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ context });
+
+      // Check output_versions table
+      const { data: versions } = await marketingSupabase
+        .from('output_versions')
+        .select('id, output_id, version_number, action_type, llm_metadata')
+        .eq('task_id', taskId)
+        .order('version_number', { ascending: true });
+
+      expect(versions).toBeDefined();
+      expect(versions!.length).toBeGreaterThan(0);
+
+      for (const version of versions!) {
+        expect(version.llm_metadata).toBeDefined();
+        const metadata = version.llm_metadata as Record<string, unknown>;
+
+        // Each version should have its own cost (not accumulated)
+        expect(metadata.cost).toBeDefined();
+        expect(typeof metadata.cost).toBe('number');
+        expect(metadata.cost as number).toBeGreaterThan(0);
+
+        // Token count per version
+        expect(metadata.tokensUsed).toBeDefined();
+        expect(typeof metadata.tokensUsed).toBe('number');
+
+        // Latency per version
+        expect(metadata.latencyMs).toBeDefined();
+        expect(typeof metadata.latencyMs).toBe('number');
+
+        // action_type should indicate write or rewrite
+        expect(['write', 'rewrite']).toContain(version.action_type);
+      }
+
+      await cleanupTestData(taskId);
+    }, SWARM_TIMEOUT);
+
+    /**
+     * Test multiple provider/model combinations have different costs
+     */
+    it('should calculate different costs for different providers/models', async () => {
+      const taskId = uuidv4();
+      const configs = await getLlmConfigIds();
+
+      // Use both local and cloud writers if available
+      const writers = [
+        { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
+      ];
+
+      // Add local writer if available
+      if (configs.localWriter !== NIL_UUID) {
+        writers.push({ agentSlug: 'writer-analytical', llmConfigId: configs.localWriter });
+      }
+
+      await createTestTask({
+        taskId,
+        writers,
+        editors: [
+          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
+        ],
+        evaluators: [
+          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
+        ],
+      });
+
+      const context = createTestContext(taskId);
+
+      await request(app.getHttpServer())
+        .post('/marketing-swarm/execute')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ context });
+
+      // Get outputs grouped by writer
+      const { data: outputs } = await marketingSupabase
+        .from('outputs')
+        .select('id, writer_agent_slug, writer_llm_config_id, llm_metadata')
+        .eq('task_id', taskId);
+
+      expect(outputs).toBeDefined();
+
+      // All outputs should have cost
+      for (const output of outputs!) {
+        const metadata = output.llm_metadata as Record<string, unknown>;
+        expect(metadata.cost).toBeDefined();
+        expect(metadata.cost as number).toBeGreaterThan(0);
+      }
+
+      // If we have multiple writers, costs may differ based on provider pricing
+      // (This is a soft check - costs depend on token counts and model pricing)
+      if (outputs!.length > 1) {
+        const costs = outputs!.map((o) => (o.llm_metadata as Record<string, unknown>).cost as number);
+        console.log('Costs from different writers:', costs);
+        // At minimum, all should be positive
+        expect(costs.every((c) => c > 0)).toBe(true);
+      }
+
+      await cleanupTestData(taskId);
+    }, SWARM_TIMEOUT);
+
+    /**
+     * Test that total task cost can be calculated from outputs
+     */
+    it('should allow calculation of total task cost from all outputs', async () => {
+      const taskId = uuidv4();
+      const configs = await getLlmConfigIds();
+
+      await createTestTask({
+        taskId,
+        writers: [
+          { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
+        ],
+        editors: [
+          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
+        ],
+        evaluators: [
+          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
+        ],
+      });
+
+      const context = createTestContext(taskId);
+
+      await request(app.getHttpServer())
+        .post('/marketing-swarm/execute')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ context });
+
+      // Get all outputs and evaluations
+      const { data: outputs } = await marketingSupabase
+        .from('outputs')
+        .select('llm_metadata')
+        .eq('task_id', taskId);
+
+      const { data: evaluations } = await marketingSupabase
+        .from('evaluations')
+        .select('llm_metadata')
+        .eq('task_id', taskId);
+
+      expect(outputs).toBeDefined();
+      expect(evaluations).toBeDefined();
+
+      // Calculate total cost from outputs (which already includes evaluation costs)
+      let totalOutputCost = 0;
+      for (const output of outputs!) {
+        const metadata = output.llm_metadata as Record<string, unknown>;
+        totalOutputCost += (metadata.cost as number) || 0;
+      }
+
+      // Calculate evaluation-only cost for verification
+      let totalEvalCost = 0;
+      for (const evaluation of evaluations!) {
+        const metadata = evaluation.llm_metadata as Record<string, unknown>;
+        totalEvalCost += (metadata.cost as number) || 0;
+      }
+
+      console.log(`Task ${taskId} costs:`);
+      console.log(`  Total from outputs (includes eval): $${totalOutputCost.toFixed(4)}`);
+      console.log(`  Evaluations only: $${totalEvalCost.toFixed(4)}`);
+
+      // Total cost should be positive
+      expect(totalOutputCost).toBeGreaterThan(0);
+
+      // Evaluation cost should be part of the total
+      if (evaluations!.length > 0) {
+        expect(totalEvalCost).toBeGreaterThan(0);
       }
 
       await cleanupTestData(taskId);

@@ -11,6 +11,7 @@ import { PIIService } from '../pii/pii.service';
 import { DictionaryPseudonymizerService } from '../pii/dictionary-pseudonymizer.service';
 import { RunMetadataService } from '../run-metadata.service';
 import { ProviderConfigService } from '../provider-config.service';
+import { LLMPricingService } from '../llm-pricing.service';
 import {
   LLMServiceConfig,
   GenerateResponseParams,
@@ -63,8 +64,13 @@ export class LLMServiceFactory {
     private readonly runMetadataService: RunMetadataService,
     private readonly providerConfigService: ProviderConfigService,
     private readonly httpService: HttpService,
+    private readonly llmPricingService: LLMPricingService,
   ) {
     this.logger.log('LLMServiceFactory initialized');
+    // Preload pricing cache at startup
+    this.llmPricingService.loadPricingCache().catch((err) => {
+      this.logger.warn('Failed to preload pricing cache:', err);
+    });
   }
 
   /**
@@ -357,6 +363,7 @@ export class LLMServiceFactory {
             this.dictionaryPseudonymizerService,
             this.runMetadataService,
             this.providerConfigService,
+            this.llmPricingService,
           ) as unknown as BaseLLMService;
           break;
 
@@ -367,6 +374,7 @@ export class LLMServiceFactory {
             this.dictionaryPseudonymizerService,
             this.runMetadataService,
             this.providerConfigService,
+            this.llmPricingService,
           ) as unknown as BaseLLMService;
           break;
 
@@ -377,6 +385,7 @@ export class LLMServiceFactory {
             this.dictionaryPseudonymizerService,
             this.runMetadataService,
             this.providerConfigService,
+            this.llmPricingService,
           ) as unknown as BaseLLMService;
           break;
 
@@ -388,6 +397,7 @@ export class LLMServiceFactory {
             this.runMetadataService,
             this.providerConfigService,
             this.httpService,
+            this.llmPricingService,
           ) as unknown as BaseLLMService;
           break;
 
@@ -398,6 +408,7 @@ export class LLMServiceFactory {
             this.dictionaryPseudonymizerService,
             this.runMetadataService,
             this.providerConfigService,
+            this.llmPricingService,
           ) as unknown as BaseLLMService;
           break;
 

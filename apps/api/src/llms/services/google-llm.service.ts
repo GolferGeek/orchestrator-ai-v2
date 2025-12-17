@@ -15,6 +15,7 @@ import { PIIService } from '../pii/pii.service';
 import { DictionaryPseudonymizerService } from '../pii/dictionary-pseudonymizer.service';
 import { RunMetadataService } from '../run-metadata.service';
 import { ProviderConfigService } from '../provider-config.service';
+import { LLMPricingService } from '../llm-pricing.service';
 import {
   GoogleGenerativeAI,
   FinishReason,
@@ -78,6 +79,7 @@ export class GoogleLLMService extends BaseLLMService {
     dictionaryPseudonymizerService: DictionaryPseudonymizerService,
     runMetadataService: RunMetadataService,
     providerConfigService: ProviderConfigService,
+    llmPricingService?: LLMPricingService,
   ) {
     super(
       config,
@@ -85,6 +87,7 @@ export class GoogleLLMService extends BaseLLMService {
       dictionaryPseudonymizerService,
       runMetadataService,
       providerConfigService,
+      llmPricingService,
     );
 
     const apiKey = config.apiKey || process.env.GOOGLE_API_KEY;
@@ -390,43 +393,8 @@ export class GoogleLLMService extends BaseLLMService {
     }
   }
 
-  /**
-   * Override cost calculation for Google-specific pricing
-   */
-  protected calculateCost(
-    provider: string,
-    model: string,
-    inputTokens: number,
-    outputTokens: number,
-  ): number {
-    // Google Gemini pricing (as of late 2024)
-    // Note: These are example rates - check Google AI documentation for current pricing
-    const googleRates = {
-      'gemini-1.5-pro': {
-        input: 0.00000125, // $1.25 per 1M input tokens
-        output: 0.000005, // $5 per 1M output tokens
-      },
-      'gemini-1.5-flash': {
-        input: 0.000000075, // $0.075 per 1M input tokens
-        output: 0.0000003, // $0.30 per 1M output tokens
-      },
-      'gemini-1.0-pro': {
-        input: 0.0000005, // $0.50 per 1M input tokens
-        output: 0.0000015, // $1.50 per 1M output tokens
-      },
-    };
-
-    // Find matching rate (handle model variations)
-    let rates = googleRates['gemini-1.0-pro']; // default
-    for (const [modelKey, modelRates] of Object.entries(googleRates)) {
-      if (model.includes(modelKey)) {
-        rates = modelRates;
-        break;
-      }
-    }
-
-    return inputTokens * rates.input + outputTokens * rates.output;
-  }
+  // Note: calculateCost is now inherited from BaseLLMService which uses
+  // LLMPricingService for database-driven pricing lookups
 
   /**
    * Check if content was blocked by safety filters

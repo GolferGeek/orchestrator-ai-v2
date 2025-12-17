@@ -176,6 +176,33 @@ export const useMarketingSwarmStore = defineStore('marketingSwarm', () => {
   const totalOutputsCount = computed(() => state.value.totalOutputsCount);
   const completedOutputsCount = computed(() => state.value.completedOutputsCount);
 
+  // Phase 2: Running cost totals
+  const totalCost = computed(() => {
+    let cost = 0;
+    // Sum costs from outputs (writers/editors)
+    for (const output of state.value.phase2Outputs.values()) {
+      cost += output.llmMetadata?.cost ?? 0;
+    }
+    // Sum costs from evaluations
+    for (const evaluation of state.value.phase2Evaluations.values()) {
+      cost += evaluation.llmMetadata?.cost ?? 0;
+    }
+    return cost;
+  });
+
+  const totalTokens = computed(() => {
+    let tokens = 0;
+    // Sum tokens from outputs (writers/editors)
+    for (const output of state.value.phase2Outputs.values()) {
+      tokens += output.llmMetadata?.tokensUsed ?? 0;
+    }
+    // Sum tokens from evaluations
+    for (const evaluation of state.value.phase2Evaluations.values()) {
+      tokens += evaluation.llmMetadata?.tokensUsed ?? 0;
+    }
+    return tokens;
+  });
+
   // Current phase based on queue state or Phase 2 override
   const currentPhase = computed<SwarmPhase>(() => {
     // Phase 2: Use phase override from SSE if available
@@ -514,6 +541,8 @@ export const useMarketingSwarmStore = defineStore('marketingSwarm', () => {
     sseConnected,
     totalOutputsCount,
     completedOutputsCount,
+    totalCost,
+    totalTokens,
 
     // Getters (functions)
     getAgentBySlug,

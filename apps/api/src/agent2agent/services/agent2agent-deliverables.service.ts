@@ -263,7 +263,8 @@ export class Agent2AgentDeliverablesService {
     }
 
     // Extract title from winner content or first version
-    const winnerContent = winner?.content || versions[versions.length - 1]?.content || '';
+    const winnerContent =
+      winner?.content || versions[versions.length - 1]?.content || '';
     const title =
       this.extractTitleFromContent(winnerContent) ||
       `${agentSlug} Output ${this.currentDateSuffix()}`;

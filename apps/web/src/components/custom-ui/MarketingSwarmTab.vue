@@ -86,7 +86,6 @@ import { refreshOutline, alertCircleOutline, settingsOutline, pulseOutline, trop
 import { useMarketingSwarmStore } from '@/stores/marketingSwarmStore';
 import { marketingSwarmService } from '@/services/marketingSwarmService';
 import { tasksService } from '@/services/tasksService';
-import { useExecutionContextStore } from '@/stores/executionContextStore';
 import { useConversationsStore } from '@/stores/conversationsStore';
 import { useRbacStore } from '@/stores/rbacStore';
 import SwarmConfigForm from '@/views/agents/marketing-swarm/components/SwarmConfigForm.vue';
@@ -103,7 +102,6 @@ const props = defineProps<Props>();
 
 const store = useMarketingSwarmStore();
 const rbacStore = useRbacStore();
-const executionContextStore = useExecutionContextStore();
 const conversationsStore = useConversationsStore();
 
 const isLoading = computed(() => store.isLoading);

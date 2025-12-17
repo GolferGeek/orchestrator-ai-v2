@@ -51,7 +51,7 @@ async function testMarketingSwarm() {
           console.log('   Navigating directly to /login...');
           await page.goto(`${BASE_URL}/login`);
         }
-      } catch (e) {
+      } catch (_e) {
         // Navigate directly to login
         console.log('   Navigating directly to /login...');
         await page.goto(`${BASE_URL}/login`);
@@ -84,7 +84,7 @@ async function testMarketingSwarm() {
         console.log(`   Found login form element: ${selector}`);
         formFound = true;
         break;
-      } catch (e) {
+      } catch (_e) {
         // Try next selector
       }
     }
@@ -114,7 +114,7 @@ async function testMarketingSwarm() {
         await demoButton.click({ force: true });
         loginClicked = true;
       }
-    } catch (e) {
+    } catch (_e) {
       console.log('   "Use Demo Account" button not found');
     }
 
@@ -127,7 +127,7 @@ async function testMarketingSwarm() {
           await loginButtonByText.click({ force: true });
           loginClicked = true;
         }
-      } catch (e) {
+      } catch (_e) {
         console.log('   Login button by text not found');
       }
     }
@@ -141,7 +141,7 @@ async function testMarketingSwarm() {
           await submitButton.click({ force: true });
           loginClicked = true;
         }
-      } catch (e) {
+      } catch (_e) {
         console.log('   Submit button not found');
       }
     }
@@ -246,7 +246,7 @@ async function testMarketingSwarm() {
           }
         }
       }
-    } catch (e) {
+    } catch (_e) {
       console.log('   Strategy 1 failed:', e);
     }
     
@@ -272,7 +272,7 @@ async function testMarketingSwarm() {
             }
           }
         }
-      } catch (e) {
+      } catch (_e) {
         console.log('   Strategy 2 failed:', e);
       }
     }
@@ -301,7 +301,7 @@ async function testMarketingSwarm() {
             }
           }
         }
-      } catch (e) {
+      } catch (_e) {
         console.log('   Strategy 3 failed:', e);
       }
     }
@@ -358,7 +358,7 @@ async function testMarketingSwarm() {
           }
         }
       }
-    } catch (e) {
+    } catch (_e) {
       console.log('   Could not select content type:', e);
     }
 
@@ -406,7 +406,7 @@ async function testMarketingSwarm() {
             }
           }
         }
-      } catch (e) {
+      } catch (_e) {
         console.log(`   Could not fill field with label ${mapping.label}:`, e);
       }
     }
@@ -450,7 +450,7 @@ async function testMarketingSwarm() {
           console.log(`   Found ${sectionName} section`);
           
           // Find checkboxes near this heading - try multiple approaches
-          let checkboxes = page.locator('ion-checkbox');
+          const checkboxes = page.locator('ion-checkbox');
           const allCheckboxes = await checkboxes.count();
           console.log(`   Total checkboxes on page: ${allCheckboxes}`);
           
@@ -483,7 +483,7 @@ async function testMarketingSwarm() {
                   console.log(`   Selected LLM config for ${sectionName} ${i + 1}`);
                 }
               }
-            } catch (e) {
+            } catch (_e) {
               console.log(`   Could not select ${sectionName} ${i}:`, e);
             }
           }
@@ -505,7 +505,7 @@ async function testMarketingSwarm() {
             }
           }
         }
-      } catch (e) {
+      } catch (_e) {
         console.log(`   Error finding ${sectionName} section:`, e);
       }
     }
@@ -540,7 +540,7 @@ async function testMarketingSwarm() {
           buttonClicked = true;
           break;
         }
-      } catch (e) {
+      } catch (_e) {
         // Try next pattern
       }
     }

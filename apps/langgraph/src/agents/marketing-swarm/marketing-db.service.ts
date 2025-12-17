@@ -459,6 +459,7 @@ export class MarketingDbService {
 
   /**
    * Update output with content (after writing completes)
+   * Accumulates cost/tokens in llm_metadata instead of overwriting
    */
   async updateOutputContent(
     outputId: string,
@@ -466,12 +467,15 @@ export class MarketingDbService {
     status: string,
     llmMetadata?: Record<string, unknown>,
   ): Promise<void> {
+    // Accumulate costs instead of overwriting
+    const accumulatedMetadata = await this.accumulateLlmMetadata(outputId, llmMetadata);
+
     const { error } = await this.supabase
       .from('outputs')
       .update({
         content,
         status,
-        llm_metadata: llmMetadata,
+        llm_metadata: accumulatedMetadata,
       })
       .eq('id', outputId);
 
@@ -482,6 +486,7 @@ export class MarketingDbService {
 
   /**
    * Update output after editing
+   * Accumulates cost/tokens in llm_metadata instead of overwriting
    */
   async updateOutputAfterEdit(
     outputId: string,
@@ -491,6 +496,9 @@ export class MarketingDbService {
     editCycle: number,
     llmMetadata?: Record<string, unknown>,
   ): Promise<void> {
+    // Accumulate costs instead of overwriting
+    const accumulatedMetadata = await this.accumulateLlmMetadata(outputId, llmMetadata);
+
     const { error } = await this.supabase
       .from('outputs')
       .update({
@@ -498,7 +506,7 @@ export class MarketingDbService {
         status,
         editor_feedback: editorFeedback,
         edit_cycle: editCycle,
-        llm_metadata: llmMetadata,
+        llm_metadata: accumulatedMetadata,
       })
       .eq('id', outputId);
 
@@ -1308,5 +1316,97 @@ export class MarketingDbService {
       winner,
       generatedAt: new Date().toISOString(),
     };
+  }
+
+  // ========================================
+  // COST ACCUMULATION HELPERS
+  // ========================================
+
+  /**
+   * Accumulate LLM metadata (cost, tokens) instead of overwriting
+   * Fetches current values and adds new values to create running totals
+   */
+  private async accumulateLlmMetadata(
+    outputId: string,
+    newMetadata?: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    if (!newMetadata) {
+      return {};
+    }
+
+    // Get current output to read existing metadata
+    const { data: currentOutput } = await this.supabase
+      .from('outputs')
+      .select('llm_metadata')
+      .eq('id', outputId)
+      .single();
+
+    const existingMetadata = (currentOutput?.llm_metadata as Record<string, unknown>) || {};
+
+    // Accumulate values
+    const existingCost = (existingMetadata.cost as number) || 0;
+    const existingTokens = (existingMetadata.tokensUsed as number) || 0;
+    const existingLatency = (existingMetadata.totalLatencyMs as number) || 0;
+    const existingCallCount = (existingMetadata.llmCallCount as number) || 0;
+
+    const newCost = (newMetadata.cost as number) || 0;
+    const newTokens = (newMetadata.tokensUsed as number) || 0;
+    const newLatency = (newMetadata.latencyMs as number) || 0;
+
+    return {
+      cost: existingCost + newCost,
+      tokensUsed: existingTokens + newTokens,
+      totalLatencyMs: existingLatency + newLatency,
+      llmCallCount: existingCallCount + 1,
+      // Keep last operation's latency for reference
+      lastLatencyMs: newLatency,
+    };
+  }
+
+  /**
+   * Add evaluation cost to output's running total
+   * Called after an evaluation completes for this output
+   */
+  async addEvaluationCostToOutput(
+    outputId: string,
+    evaluationCost: number,
+    evaluationTokens: number,
+  ): Promise<void> {
+    // Get current output metadata
+    const { data: currentOutput } = await this.supabase
+      .from('outputs')
+      .select('llm_metadata')
+      .eq('id', outputId)
+      .single();
+
+    if (!currentOutput) {
+      this.logger.warn(`Output not found for cost update: ${outputId}`);
+      return;
+    }
+
+    const existingMetadata = (currentOutput.llm_metadata as Record<string, unknown>) || {};
+
+    const existingCost = (existingMetadata.cost as number) || 0;
+    const existingTokens = (existingMetadata.tokensUsed as number) || 0;
+    const existingEvalCost = (existingMetadata.evaluationCost as number) || 0;
+    const existingEvalTokens = (existingMetadata.evaluationTokens as number) || 0;
+
+    const updatedMetadata = {
+      ...existingMetadata,
+      cost: existingCost + evaluationCost,
+      tokensUsed: existingTokens + evaluationTokens,
+      // Track evaluation costs separately for breakdown
+      evaluationCost: existingEvalCost + evaluationCost,
+      evaluationTokens: existingEvalTokens + evaluationTokens,
+    };
+
+    const { error } = await this.supabase
+      .from('outputs')
+      .update({ llm_metadata: updatedMetadata })
+      .eq('id', outputId);
+
+    if (error) {
+      this.logger.error(`Failed to add evaluation cost to output: ${error.message}`);
+    }
   }
 }

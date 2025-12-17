@@ -7,6 +7,7 @@ import {
 } from '../pii/dictionary-pseudonymizer.service';
 import { RunMetadataService } from '../run-metadata.service';
 import { ProviderConfigService } from '../provider-config.service';
+import { LLMPricingService } from '../llm-pricing.service';
 import {
   PIIProcessingMetadata,
   PIIDataType,
@@ -46,6 +47,7 @@ export abstract class BaseLLMService {
     protected readonly dictionaryPseudonymizerService: DictionaryPseudonymizerService,
     protected readonly runMetadataService: RunMetadataService,
     protected readonly providerConfigService: ProviderConfigService,
+    protected readonly llmPricingService?: LLMPricingService,
   ) {
     this.logger = new Logger(this.constructor.name);
   }
@@ -489,7 +491,8 @@ export abstract class BaseLLMService {
   }
 
   /**
-   * Calculate cost based on provider pricing
+   * Calculate cost based on provider pricing from database.
+   * Uses LLMPricingService with cached pricing data for performance.
    */
   protected calculateCost(
     provider: string,
@@ -498,55 +501,26 @@ export abstract class BaseLLMService {
     outputTokens: number,
   ): number | undefined {
     try {
-      const p = provider.toLowerCase();
-      const m = model.toLowerCase();
-
-      // Basic per-token rate maps (USD) using reasonable defaults.
-      // Rates are expressed per token (i.e., $ per 1 token).
-      // Example rates are used where exact pricing is unavailable in code.
-      const openaiRates: Record<string, { input: number; output: number }> = {
-        // gpt-4o family
-        'gpt-4o': { input: 0.005 / 1000, output: 0.015 / 1000 }, // $5 / $15 per 1M
-        'gpt-4o-mini': { input: 0.00015 / 1000, output: 0.0006 / 1000 }, // $0.15 / $0.60 per 1M
-        // legacy models
-        'gpt-4': { input: 0.03 / 1000, output: 0.06 / 1000 }, // $30 / $60 per 1M
-        'gpt-4-turbo': { input: 0.01 / 1000, output: 0.03 / 1000 }, // $10 / $30 per 1M
-        'gpt-3.5-turbo': { input: 0.0015 / 1000, output: 0.002 / 1000 }, // $1.5 / $2 per 1M
-        // reasoning family (example rates)
-        o1: { input: 0.003 / 1000, output: 0.012 / 1000 }, // $3 / $12 per 1M
-        'o1-mini': { input: 0.003 / 1000, output: 0.012 / 1000 },
-        'o4-mini': { input: 0.001 / 1000, output: 0.005 / 1000 }, // example placeholder
-      };
-
-      const anthropicRates: Record<string, { input: number; output: number }> =
-        {
-          'claude-3-5-sonnet': { input: 0.003 / 1000, output: 0.015 / 1000 }, // $3 / $15 per 1M
-          'claude-3-5-haiku': { input: 0.00025 / 1000, output: 0.00125 / 1000 }, // $0.25 / $1.25 per 1M
-          'claude-3-sonnet': { input: 0.003 / 1000, output: 0.015 / 1000 },
-          'claude-3-haiku': { input: 0.00025 / 1000, output: 0.00125 / 1000 },
-        };
-
-      const defaultRates = { input: 0.001 / 1000, output: 0.002 / 1000 }; // $1 / $2 per 1M
-
-      const matchRate = (
-        rates: Record<string, { input: number; output: number }>,
-      ) => {
-        for (const key of Object.keys(rates)) {
-          if (m.includes(key)) return rates[key];
-        }
-        return undefined;
-      };
-
-      let rate: { input: number; output: number } | undefined;
-      if (p === 'openai') {
-        rate = matchRate(openaiRates);
-      } else if (p === 'anthropic') {
-        rate = matchRate(anthropicRates);
+      // Use LLMPricingService for DB-driven pricing (synchronous for metadata creation)
+      if (this.llmPricingService) {
+        return this.llmPricingService.calculateCostSync(
+          provider,
+          model,
+          inputTokens,
+          outputTokens,
+        );
       }
 
-      const r = rate || defaultRates;
-      const cost = inputTokens * r.input + outputTokens * r.output;
-      return cost;
+      // Fallback to default pricing if service not available
+      this.logger.warn(
+        `LLMPricingService not available, using default pricing for ${provider}/${model}`,
+      );
+      const defaultInputPer1k = 0.001;
+      const defaultOutputPer1k = 0.002;
+      return (
+        (inputTokens / 1000) * defaultInputPer1k +
+        (outputTokens / 1000) * defaultOutputPer1k
+      );
     } catch (error) {
       this.logger.error('Cost calculation failed:', error);
       return undefined;

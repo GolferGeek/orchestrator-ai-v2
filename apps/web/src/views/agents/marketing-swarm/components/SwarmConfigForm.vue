@@ -113,11 +113,62 @@
       </ion-card-content>
     </ion-card>
 
+    <!-- LLM Selection -->
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>LLM Selection</ion-card-title>
+        <ion-card-subtitle>Choose the AI model for content generation</ion-card-subtitle>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-item>
+          <ion-label position="stacked">Provider</ion-label>
+          <ion-select
+            v-model="selectedProvider"
+            placeholder="Select provider"
+            interface="popover"
+            :disabled="llmProvidersLoading"
+          >
+            <ion-select-option
+              v-for="provider in llmProviders"
+              :key="provider.name"
+              :value="provider.name"
+            >
+              {{ provider.displayName }}{{ provider.isLocal ? ' (Local)' : '' }}
+            </ion-select-option>
+          </ion-select>
+        </ion-item>
+
+        <ion-item>
+          <ion-label position="stacked">Model</ion-label>
+          <ion-select
+            v-model="selectedModel"
+            placeholder="Select model"
+            interface="popover"
+            :disabled="!selectedProvider || llmModelsLoading"
+          >
+            <ion-select-option
+              v-for="model in filteredModels"
+              :key="model.model"
+              :value="model.model"
+            >
+              {{ model.displayName }} (in: ${{ model.inputPer1k.toFixed(4) }}/1K, out: ${{ model.outputPer1k.toFixed(4) }}/1K)
+            </ion-select-option>
+          </ion-select>
+        </ion-item>
+
+        <p v-if="selectedModelInfo" class="model-info">
+          <strong>Tier:</strong> {{ selectedModelInfo.modelTier }} |
+          <strong>Speed:</strong> {{ selectedModelInfo.speedTier }}
+          <span v-if="selectedModelInfo.isLocal"> | <ion-badge color="success">Local</ion-badge></span>
+        </p>
+      </ion-card-content>
+    </ion-card>
+
     <!-- Agent Selection -->
     <ion-card>
       <ion-card-header>
         <ion-card-title>Agent Selection</ion-card-title>
-        <ion-card-subtitle>Select agents and their LLM configurations</ion-card-subtitle>
+        <ion-card-subtitle>Select which agents to use (LLM is set above)</ion-card-subtitle>
       </ion-card-header>
       <ion-card-content>
         <!-- Writers -->
@@ -130,16 +181,6 @@
             >
               {{ agent.name }}
             </ion-checkbox>
-            <div v-if="isAgentSelected('writer', agent.slug)" class="llm-configs">
-              <ion-chip
-                v-for="config in getLLMConfigsForAgent(agent.slug)"
-                :key="config.id"
-                :color="isLLMConfigSelected('writer', agent.slug, config.id) ? 'primary' : 'medium'"
-                @click="toggleLLMConfig('writer', agent.slug, config)"
-              >
-                {{ config.displayName || `${config.llmProvider}/${config.llmModel}` }}
-              </ion-chip>
-            </div>
           </div>
         </div>
 
@@ -153,16 +194,6 @@
             >
               {{ agent.name }}
             </ion-checkbox>
-            <div v-if="isAgentSelected('editor', agent.slug)" class="llm-configs">
-              <ion-chip
-                v-for="config in getLLMConfigsForAgent(agent.slug)"
-                :key="config.id"
-                :color="isLLMConfigSelected('editor', agent.slug, config.id) ? 'primary' : 'medium'"
-                @click="toggleLLMConfig('editor', agent.slug, config)"
-              >
-                {{ config.displayName || `${config.llmProvider}/${config.llmModel}` }}
-              </ion-chip>
-            </div>
           </div>
         </div>
 
@@ -176,16 +207,6 @@
             >
               {{ agent.name }}
             </ion-checkbox>
-            <div v-if="isAgentSelected('evaluator', agent.slug)" class="llm-configs">
-              <ion-chip
-                v-for="config in getLLMConfigsForAgent(agent.slug)"
-                :key="config.id"
-                :color="isLLMConfigSelected('evaluator', agent.slug, config.id) ? 'primary' : 'medium'"
-                @click="toggleLLMConfig('evaluator', agent.slug, config)"
-              >
-                {{ config.displayName || `${config.llmProvider}/${config.llmModel}` }}
-              </ion-chip>
-            </div>
           </div>
         </div>
 
@@ -287,9 +308,10 @@
         <ion-card-title>Execution Summary</ion-card-title>
       </ion-card-header>
       <ion-card-content>
-        <p><strong>Writers:</strong> {{ selectedWriterCount }} configurations</p>
-        <p><strong>Editors:</strong> {{ selectedEditorCount }} configurations</p>
-        <p><strong>Evaluators:</strong> {{ selectedEvaluatorCount }} configurations</p>
+        <p><strong>LLM:</strong> {{ selectedProvider }}/{{ selectedModel }}</p>
+        <p><strong>Writers:</strong> {{ selectedWriterCount }} agent(s)</p>
+        <p><strong>Editors:</strong> {{ selectedEditorCount }} agent(s)</p>
+        <p><strong>Evaluators:</strong> {{ selectedEvaluatorCount }} agent(s)</p>
         <p><strong>Max Edit Cycles:</strong> {{ maxEditCycles }}</p>
         <p><strong>Top N for Final Ranking:</strong> {{ topNForFinalRanking }}</p>
         <p><strong>Top N in Deliverable:</strong> {{ topNForDeliverable }}</p>
@@ -328,17 +350,17 @@ import {
   IonSelectOption,
   IonTextarea,
   IonCheckbox,
-  IonChip,
   IonRange,
   IonButton,
+  IonBadge,
 } from '@ionic/vue';
 import { useMarketingSwarmStore } from '@/stores/marketingSwarmStore';
+import { llmService, type LLMProvider, type LLMModel } from '@/services/llmService';
 import type {
   PromptData,
   SwarmConfig,
   AgentConfig,
   MarketingAgent,
-  AgentLLMConfig,
 } from '@/types/marketing-swarm';
 
 const emit = defineEmits<{
@@ -390,6 +412,60 @@ watch(keyPointsText, (text) => {
     .filter((line) => line.length > 0);
 });
 
+// LLM selection state
+const llmProviders = ref<LLMProvider[]>([]);
+const llmModels = ref<LLMModel[]>([]);
+const llmProvidersLoading = ref(false);
+const llmModelsLoading = ref(false);
+const selectedProvider = ref<string>('anthropic');
+const selectedModel = ref<string>('claude-sonnet-4-20250514');
+
+// Filter models by selected provider
+const filteredModels = computed(() => {
+  if (!selectedProvider.value) return [];
+  return llmModels.value.filter((m) => m.provider === selectedProvider.value);
+});
+
+// Get info about the selected model
+const selectedModelInfo = computed(() => {
+  if (!selectedModel.value) return null;
+  return llmModels.value.find((m) => m.model === selectedModel.value);
+});
+
+// Load providers on mount
+async function loadProviders() {
+  llmProvidersLoading.value = true;
+  try {
+    llmProviders.value = await llmService.getProviders();
+  } catch (error) {
+    console.error('Failed to load LLM providers:', error);
+  } finally {
+    llmProvidersLoading.value = false;
+  }
+}
+
+// Load all models on mount
+async function loadModels() {
+  llmModelsLoading.value = true;
+  try {
+    llmModels.value = await llmService.getModels();
+  } catch (error) {
+    console.error('Failed to load LLM models:', error);
+  } finally {
+    llmModelsLoading.value = false;
+  }
+}
+
+// When provider changes, reset model selection if not valid
+watch(selectedProvider, (newProvider) => {
+  const validModels = llmModels.value.filter((m) => m.provider === newProvider);
+  const currentModelValid = validModels.some((m) => m.model === selectedModel.value);
+  if (!currentModelValid && validModels.length > 0) {
+    // Select first model of new provider
+    selectedModel.value = validModels[0].model;
+  }
+});
+
 // Agent selection
 const writerAgents = computed(() => store.writerAgents);
 const editorAgents = computed(() => store.editorAgents);
@@ -406,70 +482,25 @@ const topNForDeliverable = ref(3);
 const maxLocalConcurrent = ref(1);
 const maxCloudConcurrent = ref(5);
 
-function getLLMConfigsForAgent(agentSlug: string): AgentLLMConfig[] {
-  return store.getLLMConfigsForAgent(agentSlug);
-}
-
 function isAgentSelected(role: 'writer' | 'editor' | 'evaluator', agentSlug: string): boolean {
   const list = role === 'writer' ? selectedWriters : role === 'editor' ? selectedEditors : selectedEvaluators;
   return list.value.some((c) => c.agentSlug === agentSlug);
-}
-
-function isLLMConfigSelected(
-  role: 'writer' | 'editor' | 'evaluator',
-  agentSlug: string,
-  configId: string
-): boolean {
-  const list = role === 'writer' ? selectedWriters : role === 'editor' ? selectedEditors : selectedEvaluators;
-  return list.value.some((c) => c.agentSlug === agentSlug && c.llmConfigId === configId);
 }
 
 function toggleAgent(role: 'writer' | 'editor' | 'evaluator', agent: MarketingAgent) {
   const list = role === 'writer' ? selectedWriters : role === 'editor' ? selectedEditors : selectedEvaluators;
 
   if (isAgentSelected(role, agent.slug)) {
-    // Remove all configs for this agent
+    // Remove this agent
     list.value = list.value.filter((c) => c.agentSlug !== agent.slug);
   } else {
-    // Add default config for this agent
-    const configs = getLLMConfigsForAgent(agent.slug);
-    const defaultConfig = configs.find((c) => c.isDefault) || configs[0];
-    if (defaultConfig) {
-      list.value.push({
-        agentSlug: agent.slug,
-        llmConfigId: defaultConfig.id,
-        llmProvider: defaultConfig.llmProvider,
-        llmModel: defaultConfig.llmModel,
-        displayName: defaultConfig.displayName,
-      });
-    }
-  }
-}
-
-function toggleLLMConfig(
-  role: 'writer' | 'editor' | 'evaluator',
-  agentSlug: string,
-  config: AgentLLMConfig
-) {
-  const list = role === 'writer' ? selectedWriters : role === 'editor' ? selectedEditors : selectedEvaluators;
-
-  const existingIndex = list.value.findIndex(
-    (c) => c.agentSlug === agentSlug && c.llmConfigId === config.id
-  );
-
-  if (existingIndex >= 0) {
-    // Don't remove if it's the only config for this agent
-    const agentConfigs = list.value.filter((c) => c.agentSlug === agentSlug);
-    if (agentConfigs.length > 1) {
-      list.value.splice(existingIndex, 1);
-    }
-  } else {
+    // Add agent with selected LLM from dropdowns
     list.value.push({
-      agentSlug,
-      llmConfigId: config.id,
-      llmProvider: config.llmProvider,
-      llmModel: config.llmModel,
-      displayName: config.displayName,
+      agentSlug: agent.slug,
+      llmConfigId: `${selectedProvider.value}:${selectedModel.value}`,
+      llmProvider: selectedProvider.value,
+      llmModel: selectedModel.value,
+      displayName: selectedModelInfo.value?.displayName || selectedModel.value,
     });
   }
 }
@@ -494,6 +525,8 @@ const canExecute = computed(() => {
     promptData.value.goal &&
     promptData.value.keyPoints.length > 0 &&
     promptData.value.tone &&
+    selectedProvider.value &&
+    selectedModel.value &&
     selectedWriters.value.length > 0
   );
 });
@@ -505,31 +538,32 @@ const validationMessage = computed(() => {
   if (!promptData.value.goal) return 'Please enter a goal';
   if (promptData.value.keyPoints.length === 0) return 'Please enter at least one key point';
   if (!promptData.value.tone) return 'Please select a tone';
+  if (!selectedProvider.value) return 'Please select an LLM provider';
+  if (!selectedModel.value) return 'Please select an LLM model';
   if (selectedWriters.value.length === 0) return 'Please select at least one writer';
   return '';
 });
 
-// Auto-select first writer on mount for faster testing
-onMounted(() => {
+// Load LLM data and auto-select first writer on mount
+onMounted(async () => {
+  // Load LLM providers and models
+  await Promise.all([loadProviders(), loadModels()]);
+
   // Wait for store to load agents, then select defaults
   let unwatchFn: (() => void) | null = null;
 
   const selectFirstWriter = (agents: MarketingAgent[]) => {
     if (agents.length > 0 && selectedWriters.value.length === 0) {
-      // Select first writer with its default config
+      // Select first writer with current LLM selection
       const firstWriter = agents[0];
-      const configs = getLLMConfigsForAgent(firstWriter.slug);
-      const defaultConfig = configs.find((c) => c.isDefault) || configs[0];
-      if (defaultConfig) {
-        selectedWriters.value.push({
-          agentSlug: firstWriter.slug,
-          llmConfigId: defaultConfig.id,
-          llmProvider: defaultConfig.llmProvider,
-          llmModel: defaultConfig.llmModel,
-          displayName: defaultConfig.displayName,
-        });
-      }
-      // Stop watching after selection (use nextTick to avoid immediate call issue)
+      selectedWriters.value.push({
+        agentSlug: firstWriter.slug,
+        llmConfigId: `${selectedProvider.value}:${selectedModel.value}`,
+        llmProvider: selectedProvider.value,
+        llmModel: selectedModel.value,
+        displayName: selectedModelInfo.value?.displayName || selectedModel.value,
+      });
+      // Stop watching after selection
       if (unwatchFn) {
         unwatchFn();
       }
@@ -624,5 +658,17 @@ function handleExecute() {
 
 ion-card {
   margin-bottom: 16px;
+}
+
+.model-info {
+  font-size: 0.875rem;
+  color: var(--ion-color-medium);
+  margin-top: 8px;
+  padding: 0 16px;
+}
+
+.model-info ion-badge {
+  vertical-align: middle;
+  margin-left: 4px;
 }
 </style>

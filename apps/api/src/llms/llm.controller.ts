@@ -3,6 +3,7 @@ import {
   Post,
   Get,
   Body,
+  Query,
   Logger,
   HttpCode,
   HttpStatus,
@@ -12,6 +13,7 @@ import { LLMService } from './llm.service';
 import { isLLMResponse } from './services/llm-interfaces';
 import { LocalModelStatusService } from './local-model-status.service';
 import { RunMetadataService } from './run-metadata.service';
+import { LLMPricingService } from './llm-pricing.service';
 import { RecordLLMUsageDto } from './dto/record-llm-usage.dto';
 import type { ExecutionContext } from '@orchestrator-ai/transport-types';
 
@@ -23,6 +25,7 @@ export class LLMController {
     private readonly llmService: LLMService,
     private readonly localModelStatusService: LocalModelStatusService,
     private readonly runMetadataService: RunMetadataService,
+    private readonly llmPricingService: LLMPricingService,
   ) {}
 
   @Post('generate')
@@ -204,5 +207,38 @@ export class LLMController {
       this.logger.error('Failed to record LLM usage', error);
       throw error;
     }
+  }
+
+  /**
+   * Get all active LLM providers
+   */
+  @Get('providers')
+  async getProviders(): Promise<
+    Array<{
+      name: string;
+      displayName: string;
+      isLocal: boolean;
+    }>
+  > {
+    return this.llmPricingService.getProviders();
+  }
+
+  /**
+   * Get all models with pricing, optionally filtered by provider
+   */
+  @Get('models')
+  async getModels(@Query('provider') provider?: string): Promise<
+    Array<{
+      provider: string;
+      model: string;
+      displayName: string;
+      inputPer1k: number;
+      outputPer1k: number;
+      modelTier: string;
+      speedTier: string;
+      isLocal: boolean;
+    }>
+  > {
+    return this.llmPricingService.getModelsWithPricing(provider);
   }
 }

@@ -14,6 +14,7 @@ import { PIIService } from '../pii/pii.service';
 import { DictionaryPseudonymizerService } from '../pii/dictionary-pseudonymizer.service';
 import { RunMetadataService } from '../run-metadata.service';
 import { ProviderConfigService } from '../provider-config.service';
+import { LLMPricingService } from '../llm-pricing.service';
 import Anthropic from '@anthropic-ai/sdk';
 import { LLMErrorMapper } from './llm-error-handling';
 import { anthropicMessageSchema } from '../types/provider-schemas';
@@ -59,6 +60,7 @@ export class AnthropicLLMService extends BaseLLMService {
     dictionaryPseudonymizerService: DictionaryPseudonymizerService,
     runMetadataService: RunMetadataService,
     providerConfigService: ProviderConfigService,
+    llmPricingService?: LLMPricingService,
   ) {
     super(
       config,
@@ -66,6 +68,7 @@ export class AnthropicLLMService extends BaseLLMService {
       dictionaryPseudonymizerService,
       runMetadataService,
       providerConfigService,
+      llmPricingService,
     );
 
     // Initialize Anthropic client

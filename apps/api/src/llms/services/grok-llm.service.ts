@@ -14,6 +14,7 @@ import { PIIService } from '../pii/pii.service';
 import { DictionaryPseudonymizerService } from '../pii/dictionary-pseudonymizer.service';
 import { RunMetadataService } from '../run-metadata.service';
 import { ProviderConfigService } from '../provider-config.service';
+import { LLMPricingService } from '../llm-pricing.service';
 
 /**
  * Grok-specific response metadata extension
@@ -50,6 +51,7 @@ export class GrokLLMService extends BaseLLMService {
     dictionaryPseudonymizerService: DictionaryPseudonymizerService,
     runMetadataService: RunMetadataService,
     providerConfigService: ProviderConfigService,
+    llmPricingService?: LLMPricingService,
   ) {
     super(
       config,
@@ -57,6 +59,7 @@ export class GrokLLMService extends BaseLLMService {
       dictionaryPseudonymizerService,
       runMetadataService,
       providerConfigService,
+      llmPricingService,
     );
 
     const apiKey = config.apiKey || process.env.XAI_API_KEY;
@@ -311,32 +314,8 @@ export class GrokLLMService extends BaseLLMService {
     super.handleError(error, context);
   }
 
-  /**
-   * Override cost calculation for Grok-specific pricing
-   */
-  protected calculateCost(
-    provider: string,
-    model: string,
-    inputTokens: number,
-    outputTokens: number,
-  ): number {
-    // Grok pricing (as of late 2024)
-    // Note: These are example rates - check xAI documentation for current pricing
-    const grokRates = {
-      'grok-beta': {
-        input: 0.000005, // $5 per 1M input tokens
-        output: 0.000015, // $15 per 1M output tokens
-      },
-      'grok-vision-beta': {
-        input: 0.000005, // $5 per 1M input tokens
-        output: 0.000015, // $15 per 1M output tokens
-      },
-    };
-
-    const rates =
-      grokRates[model as keyof typeof grokRates] || grokRates['grok-beta'];
-    return inputTokens * rates.input + outputTokens * rates.output;
-  }
+  // Note: calculateCost is now inherited from BaseLLMService which uses
+  // LLMPricingService for database-driven pricing lookups
 }
 
 /**

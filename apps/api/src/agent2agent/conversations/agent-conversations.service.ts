@@ -386,9 +386,7 @@ export class AgentConversationsService {
       for (const task of tasks) {
         try {
           const deleteUrl = `${this.langgraphBaseUrl}/marketing-swarm/${task.id}`;
-          this.logger.log(
-            `Deleting marketing swarm data for task ${task.id}`,
-          );
+          this.logger.log(`Deleting marketing swarm data for task ${task.id}`);
 
           await firstValueFrom(
             this.httpService.delete(deleteUrl, { timeout: 10000 }),
@@ -401,7 +399,9 @@ export class AgentConversationsService {
           // Log but don't throw - we still want to delete the conversation
           this.logger.warn(
             `Failed to delete marketing swarm data for task ${task.id}: ${
-              deleteError instanceof Error ? deleteError.message : 'Unknown error'
+              deleteError instanceof Error
+                ? deleteError.message
+                : 'Unknown error'
             }`,
           );
         }

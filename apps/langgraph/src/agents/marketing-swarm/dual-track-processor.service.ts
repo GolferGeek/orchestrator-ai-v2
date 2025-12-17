@@ -310,6 +310,7 @@ export class DualTrackProcessorService {
     await this.db.updateOutputContent(output.id, response.text, 'pending_edit', {
       tokensUsed: response.usage?.totalTokens,
       latencyMs,
+      cost: response.usage?.cost,
     });
 
     // Save version for edit history tracking
@@ -319,7 +320,7 @@ export class DualTrackProcessorService {
       response.text,
       'write',
       null,
-      { tokensUsed: response.usage?.totalTokens, latencyMs },
+      { tokensUsed: response.usage?.totalTokens, latencyMs, cost: response.usage?.cost },
     );
 
     // Emit update with full data
@@ -413,7 +414,7 @@ export class DualTrackProcessorService {
       nextStatus,
       feedback,
       newEditCycle,
-      { tokensUsed: response.usage?.totalTokens, latencyMs },
+      { tokensUsed: response.usage?.totalTokens, latencyMs, cost: response.usage?.cost },
     );
 
     // Emit update
@@ -479,6 +480,7 @@ export class DualTrackProcessorService {
     await this.db.updateOutputContent(output.id, response.text, 'pending_edit', {
       tokensUsed: response.usage?.totalTokens,
       latencyMs,
+      cost: response.usage?.cost,
     });
 
     // Save version for edit history tracking (include editor feedback that triggered rewrite)
@@ -488,7 +490,7 @@ export class DualTrackProcessorService {
       response.text,
       'rewrite',
       editorFeedback,
-      { tokensUsed: response.usage?.totalTokens, latencyMs },
+      { tokensUsed: response.usage?.totalTokens, latencyMs, cost: response.usage?.cost },
     );
 
     // Emit update
@@ -605,6 +607,9 @@ export class DualTrackProcessorService {
       const latencyMs = Date.now() - startTime;
 
       // Parse response
+      const evalCost = response.usage?.cost ?? 0;
+      const evalTokens = response.usage?.totalTokens ?? 0;
+
       if (stage === 'initial') {
         const { score, reasoning } = this.parseInitialEvaluationResponse(
           response.text,
@@ -617,7 +622,7 @@ export class DualTrackProcessorService {
           'completed',
           undefined,
           undefined,
-          { tokensUsed: response.usage?.totalTokens, latencyMs },
+          { tokensUsed: evalTokens, latencyMs, cost: evalCost },
         );
       } else {
         const { rank, reasoning } = this.parseFinalRankingResponse(response.text);
@@ -630,9 +635,16 @@ export class DualTrackProcessorService {
           'completed',
           rank,
           weightedScore,
-          { tokensUsed: response.usage?.totalTokens, latencyMs },
+          { tokensUsed: evalTokens, latencyMs, cost: evalCost },
         );
       }
+
+      // Add evaluation cost to the output's running total
+      await this.db.addEvaluationCostToOutput(
+        evaluation.output_id,
+        evalCost,
+        evalTokens,
+      );
 
       // Emit evaluation update
       await this.emitEvaluationUpdated(context, taskId, {

@@ -15,8 +15,8 @@ import { test, expect, chromium, Browser, Page } from '@playwright/test';
 
 const DEBUG = process.env.DEBUG === 'true';
 const BASE_URL = process.env.BASE_URL || 'http://localhost:6101';
-const TEST_EMAIL = process.env.SUPABASE_TEST_USER || process.env.VITE_TEST_USER || 'golfergeek@orchestratorai.io';
-const TEST_PASSWORD = process.env.SUPABASE_TEST_PASSWORD || process.env.VITE_TEST_PASSWORD || 'GolferGeek123!';
+const _TEST_EMAIL = process.env.SUPABASE_TEST_USER || process.env.VITE_TEST_USER || 'golfergeek@orchestratorai.io';
+const _TEST_PASSWORD = process.env.SUPABASE_TEST_PASSWORD || process.env.VITE_TEST_PASSWORD || 'GolferGeek123!';
 
 let browser: Browser;
 let page: Page;
@@ -89,7 +89,7 @@ test('Marketing Swarm - Complete Flow', async () => {
           console.log('   Navigating directly to /login...');
           await page.goto(`${BASE_URL}/login`);
         }
-      } catch (e) {
+      } catch (_e) {
         // Navigate directly to login
         console.log('   Navigating directly to /login...');
         await page.goto(`${BASE_URL}/login`);
@@ -117,7 +117,7 @@ test('Marketing Swarm - Complete Flow', async () => {
         await demoButton.click({ force: true });
         loginClicked = true;
       }
-    } catch (e) {
+    } catch (_e) {
       console.log('   "Use Demo Account" button not found');
     }
 
@@ -130,7 +130,7 @@ test('Marketing Swarm - Complete Flow', async () => {
           await loginButtonByText.click({ force: true });
           loginClicked = true;
         }
-      } catch (e) {
+      } catch (_e) {
         console.log('   Login button by text not found');
       }
     }
@@ -144,7 +144,7 @@ test('Marketing Swarm - Complete Flow', async () => {
           await submitButton.click({ force: true });
           loginClicked = true;
         }
-      } catch (e) {
+      } catch (_e) {
         console.log('   Submit button not found');
       }
     }
@@ -158,7 +158,7 @@ test('Marketing Swarm - Complete Flow', async () => {
           await anyLoginButton.click({ force: true });
           loginClicked = true;
         }
-      } catch (e) {
+      } catch (_e) {
         console.log('   No Login button found');
       }
     }
@@ -249,7 +249,7 @@ test('Marketing Swarm - Complete Flow', async () => {
         converseClicked = true;
       }
     }
-  } catch (e) {
+  } catch (_e) {
     console.log('   Strategy 1 failed');
   }
   
@@ -266,7 +266,7 @@ test('Marketing Swarm - Complete Flow', async () => {
           converseClicked = true;
         }
       }
-    } catch (e) {
+    } catch (_e) {
       console.log('   Strategy 2 failed');
     }
   }
@@ -299,7 +299,7 @@ test('Marketing Swarm - Complete Flow', async () => {
           converseClicked = true;
         }
       }
-    } catch (e) {
+    } catch (_e) {
       console.log('   Strategy 3 failed');
     }
   }
@@ -374,7 +374,7 @@ test('Marketing Swarm - Complete Flow', async () => {
         await field.fill(fieldValues[i]);
         await page.waitForTimeout(200);
       }
-    } catch (e) {
+    } catch (_e) {
       console.log(`   Could not fill field ${i}:`, e);
     }
   }
@@ -421,7 +421,7 @@ test('Marketing Swarm - Complete Flow', async () => {
           await page.waitForTimeout(200);
         }
       }
-    } catch (e) {
+    } catch (_e) {
       console.log(`   Could not select writer ${i}`);
     }
   }
@@ -446,7 +446,7 @@ test('Marketing Swarm - Complete Flow', async () => {
           await page.waitForTimeout(200);
         }
       }
-    } catch (e) {
+    } catch (_e) {
       console.log(`   Could not select editor ${i}`);
     }
   }
@@ -471,7 +471,7 @@ test('Marketing Swarm - Complete Flow', async () => {
           await page.waitForTimeout(200);
         }
       }
-    } catch (e) {
+    } catch (_e) {
       console.log(`   Could not select evaluator ${i}`);
     }
   }

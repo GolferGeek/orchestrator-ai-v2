@@ -41,6 +41,25 @@
           {{ completedOutputsCount }} / {{ totalOutputsCount }} outputs completed
           ({{ progressPercentage }}%)
         </div>
+
+        <!-- Running Cost Display (clickable for breakdown) -->
+        <div
+          v-if="totalCost > 0 || totalTokens > 0"
+          class="cost-display clickable"
+          @click="showCostBreakdown = true"
+        >
+          <div class="cost-item">
+            <ion-icon :icon="pricetagOutline" />
+            <span class="cost-label">Cost:</span>
+            <span class="cost-value">${{ formatCost(totalCost) }}</span>
+          </div>
+          <div class="cost-item">
+            <ion-icon :icon="chatboxEllipsesOutline" />
+            <span class="cost-label">Tokens:</span>
+            <span class="cost-value">{{ formatTokens(totalTokens) }}</span>
+          </div>
+          <ion-icon :icon="chevronForwardOutline" class="cost-chevron" />
+        </div>
       </ion-card-content>
     </ion-card>
 
@@ -141,6 +160,62 @@
         {{ error }}
       </ion-card-content>
     </ion-card>
+
+    <!-- Cost Breakdown Modal -->
+    <ion-modal :is-open="showCostBreakdown" @did-dismiss="showCostBreakdown = false">
+      <ion-header>
+        <ion-toolbar>
+          <ion-title>Cost Breakdown</ion-title>
+          <ion-buttons slot="end">
+            <ion-button @click="showCostBreakdown = false">Close</ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+      <ion-content class="cost-breakdown-content">
+        <div class="cost-summary">
+          <div class="summary-row total">
+            <span>Total Cost</span>
+            <span class="amount">${{ formatCost(totalCost) }}</span>
+          </div>
+          <div class="summary-row">
+            <span>Total Tokens</span>
+            <span>{{ formatTokens(totalTokens) }}</span>
+          </div>
+        </div>
+
+        <h3>Cost by Output</h3>
+        <ion-list>
+          <ion-item v-for="output in phase2OutputsWithCost" :key="output.id">
+            <ion-label>
+              <h3>{{ output.writerAgent.name || output.writerAgent.slug }}</h3>
+              <p>{{ output.writerAgent.llmProvider }}/{{ output.writerAgent.llmModel }}</p>
+              <p v-if="output.llmMetadata?.llmCallCount">
+                {{ output.llmMetadata.llmCallCount }} LLM calls
+                <span v-if="output.llmMetadata?.evaluationCost">
+                  (incl. ${{ formatCost(output.llmMetadata.evaluationCost) }} eval)
+                </span>
+              </p>
+            </ion-label>
+            <ion-note slot="end" class="output-cost">
+              ${{ formatCost(output.llmMetadata?.cost ?? 0) }}
+            </ion-note>
+          </ion-item>
+        </ion-list>
+
+        <h3 v-if="phase2EvaluationsWithCost.length > 0">Cost by Evaluation</h3>
+        <ion-list v-if="phase2EvaluationsWithCost.length > 0">
+          <ion-item v-for="evaluation in phase2EvaluationsWithCost" :key="evaluation.id">
+            <ion-label>
+              <h3>{{ evaluation.evaluatorAgent.name || evaluation.evaluatorAgent.slug }}</h3>
+              <p>{{ evaluation.stage }} stage - Score: {{ evaluation.score?.toFixed(1) ?? 'N/A' }}</p>
+            </ion-label>
+            <ion-note slot="end" class="output-cost">
+              ${{ formatCost(evaluation.llmMetadata?.cost ?? 0) }}
+            </ion-note>
+          </ion-item>
+        </ion-list>
+      </ion-content>
+    </ion-modal>
   </div>
 </template>
 
@@ -158,6 +233,14 @@ import {
   IonList,
   IonItem,
   IonLabel,
+  IonModal,
+  IonHeader,
+  IonToolbar,
+  IonTitle,
+  IonButtons,
+  IonButton,
+  IonContent,
+  IonNote,
 } from '@ionic/vue';
 import {
   checkmarkCircle,
@@ -174,6 +257,9 @@ import {
   layersOutline,
   filterOutline,
   alertCircleOutline,
+  pricetagOutline,
+  chatboxEllipsesOutline,
+  chevronForwardOutline,
 } from 'ionicons/icons';
 import { useMarketingSwarmStore } from '@/stores/marketingSwarmStore';
 import OutputVersionModal from './OutputVersionModal.vue';
@@ -185,6 +271,9 @@ const store = useMarketingSwarmStore();
 const isVersionModalOpen = ref(false);
 const selectedOutputId = ref<string | null>(null);
 const selectedOutput = ref<SwarmOutputPhase2 | null>(null);
+
+// Modal state for cost breakdown
+const showCostBreakdown = ref(false);
 
 function openVersionModal(output: SwarmOutputPhase2) {
   selectedOutputId.value = output.id;
@@ -220,6 +309,34 @@ const initialRankings = computed(() => store.initialRankings);
 const finalists = computed(() => store.finalists);
 const totalOutputsCount = computed(() => store.totalOutputsCount);
 const completedOutputsCount = computed(() => store.completedOutputsCount);
+const totalCost = computed(() => store.totalCost);
+const totalTokens = computed(() => store.totalTokens);
+
+// Filtered lists for cost breakdown modal
+const phase2OutputsWithCost = computed(() =>
+  phase2Outputs.value
+    .filter((o) => o.llmMetadata?.cost && o.llmMetadata.cost > 0)
+    .sort((a, b) => (b.llmMetadata?.cost ?? 0) - (a.llmMetadata?.cost ?? 0)),
+);
+
+const phase2EvaluationsWithCost = computed(() =>
+  store.phase2Evaluations
+    .filter((e) => e.llmMetadata?.cost && e.llmMetadata.cost > 0)
+    .sort((a, b) => (b.llmMetadata?.cost ?? 0) - (a.llmMetadata?.cost ?? 0)),
+);
+
+// Helper functions for formatting
+function formatCost(cost: number): string {
+  if (cost === 0) return '0.00';
+  if (cost < 0.01) return cost.toFixed(4);
+  return cost.toFixed(2);
+}
+
+function formatTokens(tokens: number): string {
+  if (tokens < 1000) return tokens.toString();
+  if (tokens < 1000000) return `${(tokens / 1000).toFixed(1)}K`;
+  return `${(tokens / 1000000).toFixed(2)}M`;
+}
 
 // Progress calculation for Phase 2
 const progressPercentage = computed(() => {
@@ -385,6 +502,97 @@ function getRankColor(rank: number): string {
   margin-top: 8px;
   font-size: 0.875rem;
   color: var(--ion-color-medium);
+}
+
+/* Cost Display */
+.cost-display {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-top: 12px;
+  padding: 10px 16px;
+  background: var(--ion-color-light);
+  border-radius: 8px;
+}
+
+.cost-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+}
+
+.cost-item ion-icon {
+  color: var(--ion-color-primary);
+  font-size: 16px;
+}
+
+.cost-label {
+  color: var(--ion-color-medium);
+}
+
+.cost-value {
+  font-weight: 600;
+  color: var(--ion-color-primary);
+}
+
+.cost-display.clickable {
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.cost-display.clickable:hover {
+  background: var(--ion-color-light-shade);
+}
+
+.cost-chevron {
+  color: var(--ion-color-medium);
+  font-size: 16px;
+  margin-left: auto;
+}
+
+/* Cost Breakdown Modal */
+.cost-breakdown-content {
+  padding: 16px;
+}
+
+.cost-summary {
+  background: var(--ion-color-light);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+
+.summary-row.total {
+  font-weight: 600;
+  font-size: 1.1rem;
+  border-bottom: 1px solid var(--ion-color-medium-tint);
+  margin-bottom: 8px;
+  padding-bottom: 12px;
+}
+
+.summary-row .amount {
+  color: var(--ion-color-primary);
+}
+
+.cost-breakdown-content h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ion-color-medium-shade);
+  margin: 16px 0 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.output-cost {
+  font-weight: 600;
+  color: var(--ion-color-primary);
 }
 
 /* Output Cards Grid (Phase 2) */
