@@ -30,9 +30,6 @@ import {
   fetchExistingDeliverable,
   buildResponseMetadata,
   handleError,
-  resolveConversationId,
-  resolveTaskId,
-  resolveUserId,
 } from './shared.helpers';
 
 const isJsonObject = (value: JsonValue | undefined): value is JsonObject =>
@@ -1136,7 +1133,7 @@ function buildBuildActionContext(
   };
 }
 
-function sanitizeMetadata(
+function _sanitizeMetadata(
   value: Record<string, unknown> | undefined,
 ): JsonObject {
   if (!value) {

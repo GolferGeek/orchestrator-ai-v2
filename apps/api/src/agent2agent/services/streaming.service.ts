@@ -44,8 +44,8 @@ export class StreamingService {
    */
   registerStream(
     context: ExecutionContext,
-    mode: string,
-    userMessage: string,
+    _mode: string,
+    _userMessage: string,
   ): string {
     // Use taskId as streamId for simplicity - frontend already knows the taskId
     const streamId = context.taskId;
@@ -126,7 +126,7 @@ export class StreamingService {
     this.logger.log(
       `📊 Pushing ${eventType} to observability buffer for task ${context.taskId}`,
     );
-    this.observabilityEvents.push(observabilityEvent);
+    void this.observabilityEvents.push(observabilityEvent);
   }
 
   /**

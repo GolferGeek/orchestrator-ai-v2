@@ -102,7 +102,8 @@ export class AgentRuntimeDeliverablesAdapter {
           orgSlug: ctx.organizationSlug || 'default',
           userId: userId,
           conversationId: conversationId,
-          taskId: request.context?.taskId ?? '00000000-0000-0000-0000-000000000000',
+          taskId:
+            request.context?.taskId ?? '00000000-0000-0000-0000-000000000000',
           planId: '00000000-0000-0000-0000-000000000000',
           deliverableId: targetDeliverableId,
           agentSlug: ctx.agentSlug,

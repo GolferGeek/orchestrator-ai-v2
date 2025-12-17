@@ -17,6 +17,7 @@ import { PIIService } from '../pii/pii.service';
 import { DictionaryPseudonymizerService } from '../pii/dictionary-pseudonymizer.service';
 import { RunMetadataService } from '../run-metadata.service';
 import { ProviderConfigService } from '../provider-config.service';
+import { LLMPricingService } from '../llm-pricing.service';
 import { LLMErrorMapper } from './llm-error-handling';
 import { ollamaResponseSchema } from '../types/provider-schemas';
 import type { OllamaResponseParsed } from '../types/provider-schemas';
@@ -69,6 +70,7 @@ export class OllamaLLMService extends BaseLLMService {
     runMetadataService: RunMetadataService,
     providerConfigService: ProviderConfigService,
     private readonly httpService: HttpService,
+    llmPricingService?: LLMPricingService,
   ) {
     super(
       config,
@@ -76,6 +78,7 @@ export class OllamaLLMService extends BaseLLMService {
       dictionaryPseudonymizerService,
       runMetadataService,
       providerConfigService,
+      llmPricingService,
     );
 
     // Detect cloud mode based on API key presence
@@ -175,7 +178,7 @@ export class OllamaLLMService extends BaseLLMService {
             },
           },
           {
-            timeout: this.isCloudMode ? 60000 : 120000, // 1 min for cloud, 2 min for local
+            timeout: 300000, // 5 minutes - no timeouts in production
             headers: requestHeaders,
           },
         ),
@@ -289,7 +292,7 @@ export class OllamaLLMService extends BaseLLMService {
             stream: false,
             options: { num_predict: 1 },
           },
-          { timeout: 60000 },
+          { timeout: 300000 }, // 5 minutes - no timeouts in production
         ),
       );
 

@@ -128,7 +128,11 @@ export class RagAgentRunnerService extends BaseAgentRunner {
       const ragConfig = this.extractRagConfig(definition);
       if (!ragConfig) {
         // Fallback to base handler if no RAG config
-        return await super.handleConverse(definition, request, organizationSlug);
+        return await super.handleConverse(
+          definition,
+          request,
+          organizationSlug,
+        );
       }
 
       // Resolve organization slug

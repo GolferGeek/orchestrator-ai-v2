@@ -678,8 +678,9 @@ describe('ApiAgentRunnerService', () => {
       let capturedContent: string = '';
       deliverablesService.executeAction.mockImplementation(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (action: string, params: any, context: any) => {
-          capturedContent = params.content;
+        (_action: string, params: any, _context: any) => {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          capturedContent = params.content as string;
           return Promise.resolve({
             success: true,
             data: { deliverable: {}, version: {} },

@@ -102,8 +102,12 @@ export class TaskMessageService {
         .single();
 
       if (taskResponse.data) {
-        conversationId = taskResponse.data.conversation_id;
-        const metadata = taskResponse.data.metadata as Record<string, unknown>;
+        const taskData = taskResponse.data as {
+          conversation_id: string | null;
+          metadata: Record<string, unknown> | null;
+        };
+        conversationId = taskData.conversation_id;
+        const metadata = taskData.metadata as Record<string, unknown>;
         organizationSlug =
           (metadata?.organizationSlug as string) ||
           (metadata?.organization_slug as string) ||

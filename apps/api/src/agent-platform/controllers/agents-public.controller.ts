@@ -16,6 +16,9 @@ interface HierarchyNode {
     execution_profile?: unknown;
     execution_capabilities?: unknown;
     execution_modes?: string[];
+    // Custom UI fields for agents with specialized UIs (e.g., Marketing Swarm)
+    hasCustomUI?: boolean;
+    customUIComponent?: string | null;
   };
   children: HierarchyNode[];
 }
@@ -128,6 +131,10 @@ export class AgentsPublicController {
             execution_profile: metadataConfig?.execution_profile,
             execution_capabilities: metadataConfig?.execution_capabilities,
             execution_modes: executionModes,
+            // Custom UI fields for agents with specialized UIs (e.g., Marketing Swarm)
+            hasCustomUI: (metadataConfig?.hasCustomUI as boolean) ?? false,
+            customUIComponent:
+              (metadataConfig?.customUIComponent as string | null) ?? null,
           },
           children: [],
         };

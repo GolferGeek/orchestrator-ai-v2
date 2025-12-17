@@ -14,6 +14,7 @@ import { PIIService } from '../pii/pii.service';
 import { DictionaryPseudonymizerService } from '../pii/dictionary-pseudonymizer.service';
 import { RunMetadataService } from '../run-metadata.service';
 import { ProviderConfigService } from '../provider-config.service';
+import { LLMPricingService } from '../llm-pricing.service';
 import OpenAI from 'openai';
 import { getModelRestrictions } from '../config/model-restrictions.config';
 import type { OpenAIChatCompletionRequest } from '../types/provider-payload.types';
@@ -58,6 +59,7 @@ export class OpenAILLMService extends BaseLLMService {
     dictionaryPseudonymizerService: DictionaryPseudonymizerService,
     runMetadataService: RunMetadataService,
     providerConfigService: ProviderConfigService,
+    llmPricingService?: LLMPricingService,
   ) {
     super(
       config,
@@ -65,6 +67,7 @@ export class OpenAILLMService extends BaseLLMService {
       dictionaryPseudonymizerService,
       runMetadataService,
       providerConfigService,
+      llmPricingService,
     );
 
     // Initialize OpenAI client
@@ -472,10 +475,6 @@ export async function testOpenAIService() {
     },
   };
 
-  try {
-    const response = await service.generateResponse(mockContext, params);
-    return response;
-  } catch (error) {
-    throw error;
-  }
+  const response = await service.generateResponse(mockContext, params);
+  return response;
 }

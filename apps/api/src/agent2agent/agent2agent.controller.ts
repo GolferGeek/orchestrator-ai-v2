@@ -251,16 +251,18 @@ export class Agent2AgentController {
     @CurrentUser() currentUser: SupabaseAuthUserDto,
     @Req() request: RequestWithStreamData,
   ): Promise<TaskResponseDto | JsonRpcSuccessEnvelope | JsonRpcErrorEnvelope> {
+    const bodyMethod = (body as Record<string, unknown>)?.method;
     this.logger.log(
-      `🔍 [A2A-CTRL] Request received - org: ${orgSlug}, agent: ${agentSlug}, body.method: ${String((body as Record<string, unknown>)?.method ?? '')}`,
+      `🔍 [A2A-CTRL] Request received - org: ${orgSlug}, agent: ${agentSlug}, body.method: ${typeof bodyMethod === 'string' || typeof bodyMethod === 'number' ? bodyMethod : JSON.stringify(bodyMethod)}`,
     );
 
     // ADAPTER: Transform frontend CreateTaskDto format to Agent2Agent TaskRequestDto format
     const adaptedBody = this.adaptFrontendRequest(body);
     const { dto, jsonrpc } = await this.normalizeTaskRequest(adaptedBody);
 
+    const payloadMethod = (dto.payload as Record<string, unknown>)?.method;
     this.logger.log(
-      `🔍 [A2A-CTRL] After normalization - mode: ${dto.mode}, payload.method: ${String((dto.payload as Record<string, unknown>)?.method ?? '')}, taskId: ${dto.context?.taskId ?? 'none'}`,
+      `🔍 [A2A-CTRL] After normalization - mode: ${dto.mode}, payload.method: ${typeof payloadMethod === 'string' || typeof payloadMethod === 'number' ? payloadMethod : JSON.stringify(payloadMethod)}, taskId: ${dto.context?.taskId ?? 'none'}`,
     );
 
     // =========================================================================
@@ -667,7 +669,9 @@ export class Agent2AgentController {
 
     response.flushHeaders?.();
     // Send proper connection event as JSON data (not just SSE comment)
-    response.write(`data: ${JSON.stringify({ event_type: 'connected', taskId, message: 'Stream connected' })}\n\n`);
+    response.write(
+      `data: ${JSON.stringify({ event_type: 'connected', taskId, message: 'Stream connected' })}\n\n`,
+    );
 
     const keepAlive = setInterval(() => {
       response.write(': keepalive\n\n');
@@ -759,7 +763,9 @@ export class Agent2AgentController {
           if (completeEvent) {
             this.writeSseEvent(response, completeEvent);
           }
-          this.logger.debug(`[STREAM-V3] Task ${taskId} completed, ending stream`);
+          this.logger.debug(
+            `[STREAM-V3] Task ${taskId} completed, ending stream`,
+          );
           endStream('complete');
           return;
         }
@@ -1233,6 +1239,14 @@ export class Agent2AgentController {
       : typedPayload;
     const candidate = { ...(candidateSource as Record<string, unknown>) };
 
+    // DEBUG: Log userMessage extraction for Marketing Swarm debugging
+    if (isJsonRpc && (candidate as Record<string, unknown>).userMessage) {
+      const userMsg = (candidate as Record<string, unknown>).userMessage;
+      this.logger.log(
+        `[MarketingSwarm-DEBUG] Found userMessage in candidate: type=${typeof userMsg}, length=${typeof userMsg === 'string' ? userMsg.length : 'N/A'}, preview=${typeof userMsg === 'string' ? userMsg.substring(0, 100) : 'N/A'}`,
+      );
+    }
+
     // For JSON-RPC, ensure all params are preserved in payload (including taskId, decision, etc.)
     // This prevents whitelist validation from stripping non-standard DTO fields
     if (isJsonRpc) {
@@ -1257,6 +1271,20 @@ export class Agent2AgentController {
     }
 
     const dto = plainToInstance(TaskRequestDto, candidate);
+
+    // DEBUG: Log userMessage after DTO transformation for Marketing Swarm debugging
+    if (
+      dto.userMessage ||
+      (dto.payload as Record<string, unknown>)?.userMessage
+    ) {
+      const topLevel = dto.userMessage;
+      const inPayload = (dto.payload as Record<string, unknown>)
+        ?.userMessage as string | undefined;
+      this.logger.log(
+        `[MarketingSwarm-DEBUG] After DTO: userMessage=${!!topLevel}, payload.userMessage=${!!inPayload}, topLevelLength=${topLevel?.length || 0}, payloadLength=${inPayload?.length || 0}`,
+      );
+    }
+
     const errors = await validate(dto, {
       whitelist: true,
       forbidUnknownValues: false,

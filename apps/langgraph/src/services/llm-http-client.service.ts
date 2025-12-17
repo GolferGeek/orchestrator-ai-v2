@@ -25,6 +25,7 @@ export interface LLMCallResponse {
     promptTokens: number;
     completionTokens: number;
     totalTokens: number;
+    cost?: number;
   };
 }
 

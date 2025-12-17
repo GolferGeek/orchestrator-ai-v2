@@ -12,7 +12,14 @@ import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { SupabaseService } from '../supabase/supabase.service';
 import { IsOptional, IsObject, IsString } from 'class-validator';
 import { ConfigService } from '@nestjs/config';
-import { cpus, totalmem, freemem, uptime as osUptime, loadavg, platform } from 'os';
+import {
+  cpus,
+  totalmem,
+  freemem,
+  uptime as osUptime,
+  loadavg,
+  platform,
+} from 'os';
 
 class UpdateGlobalModelConfigDto {
   @IsObject()
@@ -59,7 +66,10 @@ export class SystemController {
 
           // Parse page size from first line (16KB on Apple Silicon, 4KB on Intel)
           const pageSizeMatch = lines[0]?.match(/page size of (\d+) bytes/);
-          const pageSize = pageSizeMatch && pageSizeMatch[1] ? parseInt(pageSizeMatch[1], 10) : 4096;
+          const pageSize =
+            pageSizeMatch && pageSizeMatch[1]
+              ? parseInt(pageSizeMatch[1], 10)
+              : 4096;
 
           let pagesAnonymous = 0; // App Memory
           let pagesWired = 0; // Wired Memory
@@ -96,7 +106,10 @@ export class SystemController {
           memoryUtilization = Math.round((usedMemory / totalMemory) * 100);
         } catch (error) {
           // Fall back to basic calculation if vm_stat fails
-          this.logger.warn('Failed to get accurate macOS memory, using basic calculation', error);
+          this.logger.warn(
+            'Failed to get accurate macOS memory, using basic calculation',
+            error,
+          );
         }
       }
 
@@ -145,7 +158,7 @@ export class SystemController {
             heapUtilization: Math.round(
               (memoryUsage.heapUsed / memoryUsage.heapTotal) * 100,
             ),
-          }
+          },
         },
 
         // API process uptime (for comparison)

@@ -740,18 +740,20 @@ export class TasksService {
    * Get a task by ID (without user restriction - for internal use)
    */
   async findOne(taskId: string): Promise<TaskRow | null> {
-    const { data, error } = await this.supabaseService
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const { data: rawData, error } = await this.supabaseService
       .getAnonClient()
       .from('tasks')
       .select('*')
       .eq('id', taskId)
       .single();
+    const data = rawData as TaskRow | null;
 
     if (error && error.code !== 'PGRST116') {
       throw new Error(`Failed to fetch task: ${error.message}`);
     }
 
-    return data as TaskRow | null;
+    return data;
   }
 
   /**

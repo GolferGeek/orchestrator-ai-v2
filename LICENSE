@@ -1,30 +1,179 @@
-Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License
+PROPRIETARY SOFTWARE LICENSE AGREEMENT
 
-SPDX-License-Identifier: CC-BY-NC-SA-4.0
+Copyright (c) 2024-2025 GolferGeek. All Rights Reserved.
 
-Copyright (c) 2024 GolferGeek
+SPDX-License-Identifier: LicenseRef-Proprietary
 
-This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License. To view a copy of this license, visit http://creativecommons.org/licenses/by-nc-sa/4.0/ or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
+================================================================================
+                           IMPORTANT - READ CAREFULLY
+================================================================================
 
-You are free to:
+This Proprietary Software License Agreement ("Agreement") is a legal agreement
+between you (either an individual or a single entity, "Licensee") and GolferGeek
+("Licensor") for the use of Orchestrator AI software, including all associated
+documentation, source code, and related materials ("Software").
 
-Share — copy and redistribute the material in any medium or format
-Adapt — remix, transform, and build upon the material
+BY ACCESSING, INSTALLING, COPYING, OR OTHERWISE USING THE SOFTWARE, YOU AGREE
+TO BE BOUND BY THE TERMS OF THIS AGREEMENT. IF YOU DO NOT AGREE TO THESE TERMS,
+DO NOT USE THE SOFTWARE.
 
-The licensor cannot revoke these freedoms as long as you follow the license terms.
+================================================================================
+                              1. GRANT OF LICENSE
+================================================================================
 
-Under the following terms:
+Subject to the terms of this Agreement and the separate Master Services Agreement
+(MSA) or Software License Agreement (SLA) executed between Licensor and Licensee,
+Licensor grants Licensee a limited, non-exclusive, non-transferable,
+non-sublicensable license to:
 
-Attribution — You must give appropriate credit, provide a link to the license, and indicate if changes were made. You may do so in any reasonable manner, but not in any way that suggests the licensor endorses you or your use.
+   a) Use the Software solely for Licensee's internal business operations;
+   b) Access and modify the source code solely for customization purposes
+      within Licensee's organization;
+   c) Deploy the Software within Licensee's own infrastructure or approved
+      cloud environments.
 
-NonCommercial — You may not use the material for commercial purposes.
+================================================================================
+                              2. RESTRICTIONS
+================================================================================
 
-ShareAlike — If you remix, transform, or build upon the material, you must distribute your contributions under the same license as the original.
+Licensee expressly agrees NOT to:
 
-No additional restrictions — You may not apply legal terms or technological measures that legally restrict others from doing anything the license permits.
+   a) REDISTRIBUTE: Copy, distribute, publish, or otherwise make the Software
+      available to any third party, including but not limited to affiliates,
+      subsidiaries, contractors, consultants, or partners, except as
+      specifically authorized in writing by Licensor;
 
-Notices:
+   b) SUBLICENSE: Grant any rights to the Software to any third party,
+      including sublicenses, assignments, or transfers of any kind;
 
-You do not have to comply with the license for elements of the material in the public domain or where your use is permitted by an applicable exception or limitation.
+   c) COMMERCIALIZE: Use the Software to provide services to third parties,
+      including but not limited to:
+      - Software-as-a-Service (SaaS) offerings
+      - Consulting or professional services
+      - Resale or licensing to others
+      - Integration into products or services sold to third parties
+      - Any activity that generates direct or indirect revenue from the
+        Software itself;
 
-No warranties are given. The license may not give you all of the permissions necessary for your intended use. For example, other rights such as publicity, privacy, or moral rights may limit how you use the material.
+   d) PERSONAL USE: Use the Software for personal projects, education,
+      training, or any purpose outside of Licensee's authorized business
+      operations under the executed MSA/SLA;
+
+   e) REVERSE ENGINEER: Reverse engineer, decompile, or disassemble the
+      Software, except to the extent expressly permitted by applicable law;
+
+   f) REMOVE NOTICES: Remove, alter, or obscure any proprietary notices,
+      labels, or marks on the Software;
+
+   g) COMPETITIVE USE: Use the Software to develop a competing product or
+      service, or assist any third party in doing so;
+
+   h) SHARE KNOWLEDGE: Share, publish, or otherwise disseminate proprietary
+      knowledge, algorithms, architecture, or implementation details derived
+      from the Software.
+
+================================================================================
+                            3. OWNERSHIP & TITLE
+================================================================================
+
+The Software is licensed, not sold. Licensor retains all right, title, and
+interest in and to the Software, including all intellectual property rights.
+This Agreement does not grant Licensee any ownership rights to the Software.
+
+Any modifications, enhancements, or derivative works created by Licensee remain
+the property of Licensor, and Licensee hereby assigns all rights in such works
+to Licensor.
+
+================================================================================
+                          4. CONFIDENTIALITY
+================================================================================
+
+Licensee acknowledges that the Software contains trade secrets and confidential
+information of Licensor. Licensee agrees to:
+
+   a) Maintain the confidentiality of the Software using at least the same
+      degree of care used to protect its own confidential information;
+   b) Limit access to the Software to employees and authorized personnel who
+      have a need to know and are bound by confidentiality obligations;
+   c) Not disclose any part of the Software to any third party without prior
+      written consent from Licensor.
+
+================================================================================
+                              5. TERM & TERMINATION
+================================================================================
+
+   a) TERM: This license is effective until terminated as specified in the
+      governing MSA/SLA.
+
+   b) TERMINATION FOR BREACH: Licensor may terminate this license immediately
+      upon written notice if Licensee breaches any term of this Agreement.
+
+   c) EFFECT OF TERMINATION: Upon termination:
+      - All rights granted under this Agreement immediately cease;
+      - Licensee must destroy all copies of the Software in its possession;
+      - Licensee must certify in writing that all copies have been destroyed;
+      - Sections 2, 3, 4, 6, 7, and 8 survive termination.
+
+================================================================================
+                            6. DISCLAIMER OF WARRANTIES
+================================================================================
+
+THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. LICENSOR DOES NOT
+WARRANT THAT THE SOFTWARE WILL BE ERROR-FREE OR UNINTERRUPTED.
+
+================================================================================
+                          7. LIMITATION OF LIABILITY
+================================================================================
+
+IN NO EVENT SHALL LICENSOR BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL,
+CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR ANY LOSS OF PROFITS, REVENUE, DATA, OR
+DATA USE, ARISING OUT OF OR RELATED TO THIS AGREEMENT OR THE USE OF THE
+SOFTWARE, EVEN IF LICENSOR HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+LICENSOR'S TOTAL LIABILITY UNDER THIS AGREEMENT SHALL NOT EXCEED THE FEES PAID
+BY LICENSEE FOR THE SOFTWARE IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM.
+
+================================================================================
+                              8. GENERAL PROVISIONS
+================================================================================
+
+   a) ENTIRE AGREEMENT: This Agreement, together with the governing MSA/SLA,
+      constitutes the entire agreement between the parties concerning the
+      subject matter hereof.
+
+   b) GOVERNING LAW: This Agreement shall be governed by and construed in
+      accordance with the laws of the State of Florida, without regard
+      to its conflict of laws principles.
+
+   c) SEVERABILITY: If any provision of this Agreement is held invalid or
+      unenforceable, the remaining provisions shall continue in full force
+      and effect.
+
+   d) NO WAIVER: Failure to enforce any provision of this Agreement shall not
+      constitute a waiver of that provision or any other provision.
+
+   e) ASSIGNMENT: Licensee may not assign or transfer this Agreement or any
+      rights hereunder without prior written consent from Licensor.
+
+   f) AUDIT RIGHTS: Licensor reserves the right to audit Licensee's use of
+      the Software to ensure compliance with this Agreement, upon reasonable
+      notice.
+
+================================================================================
+                              9. CONTACT INFORMATION
+================================================================================
+
+For questions regarding this license, please contact:
+
+   GolferGeek / Orchestrator AI
+   golfergeek@orchestratorai.io
+   16221 50th Ave N, Plymouth, MN 55446
+
+================================================================================
+
+BY USING THIS SOFTWARE, YOU ACKNOWLEDGE THAT YOU HAVE READ THIS AGREEMENT,
+UNDERSTAND IT, AND AGREE TO BE BOUND BY ITS TERMS AND CONDITIONS.
+
+Last Updated: December 2024

@@ -65,6 +65,17 @@ interface RbacAuditLogDbRow {
   created_at: string;
 }
 
+interface RbacUserOrgRoleWithRoleRow {
+  id: string;
+  role_id: string;
+  organization_slug: string;
+  role:
+    | {
+        name: string;
+      }
+    | { name: string }[];
+}
+
 export interface PermissionCheck {
   permission: string;
   resourceType?: string;
@@ -375,7 +386,7 @@ export class RbacService {
    * Get all available permissions
    */
   async getAllPermissions(): Promise<RbacPermission[]> {
-    const { data, error} = await this.supabase
+    const { data, error } = await this.supabase
       .getServiceClient()
       .from('rbac_permissions')
       .select('id, name, display_name, description, category')
@@ -620,8 +631,9 @@ export class RbacService {
 
     // Check if any of the roles is 'super-admin'
     // The role data comes from the join, so we need to check the nested role object
-    return data.some((record: any) => {
-      const role = record.role;
+    const typedData = data as RbacUserOrgRoleWithRoleRow[];
+    return typedData.some((record) => {
+      const role = Array.isArray(record.role) ? record.role[0] : record.role;
       return role && role.name === 'super-admin';
     });
   }
@@ -667,8 +679,9 @@ export class RbacService {
       }
 
       // Check if user has admin role for any organization
-      return data.some((record: any) => {
-        const role = record.role;
+      const typedData = data as RbacUserOrgRoleWithRoleRow[];
+      return typedData.some((record) => {
+        const role = Array.isArray(record.role) ? record.role[0] : record.role;
         return role && role.name === 'admin';
       });
     }
@@ -699,8 +712,9 @@ export class RbacService {
     }
 
     // Check if any of the roles is 'admin'
-    return data.some((record: any) => {
-      const role = record.role;
+    const typedData = data as RbacUserOrgRoleWithRoleRow[];
+    return typedData.some((record) => {
+      const role = Array.isArray(record.role) ? record.role[0] : record.role;
       return role && role.name === 'admin';
     });
   }

@@ -1,8 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import {
-  ExecutionContext,
-  createMockExecutionContext,
-} from '@orchestrator-ai/transport-types';
+import type { ExecutionContext as _ExecutionContext } from '@orchestrator-ai/transport-types';
 import { HttpService } from '@nestjs/axios';
 import { BaseLLMService } from './base-llm.service';
 import { OpenAILLMService } from './openai-llm.service';
@@ -14,6 +11,7 @@ import { PIIService } from '../pii/pii.service';
 import { DictionaryPseudonymizerService } from '../pii/dictionary-pseudonymizer.service';
 import { RunMetadataService } from '../run-metadata.service';
 import { ProviderConfigService } from '../provider-config.service';
+import { LLMPricingService } from '../llm-pricing.service';
 import {
   LLMServiceConfig,
   GenerateResponseParams,
@@ -29,7 +27,7 @@ export type SupportedProvider =
   | 'anthropic'
   | 'google'
   | 'ollama'
-  | 'grok';
+  | 'xai';
 
 /**
  * Factory service for creating LLM provider instances
@@ -57,7 +55,7 @@ export class LLMServiceFactory {
     anthropic: AnthropicLLMService,
     google: GoogleLLMService,
     ollama: OllamaLLMService,
-    grok: GrokLLMService,
+    xai: GrokLLMService,
   } as const;
 
   constructor(
@@ -66,8 +64,13 @@ export class LLMServiceFactory {
     private readonly runMetadataService: RunMetadataService,
     private readonly providerConfigService: ProviderConfigService,
     private readonly httpService: HttpService,
+    private readonly llmPricingService: LLMPricingService,
   ) {
     this.logger.log('LLMServiceFactory initialized');
+    // Preload pricing cache at startup
+    this.llmPricingService.loadPricingCache().catch((err) => {
+      this.logger.warn('Failed to preload pricing cache:', err);
+    });
   }
 
   /**
@@ -360,6 +363,7 @@ export class LLMServiceFactory {
             this.dictionaryPseudonymizerService,
             this.runMetadataService,
             this.providerConfigService,
+            this.llmPricingService,
           ) as unknown as BaseLLMService;
           break;
 
@@ -370,6 +374,7 @@ export class LLMServiceFactory {
             this.dictionaryPseudonymizerService,
             this.runMetadataService,
             this.providerConfigService,
+            this.llmPricingService,
           ) as unknown as BaseLLMService;
           break;
 
@@ -380,6 +385,7 @@ export class LLMServiceFactory {
             this.dictionaryPseudonymizerService,
             this.runMetadataService,
             this.providerConfigService,
+            this.llmPricingService,
           ) as unknown as BaseLLMService;
           break;
 
@@ -391,16 +397,18 @@ export class LLMServiceFactory {
             this.runMetadataService,
             this.providerConfigService,
             this.httpService,
+            this.llmPricingService,
           ) as unknown as BaseLLMService;
           break;
 
-        case 'grok':
+        case 'xai':
           serviceInstance = new GrokLLMService(
             config,
             this.piiService,
             this.dictionaryPseudonymizerService,
             this.runMetadataService,
             this.providerConfigService,
+            this.llmPricingService,
           ) as unknown as BaseLLMService;
           break;
 

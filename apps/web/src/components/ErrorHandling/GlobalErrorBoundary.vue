@@ -109,13 +109,10 @@
       </ion-fab-button>
     </div>
 
-    <!-- Network Status Banner -->
-    <div v-if="isOffline" class="network-status-banner offline">
+    <!-- Offline Indicator (compact, non-blocking) -->
+    <div v-if="isOffline" class="offline-indicator" @click="checkConnection" title="Click to check connection">
       <ion-icon :icon="cloudOfflineOutline"></ion-icon>
-      <span>You're offline. Some features may be limited.</span>
-      <ion-button fill="clear" size="small" @click="checkConnection">
-        <ion-icon :icon="refreshOutline"></ion-icon>
-      </ion-button>
+      <span>Offline</span>
     </div>
   </div>
 </template>
@@ -128,8 +125,7 @@ import {
 } from '@ionic/vue';
 import {
   alertCircleOutline, warningOutline, informationCircleOutline,
-  closeOutline, checkmarkCircleOutline, cloudOfflineOutline,
-  refreshOutline
+  closeOutline, checkmarkCircleOutline, cloudOfflineOutline
 } from 'ionicons/icons';
 import { useRouter } from 'vue-router';
 import { useErrorStore, type AppError } from '@/stores/errorStore';
@@ -389,24 +385,33 @@ onUnmounted(() => {
   border: 2px solid var(--ion-color-primary);
 }
 
-.network-status-banner {
+/* Compact offline indicator - positioned in bottom-left corner */
+.offline-indicator {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1001;
+  bottom: 2rem;
+  left: 2rem;
+  z-index: 1000;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.network-status-banner.offline {
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
   background: var(--ion-color-warning);
   color: var(--ion-color-warning-contrast);
+  border-radius: 1rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.offline-indicator:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.offline-indicator ion-icon {
+  font-size: 0.875rem;
 }
 
 /* Animation for floating indicator */
@@ -435,10 +440,10 @@ onUnmounted(() => {
     bottom: 1rem;
     right: 1rem;
   }
-  
-  .network-status-banner {
-    font-size: 0.8rem;
-    padding: 0.375rem 0.75rem;
+
+  .offline-indicator {
+    bottom: 1rem;
+    left: 1rem;
   }
 }
 </style>

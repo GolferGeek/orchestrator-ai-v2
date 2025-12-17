@@ -31,6 +31,28 @@ export interface ObservabilityEventRecord {
   timestamp: number;
 }
 
+interface ObservabilityDbRow {
+  id: string;
+  conversation_id: string | null;
+  task_id: string | null;
+  user_id: string | null;
+  agent_slug: string | null;
+  organization_slug: string | null;
+  source_app: string;
+  hook_event_type: string;
+  status: string | null;
+  message: string | null;
+  progress: number | null;
+  step: string | null;
+  payload: Record<string, unknown> | null;
+  username: string | null;
+  mode: string | null;
+  sequence: number | null;
+  total_steps: number | null;
+  timestamp: number;
+  created_at: string;
+}
+
 /**
  * ObservabilityEventsService
  *
@@ -101,7 +123,9 @@ export class ObservabilityEventsService {
         return username;
       }
     } catch (err) {
-      this.logger.warn(`Failed to resolve username for ${userId}: ${err}`);
+      this.logger.warn(
+        `Failed to resolve username for ${userId}: ${err instanceof Error ? err.message : String(err)}`,
+      );
     } finally {
       this.pendingLookups.delete(userId);
     }
@@ -115,7 +139,9 @@ export class ObservabilityEventsService {
   cacheUsername(userId: string, username: string): void {
     if (userId && username && username !== userId) {
       this.userCache.set(userId, username);
-      this.logger.debug(`📝 Cached username from event: ${userId} -> ${username}`);
+      this.logger.debug(
+        `📝 Cached username from event: ${userId} -> ${username}`,
+      );
     }
   }
 
@@ -158,8 +184,10 @@ export class ObservabilityEventsService {
         }
       }
 
-      this.logger.log(
-        `📥 [BUFFER] Pushing event: ${event.hook_event_type} for task ${event.context.taskId || 'unknown'}, username=${event.payload?.username || 'unknown'}`,
+      const username = event.payload?.username;
+      const usernameStr = typeof username === 'string' ? username : 'unknown';
+      this.logger.debug(
+        `📥 [BUFFER] Pushing event: ${event.hook_event_type} for task ${event.context.taskId || 'unknown'}, conversationId=${event.context.conversationId || 'none'}, username=${usernameStr}`,
       );
       this.buffer.push(event);
       if (this.buffer.length > this.bufferSize) {
@@ -167,7 +195,7 @@ export class ObservabilityEventsService {
       }
 
       this.subject.next(event);
-      this.logger.log(
+      this.logger.debug(
         `✅ [BUFFER] Event pushed successfully, buffer size: ${this.buffer.length}, subscribers notified`,
       );
 
@@ -254,13 +282,15 @@ export class ObservabilityEventsService {
         .limit(limit);
 
       if (error) {
-        this.logger.error(`Failed to query historical events: ${error.message}`);
+        this.logger.error(
+          `Failed to query historical events: ${error.message}`,
+        );
         return [];
       }
 
       // Map database records to ObservabilityEventRecord format
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return (data || []).map((row: any) => ({
+      const rows = (data || []) as ObservabilityDbRow[];
+      return rows.map((row) => ({
         context: {
           conversationId: row.conversation_id,
           taskId: row.task_id,

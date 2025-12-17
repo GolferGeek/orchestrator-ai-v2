@@ -22,6 +22,7 @@ const sharedTypeScriptRules = {
     {
       argsIgnorePattern: '^_',
       varsIgnorePattern: '^_',
+      caughtErrorsIgnorePattern: '^_',
     },
   ],
   '@typescript-eslint/no-empty-object-type': 'warn',

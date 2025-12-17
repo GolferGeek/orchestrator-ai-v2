@@ -64,7 +64,7 @@ export class ProviderConfigService {
         'User-Agent': 'OrchestratorAI/1.0',
         'X-No-Train': 'true', // OpenAI no-train header
       },
-      timeout: 30000,
+      timeout: 300000, // 5 minutes - no timeouts in production
       retryAttempts: 3,
       retryDelay: 1000,
       rateLimits: {
@@ -87,7 +87,7 @@ export class ProviderConfigService {
         'User-Agent': 'OrchestratorAI/1.0',
         'anthropic-version': '2023-06-01',
       },
-      timeout: 45000,
+      timeout: 300000, // 5 minutes - no timeouts in production
       retryAttempts: 3,
       retryDelay: 1500,
       rateLimits: {
@@ -114,7 +114,7 @@ export class ProviderConfigService {
       defaultHeaders: {
         'User-Agent': 'OrchestratorAI/1.0',
       },
-      timeout: isOllamaCloudMode ? 60000 : 120000, // 1 min for cloud, 2 min for local
+      timeout: 300000, // 5 minutes - no timeouts in production
       retryAttempts: isOllamaCloudMode ? 3 : 2,
       retryDelay: isOllamaCloudMode ? 1000 : 2000,
       rateLimits: isOllamaCloudMode
@@ -141,9 +141,31 @@ export class ProviderConfigService {
       defaultHeaders: {
         'User-Agent': 'OrchestratorAI/1.0',
       },
-      timeout: 30000,
+      timeout: 300000, // 5 minutes - no timeouts in production
       retryAttempts: 3,
       retryDelay: 1000,
+      features: {
+        supportsStreaming: true,
+        supportsNoTrain: false,
+        supportsNoRetain: false,
+        supportsFunctions: true,
+      },
+    });
+
+    // xAI (Grok) Configuration
+    this.providerConfigs.set('xai', {
+      name: 'xAI',
+      baseUrl: 'https://api.x.ai/v1',
+      defaultHeaders: {
+        'User-Agent': 'OrchestratorAI/1.0',
+      },
+      timeout: 300000, // 5 minutes - no timeouts in production
+      retryAttempts: 3,
+      retryDelay: 1000,
+      rateLimits: {
+        requestsPerMinute: 1000,
+        tokensPerMinute: 100000,
+      },
       features: {
         supportsStreaming: true,
         supportsNoTrain: false,

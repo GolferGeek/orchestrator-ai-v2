@@ -27,9 +27,7 @@ import {
   UnifiedGenerateResponseParams,
   LLMResponse,
   LLMServiceConfig,
-  ResponseMetadata,
   LLMRequestOptions,
-  RoutingDecision,
 } from './services/llm-interfaces';
 import {
   Provider,
@@ -145,7 +143,6 @@ export class LLMService {
     userMessage: string,
     options?: GenerateResponseOptions,
   ): Promise<string | LLMResponse> {
-    const startTime = Date.now();
     const executionContext = options?.executionContext;
 
     // ExecutionContext is required - it contains provider, model, and all context
@@ -226,238 +223,233 @@ export class LLMService {
         }));
 
         if (enhancedPiiMetadata) {
-            // Merge pseudonym info into existing metadata
-            enhancedPiiMetadata = {
-              ...enhancedPiiMetadata,
-              // Ensure flaggings available for UI debug panels
-              flaggings:
-                enhancedPiiMetadata.detectionResults?.flaggedMatches ||
-                enhancedPiiMetadata.flaggings ||
-                [],
-              pseudonymsApplied: [
-                ...(enhancedPiiMetadata.pseudonymsApplied || []),
-                ...pseudonymResult.mappings.map((m) => ({
-                  original: m.originalValue,
-                  pseudonym: m.pseudonym,
-                  type: m.dataType,
-                })),
-              ],
-              pseudonymInstructions: {
-                shouldPseudonymize: true,
-                targetMatches: [
-                  ...((enhancedPiiMetadata.pseudonymInstructions
-                    ?.targetMatches as PIIMatch[]) || []),
-                  ...(dictionaryMatches as PIIMatch[]),
-                ] as PIIMatch[],
-                requestId:
-                  enhancedPiiMetadata.pseudonymInstructions?.requestId ||
-                  requestId,
-                context:
-                  enhancedPiiMetadata.pseudonymInstructions?.context ||
-                  'llm-boundary',
-              },
-              pseudonymResults: {
-                applied: true,
-                processedMatches: [
-                  ...((enhancedPiiMetadata.pseudonymResults
-                    ?.processedMatches as PIIMatch[]) || []),
-                  ...(dictionaryMatches as PIIMatch[]),
-                ],
-                mappingsCount:
-                  (enhancedPiiMetadata.pseudonymResults?.mappingsCount || 0) +
-                  pseudonymResult.mappings.length,
-                processingTimeMs:
-                  (enhancedPiiMetadata.pseudonymResults?.processingTimeMs ||
-                    0) + pseudonymResult.processingTimeMs,
-                reversalSuccess:
-                  enhancedPiiMetadata.pseudonymResults?.reversalSuccess,
-                reversalMatches:
-                  enhancedPiiMetadata.pseudonymResults?.reversalMatches,
-              },
-              piiDetected: true,
-              sanitizationLevel:
-                pseudonymResult.mappings.length > 0 ||
-                patternRedactionResult.redactionCount > 0
-                  ? 'standard'
-                  : enhancedPiiMetadata.sanitizationLevel || 'none',
-              // Add pattern redaction info
-              patternRedactionsApplied: patternRedactionResult.mappings.map(
-                (m) => ({
-                  original: m.originalValue,
-                  redacted: m.redactedValue,
-                  dataType: m.dataType,
-                }),
-              ),
-              patternRedactionMappings: patternRedactionResult.mappings,
-              patternRedactionResults: {
-                applied: patternRedactionResult.redactionCount > 0,
-                redactionCount: patternRedactionResult.redactionCount,
-                processingTimeMs: patternRedactionResult.processingTimeMs,
-              },
-            };
-          } else {
-            // No metadata provided – compute detection once, then attach pseudonym fields
-            const piiPolicyResult = await this.piiService.checkPolicy(
-              userMessage,
-              {
-                provider: providerName,
-                providerName: providerName,
-              },
-            );
-
-            enhancedPiiMetadata = {
-              ...piiPolicyResult.metadata,
-              // For UI consumption
-              pseudonymsApplied: pseudonymResult.mappings.map((m) => ({
+          // Merge pseudonym info into existing metadata
+          enhancedPiiMetadata = {
+            ...enhancedPiiMetadata,
+            // Ensure flaggings available for UI debug panels
+            flaggings:
+              enhancedPiiMetadata.detectionResults?.flaggedMatches ||
+              enhancedPiiMetadata.flaggings ||
+              [],
+            pseudonymsApplied: [
+              ...(enhancedPiiMetadata.pseudonymsApplied || []),
+              ...pseudonymResult.mappings.map((m) => ({
                 original: m.originalValue,
                 pseudonym: m.pseudonym,
                 type: m.dataType,
               })),
-              // Provide flat flaggings array for UI convenience
-              flaggings:
-                piiPolicyResult.metadata.detectionResults?.flaggedMatches || [],
-              // Standardized fields used across the app
-              pseudonymInstructions: {
-                shouldPseudonymize: pseudonymResult.mappings.length > 0,
-                targetMatches: dictionaryMatches as unknown,
+            ],
+            pseudonymInstructions: {
+              shouldPseudonymize: true,
+              targetMatches: [
+                ...((enhancedPiiMetadata.pseudonymInstructions
+                  ?.targetMatches as PIIMatch[]) || []),
+                ...(dictionaryMatches as PIIMatch[]),
+              ] as PIIMatch[],
+              requestId:
+                enhancedPiiMetadata.pseudonymInstructions?.requestId ||
                 requestId,
-                context: 'llm-boundary',
-              },
-              pseudonymResults: {
-                applied: pseudonymResult.mappings.length > 0,
-                processedMatches: dictionaryMatches as unknown,
-                mappingsCount: pseudonymResult.mappings.length,
-                processingTimeMs: pseudonymResult.processingTimeMs,
-              },
-              piiDetected:
-                piiPolicyResult.metadata.piiDetected ||
-                pseudonymResult.mappings.length > 0 ||
-                patternRedactionResult.redactionCount > 0,
+              context:
+                enhancedPiiMetadata.pseudonymInstructions?.context ||
+                'llm-boundary',
+            },
+            pseudonymResults: {
+              applied: true,
+              processedMatches: [
+                ...((enhancedPiiMetadata.pseudonymResults
+                  ?.processedMatches as PIIMatch[]) || []),
+                ...(dictionaryMatches as PIIMatch[]),
+              ],
+              mappingsCount:
+                (enhancedPiiMetadata.pseudonymResults?.mappingsCount || 0) +
+                pseudonymResult.mappings.length,
               processingTimeMs:
-                (piiPolicyResult.metadata.timestamps?.policyCheck ||
-                  Date.now()) -
-                (piiPolicyResult.metadata.timestamps?.detectionStart ||
-                  Date.now()) +
+                (enhancedPiiMetadata.pseudonymResults?.processingTimeMs || 0) +
                 pseudonymResult.processingTimeMs,
-              sanitizationLevel:
-                pseudonymResult.mappings.length > 0 ||
-                patternRedactionResult.redactionCount > 0
-                  ? 'standard'
-                  : 'none',
-              // Add pattern redaction info
-              patternRedactionsApplied: patternRedactionResult.mappings.map(
-                (m) => ({
-                  original: m.originalValue,
-                  redacted: m.redactedValue,
-                  dataType: m.dataType,
-                }),
-              ),
-              patternRedactionMappings: patternRedactionResult.mappings,
-              patternRedactionResults: {
-                applied: patternRedactionResult.redactionCount > 0,
-                redactionCount: patternRedactionResult.redactionCount,
-                processingTimeMs: patternRedactionResult.processingTimeMs,
-              },
-            } as unknown as PIIProcessingMetadata;
-          }
+              reversalSuccess:
+                enhancedPiiMetadata.pseudonymResults?.reversalSuccess,
+              reversalMatches:
+                enhancedPiiMetadata.pseudonymResults?.reversalMatches,
+            },
+            piiDetected: true,
+            sanitizationLevel:
+              pseudonymResult.mappings.length > 0 ||
+              patternRedactionResult.redactionCount > 0
+                ? 'standard'
+                : enhancedPiiMetadata.sanitizationLevel || 'none',
+            // Add pattern redaction info
+            patternRedactionsApplied: patternRedactionResult.mappings.map(
+              (m) => ({
+                original: m.originalValue,
+                redacted: m.redactedValue,
+                dataType: m.dataType,
+              }),
+            ),
+            patternRedactionMappings: patternRedactionResult.mappings,
+            patternRedactionResults: {
+              applied: patternRedactionResult.redactionCount > 0,
+              redactionCount: patternRedactionResult.redactionCount,
+              processingTimeMs: patternRedactionResult.processingTimeMs,
+            },
+          };
         } else {
-          // Quick/local path – no pseudonymization or pattern redaction
-          processedUserMessage = userMessage;
+          // No metadata provided – compute detection once, then attach pseudonym fields
+          const piiPolicyResult = await this.piiService.checkPolicy(
+            userMessage,
+            {
+              provider: providerName,
+              providerName: providerName,
+            },
+          );
+
+          enhancedPiiMetadata = {
+            ...piiPolicyResult.metadata,
+            // For UI consumption
+            pseudonymsApplied: pseudonymResult.mappings.map((m) => ({
+              original: m.originalValue,
+              pseudonym: m.pseudonym,
+              type: m.dataType,
+            })),
+            // Provide flat flaggings array for UI convenience
+            flaggings:
+              piiPolicyResult.metadata.detectionResults?.flaggedMatches || [],
+            // Standardized fields used across the app
+            pseudonymInstructions: {
+              shouldPseudonymize: pseudonymResult.mappings.length > 0,
+              targetMatches: dictionaryMatches as unknown,
+              requestId,
+              context: 'llm-boundary',
+            },
+            pseudonymResults: {
+              applied: pseudonymResult.mappings.length > 0,
+              processedMatches: dictionaryMatches as unknown,
+              mappingsCount: pseudonymResult.mappings.length,
+              processingTimeMs: pseudonymResult.processingTimeMs,
+            },
+            piiDetected:
+              piiPolicyResult.metadata.piiDetected ||
+              pseudonymResult.mappings.length > 0 ||
+              patternRedactionResult.redactionCount > 0,
+            processingTimeMs:
+              (piiPolicyResult.metadata.timestamps?.policyCheck || Date.now()) -
+              (piiPolicyResult.metadata.timestamps?.detectionStart ||
+                Date.now()) +
+              pseudonymResult.processingTimeMs,
+            sanitizationLevel:
+              pseudonymResult.mappings.length > 0 ||
+              patternRedactionResult.redactionCount > 0
+                ? 'standard'
+                : 'none',
+            // Add pattern redaction info
+            patternRedactionsApplied: patternRedactionResult.mappings.map(
+              (m) => ({
+                original: m.originalValue,
+                redacted: m.redactedValue,
+                dataType: m.dataType,
+              }),
+            ),
+            patternRedactionMappings: patternRedactionResult.mappings,
+            patternRedactionResults: {
+              applied: patternRedactionResult.redactionCount > 0,
+              redactionCount: patternRedactionResult.redactionCount,
+              processingTimeMs: patternRedactionResult.processingTimeMs,
+            },
+          } as unknown as PIIProcessingMetadata;
         }
+      } else {
+        // Quick/local path – no pseudonymization or pattern redaction
+        processedUserMessage = userMessage;
+      }
 
-        // Use the new unified LLM service factory approach
-        const config: LLMServiceConfig = {
-          provider: providerName,
-          model: modelName,
-          temperature: options?.temperature,
-          maxTokens: options?.maxTokens,
-        };
+      // Use the new unified LLM service factory approach
+      const config: LLMServiceConfig = {
+        provider: providerName,
+        model: modelName,
+        temperature: options?.temperature,
+        maxTokens: options?.maxTokens,
+      };
 
-        const factoryParams: GenerateResponseParams = {
-          systemPrompt,
-          userMessage: processedUserMessage, // Use processed message
-          config,
-          options: {
-            // Caller tracking
-            callerType: options?.callerType,
-            callerName: options?.callerName,
-            // Optional overrides
-            authToken: options?.authToken,
-            currentUser: options?.currentUser,
-            dataClassification: options?.dataClassification,
-            // PII processing
-            piiMetadata: enhancedPiiMetadata,
-            dictionaryMappings: dictionaryMappings,
-            routingDecision: options?.routingDecision,
-            // ExecutionContext is the single source of truth
-            executionContext,
-          },
-        };
+      const factoryParams: GenerateResponseParams = {
+        systemPrompt,
+        userMessage: processedUserMessage, // Use processed message
+        config,
+        options: {
+          // Caller tracking
+          callerType: options?.callerType,
+          callerName: options?.callerName,
+          // Optional overrides
+          authToken: options?.authToken,
+          currentUser: options?.currentUser,
+          dataClassification: options?.dataClassification,
+          // PII processing
+          piiMetadata: enhancedPiiMetadata,
+          dictionaryMappings: dictionaryMappings,
+          routingDecision: options?.routingDecision,
+          // ExecutionContext is the single source of truth
+          executionContext,
+        },
+      };
 
-        const unifiedResult = await this.llmServiceFactory.generateResponse(
-          config,
-          factoryParams,
-        );
+      const unifiedResult = await this.llmServiceFactory.generateResponse(
+        config,
+        factoryParams,
+      );
 
-        // Apply reverse processing: pattern redactions first, then pseudonyms
-        if (unifiedResult.content) {
-          let reversedContent = unifiedResult.content;
+      // Apply reverse processing: pattern redactions first, then pseudonyms
+      if (unifiedResult.content) {
+        let reversedContent = unifiedResult.content;
 
-          // Step 1: Reverse pattern redactions first (to restore original values)
-          if (
-            patternRedactionMappings &&
-            patternRedactionMappings.length > 0
-          ) {
-            const patternReverseResult =
-              await this.patternRedactionService.reverseRedactions(
-                reversedContent,
-                patternRedactionMappings,
-              );
-            reversedContent = patternReverseResult.originalText;
+        // Step 1: Reverse pattern redactions first (to restore original values)
+        if (patternRedactionMappings && patternRedactionMappings.length > 0) {
+          const patternReverseResult =
+            await this.patternRedactionService.reverseRedactions(
+              reversedContent,
+              patternRedactionMappings,
+            );
+          reversedContent = patternReverseResult.originalText;
 
-            // Update metadata with reversal results
-            if (enhancedPiiMetadata?.patternRedactionResults) {
-              enhancedPiiMetadata.patternRedactionResults.reversalSuccess =
-                true;
-              enhancedPiiMetadata.patternRedactionResults.reversalCount =
-                patternReverseResult.reversalCount;
-            }
+          // Update metadata with reversal results
+          if (enhancedPiiMetadata?.patternRedactionResults) {
+            enhancedPiiMetadata.patternRedactionResults.reversalSuccess = true;
+            enhancedPiiMetadata.patternRedactionResults.reversalCount =
+              patternReverseResult.reversalCount;
           }
+        }
 
-          // Step 2: Reverse dictionary pseudonyms (to restore dictionary values)
-          if (dictionaryMappings && dictionaryMappings.length > 0) {
-            const pseudonymReverseResult =
-              await this.dictionaryPseudonymizerService.reversePseudonyms(
-                reversedContent,
-                dictionaryMappings,
-              );
-            reversedContent = pseudonymReverseResult.originalText;
+        // Step 2: Reverse dictionary pseudonyms (to restore dictionary values)
+        if (dictionaryMappings && dictionaryMappings.length > 0) {
+          const pseudonymReverseResult =
+            await this.dictionaryPseudonymizerService.reversePseudonyms(
+              reversedContent,
+              dictionaryMappings,
+            );
+          reversedContent = pseudonymReverseResult.originalText;
 
-            // Update metadata with reversal results
-            if (enhancedPiiMetadata?.pseudonymResults) {
-              enhancedPiiMetadata.pseudonymResults.reversalSuccess = true;
-              enhancedPiiMetadata.pseudonymResults.reversalMatches =
-                enhancedPiiMetadata.pseudonymInstructions?.targetMatches;
-            }
+          // Update metadata with reversal results
+          if (enhancedPiiMetadata?.pseudonymResults) {
+            enhancedPiiMetadata.pseudonymResults.reversalSuccess = true;
+            enhancedPiiMetadata.pseudonymResults.reversalMatches =
+              enhancedPiiMetadata.pseudonymInstructions?.targetMatches;
           }
-
-          unifiedResult.content = reversedContent;
         }
 
-        // Ensure PII metadata is included in response
-        if (enhancedPiiMetadata) {
-          unifiedResult.piiMetadata = enhancedPiiMetadata;
-        }
-        // Emit LLM completed event
-        this.emitLlmObservabilityEvent('agent.llm.completed', executionContext, {
-          provider: providerName,
-          model: modelName,
-          message: 'LLM call completed',
-          responsePreview: unifiedResult.content?.substring(0, 500),
-          metadata: unifiedResult.metadata,
-        });
+        unifiedResult.content = reversedContent;
+      }
 
-        return unifiedResult;
+      // Ensure PII metadata is included in response
+      if (enhancedPiiMetadata) {
+        unifiedResult.piiMetadata = enhancedPiiMetadata;
+      }
+      // Emit LLM completed event
+      this.emitLlmObservabilityEvent('agent.llm.completed', executionContext, {
+        provider: providerName,
+        model: modelName,
+        message: 'LLM call completed',
+        responsePreview: unifiedResult.content?.substring(0, 500),
+        metadata: unifiedResult.metadata,
+      });
+
+      return unifiedResult;
     } catch (error) {
       // Emit LLM failed event
       this.emitLlmObservabilityEvent('agent.llm.failed', executionContext, {
@@ -491,14 +483,14 @@ export class LLMService {
         source_app: 'orchestrator-ai',
         hook_event_type,
         status: hook_event_type,
-        message: payload?.message as string | null ?? null,
+        message: (payload?.message as string | null) ?? null,
         progress: null,
         step: 'llm',
         payload: payload ?? {},
         timestamp: Date.now(),
       };
 
-      this.observabilityEventsService.push(event);
+      void this.observabilityEventsService.push(event);
     } catch (error) {
       // Silently ignore observability errors to avoid disrupting main flow
       this.logger.debug(
@@ -506,7 +498,6 @@ export class LLMService {
       );
     }
   }
-
 
   /**
    * Unified generateResponse method - the new entry point for all LLM requests
@@ -535,7 +526,6 @@ export class LLMService {
     }
 
     try {
-
       // Validate required parameters
       if (!params.provider) {
         throw new Error('Missing required parameter: provider is required');
@@ -550,7 +540,9 @@ export class LLMService {
         throw new Error('Missing required parameter: userMessage is required');
       }
       if (!executionContext) {
-        throw new Error('Missing required parameter: executionContext is required in options');
+        throw new Error(
+          'Missing required parameter: executionContext is required in options',
+        );
       }
 
       // Validate provider is supported
@@ -738,13 +730,17 @@ export class LLMService {
 
       // Emit LLM completed event - use direct push when ExecutionContext is available
       if (executionContext) {
-        this.emitLlmObservabilityEvent('agent.llm.completed', executionContext, {
-          provider: params.provider,
-          model: params.model,
-          message: 'LLM call completed',
-          responsePreview: response.content?.substring(0, 500),
-          metadata: response.metadata,
-        });
+        this.emitLlmObservabilityEvent(
+          'agent.llm.completed',
+          executionContext,
+          {
+            provider: params.provider,
+            model: params.model,
+            message: 'LLM call completed',
+            responsePreview: response.content?.substring(0, 500),
+            metadata: response.metadata,
+          },
+        );
       }
 
       return responsePayload;

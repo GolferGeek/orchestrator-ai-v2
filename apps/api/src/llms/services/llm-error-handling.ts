@@ -832,6 +832,7 @@ export class LLMErrorMapper {
       case 'ollama':
         return this.fromOllamaError(error, provider, model, requestId);
       case 'grok':
+      case 'xai':
         return this.fromGrokError(error, provider, model, requestId);
       default:
         return new LLMError(

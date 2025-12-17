@@ -73,17 +73,43 @@ export class RunMetadataService {
 
   constructor(private readonly supabaseService: SupabaseService) {}
 
-  // Cost estimates per 1K tokens (in USD)
+  // Cost estimates per 1K tokens (in USD) - Updated December 2025
   private readonly costTable = {
-    // OpenAI pricing
+    // OpenAI pricing (December 2025)
+    'gpt-5': { input: 0.00125, output: 0.01 },
+    'gpt-5.2': { input: 0.00175, output: 0.014 },
+    'gpt-4o': { input: 0.005, output: 0.015 },
+    'gpt-4o-mini': { input: 0.00015, output: 0.0006 },
+    o1: { input: 0.015, output: 0.06 },
+    'o1-mini': { input: 0.003, output: 0.012 },
+    o3: { input: 0.001, output: 0.004 },
+    'o3-mini': { input: 0.00011, output: 0.00044 },
+    // Legacy OpenAI models
     'gpt-4': { input: 0.03, output: 0.06 },
     'gpt-4-turbo': { input: 0.01, output: 0.03 },
     'gpt-3.5-turbo': { input: 0.0015, output: 0.002 },
     'gpt-3.5-turbo-instruct': { input: 0.0015, output: 0.002 },
 
-    // Anthropic pricing
+    // Anthropic pricing (December 2025)
+    'claude-sonnet-4': { input: 0.003, output: 0.015 },
+    'claude-opus-4.5': { input: 0.005, output: 0.025 },
     'claude-3-5-sonnet-20241022': { input: 0.003, output: 0.015 },
     'claude-3-haiku-20240307': { input: 0.00025, output: 0.00125 },
+    'claude-3-opus-20240229': { input: 0.015, output: 0.075 },
+
+    // xAI Grok pricing (December 2025)
+    'grok-4': { input: 0.003, output: 0.015 },
+    'grok-4.1-fast': { input: 0.0002, output: 0.0005 },
+    'grok-3': { input: 0.003, output: 0.015 },
+    'grok-3-fast': { input: 0.0005, output: 0.0015 },
+
+    // Google Gemini pricing (December 2025)
+    'gemini-3-pro': { input: 0.002, output: 0.012 },
+    'gemini-2.5-pro': { input: 0.00125, output: 0.01 },
+    'gemini-2.5-flash': { input: 0.00015, output: 0.0006 },
+    'gemini-2.0-flash': { input: 0.0001, output: 0.0004 },
+    'gemini-1.5-pro': { input: 0.00125, output: 0.005 },
+    'gemini-1.5-flash': { input: 0.000075, output: 0.0003 },
 
     // Local models (estimated electricity cost)
     'llama3.2:1b': { input: 0.0001, output: 0.0001 },

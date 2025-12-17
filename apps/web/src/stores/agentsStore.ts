@@ -134,7 +134,16 @@ export const useAgentsStore = defineStore('agents', () => {
   }
 
   function setAvailableAgents(agents: AgentInfo[]) {
-    availableAgents.value = agents;
+    // Transform agents to extract hasCustomUI and customUIComponent from metadata
+    // This ensures the custom UI fields are available at the top level of AgentInfo
+    availableAgents.value = agents.map((agent) => {
+      const metadata = (agent as Record<string, unknown>).metadata as Record<string, unknown> | undefined;
+      return {
+        ...agent,
+        hasCustomUI: agent.hasCustomUI ?? metadata?.hasCustomUI ?? false,
+        customUIComponent: agent.customUIComponent ?? metadata?.customUIComponent ?? null,
+      };
+    });
   }
 
   function setAgentHierarchy(hierarchy: HierarchyNode | null) {

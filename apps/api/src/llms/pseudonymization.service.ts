@@ -22,6 +22,12 @@ export interface PseudonymizationResult {
   processingTime: number;
 }
 
+interface DictionaryEntry {
+  original_value: string;
+  pseudonym: string;
+  data_type: string;
+}
+
 @Injectable()
 export class PseudonymizationService {
   private readonly logger = new Logger(PseudonymizationService.name);
@@ -116,21 +122,29 @@ export class PseudonymizationService {
     try {
       // STEP 1: Check dictionary for known values (names, usernames, etc.)
       const client = this.supabaseService.getServiceClient();
-      const { data: dictionaryEntries } = await client
+      const { data: rawEntries } = await client
         .from('pseudonym_dictionaries')
         .select('original_value, pseudonym, data_type')
         .eq('is_active', true);
+      const dictionaryEntries = (rawEntries || []) as DictionaryEntry[];
 
-      if (dictionaryEntries && dictionaryEntries.length > 0) {
+      if (dictionaryEntries.length > 0) {
         // Sort by length descending to match longer strings first (e.g., "Matt Weber" before "Matt")
         const sortedEntries = dictionaryEntries.sort(
-          (a, b) => (b.original_value?.length || 0) - (a.original_value?.length || 0)
+          (a, b) =>
+            (b.original_value?.length || 0) - (a.original_value?.length || 0),
         );
 
         for (const entry of sortedEntries) {
-          if (entry.original_value && processedText.includes(entry.original_value)) {
+          if (
+            entry.original_value &&
+            processedText.includes(entry.original_value)
+          ) {
             // Replace all occurrences (case-sensitive)
-            const regex = new RegExp(entry.original_value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+            const regex = new RegExp(
+              entry.original_value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+              'g',
+            );
             processedText = processedText.replace(regex, entry.pseudonym);
 
             pseudonyms.push({
@@ -246,7 +260,10 @@ export class PseudonymizationService {
   /**
    * Update custom PII pattern (delegates to PIIPatternService)
    */
-  async updatePIIPattern(id: string, updates: Partial<Omit<PIIPattern, 'enabled'>>): Promise<void> {
+  async updatePIIPattern(
+    id: string,
+    updates: Partial<Omit<PIIPattern, 'enabled'>>,
+  ): Promise<void> {
     await this.piiPatternService.updateCustomPattern(id, updates);
     this.logger.debug(`Updated custom PII pattern: ${id}`);
   }

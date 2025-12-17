@@ -251,6 +251,37 @@ const routes: Array<RouteRecordRaw> = [
           title: 'Collection Details',
           description: 'View and manage collection documents'
         }
+      },
+      // Marketing Swarm custom UI
+      {
+        path: 'agents/marketing-swarm',
+        name: 'MarketingSwarm',
+        component: () => import('../views/agents/marketing-swarm/MarketingSwarmPage.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Marketing Swarm',
+          description: 'Multi-agent marketing content generation'
+        }
+      },
+      {
+        path: 'agents/:orgSlug/marketing-swarm',
+        name: 'MarketingSwarmOrg',
+        component: () => import('../views/agents/marketing-swarm/MarketingSwarmPage.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Marketing Swarm',
+          description: 'Multi-agent marketing content generation'
+        }
+      },
+      {
+        path: 'agents/:orgSlug/marketing-swarm/tasks/:taskId',
+        name: 'MarketingSwarmTask',
+        component: () => import('../views/agents/marketing-swarm/MarketingSwarmPage.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Marketing Swarm Task',
+          description: 'View marketing swarm task details'
+        }
       }
     ]
   },

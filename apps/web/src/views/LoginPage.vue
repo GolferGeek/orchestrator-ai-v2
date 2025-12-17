@@ -54,9 +54,9 @@ const router = useRouter();
 const route = useRoute();
 const auth = useAuthStore();
 
-// Use env variables for test credentials, with fallback to demo user
-const TEST_EMAIL = import.meta.env.VITE_TEST_USER || '';
-const TEST_PASSWORD = import.meta.env.VITE_TEST_PASSWORD || '';
+// Use env variables for test credentials, with fallback to golfergeek user
+const TEST_EMAIL = import.meta.env.VITE_TEST_USER || 'golfergeek@orchestratorai.io';
+const TEST_PASSWORD = import.meta.env.VITE_TEST_PASSWORD || 'GolferGeek123!';
 
 const email = ref(TEST_EMAIL);
 const password = ref(TEST_PASSWORD);

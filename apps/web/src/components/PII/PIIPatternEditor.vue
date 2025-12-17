@@ -246,7 +246,7 @@ import {
 import { closeOutline } from 'ionicons/icons';
 import { usePrivacyStore } from '@/stores/privacyStore';
 import * as privacyService from '@/services/privacyService';
-import type { PIIPattern, PIIPatternCreate, PIIPatternUpdate } from '@/types/pii';
+import type { PIIPattern, PIIPatternCreate } from '@/types/pii';
 
 // Props
 interface Props {

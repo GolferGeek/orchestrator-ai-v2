@@ -73,6 +73,7 @@ describe('AgentPromotionService', () => {
       expect(result.newStatus).toBe('active');
       expect(result.requiresApproval).toBeUndefined();
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(agentsRepo.updateMetadata).toHaveBeenCalledWith('simple-context', {
         status: 'active',
       });
@@ -108,6 +109,7 @@ describe('AgentPromotionService', () => {
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(approvalsRepo.create).toHaveBeenCalled();
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(agentsRepo.updateMetadata).not.toHaveBeenCalled();
     });
 
@@ -200,6 +202,7 @@ describe('AgentPromotionService', () => {
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(validator.validateByType).not.toHaveBeenCalled();
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(agentsRepo.updateMetadata).toHaveBeenCalled();
     });
   });
@@ -234,6 +237,7 @@ describe('AgentPromotionService', () => {
       expect(result.success).toBe(true);
       expect(result.newStatus).toBe('active');
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(agentsRepo.updateMetadata).toHaveBeenCalledWith('test-agent', {
         status: 'active',
       });
@@ -277,6 +281,7 @@ describe('AgentPromotionService', () => {
       expect(result.previousStatus).toBe('active');
       expect(result.newStatus).toBe('draft');
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(agentsRepo.updateMetadata).toHaveBeenCalledWith('active-agent', {
         status: 'draft',
       });

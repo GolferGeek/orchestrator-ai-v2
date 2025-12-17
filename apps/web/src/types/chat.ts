@@ -54,6 +54,8 @@ export interface AgentInfo {
   name: string;
   description: string;
   type?: string;
+  slug?: string;
+  organizationSlug?: string | null;
   execution_modes?: ('immediate' | 'polling' | 'real-time' | 'auto')[];
   execution_profile?: 'conversation_only' | 'autonomous_build' | 'human_gate' | 'conversation_with_gate';
   execution_capabilities?: {
@@ -68,6 +70,9 @@ export interface AgentInfo {
     input?: JsonObject;
     output?: JsonObject;
   } | null;
+  // Custom UI fields (for agents like Marketing Swarm that have their own UI)
+  hasCustomUI?: boolean;
+  customUIComponent?: string | null;
   // capabilities?: string[]; // Example
 }
 // Corrected TaskCreationRequest for /agents/orchestrator/tasks

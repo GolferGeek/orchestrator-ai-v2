@@ -97,10 +97,10 @@
 </template>
 <script lang="ts" setup>
 import { computed, ref, onMounted } from 'vue';
-import { 
-  IonPage, IonContent, IonIcon, IonItem, IonLabel, IonList, IonMenu, IonMenuToggle, IonNote, IonRouterOutlet, IonSplitPane, IonHeader, IonToolbar, IonTitle, IonAccordion, IonAccordionGroup
+import {
+  IonPage, IonContent, IonIcon, IonItem, IonLabel, IonList, IonMenu, IonNote, IonRouterOutlet, IonSplitPane, IonHeader, IonToolbar, IonTitle, IonAccordion, IonAccordionGroup
 } from '@ionic/vue';
-import { logOutOutline, starOutline, chatbubblesOutline, documentTextOutline, shieldCheckmarkOutline, analyticsOutline, barChartOutline, pulseOutline, settingsOutline, sunnyOutline, moonOutline } from 'ionicons/icons';
+import { logOutOutline, starOutline, chatbubblesOutline, documentTextOutline, sunnyOutline, moonOutline } from 'ionicons/icons';
 import { useAuthStore } from '@/stores/rbacStore';
 import { conversation } from '@/services/conversationHelpers';
 import { useConversationsStore } from '@/stores/conversationsStore';
@@ -176,13 +176,17 @@ const handleConversationSelected = async (conversation: Record<string, unknown>)
 };
 const handleAgentSelected = async (agent: Record<string, unknown>) => {
   try {
+    // Always create a conversation first - this shows up in the sidebar under the agent
     const conversationId = await conversation.createConversation(agent);
 
-    // Refresh conversations list to show the new conversation
+    // Refresh conversations list to show the new conversation in sidebar
     await conversationsStore.fetchConversations(true);
 
     // Set flag in sessionStorage to indicate active conversation for admin users
     sessionStorage.setItem('activeConversation', 'true');
+
+    // All conversations (including custom UI agents) go through the tab system
+    // The ConversationView will detect hasCustomUI and render the appropriate custom component
     router.push({ path: '/app/home', query: { forceHome: 'true', conversationId } });
   } catch (error) {
     console.error('Failed to handle agent selection:', error);

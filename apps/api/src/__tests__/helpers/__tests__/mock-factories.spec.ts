@@ -8,7 +8,7 @@ import { MockFactories } from '../mock-factories';
 import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
 
 describe('MockFactories', () => {
-  const mockContext = createMockExecutionContext();
+  const _mockContext = createMockExecutionContext();
 
   describe('Agent Factories', () => {
     describe('createAgent', () => {

@@ -64,6 +64,8 @@ function makeService(
     ),
   } as unknown as PIIService;
   const dict = {} as DictionaryPseudonymizerService;
+  const patternRedaction =
+    {} as unknown as import('./pii/pattern-redaction.service').PatternRedactionService;
   const usage = {
     insertCompletedUsage: jest.fn(() => Promise.resolve()),
   } as unknown as RunMetadataService;
@@ -75,6 +77,7 @@ function makeService(
     flags,
     pii,
     dict,
+    patternRedaction,
     usage,
   );
   // Patch private methods for local availability and selection
@@ -98,7 +101,7 @@ function makeService(
 }
 
 describe('CentralizedRoutingService showstopper behavior', () => {
-  const mockContext = createMockExecutionContext();
+  const _mockContext = createMockExecutionContext();
 
   it('blocks remote route when showstopper and no local available', async () => {
     const { service } = makeService({

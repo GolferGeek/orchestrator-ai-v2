@@ -283,7 +283,22 @@ export class WebhooksController {
       const now = Date.now();
 
       // Context is the single source of truth - no fallbacks
-      const { userId, conversationId, agentSlug } = update.context;
+      const { userId, conversationId, agentSlug, orgSlug } = update.context;
+      const taskId = update.taskId;
+
+      // UUID validation helper - only store valid UUIDs for uuid columns
+      const isValidUuid = (str: string | undefined | null): boolean => {
+        if (!str) return false;
+        const uuidRegex =
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        return uuidRegex.test(str);
+      };
+
+      // Only use valid UUIDs for database columns
+      const validUserId = isValidUuid(userId) ? userId : null;
+      const validConversationId = isValidUuid(conversationId)
+        ? conversationId
+        : null;
 
       // Username will be resolved by ObservabilityWebhookService if available
       // For now, use userId as placeholder - the sendEvent method enriches it
@@ -312,12 +327,20 @@ export class WebhooksController {
         .getServiceClient()
         .from('observability_events')
         .insert({
-          event_type: update.status,
+          hook_event_type: update.status,
           source_app: 'orchestrator-ai',
-          user_id: userId || null,
-          conversation_id: conversationId || null,
-          agent_name: agentSlug || null,
-          event_data: eventData,
+          task_id: taskId,
+          user_id: validUserId,
+          conversation_id: validConversationId,
+          agent_slug: agentSlug || null,
+          organization_slug: orgSlug || null,
+          mode: eventData.payload?.mode || 'build',
+          status: update.status,
+          message: eventData.message || null,
+          progress: eventData.progress || null,
+          step: eventData.step || null,
+          payload: eventData.payload || {},
+          timestamp: now,
         });
 
       if (dbError) {
@@ -326,11 +349,11 @@ export class WebhooksController {
           dbError,
         );
       } else {
-        this.logger.log(`📊 [OBSERVABILITY] ✅ Event stored in database`);
+        this.logger.debug(`📊 [OBSERVABILITY] ✅ Event stored in database`);
       }
 
       // Emit to admin clients via EventEmitter (ADMIN STREAM)
-      this.logger.log(
+      this.logger.debug(
         `📊 [OBSERVABILITY] Emitting observability.event via EventEmitter...`,
       );
       this.eventEmitter.emit('observability.event', {
@@ -338,11 +361,11 @@ export class WebhooksController {
         eventType: update.status,
       });
       // Push into in-memory reactive buffer for shared SSE streams
-      this.logger.log(
-        `📊 [OBSERVABILITY] Pushing to ObservabilityEventsService buffer...`,
+      this.logger.debug(
+        `📊 [OBSERVABILITY] Pushing to ObservabilityEventsService buffer with conversationId: ${conversationId}`,
       );
-      this.observabilityEvents.push(eventData);
-      this.logger.log(`📊 [OBSERVABILITY] ✅ Event broadcast complete`);
+      void this.observabilityEvents.push(eventData);
+      this.logger.debug(`📊 [OBSERVABILITY] ✅ Event broadcast complete`);
     } catch (error) {
       this.logger.error(
         '📊 [OBSERVABILITY] ❌ Failed to process observability event',

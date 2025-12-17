@@ -304,6 +304,9 @@ export class AppService implements OnModuleInit {
       context: record.context,
       agent_category: agentCategory,
       execution_modes: executionModes,
+      // Custom UI fields for agents with specialized UIs (e.g., Marketing Swarm)
+      hasCustomUI: metadataObj.hasCustomUI ?? false,
+      customUIComponent: metadataObj.customUIComponent ?? null,
     };
 
     return {

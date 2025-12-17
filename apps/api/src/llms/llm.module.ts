@@ -31,6 +31,7 @@ import { PIIService } from './pii/pii.service';
 import { DictionaryPseudonymizerService } from './pii/dictionary-pseudonymizer.service';
 import { PatternRedactionService } from './pii/pattern-redaction.service';
 import { LLMServiceFactory } from './services/llm-service-factory';
+import { LLMPricingService } from './llm-pricing.service';
 import { ObservabilityModule } from '../observability/observability.module';
 
 @Module({
@@ -73,6 +74,7 @@ import { ObservabilityModule } from '../observability/observability.module';
     DictionaryPseudonymizerService,
     PatternRedactionService,
     LLMServiceFactory,
+    LLMPricingService,
     // Note: LLM Provider Services (OpenAI, Anthropic, etc.) are NOT registered as providers
     // They are manually instantiated by LLMServiceFactory with specific configurations
   ],
@@ -95,6 +97,7 @@ import { ObservabilityModule } from '../observability/observability.module';
     DictionaryPseudonymizerService,
     PatternRedactionService,
     LLMServiceFactory,
+    LLMPricingService,
     // Note: LLM Provider Services are not exported as they're factory-created
   ],
 })

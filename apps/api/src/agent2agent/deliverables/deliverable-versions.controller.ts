@@ -322,11 +322,7 @@ export class DeliverableVersionsController {
     // Override userId from authenticated user for security
     context.userId = userId;
 
-    return this.versionsService.rerunWithDifferentLLM(
-      versionId,
-      body,
-      context,
-    );
+    return this.versionsService.rerunWithDifferentLLM(versionId, body, context);
   }
 
   @Post('version/:versionId/copy')
@@ -403,5 +399,4 @@ export class DeliverableVersionsController {
 
     return this.versionsService.enhanceVersion(versionId, body, context);
   }
-
 }

@@ -207,16 +207,13 @@ export class PlansService implements IActionHandler {
         planId: existingPlan.id,
       };
 
-      const newVersion = await this.versionsService.createVersion(
-        planContext,
-        {
-          content: params.content,
-          format: params.format || 'markdown',
-          createdByType: 'agent',
-          taskId: params.taskId ?? context.taskId ?? undefined,
-          metadata: params.metadata || {},
-        },
-      );
+      const newVersion = await this.versionsService.createVersion(planContext, {
+        content: params.content,
+        format: params.format || 'markdown',
+        createdByType: 'agent',
+        taskId: params.taskId ?? context.taskId ?? undefined,
+        metadata: params.metadata || {},
+      });
 
       const plan = await this.findOne(planContext);
       return { plan, version: newVersion, isNew: false };
@@ -354,9 +351,8 @@ export class PlansService implements IActionHandler {
       planId: plan.id,
     };
 
-    const currentVersion = await this.versionsService.getCurrentVersion(
-      planContext,
-    );
+    const currentVersion =
+      await this.versionsService.getCurrentVersion(planContext);
 
     if (!currentVersion) {
       throw new NotFoundException(`No current version found for plan`);
@@ -366,19 +362,16 @@ export class PlansService implements IActionHandler {
       `🔖 [saveManualEdit] Creating new version from currentVersion ${currentVersion.id}`,
     );
 
-    const newVersion = await this.versionsService.createVersion(
-      planContext,
-      {
-        content: params.content,
-        format: currentVersion.format,
-        createdByType: 'user',
-        metadata: {
-          ...params.metadata,
-          editedFromVersionId: currentVersion.id,
-          editedAt: new Date().toISOString(),
-        },
+    const newVersion = await this.versionsService.createVersion(planContext, {
+      content: params.content,
+      format: currentVersion.format,
+      createdByType: 'user',
+      metadata: {
+        ...params.metadata,
+        editedFromVersionId: currentVersion.id,
+        editedAt: new Date().toISOString(),
       },
-    );
+    });
 
     this.logger.debug(
       `✅ [saveManualEdit] Created new version ${newVersion.id}, versionNumber=${newVersion.versionNumber}`,
@@ -503,9 +496,8 @@ export class PlansService implements IActionHandler {
     if (!planData) {
       throw new NotFoundException(`Plan not found: ${version.planId}`);
     }
-    const remainingVersions = await this.versionsService.getVersionHistory(
-      planContext,
-    );
+    const remainingVersions =
+      await this.versionsService.getVersionHistory(planContext);
 
     // Return in strict A2A protocol format for PlanDeleteVersionResponse
     return {
@@ -674,9 +666,8 @@ export class PlansService implements IActionHandler {
 
     // Get current version
     try {
-      const currentVersion = await this.versionsService.getCurrentVersion(
-        executionContext,
-      );
+      const currentVersion =
+        await this.versionsService.getCurrentVersion(executionContext);
       if (currentVersion) {
         plan.currentVersion = this.mapPlanVersion(currentVersion);
       }
