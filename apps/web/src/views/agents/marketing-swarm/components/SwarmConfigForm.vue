@@ -113,100 +113,313 @@
       </ion-card-content>
     </ion-card>
 
-    <!-- LLM Selection -->
+    <!-- Agent Configuration -->
     <ion-card>
       <ion-card-header>
-        <ion-card-title>LLM Selection</ion-card-title>
-        <ion-card-subtitle>Choose the AI model for content generation</ion-card-subtitle>
+        <ion-card-title>Agent Configuration</ion-card-title>
+        <ion-card-subtitle>Configure agents with their LLM models</ion-card-subtitle>
       </ion-card-header>
       <ion-card-content>
-        <ion-item>
-          <ion-label position="stacked">Provider</ion-label>
-          <ion-select
-            v-model="selectedProvider"
-            placeholder="Select provider"
-            interface="popover"
-            :disabled="llmProvidersLoading"
-          >
-            <ion-select-option
-              v-for="provider in llmProviders"
-              :key="provider.name"
-              :value="provider.name"
-            >
-              {{ provider.displayName }}{{ provider.isLocal ? ' (Local)' : '' }}
-            </ion-select-option>
-          </ion-select>
-        </ion-item>
-
-        <ion-item>
-          <ion-label position="stacked">Model</ion-label>
-          <ion-select
-            v-model="selectedModel"
-            placeholder="Select model"
-            interface="popover"
-            :disabled="!selectedProvider || llmModelsLoading"
-          >
-            <ion-select-option
-              v-for="model in filteredModels"
-              :key="model.model"
-              :value="model.model"
-            >
-              {{ model.displayName }} (in: ${{ model.inputPer1k.toFixed(4) }}/1K, out: ${{ model.outputPer1k.toFixed(4) }}/1K)
-            </ion-select-option>
-          </ion-select>
-        </ion-item>
-
-        <p v-if="selectedModelInfo" class="model-info">
-          <strong>Tier:</strong> {{ selectedModelInfo.modelTier }} |
-          <strong>Speed:</strong> {{ selectedModelInfo.speedTier }}
-          <span v-if="selectedModelInfo.isLocal"> | <ion-badge color="success">Local</ion-badge></span>
-        </p>
-      </ion-card-content>
-    </ion-card>
-
-    <!-- Agent Selection -->
-    <ion-card>
-      <ion-card-header>
-        <ion-card-title>Agent Selection</ion-card-title>
-        <ion-card-subtitle>Select which agents to use (LLM is set above)</ion-card-subtitle>
-      </ion-card-header>
-      <ion-card-content>
-        <!-- Writers -->
+        <!-- Writers Section -->
         <div class="agent-section">
           <h3>Writers</h3>
-          <div v-for="agent in writerAgents" :key="agent.slug" class="agent-item">
-            <ion-checkbox
-              :checked="isAgentSelected('writer', agent.slug)"
-              @ionChange="toggleAgent('writer', agent)"
+          <div class="agent-table">
+            <!-- Add New Writer Row -->
+            <div class="agent-row add-row">
+              <ion-select
+                v-model="newWriterAgent"
+                placeholder="Select writer..."
+                interface="popover"
+                class="agent-select"
+              >
+                <ion-select-option
+                  v-for="agent in availableWriterAgents"
+                  :key="agent.slug"
+                  :value="agent.slug"
+                >
+                  {{ agent.name }}
+                </ion-select-option>
+              </ion-select>
+              <ion-select
+                v-model="newWriterProvider"
+                placeholder="Provider"
+                interface="popover"
+                class="provider-select"
+                :disabled="!newWriterAgent"
+              >
+                <ion-select-option
+                  v-for="provider in llmProviders"
+                  :key="provider.name"
+                  :value="provider.name"
+                >
+                  {{ provider.displayName }}
+                </ion-select-option>
+              </ion-select>
+              <ion-select
+                v-model="newWriterModel"
+                placeholder="Model"
+                interface="popover"
+                class="model-select"
+                :disabled="!newWriterProvider"
+              >
+                <ion-select-option
+                  v-for="model in getModelsForProvider(newWriterProvider)"
+                  :key="model.model"
+                  :value="model.model"
+                >
+                  {{ model.displayName }}
+                </ion-select-option>
+              </ion-select>
+              <ion-button
+                fill="clear"
+                size="small"
+                :disabled="!canAddWriter"
+                @click="addWriter"
+              >
+                <ion-icon :icon="addCircleOutline" />
+              </ion-button>
+            </div>
+            <!-- Selected Writers -->
+            <div
+              v-for="(config, index) in selectedWriters"
+              :key="index"
+              class="agent-row selected-row"
             >
-              {{ agent.name }}
-            </ion-checkbox>
+              <span class="agent-name">{{ getAgentName('writer', config.agentSlug) }}</span>
+              <ion-select
+                :value="config.llmProvider"
+                interface="popover"
+                class="provider-select"
+                @ionChange="updateAgentProvider('writer', index, $event)"
+              >
+                <ion-select-option
+                  v-for="provider in llmProviders"
+                  :key="provider.name"
+                  :value="provider.name"
+                >
+                  {{ provider.displayName }}
+                </ion-select-option>
+              </ion-select>
+              <ion-select
+                :value="config.llmModel"
+                interface="popover"
+                class="model-select"
+                @ionChange="updateAgentModel('writer', index, $event)"
+              >
+                <ion-select-option
+                  v-for="model in getModelsForProvider(config.llmProvider)"
+                  :key="model.model"
+                  :value="model.model"
+                >
+                  {{ model.displayName }}
+                </ion-select-option>
+              </ion-select>
+              <ion-button fill="clear" size="small" color="danger" @click="removeAgent('writer', index)">
+                <ion-icon :icon="removeCircleOutline" />
+              </ion-button>
+            </div>
           </div>
         </div>
 
-        <!-- Editors -->
+        <!-- Editors Section -->
         <div class="agent-section">
           <h3>Editors</h3>
-          <div v-for="agent in editorAgents" :key="agent.slug" class="agent-item">
-            <ion-checkbox
-              :checked="isAgentSelected('editor', agent.slug)"
-              @ionChange="toggleAgent('editor', agent)"
+          <div class="agent-table">
+            <!-- Add New Editor Row -->
+            <div class="agent-row add-row">
+              <ion-select
+                v-model="newEditorAgent"
+                placeholder="Select editor..."
+                interface="popover"
+                class="agent-select"
+              >
+                <ion-select-option
+                  v-for="agent in availableEditorAgents"
+                  :key="agent.slug"
+                  :value="agent.slug"
+                >
+                  {{ agent.name }}
+                </ion-select-option>
+              </ion-select>
+              <ion-select
+                v-model="newEditorProvider"
+                placeholder="Provider"
+                interface="popover"
+                class="provider-select"
+                :disabled="!newEditorAgent"
+              >
+                <ion-select-option
+                  v-for="provider in llmProviders"
+                  :key="provider.name"
+                  :value="provider.name"
+                >
+                  {{ provider.displayName }}
+                </ion-select-option>
+              </ion-select>
+              <ion-select
+                v-model="newEditorModel"
+                placeholder="Model"
+                interface="popover"
+                class="model-select"
+                :disabled="!newEditorProvider"
+              >
+                <ion-select-option
+                  v-for="model in getModelsForProvider(newEditorProvider)"
+                  :key="model.model"
+                  :value="model.model"
+                >
+                  {{ model.displayName }}
+                </ion-select-option>
+              </ion-select>
+              <ion-button
+                fill="clear"
+                size="small"
+                :disabled="!canAddEditor"
+                @click="addEditor"
+              >
+                <ion-icon :icon="addCircleOutline" />
+              </ion-button>
+            </div>
+            <!-- Selected Editors -->
+            <div
+              v-for="(config, index) in selectedEditors"
+              :key="index"
+              class="agent-row selected-row"
             >
-              {{ agent.name }}
-            </ion-checkbox>
+              <span class="agent-name">{{ getAgentName('editor', config.agentSlug) }}</span>
+              <ion-select
+                :value="config.llmProvider"
+                interface="popover"
+                class="provider-select"
+                @ionChange="updateAgentProvider('editor', index, $event)"
+              >
+                <ion-select-option
+                  v-for="provider in llmProviders"
+                  :key="provider.name"
+                  :value="provider.name"
+                >
+                  {{ provider.displayName }}
+                </ion-select-option>
+              </ion-select>
+              <ion-select
+                :value="config.llmModel"
+                interface="popover"
+                class="model-select"
+                @ionChange="updateAgentModel('editor', index, $event)"
+              >
+                <ion-select-option
+                  v-for="model in getModelsForProvider(config.llmProvider)"
+                  :key="model.model"
+                  :value="model.model"
+                >
+                  {{ model.displayName }}
+                </ion-select-option>
+              </ion-select>
+              <ion-button fill="clear" size="small" color="danger" @click="removeAgent('editor', index)">
+                <ion-icon :icon="removeCircleOutline" />
+              </ion-button>
+            </div>
           </div>
         </div>
 
-        <!-- Evaluators -->
+        <!-- Evaluators Section -->
         <div class="agent-section">
           <h3>Evaluators</h3>
-          <div v-for="agent in evaluatorAgents" :key="agent.slug" class="agent-item">
-            <ion-checkbox
-              :checked="isAgentSelected('evaluator', agent.slug)"
-              @ionChange="toggleAgent('evaluator', agent)"
+          <div class="agent-table">
+            <!-- Add New Evaluator Row -->
+            <div class="agent-row add-row">
+              <ion-select
+                v-model="newEvaluatorAgent"
+                placeholder="Select evaluator..."
+                interface="popover"
+                class="agent-select"
+              >
+                <ion-select-option
+                  v-for="agent in availableEvaluatorAgents"
+                  :key="agent.slug"
+                  :value="agent.slug"
+                >
+                  {{ agent.name }}
+                </ion-select-option>
+              </ion-select>
+              <ion-select
+                v-model="newEvaluatorProvider"
+                placeholder="Provider"
+                interface="popover"
+                class="provider-select"
+                :disabled="!newEvaluatorAgent"
+              >
+                <ion-select-option
+                  v-for="provider in llmProviders"
+                  :key="provider.name"
+                  :value="provider.name"
+                >
+                  {{ provider.displayName }}
+                </ion-select-option>
+              </ion-select>
+              <ion-select
+                v-model="newEvaluatorModel"
+                placeholder="Model"
+                interface="popover"
+                class="model-select"
+                :disabled="!newEvaluatorProvider"
+              >
+                <ion-select-option
+                  v-for="model in getModelsForProvider(newEvaluatorProvider)"
+                  :key="model.model"
+                  :value="model.model"
+                >
+                  {{ model.displayName }}
+                </ion-select-option>
+              </ion-select>
+              <ion-button
+                fill="clear"
+                size="small"
+                :disabled="!canAddEvaluator"
+                @click="addEvaluator"
+              >
+                <ion-icon :icon="addCircleOutline" />
+              </ion-button>
+            </div>
+            <!-- Selected Evaluators -->
+            <div
+              v-for="(config, index) in selectedEvaluators"
+              :key="index"
+              class="agent-row selected-row"
             >
-              {{ agent.name }}
-            </ion-checkbox>
+              <span class="agent-name">{{ getAgentName('evaluator', config.agentSlug) }}</span>
+              <ion-select
+                :value="config.llmProvider"
+                interface="popover"
+                class="provider-select"
+                @ionChange="updateAgentProvider('evaluator', index, $event)"
+              >
+                <ion-select-option
+                  v-for="provider in llmProviders"
+                  :key="provider.name"
+                  :value="provider.name"
+                >
+                  {{ provider.displayName }}
+                </ion-select-option>
+              </ion-select>
+              <ion-select
+                :value="config.llmModel"
+                interface="popover"
+                class="model-select"
+                @ionChange="updateAgentModel('evaluator', index, $event)"
+              >
+                <ion-select-option
+                  v-for="model in getModelsForProvider(config.llmProvider)"
+                  :key="model.model"
+                  :value="model.model"
+                >
+                  {{ model.displayName }}
+                </ion-select-option>
+              </ion-select>
+              <ion-button fill="clear" size="small" color="danger" @click="removeAgent('evaluator', index)">
+                <ion-icon :icon="removeCircleOutline" />
+              </ion-button>
+            </div>
           </div>
         </div>
 
@@ -308,7 +521,6 @@
         <ion-card-title>Execution Summary</ion-card-title>
       </ion-card-header>
       <ion-card-content>
-        <p><strong>LLM:</strong> {{ selectedProvider }}/{{ selectedModel }}</p>
         <p><strong>Writers:</strong> {{ selectedWriterCount }} agent(s)</p>
         <p><strong>Editors:</strong> {{ selectedEditorCount }} agent(s)</p>
         <p><strong>Evaluators:</strong> {{ selectedEvaluatorCount }} agent(s)</p>
@@ -349,11 +561,11 @@ import {
   IonSelect,
   IonSelectOption,
   IonTextarea,
-  IonCheckbox,
   IonRange,
   IonButton,
-  IonBadge,
+  IonIcon,
 } from '@ionic/vue';
+import { addCircleOutline, removeCircleOutline } from 'ionicons/icons';
 import { useMarketingSwarmStore } from '@/stores/marketingSwarmStore';
 import { llmService, type LLMProvider, type LLMModel } from '@/services/llmService';
 import type {
@@ -417,20 +629,28 @@ const llmProviders = ref<LLMProvider[]>([]);
 const llmModels = ref<LLMModel[]>([]);
 const llmProvidersLoading = ref(false);
 const llmModelsLoading = ref(false);
-const selectedProvider = ref<string>('anthropic');
-const selectedModel = ref<string>('claude-sonnet-4-20250514');
 
-// Filter models by selected provider
-const filteredModels = computed(() => {
-  if (!selectedProvider.value) return [];
-  return llmModels.value.filter((m) => m.provider === selectedProvider.value);
-});
+// State for "Add New" rows
+const newWriterAgent = ref<string>('');
+const newWriterProvider = ref<string>('');
+const newWriterModel = ref<string>('');
+const newEditorAgent = ref<string>('');
+const newEditorProvider = ref<string>('');
+const newEditorModel = ref<string>('');
+const newEvaluatorAgent = ref<string>('');
+const newEvaluatorProvider = ref<string>('');
+const newEvaluatorModel = ref<string>('');
 
-// Get info about the selected model
-const selectedModelInfo = computed(() => {
-  if (!selectedModel.value) return null;
-  return llmModels.value.find((m) => m.model === selectedModel.value);
-});
+// Get models for a specific provider
+function getModelsForProvider(provider: string): LLMModel[] {
+  if (!provider) return [];
+  return llmModels.value.filter((m) => m.provider === provider);
+}
+
+// Get model info by provider and model name
+function getModelInfo(provider: string, model: string): LLMModel | undefined {
+  return llmModels.value.find((m) => m.provider === provider && m.model === model);
+}
 
 // Load providers on mount
 async function loadProviders() {
@@ -456,13 +676,31 @@ async function loadModels() {
   }
 }
 
-// When provider changes, reset model selection if not valid
-watch(selectedProvider, (newProvider) => {
-  const validModels = llmModels.value.filter((m) => m.provider === newProvider);
-  const currentModelValid = validModels.some((m) => m.model === selectedModel.value);
-  if (!currentModelValid && validModels.length > 0) {
-    // Select first model of new provider
-    selectedModel.value = validModels[0].model;
+// Watch provider changes for "Add New" rows - reset model when provider changes
+watch(newWriterProvider, (newProvider) => {
+  const validModels = getModelsForProvider(newProvider);
+  if (validModels.length > 0) {
+    newWriterModel.value = validModels[0].model;
+  } else {
+    newWriterModel.value = '';
+  }
+});
+
+watch(newEditorProvider, (newProvider) => {
+  const validModels = getModelsForProvider(newProvider);
+  if (validModels.length > 0) {
+    newEditorModel.value = validModels[0].model;
+  } else {
+    newEditorModel.value = '';
+  }
+});
+
+watch(newEvaluatorProvider, (newProvider) => {
+  const validModels = getModelsForProvider(newProvider);
+  if (validModels.length > 0) {
+    newEvaluatorModel.value = validModels[0].model;
+  } else {
+    newEvaluatorModel.value = '';
   }
 });
 
@@ -475,35 +713,126 @@ const selectedWriters = ref<AgentConfig[]>([]);
 const selectedEditors = ref<AgentConfig[]>([]);
 const selectedEvaluators = ref<AgentConfig[]>([]);
 
+// Available agents (all agents - same agent can be added multiple times with different LLMs)
+const availableWriterAgents = computed(() => writerAgents.value);
+const availableEditorAgents = computed(() => editorAgents.value);
+const availableEvaluatorAgents = computed(() => evaluatorAgents.value);
+
+// Can add checks
+const canAddWriter = computed(() => {
+  return !!(newWriterAgent.value && newWriterProvider.value && newWriterModel.value);
+});
+
+const canAddEditor = computed(() => {
+  return !!(newEditorAgent.value && newEditorProvider.value && newEditorModel.value);
+});
+
+const canAddEvaluator = computed(() => {
+  return !!(newEvaluatorAgent.value && newEvaluatorProvider.value && newEvaluatorModel.value);
+});
+
+// Add agent functions
+function addWriter() {
+  if (!canAddWriter.value) return;
+  const modelInfo = getModelInfo(newWriterProvider.value, newWriterModel.value);
+  selectedWriters.value.push({
+    agentSlug: newWriterAgent.value,
+    llmConfigId: `${newWriterProvider.value}:${newWriterModel.value}`,
+    llmProvider: newWriterProvider.value,
+    llmModel: newWriterModel.value,
+    displayName: modelInfo?.displayName || newWriterModel.value,
+  });
+  // Reset the add row
+  newWriterAgent.value = '';
+  newWriterProvider.value = '';
+  newWriterModel.value = '';
+}
+
+function addEditor() {
+  if (!canAddEditor.value) return;
+  const modelInfo = getModelInfo(newEditorProvider.value, newEditorModel.value);
+  selectedEditors.value.push({
+    agentSlug: newEditorAgent.value,
+    llmConfigId: `${newEditorProvider.value}:${newEditorModel.value}`,
+    llmProvider: newEditorProvider.value,
+    llmModel: newEditorModel.value,
+    displayName: modelInfo?.displayName || newEditorModel.value,
+  });
+  // Reset the add row
+  newEditorAgent.value = '';
+  newEditorProvider.value = '';
+  newEditorModel.value = '';
+}
+
+function addEvaluator() {
+  if (!canAddEvaluator.value) return;
+  const modelInfo = getModelInfo(newEvaluatorProvider.value, newEvaluatorModel.value);
+  selectedEvaluators.value.push({
+    agentSlug: newEvaluatorAgent.value,
+    llmConfigId: `${newEvaluatorProvider.value}:${newEvaluatorModel.value}`,
+    llmProvider: newEvaluatorProvider.value,
+    llmModel: newEvaluatorModel.value,
+    displayName: modelInfo?.displayName || newEvaluatorModel.value,
+  });
+  // Reset the add row
+  newEvaluatorAgent.value = '';
+  newEvaluatorProvider.value = '';
+  newEvaluatorModel.value = '';
+}
+
+// Remove agent
+function removeAgent(role: 'writer' | 'editor' | 'evaluator', index: number) {
+  if (role === 'writer') {
+    selectedWriters.value.splice(index, 1);
+  } else if (role === 'editor') {
+    selectedEditors.value.splice(index, 1);
+  } else {
+    selectedEvaluators.value.splice(index, 1);
+  }
+}
+
+// Update agent provider (reset model to first available)
+function updateAgentProvider(role: 'writer' | 'editor' | 'evaluator', index: number, event: CustomEvent) {
+  const newProvider = event.detail.value;
+  const list = role === 'writer' ? selectedWriters : role === 'editor' ? selectedEditors : selectedEvaluators;
+  const config = list.value[index];
+  if (config) {
+    config.llmProvider = newProvider;
+    const validModels = getModelsForProvider(newProvider);
+    if (validModels.length > 0) {
+      config.llmModel = validModels[0].model;
+      config.displayName = validModels[0].displayName;
+      config.llmConfigId = `${newProvider}:${validModels[0].model}`;
+    }
+  }
+}
+
+// Update agent model
+function updateAgentModel(role: 'writer' | 'editor' | 'evaluator', index: number, event: CustomEvent) {
+  const newModel = event.detail.value;
+  const list = role === 'writer' ? selectedWriters : role === 'editor' ? selectedEditors : selectedEvaluators;
+  const config = list.value[index];
+  if (config) {
+    config.llmModel = newModel;
+    const modelInfo = getModelInfo(config.llmProvider, newModel);
+    config.displayName = modelInfo?.displayName || newModel;
+    config.llmConfigId = `${config.llmProvider}:${newModel}`;
+  }
+}
+
+// Get agent name for display
+function getAgentName(role: 'writer' | 'editor' | 'evaluator', slug: string): string {
+  const agents = role === 'writer' ? writerAgents : role === 'editor' ? editorAgents : evaluatorAgents;
+  const agent = agents.value.find((a) => a.slug === slug);
+  return agent?.name || slug;
+}
+
 // Execution config
 const maxEditCycles = ref(3);
 const topNForFinalRanking = ref(3);
 const topNForDeliverable = ref(3);
 const maxLocalConcurrent = ref(1);
 const maxCloudConcurrent = ref(5);
-
-function isAgentSelected(role: 'writer' | 'editor' | 'evaluator', agentSlug: string): boolean {
-  const list = role === 'writer' ? selectedWriters : role === 'editor' ? selectedEditors : selectedEvaluators;
-  return list.value.some((c) => c.agentSlug === agentSlug);
-}
-
-function toggleAgent(role: 'writer' | 'editor' | 'evaluator', agent: MarketingAgent) {
-  const list = role === 'writer' ? selectedWriters : role === 'editor' ? selectedEditors : selectedEvaluators;
-
-  if (isAgentSelected(role, agent.slug)) {
-    // Remove this agent
-    list.value = list.value.filter((c) => c.agentSlug !== agent.slug);
-  } else {
-    // Add agent with selected LLM from dropdowns
-    list.value.push({
-      agentSlug: agent.slug,
-      llmConfigId: `${selectedProvider.value}:${selectedModel.value}`,
-      llmProvider: selectedProvider.value,
-      llmModel: selectedModel.value,
-      displayName: selectedModelInfo.value?.displayName || selectedModel.value,
-    });
-  }
-}
 
 // Summary calculations
 const selectedWriterCount = computed(() => selectedWriters.value.length);
@@ -525,8 +854,6 @@ const canExecute = computed(() => {
     promptData.value.goal &&
     promptData.value.keyPoints.length > 0 &&
     promptData.value.tone &&
-    selectedProvider.value &&
-    selectedModel.value &&
     selectedWriters.value.length > 0
   );
 });
@@ -538,30 +865,33 @@ const validationMessage = computed(() => {
   if (!promptData.value.goal) return 'Please enter a goal';
   if (promptData.value.keyPoints.length === 0) return 'Please enter at least one key point';
   if (!promptData.value.tone) return 'Please select a tone';
-  if (!selectedProvider.value) return 'Please select an LLM provider';
-  if (!selectedModel.value) return 'Please select an LLM model';
-  if (selectedWriters.value.length === 0) return 'Please select at least one writer';
+  if (selectedWriters.value.length === 0) return 'Please add at least one writer agent';
   return '';
 });
+
+// Default LLM settings for auto-selection
+const defaultProvider = 'anthropic';
+const defaultModel = 'claude-sonnet-4-20250514';
 
 // Load LLM data and auto-select first writer on mount
 onMounted(async () => {
   // Load LLM providers and models
   await Promise.all([loadProviders(), loadModels()]);
 
-  // Wait for store to load agents, then select defaults
+  // Wait for store to load agents, then auto-add first writer with default LLM
   let unwatchFn: (() => void) | null = null;
 
   const selectFirstWriter = (agents: MarketingAgent[]) => {
     if (agents.length > 0 && selectedWriters.value.length === 0) {
-      // Select first writer with current LLM selection
+      // Select first writer with default LLM
       const firstWriter = agents[0];
+      const modelInfo = getModelInfo(defaultProvider, defaultModel);
       selectedWriters.value.push({
         agentSlug: firstWriter.slug,
-        llmConfigId: `${selectedProvider.value}:${selectedModel.value}`,
-        llmProvider: selectedProvider.value,
-        llmModel: selectedModel.value,
-        displayName: selectedModelInfo.value?.displayName || selectedModel.value,
+        llmConfigId: `${defaultProvider}:${defaultModel}`,
+        llmProvider: defaultProvider,
+        llmModel: defaultModel,
+        displayName: modelInfo?.displayName || defaultModel,
       });
       // Stop watching after selection
       if (unwatchFn) {
@@ -624,22 +954,60 @@ function handleExecute() {
   color: var(--ion-color-primary);
 }
 
+.agent-table {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agent-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: var(--ion-color-light);
+  border-radius: 8px;
+}
+
+.agent-row.add-row {
+  background: var(--ion-color-light-shade);
+  border: 1px dashed var(--ion-color-medium);
+}
+
+.agent-row.selected-row {
+  background: var(--ion-color-light-tint);
+}
+
+.agent-row .agent-select {
+  flex: 2;
+  min-width: 120px;
+}
+
+.agent-row .provider-select {
+  flex: 1;
+  min-width: 100px;
+}
+
+.agent-row .model-select {
+  flex: 2;
+  min-width: 150px;
+}
+
+.agent-row .agent-name {
+  flex: 2;
+  min-width: 120px;
+  font-weight: 500;
+  padding-left: 8px;
+}
+
+.agent-row ion-button {
+  flex-shrink: 0;
+}
+
 .execution-config-section {
   margin-top: 24px;
   padding-top: 16px;
   border-top: 1px solid var(--ion-color-light);
-}
-
-.agent-item {
-  margin-bottom: 12px;
-}
-
-.llm-configs {
-  margin-top: 8px;
-  margin-left: 32px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
 }
 
 .total-combinations {

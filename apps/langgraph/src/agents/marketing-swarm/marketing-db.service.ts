@@ -119,7 +119,8 @@ export interface VersionedDeliverable {
  */
 export interface AgentSelection {
   agentSlug: string;
-  llmConfigId: string;
+  llmProvider: string;
+  llmModel: string;
 }
 
 /**
@@ -139,9 +140,11 @@ export interface OutputRow {
   id: string;
   task_id: string;
   writer_agent_slug: string;
-  writer_llm_config_id: string;
+  writer_llm_provider: string;
+  writer_llm_model: string;
   editor_agent_slug: string | null;
-  editor_llm_config_id: string | null;
+  editor_llm_provider: string | null;
+  editor_llm_model: string | null;
   content: string | null;
   status: string;
   edit_cycle: number;
@@ -164,7 +167,8 @@ export interface EvaluationRow {
   task_id: string;
   output_id: string;
   evaluator_agent_slug: string;
-  evaluator_llm_config_id: string;
+  evaluator_llm_provider: string;
+  evaluator_llm_model: string;
   stage: 'initial' | 'final';
   status: string;
   score: number | null;
@@ -336,9 +340,11 @@ export class MarketingDbService {
           id: uuidv4(),
           task_id: taskId,
           writer_agent_slug: writer.agentSlug,
-          writer_llm_config_id: writer.llmConfigId,
+          writer_llm_provider: writer.llmProvider,
+          writer_llm_model: writer.llmModel,
           editor_agent_slug: editor.agentSlug,
-          editor_llm_config_id: editor.llmConfigId,
+          editor_llm_provider: editor.llmProvider,
+          editor_llm_model: editor.llmModel,
           status: 'pending_write',
           edit_cycle: 0,
           is_finalist: false,
@@ -597,7 +603,8 @@ export class MarketingDbService {
           task_id: taskId,
           output_id: output.id,
           evaluator_agent_slug: evaluator.agentSlug,
-          evaluator_llm_config_id: evaluator.llmConfigId,
+          evaluator_llm_provider: evaluator.llmProvider,
+          evaluator_llm_model: evaluator.llmModel,
           stage: 'initial',
           status: 'pending',
         });
@@ -646,7 +653,7 @@ export class MarketingDbService {
    */
   async updateEvaluation(
     evaluationId: string,
-    score: number,
+    score: number | null,
     reasoning: string,
     status: string,
     rank?: number,
@@ -757,7 +764,8 @@ export class MarketingDbService {
           task_id: taskId,
           output_id: output.id,
           evaluator_agent_slug: evaluator.agentSlug,
-          evaluator_llm_config_id: evaluator.llmConfigId,
+          evaluator_llm_provider: evaluator.llmProvider,
+          evaluator_llm_model: evaluator.llmModel,
           stage: 'final',
           status: 'pending',
         });
@@ -1252,56 +1260,31 @@ export class MarketingDbService {
       .select('*', { count: 'exact', head: true })
       .eq('task_id', taskId);
 
-    // Get LLM configs for metadata
-    const llmConfigCache = new Map<string, AgentLlmConfig>();
-
     // Build versions in REVERSE rank order (worst to best)
     // So version 1 = worst in selection, version N = winner
     const reversedOutputs = [...rankedOutputs].reverse();
 
-    const versions: DeliverableVersion[] = await Promise.all(
-      reversedOutputs.map(async (output, index) => {
-        // Get writer LLM config
-        let writerConfig = llmConfigCache.get(output.writer_llm_config_id);
-        if (!writerConfig) {
-          writerConfig = (await this.getLlmConfig(output.writer_llm_config_id)) ?? undefined;
-          if (writerConfig) {
-            llmConfigCache.set(output.writer_llm_config_id, writerConfig);
-          }
-        }
-
-        // Get editor LLM config if exists
-        let editorConfig: AgentLlmConfig | undefined;
-        if (output.editor_llm_config_id) {
-          editorConfig = llmConfigCache.get(output.editor_llm_config_id);
-          if (!editorConfig) {
-            editorConfig = (await this.getLlmConfig(output.editor_llm_config_id)) ?? undefined;
-            if (editorConfig) {
-              llmConfigCache.set(output.editor_llm_config_id, editorConfig);
-            }
-          }
-        }
-
-        return {
-          version: index + 1, // 1, 2, 3... (ascending)
-          rank: output.final_rank ?? output.initial_rank ?? 0, // Original rank
-          content: output.content || '',
-          writerAgent: output.writer_agent_slug,
-          editorAgent: output.editor_agent_slug,
-          score: output.final_total_score ?? output.initial_avg_score,
-          metadata: {
-            outputId: output.id,
-            editCycles: output.edit_cycle,
-            initialScore: output.initial_avg_score,
-            finalScore: output.final_total_score,
-            writerLlmProvider: writerConfig?.llm_provider ?? 'unknown',
-            writerLlmModel: writerConfig?.llm_model ?? 'unknown',
-            editorLlmProvider: editorConfig?.llm_provider ?? null,
-            editorLlmModel: editorConfig?.llm_model ?? null,
-          },
-        };
-      }),
-    );
+    const versions: DeliverableVersion[] = reversedOutputs.map((output, index) => {
+      // Provider/model are now stored directly on the output row
+      return {
+        version: index + 1, // 1, 2, 3... (ascending)
+        rank: output.final_rank ?? output.initial_rank ?? 0, // Original rank
+        content: output.content || '',
+        writerAgent: output.writer_agent_slug,
+        editorAgent: output.editor_agent_slug,
+        score: output.final_total_score ?? output.initial_avg_score,
+        metadata: {
+          outputId: output.id,
+          editCycles: output.edit_cycle,
+          initialScore: output.initial_avg_score,
+          finalScore: output.final_total_score,
+          writerLlmProvider: output.writer_llm_provider ?? 'unknown',
+          writerLlmModel: output.writer_llm_model ?? 'unknown',
+          editorLlmProvider: output.editor_llm_provider ?? null,
+          editorLlmModel: output.editor_llm_model ?? null,
+        },
+      };
+    });
 
     // Winner is the last version (highest version number = best rank)
     const winner = versions.length > 0 ? versions[versions.length - 1] : null;

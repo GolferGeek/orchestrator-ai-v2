@@ -9,7 +9,6 @@ import {
   OutputRow,
   EvaluationRow,
   AgentPersonality,
-  AgentLlmConfig,
 } from './marketing-db.service';
 
 const AGENT_SLUG = 'marketing-swarm';
@@ -265,12 +264,11 @@ export class DualTrackProcessorService {
     await this.db.updateOutputStatus(output.id, 'writing');
     await this.emitOutputUpdated(context, taskId, { ...output, status: 'writing' });
 
-    // Get writer personality and LLM config
+    // Get writer personality (provider/model are now directly on the output row)
     const personality = await this.db.getAgentPersonality(output.writer_agent_slug);
-    const llmConfig = await this.db.getLlmConfig(output.writer_llm_config_id);
 
-    if (!personality || !llmConfig) {
-      throw new Error('Writer personality or LLM config not found');
+    if (!personality) {
+      throw new Error('Writer personality not found');
     }
 
     // Get prompt data
@@ -290,12 +288,12 @@ export class DualTrackProcessorService {
       contentTypeContext || '',
     );
 
-    // Call LLM
+    // Call LLM (provider/model are directly on the output row)
     const startTime = Date.now();
     const writerContext = {
       ...context,
-      provider: llmConfig.llm_provider,
-      model: llmConfig.llm_model,
+      provider: output.writer_llm_provider,
+      model: output.writer_llm_model,
     };
 
     const response = await this.llmClient.callLLM({
@@ -350,12 +348,11 @@ export class DualTrackProcessorService {
     }
     const content = freshOutput.content || '';
 
-    // Get editor personality and LLM config
+    // Get editor personality (provider/model are directly on the output row)
     const personality = await this.db.getAgentPersonality(output.editor_agent_slug!);
-    const llmConfig = await this.db.getLlmConfig(output.editor_llm_config_id!);
 
-    if (!personality || !llmConfig) {
-      throw new Error('Editor personality or LLM config not found');
+    if (!personality) {
+      throw new Error('Editor personality not found');
     }
 
     // Get prompt data for context
@@ -368,12 +365,12 @@ export class DualTrackProcessorService {
       taskData?.promptData as Record<string, unknown>,
     );
 
-    // Call LLM
+    // Call LLM (provider/model are directly on the output row)
     const startTime = Date.now();
     const editorContext = {
       ...context,
-      provider: llmConfig.llm_provider,
-      model: llmConfig.llm_model,
+      provider: output.editor_llm_provider,
+      model: output.editor_llm_model,
     };
 
     const response = await this.llmClient.callLLM({
@@ -445,12 +442,11 @@ export class DualTrackProcessorService {
     const content = freshOutput.content || '';
     const editorFeedback = freshOutput.editor_feedback || '';
 
-    // Get writer personality and LLM config
+    // Get writer personality (provider/model are directly on the output row)
     const personality = await this.db.getAgentPersonality(output.writer_agent_slug);
-    const llmConfig = await this.db.getLlmConfig(output.writer_llm_config_id);
 
-    if (!personality || !llmConfig) {
-      throw new Error('Writer personality or LLM config not found');
+    if (!personality) {
+      throw new Error('Writer personality not found');
     }
 
     // Build rewrite prompt
@@ -460,12 +456,12 @@ export class DualTrackProcessorService {
       editorFeedback,
     );
 
-    // Call LLM
+    // Call LLM (provider/model are directly on the output row)
     const startTime = Date.now();
     const writerContext = {
       ...context,
-      provider: llmConfig.llm_provider,
-      model: llmConfig.llm_model,
+      provider: output.writer_llm_provider,
+      model: output.writer_llm_model,
     };
 
     const response = await this.llmClient.callLLM({
@@ -555,16 +551,13 @@ export class DualTrackProcessorService {
     stage: 'initial' | 'final',
   ): Promise<void> {
     try {
-      // Get evaluator personality and LLM config
+      // Get evaluator personality (provider/model are directly on the evaluation row)
       const personality = await this.db.getAgentPersonality(
         evaluation.evaluator_agent_slug,
       );
-      const llmConfig = await this.db.getLlmConfig(
-        evaluation.evaluator_llm_config_id,
-      );
 
-      if (!personality || !llmConfig) {
-        throw new Error('Evaluator personality or LLM config not found');
+      if (!personality) {
+        throw new Error('Evaluator personality not found');
       }
 
       // Get the output to evaluate
@@ -590,12 +583,12 @@ export class DualTrackProcessorService {
               taskData?.promptData as Record<string, unknown>,
             );
 
-      // Call LLM
+      // Call LLM (provider/model are directly on the evaluation row)
       const startTime = Date.now();
       const evalContext = {
         ...context,
-        provider: llmConfig.llm_provider,
-        model: llmConfig.llm_model,
+        provider: evaluation.evaluator_llm_provider,
+        model: evaluation.evaluator_llm_model,
       };
 
       const response = await this.llmClient.callLLM({
@@ -646,6 +639,12 @@ export class DualTrackProcessorService {
         evalTokens,
       );
 
+      // Emit output update with new cost (so frontend can show running total)
+      const updatedOutput = await this.db.getOutputById(evaluation.output_id);
+      if (updatedOutput) {
+        await this.emitOutputUpdated(context, taskId, updatedOutput);
+      }
+
       // Emit evaluation update
       await this.emitEvaluationUpdated(context, taskId, {
         ...evaluation,
@@ -660,9 +659,10 @@ export class DualTrackProcessorService {
         `Evaluation failed for ${evaluation.id}: ${errorMessage}`,
       );
 
+      // Use null for score on failure (constraint requires 1-10, so 0 would fail)
       await this.db.updateEvaluation(
         evaluation.id,
-        0,
+        null,
         errorMessage,
         'failed',
       );
@@ -979,14 +979,8 @@ Format your response as:
     const writerPersonality = await this.db.getAgentPersonality(
       output.writer_agent_slug,
     );
-    const writerLlmConfig = await this.db.getLlmConfig(
-      output.writer_llm_config_id,
-    );
     const editorPersonality = output.editor_agent_slug
       ? await this.db.getAgentPersonality(output.editor_agent_slug)
-      : null;
-    const editorLlmConfig = output.editor_llm_config_id
-      ? await this.db.getLlmConfig(output.editor_llm_config_id)
       : null;
 
     await this.observability.emitProgress(
@@ -1003,17 +997,17 @@ Format your response as:
             writerAgent: {
               slug: output.writer_agent_slug,
               name: writerPersonality?.name,
-              llmProvider: writerLlmConfig?.llm_provider,
-              llmModel: writerLlmConfig?.llm_model,
-              isLocal: writerLlmConfig?.is_local,
+              llmProvider: output.writer_llm_provider,
+              llmModel: output.writer_llm_model,
+              isLocal: output.writer_llm_provider === 'ollama',
             },
             editorAgent: output.editor_agent_slug
               ? {
                   slug: output.editor_agent_slug,
                   name: editorPersonality?.name,
-                  llmProvider: editorLlmConfig?.llm_provider,
-                  llmModel: editorLlmConfig?.llm_model,
-                  isLocal: editorLlmConfig?.is_local,
+                  llmProvider: output.editor_llm_provider,
+                  llmModel: output.editor_llm_model,
+                  isLocal: output.editor_llm_provider === 'ollama',
                 }
               : null,
             content: output.content,
@@ -1041,9 +1035,6 @@ Format your response as:
     const evaluatorPersonality = await this.db.getAgentPersonality(
       evaluation.evaluator_agent_slug,
     );
-    const evaluatorLlmConfig = await this.db.getLlmConfig(
-      evaluation.evaluator_llm_config_id,
-    );
 
     await this.observability.emitProgress(
       context,
@@ -1061,9 +1052,9 @@ Format your response as:
             evaluatorAgent: {
               slug: evaluation.evaluator_agent_slug,
               name: evaluatorPersonality?.name,
-              llmProvider: evaluatorLlmConfig?.llm_provider,
-              llmModel: evaluatorLlmConfig?.llm_model,
-              isLocal: evaluatorLlmConfig?.is_local,
+              llmProvider: evaluation.evaluator_llm_provider,
+              llmModel: evaluation.evaluator_llm_model,
+              isLocal: evaluation.evaluator_llm_provider === 'ollama',
             },
             score: evaluation.score,
             rank: evaluation.rank,

@@ -27,7 +27,7 @@ export type SupportedProvider =
   | 'anthropic'
   | 'google'
   | 'ollama'
-  | 'grok';
+  | 'xai';
 
 /**
  * Factory service for creating LLM provider instances
@@ -55,7 +55,7 @@ export class LLMServiceFactory {
     anthropic: AnthropicLLMService,
     google: GoogleLLMService,
     ollama: OllamaLLMService,
-    grok: GrokLLMService,
+    xai: GrokLLMService,
   } as const;
 
   constructor(
@@ -401,7 +401,7 @@ export class LLMServiceFactory {
           ) as unknown as BaseLLMService;
           break;
 
-        case 'grok':
+        case 'xai':
           serviceInstance = new GrokLLMService(
             config,
             this.piiService,

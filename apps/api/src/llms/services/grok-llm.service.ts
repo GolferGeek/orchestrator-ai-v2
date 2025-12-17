@@ -278,8 +278,8 @@ export class GrokLLMService extends BaseLLMService {
   protected validateConfig(config: LLMServiceConfig): void {
     super.validateConfig(config);
 
-    if (config.provider !== 'grok') {
-      throw new Error('GrokLLMService requires provider to be "grok"');
+    if (config.provider !== 'grok' && config.provider !== 'xai') {
+      throw new Error('GrokLLMService requires provider to be "grok" or "xai"');
     }
 
     if (!config.apiKey && !process.env.XAI_API_KEY) {

@@ -1600,9 +1600,9 @@ describeE2E('Marketing Swarm E2E Tests', () => {
         expect(typeof metadata.tokensUsed).toBe('number');
         expect(metadata.tokensUsed as number).toBeGreaterThan(0);
 
-        // Latency should be present
-        expect(metadata.latencyMs).toBeDefined();
-        expect(typeof metadata.latencyMs).toBe('number');
+        // Latency should be present (stored as totalLatencyMs after accumulation)
+        expect(metadata.totalLatencyMs).toBeDefined();
+        expect(typeof metadata.totalLatencyMs).toBe('number');
 
         // LLM call count should track accumulation
         expect(metadata.llmCallCount).toBeDefined();
