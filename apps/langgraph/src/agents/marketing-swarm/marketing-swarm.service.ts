@@ -231,6 +231,14 @@ export class MarketingSwarmService {
   }
 
   /**
+   * Get task by conversation ID
+   * Used to restore task state when navigating to an existing conversation
+   */
+  async getTaskByConversationId(conversationId: string): Promise<{ taskId: string; status: string } | null> {
+    return this.db.getTaskByConversationId(conversationId);
+  }
+
+  /**
    * Get deliverable for a completed task
    *
    * Returns the top N ranked outputs with their full edit histories.

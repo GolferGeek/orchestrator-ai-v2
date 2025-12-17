@@ -196,6 +196,11 @@ export interface AgentChatMessageMetadata extends MessageMetadata {
    * Container for auxiliary metadata that does not yet have a dedicated field.
    */
   extra?: JsonObject;
+
+  // Marketing Swarm metadata
+  marketingSwarmTaskId?: string;
+  marketingSwarmCompleted?: boolean;
+  taskId?: string;
 }
 
 export interface AgentChatMessage {

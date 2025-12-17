@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
 import { SupabaseService } from '@/supabase/supabase.service';
 import {
   AgentConversation,
@@ -8,6 +9,8 @@ import {
   AgentType,
 } from '@/agent2agent/types/agent-conversations.types';
 import { getTableName } from '@/supabase/supabase.config';
+import { ConfigService } from '@nestjs/config';
+import { firstValueFrom } from 'rxjs';
 
 interface AgentConversationDbRecord {
   id: string;
@@ -35,8 +38,17 @@ interface AgentConversationWithStatsDbRecord extends AgentConversationDbRecord {
 @Injectable()
 export class AgentConversationsService {
   private readonly logger = new Logger(AgentConversationsService.name);
+  private readonly langgraphBaseUrl: string;
 
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(
+    private readonly supabaseService: SupabaseService,
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
+  ) {
+    this.langgraphBaseUrl =
+      this.configService.get<string>('LANGGRAPH_BASE_URL') ||
+      'http://localhost:6200';
+  }
 
   /**
    * Validate agent type matches database constraints
@@ -272,6 +284,11 @@ export class AgentConversationsService {
       throw new Error('Conversation not found');
     }
 
+    // Check if this is a marketing-swarm conversation and clean up marketing data
+    if (conversation.agentName === 'marketing-swarm') {
+      await this.cleanupMarketingSwarmData(conversationId);
+    }
+
     // Delete related LLM usage records first to avoid foreign key constraint violation
     const { error: llmUsageDeleteError } = await this.supabaseService
       .getAnonClient()
@@ -328,6 +345,74 @@ export class AgentConversationsService {
 
     if (error) {
       throw new Error(`Failed to delete conversation: ${error.message}`);
+    }
+  }
+
+  /**
+   * Clean up marketing swarm data when a marketing-swarm conversation is deleted.
+   * Finds the task_id from the conversation and calls the LangGraph delete endpoint.
+   */
+  private async cleanupMarketingSwarmData(
+    conversationId: string,
+  ): Promise<void> {
+    try {
+      // Find the marketing swarm task associated with this conversation
+      // The task_id is stored in the marketing.swarm_tasks table
+      // We can find it by looking up tasks where task_id matches a task
+      // that was created for this conversation (stored in public.tasks)
+
+      // First, get the task from public.tasks that references this conversation
+      const { data: tasks, error: tasksError } = await this.supabaseService
+        .getServiceClient()
+        .from('tasks')
+        .select('id')
+        .eq('conversation_id', conversationId);
+
+      if (tasksError) {
+        this.logger.warn(
+          `Failed to lookup tasks for conversation ${conversationId}: ${tasksError.message}`,
+        );
+        return;
+      }
+
+      if (!tasks || tasks.length === 0) {
+        this.logger.debug(
+          `No tasks found for marketing swarm conversation ${conversationId}`,
+        );
+        return;
+      }
+
+      // For each task, call the LangGraph delete endpoint
+      for (const task of tasks) {
+        try {
+          const deleteUrl = `${this.langgraphBaseUrl}/marketing-swarm/${task.id}`;
+          this.logger.log(
+            `Deleting marketing swarm data for task ${task.id}`,
+          );
+
+          await firstValueFrom(
+            this.httpService.delete(deleteUrl, { timeout: 10000 }),
+          );
+
+          this.logger.log(
+            `Successfully deleted marketing swarm data for task ${task.id}`,
+          );
+        } catch (deleteError) {
+          // Log but don't throw - we still want to delete the conversation
+          this.logger.warn(
+            `Failed to delete marketing swarm data for task ${task.id}: ${
+              deleteError instanceof Error ? deleteError.message : 'Unknown error'
+            }`,
+          );
+        }
+      }
+    } catch (error) {
+      // Log but don't throw - we still want to delete the conversation
+      this.logger.warn(
+        `Failed to cleanup marketing swarm data for conversation ${conversationId}: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
+      );
     }
   }
 

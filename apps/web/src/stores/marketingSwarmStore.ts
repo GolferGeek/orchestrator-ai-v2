@@ -307,6 +307,10 @@ export const useMarketingSwarmStore = defineStore('marketingSwarm', () => {
     state.value.currentTaskId = task?.taskId || null;
   }
 
+  function setCurrentTaskId(taskId: string | null) {
+    state.value.currentTaskId = taskId;
+  }
+
   function setExecutionQueue(queue: QueueItem[]) {
     state.value.executionQueue = queue;
   }
@@ -533,6 +537,7 @@ export const useMarketingSwarmStore = defineStore('marketingSwarm', () => {
     setAgents,
     setAgentLLMConfigs,
     setCurrentTask,
+    setCurrentTaskId,
     setExecutionQueue,
     updateQueueItem,
     setOutputs,

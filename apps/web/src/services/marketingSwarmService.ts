@@ -439,6 +439,34 @@ class MarketingSwarmService {
   }
 
   /**
+   * Get task info by conversation ID
+   * Used to restore task state when navigating to an existing conversation
+   */
+  async getTaskByConversationId(conversationId: string): Promise<{ taskId: string; status: string } | null> {
+    try {
+      const response = await fetch(`${LANGGRAPH_BASE_URL}/marketing-swarm/by-conversation/${conversationId}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('authToken')}`,
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          // No task found for this conversation - that's okay, it's a new conversation
+          return null;
+        }
+        throw new Error('Failed to get task by conversation');
+      }
+
+      const result = await response.json();
+      return result.data;
+    } catch (error) {
+      console.error('Failed to get task by conversation:', error);
+      return null;
+    }
+  }
+
+  /**
    * Get full state of a swarm execution (for reconnection)
    */
   async getSwarmState(taskId: string): Promise<SwarmStateResponse> {

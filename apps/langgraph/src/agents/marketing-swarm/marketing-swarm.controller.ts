@@ -270,4 +270,27 @@ export class MarketingSwarmController {
       data: output,
     };
   }
+
+  /**
+   * Get task by conversation ID
+   *
+   * Looks up a swarm task using the conversation ID.
+   * Used by frontend to restore task state when navigating to an existing conversation.
+   */
+  @Get('by-conversation/:conversationId')
+  @HttpCode(HttpStatus.OK)
+  async getTaskByConversation(@Param('conversationId') conversationId: string) {
+    this.logger.log(`Getting task for conversation: ${conversationId}`);
+
+    const task = await this.marketingSwarmService.getTaskByConversationId(conversationId);
+
+    if (!task) {
+      throw new NotFoundException(`No task found for conversation: ${conversationId}`);
+    }
+
+    return {
+      success: true,
+      data: task,
+    };
+  }
 }

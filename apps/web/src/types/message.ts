@@ -84,6 +84,20 @@ export interface MessageMetadata {
     complete?: boolean;
   };
 
+  // Marketing Swarm metadata (stored at message level for conversation restoration)
+  /** Marketing Swarm task ID */
+  marketingSwarmTaskId?: string;
+  /** Whether Marketing Swarm execution is completed */
+  marketingSwarmCompleted?: boolean;
+  /** Task ID for the execution */
+  taskId?: string;
+  /** Number of outputs generated */
+  outputCount?: number;
+  /** Number of evaluations */
+  evaluationCount?: number;
+  /** Deliverable ID for completed swarm */
+  deliverableId?: string;
+
   /** Custom metadata fields */
   custom?: Record<string, string | number | boolean>;
 }

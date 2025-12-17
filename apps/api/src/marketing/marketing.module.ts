@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { HttpModule } from '@nestjs/axios';
 import { AuthModule } from '../auth/auth.module';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { MarketingController } from './marketing.controller';
@@ -19,7 +20,7 @@ import { MarketingDatabaseService } from './marketing-database.service';
  * All operations are read-only (configuration management is done via seeds/migrations).
  */
 @Module({
-  imports: [AuthModule, ConfigModule, SupabaseModule],
+  imports: [AuthModule, ConfigModule, SupabaseModule, HttpModule],
   controllers: [MarketingController],
   providers: [MarketingDatabaseService, MarketingService],
   exports: [MarketingService, MarketingDatabaseService],

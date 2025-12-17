@@ -260,6 +260,32 @@ export class MarketingDbService {
   }
 
   /**
+   * Get task by conversation ID
+   * Used to restore task state when navigating to an existing conversation
+   */
+  async getTaskByConversationId(conversationId: string): Promise<{ taskId: string; status: string } | null> {
+    const { data, error } = await this.supabase
+      .from('swarm_tasks')
+      .select('task_id, status')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error || !data) {
+      if (error?.code !== 'PGRST116') { // PGRST116 = no rows found
+        this.logger.error(`Failed to get task by conversation: ${error?.message}`);
+      }
+      return null;
+    }
+
+    return {
+      taskId: data.task_id,
+      status: data.status,
+    };
+  }
+
+  /**
    * Update task status
    */
   async updateTaskStatus(
