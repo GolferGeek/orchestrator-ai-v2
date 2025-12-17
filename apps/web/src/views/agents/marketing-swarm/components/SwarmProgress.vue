@@ -82,11 +82,12 @@
             <ion-badge v-else color="tertiary" size="small">Cloud</ion-badge>
           </div>
           <div class="card-llm">
-            {{ output.writerAgent.llmProvider }}/{{ output.writerAgent.llmModel }}
+            <ion-icon :icon="documentTextOutline" />
+            {{ output.writerAgent.llmModel }}
           </div>
           <div v-if="output.editorAgent" class="card-editor">
             <ion-icon :icon="pencilOutline" />
-            {{ output.editorAgent.name || output.editorAgent.slug }}
+            {{ output.editorAgent.llmModel }}
             (Cycle {{ output.editCycle }})
           </div>
           <div class="card-status">
@@ -188,7 +189,7 @@
           <ion-item v-for="output in phase2OutputsWithCost" :key="output.id">
             <ion-label>
               <h3>{{ output.writerAgent.name || output.writerAgent.slug }}</h3>
-              <p>{{ output.writerAgent.llmProvider }}/{{ output.writerAgent.llmModel }}</p>
+              <p>Writer: {{ output.writerAgent.llmModel }}<span v-if="output.editorAgent"> | Editor: {{ output.editorAgent.llmModel }}</span></p>
               <p v-if="output.llmMetadata?.llmCallCount">
                 {{ output.llmMetadata.llmCallCount }} LLM calls
                 <span v-if="output.llmMetadata?.evaluationCost">

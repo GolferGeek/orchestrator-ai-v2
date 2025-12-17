@@ -103,7 +103,7 @@ export class LocalLLMService {
           `${this.ollamaBaseUrl}/api/generate`,
           payload,
           {
-            timeout: 120000, // 2 minute timeout
+            timeout: 300000, // 5 minutes - no timeouts in production
           },
         ),
       );

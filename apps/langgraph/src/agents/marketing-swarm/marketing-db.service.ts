@@ -685,7 +685,7 @@ export class MarketingDbService {
   }
 
   /**
-   * Check if all initial evaluations are complete
+   * Check if all initial evaluations are complete (or failed - both are terminal states)
    */
   async areAllInitialEvaluationsComplete(taskId: string): Promise<boolean> {
     const { count, error } = await this.supabase
@@ -693,7 +693,7 @@ export class MarketingDbService {
       .select('*', { count: 'exact', head: true })
       .eq('task_id', taskId)
       .eq('stage', 'initial')
-      .neq('status', 'completed');
+      .in('status', ['pending', 'running']); // Only these are "incomplete"
 
     if (error) {
       this.logger.error(`Failed to check evaluations complete: ${error.message}`);
@@ -787,7 +787,7 @@ export class MarketingDbService {
   }
 
   /**
-   * Check if all final evaluations are complete
+   * Check if all final evaluations are complete (or failed - both are terminal states)
    */
   async areAllFinalEvaluationsComplete(taskId: string): Promise<boolean> {
     const { count, error } = await this.supabase
@@ -795,7 +795,7 @@ export class MarketingDbService {
       .select('*', { count: 'exact', head: true })
       .eq('task_id', taskId)
       .eq('stage', 'final')
-      .neq('status', 'completed');
+      .in('status', ['pending', 'running']); // Only these are "incomplete"
 
     if (error) {
       this.logger.error(`Failed to check final evaluations: ${error.message}`);

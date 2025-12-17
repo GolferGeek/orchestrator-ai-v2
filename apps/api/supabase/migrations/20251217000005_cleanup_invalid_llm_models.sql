@@ -84,6 +84,10 @@ AND model_name IN (
   'o4-mini'               -- Not released yet
 );
 
+-- Mark o-series models as inactive (limited availability)
+UPDATE public.llm_models SET is_active = false
+WHERE provider_name = 'openai' AND model_name IN ('o1', 'o3', 'o3-mini');
+
 -- =============================================================================
 -- 3b. ADD GPT-5 SERIES MODELS (Released August-December 2025)
 -- =============================================================================
@@ -275,6 +279,19 @@ WHERE NOT EXISTS (
   SELECT 1 FROM public.llm_models
   WHERE model_name = 'grok-4-fast' AND provider_name = 'xai'
 );
+
+-- =============================================================================
+-- 6. CLEANUP LLM_PROVIDERS TABLE
+-- =============================================================================
+
+-- Remove duplicate 'grok' provider (keep 'xai')
+DELETE FROM public.llm_providers WHERE name = 'grok';
+
+-- Mark Google provider as inactive (API not enabled)
+UPDATE public.llm_providers SET is_active = false WHERE name = 'google';
+
+-- Mark all Google models as inactive
+UPDATE public.llm_models SET is_active = false WHERE provider_name = 'google';
 
 -- =============================================================================
 -- SUCCESS NOTIFICATION

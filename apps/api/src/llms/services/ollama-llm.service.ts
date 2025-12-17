@@ -178,7 +178,7 @@ export class OllamaLLMService extends BaseLLMService {
             },
           },
           {
-            timeout: this.isCloudMode ? 60000 : 120000, // 1 min for cloud, 2 min for local
+            timeout: 300000, // 5 minutes - no timeouts in production
             headers: requestHeaders,
           },
         ),
@@ -292,7 +292,7 @@ export class OllamaLLMService extends BaseLLMService {
             stream: false,
             options: { num_predict: 1 },
           },
-          { timeout: 60000 },
+          { timeout: 300000 }, // 5 minutes - no timeouts in production
         ),
       );
 

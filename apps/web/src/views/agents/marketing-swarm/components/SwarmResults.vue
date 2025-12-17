@@ -31,7 +31,7 @@
     <ion-card v-if="finalRankings.length > 0">
       <ion-card-header>
         <ion-card-title>Final Rankings</ion-card-title>
-        <ion-card-subtitle>Ranked by weighted evaluation scores</ion-card-subtitle>
+        <ion-card-subtitle>Ranked by weighted evaluation scores (1st=100, 2nd=60, 3rd=30, 4th=10, 5th=5)</ion-card-subtitle>
       </ion-card-header>
       <ion-card-content>
         <ion-list>
@@ -49,6 +49,9 @@
             <ion-label>
               <h2>{{ ranking.writerAgentSlug }}</h2>
               <p v-if="ranking.editorAgentSlug">+ {{ ranking.editorAgentSlug }}</p>
+              <p class="score-breakdown" v-if="getScoreBreakdown(ranking.outputId).length > 0">
+                {{ getScoreBreakdown(ranking.outputId).join(' + ') }} = {{ ranking.totalScore }}
+              </p>
             </ion-label>
             <div slot="end" class="score-badges">
               <ion-badge color="primary">{{ ranking.totalScore }} pts</ion-badge>
@@ -166,8 +169,11 @@
               <ion-badge v-if="evaluation.score" :color="getScoreColor(evaluation.score)">
                 {{ evaluation.score }}/10
               </ion-badge>
-              <ion-badge v-if="evaluation.rank" color="primary">
-                Rank: {{ evaluation.rank }}
+              <ion-badge v-if="evaluation.stage === 'final' && evaluation.rank" color="primary">
+                Rank #{{ evaluation.rank }}
+              </ion-badge>
+              <ion-badge v-if="evaluation.stage === 'final' && evaluation.weightedScore" color="success">
+                +{{ evaluation.weightedScore }} pts
               </ion-badge>
             </div>
             <p v-if="evaluation.reasoning" class="evaluation-reasoning">{{ evaluation.reasoning }}</p>
@@ -264,6 +270,21 @@ function selectOutput(outputId: string) {
   selectedOutputId.value = outputId;
 }
 
+/**
+ * Get the score breakdown for an output from final evaluations
+ * Returns array like ["100", "60", "30"] representing weighted scores from each evaluator
+ */
+function getScoreBreakdown(outputId: string): string[] {
+  const finalEvaluations = phase2Evaluations.value
+    .filter((e) => e.outputId === outputId && e.stage === 'final' && e.weightedScore);
+
+  if (finalEvaluations.length === 0) return [];
+
+  return finalEvaluations
+    .sort((a, b) => (b.weightedScore ?? 0) - (a.weightedScore ?? 0))
+    .map((e) => String(e.weightedScore));
+}
+
 function getRankColor(rank: number): string {
   if (rank === 1) return 'success';
   if (rank === 2) return 'warning';
@@ -331,6 +352,13 @@ ion-item.selected {
 .score-badges {
   display: flex;
   gap: 4px;
+}
+
+.score-breakdown {
+  font-size: 0.75rem;
+  color: var(--ion-color-medium);
+  font-family: monospace;
+  margin-top: 4px;
 }
 
 /* Output Agents Info */
