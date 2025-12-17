@@ -72,17 +72,18 @@ defineEmits<{
 }
 .section-header {
   text-align: center;
-  margin-bottom: 3rem;
+  margin-bottom: 2rem;
 }
 .section-header h2 {
   font-size: 2rem;
   color: var(--landing-dark);
-  margin-bottom: 0.5rem;
+  margin-bottom: 1rem;
   font-weight: 700;
 }
 .section-subtitle {
   font-size: 1.1rem;
   color: var(--landing-gray);
+  opacity: 0.8;
   max-width: 600px;
   margin: 0 auto;
   line-height: 1.6;

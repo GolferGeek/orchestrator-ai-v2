@@ -219,6 +219,7 @@
             <div class="pricing-card highlight">
               <div class="pricing-header">
                 <h3 class="package-title">Founding Partner Setup</h3>
+                <p class="best-for">Best for: Teams starting a long-term build</p>
                 <div class="pricing-info">
                   <div class="package-price">$25,000</div>
                   <div class="price-tag">one-time</div>
@@ -235,6 +236,7 @@
             <div class="pricing-card">
               <div class="pricing-header">
                 <h3 class="package-title">Ongoing Development</h3>
+                <p class="best-for">Best for: Active projects needing flexible support</p>
                 <div class="pricing-info">
                   <div class="package-price">$100/hr</div>
                   <div class="price-tag">Founder</div>
@@ -255,6 +257,7 @@
             <div class="pricing-card">
               <div class="pricing-header">
                 <h3 class="package-title">Updates & Separation</h3>
+                <p class="best-for">Best for: Companies wanting long-term independence</p>
                 <div class="pricing-info">
                   <div class="package-price">Continuous Updates</div>
                   <div class="price-tag">free while active</div>
@@ -630,27 +633,39 @@ onUnmounted(() => {
 .video-button:hover {
   background: rgba(255, 255, 255, 0.2);
   border-color: rgba(255, 255, 255, 0.5);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
 }
 
 .video-button.active {
   background: var(--landing-accent);
   border-color: var(--landing-accent);
   color: var(--landing-white);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-forest);
 }
+
+/* ===================================================
+   UNIFIED CARD SYSTEM
+   - All cards use consistent shadow: 0 4px 16px rgba(0,0,0,0.08)
+   - Soft physical appearance without hover transforms
+   - Consistent border: 1px solid rgba(0,0,0,0.06)
+   - No gradient backgrounds bleeding to edges
+   =================================================== */
 
 /* Demo Highlight Card */
 .demo-highlight-box {
   margin: var(--space-8) auto;
   max-width: 800px;
-  --background: rgba(255, 255, 255, 0.95);
+  --background: rgba(255, 255, 255, 0.97);
   --color: var(--landing-dark);
   border-radius: var(--radius-2xl);
-  box-shadow: var(--shadow-xl);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.demo-highlight-box ion-card-header {
+  padding-bottom: var(--space-2);
+}
+
+.demo-highlight-box ion-card-content {
+  padding-top: var(--space-2);
 }
 
 .demo-highlight-title {
@@ -662,10 +677,11 @@ onUnmounted(() => {
 }
 
 .demo-highlight-text {
-  font-size: var(--text-base);
+  font-size: 1rem;
   line-height: 1.5;
   color: var(--landing-dark);
   margin: var(--space-4) 0;
+  font-weight: var(--font-weight-normal);
 }
 
 .demo-highlight-text .highlight {
@@ -679,22 +695,24 @@ onUnmounted(() => {
 .demo-highlight-list {
   list-style: none;
   padding: 0;
-  margin: var(--space-4) 0;
+  margin: var(--space-3) 0;
   text-align: left;
 }
 
 .demo-highlight-list li {
-  padding: var(--space-1) 0;
+  padding: var(--space-2) 0;
   position: relative;
   padding-left: var(--space-6);
   color: var(--landing-dark);
-  font-size: var(--text-sm);
+  font-size: 1rem;
+  line-height: 1.4;
 }
 
 .demo-highlight-list li::before {
   content: "✓";
   position: absolute;
   left: 0;
+  top: var(--space-2);
   color: var(--landing-secondary);
   font-weight: var(--font-weight-bold);
 }
@@ -770,15 +788,17 @@ onUnmounted(() => {
 }
 
 .pricing-section .section-subtitle {
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.95);
+  font-weight: var(--font-weight-normal);
 }
 
 .section-subtitle {
   font-size: var(--text-xl);
-  color: var(--landing-gray);
+  color: var(--landing-dark-light, #57341f);
   max-width: 800px;
   margin: 0 auto;
   line-height: 1.6;
+  font-weight: var(--font-weight-normal);
 }
 
 
@@ -834,7 +854,7 @@ onUnmounted(() => {
 .section-cta {
   text-align: center;
   padding: var(--space-12) var(--space-8);
-  background: var(--landing-gradient);
+  background: var(--landing-primary);
   border-radius: var(--radius-3xl);
   color: var(--landing-white);
 }
@@ -848,7 +868,8 @@ onUnmounted(() => {
 .section-cta p {
   font-size: var(--text-lg);
   margin-bottom: var(--space-8);
-  opacity: 0.9;
+  opacity: 0.95;
+  font-weight: var(--font-weight-normal);
 }
 
 
@@ -874,20 +895,14 @@ onUnmounted(() => {
 .advantage-card {
   background: var(--landing-white);
   border-radius: var(--radius-3xl);
-  padding: var(--space-10);
-  border: 1px solid var(--landing-primary-100);
-  box-shadow: var(--shadow-lg);
+  padding: var(--space-8);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   position: relative;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   height: 100%;
-}
-
-.advantage-card:hover {
-  transform: none !important;
-  box-shadow: var(--shadow-lg) !important;
-  border-color: var(--landing-primary-100) !important;
 }
 
 .advantage-card::before {
@@ -905,40 +920,33 @@ onUnmounted(() => {
   background: var(--landing-white);
   border-radius: var(--radius-2xl);
   padding: var(--space-8);
-  border: 2px solid transparent;
-  transition: var(--transition-smooth);
-  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
 .comparison-card.highlight,
 .purpose-card.highlight {
-  border-color: var(--landing-secondary);
-  background: linear-gradient(135deg, var(--landing-secondary-light), var(--landing-white));
-  box-shadow: var(--shadow-green);
-}
-
-.comparison-card:hover,
-.purpose-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-lg);
-  border-color: var(--landing-secondary);
+  background: var(--landing-white);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
 /* Card content styles */
 .advantage-card h3 {
   font-size: var(--text-2xl);
   color: var(--landing-dark);
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-3);
   font-weight: var(--font-weight-bold);
   line-height: 1.3;
 }
 
 .advantage-card p {
-  color: var(--landing-gray);
+  color: var(--landing-dark-light, #57341f);
   line-height: 1.7;
   margin-bottom: auto;
-  font-size: var(--text-base);
+  font-size: 1rem;
   flex-grow: 1;
+  font-weight: var(--font-weight-normal);
 }
 
 .comparison-card h3,
@@ -951,14 +959,16 @@ onUnmounted(() => {
 
 .comparison-card p,
 .purpose-card p {
-  color: var(--landing-gray);
+  color: var(--landing-dark-light, #57341f);
   line-height: 1.6;
   margin-bottom: var(--space-6);
+  font-size: 1rem;
+  font-weight: var(--font-weight-normal);
 }
 
 /* Advantage section specific styles */
 .advantage-example {
-  background: linear-gradient(135deg, var(--landing-primary-50), var(--landing-primary-100));
+  background: var(--landing-primary-50);
   border-radius: var(--radius-xl);
   padding: var(--space-6);
   margin-top: var(--space-6);
@@ -971,14 +981,14 @@ onUnmounted(() => {
   color: var(--landing-secondary);
   display: block;
   margin-bottom: var(--space-3);
-  font-size: var(--text-sm);
+  font-size: 1rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .example-text {
   color: var(--landing-dark);
-  font-size: var(--text-sm);
+  font-size: 1rem;
   line-height: 1.6;
   font-style: italic;
 }
@@ -993,12 +1003,13 @@ onUnmounted(() => {
 
 .cta-content p {
   font-size: var(--text-lg);
-  color: var(--landing-gray);
+  color: var(--landing-dark-light, #57341f);
   margin-bottom: var(--space-8);
   line-height: 1.6;
   max-width: 600px;
   margin-left: auto;
   margin-right: auto;
+  font-weight: var(--font-weight-normal);
 }
 
 /* Comparison section specific styles */
@@ -1018,16 +1029,16 @@ onUnmounted(() => {
 .path-list li {
   margin-bottom: var(--space-3);
   color: var(--landing-dark);
-  font-size: var(--text-sm);
+  font-size: 1rem;
   line-height: 1.5;
 }
 
 .path-outcome {
-  background: var(--landing-white);
+  background: var(--landing-primary-50);
   border-radius: var(--radius-lg);
   padding: var(--space-4);
-  border-left: 4px solid var(--landing-secondary);
-  font-size: var(--text-sm);
+  border-left: 3px solid var(--landing-secondary);
+  font-size: 1rem;
   line-height: 1.5;
 }
 
@@ -1043,9 +1054,9 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   color: var(--landing-white);
-  margin-bottom: var(--space-8);
+  margin-bottom: var(--space-6);
   background: var(--landing-gradient);
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
 .advantage-icon ion-icon {
@@ -1062,19 +1073,20 @@ onUnmounted(() => {
   justify-content: center;
   color: var(--landing-white);
   margin-bottom: var(--space-6);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
 .path-icon.influencer {
-  background: linear-gradient(135deg, #ef4444, #f87171);
+  background: #ef4444;
 }
 
 .path-icon.builder,
 .purpose-icon.doing {
-  background: var(--landing-gradient);
+  background: var(--landing-primary);
 }
 
 .purpose-icon.not {
-  background: linear-gradient(135deg, #ef4444, #f87171);
+  background: #ef4444;
 }
 
 /* Pricing Section */
@@ -1099,7 +1111,7 @@ onUnmounted(() => {
   border-radius: var(--radius-3xl);
   padding: var(--space-6);
   position: relative;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1107,33 +1119,33 @@ onUnmounted(() => {
   overflow: hidden;
   height: 100%;
   min-height: 400px;
-  border: none !important;
+  border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 
 .pricing-card.highlight {
-  background: linear-gradient(135deg, var(--landing-white), var(--landing-primary-50));
-  box-shadow: var(--shadow-xl);
-  border: none !important;
+  background: var(--landing-white);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 
 
 /* Ensure no Ionic card hover effects */
 ion-card.pricing-card {
-  --box-shadow: var(--shadow-lg);
-  --border-width: 0;
-  --border-color: transparent;
+  --box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --border-width: 1px;
+  --border-color: rgba(0, 0, 0, 0.06);
 }
 
 ion-card.pricing-card.highlight {
-  --box-shadow: var(--shadow-xl);
+  --box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
 .pricing-header {
-  margin-bottom: var(--space-6);
+  margin-bottom: var(--space-4);
   width: 100%;
-  min-height: 120px;
+  min-height: 140px;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
@@ -1143,23 +1155,34 @@ ion-card.pricing-card.highlight {
   font-size: var(--text-2xl);
   font-weight: var(--font-weight-bold);
   color: var(--landing-dark);
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-1);
   line-height: 1.3;
   text-align: center;
 }
 
+.best-for {
+  font-size: var(--text-sm);
+  font-style: italic;
+  color: var(--landing-dark-light, #57341f);
+  opacity: 0.75;
+  margin: 0 0 var(--space-3) 0;
+  text-align: center;
+  font-weight: var(--font-weight-normal);
+}
+
 .pricing-info {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: center;
   gap: var(--space-2);
   margin-bottom: var(--space-2);
   flex-wrap: wrap;
-  min-height: 28px;
+  min-height: 44px;
 }
 
 .pricing-info.secondary {
   margin-bottom: var(--space-2);
+  min-height: 32px;
 }
 
 .pricing-info:last-child {
@@ -1167,35 +1190,36 @@ ion-card.pricing-card.highlight {
 }
 
 .package-price {
-  font-size: var(--text-lg);
+  font-size: var(--text-3xl);
   font-weight: var(--font-weight-bold);
   color: var(--landing-secondary);
-  line-height: 1.3;
+  line-height: 1;
   text-align: center;
   white-space: nowrap;
 }
 
 .package-price.secondary {
-  font-size: var(--text-sm);
-  color: var(--landing-primary-dark);
-  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-xl);
+  color: var(--landing-secondary);
+  font-weight: var(--font-weight-bold);
 }
 
 .price-tag {
-  font-size: var(--text-xs);
-  color: var(--landing-gray);
-  font-weight: var(--font-weight-medium);
-  background: var(--landing-primary-100);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+  color: var(--landing-dark-light, #57341f);
+  font-weight: var(--font-weight-normal);
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
   white-space: nowrap;
   flex-shrink: 0;
+  opacity: 0.7;
 }
 
 .package-features {
   list-style: none;
   padding: 0;
-  margin: var(--space-4) 0 0;
+  margin: var(--space-3) 0 0;
   text-align: left;
   width: 100%;
   min-height: 140px;
@@ -1206,9 +1230,9 @@ ion-card.pricing-card.highlight {
 }
 
 .package-features li {
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--space-3);
   color: var(--landing-dark);
-  font-size: var(--text-sm);
+  font-size: 1rem;
   display: flex;
   align-items: flex-start;
   gap: var(--space-2);
@@ -1217,11 +1241,10 @@ ion-card.pricing-card.highlight {
 
 .package-features li::before {
   content: "✓";
-  color: var(--landing-secondary);
   font-weight: var(--font-weight-bold);
-  font-size: var(--text-base);
+  font-size: var(--text-xs);
   flex-shrink: 0;
-  margin-top: 1px;
+  margin-top: 2px;
   width: 16px;
   height: 16px;
   background: var(--landing-secondary);
@@ -1230,8 +1253,6 @@ ion-card.pricing-card.highlight {
   align-items: center;
   justify-content: center;
   color: var(--landing-white);
-  font-size: var(--text-xs);
-  margin-right: var(--space-1);
 }
 
 /* CTA Section */
@@ -1257,8 +1278,9 @@ ion-card.pricing-card.highlight {
 .cta-subtitle {
   font-size: var(--text-xl);
   margin-bottom: var(--space-8);
-  color: var(--landing-gray);
+  color: var(--landing-dark-light, #57341f);
   line-height: 1.6;
+  font-weight: var(--font-weight-normal);
 }
 
 .cta-options {
@@ -1271,9 +1293,9 @@ ion-card.pricing-card.highlight {
 .cta-option {
   background: var(--landing-white);
   border-radius: var(--radius-3xl);
-  padding: var(--space-10);
-  border: 1px solid var(--landing-primary-100);
-  box-shadow: var(--shadow-lg);
+  padding: var(--space-8);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   position: relative;
   overflow: hidden;
   display: flex;
@@ -1292,15 +1314,9 @@ ion-card.pricing-card.highlight {
   background: var(--landing-gradient);
 }
 
-.cta-option:hover {
-  transform: none;
-  box-shadow: var(--shadow-lg);
-  border-color: var(--landing-primary-100);
-}
-
 .cta-option h3 {
   font-size: var(--text-lg);
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-3);
   font-weight: var(--font-weight-bold);
   color: var(--landing-dark);
   display: flex;
@@ -1318,24 +1334,26 @@ ion-card.pricing-card.highlight {
 
 .cta-option p {
   margin-bottom: var(--space-6);
-  color: var(--landing-gray);
+  color: var(--landing-dark-light, #57341f);
   line-height: 1.5;
   flex-grow: 1;
-  font-size: var(--text-sm);
+  font-size: 1rem;
+  font-weight: var(--font-weight-normal);
 }
 
 .cta-note {
   background: var(--landing-primary-50);
   border-radius: var(--radius-xl);
   padding: var(--space-5);
-  border: 1px solid var(--landing-primary-200);
+  border: 1px solid rgba(0, 0, 0, 0.06);
   text-align: center;
 }
 
 .cta-note p {
   margin: 0 0 var(--space-3) 0;
-  font-size: var(--text-sm);
-  color: var(--landing-gray);
+  font-size: 1rem;
+  color: var(--landing-dark-light, #57341f);
+  font-weight: var(--font-weight-normal);
 }
 
 .view-video-button {
@@ -1369,9 +1387,9 @@ ion-card.pricing-card.highlight {
 
 .footer-content p {
   margin: 0;
-  font-size: var(--text-sm);
+  font-size: 1rem;
   color: var(--landing-white);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-normal);
 }
 
 /* Animation classes */
@@ -1432,7 +1450,7 @@ ion-card.pricing-card.highlight {
   }
 
   .section-subtitle {
-    font-size: var(--text-base);
+    font-size: 1rem;
   }
 
 
@@ -1449,7 +1467,7 @@ ion-card.pricing-card.highlight {
   .advantage-icon {
     width: 60px;
     height: 60px;
-    margin-bottom: var(--space-6);
+    margin-bottom: var(--space-5);
   }
 
   .advantage-icon ion-icon {
@@ -1498,17 +1516,30 @@ ion-card.pricing-card.highlight {
     font-size: var(--text-xl);
   }
 
+  .best-for {
+    font-size: var(--text-xs);
+    margin-bottom: var(--space-2);
+  }
+
+  .pricing-info {
+    min-height: 36px;
+  }
+
+  .pricing-info.secondary {
+    min-height: 28px;
+  }
+
   .package-price {
-    font-size: var(--text-base);
+    font-size: var(--text-2xl);
   }
 
   .package-price.secondary {
-    font-size: var(--text-xs);
+    font-size: var(--text-lg);
   }
 
   .pricing-header {
     margin-bottom: var(--space-3);
-    min-height: 100px;
+    min-height: 120px;
   }
 
   .package-features {
@@ -1517,12 +1548,12 @@ ion-card.pricing-card.highlight {
   }
 
   .package-features li {
-    font-size: var(--text-xs);
-    margin-bottom: var(--space-1);
+    font-size: 1rem;
+    margin-bottom: var(--space-2);
   }
 
   .pricing-header {
-    min-height: 100px;
+    min-height: 120px;
   }
 
   .cta-options {
@@ -1535,7 +1566,7 @@ ion-card.pricing-card.highlight {
   }
 
   .cta-subtitle {
-    font-size: var(--text-base);
+    font-size: 1rem;
   }
 
   .landing-footer {
