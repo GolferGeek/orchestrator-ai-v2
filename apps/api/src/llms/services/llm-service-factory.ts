@@ -72,8 +72,8 @@ export class LLMServiceFactory implements OnModuleInit {
   /**
    * Load pricing cache after all modules are initialized
    */
-  async onModuleInit() {
-    // Preload pricing cache after Supabase is fully initialized
+  onModuleInit(): void {
+    // Preload pricing cache after Supabase is fully initialized (fire-and-forget)
     this.llmPricingService.loadPricingCache().catch((err) => {
       this.logger.warn('Failed to preload pricing cache:', err);
     });

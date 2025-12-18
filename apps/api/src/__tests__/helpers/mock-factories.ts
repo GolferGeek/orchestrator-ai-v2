@@ -18,21 +18,26 @@ import { v4 as uuidv4 } from 'uuid';
 // ============================================================================
 
 export interface Agent {
-  id: string;
-  organization_slug: string;
   slug: string;
-  display_name: string;
+  organization_slug: string[];
+  name: string;
   description: string;
-  agent_type: 'context' | 'api' | 'tool' | 'function' | 'orchestrator';
-  runner_type: string;
-  mode_profile: string;
   version: string;
-  status: string;
-  yaml: string;
-  agent_card: Record<string, unknown>;
-  context: Record<string, unknown>;
-  configuration: Record<string, unknown>;
-  config: Record<string, unknown>;
+  agent_type:
+    | 'context'
+    | 'api'
+    | 'external'
+    | 'media'
+    | 'orchestrator'
+    | 'rag-runner';
+  department: string;
+  tags: string[];
+  io_schema: Record<string, unknown>;
+  capabilities: string[];
+  context: string;
+  endpoint: Record<string, unknown> | null;
+  llm_config: Record<string, unknown> | null;
+  metadata: Record<string, unknown>;
   created_at: Date;
   updated_at: Date;
 }
@@ -152,35 +157,35 @@ export class MockFactories {
 
   /**
    * Create a generic agent with default values
+   * Matches the actual agents table schema in the database
    */
   static createAgent(overrides: Partial<Agent> = {}): Agent {
     const timestamp = new Date();
     return {
-      id: uuidv4(),
-      organization_slug: 'test-org',
-      slug: 'test-agent',
-      display_name: 'Test Agent',
+      slug: `test-agent-${uuidv4().slice(0, 8)}`,
+      organization_slug: ['test-org'],
+      name: 'Test Agent',
       description: 'A test agent for automated testing',
-      agent_type: 'context',
-      runner_type: 'openai',
-      mode_profile: 'context_full',
       version: '1.0.0',
-      status: 'active',
-      yaml: JSON.stringify({
-        metadata: {
-          name: 'test-agent',
-          version: '1.0.0',
+      agent_type: 'context',
+      department: 'testing',
+      tags: ['test', 'automated'],
+      io_schema: {
+        input: { type: 'object', properties: { message: { type: 'string' } } },
+        output: {
+          type: 'object',
+          properties: { response: { type: 'string' } },
         },
-      }),
-      agent_card: { protocol: 'a2a' },
-      context: { prompt: 'You are a helpful test agent' },
-      configuration: {
+      },
+      capabilities: ['test-capability'],
+      context: 'You are a helpful test agent',
+      endpoint: null,
+      llm_config: {
+        provider: 'openai',
         model: 'gpt-4o',
-        temperature: 0.7,
+        parameters: { temperature: 0.7 },
       },
-      config: {
-        capabilities: [],
-      },
+      metadata: {},
       created_at: timestamp,
       updated_at: timestamp,
       ...overrides,
@@ -192,17 +197,15 @@ export class MockFactories {
    */
   static createContextAgent(overrides: Partial<Agent> = {}): Agent {
     return MockFactories.createAgent({
-      slug: 'context-agent',
+      slug: `context-agent-${uuidv4().slice(0, 8)}`,
+      name: 'Context Agent',
       agent_type: 'context',
-      mode_profile: 'context_full',
-      runner_type: 'openai',
-      context: {
-        prompt_prefix: 'You analyze and summarize information',
-      },
-      configuration: {
+      department: 'analysis',
+      context: 'You analyze and summarize information',
+      llm_config: {
+        provider: 'openai',
         model: 'gpt-4o',
-        temperature: 0.6,
-        streaming: true,
+        parameters: { temperature: 0.6 },
       },
       ...overrides,
     });
@@ -213,13 +216,15 @@ export class MockFactories {
    */
   static createApiAgent(overrides: Partial<Agent> = {}): Agent {
     return MockFactories.createAgent({
-      slug: 'api-agent',
+      slug: `api-agent-${uuidv4().slice(0, 8)}`,
+      name: 'API Agent',
       agent_type: 'api',
-      mode_profile: 'api_full',
-      runner_type: 'openai',
-      configuration: {
-        method: 'GET',
+      department: 'integration',
+      context: 'API integration agent for external services',
+      llm_config: null,
+      endpoint: {
         url: 'https://api.example.com/test',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       },
       ...overrides,
@@ -227,31 +232,42 @@ export class MockFactories {
   }
 
   /**
-   * Create a tool agent (MCP tools)
+   * Create an external agent (A2A protocol)
    */
-  static createToolAgent(overrides: Partial<Agent> = {}): Agent {
+  static createExternalAgent(overrides: Partial<Agent> = {}): Agent {
     return MockFactories.createAgent({
-      slug: 'tool-agent',
-      agent_type: 'tool',
-      mode_profile: 'tool_full',
-      configuration: {
-        tools: ['mcp_tool_example'],
+      slug: `external-agent-${uuidv4().slice(0, 8)}`,
+      name: 'External Agent',
+      agent_type: 'external',
+      department: 'external',
+      context: 'External agent using A2A protocol',
+      llm_config: null,
+      endpoint: {
+        url: 'https://external-agent.example.com/a2a',
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
       },
       ...overrides,
     });
   }
 
   /**
-   * Create a function agent (custom code execution)
+   * Create a media agent (image/video generation)
    */
-  static createFunctionAgent(overrides: Partial<Agent> = {}): Agent {
+  static createMediaAgent(overrides: Partial<Agent> = {}): Agent {
     return MockFactories.createAgent({
-      slug: 'function-agent',
-      agent_type: 'function',
-      mode_profile: 'function_full',
-      runner_type: 'custom',
-      configuration: {
-        code: 'function handler(input) { return { result: input }; }',
+      slug: `media-agent-${uuidv4().slice(0, 8)}`,
+      name: 'Media Agent',
+      agent_type: 'media',
+      department: 'creative',
+      capabilities: ['image-generation'],
+      context: 'Media generation agent for images and videos',
+      llm_config: null,
+      endpoint: null,
+      metadata: {
+        mediaType: 'image',
+        defaultProvider: 'openai',
+        defaultModel: 'gpt-image-1.5',
       },
       ...overrides,
     });
@@ -262,11 +278,14 @@ export class MockFactories {
    */
   static createOrchestratorAgent(overrides: Partial<Agent> = {}): Agent {
     return MockFactories.createAgent({
-      slug: 'orchestrator-agent',
+      slug: `orchestrator-agent-${uuidv4().slice(0, 8)}`,
+      name: 'Orchestrator Agent',
       agent_type: 'orchestrator',
-      mode_profile: 'orchestrator_full',
-      runner_type: 'orchestrator',
-      configuration: {
+      department: 'orchestration',
+      context: 'Orchestrator agent that coordinates other agents',
+      llm_config: null,
+      endpoint: null,
+      metadata: {
         orchestration_slug: 'test-orchestration',
       },
       ...overrides,

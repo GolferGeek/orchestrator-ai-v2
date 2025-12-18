@@ -15,17 +15,18 @@ describe('MockFactories', () => {
       it('should create agent with default values', () => {
         const agent = MockFactories.createAgent();
 
-        expect(agent.id).toBeDefined();
-        expect(agent.organization_slug).toBe('test-org');
-        expect(agent.slug).toBe('test-agent');
-        expect(agent.display_name).toBe('Test Agent');
+        expect(agent.slug).toBeDefined();
+        expect(agent.organization_slug).toEqual(['test-org']);
+        expect(agent.name).toBe('Test Agent');
         expect(agent.agent_type).toBe('context');
-        expect(agent.runner_type).toBe('openai');
+        expect(agent.department).toBe('testing');
+        expect(agent.context).toBe('You are a helpful test agent');
         expect(agent.created_at).toBeInstanceOf(Date);
         expect(agent.updated_at).toBeInstanceOf(Date);
-        expect(agent.configuration).toEqual({
+        expect(agent.llm_config).toEqual({
+          provider: 'openai',
           model: 'gpt-4o',
-          temperature: 0.7,
+          parameters: { temperature: 0.7 },
         });
       });
 
@@ -33,19 +34,24 @@ describe('MockFactories', () => {
         const agent = MockFactories.createAgent({
           slug: 'custom-agent',
           agent_type: 'api',
-          configuration: { model: 'gpt-3.5-turbo' },
+          llm_config: null,
+          endpoint: { url: 'https://api.example.com/test', method: 'POST' },
         });
 
         expect(agent.slug).toBe('custom-agent');
         expect(agent.agent_type).toBe('api');
-        expect(agent.configuration).toEqual({ model: 'gpt-3.5-turbo' });
+        expect(agent.llm_config).toBeNull();
+        expect(agent.endpoint).toEqual({
+          url: 'https://api.example.com/test',
+          method: 'POST',
+        });
       });
 
-      it('should generate unique IDs for multiple agents', () => {
+      it('should generate unique slugs for multiple agents', () => {
         const agent1 = MockFactories.createAgent();
         const agent2 = MockFactories.createAgent();
 
-        expect(agent1.id).not.toBe(agent2.id);
+        expect(agent1.slug).not.toBe(agent2.slug);
       });
     });
 
@@ -54,55 +60,73 @@ describe('MockFactories', () => {
         const agent = MockFactories.createContextAgent();
 
         expect(agent.agent_type).toBe('context');
-        expect(agent.runner_type).toBe('openai');
-        expect(agent.configuration.model).toBe('gpt-4o');
+        expect(agent.department).toBe('analysis');
+        expect(agent.llm_config).toEqual({
+          provider: 'openai',
+          model: 'gpt-4o',
+          parameters: { temperature: 0.6 },
+        });
       });
 
       it('createApiAgent should create api agent', () => {
         const agent = MockFactories.createApiAgent();
 
         expect(agent.agent_type).toBe('api');
-        expect(agent.runner_type).toBe('openai');
-        expect(agent.configuration.method).toBe('GET');
-        expect(agent.configuration.url).toBe('https://api.example.com/test');
+        expect(agent.llm_config).toBeNull();
+        expect(agent.endpoint).toEqual({
+          url: 'https://api.example.com/test',
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
       });
 
-      it('createToolAgent should create tool agent', () => {
-        const agent = MockFactories.createToolAgent();
+      it('createExternalAgent should create external agent', () => {
+        const agent = MockFactories.createExternalAgent();
 
-        expect(agent.agent_type).toBe('tool');
-        expect(agent.runner_type).toBe('openai');
-        expect(agent.configuration.tools).toEqual(['mcp_tool_example']);
+        expect(agent.agent_type).toBe('external');
+        expect(agent.department).toBe('external');
+        expect(agent.endpoint).toBeDefined();
+        expect(agent.endpoint?.url).toContain('external-agent');
       });
 
-      it('createFunctionAgent should create function agent', () => {
-        const agent = MockFactories.createFunctionAgent();
+      it('createMediaAgent should create media agent', () => {
+        const agent = MockFactories.createMediaAgent();
 
-        expect(agent.agent_type).toBe('function');
-        expect(agent.runner_type).toBe('custom');
-        expect(agent.configuration.code).toContain('function handler');
+        expect(agent.agent_type).toBe('media');
+        expect(agent.department).toBe('creative');
+        expect(agent.capabilities).toContain('image-generation');
+        expect(agent.metadata).toMatchObject({
+          mediaType: 'image',
+          defaultProvider: 'openai',
+        });
       });
 
       it('createOrchestratorAgent should create orchestrator agent', () => {
         const agent = MockFactories.createOrchestratorAgent();
 
         expect(agent.agent_type).toBe('orchestrator');
-        expect(agent.runner_type).toBe('orchestrator');
-        expect(agent.configuration.orchestration_slug).toBe(
-          'test-orchestration',
-        );
+        expect(agent.department).toBe('orchestration');
+        expect(agent.metadata).toMatchObject({
+          orchestration_slug: 'test-orchestration',
+        });
       });
 
       it('should allow overrides on type-specific factories', () => {
         const agent = MockFactories.createContextAgent({
           slug: 'custom-context',
-          configuration: { model: 'gpt-3.5-turbo', temperature: 0.5 },
+          llm_config: {
+            provider: 'anthropic',
+            model: 'claude-3-5-sonnet',
+            parameters: { temperature: 0.5 },
+          },
         });
 
         expect(agent.slug).toBe('custom-context');
         expect(agent.agent_type).toBe('context');
-        expect(agent.configuration.model).toBe('gpt-3.5-turbo');
-        expect(agent.configuration.temperature).toBe(0.5);
+        expect(agent.llm_config).toMatchObject({
+          provider: 'anthropic',
+          model: 'claude-3-5-sonnet',
+        });
       });
     });
   });
@@ -375,12 +399,14 @@ describe('MockFactories', () => {
       const uuidRegex =
         /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+      // Note: Agent uses slug as primary key (contains UUID suffix), not id
       const agent = MockFactories.createAgent();
       const definition = MockFactories.createOrchestrationDefinition();
       const run = MockFactories.createOrchestrationRun();
       const step = MockFactories.createOrchestrationStep();
 
-      expect(agent.id).toMatch(uuidRegex);
+      // Agent slug contains UUID suffix
+      expect(agent.slug).toContain('test-agent-');
       expect(definition.id).toMatch(uuidRegex);
       expect(run.id).toMatch(uuidRegex);
       expect(step.id).toMatch(uuidRegex);

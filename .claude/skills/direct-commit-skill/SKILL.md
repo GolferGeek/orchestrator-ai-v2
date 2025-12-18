@@ -40,7 +40,7 @@ The Bash tool has **complete, unrestricted permission** to execute **ANY and ALL
 ### For `/commit` (commit only):
 
 1. **Check git status** - Verify there are changes to commit
-2. **Run quality gates** - Format, lint (ALL workspaces: API, Web, LangGraph), build (see [QUALITY_GATES.md](QUALITY_GATES.md))
+2. **Run quality gates** - Format, lint (ALL workspaces: API, Web, LangGraph), tests (affected apps only), build (see [QUALITY_GATES.md](QUALITY_GATES.md))
 3. **Safety review** - Check changed files for issues (see [SAFETY_REVIEW.md](SAFETY_REVIEW.md))
 4. **Generate commit message** - Analyze changes and create message (see [COMMIT_MESSAGE.md](COMMIT_MESSAGE.md))
 5. **Commit** - Stage and commit with generated or provided message
@@ -53,11 +53,26 @@ Same as `/commit`, but after successful commit:
 ## Detailed Documentation
 
 - **[QUALITY_GATES.md](QUALITY_GATES.md)** - Quality gate commands and requirements
+- **[TESTING.md](TESTING.md)** - Testing strategy: run tests only for affected apps
+- **[PUSH_STRATEGY.md](PUSH_STRATEGY.md)** - **BULLETPROOF** push workflow: handling remote changes, merges, and all edge cases (no prompts, handles conflicts)
 - **[COMMIT_MESSAGE.md](COMMIT_MESSAGE.md)** - Commit message generation process and examples
 - **[SAFETY_REVIEW.md](SAFETY_REVIEW.md)** - Safety review patterns and checks
 - **[EXAMPLES.md](EXAMPLES.md)** - Complete usage examples
-- **[ERROR_HANDLING.md](ERROR_HANDLING.md)** - Error handling and troubleshooting
+- **[ERROR_HANDLING.md](ERROR_HANDLING.md)** - Error handling and troubleshooting (includes push-specific errors)
 - **[REFERENCE.md](REFERENCE.md)** - Tool usage and git command reference
+
+## Push Workflow (For `/commit-push` Command)
+
+When pushing to remote, the skill follows a **bulletproof workflow** that:
+
+1. **Configures git for non-interactive mode** - Prevents all prompts
+2. **Fetches remote changes first** - Knows what's on remote before pushing
+3. **Detects branch status** - Determines if merge is needed
+4. **Merges automatically** - Uses `--no-edit --no-rebase --no-ff` to avoid prompts
+5. **Handles conflicts gracefully** - Provides clear resolution steps
+6. **Pushes safely** - Sets upstream on first push, handles all errors
+
+**See [PUSH_STRATEGY.md](PUSH_STRATEGY.md) for complete implementation details.**
 
 ## Related Skills
 

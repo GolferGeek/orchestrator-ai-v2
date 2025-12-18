@@ -25,6 +25,8 @@ Commit your changes to the current branch and push to remote after running quali
    - Commits to current branch
 
 4. **Pushes to remote:**
+   - Fetches remote changes first
+   - Merges remote changes if branch has diverged (may prompt for merge approval)
    - Pushes to `origin/current-branch`
    - Handles any push errors
 
@@ -86,9 +88,17 @@ The custom message will be used exactly as provided.
 ## Push Behavior
 
 After successful commit:
-- Pushes to `origin/<current-branch>`
-- If branch doesn't exist on remote, may need to set upstream
-- Handles push errors gracefully
+- **Fetches remote changes first** to check for diverged branches
+- **If remote has changes:**
+  - Pulls and merges remote changes (creates merge commit if needed)
+  - Then pushes to `origin/<current-branch>`
+- **If no remote changes:**
+  - Pushes directly to `origin/<current-branch>`
+- **If branch doesn't exist on remote:**
+  - Sets upstream and pushes: `git push -u origin <current-branch>`
+- **Handles push errors gracefully**
+
+**Note:** If the remote branch has diverged (has commits you don't have), you may be prompted to approve a merge. This is normal and ensures your local changes are merged with remote changes before pushing.
 
 ## Examples
 

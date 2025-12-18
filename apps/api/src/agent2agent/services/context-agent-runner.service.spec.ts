@@ -264,11 +264,14 @@ describe('ContextAgentRunnerService', () => {
       ).toEqual(deliverableData?.version);
       expect(result.payload?.metadata?.provider).toBe('anthropic');
 
-      // Verify service calls
+      // Verify service calls - plansService.findByConversationId now takes ExecutionContext
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(plansService.findByConversationId).toHaveBeenCalledWith(
-        'conv-123',
-        'user-123',
+        expect.objectContaining({
+          conversationId: 'conv-123',
+          userId: 'user-123',
+          orgSlug: 'test-org',
+        }),
       );
 
       // eslint-disable-next-line @typescript-eslint/unbound-method

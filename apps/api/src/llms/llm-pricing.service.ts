@@ -174,7 +174,7 @@ export class LLMPricingService {
       let client;
       try {
         client = this.supabaseService.getServiceClient();
-      } catch (error) {
+      } catch {
         this.logger.warn(
           'Supabase service client not yet available, will retry later',
         );

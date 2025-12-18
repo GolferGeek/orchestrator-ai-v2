@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { ApiAgentRunnerService } from './api-agent-runner.service';
 import { HttpService } from '@nestjs/axios';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -11,6 +12,7 @@ import { Agent2AgentConversationsService } from './agent-conversations.service';
 import { StreamingService } from './streaming.service';
 import { TasksService } from '../tasks/tasks.service';
 import { AgentConversationsService } from '../conversations/agent-conversations.service';
+import { SupabaseService } from '../../supabase/supabase.service';
 import { AgentRuntimeDefinition } from '../../agent-platform/interfaces/agent.interface';
 import { TaskRequestDto, AgentTaskMode } from '../dto/task-request.dto';
 import { of, throwError } from 'rxjs';
@@ -117,6 +119,25 @@ describe('ApiAgentRunnerService', () => {
           useValue: {
             findByConversationId: jest.fn(),
             create: jest.fn(),
+          },
+        },
+        {
+          provide: SupabaseService,
+          useValue: {
+            getClient: jest.fn(),
+            getServiceClient: jest.fn(),
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn((key: string) => {
+              const config: Record<string, string> = {
+                SUPABASE_URL: 'http://localhost:54321',
+                SUPABASE_SERVICE_ROLE_KEY: 'test-key',
+              };
+              return config[key];
+            }),
           },
         },
       ],
