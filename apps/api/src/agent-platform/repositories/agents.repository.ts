@@ -31,8 +31,8 @@ export class AgentsRepository {
   }
 
   /**
-   * Normalize organization_slug: database stores as TEXT but code expects string[]
-   * Converts string to [string] or keeps array as-is
+   * Normalize organization_slug: database stores as TEXT[] array
+   * Ensures it's always an array for consistency
    */
   private normalizeAgentRecord(record: AgentRecord): AgentRecord {
     return {
@@ -52,18 +52,17 @@ export class AgentsRepository {
 
   async upsert(payload: AgentUpsertInput): Promise<AgentRecord> {
     const client = this.getClient();
-    // Convert organization_slug array to string (database stores as TEXT, not array)
-    const orgSlugValue = Array.isArray(payload.organization_slug) && payload.organization_slug.length > 0
-      ? payload.organization_slug[0]
+    // Normalize organization_slug to array (database stores as TEXT[])
+    const orgSlugArray = Array.isArray(payload.organization_slug) && payload.organization_slug.length > 0
+      ? payload.organization_slug
       : payload.organization_slug
-        ? (typeof payload.organization_slug === 'string' ? payload.organization_slug : 'demo-org')
-        : 'demo-org';
+        ? (typeof payload.organization_slug === 'string' ? [payload.organization_slug] : ['demo-org'])
+        : ['demo-org'];
 
-    // Create row - database stores organization_slug as TEXT (string), not array
-    // Use type assertion to bypass interface type check
+    // Create row - database stores organization_slug as TEXT[] array
     const row: AgentUpsertRow = {
       slug: payload.slug,
-      organization_slug: [orgSlugValue], // Store as array for interface, but DB will convert to TEXT
+      organization_slug: orgSlugArray,
       name: payload.name,
       description: payload.description,
       version: payload.version ?? '1.0.0',
@@ -79,13 +78,7 @@ export class AgentsRepository {
       updated_at: new Date().toISOString(),
     } as AgentUpsertRow;
 
-    // Override organization_slug to be string for database (Supabase will store as TEXT)
-    const dbRow = {
-      ...row,
-      organization_slug: orgSlugValue, // Pass string directly to database
-    };
-
-    const rows = [dbRow as unknown as AgentUpsertRow];
+    const rows = [row];
 
     const { data, error } = (await client
       .from(AGENTS_TABLE)
@@ -118,9 +111,10 @@ export class AgentsRepository {
       .eq('slug', agentSlug)
       .limit(1);
 
-    // Filter by organization (organization_slug is TEXT, not array)
+    // Filter by organization (organization_slug is TEXT[], an array column)
     if (organizationSlug) {
-      query = query.eq('organization_slug', organizationSlug);
+      // Use contains operator to check if the array contains the organization slug
+      query = query.contains('organization_slug', [organizationSlug]);
     }
 
     const { data, error } =
@@ -140,13 +134,14 @@ export class AgentsRepository {
     const client = this.getClient();
     let query = client.from(AGENTS_TABLE).select('*');
 
-    // Filter by organization (organization_slug is TEXT, not array)
+    // Filter by organization (organization_slug is TEXT[], an array column)
     if (organizationSlug) {
       // Query for agents that belong to this specific organization
-      query = query.eq('organization_slug', organizationSlug);
+      // Use contains operator to check if the array contains the organization slug
+      query = query.contains('organization_slug', [organizationSlug]);
     } else {
-      // Query for truly global agents (organization_slug is null or empty)
-      query = query.or('organization_slug.is.null,organization_slug.eq.');
+      // Query for truly global agents (organization_slug is null or empty array)
+      query = query.or('organization_slug.is.null,organization_slug.eq.{}');
     }
 
     const { data, error } = (await query.order('slug', {

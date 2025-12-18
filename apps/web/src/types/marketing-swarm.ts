@@ -75,29 +75,14 @@ export interface MarketingAgent {
   isActive: boolean;
 }
 
-export interface AgentLLMConfig {
-  id: string;
-  agentId: string;
-  llmProvider: string;
-  llmModel: string;
-  displayName?: string;
-  temperature?: number;
-  maxTokens?: number;
-  isDefault: boolean;
-  isActive: boolean;
-}
-
-// Marketing agent with embedded LLM configs
-export interface MarketingAgentWithConfigs extends MarketingAgent {
-  llmConfigs: AgentLLMConfig[];
-}
-
 // Swarm configuration response from API
+// Note: LLM models are fetched separately from /llm/models endpoint
+// Frontend now sends llmProvider/llmModel directly in config
 export interface SwarmConfigurationResponse {
   contentTypes: MarketingContentType[];
-  writers: MarketingAgentWithConfigs[];
-  editors: MarketingAgentWithConfigs[];
-  evaluators: MarketingAgentWithConfigs[];
+  writers: MarketingAgent[];
+  editors: MarketingAgent[];
+  evaluators: MarketingAgent[];
 }
 
 // =============================================================================

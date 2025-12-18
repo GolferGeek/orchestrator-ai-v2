@@ -289,14 +289,20 @@ export class LLMServiceFactory {
   }
 
   /**
-   * Normalize provider name to lowercase
+   * Normalize provider name to lowercase and map aliases
    *
    * @private
    * @param provider - Provider name to normalize
    * @returns Normalized provider name
    */
   private normalizeProviderName(provider: string): SupportedProvider {
-    return provider.toLowerCase().trim() as SupportedProvider;
+    const normalized = provider.toLowerCase().trim();
+    // Map ollama-cloud to ollama - the OllamaLLMService handles cloud mode
+    // based on OLLAMA_CLOUD_API_KEY environment variable
+    if (normalized === 'ollama-cloud') {
+      return 'ollama';
+    }
+    return normalized as SupportedProvider;
   }
 
   /**

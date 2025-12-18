@@ -1,7 +1,10 @@
 /**
  * Marketing Controller Tests
  *
- * Tests the Marketing Swarm configuration endpoints
+ * Tests the Marketing Swarm configuration endpoints.
+ *
+ * Note: LLM model selection is now handled via /llm/models endpoint.
+ * The marketing endpoints return agents and content types only.
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
@@ -20,20 +23,12 @@ interface ContentType {
   isActive: boolean;
 }
 
-interface LlmConfig {
-  id: string;
-  agentId: string;
-  llmProvider: string;
-  llmModel: string;
-  isActive?: boolean;
-}
-
 interface Agent {
   id: string;
   slug: string;
   name: string;
   role: 'writer' | 'editor' | 'evaluator';
-  llmConfigs?: LlmConfig[];
+  isActive: boolean;
 }
 
 interface ConfigResponse {
@@ -124,16 +119,15 @@ describe('MarketingController (e2e)', () => {
         expect(contentType).toHaveProperty('isActive');
       }
 
-      // Verify agents have required fields
+      // Verify agents have required fields (no llmConfigs anymore)
       if (body.writers.length > 0) {
-        const writer = body.writers[0];
+        const writer = body.writers[0]!;
         expect(writer).toHaveProperty('id');
         expect(writer).toHaveProperty('slug');
         expect(writer).toHaveProperty('name');
         expect(writer).toHaveProperty('role');
         expect(writer.role).toBe('writer');
-        expect(writer).toHaveProperty('llmConfigs');
-        expect(Array.isArray(writer.llmConfigs)).toBe(true);
+        expect(writer).toHaveProperty('isActive');
       }
     });
   });
@@ -168,7 +162,7 @@ describe('MarketingController (e2e)', () => {
 
       const allTypes = allTypesResponse.body as ContentType[];
       if (allTypes.length > 0) {
-        const slug = allTypes[0].slug;
+        const slug = allTypes[0]!.slug;
 
         const response = await request(app.getHttpServer() as App)
           .get(`/marketing/content-types/${slug}`)
@@ -201,7 +195,7 @@ describe('MarketingController (e2e)', () => {
       expect(Array.isArray(body)).toBe(true);
 
       if (body.length > 0) {
-        const agent = body[0];
+        const agent = body[0]!;
         expect(agent).toHaveProperty('id');
         expect(agent).toHaveProperty('slug');
         expect(agent).toHaveProperty('name');
@@ -225,29 +219,6 @@ describe('MarketingController (e2e)', () => {
         });
       }
     });
-
-    it('should include LLM configs when requested', async () => {
-      const response = await request(app.getHttpServer() as App)
-        .get('/marketing/agents?includeConfigs=true')
-        .set('Authorization', `Bearer ${authToken}`)
-        .expect(200);
-
-      const body = response.body as Agent[];
-      expect(Array.isArray(body)).toBe(true);
-
-      if (body.length > 0) {
-        const agent = body[0];
-        expect(agent).toHaveProperty('llmConfigs');
-        expect(Array.isArray(agent.llmConfigs)).toBe(true);
-
-        if (agent.llmConfigs && agent.llmConfigs.length > 0) {
-          const config = agent.llmConfigs[0];
-          expect(config).toHaveProperty('id');
-          expect(config).toHaveProperty('llmProvider');
-          expect(config).toHaveProperty('llmModel');
-        }
-      }
-    });
   });
 
   describe('GET /marketing/agents/:slug', () => {
@@ -260,7 +231,7 @@ describe('MarketingController (e2e)', () => {
 
       const allAgents = allAgentsResponse.body as Agent[];
       if (allAgents.length > 0) {
-        const slug = allAgents[0].slug;
+        const slug = allAgents[0]!.slug;
 
         const response = await request(app.getHttpServer() as App)
           .get(`/marketing/agents/${slug}`)
@@ -280,58 +251,6 @@ describe('MarketingController (e2e)', () => {
         .get('/marketing/agents/non-existent-agent-12345')
         .set('Authorization', `Bearer ${authToken}`)
         .expect(404);
-    });
-  });
-
-  describe('GET /marketing/llm-configs', () => {
-    it('should return all LLM configs', async () => {
-      const response = await request(app.getHttpServer() as App)
-        .get('/marketing/llm-configs')
-        .set('Authorization', `Bearer ${authToken}`)
-        .expect(200);
-
-      const body = response.body as LlmConfig[];
-      expect(Array.isArray(body)).toBe(true);
-
-      if (body.length > 0) {
-        const config = body[0];
-        expect(config).toHaveProperty('id');
-        expect(config).toHaveProperty('agentId');
-        expect(config).toHaveProperty('llmProvider');
-        expect(config).toHaveProperty('llmModel');
-        expect(config).toHaveProperty('isActive');
-      }
-    });
-  });
-
-  describe('GET /marketing/agents/:agentId/llm-configs', () => {
-    it('should return LLM configs for a specific agent', async () => {
-      // First get all agents to find a valid agent ID
-      const allAgentsResponse = await request(app.getHttpServer() as App)
-        .get('/marketing/agents')
-        .set('Authorization', `Bearer ${authToken}`)
-        .expect(200);
-
-      const allAgents = allAgentsResponse.body as Agent[];
-      if (allAgents.length > 0) {
-        const agentId = allAgents[0].id;
-
-        const response = await request(app.getHttpServer() as App)
-          .get(`/marketing/agents/${agentId}/llm-configs`)
-          .set('Authorization', `Bearer ${authToken}`)
-          .expect(200);
-
-        const body = response.body as LlmConfig[];
-        expect(Array.isArray(body)).toBe(true);
-
-        if (body.length > 0) {
-          body.forEach((config: LlmConfig) => {
-            expect(config).toHaveProperty('agentId', agentId);
-            expect(config).toHaveProperty('llmProvider');
-            expect(config).toHaveProperty('llmModel');
-          });
-        }
-      }
     });
   });
 });

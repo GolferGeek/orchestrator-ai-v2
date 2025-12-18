@@ -2,14 +2,12 @@ import {
   IsString,
   IsOptional,
   IsArray,
-  IsNumber,
   IsBoolean,
-  IsUUID,
 } from 'class-validator';
 
 // Content Type DTOs
 export class ContentTypeDto {
-  @IsUUID()
+  @IsString()
   id!: string;
 
   @IsString()
@@ -36,7 +34,7 @@ export class ContentTypeDto {
 
 // Marketing Agent DTOs
 export class MarketingAgentDto {
-  @IsUUID()
+  @IsString()
   id!: string;
 
   @IsString()
@@ -58,45 +56,6 @@ export class MarketingAgentDto {
 
   @IsBoolean()
   isActive!: boolean;
-}
-
-// Agent LLM Config DTOs
-export class AgentLLMConfigDto {
-  @IsUUID()
-  id!: string;
-
-  @IsUUID()
-  agentId!: string;
-
-  @IsString()
-  llmProvider!: string;
-
-  @IsString()
-  llmModel!: string;
-
-  @IsOptional()
-  @IsString()
-  displayName?: string;
-
-  @IsOptional()
-  @IsNumber()
-  temperature?: number;
-
-  @IsOptional()
-  @IsNumber()
-  maxTokens?: number;
-
-  @IsBoolean()
-  isDefault!: boolean;
-
-  @IsBoolean()
-  isActive!: boolean;
-}
-
-// Response DTOs with joined data
-export class MarketingAgentWithConfigsDto extends MarketingAgentDto {
-  @IsArray()
-  llmConfigs!: AgentLLMConfigDto[];
 }
 
 // Create/Update DTOs (for future admin endpoints)

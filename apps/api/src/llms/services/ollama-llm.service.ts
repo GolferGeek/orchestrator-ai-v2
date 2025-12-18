@@ -81,22 +81,27 @@ export class OllamaLLMService extends BaseLLMService {
       llmPricingService,
     );
 
-    // Detect cloud mode based on API key presence
-    this.ollamaApiKey = config.apiKey || process.env.OLLAMA_CLOUD_API_KEY;
-    this.isCloudMode = !!this.ollamaApiKey;
+    // Simple: cloud mode only if provider is explicitly 'ollama-cloud'
+    this.isCloudMode = config.provider === 'ollama-cloud';
 
-    // Set base URL based on mode
     if (this.isCloudMode) {
+      // Cloud mode: use cloud URL and API key
       this.ollamaBaseUrl =
-        process.env.OLLAMA_CLOUD_BASE_URL || 'https://ollama.com';
+        config.baseUrl ||
+        process.env.OLLAMA_CLOUD_BASE_URL ||
+        'https://ollama.com';
+      this.ollamaApiKey =
+        config.apiKey || process.env.OLLAMA_CLOUD_API_KEY;
       this.logger.log(
         `Ollama service initialized in CLOUD mode (${this.ollamaBaseUrl})`,
       );
     } else {
+      // Local mode: use local URL, no API key needed
       this.ollamaBaseUrl =
         config.baseUrl ||
         process.env.OLLAMA_BASE_URL ||
         'http://localhost:11434';
+      this.ollamaApiKey = undefined;
       this.logger.log(
         `Ollama service initialized in LOCAL mode (${this.ollamaBaseUrl})`,
       );
@@ -371,8 +376,12 @@ export class OllamaLLMService extends BaseLLMService {
   protected validateConfig(config: LLMServiceConfig): void {
     super.validateConfig(config);
 
-    if (config.provider !== 'ollama') {
-      throw new Error('OllamaLLMService requires provider to be "ollama"');
+    // Accept both 'ollama' (local) and 'ollama-cloud' (cloud) providers
+    const validProviders = ['ollama', 'ollama-cloud'];
+    if (!validProviders.includes(config.provider)) {
+      throw new Error(
+        `OllamaLLMService requires provider to be "ollama" or "ollama-cloud"`,
+      );
     }
 
     // Validate Ollama connection

@@ -20,8 +20,6 @@ import { useConversationsStore } from '@/stores/conversationsStore';
 import type {
   MarketingContentType,
   MarketingAgent,
-  AgentLLMConfig,
-  MarketingAgentWithConfigs,
   SwarmConfigurationResponse,
   SwarmTaskResponse,
   SwarmStatusResponse,
@@ -52,6 +50,9 @@ class MarketingSwarmService {
   /**
    * Fetch all configuration data in a single request
    * Uses the /api/marketing/config endpoint which returns all data efficiently
+   *
+   * Note: LLM models are now fetched separately from /llm/models endpoint.
+   * The frontend sends llmProvider/llmModel selections directly in the config.
    */
   async fetchAllConfiguration(_orgSlug: string): Promise<void> {
     const store = useMarketingSwarmStore();
@@ -74,14 +75,6 @@ class MarketingSwarmService {
         ...response.evaluators,
       ];
       store.setAgents(allAgents);
-
-      // Flatten LLM configs from all agents
-      const allConfigs: AgentLLMConfig[] = [
-        ...response.writers.flatMap((a: MarketingAgentWithConfigs) => a.llmConfigs),
-        ...response.editors.flatMap((a: MarketingAgentWithConfigs) => a.llmConfigs),
-        ...response.evaluators.flatMap((a: MarketingAgentWithConfigs) => a.llmConfigs),
-      ];
-      store.setAgentLLMConfigs(allConfigs);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to fetch configuration';
       store.setError(message);
@@ -129,24 +122,8 @@ class MarketingSwarmService {
     }
   }
 
-  /**
-   * Fetch all LLM configs
-   */
-  async fetchAgentLLMConfigs(): Promise<AgentLLMConfig[]> {
-    const store = useMarketingSwarmStore();
-
-    try {
-      const response = await apiService.get<AgentLLMConfig[]>(
-        '/marketing/llm-configs'
-      );
-      store.setAgentLLMConfigs(response);
-      return response;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to fetch LLM configs';
-      store.setError(message);
-      throw error;
-    }
-  }
+  // Note: fetchAgentLLMConfigs was removed - LLM models are now fetched
+  // from /llm/models endpoint and selected directly in the UI
 
   /**
    * Create a new conversation for the Marketing Swarm

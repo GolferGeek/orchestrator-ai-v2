@@ -102,37 +102,50 @@ export class ProviderConfigService {
       },
     });
 
-    // Ollama Configuration (Local or Cloud)
-    // Cloud mode is automatically detected when OLLAMA_CLOUD_API_KEY is set
-    const isOllamaCloudMode = !!process.env.OLLAMA_CLOUD_API_KEY;
+    // Ollama Local Configuration
+    // Provider 'ollama' = local mode (localhost:11434, no API key)
     this.providerConfigs.set('ollama', {
-      name: isOllamaCloudMode ? 'Ollama Cloud' : 'Ollama',
-      baseUrl: isOllamaCloudMode
-        ? process.env.OLLAMA_CLOUD_BASE_URL || 'https://ollama.com'
-        : process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
-      apiKey: isOllamaCloudMode ? process.env.OLLAMA_CLOUD_API_KEY : undefined,
+      name: 'Ollama',
+      baseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
+      apiKey: undefined, // Local mode never needs API key
       defaultHeaders: {
         'User-Agent': 'OrchestratorAI/1.0',
       },
       timeout: 300000, // 5 minutes - no timeouts in production
-      retryAttempts: isOllamaCloudMode ? 3 : 2,
-      retryDelay: isOllamaCloudMode ? 1000 : 2000,
-      rateLimits: isOllamaCloudMode
-        ? {
-            requestsPerMinute: 500, // Estimated cloud rate limits
-            tokensPerMinute: 100000,
-          }
-        : undefined,
+      retryAttempts: 2,
+      retryDelay: 2000,
+      rateLimits: undefined, // Local has no rate limits
       features: {
         supportsStreaming: true,
-        supportsNoTrain: !isOllamaCloudMode, // Local: true, Cloud: false (may train)
-        supportsNoRetain: !isOllamaCloudMode, // Local: true, Cloud: false (may retain)
+        supportsNoTrain: true, // Local: data stays local
+        supportsNoRetain: true, // Local: data stays local
         supportsFunctions: false,
       },
     });
-    if (isOllamaCloudMode) {
-      this.logger.log('Ollama configured in CLOUD mode');
-    }
+
+    // Ollama Cloud Configuration
+    // Provider 'ollama-cloud' = cloud mode (ollama.com, requires API key)
+    this.providerConfigs.set('ollama-cloud', {
+      name: 'Ollama Cloud',
+      baseUrl: process.env.OLLAMA_CLOUD_BASE_URL || 'https://ollama.com',
+      apiKey: process.env.OLLAMA_CLOUD_API_KEY,
+      defaultHeaders: {
+        'User-Agent': 'OrchestratorAI/1.0',
+      },
+      timeout: 300000, // 5 minutes - no timeouts in production
+      retryAttempts: 3,
+      retryDelay: 1000,
+      rateLimits: {
+        requestsPerMinute: 500, // Estimated cloud rate limits
+        tokensPerMinute: 100000,
+      },
+      features: {
+        supportsStreaming: true,
+        supportsNoTrain: false, // Cloud: may train on data
+        supportsNoRetain: false, // Cloud: may retain data
+        supportsFunctions: false,
+      },
+    });
 
     // Google Configuration
     this.providerConfigs.set('google', {
@@ -357,10 +370,11 @@ export class ProviderConfigService {
     }
 
     // API key validation: required for external providers and Ollama Cloud
-    const isOllamaCloudMode = !!process.env.OLLAMA_CLOUD_API_KEY;
     if (providerName === 'ollama') {
-      // Ollama: API key required only in cloud mode
-      if (isOllamaCloudMode && !config.apiKey) {
+      // Ollama local: no API key needed
+    } else if (providerName === 'ollama-cloud') {
+      // Ollama cloud: API key required
+      if (!config.apiKey) {
         errors.push('API key is required for Ollama Cloud mode');
       }
     } else if (!config.apiKey) {
@@ -388,8 +402,8 @@ export class ProviderConfigService {
     externalProviders: number;
   } {
     const providers = Array.from(this.providerConfigs.values());
-    // Ollama in local mode is a local provider; cloud mode is external
-    const localProviderNames = ['Ollama']; // Ollama Cloud is not local
+    // Local providers: only 'Ollama' (not 'Ollama Cloud')
+    const localProviderNames = ['Ollama'];
 
     return {
       totalProviders: providers.length,
@@ -404,9 +418,11 @@ export class ProviderConfigService {
   }
 
   /**
-   * Check if Ollama is running in cloud mode
+   * Check if a provider is cloud mode
+   * @param providerName The provider name to check
+   * @returns true if provider is 'ollama-cloud', false otherwise
    */
-  isOllamaCloudMode(): boolean {
-    return !!process.env.OLLAMA_CLOUD_API_KEY;
+  isOllamaCloudMode(providerName?: string): boolean {
+    return providerName === 'ollama-cloud';
   }
 }

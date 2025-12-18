@@ -126,45 +126,19 @@ else
 fi
 
 # =============================================================================
-# Test 1: Get LLM Config IDs from database
+# Test 1: Define LLM Configs (static - no database lookup needed)
 # =============================================================================
 
-log_test "1. Get LLM Config IDs"
+log_test "1. Define LLM Configs"
 
-# Get cloud writer config (using Accept-Profile header for marketing schema)
-CLOUD_WRITER_CONFIG=$(curl -s "$SUPABASE_URL/rest/v1/agent_llm_configs?agent_slug=eq.writer-creative&llm_provider=eq.anthropic&select=id" \
-  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Accept-Profile: marketing")
+# LLM configs are now static - no database lookup needed
+# Frontend sends llmProvider/llmModel directly in the config
+CLOUD_PROVIDER="anthropic"
+CLOUD_MODEL="claude-sonnet-4-20250514"
 
-CLOUD_WRITER_ID=$(echo "$CLOUD_WRITER_CONFIG" | jq -r '.[0].id // empty')
-
-# Get cloud editor config
-CLOUD_EDITOR_CONFIG=$(curl -s "$SUPABASE_URL/rest/v1/agent_llm_configs?agent_slug=eq.editor-clarity&llm_provider=eq.anthropic&select=id" \
-  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Accept-Profile: marketing")
-
-CLOUD_EDITOR_ID=$(echo "$CLOUD_EDITOR_CONFIG" | jq -r '.[0].id // empty')
-
-# Get cloud evaluator config
-CLOUD_EVALUATOR_CONFIG=$(curl -s "$SUPABASE_URL/rest/v1/agent_llm_configs?agent_slug=eq.evaluator-quality&llm_provider=eq.anthropic&select=id" \
-  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Accept-Profile: marketing")
-
-CLOUD_EVALUATOR_ID=$(echo "$CLOUD_EVALUATOR_CONFIG" | jq -r '.[0].id // empty')
-
-if [ -n "$CLOUD_WRITER_ID" ] && [ -n "$CLOUD_EDITOR_ID" ] && [ -n "$CLOUD_EVALUATOR_ID" ]; then
-  log_success "Got LLM config IDs"
-  log_info "Writer: $CLOUD_WRITER_ID"
-  log_info "Editor: $CLOUD_EDITOR_ID"
-  log_info "Evaluator: $CLOUD_EVALUATOR_ID"
-else
-  log_fail "Could not get LLM config IDs"
-  echo "Make sure the marketing agents are seeded in the database"
-  exit 1
-fi
+log_success "Using static LLM configs"
+log_info "Provider: $CLOUD_PROVIDER"
+log_info "Model: $CLOUD_MODEL"
 
 # =============================================================================
 # Test 2: Execute the Marketing Swarm via A2A API (API will create the task)
@@ -177,12 +151,12 @@ log_info "The API will automatically create the task in marketing.swarm_tasks fr
 
 # Build the userMessage payload (JSON-stringified object matching frontend format)
 # This matches what the frontend sends: a JSON-stringified object with type, contentTypeSlug, promptData, and config
+# Note: llmConfigId has been replaced with llmProvider/llmModel
 USER_MESSAGE_PAYLOAD=$(jq -n \
   --arg taskId "$TASK_ID" \
   --arg contentTypeSlug "blog-post" \
-  --arg cloudWriterId "$CLOUD_WRITER_ID" \
-  --arg cloudEditorId "$CLOUD_EDITOR_ID" \
-  --arg cloudEvaluatorId "$CLOUD_EVALUATOR_ID" \
+  --arg cloudProvider "$CLOUD_PROVIDER" \
+  --arg cloudModel "$CLOUD_MODEL" \
   '{
     "type": "marketing-swarm-request",
     "contentTypeSlug": $contentTypeSlug,
@@ -200,13 +174,13 @@ USER_MESSAGE_PAYLOAD=$(jq -n \
     },
     "config": {
       "writers": [
-        { "agentSlug": "writer-creative", "llmConfigId": $cloudWriterId }
+        { "agentSlug": "writer-creative", "llmProvider": $cloudProvider, "llmModel": $cloudModel }
       ],
       "editors": [
-        { "agentSlug": "editor-clarity", "llmConfigId": $cloudEditorId }
+        { "agentSlug": "editor-clarity", "llmProvider": $cloudProvider, "llmModel": $cloudModel }
       ],
       "evaluators": [
-        { "agentSlug": "evaluator-quality", "llmConfigId": $cloudEvaluatorId }
+        { "agentSlug": "evaluator-quality", "llmProvider": $cloudProvider, "llmModel": $cloudModel }
       ],
       "execution": {
         "maxLocalConcurrent": 0,

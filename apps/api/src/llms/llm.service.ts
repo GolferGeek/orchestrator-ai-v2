@@ -552,6 +552,8 @@ export class LLMService {
         'google',
         'grok',
         'ollama',
+        'ollama-cloud',
+        'xai',
       ];
       if (!supportedProviders.includes(params.provider.toLowerCase())) {
         throw new Error(

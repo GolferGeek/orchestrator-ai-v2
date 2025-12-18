@@ -134,27 +134,17 @@ else
 fi
 
 # =============================================================================
-# 3. Get LLM Config IDs
+# 3. Define LLM Configs (static - no database lookup needed)
 # =============================================================================
 
-echo -e "${CYAN}[3/6] Getting LLM config IDs...${NC}"
+echo -e "${CYAN}[3/6] Defining LLM configs...${NC}"
 
-CLOUD_WRITER_ID=$(curl -s "$SUPABASE_URL/rest/v1/agent_llm_configs?agent_slug=eq.writer-creative&llm_provider=eq.anthropic&select=id" \
-  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Accept-Profile: marketing" | jq -r '.[0].id // empty')
+# LLM configs are now static - no database lookup needed
+# Frontend sends llmProvider/llmModel directly in the config
+CLOUD_PROVIDER="anthropic"
+CLOUD_MODEL="claude-sonnet-4-20250514"
 
-CLOUD_EDITOR_ID=$(curl -s "$SUPABASE_URL/rest/v1/agent_llm_configs?agent_slug=eq.editor-clarity&llm_provider=eq.anthropic&select=id" \
-  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Accept-Profile: marketing" | jq -r '.[0].id // empty')
-
-CLOUD_EVALUATOR_ID=$(curl -s "$SUPABASE_URL/rest/v1/agent_llm_configs?agent_slug=eq.evaluator-quality&llm_provider=eq.anthropic&select=id" \
-  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Accept-Profile: marketing" | jq -r '.[0].id // empty')
-
-echo -e "${GREEN}Got config IDs${NC}"
+echo -e "${GREEN}Using static LLM configs (provider: $CLOUD_PROVIDER, model: $CLOUD_MODEL)${NC}"
 
 # =============================================================================
 # 4. Execute Marketing Swarm (API will create task, collect events while running)
@@ -165,12 +155,12 @@ echo -e "${YELLOW}The API will automatically create the task in marketing.swarm_
 echo -e "${YELLOW}Collecting SSE events during execution...${NC}"
 
 # Build the userMessage payload (JSON-stringified object matching frontend format)
+# Note: llmConfigId has been replaced with llmProvider/llmModel
 USER_MESSAGE_PAYLOAD=$(jq -n \
   --arg taskId "$TASK_ID" \
   --arg contentTypeSlug "blog-post" \
-  --arg cloudWriterId "$CLOUD_WRITER_ID" \
-  --arg cloudEditorId "$CLOUD_EDITOR_ID" \
-  --arg cloudEvaluatorId "$CLOUD_EVALUATOR_ID" \
+  --arg cloudProvider "$CLOUD_PROVIDER" \
+  --arg cloudModel "$CLOUD_MODEL" \
   '{
     "type": "marketing-swarm-request",
     "contentTypeSlug": $contentTypeSlug,
@@ -184,13 +174,13 @@ USER_MESSAGE_PAYLOAD=$(jq -n \
     },
     "config": {
       "writers": [
-        { "agentSlug": "writer-creative", "llmConfigId": $cloudWriterId }
+        { "agentSlug": "writer-creative", "llmProvider": $cloudProvider, "llmModel": $cloudModel }
       ],
       "editors": [
-        { "agentSlug": "editor-clarity", "llmConfigId": $cloudEditorId }
+        { "agentSlug": "editor-clarity", "llmProvider": $cloudProvider, "llmModel": $cloudModel }
       ],
       "evaluators": [
-        { "agentSlug": "evaluator-quality", "llmConfigId": $cloudEvaluatorId }
+        { "agentSlug": "evaluator-quality", "llmProvider": $cloudProvider, "llmModel": $cloudModel }
       ],
       "execution": {
         "maxLocalConcurrent": 1,

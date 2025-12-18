@@ -10,7 +10,6 @@ import { ref, computed } from 'vue';
 import type {
   MarketingContentType,
   MarketingAgent,
-  AgentLLMConfig,
   SwarmTask,
   SwarmOutput,
   SwarmEvaluation,
@@ -29,7 +28,8 @@ interface MarketingSwarmState {
   // Configuration data (from database)
   contentTypes: MarketingContentType[];
   agents: MarketingAgent[];
-  agentLLMConfigs: AgentLLMConfig[];
+  // Note: LLM models are now fetched from /llm/models endpoint
+  // and selected directly in the UI, not from agent_llm_configs
 
   // Current task state
   currentTaskId: string | null;
@@ -70,7 +70,6 @@ export const useMarketingSwarmStore = defineStore('marketingSwarm', () => {
   const state = ref<MarketingSwarmState>({
     contentTypes: [],
     agents: [],
-    agentLLMConfigs: [],
     currentTaskId: null,
     currentTask: null,
     executionQueue: [],
@@ -105,7 +104,6 @@ export const useMarketingSwarmStore = defineStore('marketingSwarm', () => {
 
   const contentTypes = computed(() => state.value.contentTypes);
   const agents = computed(() => state.value.agents);
-  const agentLLMConfigs = computed(() => state.value.agentLLMConfigs);
   const currentTaskId = computed(() => state.value.currentTaskId);
   const currentTask = computed(() => state.value.currentTask);
   const executionQueue = computed(() => state.value.executionQueue);
@@ -130,28 +128,8 @@ export const useMarketingSwarmStore = defineStore('marketingSwarm', () => {
     state.value.agents.filter((a) => a.role === 'evaluator' && a.isActive)
   );
 
-  // LLM configs grouped by agent ID
-  const llmConfigsByAgentId = computed(() => {
-    const grouped: Record<string, AgentLLMConfig[]> = {};
-    for (const config of state.value.agentLLMConfigs) {
-      if (!grouped[config.agentId]) {
-        grouped[config.agentId] = [];
-      }
-      grouped[config.agentId].push(config);
-    }
-    return grouped;
-  });
-
-  // LLM configs grouped by agent slug (for backward compatibility)
-  const llmConfigsByAgent = computed(() => {
-    const grouped: Record<string, AgentLLMConfig[]> = {};
-    for (const agent of state.value.agents) {
-      grouped[agent.slug] = state.value.agentLLMConfigs.filter(
-        (c) => c.agentId === agent.id
-      );
-    }
-    return grouped;
-  });
+  // Note: LLM configs are now fetched from /llm/models endpoint
+  // and selected directly in the UI, not from agent_llm_configs table
 
   // Progress calculation
   const progress = computed(() => {
@@ -253,12 +231,8 @@ export const useMarketingSwarmStore = defineStore('marketingSwarm', () => {
     return state.value.agents.find((a) => a.slug === slug);
   }
 
-  function getLLMConfigsForAgent(agentSlug: string): AgentLLMConfig[] {
-    // First find the agent by slug to get its ID
-    const agent = state.value.agents.find((a) => a.slug === agentSlug);
-    if (!agent) return [];
-    return state.value.agentLLMConfigs.filter((c) => c.agentId === agent.id);
-  }
+  // Note: getLLMConfigsForAgent was removed - LLM models are now
+  // fetched from /llm/models endpoint
 
   function getOutputById(id: string): SwarmOutput | undefined {
     return state.value.outputs.find((o) => o.id === id);
@@ -324,9 +298,8 @@ export const useMarketingSwarmStore = defineStore('marketingSwarm', () => {
     state.value.agents = agents;
   }
 
-  function setAgentLLMConfigs(configs: AgentLLMConfig[]) {
-    state.value.agentLLMConfigs = configs;
-  }
+  // Note: setAgentLLMConfigs was removed - LLM models are now
+  // fetched from /llm/models endpoint
 
   // Task state setters
   function setCurrentTask(task: SwarmTask | null) {
@@ -498,7 +471,6 @@ export const useMarketingSwarmStore = defineStore('marketingSwarm', () => {
   function clearAll() {
     state.value.contentTypes = [];
     state.value.agents = [];
-    state.value.agentLLMConfigs = [];
     resetTaskState();
   }
 
@@ -510,7 +482,6 @@ export const useMarketingSwarmStore = defineStore('marketingSwarm', () => {
     // State (computed)
     contentTypes,
     agents,
-    agentLLMConfigs,
     currentTaskId,
     currentTask,
     executionQueue,
@@ -526,8 +497,6 @@ export const useMarketingSwarmStore = defineStore('marketingSwarm', () => {
     writerAgents,
     editorAgents,
     evaluatorAgents,
-    llmConfigsByAgent,
-    llmConfigsByAgentId,
     progress,
     currentPhase,
     bestOutput,
@@ -546,7 +515,6 @@ export const useMarketingSwarmStore = defineStore('marketingSwarm', () => {
 
     // Getters (functions)
     getAgentBySlug,
-    getLLMConfigsForAgent,
     getOutputById,
     getEvaluationsForOutput,
     getAverageScoreForOutput,
@@ -564,7 +532,6 @@ export const useMarketingSwarmStore = defineStore('marketingSwarm', () => {
     clearError,
     setContentTypes,
     setAgents,
-    setAgentLLMConfigs,
     setCurrentTask,
     setCurrentTaskId,
     setExecutionQueue,

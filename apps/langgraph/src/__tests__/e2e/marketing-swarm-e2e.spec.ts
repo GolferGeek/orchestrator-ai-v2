@@ -109,15 +109,34 @@ describeE2E('Marketing Swarm E2E Tests', () => {
   });
 
   /**
+   * Static LLM configurations for testing
+   * These are used directly instead of looking up IDs from agent_llm_configs
+   */
+  const llmConfigs = {
+    // Cloud configs (Anthropic)
+    cloudWriter: { agentSlug: 'writer-creative', llmProvider: 'anthropic', llmModel: 'claude-sonnet-4-20250514' },
+    cloudEditor: { agentSlug: 'editor-clarity', llmProvider: 'anthropic', llmModel: 'claude-sonnet-4-20250514' },
+    cloudEvaluator: { agentSlug: 'evaluator-quality', llmProvider: 'anthropic', llmModel: 'claude-sonnet-4-20250514' },
+    // Local configs (Ollama)
+    localWriter: { agentSlug: 'writer-creative', llmProvider: 'ollama', llmModel: 'llama3.2' },
+    localEditor: { agentSlug: 'editor-clarity', llmProvider: 'ollama', llmModel: 'llama3.2' },
+    localEvaluator: { agentSlug: 'evaluator-quality', llmProvider: 'ollama', llmModel: 'llama3.2' },
+    // Additional writers for dual-track tests
+    cloudWriter2: { agentSlug: 'writer-technical', llmProvider: 'anthropic', llmModel: 'claude-sonnet-4-20250514' },
+    localWriter2: { agentSlug: 'writer-conversational', llmProvider: 'ollama', llmModel: 'llama3.2' },
+  };
+
+  /**
    * Helper to create a task in the database (simulating frontend task creation)
+   * Now uses llmProvider/llmModel directly instead of llmConfigId
    */
   async function createTestTask(options: {
     taskId: string;
     contentTypeSlug?: string;
     promptData?: Record<string, unknown>;
-    writers: { agentSlug: string; llmConfigId: string }[];
-    editors: { agentSlug: string; llmConfigId: string }[];
-    evaluators: { agentSlug: string; llmConfigId: string }[];
+    writers: { agentSlug: string; llmProvider: string; llmModel: string }[];
+    editors: { agentSlug: string; llmProvider: string; llmModel: string }[];
+    evaluators: { agentSlug: string; llmProvider: string; llmModel: string }[];
     execution?: {
       maxLocalConcurrent?: number;
       maxCloudConcurrent?: number;
@@ -160,90 +179,6 @@ describeE2E('Marketing Swarm E2E Tests', () => {
     if (error) {
       throw new Error(`Failed to create test task: ${error.message}`);
     }
-  }
-
-  /**
-   * Helper to get LLM config IDs from database
-   */
-  async function getLlmConfigIds(): Promise<{
-    localWriter: string;
-    cloudWriter: string;
-    localEditor: string;
-    cloudEditor: string;
-    localEvaluator: string;
-    cloudEvaluator: string;
-  }> {
-    // Get a local (Ollama) writer config
-    const { data: localWriterConfig, error: lwErr } = await marketingSupabase
-      .from('agent_llm_configs')
-      .select('id')
-      .eq('agent_slug', 'writer-creative')
-      .eq('is_local', true)
-      .single();
-    if (lwErr) console.warn('localWriter lookup failed:', lwErr.message);
-
-    // Get a cloud (Anthropic) writer config
-    const { data: cloudWriterConfig, error: cwErr } = await marketingSupabase
-      .from('agent_llm_configs')
-      .select('id')
-      .eq('agent_slug', 'writer-creative')
-      .eq('llm_provider', 'anthropic')
-      .single();
-    if (cwErr) console.warn('cloudWriter lookup failed:', cwErr.message);
-
-    // Get editor configs
-    const { data: localEditorConfig, error: leErr } = await marketingSupabase
-      .from('agent_llm_configs')
-      .select('id')
-      .eq('agent_slug', 'editor-clarity')
-      .eq('is_local', true)
-      .single();
-    if (leErr) console.warn('localEditor lookup failed:', leErr.message);
-
-    const { data: cloudEditorConfig, error: ceErr } = await marketingSupabase
-      .from('agent_llm_configs')
-      .select('id')
-      .eq('agent_slug', 'editor-clarity')
-      .eq('llm_provider', 'anthropic')
-      .single();
-    if (ceErr) console.warn('cloudEditor lookup failed:', ceErr.message);
-
-    // Get evaluator configs
-    const { data: localEvaluatorConfig, error: levErr } = await marketingSupabase
-      .from('agent_llm_configs')
-      .select('id')
-      .eq('agent_slug', 'evaluator-quality')
-      .eq('is_local', true)
-      .single();
-    if (levErr) console.warn('localEvaluator lookup failed:', levErr.message);
-
-    const { data: cloudEvaluatorConfig, error: cevErr } = await marketingSupabase
-      .from('agent_llm_configs')
-      .select('id')
-      .eq('agent_slug', 'evaluator-quality')
-      .eq('llm_provider', 'anthropic')
-      .single();
-    if (cevErr) console.warn('cloudEvaluator lookup failed:', cevErr.message);
-
-    // Throw if required configs are missing (they should be seeded)
-    if (!cloudWriterConfig?.id) {
-      throw new Error('Cloud writer config not found - ensure marketing.agent_llm_configs is seeded');
-    }
-    if (!cloudEditorConfig?.id) {
-      throw new Error('Cloud editor config not found - ensure marketing.agent_llm_configs is seeded');
-    }
-    if (!cloudEvaluatorConfig?.id) {
-      throw new Error('Cloud evaluator config not found - ensure marketing.agent_llm_configs is seeded');
-    }
-
-    return {
-      localWriter: localWriterConfig?.id || NIL_UUID,
-      cloudWriter: cloudWriterConfig.id,
-      localEditor: localEditorConfig?.id || NIL_UUID,
-      cloudEditor: cloudEditorConfig.id,
-      localEvaluator: localEvaluatorConfig?.id || NIL_UUID,
-      cloudEvaluator: cloudEvaluatorConfig.id,
-    };
   }
 
   /**
@@ -332,47 +267,32 @@ describeE2E('Marketing Swarm E2E Tests', () => {
       expect(evaluators!.length).toBeGreaterThanOrEqual(3);
     });
 
-    it('should have LLM configs with is_local flag', async () => {
-      const { data: localConfigs } = await supabase
-        .from('marketing.agent_llm_configs')
-        .select('*')
-        .eq('is_local', true);
+    it('should have static LLM configs for local and cloud providers', async () => {
+      // LLM configs are now static - no database lookup needed
+      // Local configs use 'ollama' provider
+      const localConfigs = Object.values(llmConfigs).filter(c => c.llmProvider === 'ollama');
+      expect(localConfigs.length).toBeGreaterThan(0);
 
-      expect(localConfigs).toBeDefined();
-      expect(localConfigs!.length).toBeGreaterThan(0);
-
-      // Verify local configs are for Ollama
-      for (const config of localConfigs!) {
-        expect(config.llm_provider).toBe('ollama');
-      }
-
-      const { data: cloudConfigs } = await supabase
-        .from('marketing.agent_llm_configs')
-        .select('*')
-        .eq('is_local', false);
-
-      expect(cloudConfigs).toBeDefined();
-      expect(cloudConfigs!.length).toBeGreaterThan(0);
-
-      // Verify cloud configs are for Anthropic/OpenAI
-      for (const config of cloudConfigs!) {
-        expect(['anthropic', 'openai', 'google']).toContain(config.llm_provider);
-      }
+      // Cloud configs use anthropic/openai/google providers
+      const cloudConfigs = Object.values(llmConfigs).filter(c =>
+        ['anthropic', 'openai', 'google'].includes(c.llmProvider)
+      );
+      expect(cloudConfigs.length).toBeGreaterThan(0);
     });
 
     it('should create a task with proper config structure', async () => {
-      const configs = await getLlmConfigIds();
+      // Using static llmConfigs instead of database lookups
 
       await createTestTask({
         taskId,
         writers: [
-          { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
+          llmConfigs.cloudWriter,
         ],
         editors: [
-          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
+          llmConfigs.cloudEditor,
         ],
         evaluators: [
-          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
+          llmConfigs.cloudEvaluator,
         ],
         execution: {
           maxLocalConcurrent: 1,
@@ -405,22 +325,22 @@ describeE2E('Marketing Swarm E2E Tests', () => {
 
   describe('2. Basic Execution Flow (Cloud Only)', () => {
     const taskId = uuidv4();
-    let configs: Awaited<ReturnType<typeof getLlmConfigIds>>;
+    // Using static llmConfigs
 
     beforeAll(async () => {
-      configs = await getLlmConfigIds();
+      // llmConfigs already available
 
       // Create minimal task: 1 writer, 1 editor, 1 evaluator (all cloud)
       await createTestTask({
         taskId,
         writers: [
-          { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
+          llmConfigs.cloudWriter,
         ],
         editors: [
-          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
+          llmConfigs.cloudEditor,
         ],
         evaluators: [
-          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
+          llmConfigs.cloudEvaluator,
         ],
         execution: {
           maxLocalConcurrent: 0, // No local
@@ -502,29 +422,19 @@ describeE2E('Marketing Swarm E2E Tests', () => {
 
   describe('3. Dual-Track Execution', () => {
     const taskId = uuidv4();
-    let configs: Awaited<ReturnType<typeof getLlmConfigIds>>;
-
     beforeAll(async () => {
-      configs = await getLlmConfigIds();
-
-      // Skip if no local LLM configs available
-      if (!configs.localWriter || !configs.localEditor) {
-        console.log('Skipping dual-track tests - no local LLM configs');
-        return;
-      }
-
       // Create task with both local and cloud agents
       await createTestTask({
         taskId,
         writers: [
-          { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
-          { agentSlug: 'writer-technical', llmConfigId: configs.localWriter },
+          llmConfigs.cloudWriter,
+          { ...llmConfigs.localWriter2, agentSlug: 'writer-technical' },
         ],
         editors: [
-          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
+          llmConfigs.cloudEditor,
         ],
         evaluators: [
-          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
+          llmConfigs.cloudEvaluator,
         ],
         execution: {
           maxLocalConcurrent: 1, // Local runs sequentially
@@ -540,10 +450,6 @@ describeE2E('Marketing Swarm E2E Tests', () => {
     });
 
     it('should process local and cloud outputs separately', async () => {
-      if (!configs.localWriter) {
-        console.log('Skipping - no local config');
-        return;
-      }
 
       const context = createTestContext(taskId);
 
@@ -558,7 +464,7 @@ describeE2E('Marketing Swarm E2E Tests', () => {
       // Check outputs were created for both tracks
       const { data: outputs } = await supabase
         .from('marketing.outputs')
-        .select('*, writer_llm_config:marketing.agent_llm_configs!writer_llm_config_id(is_local)')
+        .select('*, writer_llm_provider')
         .eq('task_id', taskId);
 
       expect(outputs).toBeDefined();
@@ -566,8 +472,9 @@ describeE2E('Marketing Swarm E2E Tests', () => {
       expect(outputs!.length).toBe(2);
 
       // Verify we have both local and cloud outputs
-      const localOutputs = outputs!.filter((o: any) => o.writer_llm_config?.is_local);
-      const cloudOutputs = outputs!.filter((o: any) => !o.writer_llm_config?.is_local);
+      // Local = ollama provider, Cloud = anything else
+      const localOutputs = outputs!.filter((o: any) => o.writer_llm_provider === 'ollama');
+      const cloudOutputs = outputs!.filter((o: any) => o.writer_llm_provider !== 'ollama');
 
       expect(localOutputs.length).toBe(1);
       expect(cloudOutputs.length).toBe(1);
@@ -578,11 +485,12 @@ describeE2E('Marketing Swarm E2E Tests', () => {
       // We can't directly observe this, but we can check that all local outputs completed
       const { data: outputs } = await supabase
         .from('marketing.outputs')
-        .select('*, writer_llm_config:marketing.agent_llm_configs!writer_llm_config_id(is_local, llm_provider)')
+        .select('*, writer_llm_provider')
         .eq('task_id', taskId);
 
       for (const output of (outputs || []) as any[]) {
-        if (output.writer_llm_config?.is_local) {
+        // Local = ollama provider
+        if (output.writer_llm_provider === 'ollama') {
           expect(['approved', 'failed']).toContain(output.status);
         }
       }
@@ -595,22 +503,22 @@ describeE2E('Marketing Swarm E2E Tests', () => {
 
   describe('4. Edit Cycle Loop', () => {
     const taskId = uuidv4();
-    let configs: Awaited<ReturnType<typeof getLlmConfigIds>>;
+    // Using static llmConfigs
 
     beforeAll(async () => {
-      configs = await getLlmConfigIds();
+      // llmConfigs already available
 
       // Create task with multiple edit cycles allowed
       await createTestTask({
         taskId,
         writers: [
-          { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
+          llmConfigs.cloudWriter,
         ],
         editors: [
-          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
+          llmConfigs.cloudEditor,
         ],
         evaluators: [
-          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
+          llmConfigs.cloudEvaluator,
         ],
         execution: {
           maxLocalConcurrent: 0,
@@ -676,24 +584,24 @@ describeE2E('Marketing Swarm E2E Tests', () => {
 
   describe('5. Two-Stage Evaluation', () => {
     const taskId = uuidv4();
-    let configs: Awaited<ReturnType<typeof getLlmConfigIds>>;
+    // Using static llmConfigs
 
     beforeAll(async () => {
-      configs = await getLlmConfigIds();
+      // llmConfigs already available
 
       // Create task with multiple outputs for evaluation
       await createTestTask({
         taskId,
         writers: [
-          { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
-          { agentSlug: 'writer-technical', llmConfigId: configs.cloudWriter },
+          llmConfigs.cloudWriter,
+          { ...llmConfigs.cloudWriter2, agentSlug: 'writer-technical' },
         ],
         editors: [
-          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
+          llmConfigs.cloudEditor,
         ],
         evaluators: [
-          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
-          { agentSlug: 'evaluator-conversion', llmConfigId: configs.cloudEvaluator },
+          llmConfigs.cloudEvaluator,
+          { ...llmConfigs.cloudEvaluator, agentSlug: 'evaluator-conversion' },
         ],
         execution: {
           maxLocalConcurrent: 0,
@@ -819,22 +727,22 @@ describeE2E('Marketing Swarm E2E Tests', () => {
 
   describe('6. Status and State Endpoints', () => {
     const taskId = uuidv4();
-    let configs: Awaited<ReturnType<typeof getLlmConfigIds>>;
+    // Using static llmConfigs
 
     beforeAll(async () => {
-      configs = await getLlmConfigIds();
+      // llmConfigs already available
 
       // Create and execute a simple task
       await createTestTask({
         taskId,
         writers: [
-          { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
+          llmConfigs.cloudWriter,
         ],
         editors: [
-          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
+          llmConfigs.cloudEditor,
         ],
         evaluators: [
-          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
+          llmConfigs.cloudEvaluator,
         ],
         execution: {
           maxLocalConcurrent: 0,
@@ -922,19 +830,19 @@ describeE2E('Marketing Swarm E2E Tests', () => {
   describe('7. SSE/Observability Messages', () => {
     it('should emit events with correct metadata structure', async () => {
       const taskId = uuidv4();
-      const configs = await getLlmConfigIds();
+      // Using static llmConfigs instead of database lookups
 
       // Create simple task
       await createTestTask({
         taskId,
         writers: [
-          { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
+          llmConfigs.cloudWriter,
         ],
         editors: [
-          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
+          llmConfigs.cloudEditor,
         ],
         evaluators: [
-          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
+          llmConfigs.cloudEvaluator,
         ],
         execution: {
           maxLocalConcurrent: 0,
@@ -982,18 +890,18 @@ describeE2E('Marketing Swarm E2E Tests', () => {
 
     it('should include cost data in output_updated SSE events', async () => {
       const taskId = uuidv4();
-      const configs = await getLlmConfigIds();
+      // Using static llmConfigs instead of database lookups
 
       await createTestTask({
         taskId,
         writers: [
-          { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
+          llmConfigs.cloudWriter,
         ],
         editors: [
-          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
+          llmConfigs.cloudEditor,
         ],
         evaluators: [
-          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
+          llmConfigs.cloudEvaluator,
         ],
       });
 
@@ -1040,18 +948,18 @@ describeE2E('Marketing Swarm E2E Tests', () => {
 
     it('should include cost data in evaluation_updated SSE events', async () => {
       const taskId = uuidv4();
-      const configs = await getLlmConfigIds();
+      // Using static llmConfigs instead of database lookups
 
       await createTestTask({
         taskId,
         writers: [
-          { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
+          llmConfigs.cloudWriter,
         ],
         editors: [
-          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
+          llmConfigs.cloudEditor,
         ],
         evaluators: [
-          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
+          llmConfigs.cloudEvaluator,
         ],
       });
 
@@ -1136,7 +1044,7 @@ describeE2E('Marketing Swarm E2E Tests', () => {
 
     it('should handle empty writers array', async () => {
       const taskId = uuidv4();
-      const configs = await getLlmConfigIds();
+      // Using static llmConfigs instead of database lookups
 
       // Create task with no writers (invalid config)
       const { error } = await marketingSupabase.from('swarm_tasks').insert({
@@ -1147,8 +1055,8 @@ describeE2E('Marketing Swarm E2E Tests', () => {
         prompt_data: { topic: 'Test' },
         config: {
           writers: [], // Empty!
-          editors: [{ agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor }],
-          evaluators: [{ agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator }],
+          editors: [llmConfigs.cloudEditor],
+          evaluators: [llmConfigs.cloudEvaluator],
           execution: { maxLocalConcurrent: 0, maxCloudConcurrent: 5, maxEditCycles: 1, topNForFinalRanking: 1 },
         },
         status: 'pending',
@@ -1170,18 +1078,18 @@ describeE2E('Marketing Swarm E2E Tests', () => {
 
     it('should handle concurrent execution requests', async () => {
       const taskId = uuidv4();
-      const configs = await getLlmConfigIds();
+      // Using static llmConfigs instead of database lookups
 
       await createTestTask({
         taskId,
         writers: [
-          { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
+          llmConfigs.cloudWriter,
         ],
         editors: [
-          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
+          llmConfigs.cloudEditor,
         ],
         evaluators: [
-          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
+          llmConfigs.cloudEvaluator,
         ],
       });
 
@@ -1216,22 +1124,22 @@ describeE2E('Marketing Swarm E2E Tests', () => {
   describe('9. Output Matrix Validation', () => {
     it('should create correct number of outputs (writers × editors)', async () => {
       const taskId = uuidv4();
-      const configs = await getLlmConfigIds();
+      // Using static llmConfigs instead of database lookups
 
       // 2 writers × 3 editors = 6 outputs
       await createTestTask({
         taskId,
         writers: [
-          { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
-          { agentSlug: 'writer-technical', llmConfigId: configs.cloudWriter },
+          llmConfigs.cloudWriter,
+          { ...llmConfigs.cloudWriter2, agentSlug: 'writer-technical' },
         ],
         editors: [
-          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
-          { agentSlug: 'editor-brand', llmConfigId: configs.cloudEditor },
-          { agentSlug: 'editor-engagement', llmConfigId: configs.cloudEditor },
+          llmConfigs.cloudEditor,
+          { ...llmConfigs.cloudEditor, agentSlug: 'editor-brand' },
+          { ...llmConfigs.cloudEditor, agentSlug: 'editor-engagement' },
         ],
         evaluators: [
-          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
+          llmConfigs.cloudEvaluator,
         ],
         execution: {
           maxLocalConcurrent: 0,
@@ -1272,26 +1180,26 @@ describeE2E('Marketing Swarm E2E Tests', () => {
 
   describe('10. Deliverable and Versioned Deliverable Output', () => {
     const taskId = uuidv4(); // Must be a valid UUID
-    let configs: Awaited<ReturnType<typeof getLlmConfigIds>>;
+    // Using static llmConfigs
     const topNForDeliverable = 3; // Configure to return top 3 outputs as versions
 
     beforeAll(async () => {
-      configs = await getLlmConfigIds();
+      // llmConfigs already available
 
       // Create task with multiple writers to generate multiple outputs
       // and set topNForDeliverable to control number of versions
       await createTestTask({
         taskId,
         writers: [
-          { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
-          { agentSlug: 'writer-technical', llmConfigId: configs.cloudWriter },
-          { agentSlug: 'writer-persuasive', llmConfigId: configs.cloudWriter },
+          llmConfigs.cloudWriter,
+          { ...llmConfigs.cloudWriter2, agentSlug: 'writer-technical' },
+          { ...llmConfigs.cloudWriter, agentSlug: 'writer-persuasive' },
         ],
         editors: [
-          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
+          llmConfigs.cloudEditor,
         ],
         evaluators: [
-          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
+          llmConfigs.cloudEvaluator,
         ],
         execution: {
           maxLocalConcurrent: 0,
@@ -1465,18 +1373,18 @@ describeE2E('Marketing Swarm E2E Tests', () => {
   describe('11. LLM Metadata Tracking', () => {
     it('should store LLM metadata for outputs', async () => {
       const taskId = uuidv4();
-      const configs = await getLlmConfigIds();
+      // Using static llmConfigs instead of database lookups
 
       await createTestTask({
         taskId,
         writers: [
-          { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
+          llmConfigs.cloudWriter,
         ],
         editors: [
-          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
+          llmConfigs.cloudEditor,
         ],
         evaluators: [
-          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
+          llmConfigs.cloudEvaluator,
         ],
       });
 
@@ -1506,18 +1414,18 @@ describeE2E('Marketing Swarm E2E Tests', () => {
 
     it('should store LLM metadata for evaluations', async () => {
       const taskId = uuidv4();
-      const configs = await getLlmConfigIds();
+      // Using static llmConfigs instead of database lookups
 
       await createTestTask({
         taskId,
         writers: [
-          { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
+          llmConfigs.cloudWriter,
         ],
         editors: [
-          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
+          llmConfigs.cloudEditor,
         ],
         evaluators: [
-          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
+          llmConfigs.cloudEvaluator,
         ],
       });
 
@@ -1554,18 +1462,18 @@ describeE2E('Marketing Swarm E2E Tests', () => {
      */
     it('should store cost in outputs table after writing', async () => {
       const taskId = uuidv4();
-      const configs = await getLlmConfigIds();
+      // Using static llmConfigs instead of database lookups
 
       await createTestTask({
         taskId,
         writers: [
-          { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
+          llmConfigs.cloudWriter,
         ],
         editors: [
-          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
+          llmConfigs.cloudEditor,
         ],
         evaluators: [
-          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
+          llmConfigs.cloudEvaluator,
         ],
       });
 
@@ -1618,18 +1526,18 @@ describeE2E('Marketing Swarm E2E Tests', () => {
      */
     it('should accumulate costs across edit cycles', async () => {
       const taskId = uuidv4();
-      const configs = await getLlmConfigIds();
+      // Using static llmConfigs instead of database lookups
 
       await createTestTask({
         taskId,
         writers: [
-          { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
+          llmConfigs.cloudWriter,
         ],
         editors: [
-          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
+          llmConfigs.cloudEditor,
         ],
         evaluators: [
-          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
+          llmConfigs.cloudEvaluator,
         ],
         execution: {
           maxEditCycles: 3, // Allow up to 3 edit cycles
@@ -1676,18 +1584,18 @@ describeE2E('Marketing Swarm E2E Tests', () => {
      */
     it('should store cost in evaluations table', async () => {
       const taskId = uuidv4();
-      const configs = await getLlmConfigIds();
+      // Using static llmConfigs instead of database lookups
 
       await createTestTask({
         taskId,
         writers: [
-          { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
+          llmConfigs.cloudWriter,
         ],
         editors: [
-          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
+          llmConfigs.cloudEditor,
         ],
         evaluators: [
-          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
+          llmConfigs.cloudEvaluator,
         ],
       });
 
@@ -1733,18 +1641,18 @@ describeE2E('Marketing Swarm E2E Tests', () => {
      */
     it('should add evaluation costs to output running total', async () => {
       const taskId = uuidv4();
-      const configs = await getLlmConfigIds();
+      // Using static llmConfigs instead of database lookups
 
       await createTestTask({
         taskId,
         writers: [
-          { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
+          llmConfigs.cloudWriter,
         ],
         editors: [
-          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
+          llmConfigs.cloudEditor,
         ],
         evaluators: [
-          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
+          llmConfigs.cloudEvaluator,
         ],
       });
 
@@ -1792,18 +1700,18 @@ describeE2E('Marketing Swarm E2E Tests', () => {
      */
     it('should store costs in output_versions for each write/rewrite', async () => {
       const taskId = uuidv4();
-      const configs = await getLlmConfigIds();
+      // Using static llmConfigs instead of database lookups
 
       await createTestTask({
         taskId,
         writers: [
-          { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
+          llmConfigs.cloudWriter,
         ],
         editors: [
-          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
+          llmConfigs.cloudEditor,
         ],
         evaluators: [
-          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
+          llmConfigs.cloudEvaluator,
         ],
         execution: {
           maxEditCycles: 2,
@@ -1856,26 +1764,21 @@ describeE2E('Marketing Swarm E2E Tests', () => {
      */
     it('should calculate different costs for different providers/models', async () => {
       const taskId = uuidv4();
-      const configs = await getLlmConfigIds();
 
-      // Use both local and cloud writers if available
+      // Use both local and cloud writers
       const writers = [
-        { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
+        llmConfigs.cloudWriter,
+        { ...llmConfigs.localWriter, agentSlug: 'writer-analytical' },
       ];
-
-      // Add local writer if available
-      if (configs.localWriter !== NIL_UUID) {
-        writers.push({ agentSlug: 'writer-analytical', llmConfigId: configs.localWriter });
-      }
 
       await createTestTask({
         taskId,
         writers,
         editors: [
-          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
+          llmConfigs.cloudEditor,
         ],
         evaluators: [
-          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
+          llmConfigs.cloudEvaluator,
         ],
       });
 
@@ -1889,7 +1792,7 @@ describeE2E('Marketing Swarm E2E Tests', () => {
       // Get outputs grouped by writer
       const { data: outputs } = await marketingSupabase
         .from('outputs')
-        .select('id, writer_agent_slug, writer_llm_config_id, llm_metadata')
+        .select('id, writer_agent_slug, writer_llm_provider, writer_llm_model, llm_metadata')
         .eq('task_id', taskId);
 
       expect(outputs).toBeDefined();
@@ -1918,18 +1821,18 @@ describeE2E('Marketing Swarm E2E Tests', () => {
      */
     it('should allow calculation of total task cost from all outputs', async () => {
       const taskId = uuidv4();
-      const configs = await getLlmConfigIds();
+      // Using static llmConfigs instead of database lookups
 
       await createTestTask({
         taskId,
         writers: [
-          { agentSlug: 'writer-creative', llmConfigId: configs.cloudWriter },
+          llmConfigs.cloudWriter,
         ],
         editors: [
-          { agentSlug: 'editor-clarity', llmConfigId: configs.cloudEditor },
+          llmConfigs.cloudEditor,
         ],
         evaluators: [
-          { agentSlug: 'evaluator-quality', llmConfigId: configs.cloudEvaluator },
+          llmConfigs.cloudEvaluator,
         ],
       });
 

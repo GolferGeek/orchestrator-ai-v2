@@ -1,11 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { MarketingDatabaseService } from './marketing-database.service';
-import {
-  ContentTypeDto,
-  MarketingAgentDto,
-  AgentLLMConfigDto,
-  MarketingAgentWithConfigsDto,
-} from './dto';
+import { ContentTypeDto, MarketingAgentDto } from './dto';
 
 // Database row interfaces (snake_case)
 interface DbContentType {
@@ -31,16 +26,6 @@ interface DbMarketingAgent {
   is_active: boolean;
   created_at: string;
   updated_at: string;
-}
-
-interface DbAgentLLMConfig {
-  id: string;
-  agent_slug: string;
-  llm_provider: string;
-  llm_model: string;
-  display_name: string | null;
-  is_default: boolean;
-  created_at: string;
 }
 
 @Injectable()
@@ -76,23 +61,6 @@ export class MarketingService {
       description: row.personality?.style_guidelines || undefined,
       systemPrompt: row.personality?.system_context || undefined,
       isActive: row.is_active,
-    };
-  }
-
-  /**
-   * Convert database LLM config row to DTO
-   */
-  private toLLMConfigDto(row: DbAgentLLMConfig): AgentLLMConfigDto {
-    return {
-      id: row.id,
-      agentId: row.agent_slug,
-      llmProvider: row.llm_provider,
-      llmModel: row.llm_model,
-      displayName: row.display_name || undefined,
-      temperature: undefined, // Not in new schema
-      maxTokens: undefined, // Not in new schema
-      isDefault: row.is_default,
-      isActive: true, // All fetched rows are active
     };
   }
 
@@ -195,113 +163,21 @@ export class MarketingService {
   }
 
   /**
-   * Get all LLM configs for an agent
-   */
-  async getLLMConfigsForAgent(agentSlug: string): Promise<AgentLLMConfigDto[]> {
-    try {
-      const rows = await this.marketingDb.queryAll<DbAgentLLMConfig>(
-        `SELECT * FROM agent_llm_configs
-         WHERE agent_slug = $1
-         ORDER BY is_default DESC, display_name`,
-        [agentSlug],
-      );
-      return rows.map((row) => this.toLLMConfigDto(row));
-    } catch (error) {
-      this.logger.error(
-        `Failed to fetch LLM configs for agent ${agentSlug}`,
-        error,
-      );
-      throw new Error(
-        `Failed to fetch LLM configs: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
-    }
-  }
-
-  /**
-   * Get all active LLM configs
-   */
-  async getAllLLMConfigs(): Promise<AgentLLMConfigDto[]> {
-    try {
-      const rows = await this.marketingDb.queryAll<DbAgentLLMConfig>(
-        `SELECT * FROM agent_llm_configs
-         ORDER BY agent_slug, is_default DESC`,
-      );
-      return rows.map((row) => this.toLLMConfigDto(row));
-    } catch (error) {
-      this.logger.error('Failed to fetch LLM configs', error);
-      throw new Error(
-        `Failed to fetch LLM configs: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
-    }
-  }
-
-  /**
-   * Get agents with their LLM configs embedded
-   */
-  async getAgentsWithConfigs(): Promise<MarketingAgentWithConfigsDto[]> {
-    const agents = await this.getAgents();
-    const allConfigs = await this.getAllLLMConfigs();
-
-    return agents.map((agent) => ({
-      ...agent,
-      llmConfigs: allConfigs.filter((config) => config.agentId === agent.slug),
-    }));
-  }
-
-  /**
-   * Get agents by role with their LLM configs embedded
-   */
-  async getAgentsByRoleWithConfigs(
-    role: 'writer' | 'editor' | 'evaluator',
-  ): Promise<MarketingAgentWithConfigsDto[]> {
-    const agents = await this.getAgentsByRole(role);
-    const agentSlugs = agents.map((a) => a.slug);
-
-    if (agentSlugs.length === 0) {
-      return [];
-    }
-
-    try {
-      // Use parameterized query with ANY for array matching
-      const rows = await this.marketingDb.queryAll<DbAgentLLMConfig>(
-        `SELECT * FROM agent_llm_configs
-         WHERE agent_slug = ANY($1)
-         ORDER BY is_default DESC`,
-        [agentSlugs],
-      );
-
-      const configs = rows.map((row) => this.toLLMConfigDto(row));
-
-      return agents.map((agent) => ({
-        ...agent,
-        llmConfigs: configs.filter((config) => config.agentId === agent.slug),
-      }));
-    } catch (error) {
-      this.logger.error(
-        `Failed to fetch LLM configs for ${role} agents`,
-        error,
-      );
-      throw new Error(
-        `Failed to fetch LLM configs: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
-    }
-  }
-
-  /**
    * Get full configuration for the swarm UI
-   * Returns content types, agents grouped by role, each with their LLM configs
+   * Returns content types and agents grouped by role
+   * Note: LLM models are now fetched separately from public.llm_models via /llm/models endpoint
    */
   async getSwarmConfiguration(): Promise<{
     contentTypes: ContentTypeDto[];
-    writers: MarketingAgentWithConfigsDto[];
-    editors: MarketingAgentWithConfigsDto[];
-    evaluators: MarketingAgentWithConfigsDto[];
+    writers: MarketingAgentDto[];
+    editors: MarketingAgentDto[];
+    evaluators: MarketingAgentDto[];
   }> {
     const [contentTypes, writers, editors, evaluators] = await Promise.all([
       this.getContentTypes(),
-      this.getAgentsByRoleWithConfigs('writer'),
-      this.getAgentsByRoleWithConfigs('editor'),
-      this.getAgentsByRoleWithConfigs('evaluator'),
+      this.getAgentsByRole('writer'),
+      this.getAgentsByRole('editor'),
+      this.getAgentsByRole('evaluator'),
     ]);
 
     return {

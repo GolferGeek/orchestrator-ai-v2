@@ -121,58 +121,23 @@ echo -e "${GREEN}Authenticated${NC}"
 echo "User ID: $TEST_USER_ID"
 
 # =============================================================================
-# Get LLM Config IDs (both local and cloud)
+# Define LLM Configs (static - no database lookup needed)
 # =============================================================================
 
 echo ""
-echo -e "${YELLOW}Getting LLM config IDs...${NC}"
+echo -e "${YELLOW}Defining LLM configs...${NC}"
 
-# Cloud configs (Anthropic) - using Accept-Profile header for marketing schema
-CLOUD_WRITER_1=$(curl -s "$SUPABASE_URL/rest/v1/agent_llm_configs?agent_slug=eq.writer-creative&llm_provider=eq.anthropic&select=id" \
-  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Accept-Profile: marketing" | jq -r '.[0].id')
+# LLM configs are now static - no database lookup needed
+# Frontend sends llmProvider/llmModel directly in the config
+CLOUD_PROVIDER="anthropic"
+CLOUD_MODEL="claude-sonnet-4-20250514"
+LOCAL_PROVIDER="ollama"
+LOCAL_MODEL="llama3.2"
 
-CLOUD_WRITER_2=$(curl -s "$SUPABASE_URL/rest/v1/agent_llm_configs?agent_slug=eq.writer-technical&llm_provider=eq.anthropic&select=id" \
-  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Accept-Profile: marketing" | jq -r '.[0].id')
+echo "Cloud provider: $CLOUD_PROVIDER, model: $CLOUD_MODEL"
+echo "Local provider: $LOCAL_PROVIDER, model: $LOCAL_MODEL"
 
-# Local configs (Ollama)
-LOCAL_WRITER_1=$(curl -s "$SUPABASE_URL/rest/v1/agent_llm_configs?agent_slug=eq.writer-conversational&llm_provider=eq.ollama&select=id" \
-  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Accept-Profile: marketing" | jq -r '.[0].id')
-
-LOCAL_WRITER_2=$(curl -s "$SUPABASE_URL/rest/v1/agent_llm_configs?agent_slug=eq.writer-persuasive&llm_provider=eq.ollama&select=id" \
-  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Accept-Profile: marketing" | jq -r '.[0].id')
-
-# Editor and evaluator (cloud)
-CLOUD_EDITOR=$(curl -s "$SUPABASE_URL/rest/v1/agent_llm_configs?agent_slug=eq.editor-clarity&llm_provider=eq.anthropic&select=id" \
-  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Accept-Profile: marketing" | jq -r '.[0].id')
-
-CLOUD_EVALUATOR=$(curl -s "$SUPABASE_URL/rest/v1/agent_llm_configs?agent_slug=eq.evaluator-quality&llm_provider=eq.anthropic&select=id" \
-  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Accept-Profile: marketing" | jq -r '.[0].id')
-
-echo "Cloud writers: $CLOUD_WRITER_1, $CLOUD_WRITER_2"
-echo "Local writers: $LOCAL_WRITER_1, $LOCAL_WRITER_2"
-echo "Editor: $CLOUD_EDITOR"
-echo "Evaluator: $CLOUD_EVALUATOR"
-
-# Verify we have local configs
-if [ "$LOCAL_WRITER_1" = "null" ] || [ -z "$LOCAL_WRITER_1" ]; then
-  echo -e "${RED}No local (Ollama) LLM configs found!${NC}"
-  echo "Make sure the marketing agents seed includes is_local=true for Ollama configs"
-  exit 1
-fi
-
-echo -e "${GREEN}Got config IDs${NC}"
+echo -e "${GREEN}Using static LLM configs${NC}"
 
 # =============================================================================
 # Execute the Swarm via A2A API (API will create the task)
@@ -194,15 +159,14 @@ echo ""
 # - 1 editor
 # - 1 evaluator
 # Total outputs: 4 writers × 1 editor = 4
+# Note: llmConfigId has been replaced with llmProvider/llmModel
 USER_MESSAGE_PAYLOAD=$(jq -n \
   --arg taskId "$TASK_ID" \
   --arg contentTypeSlug "blog-post" \
-  --arg cloudWriter1 "$CLOUD_WRITER_1" \
-  --arg cloudWriter2 "$CLOUD_WRITER_2" \
-  --arg localWriter1 "$LOCAL_WRITER_1" \
-  --arg localWriter2 "$LOCAL_WRITER_2" \
-  --arg cloudEditor "$CLOUD_EDITOR" \
-  --arg cloudEvaluator "$CLOUD_EVALUATOR" \
+  --arg cloudProvider "$CLOUD_PROVIDER" \
+  --arg cloudModel "$CLOUD_MODEL" \
+  --arg localProvider "$LOCAL_PROVIDER" \
+  --arg localModel "$LOCAL_MODEL" \
   '{
     "type": "marketing-swarm-request",
     "contentTypeSlug": $contentTypeSlug,
@@ -216,16 +180,16 @@ USER_MESSAGE_PAYLOAD=$(jq -n \
     },
     "config": {
       "writers": [
-        { "agentSlug": "writer-creative", "llmConfigId": $cloudWriter1 },
-        { "agentSlug": "writer-technical", "llmConfigId": $cloudWriter2 },
-        { "agentSlug": "writer-conversational", "llmConfigId": $localWriter1 },
-        { "agentSlug": "writer-persuasive", "llmConfigId": $localWriter2 }
+        { "agentSlug": "writer-creative", "llmProvider": $cloudProvider, "llmModel": $cloudModel },
+        { "agentSlug": "writer-technical", "llmProvider": $cloudProvider, "llmModel": $cloudModel },
+        { "agentSlug": "writer-conversational", "llmProvider": $localProvider, "llmModel": $localModel },
+        { "agentSlug": "writer-persuasive", "llmProvider": $localProvider, "llmModel": $localModel }
       ],
       "editors": [
-        { "agentSlug": "editor-clarity", "llmConfigId": $cloudEditor }
+        { "agentSlug": "editor-clarity", "llmProvider": $cloudProvider, "llmModel": $cloudModel }
       ],
       "evaluators": [
-        { "agentSlug": "evaluator-quality", "llmConfigId": $cloudEvaluator }
+        { "agentSlug": "evaluator-quality", "llmProvider": $cloudProvider, "llmModel": $cloudModel }
       ],
       "execution": {
         "maxLocalConcurrent": 1,
@@ -298,17 +262,17 @@ fi
 echo ""
 echo -e "${YELLOW}Analyzing dual-track results...${NC}"
 
-# Get outputs with LLM config details
-OUTPUTS=$(curl -s "$SUPABASE_URL/rest/v1/outputs?task_id=eq.$TASK_ID&select=*,llm_config:agent_llm_configs!writer_llm_config_id(llm_provider,is_local)" \
+# Get outputs with provider info directly from outputs table
+OUTPUTS=$(curl -s "$SUPABASE_URL/rest/v1/outputs?task_id=eq.$TASK_ID&select=*" \
   -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
   -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
   -H "Accept-Profile: marketing")
 
-# Count by track
-LOCAL_COUNT=$(echo "$OUTPUTS" | jq '[.[] | select(.llm_config.is_local == true)] | length')
-CLOUD_COUNT=$(echo "$OUTPUTS" | jq '[.[] | select(.llm_config.is_local == false)] | length')
-APPROVED_LOCAL=$(echo "$OUTPUTS" | jq '[.[] | select(.llm_config.is_local == true and .status == "approved")] | length')
-APPROVED_CLOUD=$(echo "$OUTPUTS" | jq '[.[] | select(.llm_config.is_local == false and .status == "approved")] | length')
+# Count by track (local = ollama provider, cloud = anything else)
+LOCAL_COUNT=$(echo "$OUTPUTS" | jq '[.[] | select(.writer_llm_provider == "ollama")] | length')
+CLOUD_COUNT=$(echo "$OUTPUTS" | jq '[.[] | select(.writer_llm_provider != "ollama")] | length')
+APPROVED_LOCAL=$(echo "$OUTPUTS" | jq '[.[] | select(.writer_llm_provider == "ollama" and .status == "approved")] | length')
+APPROVED_CLOUD=$(echo "$OUTPUTS" | jq '[.[] | select(.writer_llm_provider != "ollama" and .status == "approved")] | length')
 
 echo ""
 echo "Track Distribution:"
@@ -319,8 +283,8 @@ echo ""
 echo "Output Details:"
 echo "$OUTPUTS" | jq -c '.[] | {
   writer: .writer_agent_slug,
-  provider: .llm_config.llm_provider,
-  is_local: .llm_config.is_local,
+  provider: .writer_llm_provider,
+  is_local: (.writer_llm_provider == "ollama"),
   status,
   edit_cycle
 }'
@@ -334,7 +298,7 @@ echo -e "${YELLOW}Verifying execution patterns...${NC}"
 
 # For local outputs, check that they completed (we can't directly verify sequential execution
 # but we can verify they all completed successfully)
-LOCAL_OUTPUTS=$(echo "$OUTPUTS" | jq '[.[] | select(.llm_config.is_local == true)]')
+LOCAL_OUTPUTS=$(echo "$OUTPUTS" | jq '[.[] | select(.writer_llm_provider == "ollama")]')
 LOCAL_STATUSES=$(echo "$LOCAL_OUTPUTS" | jq -r '.[].status' | sort | uniq)
 
 if echo "$LOCAL_STATUSES" | grep -q "approved"; then
@@ -344,7 +308,7 @@ else
 fi
 
 # Cloud outputs should all be processed
-CLOUD_OUTPUTS=$(echo "$OUTPUTS" | jq '[.[] | select(.llm_config.is_local == false)]')
+CLOUD_OUTPUTS=$(echo "$OUTPUTS" | jq '[.[] | select(.writer_llm_provider != "ollama")]')
 CLOUD_STATUSES=$(echo "$CLOUD_OUTPUTS" | jq -r '.[].status' | sort | uniq)
 
 if echo "$CLOUD_STATUSES" | grep -q "approved"; then

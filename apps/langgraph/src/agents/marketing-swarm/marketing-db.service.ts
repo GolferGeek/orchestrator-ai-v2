@@ -539,23 +539,8 @@ export class MarketingDbService {
     return data as AgentPersonality;
   }
 
-  /**
-   * Get LLM config by ID
-   */
-  async getLlmConfig(configId: string): Promise<AgentLlmConfig | null> {
-    const { data, error } = await this.supabase
-      .from('agent_llm_configs')
-      .select('*')
-      .eq('id', configId)
-      .single();
-
-    if (error || !data) {
-      this.logger.error(`Failed to get LLM config: ${error?.message}`);
-      return null;
-    }
-
-    return data as AgentLlmConfig;
-  }
+  // Note: getLlmConfig was removed - LLM provider/model are now sent
+  // directly in the config from the frontend
 
   /**
    * Check if all outputs are complete (approved, failed, or max_cycles_reached)
