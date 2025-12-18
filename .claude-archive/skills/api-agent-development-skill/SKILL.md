@@ -1,6 +1,9 @@
 ---
 name: API Agent Development
-description: Create API agents that wrap external HTTP services (n8n, LangGraph, CrewAI, OpenAI endpoints). Configure request/response transforms, webhook status tracking, A2A protocol compliance. CRITICAL: Request transforms use template variables ({{userMessage}}, {{conversationId}}, etc.). Response transforms use field extraction. Status webhook URL must read from environment variables.
+description: Build API agents that wrap both tightly-integrated and external HTTP services (such as n8n, LangGraph, or any external endpoint). Key concepts:
+1. **ExecutionContext capsule:** For APIs tightly integrated with our system, we ensure all requests and actions include a capsule known as the ExecutionContext. This capsule is first generated on the front-end when a user starts a new conversation. It carries the conversationId, taskId, userId, provider name, model name, and, if available, deliverableId and planId (if not available, these are set to a nil UUID). This capsule is initialized by the API (if the task or conversation doesn’t already exist), populating the appropriate tables and propagating the capsule through all layers: within the service itself, to API implementations, and back to the front-end. If a user resumes an existing conversation, the capsule is rebuilt using existing identifiers. This encapsulation ensures every API call can be logged, audited, and observed within our system.
+2. **Transport types & metadata:** All structured data exchanged between components follows defined transport types to ensure A2A protocol compliance. Every important piece of contextual or operational data is carried inside the `metadata` field of these transport objects—by design, per protocol requirements. This guarantees that any information needed by front-end, back-end, or an integrated API call is consistently, securely, and observably transmitted, with the metadata mechanism serving as the universal carrier.
+
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 ---
 
@@ -15,7 +18,7 @@ Use this skill when:
 - Wrapping LangGraph/CrewAI/OpenAI endpoints as API agents
 - Creating agents that call external HTTP services
 - Configuring request/response transformations
-- Setting up webhook status tracking
+- Setting up SSE status tracking
 - Ensuring A2A protocol compliance
 
 ## API Agent Structure

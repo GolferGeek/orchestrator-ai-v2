@@ -1,0 +1,239 @@
+---
+name: "Claude Code Integration"
+description: "How to use Claude Code Skills, Agents, and Commands from Cursor AI agents"
+globs: [".claude/**/*"]
+alwaysApply: true
+---
+
+# Claude Code Integration Guide
+
+This rule explains how Cursor's AI agents should use Claude Code Skills, Agents, and Commands.
+
+## Overview
+
+Claude Code uses `.claude/` directory with three types of extensions:
+- **Commands**: User-invoked shortcuts (`.claude/commands/*.md`)
+- **Skills**: Model-invoked capabilities (`.claude/skills/*/SKILL.md`)
+- **Agents**: Model-invoked specialized workflows (`.claude/agents/*.md`)
+
+**Key Point**: Cursor AI can read and use these files, but needs guidance on when and how.
+
+## Commands (User-Invoked)
+
+### Detection Pattern
+
+When user types a command starting with `/`:
+1. Check if file exists: `.claude/commands/{command-name}.md`
+2. If found, read the command file
+3. Follow its instructions exactly
+4. Use `$ARGUMENTS` if user provided arguments
+
+### Examples
+
+**User**: `/commit "feat(api): add validation"`
+
+**Your Action**:
+1. Read `.claude/commands/commit.md`
+2. Follow instructions: run quality gates, safety review, commit
+3. Use "feat(api): add validation" as the commit message
+
+**User**: `/commit-push`
+
+**Your Action**:
+1. Read `.claude/commands/commit-push.md`
+2. Follow instructions: quality gates → commit → push
+
+### Command File Structure
+
+Commands have YAML frontmatter:
+```yaml
+---
+description: "What this command does"
+argument-hint: "What arguments it expects"
+---
+```
+
+Then instructions in markdown. Follow them step-by-step.
+
+## Skills (Model-Invoked - Automatic)
+
+### Discovery Pattern
+
+When processing user requests:
+1. Scan `.claude/skills/` directory
+2. Read YAML frontmatter (description field) from each `SKILL.md`
+3. If description matches user request, load the full Skill
+4. Follow Skill instructions
+
+### Description Matching
+
+Skills have descriptions with trigger keywords. Examples:
+
+**Skill**: `direct-commit-skill`
+- Description: "Commit changes directly to current branch after quality checks. Use when user wants to commit..."
+- Triggers: "commit", "quality checks", "lint", "build"
+
+**User says**: "I want to commit these changes"
+- **Match**: Description contains "commit" and user mentions "commit"
+- **Action**: Load `.claude/skills/direct-commit-skill/SKILL.md` and follow instructions
+
+### Progressive Disclosure
+
+Skills use progressive loading:
+1. **Metadata** (always loaded): YAML frontmatter with description
+2. **Instructions** (loaded when triggered): Main `SKILL.md` body
+3. **Resources** (loaded as needed): `REFERENCE.md`, `EXAMPLES.md`, `scripts/`
+
+Only load what you need. If Skill references `REFERENCE.md`, read it when needed.
+
+### Tool Restrictions
+
+Some Skills restrict tool access:
+```yaml
+---
+allowed-tools: Read, Grep, Glob
+---
+```
+
+When this Skill is active, only use the specified tools.
+
+## Agents (Model-Invoked - Automatic)
+
+### Delegation Pattern
+
+When a task requires specialized expertise:
+1. Scan `.claude/agents/` directory
+2. Read YAML frontmatter (description field) from each agent file
+3. If agent's purpose matches the task, load the agent file
+4. Follow agent workflow autonomously
+
+### Examples
+
+**User**: "Review this PR"
+
+**Your Action**:
+1. Find `pr-review-agent.md` with description: "Systematically review pull requests..."
+2. Load `.claude/agents/pr-review-agent.md`
+3. Follow agent workflow: run quality checks, analyze code, generate review
+
+**User**: "Fix lint errors"
+
+**Your Action**:
+1. Find `lint-build-fix-agent.md` (if exists)
+2. Load and follow agent workflow
+
+## Best Practices
+
+### 1. Check for Commands First
+
+If user types `/something`, always check for a command file first.
+
+### 2. Natural Skill Discovery
+
+When user mentions something that might match a Skill:
+- Check Skill descriptions
+- If match found, use the Skill
+- Don't force Skills - only use if description matches
+
+### 3. Agent Delegation
+
+When task is complex or specialized:
+- Check for relevant Agents
+- Delegate if Agent's purpose matches
+- Let Agent handle the workflow
+
+### 4. Progressive Loading
+
+For Skills:
+- Start with description (metadata)
+- Load full Skill only if triggered
+- Load supporting files only when referenced
+
+### 5. Follow Instructions Exactly
+
+Commands, Skills, and Agents have specific workflows. Follow them step-by-step.
+
+## File Locations
+
+- **Commands**: `.claude/commands/{name}.md`
+- **Skills**: `.claude/skills/{name}/SKILL.md`
+- **Agents**: `.claude/agents/{name}.md`
+
+## Current Available Components
+
+### Commands
+- `/commit` - Commit changes after quality checks
+- `/commit-push` - Commit and push after quality checks
+
+### Skills
+- `direct-commit-skill` - Direct commit workflow with quality gates
+- `quality-gates-skill` - Quality gate patterns
+- `worktree-manager-skill` - Git worktree management
+- `supabase-management-skill` - Supabase operations
+- `meta-skill` - Skill creation guidance
+
+### Agents
+- `pr-review-agent` - PR review workflow
+
+## Examples
+
+### Example 1: User Types Command
+
+**User**: `/commit "fix(web): resolve bug"`
+
+**You**:
+1. Detect `/commit` pattern
+2. Read `.claude/commands/commit.md`
+3. See it says: "Run quality gates, safety review, commit"
+4. Execute: `npm run format`, `npm run lint`, `npm run build`
+5. Perform safety review on changed files
+6. Commit: `git commit -m "fix(web): resolve bug"`
+
+### Example 2: User Mentions Committing
+
+**User**: "I want to commit these changes"
+
+**You**:
+1. Check Skill descriptions
+2. Find `direct-commit-skill` with description matching "commit"
+3. Load `.claude/skills/direct-commit-skill/SKILL.md`
+4. Follow Skill instructions: format → lint → build → safety review → commit
+
+### Example 3: User Requests PR Review
+
+**User**: "Review my PR"
+
+**You**:
+1. Check Agent descriptions
+2. Find `pr-review-agent.md` with description matching "PR review"
+3. Load `.claude/agents/pr-review-agent.md`
+4. Follow Agent workflow: run checks, analyze code, generate review
+
+## Troubleshooting
+
+### Command Not Found
+
+If user types `/unknown-command`:
+- Check if file exists: `.claude/commands/unknown-command.md`
+- If not, inform user: "Command not found. Available commands: /commit, /commit-push"
+
+### Skill Not Triggering
+
+If Skill should trigger but doesn't:
+- Check if description includes relevant keywords
+- Check if Skill file exists and is valid
+- You can manually load Skill if appropriate
+
+### Agent Not Found
+
+If task needs specialized agent but none found:
+- Proceed with normal workflow
+- Suggest creating an agent if task is complex enough
+
+## Summary
+
+- **Commands**: User types `/command` → Read `.claude/commands/command.md` → Follow instructions
+- **Skills**: User mentions keywords → Match Skill description → Load Skill → Follow instructions
+- **Agents**: Task needs specialization → Match Agent purpose → Load Agent → Follow workflow
+
+**Always**: Check `.claude/` directory for relevant components before proceeding with generic workflow.

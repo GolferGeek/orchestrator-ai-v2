@@ -1,0 +1,49 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ADMIN_PASSWORD=\"GolferGeek123!\" API_BASE_URL=\"http://localhost:6100\" npx ts-node:*)",
+      "WebFetch(domain:docs.ollama.com)",
+      "Bash(npm run lint:*)",
+      "Bash(npx eslint:*)",
+      "Bash(npm run build:*)",
+      "Bash(PGPASSWORD=postgres psql:*)",
+      "Bash(npx tsc --noEmit --skipLibCheck)",
+      "Bash(find:*)",
+      "WebFetch(domain:localhost)",
+      "Bash(grep:*)",
+      "Bash(git checkout:*)",
+      "Bash(npm run lint:web:*)",
+      "Bash(npm run lint:langgraph:*)",
+      "Bash(npm run:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx vue-tsc:*)",
+      "Bash(npx prettier:*)",
+      "Bash(source .env)",
+      "Bash(echo:*)",
+      "Bash(ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0:*)",
+      "Bash(/Users/golfergeek/projects/golfergeek/orchestrator-ai-v2/apps/langgraph/src/__tests__/e2e/quick-auth-test.sh)",
+      "Bash(apps/langgraph/src/__tests__/e2e/marketing-swarm-curl-tests.sh)",
+      "Bash(pkill:*)",
+      "Bash(bash:*)",
+      "Bash(jq:*)",
+      "Bash(SUPABASE_URL=\"http://127.0.0.1:6010\" SUPABASE_SERVICE_ROLE_KEY=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU\":*)",
+      "Bash(SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU curl -s \"http://127.0.0.1:6010/rest/v1/agents?slug=eq.marketing-swarm\" -H \"apikey: $SERVICE_KEY\" -H \"Authorization: Bearer $SERVICE_KEY\")",
+      "Bash(npx playwright:*)",
+      "Bash(npm test:*)",
+      "Bash(INTEGRATION_TESTS=true npm test:*)",
+      "Bash(ls:*)",
+      "Bash(E2E_TESTS=true SUPABASE_URL=\"http://127.0.0.1:6010\" SUPABASE_SERVICE_ROLE_KEY=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU\" SUPABASE_ANON_KEY=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0\" npm test:*)",
+      "Bash(E2E_TESTS=true SUPABASE_URL=\"http://127.0.0.1:6010\" SUPABASE_SERVICE_ROLE_KEY=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU\" LANGGRAPH_PORT=6200 API_PORT=6100 npm test -- --testPathPattern=\"marketing-swarm-e2e\" --testNamePattern=\"Deliverable\")",
+      "Bash(E2E_TESTS=true SUPABASE_URL=\"http://127.0.0.1:6010\" SUPABASE_SERVICE_ROLE_KEY=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU\" SUPABASE_ANON_KEY=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0\" LANGGRAPH_PORT=6200 API_PORT=6100 npm test:*)",
+      "Bash(cat:*)",
+      "Bash(E2E_TESTS=true SUPABASE_URL=\"http://127.0.0.1:6010\" SUPABASE_SERVICE_ROLE_KEY=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU\" SUPABASE_ANON_KEY=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0\" LANGGRAPH_PORT=6200 API_PORT=6100 npx jest:*)",
+      "Bash(source /Users/golfergeek/projects/golfergeek/orchestrator-ai-v2/.env)"
+    ],
+    "deny": [],
+    "ask": []
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "n8n"
+  ]
+}
