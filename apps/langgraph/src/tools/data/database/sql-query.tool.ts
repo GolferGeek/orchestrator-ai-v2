@@ -1,7 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { PostgresCheckpointerService } from '../../../persistence/postgres-checkpointer.service';
-import { LLMUsageReporterService } from '../../../services/llm-usage-reporter.service';
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { PostgresCheckpointerService } from "../../../persistence/postgres-checkpointer.service";
+import { LLMUsageReporterService } from "../../../services/llm-usage-reporter.service";
 
 /**
  * SqlQueryTool
@@ -22,10 +22,10 @@ export class SqlQueryTool {
     private readonly usageReporter: LLMUsageReporterService,
   ) {
     this.ollamaBaseUrl =
-      this.configService.get<string>('OLLAMA_BASE_URL') ||
-      'http://localhost:11434';
+      this.configService.get<string>("OLLAMA_BASE_URL") ||
+      "http://localhost:11434";
     this.sqlCoderModel =
-      this.configService.get<string>('SQLCODER_MODEL') || 'gpt-oss:20b';
+      this.configService.get<string>("SQLCODER_MODEL") || "gpt-oss:20b";
   }
 
   /**
@@ -37,25 +37,28 @@ export class SqlQueryTool {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   createTool(): any {
     // Import dynamically to avoid type inference at module load time
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { DynamicStructuredTool } = require('@langchain/core/tools');
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { z } = require('zod');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { DynamicStructuredTool } = require("@langchain/core/tools");
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { z } = require("zod");
 
     return new DynamicStructuredTool({
-      name: 'execute_sql',
+      name: "execute_sql",
       description:
-        'Executes a read-only SQL query against the database. Only SELECT statements are allowed. Use list_tables and describe_table first to understand the schema.',
+        "Executes a read-only SQL query against the database. Only SELECT statements are allowed. Use list_tables and describe_table first to understand the schema.",
       schema: z.object({
         sql: z
           .string()
-          .describe('The SQL SELECT query to execute. Must be read-only.'),
+          .describe("The SQL SELECT query to execute. Must be read-only."),
         params: z
           .array(z.unknown())
           .optional()
-          .describe('Optional query parameters for parameterized queries.'),
+          .describe("Optional query parameters for parameterized queries."),
       }),
-      func: async (input: { sql: string; params?: unknown[] }): Promise<string> => {
+      func: async (input: {
+        sql: string;
+        params?: unknown[];
+      }): Promise<string> => {
         return this.executeSql(input.sql, input.params);
       },
     });
@@ -69,34 +72,37 @@ export class SqlQueryTool {
    *
    * @param context - Execution context fields (subset of ExecutionContext from transport-types)
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   createNaturalLanguageTool(context: {
     userId: string;
     taskId?: string;
     threadId?: string;
     conversationId?: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   }): any {
     // Import dynamically to avoid type inference at module load time
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { DynamicStructuredTool } = require('@langchain/core/tools');
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { z } = require('zod');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { DynamicStructuredTool } = require("@langchain/core/tools");
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { z } = require("zod");
 
     return new DynamicStructuredTool({
-      name: 'query_database',
+      name: "query_database",
       description:
-        'Converts a natural language question into SQL and executes it. Provide the question and relevant table schema information.',
+        "Converts a natural language question into SQL and executes it. Provide the question and relevant table schema information.",
       schema: z.object({
         question: z
           .string()
-          .describe('The natural language question to answer with SQL.'),
+          .describe("The natural language question to answer with SQL."),
         tableContext: z
           .string()
           .describe(
-            'The relevant table schemas (from describe_table) to help generate accurate SQL.',
+            "The relevant table schemas (from describe_table) to help generate accurate SQL.",
           ),
       }),
-      func: async (input: { question: string; tableContext: string }): Promise<string> => {
+      func: async (input: {
+        question: string;
+        tableContext: string;
+      }): Promise<string> => {
         return this.generateAndExecuteSql(
           input.question,
           input.tableContext,
@@ -112,8 +118,8 @@ export class SqlQueryTool {
   async executeSql(sql: string, params?: unknown[]): Promise<string> {
     // Validate read-only
     const normalizedSql = sql.trim().toUpperCase();
-    if (!normalizedSql.startsWith('SELECT')) {
-      return 'Error: Only SELECT queries are allowed. This tool is read-only.';
+    if (!normalizedSql.startsWith("SELECT")) {
+      return "Error: Only SELECT queries are allowed. This tool is read-only.";
     }
 
     // Block dangerous patterns
@@ -131,7 +137,7 @@ export class SqlQueryTool {
 
     for (const pattern of dangerousPatterns) {
       if (pattern.test(sql)) {
-        return 'Error: Query contains forbidden SQL operations. Only SELECT is allowed.';
+        return "Error: Query contains forbidden SQL operations. Only SELECT is allowed.";
       }
     }
 
@@ -140,55 +146,60 @@ export class SqlQueryTool {
       const result = await pool.query(sql, params || []);
 
       if (result.rows.length === 0) {
-        return 'Query returned no results.';
+        return "Query returned no results.";
       }
 
       // Format results as a table-like string
       const columns = Object.keys(result.rows[0]);
-      const header = columns.join(' | ');
-      const separator = columns.map(() => '---').join(' | ');
-      
+      const header = columns.join(" | ");
+      const separator = columns.map(() => "---").join(" | ");
+
       // Helper to format date values to shorter strings
       const formatValue = (value: unknown, columnName: string): string => {
         if (value === null || value === undefined) {
-          return 'NULL';
+          return "NULL";
         }
-        
+
         // Check if column name suggests it's a date/timestamp field
-        const isDateColumn = /_(at|date|time|created|updated)$/i.test(columnName);
-        
-        if (isDateColumn && (value instanceof Date || typeof value === 'string')) {
+        const isDateColumn = /_(at|date|time|created|updated)$/i.test(
+          columnName,
+        );
+
+        if (
+          isDateColumn &&
+          (value instanceof Date || typeof value === "string")
+        ) {
           try {
             const date = value instanceof Date ? value : new Date(value);
             if (!isNaN(date.getTime())) {
               // Format as YYYY-MM-DD HH:MM (much shorter)
               const year = date.getFullYear();
-              const month = String(date.getMonth() + 1).padStart(2, '0');
-              const day = String(date.getDate()).padStart(2, '0');
-              const hours = String(date.getHours()).padStart(2, '0');
-              const minutes = String(date.getMinutes()).padStart(2, '0');
+              const month = String(date.getMonth() + 1).padStart(2, "0");
+              const day = String(date.getDate()).padStart(2, "0");
+              const hours = String(date.getHours()).padStart(2, "0");
+              const minutes = String(date.getMinutes()).padStart(2, "0");
               return `${year}-${month}-${day} ${hours}:${minutes}`;
             }
           } catch {
             // If date parsing fails, return as string
           }
         }
-        
+
         return String(value);
       };
-      
+
       const rows = result.rows
         .slice(0, 100) // Limit to 100 rows
         .map((row: Record<string, unknown>) =>
-          columns.map((col) => formatValue(row[col], col)).join(' | '),
+          columns.map((col) => formatValue(row[col], col)).join(" | "),
         )
-        .join('\n');
+        .join("\n");
 
-      const truncated = result.rows.length > 100 ? '\n... (truncated)' : '';
+      const truncated = result.rows.length > 100 ? "\n... (truncated)" : "";
 
       return `Results (${result.rows.length} rows):\n${header}\n${separator}\n${rows}${truncated}`;
     } catch (error) {
-      this.logger.error('SQL execution failed', error);
+      this.logger.error("SQL execution failed", error);
       return `SQL Error: ${error instanceof Error ? error.message : String(error)}`;
     }
   }
@@ -218,7 +229,7 @@ export class SqlQueryTool {
       const sql = await this.callOllama(prompt);
 
       if (!sql) {
-        return 'Failed to generate SQL from the question.';
+        return "Failed to generate SQL from the question.";
       }
 
       // Report usage
@@ -237,9 +248,11 @@ export class SqlQueryTool {
       const result = await this.executeSql(sql);
 
       // Check if execution failed due to missing table
-      if (result.includes('SQL Error:') && result.includes('does not exist')) {
+      if (result.includes("SQL Error:") && result.includes("does not exist")) {
         // Extract the table name from the error
-        const tableMatch = result.match(/relation\s+"([^"]+)"\s+does not exist/i);
+        const tableMatch = result.match(
+          /relation\s+"([^"]+)"\s+does not exist/i,
+        );
         if (tableMatch) {
           const missingTable = tableMatch[1];
           return `Generated SQL:\n\`\`\`sql\n${sql}\n\`\`\`\n\n${result}\n\n⚠️ The table "${missingTable}" does not exist. Please check the available tables and try again with a valid table name.`;
@@ -248,7 +261,7 @@ export class SqlQueryTool {
 
       return `Generated SQL:\n\`\`\`sql\n${sql}\n\`\`\`\n\n${result}`;
     } catch (error) {
-      this.logger.error('Failed to generate and execute SQL', error);
+      this.logger.error("Failed to generate and execute SQL", error);
       return `Error: ${error instanceof Error ? error.message : String(error)}`;
     }
   }
@@ -283,8 +296,8 @@ ${tableContext}
   private async callOllama(prompt: string): Promise<string> {
     try {
       const response = await fetch(`${this.ollamaBaseUrl}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: this.sqlCoderModel,
           prompt,
@@ -307,7 +320,7 @@ ${tableContext}
       const sqlMatch = sql.match(/SELECT[\s\S]+?;/i);
       return sqlMatch ? sqlMatch[0] : sql;
     } catch (error) {
-      this.logger.error('Ollama API call failed', error);
+      this.logger.error("Ollama API call failed", error);
       throw error;
     }
   }

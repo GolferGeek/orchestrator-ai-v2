@@ -10,9 +10,9 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
-} from '@nestjs/common';
-import { MarketingSwarmService } from './marketing-swarm.service';
-import { MarketingSwarmRequestDto } from './dto';
+} from "@nestjs/common";
+import { MarketingSwarmService } from "./marketing-swarm.service";
+import { MarketingSwarmRequestDto } from "./dto";
 
 /**
  * MarketingSwarmController
@@ -28,7 +28,7 @@ import { MarketingSwarmRequestDto } from './dto';
  * - GET /marketing-swarm/status/:taskId - Check execution status
  * - GET /marketing-swarm/state/:taskId - Get full execution state from DB
  */
-@Controller('marketing-swarm')
+@Controller("marketing-swarm")
 export class MarketingSwarmController {
   private readonly logger = new Logger(MarketingSwarmController.name);
 
@@ -44,12 +44,12 @@ export class MarketingSwarmController {
    * Returns: Versioned deliverable structure that API runner can parse
    * to create multiple deliverable versions.
    */
-  @Post('execute')
+  @Post("execute")
   @HttpCode(HttpStatus.OK)
   async execute(@Body() request: MarketingSwarmRequestDto) {
     // ExecutionContext is required
     if (!request.context) {
-      throw new BadRequestException('ExecutionContext is required');
+      throw new BadRequestException("ExecutionContext is required");
     }
 
     const context = request.context;
@@ -58,7 +58,7 @@ export class MarketingSwarmController {
     this.logger.log(`Received swarm execution request: taskId=${taskId}`);
 
     if (!taskId) {
-      throw new BadRequestException('taskId is required in context');
+      throw new BadRequestException("taskId is required in context");
     }
 
     try {
@@ -68,11 +68,11 @@ export class MarketingSwarmController {
       });
 
       // If execution failed, return error response
-      if (result.status !== 'completed') {
+      if (result.status !== "completed") {
         return {
           success: false,
-          status: 'failed',
-          error: result.error || 'Execution failed',
+          status: "failed",
+          error: result.error || "Execution failed",
         };
       }
 
@@ -92,9 +92,9 @@ export class MarketingSwarmController {
         data: result,
       };
     } catch (error) {
-      this.logger.error('Swarm execution failed:', error);
+      this.logger.error("Swarm execution failed:", error);
       throw new BadRequestException(
-        error instanceof Error ? error.message : 'Swarm execution failed',
+        error instanceof Error ? error.message : "Swarm execution failed",
       );
     }
   }
@@ -102,9 +102,9 @@ export class MarketingSwarmController {
   /**
    * Get execution status by task ID
    */
-  @Get('status/:taskId')
+  @Get("status/:taskId")
   @HttpCode(HttpStatus.OK)
-  async getStatus(@Param('taskId') taskId: string) {
+  async getStatus(@Param("taskId") taskId: string) {
     this.logger.log(`Getting status for task: ${taskId}`);
 
     const status = await this.marketingSwarmService.getStatus(taskId);
@@ -125,9 +125,9 @@ export class MarketingSwarmController {
    * Returns all outputs and evaluations from the database.
    * Used for reconnection - frontend rebuilds UI from this data.
    */
-  @Get('state/:taskId')
+  @Get("state/:taskId")
   @HttpCode(HttpStatus.OK)
-  async getState(@Param('taskId') taskId: string) {
+  async getState(@Param("taskId") taskId: string) {
     this.logger.log(`Getting full state for task: ${taskId}`);
 
     const state = await this.marketingSwarmService.getFullState(taskId);
@@ -152,9 +152,9 @@ export class MarketingSwarmController {
    * Returns the top N ranked outputs with their full edit histories.
    * This is the JSON structure suitable for returning to API runner.
    */
-  @Get('deliverable/:taskId')
+  @Get("deliverable/:taskId")
   @HttpCode(HttpStatus.OK)
-  async getDeliverable(@Param('taskId') taskId: string) {
+  async getDeliverable(@Param("taskId") taskId: string) {
     this.logger.log(`Getting deliverable for task: ${taskId}`);
 
     const deliverable = await this.marketingSwarmService.getDeliverable(taskId);
@@ -179,9 +179,9 @@ export class MarketingSwarmController {
    * The `type: 'versioned'` field signals the API runner to create
    * multiple deliverable versions from the versions array.
    */
-  @Get('versioned-deliverable/:taskId')
+  @Get("versioned-deliverable/:taskId")
   @HttpCode(HttpStatus.OK)
-  async getVersionedDeliverable(@Param('taskId') taskId: string) {
+  async getVersionedDeliverable(@Param("taskId") taskId: string) {
     this.logger.log(`Getting versioned deliverable for task: ${taskId}`);
 
     const deliverable =
@@ -205,9 +205,9 @@ export class MarketingSwarmController {
    * Deletes evaluations, outputs, and the swarm_task from the database.
    * Called when a conversation/deliverable is deleted from the API.
    */
-  @Delete(':taskId')
+  @Delete(":taskId")
   @HttpCode(HttpStatus.OK)
-  async deleteTask(@Param('taskId') taskId: string) {
+  async deleteTask(@Param("taskId") taskId: string) {
     this.logger.log(`Deleting task: ${taskId}`);
 
     const success = await this.marketingSwarmService.deleteTask(taskId);
@@ -232,12 +232,13 @@ export class MarketingSwarmController {
    *
    * Used by frontend to show write/edit history in modal.
    */
-  @Get('output/:outputId/versions')
+  @Get("output/:outputId/versions")
   @HttpCode(HttpStatus.OK)
-  async getOutputVersions(@Param('outputId') outputId: string) {
+  async getOutputVersions(@Param("outputId") outputId: string) {
     this.logger.log(`Getting versions for output: ${outputId}`);
 
-    const versions = await this.marketingSwarmService.getOutputVersions(outputId);
+    const versions =
+      await this.marketingSwarmService.getOutputVersions(outputId);
 
     return {
       success: true,
@@ -254,9 +255,9 @@ export class MarketingSwarmController {
    * Returns full output details including current content, status,
    * writer/editor info, and scoring.
    */
-  @Get('output/:outputId')
+  @Get("output/:outputId")
   @HttpCode(HttpStatus.OK)
-  async getOutput(@Param('outputId') outputId: string) {
+  async getOutput(@Param("outputId") outputId: string) {
     this.logger.log(`Getting output: ${outputId}`);
 
     const output = await this.marketingSwarmService.getOutputById(outputId);
@@ -277,15 +278,18 @@ export class MarketingSwarmController {
    * Looks up a swarm task using the conversation ID.
    * Used by frontend to restore task state when navigating to an existing conversation.
    */
-  @Get('by-conversation/:conversationId')
+  @Get("by-conversation/:conversationId")
   @HttpCode(HttpStatus.OK)
-  async getTaskByConversation(@Param('conversationId') conversationId: string) {
+  async getTaskByConversation(@Param("conversationId") conversationId: string) {
     this.logger.log(`Getting task for conversation: ${conversationId}`);
 
-    const task = await this.marketingSwarmService.getTaskByConversationId(conversationId);
+    const task =
+      await this.marketingSwarmService.getTaskByConversationId(conversationId);
 
     if (!task) {
-      throw new NotFoundException(`No task found for conversation: ${conversationId}`);
+      throw new NotFoundException(
+        `No task found for conversation: ${conversationId}`,
+      );
     }
 
     return {

@@ -1,5 +1,12 @@
-import { IsString, IsOptional, IsIn, IsObject, ValidateNested, IsArray } from 'class-validator';
-import { Type } from 'class-transformer';
+import {
+  IsString,
+  IsOptional,
+  IsIn,
+  IsObject,
+  ValidateNested,
+  IsArray,
+} from "class-validator";
+import { Type } from "class-transformer";
 
 /**
  * Edited content DTO - matches GeneratedContent interface
@@ -21,8 +28,8 @@ export class EditedContentDto {
  */
 export class ExtendedPostWriterResumeDto {
   @IsString()
-  @IsIn(['approve', 'edit', 'reject'])
-  decision!: 'approve' | 'edit' | 'reject';
+  @IsIn(["approve", "edit", "reject"])
+  decision!: "approve" | "edit" | "reject";
 
   @IsOptional()
   @IsObject()

@@ -1,5 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { PostgresCheckpointerService } from '../../../persistence/postgres-checkpointer.service';
+import { Injectable, Logger } from "@nestjs/common";
+import { PostgresCheckpointerService } from "../../../persistence/postgres-checkpointer.service";
 
 /**
  * DescribeTableTool
@@ -24,23 +24,26 @@ export class DescribeTableTool {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   createTool(): any {
     // Import dynamically to avoid type inference at module load time
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { DynamicStructuredTool } = require('@langchain/core/tools');
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { z } = require('zod');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { DynamicStructuredTool } = require("@langchain/core/tools");
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { z } = require("zod");
 
     return new DynamicStructuredTool({
-      name: 'describe_table',
+      name: "describe_table",
       description:
-        'Describes the schema of a database table, showing column names, data types, and constraints. Use this before writing SQL queries to understand the table structure.',
+        "Describes the schema of a database table, showing column names, data types, and constraints. Use this before writing SQL queries to understand the table structure.",
       schema: z.object({
-        tableName: z.string().describe('The name of the table to describe'),
+        tableName: z.string().describe("The name of the table to describe"),
         schema: z
           .string()
           .optional()
-          .describe('Optional schema name. Defaults to public.'),
+          .describe("Optional schema name. Defaults to public."),
       }),
-      func: async (input: { tableName: string; schema?: string }): Promise<string> => {
+      func: async (input: {
+        tableName: string;
+        schema?: string;
+      }): Promise<string> => {
         return this.execute(input.tableName, input.schema);
       },
     });
@@ -50,7 +53,7 @@ export class DescribeTableTool {
    * Execute the describe table query
    */
   async execute(tableName: string, schema?: string): Promise<string> {
-    const targetSchema = schema || 'public';
+    const targetSchema = schema || "public";
 
     try {
       const pool = this.checkpointerService.getPool();
@@ -86,28 +89,30 @@ export class DescribeTableTool {
       }
 
       const columnDescriptions = result.rows
-        .map((row: {
-          column_name: string;
-          data_type: string;
-          character_maximum_length: number | null;
-          is_nullable: string;
-          column_default: string | null;
-          key_type: string;
-        }) => {
-          let typeStr = row.data_type;
-          if (row.character_maximum_length) {
-            typeStr += `(${row.character_maximum_length})`;
-          }
+        .map(
+          (row: {
+            column_name: string;
+            data_type: string;
+            character_maximum_length: number | null;
+            is_nullable: string;
+            column_default: string | null;
+            key_type: string;
+          }) => {
+            let typeStr = row.data_type;
+            if (row.character_maximum_length) {
+              typeStr += `(${row.character_maximum_length})`;
+            }
 
-          const nullable = row.is_nullable === 'YES' ? 'NULL' : 'NOT NULL';
-          const defaultVal = row.column_default
-            ? ` DEFAULT ${row.column_default}`
-            : '';
-          const keyInfo = row.key_type ? ` [${row.key_type}]` : '';
+            const nullable = row.is_nullable === "YES" ? "NULL" : "NOT NULL";
+            const defaultVal = row.column_default
+              ? ` DEFAULT ${row.column_default}`
+              : "";
+            const keyInfo = row.key_type ? ` [${row.key_type}]` : "";
 
-          return `  - ${row.column_name}: ${typeStr} ${nullable}${defaultVal}${keyInfo}`;
-        })
-        .join('\n');
+            return `  - ${row.column_name}: ${typeStr} ${nullable}${defaultVal}${keyInfo}`;
+          },
+        )
+        .join("\n");
 
       return `Table: ${targetSchema}.${tableName}\nColumns:\n${columnDescriptions}`;
     } catch (error) {

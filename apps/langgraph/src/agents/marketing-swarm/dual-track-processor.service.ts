@@ -1,7 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ExecutionContext } from '@orchestrator-ai/transport-types';
-import { LLMHttpClientService } from '../../services/llm-http-client.service';
-import { ObservabilityService } from '../../services/observability.service';
+import { Injectable, Logger } from "@nestjs/common";
+import { ExecutionContext } from "@orchestrator-ai/transport-types";
+import { LLMHttpClientService } from "../../services/llm-http-client.service";
+import { ObservabilityService } from "../../services/observability.service";
 import {
   MarketingDbService,
   ExecutionConfig,
@@ -9,24 +9,24 @@ import {
   OutputRow,
   EvaluationRow,
   AgentPersonality,
-} from './marketing-db.service';
+} from "./marketing-db.service";
 
-const AGENT_SLUG = 'marketing-swarm';
+const AGENT_SLUG = "marketing-swarm";
 
 /**
  * Phase of the swarm execution
  */
 export type SwarmPhase =
-  | 'initializing'
-  | 'building_queue'
-  | 'writing'
-  | 'editing'
-  | 'evaluating_initial'
-  | 'selecting_finalists'
-  | 'evaluating_final'
-  | 'ranking'
-  | 'completed'
-  | 'failed';
+  | "initializing"
+  | "building_queue"
+  | "writing"
+  | "editing"
+  | "evaluating_initial"
+  | "selecting_finalists"
+  | "evaluating_final"
+  | "ranking"
+  | "completed"
+  | "failed";
 
 /**
  * DualTrackProcessorService
@@ -56,57 +56,58 @@ export class DualTrackProcessorService {
       // Get task config
       const config = await this.db.getTaskConfig(taskId);
       if (!config) {
-        throw new Error('Task config not found');
+        throw new Error("Task config not found");
       }
 
       // Update task status to running
-      await this.db.updateTaskStatus(taskId, 'running');
+      await this.db.updateTaskStatus(taskId, "running");
 
       // Emit started event
       await this.observability.emitStarted(
         context,
         taskId,
-        'Marketing Swarm started',
+        "Marketing Swarm started",
       );
 
       // Phase 1: Build output matrix
-      await this.emitPhaseChange(context, taskId, 'building_queue');
+      await this.emitPhaseChange(context, taskId, "building_queue");
       const outputs = await this.db.buildOutputMatrix(taskId, config);
 
       await this.emitQueueBuilt(context, taskId, outputs, config);
 
       // Phase 2: Writing and Editing loop
-      await this.emitPhaseChange(context, taskId, 'writing');
+      await this.emitPhaseChange(context, taskId, "writing");
       await this.processWritingAndEditing(taskId, context, config);
 
       // Phase 3: Initial evaluations
-      await this.emitPhaseChange(context, taskId, 'evaluating_initial');
+      await this.emitPhaseChange(context, taskId, "evaluating_initial");
       await this.db.buildInitialEvaluations(taskId, config);
-      await this.processEvaluations(taskId, context, config, 'initial');
+      await this.processEvaluations(taskId, context, config, "initial");
 
       // Phase 4: Select finalists
-      await this.emitPhaseChange(context, taskId, 'selecting_finalists');
-      const finalistCount = await this.db.calculateInitialRankingsAndSelectFinalists(
-        taskId,
-        config.execution.topNForFinalRanking,
-      );
+      await this.emitPhaseChange(context, taskId, "selecting_finalists");
+      const finalistCount =
+        await this.db.calculateInitialRankingsAndSelectFinalists(
+          taskId,
+          config.execution.topNForFinalRanking,
+        );
 
       await this.emitFinalistsSelected(context, taskId, finalistCount);
 
       // Phase 5: Final evaluations (if we have finalists)
       if (finalistCount > 0) {
-        await this.emitPhaseChange(context, taskId, 'evaluating_final');
+        await this.emitPhaseChange(context, taskId, "evaluating_final");
         await this.db.buildFinalEvaluations(taskId, config);
-        await this.processEvaluations(taskId, context, config, 'final');
+        await this.processEvaluations(taskId, context, config, "final");
 
         // Phase 6: Calculate final rankings
-        await this.emitPhaseChange(context, taskId, 'ranking');
+        await this.emitPhaseChange(context, taskId, "ranking");
         await this.db.calculateFinalRankings(taskId);
       }
 
       // Complete
-      await this.emitPhaseChange(context, taskId, 'completed');
-      await this.db.updateTaskStatus(taskId, 'completed');
+      await this.emitPhaseChange(context, taskId, "completed");
+      await this.db.updateTaskStatus(taskId, "completed");
 
       // Emit completed with results
       const allOutputs = await this.db.getAllOutputs(taskId);
@@ -120,10 +121,11 @@ export class DualTrackProcessorService {
 
       this.logger.log(`Task completed: ${taskId}`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       this.logger.error(`Task failed: ${taskId}, error: ${errorMessage}`);
 
-      await this.db.updateTaskStatus(taskId, 'failed', undefined, errorMessage);
+      await this.db.updateTaskStatus(taskId, "failed", undefined, errorMessage);
       await this.observability.emitFailed(context, taskId, errorMessage, 0);
 
       throw error;
@@ -157,8 +159,7 @@ export class DualTrackProcessorService {
 
       if (actions.length === 0) {
         // Check if anything is still in progress
-        const stillRunning =
-          runningCounts.local > 0 || runningCounts.cloud > 0;
+        const stillRunning = runningCounts.local > 0 || runningCounts.cloud > 0;
 
         if (!stillRunning) {
           // Check if all outputs are complete
@@ -229,24 +230,27 @@ export class DualTrackProcessorService {
     const status = output.status;
 
     try {
-      if (status === 'pending_write') {
+      if (status === "pending_write") {
         await this.processWrite(taskId, context, output, config);
-      } else if (status === 'pending_edit') {
+      } else if (status === "pending_edit") {
         await this.processEdit(taskId, context, output, config);
-      } else if (status === 'pending_rewrite') {
+      } else if (status === "pending_rewrite") {
         await this.processRewrite(taskId, context, output, config);
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Action failed for output ${output.id}: ${errorMessage}`);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `Action failed for output ${output.id}: ${errorMessage}`,
+      );
 
-      await this.db.updateOutputStatus(output.id, 'failed', {
+      await this.db.updateOutputStatus(output.id, "failed", {
         llm_metadata: { error: errorMessage },
       } as Partial<OutputRow>);
 
       await this.emitOutputUpdated(context, taskId, {
         ...output,
-        status: 'failed',
+        status: "failed",
       });
     }
   }
@@ -258,23 +262,28 @@ export class DualTrackProcessorService {
     taskId: string,
     context: ExecutionContext,
     output: OutputRow,
-    config: TaskConfig,
+    _config: TaskConfig,
   ): Promise<void> {
     // Mark as in-progress
-    await this.db.updateOutputStatus(output.id, 'writing');
-    await this.emitOutputUpdated(context, taskId, { ...output, status: 'writing' });
+    await this.db.updateOutputStatus(output.id, "writing");
+    await this.emitOutputUpdated(context, taskId, {
+      ...output,
+      status: "writing",
+    });
 
     // Get writer personality (provider/model are now directly on the output row)
-    const personality = await this.db.getAgentPersonality(output.writer_agent_slug);
+    const personality = await this.db.getAgentPersonality(
+      output.writer_agent_slug,
+    );
 
     if (!personality) {
-      throw new Error('Writer personality not found');
+      throw new Error("Writer personality not found");
     }
 
     // Get prompt data
     const taskData = await this.db.getPromptData(taskId);
     if (!taskData) {
-      throw new Error('Task prompt data not found');
+      throw new Error("Task prompt data not found");
     }
 
     const contentTypeContext = await this.db.getContentTypeContext(
@@ -285,7 +294,7 @@ export class DualTrackProcessorService {
     const prompt = this.buildWriterPrompt(
       personality,
       taskData.promptData as Record<string, unknown>,
-      contentTypeContext || '',
+      contentTypeContext || "",
     );
 
     // Call LLM (provider/model are directly on the output row)
@@ -305,20 +314,29 @@ export class DualTrackProcessorService {
     const latencyMs = Date.now() - startTime;
 
     // Update output with content
-    await this.db.updateOutputContent(output.id, response.text, 'pending_edit', {
-      tokensUsed: response.usage?.totalTokens,
-      latencyMs,
-      cost: response.usage?.cost,
-    });
+    await this.db.updateOutputContent(
+      output.id,
+      response.text,
+      "pending_edit",
+      {
+        tokensUsed: response.usage?.totalTokens,
+        latencyMs,
+        cost: response.usage?.cost,
+      },
+    );
 
     // Save version for edit history tracking
     await this.db.saveOutputVersion(
       output.id,
       taskId,
       response.text,
-      'write',
+      "write",
       null,
-      { tokensUsed: response.usage?.totalTokens, latencyMs, cost: response.usage?.cost },
+      {
+        tokensUsed: response.usage?.totalTokens,
+        latencyMs,
+        cost: response.usage?.cost,
+      },
     );
 
     // Emit update with full data
@@ -338,21 +356,26 @@ export class DualTrackProcessorService {
     config: TaskConfig,
   ): Promise<void> {
     // Mark as in-progress
-    await this.db.updateOutputStatus(output.id, 'editing');
-    await this.emitOutputUpdated(context, taskId, { ...output, status: 'editing' });
+    await this.db.updateOutputStatus(output.id, "editing");
+    await this.emitOutputUpdated(context, taskId, {
+      ...output,
+      status: "editing",
+    });
 
     // IMPORTANT: Fetch fresh output with content - getNextOutputs doesn't return content
     const freshOutput = await this.db.getOutputById(output.id);
     if (!freshOutput) {
       throw new Error(`Output not found: ${output.id}`);
     }
-    const content = freshOutput.content || '';
+    const content = freshOutput.content || "";
 
     // Get editor personality (provider/model are directly on the output row)
-    const personality = await this.db.getAgentPersonality(output.editor_agent_slug!);
+    const personality = await this.db.getAgentPersonality(
+      output.editor_agent_slug!,
+    );
 
     if (!personality) {
-      throw new Error('Editor personality not found');
+      throw new Error("Editor personality not found");
     }
 
     // Get prompt data for context
@@ -393,15 +416,15 @@ export class DualTrackProcessorService {
     // Determine next status
     let nextStatus: string;
     if (approved) {
-      nextStatus = 'approved';
+      nextStatus = "approved";
     } else if (newEditCycle >= maxCycles) {
       // Hit max cycles without approval - content should NOT proceed to evaluation
-      nextStatus = 'max_cycles_reached';
+      nextStatus = "max_cycles_reached";
       this.logger.warn(
         `Output ${output.id} reached max edit cycles (${maxCycles}) without approval`,
       );
     } else {
-      nextStatus = 'pending_rewrite';
+      nextStatus = "pending_rewrite";
     }
 
     // Update output
@@ -411,7 +434,11 @@ export class DualTrackProcessorService {
       nextStatus,
       feedback,
       newEditCycle,
-      { tokensUsed: response.usage?.totalTokens, latencyMs, cost: response.usage?.cost },
+      {
+        tokensUsed: response.usage?.totalTokens,
+        latencyMs,
+        cost: response.usage?.cost,
+      },
     );
 
     // Emit update
@@ -428,25 +455,30 @@ export class DualTrackProcessorService {
     taskId: string,
     context: ExecutionContext,
     output: OutputRow,
-    config: TaskConfig,
+    _config: TaskConfig,
   ): Promise<void> {
     // Mark as in-progress
-    await this.db.updateOutputStatus(output.id, 'rewriting');
-    await this.emitOutputUpdated(context, taskId, { ...output, status: 'rewriting' });
+    await this.db.updateOutputStatus(output.id, "rewriting");
+    await this.emitOutputUpdated(context, taskId, {
+      ...output,
+      status: "rewriting",
+    });
 
     // IMPORTANT: Fetch fresh output with content - getNextOutputs doesn't return content
     const freshOutput = await this.db.getOutputById(output.id);
     if (!freshOutput) {
       throw new Error(`Output not found: ${output.id}`);
     }
-    const content = freshOutput.content || '';
-    const editorFeedback = freshOutput.editor_feedback || '';
+    const content = freshOutput.content || "";
+    const editorFeedback = freshOutput.editor_feedback || "";
 
     // Get writer personality (provider/model are directly on the output row)
-    const personality = await this.db.getAgentPersonality(output.writer_agent_slug);
+    const personality = await this.db.getAgentPersonality(
+      output.writer_agent_slug,
+    );
 
     if (!personality) {
-      throw new Error('Writer personality not found');
+      throw new Error("Writer personality not found");
     }
 
     // Build rewrite prompt
@@ -473,20 +505,29 @@ export class DualTrackProcessorService {
     const latencyMs = Date.now() - startTime;
 
     // Update output - goes back to pending_edit
-    await this.db.updateOutputContent(output.id, response.text, 'pending_edit', {
-      tokensUsed: response.usage?.totalTokens,
-      latencyMs,
-      cost: response.usage?.cost,
-    });
+    await this.db.updateOutputContent(
+      output.id,
+      response.text,
+      "pending_edit",
+      {
+        tokensUsed: response.usage?.totalTokens,
+        latencyMs,
+        cost: response.usage?.cost,
+      },
+    );
 
     // Save version for edit history tracking (include editor feedback that triggered rewrite)
     await this.db.saveOutputVersion(
       output.id,
       taskId,
       response.text,
-      'rewrite',
+      "rewrite",
       editorFeedback,
-      { tokensUsed: response.usage?.totalTokens, latencyMs, cost: response.usage?.cost },
+      {
+        tokensUsed: response.usage?.totalTokens,
+        latencyMs,
+        cost: response.usage?.cost,
+      },
     );
 
     // Emit update
@@ -503,7 +544,7 @@ export class DualTrackProcessorService {
     taskId: string,
     context: ExecutionContext,
     config: TaskConfig,
-    stage: 'initial' | 'final',
+    stage: "initial" | "final",
   ): Promise<void> {
     const execution = config.execution;
     let iterationCount = 0;
@@ -518,7 +559,7 @@ export class DualTrackProcessorService {
       if (pending.length === 0) {
         // Check if complete
         const allComplete =
-          stage === 'initial'
+          stage === "initial"
             ? await this.db.areAllInitialEvaluationsComplete(taskId)
             : await this.db.areAllFinalEvaluationsComplete(taskId);
 
@@ -548,7 +589,7 @@ export class DualTrackProcessorService {
     context: ExecutionContext,
     evaluation: EvaluationRow,
     config: TaskConfig,
-    stage: 'initial' | 'final',
+    stage: "initial" | "final",
   ): Promise<void> {
     try {
       // Get evaluator personality (provider/model are directly on the evaluation row)
@@ -557,13 +598,13 @@ export class DualTrackProcessorService {
       );
 
       if (!personality) {
-        throw new Error('Evaluator personality not found');
+        throw new Error("Evaluator personality not found");
       }
 
       // Get the output to evaluate
       const output = await this.db.getOutputById(evaluation.output_id);
       if (!output) {
-        throw new Error('Output not found');
+        throw new Error("Output not found");
       }
 
       // Get prompt data
@@ -571,15 +612,15 @@ export class DualTrackProcessorService {
 
       // Build evaluation prompt
       const prompt =
-        stage === 'initial'
+        stage === "initial"
           ? this.buildInitialEvaluationPrompt(
               personality,
-              output.content || '',
+              output.content || "",
               taskData?.promptData as Record<string, unknown>,
             )
           : this.buildFinalRankingPrompt(
               personality,
-              output.content || '',
+              output.content || "",
               taskData?.promptData as Record<string, unknown>,
             );
 
@@ -603,7 +644,7 @@ export class DualTrackProcessorService {
       const evalCost = response.usage?.cost ?? 0;
       const evalTokens = response.usage?.totalTokens ?? 0;
 
-      if (stage === 'initial') {
+      if (stage === "initial") {
         const { score, reasoning } = this.parseInitialEvaluationResponse(
           response.text,
         );
@@ -612,20 +653,22 @@ export class DualTrackProcessorService {
           evaluation.id,
           score,
           reasoning,
-          'completed',
+          "completed",
           undefined,
           undefined,
           { tokensUsed: evalTokens, latencyMs, cost: evalCost },
         );
       } else {
-        const { rank, reasoning } = this.parseFinalRankingResponse(response.text);
+        const { rank, reasoning } = this.parseFinalRankingResponse(
+          response.text,
+        );
         const weightedScore = this.rankToWeightedScore(rank);
 
         await this.db.updateEvaluation(
           evaluation.id,
           rank, // Use rank as the "score" for final stage
           reasoning,
-          'completed',
+          "completed",
           rank,
           weightedScore,
           { tokensUsed: evalTokens, latencyMs, cost: evalCost },
@@ -648,13 +691,14 @@ export class DualTrackProcessorService {
       // Emit evaluation update
       await this.emitEvaluationUpdated(context, taskId, {
         ...evaluation,
-        status: 'completed',
+        status: "completed",
       });
 
       // Emit ranking update
       await this.emitRankingUpdated(context, taskId, stage);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       this.logger.error(
         `Evaluation failed for ${evaluation.id}: ${errorMessage}`,
       );
@@ -664,7 +708,7 @@ export class DualTrackProcessorService {
         evaluation.id,
         null,
         errorMessage,
-        'failed',
+        "failed",
       );
     }
   }
@@ -679,7 +723,7 @@ export class DualTrackProcessorService {
     contentTypeContext: string,
   ): string {
     const personalityContext =
-      (personality.personality as Record<string, string>).system_context || '';
+      (personality.personality as Record<string, string>).system_context || "";
 
     return `${personalityContext}
 
@@ -693,11 +737,11 @@ ${contentTypeContext}
 **Tone**: ${promptData.tone}
 
 **Key Points to Cover**:
-${((promptData.keyPoints as string[]) || []).map((p, i) => `${i + 1}. ${p}`).join('\n')}
+${((promptData.keyPoints as string[]) || []).map((p, i) => `${i + 1}. ${p}`).join("\n")}
 
-${promptData.constraints ? `**Constraints**: ${promptData.constraints}` : ''}
-${promptData.examples ? `**Style Examples**: ${promptData.examples}` : ''}
-${promptData.additionalContext ? `**Additional Context**: ${promptData.additionalContext}` : ''}
+${promptData.constraints ? `**Constraints**: ${promptData.constraints}` : ""}
+${promptData.examples ? `**Style Examples**: ${promptData.examples}` : ""}
+${promptData.additionalContext ? `**Additional Context**: ${promptData.additionalContext}` : ""}
 
 Please write the content based on this brief.`;
   }
@@ -708,16 +752,17 @@ Please write the content based on this brief.`;
     promptData: Record<string, unknown>,
   ): string {
     const personalityContext =
-      (personality.personality as Record<string, string>).system_context || '';
+      (personality.personality as Record<string, string>).system_context || "";
     const reviewFocus =
       (personality.personality as Record<string, string[]>).review_focus || [];
     const approvalCriteria =
-      (personality.personality as Record<string, string>).approval_criteria || '';
+      (personality.personality as Record<string, string>).approval_criteria ||
+      "";
 
     return `${personalityContext}
 
 ## Your Review Focus
-${reviewFocus.map((f) => `- ${f}`).join('\n')}
+${reviewFocus.map((f) => `- ${f}`).join("\n")}
 
 ## Approval Criteria
 ${approvalCriteria}
@@ -751,7 +796,7 @@ Format your response as:
     editorFeedback: string,
   ): string {
     const personalityContext =
-      (personality.personality as Record<string, string>).system_context || '';
+      (personality.personality as Record<string, string>).system_context || "";
 
     return `${personalityContext}
 
@@ -777,9 +822,10 @@ Write the complete revised content:`;
     promptData: Record<string, unknown>,
   ): string {
     const personalityContext =
-      (personality.personality as Record<string, string>).system_context || '';
+      (personality.personality as Record<string, string>).system_context || "";
     const evaluationCriteria =
-      (personality.personality as Record<string, unknown>).evaluation_criteria || {};
+      (personality.personality as Record<string, unknown>)
+        .evaluation_criteria || {};
     const scoreAnchors =
       (personality.personality as Record<string, unknown>).score_anchors || {};
 
@@ -788,12 +834,12 @@ Write the complete revised content:`;
 ## Evaluation Criteria
 ${Object.entries(evaluationCriteria)
   .map(([key, value]) => `- **${key}**: ${value}`)
-  .join('\n')}
+  .join("\n")}
 
 ## Score Anchors
 ${Object.entries(scoreAnchors)
   .map(([range, desc]) => `- ${range}: ${desc}`)
-  .join('\n')}
+  .join("\n")}
 
 ## Content to Evaluate
 
@@ -821,7 +867,7 @@ Format your response as:
     promptData: Record<string, unknown>,
   ): string {
     const personalityContext =
-      (personality.personality as Record<string, string>).system_context || '';
+      (personality.personality as Record<string, string>).system_context || "";
 
     return `${personalityContext}
 
@@ -862,8 +908,8 @@ Format your response as:
     originalContent: string,
   ): { approved: boolean; feedback: string; revisedContent: string } {
     const approved =
-      response.toUpperCase().includes('APPROVE') &&
-      !response.toUpperCase().includes('REQUEST_CHANGES');
+      response.toUpperCase().includes("APPROVE") &&
+      !response.toUpperCase().includes("REQUEST_CHANGES");
 
     const feedbackMatch = response.match(
       /\*\*Feedback\*\*:\s*([\s\S]*?)(?=\*\*Revised Content\*\*|$)/i,
@@ -879,30 +925,32 @@ Format your response as:
     };
   }
 
-  private parseInitialEvaluationResponse(
-    response: string,
-  ): { score: number; reasoning: string } {
+  private parseInitialEvaluationResponse(response: string): {
+    score: number;
+    reasoning: string;
+  } {
     const scoreMatch = response.match(/\*\*Score\*\*:\s*(\d+)/i);
-    const reasoningMatch = response.match(
-      /\*\*Reasoning\*\*:\s*([\s\S]*?)$/i,
-    );
+    const reasoningMatch = response.match(/\*\*Reasoning\*\*:\s*([\s\S]*?)$/i);
 
     return {
-      score: scoreMatch ? Math.min(10, Math.max(1, parseInt(scoreMatch[1], 10))) : 5,
+      score: scoreMatch
+        ? Math.min(10, Math.max(1, parseInt(scoreMatch[1], 10)))
+        : 5,
       reasoning: reasoningMatch ? reasoningMatch[1].trim() : response,
     };
   }
 
-  private parseFinalRankingResponse(
-    response: string,
-  ): { rank: number; reasoning: string } {
+  private parseFinalRankingResponse(response: string): {
+    rank: number;
+    reasoning: string;
+  } {
     const rankMatch = response.match(/\*\*Rank\*\*:\s*(\d+)/i);
-    const reasoningMatch = response.match(
-      /\*\*Reasoning\*\*:\s*([\s\S]*?)$/i,
-    );
+    const reasoningMatch = response.match(/\*\*Reasoning\*\*:\s*([\s\S]*?)$/i);
 
     return {
-      rank: rankMatch ? Math.min(5, Math.max(1, parseInt(rankMatch[1], 10))) : 5,
+      rank: rankMatch
+        ? Math.min(5, Math.max(1, parseInt(rankMatch[1], 10)))
+        : 5,
       reasoning: reasoningMatch ? reasoningMatch[1].trim() : response,
     };
   }
@@ -935,7 +983,7 @@ Format your response as:
   ): Promise<void> {
     await this.observability.emitProgress(context, taskId, `Phase: ${phase}`, {
       metadata: {
-        type: 'phase_changed',
+        type: "phase_changed",
         phase,
       },
     });
@@ -953,7 +1001,7 @@ Format your response as:
       `Queue built: ${outputs.length} output combinations`,
       {
         metadata: {
-          type: 'queue_built',
+          type: "queue_built",
           taskId,
           totalOutputs: outputs.length,
           writers: config.writers.length,
@@ -989,7 +1037,7 @@ Format your response as:
       `Output ${output.id} status: ${output.status}`,
       {
         metadata: {
-          type: 'output_updated',
+          type: "output_updated",
           taskId,
           output: {
             id: output.id,
@@ -999,7 +1047,7 @@ Format your response as:
               name: writerPersonality?.name,
               llmProvider: output.writer_llm_provider,
               llmModel: output.writer_llm_model,
-              isLocal: output.writer_llm_provider === 'ollama',
+              isLocal: output.writer_llm_provider === "ollama",
             },
             editorAgent: output.editor_agent_slug
               ? {
@@ -1007,7 +1055,7 @@ Format your response as:
                   name: editorPersonality?.name,
                   llmProvider: output.editor_llm_provider,
                   llmModel: output.editor_llm_model,
-                  isLocal: output.editor_llm_provider === 'ollama',
+                  isLocal: output.editor_llm_provider === "ollama",
                 }
               : null,
             content: output.content,
@@ -1042,7 +1090,7 @@ Format your response as:
       `Evaluation ${evaluation.id} completed`,
       {
         metadata: {
-          type: 'evaluation_updated',
+          type: "evaluation_updated",
           taskId,
           evaluation: {
             id: evaluation.id,
@@ -1054,7 +1102,7 @@ Format your response as:
               name: evaluatorPersonality?.name,
               llmProvider: evaluation.evaluator_llm_provider,
               llmModel: evaluation.evaluator_llm_model,
-              isLocal: evaluation.evaluator_llm_provider === 'ollama',
+              isLocal: evaluation.evaluator_llm_provider === "ollama",
             },
             score: evaluation.score,
             rank: evaluation.rank,
@@ -1084,7 +1132,7 @@ Format your response as:
       `Selected ${count} finalists`,
       {
         metadata: {
-          type: 'finalists_selected',
+          type: "finalists_selected",
           taskId,
           count,
           finalists: finalists.map((f) => ({
@@ -1102,20 +1150,23 @@ Format your response as:
   private async emitRankingUpdated(
     context: ExecutionContext,
     taskId: string,
-    stage: 'initial' | 'final',
+    stage: "initial" | "final",
   ): Promise<void> {
     const allOutputs = await this.db.getAllOutputs(taskId);
     const allEvaluations = await this.db.getAllEvaluations(taskId);
 
     // Calculate current rankings
     const rankings = allOutputs
-      .filter((o) => (stage === 'final' ? o.is_finalist : true))
+      .filter((o) => (stage === "final" ? o.is_finalist : true))
       .map((output) => {
         const evals = allEvaluations.filter(
-          (e) => e.output_id === output.id && e.stage === stage && e.status === 'completed',
+          (e) =>
+            e.output_id === output.id &&
+            e.stage === stage &&
+            e.status === "completed",
         );
 
-        if (stage === 'initial') {
+        if (stage === "initial") {
           const totalScore = evals.reduce((sum, e) => sum + (e.score || 0), 0);
           const avgScore = evals.length > 0 ? totalScore / evals.length : 0;
           return {
@@ -1148,7 +1199,7 @@ Format your response as:
       `Ranking updated (${stage})`,
       {
         metadata: {
-          type: 'ranking_updated',
+          type: "ranking_updated",
           taskId,
           stage,
           rankings,

@@ -1,5 +1,5 @@
-import { Annotation, MessagesAnnotation } from '@langchain/langgraph';
-import { ExecutionContext } from '@orchestrator-ai/transport-types';
+import { Annotation, MessagesAnnotation } from "@langchain/langgraph";
+import { ExecutionContext } from "@orchestrator-ai/transport-types";
 
 /**
  * Agent configuration with personality and LLM settings
@@ -41,14 +41,14 @@ export interface PromptData {
  */
 export interface QueueItem {
   id: string;
-  stepType: 'write' | 'edit' | 'evaluate';
+  stepType: "write" | "edit" | "evaluate";
   sequence: number;
   agentSlug: string;
   llmConfigId: string;
   provider: string;
   dependsOn: string[];
   inputOutputId?: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed' | 'skipped';
+  status: "pending" | "processing" | "completed" | "failed" | "skipped";
   resultId?: string;
   error?: string;
   startedAt?: number;
@@ -66,7 +66,7 @@ export interface SwarmOutput {
   editorLlmConfigId?: string;
   content: string;
   editCycle: number;
-  status: 'draft' | 'editing' | 'approved' | 'final';
+  status: "draft" | "editing" | "approved" | "final";
   editorFeedback?: string;
   editorApproved?: boolean;
   llmMetadata?: {
@@ -108,7 +108,7 @@ export interface MarketingSwarmInput {
  */
 export interface MarketingSwarmResult {
   taskId: string;
-  status: 'completed' | 'failed';
+  status: "completed" | "failed";
   outputs: SwarmOutput[];
   evaluations: SwarmEvaluation[];
   rankedResults: Array<{
@@ -130,39 +130,39 @@ export const MarketingSwarmStateAnnotation = Annotation.Root({
   executionContext: Annotation<ExecutionContext>({
     reducer: (_, next) => next,
     default: () => ({
-      orgSlug: '',
-      userId: '',
-      conversationId: '',
-      taskId: '',
-      planId: '',
-      deliverableId: '',
-      agentSlug: 'marketing-swarm',
-      agentType: 'api',
-      provider: '',
-      model: '',
+      orgSlug: "",
+      userId: "",
+      conversationId: "",
+      taskId: "",
+      planId: "",
+      deliverableId: "",
+      agentSlug: "marketing-swarm",
+      agentType: "api",
+      provider: "",
+      model: "",
     }),
   }),
 
   // Content type info
   contentTypeSlug: Annotation<string>({
     reducer: (_, next) => next,
-    default: () => '',
+    default: () => "",
   }),
 
   contentTypeContext: Annotation<string>({
     reducer: (_, next) => next,
-    default: () => '',
+    default: () => "",
   }),
 
   // Prompt data from interview
   promptData: Annotation<PromptData>({
     reducer: (_, next) => next,
     default: () => ({
-      topic: '',
-      audience: '',
-      goal: '',
+      topic: "",
+      audience: "",
+      goal: "",
       keyPoints: [],
-      tone: '',
+      tone: "",
     }),
   }),
 
@@ -214,9 +214,17 @@ export const MarketingSwarmStateAnnotation = Annotation.Root({
   }),
 
   // Workflow phase
-  phase: Annotation<'initializing' | 'writing' | 'editing' | 'evaluating' | 'ranking' | 'completed' | 'failed'>({
+  phase: Annotation<
+    | "initializing"
+    | "writing"
+    | "editing"
+    | "evaluating"
+    | "ranking"
+    | "completed"
+    | "failed"
+  >({
     reducer: (_, next) => next,
-    default: () => 'initializing',
+    default: () => "initializing",
   }),
 
   // Error tracking

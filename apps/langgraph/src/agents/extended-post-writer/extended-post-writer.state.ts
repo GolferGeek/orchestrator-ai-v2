@@ -1,13 +1,13 @@
-import { Annotation } from '@langchain/langgraph';
-import { HitlBaseStateAnnotation } from '../../hitl/hitl-base.state';
+import { Annotation } from "@langchain/langgraph";
+import { HitlBaseStateAnnotation } from "../../hitl/hitl-base.state";
 import type {
   HitlGeneratedContent,
   HitlStatus,
   ExecutionContext,
-} from '@orchestrator-ai/transport-types';
+} from "@orchestrator-ai/transport-types";
 
 // Re-export HitlResponse from transport-types for backward compatibility
-export type { HitlResponse } from '@orchestrator-ai/transport-types';
+export type { HitlResponse } from "@orchestrator-ai/transport-types";
 
 /**
  * Generated content structure
@@ -84,11 +84,11 @@ export const ExtendedPostWriterStateAnnotation = Annotation.Root({
   // === User Input ===
   userMessage: Annotation<string>({
     reducer: (_, next) => next,
-    default: () => '',
+    default: () => "",
   }),
   topic: Annotation<string>({
     reducer: (_, next) => next,
-    default: () => '',
+    default: () => "",
   }),
   context: Annotation<string | undefined>({
     reducer: (_, next) => next,
@@ -100,17 +100,17 @@ export const ExtendedPostWriterStateAnnotation = Annotation.Root({
   }),
   tone: Annotation<string>({
     reducer: (_, next) => next,
-    default: () => 'professional',
+    default: () => "professional",
   }),
 
   // === Generated Content ===
   blogPost: Annotation<string>({
     reducer: (_, next) => next,
-    default: () => '',
+    default: () => "",
   }),
   seoDescription: Annotation<string>({
     reducer: (_, next) => next,
-    default: () => '',
+    default: () => "",
   }),
   socialPosts: Annotation<string[]>({
     reducer: (_, next) => next,
@@ -130,4 +130,5 @@ export const ExtendedPostWriterStateAnnotation = Annotation.Root({
   }),
 });
 
-export type ExtendedPostWriterState = typeof ExtendedPostWriterStateAnnotation.State;
+export type ExtendedPostWriterState =
+  typeof ExtendedPostWriterStateAnnotation.State;

@@ -1,8 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { ConfigService } from '@nestjs/config';
-import { firstValueFrom } from 'rxjs';
-import { ExecutionContext } from '@orchestrator-ai/transport-types';
+import { Injectable, Logger } from "@nestjs/common";
+import { HttpService } from "@nestjs/axios";
+import { ConfigService } from "@nestjs/config";
+import { firstValueFrom } from "rxjs";
+import { ExecutionContext } from "@orchestrator-ai/transport-types";
 
 export interface LLMCallRequest {
   /** ExecutionContext - the core context that flows through the system */
@@ -41,19 +41,20 @@ export class LLMHttpClientService {
   ) {
     // Build LLM service URL from API_PORT (same as main API)
     // Fail fast if required configuration is missing - no defaults allowed
-    const apiPort = this.configService.get<string>('API_PORT');
+    const apiPort = this.configService.get<string>("API_PORT");
     if (!apiPort) {
       throw new Error(
-        'API_PORT environment variable is required. ' +
-        'Please set API_PORT in your .env file (e.g., API_PORT=6100). ' +
-        'This must be explicitly configured for your environment.'
+        "API_PORT environment variable is required. " +
+          "Please set API_PORT in your .env file (e.g., API_PORT=6100). " +
+          "This must be explicitly configured for your environment.",
       );
     }
-    
+
     // API_HOST and LLM_ENDPOINT have stable defaults but can be overridden
-    const apiHost = this.configService.get<string>('API_HOST') || 'localhost';
-    const llmEndpoint = this.configService.get<string>('LLM_ENDPOINT') || '/llm/generate';
-    
+    const apiHost = this.configService.get<string>("API_HOST") || "localhost";
+    const llmEndpoint =
+      this.configService.get<string>("LLM_ENDPOINT") || "/llm/generate";
+
     this.llmServiceUrl = `http://${apiHost}:${apiPort}`;
     this.llmEndpoint = llmEndpoint;
   }
@@ -74,12 +75,12 @@ export class LLMHttpClientService {
 
     try {
       if (!context.userId) {
-        throw new Error('userId is required in ExecutionContext for LLM calls');
+        throw new Error("userId is required in ExecutionContext for LLM calls");
       }
 
       const response = await firstValueFrom(
         this.httpService.post(url, {
-          systemPrompt: request.systemMessage || '',
+          systemPrompt: request.systemMessage || "",
           userPrompt: request.userMessage,
           // Pass the full ExecutionContext
           context,
@@ -90,13 +91,13 @@ export class LLMHttpClientService {
             modelName: context.model,
             temperature: request.temperature ?? 0.7,
             maxTokens: request.maxTokens ?? 3500,
-            callerType: 'langgraph',
-            callerName: request.callerName || 'workflow',
+            callerType: "langgraph",
+            callerName: request.callerName || "workflow",
           },
         }),
       );
 
-      const text = response.data.response || response.data.content || '';
+      const text = response.data.response || response.data.content || "";
 
       return {
         text,
@@ -105,18 +106,20 @@ export class LLMHttpClientService {
     } catch (error) {
       // Extract detailed error information
       let errorMessage = error.message;
-      let errorDetails = '';
-      
+      let errorDetails = "";
+
       if (error.response) {
         // Axios error with response
-        errorDetails = JSON.stringify(error.response.data || error.response.statusText);
+        errorDetails = JSON.stringify(
+          error.response.data || error.response.statusText,
+        );
         errorMessage = `Request failed with status code ${error.response.status}: ${errorDetails}`;
       } else if (error.request) {
         // Axios error without response
         errorMessage = `No response received: ${error.message}`;
       }
-      
-      this.logger.error('LLM call failed', {
+
+      this.logger.error("LLM call failed", {
         message: errorMessage,
         details: errorDetails,
         url,
@@ -127,7 +130,7 @@ export class LLMHttpClientService {
           callerName: request.callerName,
         },
       });
-      
+
       throw new Error(`LLM call failed: ${errorMessage}`);
     }
   }

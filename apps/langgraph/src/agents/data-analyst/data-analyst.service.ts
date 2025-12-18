@@ -1,22 +1,19 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import {
-  createDataAnalystGraph,
-  DataAnalystGraph,
-} from './data-analyst.graph';
+import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { createDataAnalystGraph, DataAnalystGraph } from "./data-analyst.graph";
 import {
   DataAnalystInput,
   DataAnalystState,
   DataAnalystResult,
   DataAnalystStatus,
-} from './data-analyst.state';
-import { LLMHttpClientService } from '../../services/llm-http-client.service';
-import { ObservabilityService } from '../../services/observability.service';
-import { PostgresCheckpointerService } from '../../persistence/postgres-checkpointer.service';
+} from "./data-analyst.state";
+import { LLMHttpClientService } from "../../services/llm-http-client.service";
+import { ObservabilityService } from "../../services/observability.service";
+import { PostgresCheckpointerService } from "../../persistence/postgres-checkpointer.service";
 import {
   ListTablesTool,
   DescribeTableTool,
   SqlQueryTool,
-} from '../../tools/data/database';
+} from "../../tools/data/database";
 
 /**
  * DataAnalystService
@@ -41,7 +38,7 @@ export class DataAnalystService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    this.logger.log('Initializing Data Analyst graph...');
+    this.logger.log("Initializing Data Analyst graph...");
     this.graph = createDataAnalystGraph(
       this.llmClient,
       this.observability,
@@ -50,7 +47,7 @@ export class DataAnalystService implements OnModuleInit {
       this.describeTableTool,
       this.sqlQueryTool,
     );
-    this.logger.log('Data Analyst graph initialized');
+    this.logger.log("Data Analyst graph initialized");
   }
 
   /**
@@ -70,7 +67,7 @@ export class DataAnalystService implements OnModuleInit {
       const initialState: Partial<DataAnalystState> = {
         executionContext: context,
         userMessage: input.userMessage,
-        status: 'started',
+        status: "started",
         startedAt: startTime,
       };
 
@@ -90,7 +87,7 @@ export class DataAnalystService implements OnModuleInit {
 
       return {
         taskId,
-        status: finalState.status === 'completed' ? 'completed' : 'failed',
+        status: finalState.status === "completed" ? "completed" : "failed",
         userMessage: input.userMessage,
         summary: finalState.summary,
         generatedSql: finalState.generatedSql,
@@ -110,7 +107,7 @@ export class DataAnalystService implements OnModuleInit {
       // Emit failure event
       const failContext = {
         taskId,
-        agentSlug: 'data-analyst',
+        agentSlug: "data-analyst",
         userId: context.userId,
         conversationId: context.conversationId,
       } as Parameters<typeof this.observability.emitFailed>[0];
@@ -123,7 +120,7 @@ export class DataAnalystService implements OnModuleInit {
 
       return {
         taskId,
-        status: 'failed',
+        status: "failed",
         userMessage: input.userMessage,
         error: errorMessage,
         duration,

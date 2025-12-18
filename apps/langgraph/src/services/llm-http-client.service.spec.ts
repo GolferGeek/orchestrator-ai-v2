@@ -1,13 +1,13 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { HttpService } from '@nestjs/axios';
-import { ConfigService } from '@nestjs/config';
-import { of, throwError } from 'rxjs';
-import type { AxiosResponse } from 'axios';
+import { Test, TestingModule } from "@nestjs/testing";
+import { HttpService } from "@nestjs/axios";
+import { ConfigService } from "@nestjs/config";
+import { of, throwError } from "rxjs";
+import type { AxiosResponse } from "axios";
 import {
   LLMHttpClientService,
   LLMCallRequest,
-  LLMCallResponse,
-} from './llm-http-client.service';
+} from "./llm-http-client.service";
+import type { LLMCallResponse as _LLMCallResponse } from "./llm-http-client.service";
 
 /**
  * Unit tests for LLMHttpClientService
@@ -15,15 +15,15 @@ import {
  * Tests the centralized LLM client that routes all LLM calls
  * through the Orchestrator AI API.
  */
-describe('LLMHttpClientService', () => {
+describe("LLMHttpClientService", () => {
   let service: LLMHttpClientService;
   let httpService: jest.Mocked<HttpService>;
-  let configService: jest.Mocked<ConfigService>;
+  let _configService: jest.Mocked<ConfigService>;
 
   const createMockAxiosResponse = <T = unknown>(
     data: T,
     status = 200,
-    statusText = 'OK',
+    statusText = "OK",
   ): AxiosResponse<T> => ({
     data,
     status,
@@ -47,9 +47,9 @@ describe('LLMHttpClientService', () => {
           useValue: {
             get: jest.fn((key: string) => {
               const config: Record<string, string> = {
-                API_PORT: '6100',
-                API_HOST: 'localhost',
-                LLM_ENDPOINT: '/llm/generate',
+                API_PORT: "6100",
+                API_HOST: "localhost",
+                LLM_ENDPOINT: "/llm/generate",
               };
               return config[key];
             }),
@@ -63,12 +63,12 @@ describe('LLMHttpClientService', () => {
     configService = module.get(ConfigService);
   });
 
-  it('should be defined', () => {
+  it("should be defined", () => {
     expect(service).toBeDefined();
   });
 
-  describe('constructor', () => {
-    it('should throw error when API_PORT is not configured', async () => {
+  describe("constructor", () => {
+    it("should throw error when API_PORT is not configured", async () => {
       const moduleRef = Test.createTestingModule({
         providers: [
           LLMHttpClientService,
@@ -86,24 +86,24 @@ describe('LLMHttpClientService', () => {
       });
 
       await expect(moduleRef.compile()).rejects.toThrow(
-        'API_PORT environment variable is required',
+        "API_PORT environment variable is required",
       );
     });
   });
 
-  describe('callLLM', () => {
+  describe("callLLM", () => {
     const validRequest: LLMCallRequest = {
-      provider: 'anthropic',
-      model: 'claude-sonnet-4-20250514',
-      systemMessage: 'You are a helpful assistant',
-      userMessage: 'Hello, world!',
-      userId: 'test-user-123',
-      callerName: 'test-caller',
+      provider: "anthropic",
+      model: "claude-sonnet-4-20250514",
+      systemMessage: "You are a helpful assistant",
+      userMessage: "Hello, world!",
+      userId: "test-user-123",
+      callerName: "test-caller",
     };
 
-    it('should make successful LLM call with required parameters', async () => {
+    it("should make successful LLM call with required parameters", async () => {
       const mockResponse = createMockAxiosResponse({
-        response: 'Hello! How can I help you today?',
+        response: "Hello! How can I help you today?",
         metadata: {
           usage: {
             promptTokens: 10,
@@ -117,7 +117,7 @@ describe('LLMHttpClientService', () => {
 
       const result = await service.callLLM(validRequest);
 
-      expect(result.text).toBe('Hello! How can I help you today?');
+      expect(result.text).toBe("Hello! How can I help you today?");
       expect(result.usage).toEqual({
         promptTokens: 10,
         completionTokens: 8,
@@ -125,7 +125,7 @@ describe('LLMHttpClientService', () => {
       });
 
       expect(httpService.post).toHaveBeenCalledWith(
-        'http://localhost:6100/llm/generate',
+        "http://localhost:6100/llm/generate",
         expect.objectContaining({
           systemPrompt: validRequest.systemMessage,
           userPrompt: validRequest.userMessage,
@@ -133,55 +133,55 @@ describe('LLMHttpClientService', () => {
             provider: validRequest.provider,
             modelName: validRequest.model,
             userId: validRequest.userId,
-            callerType: 'langgraph',
+            callerType: "langgraph",
             callerName: validRequest.callerName,
           }),
         }),
       );
     });
 
-    it('should handle response with content field instead of response', async () => {
+    it("should handle response with content field instead of response", async () => {
       const mockResponse = createMockAxiosResponse({
-        content: 'Response from content field',
+        content: "Response from content field",
       });
 
       httpService.post.mockReturnValue(of(mockResponse));
 
       const result = await service.callLLM(validRequest);
 
-      expect(result.text).toBe('Response from content field');
+      expect(result.text).toBe("Response from content field");
     });
 
-    it('should return empty string when response is missing text', async () => {
+    it("should return empty string when response is missing text", async () => {
       const mockResponse = createMockAxiosResponse({});
 
       httpService.post.mockReturnValue(of(mockResponse));
 
       const result = await service.callLLM(validRequest);
 
-      expect(result.text).toBe('');
+      expect(result.text).toBe("");
     });
 
-    it('should throw error when userId is missing', async () => {
+    it("should throw error when userId is missing", async () => {
       const requestWithoutUserId: LLMCallRequest = {
         ...validRequest,
-        userId: '',
+        userId: "",
       };
 
       await expect(service.callLLM(requestWithoutUserId)).rejects.toThrow(
-        'userId is required for LLM calls',
+        "userId is required for LLM calls",
       );
     });
 
-    it('should use default values for optional parameters', async () => {
+    it("should use default values for optional parameters", async () => {
       const minimalRequest: LLMCallRequest = {
-        provider: 'openai',
-        model: 'gpt-4',
-        userMessage: 'Test message',
-        userId: 'user-123',
+        provider: "openai",
+        model: "gpt-4",
+        userMessage: "Test message",
+        userId: "user-123",
       };
 
-      const mockResponse = createMockAxiosResponse({ response: 'OK' });
+      const mockResponse = createMockAxiosResponse({ response: "OK" });
       httpService.post.mockReturnValue(of(mockResponse));
 
       await service.callLLM(minimalRequest);
@@ -189,59 +189,59 @@ describe('LLMHttpClientService', () => {
       expect(httpService.post).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          systemPrompt: '',
+          systemPrompt: "",
           options: expect.objectContaining({
             temperature: 0.7,
             maxTokens: 3500,
-            callerName: 'workflow',
+            callerName: "workflow",
           }),
         }),
       );
     });
 
-    it('should handle HTTP error with response data', async () => {
+    it("should handle HTTP error with response data", async () => {
       const error = {
-        message: 'Request failed',
+        message: "Request failed",
         response: {
           status: 500,
-          data: { error: 'Internal server error' },
-          statusText: 'Internal Server Error',
+          data: { error: "Internal server error" },
+          statusText: "Internal Server Error",
         },
       };
 
       httpService.post.mockReturnValue(throwError(() => error));
 
       await expect(service.callLLM(validRequest)).rejects.toThrow(
-        'LLM call failed: Request failed with status code 500',
+        "LLM call failed: Request failed with status code 500",
       );
     });
 
-    it('should handle HTTP error without response', async () => {
+    it("should handle HTTP error without response", async () => {
       const error = {
-        message: 'Network error',
+        message: "Network error",
         request: {},
       };
 
       httpService.post.mockReturnValue(throwError(() => error));
 
       await expect(service.callLLM(validRequest)).rejects.toThrow(
-        'LLM call failed: No response received: Network error',
+        "LLM call failed: No response received: Network error",
       );
     });
 
-    it('should handle generic error', async () => {
+    it("should handle generic error", async () => {
       httpService.post.mockReturnValue(
-        throwError(() => new Error('Unknown error')),
+        throwError(() => new Error("Unknown error")),
       );
 
       await expect(service.callLLM(validRequest)).rejects.toThrow(
-        'LLM call failed: Unknown error',
+        "LLM call failed: Unknown error",
       );
     });
   });
 
-  describe('configuration', () => {
-    it('should use default API_HOST when not configured', async () => {
+  describe("configuration", () => {
+    it("should use default API_HOST when not configured", async () => {
       const moduleRef = await Test.createTestingModule({
         providers: [
           LLMHttpClientService,
@@ -253,7 +253,7 @@ describe('LLMHttpClientService', () => {
             provide: ConfigService,
             useValue: {
               get: jest.fn((key: string) => {
-                if (key === 'API_PORT') return '6100';
+                if (key === "API_PORT") return "6100";
                 return undefined;
               }),
             },
@@ -261,28 +261,27 @@ describe('LLMHttpClientService', () => {
         ],
       }).compile();
 
-      const serviceWithDefaults = moduleRef.get<LLMHttpClientService>(
-        LLMHttpClientService,
-      );
+      const serviceWithDefaults =
+        moduleRef.get<LLMHttpClientService>(LLMHttpClientService);
 
       expect(serviceWithDefaults).toBeDefined();
     });
 
-    it('should use default LLM_ENDPOINT when not configured', async () => {
-      const mockResponse = createMockAxiosResponse({ response: 'OK' });
+    it("should use default LLM_ENDPOINT when not configured", async () => {
+      const mockResponse = createMockAxiosResponse({ response: "OK" });
       httpService.post.mockReturnValue(of(mockResponse));
 
       const request: LLMCallRequest = {
-        provider: 'anthropic',
-        model: 'claude-sonnet-4-20250514',
-        userMessage: 'Test',
-        userId: 'user-123',
+        provider: "anthropic",
+        model: "claude-sonnet-4-20250514",
+        userMessage: "Test",
+        userId: "user-123",
       };
 
       await service.callLLM(request);
 
       expect(httpService.post).toHaveBeenCalledWith(
-        'http://localhost:6100/llm/generate',
+        "http://localhost:6100/llm/generate",
         expect.any(Object),
       );
     });

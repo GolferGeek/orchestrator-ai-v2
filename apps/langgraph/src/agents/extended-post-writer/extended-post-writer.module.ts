@@ -1,6 +1,6 @@
-import { Module } from '@nestjs/common';
-import { ExtendedPostWriterController } from './extended-post-writer.controller';
-import { ExtendedPostWriterService } from './extended-post-writer.service';
+import { Module } from "@nestjs/common";
+import { ExtendedPostWriterController } from "./extended-post-writer.controller";
+import { ExtendedPostWriterService } from "./extended-post-writer.service";
 
 /**
  * ExtendedPostWriterModule

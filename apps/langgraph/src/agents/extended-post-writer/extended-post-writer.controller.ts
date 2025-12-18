@@ -9,10 +9,13 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
-} from '@nestjs/common';
-import { ExtendedPostWriterService } from './extended-post-writer.service';
-import { ExtendedPostWriterRequestDto, ExtendedPostWriterResumeDto } from './dto';
-import { ExecutionContext } from '@orchestrator-ai/transport-types';
+} from "@nestjs/common";
+import { ExtendedPostWriterService } from "./extended-post-writer.service";
+import {
+  ExtendedPostWriterRequestDto,
+  ExtendedPostWriterResumeDto,
+} from "./dto";
+import type { ExecutionContext as _ExecutionContext } from "@orchestrator-ai/transport-types";
 
 /**
  * ExtendedPostWriterController
@@ -23,7 +26,7 @@ import { ExecutionContext } from '@orchestrator-ai/transport-types';
  * - GET /extended-post-writer/status/:threadId - Check generation status
  * - GET /extended-post-writer/history/:threadId - Get full state history
  */
-@Controller('extended-post-writer')
+@Controller("extended-post-writer")
 export class ExtendedPostWriterController {
   private readonly logger = new Logger(ExtendedPostWriterController.name);
 
@@ -34,16 +37,18 @@ export class ExtendedPostWriterController {
   /**
    * Start content generation (will pause at HITL)
    */
-  @Post('generate')
+  @Post("generate")
   @HttpCode(HttpStatus.OK)
   async generate(@Body() request: ExtendedPostWriterRequestDto) {
     // ExecutionContext is required - no fallbacks
     if (!request.context) {
-      throw new BadRequestException('ExecutionContext is required');
+      throw new BadRequestException("ExecutionContext is required");
     }
 
     const context = request.context;
-    this.logger.log(`Received generation request: taskId=${context.taskId}, userId=${context.userId}`);
+    this.logger.log(
+      `Received generation request: taskId=${context.taskId}, userId=${context.userId}`,
+    );
 
     try {
       const result = await this.extendedPostWriterService.generate({
@@ -55,17 +60,17 @@ export class ExtendedPostWriterController {
       });
 
       return {
-        success: result.status !== 'failed',
+        success: result.status !== "failed",
         data: result,
         message:
-          result.status === 'hitl_waiting'
-            ? 'Content generated. Awaiting human review.'
+          result.status === "hitl_waiting"
+            ? "Content generated. Awaiting human review."
             : undefined,
       };
     } catch (error) {
-      this.logger.error('Generation failed:', error);
+      this.logger.error("Generation failed:", error);
       throw new BadRequestException(
-        error instanceof Error ? error.message : 'Generation failed',
+        error instanceof Error ? error.message : "Generation failed",
       );
     }
   }
@@ -76,10 +81,10 @@ export class ExtendedPostWriterController {
    * This endpoint loads the checkpointed state, resumes with Command(resume),
    * and returns the final result after the workflow completes.
    */
-  @Post('resume/:threadId')
+  @Post("resume/:threadId")
   @HttpCode(HttpStatus.OK)
   async resume(
-    @Param('threadId') threadId: string,
+    @Param("threadId") threadId: string,
     @Body() request: ExtendedPostWriterResumeDto,
   ) {
     this.logger.log(
@@ -94,19 +99,19 @@ export class ExtendedPostWriterController {
       });
 
       return {
-        success: result.status !== 'failed',
+        success: result.status !== "failed",
         data: result,
         message:
-          result.status === 'completed'
-            ? 'Content finalized successfully.'
-            : result.status === 'rejected'
-              ? 'Content rejected.'
+          result.status === "completed"
+            ? "Content finalized successfully."
+            : result.status === "rejected"
+              ? "Content rejected."
               : undefined,
       };
     } catch (error) {
       this.logger.error(`Resume failed for thread ${threadId}:`, error);
       throw new BadRequestException(
-        error instanceof Error ? error.message : 'Resume failed',
+        error instanceof Error ? error.message : "Resume failed",
       );
     }
   }
@@ -114,9 +119,9 @@ export class ExtendedPostWriterController {
   /**
    * Get generation status by thread ID
    */
-  @Get('status/:threadId')
+  @Get("status/:threadId")
   @HttpCode(HttpStatus.OK)
-  async getStatus(@Param('threadId') threadId: string) {
+  async getStatus(@Param("threadId") threadId: string) {
     this.logger.log(`Getting status for thread: ${threadId}`);
 
     const status = await this.extendedPostWriterService.getStatus(threadId);
@@ -134,9 +139,9 @@ export class ExtendedPostWriterController {
   /**
    * Get full state history for a thread
    */
-  @Get('history/:threadId')
+  @Get("history/:threadId")
   @HttpCode(HttpStatus.OK)
-  async getHistory(@Param('threadId') threadId: string) {
+  async getHistory(@Param("threadId") threadId: string) {
     this.logger.log(`Getting history for thread: ${threadId}`);
 
     const history = await this.extendedPostWriterService.getHistory(threadId);

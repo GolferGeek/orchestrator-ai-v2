@@ -1,5 +1,5 @@
-import { IsNotEmpty, IsObject, IsOptional, IsString } from 'class-validator';
-import { ExecutionContext } from '@orchestrator-ai/transport-types';
+import { IsNotEmpty, IsObject, IsOptional, IsString } from "class-validator";
+import { ExecutionContext } from "@orchestrator-ai/transport-types";
 
 /**
  * MarketingSwarmRequestDto

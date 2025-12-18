@@ -1,1 +1,1 @@
-export * from './marketing-swarm-request.dto';
+export * from "./marketing-swarm-request.dto";

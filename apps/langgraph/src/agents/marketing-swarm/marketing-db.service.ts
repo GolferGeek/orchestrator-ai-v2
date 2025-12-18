@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { v4 as uuidv4 } from 'uuid';
+import { Injectable, Logger } from "@nestjs/common";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { v4 as uuidv4 } from "uuid";
 
 /**
  * Execution configuration from task.config.execution
@@ -22,7 +22,7 @@ export interface OutputVersionRow {
   task_id: string;
   version_number: number;
   content: string;
-  action_type: 'write' | 'rewrite';
+  action_type: "write" | "rewrite";
   editor_feedback: string | null;
   llm_metadata: Record<string, unknown> | null;
   created_at: string;
@@ -42,12 +42,12 @@ export interface DeliverableOutput {
   editHistory: {
     version: number;
     content: string;
-    actionType: 'write' | 'rewrite';
+    actionType: "write" | "rewrite";
     editorFeedback: string | null;
     createdAt: string;
   }[];
   evaluations: {
-    stage: 'initial' | 'final';
+    stage: "initial" | "final";
     evaluatorSlug: string;
     score: number | null;
     rank: number | null;
@@ -78,12 +78,12 @@ export interface Deliverable {
  * This matches typical versioning semantics where "latest is best"
  */
 export interface DeliverableVersion {
-  version: number;        // 1, 2, 3... (ascending, latest = best)
-  rank: number;           // Original rank from evaluation (1 = best)
-  content: string;        // The final content
-  writerAgent: string;    // Writer agent slug
-  editorAgent: string | null;  // Editor agent slug
-  score: number | null;   // Final evaluation score
+  version: number; // 1, 2, 3... (ascending, latest = best)
+  rank: number; // Original rank from evaluation (1 = best)
+  content: string; // The final content
+  writerAgent: string; // Writer agent slug
+  editorAgent: string | null; // Editor agent slug
+  score: number | null; // Final evaluation score
   metadata: {
     outputId: string;
     editCycles: number;
@@ -104,7 +104,7 @@ export interface DeliverableVersion {
  * multiple deliverable versions from the versions array.
  */
 export interface VersionedDeliverable {
-  type: 'versioned';      // Signals API runner to create multiple versions
+  type: "versioned"; // Signals API runner to create multiple versions
   taskId: string;
   contentTypeSlug: string;
   promptData: Record<string, unknown>;
@@ -169,7 +169,7 @@ export interface EvaluationRow {
   evaluator_agent_slug: string;
   evaluator_llm_provider: string;
   evaluator_llm_model: string;
-  stage: 'initial' | 'final';
+  stage: "initial" | "final";
   status: string;
   score: number | null;
   rank: number | null;
@@ -198,7 +198,7 @@ export interface AgentLlmConfig {
 export interface AgentPersonality {
   slug: string;
   name: string;
-  role: 'writer' | 'editor' | 'evaluator';
+  role: "writer" | "editor" | "evaluator";
   personality: Record<string, unknown>;
 }
 
@@ -206,7 +206,7 @@ export interface AgentPersonality {
  * Next action to process
  */
 export interface NextAction {
-  type: 'write' | 'edit' | 'rewrite' | 'evaluate_initial' | 'evaluate_final';
+  type: "write" | "edit" | "rewrite" | "evaluate_initial" | "evaluate_final";
   output?: OutputRow;
   evaluation?: EvaluationRow;
   agentPersonality?: AgentPersonality;
@@ -231,17 +231,17 @@ export interface RunningCounts {
 export class MarketingDbService {
   private readonly logger = new Logger(MarketingDbService.name);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private supabase: SupabaseClient<any, 'marketing'>;
+  private supabase: SupabaseClient<any, "marketing">;
 
   constructor() {
     // Use API URL (6010), not database port (6012)
-    const supabaseUrl = process.env.SUPABASE_URL || 'http://127.0.0.1:6010';
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    const supabaseUrl = process.env.SUPABASE_URL || "http://127.0.0.1:6010";
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
     this.supabase = createClient(supabaseUrl, supabaseKey, {
       auth: { persistSession: false },
       // Use the marketing schema for all queries
-      db: { schema: 'marketing' },
+      db: { schema: "marketing" },
     });
   }
 
@@ -250,9 +250,9 @@ export class MarketingDbService {
    */
   async getTaskConfig(taskId: string): Promise<TaskConfig | null> {
     const { data, error } = await this.supabase
-      .from('swarm_tasks')
-      .select('config')
-      .eq('task_id', taskId)
+      .from("swarm_tasks")
+      .select("config")
+      .eq("task_id", taskId)
       .single();
 
     if (error || !data) {
@@ -267,18 +267,23 @@ export class MarketingDbService {
    * Get task by conversation ID
    * Used to restore task state when navigating to an existing conversation
    */
-  async getTaskByConversationId(conversationId: string): Promise<{ taskId: string; status: string } | null> {
+  async getTaskByConversationId(
+    conversationId: string,
+  ): Promise<{ taskId: string; status: string } | null> {
     const { data, error } = await this.supabase
-      .from('swarm_tasks')
-      .select('task_id, status')
-      .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: false })
+      .from("swarm_tasks")
+      .select("task_id, status")
+      .eq("conversation_id", conversationId)
+      .order("created_at", { ascending: false })
       .limit(1)
       .single();
 
     if (error || !data) {
-      if (error?.code !== 'PGRST116') { // PGRST116 = no rows found
-        this.logger.error(`Failed to get task by conversation: ${error?.message}`);
+      if (error?.code !== "PGRST116") {
+        // PGRST116 = no rows found
+        this.logger.error(
+          `Failed to get task by conversation: ${error?.message}`,
+        );
       }
       return null;
     }
@@ -294,16 +299,16 @@ export class MarketingDbService {
    */
   async updateTaskStatus(
     taskId: string,
-    status: 'pending' | 'running' | 'completed' | 'failed',
+    status: "pending" | "running" | "completed" | "failed",
     progress?: Record<string, unknown>,
     errorMessage?: string,
   ): Promise<void> {
     const updates: Record<string, unknown> = { status };
 
-    if (status === 'running' && !progress) {
+    if (status === "running" && !progress) {
       updates.started_at = new Date().toISOString();
     }
-    if (status === 'completed' || status === 'failed') {
+    if (status === "completed" || status === "failed") {
       updates.completed_at = new Date().toISOString();
     }
     if (progress) {
@@ -314,9 +319,9 @@ export class MarketingDbService {
     }
 
     const { error } = await this.supabase
-      .from('swarm_tasks')
+      .from("swarm_tasks")
       .update(updates)
-      .eq('task_id', taskId);
+      .eq("task_id", taskId);
 
     if (error) {
       this.logger.error(`Failed to update task status: ${error.message}`);
@@ -345,7 +350,7 @@ export class MarketingDbService {
           editor_agent_slug: editor.agentSlug,
           editor_llm_provider: editor.llmProvider,
           editor_llm_model: editor.llmModel,
-          status: 'pending_write',
+          status: "pending_write",
           edit_cycle: 0,
           is_finalist: false,
         });
@@ -353,7 +358,7 @@ export class MarketingDbService {
     }
 
     const { data, error } = await this.supabase
-      .from('outputs')
+      .from("outputs")
       .insert(outputs)
       .select();
 
@@ -371,7 +376,7 @@ export class MarketingDbService {
    */
   async getRunningCounts(taskId: string): Promise<RunningCounts> {
     // Query outputs that are currently in-progress
-    const { data, error } = await this.supabase.rpc('get_running_counts', {
+    const { data, error } = await this.supabase.rpc("get_running_counts", {
       p_task_id: taskId,
     });
 
@@ -400,7 +405,7 @@ export class MarketingDbService {
     isLocal: boolean,
     maxCount: number,
   ): Promise<OutputRow[]> {
-    const { data, error } = await this.supabase.rpc('get_next_outputs', {
+    const { data, error } = await this.supabase.rpc("get_next_outputs", {
       p_task_id: taskId,
       p_is_local: isLocal,
       p_max_count: maxCount,
@@ -426,11 +431,11 @@ export class MarketingDbService {
     statuses: string[],
   ): Promise<OutputRow[]> {
     const { data, error } = await this.supabase
-      .from('outputs')
-      .select('*')
-      .eq('task_id', taskId)
-      .in('status', statuses)
-      .order('created_at');
+      .from("outputs")
+      .select("*")
+      .eq("task_id", taskId)
+      .in("status", statuses)
+      .order("created_at");
 
     if (error) {
       this.logger.error(`Failed to get pending outputs: ${error.message}`);
@@ -454,9 +459,9 @@ export class MarketingDbService {
     };
 
     const { error } = await this.supabase
-      .from('outputs')
+      .from("outputs")
       .update(updates)
-      .eq('id', outputId);
+      .eq("id", outputId);
 
     if (error) {
       this.logger.error(`Failed to update output status: ${error.message}`);
@@ -474,16 +479,19 @@ export class MarketingDbService {
     llmMetadata?: Record<string, unknown>,
   ): Promise<void> {
     // Accumulate costs instead of overwriting
-    const accumulatedMetadata = await this.accumulateLlmMetadata(outputId, llmMetadata);
+    const accumulatedMetadata = await this.accumulateLlmMetadata(
+      outputId,
+      llmMetadata,
+    );
 
     const { error } = await this.supabase
-      .from('outputs')
+      .from("outputs")
       .update({
         content,
         status,
         llm_metadata: accumulatedMetadata,
       })
-      .eq('id', outputId);
+      .eq("id", outputId);
 
     if (error) {
       this.logger.error(`Failed to update output content: ${error.message}`);
@@ -503,10 +511,13 @@ export class MarketingDbService {
     llmMetadata?: Record<string, unknown>,
   ): Promise<void> {
     // Accumulate costs instead of overwriting
-    const accumulatedMetadata = await this.accumulateLlmMetadata(outputId, llmMetadata);
+    const accumulatedMetadata = await this.accumulateLlmMetadata(
+      outputId,
+      llmMetadata,
+    );
 
     const { error } = await this.supabase
-      .from('outputs')
+      .from("outputs")
       .update({
         content,
         status,
@@ -514,7 +525,7 @@ export class MarketingDbService {
         edit_cycle: editCycle,
         llm_metadata: accumulatedMetadata,
       })
-      .eq('id', outputId);
+      .eq("id", outputId);
 
     if (error) {
       this.logger.error(`Failed to update output after edit: ${error.message}`);
@@ -524,11 +535,13 @@ export class MarketingDbService {
   /**
    * Get agent personality by slug
    */
-  async getAgentPersonality(agentSlug: string): Promise<AgentPersonality | null> {
+  async getAgentPersonality(
+    agentSlug: string,
+  ): Promise<AgentPersonality | null> {
     const { data, error } = await this.supabase
-      .from('agents')
-      .select('slug, name, role, personality')
-      .eq('slug', agentSlug)
+      .from("agents")
+      .select("slug, name, role, personality")
+      .eq("slug", agentSlug)
       .single();
 
     if (error || !data) {
@@ -547,10 +560,10 @@ export class MarketingDbService {
    */
   async areAllOutputsComplete(taskId: string): Promise<boolean> {
     const { count, error } = await this.supabase
-      .from('outputs')
-      .select('*', { count: 'exact', head: true })
-      .eq('task_id', taskId)
-      .not('status', 'in', '("approved","failed","max_cycles_reached")');
+      .from("outputs")
+      .select("*", { count: "exact", head: true })
+      .eq("task_id", taskId)
+      .not("status", "in", '("approved","failed","max_cycles_reached")');
 
     if (error) {
       this.logger.error(`Failed to check outputs complete: ${error.message}`);
@@ -569,13 +582,15 @@ export class MarketingDbService {
   ): Promise<EvaluationRow[]> {
     // Get all approved outputs
     const { data: outputs, error: outputsError } = await this.supabase
-      .from('outputs')
-      .select('id')
-      .eq('task_id', taskId)
-      .eq('status', 'approved');
+      .from("outputs")
+      .select("id")
+      .eq("task_id", taskId)
+      .eq("status", "approved");
 
     if (outputsError || !outputs) {
-      this.logger.error(`Failed to get outputs for evaluations: ${outputsError?.message}`);
+      this.logger.error(
+        `Failed to get outputs for evaluations: ${outputsError?.message}`,
+      );
       return [];
     }
 
@@ -590,19 +605,21 @@ export class MarketingDbService {
           evaluator_agent_slug: evaluator.agentSlug,
           evaluator_llm_provider: evaluator.llmProvider,
           evaluator_llm_model: evaluator.llmModel,
-          stage: 'initial',
-          status: 'pending',
+          stage: "initial",
+          status: "pending",
         });
       }
     }
 
     const { data, error } = await this.supabase
-      .from('evaluations')
+      .from("evaluations")
       .insert(evaluations)
       .select();
 
     if (error) {
-      this.logger.error(`Failed to build initial evaluations: ${error.message}`);
+      this.logger.error(
+        `Failed to build initial evaluations: ${error.message}`,
+      );
       return [];
     }
 
@@ -615,15 +632,15 @@ export class MarketingDbService {
    */
   async getPendingEvaluations(
     taskId: string,
-    stage: 'initial' | 'final',
+    stage: "initial" | "final",
   ): Promise<EvaluationRow[]> {
     const { data, error } = await this.supabase
-      .from('evaluations')
-      .select('*')
-      .eq('task_id', taskId)
-      .eq('stage', stage)
-      .eq('status', 'pending')
-      .order('created_at');
+      .from("evaluations")
+      .select("*")
+      .eq("task_id", taskId)
+      .eq("stage", stage)
+      .eq("status", "pending")
+      .order("created_at");
 
     if (error) {
       this.logger.error(`Failed to get pending evaluations: ${error.message}`);
@@ -660,9 +677,9 @@ export class MarketingDbService {
     }
 
     const { error } = await this.supabase
-      .from('evaluations')
+      .from("evaluations")
       .update(updates)
-      .eq('id', evaluationId);
+      .eq("id", evaluationId);
 
     if (error) {
       this.logger.error(`Failed to update evaluation: ${error.message}`);
@@ -674,14 +691,16 @@ export class MarketingDbService {
    */
   async areAllInitialEvaluationsComplete(taskId: string): Promise<boolean> {
     const { count, error } = await this.supabase
-      .from('evaluations')
-      .select('*', { count: 'exact', head: true })
-      .eq('task_id', taskId)
-      .eq('stage', 'initial')
-      .in('status', ['pending', 'running']); // Only these are "incomplete"
+      .from("evaluations")
+      .select("*", { count: "exact", head: true })
+      .eq("task_id", taskId)
+      .eq("stage", "initial")
+      .in("status", ["pending", "running"]); // Only these are "incomplete"
 
     if (error) {
-      this.logger.error(`Failed to check evaluations complete: ${error.message}`);
+      this.logger.error(
+        `Failed to check evaluations complete: ${error.message}`,
+      );
       return false;
     }
 
@@ -697,7 +716,7 @@ export class MarketingDbService {
   ): Promise<number> {
     // Calculate rankings
     const { error: rankError } = await this.supabase.rpc(
-      'calculate_initial_rankings',
+      "calculate_initial_rankings",
       { p_task_id: taskId },
     );
 
@@ -708,7 +727,7 @@ export class MarketingDbService {
 
     // Select finalists
     const { data, error: selectError } = await this.supabase.rpc(
-      'select_finalists',
+      "select_finalists",
       { p_task_id: taskId, p_top_n: topN },
     );
 
@@ -730,10 +749,10 @@ export class MarketingDbService {
   ): Promise<EvaluationRow[]> {
     // Get finalist outputs
     const { data: finalists, error: finalistsError } = await this.supabase
-      .from('outputs')
-      .select('id')
-      .eq('task_id', taskId)
-      .eq('is_finalist', true);
+      .from("outputs")
+      .select("id")
+      .eq("task_id", taskId)
+      .eq("is_finalist", true);
 
     if (finalistsError || !finalists) {
       this.logger.error(`Failed to get finalists: ${finalistsError?.message}`);
@@ -751,14 +770,14 @@ export class MarketingDbService {
           evaluator_agent_slug: evaluator.agentSlug,
           evaluator_llm_provider: evaluator.llmProvider,
           evaluator_llm_model: evaluator.llmModel,
-          stage: 'final',
-          status: 'pending',
+          stage: "final",
+          status: "pending",
         });
       }
     }
 
     const { data, error } = await this.supabase
-      .from('evaluations')
+      .from("evaluations")
       .insert(evaluations)
       .select();
 
@@ -776,11 +795,11 @@ export class MarketingDbService {
    */
   async areAllFinalEvaluationsComplete(taskId: string): Promise<boolean> {
     const { count, error } = await this.supabase
-      .from('evaluations')
-      .select('*', { count: 'exact', head: true })
-      .eq('task_id', taskId)
-      .eq('stage', 'final')
-      .in('status', ['pending', 'running']); // Only these are "incomplete"
+      .from("evaluations")
+      .select("*", { count: "exact", head: true })
+      .eq("task_id", taskId)
+      .eq("stage", "final")
+      .in("status", ["pending", "running"]); // Only these are "incomplete"
 
     if (error) {
       this.logger.error(`Failed to check final evaluations: ${error.message}`);
@@ -794,10 +813,9 @@ export class MarketingDbService {
    * Calculate final rankings
    */
   async calculateFinalRankings(taskId: string): Promise<void> {
-    const { error } = await this.supabase.rpc(
-      'calculate_final_rankings',
-      { p_task_id: taskId },
-    );
+    const { error } = await this.supabase.rpc("calculate_final_rankings", {
+      p_task_id: taskId,
+    });
 
     if (error) {
       this.logger.error(`Failed to calculate final rankings: ${error.message}`);
@@ -809,9 +827,9 @@ export class MarketingDbService {
    */
   async getOutputById(outputId: string): Promise<OutputRow | null> {
     const { data, error } = await this.supabase
-      .from('outputs')
-      .select('*')
-      .eq('id', outputId)
+      .from("outputs")
+      .select("*")
+      .eq("id", outputId)
       .single();
 
     if (error || !data) {
@@ -826,10 +844,10 @@ export class MarketingDbService {
    */
   async getAllOutputs(taskId: string): Promise<OutputRow[]> {
     const { data, error } = await this.supabase
-      .from('outputs')
-      .select('*')
-      .eq('task_id', taskId)
-      .order('created_at');
+      .from("outputs")
+      .select("*")
+      .eq("task_id", taskId)
+      .order("created_at");
 
     if (error) {
       this.logger.error(`Failed to get all outputs: ${error.message}`);
@@ -844,10 +862,10 @@ export class MarketingDbService {
    */
   async getAllEvaluations(taskId: string): Promise<EvaluationRow[]> {
     const { data, error } = await this.supabase
-      .from('evaluations')
-      .select('*')
-      .eq('task_id', taskId)
-      .order('created_at');
+      .from("evaluations")
+      .select("*")
+      .eq("task_id", taskId)
+      .order("created_at");
 
     if (error) {
       this.logger.error(`Failed to get all evaluations: ${error.message}`);
@@ -862,9 +880,9 @@ export class MarketingDbService {
    */
   async getContentTypeContext(contentTypeSlug: string): Promise<string | null> {
     const { data, error } = await this.supabase
-      .from('content_types')
-      .select('system_context')
-      .eq('slug', contentTypeSlug)
+      .from("content_types")
+      .select("system_context")
+      .eq("slug", contentTypeSlug)
       .single();
 
     if (error || !data) {
@@ -879,9 +897,9 @@ export class MarketingDbService {
    */
   async getPromptData(taskId: string): Promise<Record<string, unknown> | null> {
     const { data, error } = await this.supabase
-      .from('swarm_tasks')
-      .select('prompt_data, content_type_slug')
-      .eq('task_id', taskId)
+      .from("swarm_tasks")
+      .select("prompt_data, content_type_slug")
+      .eq("task_id", taskId)
       .single();
 
     if (error || !data) {
@@ -910,9 +928,9 @@ export class MarketingDbService {
     try {
       // 1. Delete evaluations first (references outputs)
       const { error: evalError } = await this.supabase
-        .from('evaluations')
+        .from("evaluations")
         .delete()
-        .eq('task_id', taskId);
+        .eq("task_id", taskId);
 
       if (evalError) {
         this.logger.error(`Failed to delete evaluations: ${evalError.message}`);
@@ -921,9 +939,9 @@ export class MarketingDbService {
 
       // 2. Delete outputs (references swarm_tasks)
       const { error: outputError } = await this.supabase
-        .from('outputs')
+        .from("outputs")
         .delete()
-        .eq('task_id', taskId);
+        .eq("task_id", taskId);
 
       if (outputError) {
         this.logger.error(`Failed to delete outputs: ${outputError.message}`);
@@ -932,9 +950,9 @@ export class MarketingDbService {
 
       // 3. Delete the swarm_task
       const { error: taskError } = await this.supabase
-        .from('swarm_tasks')
+        .from("swarm_tasks")
         .delete()
-        .eq('task_id', taskId);
+        .eq("task_id", taskId);
 
       if (taskError) {
         this.logger.error(`Failed to delete swarm_task: ${taskError.message}`);
@@ -954,9 +972,9 @@ export class MarketingDbService {
    */
   async taskExists(taskId: string): Promise<boolean> {
     const { count, error } = await this.supabase
-      .from('swarm_tasks')
-      .select('*', { count: 'exact', head: true })
-      .eq('task_id', taskId);
+      .from("swarm_tasks")
+      .select("*", { count: "exact", head: true })
+      .eq("task_id", taskId);
 
     if (error) {
       this.logger.error(`Failed to check task exists: ${error.message}`);
@@ -975,16 +993,16 @@ export class MarketingDbService {
     outputId: string,
     taskId: string,
     content: string,
-    actionType: 'write' | 'rewrite',
+    actionType: "write" | "rewrite",
     editorFeedback: string | null,
     llmMetadata?: Record<string, unknown>,
   ): Promise<OutputVersionRow | null> {
     // Get current max version number for this output
     const { data: maxVersionData, error: maxError } = await this.supabase
-      .from('output_versions')
-      .select('version_number')
-      .eq('output_id', outputId)
-      .order('version_number', { ascending: false })
+      .from("output_versions")
+      .select("version_number")
+      .eq("output_id", outputId)
+      .order("version_number", { ascending: false })
       .limit(1);
 
     if (maxError) {
@@ -998,7 +1016,7 @@ export class MarketingDbService {
         : 1;
 
     const { data, error } = await this.supabase
-      .from('output_versions')
+      .from("output_versions")
       .insert({
         id: uuidv4(),
         output_id: outputId,
@@ -1028,10 +1046,10 @@ export class MarketingDbService {
    */
   async getOutputVersions(outputId: string): Promise<OutputVersionRow[]> {
     const { data, error } = await this.supabase
-      .from('output_versions')
-      .select('*')
-      .eq('output_id', outputId)
-      .order('version_number', { ascending: true });
+      .from("output_versions")
+      .select("*")
+      .eq("output_id", outputId)
+      .order("version_number", { ascending: true });
 
     if (error) {
       this.logger.error(`Failed to get output versions: ${error.message}`);
@@ -1046,14 +1064,16 @@ export class MarketingDbService {
    */
   async getAllVersionsForTask(taskId: string): Promise<OutputVersionRow[]> {
     const { data, error } = await this.supabase
-      .from('output_versions')
-      .select('*')
-      .eq('task_id', taskId)
-      .order('output_id')
-      .order('version_number', { ascending: true });
+      .from("output_versions")
+      .select("*")
+      .eq("task_id", taskId)
+      .order("output_id")
+      .order("version_number", { ascending: true });
 
     if (error) {
-      this.logger.error(`Failed to get all versions for task: ${error.message}`);
+      this.logger.error(
+        `Failed to get all versions for task: ${error.message}`,
+      );
       return [];
     }
 
@@ -1063,16 +1083,21 @@ export class MarketingDbService {
   /**
    * Generate the deliverable with top N ranked outputs and their edit histories
    */
-  async getDeliverable(taskId: string, topN?: number): Promise<Deliverable | null> {
+  async getDeliverable(
+    taskId: string,
+    topN?: number,
+  ): Promise<Deliverable | null> {
     // Get task info
     const { data: taskData, error: taskError } = await this.supabase
-      .from('swarm_tasks')
-      .select('task_id, content_type_slug, prompt_data, config')
-      .eq('task_id', taskId)
+      .from("swarm_tasks")
+      .select("task_id, content_type_slug, prompt_data, config")
+      .eq("task_id", taskId)
       .single();
 
     if (taskError || !taskData) {
-      this.logger.error(`Failed to get task for deliverable: ${taskError?.message}`);
+      this.logger.error(
+        `Failed to get task for deliverable: ${taskError?.message}`,
+      );
       return null;
     }
 
@@ -1081,16 +1106,18 @@ export class MarketingDbService {
 
     // Get all outputs ordered by final_rank (or initial_rank if no final)
     const { data: outputs, error: outputsError } = await this.supabase
-      .from('outputs')
-      .select('*')
-      .eq('task_id', taskId)
-      .eq('status', 'approved')
-      .not('final_rank', 'is', null)
-      .order('final_rank', { ascending: true })
+      .from("outputs")
+      .select("*")
+      .eq("task_id", taskId)
+      .eq("status", "approved")
+      .not("final_rank", "is", null)
+      .order("final_rank", { ascending: true })
       .limit(deliveryCount);
 
     if (outputsError) {
-      this.logger.error(`Failed to get outputs for deliverable: ${outputsError.message}`);
+      this.logger.error(
+        `Failed to get outputs for deliverable: ${outputsError.message}`,
+      );
       return null;
     }
 
@@ -1098,16 +1125,18 @@ export class MarketingDbService {
     let rankedOutputs = outputs as OutputRow[];
     if (rankedOutputs.length === 0) {
       const { data: initialRanked, error: initialError } = await this.supabase
-        .from('outputs')
-        .select('*')
-        .eq('task_id', taskId)
-        .eq('status', 'approved')
-        .not('initial_rank', 'is', null)
-        .order('initial_rank', { ascending: true })
+        .from("outputs")
+        .select("*")
+        .eq("task_id", taskId)
+        .eq("status", "approved")
+        .not("initial_rank", "is", null)
+        .order("initial_rank", { ascending: true })
         .limit(deliveryCount);
 
       if (initialError) {
-        this.logger.error(`Failed to get initial ranked outputs: ${initialError.message}`);
+        this.logger.error(
+          `Failed to get initial ranked outputs: ${initialError.message}`,
+        );
         return null;
       }
 
@@ -1116,9 +1145,9 @@ export class MarketingDbService {
 
     // Get total count
     const { count: totalCount } = await this.supabase
-      .from('outputs')
-      .select('*', { count: 'exact', head: true })
-      .eq('task_id', taskId);
+      .from("outputs")
+      .select("*", { count: "exact", head: true })
+      .eq("task_id", taskId);
 
     // Get all versions and evaluations for the task
     const allVersions = await this.getAllVersionsForTask(taskId);
@@ -1138,7 +1167,7 @@ export class MarketingDbService {
           outputId: output.id,
           writerAgentSlug: output.writer_agent_slug,
           editorAgentSlug: output.editor_agent_slug,
-          finalContent: output.content || '',
+          finalContent: output.content || "",
           initialScore: output.initial_avg_score,
           finalScore: output.final_total_score,
           editHistory: versions.map((v) => ({
@@ -1185,9 +1214,9 @@ export class MarketingDbService {
   ): Promise<VersionedDeliverable | null> {
     // Get task info
     const { data: taskData, error: taskError } = await this.supabase
-      .from('swarm_tasks')
-      .select('task_id, content_type_slug, prompt_data, config')
-      .eq('task_id', taskId)
+      .from("swarm_tasks")
+      .select("task_id, content_type_slug, prompt_data, config")
+      .eq("task_id", taskId)
       .single();
 
     if (taskError || !taskData) {
@@ -1202,12 +1231,12 @@ export class MarketingDbService {
 
     // Get all outputs ordered by final_rank (best first)
     const { data: outputs, error: outputsError } = await this.supabase
-      .from('outputs')
-      .select('*')
-      .eq('task_id', taskId)
-      .eq('status', 'approved')
-      .not('final_rank', 'is', null)
-      .order('final_rank', { ascending: true })
+      .from("outputs")
+      .select("*")
+      .eq("task_id", taskId)
+      .eq("status", "approved")
+      .not("final_rank", "is", null)
+      .order("final_rank", { ascending: true })
       .limit(deliveryCount);
 
     if (outputsError) {
@@ -1221,12 +1250,12 @@ export class MarketingDbService {
     let rankedOutputs = outputs as OutputRow[];
     if (rankedOutputs.length === 0) {
       const { data: initialRanked, error: initialError } = await this.supabase
-        .from('outputs')
-        .select('*')
-        .eq('task_id', taskId)
-        .eq('status', 'approved')
-        .not('initial_rank', 'is', null)
-        .order('initial_rank', { ascending: true })
+        .from("outputs")
+        .select("*")
+        .eq("task_id", taskId)
+        .eq("status", "approved")
+        .not("initial_rank", "is", null)
+        .order("initial_rank", { ascending: true })
         .limit(deliveryCount);
 
       if (initialError) {
@@ -1241,41 +1270,43 @@ export class MarketingDbService {
 
     // Get total count
     const { count: totalCount } = await this.supabase
-      .from('outputs')
-      .select('*', { count: 'exact', head: true })
-      .eq('task_id', taskId);
+      .from("outputs")
+      .select("*", { count: "exact", head: true })
+      .eq("task_id", taskId);
 
     // Build versions in REVERSE rank order (worst to best)
     // So version 1 = worst in selection, version N = winner
     const reversedOutputs = [...rankedOutputs].reverse();
 
-    const versions: DeliverableVersion[] = reversedOutputs.map((output, index) => {
-      // Provider/model are now stored directly on the output row
-      return {
-        version: index + 1, // 1, 2, 3... (ascending)
-        rank: output.final_rank ?? output.initial_rank ?? 0, // Original rank
-        content: output.content || '',
-        writerAgent: output.writer_agent_slug,
-        editorAgent: output.editor_agent_slug,
-        score: output.final_total_score ?? output.initial_avg_score,
-        metadata: {
-          outputId: output.id,
-          editCycles: output.edit_cycle,
-          initialScore: output.initial_avg_score,
-          finalScore: output.final_total_score,
-          writerLlmProvider: output.writer_llm_provider ?? 'unknown',
-          writerLlmModel: output.writer_llm_model ?? 'unknown',
-          editorLlmProvider: output.editor_llm_provider ?? null,
-          editorLlmModel: output.editor_llm_model ?? null,
-        },
-      };
-    });
+    const versions: DeliverableVersion[] = reversedOutputs.map(
+      (output, index) => {
+        // Provider/model are now stored directly on the output row
+        return {
+          version: index + 1, // 1, 2, 3... (ascending)
+          rank: output.final_rank ?? output.initial_rank ?? 0, // Original rank
+          content: output.content || "",
+          writerAgent: output.writer_agent_slug,
+          editorAgent: output.editor_agent_slug,
+          score: output.final_total_score ?? output.initial_avg_score,
+          metadata: {
+            outputId: output.id,
+            editCycles: output.edit_cycle,
+            initialScore: output.initial_avg_score,
+            finalScore: output.final_total_score,
+            writerLlmProvider: output.writer_llm_provider ?? "unknown",
+            writerLlmModel: output.writer_llm_model ?? "unknown",
+            editorLlmProvider: output.editor_llm_provider ?? null,
+            editorLlmModel: output.editor_llm_model ?? null,
+          },
+        };
+      },
+    );
 
     // Winner is the last version (highest version number = best rank)
     const winner = versions.length > 0 ? versions[versions.length - 1] : null;
 
     return {
-      type: 'versioned' as const,  // Signal to API runner to create versions
+      type: "versioned" as const, // Signal to API runner to create versions
       taskId,
       contentTypeSlug: taskData.content_type_slug,
       promptData: taskData.prompt_data as Record<string, unknown>,
@@ -1304,12 +1335,13 @@ export class MarketingDbService {
 
     // Get current output to read existing metadata
     const { data: currentOutput } = await this.supabase
-      .from('outputs')
-      .select('llm_metadata')
-      .eq('id', outputId)
+      .from("outputs")
+      .select("llm_metadata")
+      .eq("id", outputId)
       .single();
 
-    const existingMetadata = (currentOutput?.llm_metadata as Record<string, unknown>) || {};
+    const existingMetadata =
+      (currentOutput?.llm_metadata as Record<string, unknown>) || {};
 
     // Accumulate values
     const existingCost = (existingMetadata.cost as number) || 0;
@@ -1342,9 +1374,9 @@ export class MarketingDbService {
   ): Promise<void> {
     // Get current output metadata
     const { data: currentOutput } = await this.supabase
-      .from('outputs')
-      .select('llm_metadata')
-      .eq('id', outputId)
+      .from("outputs")
+      .select("llm_metadata")
+      .eq("id", outputId)
       .single();
 
     if (!currentOutput) {
@@ -1352,12 +1384,14 @@ export class MarketingDbService {
       return;
     }
 
-    const existingMetadata = (currentOutput.llm_metadata as Record<string, unknown>) || {};
+    const existingMetadata =
+      (currentOutput.llm_metadata as Record<string, unknown>) || {};
 
     const existingCost = (existingMetadata.cost as number) || 0;
     const existingTokens = (existingMetadata.tokensUsed as number) || 0;
     const existingEvalCost = (existingMetadata.evaluationCost as number) || 0;
-    const existingEvalTokens = (existingMetadata.evaluationTokens as number) || 0;
+    const existingEvalTokens =
+      (existingMetadata.evaluationTokens as number) || 0;
 
     const updatedMetadata = {
       ...existingMetadata,
@@ -1369,12 +1403,14 @@ export class MarketingDbService {
     };
 
     const { error } = await this.supabase
-      .from('outputs')
+      .from("outputs")
       .update({ llm_metadata: updatedMetadata })
-      .eq('id', outputId);
+      .eq("id", outputId);
 
     if (error) {
-      this.logger.error(`Failed to add evaluation cost to output: ${error.message}`);
+      this.logger.error(
+        `Failed to add evaluation cost to output: ${error.message}`,
+      );
     }
   }
 }

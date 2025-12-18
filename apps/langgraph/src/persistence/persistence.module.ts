@@ -1,6 +1,6 @@
-import { Module, Global } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { PostgresCheckpointerService } from './postgres-checkpointer.service';
+import { Module, Global } from "@nestjs/common";
+import { ConfigModule } from "@nestjs/config";
+import { PostgresCheckpointerService } from "./postgres-checkpointer.service";
 
 /**
  * PersistenceModule

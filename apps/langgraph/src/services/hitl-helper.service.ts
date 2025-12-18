@@ -1,10 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ObservabilityService } from './observability.service';
+import { Injectable, Logger } from "@nestjs/common";
+import { ObservabilityService } from "./observability.service";
 
 /**
  * Human-in-the-loop decision types
  */
-export type HitlDecision = 'approve' | 'edit' | 'reject';
+export type HitlDecision = "approve" | "edit" | "reject";
 
 /**
  * HITL request structure for interrupts
@@ -36,7 +36,7 @@ export interface HitlResponse {
 export interface HitlState {
   hitlRequest?: HitlRequest;
   hitlResponse?: HitlResponse;
-  hitlStatus?: 'none' | 'waiting' | 'resumed';
+  hitlStatus?: "none" | "waiting" | "resumed";
 }
 
 /**
@@ -97,7 +97,7 @@ export class HITLHelperService {
     return {
       ...currentState,
       hitlRequest: request,
-      hitlStatus: 'waiting' as const,
+      hitlStatus: "waiting" as const,
     };
   }
 
@@ -113,7 +113,7 @@ export class HITLHelperService {
   ): Promise<S> {
     const request = currentState.hitlRequest;
     if (!request) {
-      throw new Error('Cannot process resume without prior HITL request');
+      throw new Error("Cannot process resume without prior HITL request");
     }
 
     this.logger.log(
@@ -139,7 +139,7 @@ export class HITLHelperService {
     return {
       ...currentState,
       hitlResponse: response,
-      hitlStatus: 'resumed' as const,
+      hitlStatus: "resumed" as const,
     };
   }
 
@@ -155,11 +155,11 @@ export class HITLHelperService {
     }
 
     switch (state.hitlResponse.decision) {
-      case 'approve':
+      case "approve":
         return state.hitlRequest.pendingContent as T;
-      case 'edit':
+      case "edit":
         return (state.hitlResponse.editedContent as T) || null;
-      case 'reject':
+      case "reject":
         return null;
       default:
         return null;
@@ -170,21 +170,21 @@ export class HITLHelperService {
    * Check if the HITL decision was rejection
    */
   wasRejected(state: HitlState): boolean {
-    return state.hitlResponse?.decision === 'reject';
+    return state.hitlResponse?.decision === "reject";
   }
 
   /**
    * Check if there's a pending HITL request
    */
   isWaiting(state: HitlState): boolean {
-    return state.hitlStatus === 'waiting';
+    return state.hitlStatus === "waiting";
   }
 
   /**
    * Check if HITL has been resumed
    */
   isResumed(state: HitlState): boolean {
-    return state.hitlStatus === 'resumed';
+    return state.hitlStatus === "resumed";
   }
 
   /**
@@ -195,7 +195,7 @@ export class HITLHelperService {
       ...state,
       hitlRequest: undefined,
       hitlResponse: undefined,
-      hitlStatus: 'none' as const,
+      hitlStatus: "none" as const,
     };
   }
 
@@ -205,7 +205,7 @@ export class HITLHelperService {
    */
   buildInterruptValue(request: HitlRequest): Record<string, unknown> {
     return {
-      reason: 'human_review',
+      reason: "human_review",
       taskId: request.taskId,
       threadId: request.threadId,
       agentSlug: request.agentSlug,

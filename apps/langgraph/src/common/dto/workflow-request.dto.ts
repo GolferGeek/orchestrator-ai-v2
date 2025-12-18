@@ -1,4 +1,4 @@
-import { IsString, IsUUID, IsOptional, IsUrl, IsObject } from 'class-validator';
+import { IsString, IsUUID, IsOptional, IsUrl, IsObject } from "class-validator";
 
 export class WorkflowRequestDto {
   @IsUUID()

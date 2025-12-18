@@ -1,5 +1,5 @@
-import { Annotation, MessagesAnnotation } from '@langchain/langgraph';
-import { ExecutionContext } from '@orchestrator-ai/transport-types';
+import { Annotation, MessagesAnnotation } from "@langchain/langgraph";
+import { ExecutionContext } from "@orchestrator-ai/transport-types";
 
 /**
  * Data Analyst input interface
@@ -19,7 +19,7 @@ export interface DataAnalystInput {
  */
 export interface DataAnalystResult {
   taskId: string;
-  status: 'completed' | 'failed';
+  status: "completed" | "failed";
   userMessage: string;
   summary?: string;
   generatedSql?: string;
@@ -33,7 +33,7 @@ export interface DataAnalystResult {
  */
 export interface DataAnalystStatus {
   taskId: string;
-  status: DataAnalystState['status'];
+  status: DataAnalystState["status"];
   userMessage: string;
   summary?: string;
   error?: string;
@@ -65,23 +65,23 @@ export const DataAnalystStateAnnotation = Annotation.Root({
   executionContext: Annotation<ExecutionContext>({
     reducer: (_, next) => next,
     default: () => ({
-      orgSlug: '',
-      userId: '',
-      conversationId: '',
-      taskId: '',
-      planId: '',
-      deliverableId: '',
-      agentSlug: '',
-      agentType: '',
-      provider: '',
-      model: '',
+      orgSlug: "",
+      userId: "",
+      conversationId: "",
+      taskId: "",
+      planId: "",
+      deliverableId: "",
+      agentSlug: "",
+      agentType: "",
+      provider: "",
+      model: "",
     }),
   }),
 
   // User's message/prompt
   userMessage: Annotation<string>({
     reducer: (_, next) => next,
-    default: () => '',
+    default: () => "",
   }),
 
   // Schema discovery
@@ -124,9 +124,16 @@ export const DataAnalystStateAnnotation = Annotation.Root({
   }),
 
   // Status tracking
-  status: Annotation<'started' | 'discovering' | 'querying' | 'summarizing' | 'completed' | 'failed'>({
+  status: Annotation<
+    | "started"
+    | "discovering"
+    | "querying"
+    | "summarizing"
+    | "completed"
+    | "failed"
+  >({
     reducer: (_, next) => next,
-    default: () => 'started',
+    default: () => "started",
   }),
 
   error: Annotation<string | undefined>({

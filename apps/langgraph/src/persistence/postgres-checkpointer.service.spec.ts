@@ -1,5 +1,6 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { ConfigService } from '@nestjs/config';
+/* eslint-disable @typescript-eslint/no-var-requires */
+import { Test, TestingModule } from "@nestjs/testing";
+import { ConfigService } from "@nestjs/config";
 
 // Define mock factories that will be used by jest.mock
 const mockClient = {
@@ -17,14 +18,14 @@ const mockSaver = {
 };
 
 // Mock pg BEFORE importing the service
-jest.mock('pg', () => {
+jest.mock("pg", () => {
   return {
     Pool: jest.fn(() => mockPool),
   };
 });
 
 // Mock PostgresSaver BEFORE importing the service
-jest.mock('@langchain/langgraph-checkpoint-postgres', () => {
+jest.mock("@langchain/langgraph-checkpoint-postgres", () => {
   return {
     PostgresSaver: {
       fromConnString: jest.fn(() => mockSaver),
@@ -33,7 +34,7 @@ jest.mock('@langchain/langgraph-checkpoint-postgres', () => {
 });
 
 // Import AFTER mocking
-import { PostgresCheckpointerService } from './postgres-checkpointer.service';
+import { PostgresCheckpointerService } from "./postgres-checkpointer.service";
 
 /**
  * Unit tests for PostgresCheckpointerService
@@ -41,16 +42,16 @@ import { PostgresCheckpointerService } from './postgres-checkpointer.service';
  * Tests the PostgreSQL checkpointer service that provides
  * checkpoint persistence for LangGraph workflows.
  */
-describe('PostgresCheckpointerService', () => {
+describe("PostgresCheckpointerService", () => {
   let service: PostgresCheckpointerService;
   let configService: jest.Mocked<ConfigService>;
 
   const defaultConfig: Record<string, string | number> = {
-    DB_HOST: 'localhost',
+    DB_HOST: "localhost",
     DB_PORT: 6012,
-    DB_NAME: 'postgres',
-    DB_USER: 'postgres',
-    DB_PASSWORD: 'postgres',
+    DB_NAME: "postgres",
+    DB_USER: "postgres",
+    DB_PASSWORD: "postgres",
   };
 
   beforeEach(async () => {
@@ -75,7 +76,9 @@ describe('PostgresCheckpointerService', () => {
       ],
     }).compile();
 
-    service = module.get<PostgresCheckpointerService>(PostgresCheckpointerService);
+    service = module.get<PostgresCheckpointerService>(
+      PostgresCheckpointerService,
+    );
     configService = module.get(ConfigService);
   });
 
@@ -86,28 +89,28 @@ describe('PostgresCheckpointerService', () => {
     }
   });
 
-  it('should be defined', () => {
+  it("should be defined", () => {
     expect(service).toBeDefined();
   });
 
-  describe('onModuleInit', () => {
-    it('should initialize the checkpointer successfully', async () => {
+  describe("onModuleInit", () => {
+    it("should initialize the checkpointer successfully", async () => {
       await service.onModuleInit();
 
       expect(service.isReady()).toBe(true);
     });
 
-    it('should build connection string from config', async () => {
+    it("should build connection string from config", async () => {
       await service.onModuleInit();
 
-      expect(configService.get).toHaveBeenCalledWith('DB_HOST');
-      expect(configService.get).toHaveBeenCalledWith('DB_PORT');
-      expect(configService.get).toHaveBeenCalledWith('DB_NAME');
-      expect(configService.get).toHaveBeenCalledWith('DB_USER');
-      expect(configService.get).toHaveBeenCalledWith('DB_PASSWORD');
+      expect(configService.get).toHaveBeenCalledWith("DB_HOST");
+      expect(configService.get).toHaveBeenCalledWith("DB_PORT");
+      expect(configService.get).toHaveBeenCalledWith("DB_NAME");
+      expect(configService.get).toHaveBeenCalledWith("DB_USER");
+      expect(configService.get).toHaveBeenCalledWith("DB_PASSWORD");
     });
 
-    it('should use default values when config is not provided', async () => {
+    it("should use default values when config is not provided", async () => {
       // Reset config to return undefined
       configService.get.mockReturnValue(undefined);
 
@@ -117,25 +120,28 @@ describe('PostgresCheckpointerService', () => {
       expect(service.isReady()).toBe(true);
     });
 
-    it('should create PostgresSaver from connection string', async () => {
-      const { PostgresSaver } = require('@langchain/langgraph-checkpoint-postgres');
+    it("should create PostgresSaver from connection string", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const {
+        PostgresSaver,
+      } = require("@langchain/langgraph-checkpoint-postgres");
 
       await service.onModuleInit();
 
       expect(PostgresSaver.fromConnString).toHaveBeenCalledWith(
-        expect.stringContaining('postgresql://'),
+        expect.stringContaining("postgresql://"),
       );
     });
 
-    it('should call setup on PostgresSaver', async () => {
+    it("should call setup on PostgresSaver", async () => {
       await service.onModuleInit();
 
       expect(mockSaver.setup).toHaveBeenCalled();
     });
   });
 
-  describe('onModuleDestroy', () => {
-    it('should close the connection pool', async () => {
+  describe("onModuleDestroy", () => {
+    it("should close the connection pool", async () => {
       await service.onModuleInit();
       await service.onModuleDestroy();
 
@@ -143,14 +149,14 @@ describe('PostgresCheckpointerService', () => {
       expect(service.isReady()).toBe(false);
     });
 
-    it('should handle being called when not initialized', async () => {
+    it("should handle being called when not initialized", async () => {
       // Should not throw when pool is null
       await expect(service.onModuleDestroy()).resolves.not.toThrow();
     });
   });
 
-  describe('getSaver', () => {
-    it('should return PostgresSaver when initialized', async () => {
+  describe("getSaver", () => {
+    it("should return PostgresSaver when initialized", async () => {
       await service.onModuleInit();
 
       const saver = service.getSaver();
@@ -159,15 +165,15 @@ describe('PostgresCheckpointerService', () => {
       expect(saver.setup).toBeDefined();
     });
 
-    it('should throw error when not initialized', () => {
+    it("should throw error when not initialized", () => {
       expect(() => service.getSaver()).toThrow(
-        'PostgreSQL checkpointer not initialized',
+        "PostgreSQL checkpointer not initialized",
       );
     });
   });
 
-  describe('getPool', () => {
-    it('should return Pool when initialized', async () => {
+  describe("getPool", () => {
+    it("should return Pool when initialized", async () => {
       await service.onModuleInit();
 
       const pool = service.getPool();
@@ -176,25 +182,25 @@ describe('PostgresCheckpointerService', () => {
       expect(pool.connect).toBeDefined();
     });
 
-    it('should throw error when not initialized', () => {
+    it("should throw error when not initialized", () => {
       expect(() => service.getPool()).toThrow(
-        'PostgreSQL connection pool not initialized',
+        "PostgreSQL connection pool not initialized",
       );
     });
   });
 
-  describe('isReady', () => {
-    it('should return false before initialization', () => {
+  describe("isReady", () => {
+    it("should return false before initialization", () => {
       expect(service.isReady()).toBe(false);
     });
 
-    it('should return true after initialization', async () => {
+    it("should return true after initialization", async () => {
       await service.onModuleInit();
 
       expect(service.isReady()).toBe(true);
     });
 
-    it('should return false after destroy', async () => {
+    it("should return false after destroy", async () => {
       await service.onModuleInit();
       await service.onModuleDestroy();
 
@@ -202,8 +208,8 @@ describe('PostgresCheckpointerService', () => {
     });
   });
 
-  describe('healthCheck', () => {
-    it('should return true when connection is healthy', async () => {
+  describe("healthCheck", () => {
+    it("should return true when connection is healthy", async () => {
       await service.onModuleInit();
 
       const isHealthy = await service.healthCheck();
@@ -211,17 +217,17 @@ describe('PostgresCheckpointerService', () => {
       expect(isHealthy).toBe(true);
     });
 
-    it('should return false when not initialized', async () => {
+    it("should return false when not initialized", async () => {
       const isHealthy = await service.healthCheck();
 
       expect(isHealthy).toBe(false);
     });
 
-    it('should return false when query fails', async () => {
+    it("should return false when query fails", async () => {
       await service.onModuleInit();
 
       // Mock failure on health check query
-      mockClient.query.mockRejectedValueOnce(new Error('Connection error'));
+      mockClient.query.mockRejectedValueOnce(new Error("Connection error"));
 
       const isHealthy = await service.healthCheck();
 
@@ -229,19 +235,21 @@ describe('PostgresCheckpointerService', () => {
     });
   });
 
-  describe('error handling', () => {
-    it('should throw error when pool connection fails', async () => {
+  describe("error handling", () => {
+    it("should throw error when pool connection fails", async () => {
       // Make connect fail
-      mockPool.connect.mockRejectedValueOnce(new Error('Connection refused'));
+      mockPool.connect.mockRejectedValueOnce(new Error("Connection refused"));
 
-      await expect(service.onModuleInit()).rejects.toThrow('Connection refused');
+      await expect(service.onModuleInit()).rejects.toThrow(
+        "Connection refused",
+      );
     });
 
-    it('should throw error when setup fails', async () => {
+    it("should throw error when setup fails", async () => {
       // Make setup fail
-      mockSaver.setup.mockRejectedValueOnce(new Error('Setup failed'));
+      mockSaver.setup.mockRejectedValueOnce(new Error("Setup failed"));
 
-      await expect(service.onModuleInit()).rejects.toThrow('Setup failed');
+      await expect(service.onModuleInit()).rejects.toThrow("Setup failed");
     });
   });
 });

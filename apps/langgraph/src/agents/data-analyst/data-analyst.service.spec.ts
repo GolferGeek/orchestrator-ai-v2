@@ -1,10 +1,10 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { LLMHttpClientService } from '../../services/llm-http-client.service';
-import { ObservabilityService } from '../../services/observability.service';
-import { DataAnalystInput } from './data-analyst.state';
+import { Test, TestingModule } from "@nestjs/testing";
+import { LLMHttpClientService } from "../../services/llm-http-client.service";
+import { ObservabilityService } from "../../services/observability.service";
+import { DataAnalystInput } from "./data-analyst.state";
 
 // Mock PostgresSaver before any imports that need it
-jest.mock('@langchain/langgraph-checkpoint-postgres', () => ({
+jest.mock("@langchain/langgraph-checkpoint-postgres", () => ({
   PostgresSaver: {
     fromConnString: jest.fn(() => ({
       setup: jest.fn().mockResolvedValue(undefined),
@@ -15,7 +15,7 @@ jest.mock('@langchain/langgraph-checkpoint-postgres', () => ({
 }));
 
 // Mock pg Pool
-jest.mock('pg', () => ({
+jest.mock("pg", () => ({
   Pool: jest.fn(() => ({
     connect: jest.fn().mockResolvedValue({
       query: jest.fn().mockResolvedValue({ rows: [] }),
@@ -27,42 +27,42 @@ jest.mock('pg', () => ({
 }));
 
 // Now import after mocking
-import { PostgresCheckpointerService } from '../../persistence/postgres-checkpointer.service';
+import { PostgresCheckpointerService } from "../../persistence/postgres-checkpointer.service";
 import {
   ListTablesTool,
   DescribeTableTool,
   SqlQueryTool,
-} from '../../tools/data/database';
-import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
+} from "../../tools/data/database";
+import { createMockExecutionContext } from "@orchestrator-ai/transport-types";
 
 // Mock the graph module
-jest.mock('./data-analyst.graph', () => ({
+jest.mock("./data-analyst.graph", () => ({
   createDataAnalystGraph: jest.fn(() => ({
     invoke: jest.fn().mockResolvedValue({
-      status: 'completed',
-      summary: 'There are 100 users in the database.',
-      generatedSql: 'SELECT COUNT(*) FROM users',
-      sqlResults: 'count: 100',
+      status: "completed",
+      summary: "There are 100 users in the database.",
+      generatedSql: "SELECT COUNT(*) FROM users",
+      sqlResults: "count: 100",
     }),
     getState: jest.fn().mockResolvedValue({
       values: {
-        status: 'completed',
-        question: 'How many users?',
-        summary: 'There are 100 users.',
+        status: "completed",
+        question: "How many users?",
+        summary: "There are 100 users.",
       },
       next: [],
     }),
     getStateHistory: jest.fn().mockReturnValue({
       [Symbol.asyncIterator]: async function* () {
-        yield { values: { status: 'started' } };
-        yield { values: { status: 'completed' } };
+        yield { values: { status: "started" } };
+        yield { values: { status: "completed" } };
       },
     }),
   })),
 }));
 
 // Import after mocking
-import { DataAnalystService } from './data-analyst.service';
+import { DataAnalystService } from "./data-analyst.service";
 
 /**
  * Unit tests for DataAnalystService
@@ -70,12 +70,12 @@ import { DataAnalystService } from './data-analyst.service';
  * Tests the Data Analyst agent service that manages
  * the tool-calling pattern for database queries.
  */
-describe('DataAnalystService', () => {
+describe("DataAnalystService", () => {
   let service: DataAnalystService;
-  let llmClient: jest.Mocked<LLMHttpClientService>;
-  let observability: jest.Mocked<ObservabilityService>;
-  let checkpointer: jest.Mocked<PostgresCheckpointerService>;
-  const mockContext = createMockExecutionContext();
+  let _llmClient: jest.Mocked<LLMHttpClientService>;
+  let _observability: jest.Mocked<ObservabilityService>;
+  let _checkpointer: jest.Mocked<PostgresCheckpointerService>;
+  const _mockContext = createMockExecutionContext();
 
   const mockSaver = {
     setup: jest.fn().mockResolvedValue(undefined),
@@ -96,7 +96,7 @@ describe('DataAnalystService', () => {
           provide: LLMHttpClientService,
           useValue: {
             callLLM: jest.fn().mockResolvedValue({
-              text: 'Mocked LLM response',
+              text: "Mocked LLM response",
               usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
             }),
           },
@@ -124,27 +124,29 @@ describe('DataAnalystService', () => {
         {
           provide: ListTablesTool,
           useValue: {
-            execute: jest.fn().mockResolvedValue('Tables: users, orders'),
+            execute: jest.fn().mockResolvedValue("Tables: users, orders"),
             createTool: jest.fn().mockReturnValue({
-              invoke: jest.fn().mockResolvedValue('Tables list'),
+              invoke: jest.fn().mockResolvedValue("Tables list"),
             }),
           },
         },
         {
           provide: DescribeTableTool,
           useValue: {
-            execute: jest.fn().mockResolvedValue('Schema: id INT, name VARCHAR'),
+            execute: jest
+              .fn()
+              .mockResolvedValue("Schema: id INT, name VARCHAR"),
             createTool: jest.fn().mockReturnValue({
-              invoke: jest.fn().mockResolvedValue('Schema info'),
+              invoke: jest.fn().mockResolvedValue("Schema info"),
             }),
           },
         },
         {
           provide: SqlQueryTool,
           useValue: {
-            executeSql: jest.fn().mockResolvedValue('count: 100'),
+            executeSql: jest.fn().mockResolvedValue("count: 100"),
             createTool: jest.fn().mockReturnValue({
-              invoke: jest.fn().mockResolvedValue('Query result'),
+              invoke: jest.fn().mockResolvedValue("Query result"),
             }),
           },
         },
@@ -160,46 +162,46 @@ describe('DataAnalystService', () => {
     await service.onModuleInit();
   });
 
-  it('should be defined', () => {
+  it("should be defined", () => {
     expect(service).toBeDefined();
   });
 
-  describe('analyze', () => {
+  describe("analyze", () => {
     const validInput: DataAnalystInput = {
-      taskId: 'task-123',
-      userId: 'user-456',
-      conversationId: 'conv-789',
-      organizationSlug: 'org-abc',
-      question: 'How many users are there?',
-      provider: 'anthropic',
-      model: 'claude-sonnet-4-20250514',
+      taskId: "task-123",
+      userId: "user-456",
+      conversationId: "conv-789",
+      organizationSlug: "org-abc",
+      question: "How many users are there?",
+      provider: "anthropic",
+      model: "claude-sonnet-4-20250514",
     };
 
-    it('should throw error for missing taskId', async () => {
-      const invalidInput = { ...validInput, taskId: '' };
+    it("should throw error for missing taskId", async () => {
+      const invalidInput = { ...validInput, taskId: "" };
 
       await expect(service.analyze(invalidInput)).rejects.toThrow(
-        'Invalid input',
+        "Invalid input",
       );
     });
 
-    it('should throw error for missing userId', async () => {
-      const invalidInput = { ...validInput, userId: '' };
+    it("should throw error for missing userId", async () => {
+      const invalidInput = { ...validInput, userId: "" };
 
       await expect(service.analyze(invalidInput)).rejects.toThrow(
-        'Invalid input',
+        "Invalid input",
       );
     });
 
-    it('should throw error for missing question', async () => {
-      const invalidInput = { ...validInput, question: '' };
+    it("should throw error for missing question", async () => {
+      const invalidInput = { ...validInput, question: "" };
 
       await expect(service.analyze(invalidInput)).rejects.toThrow(
-        'Invalid input',
+        "Invalid input",
       );
     });
 
-    it('should return result with threadId for valid input', async () => {
+    it("should return result with threadId for valid input", async () => {
       const result = await service.analyze(validInput);
 
       expect(result.threadId).toBeDefined();
@@ -207,10 +209,11 @@ describe('DataAnalystService', () => {
     });
   });
 
-  describe('getStatus', () => {
-    it('should return null for non-existent thread', async () => {
+  describe("getStatus", () => {
+    it("should return null for non-existent thread", async () => {
       // Mock getState to return null
-      const { createDataAnalystGraph } = require('./data-analyst.graph');
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { createDataAnalystGraph } = require("./data-analyst.graph");
       createDataAnalystGraph.mockReturnValueOnce({
         invoke: jest.fn(),
         getState: jest.fn().mockResolvedValue({ values: null }),
@@ -218,16 +221,17 @@ describe('DataAnalystService', () => {
       });
 
       await service.onModuleInit();
-      const result = await service.getStatus('non-existent-thread');
+      const result = await service.getStatus("non-existent-thread");
 
       expect(result).toBeNull();
     });
   });
 
-  describe('getHistory', () => {
-    it('should return empty array for non-existent thread', async () => {
+  describe("getHistory", () => {
+    it("should return empty array for non-existent thread", async () => {
       // Mock getStateHistory to return empty iterator
-      const { createDataAnalystGraph } = require('./data-analyst.graph');
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { createDataAnalystGraph } = require("./data-analyst.graph");
       createDataAnalystGraph.mockReturnValueOnce({
         invoke: jest.fn(),
         getState: jest.fn(),
@@ -239,7 +243,7 @@ describe('DataAnalystService', () => {
       });
 
       await service.onModuleInit();
-      const result = await service.getHistory('non-existent-thread');
+      const result = await service.getHistory("non-existent-thread");
 
       expect(result).toEqual([]);
     });
@@ -255,13 +259,13 @@ describe('DataAnalystService', () => {
  * These tests require a running database and should be run
  * against the test environment.
  */
-describe.skip('DataAnalystService (Integration)', () => {
+describe.skip("DataAnalystService (Integration)", () => {
   // Integration tests would be marked with a different tag
   // and run separately against the test database
 
-  it.todo('should complete full analysis workflow');
-  it.todo('should discover tables from database');
-  it.todo('should generate and execute SQL queries');
-  it.todo('should handle database connection errors');
-  it.todo('should track state through checkpointer');
+  it.todo("should complete full analysis workflow");
+  it.todo("should discover tables from database");
+  it.todo("should generate and execute SQL queries");
+  it.todo("should handle database connection errors");
+  it.todo("should track state through checkpointer");
 });

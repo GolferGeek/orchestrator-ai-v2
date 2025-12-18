@@ -1,9 +1,9 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { Command, isGraphInterrupt } from '@langchain/langgraph';
+import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { Command, isGraphInterrupt } from "@langchain/langgraph";
 import {
   createExtendedPostWriterGraph,
   ExtendedPostWriterGraph,
-} from './extended-post-writer.graph';
+} from "./extended-post-writer.graph";
 import {
   ExtendedPostWriterInput,
   ExtendedPostWriterState,
@@ -11,10 +11,10 @@ import {
   ExtendedPostWriterStatus,
   GeneratedContent,
   HitlResponse,
-} from './extended-post-writer.state';
-import { LLMHttpClientService } from '../../services/llm-http-client.service';
-import { ObservabilityService } from '../../services/observability.service';
-import { PostgresCheckpointerService } from '../../persistence/postgres-checkpointer.service';
+} from "./extended-post-writer.state";
+import { LLMHttpClientService } from "../../services/llm-http-client.service";
+import { ObservabilityService } from "../../services/observability.service";
+import { PostgresCheckpointerService } from "../../persistence/postgres-checkpointer.service";
 
 /**
  * ExtendedPostWriterService
@@ -37,13 +37,13 @@ export class ExtendedPostWriterService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    this.logger.log('Initializing Extended Post Writer graph...');
+    this.logger.log("Initializing Extended Post Writer graph...");
     this.graph = createExtendedPostWriterGraph(
       this.llmClient,
       this.observability,
       this.checkpointer,
     );
-    this.logger.log('Extended Post Writer graph initialized');
+    this.logger.log("Extended Post Writer graph initialized");
   }
 
   /**
@@ -51,7 +51,9 @@ export class ExtendedPostWriterService implements OnModuleInit {
    *
    * @param input - Input containing ExecutionContext and content generation params
    */
-  async generate(input: ExtendedPostWriterInput): Promise<ExtendedPostWriterResult> {
+  async generate(
+    input: ExtendedPostWriterInput,
+  ): Promise<ExtendedPostWriterResult> {
     const startTime = Date.now();
     const { context } = input;
     const taskId = context.taskId;
@@ -66,7 +68,7 @@ export class ExtendedPostWriterService implements OnModuleInit {
         context: input.additionalContext,
         keywords: input.keywords,
         tone: input.tone,
-        status: 'started',
+        status: "started",
         startedAt: startTime,
       };
 
@@ -93,7 +95,7 @@ export class ExtendedPostWriterService implements OnModuleInit {
 
       return {
         taskId,
-        status: isInterrupted ? 'hitl_waiting' : result.status,
+        status: isInterrupted ? "hitl_waiting" : result.status,
         userMessage: input.userMessage,
         generatedContent,
         error: result.error,
@@ -101,9 +103,7 @@ export class ExtendedPostWriterService implements OnModuleInit {
     } catch (error) {
       // Check if this is a GraphInterrupt - this means the graph paused for HITL
       if (isGraphInterrupt(error)) {
-        this.logger.log(
-          `Content generation paused at HITL: taskId=${taskId}`,
-        );
+        this.logger.log(`Content generation paused at HITL: taskId=${taskId}`);
 
         // Get the current state from the checkpoint
         const config = {
@@ -124,7 +124,7 @@ export class ExtendedPostWriterService implements OnModuleInit {
 
           return {
             taskId,
-            status: 'hitl_waiting',
+            status: "hitl_waiting",
             userMessage: input.userMessage,
             generatedContent,
           };
@@ -135,11 +135,11 @@ export class ExtendedPostWriterService implements OnModuleInit {
           // Return with partial content if state retrieval fails
           return {
             taskId,
-            status: 'hitl_waiting',
+            status: "hitl_waiting",
             userMessage: input.userMessage,
             generatedContent: {
-              blogPost: '',
-              seoDescription: '',
+              blogPost: "",
+              seoDescription: "",
               socialPosts: [],
             },
           };
@@ -156,7 +156,7 @@ export class ExtendedPostWriterService implements OnModuleInit {
 
       return {
         taskId,
-        status: 'failed',
+        status: "failed",
         userMessage: input.userMessage,
         error: errorMessage,
         duration: Date.now() - startTime,
@@ -255,7 +255,7 @@ export class ExtendedPostWriterService implements OnModuleInit {
 
       return {
         taskId,
-        status: isInterrupted ? 'hitl_waiting' : values.status,
+        status: isInterrupted ? "hitl_waiting" : values.status,
         userMessage: values.userMessage,
         generatedContent,
         finalContent: values.finalContent,

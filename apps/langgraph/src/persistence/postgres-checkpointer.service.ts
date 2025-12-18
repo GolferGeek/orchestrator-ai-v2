@@ -1,7 +1,12 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
-import { Pool } from 'pg';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres";
+import { Pool } from "pg";
 
 /**
  * PostgresCheckpointerService
@@ -14,7 +19,9 @@ import { Pool } from 'pg';
  * - Query execution history
  */
 @Injectable()
-export class PostgresCheckpointerService implements OnModuleInit, OnModuleDestroy {
+export class PostgresCheckpointerService
+  implements OnModuleInit, OnModuleDestroy
+{
   private readonly logger = new Logger(PostgresCheckpointerService.name);
   private pool: Pool | null = null;
   private saver: PostgresSaver | null = null;
@@ -35,15 +42,18 @@ export class PostgresCheckpointerService implements OnModuleInit, OnModuleDestro
   private async initialize(): Promise<void> {
     try {
       // Build connection string from environment
-      const host = this.configService.get<string>('DB_HOST') || 'localhost';
-      const port = this.configService.get<number>('DB_PORT') || 6012;
-      const database = this.configService.get<string>('DB_NAME') || 'postgres';
-      const user = this.configService.get<string>('DB_USER') || 'postgres';
-      const password = this.configService.get<string>('DB_PASSWORD') || 'postgres';
+      const host = this.configService.get<string>("DB_HOST") || "localhost";
+      const port = this.configService.get<number>("DB_PORT") || 6012;
+      const database = this.configService.get<string>("DB_NAME") || "postgres";
+      const user = this.configService.get<string>("DB_USER") || "postgres";
+      const password =
+        this.configService.get<string>("DB_PASSWORD") || "postgres";
 
       const connectionString = `postgresql://${user}:${password}@${host}:${port}/${database}`;
 
-      this.logger.log(`Initializing PostgreSQL checkpointer: ${host}:${port}/${database}`);
+      this.logger.log(
+        `Initializing PostgreSQL checkpointer: ${host}:${port}/${database}`,
+      );
 
       // Create connection pool
       this.pool = new Pool({
@@ -56,8 +66,8 @@ export class PostgresCheckpointerService implements OnModuleInit, OnModuleDestro
       // Test connection
       const client = await this.pool.connect();
       try {
-        await client.query('SELECT 1');
-        this.logger.log('PostgreSQL connection test successful');
+        await client.query("SELECT 1");
+        this.logger.log("PostgreSQL connection test successful");
       } finally {
         client.release();
       }
@@ -68,7 +78,7 @@ export class PostgresCheckpointerService implements OnModuleInit, OnModuleDestro
       // Set up the checkpoint tables (if not exists)
       await this.saver.setup();
 
-      this.logger.log('PostgreSQL checkpointer initialized successfully');
+      this.logger.log("PostgreSQL checkpointer initialized successfully");
     } catch (error) {
       this.logger.error(
         `Failed to initialize PostgreSQL checkpointer: ${
@@ -87,7 +97,7 @@ export class PostgresCheckpointerService implements OnModuleInit, OnModuleDestro
       await this.pool.end();
       this.pool = null;
       this.saver = null;
-      this.logger.log('PostgreSQL checkpointer closed');
+      this.logger.log("PostgreSQL checkpointer closed");
     }
   }
 
@@ -96,7 +106,7 @@ export class PostgresCheckpointerService implements OnModuleInit, OnModuleDestro
    */
   getSaver(): PostgresSaver {
     if (!this.saver) {
-      throw new Error('PostgreSQL checkpointer not initialized');
+      throw new Error("PostgreSQL checkpointer not initialized");
     }
     return this.saver;
   }
@@ -106,7 +116,7 @@ export class PostgresCheckpointerService implements OnModuleInit, OnModuleDestro
    */
   getPool(): Pool {
     if (!this.pool) {
-      throw new Error('PostgreSQL connection pool not initialized');
+      throw new Error("PostgreSQL connection pool not initialized");
     }
     return this.pool;
   }
@@ -129,7 +139,7 @@ export class PostgresCheckpointerService implements OnModuleInit, OnModuleDestro
     try {
       const client = await this.pool.connect();
       try {
-        await client.query('SELECT 1');
+        await client.query("SELECT 1");
         return true;
       } finally {
         client.release();

@@ -9,9 +9,9 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
-} from '@nestjs/common';
-import { DataAnalystService } from './data-analyst.service';
-import { DataAnalystRequestDto } from './dto';
+} from "@nestjs/common";
+import { DataAnalystService } from "./data-analyst.service";
+import { DataAnalystRequestDto } from "./dto";
 
 /**
  * DataAnalystController
@@ -21,7 +21,7 @@ import { DataAnalystRequestDto } from './dto';
  * - GET /data-analyst/status/:threadId - Check analysis status
  * - GET /data-analyst/history/:threadId - Get full state history
  */
-@Controller('data-analyst')
+@Controller("data-analyst")
 export class DataAnalystController {
   private readonly logger = new Logger(DataAnalystController.name);
 
@@ -30,16 +30,18 @@ export class DataAnalystController {
   /**
    * Start a new data analysis
    */
-  @Post('analyze')
+  @Post("analyze")
   @HttpCode(HttpStatus.OK)
   async analyze(@Body() request: DataAnalystRequestDto) {
     // ExecutionContext is required - no fallbacks
     if (!request.context) {
-      throw new BadRequestException('ExecutionContext is required');
+      throw new BadRequestException("ExecutionContext is required");
     }
 
     const context = request.context;
-    this.logger.log(`Received analysis request: taskId=${context.taskId}, userId=${context.userId}`);
+    this.logger.log(
+      `Received analysis request: taskId=${context.taskId}, userId=${context.userId}`,
+    );
 
     try {
       const result = await this.dataAnalystService.analyze({
@@ -48,13 +50,13 @@ export class DataAnalystController {
       });
 
       return {
-        success: result.status === 'completed',
+        success: result.status === "completed",
         data: result,
       };
     } catch (error) {
-      this.logger.error('Analysis failed:', error);
+      this.logger.error("Analysis failed:", error);
       throw new BadRequestException(
-        error instanceof Error ? error.message : 'Analysis failed',
+        error instanceof Error ? error.message : "Analysis failed",
       );
     }
   }
@@ -62,9 +64,9 @@ export class DataAnalystController {
   /**
    * Get analysis status by thread ID
    */
-  @Get('status/:threadId')
+  @Get("status/:threadId")
   @HttpCode(HttpStatus.OK)
-  async getStatus(@Param('threadId') threadId: string) {
+  async getStatus(@Param("threadId") threadId: string) {
     this.logger.log(`Getting status for thread: ${threadId}`);
 
     const status = await this.dataAnalystService.getStatus(threadId);
@@ -82,9 +84,9 @@ export class DataAnalystController {
   /**
    * Get full state history for a thread
    */
-  @Get('history/:threadId')
+  @Get("history/:threadId")
   @HttpCode(HttpStatus.OK)
-  async getHistory(@Param('threadId') threadId: string) {
+  async getHistory(@Param("threadId") threadId: string) {
     this.logger.log(`Getting history for thread: ${threadId}`);
 
     const history = await this.dataAnalystService.getHistory(threadId);

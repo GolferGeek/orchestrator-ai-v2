@@ -1,1 +1,1 @@
-export { DataAnalystRequestDto } from './data-analyst-request.dto';
+export { DataAnalystRequestDto } from "./data-analyst-request.dto";

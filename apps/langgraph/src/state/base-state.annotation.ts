@@ -1,18 +1,18 @@
-import { Annotation, MessagesAnnotation } from '@langchain/langgraph';
-import { z } from 'zod';
+import { Annotation, MessagesAnnotation } from "@langchain/langgraph";
+import { z } from "zod";
 
 /**
  * Zod schema for validating workflow input
  */
 export const WorkflowInputSchema = z.object({
-  taskId: z.string().min(1, 'taskId is required'),
-  userId: z.string().min(1, 'userId is required'),
+  taskId: z.string().min(1, "taskId is required"),
+  userId: z.string().min(1, "userId is required"),
   conversationId: z.string().optional(),
   organizationSlug: z.string().optional(),
-  userMessage: z.string().min(1, 'userMessage is required'),
-  agentSlug: z.string().min(1, 'agentSlug is required'),
-  provider: z.string().default('anthropic'),
-  model: z.string().default('claude-sonnet-4-20250514'),
+  userMessage: z.string().min(1, "userMessage is required"),
+  agentSlug: z.string().min(1, "agentSlug is required"),
+  provider: z.string().default("anthropic"),
+  model: z.string().default("claude-sonnet-4-20250514"),
   metadata: z.record(z.unknown()).optional(),
 });
 
@@ -22,23 +22,27 @@ export type WorkflowInput = z.infer<typeof WorkflowInputSchema>;
  * Zod schema for HITL state
  */
 export const HitlStateSchema = z.object({
-  hitlRequest: z.object({
-    taskId: z.string(),
-    threadId: z.string(),
-    agentSlug: z.string(),
-    userId: z.string(),
-    conversationId: z.string().optional(),
-    organizationSlug: z.string().optional(),
-    pendingContent: z.unknown(),
-    contentType: z.string(),
-    message: z.string().optional(),
-  }).optional(),
-  hitlResponse: z.object({
-    decision: z.enum(['approve', 'edit', 'reject']),
-    editedContent: z.unknown().optional(),
-    feedback: z.string().optional(),
-  }).optional(),
-  hitlStatus: z.enum(['none', 'waiting', 'resumed']).default('none'),
+  hitlRequest: z
+    .object({
+      taskId: z.string(),
+      threadId: z.string(),
+      agentSlug: z.string(),
+      userId: z.string(),
+      conversationId: z.string().optional(),
+      organizationSlug: z.string().optional(),
+      pendingContent: z.unknown(),
+      contentType: z.string(),
+      message: z.string().optional(),
+    })
+    .optional(),
+  hitlResponse: z
+    .object({
+      decision: z.enum(["approve", "edit", "reject"]),
+      editedContent: z.unknown().optional(),
+      feedback: z.string().optional(),
+    })
+    .optional(),
+  hitlStatus: z.enum(["none", "waiting", "resumed"]).default("none"),
 });
 
 export type HitlStateType = z.infer<typeof HitlStateSchema>;
@@ -74,18 +78,18 @@ export const BaseStateAnnotation = Annotation.Root({
   // Task identification
   taskId: Annotation<string>({
     reducer: (_, next) => next,
-    default: () => '',
+    default: () => "",
   }),
 
   threadId: Annotation<string>({
     reducer: (_, next) => next,
-    default: () => '',
+    default: () => "",
   }),
 
   // User identification
   userId: Annotation<string>({
     reducer: (_, next) => next,
-    default: () => '',
+    default: () => "",
   }),
 
   conversationId: Annotation<string | undefined>({
@@ -101,24 +105,24 @@ export const BaseStateAnnotation = Annotation.Root({
   // Agent identification
   agentSlug: Annotation<string>({
     reducer: (_, next) => next,
-    default: () => '',
+    default: () => "",
   }),
 
   // LLM configuration
   provider: Annotation<string>({
     reducer: (_, next) => next,
-    default: () => 'anthropic',
+    default: () => "anthropic",
   }),
 
   model: Annotation<string>({
     reducer: (_, next) => next,
-    default: () => 'claude-sonnet-4-20250514',
+    default: () => "claude-sonnet-4-20250514",
   }),
 
   // User input
   userMessage: Annotation<string>({
     reducer: (_, next) => next,
-    default: () => '',
+    default: () => "",
   }),
 
   // Workflow result
@@ -134,19 +138,19 @@ export const BaseStateAnnotation = Annotation.Root({
   }),
 
   // HITL state fields
-  hitlRequest: Annotation<HitlStateType['hitlRequest']>({
+  hitlRequest: Annotation<HitlStateType["hitlRequest"]>({
     reducer: (_, next) => next,
     default: () => undefined,
   }),
 
-  hitlResponse: Annotation<HitlStateType['hitlResponse']>({
+  hitlResponse: Annotation<HitlStateType["hitlResponse"]>({
     reducer: (_, next) => next,
     default: () => undefined,
   }),
 
-  hitlStatus: Annotation<'none' | 'waiting' | 'resumed'>({
+  hitlStatus: Annotation<"none" | "waiting" | "resumed">({
     reducer: (_, next) => next,
-    default: () => 'none',
+    default: () => "none",
   }),
 
   // Workflow metadata
@@ -189,6 +193,6 @@ export function safeValidateWorkflowInput(input: unknown): {
  */
 export function formatValidationErrors(error: z.ZodError): string {
   return error.errors
-    .map((e) => `${e.path.join('.')}: ${e.message}`)
-    .join('; ');
+    .map((e) => `${e.path.join(".")}: ${e.message}`)
+    .join("; ");
 }

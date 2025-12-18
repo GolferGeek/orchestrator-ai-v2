@@ -1,14 +1,15 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { LLMHttpClientService } from '../../services/llm-http-client.service';
-import { ObservabilityService } from '../../services/observability.service';
+/* eslint-disable @typescript-eslint/no-var-requires */
+import { Test, TestingModule } from "@nestjs/testing";
+import { LLMHttpClientService } from "../../services/llm-http-client.service";
+import { ObservabilityService } from "../../services/observability.service";
 import {
   ExtendedPostWriterInput,
   HitlResponse,
   GeneratedContent,
-} from './extended-post-writer.state';
+} from "./extended-post-writer.state";
 
 // Mock PostgresSaver before any imports that need it
-jest.mock('@langchain/langgraph-checkpoint-postgres', () => ({
+jest.mock("@langchain/langgraph-checkpoint-postgres", () => ({
   PostgresSaver: {
     fromConnString: jest.fn(() => ({
       setup: jest.fn().mockResolvedValue(undefined),
@@ -19,7 +20,7 @@ jest.mock('@langchain/langgraph-checkpoint-postgres', () => ({
 }));
 
 // Mock pg Pool
-jest.mock('pg', () => ({
+jest.mock("pg", () => ({
   Pool: jest.fn(() => ({
     connect: jest.fn().mockResolvedValue({
       query: jest.fn().mockResolvedValue({ rows: [] }),
@@ -30,41 +31,39 @@ jest.mock('pg', () => ({
 }));
 
 // Now import after mocking
-import { PostgresCheckpointerService } from '../../persistence/postgres-checkpointer.service';
+import { PostgresCheckpointerService } from "../../persistence/postgres-checkpointer.service";
 
 // Mock the graph module
-jest.mock('./extended-post-writer.graph', () => ({
+jest.mock("./extended-post-writer.graph", () => ({
   createExtendedPostWriterGraph: jest.fn(() => ({
     invoke: jest.fn().mockResolvedValue({
-      status: 'hitl_waiting',
+      status: "hitl_waiting",
       generatedContent: {
-        blogPost: 'Mock blog post',
-        seoDescription: 'Mock SEO',
-        socialPosts: ['Mock social'],
+        blogPost: "Mock blog post",
+        seoDescription: "Mock SEO",
+        socialPosts: ["Mock social"],
       },
     }),
     getState: jest.fn().mockResolvedValue({
       values: {
-        status: 'hitl_waiting',
-        topic: 'Test topic',
+        status: "hitl_waiting",
+        topic: "Test topic",
         startedAt: Date.now(),
       },
-      next: ['hitl_interrupt'],
+      next: ["hitl_interrupt"],
     }),
     getStateHistory: jest.fn().mockReturnValue({
       [Symbol.asyncIterator]: async function* () {
-        yield { values: { status: 'started' } };
-        yield { values: { status: 'hitl_waiting' } };
+        yield { values: { status: "started" } };
+        yield { values: { status: "hitl_waiting" } };
       },
     }),
   })),
 }));
 
 // Import after mocking
-import {
-  ExtendedPostWriterService,
-} from './extended-post-writer.service';
-import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
+import { ExtendedPostWriterService } from "./extended-post-writer.service";
+import { createMockExecutionContext } from "@orchestrator-ai/transport-types";
 
 /**
  * Unit tests for ExtendedPostWriterService
@@ -72,12 +71,12 @@ import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
  * Tests the Extended Post Writer agent service that manages
  * the HITL pattern for content generation.
  */
-describe('ExtendedPostWriterService', () => {
+describe("ExtendedPostWriterService", () => {
   let service: ExtendedPostWriterService;
-  let llmClient: jest.Mocked<LLMHttpClientService>;
-  let observability: jest.Mocked<ObservabilityService>;
-  let checkpointer: jest.Mocked<PostgresCheckpointerService>;
-  const mockContext = createMockExecutionContext();
+  let _llmClient: jest.Mocked<LLMHttpClientService>;
+  let _observability: jest.Mocked<ObservabilityService>;
+  let _checkpointer: jest.Mocked<PostgresCheckpointerService>;
+  const _mockContext = createMockExecutionContext();
 
   const mockSaver = {
     setup: jest.fn().mockResolvedValue(undefined),
@@ -94,8 +93,12 @@ describe('ExtendedPostWriterService', () => {
           provide: LLMHttpClientService,
           useValue: {
             callLLM: jest.fn().mockResolvedValue({
-              text: 'Generated blog post content...',
-              usage: { promptTokens: 50, completionTokens: 200, totalTokens: 250 },
+              text: "Generated blog post content...",
+              usage: {
+                promptTokens: 50,
+                completionTokens: 200,
+                totalTokens: 250,
+              },
             }),
           },
         },
@@ -130,49 +133,49 @@ describe('ExtendedPostWriterService', () => {
     await service.onModuleInit();
   });
 
-  it('should be defined', () => {
+  it("should be defined", () => {
     expect(service).toBeDefined();
   });
 
-  describe('generate', () => {
+  describe("generate", () => {
     const validInput: ExtendedPostWriterInput = {
-      taskId: 'task-123',
-      userId: 'user-456',
-      conversationId: 'conv-789',
-      organizationSlug: 'org-abc',
-      topic: 'Introduction to AI',
-      context: 'Write for beginners',
-      keywords: ['AI', 'machine learning', 'basics'],
-      tone: 'casual',
-      provider: 'anthropic',
-      model: 'claude-sonnet-4-20250514',
+      taskId: "task-123",
+      userId: "user-456",
+      conversationId: "conv-789",
+      organizationSlug: "org-abc",
+      topic: "Introduction to AI",
+      context: "Write for beginners",
+      keywords: ["AI", "machine learning", "basics"],
+      tone: "casual",
+      provider: "anthropic",
+      model: "claude-sonnet-4-20250514",
     };
 
-    it('should throw error for missing taskId', async () => {
-      const invalidInput = { ...validInput, taskId: '' };
+    it("should throw error for missing taskId", async () => {
+      const invalidInput = { ...validInput, taskId: "" };
 
       await expect(service.generate(invalidInput)).rejects.toThrow(
-        'Invalid input',
+        "Invalid input",
       );
     });
 
-    it('should throw error for missing userId', async () => {
-      const invalidInput = { ...validInput, userId: '' };
+    it("should throw error for missing userId", async () => {
+      const invalidInput = { ...validInput, userId: "" };
 
       await expect(service.generate(invalidInput)).rejects.toThrow(
-        'Invalid input',
+        "Invalid input",
       );
     });
 
-    it('should throw error for missing topic', async () => {
-      const invalidInput = { ...validInput, topic: '' };
+    it("should throw error for missing topic", async () => {
+      const invalidInput = { ...validInput, topic: "" };
 
       await expect(service.generate(invalidInput)).rejects.toThrow(
-        'Invalid input',
+        "Invalid input",
       );
     });
 
-    it('should return result with threadId for valid input', async () => {
+    it("should return result with threadId for valid input", async () => {
       const result = await service.generate(validInput);
 
       expect(result.threadId).toBeDefined();
@@ -180,28 +183,31 @@ describe('ExtendedPostWriterService', () => {
     });
   });
 
-  describe('resume', () => {
+  describe("resume", () => {
     const approveResponse: HitlResponse = {
-      decision: 'approve',
+      decision: "approve",
     };
 
     const editResponse: HitlResponse = {
-      decision: 'edit',
+      decision: "edit",
       editedContent: {
-        blogPost: 'Edited blog post...',
-        seoDescription: 'Edited SEO description',
-        socialPosts: ['Edited social post 1', 'Edited social post 2'],
+        blogPost: "Edited blog post...",
+        seoDescription: "Edited SEO description",
+        socialPosts: ["Edited social post 1", "Edited social post 2"],
       },
     };
 
     const rejectResponse: HitlResponse = {
-      decision: 'reject',
-      feedback: 'Content is not relevant to the topic',
+      decision: "reject",
+      feedback: "Content is not relevant to the topic",
     };
 
-    it('should throw error for non-existent thread', async () => {
+    it("should throw error for non-existent thread", async () => {
       // Mock getState to return null for non-existent thread
-      const { createExtendedPostWriterGraph } = require('./extended-post-writer.graph');
+      const {
+        createExtendedPostWriterGraph,
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+      } = require("./extended-post-writer.graph");
       createExtendedPostWriterGraph.mockReturnValueOnce({
         invoke: jest.fn(),
         getState: jest.fn().mockResolvedValue({ values: null }),
@@ -212,31 +218,36 @@ describe('ExtendedPostWriterService', () => {
       await service.onModuleInit();
 
       await expect(
-        service.resume('non-existent-thread', approveResponse),
+        service.resume("non-existent-thread", approveResponse),
       ).rejects.toThrow();
     });
 
-    it('should accept approve decision', () => {
-      expect(approveResponse.decision).toBe('approve');
+    it("should accept approve decision", () => {
+      expect(approveResponse.decision).toBe("approve");
       expect(approveResponse.editedContent).toBeUndefined();
     });
 
-    it('should accept edit decision with edited content', () => {
-      expect(editResponse.decision).toBe('edit');
+    it("should accept edit decision with edited content", () => {
+      expect(editResponse.decision).toBe("edit");
       expect(editResponse.editedContent).toBeDefined();
-      expect(editResponse.editedContent?.blogPost).toBe('Edited blog post...');
+      expect(editResponse.editedContent?.blogPost).toBe("Edited blog post...");
     });
 
-    it('should accept reject decision with feedback', () => {
-      expect(rejectResponse.decision).toBe('reject');
-      expect(rejectResponse.feedback).toBe('Content is not relevant to the topic');
+    it("should accept reject decision with feedback", () => {
+      expect(rejectResponse.decision).toBe("reject");
+      expect(rejectResponse.feedback).toBe(
+        "Content is not relevant to the topic",
+      );
     });
   });
 
-  describe('getStatus', () => {
-    it('should return null for non-existent thread', async () => {
+  describe("getStatus", () => {
+    it("should return null for non-existent thread", async () => {
       // Mock getState to return null
-      const { createExtendedPostWriterGraph } = require('./extended-post-writer.graph');
+      const {
+        createExtendedPostWriterGraph,
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+      } = require("./extended-post-writer.graph");
       createExtendedPostWriterGraph.mockReturnValueOnce({
         invoke: jest.fn(),
         getState: jest.fn().mockResolvedValue({ values: null }),
@@ -244,16 +255,19 @@ describe('ExtendedPostWriterService', () => {
       });
 
       await service.onModuleInit();
-      const result = await service.getStatus('non-existent-thread');
+      const result = await service.getStatus("non-existent-thread");
 
       expect(result).toBeNull();
     });
   });
 
-  describe('getHistory', () => {
-    it('should return empty array for non-existent thread', async () => {
+  describe("getHistory", () => {
+    it("should return empty array for non-existent thread", async () => {
       // Mock getStateHistory to return empty iterator
-      const { createExtendedPostWriterGraph } = require('./extended-post-writer.graph');
+      const {
+        createExtendedPostWriterGraph,
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+      } = require("./extended-post-writer.graph");
       createExtendedPostWriterGraph.mockReturnValueOnce({
         invoke: jest.fn(),
         getState: jest.fn(),
@@ -265,7 +279,7 @@ describe('ExtendedPostWriterService', () => {
       });
 
       await service.onModuleInit();
-      const result = await service.getHistory('non-existent-thread');
+      const result = await service.getHistory("non-existent-thread");
 
       expect(result).toEqual([]);
     });
@@ -274,12 +288,12 @@ describe('ExtendedPostWriterService', () => {
   // Note: Input validation is now handled by NestJS DTOs at the controller level
   // No need for separate validation tests here
 
-  describe('GeneratedContent structure', () => {
-    it('should have required fields for generated content', () => {
+  describe("GeneratedContent structure", () => {
+    it("should have required fields for generated content", () => {
       const content: GeneratedContent = {
-        blogPost: 'Blog post content...',
-        seoDescription: 'SEO description for the post',
-        socialPosts: ['Social post 1', 'Social post 2', 'Social post 3'],
+        blogPost: "Blog post content...",
+        seoDescription: "SEO description for the post",
+        socialPosts: ["Social post 1", "Social post 2", "Social post 3"],
       };
 
       expect(content.blogPost).toBeDefined();
@@ -288,37 +302,37 @@ describe('ExtendedPostWriterService', () => {
     });
   });
 
-  describe('HitlResponse structure', () => {
-    it('should support approve decision', () => {
+  describe("HitlResponse structure", () => {
+    it("should support approve decision", () => {
       const response: HitlResponse = {
-        decision: 'approve',
+        decision: "approve",
       };
 
-      expect(response.decision).toBe('approve');
+      expect(response.decision).toBe("approve");
     });
 
-    it('should support edit decision with content', () => {
+    it("should support edit decision with content", () => {
       const response: HitlResponse = {
-        decision: 'edit',
+        decision: "edit",
         editedContent: {
-          blogPost: 'Edited content',
-          seoDescription: 'Edited SEO',
+          blogPost: "Edited content",
+          seoDescription: "Edited SEO",
           socialPosts: [],
         },
       };
 
-      expect(response.decision).toBe('edit');
+      expect(response.decision).toBe("edit");
       expect(response.editedContent).toBeDefined();
     });
 
-    it('should support reject decision with feedback', () => {
+    it("should support reject decision with feedback", () => {
       const response: HitlResponse = {
-        decision: 'reject',
-        feedback: 'Content needs improvement',
+        decision: "reject",
+        feedback: "Content needs improvement",
       };
 
-      expect(response.decision).toBe('reject');
-      expect(response.feedback).toBe('Content needs improvement');
+      expect(response.decision).toBe("reject");
+      expect(response.feedback).toBe("Content needs improvement");
     });
   });
 });
@@ -329,14 +343,14 @@ describe('ExtendedPostWriterService', () => {
  * These tests require a running database and should be run
  * against the test environment.
  */
-describe.skip('ExtendedPostWriterService (Integration)', () => {
+describe.skip("ExtendedPostWriterService (Integration)", () => {
   // Integration tests would be marked with a different tag
   // and run separately against the test database
 
-  it.todo('should complete full generate-approve workflow');
-  it.todo('should complete generate-edit-approve workflow');
-  it.todo('should complete generate-reject workflow');
-  it.todo('should persist state through HITL interrupt');
-  it.todo('should resume from checkpoint after restart');
-  it.todo('should emit correct observability events');
+  it.todo("should complete full generate-approve workflow");
+  it.todo("should complete generate-edit-approve workflow");
+  it.todo("should complete generate-reject workflow");
+  it.todo("should persist state through HITL interrupt");
+  it.todo("should resume from checkpoint after restart");
+  it.todo("should emit correct observability events");
 });

@@ -1,10 +1,10 @@
-import { Module, Global } from '@nestjs/common';
-import { HttpModule } from '@nestjs/axios';
-import { ConfigModule } from '@nestjs/config';
-import { LLMHttpClientService } from './llm-http-client.service';
-import { ObservabilityService } from './observability.service';
-import { HITLHelperService } from './hitl-helper.service';
-import { LLMUsageReporterService } from './llm-usage-reporter.service';
+import { Module, Global } from "@nestjs/common";
+import { HttpModule } from "@nestjs/axios";
+import { ConfigModule } from "@nestjs/config";
+import { LLMHttpClientService } from "./llm-http-client.service";
+import { ObservabilityService } from "./observability.service";
+import { HITLHelperService } from "./hitl-helper.service";
+import { LLMUsageReporterService } from "./llm-usage-reporter.service";
 
 /**
  * SharedServicesModule

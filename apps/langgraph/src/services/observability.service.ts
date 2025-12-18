@@ -1,21 +1,21 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { ConfigService } from '@nestjs/config';
-import { firstValueFrom } from 'rxjs';
-import { ExecutionContext } from '@orchestrator-ai/transport-types';
+import { Injectable, Logger } from "@nestjs/common";
+import { HttpService } from "@nestjs/axios";
+import { ConfigService } from "@nestjs/config";
+import { firstValueFrom } from "rxjs";
+import { ExecutionContext } from "@orchestrator-ai/transport-types";
 
 /**
  * Status types for LangGraph workflow execution
  */
 export type LangGraphStatus =
-  | 'started'
-  | 'processing'
-  | 'hitl_waiting'
-  | 'hitl_resumed'
-  | 'completed'
-  | 'failed'
-  | 'tool_calling'
-  | 'tool_completed';
+  | "started"
+  | "processing"
+  | "hitl_waiting"
+  | "hitl_resumed"
+  | "completed"
+  | "failed"
+  | "tool_calling"
+  | "tool_completed";
 
 /**
  * Observability event payload for LangGraph workflows
@@ -53,15 +53,15 @@ export class ObservabilityService {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {
-    const apiPort = this.configService.get<string>('API_PORT');
+    const apiPort = this.configService.get<string>("API_PORT");
     if (!apiPort) {
       throw new Error(
-        'API_PORT environment variable is required. ' +
-        'Please set API_PORT in your .env file (e.g., API_PORT=6100).',
+        "API_PORT environment variable is required. " +
+          "Please set API_PORT in your .env file (e.g., API_PORT=6100).",
       );
     }
 
-    const apiHost = this.configService.get<string>('API_HOST') || 'localhost';
+    const apiHost = this.configService.get<string>("API_HOST") || "localhost";
     this.apiBaseUrl = `http://${apiHost}:${apiPort}`;
   }
 
@@ -85,11 +85,11 @@ export class ObservabilityService {
         message: event.message,
         step: event.step,
         percent: event.progress,
-        mode: 'build',
+        mode: "build",
         userMessage: event.message,
         data: {
           hook_event_type: this.mapStatusToEventType(event.status),
-          source_app: 'langgraph',
+          source_app: "langgraph",
           threadId: event.threadId,
           ...event.metadata,
         },
@@ -122,14 +122,14 @@ export class ObservabilityService {
    */
   private mapStatusToEventType(status: LangGraphStatus): string {
     const statusMap: Record<LangGraphStatus, string> = {
-      started: 'langgraph.started',
-      processing: 'langgraph.processing',
-      hitl_waiting: 'langgraph.hitl_waiting',
-      hitl_resumed: 'langgraph.hitl_resumed',
-      completed: 'langgraph.completed',
-      failed: 'langgraph.failed',
-      tool_calling: 'langgraph.tool_calling',
-      tool_completed: 'langgraph.tool_completed',
+      started: "langgraph.started",
+      processing: "langgraph.processing",
+      hitl_waiting: "langgraph.hitl_waiting",
+      hitl_resumed: "langgraph.hitl_resumed",
+      completed: "langgraph.completed",
+      failed: "langgraph.failed",
+      tool_calling: "langgraph.tool_calling",
+      tool_completed: "langgraph.tool_completed",
     };
     return statusMap[status] || `langgraph.${status}`;
   }
@@ -145,8 +145,8 @@ export class ObservabilityService {
     await this.emit({
       context,
       threadId,
-      status: 'started',
-      message: message || 'Workflow started',
+      status: "started",
+      message: message || "Workflow started",
     });
   }
 
@@ -166,7 +166,7 @@ export class ObservabilityService {
     await this.emit({
       context,
       threadId,
-      status: 'processing',
+      status: "processing",
       message,
       step: options?.step,
       progress: options?.progress,
@@ -186,8 +186,8 @@ export class ObservabilityService {
     await this.emit({
       context,
       threadId,
-      status: 'hitl_waiting',
-      message: message || 'Awaiting human review',
+      status: "hitl_waiting",
+      message: message || "Awaiting human review",
       metadata: { pendingContent },
     });
   }
@@ -198,13 +198,13 @@ export class ObservabilityService {
   async emitHitlResumed(
     context: ExecutionContext,
     threadId: string,
-    decision: 'approve' | 'edit' | 'reject',
+    decision: "approve" | "edit" | "reject",
     message?: string,
   ): Promise<void> {
     await this.emit({
       context,
       threadId,
-      status: 'hitl_resumed',
+      status: "hitl_resumed",
       message: message || `Human review decision: ${decision}`,
       metadata: { decision },
     });
@@ -222,7 +222,7 @@ export class ObservabilityService {
     await this.emit({
       context,
       threadId,
-      status: 'tool_calling',
+      status: "tool_calling",
       message: `Calling tool: ${toolName}`,
       step: toolName,
       metadata: { toolName, toolInput },
@@ -243,7 +243,7 @@ export class ObservabilityService {
     await this.emit({
       context,
       threadId,
-      status: 'tool_completed',
+      status: "tool_completed",
       message: success
         ? `Tool completed: ${toolName}`
         : `Tool failed: ${toolName}`,
@@ -264,8 +264,8 @@ export class ObservabilityService {
     await this.emit({
       context,
       threadId,
-      status: 'completed',
-      message: 'Workflow completed successfully',
+      status: "completed",
+      message: "Workflow completed successfully",
       metadata: { result, duration },
     });
   }
@@ -282,7 +282,7 @@ export class ObservabilityService {
     await this.emit({
       context,
       threadId,
-      status: 'failed',
+      status: "failed",
       message: `Workflow failed: ${error}`,
       metadata: { error, duration },
     });

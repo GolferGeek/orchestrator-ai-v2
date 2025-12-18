@@ -1,9 +1,9 @@
-import { Annotation, MessagesAnnotation } from '@langchain/langgraph';
+import { Annotation, MessagesAnnotation } from "@langchain/langgraph";
 import type {
   HitlDecision,
   HitlStatus,
   ExecutionContext,
-} from '@orchestrator-ai/transport-types';
+} from "@orchestrator-ai/transport-types";
 
 /**
  * Base state annotation for all HITL-capable workflows.
@@ -29,16 +29,16 @@ export const HitlBaseStateAnnotation = Annotation.Root({
   executionContext: Annotation<ExecutionContext>({
     reducer: (_, next) => next,
     default: () => ({
-      orgSlug: '',
-      userId: '',
-      conversationId: '',
-      taskId: '',
-      planId: '',
-      deliverableId: '',
-      agentSlug: '',
-      agentType: '',
-      provider: '',
-      model: '',
+      orgSlug: "",
+      userId: "",
+      conversationId: "",
+      taskId: "",
+      planId: "",
+      deliverableId: "",
+      agentSlug: "",
+      agentType: "",
+      provider: "",
+      model: "",
     }),
   }),
 
@@ -65,7 +65,7 @@ export const HitlBaseStateAnnotation = Annotation.Root({
   // === Workflow Status ===
   status: Annotation<HitlStatus>({
     reducer: (_, next) => next,
-    default: () => 'started',
+    default: () => "started",
   }),
   error: Annotation<string | undefined>({
     reducer: (_, next) => next,
@@ -88,10 +88,10 @@ export type HitlBaseState = typeof HitlBaseStateAnnotation.State;
  */
 export function isHitlState(state: unknown): state is HitlBaseState {
   return (
-    typeof state === 'object' &&
+    typeof state === "object" &&
     state !== null &&
-    'executionContext' in state &&
-    'hitlDecision' in state &&
-    'hitlPending' in state
+    "executionContext" in state &&
+    "hitlDecision" in state &&
+    "hitlPending" in state
   );
 }

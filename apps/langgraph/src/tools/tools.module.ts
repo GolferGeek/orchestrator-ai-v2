@@ -1,10 +1,10 @@
-import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { Module } from "@nestjs/common";
+import { ConfigModule } from "@nestjs/config";
 import {
   SqlQueryTool,
   ListTablesTool,
   DescribeTableTool,
-} from './data/database';
+} from "./data/database";
 
 /**
  * ToolsModule

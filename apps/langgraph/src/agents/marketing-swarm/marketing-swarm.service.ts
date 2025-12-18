@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ExecutionContext } from '@orchestrator-ai/transport-types';
-import { DualTrackProcessorService } from './dual-track-processor.service';
+import { Injectable, Logger } from "@nestjs/common";
+import { ExecutionContext } from "@orchestrator-ai/transport-types";
+import { DualTrackProcessorService } from "./dual-track-processor.service";
 import {
   MarketingDbService,
   OutputRow,
@@ -8,8 +8,8 @@ import {
   Deliverable,
   VersionedDeliverable,
   OutputVersionRow,
-} from './marketing-db.service';
-import { ObservabilityService } from '../../services/observability.service';
+} from "./marketing-db.service";
+import { ObservabilityService } from "../../services/observability.service";
 
 /**
  * Input for starting a marketing swarm task
@@ -24,7 +24,7 @@ export interface MarketingSwarmInput {
  */
 export interface MarketingSwarmResult {
   taskId: string;
-  status: 'completed' | 'failed';
+  status: "completed" | "failed";
   outputs: OutputRow[];
   evaluations: EvaluationRow[];
   winner?: OutputRow;
@@ -98,7 +98,8 @@ export class MarketingSwarmService {
 
       // Generate deliverables with top N ranked outputs
       const deliverable = await this.db.getDeliverable(taskId);
-      const versionedDeliverable = await this.db.getVersionedDeliverable(taskId);
+      const versionedDeliverable =
+        await this.db.getVersionedDeliverable(taskId);
 
       this.logger.log(
         `Marketing Swarm completed: taskId=${taskId}, duration=${duration}ms`,
@@ -106,7 +107,7 @@ export class MarketingSwarmService {
 
       return {
         taskId,
-        status: 'completed',
+        status: "completed",
         outputs,
         evaluations,
         winner,
@@ -125,7 +126,7 @@ export class MarketingSwarmService {
 
       return {
         taskId,
-        status: 'failed',
+        status: "failed",
         outputs: [],
         evaluations: [],
         error: errorMessage,
@@ -151,59 +152,57 @@ export class MarketingSwarmService {
 
       // Calculate progress based on outputs and evaluations
       const writingComplete = outputs.filter(
-        (o) => o.status === 'approved' || o.status === 'failed',
+        (o) => o.status === "approved" || o.status === "failed",
       ).length;
       const totalOutputs = outputs.length;
 
       const initialEvalsComplete = evaluations.filter(
-        (e) => e.stage === 'initial' && e.status === 'completed',
+        (e) => e.stage === "initial" && e.status === "completed",
       ).length;
       const totalInitialEvals = evaluations.filter(
-        (e) => e.stage === 'initial',
+        (e) => e.stage === "initial",
       ).length;
 
       const finalEvalsComplete = evaluations.filter(
-        (e) => e.stage === 'final' && e.status === 'completed',
+        (e) => e.stage === "final" && e.status === "completed",
       ).length;
       const totalFinalEvals = evaluations.filter(
-        (e) => e.stage === 'final',
+        (e) => e.stage === "final",
       ).length;
 
       // Determine phase
       let phase: string;
       if (writingComplete < totalOutputs) {
-        phase = 'writing';
+        phase = "writing";
       } else if (
         totalInitialEvals > 0 &&
         initialEvalsComplete < totalInitialEvals
       ) {
-        phase = 'evaluating_initial';
-      } else if (
-        totalFinalEvals > 0 &&
-        finalEvalsComplete < totalFinalEvals
-      ) {
-        phase = 'evaluating_final';
+        phase = "evaluating_initial";
+      } else if (totalFinalEvals > 0 && finalEvalsComplete < totalFinalEvals) {
+        phase = "evaluating_final";
       } else if (outputs.some((o) => o.final_rank !== null)) {
-        phase = 'completed';
+        phase = "completed";
       } else {
-        phase = 'processing';
+        phase = "processing";
       }
 
       // Calculate overall progress
-      const totalSteps =
-        totalOutputs + totalInitialEvals + totalFinalEvals;
+      const totalSteps = totalOutputs + totalInitialEvals + totalFinalEvals;
       const completedSteps =
         writingComplete + initialEvalsComplete + finalEvalsComplete;
 
       return {
         taskId,
-        status: phase === 'completed' ? 'completed' : 'running',
+        status: phase === "completed" ? "completed" : "running",
         phase,
         progress: {
           total: totalSteps,
           completed: completedSteps,
           percentage:
-            totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0,
+            totalSteps > 0
+              ? Math.round((completedSteps / totalSteps) * 100)
+              : 0,
         },
       };
     } catch (error) {
@@ -234,7 +233,9 @@ export class MarketingSwarmService {
    * Get task by conversation ID
    * Used to restore task state when navigating to an existing conversation
    */
-  async getTaskByConversationId(conversationId: string): Promise<{ taskId: string; status: string } | null> {
+  async getTaskByConversationId(
+    conversationId: string,
+  ): Promise<{ taskId: string; status: string } | null> {
     return this.db.getTaskByConversationId(conversationId);
   }
 

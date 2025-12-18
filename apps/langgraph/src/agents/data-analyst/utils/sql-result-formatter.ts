@@ -17,7 +17,7 @@ export function parseSqlResults(sqlResults: string): {
   headers: string[];
   rows: string[][];
 } | null {
-  if (!sqlResults || !sqlResults.includes('Results (')) {
+  if (!sqlResults || !sqlResults.includes("Results (")) {
     return null;
   }
 
@@ -27,12 +27,12 @@ export function parseSqlResults(sqlResults: string): {
     const rowCount = rowCountMatch ? parseInt(rowCountMatch[1], 10) : 0;
 
     // Split into lines
-    const lines = sqlResults.split('\n').filter(line => line.trim());
+    const lines = sqlResults.split("\n").filter((line) => line.trim());
 
     // Find the header line (usually after "Results (N rows):")
     let headerIndex = -1;
     for (let i = 0; i < lines.length; i++) {
-      if (lines[i].includes('|') && !lines[i].includes('---')) {
+      if (lines[i].includes("|") && !lines[i].includes("---")) {
         headerIndex = i;
         break;
       }
@@ -45,9 +45,9 @@ export function parseSqlResults(sqlResults: string): {
     // Parse headers
     const headerLine = lines[headerIndex];
     const headers = headerLine
-      .split('|')
-      .map(h => h.trim())
-      .filter(h => h);
+      .split("|")
+      .map((h) => h.trim())
+      .filter((h) => h);
 
     // Find separator line (should be right after headers)
     const separatorIndex = headerIndex + 1;
@@ -56,13 +56,13 @@ export function parseSqlResults(sqlResults: string): {
     const rows: string[][] = [];
     for (let i = separatorIndex + 1; i < lines.length; i++) {
       const line = lines[i].trim();
-      if (!line || line === '... (truncated)') {
+      if (!line || line === "... (truncated)") {
         continue;
       }
       const cells = line
-        .split('|')
-        .map(cell => cell.trim())
-        .filter(cell => cell);
+        .split("|")
+        .map((cell) => cell.trim())
+        .filter((cell) => cell);
       if (cells.length === headers.length) {
         rows.push(cells);
       }
@@ -70,7 +70,7 @@ export function parseSqlResults(sqlResults: string): {
 
     return { rowCount, headers, rows };
   } catch (error) {
-    console.error('Error parsing SQL results:', error);
+    console.error("Error parsing SQL results:", error);
     return null;
   }
 }
@@ -87,17 +87,17 @@ export function formatSqlResultsAsMarkdown(sqlResults: string): string {
   const { rowCount, headers, rows } = parsed;
 
   // Build markdown table
-  let markdown = `\n### Query Results (${rowCount} ${rowCount === 1 ? 'row' : 'rows'})\n\n`;
+  let markdown = `\n### Query Results (${rowCount} ${rowCount === 1 ? "row" : "rows"})\n\n`;
 
   // Table header
-  markdown += `| ${headers.join(' | ')} |\n`;
-  markdown += `| ${headers.map(() => '---').join(' | ')} |\n`;
+  markdown += `| ${headers.join(" | ")} |\n`;
+  markdown += `| ${headers.map(() => "---").join(" | ")} |\n`;
 
   // Table rows
   for (const row of rows) {
     // Escape pipe characters in cell content
-    const escapedRow = row.map(cell => cell.replace(/\|/g, '\\|'));
-    markdown += `| ${escapedRow.join(' | ')} |\n`;
+    const escapedRow = row.map((cell) => cell.replace(/\|/g, "\\|"));
+    markdown += `| ${escapedRow.join(" | ")} |\n`;
   }
 
   return markdown;
@@ -107,7 +107,7 @@ export function formatSqlResultsAsMarkdown(sqlResults: string): string {
  * Format a complete Data Analyst response with summary, SQL, and results
  */
 export function formatDataAnalystResponse(data: SqlResultData): string {
-  let formatted = '';
+  let formatted = "";
 
   // Add summary if available
   if (data.summary) {
@@ -125,11 +125,13 @@ export function formatDataAnalystResponse(data: SqlResultData): string {
   if (data.sqlResults) {
     // Extract just the results section if it includes "Results (N rows):"
     let resultsSection = data.sqlResults;
-    
+
     // If sqlResults includes the SQL query, extract just the results part
-    if (resultsSection.includes('Results (')) {
+    if (resultsSection.includes("Results (")) {
       // Find the "Results (N rows):" line and everything after it
-      const resultsMatch = resultsSection.match(/Results \(\d+ rows?\):[\s\S]*/);
+      const resultsMatch = resultsSection.match(
+        /Results \(\d+ rows?\):[\s\S]*/,
+      );
       if (resultsMatch) {
         resultsSection = resultsMatch[0];
       }
@@ -143,4 +145,3 @@ export function formatDataAnalystResponse(data: SqlResultData): string {
 
   return formatted.trim();
 }
-

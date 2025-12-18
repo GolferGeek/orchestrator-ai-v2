@@ -1,7 +1,7 @@
-import { Module } from '@nestjs/common';
-import { DataAnalystController } from './data-analyst.controller';
-import { DataAnalystService } from './data-analyst.service';
-import { ToolsModule } from '../../tools/tools.module';
+import { Module } from "@nestjs/common";
+import { DataAnalystController } from "./data-analyst.controller";
+import { DataAnalystService } from "./data-analyst.service";
+import { ToolsModule } from "../../tools/tools.module";
 
 /**
  * DataAnalystModule

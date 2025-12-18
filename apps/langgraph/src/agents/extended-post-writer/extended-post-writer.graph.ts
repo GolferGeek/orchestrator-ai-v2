@@ -1,15 +1,15 @@
-import { StateGraph, END, interrupt } from '@langchain/langgraph';
-import { AIMessage, HumanMessage } from '@langchain/core/messages';
+import { StateGraph, END, interrupt } from "@langchain/langgraph";
+import { AIMessage, HumanMessage } from "@langchain/core/messages";
 import {
   ExtendedPostWriterStateAnnotation,
   ExtendedPostWriterState,
   GeneratedContent,
-} from './extended-post-writer.state';
-import { LLMHttpClientService } from '../../services/llm-http-client.service';
-import { ObservabilityService } from '../../services/observability.service';
-import { PostgresCheckpointerService } from '../../persistence/postgres-checkpointer.service';
+} from "./extended-post-writer.state";
+import { LLMHttpClientService } from "../../services/llm-http-client.service";
+import { ObservabilityService } from "../../services/observability.service";
+import { PostgresCheckpointerService } from "../../persistence/postgres-checkpointer.service";
 
-const AGENT_SLUG = 'extended-post-writer';
+const AGENT_SLUG = "extended-post-writer";
 
 /**
  * Create the Extended Post Writer graph with HITL
@@ -50,7 +50,7 @@ export function createExtendedPostWriterGraph(
     );
 
     return {
-      status: 'generating',
+      status: "generating",
       topic,
       startedAt: Date.now(),
       messages: [new HumanMessage(`Create content about: ${topic}`)],
@@ -62,29 +62,39 @@ export function createExtendedPostWriterGraph(
     state: ExtendedPostWriterState,
   ): Promise<Partial<ExtendedPostWriterState>> {
     const ctx = state.executionContext;
-    const { topic, hitlFeedback, generationCount, tone, keywords, context: additionalContext } = state;
+    const {
+      topic,
+      hitlFeedback,
+      generationCount,
+      tone,
+      keywords,
+      context: additionalContext,
+    } = state;
 
     await observability.emitProgress(
       ctx,
       ctx.taskId,
-      hitlFeedback ? 'Regenerating blog post with feedback' : 'Generating blog post',
+      hitlFeedback
+        ? "Regenerating blog post with feedback"
+        : "Generating blog post",
       {
-        step: 'generate_blog_post',
+        step: "generate_blog_post",
         progress: 20,
       },
     );
 
-    const keywordsStr = keywords && keywords.length > 0
-      ? `Keywords to include: ${keywords.join(', ')}`
-      : '';
+    const keywordsStr =
+      keywords && keywords.length > 0
+        ? `Keywords to include: ${keywords.join(", ")}`
+        : "";
 
     const contextStr = additionalContext
       ? `Additional context: ${additionalContext}`
-      : '';
+      : "";
 
     const feedbackStr = hitlFeedback
       ? `\n\nPrevious feedback to incorporate: ${hitlFeedback}`
-      : '';
+      : "";
 
     const prompt = `You are a professional content writer. Create a compelling blog post for the following topic.
 
@@ -113,15 +123,12 @@ Return ONLY the blog post content in markdown format, no additional text or JSON
         generationCount: generationCount + 1,
         hitlFeedback: null,
         hitlDecision: null,
-        messages: [
-          ...state.messages,
-          new AIMessage('Blog post generated.'),
-        ],
+        messages: [...state.messages, new AIMessage("Blog post generated.")],
       };
     } catch (error) {
       return {
         error: `Failed to generate blog post: ${error instanceof Error ? error.message : String(error)}`,
-        status: 'failed',
+        status: "failed",
       };
     }
   }
@@ -135,9 +142,9 @@ Return ONLY the blog post content in markdown format, no additional text or JSON
     await observability.emitProgress(
       ctx,
       ctx.taskId,
-      'Generating SEO description',
+      "Generating SEO description",
       {
-        step: 'generate_seo',
+        step: "generate_seo",
         progress: 40,
       },
     );
@@ -160,13 +167,13 @@ Return ONLY the SEO description, no additional text.`;
         seoDescription: response.text.trim(),
         messages: [
           ...state.messages,
-          new AIMessage('SEO description generated.'),
+          new AIMessage("SEO description generated."),
         ],
       };
     } catch (error) {
       return {
         error: `Failed to generate SEO description: ${error instanceof Error ? error.message : String(error)}`,
-        status: 'failed',
+        status: "failed",
       };
     }
   }
@@ -180,9 +187,9 @@ Return ONLY the SEO description, no additional text.`;
     await observability.emitProgress(
       ctx,
       ctx.taskId,
-      'Generating social media posts',
+      "Generating social media posts",
       {
-        step: 'generate_social',
+        step: "generate_social",
         progress: 60,
       },
     );
@@ -218,7 +225,7 @@ Return the posts in JSON format:
         ctx.taskId,
         `LLM response received (${responseText.length} chars)`,
         {
-          step: 'generate_social_parse',
+          step: "generate_social_parse",
           progress: 65,
           metadata: {
             responsePreview: responseText.substring(0, 200),
@@ -241,36 +248,47 @@ Return the posts in JSON format:
         await observability.emitProgress(
           ctx,
           ctx.taskId,
-          'Failed to parse social posts JSON, attempting to extract from raw response',
+          "Failed to parse social posts JSON, attempting to extract from raw response",
           {
-            step: 'generate_social_fallback',
+            step: "generate_social_fallback",
             progress: 70,
             metadata: {
-              parseError: parseError instanceof Error ? parseError.message : String(parseError),
+              parseError:
+                parseError instanceof Error
+                  ? parseError.message
+                  : String(parseError),
               responseText: responseText.substring(0, 500),
             },
           },
         );
-        
+
         // Try to find numbered list items (1., 2., 3., etc.)
-        const numberedMatches = responseText.match(/\d+\.\s+(.+?)(?=\d+\.|$)/gs);
+        const numberedMatches = responseText.match(
+          /\d+\.\s+(.+?)(?=\d+\.|$)/gs,
+        );
         if (numberedMatches && numberedMatches.length > 0) {
-          socialPosts = numberedMatches.map(match => {
-            // Remove the number prefix and clean up
-            return match.replace(/^\d+\.\s+/, '').trim();
-          }).filter(post => post.length > 0);
+          socialPosts = numberedMatches
+            .map((match) => {
+              // Remove the number prefix and clean up
+              return match.replace(/^\d+\.\s+/, "").trim();
+            })
+            .filter((post) => post.length > 0);
         }
-        
+
         // If no numbered list, try bullet points
         if (socialPosts.length === 0) {
-          const bulletMatches = responseText.match(/[-*•]\s+(.+?)(?=[-*•]|$)/gs);
+          const bulletMatches = responseText.match(
+            /[-*•]\s+(.+?)(?=[-*•]|$)/gs,
+          );
           if (bulletMatches && bulletMatches.length > 0) {
-            socialPosts = bulletMatches.map(match => {
-              return match.replace(/^[-*•]\s+/, '').trim();
-            }).filter(post => post.length > 0);
+            socialPosts = bulletMatches
+              .map((match) => {
+                return match.replace(/^[-*•]\s+/, "").trim();
+              })
+              .filter((post) => post.length > 0);
           }
         }
-        
+
         // If still no posts found, use the raw response as a single post (if it's meaningful)
         if (socialPosts.length === 0 && responseText.length > 20) {
           socialPosts = [responseText];
@@ -283,9 +301,9 @@ Return the posts in JSON format:
         await observability.emitProgress(
           ctx,
           ctx.taskId,
-          'No social posts could be extracted from LLM response',
+          "No social posts could be extracted from LLM response",
           {
-            step: 'generate_social_empty',
+            step: "generate_social_empty",
             progress: 75,
             metadata: {
               responseText: responseText.substring(0, 500),
@@ -297,17 +315,16 @@ Return the posts in JSON format:
           socialPosts: [],
           messages: [
             ...state.messages,
-            new AIMessage('Social posts generation completed (no posts extracted).'),
+            new AIMessage(
+              "Social posts generation completed (no posts extracted).",
+            ),
           ],
         };
       }
 
       return {
         socialPosts,
-        messages: [
-          ...state.messages,
-          new AIMessage('Social posts generated.'),
-        ],
+        messages: [...state.messages, new AIMessage("Social posts generated.")],
       };
     } catch (error) {
       // Don't fail the workflow for social posts - return empty array instead of placeholder
@@ -316,7 +333,9 @@ Return the posts in JSON format:
         socialPosts: [],
         messages: [
           ...state.messages,
-          new AIMessage('Social posts generation failed (returning empty array).'),
+          new AIMessage(
+            "Social posts generation failed (returning empty array).",
+          ),
         ],
       };
     }
@@ -335,7 +354,7 @@ Return the posts in JSON format:
     // Only blog post is available at this point
     const content = {
       blogPost: state.blogPost,
-      seoDescription: '', // Not generated yet
+      seoDescription: "", // Not generated yet
       socialPosts: [], // Not generated yet
     };
 
@@ -344,26 +363,33 @@ Return the posts in JSON format:
       ctx,
       ctx.taskId,
       content,
-      'Blog post ready for review',
+      "Blog post ready for review",
     );
 
     // interrupt() pauses the graph here
     // When resumed with Command({ resume: { decision, feedback, editedContent } }),
     // interrupt() returns that value and execution continues
     const hitlResponse = interrupt({
-      reason: 'human_review',
-      nodeName: 'hitl_interrupt',
+      reason: "human_review",
+      nodeName: "hitl_interrupt",
       topic: state.topic,
       content,
-      message: 'Please review the blog post before generating SEO and social content',
-    }) as { decision: string; feedback?: string; editedContent?: GeneratedContent } | undefined;
+      message:
+        "Please review the blog post before generating SEO and social content",
+    }) as
+      | {
+          decision: string;
+          feedback?: string;
+          editedContent?: GeneratedContent;
+        }
+      | undefined;
 
     // If hitlResponse is undefined, we're still waiting (graph checkpointed)
     // This shouldn't happen as interrupt should throw on initial call
     if (!hitlResponse) {
       return {
         hitlPending: true,
-        status: 'hitl_waiting',
+        status: "hitl_waiting",
       };
     }
 
@@ -375,10 +401,10 @@ Return the posts in JSON format:
 
     return {
       hitlPending: false,
-      hitlDecision: decision as ExtendedPostWriterState['hitlDecision'],
+      hitlDecision: decision as ExtendedPostWriterState["hitlDecision"],
       hitlFeedback: feedback || null,
       blogPost: updatedBlogPost,
-      status: decision === 'reject' ? 'rejected' : 'generating', // Will continue to SEO
+      status: decision === "reject" ? "rejected" : "generating", // Will continue to SEO
     };
   }
 
@@ -386,14 +412,14 @@ Return the posts in JSON format:
   // After blog post approval, continue to generate SEO and social posts
   function routeAfterHitl(state: ExtendedPostWriterState): string {
     switch (state.hitlDecision) {
-      case 'approve':
-      case 'skip':
-      case 'replace':
-        return 'generate_seo'; // Continue to generate SEO and social posts
-      case 'reject':
-        return 'finalize_rejected';
-      case 'regenerate':
-        return 'generate_blog_post';
+      case "approve":
+      case "skip":
+      case "replace":
+        return "generate_seo"; // Continue to generate SEO and social posts
+      case "reject":
+        return "finalize_rejected";
+      case "regenerate":
+        return "generate_blog_post";
       default:
         throw new Error(`Invalid HITL decision: ${state.hitlDecision}`);
     }
@@ -408,9 +434,9 @@ Return the posts in JSON format:
     await observability.emitProgress(
       ctx,
       ctx.taskId,
-      'Finalizing approved content',
+      "Finalizing approved content",
       {
-        step: 'finalize',
+        step: "finalize",
         progress: 90,
       },
     );
@@ -430,11 +456,11 @@ Return the posts in JSON format:
 
     return {
       finalContent,
-      status: 'completed',
+      status: "completed",
       completedAt: Date.now(),
       messages: [
         ...state.messages,
-        new AIMessage('Content finalized and ready for publishing.'),
+        new AIMessage("Content finalized and ready for publishing."),
       ],
     };
   }
@@ -453,8 +479,8 @@ Return the posts in JSON format:
     );
 
     return {
-      status: 'failed',
-      error: 'Content rejected by user',
+      status: "failed",
+      error: "Content rejected by user",
       completedAt: Date.now(),
     };
   }
@@ -473,7 +499,7 @@ Return the posts in JSON format:
     );
 
     return {
-      status: 'failed',
+      status: "failed",
       completedAt: Date.now(),
     };
   }
@@ -481,38 +507,38 @@ Return the posts in JSON format:
   // Build the graph
   // Flow: initialize → generate_blog_post → HITL → (after approval) generate_seo → generate_social → finalize
   const graph = new StateGraph(ExtendedPostWriterStateAnnotation)
-    .addNode('initialize', initializeNode)
-    .addNode('generate_blog_post', generateBlogPostNode)
-    .addNode('hitl_interrupt', hitlInterruptNode)
-    .addNode('generate_seo', generateSeoNode)
-    .addNode('generate_social', generateSocialNode)
-    .addNode('finalize', finalizeNode)
-    .addNode('finalize_rejected', finalizeRejectedNode)
-    .addNode('handle_error', handleErrorNode)
+    .addNode("initialize", initializeNode)
+    .addNode("generate_blog_post", generateBlogPostNode)
+    .addNode("hitl_interrupt", hitlInterruptNode)
+    .addNode("generate_seo", generateSeoNode)
+    .addNode("generate_social", generateSocialNode)
+    .addNode("finalize", finalizeNode)
+    .addNode("finalize_rejected", finalizeRejectedNode)
+    .addNode("handle_error", handleErrorNode)
     // Edges - Generation flow
-    .addEdge('__start__', 'initialize')
-    .addEdge('initialize', 'generate_blog_post')
-    .addConditionalEdges('generate_blog_post', (state) => {
-      if (state.error) return 'handle_error';
-      return 'hitl_interrupt'; // Go to HITL right after blog post
+    .addEdge("__start__", "initialize")
+    .addEdge("initialize", "generate_blog_post")
+    .addConditionalEdges("generate_blog_post", (state) => {
+      if (state.error) return "handle_error";
+      return "hitl_interrupt"; // Go to HITL right after blog post
     })
     // After HITL - route based on decision
-    .addConditionalEdges('hitl_interrupt', routeAfterHitl, {
-      generate_blog_post: 'generate_blog_post', // Regenerate if requested
-      generate_seo: 'generate_seo', // Continue to SEO after approval
-      finalize_rejected: 'finalize_rejected',
+    .addConditionalEdges("hitl_interrupt", routeAfterHitl, {
+      generate_blog_post: "generate_blog_post", // Regenerate if requested
+      generate_seo: "generate_seo", // Continue to SEO after approval
+      finalize_rejected: "finalize_rejected",
     })
-    .addConditionalEdges('generate_seo', (state) => {
-      if (state.error) return 'handle_error';
-      return 'generate_social';
+    .addConditionalEdges("generate_seo", (state) => {
+      if (state.error) return "handle_error";
+      return "generate_social";
     })
-    .addConditionalEdges('generate_social', (state) => {
-      if (state.error) return 'handle_error';
-      return 'finalize';
+    .addConditionalEdges("generate_social", (state) => {
+      if (state.error) return "handle_error";
+      return "finalize";
     })
-    .addEdge('finalize', END)
-    .addEdge('finalize_rejected', END)
-    .addEdge('handle_error', END);
+    .addEdge("finalize", END)
+    .addEdge("finalize_rejected", END)
+    .addEdge("handle_error", END);
 
   // Compile with checkpointer
   return graph.compile({
@@ -520,4 +546,6 @@ Return the posts in JSON format:
   });
 }
 
-export type ExtendedPostWriterGraph = ReturnType<typeof createExtendedPostWriterGraph>;
+export type ExtendedPostWriterGraph = ReturnType<
+  typeof createExtendedPostWriterGraph
+>;

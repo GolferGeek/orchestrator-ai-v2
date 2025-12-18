@@ -1,7 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { ConfigService } from '@nestjs/config';
-import { firstValueFrom } from 'rxjs';
+import { Injectable, Logger } from "@nestjs/common";
+import { HttpService } from "@nestjs/axios";
+import { ConfigService } from "@nestjs/config";
+import { firstValueFrom } from "rxjs";
 
 /**
  * LLM usage data for reporting
@@ -13,7 +13,7 @@ export interface LLMUsageData {
   completionTokens: number;
   totalTokens: number;
   userId: string;
-  callerType: 'langgraph-tool' | 'langgraph-workflow';
+  callerType: "langgraph-tool" | "langgraph-workflow";
   callerName: string;
   taskId?: string;
   threadId?: string;
@@ -43,15 +43,15 @@ export class LLMUsageReporterService {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {
-    const apiPort = this.configService.get<string>('API_PORT');
+    const apiPort = this.configService.get<string>("API_PORT");
     if (!apiPort) {
       throw new Error(
-        'API_PORT environment variable is required. ' +
-        'Please set API_PORT in your .env file (e.g., API_PORT=6100).',
+        "API_PORT environment variable is required. " +
+          "Please set API_PORT in your .env file (e.g., API_PORT=6100).",
       );
     }
 
-    const apiHost = this.configService.get<string>('API_HOST') || 'localhost';
+    const apiHost = this.configService.get<string>("API_HOST") || "localhost";
     this.apiBaseUrl = `http://${apiHost}:${apiPort}`;
   }
 
@@ -80,10 +80,13 @@ export class LLMUsageReporterService {
         metadata: usage.metadata,
       };
 
-      this.logger.debug(`Reporting LLM usage: ${usage.provider}/${usage.model}`, {
-        totalTokens: usage.totalTokens,
-        callerName: usage.callerName,
-      });
+      this.logger.debug(
+        `Reporting LLM usage: ${usage.provider}/${usage.model}`,
+        {
+          totalTokens: usage.totalTokens,
+          callerName: usage.callerName,
+        },
+      );
 
       await firstValueFrom(
         this.httpService.post(url, payload, {
@@ -116,13 +119,13 @@ export class LLMUsageReporterService {
     latencyMs?: number;
   }): Promise<void> {
     await this.reportUsage({
-      provider: 'ollama',
+      provider: "ollama",
       model: params.model,
       promptTokens: params.promptTokens,
       completionTokens: params.completionTokens,
       totalTokens: params.promptTokens + params.completionTokens,
       userId: params.userId,
-      callerType: 'langgraph-tool',
+      callerType: "langgraph-tool",
       callerName: params.callerName,
       taskId: params.taskId,
       threadId: params.threadId,
@@ -144,8 +147,8 @@ export class LLMUsageReporterService {
     latencyMs?: number;
   }): Promise<void> {
     await this.reportOllamaUsage({
-      model: 'sqlcoder',
-      callerName: 'sql-query-tool',
+      model: "sqlcoder",
+      callerName: "sql-query-tool",
       ...params,
     });
   }

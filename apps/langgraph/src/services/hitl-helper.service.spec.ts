@@ -1,12 +1,12 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, TestingModule } from "@nestjs/testing";
 import {
   HITLHelperService,
   HitlRequest,
   HitlResponse,
   HitlState,
-} from './hitl-helper.service';
-import { ObservabilityService } from './observability.service';
-import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
+} from "./hitl-helper.service";
+import { ObservabilityService } from "./observability.service";
+import { createMockExecutionContext } from "@orchestrator-ai/transport-types";
 
 /**
  * Unit tests for HITLHelperService
@@ -14,10 +14,10 @@ import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
  * Tests the helper service for managing human-in-the-loop patterns
  * in LangGraph workflows.
  */
-describe('HITLHelperService', () => {
+describe("HITLHelperService", () => {
   let service: HITLHelperService;
   let observability: jest.Mocked<ObservabilityService>;
-  const mockContext = createMockExecutionContext();
+  const _mockContext = createMockExecutionContext();
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -37,50 +37,53 @@ describe('HITLHelperService', () => {
     observability = module.get(ObservabilityService);
   });
 
-  it('should be defined', () => {
+  it("should be defined", () => {
     expect(service).toBeDefined();
   });
 
-  describe('prepareInterrupt', () => {
+  describe("prepareInterrupt", () => {
     const mockRequest: HitlRequest = {
-      taskId: 'task-123',
-      threadId: 'thread-456',
-      agentSlug: 'extended-post-writer',
-      userId: 'user-789',
-      conversationId: 'conv-abc',
-      organizationSlug: 'org-xyz',
-      pendingContent: { blogPost: 'Draft content...' },
-      contentType: 'blog-post',
-      message: 'Please review the blog post',
+      taskId: "task-123",
+      threadId: "thread-456",
+      agentSlug: "extended-post-writer",
+      userId: "user-789",
+      conversationId: "conv-abc",
+      organizationSlug: "org-xyz",
+      pendingContent: { blogPost: "Draft content..." },
+      contentType: "blog-post",
+      message: "Please review the blog post",
     };
 
     const mockCurrentState: HitlState = {
-      hitlStatus: 'none',
+      hitlStatus: "none",
     };
 
-    it('should prepare state for HITL interrupt', async () => {
-      const result = await service.prepareInterrupt(mockCurrentState, mockRequest);
+    it("should prepare state for HITL interrupt", async () => {
+      const result = await service.prepareInterrupt(
+        mockCurrentState,
+        mockRequest,
+      );
 
       expect(result.hitlRequest).toEqual(mockRequest);
-      expect(result.hitlStatus).toBe('waiting');
+      expect(result.hitlStatus).toBe("waiting");
     });
 
-    it('should emit HITL waiting observability event', async () => {
+    it("should emit HITL waiting observability event", async () => {
       await service.prepareInterrupt(mockCurrentState, mockRequest);
 
       expect(observability.emitHitlWaiting).toHaveBeenCalledWith({
-        taskId: 'task-123',
-        threadId: 'thread-456',
-        agentSlug: 'extended-post-writer',
-        userId: 'user-789',
-        conversationId: 'conv-abc',
-        organizationSlug: 'org-xyz',
-        message: 'Please review the blog post',
-        pendingContent: { blogPost: 'Draft content...' },
+        taskId: "task-123",
+        threadId: "thread-456",
+        agentSlug: "extended-post-writer",
+        userId: "user-789",
+        conversationId: "conv-abc",
+        organizationSlug: "org-xyz",
+        message: "Please review the blog post",
+        pendingContent: { blogPost: "Draft content..." },
       });
     });
 
-    it('should use default message when not provided', async () => {
+    it("should use default message when not provided", async () => {
       const requestWithoutMessage: HitlRequest = {
         ...mockRequest,
         message: undefined,
@@ -90,201 +93,204 @@ describe('HITLHelperService', () => {
 
       expect(observability.emitHitlWaiting).toHaveBeenCalledWith(
         expect.objectContaining({
-          message: 'Awaiting review for blog-post',
+          message: "Awaiting review for blog-post",
         }),
       );
     });
 
-    it('should preserve existing state properties', async () => {
+    it("should preserve existing state properties", async () => {
       const stateWithExtraProps = {
         ...mockCurrentState,
-        customField: 'custom value',
+        customField: "custom value",
         anotherField: 123,
       };
 
-      const result = await service.prepareInterrupt(stateWithExtraProps, mockRequest);
+      const result = await service.prepareInterrupt(
+        stateWithExtraProps,
+        mockRequest,
+      );
 
-      expect(result.customField).toBe('custom value');
+      expect(result.customField).toBe("custom value");
       expect(result.anotherField).toBe(123);
     });
   });
 
-  describe('processResume', () => {
+  describe("processResume", () => {
     const mockRequest: HitlRequest = {
-      taskId: 'task-123',
-      threadId: 'thread-456',
-      agentSlug: 'extended-post-writer',
-      userId: 'user-789',
-      conversationId: 'conv-abc',
-      pendingContent: { blogPost: 'Draft content...' },
-      contentType: 'blog-post',
+      taskId: "task-123",
+      threadId: "thread-456",
+      agentSlug: "extended-post-writer",
+      userId: "user-789",
+      conversationId: "conv-abc",
+      pendingContent: { blogPost: "Draft content..." },
+      contentType: "blog-post",
     };
 
     const stateWithRequest: HitlState = {
       hitlRequest: mockRequest,
-      hitlStatus: 'waiting',
+      hitlStatus: "waiting",
     };
 
-    it('should process approve decision', async () => {
+    it("should process approve decision", async () => {
       const response: HitlResponse = {
-        decision: 'approve',
+        decision: "approve",
       };
 
       const result = await service.processResume(stateWithRequest, response);
 
       expect(result.hitlResponse).toEqual(response);
-      expect(result.hitlStatus).toBe('resumed');
+      expect(result.hitlStatus).toBe("resumed");
     });
 
-    it('should process edit decision with edited content', async () => {
+    it("should process edit decision with edited content", async () => {
       const response: HitlResponse = {
-        decision: 'edit',
-        editedContent: { blogPost: 'Edited content...' },
+        decision: "edit",
+        editedContent: { blogPost: "Edited content..." },
       };
 
       const result = await service.processResume(stateWithRequest, response);
 
       expect(result.hitlResponse).toEqual(response);
       expect(result.hitlResponse?.editedContent).toEqual({
-        blogPost: 'Edited content...',
+        blogPost: "Edited content...",
       });
     });
 
-    it('should process reject decision with feedback', async () => {
+    it("should process reject decision with feedback", async () => {
       const response: HitlResponse = {
-        decision: 'reject',
-        feedback: 'Content is too long',
+        decision: "reject",
+        feedback: "Content is too long",
       };
 
       const result = await service.processResume(stateWithRequest, response);
 
-      expect(result.hitlResponse?.decision).toBe('reject');
-      expect(result.hitlResponse?.feedback).toBe('Content is too long');
+      expect(result.hitlResponse?.decision).toBe("reject");
+      expect(result.hitlResponse?.feedback).toBe("Content is too long");
     });
 
-    it('should emit HITL resumed observability event', async () => {
-      const response: HitlResponse = { decision: 'approve' };
+    it("should emit HITL resumed observability event", async () => {
+      const response: HitlResponse = { decision: "approve" };
 
       await service.processResume(stateWithRequest, response);
 
       expect(observability.emitHitlResumed).toHaveBeenCalledWith({
-        taskId: 'task-123',
-        threadId: 'thread-456',
-        agentSlug: 'extended-post-writer',
-        userId: 'user-789',
-        conversationId: 'conv-abc',
+        taskId: "task-123",
+        threadId: "thread-456",
+        agentSlug: "extended-post-writer",
+        userId: "user-789",
+        conversationId: "conv-abc",
         organizationSlug: undefined,
-        decision: 'approve',
-        message: 'Decision: approve',
+        decision: "approve",
+        message: "Decision: approve",
       });
     });
 
-    it('should use feedback as message when provided', async () => {
+    it("should use feedback as message when provided", async () => {
       const response: HitlResponse = {
-        decision: 'reject',
-        feedback: 'Needs more detail',
+        decision: "reject",
+        feedback: "Needs more detail",
       };
 
       await service.processResume(stateWithRequest, response);
 
       expect(observability.emitHitlResumed).toHaveBeenCalledWith(
         expect.objectContaining({
-          message: 'Needs more detail',
+          message: "Needs more detail",
         }),
       );
     });
 
-    it('should throw error when no prior HITL request exists', async () => {
+    it("should throw error when no prior HITL request exists", async () => {
       const stateWithoutRequest: HitlState = {
-        hitlStatus: 'none',
+        hitlStatus: "none",
       };
 
-      const response: HitlResponse = { decision: 'approve' };
+      const response: HitlResponse = { decision: "approve" };
 
       await expect(
         service.processResume(stateWithoutRequest, response),
-      ).rejects.toThrow('Cannot process resume without prior HITL request');
+      ).rejects.toThrow("Cannot process resume without prior HITL request");
     });
   });
 
-  describe('getResolvedContent', () => {
-    const pendingContent = { blogPost: 'Original content' };
-    const editedContent = { blogPost: 'Edited content' };
+  describe("getResolvedContent", () => {
+    const pendingContent = { blogPost: "Original content" };
+    const editedContent = { blogPost: "Edited content" };
 
-    it('should return pending content for approve decision', () => {
+    it("should return pending content for approve decision", () => {
       const state: HitlState = {
         hitlRequest: {
-          taskId: 't1',
-          threadId: 'th1',
-          agentSlug: 'agent',
-          userId: 'u1',
+          taskId: "t1",
+          threadId: "th1",
+          agentSlug: "agent",
+          userId: "u1",
           pendingContent,
-          contentType: 'blog',
+          contentType: "blog",
         },
-        hitlResponse: { decision: 'approve' },
-        hitlStatus: 'resumed',
+        hitlResponse: { decision: "approve" },
+        hitlStatus: "resumed",
       };
 
       const result = service.getResolvedContent<typeof pendingContent>(state);
       expect(result).toEqual(pendingContent);
     });
 
-    it('should return edited content for edit decision', () => {
+    it("should return edited content for edit decision", () => {
       const state: HitlState = {
         hitlRequest: {
-          taskId: 't1',
-          threadId: 'th1',
-          agentSlug: 'agent',
-          userId: 'u1',
+          taskId: "t1",
+          threadId: "th1",
+          agentSlug: "agent",
+          userId: "u1",
           pendingContent,
-          contentType: 'blog',
+          contentType: "blog",
         },
-        hitlResponse: { decision: 'edit', editedContent },
-        hitlStatus: 'resumed',
+        hitlResponse: { decision: "edit", editedContent },
+        hitlStatus: "resumed",
       };
 
       const result = service.getResolvedContent<typeof editedContent>(state);
       expect(result).toEqual(editedContent);
     });
 
-    it('should return null for reject decision', () => {
+    it("should return null for reject decision", () => {
       const state: HitlState = {
         hitlRequest: {
-          taskId: 't1',
-          threadId: 'th1',
-          agentSlug: 'agent',
-          userId: 'u1',
+          taskId: "t1",
+          threadId: "th1",
+          agentSlug: "agent",
+          userId: "u1",
           pendingContent,
-          contentType: 'blog',
+          contentType: "blog",
         },
-        hitlResponse: { decision: 'reject', feedback: 'Bad content' },
-        hitlStatus: 'resumed',
+        hitlResponse: { decision: "reject", feedback: "Bad content" },
+        hitlStatus: "resumed",
       };
 
       const result = service.getResolvedContent(state);
       expect(result).toBeNull();
     });
 
-    it('should return null when no response exists', () => {
+    it("should return null when no response exists", () => {
       const state: HitlState = {
         hitlRequest: {
-          taskId: 't1',
-          threadId: 'th1',
-          agentSlug: 'agent',
-          userId: 'u1',
+          taskId: "t1",
+          threadId: "th1",
+          agentSlug: "agent",
+          userId: "u1",
           pendingContent,
-          contentType: 'blog',
+          contentType: "blog",
         },
-        hitlStatus: 'waiting',
+        hitlStatus: "waiting",
       };
 
       const result = service.getResolvedContent(state);
       expect(result).toBeNull();
     });
 
-    it('should return null when no request exists', () => {
+    it("should return null when no request exists", () => {
       const state: HitlState = {
-        hitlStatus: 'none',
+        hitlStatus: "none",
       };
 
       const result = service.getResolvedContent(state);
@@ -292,164 +298,164 @@ describe('HITLHelperService', () => {
     });
   });
 
-  describe('wasRejected', () => {
-    it('should return true for reject decision', () => {
+  describe("wasRejected", () => {
+    it("should return true for reject decision", () => {
       const state: HitlState = {
-        hitlResponse: { decision: 'reject' },
-        hitlStatus: 'resumed',
+        hitlResponse: { decision: "reject" },
+        hitlStatus: "resumed",
       };
 
       expect(service.wasRejected(state)).toBe(true);
     });
 
-    it('should return false for approve decision', () => {
+    it("should return false for approve decision", () => {
       const state: HitlState = {
-        hitlResponse: { decision: 'approve' },
-        hitlStatus: 'resumed',
+        hitlResponse: { decision: "approve" },
+        hitlStatus: "resumed",
       };
 
       expect(service.wasRejected(state)).toBe(false);
     });
 
-    it('should return false for edit decision', () => {
+    it("should return false for edit decision", () => {
       const state: HitlState = {
-        hitlResponse: { decision: 'edit' },
-        hitlStatus: 'resumed',
+        hitlResponse: { decision: "edit" },
+        hitlStatus: "resumed",
       };
 
       expect(service.wasRejected(state)).toBe(false);
     });
 
-    it('should return false when no response', () => {
+    it("should return false when no response", () => {
       const state: HitlState = {
-        hitlStatus: 'waiting',
+        hitlStatus: "waiting",
       };
 
       expect(service.wasRejected(state)).toBe(false);
     });
   });
 
-  describe('isWaiting', () => {
-    it('should return true when status is waiting', () => {
-      const state: HitlState = { hitlStatus: 'waiting' };
+  describe("isWaiting", () => {
+    it("should return true when status is waiting", () => {
+      const state: HitlState = { hitlStatus: "waiting" };
       expect(service.isWaiting(state)).toBe(true);
     });
 
-    it('should return false when status is none', () => {
-      const state: HitlState = { hitlStatus: 'none' };
+    it("should return false when status is none", () => {
+      const state: HitlState = { hitlStatus: "none" };
       expect(service.isWaiting(state)).toBe(false);
     });
 
-    it('should return false when status is resumed', () => {
-      const state: HitlState = { hitlStatus: 'resumed' };
+    it("should return false when status is resumed", () => {
+      const state: HitlState = { hitlStatus: "resumed" };
       expect(service.isWaiting(state)).toBe(false);
     });
   });
 
-  describe('isResumed', () => {
-    it('should return true when status is resumed', () => {
-      const state: HitlState = { hitlStatus: 'resumed' };
+  describe("isResumed", () => {
+    it("should return true when status is resumed", () => {
+      const state: HitlState = { hitlStatus: "resumed" };
       expect(service.isResumed(state)).toBe(true);
     });
 
-    it('should return false when status is waiting', () => {
-      const state: HitlState = { hitlStatus: 'waiting' };
+    it("should return false when status is waiting", () => {
+      const state: HitlState = { hitlStatus: "waiting" };
       expect(service.isResumed(state)).toBe(false);
     });
 
-    it('should return false when status is none', () => {
-      const state: HitlState = { hitlStatus: 'none' };
+    it("should return false when status is none", () => {
+      const state: HitlState = { hitlStatus: "none" };
       expect(service.isResumed(state)).toBe(false);
     });
   });
 
-  describe('clearHitlState', () => {
-    it('should clear all HITL state fields', () => {
+  describe("clearHitlState", () => {
+    it("should clear all HITL state fields", () => {
       const state: HitlState = {
         hitlRequest: {
-          taskId: 't1',
-          threadId: 'th1',
-          agentSlug: 'agent',
-          userId: 'u1',
+          taskId: "t1",
+          threadId: "th1",
+          agentSlug: "agent",
+          userId: "u1",
           pendingContent: {},
-          contentType: 'blog',
+          contentType: "blog",
         },
-        hitlResponse: { decision: 'approve' },
-        hitlStatus: 'resumed',
+        hitlResponse: { decision: "approve" },
+        hitlStatus: "resumed",
       };
 
       const result = service.clearHitlState(state);
 
       expect(result.hitlRequest).toBeUndefined();
       expect(result.hitlResponse).toBeUndefined();
-      expect(result.hitlStatus).toBe('none');
+      expect(result.hitlStatus).toBe("none");
     });
 
-    it('should preserve non-HITL state fields', () => {
+    it("should preserve non-HITL state fields", () => {
       const state = {
         hitlRequest: {
-          taskId: 't1',
-          threadId: 'th1',
-          agentSlug: 'agent',
-          userId: 'u1',
+          taskId: "t1",
+          threadId: "th1",
+          agentSlug: "agent",
+          userId: "u1",
           pendingContent: {},
-          contentType: 'blog',
+          contentType: "blog",
         },
-        hitlStatus: 'resumed' as const,
-        customField: 'value',
+        hitlStatus: "resumed" as const,
+        customField: "value",
         count: 42,
       };
 
       const result = service.clearHitlState(state);
 
-      expect(result.customField).toBe('value');
+      expect(result.customField).toBe("value");
       expect(result.count).toBe(42);
     });
   });
 
-  describe('buildInterruptValue', () => {
-    it('should build interrupt value with all fields', () => {
+  describe("buildInterruptValue", () => {
+    it("should build interrupt value with all fields", () => {
       const request: HitlRequest = {
-        taskId: 'task-123',
-        threadId: 'thread-456',
-        agentSlug: 'extended-post-writer',
-        userId: 'user-789',
-        conversationId: 'conv-abc',
-        pendingContent: { blogPost: 'Content...' },
-        contentType: 'blog-post',
-        message: 'Please review',
+        taskId: "task-123",
+        threadId: "thread-456",
+        agentSlug: "extended-post-writer",
+        userId: "user-789",
+        conversationId: "conv-abc",
+        pendingContent: { blogPost: "Content..." },
+        contentType: "blog-post",
+        message: "Please review",
       };
 
       const result = service.buildInterruptValue(request);
 
       expect(result).toEqual({
-        reason: 'human_review',
-        taskId: 'task-123',
-        threadId: 'thread-456',
-        agentSlug: 'extended-post-writer',
-        userId: 'user-789',
-        conversationId: 'conv-abc',
-        contentType: 'blog-post',
-        pendingContent: { blogPost: 'Content...' },
-        message: 'Please review',
+        reason: "human_review",
+        taskId: "task-123",
+        threadId: "thread-456",
+        agentSlug: "extended-post-writer",
+        userId: "user-789",
+        conversationId: "conv-abc",
+        contentType: "blog-post",
+        pendingContent: { blogPost: "Content..." },
+        message: "Please review",
       });
     });
 
-    it('should handle missing optional fields', () => {
+    it("should handle missing optional fields", () => {
       const request: HitlRequest = {
-        taskId: 'task-123',
-        threadId: 'thread-456',
-        agentSlug: 'agent',
-        userId: 'user-789',
+        taskId: "task-123",
+        threadId: "thread-456",
+        agentSlug: "agent",
+        userId: "user-789",
         pendingContent: {},
-        contentType: 'generic',
+        contentType: "generic",
       };
 
       const result = service.buildInterruptValue(request);
 
       expect(result.conversationId).toBeUndefined();
       expect(result.message).toBeUndefined();
-      expect(result.reason).toBe('human_review');
+      expect(result.reason).toBe("human_review");
     });
   });
 });

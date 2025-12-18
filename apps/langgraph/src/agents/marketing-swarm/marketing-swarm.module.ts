@@ -1,8 +1,8 @@
-import { Module } from '@nestjs/common';
-import { MarketingSwarmController } from './marketing-swarm.controller';
-import { MarketingSwarmService } from './marketing-swarm.service';
-import { MarketingDbService } from './marketing-db.service';
-import { DualTrackProcessorService } from './dual-track-processor.service';
+import { Module } from "@nestjs/common";
+import { MarketingSwarmController } from "./marketing-swarm.controller";
+import { MarketingSwarmService } from "./marketing-swarm.service";
+import { MarketingDbService } from "./marketing-db.service";
+import { DualTrackProcessorService } from "./dual-track-processor.service";
 
 /**
  * MarketingSwarmModule
@@ -31,6 +31,10 @@ import { DualTrackProcessorService } from './dual-track-processor.service';
     MarketingDbService,
     DualTrackProcessorService,
   ],
-  exports: [MarketingSwarmService, MarketingDbService, DualTrackProcessorService],
+  exports: [
+    MarketingSwarmService,
+    MarketingDbService,
+    DualTrackProcessorService,
+  ],
 })
 export class MarketingSwarmModule {}

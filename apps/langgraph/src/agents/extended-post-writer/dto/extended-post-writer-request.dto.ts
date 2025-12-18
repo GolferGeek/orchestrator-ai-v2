@@ -1,6 +1,6 @@
-import { IsString, IsOptional, IsArray, IsNotEmpty } from 'class-validator';
-import { ExecutionContext } from '@orchestrator-ai/transport-types';
-import { IsValidExecutionContext } from '../../../common/validators/execution-context.validator';
+import { IsString, IsOptional, IsArray, IsNotEmpty } from "class-validator";
+import { ExecutionContext } from "@orchestrator-ai/transport-types";
+import { IsValidExecutionContext } from "../../../common/validators/execution-context.validator";
 
 /**
  * Request DTO for Extended Post Writer agent
