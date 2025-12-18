@@ -278,7 +278,9 @@ export class AppService implements OnModuleInit {
 
     const supportedModes = supportedModesRaw.length
       ? supportedModesRaw
-      : (record.capabilities && Array.isArray(record.capabilities) && record.capabilities.includes('orchestrate'))
+      : record.capabilities &&
+          Array.isArray(record.capabilities) &&
+          record.capabilities.includes('orchestrate')
         ? ['converse', 'plan', 'build']
         : ['converse', 'build'];
 

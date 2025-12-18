@@ -90,8 +90,7 @@ export class OllamaLLMService extends BaseLLMService {
         config.baseUrl ||
         process.env.OLLAMA_CLOUD_BASE_URL ||
         'https://ollama.com';
-      this.ollamaApiKey =
-        config.apiKey || process.env.OLLAMA_CLOUD_API_KEY;
+      this.ollamaApiKey = config.apiKey || process.env.OLLAMA_CLOUD_API_KEY;
       this.logger.log(
         `Ollama service initialized in CLOUD mode (${this.ollamaBaseUrl})`,
       );

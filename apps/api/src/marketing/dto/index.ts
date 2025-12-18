@@ -1,9 +1,4 @@
-import {
-  IsString,
-  IsOptional,
-  IsArray,
-  IsBoolean,
-} from 'class-validator';
+import { IsString, IsOptional, IsArray, IsBoolean } from 'class-validator';
 
 // Content Type DTOs
 export class ContentTypeDto {

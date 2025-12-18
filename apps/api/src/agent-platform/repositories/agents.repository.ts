@@ -53,11 +53,15 @@ export class AgentsRepository {
   async upsert(payload: AgentUpsertInput): Promise<AgentRecord> {
     const client = this.getClient();
     // Normalize organization_slug to array (database stores as TEXT[])
-    const orgSlugArray = Array.isArray(payload.organization_slug) && payload.organization_slug.length > 0
-      ? payload.organization_slug
-      : payload.organization_slug
-        ? (typeof payload.organization_slug === 'string' ? [payload.organization_slug] : ['demo-org'])
-        : ['demo-org'];
+    const orgSlugArray =
+      Array.isArray(payload.organization_slug) &&
+      payload.organization_slug.length > 0
+        ? payload.organization_slug
+        : payload.organization_slug
+          ? typeof payload.organization_slug === 'string'
+            ? [payload.organization_slug]
+            : ['demo-org']
+          : ['demo-org'];
 
     // Create row - database stores organization_slug as TEXT[] array
     const row: AgentUpsertRow = {
@@ -155,7 +159,7 @@ export class AgentsRepository {
       throw new Error(`Failed to list agents: ${error.message}`);
     }
 
-    return (data ?? []).map(record => this.normalizeAgentRecord(record));
+    return (data ?? []).map((record) => this.normalizeAgentRecord(record));
   }
 
   async listAll(): Promise<AgentRecord[]> {
@@ -172,7 +176,7 @@ export class AgentsRepository {
       throw new Error(`Failed to list agents: ${error.message}`);
     }
 
-    return (data ?? []).map(record => this.normalizeAgentRecord(record));
+    return (data ?? []).map((record) => this.normalizeAgentRecord(record));
   }
 
   /**
