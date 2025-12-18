@@ -49,40 +49,48 @@ From `package.json`:
 ### Core Quality Gates
 
 ```bash
-# 1. Format code
+# 1. Format code (all workspaces)
 npm run format
 
-# 2. Lint code
-npm run lint
+# 2. Lint code (ALL workspaces: API, Web, LangGraph)
+npm run lint                    # API (nestjs)
+cd apps/web && npm run lint && cd ../..      # Web
+cd apps/langgraph && npm run lint && cd ../..  # LangGraph
 
-# 3. Run tests
+# 3. Run tests (all workspaces)
 npm test
 
-# 4. Build (verify compilation)
+# 4. Build (all workspaces: API, Web, LangGraph, transport-types)
 npm run build
 ```
+
+**CRITICAL:** The root `npm run lint` only lints the API (nestjs filter). You must lint ALL workspaces separately.
 
 ## Complete Quality Gate Checklist
 
 Before committing, run:
 
 ```bash
-# Step 1: Format code
+# Step 1: Format code (all workspaces)
 npm run format
 
-# Step 2: Lint code (must pass with no errors)
-npm run lint
+# Step 2: Lint code (ALL workspaces - must pass with no errors)
+npm run lint                    # API (nestjs)
+cd apps/web && npm run lint && cd ../..      # Web
+cd apps/langgraph && npm run lint && cd ../..  # LangGraph
 
-# Step 3: Run tests (all must pass)
+# Step 3: Run tests (all workspaces - all must pass)
 npm test
 
-# Step 4: Build (verify compilation succeeds)
+# Step 4: Build (all workspaces - verify compilation succeeds)
 npm run build
 
 # Step 5: Commit only if all gates pass
 git add .
 git commit -m "feat(module): your commit message"
 ```
+
+**Note:** `transport-types` workspace does not have a lint script, so it's excluded from linting.
 
 ## Quality Gate Failures
 
@@ -101,16 +109,36 @@ npm run format
 
 ### ❌ Lint Failure
 
+**If lint fails in any workspace:**
+
 ```bash
+# API lint errors
 $ npm run lint
 # Errors: unused imports, type errors, etc.
+
+# Web lint errors
+$ cd apps/web && npm run lint
+# Errors: ...
+
+# LangGraph lint errors
+$ cd apps/langgraph && npm run lint
+# Errors: ...
 ```
 
 **Fix:**
 ```bash
-# Fix lint errors manually or run auto-fix if available
+# Fix lint errors in the affected workspace
+# API
 npm run lint -- --fix
+
+# Web
+cd apps/web && npm run lint -- --fix && cd ../..
+
+# LangGraph
+cd apps/langgraph && npm run lint -- --fix && cd ../..
 ```
+
+**CRITICAL:** All workspaces (API, Web, LangGraph) must pass lint before committing.
 
 ### ❌ Test Failure
 
@@ -130,15 +158,20 @@ npm test
 
 ```bash
 $ npm run build
-# Errors: TypeScript compilation errors
+# Errors: TypeScript compilation errors in one or more workspaces
+# - apps/api: ...
+# - apps/web: ...
+# - apps/langgraph: ...
 ```
 
 **Fix:**
 ```bash
-# Fix TypeScript errors
-# Re-run build until successful
+# Fix TypeScript errors in the affected workspace(s)
+# Re-run build until all workspaces succeed
 npm run build
 ```
+
+**CRITICAL:** Build must succeed in ALL workspaces (API, Web, LangGraph, transport-types) before committing.
 
 ## Pre-Commit Workflow
 
@@ -151,8 +184,13 @@ npm run build
 # 2. Stage files
 git add .
 
-# 3. Run quality gates
-npm run format && npm run lint && npm test && npm run build
+# 3. Run quality gates (ALL workspaces)
+npm run format && \
+npm run lint && \
+cd apps/web && npm run lint && cd ../.. && \
+cd apps/langgraph && npm run lint && cd ../.. && \
+npm test && \
+npm run build
 
 # 4. If all pass, commit
 git commit -m "feat(module): description"
@@ -161,7 +199,13 @@ git commit -m "feat(module): description"
 ### One-Line Quality Gate
 
 ```bash
-npm run format && npm run lint && npm test && npm run build && git commit -m "feat(module): description"
+npm run format && \
+npm run lint && \
+cd apps/web && npm run lint && cd ../.. && \
+cd apps/langgraph && npm run lint && cd ../.. && \
+npm test && \
+npm run build && \
+git commit -m "feat(module): description"
 ```
 
 ## Per-Workspace Quality Gates
@@ -184,6 +228,35 @@ npm test:unit
 npm run build
 ```
 
+### LangGraph Workspace
+
+```bash
+cd apps/langgraph
+npm run lint
+npm test
+npm run build
+```
+
+## All Workspaces Quality Gates
+
+**To run quality gates on ALL workspaces:**
+
+```bash
+# Format (all workspaces)
+npm run format
+
+# Lint (all workspaces)
+npm run lint                    # API
+cd apps/web && npm run lint && cd ../..      # Web
+cd apps/langgraph && npm run lint && cd ../..  # LangGraph
+
+# Test (all workspaces)
+npm test
+
+# Build (all workspaces)
+npm run build
+```
+
 ## Quality Gate Examples
 
 ### Example 1: Before Feature Commit
@@ -192,9 +265,11 @@ npm run build
 # Edit feature code
 vim apps/api/src/feature/feature.service.ts
 
-# Run quality gates
+# Run quality gates (ALL workspaces)
 npm run format
-npm run lint
+npm run lint                    # API
+cd apps/web && npm run lint && cd ../..      # Web
+cd apps/langgraph && npm run lint && cd ../..  # LangGraph
 npm test
 npm run build
 
@@ -209,8 +284,13 @@ git commit -m "feat(feature): add new feature service"
 # Fix bug
 vim apps/api/src/bug/bug.service.ts
 
-# Run quality gates
-npm run format && npm run lint && npm test && npm run build
+# Run quality gates (ALL workspaces)
+npm run format && \
+npm run lint && \
+cd apps/web && npm run lint && cd ../.. && \
+cd apps/langgraph && npm run lint && cd ../.. && \
+npm test && \
+npm run build
 
 # All pass - commit
 git add .
@@ -235,7 +315,9 @@ jobs:
       - uses: actions/setup-node@v3
       - run: npm ci
       - run: npm run format -- --check
-      - run: npm run lint
+      - run: npm run lint                    # API
+      - run: cd apps/web && npm run lint     # Web
+      - run: cd apps/langgraph && npm run lint  # LangGraph
       - run: npm test
       - run: npm run build
 ```
@@ -279,11 +361,13 @@ if (condition) {
 
 Before committing:
 
-- [ ] `npm run format` - Code formatted
-- [ ] `npm run lint` - No lint errors
-- [ ] `npm test` - All tests pass
-- [ ] `npm run build` - Build succeeds
-- [ ] All quality gates pass before commit
+- [ ] `npm run format` - Code formatted (all workspaces)
+- [ ] `npm run lint` - No lint errors in API
+- [ ] `cd apps/web && npm run lint` - No lint errors in Web
+- [ ] `cd apps/langgraph && npm run lint` - No lint errors in LangGraph
+- [ ] `npm test` - All tests pass (all workspaces)
+- [ ] `npm run build` - Build succeeds (all workspaces: API, Web, LangGraph, transport-types)
+- [ ] All quality gates pass in ALL workspaces before commit
 
 ## Related Documentation
 
