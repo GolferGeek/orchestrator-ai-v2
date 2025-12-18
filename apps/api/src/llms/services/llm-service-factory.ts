@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import type { ExecutionContext as _ExecutionContext } from '@orchestrator-ai/transport-types';
 import { HttpService } from '@nestjs/axios';
 import { BaseLLMService } from './base-llm.service';
@@ -43,7 +43,7 @@ export type SupportedProvider =
  * - LangSmith tracing support
  */
 @Injectable()
-export class LLMServiceFactory {
+export class LLMServiceFactory implements OnModuleInit {
   private readonly logger = new Logger(LLMServiceFactory.name);
   private readonly serviceCache = new Map<string, BaseLLMService>();
 
@@ -67,7 +67,13 @@ export class LLMServiceFactory {
     private readonly llmPricingService: LLMPricingService,
   ) {
     this.logger.log('LLMServiceFactory initialized');
-    // Preload pricing cache at startup
+  }
+
+  /**
+   * Load pricing cache after all modules are initialized
+   */
+  async onModuleInit() {
+    // Preload pricing cache after Supabase is fully initialized
     this.llmPricingService.loadPricingCache().catch((err) => {
       this.logger.warn('Failed to preload pricing cache:', err);
     });

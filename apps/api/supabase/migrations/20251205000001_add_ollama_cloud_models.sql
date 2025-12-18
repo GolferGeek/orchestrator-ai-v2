@@ -6,6 +6,13 @@
 -- To use: Set OLLAMA_CLOUD_API_KEY environment variable
 -- =============================================================================
 
+-- Ensure ollama provider exists
+INSERT INTO public.llm_providers (
+  name, display_name, api_base_url, is_active
+) VALUES (
+  'ollama', 'Ollama', 'http://localhost:11434', true
+) ON CONFLICT (name) DO NOTHING;
+
 -- Update ollama provider configuration to document cloud support
 UPDATE public.llm_providers
 SET configuration_json = '{"provider_type": "local", "cloud_api_key_env_var": "OLLAMA_CLOUD_API_KEY", "cloud_base_url": "https://ollama.com", "supports_cloud_mode": true}'::jsonb

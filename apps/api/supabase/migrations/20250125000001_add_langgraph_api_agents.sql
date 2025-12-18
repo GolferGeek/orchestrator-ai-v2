@@ -17,12 +17,9 @@ INSERT INTO public.agents (
   slug,
   organization_slug,
   name,
-  display_name,
   description,
   version,
   agent_type,
-  mode_profile,
-  yaml,
   department,
   tags,
   io_schema,
@@ -33,14 +30,11 @@ INSERT INTO public.agents (
   metadata
 ) VALUES (
   'data-analyst',
-  'demo-org',
-  'Data Analyst',
+  ARRAY['demo-org']::TEXT[],
   'Data Analyst',
   'LangGraph-powered data analyst agent that uses natural language to query databases, list tables, describe schemas, and generate SQL queries with comprehensive result summaries.',
   '1.0.0',
   'api',
-  'full_cycle',
-  'agent: {}',
   'analytics',
   ARRAY['data-analysis', 'sql', 'database', 'langgraph', 'tool-calling']::TEXT[],
 
@@ -136,9 +130,8 @@ INSERT INTO public.agents (
     }
   }'::JSONB
 )
-ON CONFLICT (organization_slug, slug) DO UPDATE SET
+ON CONFLICT (slug) DO UPDATE SET
   name = EXCLUDED.name,
-  display_name = EXCLUDED.display_name,
   description = EXCLUDED.description,
   version = EXCLUDED.version,
   agent_type = EXCLUDED.agent_type,
@@ -165,12 +158,9 @@ INSERT INTO public.agents (
   slug,
   organization_slug,
   name,
-  display_name,
   description,
   version,
   agent_type,
-  mode_profile,
-  yaml,
   department,
   tags,
   io_schema,
@@ -181,14 +171,11 @@ INSERT INTO public.agents (
   metadata
 ) VALUES (
   'extended-post-writer',
-  'demo-org',
-  'Extended Post Writer',
+  ARRAY['demo-org']::TEXT[],
   'Extended Post Writer',
   'LangGraph-powered content generation agent with Human-in-the-Loop (HITL) approval. Generates blog posts, SEO descriptions, and social media posts, then pauses for human review before finalizing.',
   '1.0.0',
   'api',
-  'full_cycle',
-  'agent: {}',
   'marketing',
   ARRAY['content-creation', 'blog', 'seo', 'social-media', 'langgraph', 'hitl']::TEXT[],
 
@@ -293,9 +280,8 @@ INSERT INTO public.agents (
     }
   }'::JSONB
 )
-ON CONFLICT (organization_slug, slug) DO UPDATE SET
+ON CONFLICT (slug) DO UPDATE SET
   name = EXCLUDED.name,
-  display_name = EXCLUDED.display_name,
   description = EXCLUDED.description,
   version = EXCLUDED.version,
   agent_type = EXCLUDED.agent_type,
