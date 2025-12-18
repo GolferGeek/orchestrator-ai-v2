@@ -25,8 +25,8 @@ All experimental and overlapping content has been moved to `.claude-archive/`. S
 We're rebuilding with a focused approach:
 
 1. **Core Domain Skills** (Subconversations 1-2)
-   - `execution-context-skill/` - The critical "capsule" that flows through the system
-   - `transport-types-skill/` - A2A compliance and transport types
+   - ✅ `execution-context-skill/` - The critical "capsule" that flows through the system (COMPLETE)
+   - ✅ `transport-types-skill/` - A2A compliance and transport types (COMPLETE)
 
 2. **Architecture Skills** (Subconversations 5-7)
    - `front-end-architecture-skill/` - Front-end patterns and decisions
@@ -59,7 +59,16 @@ We're rebuilding with a focused approach:
 - **Effective**: Actually prevents common mistakes
 - **Self-Improving**: Hardening system finds and fixes issues
 
-## Next Steps
+## Progress
+
+**Completed:**
+- ✅ Subconversation 1: Execution Context Deep Dive - `execution-context-skill/` created
+- ✅ Subconversation 2: Transport Types & A2A Compliance - `transport-types-skill/` created
+
+**Next:**
+- ⏳ Subconversation 3: LangGraph Prescriptive Building Pattern
+
+**Next Steps:**
 
 See the plan: `.cursor/plans/claude_code_skills_cleanup_&_rebuild_plan_*.plan.md`
 

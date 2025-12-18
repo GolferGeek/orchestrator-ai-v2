@@ -14,7 +14,7 @@
  */
 
 import { defineStore } from 'pinia';
-import {
+import type {
   Provider,
   Model,
   CIDAFMCommand,
@@ -24,6 +24,7 @@ import {
   UnifiedLLMResponse,
   StandardizedLLMError,
   SystemModelSelection,
+  ModelType,
 } from '../types/llm';
 import type { AgentLLMRecommendation } from '../types/evaluation';
 import { apiService } from '../services/apiService';
@@ -48,7 +49,7 @@ const resolveErrorMessage = (error: unknown, fallback: string): string => {
   return statusText ?? fallback;
 };
 
-
+export type { ModelType };
 
 export const useLLMPreferencesStore = defineStore('llmPreferences', {
   state: (): LLMPreferencesState => ({
@@ -75,6 +76,20 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
     sovereignPolicy: null,
     sovereignLoading: false,
     sovereignError: null,
+    // Model type filtering for media generation
+    selectedModelType: 'text-generation' as ModelType,
+    // Sanitization stats state
+    sanitizationStats: {
+      activePatterns: 0,
+      pseudonyms: 0,
+      protectedToday: 0,
+      totalSanitizations: 0,
+      cacheHitRate: 0,
+      averageProcessingTime: 0,
+    },
+    sanitizationStatsLoading: false,
+    sanitizationStatsError: null,
+    sanitizationStatsLastUpdated: null,
     // Unified response handling
     lastUnifiedResponse: null as UnifiedLLMResponse | null,
     lastStandardizedError: null as StandardizedLLMError | null,
@@ -497,18 +512,37 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
       }
     },
     // Fetch all models from API (filtering handled reactively by getters)
-    async fetchModels() {
+    async fetchModels(modelType?: ModelType) {
       this.loadingModels = true;
       this.modelError = undefined;
       try {
-        // Fetch all models - filtering will be handled reactively by getters
-        this.models = await sovereignPolicyService.getModels(false); // Always fetch all models
-
+        // Fetch models - use selectedModelType if not explicitly provided
+        const typeFilter = modelType ?? this.selectedModelType;
+        this.models = await sovereignPolicyService.getModels(false, typeFilter);
       } catch (error) {
         this.modelError = error instanceof Error ? error.message : 'Failed to fetch models';
         console.error('Error fetching models:', error);
       } finally {
         this.loadingModels = false;
+      }
+    },
+
+    // Set the model type and refetch models
+    async setModelType(modelType: ModelType) {
+      const previousType = this.selectedModelType;
+      this.selectedModelType = modelType;
+
+      // Clear current model selection when type changes
+      if (previousType !== modelType) {
+        this.selectedModel = undefined;
+      }
+
+      // Refetch models with the new type filter
+      await this.fetchModels(modelType);
+
+      // Auto-select first available model for the selected provider
+      if (this.selectedProvider && this.availableModels.length > 0 && !this.selectedModel) {
+        this.selectedModel = this.availableModels[0];
       }
     },
     // Fetch CIDAFM commands from API

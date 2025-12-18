@@ -11,6 +11,8 @@ import { ApiAgentRunnerService } from './services/api-agent-runner.service';
 import { ExternalAgentRunnerService } from './services/external-agent-runner.service';
 import { OrchestratorAgentRunnerService } from './services/orchestrator-agent-runner.service';
 import { RagAgentRunnerService } from './services/rag-agent-runner.service';
+import { MediaAgentRunnerService } from './services/media-agent-runner.service';
+import { MediaStorageHelper } from './services/media-storage.helper';
 import { RoutingPolicyAdapterService } from './services/routing-policy-adapter.service';
 import { ApiKeyGuard } from './guards/api-key.guard';
 import { LLMModule } from '../llms/llm.module';
@@ -59,6 +61,8 @@ import { RagModule } from '../rag/rag.module';
     ExternalAgentRunnerService,
     OrchestratorAgentRunnerService,
     RagAgentRunnerService,
+    MediaAgentRunnerService,
+    MediaStorageHelper,
     RoutingPolicyAdapterService,
     ApiKeyGuard,
     Agent2AgentDeliverablesService,

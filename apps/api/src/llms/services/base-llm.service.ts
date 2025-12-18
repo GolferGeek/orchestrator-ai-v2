@@ -24,6 +24,8 @@ import {
   LLMResponse,
   ResponseMetadata,
   PiiOptions,
+  ImageGenerationParams,
+  ImageGenerationResponse,
 } from './llm-interfaces';
 
 /**
@@ -60,6 +62,21 @@ export abstract class BaseLLMService {
     context: ExecutionContext,
     params: GenerateResponseParams,
   ): Promise<LLMResponse>;
+
+  /**
+   * Optional method for image generation - providers implement if supported
+   *
+   * This method is optional because not all providers support image generation.
+   * OpenAI (GPT Image, DALL-E) and Google (Imagen) implement this method.
+   *
+   * @param context - ExecutionContext with orgSlug, userId, conversationId, taskId, etc.
+   * @param params - Image generation parameters (prompt, size, quality, etc.)
+   * @returns ImageGenerationResponse with generated image bytes and metadata
+   */
+  generateImage?(
+    context: ExecutionContext,
+    params: ImageGenerationParams,
+  ): Promise<ImageGenerationResponse>;
 
   /**
    * Create standardized metadata for responses

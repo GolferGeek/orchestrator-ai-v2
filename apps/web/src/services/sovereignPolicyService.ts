@@ -91,11 +91,20 @@ class SovereignPolicyService {
   }
 
   /**
-   * Fetch models with sovereign mode filtering
+   * Fetch models with sovereign mode and model type filtering
    */
-  async getModels(sovereignMode?: boolean): Promise<Model[]> {
+  async getModels(
+    sovereignMode?: boolean,
+    modelType?: 'text-generation' | 'image-generation' | 'video-generation',
+  ): Promise<Model[]> {
     try {
-      const params = sovereignMode ? { sovereign_mode: true, include_provider: true } : { include_provider: true };
+      const params: Record<string, unknown> = { include_provider: true };
+      if (sovereignMode) {
+        params.sovereign_mode = true;
+      }
+      if (modelType) {
+        params.model_type = modelType;
+      }
       const response: AxiosResponse<Model[]> = await this.axiosInstance.get('/models', { params });
       return response.data;
     } catch (error) {

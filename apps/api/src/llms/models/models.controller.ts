@@ -60,6 +60,19 @@ export class ModelsController {
     type: Boolean,
     description: 'Filter models based on sovereign mode compliance',
   })
+  @ApiQuery({
+    name: 'model_type',
+    required: false,
+    enum: [
+      'text-generation',
+      'image-generation',
+      'video-generation',
+      'reasoning',
+      'code-generation',
+    ],
+    description:
+      'Filter by model type (text-generation, image-generation, video-generation)',
+  })
   @ApiResponse({
     status: 200,
     description: 'List of model names with provider info',
@@ -69,11 +82,19 @@ export class ModelsController {
     @Query('provider_name') providerName?: string,
     @Query('status') status?: 'active' | 'inactive' | 'deprecated',
     @Query('sovereign_mode') sovereignMode?: boolean,
+    @Query('model_type')
+    modelType?:
+      | 'text-generation'
+      | 'image-generation'
+      | 'video-generation'
+      | 'reasoning'
+      | 'code-generation',
   ): Promise<ModelNameDto[]> {
     return this.modelsService.findAllNames({
       providerName,
       status,
       sovereignMode,
+      modelType,
     });
   }
 
@@ -110,6 +131,19 @@ export class ModelsController {
     description:
       'Filter models based on sovereign mode compliance (true = only local/ollama models)',
   })
+  @ApiQuery({
+    name: 'model_type',
+    required: false,
+    enum: [
+      'text-generation',
+      'image-generation',
+      'video-generation',
+      'reasoning',
+      'code-generation',
+    ],
+    description:
+      'Filter by model type (text-generation, image-generation, video-generation)',
+  })
   @ApiResponse({
     status: 200,
     description: 'List of LLM models',
@@ -121,6 +155,13 @@ export class ModelsController {
     @Query('supports_thinking') supportsThinking?: boolean,
     @Query('include_provider') includeProvider?: boolean,
     @Query('sovereign_mode') sovereignMode?: boolean,
+    @Query('model_type')
+    modelType?:
+      | 'text-generation'
+      | 'image-generation'
+      | 'video-generation'
+      | 'reasoning'
+      | 'code-generation',
   ): Promise<ModelResponseDto[]> {
     return this.modelsService.findAll({
       providerName,
@@ -128,6 +169,7 @@ export class ModelsController {
       supportsThinking,
       includeProvider,
       sovereignMode,
+      modelType,
     });
   }
 

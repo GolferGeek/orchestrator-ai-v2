@@ -28,19 +28,37 @@
       </div>
     </div>
 
+    <!-- Output Type Selection -->
+    <div class="selection-group">
+      <label class="selection-label">Output Type</label>
+      <select
+        v-model="selectedModelType"
+        :disabled="llmStore.loadingModels"
+        class="selection-dropdown"
+        @change="onModelTypeChange"
+      >
+        <option value="text-generation">Text</option>
+        <option value="image-generation">Image</option>
+        <option value="video-generation">Video</option>
+      </select>
+      <div class="output-type-description">
+        {{ outputTypeDescription }}
+      </div>
+    </div>
+
     <!-- Provider Selection -->
     <div class="selection-group">
       <label class="selection-label">AI Provider</label>
-      <select 
-        v-model="selectedProvider" 
+      <select
+        v-model="selectedProvider"
         :disabled="llmStore.loadingProviders"
         class="selection-dropdown"
         @change="onProviderChange"
       >
         <option value="">Select Provider...</option>
-        <option 
-          v-for="provider in llmStore.filteredProviders" 
-          :key="provider.id" 
+        <option
+          v-for="provider in llmStore.filteredProviders"
+          :key="provider.id"
           :value="provider"
         >
           {{ provider.name }}
@@ -186,7 +204,7 @@
 </template>
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
-import { useLLMPreferencesStore } from '../stores/llmPreferencesStore';
+import { useLLMPreferencesStore, type ModelType } from '../stores/llmPreferencesStore';
 import { useUserPreferencesStore } from '../stores/userPreferencesStore';
 import type { Provider, Model } from '../types/llm';
 
@@ -198,6 +216,7 @@ const showAdvanced = ref(false);
 // Local reactive state for v-model
 const selectedProvider = ref<Provider | ''>('');
 const selectedModel = ref<Model | ''>('');
+const selectedModelType = ref<ModelType>('text-generation');
 const temperature = ref(0.7);
 const maxTokens = ref<number | undefined>(undefined);
 
@@ -306,6 +325,14 @@ const onMaxTokensChange = () => {
   llmStore.setMaxTokens(maxTokens.value);
 };
 
+// Model type event handler
+const onModelTypeChange = async () => {
+  await llmStore.setModelType(selectedModelType.value);
+  // Sync local model selection with store after type change
+  selectedModel.value = llmStore.selectedModel || '';
+  selectedProvider.value = llmStore.selectedProvider || '';
+};
+
 // Sovereign mode event handler
 const onSovereignModeChange = async () => {
   if (loadingSovereignUpdate.value) return;
@@ -351,6 +378,20 @@ const sovereignModeDescription = computed(() => {
     return 'Only local models (Ollama) will be used for enhanced privacy';
   }
   return 'External AI providers allowed - toggle for local-only models';
+});
+
+// Output type computed properties
+const outputTypeDescription = computed(() => {
+  switch (selectedModelType.value) {
+    case 'text-generation':
+      return 'Generate text responses using language models';
+    case 'image-generation':
+      return 'Create images from text prompts (OpenAI GPT Image, Google Imagen)';
+    case 'video-generation':
+      return 'Generate videos from prompts (OpenAI Sora, Google Veo)';
+    default:
+      return '';
+  }
 });
 
 const policyMessage = computed(() => {
@@ -642,6 +683,13 @@ const noModelsErrorSuggestion = computed(() => {
   color: var(--ion-color-medium);
   line-height: 1.4;
   margin-left: 1.5rem;
+}
+
+.output-type-description {
+  font-size: 0.8rem;
+  color: var(--ion-color-medium);
+  margin-top: 0.25rem;
+  font-style: italic;
 }
 
 .policy-message {

@@ -18,6 +18,12 @@ interface ModelFilters {
   supportsThinking?: boolean;
   includeProvider?: boolean;
   sovereignMode?: boolean | string;
+  modelType?:
+    | 'text-generation'
+    | 'image-generation'
+    | 'video-generation'
+    | 'reasoning'
+    | 'code-generation';
 }
 
 interface RecommendationFilters {
@@ -38,7 +44,7 @@ export class ModelsService {
   constructor(private readonly supabaseService: SupabaseService) {}
 
   async findAllNames(filters: ModelFilters = {}): Promise<ModelNameDto[]> {
-    const cacheKey = `names:${filters.providerName || 'all'}:${filters.status || 'all'}:${filters.sovereignMode || 'false'}`;
+    const cacheKey = `names:${filters.providerName || 'all'}:${filters.status || 'all'}:${filters.sovereignMode || 'false'}:${filters.modelType || 'all'}`;
     const cached = this.modelNamesCache.get(cacheKey);
 
     if (cached && Date.now() - cached.timestamp < this.cacheExpirationMs) {
@@ -49,13 +55,17 @@ export class ModelsService {
 
     let query = client
       .from(getTableName('llm_models'))
-      .select('provider_name, model_name, display_name')
+      .select('provider_name, model_name, display_name, model_type')
       .eq('is_active', true)
       .order('provider_name')
       .order('display_name');
 
     if (filters.providerName) {
       query = query.eq('provider_name', filters.providerName);
+    }
+
+    if (filters.modelType) {
+      query = query.eq('model_type', filters.modelType);
     }
 
     if (filters.sovereignMode) {
@@ -147,6 +157,10 @@ export class ModelsService {
       } else {
         query = query.not('capabilities', 'cs', ['reasoning']);
       }
+    }
+
+    if (filters.modelType) {
+      query = query.eq('model_type', filters.modelType);
     }
 
     if (isSovereignMode && ollamaProviderId) {

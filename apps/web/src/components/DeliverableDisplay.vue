@@ -170,11 +170,11 @@
     />
     <!-- Content Display -->
     <div class="content-section">
-      <!-- Sub-tabs: Plan, Document, Images -->
+      <!-- Sub-tabs: Plan, Document, Media -->
       <ion-segment v-model="activeSubTab" class="subtabs">
         <ion-segment-button value="plan">Plan</ion-segment-button>
         <ion-segment-button value="document">Document</ion-segment-button>
-        <ion-segment-button value="images" :disabled="imageAssets.length === 0">Images</ion-segment-button>
+        <ion-segment-button value="media" :disabled="mediaAssets.length === 0">Media</ion-segment-button>
       </ion-segment>
 
       <!-- Plan Tab -->
@@ -369,22 +369,33 @@
       </div>
       </template>
 
-      <!-- Images Tab -->
-      <div v-else-if="activeSubTab === 'images'" class="images-panel content-display">
-        <div class="images-actions">
-          <ion-button size="small" color="primary" @click="openGenerateModal">Generate Images</ion-button>
+      <!-- Media Tab -->
+      <div v-else-if="activeSubTab === 'media'" class="media-panel content-display">
+        <div class="media-actions">
+          <ion-button size="small" color="primary" @click="openGenerateModal">Generate Media</ion-button>
         </div>
-        <div v-if="imageAssets.length" class="thumb-grid">
-          <img
-            v-for="(img, idx) in imageAssets"
-            :key="idx"
-            class="thumb"
-            :src="img.thumbnailUrl || img.url"
-            :alt="img.altText || 'image'"
-            @click="openImage(img)"
-          />
+        <div v-if="mediaAssets.length" class="media-grid">
+          <template v-for="(item, idx) in mediaAssets" :key="idx">
+            <!-- Image -->
+            <img
+              v-if="item.type === 'image'"
+              class="media-thumb"
+              :src="item.thumbnailUrl || item.url"
+              :alt="item.altText || 'image'"
+              @click="openImage(item)"
+            />
+            <!-- Video -->
+            <video
+              v-else-if="item.type === 'video'"
+              class="media-thumb"
+              :src="item.url"
+              :poster="item.thumbnailUrl"
+              controls
+              @click.stop
+            />
+          </template>
         </div>
-        <div v-else class="text-content">No images attached to this version.</div>
+        <div v-else class="text-content">No media attached to this version.</div>
       </div>
     </div>
     <!-- Compact Footer -->
@@ -451,10 +462,10 @@
     </ion-popover>
     </div>
   </div>
-  <!-- Generate Images Modal -->
+  <!-- Generate Media Modal -->
   <ion-modal :is-open="showGenerateModal" @didDismiss="showGenerateModal = false">
     <div class="ion-padding">
-      <h3>Generate Images</h3>
+      <h3>Generate Media</h3>
       <ion-item>
         <ion-label position="stacked">Prompt</ion-label>
         <ion-input v-model="genPrompt" placeholder="Describe the image..." />
@@ -902,11 +913,55 @@ const loadVersions = async () => {
     // The computed property will handle the fallback through the store
   }
 };
-const imageAssets = computed(() => {
+// Combined media assets (images + videos) for the Media tab
+const mediaAssets = computed(() => {
   try {
-    const imgs = (displayVersion.value as DeliverableVersion)?.fileAttachments?.images || [];
-    return Array.isArray(imgs) ? imgs : [];
-  } catch { return []; }
+    const attachments = (displayVersion.value as DeliverableVersion)?.fileAttachments;
+    if (!attachments) return [];
+
+    const items: Array<{
+      type: 'image' | 'video';
+      url: string;
+      thumbnailUrl?: string;
+      altText?: string;
+      assetId?: string;
+      mime?: string;
+    }> = [];
+
+    // Add images
+    const imgs = attachments.images;
+    if (Array.isArray(imgs)) {
+      items.push(
+        ...imgs.map((img) => ({
+          type: 'image' as const,
+          url: img.url,
+          thumbnailUrl: img.thumbnailUrl,
+          altText: img.altText,
+          assetId: img.assetId,
+          mime: img.mime,
+        })),
+      );
+    }
+
+    // Add videos
+    const vids = attachments.videos;
+    if (Array.isArray(vids)) {
+      items.push(
+        ...vids.map((vid) => ({
+          type: 'video' as const,
+          url: vid.url,
+          thumbnailUrl: vid.thumbnailUrl,
+          altText: vid.altText,
+          assetId: vid.assetId,
+          mime: vid.mime,
+        })),
+      );
+    }
+
+    return items;
+  } catch {
+    return [];
+  }
 });
 const hasPlanContent = computed(() => {
   const c = displayVersion.value?.content || '';
@@ -1395,6 +1450,28 @@ watch(() => props.deliverable?.id, async () => {
   object-fit: cover;
   border-radius: 8px;
   cursor: pointer;
+}
+
+/* Media panel styles (combined images + videos) */
+.media-panel .media-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.media-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+.media-panel .media-thumb {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.media-panel video.media-thumb {
+  background: #000;
 }
 .markdown-content {
   line-height: 1.7;

@@ -28,6 +28,7 @@ import {
   LLMResponse,
   LLMServiceConfig,
   LLMRequestOptions,
+  ImageGenerationResponse,
 } from './services/llm-interfaces';
 import {
   Provider,
@@ -1901,5 +1902,127 @@ export class LLMService {
 
     const severities = piiTypes.map((type) => severityMap[type] || 'flagger');
     return [...new Set(severities)]; // Remove duplicates
+  }
+
+  /**
+   * Generate image using provider-specific image generation APIs
+   *
+   * Routes to the appropriate provider (OpenAI, Google) based on ExecutionContext.
+   * Uses provider/model from context, which must be image generation models.
+   *
+   * @param params - Image generation parameters including prompt, size, quality
+   * @returns ImageGenerationResponse with generated image bytes and metadata
+   *
+   * @example
+   * ```typescript
+   * const response = await llmService.generateImage({
+   *   provider: 'openai',
+   *   model: 'gpt-image-1.5',
+   *   prompt: 'A sunset over mountains',
+   *   size: '1024x1024',
+   *   quality: 'hd',
+   *   executionContext: context,
+   * });
+   * ```
+   */
+  async generateImage(params: {
+    provider: string;
+    model: string;
+    prompt: string;
+    size?: '256x256' | '512x512' | '1024x1024' | '1792x1024' | '1024x1792';
+    quality?: 'standard' | 'hd';
+    style?: 'natural' | 'vivid';
+    numberOfImages?: number;
+    referenceImageUrl?: string;
+    background?: 'transparent' | 'opaque' | 'auto';
+    executionContext: ExecutionContext;
+  }): Promise<ImageGenerationResponse> {
+    const { provider, model, executionContext, ...imageParams } = params;
+
+    // Validate provider supports image generation
+    const supportedImageProviders = ['openai', 'google'];
+    if (!supportedImageProviders.includes(provider.toLowerCase())) {
+      throw new Error(
+        `Image generation not supported for provider: ${provider}. Supported providers: ${supportedImageProviders.join(', ')}`,
+      );
+    }
+
+    // Emit observability event
+    this.emitLlmObservabilityEvent('agent.llm.started', executionContext, {
+      provider,
+      model,
+      message: 'Image generation started',
+      promptPreview: imageParams.prompt.substring(0, 500),
+      type: 'image-generation',
+    });
+
+    try {
+      // Create service configuration
+      const config: LLMServiceConfig = {
+        provider,
+        model,
+      };
+
+      // Get the service from factory
+      const service = await this.llmServiceFactory.createService(config);
+
+      // Check if the service supports image generation
+      if (!service.generateImage) {
+        throw new Error(
+          `Provider ${provider} service does not implement image generation`,
+        );
+      }
+
+      // Call the service's generateImage method
+      const response = await service.generateImage(executionContext, {
+        prompt: imageParams.prompt,
+        size: imageParams.size,
+        quality: imageParams.quality,
+        style: imageParams.style,
+        numberOfImages: imageParams.numberOfImages,
+        referenceImageUrl: imageParams.referenceImageUrl,
+        background: imageParams.background,
+      });
+
+      // Emit completion event
+      this.emitLlmObservabilityEvent('agent.llm.completed', executionContext, {
+        provider,
+        model,
+        message: 'Image generation completed',
+        imagesGenerated: response.images.length,
+        type: 'image-generation',
+      });
+
+      return response;
+    } catch (error) {
+      // Emit error event
+      this.emitLlmObservabilityEvent('agent.llm.failed', executionContext, {
+        provider,
+        model,
+        message: 'Image generation failed',
+        error: error instanceof Error ? error.message : String(error),
+        type: 'image-generation',
+      });
+
+      // Return error response
+      return {
+        images: [],
+        metadata: {
+          provider,
+          model,
+          requestId: executionContext.taskId,
+          timestamp: new Date().toISOString(),
+          usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+          timing: { startTime: Date.now(), endTime: Date.now(), duration: 0 },
+          status: 'error',
+          errorMessage:
+            error instanceof Error ? error.message : 'Unknown error',
+        },
+        error: {
+          code: 'IMAGE_GENERATION_FAILED',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        },
+      };
+    }
   }
 }
