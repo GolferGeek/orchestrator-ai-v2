@@ -75,7 +75,13 @@ If format command fails or reports issues:
 If lint reports errors in any workspace:
 - Fix lint errors manually in the affected workspace
 - Or run auto-fix: `npm run lint -- --fix` (if available)
+- **Check for anti-patterns** using `strict-linting-skill`:
+  - Underscore variables (should be removed, not silenced)
+  - Unused imports/variables (should be removed)
+  - Suppressions without justification (should be fixed or documented)
+  - Empty catch blocks (should handle errors properly)
 - **DO NOT commit** until lint passes in ALL workspaces (API, Web, LangGraph)
+- **DO NOT commit** if anti-patterns are found (workarounds are forbidden)
 - Report which workspace(s) have lint errors
 
 ### ❌ Build Failure
@@ -85,9 +91,10 @@ If build fails:
 - Fix type errors
 - **DO NOT commit** until build succeeds
 
-## Integration with quality-gates-skill
+## Integration with Other Skills
 
-For detailed quality gate patterns and troubleshooting, see the `quality-gates-skill` which provides comprehensive quality gate documentation.
+- **quality-gates-skill**: For detailed quality gate patterns and troubleshooting
+- **strict-linting-skill**: For enforcing hardcore linting rules and catching anti-patterns (workarounds, underscore variables, etc.)
 
 ## Checklist
 

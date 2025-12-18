@@ -138,7 +138,17 @@ cd apps/web && npm run lint -- --fix && cd ../..
 cd apps/langgraph && npm run lint -- --fix && cd ../..
 ```
 
-**CRITICAL:** All workspaces (API, Web, LangGraph) must pass lint before committing.
+**Check for Anti-Patterns:**
+After linting, use `strict-linting-skill` to catch workarounds:
+- Underscore variables (should be removed, not silenced)
+- Unused imports/variables (should be removed)
+- Suppressions without justification (should be fixed or documented)
+- Empty catch blocks (should handle errors properly)
+
+**CRITICAL:** 
+- All workspaces (API, Web, LangGraph) must pass lint before committing
+- **NO WORKAROUNDS** - Fix root causes, don't silence errors
+- Anti-patterns (underscore variables, suppressions) are forbidden
 
 ### ❌ Test Failure
 
@@ -373,4 +383,5 @@ Before committing:
 
 - **Conventional Commits**: See Conventional Commits Skill for commit message format
 - **Git Standards**: See Orchestrator Git Standards Skill for git workflow
+- **Strict Linting**: See `strict-linting-skill` for hardcore linting rules and anti-pattern detection
 

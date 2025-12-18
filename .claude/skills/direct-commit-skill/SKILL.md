@@ -64,6 +64,7 @@ Same as `/commit`, but after successful commit:
 - `execution-context-skill/` - For execution context validation (when available)
 - `transport-types-skill/` - For A2A compliance checks (when available)
 - `quality-gates-skill/` - For quality gate patterns
+- `strict-linting-skill/` - For enforcing hardcore linting rules and catching anti-patterns
 
 ## Important Notes
 

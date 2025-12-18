@@ -1,0 +1,21 @@
+{
+  "timestamp": "2025-12-18-093709",
+  "created_at": "2025-12-18 15:37:12 UTC",
+  "type": "full-backup-no-n8n",
+  "description": "Complete database backup excluding n8n schema for intern setup",
+  "schemas_included": ["public", "auth", "storage", "company", "observability", "rag", "marketing"],
+  "schemas_excluded": ["n8n"],
+  "includes": {
+    "schema": true,
+    "all_data": true,
+    "auth_users": true,
+    "rbac": true,
+    "agents": true,
+    "llm_config": true,
+    "marketing": true,
+    "rag_schema": true
+  },
+  "db_container": "supabase_db_api-dev",
+  "backup_file": "full-backup-no-n8n-2025-12-18-093709.sql.gz",
+  "restore_command": "gunzip -c apps/api/supabase/backups/full-backup-no-n8n-2025-12-18-093709.sql.gz | docker exec -i -e PGPASSWORD=postgres supabase_db_api-dev psql -h localhost -p 5432 -U postgres -d postgres"
+}
