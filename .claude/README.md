@@ -34,8 +34,8 @@ We're rebuilding with a focused approach:
    - `langgraph-architecture-skill/` - LangGraph app patterns
 
 3. **Development Skills** (Subconversations 3-4, 8)
-   - `langgraph-development-skill/` - Prescriptive LangGraph building
-   - `n8n-development-skill/` - Prescriptive N8N building
+   - ✅ `langgraph-development-skill/` - Prescriptive LangGraph building (COMPLETE)
+   - ✅ `n8n-development-skill/` - Prescriptive N8N building (COMPLETE)
    - `agent-creation-skill/` - Creating agents in the agent table
 
 4. **Hardening Skills** (Subconversation 9)
@@ -65,9 +65,10 @@ We're rebuilding with a focused approach:
 - ✅ Subconversation 1: Execution Context Deep Dive - `execution-context-skill/` created
 - ✅ Subconversation 2: Transport Types & A2A Compliance - `transport-types-skill/` created
 - ✅ Subconversation 3: LangGraph Prescriptive Building Pattern - `langgraph-development-skill/` created
+- ✅ Subconversation 4: N8N Prescriptive Building Pattern - `n8n-development-skill/` created
 
 **Next:**
-- ⏳ Subconversation 4: N8N Prescriptive Building Pattern
+- ⏳ Subconversation 5: Web App Architecture
 
 **Next Steps:**
 

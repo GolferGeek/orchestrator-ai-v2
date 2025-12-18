@@ -4,6 +4,8 @@ description: Commit changes directly to current branch after quality checks (lin
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 ---
 
+**Claude Code Note:** With `allowed-tools: Bash` specified, ALL git commands (including `git diff` and `git fetch`) can be executed WITHOUT prompts. These are read-only operations essential for the workflow.
+
 # Direct Commit Skill
 
 Commit changes directly to the current branch after running quality gates and safety checks. This is for the architect's workflow - bypasses PR process but still ensures code quality.
@@ -34,6 +36,20 @@ Use this skill when:
 
 **Git Commands (via Bash - FULL PERMISSION):**
 The Bash tool has **complete, unrestricted permission** to execute **ANY and ALL git commands** without prompts. See [REFERENCE.md](REFERENCE.md) for complete git command reference.
+
+**CRITICAL - No Approval Required (Claude Code):**
+- ✅ `git diff` (all variations: `git diff`, `git diff HEAD`, `git diff --staged`, `git diff HEAD -- <path>`) - Used for commit message generation
+- ✅ `git fetch` (all variations: `git fetch origin`, `git fetch origin main`) - Used to check remote status
+- ✅ `git status` - Used to check changed files
+- ✅ All other git commands - Full access without prompts
+
+**Why No Prompts:**
+- The `allowed-tools: Bash` frontmatter grants automatic permission for ALL bash commands
+- `git diff` and `git fetch` are read-only operations (safe)
+- These commands are essential for the commit workflow
+- Claude Code should execute these automatically when the skill is active
+
+**If Cursor prompts for approval on git commands, this is a bug** - the skill has explicit permission for all git operations.
 
 ## Quick Workflow
 

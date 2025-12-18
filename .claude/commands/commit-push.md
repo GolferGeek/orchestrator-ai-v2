@@ -88,7 +88,7 @@ The custom message will be used exactly as provided.
 ## Push Behavior
 
 After successful commit:
-- **Fetches remote changes first** to check for diverged branches
+- **Fetches remote changes first** (`git fetch origin`) - **NEVER prompts for approval**
 - **If remote has changes:**
   - Pulls and merges remote changes (creates merge commit if needed)
   - Then pushes to `origin/<current-branch>`
@@ -98,7 +98,7 @@ After successful commit:
   - Sets upstream and pushes: `git push -u origin <current-branch>`
 - **Handles push errors gracefully**
 
-**Note:** If the remote branch has diverged (has commits you don't have), you may be prompted to approve a merge. This is normal and ensures your local changes are merged with remote changes before pushing.
+**Note:** The skill has **full permission** to run all git commands (including `git diff` and `git fetch`) without prompting for approval. If you are prompted, this is unexpected - the skill should have automatic permission.
 
 ## Examples
 

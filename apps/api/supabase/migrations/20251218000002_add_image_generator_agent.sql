@@ -19,7 +19,6 @@ INSERT INTO public.agents (
   capabilities,
   context,
   endpoint,
-  llm_config,
   metadata,
   created_at,
   updated_at
@@ -98,32 +97,7 @@ VALUES (
     }
   }'::jsonb,
   ARRAY['image-generation'],
-  '# Image Generator Agent
-
-This agent generates high-quality images using AI models from OpenAI and Google.
-
-## Supported Providers
-
-### OpenAI
-- **gpt-image-1.5**: Latest GPT Image model with superior quality and text rendering
-- **gpt-image-1**: Flagship GPT Image model with 3 quality tiers
-
-### Google
-- **imagen-4.0-generate-001**: Imagen 4 for high-quality photorealistic images
-- **imagen-4.0-ultra-generate-001**: Imagen 4 Ultra for maximum prompt alignment
-
-## Parameters
-
-- **prompt**: Text description of what to generate
-- **size**: Image dimensions (1024x1024 default)
-- **quality**: standard or hd
-- **style**: natural or vivid
-- **numberOfImages**: How many images (1-4)
-
-## Output
-
-Generated images are stored in Supabase storage and linked to the conversation/task via the assets table.',
-  NULL,
+  '{"input_modes": ["text/plain"], "output_modes": ["image/png", "image/jpeg", "image/webp"]}'::jsonb,
   NULL,
   '{
     "mediaType": "image",
@@ -143,7 +117,7 @@ Generated images are stored in Supabase storage and linked to the conversation/t
   NOW(),
   NOW()
 )
-ON CONFLICT (slug) DO UPDATE SET
+ON CONFLICT (organization_slug, slug) DO UPDATE SET
   name = EXCLUDED.name,
   description = EXCLUDED.description,
   version = EXCLUDED.version,

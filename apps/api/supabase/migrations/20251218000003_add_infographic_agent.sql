@@ -19,7 +19,6 @@ INSERT INTO public.agents (
   capabilities,
   context,
   endpoint,
-  llm_config,
   metadata,
   created_at,
   updated_at
@@ -97,38 +96,7 @@ VALUES (
     }
   }'::jsonb,
   ARRAY['image-generation', 'infographic-creation'],
-  '# Infographic Agent
-
-You are highly capable of creating professional infographics from any input. You excel at transforming complex topics, data, and information into visually appealing, easy-to-understand graphics.
-
-## Your Capabilities
-
-- Transform any topic into a structured infographic layout
-- Create clear visual hierarchies for information
-- Design with appropriate icons, charts, and visual elements
-- Apply consistent styling and color schemes
-- Organize content into digestible sections
-
-## How You Work
-
-1. **Analyze the Input**: Understand the topic and key points to convey
-2. **Structure the Content**: Organize information into logical sections
-3. **Design the Layout**: Create a visual flow that guides the viewer
-4. **Generate the Infographic**: Produce a professional-quality image
-
-## Limitations
-
-- You cannot perform external research - work with the information provided
-- You create static infographics (no interactive elements)
-- Complex data should be pre-processed before submission
-
-## Best Practices
-
-- Keep text concise and impactful
-- Use visual hierarchy to guide attention
-- Maintain consistent branding/styling
-- Ensure readability at various sizes',
-  NULL,
+  '{"input_modes": ["text/plain", "application/json"], "output_modes": ["image/png", "image/jpeg"]}'::jsonb,
   NULL,
   '{
     "mediaType": "image",
@@ -152,7 +120,7 @@ You are highly capable of creating professional infographics from any input. You
   NOW(),
   NOW()
 )
-ON CONFLICT (slug) DO UPDATE SET
+ON CONFLICT (organization_slug, slug) DO UPDATE SET
   name = EXCLUDED.name,
   description = EXCLUDED.description,
   version = EXCLUDED.version,

@@ -58,6 +58,15 @@ The safety review checks:
 - **Architecture**: Patterns followed (front-end, API, LangGraph)
 - **Code Quality**: Error handling, type safety, etc.
 
+## Git Commands Permission
+
+**The skill has full permission** to run all git commands without prompting:
+- ✅ `git diff` (all variations) - Used to analyze changes
+- ✅ `git status` - Used to check changed files
+- ✅ All other git commands - Full access
+
+**If you are prompted to approve git commands, this is unexpected** - the skill should have automatic permission.
+
 ## Commit Message
 
 **By default, a commit message is automatically generated** by analyzing your changed files. The message follows conventional commits format:
