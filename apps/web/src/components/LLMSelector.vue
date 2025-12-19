@@ -280,6 +280,13 @@ watch(() => llmStore.sovereignMode, (newMode) => {
   userSovereignMode.value = newMode;
 });
 
+// Watch model type changes from store (e.g., when media agent is selected)
+watch(() => llmStore.selectedModelType, (newModelType) => {
+  if (newModelType && newModelType !== selectedModelType.value) {
+    selectedModelType.value = newModelType;
+  }
+});
+
 // Watch user preferences changes and sync to LLM store
 watch(() => userPreferencesStore.preferredProvider, (newProviderName) => {
   if (newProviderName && newProviderName !== llmStore.selectedProvider?.name) {

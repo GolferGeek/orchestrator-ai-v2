@@ -37,13 +37,6 @@
         </div>
         
 
-        <!-- Inline image gallery (if deliverable has image attachments) -->
-        <div v-if="message.role === 'assistant' && imageAssets.length" class="image-gallery">
-          <div class="thumb-grid">
-            <img v-for="(img, idx) in imageAssets" :key="idx" class="thumb" :src="img.thumbnailUrl || img.url" :alt="img.altText || 'image'" @click.stop="openImage(img)" />
-          </div>
-        </div>
-
         <!-- Deliverable/Plan Creation Callout -->
         <div v-if="willHideForDeliverable" class="deliverable-creation-callout" :class="{ 'clickable': displayedDeliverable || displayedPlan }" @click="handleCalloutClick">
           <div class="callout-content">
@@ -275,12 +268,6 @@ interface LLMCostSummary {
   currency: string;
 }
 
-interface DeliverableImageAttachment extends JsonObject {
-  thumbnailUrl?: string;
-  url?: string;
-  altText?: string;
-}
-
 interface WorkflowDisplayStep {
   stepName: string;
   stepIndex: number;
@@ -309,19 +296,6 @@ const getJsonNumber = (source: JsonObject | undefined, key: string): number | un
   if (!source) return undefined;
   const candidate = source[key];
   return typeof candidate === 'number' ? candidate : undefined;
-};
-
-const isDeliverableImageAttachment = (value: JsonValue): value is DeliverableImageAttachment => {
-  if (!isJsonObject(value)) {
-    return false;
-  }
-
-  const { thumbnailUrl, url, altText } = value as Partial<DeliverableImageAttachment>;
-  return (
-    (thumbnailUrl === undefined || typeof thumbnailUrl === 'string')
-    && (url === undefined || typeof url === 'string')
-    && (altText === undefined || typeof altText === 'string')
-  );
 };
 
 const props = defineProps<{
@@ -525,27 +499,6 @@ onMounted(() => {
     };
     chatUiStore.setPendingAction(pendingAction);
   }
-});
-
-// Image attachments for associated deliverable (if any)
-const imageAssets = computed<DeliverableImageAttachment[]>(() => {
-  const deliverableId = props.message.deliverableId ?? props.message.metadata?.deliverableId;
-  if (!deliverableId) {
-    return [];
-  }
-
-  const currentVersion = deliverablesStore.getCurrentVersion(deliverableId);
-  const attachments = currentVersion?.fileAttachments;
-  if (!attachments || !isJsonObject(attachments)) {
-    return [];
-  }
-
-  const candidateImages = attachments['images'];
-  if (!Array.isArray(candidateImages)) {
-    return [];
-  }
-
-  return candidateImages.filter(isDeliverableImageAttachment);
 });
 
 // LLM Information computed properties
@@ -1090,12 +1043,6 @@ async function playAudio(audioData: string) {
   });
 }
 
-function openImage(img: DeliverableImageAttachment) {
-  if (!img.url) {
-    return;
-  }
-  window.open(img.url, '_blank');
-}
 </script>
 
 <style scoped>
@@ -1316,22 +1263,6 @@ function openImage(img: DeliverableImageAttachment) {
 
 .metadata-button:hover {
   --color: var(--ion-color-primary);
-}
-
-.image-gallery {
-  margin-bottom: 8px;
-}
-.thumb-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-}
-.thumb {
-  width: 100%;
-  aspect-ratio: 1 / 1;
-  object-fit: cover;
-  border-radius: 6px;
-  cursor: pointer;
 }
 
 .approval-status {

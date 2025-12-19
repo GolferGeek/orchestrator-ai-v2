@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { AgentRuntimeDefinition } from '@agent-platform/interfaces/agent.interface';
 import type { BuildCreatePayload } from '@orchestrator-ai/transport-types/modes/build.types';
 import { LLMService } from '@llm/llm.service';
@@ -96,6 +96,7 @@ export class MediaAgentRunnerService extends BaseAgentRunner {
     conversationsService: Agent2AgentConversationsService,
     deliverablesService: DeliverablesService,
     streamingService: StreamingService,
+    @Inject(MediaStorageHelper)
     private readonly mediaStorage: MediaStorageHelper,
   ) {
     super(
@@ -105,6 +106,16 @@ export class MediaAgentRunnerService extends BaseAgentRunner {
       conversationsService,
       deliverablesService,
       streamingService,
+    );
+    // Debug: verify mediaStorage is properly injected
+    this.logger.debug(
+      `🎨 [MEDIA-RUNNER] Constructor - mediaStorage type: ${typeof this.mediaStorage}, has storeGeneratedMedia: ${typeof this.mediaStorage?.storeGeneratedMedia}`,
+    );
+    this.logger.debug(
+      `🎨 [MEDIA-RUNNER] Constructor - mediaStorage constructor: ${this.mediaStorage?.constructor?.name}, keys: ${String(Object.keys(this.mediaStorage || {}))}`,
+    );
+    this.logger.debug(
+      `🎨 [MEDIA-RUNNER] Constructor - mediaStorage prototype methods: ${String(Object.getOwnPropertyNames(Object.getPrototypeOf(this.mediaStorage || {})))}`,
     );
   }
 
@@ -276,6 +287,21 @@ export class MediaAgentRunnerService extends BaseAgentRunner {
     );
 
     // Store each generated image
+    this.logger.debug(
+      `🎨 [MEDIA-RUNNER] About to store ${imageResponse.images.length} images, mediaStorage: ${typeof this.mediaStorage}, method: ${typeof this.mediaStorage?.storeGeneratedMedia}`,
+    );
+
+    // Guard: verify mediaStorage is properly injected
+    if (
+      !this.mediaStorage ||
+      typeof this.mediaStorage.storeGeneratedMedia !== 'function'
+    ) {
+      this.logger.error(
+        `🎨 [MEDIA-RUNNER] CRITICAL: mediaStorage not properly injected! type=${typeof this.mediaStorage}`,
+      );
+      throw new Error('MediaStorageHelper not properly injected');
+    }
+
     const storedAssets = await Promise.all(
       imageResponse.images.map((img) =>
         this.mediaStorage.storeGeneratedMedia(img.data, context, {
@@ -560,6 +586,10 @@ export class MediaAgentRunnerService extends BaseAgentRunner {
     }
 
     // Create deliverable version
+    // Map media type to deliverable type (image-generation -> image, video-generation -> video)
+    const deliverableType =
+      metadata.type === 'video-generation' ? 'video' : 'image';
+
     const result = await this.deliverablesService.executeAction(
       'create',
       {
@@ -567,7 +597,7 @@ export class MediaAgentRunnerService extends BaseAgentRunner {
         content: metadata.revisedPrompt || metadata.prompt,
         format:
           metadata.type === 'video-generation' ? 'video/mp4' : 'image/png',
-        type: metadata.type,
+        type: deliverableType,
         deliverableId,
         agentName: definition.name ?? definition.slug,
         taskId: context.taskId,

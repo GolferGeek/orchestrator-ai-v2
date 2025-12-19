@@ -61,7 +61,7 @@ interface TaskResponseWithContext extends TaskResponse {
  */
 function mapDeliverableType(type?: string): DeliverableType | undefined {
   if (!type) return undefined;
-  const validTypes = ['document', 'analysis', 'report', 'plan', 'requirements'];
+  const validTypes = ['document', 'analysis', 'report', 'plan', 'requirements', 'image', 'video'];
   return validTypes.includes(type.toLowerCase())
     ? (type.toLowerCase() as DeliverableType)
     : undefined;
@@ -258,6 +258,8 @@ export async function handleA2AResponse(response: TaskResponse): Promise<A2AResu
             format: mapDeliverableFormat(version.format),
             createdByType: mapCreatedByType(version.createdByType),
             isCurrentVersion: version.isCurrentVersion ?? true,
+            metadata: version.metadata,
+            fileAttachments: version.fileAttachments,
             createdAt: version.createdAt || new Date().toISOString(),
             updatedAt: version.createdAt || new Date().toISOString(),
           } : undefined,
@@ -279,6 +281,8 @@ export async function handleA2AResponse(response: TaskResponse): Promise<A2AResu
           format: mapDeliverableFormat(version.format),
           createdByType: mapCreatedByType(version.createdByType),
           isCurrentVersion: version.isCurrentVersion ?? true,
+          metadata: version.metadata,
+          fileAttachments: version.fileAttachments,
           createdAt: version.createdAt || new Date().toISOString(),
           updatedAt: version.createdAt || new Date().toISOString(),
         };

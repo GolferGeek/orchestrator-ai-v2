@@ -25,7 +25,7 @@ INSERT INTO public.agents (
 )
 VALUES (
   'infographic-agent',
-  ARRAY['demo'],
+  ARRAY['demo-org'],
   'Infographic Agent',
   'Creates professional infographics from any topic or input. Transforms complex information into visually appealing, easy-to-understand graphics.',
   '1.0.0',
@@ -100,17 +100,17 @@ VALUES (
   NULL,
   '{
     "mediaType": "image",
-    "defaultProvider": "openai",
-    "defaultModel": "gpt-image-1.5",
+    "defaultProvider": "google",
+    "defaultModel": "imagen-3.0-generate-001",
     "supportedProviders": ["openai", "google"],
     "supportedModels": {
       "openai": ["gpt-image-1.5", "gpt-image-1"],
       "google": ["imagen-4.0-generate-001", "imagen-4.0-ultra-generate-001"]
     },
     "executionCapabilities": {
-      "supportsConverse": false,
-      "supportsPlan": false,
-      "supportsBuild": true
+      "canConverse": false,
+      "canPlan": false,
+      "canBuild": true
     },
     "promptEnhancement": {
       "enabled": true,
@@ -145,7 +145,7 @@ BEGIN
     SELECT 1 FROM public.agents
     WHERE slug = 'infographic-agent'
     AND agent_type = 'media'
-    AND 'demo' = ANY(organization_slug)
+    AND 'demo-org' = ANY(organization_slug)
     AND department = 'marketing'
   ) INTO agent_exists;
 

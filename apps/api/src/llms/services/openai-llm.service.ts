@@ -283,8 +283,11 @@ export class OpenAILLMService extends BaseLLMService {
       // Determine if using newer GPT Image model or legacy DALL-E
       const isGptImage = model.includes('gpt-image');
       const isDalle3 = model.includes('dall-e-3');
+      const isDalle2 = model.includes('dall-e-2');
 
       // Build request options
+      // Note: gpt-image-1 models always return b64_json and don't accept response_format
+      // DALL-E models support response_format parameter
       const requestOptions: OpenAI.Images.ImageGenerateParams = {
         model,
         prompt: params.prompt,
@@ -295,11 +298,15 @@ export class OpenAILLMService extends BaseLLMService {
           | '1024x1024'
           | '1792x1024'
           | '1024x1792',
-        response_format: 'b64_json', // Get base64 directly
       };
 
-      // Add quality and style for supported models
-      if (isGptImage || isDalle3) {
+      // Only add response_format for DALL-E models (gpt-image models always return b64_json)
+      if (isDalle2 || isDalle3) {
+        requestOptions.response_format = 'b64_json';
+      }
+
+      // Add quality and style only for DALL-E 3 (gpt-image models don't support these)
+      if (isDalle3) {
         requestOptions.quality = quality;
         requestOptions.style = style;
       }
@@ -324,26 +331,50 @@ export class OpenAILLMService extends BaseLLMService {
       const endTime = Date.now();
 
       // Convert response to our format
-      const images = (response.data ?? []).map((img) => {
-        const buffer = Buffer.from(img.b64_json ?? '', 'base64');
+      // gpt-image-1 models return b64_json directly
+      // DALL-E models may return URL or b64_json depending on response_format
+      const images = await Promise.all(
+        (response.data ?? []).map(async (img) => {
+          let buffer: Buffer;
 
-        // Parse size dimensions
-        const [width, height] = this.parseSizeDimensions(size);
+          if (img.b64_json) {
+            // Base64 encoded image data
+            buffer = Buffer.from(img.b64_json, 'base64');
+          } else if (img.url) {
+            // URL - need to download the image
+            this.logger.debug(
+              `🖼️ [OPENAI-IMAGE] Downloading image from URL...`,
+            );
+            const fetchResponse = await fetch(img.url);
+            if (!fetchResponse.ok) {
+              throw new Error(
+                `Failed to download image: ${fetchResponse.statusText}`,
+              );
+            }
+            const arrayBuffer = await fetchResponse.arrayBuffer();
+            buffer = Buffer.from(arrayBuffer);
+          } else {
+            throw new Error('No image data in response');
+          }
 
-        const metadata: ImageMetadata = {
-          width,
-          height,
-          mimeType: 'image/png',
-          sizeBytes: buffer.length,
-          revisedPrompt: img.revised_prompt,
-        };
+          // Parse size dimensions
+          const [width, height] = this.parseSizeDimensions(size);
 
-        return {
-          data: buffer,
-          revisedPrompt: img.revised_prompt,
-          metadata,
-        };
-      });
+          const metadata: ImageMetadata = {
+            width,
+            height,
+            mimeType: 'image/png',
+            sizeBytes: buffer.length,
+            revisedPrompt: img.revised_prompt,
+          };
+
+          return {
+            data: buffer,
+            revisedPrompt: img.revised_prompt,
+            metadata,
+          };
+        }),
+      );
 
       this.logger.log(
         `🖼️ [OPENAI-IMAGE] Generated ${images.length} image(s), total bytes: ${images.reduce((sum, img) => sum + img.data.length, 0)}`,

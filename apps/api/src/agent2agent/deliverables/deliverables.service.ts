@@ -145,6 +145,7 @@ export class DeliverablesService implements IActionHandler {
               taskId?: string;
               metadata?: Record<string, unknown>;
               deliverableId?: string;
+              fileAttachments?: Record<string, unknown>;
             },
             context,
           );
@@ -273,6 +274,7 @@ export class DeliverablesService implements IActionHandler {
       taskId?: string;
       metadata?: Record<string, unknown>;
       deliverableId?: string;
+      fileAttachments?: Record<string, unknown>;
     },
     context: ExecutionContext,
   ) {
@@ -323,6 +325,7 @@ export class DeliverablesService implements IActionHandler {
           createdByType: DeliverableVersionCreationType.AI_RESPONSE,
           taskId: params.taskId ?? context.taskId ?? undefined,
           metadata: params.metadata || {},
+          fileAttachments: params.fileAttachments,
         },
         enhanceContext,
       );
@@ -345,6 +348,7 @@ export class DeliverablesService implements IActionHandler {
         initialCreationType: DeliverableVersionCreationType.AI_RESPONSE,
         initialTaskId: params.taskId ?? context.taskId ?? undefined,
         initialMetadata: params.metadata || {},
+        initialFileAttachments: params.fileAttachments,
       };
 
       const deliverable = await this.create(createDto, context.userId);

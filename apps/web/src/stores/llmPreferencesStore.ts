@@ -545,6 +545,51 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
         this.selectedModel = this.availableModels[0];
       }
     },
+
+    /**
+     * Set model type for a media agent with optional default provider/model.
+     * Used when switching to a media agent that has specific model requirements.
+     *
+     * @param modelType - The model type ('image-generation', 'video-generation', etc.)
+     * @param defaultProvider - Optional default provider from agent metadata
+     * @param defaultModel - Optional default model from agent metadata
+     */
+    async setModelTypeForAgent(
+      modelType: ModelType,
+      defaultProvider?: string,
+      defaultModel?: string,
+    ) {
+      // Set the model type and fetch appropriate models
+      this.selectedModelType = modelType;
+      await this.fetchModels(modelType);
+
+      // If we have a default provider from agent metadata, try to select it
+      if (defaultProvider) {
+        const provider = this.filteredProviders.find(
+          p => p.name.toLowerCase() === defaultProvider.toLowerCase()
+        );
+        if (provider) {
+          this.selectedProvider = provider;
+        }
+      }
+
+      // If we have a default model from agent metadata, try to select it
+      if (defaultModel && this.selectedProvider) {
+        const model = this.availableModels.find(
+          m => m.modelName === defaultModel || m.name === defaultModel
+        );
+        if (model) {
+          this.selectedModel = model;
+          return;
+        }
+      }
+
+      // Auto-select first available model if no default was set
+      if (this.selectedProvider && this.availableModels.length > 0 && !this.selectedModel) {
+        this.selectedModel = this.availableModels[0];
+      }
+    },
+
     // Fetch CIDAFM commands from API
     async fetchCIDAFMCommands() {
       this.loadingCommands = true;

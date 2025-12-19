@@ -101,17 +101,17 @@ VALUES (
   NULL,
   '{
     "mediaType": "image",
-    "defaultProvider": "openai",
-    "defaultModel": "gpt-image-1.5",
+    "defaultProvider": "google",
+    "defaultModel": "imagen-3.0-generate-001",
     "supportedProviders": ["openai", "google"],
     "supportedModels": {
       "openai": ["gpt-image-1.5", "gpt-image-1"],
       "google": ["imagen-4.0-generate-001", "imagen-4.0-ultra-generate-001"]
     },
     "executionCapabilities": {
-      "supportsConverse": false,
-      "supportsPlan": false,
-      "supportsBuild": true
+      "canConverse": false,
+      "canPlan": false,
+      "canBuild": true
     }
   }'::jsonb,
   NOW(),
