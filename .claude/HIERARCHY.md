@@ -143,6 +143,33 @@ Skills (Patterns & Validation)
 - `pr-review-agent.md` - For final validation
 - PRD Template - `obsidian/docs/archive/prd/templates/prd-template.md`
 
+### `/test`
+**Purpose:** Run tests, generate tests, fix failing tests, or check coverage  
+**Uses:** `testing-agent`  
+**Workflow:**
+1. Detects affected apps from changed files (or uses specified app)
+2. Determines action (run, generate, fix, coverage, setup)
+3. Delegates to `testing-agent` for execution
+4. Reports results with actionable feedback
+
+**Accepts:**
+- App: `web`, `api`, `langgraph`, or `all` (default: auto-detect)
+- Action: `run`, `generate`, `fix`, `coverage`, `setup` (default: `run`)
+- Target: Specific file or pattern (for generate/fix)
+
+**Examples:**
+- `/test` - Run tests for affected apps
+- `/test web` - Run tests for web app
+- `/test generate src/services/my.service.ts` - Generate tests for file
+- `/test fix` - Fix failing tests
+- `/test coverage` - Check coverage
+
+**Related:**
+- `testing-agent.md` - Performs testing operations
+- `web-testing-skill/` - Web app testing patterns
+- `api-testing-skill/` - API app testing patterns
+- `langgraph-testing-skill/` - LangGraph app testing patterns
+
 ### `/create-pr` (Planned)
 **Purpose:** Create pull request with progressive validation  
 **Uses:** Multiple skills based on changed files  
@@ -154,12 +181,13 @@ Skills (Patterns & Validation)
    - `web-architecture-skill` (if web files changed)
    - `api-architecture-skill` (if API files changed)
    - `langgraph-architecture-skill` (if LangGraph files changed)
-3. Runs quality gates
+3. Runs quality gates (including tests via `/test`)
 4. Creates PR if all checks pass
 
 **Related:**
 - All architecture skills
 - `quality-gates-skill/`
+- `testing-agent.md` - For test execution
 - `pr-review-agent.md` - For PR review
 
 ---
@@ -247,8 +275,36 @@ Skills (Patterns & Validation)
 ### `langgraph-architecture-agent.md`
 **Purpose:** Autonomous LangGraph specialist  
 **Capabilities:**
-- Builds LangGraph workflows
-- Implements HITL patterns
+- Builds LangGraph workflows, state machines, nodes, tools
+- Implements HITL (Human-in-the-Loop) patterns
+- Creates workflow graphs with checkpointing
+- Integrates with LLM service (via HTTP to API endpoint)
+- Integrates with observability service (via HTTP to API endpoint)
+- Makes architectural decisions for LangGraph code
+
+**Mandatory Skills:**
+- `execution-context-skill/` - ExecutionContext validation (MANDATORY)
+- `transport-types-skill/` - A2A compliance (MANDATORY)
+- `langgraph-architecture-skill/` - LangGraph file classification & validation (MANDATORY)
+
+**Uses:**
+- `langgraph-architecture-skill/` - For file classification and pattern validation
+- `execution-context-skill/` - For ExecutionContext flow validation
+- `transport-types-skill/` - For A2A protocol compliance
+- Can call `agent-builder-agent` to register agents
+
+**Key Patterns:**
+- StateGraph with nodes and edges
+- State annotation with ExecutionContext
+- Postgres checkpointing for state persistence
+- LLM service integration (HTTP client to API `/llm/generate` endpoint)
+- Observability integration (HTTP client to API `/webhooks/status` endpoint)
+- HITL patterns for human-in-the-loop workflows
+- Custom tools for database, API, and external services
+
+**Related:**
+- `langgraph-architecture-skill/` - Classification & validation
+- `langgraph-development-skill/` - Prescriptive LangGraph building patterns
 - Creates state graphs with checkpointing
 - Makes architectural decisions for LangGraph code
 
@@ -279,13 +335,200 @@ Skills (Patterns & Validation)
 - Coordinates agent creation workflow
 - Handles database registration
 
+**Mandatory Skills:**
+- `execution-context-skill/` - ExecutionContext validation (MANDATORY)
+- `transport-types-skill/` - A2A compliance (MANDATORY)
+
 **Routes To:**
 - Agent-type skills (context, rag, media, api, external, orchestrator)
 - Framework-specific builders (for API agents)
 
+**Agent Type Decision Logic:**
+- **Context Agent**: Knowledge-based, markdown context, LLM calls
+- **RAG Agent**: RAG collection integration, embedding/retrieval
+- **Media Agent**: Image/video/audio generation
+- **API Agent**: HTTP API calls, wraps LangGraph/N8N workflows
+- **External Agent**: A2A protocol, external service integration
+- **Orchestrator Agent**: Multi-agent coordination, workflow management
+
 **Related:**
 - All agent-type skills
 - Framework-specific builders
+
+### Agent Type Skills
+
+#### `context-agent-skill/`
+**Purpose:** How to build context agents  
+**Capabilities:**
+- Knowledge-based intelligence patterns
+- Context retrieval patterns (plans, deliverables, conversation)
+- Database requirements for context agents
+- LLM configuration patterns
+
+**Patterns:**
+- Markdown context files
+- Context source configuration
+- Token budget optimization
+- System prompt templates
+
+**Related:**
+- `agent-builder-agent.md` - Main orchestrator
+
+#### `rag-agent-skill/`
+**Purpose:** How to build RAG agents  
+**Capabilities:**
+- RAG collection setup
+- Embedding patterns
+- Retrieval patterns
+- Database requirements for RAG agents
+
+**Patterns:**
+- RAG collection configuration
+- Top-k retrieval
+- Similarity thresholds
+- Source citation
+
+**Related:**
+- `agent-builder-agent.md` - Main orchestrator
+
+#### `media-agent-skill/`
+**Purpose:** How to build media agents  
+**Capabilities:**
+- Image generation patterns
+- Video generation patterns
+- Audio generation patterns
+- Media storage patterns
+
+**Patterns:**
+- Media type configuration
+- Provider/model selection
+- Storage bucket configuration
+- Asset linking
+
+**Related:**
+- `agent-builder-agent.md` - Main orchestrator
+
+#### `api-agent-skill/`
+**Purpose:** How to build API agents  
+**Capabilities:**
+- Determines framework (LangGraph, N8N, future frameworks)
+- Routes to appropriate framework-specific builder
+- API endpoint patterns
+- Database registration requirements
+
+**Framework Decision Logic:**
+- **LangGraph**: Complex workflows, HITL, state management, checkpointing
+- **N8N**: Drag-and-drop, visual workflows, simpler integrations
+- **Default**: LangGraph (primary framework)
+
+**Routes To:**
+- `langgraph-api-agent-builder.md` - For LangGraph agents
+- `n8n-api-agent-builder.md` - For N8N agents
+
+**Related:**
+- `agent-builder-agent.md` - Main orchestrator
+- Framework-specific builders
+
+#### `external-agent-skill/`
+**Purpose:** How to build external agents  
+**Capabilities:**
+- External service integration
+- A2A protocol for external calls
+- Discovery patterns (`.well-known/agent.json`)
+
+**Patterns:**
+- A2A endpoint configuration
+- JSON-RPC 2.0 format
+- Discovery URL configuration
+- Authentication patterns
+
+**Related:**
+- `agent-builder-agent.md` - Main orchestrator
+- `transport-types-skill/` - A2A protocol details
+
+#### `orchestrator-agent-skill/`
+**Purpose:** How to build orchestrator agents  
+**Capabilities:**
+- Workflow coordination patterns
+- Multi-agent orchestration
+- Delegation patterns
+
+**Patterns:**
+- Sequential execution
+- Parallel execution
+- Conditional execution
+- Dependency management
+
+**Related:**
+- `agent-builder-agent.md` - Main orchestrator  
+**Capabilities:**
+- Image generation patterns
+- Video generation patterns
+- Audio generation patterns
+- Media storage patterns
+
+**Patterns:**
+- Media type configuration
+- Provider/model selection
+- Storage bucket configuration
+- Asset linking
+
+**Related:**
+- `agent-builder-agent.md` - Main orchestrator
+
+#### `api-agent-skill/`
+**Purpose:** How to build API agents  
+**Capabilities:**
+- Determines framework (LangGraph, N8N, future frameworks)
+- Routes to appropriate framework-specific builder
+- API endpoint patterns
+- Database registration requirements
+
+**Framework Decision Logic:**
+- **LangGraph**: Complex workflows, HITL, state management, checkpointing
+- **N8N**: Drag-and-drop, visual workflows, simpler integrations
+- **Default**: LangGraph (primary framework)
+
+**Routes To:**
+- `langgraph-api-agent-builder.md` - For LangGraph agents
+- `n8n-api-agent-builder.md` - For N8N agents
+
+**Related:**
+- `agent-builder-agent.md` - Main orchestrator
+- Framework-specific builders
+
+#### `external-agent-skill/`
+**Purpose:** How to build external agents  
+**Capabilities:**
+- External service integration
+- A2A protocol for external calls
+- Discovery patterns (`.well-known/agent.json`)
+
+**Patterns:**
+- A2A endpoint configuration
+- JSON-RPC 2.0 format
+- Discovery URL configuration
+- Authentication patterns
+
+**Related:**
+- `agent-builder-agent.md` - Main orchestrator
+- `transport-types-skill/` - A2A protocol details
+
+#### `orchestrator-agent-skill/`
+**Purpose:** How to build orchestrator agents  
+**Capabilities:**
+- Workflow coordination patterns
+- Multi-agent orchestration
+- Delegation patterns
+
+**Patterns:**
+- Sequential execution
+- Parallel execution
+- Conditional execution
+- Dependency management
+
+**Related:**
+- `agent-builder-agent.md` - Main orchestrator
 
 ### Framework-Specific Builders
 
@@ -398,6 +641,190 @@ Skills (Patterns & Validation)
 
 ---
 
+## Testing System
+
+### `/test`
+**Purpose:** Run tests, generate tests, fix failing tests, or check coverage  
+**Uses:** `testing-agent`  
+**Workflow:**
+1. Detects affected apps from changed files (or uses specified app)
+2. Determines action (run, generate, fix, coverage, setup)
+3. Delegates to `testing-agent` for execution
+4. Reports results with actionable feedback
+
+**Accepts:**
+- App: `web`, `api`, `langgraph`, or `all` (default: auto-detect)
+- Action: `run`, `generate`, `fix`, `coverage`, `setup` (default: `run`)
+- Target: Specific file or pattern (for generate/fix)
+
+**Examples:**
+- `/test` - Run tests for affected apps
+- `/test web` - Run tests for web app
+- `/test generate src/services/my.service.ts` - Generate tests for file
+- `/test fix` - Fix failing tests
+- `/test coverage` - Check coverage
+
+**Related:**
+- `testing-agent.md` - Performs testing operations
+- `web-testing-skill/` - Web app testing patterns
+- `api-testing-skill/` - API app testing patterns
+- `langgraph-testing-skill/` - LangGraph app testing patterns
+
+### `testing-agent.md`
+**Purpose:** Autonomous testing specialist  
+**Capabilities:**
+- Runs tests (unit, integration, E2E) for all apps
+- Generates tests following app-specific patterns
+- Fixes failing tests with analysis
+- Analyzes test coverage and identifies gaps
+- Sets up test infrastructure
+
+**Mandatory Skills:**
+- `execution-context-skill/` - ExecutionContext validation in tests (MANDATORY)
+- `transport-types-skill/` - A2A protocol validation in tests (MANDATORY)
+- App-specific testing skills (web-testing-skill, api-testing-skill, langgraph-testing-skill)
+- App-specific architecture skills (for context)
+
+**Test Execution:**
+- **Web**: Vitest (unit), Cypress (E2E)
+- **API**: Jest (unit), Jest + Supertest (E2E)
+- **LangGraph**: Jest (unit), Jest (E2E)
+
+**Smart Test Execution:**
+- Detects changed files: `git diff --name-only HEAD`
+- Runs tests only for affected apps
+- Skips E2E tests if services aren't running
+- Provides clear failure reports
+
+**Related:**
+- `web-testing-skill/` - Web app testing patterns
+- `api-testing-skill/` - API app testing patterns
+- `langgraph-testing-skill/` - LangGraph app testing patterns
+- `web-architecture-skill/` - Web app structure (for context)
+- `api-architecture-skill/` - API app structure (for context)
+- `langgraph-architecture-skill/` - LangGraph app structure (for context)
+
+### `e2e-testing-skill/`
+**Purpose:** E2E testing principles emphasizing NO MOCKING, real database work, real API calls, and real authentication  
+**Used By:** `testing-agent`, all app-specific testing skills  
+**Core Principle:** **NO MOCKING IN E2E TESTS**
+
+**Key Principles:**
+- ✅ Real database connections and queries
+- ✅ Real API calls (HTTP requests to actual endpoints)
+- ✅ Real authentication (Supabase test user credentials from `.env`)
+- ✅ Real services running (API server, database, etc.)
+- ✅ Real data in database (test data, not mocks)
+- ❌ NO mocks of database operations
+- ❌ NO mocks of API calls
+- ❌ NO mocks of authentication
+- ❌ NO fake data or stubs
+
+**Test User Credentials:**
+- `SUPABASE_TEST_USER=demo.user@playground.com` (or `golfergeek@orchestratorai.io`)
+- `SUPABASE_TEST_PASSWORD=demouser` (or `GolferGeek123!`)
+- `SUPABASE_TEST_USERID=b29a590e-b07f-49df-a25b-574c956b5035`
+
+**Related:**
+- `testing-agent.md` - Uses this skill for all E2E tests
+- `web-testing-skill/` - References this for E2E patterns
+- `api-testing-skill/` - References this for E2E patterns
+- `langgraph-testing-skill/` - References this for E2E patterns
+
+### `web-testing-skill/`
+**Purpose:** Web app testing patterns for Vue 3, Vitest, and Cypress  
+**Used By:** `testing-agent`  
+**Key Patterns:**
+- Component testing with Vue Test Utils
+- Store testing with Pinia testing utilities
+- Service testing with Vitest
+- Integration testing patterns
+- E2E testing with Cypress (references `e2e-testing-skill/` for NO MOCKING principles)
+- ExecutionContext validation in tests
+- A2A protocol validation in tests
+
+**Test Types:**
+- **Unit Tests**: Vitest (components, stores, services, composables) - mocking acceptable
+- **Integration Tests**: Component-service, store-service interactions
+- **E2E Tests**: Cypress (critical user journeys) - **NO MOCKING** (see `e2e-testing-skill/`)
+
+**Coverage Requirements:**
+- Global: 75% minimum
+- Critical Path: 90% minimum (validation, security, PII)
+- Components: 80% minimum
+- Stores: 85% minimum
+- Services: 80% minimum
+
+**Related:**
+- `testing-agent.md`
+- `e2e-testing-skill/` - **MANDATORY for E2E tests** (NO MOCKING)
+- `web-architecture-skill/` - Web app structure
+- `execution-context-skill/` - ExecutionContext validation
+- `transport-types-skill/` - A2A protocol validation
+
+### `api-testing-skill/`
+**Purpose:** API app testing patterns for NestJS and Jest  
+**Used By:** `testing-agent`  
+**Key Patterns:**
+- Service testing with NestJS testing utilities
+- Controller testing with Supertest
+- Agent runner testing patterns
+- E2E testing with Jest + Supertest (references `e2e-testing-skill/` for NO MOCKING principles)
+- ExecutionContext validation in tests
+- A2A protocol validation in tests
+
+**Test Types:**
+- **Unit Tests**: Jest (services, controllers, runners) - mocking acceptable
+- **Integration Tests**: Controller-service, database operations
+- **E2E Tests**: Jest + Supertest (full request/response cycles) - **NO MOCKING** (see `e2e-testing-skill/`)
+
+**Coverage Requirements:**
+- Global: 75% minimum
+- Critical Path: 90% minimum (security, validation, PII)
+- Services: 80% minimum
+- Controllers: 80% minimum
+- Agent Runners: 85% minimum
+
+**Related:**
+- `testing-agent.md`
+- `e2e-testing-skill/` - **MANDATORY for E2E tests** (NO MOCKING)
+- `api-architecture-skill/` - API app structure
+- `execution-context-skill/` - ExecutionContext validation
+- `transport-types-skill/` - A2A protocol validation
+
+### `langgraph-testing-skill/`
+**Purpose:** LangGraph app testing patterns for Jest  
+**Used By:** `testing-agent`  
+**Key Patterns:**
+- Agent service testing
+- Tool testing
+- Workflow and state machine testing
+- HITL interaction testing
+- E2E testing with Jest (references `e2e-testing-skill/` for NO MOCKING principles)
+- ExecutionContext validation in tests
+- A2A protocol validation in tests
+
+**Test Types:**
+- **Unit Tests**: Jest (agents, tools, services) - mocking acceptable
+- **Integration Tests**: Workflow execution, state transitions
+- **E2E Tests**: Jest (complete agent workflows) - **NO MOCKING** (see `e2e-testing-skill/`)
+
+**Coverage Requirements:**
+- Global: 75% minimum
+- Critical Path: 90% minimum (workflows, state machines)
+- Agents: 85% minimum
+- Tools: 80% minimum
+- Services: 80% minimum
+
+**Related:**
+- `testing-agent.md`
+- `e2e-testing-skill/` - **MANDATORY for E2E tests** (NO MOCKING)
+- `langgraph-architecture-skill/` - LangGraph app structure
+- `execution-context-skill/` - ExecutionContext validation
+- `transport-types-skill/` - A2A protocol validation
+
+---
+
 ## Development Skills (Prescribed Patterns)
 
 ### `langgraph-development-skill/`
@@ -487,13 +914,38 @@ Skills (Patterns & Validation)
 **Purpose:** LangGraph file classification & validation  
 **Used By:** `langgraph-architecture-agent`  
 **Capabilities:**
-- Classifies files (workflow, state, node, service)
-- Validates against LangGraph patterns
-- Checks graph structure
+- Classifies files (workflow, state, node, tool, service, controller, module)
+- Validates against LangGraph patterns (StateGraph, nodes, edges, checkpointing)
+- Checks graph structure and state annotations
 - Validates HITL implementation
+- Validates LLM service integration (HTTP client to API endpoint)
+- Validates observability integration (HTTP client to API endpoint)
+- Validates ExecutionContext flow (from execution-context-skill)
+- Validates A2A protocol usage (from transport-types-skill)
+
+**Key Validations:**
+- Workflow: StateGraph with nodes and edges, checkpointing configured
+- State: Extends BaseStateAnnotation, includes ExecutionContext fields
+- Node: Accesses ExecutionContext from state, passes to services
+- LLM Service: Uses LLMHttpClientService, passes full ExecutionContext
+- Observability: Uses ObservabilityService, passes full ExecutionContext, non-blocking
+- HITL: Proper HITL state fields and node patterns
+- Tools: Extends BaseTool, implements _call() method
+
+**Documentation Files:**
+- `SKILL.md` - Main skill definition
+- `FILE_CLASSIFICATION.md` - File type classification
+- `ARCHITECTURE.md` - Architecture patterns
+- `PATTERNS.md` - LangGraph-specific patterns
+- `VIOLATIONS.md` - Common violations and fixes
+- `LLM_SERVICE.md` - LLM service integration (HTTP client to API endpoint)
+- `OBSERVABILITY.md` - Observability integration (HTTP client to API endpoint)
+- `DATABASE_STATE.md` - Database-driven state for complex flows (multi-phase, persistent state)
 
 **Related:**
 - `langgraph-architecture-agent.md`
+- `execution-context-skill/` - ExecutionContext validation
+- `transport-types-skill/` - A2A compliance
 
 ---
 
