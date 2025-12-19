@@ -574,18 +574,12 @@ export class GoogleLLMService extends BaseLLMService {
 
   /**
    * Get Google Cloud access token for Vertex AI API calls
+   * NOTE: Vertex AI (Imagen) requires OAuth tokens, not API keys.
+   * API keys only work for Generative AI API (Gemini), not Vertex AI.
    */
   private async getAccessToken(): Promise<string> {
-    // Check for explicit API key first
-    const apiKey = this.config.apiKey || process.env.GOOGLE_API_KEY;
-    if (apiKey) {
-      // For Vertex AI with API key, we need to use a different auth method
-      // This is a simplified approach - in production, use google-auth-library
-      return apiKey;
-    }
-
-    // Fall back to Application Default Credentials (ADC)
-    // This works in GCP environments or with gcloud auth
+    // Vertex AI requires Application Default Credentials (ADC)
+    // API keys don't work for Vertex AI - they only work for Gemini via Generative AI API
     try {
       const { GoogleAuth } = await import('google-auth-library');
       const auth = new GoogleAuth({
@@ -593,13 +587,16 @@ export class GoogleLLMService extends BaseLLMService {
       });
       const client = await auth.getClient();
       const token = await client.getAccessToken();
-      return token.token || '';
+      if (!token.token) {
+        throw new Error('No access token returned from GoogleAuth');
+      }
+      return token.token;
     } catch (error) {
       this.logger.error(
         `Failed to get Google Cloud access token: ${error instanceof Error ? error.message : String(error)}`,
       );
       throw new Error(
-        'Failed to authenticate with Google Cloud. Set GOOGLE_API_KEY or configure Application Default Credentials.',
+        'Failed to authenticate with Google Cloud. Run "gcloud auth application-default login" or set GOOGLE_APPLICATION_CREDENTIALS.',
       );
     }
   }

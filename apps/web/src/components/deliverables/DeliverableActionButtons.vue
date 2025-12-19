@@ -7,10 +7,11 @@
       :disabled="isLoading"
     >
       <ion-icon :icon="downloadOutline" slot="start" />
-      Export
+      {{ isMediaType ? 'Download' : 'Export' }}
     </ion-button>
 
     <ion-button
+      v-if="!isMediaType"
       fill="outline"
       color="secondary"
       @click="emit('edit')"
@@ -27,7 +28,7 @@
       :disabled="isLoading"
     >
       <ion-icon :icon="refreshOutline" slot="start" />
-      Rerun
+      Regenerate
     </ion-button>
 
     <ion-button
@@ -37,13 +38,13 @@
       :disabled="isLoading"
     >
       <ion-icon :icon="swapHorizontalOutline" slot="start" />
-      Rerun with Different LLM
+      {{ isMediaType ? 'Try Different Model' : 'Rerun with Different LLM' }}
     </ion-button>
   </div>
 
-  <!-- Export Format Popover -->
+  <!-- Text Export Format Popover -->
   <ion-popover
-    :is-open="showExportPopover"
+    :is-open="showExportPopover && !isMediaType"
     @did-dismiss="showExportPopover = false"
     :event="popoverEvent"
   >
@@ -64,10 +65,38 @@
       </ion-list>
     </ion-content>
   </ion-popover>
+
+  <!-- Media Export Format Popover -->
+  <ion-popover
+    :is-open="showExportPopover && isMediaType"
+    @did-dismiss="showExportPopover = false"
+    :event="popoverEvent"
+  >
+    <ion-content class="ion-padding">
+      <ion-list lines="none">
+        <ion-item button @click="doMediaExport('download')">
+          <ion-icon :icon="downloadOutline" slot="start" />
+          <ion-label>Download {{ deliverableType === 'video' ? 'Video' : 'Image' }}</ion-label>
+        </ion-item>
+        <ion-item v-if="deliverableType === 'image'" button @click="doMediaExport('clipboard')">
+          <ion-icon :icon="copyOutline" slot="start" />
+          <ion-label>Copy to Clipboard</ion-label>
+        </ion-item>
+        <ion-item button @click="doMediaExport('link')">
+          <ion-icon :icon="linkOutline" slot="start" />
+          <ion-label>Copy Link</ion-label>
+        </ion-item>
+        <ion-item v-if="hasMultipleMedia" button @click="doMediaExport('zip')">
+          <ion-icon :icon="archiveOutline" slot="start" />
+          <ion-label>Download All (ZIP)</ion-label>
+        </ion-item>
+      </ion-list>
+    </ion-content>
+  </ion-popover>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import {
   IonButton,
   IonIcon,
@@ -85,25 +114,39 @@ import {
   documentTextOutline,
   codeOutline,
   codeSlashOutline,
+  copyOutline,
+  linkOutline,
+  archiveOutline,
 } from 'ionicons/icons';
 
 interface Props {
   deliverableId?: string;
   currentVersionId?: string;
   isLoading?: boolean;
+  deliverableType?: string;
+  mediaCount?: number;
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
 const emit = defineEmits<{
   edit: [];
   rerun: [];
   rerunWithDifferentLlm: [];
   export: [format: 'markdown' | 'html' | 'json'];
+  mediaExport: [action: 'download' | 'clipboard' | 'link' | 'zip'];
 }>();
 
 const showExportPopover = ref(false);
 const popoverEvent = ref<Event | null>(null);
+
+const isMediaType = computed(() => {
+  return props.deliverableType === 'image' || props.deliverableType === 'video';
+});
+
+const hasMultipleMedia = computed(() => {
+  return (props.mediaCount ?? 0) > 1;
+});
 
 function handleExport(event: Event) {
   popoverEvent.value = event;
@@ -113,6 +156,11 @@ function handleExport(event: Event) {
 function doExport(format: 'markdown' | 'html' | 'json') {
   showExportPopover.value = false;
   emit('export', format);
+}
+
+function doMediaExport(action: 'download' | 'clipboard' | 'link' | 'zip') {
+  showExportPopover.value = false;
+  emit('mediaExport', action);
 }
 </script>
 

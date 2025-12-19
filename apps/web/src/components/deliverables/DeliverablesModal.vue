@@ -86,10 +86,13 @@
           :deliverable-id="deliverableId"
           :current-version-id="selectedVersionId"
           :is-loading="isActionLoading"
+          :deliverable-type="deliverableType"
+          :media-count="mediaAssets.length"
           @edit="handleEdit"
           @rerun="handleRerun"
           @rerun-with-different-llm="handleRerunWithDifferentLlm"
           @export="handleExport"
+          @media-export="handleMediaExport"
         />
       </ion-toolbar>
     </ion-footer>
@@ -397,6 +400,83 @@ ${displayContent.socialPosts?.length ? `<h2>Social Posts</h2><ul>${displayConten
     URL.revokeObjectURL(url);
   } catch (error) {
     console.error('Failed to export:', error);
+  } finally {
+    isActionLoading.value = false;
+  }
+}
+
+async function handleMediaExport(action: 'download' | 'clipboard' | 'link' | 'zip') {
+  isActionLoading.value = true;
+  try {
+    const assets = mediaAssets.value;
+    if (!assets.length) {
+      console.warn('No media assets to export');
+      return;
+    }
+
+    switch (action) {
+      case 'download': {
+        // Download first/primary media asset
+        const asset = assets[0];
+        const response = await fetch(asset.url);
+        const blob = await response.blob();
+        const extension = asset.type === 'video' ? 'mp4' : 'png';
+        const filename = `${props.title || 'media'}.${extension}`;
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+        break;
+      }
+
+      case 'clipboard': {
+        // Copy image to clipboard (images only)
+        const asset = assets[0];
+        if (asset.type === 'image') {
+          const response = await fetch(asset.url);
+          const blob = await response.blob();
+          await navigator.clipboard.write([
+            new ClipboardItem({ [blob.type]: blob })
+          ]);
+        }
+        break;
+      }
+
+      case 'link': {
+        // Copy URL to clipboard
+        const asset = assets[0];
+        await navigator.clipboard.writeText(asset.url);
+        break;
+      }
+
+      case 'zip': {
+        // Download all as ZIP - requires JSZip library
+        // For now, download each individually
+        for (let i = 0; i < assets.length; i++) {
+          const asset = assets[i];
+          const response = await fetch(asset.url);
+          const blob = await response.blob();
+          const extension = asset.type === 'video' ? 'mp4' : 'png';
+          const filename = `${props.title || 'media'}_${i + 1}.${extension}`;
+
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          a.click();
+          URL.revokeObjectURL(url);
+
+          // Small delay between downloads
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+        break;
+      }
+    }
+  } catch (error) {
+    console.error('Failed to export media:', error);
   } finally {
     isActionLoading.value = false;
   }
