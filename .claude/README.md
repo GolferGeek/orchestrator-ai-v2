@@ -42,10 +42,13 @@ We're rebuilding with a focused approach:
    - ✅ `langgraph-development-skill/` - Prescriptive LangGraph patterns (used by langgraph-agent)
    - ✅ `n8n-development-skill/` - Prescriptive N8N patterns (used by n8n workflows)
 
-4. **Codebase Hardening** (Subconversation 9)
-   - `codebase-hardening-skill/` - Orchestrates validation across all architecture skills
-   - `codebase-audit-agent.md` - Comprehensive audits using all skills
-   - Sub-agents for specific audit types (execution-context-audit, transport-types-audit, etc.)
+4. **Codebase Monitoring & Hardening** (Subconversation 9)
+   - ✅ `codebase-monitoring-agent.md` - Analyzes files hierarchically, evaluates health, identifies issues
+   - ✅ `codebase-monitoring-skill/` - Monitoring patterns (file analysis, hierarchy analysis, issue classification, report generation)
+   - ✅ `codebase-hardening-agent.md` - Reviews reports, determines test adequacy, auto-fixes or documents issues
+   - ✅ `codebase-hardening-skill/` - Hardening patterns (test adequacy, auto-fix, documentation, architectural hardening)
+   - ✅ `/monitor` - Run codebase monitoring analysis (incremental or full)
+   - ✅ `/harden` - Run codebase hardening on specific issues
 
 5. **Agent Builder System** (Subconversation 8)
    - ✅ `agent-builder-agent.md` - Main orchestrator (determines agent type, routes to builders)
@@ -79,6 +82,8 @@ We're rebuilding with a focused approach:
    - ✅ `/build-plan` - Build structured, machine-readable plan from PRD(s)
    - ✅ `/work-plan` - Create and execute work plan from task, PRD, or plan file
    - ✅ `/test` - Run tests, generate tests, fix tests, check coverage
+   - ✅ `/monitor` - Run codebase monitoring analysis (incremental or full)
+   - ✅ `/harden` - Run codebase hardening on specific issues
    - `/create-pr` (Planned) - Create PR with progressive validation
 
 ## Principles

@@ -83,3 +83,6 @@ storage/images/
 # tasks.json
 # tasks/ 
 .github/workflows/
+
+# Monitoring artifacts (excluded from Git)
+.monitor/

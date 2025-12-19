@@ -823,6 +823,54 @@ Skills (Patterns & Validation)
 - `execution-context-skill/` - ExecutionContext validation
 - `transport-types-skill/` - A2A protocol validation
 
+### `codebase-monitoring-agent.md`
+**Purpose:** Analyze codebase files hierarchically, evaluate health, identify issues, generate monitoring reports  
+**Capabilities:**
+- Analyzes every file in system (or specified directories)
+- Evaluates file purpose, job performance, issues, urgency
+- Creates hierarchical reports (folder structure)
+- Checks file necessity, location, test completeness
+- Generates prioritized issue reports
+- Incremental monitoring (only new/changed files)
+
+**Uses:**
+- `codebase-monitoring-skill/` - Monitoring patterns
+- `execution-context-skill/` - ExecutionContext validation
+- `transport-types-skill/` - A2A compliance validation
+- Architecture skills (web, API, LangGraph) - For file classification
+- `testing-agent.md` - To check test coverage
+
+**Artifacts:**
+- `.monitor/project.json` - Project-wide monitoring artifact
+- `.monitor/apps-web.json` - Web app monitoring artifact
+- `.monitor/apps-api.json` - API app monitoring artifact
+- `.monitor/apps-langgraph.json` - LangGraph app monitoring artifact
+
+**Related:**
+- `codebase-monitoring-skill/` - Provides monitoring patterns
+- `codebase-hardening-agent.md` - Uses monitoring artifacts
+
+### `codebase-hardening-agent.md`
+**Purpose:** Review monitoring reports, determine test adequacy, auto-fix issues (if tests adequate) or document issues (if not)  
+**Capabilities:**
+- Reviews monitoring reports
+- Determines test adequacy
+- Makes changes (if tests adequate) or documents (if not)
+- Addresses architectural decisions (e.g., Supabase separation)
+- Creates hardening plans
+
+**Uses:**
+- `codebase-hardening-skill/` - Hardening patterns
+- `execution-context-skill/` - ExecutionContext validation
+- `transport-types-skill/` - A2A compliance validation
+- Architecture skills (web, API, LangGraph) - For making changes
+- `testing-agent.md` - To check test adequacy and run tests
+- `codebase-monitoring-agent.md` - To get monitoring reports
+
+**Related:**
+- `codebase-hardening-skill/` - Provides hardening patterns
+- `codebase-monitoring-agent.md` - Provides monitoring artifacts
+
 ---
 
 ## Development Skills (Prescribed Patterns)
@@ -1111,22 +1159,45 @@ Skills (Patterns & Validation)
 - `direct-commit-skill/`
 - `quality-gates-skill/`
 
-### `codebase-hardening-skill/` (Planned)
-**Purpose:** Orchestrates validation across all skills  
-**Used By:** `codebase-audit-agent`  
+### `codebase-monitoring-skill/`
+**Purpose:** Patterns and validation for codebase monitoring  
+**Used By:** `codebase-monitoring-agent`  
 **Capabilities:**
-- Coordinates validation across all architecture skills
-- Checks files against multiple skills/subskills
-- Validates compliance across domains
+- File analysis patterns
+- Hierarchical analysis patterns
+- Issue detection and classification
+- Report generation patterns
 
-**Uses:**
-- All architecture skills
-- All development skills
-- All domain skills
+**Structure:**
+- `SKILL.md` - Main skill definition
+- `FILE_ANALYSIS.md` - File analysis patterns
+- `HIERARCHY_ANALYSIS.md` - Hierarchical analysis patterns
+- `ISSUE_CLASSIFICATION.md` - Issue detection and classification
+- `REPORT_GENERATION.md` - Report structure and formats
 
 **Related:**
-- `codebase-audit-agent.md`
-- All other skills
+- `codebase-monitoring-agent.md` - Uses this skill
+- `codebase-hardening-agent.md` - Uses monitoring artifacts
+
+### `codebase-hardening-skill/`
+**Purpose:** Patterns and validation for codebase hardening  
+**Used By:** `codebase-hardening-agent`  
+**Capabilities:**
+- Test adequacy determination
+- Safe auto-fix patterns
+- Issue documentation patterns
+- Architectural hardening patterns
+
+**Structure:**
+- `SKILL.md` - Main skill definition
+- `TEST_ADEQUACY.md` - Test adequacy determination
+- `AUTO_FIX_PATTERNS.md` - Safe auto-fix patterns
+- `DOCUMENTATION_PATTERNS.md` - Issue documentation patterns
+- `ARCHITECTURAL_HARDENING.md` - Architectural improvement patterns
+
+**Related:**
+- `codebase-hardening-agent.md` - Uses this skill
+- `codebase-monitoring-agent.md` - Provides monitoring artifacts
 
 ---
 
