@@ -422,3 +422,243 @@ export interface LocalLLMResponse {
   eval_count?: number;
   eval_duration?: number;
 }
+
+// =============================================================================
+// IMAGE GENERATION INTERFACES
+// =============================================================================
+
+/**
+ * Parameters for image generation
+ */
+export interface ImageGenerationParams {
+  /** Text prompt describing the image to generate */
+  prompt: string;
+  /** Image dimensions */
+  size?: '256x256' | '512x512' | '1024x1024' | '1792x1024' | '1024x1792';
+  /** Quality level (OpenAI) */
+  quality?: 'standard' | 'hd';
+  /** Style preference (OpenAI) */
+  style?: 'natural' | 'vivid';
+  /** Number of images to generate (1-4) */
+  numberOfImages?: number;
+  /** Reference image URL for editing operations */
+  referenceImageUrl?: string;
+  /** Reference image data as Buffer for editing operations */
+  referenceImage?: Buffer;
+  /** Mask image for inpainting (transparent areas indicate where to edit) */
+  mask?: Buffer;
+  /** Aspect ratio (Google Imagen) */
+  aspectRatio?: '1:1' | '3:4' | '4:3' | '16:9' | '9:16';
+  /** Enable prompt enhancement (Google Imagen) */
+  enhancePrompt?: boolean;
+  /** Background transparency (OpenAI GPT Image) */
+  background?: 'transparent' | 'opaque' | 'auto';
+}
+
+/**
+ * Metadata for a generated image
+ */
+export interface ImageMetadata {
+  /** Image width in pixels */
+  width?: number;
+  /** Image height in pixels */
+  height?: number;
+  /** MIME type (e.g., 'image/png') */
+  mimeType: string;
+  /** File size in bytes */
+  sizeBytes?: number;
+  /** Provider-revised prompt (if applicable) */
+  revisedPrompt?: string;
+}
+
+/**
+ * Response from image generation
+ */
+export interface ImageGenerationResponse {
+  /** Array of generated images */
+  images: Array<{
+    /** Raw image bytes */
+    data: Buffer;
+    /** Provider-revised prompt for this image */
+    revisedPrompt?: string;
+    /** Image metadata */
+    metadata?: ImageMetadata;
+  }>;
+  /** Standard response metadata (reuses existing ResponseMetadata) */
+  metadata: ResponseMetadata;
+  /** PII metadata if prompt was processed */
+  piiMetadata?: PIIProcessingMetadata | null;
+  /** Error information if generation failed */
+  error?: {
+    code: string;
+    message: string;
+    details?: unknown;
+  };
+}
+
+/**
+ * Type guard for ImageGenerationResponse
+ */
+export const isImageGenerationResponse = (
+  value: unknown,
+): value is ImageGenerationResponse => {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const candidate = value as Partial<ImageGenerationResponse>;
+  return (
+    Array.isArray(candidate.images) &&
+    typeof candidate.metadata === 'object' &&
+    candidate.metadata !== null
+  );
+};
+
+// =============================================================================
+// VIDEO GENERATION INTERFACES
+// =============================================================================
+
+/**
+ * Parameters for video generation
+ */
+export interface VideoGenerationParams {
+  /** Text prompt describing the video to generate */
+  prompt: string;
+  /** Video duration in seconds */
+  duration?: number;
+  /** Video aspect ratio */
+  aspectRatio?: '16:9' | '9:16';
+  /** Resolution */
+  resolution?: '720p' | '1080p' | '4k';
+  /** First frame image URL (for image-to-video) */
+  firstFrameImageUrl?: string;
+  /** First frame image data as Buffer */
+  firstFrameImage?: Buffer;
+  /** Last frame image URL (for controlled endings) */
+  lastFrameImageUrl?: string;
+  /** Last frame image data as Buffer */
+  lastFrameImage?: Buffer;
+  /** Video to extend (for video extension) */
+  extendVideoUrl?: string;
+  /** Generate audio with video */
+  generateAudio?: boolean;
+  /** Style reference images (up to 3) */
+  styleImages?: Buffer[];
+}
+
+/**
+ * Metadata for a generated video
+ */
+export interface VideoMetadata {
+  /** Video width in pixels */
+  width?: number;
+  /** Video height in pixels */
+  height?: number;
+  /** Duration in seconds */
+  durationSeconds?: number;
+  /** Frame rate */
+  frameRate?: number;
+  /** MIME type (e.g., 'video/mp4') */
+  mimeType: string;
+  /** File size in bytes */
+  sizeBytes?: number;
+  /** Whether audio is included */
+  hasAudio?: boolean;
+}
+
+/**
+ * Status of an async video generation operation
+ */
+export type VideoGenerationStatus =
+  | 'pending'
+  | 'processing'
+  | 'completed'
+  | 'failed';
+
+/**
+ * Response from video generation (may be async)
+ */
+export interface VideoGenerationResponse {
+  /** Operation ID for polling (async operations) */
+  operationId?: string;
+  /** Current status of the generation */
+  status: VideoGenerationStatus;
+  /** Video data when completed */
+  videoData?: Buffer;
+  /** Video URL when completed (if stored externally) */
+  videoUrl?: string;
+  /** Video metadata */
+  videoMetadata?: VideoMetadata;
+  /** Standard response metadata */
+  metadata: ResponseMetadata;
+  /** Error information if generation failed */
+  error?: {
+    code: string;
+    message: string;
+    details?: unknown;
+  };
+}
+
+/**
+ * Type guard for VideoGenerationResponse
+ */
+export const isVideoGenerationResponse = (
+  value: unknown,
+): value is VideoGenerationResponse => {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const candidate = value as Partial<VideoGenerationResponse>;
+  return (
+    typeof candidate.status === 'string' &&
+    ['pending', 'processing', 'completed', 'failed'].includes(
+      candidate.status,
+    ) &&
+    typeof candidate.metadata === 'object' &&
+    candidate.metadata !== null
+  );
+};
+
+// =============================================================================
+// MEDIA STORAGE INTERFACES
+// =============================================================================
+
+/**
+ * Parameters for storing generated media
+ */
+export interface MediaStorageParams {
+  /** Raw media bytes */
+  data: Buffer;
+  /** MIME type */
+  mimeType: string;
+  /** Execution context for ownership and linking */
+  context: ExecutionContext;
+  /** Media-specific metadata */
+  metadata: {
+    prompt: string;
+    provider: string;
+    model: string;
+    width?: number;
+    height?: number;
+    durationSeconds?: number;
+    /** Parent asset ID if this is an edit/variation */
+    parentAssetId?: string;
+  };
+}
+
+/**
+ * Result of storing media
+ */
+export interface StoredMediaAsset {
+  /** Our internal asset UUID */
+  assetId: string;
+  /** Public URL to access the media */
+  url: string;
+  /** Storage path within bucket */
+  storagePath: string;
+  /** MIME type */
+  mimeType: string;
+  /** File size in bytes */
+  sizeBytes: number;
+}

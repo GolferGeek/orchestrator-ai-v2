@@ -36,8 +36,37 @@
         class="version-section"
       />
 
-      <!-- Content Viewer -->
+      <!-- Media Viewer (for image/video deliverables) -->
+      <div v-if="isMediaType" class="media-viewer">
+        <div v-if="mediaAssets.length" class="media-grid">
+          <template v-for="(item, idx) in mediaAssets" :key="idx">
+            <img
+              v-if="item.type === 'image'"
+              class="media-item"
+              :src="item.url"
+              :alt="item.altText || 'Generated image'"
+              @click="openFullImage(item.url)"
+            />
+            <video
+              v-else-if="item.type === 'video'"
+              class="media-item"
+              :src="item.url"
+              :poster="item.thumbnailUrl"
+              controls
+            />
+          </template>
+        </div>
+        <div v-else class="no-media">
+          <p>No media content available.</p>
+        </div>
+        <div v-if="displayContent.blogPost" class="media-prompt">
+          <strong>Prompt:</strong> {{ displayContent.blogPost }}
+        </div>
+      </div>
+
+      <!-- Content Viewer (for text deliverables) -->
       <ContentViewer
+        v-else
         :blog-post="displayContent.blogPost"
         :seo-description="displayContent.seoDescription"
         :social-posts="displayContent.socialPosts"
@@ -57,10 +86,13 @@
           :deliverable-id="deliverableId"
           :current-version-id="selectedVersionId"
           :is-loading="isActionLoading"
+          :deliverable-type="deliverableType"
+          :media-count="mediaAssets.length"
           @edit="handleEdit"
           @rerun="handleRerun"
           @rerun-with-different-llm="handleRerunWithDifferentLlm"
           @export="handleExport"
+          @media-export="handleMediaExport"
         />
       </ion-toolbar>
     </ion-footer>
@@ -148,6 +180,55 @@ const currentTaskId = computed(() => {
   const current = versions.value.find((v) => v.id === selectedVersionId.value);
   return current?.taskId;
 });
+
+// Get the deliverable type from store
+const deliverableType = computed(() => {
+  if (!props.deliverableId) return 'document';
+  const deliverable = deliverablesStore.getDeliverableById(props.deliverableId);
+  console.log('🖼️ [DeliverablesModal] deliverableType computed - deliverableId:', props.deliverableId, 'deliverable:', deliverable, 'type:', deliverable?.type);
+  return deliverable?.type || 'document';
+});
+
+// Check if this is a media type deliverable
+const isMediaType = computed(() => {
+  const result = deliverableType.value === 'image' || deliverableType.value === 'video';
+  console.log('🖼️ [DeliverablesModal] isMediaType computed:', result, 'type:', deliverableType.value);
+  return result;
+});
+
+// Get media assets from current version's fileAttachments
+const mediaAssets = computed(() => {
+  const current = versions.value.find((v) => v.id === selectedVersionId.value);
+  const attachments = current?.fileAttachments;
+  console.log('🖼️ [DeliverablesModal] mediaAssets computed - versionId:', selectedVersionId.value, 'attachments:', attachments);
+  if (!attachments) return [];
+
+  const items: Array<{
+    type: 'image' | 'video';
+    url: string;
+    thumbnailUrl?: string;
+    altText?: string;
+  }> = [];
+
+  // Add images
+  const imgs = attachments.images as Array<{ url: string; thumbnailUrl?: string; altText?: string }> | undefined;
+  if (Array.isArray(imgs)) {
+    items.push(...imgs.map((img) => ({ type: 'image' as const, ...img })));
+  }
+
+  // Add videos
+  const vids = attachments.videos as Array<{ url: string; thumbnailUrl?: string; altText?: string }> | undefined;
+  if (Array.isArray(vids)) {
+    items.push(...vids.map((vid) => ({ type: 'video' as const, ...vid })));
+  }
+
+  return items;
+});
+
+// Open full image in new tab
+function openFullImage(url: string) {
+  window.open(url, '_blank');
+}
 
 // Initialize content when modal opens
 watch(
@@ -324,6 +405,83 @@ ${displayContent.socialPosts?.length ? `<h2>Social Posts</h2><ul>${displayConten
   }
 }
 
+async function handleMediaExport(action: 'download' | 'clipboard' | 'link' | 'zip') {
+  isActionLoading.value = true;
+  try {
+    const assets = mediaAssets.value;
+    if (!assets.length) {
+      console.warn('No media assets to export');
+      return;
+    }
+
+    switch (action) {
+      case 'download': {
+        // Download first/primary media asset
+        const asset = assets[0];
+        const response = await fetch(asset.url);
+        const blob = await response.blob();
+        const extension = asset.type === 'video' ? 'mp4' : 'png';
+        const filename = `${props.title || 'media'}.${extension}`;
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+        break;
+      }
+
+      case 'clipboard': {
+        // Copy image to clipboard (images only)
+        const asset = assets[0];
+        if (asset.type === 'image') {
+          const response = await fetch(asset.url);
+          const blob = await response.blob();
+          await navigator.clipboard.write([
+            new ClipboardItem({ [blob.type]: blob })
+          ]);
+        }
+        break;
+      }
+
+      case 'link': {
+        // Copy URL to clipboard
+        const asset = assets[0];
+        await navigator.clipboard.writeText(asset.url);
+        break;
+      }
+
+      case 'zip': {
+        // Download all as ZIP - requires JSZip library
+        // For now, download each individually
+        for (let i = 0; i < assets.length; i++) {
+          const asset = assets[i];
+          const response = await fetch(asset.url);
+          const blob = await response.blob();
+          const extension = asset.type === 'video' ? 'mp4' : 'png';
+          const filename = `${props.title || 'media'}_${i + 1}.${extension}`;
+
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          a.click();
+          URL.revokeObjectURL(url);
+
+          // Small delay between downloads
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+        break;
+      }
+    }
+  } catch (error) {
+    console.error('Failed to export media:', error);
+  } finally {
+    isActionLoading.value = false;
+  }
+}
+
 function handleClose() {
   emit('close');
 }
@@ -363,5 +521,45 @@ function handleClose() {
   font-weight: 600;
   margin-bottom: 0.5rem;
   color: var(--ion-color-medium);
+}
+
+/* Media viewer styles */
+.media-viewer {
+  padding: 1rem;
+}
+
+.media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.media-item {
+  width: 100%;
+  max-height: 400px;
+  object-fit: contain;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  background: var(--ion-color-light);
+}
+
+.media-item:hover {
+  transform: scale(1.02);
+}
+
+.no-media {
+  text-align: center;
+  padding: 2rem;
+  color: var(--ion-color-medium);
+}
+
+.media-prompt {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--ion-color-light);
+  border-radius: 8px;
+  font-size: 0.9rem;
 }
 </style>

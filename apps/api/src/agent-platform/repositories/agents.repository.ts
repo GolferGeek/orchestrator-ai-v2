@@ -118,7 +118,10 @@ export class AgentsRepository {
     // Filter by organization (organization_slug is TEXT[], an array column)
     if (organizationSlug) {
       // Use contains operator to check if the array contains the organization slug
-      query = query.contains('organization_slug', [organizationSlug]);
+      // Also include global agents (organization_slug contains 'global')
+      query = query.or(
+        `organization_slug.cs.{${organizationSlug}},organization_slug.cs.{global}`,
+      );
     }
 
     const { data, error } =
@@ -140,12 +143,20 @@ export class AgentsRepository {
 
     // Filter by organization (organization_slug is TEXT[], an array column)
     if (organizationSlug) {
-      // Query for agents that belong to this specific organization
+      // Query for agents that belong to this specific organization OR global agents
       // Use contains operator to check if the array contains the organization slug
-      query = query.contains('organization_slug', [organizationSlug]);
+      // Also include agents with 'global' in their organization_slug array
+      query = query.or(
+        `organization_slug.cs.{${organizationSlug}},organization_slug.cs.{global}`,
+      );
     } else {
-      // Query for truly global agents (organization_slug is null or empty array)
-      query = query.or('organization_slug.is.null,organization_slug.eq.{}');
+      // Query for global agents:
+      // - organization_slug is null
+      // - organization_slug is empty array {}
+      // - organization_slug contains 'global'
+      query = query.or(
+        'organization_slug.is.null,organization_slug.eq.{},organization_slug.cs.{global}',
+      );
     }
 
     const { data, error } = (await query.order('slug', {

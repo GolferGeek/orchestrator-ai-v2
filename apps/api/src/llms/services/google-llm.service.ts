@@ -9,6 +9,9 @@ import {
   LLMResponse,
   LLMServiceConfig,
   ResponseMetadata,
+  ImageGenerationParams,
+  ImageGenerationResponse,
+  ImageMetadata,
 } from './llm-interfaces';
 import { LLMErrorMapper } from './llm-error-handling';
 import { PIIService } from '../pii/pii.service';
@@ -395,6 +398,262 @@ export class GoogleLLMService extends BaseLLMService {
 
   // Note: calculateCost is now inherited from BaseLLMService which uses
   // LLMPricingService for database-driven pricing lookups
+
+  /**
+   * Generate image using Google Imagen API
+   *
+   * Uses Vertex AI Imagen models (imagen-4.0-generate-001, imagen-4.0-fast-generate-001)
+   * Returns base64-encoded image data.
+   *
+   * @param context - ExecutionContext for tracing and ownership
+   * @param params - Image generation parameters
+   * @returns ImageGenerationResponse with generated images
+   */
+  async generateImage(
+    context: ExecutionContext,
+    params: ImageGenerationParams,
+  ): Promise<ImageGenerationResponse> {
+    const startTime = Date.now();
+    // Use taskId as requestId - already unique, already tracked everywhere
+    const requestId = context.taskId || this.generateRequestId('google-image');
+
+    try {
+      // Get model from context or fall back to config
+      const model =
+        context.model || this.config.model || 'imagen-4.0-generate-001';
+
+      this.logger.log(
+        `🖼️ [GOOGLE-IMAGE] Generating image with model: ${model}, requestId: ${requestId}`,
+      );
+
+      // Google Imagen uses Vertex AI predict endpoint
+      // For now, we use the REST API directly since @google/generative-ai doesn't support Imagen
+      const projectId = process.env.GOOGLE_CLOUD_PROJECT;
+      const location = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
+
+      if (!projectId) {
+        throw new Error(
+          'GOOGLE_CLOUD_PROJECT environment variable is required for Imagen',
+        );
+      }
+
+      // Map size to aspect ratio for Google Imagen
+      const aspectRatio = this.mapSizeToAspectRatio(params.size);
+
+      // Prepare request body for Vertex AI Imagen
+      const requestBody = {
+        instances: [
+          {
+            prompt: params.prompt,
+          },
+        ],
+        parameters: {
+          sampleCount: params.numberOfImages || 1,
+          aspectRatio: aspectRatio,
+          // Google Imagen safety settings
+          safetySetting: 'block_some',
+          // Add watermark for generated content
+          addWatermark: true,
+        },
+      };
+
+      // Make Vertex AI API call
+      const endpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:predict`;
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${await this.getAccessToken()}`,
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Imagen API error: ${response.status} - ${errorText}`);
+      }
+
+      const result = (await response.json()) as {
+        predictions?: Array<{
+          bytesBase64Encoded?: string;
+          mimeType?: string;
+        }>;
+      };
+
+      if (!result.predictions || result.predictions.length === 0) {
+        throw new Error('No predictions returned from Imagen API');
+      }
+
+      const endTime = Date.now();
+
+      // Parse dimensions from size param
+      const dimensions = this.parseSizeDimensions(params.size);
+
+      // Convert predictions to image data matching ImageGenerationResponse interface
+      const images = result.predictions
+        .filter((pred) => pred.bytesBase64Encoded)
+        .map((pred) => {
+          const imageData = Buffer.from(pred.bytesBase64Encoded!, 'base64');
+          const mimeType = pred.mimeType || 'image/png';
+          const imageMetadata: ImageMetadata = {
+            width: dimensions.width,
+            height: dimensions.height,
+            mimeType,
+            sizeBytes: imageData.length,
+          };
+          return {
+            data: imageData,
+            metadata: imageMetadata,
+          };
+        });
+
+      if (images.length === 0) {
+        throw new Error('No valid images in Imagen response');
+      }
+
+      // Calculate cost based on number of images
+      const cost = this.calculateImageCost(model, images.length);
+
+      // Track usage
+      await this.trackUsage(
+        context,
+        'google',
+        model,
+        0, // No input tokens for image generation
+        0, // No output tokens for image generation
+        cost,
+        {
+          requestId,
+          callerType: 'image-generation',
+          callerName: 'GoogleLLMService.generateImage',
+          startTime,
+          endTime,
+        },
+      );
+
+      this.logger.log(
+        `🖼️ [GOOGLE-IMAGE] Generated ${images.length} image(s) in ${endTime - startTime}ms`,
+      );
+
+      return {
+        images,
+        metadata: {
+          provider: 'google',
+          model,
+          requestId,
+          timestamp: new Date().toISOString(),
+          usage: {
+            inputTokens: 0,
+            outputTokens: 0,
+            totalTokens: 0,
+            cost,
+          },
+          timing: {
+            startTime,
+            endTime,
+            duration: endTime - startTime,
+          },
+          tier: 'external',
+          status: 'completed',
+          providerSpecific: {
+            imagesGenerated: images.length,
+            aspectRatio,
+            width: dimensions.width,
+            height: dimensions.height,
+          },
+        },
+      };
+    } catch (error) {
+      this.logger.error(
+        `🖼️ [GOOGLE-IMAGE] Error generating image: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      this.handleError(error, 'GoogleLLMService.generateImage');
+    }
+  }
+
+  /**
+   * Get Google Cloud access token for Vertex AI API calls
+   * NOTE: Vertex AI (Imagen) requires OAuth tokens, not API keys.
+   * API keys only work for Generative AI API (Gemini), not Vertex AI.
+   */
+  private async getAccessToken(): Promise<string> {
+    // Vertex AI requires Application Default Credentials (ADC)
+    // API keys don't work for Vertex AI - they only work for Gemini via Generative AI API
+    try {
+      const { GoogleAuth } = await import('google-auth-library');
+      const auth = new GoogleAuth({
+        scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+      });
+      const client = await auth.getClient();
+      const token = await client.getAccessToken();
+      if (!token.token) {
+        throw new Error('No access token returned from GoogleAuth');
+      }
+      return token.token;
+    } catch (error) {
+      this.logger.error(
+        `Failed to get Google Cloud access token: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw new Error(
+        'Failed to authenticate with Google Cloud. Run "gcloud auth application-default login" or set GOOGLE_APPLICATION_CREDENTIALS.',
+      );
+    }
+  }
+
+  /**
+   * Map size parameter to Google Imagen aspect ratio
+   */
+  private mapSizeToAspectRatio(
+    size?: string,
+  ): '1:1' | '16:9' | '9:16' | '4:3' | '3:4' {
+    switch (size) {
+      case '1792x1024':
+        return '16:9';
+      case '1024x1792':
+        return '9:16';
+      case '1024x1024':
+      default:
+        return '1:1';
+    }
+  }
+
+  /**
+   * Parse size string to width/height dimensions
+   */
+  private parseSizeDimensions(size?: string): {
+    width: number;
+    height: number;
+  } {
+    const defaultSize = { width: 1024, height: 1024 };
+    if (!size) return defaultSize;
+
+    const parts = size.split('x');
+    if (parts.length !== 2) return defaultSize;
+
+    const width = parseInt(parts[0] ?? '1024', 10);
+    const height = parseInt(parts[1] ?? '1024', 10);
+
+    return {
+      width: isNaN(width) ? 1024 : width,
+      height: isNaN(height) ? 1024 : height,
+    };
+  }
+
+  /**
+   * Calculate cost for image generation
+   */
+  private calculateImageCost(model: string, imageCount: number): number {
+    // Google Imagen pricing (approximate, check current pricing)
+    const pricePerImage: Record<string, number> = {
+      'imagen-4.0-generate-001': 0.04,
+      'imagen-4.0-fast-generate-001': 0.02,
+      'imagen-3.0-generate-001': 0.03,
+    };
+
+    const price = pricePerImage[model] ?? 0.04;
+    return price * imageCount;
+  }
 
   /**
    * Check if content was blocked by safety filters

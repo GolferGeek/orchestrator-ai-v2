@@ -9,6 +9,9 @@ import {
   LLMResponse,
   LLMServiceConfig,
   ResponseMetadata,
+  ImageGenerationParams,
+  ImageGenerationResponse,
+  ImageMetadata,
 } from './llm-interfaces';
 import { PIIService } from '../pii/pii.service';
 import { DictionaryPseudonymizerService } from '../pii/dictionary-pseudonymizer.service';
@@ -235,6 +238,277 @@ export class OpenAILLMService extends BaseLLMService {
     } catch (error) {
       this.handleError(error, 'OpenAILLMService.generateResponse');
     }
+  }
+
+  /**
+   * Generate images using OpenAI's image generation API
+   *
+   * Supports GPT Image 1.5, GPT Image 1, and DALL-E 3/2 models.
+   * Uses ExecutionContext.taskId as the request ID for observability.
+   *
+   * @param context - ExecutionContext with all context fields
+   * @param params - Image generation parameters
+   * @returns ImageGenerationResponse with generated image bytes
+   *
+   * @example
+   * ```typescript
+   * const response = await openaiService.generateImage(context, {
+   *   prompt: 'A sunset over mountains',
+   *   size: '1024x1024',
+   *   quality: 'hd',
+   *   numberOfImages: 1,
+   * });
+   * ```
+   */
+  async generateImage(
+    context: ExecutionContext,
+    params: ImageGenerationParams,
+  ): Promise<ImageGenerationResponse> {
+    const startTime = Date.now();
+    // Use taskId from context as the request ID - already unique, already tracked
+    const requestId = context.taskId;
+    const model = context.model || this.config.model || 'gpt-image-1.5';
+
+    this.logger.log(
+      `🖼️ [OPENAI-IMAGE] generateImage() - model: ${model}, prompt: ${params.prompt.substring(0, 100)}...`,
+    );
+
+    try {
+      // Map params to OpenAI API format
+      const size = this.mapImageSize(params.size);
+      const quality = params.quality || 'standard';
+      const style = params.style || 'natural';
+      const n = Math.min(params.numberOfImages || 1, 4); // OpenAI max is 4
+
+      // Determine if using newer GPT Image model or legacy DALL-E
+      const isGptImage = model.includes('gpt-image');
+      const isDalle3 = model.includes('dall-e-3');
+      const isDalle2 = model.includes('dall-e-2');
+
+      // Build request options
+      // Note: gpt-image-1 models always return b64_json and don't accept response_format
+      // DALL-E models support response_format parameter
+      const requestOptions: OpenAI.Images.ImageGenerateParams = {
+        model,
+        prompt: params.prompt,
+        n,
+        size: size as
+          | '256x256'
+          | '512x512'
+          | '1024x1024'
+          | '1792x1024'
+          | '1024x1792',
+      };
+
+      // Only add response_format for DALL-E models (gpt-image models always return b64_json)
+      if (isDalle2 || isDalle3) {
+        requestOptions.response_format = 'b64_json';
+      }
+
+      // Add quality and style only for DALL-E 3 (gpt-image models don't support these)
+      if (isDalle3) {
+        requestOptions.quality = quality;
+        requestOptions.style = style;
+      }
+
+      // Add background option for GPT Image models
+      if (isGptImage && params.background) {
+        (requestOptions as unknown as Record<string, unknown>).background =
+          params.background;
+      }
+
+      this.logger.debug(`🖼️ [OPENAI-IMAGE] Request options:`, {
+        model,
+        size,
+        quality,
+        style,
+        n,
+      });
+
+      // Make API call
+      const response = await this.openai.images.generate(requestOptions);
+
+      const endTime = Date.now();
+
+      // Convert response to our format
+      // gpt-image-1 models return b64_json directly
+      // DALL-E models may return URL or b64_json depending on response_format
+      const images = await Promise.all(
+        (response.data ?? []).map(async (img) => {
+          let buffer: Buffer;
+
+          if (img.b64_json) {
+            // Base64 encoded image data
+            buffer = Buffer.from(img.b64_json, 'base64');
+          } else if (img.url) {
+            // URL - need to download the image
+            this.logger.debug(
+              `🖼️ [OPENAI-IMAGE] Downloading image from URL...`,
+            );
+            const fetchResponse = await fetch(img.url);
+            if (!fetchResponse.ok) {
+              throw new Error(
+                `Failed to download image: ${fetchResponse.statusText}`,
+              );
+            }
+            const arrayBuffer = await fetchResponse.arrayBuffer();
+            buffer = Buffer.from(arrayBuffer);
+          } else {
+            throw new Error('No image data in response');
+          }
+
+          // Parse size dimensions
+          const [width, height] = this.parseSizeDimensions(size);
+
+          const metadata: ImageMetadata = {
+            width,
+            height,
+            mimeType: 'image/png',
+            sizeBytes: buffer.length,
+            revisedPrompt: img.revised_prompt,
+          };
+
+          return {
+            data: buffer,
+            revisedPrompt: img.revised_prompt,
+            metadata,
+          };
+        }),
+      );
+
+      this.logger.log(
+        `🖼️ [OPENAI-IMAGE] Generated ${images.length} image(s), total bytes: ${images.reduce((sum, img) => sum + img.data.length, 0)}`,
+      );
+
+      // Build response metadata
+      const responseMetadata: ResponseMetadata = {
+        provider: 'openai',
+        model,
+        requestId,
+        timestamp: new Date().toISOString(),
+        usage: {
+          // Image generation doesn't use tokens in traditional sense
+          inputTokens: 0,
+          outputTokens: 0,
+          totalTokens: 0,
+          // Cost is per-image based on model and size
+          cost: this.calculateImageCost(model, size, quality, n),
+        },
+        timing: {
+          startTime,
+          endTime,
+          duration: endTime - startTime,
+        },
+        tier: 'external',
+        status: 'completed',
+        providerSpecific: {
+          imagesGenerated: images.length,
+          size,
+          quality,
+          style,
+        },
+      };
+
+      return {
+        images,
+        metadata: responseMetadata,
+      };
+    } catch (error) {
+      const endTime = Date.now();
+
+      this.logger.error(
+        `🖼️ [OPENAI-IMAGE] Error: ${error instanceof Error ? error.message : String(error)}`,
+      );
+
+      // Return error response
+      return {
+        images: [],
+        metadata: {
+          provider: 'openai',
+          model,
+          requestId,
+          timestamp: new Date().toISOString(),
+          usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+          timing: { startTime, endTime, duration: endTime - startTime },
+          tier: 'external',
+          status: 'error',
+          errorMessage:
+            error instanceof Error ? error.message : 'Unknown error',
+        },
+        error: {
+          code: 'OPENAI_IMAGE_GENERATION_FAILED',
+          message: error instanceof Error ? error.message : 'Unknown error',
+          details: error,
+        },
+      };
+    }
+  }
+
+  /**
+   * Map our size enum to OpenAI's size format
+   */
+  private mapImageSize(size?: ImageGenerationParams['size']): string {
+    // Default to 1024x1024 if not specified
+    return size || '1024x1024';
+  }
+
+  /**
+   * Parse size string to width/height
+   */
+  private parseSizeDimensions(size: string): [number, number] {
+    const parts = size.split('x');
+    const width = parseInt(parts[0] ?? '1024', 10);
+    const height = parseInt(parts[1] ?? '1024', 10);
+    return [width, height];
+  }
+
+  /**
+   * Calculate cost for image generation
+   */
+  private calculateImageCost(
+    model: string,
+    size: string,
+    quality: string,
+    count: number,
+  ): number {
+    // Base pricing (per image) - these are approximate and should be updated
+    // from the database pricing table in production
+    const pricing: Record<string, Record<string, number>> = {
+      'gpt-image-1.5': {
+        '1024x1024:standard': 0.04,
+        '1024x1024:hd': 0.08,
+        '1792x1024:standard': 0.08,
+        '1792x1024:hd': 0.12,
+        '1024x1792:standard': 0.08,
+        '1024x1792:hd': 0.12,
+      },
+      'gpt-image-1': {
+        '1024x1024:standard': 0.02,
+        '1792x1024:standard': 0.04,
+        '1024x1792:standard': 0.04,
+      },
+      'dall-e-3': {
+        '1024x1024:standard': 0.04,
+        '1024x1024:hd': 0.08,
+        '1792x1024:standard': 0.08,
+        '1792x1024:hd': 0.12,
+        '1024x1792:standard': 0.08,
+        '1024x1792:hd': 0.12,
+      },
+      'dall-e-2': {
+        '1024x1024:standard': 0.02,
+        '512x512:standard': 0.018,
+        '256x256:standard': 0.016,
+      },
+    };
+
+    const modelPricing = pricing[model] ??
+      pricing['dall-e-3'] ?? { '1024x1024:standard': 0.04 };
+    const priceKey = `${size}:${quality}`;
+    const perImageCost =
+      modelPricing[priceKey] ?? modelPricing['1024x1024:standard'] ?? 0.04;
+
+    return perImageCost * count;
   }
 
   /**

@@ -116,7 +116,10 @@ describe('CentralizedRoutingService showstopper behavior', () => {
     expect(decision.provider).toBe('policy-blocked');
   });
 
-  it('bypasses via local when showstopper and local available', async () => {
+  it('blocks when showstopper with explicit external provider even if local available', async () => {
+    // When user explicitly requests an external provider like 'openai',
+    // and there's a showstopper, we BLOCK rather than silently routing to local.
+    // This respects the user's provider choice - they asked for openai, not ollama.
     const { service } = makeService({
       showstopper: true,
       localAvailable: true,
@@ -125,6 +128,22 @@ describe('CentralizedRoutingService showstopper behavior', () => {
     const decision = await service.determineRoute('pii content', {
       providerName: 'openai',
       userId: 'u',
+    });
+    expect(decision.routeToAgent).toBe(false);
+    expect(decision.provider).toBe('policy-blocked');
+  });
+
+  it('bypasses via local when showstopper and no explicit provider', async () => {
+    // When no explicit provider is requested and local is available,
+    // route to local to bypass the showstopper
+    const { service } = makeService({
+      showstopper: true,
+      localAvailable: true,
+      bestLocalModel: 'qwen2.5:7b',
+    });
+    const decision = await service.determineRoute('pii content', {
+      userId: 'u',
+      // No providerName - let the routing service decide
     });
     expect(decision.routeToAgent).toBe(true);
     expect(decision.provider).toBe('ollama');

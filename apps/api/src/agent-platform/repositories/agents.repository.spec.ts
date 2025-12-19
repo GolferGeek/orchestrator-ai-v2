@@ -21,15 +21,23 @@ describe('AgentsRepository', () => {
     id: '123',
     organization_slug: ['my-org'],
     slug: 'marketing_swarm',
+    name: 'Marketing Swarm',
     display_name: 'Marketing Swarm',
     description: 'desc',
     agent_type: 'context',
+    department: 'marketing',
+    tags: [],
+    io_schema: {},
+    capabilities: [],
     mode_profile: 'full_cycle',
     version: '1.0.0',
     status: 'active',
     yaml: 'yaml: true',
     agent_card: { protocol: 'a2a' },
     context: { prompt: 'hi' },
+    endpoint: null,
+    llm_config: null,
+    metadata: {},
     config: { capabilities: [] },
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -99,6 +107,7 @@ describe('AgentsRepository', () => {
       eq: jest.Mock;
       is: jest.Mock;
       contains: jest.Mock;
+      or: jest.Mock;
       order: jest.Mock;
       data: (typeof sampleAgent)[];
       error: null;
@@ -108,6 +117,7 @@ describe('AgentsRepository', () => {
       eq: jest.fn().mockReturnThis(),
       is: jest.fn().mockReturnThis(),
       contains: jest.fn().mockReturnThis(),
+      or: jest.fn().mockReturnThis(),
       order: jest.fn().mockReturnThis(),
       data: [sampleAgent],
       error: null,
@@ -120,10 +130,13 @@ describe('AgentsRepository', () => {
     fromMock.mockReturnValue(listChain);
 
     const repo = new AgentsRepository(service);
-    // When organizationSlug is null, contains is not called
+    // When organizationSlug is null, or() is called for global agents
     const result = await repo.listByOrganization(null);
 
-    // Verify contains was NOT called since organizationSlug is null
+    // Verify or() was called since organizationSlug is null (for global agents)
+    expect(listChain.or).toHaveBeenCalledWith(
+      'organization_slug.is.null,organization_slug.eq.{}',
+    );
     expect(listChain.contains).not.toHaveBeenCalled();
     expect(result).toEqual([sampleAgent]);
   });

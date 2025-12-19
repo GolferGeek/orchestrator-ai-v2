@@ -12,7 +12,7 @@ export interface AgentRecord {
   name: string;
   description: string;
   version: string;
-  agent_type: 'context' | 'api' | 'external';
+  agent_type: 'context' | 'api' | 'external' | 'media';
   department: string;
   tags: string[];
   io_schema: JsonObject;
@@ -31,7 +31,7 @@ export interface AgentUpsertInput {
   name: string;
   description: string;
   version?: string;
-  agent_type: 'context' | 'api' | 'external';
+  agent_type: 'context' | 'api' | 'external' | 'media';
   department: string;
   tags?: string[];
   io_schema: JsonObject;
@@ -48,7 +48,7 @@ export interface AgentUpsertRow {
   name: string;
   description: string;
   version: string;
-  agent_type: 'context' | 'api' | 'external';
+  agent_type: 'context' | 'api' | 'external' | 'media';
   department: string;
   tags: string[];
   io_schema: JsonObject;

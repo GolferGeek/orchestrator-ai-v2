@@ -1181,6 +1181,43 @@ watch(
   },
   { immediate: true },
 );
+
+// Watch for media agent selection and update model type filter accordingly
+watch(
+  () => currentAgent.value,
+  async (agent) => {
+    if (!agent) return;
+
+    // Check if this is a media agent (type: 'media')
+    const agentType = agent.type || (agent.metadata?.agent_type);
+
+    if (agentType === 'media') {
+      // Get media type from agent metadata to determine model_type filter
+      const mediaType = agent.metadata?.mediaType;
+      const defaultProvider = agent.metadata?.defaultProvider;
+      const defaultModel = agent.metadata?.defaultModel;
+
+      // Map media type to model type
+      let modelType: 'text-generation' | 'image-generation' | 'video-generation' = 'image-generation';
+      if (mediaType === 'video') {
+        modelType = 'video-generation';
+      } else if (mediaType === 'image') {
+        modelType = 'image-generation';
+      }
+
+      console.log(`🎨 [MEDIA-AGENT] Detected media agent: ${agent.name}, mediaType: ${mediaType}, modelType: ${modelType}`);
+      console.log(`🎨 [MEDIA-AGENT] Default provider: ${defaultProvider}, model: ${defaultModel}`);
+
+      // Update LLM store to filter by media model type and set default model
+      await llmStore.setModelTypeForAgent(modelType, defaultProvider, defaultModel);
+    } else if (llmStore.selectedModelType !== 'text-generation') {
+      // If switching from a media agent to a non-media agent, reset to text generation
+      await llmStore.setModelType('text-generation');
+    }
+  },
+  { immediate: true },
+);
+
 // Watch for new messages and scroll
 watch(() => messages.value.length, () => {
   scrollToBottom();

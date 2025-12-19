@@ -73,6 +73,16 @@ export interface AgentInfo {
   // Custom UI fields (for agents like Marketing Swarm that have their own UI)
   hasCustomUI?: boolean;
   customUIComponent?: string | null;
+  // Media agent configuration (for image/video generation agents)
+  metadata?: {
+    agent_type?: string;
+    mediaType?: 'image' | 'video' | 'audio';
+    defaultProvider?: string;
+    defaultModel?: string;
+    supportedProviders?: string[];
+    supportedModels?: Record<string, string[]>;
+    [key: string]: JsonValue;
+  } | null;
   // capabilities?: string[]; // Example
 }
 // Corrected TaskCreationRequest for /agents/orchestrator/tasks

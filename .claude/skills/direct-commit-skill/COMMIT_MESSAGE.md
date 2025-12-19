@@ -8,8 +8,12 @@
    ```bash
    git diff --staged  # For staged changes
    git diff           # For unstaged changes
+   git diff HEAD      # For all changes (staged + unstaged)
+   git diff HEAD -- <path>  # For specific file paths
    git status         # To see what files changed
    ```
+   
+   **IMPORTANT:** These `git diff` commands **NEVER require approval** - they are read-only operations essential for commit message generation.
 
 2. **Analyze changes:**
    - Read changed files to understand what was modified

@@ -170,7 +170,16 @@ export class LLMPricingService {
    */
   async loadPricingCache(): Promise<void> {
     try {
-      const client = this.supabaseService.getServiceClient();
+      // Try to get the service client, but gracefully handle if it's not available yet
+      let client;
+      try {
+        client = this.supabaseService.getServiceClient();
+      } catch {
+        this.logger.warn(
+          'Supabase service client not yet available, will retry later',
+        );
+        return;
+      }
 
       const { data, error } = await client
         .from(getTableName('llm_models'))

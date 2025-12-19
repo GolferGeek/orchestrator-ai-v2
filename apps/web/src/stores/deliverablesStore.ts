@@ -62,7 +62,9 @@ export const useDeliverablesStore = defineStore('deliverables', () => {
       'analysis': [],
       'report': [],
       'plan': [],
-      'requirements': []
+      'requirements': [],
+      'image': [],
+      'video': [],
     };
     deliverables.value.forEach(deliverable => {
       const type = (deliverable.type || 'document').toLowerCase();

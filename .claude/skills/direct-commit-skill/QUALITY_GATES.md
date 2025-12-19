@@ -38,7 +38,35 @@ cd apps/langgraph && npm run lint && cd ../..
 
 **Note:** `transport-types` workspace does not have a lint script, so it's excluded.
 
-### 3. Build (ALL Workspaces)
+### 3. Run Tests (Affected Apps Only)
+
+**CRITICAL:** Run tests **only for apps that have changed files**. See [TESTING.md](TESTING.md) for details.
+
+**Process:**
+1. Detect changed files: `git diff --name-only HEAD`
+2. Determine affected apps (api, web, langgraph)
+3. Run tests for affected apps only
+
+**Test Commands:**
+```bash
+# API tests (if apps/api/** changed)
+cd apps/api && npm test && cd ../..
+
+# Web tests (if apps/web/** changed)
+cd apps/web && npm run test:unit && cd ../..
+
+# LangGraph tests (if apps/langgraph/** changed)
+cd apps/langgraph && npm test && cd ../..
+```
+
+**Special Cases:**
+- **Root config changes** (package.json, turbo.json, .env): Run all tests (`npm test`)
+- **No app-specific changes**: Skip tests (nothing to test)
+- **Only documentation** (.md files): Skip tests
+
+**CRITICAL: Must pass** - if tests fail in any affected app, fix issues before committing.
+
+### 4. Build (ALL Workspaces)
 ```bash
 npm run build
 ```
@@ -56,10 +84,13 @@ npm run lint                    # API
 cd apps/web && npm run lint && cd ../..      # Web
 cd apps/langgraph && npm run lint && cd ../..  # LangGraph
 
-# Step 3: Build (all workspaces - must pass)
+# Step 3: Run tests (affected apps only - must pass)
+# [See TESTING.md for implementation - detects changed files and runs appropriate tests]
+
+# Step 4: Build (all workspaces - must pass)
 npm run build
 
-# Step 4: Only commit if all gates pass
+# Step 5: Only commit if all gates pass
 ```
 
 **Note:** The root `npm run lint` only lints the API (nestjs filter). You must also lint Web and LangGraph separately.
@@ -84,6 +115,33 @@ If lint reports errors in any workspace:
 - **DO NOT commit** if anti-patterns are found (workarounds are forbidden)
 - Report which workspace(s) have lint errors
 
+### ❌ Test Failure
+
+If tests fail in any affected app:
+
+```bash
+❌ Tests Failed
+
+📊 Results:
+   ❌ API tests: 2 failed, 5 passed
+   ✅ Web tests: All passed
+   ✅ LangGraph tests: All passed
+
+💡 Fix Options:
+   1. Review failing tests above
+   2. Fix test code or implementation
+   3. Re-run tests for affected app: cd apps/api && npm test
+   4. DO NOT commit until all tests pass
+```
+
+**Fix:**
+- Review test output to identify failures
+- Fix the code or tests
+- Re-run tests for the affected app: `cd apps/api && npm test` (or web/langgraph)
+- **DO NOT commit** until all tests pass
+
+**Note:** See [TESTING.md](TESTING.md) for details on which tests run for which apps.
+
 ### ❌ Build Failure
 If build fails:
 - Fix TypeScript compilation errors
@@ -103,6 +161,13 @@ Before committing, verify:
 - [ ] `npm run lint` - No lint errors in API
 - [ ] `cd apps/web && npm run lint` - No lint errors in Web
 - [ ] `cd apps/langgraph && npm run lint` - No lint errors in LangGraph
+- [ ] Tests pass for affected apps (see [TESTING.md](TESTING.md) for which apps to test)
 - [ ] `npm run build` - Build succeeds (all workspaces)
 - [ ] All quality gates pass in ALL workspaces (API, Web, LangGraph)
+
+## Related Documentation
+
+- **[TESTING.md](TESTING.md)** - Testing strategy: run tests only for affected apps
+- **quality-gates-skill**: For detailed quality gate patterns and troubleshooting
+- **strict-linting-skill**: For enforcing hardcore linting rules and catching anti-patterns
 

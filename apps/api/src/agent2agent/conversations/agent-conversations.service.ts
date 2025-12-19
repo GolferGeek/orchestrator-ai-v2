@@ -58,10 +58,10 @@ export class AgentConversationsService {
     const validTypes: AgentType[] = [
       'context',
       'api',
-      'function',
       'external',
-      'tool',
       'orchestrator',
+      'media',
+      'rag-runner',
     ];
     // Allow file-based types
     if (validTypes.includes(agentType)) {

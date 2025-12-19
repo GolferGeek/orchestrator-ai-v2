@@ -5,6 +5,7 @@ import { ApiAgentRunnerService } from './api-agent-runner.service';
 import { ExternalAgentRunnerService } from './external-agent-runner.service';
 import { OrchestratorAgentRunnerService } from './orchestrator-agent-runner.service';
 import { RagAgentRunnerService } from './rag-agent-runner.service';
+import { MediaAgentRunnerService } from './media-agent-runner.service';
 import { IAgentRunner } from '../interfaces/agent-runner.interface';
 import { TaskResponseDto } from '../dto/task-response.dto';
 import { AgentTaskMode } from '../dto/task-request.dto';
@@ -50,6 +51,10 @@ describe('AgentRunnerRegistryService', () => {
           provide: RagAgentRunnerService,
           useValue: new MockAgentRunner('rag'),
         },
+        {
+          provide: MediaAgentRunnerService,
+          useValue: new MockAgentRunner('media'),
+        },
       ],
     }).compile();
 
@@ -92,8 +97,8 @@ describe('AgentRunnerRegistryService', () => {
       service.registerRunner('custom2', custom2Runner);
       service.registerRunner('custom3', custom3Runner);
 
-      // 5 auto-registered + 3 custom = 8
-      expect(service.getRunnerCount()).toBe(8);
+      // 6 auto-registered + 3 custom = 9
+      expect(service.getRunnerCount()).toBe(9);
       expect(service.getRunner('custom1')).toBe(custom1Runner);
       expect(service.getRunner('custom2')).toBe(custom2Runner);
       expect(service.getRunner('custom3')).toBe(custom3Runner);
@@ -131,6 +136,7 @@ describe('AgentRunnerRegistryService', () => {
       expect(service.hasRunner('external')).toBe(true);
       expect(service.hasRunner('orchestrator')).toBe(true);
       expect(service.hasRunner('rag-runner')).toBe(true);
+      expect(service.hasRunner('media')).toBe(true);
     });
 
     it('should return true for a newly registered type', () => {
@@ -149,13 +155,14 @@ describe('AgentRunnerRegistryService', () => {
     it('should return all auto-registered agent types', () => {
       const types = service.getRegisteredTypes();
 
-      // Registry auto-registers 5 types in constructor
+      // Registry auto-registers 6 types in constructor
       expect(types).toContain('context');
       expect(types).toContain('api');
       expect(types).toContain('external');
       expect(types).toContain('orchestrator');
       expect(types).toContain('rag-runner');
-      expect(types.length).toBe(5);
+      expect(types).toContain('media');
+      expect(types.length).toBe(6);
     });
 
     it('should return additional manually registered types', () => {
@@ -168,25 +175,26 @@ describe('AgentRunnerRegistryService', () => {
       expect(types).toContain('external');
       expect(types).toContain('orchestrator');
       expect(types).toContain('rag-runner');
+      expect(types).toContain('media');
       expect(types).toContain('custom');
-      expect(types.length).toBe(6);
+      expect(types.length).toBe(7);
     });
   });
 
   describe('getRunnerCount', () => {
-    it('should return 5 for auto-registered runners', () => {
-      // Registry auto-registers 5 runners in constructor
-      expect(service.getRunnerCount()).toBe(5);
+    it('should return 6 for auto-registered runners', () => {
+      // Registry auto-registers 6 runners in constructor
+      expect(service.getRunnerCount()).toBe(6);
     });
 
     it('should return the correct count after adding more runners', () => {
-      expect(service.getRunnerCount()).toBe(5);
-
-      service.registerRunner('custom1', new MockAgentRunner('custom1'));
       expect(service.getRunnerCount()).toBe(6);
 
-      service.registerRunner('custom2', new MockAgentRunner('custom2'));
+      service.registerRunner('custom1', new MockAgentRunner('custom1'));
       expect(service.getRunnerCount()).toBe(7);
+
+      service.registerRunner('custom2', new MockAgentRunner('custom2'));
+      expect(service.getRunnerCount()).toBe(8);
     });
   });
 });

@@ -131,10 +131,14 @@ export interface UsageStats {
   created_at: string;
   updated_at: string;
 }
+// Model type for media generation filtering
+export type ModelType = 'text-generation' | 'image-generation' | 'video-generation';
+
 // UI State types
 export interface LLMPreferencesState {
   selectedProvider?: Provider;
   selectedModel?: Model;
+  selectedModelType: ModelType;
   selectedCIDAFMCommands: string[];
   customModifiers: string[];
   temperature: number;

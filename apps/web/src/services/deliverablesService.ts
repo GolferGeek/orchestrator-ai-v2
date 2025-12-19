@@ -9,7 +9,9 @@ export enum DeliverableType {
   ANALYSIS = 'analysis',
   REPORT = 'report',
   PLAN = 'plan',
-  REQUIREMENTS = 'requirements'
+  REQUIREMENTS = 'requirements',
+  IMAGE = 'image',
+  VIDEO = 'video',
 }
 export enum DeliverableFormat {
   MARKDOWN = 'markdown',

@@ -46,6 +46,9 @@ export class SupabaseService implements OnModuleInit {
     // Both schemas are now 'public' after consolidation, but keep variables for compatibility
 
     // Log the configuration
+    this.logger.warn(
+      `Supabase config - URL: ${url ? 'SET' : 'NOT SET'}, AnonKey: ${anonKey ? 'SET' : 'NOT SET'}, ServiceKey: ${serviceKey ? 'SET' : 'NOT SET'}`,
+    );
 
     // Store schema configuration for easy access
     this.coreSchema = coreSchema;

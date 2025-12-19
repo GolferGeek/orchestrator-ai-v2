@@ -6,7 +6,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $json.statusWebhook || \"http://host.docker.internal:6100/webhooks/status\"}}",
+        "url": "={{ $json.statusWebhook || \"http://host.docker.internal:7100/webhooks/status\"}}",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({\n  taskId: $json.taskId,\n  status: 'running',\n  timestamp: new Date().toISOString(),\n  step: $json.stepName,\n  message: `Starting ${$json.stepName || 'task'}`,\n  sequence: $json.sequence,\n  totalSteps: $json.totalSteps,\n  conversationId: $json.conversationId,\n  userId: $json.userId\n}) }}",
@@ -243,7 +243,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $json.statusWebhook || 'http://host.docker.internal:6100/webhooks/status' }}",
+        "url": "={{ $json.statusWebhook || 'http://host.docker.internal:7100/webhooks/status' }}",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({\n  taskId: $('Edit Fields').item.json.taskId,\n  status: 'completed',\n  timestamp: new Date().toISOString(),\n  step: $('Edit Fields').item.json.stepName,\n  message: `Completed ${$('Edit Fields').item.json.stepName || 'task'}`,\n  sequence: $('Edit Fields').item.json.sequence,\n  totalSteps: $('Edit Fields').item.json.totalSteps,\n  conversationId: $('Edit Fields').item.json.conversationId,\n  userId: $('Edit Fields').item.json.userId\n}) }}",

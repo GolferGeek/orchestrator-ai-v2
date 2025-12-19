@@ -25,8 +25,8 @@ All experimental and overlapping content has been moved to `.claude-archive/`. S
 We're rebuilding with a focused approach:
 
 1. **Core Domain Skills** (Subconversations 1-2)
-   - `execution-context-skill/` - The critical "capsule" that flows through the system
-   - `transport-types-skill/` - A2A compliance and transport types
+   - ✅ `execution-context-skill/` - The critical "capsule" that flows through the system (COMPLETE)
+   - ✅ `transport-types-skill/` - A2A compliance and transport types (COMPLETE)
 
 2. **Architecture Skills** (Subconversations 5-7)
    - `front-end-architecture-skill/` - Front-end patterns and decisions
@@ -34,8 +34,8 @@ We're rebuilding with a focused approach:
    - `langgraph-architecture-skill/` - LangGraph app patterns
 
 3. **Development Skills** (Subconversations 3-4, 8)
-   - `langgraph-development-skill/` - Prescriptive LangGraph building
-   - `n8n-development-skill/` - Prescriptive N8N building
+   - ✅ `langgraph-development-skill/` - Prescriptive LangGraph building (COMPLETE)
+   - ✅ `n8n-development-skill/` - Prescriptive N8N building (COMPLETE)
    - `agent-creation-skill/` - Creating agents in the agent table
 
 4. **Hardening Skills** (Subconversation 9)
@@ -59,7 +59,18 @@ We're rebuilding with a focused approach:
 - **Effective**: Actually prevents common mistakes
 - **Self-Improving**: Hardening system finds and fixes issues
 
-## Next Steps
+## Progress
+
+**Completed:**
+- ✅ Subconversation 1: Execution Context Deep Dive - `execution-context-skill/` created
+- ✅ Subconversation 2: Transport Types & A2A Compliance - `transport-types-skill/` created
+- ✅ Subconversation 3: LangGraph Prescriptive Building Pattern - `langgraph-development-skill/` created
+- ✅ Subconversation 4: N8N Prescriptive Building Pattern - `n8n-development-skill/` created
+
+**Next:**
+- ⏳ Subconversation 5: Web App Architecture
+
+**Next Steps:**
 
 See the plan: `.cursor/plans/claude_code_skills_cleanup_&_rebuild_plan_*.plan.md`
 

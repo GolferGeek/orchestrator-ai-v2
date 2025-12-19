@@ -19,6 +19,7 @@ export enum DeliverableType {
   PLAN = 'plan',
   REQUIREMENTS = 'requirements',
   IMAGE = 'image',
+  VIDEO = 'video',
 }
 
 export enum DeliverableFormat {

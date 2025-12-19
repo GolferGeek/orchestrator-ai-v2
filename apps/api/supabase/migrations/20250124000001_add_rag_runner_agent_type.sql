@@ -45,6 +45,16 @@ COMMENT ON COLUMN public.agents.agent_type IS
   'Type of agent: context (LLM-based), api (webhook/HTTP), external (A2A protocol), rag-runner (RAG knowledge base), orchestrator (multi-agent coordination)';
 
 -- =============================================================================
+-- ADD OLLAMA PROVIDER (if not exists)
+-- =============================================================================
+
+INSERT INTO public.llm_providers (
+  name, display_name, api_base_url, is_active
+) VALUES (
+  'ollama', 'Ollama', 'http://localhost:11434', true
+) ON CONFLICT (name) DO NOTHING;
+
+-- =============================================================================
 -- ADD GPT-OSS:20B MODEL (Default for sovereign/internal use)
 -- =============================================================================
 
