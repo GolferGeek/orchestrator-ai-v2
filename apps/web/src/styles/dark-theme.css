@@ -38,61 +38,11 @@
   --dark-info: #3b82f6;
 }
 
-/* Apply enhanced dark theme when system prefers dark */
-@media (prefers-color-scheme: dark) {
-  /* Override Ionic's default dark variables with our enhanced palette */
-  :root {
-    --ion-background-color: var(--dark-bg-primary);
-    --ion-background-color-rgb: 26, 26, 26;
-    
-    --ion-text-color: var(--dark-text-secondary);
-    --ion-text-color-rgb: 226, 232, 240;
-    
-    --ion-color-step-50: var(--dark-bg-secondary);
-    --ion-color-step-100: var(--dark-bg-tertiary);
-    --ion-color-step-150: var(--dark-bg-quaternary);
-    --ion-color-step-200: #4a5568;
-    
-    --ion-toolbar-background: var(--dark-bg-tertiary);
-    --ion-toolbar-color: var(--dark-text-primary);
-    
-    --ion-item-background: var(--dark-bg-secondary);
-    --ion-item-color: var(--dark-text-secondary);
-    
-    --ion-card-background: var(--dark-bg-tertiary);
-    --ion-card-color: var(--dark-text-secondary);
-  }
-  
-  /* Scrollbar styling for dark theme */
-  ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-  
-  ::-webkit-scrollbar-track {
-    background: var(--dark-bg-secondary);
-  }
-  
-  ::-webkit-scrollbar-thumb {
-    background: var(--dark-bg-quaternary);
-    border-radius: 4px;
-  }
-  
-  ::-webkit-scrollbar-thumb:hover {
-    background: var(--dark-border-primary);
-  }
-  
-  /* Selection styling */
-  ::selection {
-    background: var(--dark-accent-blue-bg);
-    color: var(--dark-text-primary);
-  }
-  
-  ::-moz-selection {
-    background: var(--dark-accent-blue-bg);
-    color: var(--dark-text-primary);
-  }
-}
+/* 
+ * Dark theme is now controlled by the .ion-palette-dark class (via dark.class.css)
+ * and the data-theme="dark" attribute for custom styles.
+ * System preference is handled by applyTheme() when theme is set to 'auto'.
+ */
 
 /* Apply enhanced dark theme when manually toggled */
 html[data-theme="dark"] {
@@ -118,21 +68,47 @@ html[data-theme="dark"] {
   --ion-card-color: var(--dark-text-secondary);
 }
 
-html[data-theme="dark"] ::-webkit-scrollbar {
+/* Custom scrollbar styles - light mode (default) */
+/* Apply to all scrollable elements */
+*::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
-html[data-theme="dark"] ::-webkit-scrollbar-track {
+*::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+/* Custom scrollbar styles - dark mode */
+/* Apply to all scrollable elements when dark mode is active */
+html[data-theme="dark"] *::-webkit-scrollbar,
+html.ion-palette-dark *::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+html[data-theme="dark"] *::-webkit-scrollbar-track,
+html.ion-palette-dark *::-webkit-scrollbar-track {
   background: var(--dark-bg-secondary);
 }
 
-html[data-theme="dark"] ::-webkit-scrollbar-thumb {
+html[data-theme="dark"] *::-webkit-scrollbar-thumb,
+html.ion-palette-dark *::-webkit-scrollbar-thumb {
   background: var(--dark-bg-quaternary);
   border-radius: 4px;
 }
 
-html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+html[data-theme="dark"] *::-webkit-scrollbar-thumb:hover,
+html.ion-palette-dark *::-webkit-scrollbar-thumb:hover {
   background: var(--dark-border-primary);
 }
 
@@ -146,20 +122,7 @@ html[data-theme="dark"] ::-moz-selection {
   color: var(--dark-text-primary);
 }
 
-/* Utility classes for consistent dark theme styling */
-@media (prefers-color-scheme: dark) {
-  .dark-bg-primary { background-color: var(--dark-bg-primary) !important; }
-  .dark-bg-secondary { background-color: var(--dark-bg-secondary) !important; }
-  .dark-bg-tertiary { background-color: var(--dark-bg-tertiary) !important; }
-  .dark-bg-elevated { background-color: var(--dark-bg-elevated) !important; }
-  
-  .dark-text-primary { color: var(--dark-text-primary) !important; }
-  .dark-text-secondary { color: var(--dark-text-secondary) !important; }
-  .dark-text-muted { color: var(--dark-text-muted) !important; }
-  
-  .dark-border { border-color: var(--dark-border-primary) !important; }
-  .dark-border-subtle { border-color: var(--dark-border-subtle) !important; }
-}
+/* Utility classes for consistent dark theme styling - only apply when dark mode is active */
 
 html[data-theme="dark"] .dark-bg-primary { background-color: var(--dark-bg-primary) !important; }
 html[data-theme="dark"] .dark-bg-secondary { background-color: var(--dark-bg-secondary) !important; }
@@ -177,26 +140,7 @@ html[data-theme="dark"] .dark-border-subtle { border-color: var(--dark-border-su
    Admin Detail View Dark Mode Styles
    ============================================================================ */
 
-/* Dark mode for detail-view components */
-@media (prefers-color-scheme: dark) {
-  .detail-view {
-    background: var(--dark-bg-primary);
-    color: var(--dark-text-secondary);
-  }
-
-  .detail-header {
-    background: var(--dark-bg-tertiary) !important;
-    border-color: var(--dark-border-subtle) !important;
-  }
-
-  .detail-header h2 {
-    color: var(--dark-text-primary) !important;
-  }
-
-  .detail-body {
-    background: var(--dark-bg-primary);
-  }
-}
+/* Dark mode for detail-view components - class-based only */
 
 html[data-theme="dark"] .detail-view {
   background: var(--dark-bg-primary);

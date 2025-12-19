@@ -108,11 +108,11 @@ function formatOrgName(slug: string): string {
 .org-pill-app {
   padding: 0.35rem 0.75rem;
   border-radius: 4px;
-  background: var(--ion-background-color);
-  color: var(--ion-text-color);
+  background: #ffffff;
+  color: #333333;
   font-size: 0.8rem;
   font-weight: 500;
-  border: 1px solid var(--ion-border-color, var(--ion-color-light-shade));
+  border: 1px solid var(--ion-border-color, #d0d0d0);
   white-space: nowrap;
 }
 
@@ -124,25 +124,53 @@ ion-select {
   --padding-top: 0.25rem;
   --padding-bottom: 0.25rem;
   --min-height: 32px;
-  --background: var(--ion-background-color);
-  --color: var(--ion-text-color);
-  --placeholder-color: var(--ion-color-medium);
+  --background: #ffffff;
+  --color: #333333;
+  --placeholder-color: #666666;
   font-size: 0.8rem;
   font-weight: 500;
   border-radius: 4px;
-  border: 1px solid var(--ion-border-color, var(--ion-color-light-shade));
+  border: 1px solid var(--ion-border-color, #d0d0d0);
+  color: #333333;
 }
 
 ion-select::part(text) {
-  color: var(--ion-text-color);
+  color: #333333;
 }
 
 ion-select::part(icon) {
-  color: var(--ion-color-medium);
-  opacity: 0.8;
+  color: #666666;
+  opacity: 1;
 }
 
 ion-select::part(container) {
   border-radius: 4px;
+}
+
+/* Dark mode overrides */
+:global(html.ion-palette-dark) .org-pill-app,
+:global(html[data-theme="dark"]) .org-pill-app {
+  background: var(--ion-background-color, #1a1a1a);
+  color: var(--ion-text-color, #ffffff);
+  border-color: var(--ion-border-color, #444444);
+}
+
+:global(html.ion-palette-dark) ion-select,
+:global(html[data-theme="dark"]) ion-select {
+  --background: var(--ion-background-color, #1a1a1a);
+  --color: var(--ion-text-color, #ffffff);
+  --placeholder-color: var(--ion-color-medium, #999999);
+  color: var(--ion-text-color, #ffffff);
+  border-color: var(--ion-border-color, #444444);
+}
+
+:global(html.ion-palette-dark) ion-select::part(text),
+:global(html[data-theme="dark"]) ion-select::part(text) {
+  color: var(--ion-text-color, #ffffff);
+}
+
+:global(html.ion-palette-dark) ion-select::part(icon),
+:global(html[data-theme="dark"]) ion-select::part(icon) {
+  color: var(--ion-color-medium, #999999);
 }
 </style>
