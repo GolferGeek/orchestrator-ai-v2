@@ -8,14 +8,31 @@ allowed-tools: SlashCommand, Bash, Read, Write, Edit, Glob, Grep
 
 Complete worktree lifecycle management for parallel development environments with isolated ports, databases, and configuration.
 
+## Configuration
+
+```yaml
+# Worktree slots (3 available)
+slots: [wt-1, wt-2, wt-3]
+
+# Branch naming convention
+branch_format: "golfergeek-{slot}/{feature}"
+
+# Directory location (gitignored)
+worktree_dir: "worktrees/"
+
+# Main branch to sync against
+main_branch: "main"
+```
+
 ## When to use this skill
 
 Use this skill when the user wants to:
 - **Create** a new worktree for parallel development
 - **Remove** an existing worktree
 - **List** all worktrees and their status
+- **Sync** worktrees to latest main
+- **Switch** between worktrees
 - **Check** worktree configuration or status
-- **Manage** multiple parallel development environments
 
 **Do NOT use this skill when:**
 - User asks for a specific subagent or skill delegation
@@ -24,27 +41,34 @@ Use this skill when the user wants to:
 
 ## Operations Overview
 
-This skill manages three core worktree operations:
-
 | Operation | Command | When to Use |
 |-----------|---------|-------------|
-| **Create** | `/create_worktree` | User wants a new parallel environment |
-| **List** | `/list_worktrees` | User wants to see existing worktrees |
-| **Remove** | `/remove_worktree` | User wants to delete a worktree |
+| **Create** | `/worktree create <slot> [feature]` | Create new parallel environment |
+| **List** | `/worktree list` | See all worktrees with status |
+| **Remove** | `/worktree remove <slot>` | Delete a worktree |
+| **Sync** | `/worktree sync [slot\|all]` | Update worktree(s) to main |
+| **Switch** | `/worktree switch <slot>` | Change working directory |
+| **Status** | `/worktree status` | Show current worktree info |
 
-## Decision Tree: Which Command to Use
+## Sync Flow
 
-### 1. User wants to CREATE a worktree
-**Keywords:** create, new, setup, make, build, start, initialize
-**Action:** Use `/create_worktree <branch-name> [port-offset]`
+When syncing a worktree:
+```bash
+cd worktrees/{slot}
+git fetch origin main
+git rebase origin/main
+# If package.json changed: npm install
+# Copy .env from main: cp ../../.env .env
+```
 
-### 2. User wants to LIST worktrees
-**Keywords:** list, show, display, what, which, status, check, view
-**Action:** Use `/list_worktrees`
+## Branch Naming Convention
 
-### 3. User wants to REMOVE a worktree
-**Keywords:** remove, delete, cleanup, destroy, stop, kill, terminate
-**Action:** Use `/remove_worktree <branch-name>`
+Format: `golfergeek-{slot}/{feature}`
+
+Examples:
+- `golfergeek-wt-1/video-generation`
+- `golfergeek-wt-2/auth-refactor`
+- `golfergeek-wt-3/bug-fix`
 
 ## Quick Start
 
@@ -58,15 +82,10 @@ For technical details and quick reference, see [REFERENCE.md](REFERENCE.md).
 
 ## Important Notes
 
-### Do NOT attempt to:
-- Create worktrees manually with git commands
-- Manually configure ports or environment files
-- Use bash to remove directories directly
-- Manage worktree processes manually
-
 ### Always use the slash commands because they:
 - Handle all configuration automatically
 - Ensure port uniqueness
+- Copy .env and run npm install on sync
 - Validate operations
 - Provide comprehensive error handling
 - Clean up properly on removal

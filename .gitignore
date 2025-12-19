@@ -86,3 +86,6 @@ storage/images/
 
 # Monitoring artifacts (excluded from Git)
 .monitor/
+
+# Git worktrees for parallel development (local to each developer)
+worktrees/

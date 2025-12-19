@@ -246,6 +246,69 @@ Skills (Patterns & Validation)
 - `testing-agent.md` - For test execution
 - `pr-review-agent.md` - For PR review
 
+### `/worktree`
+**Purpose:** Manage git worktrees for parallel development
+**Uses:** `worktree-manager-skill`
+**Workflow:**
+1. Parses action (create, list, remove, sync, switch, status)
+2. Executes worktree operation
+3. Handles post-operation tasks (npm install, .env copy)
+4. Reports results
+
+**Actions:**
+- `create <slot> [feature]` - Create worktree with branch `golfergeek-<slot>/<feature>`
+- `list` - Show all worktrees with status
+- `remove <slot>` - Remove worktree (optionally delete branch)
+- `sync [slot|all]` - Sync worktree(s) to main
+- `switch <slot>` - Switch to worktree (auto-syncs first)
+- `status` - Show current worktree info
+
+**Configuration:**
+- Slots: `wt-1`, `wt-2`, `wt-3`
+- Branch format: `golfergeek-{slot}/{feature}`
+- Location: `worktrees/` (gitignored)
+
+**Sync Flow:**
+1. `git fetch origin main`
+2. `git rebase origin/main`
+3. `npm install` (if package.json changed)
+4. Copy `.env` from main
+
+**Related:**
+- `worktree-manager-skill/` - Core worktree operations
+
+### `/explain-claude`
+**Purpose:** Get explanations about Claude Code features, commands, skills, or agents
+**Uses:** Documentation reading and summarization
+**Workflow:**
+1. Identifies the topic type (command, skill, agent, concept)
+2. Reads the relevant documentation files
+3. Summarizes key information
+4. Provides examples and tips
+
+**Topics:**
+- **Commands:** commit, commit-push, review-pr, create-pr, worktree, build-plan, work-plan, test, approve-pr, fix-claude
+- **Skills:** execution-context, transport-types, web-architecture, api-architecture, langgraph, quality-gates, worktree-manager
+- **Agents:** web-agent, api-agent, pr-review-agent, testing-agent
+- **Concepts:** hierarchy, patterns, three-layer, observability
+
+**Output includes:**
+1. **Purpose** - What it does and when to use it
+2. **Usage** - Command syntax and examples
+3. **Workflow** - Step-by-step of what happens
+4. **Related** - Other relevant commands/skills/agents
+5. **Tips** - Best practices and common pitfalls
+
+**Examples:**
+```
+/explain-claude worktree      # How to manage worktrees
+/explain-claude execution-context  # How ExecutionContext works
+/explain-claude web-agent     # What the web architecture agent does
+```
+
+**Related:**
+- All commands, skills, and agents in this hierarchy
+
 ---
 
 ## Base Agent (Main Claude)
