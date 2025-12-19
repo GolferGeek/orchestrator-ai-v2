@@ -2,6 +2,10 @@
 name: plan-evaluation-skill
 description: "Evaluate plan implementation against original plan, identify gaps and deviations, suggest corrections, and update plan with actual progress. Use when executing plans or reviewing completed work."
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+category: "utility"
+type: "utility"
+used-by-agents: []
+related-skills: []
 ---
 
 # Plan Evaluation Skill

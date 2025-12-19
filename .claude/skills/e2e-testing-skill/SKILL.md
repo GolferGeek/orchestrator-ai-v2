@@ -1,6 +1,11 @@
 ---
+name: e2e-testing-skill
 description: E2E testing principles emphasizing NO MOCKING, real database work, real API calls, and real authentication. Use when writing E2E tests, integration tests, or any tests that should use real services. Keywords: e2e test, integration test, real database, real api, no mocking, real authentication, supabase test user.
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+category: "testing"
+type: "utility"
+used-by-agents: ["testing-agent"]
+related-skills: ["web-testing-skill", "api-testing-skill", "langgraph-testing-skill"]
 ---
 
 # E2E Testing Skill

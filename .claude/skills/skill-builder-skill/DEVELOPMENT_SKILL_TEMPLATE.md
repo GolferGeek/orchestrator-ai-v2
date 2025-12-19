@@ -23,6 +23,10 @@ development-skill/
 name: [domain]-development-skill
 description: "Prescriptive [domain] patterns for building [domain] code. Use when building [domain] features, creating [domain] components, or working with [domain] code."
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+category: "development"
+type: "prescriptive"
+used-by-agents: ["[domain]-architecture-agent"]
+related-skills: ["[domain]-architecture-skill", "execution-context-skill"]
 ---
 
 # [Domain] Development Skill

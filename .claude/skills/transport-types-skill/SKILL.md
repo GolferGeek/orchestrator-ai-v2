@@ -1,7 +1,11 @@
 ---
-name: Transport Types & A2A Compliance
+name: transport-types-skill
 description: Enforce A2A (Agent-to-Agent) protocol compliance and transport type contracts. All agent-to-agent calls MUST follow JSON-RPC 2.0 format with strict transport type adherence. Use when reviewing code that makes or handles agent calls, API endpoints for agents, or when ensuring A2A protocol compliance.
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+category: "utility"
+type: "utility"
+used-by-agents: ["web-architecture-agent", "api-architecture-agent", "langgraph-architecture-agent", "agent-builder-agent", "langgraph-api-agent-builder", "n8n-api-agent-builder", "testing-agent", "pr-review-agent", "codebase-monitoring-agent", "codebase-hardening-agent"]
+related-skills: ["execution-context-skill"]
 ---
 
 # Transport Types & A2A Compliance Skill

@@ -1,7 +1,11 @@
 ---
-name: Strict Linting
+name: strict-linting-skill
 description: Enforce hardcore linting rules that catch anti-patterns and force proper fixes. Use when linting code, reviewing code quality, or when lint violations are found. Catches workarounds like underscore variables instead of removing unused code.
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+category: "utility"
+type: "utility"
+used-by-agents: []
+related-skills: ["quality-gates-skill"]
 ---
 
 # Strict Linting Skill

@@ -1,6 +1,11 @@
 ---
+name: langgraph-architecture-skill
 description: Classify LangGraph files and validate against LangGraph workflow patterns. Use when working with workflows, state machines, nodes, tools, HITL, checkpoints, or any LangGraph code.
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+category: "architecture"
+type: "classification-validation"
+used-by-agents: ["langgraph-architecture-agent", "langgraph-api-agent-builder", "pr-review-agent"]
+related-skills: ["execution-context-skill", "transport-types-skill", "langgraph-testing-skill"]
 ---
 
 # LangGraph Architecture Skill

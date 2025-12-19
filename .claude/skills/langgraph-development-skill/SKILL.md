@@ -1,7 +1,11 @@
 ---
-name: LangGraph Development
+name: langgraph-development-skill
 description: Prescriptive patterns for building LangGraph workflows that integrate with Orchestrator AI. Enforces ExecutionContext flow, HITL patterns, observability, and LLM service integration. Use when building or reviewing LangGraph workflows, agents, or graph nodes.
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+category: "development"
+type: "prescriptive"
+used-by-agents: ["langgraph-architecture-agent", "langgraph-api-agent-builder"]
+related-skills: ["langgraph-architecture-skill", "execution-context-skill"]
 ---
 
 # LangGraph Development Skill

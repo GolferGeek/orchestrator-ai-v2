@@ -14,6 +14,7 @@
 6. [Code Quality Scenarios](#code-quality-scenarios)
 7. [Workflow Management Scenarios](#workflow-management-scenarios)
 8. [Ecosystem Maintenance Scenarios](#ecosystem-maintenance-scenarios)
+9. [Registry Pattern Scenarios](#registry-pattern-scenarios)
 
 ---
 
@@ -676,6 +677,130 @@
 **Skills Used:**
 - `claude-code-ecosystem-agent` - Ecosystem maintenance
 - Architecture skills - For adding patterns
+
+---
+
+## Registry Pattern Scenarios
+
+### Scenario 1: Query Commands by Category
+**When:** User wants to see all PR-related commands.
+
+**What Happens:**
+1. User runs: `./scripts/query-registry.sh list-category command pr-workflow`
+2. Script reads all command frontmatter
+3. Filters by `category: "pr-workflow"`
+4. Returns: `create-pr`, `review-pr`, `approve-pr`
+
+**Registry Fields Used:**
+- `category` - Groups commands by function
+
+**Example Output:**
+```
+Commands in category 'pr-workflow':
+  - approve-pr
+  - create-pr
+  - review-pr
+```
+
+---
+
+### Scenario 2: Find Agents Using a Skill
+**When:** User wants to know which agents use `execution-context-skill`.
+
+**What Happens:**
+1. User runs: `./scripts/query-registry.sh agents-using-skill execution-context-skill`
+2. Script reads all agent frontmatter
+3. Checks `mandatory-skills` and `optional-skills` arrays
+4. Returns all agents that reference the skill
+
+**Registry Fields Used:**
+- `mandatory-skills` - Required skills for agents
+- `optional-skills` - Optional skills for agents
+
+**Example Output:**
+```
+Agents using skill 'execution-context-skill':
+  - agent-builder-agent
+  - api-architecture-agent
+  - web-architecture-agent
+  - langgraph-architecture-agent
+  ...
+```
+
+---
+
+### Scenario 3: Find Skills Used by an Agent
+**When:** User wants to see what skills `web-architecture-agent` uses.
+
+**What Happens:**
+1. User runs: `./scripts/query-registry.sh skills-used-by-agent web-architecture-agent`
+2. Script reads agent frontmatter
+3. Extracts `mandatory-skills` and `optional-skills`
+4. Returns categorized list
+
+**Registry Fields Used:**
+- `mandatory-skills` - Required skills
+- `optional-skills` - Optional skills
+
+**Example Output:**
+```
+Skills used by agent 'web-architecture-agent':
+Mandatory:
+  - execution-context-skill
+  - transport-types-skill
+  - web-architecture-skill
+Optional:
+  - web-testing-skill
+```
+
+---
+
+### Scenario 4: Validate Registry Completeness
+**When:** User wants to ensure all components have registry fields.
+
+**What Happens:**
+1. User runs: `./scripts/validate-registry.sh`
+2. Script checks all commands, agents, skills
+3. Validates required fields exist
+4. Validates category values are correct
+5. Validates relationships reference existing components
+6. Validates mandatory skills for architecture agents
+
+**Registry Fields Validated:**
+- Commands: `category` (required)
+- Agents: `category`, `mandatory-skills` (required)
+- Skills: `category`, `type` (required)
+- All relationship fields reference existing components
+
+**Example Output:**
+```
+✅ All 13 commands validated
+✅ All 11 agents validated
+✅ All 28 skills validated
+✅ All components validated successfully!
+```
+
+---
+
+### Scenario 5: Generate JSON Registry View
+**When:** User wants a machine-readable registry for tooling.
+
+**What Happens:**
+1. User runs: `./scripts/query-registry.sh json registry.json`
+2. Script reads all component frontmatter
+3. Generates structured JSON with all registry data
+4. Saves to `registry.json`
+
+**Registry Data Included:**
+- All commands with categories and relationships
+- All agents with categories and skills
+- All skills with categories and types
+
+**Use Cases:**
+- Integration with other tools
+- Registry UI/dashboard (future)
+- Automated documentation generation
+- Relationship graph visualization
 
 ---
 

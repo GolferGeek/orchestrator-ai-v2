@@ -4,6 +4,10 @@ description: "Build and modify NestJS API applications. Use when user wants to b
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 color: green
+category: "architecture"
+mandatory-skills: ["execution-context-skill", "transport-types-skill", "api-architecture-skill"]
+optional-skills: ["api-testing-skill"]
+related-agents: ["web-architecture-agent", "langgraph-architecture-agent"]
 ---
 
 # API Architecture Agent

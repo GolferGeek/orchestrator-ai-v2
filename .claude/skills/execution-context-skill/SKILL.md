@@ -1,7 +1,11 @@
 ---
-name: Execution Context
+name: execution-context-skill
 description: Enforce the ExecutionContext "capsule" pattern throughout the codebase. ExecutionContext is a complete context object (orgSlug, userId, conversationId, taskId, planId, deliverableId, agentSlug, agentType, provider, model) that must be passed as a whole, never as individual fields. Use when reviewing code that deals with user context, task execution, LLM calls, or observability.
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+category: "utility"
+type: "utility"
+used-by-agents: ["web-architecture-agent", "api-architecture-agent", "langgraph-architecture-agent", "agent-builder-agent", "langgraph-api-agent-builder", "n8n-api-agent-builder", "testing-agent", "pr-review-agent", "codebase-monitoring-agent", "codebase-hardening-agent"]
+related-skills: ["transport-types-skill"]
 ---
 
 # Execution Context Skill

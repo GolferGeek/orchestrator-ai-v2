@@ -26,6 +26,10 @@ utility-skill/
 name: [skill-name]-skill
 description: "[What this skill does]. Use when [when to use it]. Keywords: [trigger keywords]."
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+category: "utility"
+type: "utility"
+used-by-agents: []
+related-skills: []
 ---
 
 # [Skill Name] Skill

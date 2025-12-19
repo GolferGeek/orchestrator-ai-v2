@@ -1,6 +1,11 @@
 ---
+name: media-agent-skill
 description: How to build media agents - agents that generate images, videos, or audio content. Use when building media agents, configuring media generation, or registering media agents in the database.
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+category: "builder"
+type: "prescriptive"
+used-by-agents: ["agent-builder-agent"]
+related-skills: ["agent-builder-skill", "api-agent-skill"]
 ---
 
 # Media Agent Skill

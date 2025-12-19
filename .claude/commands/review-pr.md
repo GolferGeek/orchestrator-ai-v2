@@ -1,6 +1,10 @@
 ---
 description: "Review a pull request systematically. Runs quality checks, analyzes code quality and architecture, and generates review comments."
 argument-hint: "[PR number or branch name]"
+category: "pr-workflow"
+uses-skills: ["execution-context-skill", "transport-types-skill", "web-architecture-skill", "api-architecture-skill", "langgraph-architecture-skill", "quality-gates-skill"]
+uses-agents: ["pr-review-agent"]
+related-commands: ["create-pr", "approve-pr"]
 ---
 
 # Review Pull Request

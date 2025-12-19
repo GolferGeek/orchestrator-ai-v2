@@ -1,6 +1,10 @@
 ---
 description: "Build a structured, machine-readable execution plan from PRD(s), optimized for agent delegation and progress tracking."
 argument-hint: "[PRD file path(s) or PRD content]"
+category: "development"
+uses-skills: ["plan-evaluation-skill"]
+uses-agents: []
+related-commands: ["work-plan"]
 ---
 
 # Build Plan Command

@@ -135,6 +135,10 @@ We'll work through 11 subconversations to understand the codebase and build thes
 - `AGENT-BUILDER-ARCHITECTURE.md` - Agent creation system
 - `AGENT-TEMPLATE.md` - Template for creating architecture agents
 - `COMPLIANCE_REVIEW.md` - Comprehensive compliance review of all components
-- `SCENARIOS.md` - Teaching scenarios for interns and clients
+- `SCENARIOS.md` - Teaching scenarios for interns and clients (26 scenarios)
 - `ENHANCEMENT_PLAN.md` - Plan for optional enhancements (examples, `/create-pr`, framework builders, E2E examples)
+- `RETROSPECTIVE.md` - Complete retrospective on the rebuild effort
+- `REGISTRY_PATTERN.md` - Registry pattern documentation (distributed registry in YAML frontmatter)
+- `scripts/validate-registry.sh` - Validation script for registry completeness
+- `scripts/query-registry.sh` - Query script for registry relationships and views
 

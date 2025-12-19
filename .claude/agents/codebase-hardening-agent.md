@@ -4,6 +4,10 @@ description: Review monitoring reports, determine test adequacy, auto-fix issues
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 color: "#FF6347"
+category: "specialized"
+mandatory-skills: ["execution-context-skill", "transport-types-skill", "codebase-hardening-skill", "codebase-monitoring-skill"]
+optional-skills: []
+related-agents: ["codebase-monitoring-agent"]
 ---
 
 # Codebase Hardening Agent

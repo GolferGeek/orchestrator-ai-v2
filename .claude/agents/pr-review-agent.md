@@ -4,6 +4,10 @@ description: Systematically review pull requests. Use when user wants to review 
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 color: yellow
+category: "specialized"
+mandatory-skills: ["execution-context-skill", "transport-types-skill", "web-architecture-skill", "api-architecture-skill", "langgraph-architecture-skill", "quality-gates-skill"]
+optional-skills: []
+related-agents: []
 ---
 
 # PR Review Agent

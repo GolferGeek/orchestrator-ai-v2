@@ -1,6 +1,10 @@
 ---
 description: "Fix or improve Claude Code ecosystem components (skills, agents, commands) based on issues or feedback. Use when skills aren't being discovered, agents aren't triggering, components need improvement, or patterns need updating."
 argument-hint: "[issue description] - Describe the issue: skill not found, agent not triggering, agent did wrong thing, agent did right thing, missing pattern, etc."
+category: "ecosystem"
+uses-skills: ["skill-builder-skill", "agent-builder-skill"]
+uses-agents: ["claude-code-ecosystem-agent"]
+related-commands: ["explain-claude"]
 ---
 
 # /fix-claude Command

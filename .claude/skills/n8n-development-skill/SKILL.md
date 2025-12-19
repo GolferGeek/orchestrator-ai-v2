@@ -1,7 +1,11 @@
 ---
-name: N8N Development
+name: n8n-development-skill
 description: Enforce prescriptive patterns for building N8N workflows that integrate with Orchestrator AI. N8N is an optional workflow tool - customers can choose N8N, LangGraph, CrewAI, or any other system. Use when developing or reviewing N8N workflows.
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+category: "development"
+type: "prescriptive"
+used-by-agents: ["n8n-api-agent-builder"]
+related-skills: ["api-agent-skill"]
 ---
 
 # N8N Development Skill

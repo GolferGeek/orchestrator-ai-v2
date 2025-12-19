@@ -4,6 +4,10 @@ description: "Build and modify Vue.js web applications. Use when user wants to b
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 color: blue
+category: "architecture"
+mandatory-skills: ["execution-context-skill", "transport-types-skill", "web-architecture-skill"]
+optional-skills: ["web-testing-skill"]
+related-agents: ["api-architecture-agent", "langgraph-architecture-agent"]
 ---
 
 # Web Architecture Agent

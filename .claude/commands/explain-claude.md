@@ -1,5 +1,9 @@
 ---
 description: "Get explanations about Claude Code features, commands, skills, or agents"
+category: "ecosystem"
+uses-skills: []
+uses-agents: []
+related-commands: ["fix-claude"]
 ---
 
 # Explain Claude Code Components

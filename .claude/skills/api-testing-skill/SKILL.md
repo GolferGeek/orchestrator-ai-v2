@@ -1,6 +1,11 @@
 ---
+name: api-testing-skill
 description: API app testing patterns for NestJS and Jest. Use when testing API app files, generating NestJS service/controller tests, testing agent runners, or running Jest tests for API. Keywords: api test, nestjs test, jest, service test, controller test, agent runner test, api app testing.
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+category: "testing"
+type: "prescriptive"
+used-by-agents: ["testing-agent"]
+related-skills: ["e2e-testing-skill", "api-architecture-skill"]
 ---
 
 # API Testing Skill

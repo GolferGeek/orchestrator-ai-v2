@@ -1,6 +1,10 @@
 ---
 description: "Approve a pull request. Use when PR has been reviewed and is ready to merge, or for quick approval after verifying CI passes. Can approve with optional comment."
 argument-hint: "[PR number or branch name] [optional comment]"
+category: "pr-workflow"
+uses-skills: []
+uses-agents: []
+related-commands: ["create-pr", "review-pr"]
 ---
 
 # /approve-pr Command

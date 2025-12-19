@@ -1,6 +1,11 @@
 ---
-name: Create New Skills
+name: meta-skill
 description: Creates new Agent Skills for Claude Code following best practices and documentation. Use when the user wants to create a new skill, extend Claude's capabilities, or package domain expertise into a reusable skill.
+allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+category: "builder"
+type: "template"
+used-by-agents: []
+related-skills: ["skill-builder-skill"]
 ---
 
 # Create New Skills

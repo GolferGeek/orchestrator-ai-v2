@@ -13,6 +13,10 @@ description: "[What builder does]. Use when [when to use it]. Keywords: [trigger
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 color: [color]
+category: "builder"
+mandatory-skills: ["execution-context-skill", "transport-types-skill", "[builder]-skill"]
+optional-skills: []
+related-agents: []
 ---
 
 # [Builder Name] Agent

@@ -1,6 +1,10 @@
 ---
 description: "Create pull request with progressive validation. Analyzes changed files, runs quality checks, and creates PR if all checks pass."
 argument-hint: "[base branch] [title] [description] - Base branch defaults to main/master, title auto-generated from changes if not provided"
+category: "pr-workflow"
+uses-skills: ["execution-context-skill", "transport-types-skill", "web-architecture-skill", "api-architecture-skill", "langgraph-architecture-skill", "quality-gates-skill"]
+uses-agents: ["web-architecture-agent", "api-architecture-agent", "langgraph-architecture-agent", "pr-review-agent"]
+related-commands: ["review-pr", "approve-pr"]
 ---
 
 # /create-pr Command

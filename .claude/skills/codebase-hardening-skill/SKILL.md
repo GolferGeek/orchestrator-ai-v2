@@ -1,6 +1,11 @@
 ---
+name: codebase-hardening-skill
 description: Patterns and validation for codebase hardening. Use when fixing issues, addressing architectural problems, or improving code quality. Keywords: hardening, auto-fix, issue fixing, architectural refactoring, code quality.
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+category: "utility"
+type: "prescriptive"
+used-by-agents: ["codebase-hardening-agent"]
+related-skills: ["codebase-monitoring-skill"]
 ---
 
 # Codebase Hardening Skill

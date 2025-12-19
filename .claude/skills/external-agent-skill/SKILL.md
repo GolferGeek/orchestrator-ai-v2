@@ -1,6 +1,11 @@
 ---
+name: external-agent-skill
 description: How to build external agents - agents that use A2A protocol to communicate with external services. Use when building external agents, configuring A2A discovery, or registering external agents in the database.
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+category: "builder"
+type: "prescriptive"
+used-by-agents: ["agent-builder-agent"]
+related-skills: ["agent-builder-skill", "transport-types-skill"]
 ---
 
 # External Agent Skill

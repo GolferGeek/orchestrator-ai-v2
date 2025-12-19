@@ -4,6 +4,10 @@ description: Specialize in the Claude Code ecosystem itself (skills, agents, com
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 color: "#9B59B6"
+category: "specialized"
+mandatory-skills: ["skill-builder-skill", "agent-builder-skill"]
+optional-skills: []
+related-agents: []
 ---
 
 # Claude Code Ecosystem Agent

@@ -2,6 +2,25 @@
 
 Complete hierarchy of all Agents, Skills, and Commands in the Orchestrator AI Claude Code system.
 
+## Registry Pattern
+
+All components (commands, agents, skills) include registry metadata in their YAML frontmatter:
+- **Commands:** `category`, `uses-skills`, `uses-agents`, `related-commands`
+- **Agents:** `category`, `mandatory-skills`, `optional-skills`, `related-agents`
+- **Skills:** `category`, `type`, `used-by-agents`, `related-skills`
+
+This enables explicit routing, relationship queries, and validation. See `REGISTRY_PATTERN.md` for details.
+
+**Query Registry:**
+- `./scripts/query-registry.sh list-category <type> <category>` - List components by category
+- `./scripts/query-registry.sh agents-using-skill <skill-name>` - Find agents using a skill
+- `./scripts/query-registry.sh skills-used-by-agent <agent-name>` - Find skills used by an agent
+- `./scripts/query-registry.sh show <type> <name>` - Show full registry entry
+- `./scripts/query-registry.sh json [output-file]` - Generate JSON registry
+
+**Validate Registry:**
+- `./scripts/validate-registry.sh` - Validate all components have required registry fields
+
 ## Overview
 
 ```

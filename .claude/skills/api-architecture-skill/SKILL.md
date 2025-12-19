@@ -2,6 +2,10 @@
 name: api-architecture-skill
 description: "Classify API files and validate against NestJS API application patterns. Use when working with controllers, services, modules, runners, DTOs, or any API application code."
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+category: "architecture"
+type: "classification-validation"
+used-by-agents: ["api-architecture-agent", "pr-review-agent"]
+related-skills: ["execution-context-skill", "transport-types-skill", "api-testing-skill"]
 ---
 
 # API Architecture Skill

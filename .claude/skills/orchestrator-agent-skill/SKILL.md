@@ -1,6 +1,11 @@
 ---
+name: orchestrator-agent-skill
 description: How to build orchestrator agents - agents that coordinate multiple agents and manage workflows. Use when building orchestrator agents, configuring multi-agent coordination, or registering orchestrator agents in the database.
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+category: "builder"
+type: "prescriptive"
+used-by-agents: ["agent-builder-agent"]
+related-skills: ["agent-builder-skill"]
 ---
 
 # Orchestrator Agent Skill

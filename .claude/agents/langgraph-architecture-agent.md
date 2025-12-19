@@ -4,6 +4,10 @@ description: Build and modify LangGraph workflows, agents, tools, and services. 
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 color: purple
+category: "architecture"
+mandatory-skills: ["execution-context-skill", "transport-types-skill", "langgraph-architecture-skill"]
+optional-skills: ["langgraph-testing-skill", "langgraph-development-skill"]
+related-agents: ["web-architecture-agent", "api-architecture-agent"]
 ---
 
 # LangGraph Architecture Agent

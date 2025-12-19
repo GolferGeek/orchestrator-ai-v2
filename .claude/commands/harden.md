@@ -1,6 +1,10 @@
 ---
 description: "Run codebase hardening on specific issues from monitoring report. Auto-fixes issues if tests are adequate, otherwise documents issues with fix plans."
 argument-hint: "[scope] [target] - Scope: 'apps/web', 'apps/api', 'apps/langgraph', or project (default). Target: '#<issue-id>', '<refactoring-name>', or auto-identify most important (default)."
+category: "quality"
+uses-skills: ["codebase-hardening-skill", "codebase-monitoring-skill"]
+uses-agents: ["codebase-hardening-agent", "codebase-monitoring-agent"]
+related-commands: ["monitor", "test"]
 ---
 
 # /harden Command

@@ -22,6 +22,10 @@ architecture-skill/
 name: [domain]-architecture-skill
 description: "Classify [domain] files and validate against [domain] application patterns. Use when working with [domain keywords], [file types], or any [domain] application code."
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+category: "architecture"
+type: "classification-validation"
+used-by-agents: ["[domain]-architecture-agent", "pr-review-agent"]
+related-skills: ["execution-context-skill", "transport-types-skill", "[domain]-testing-skill"]
 ---
 
 # [Domain] Architecture Skill

@@ -1,6 +1,11 @@
 ---
+name: agent-builder-skill
 description: Guide creation of new Claude Code Agents following best practices and patterns. Use when creating new agents, extending agent capabilities, or packaging domain expertise into autonomous agents. Keywords: create agent, build agent, new agent, agent creation, agent development.
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+category: "builder"
+type: "template"
+used-by-agents: ["claude-code-ecosystem-agent", "agent-builder-agent"]
+related-skills: ["skill-builder-skill"]
 ---
 
 # Agent Builder Skill

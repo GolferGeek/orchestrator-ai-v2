@@ -4,6 +4,10 @@ description: Build and maintain N8N API agents. Use when building N8N workflows,
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 color: "#FF6D5A"
+category: "builder"
+mandatory-skills: ["execution-context-skill", "transport-types-skill", "api-agent-skill"]
+optional-skills: []
+related-agents: ["agent-builder-agent", "langgraph-api-agent-builder"]
 ---
 
 # N8N API Agent Builder

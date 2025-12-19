@@ -1,6 +1,10 @@
 ---
 description: Run tests, generate tests, fix failing tests, or check coverage. Supports all apps (web, API, LangGraph) and test types (unit, integration, E2E).
 argument-hint: "[app] [action] [target]" - Examples: "web unit", "api generate src/services/my.service.ts", "langgraph fix", "coverage"
+category: "quality"
+uses-skills: ["web-testing-skill", "api-testing-skill", "langgraph-testing-skill", "e2e-testing-skill"]
+uses-agents: ["testing-agent"]
+related-commands: ["monitor", "harden"]
 ---
 
 # Test Command

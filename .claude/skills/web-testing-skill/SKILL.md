@@ -1,6 +1,11 @@
 ---
+name: web-testing-skill
 description: Web app testing patterns for Vue 3, Vitest, and Cypress. Use when testing web app files, generating Vue component tests, testing stores/services/composables, or running Vitest/Cypress tests. Keywords: web test, vue test, vitest, cypress, component test, store test, service test, web app testing.
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+category: "testing"
+type: "prescriptive"
+used-by-agents: ["testing-agent"]
+related-skills: ["e2e-testing-skill", "web-architecture-skill"]
 ---
 
 # Web Testing Skill

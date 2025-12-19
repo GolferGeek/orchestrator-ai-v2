@@ -1,6 +1,11 @@
 ---
+name: langgraph-testing-skill
 description: LangGraph app testing patterns for Jest. Use when testing LangGraph app files, generating LangGraph agent tests, testing workflows and state machines, or running Jest tests for LangGraph. Keywords: langgraph test, jest, agent test, workflow test, state machine test, langgraph app testing.
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+category: "testing"
+type: "prescriptive"
+used-by-agents: ["testing-agent"]
+related-skills: ["e2e-testing-skill", "langgraph-architecture-skill"]
 ---
 
 # LangGraph Testing Skill

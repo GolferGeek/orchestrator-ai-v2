@@ -1,6 +1,11 @@
 ---
+name: skill-builder-skill
 description: Guide creation of new Claude Code Skills following best practices and patterns. Use when creating new skills, extending Claude's capabilities, or packaging domain expertise into reusable skills. Keywords: create skill, build skill, new skill, skill creation, skill development.
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+category: "builder"
+type: "template"
+used-by-agents: ["claude-code-ecosystem-agent"]
+related-skills: ["agent-builder-skill"]
 ---
 
 # Skill Builder Skill

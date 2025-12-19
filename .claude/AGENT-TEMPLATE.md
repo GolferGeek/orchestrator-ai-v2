@@ -9,6 +9,10 @@ description: Build and modify [domain] applications. Use when user wants to buil
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 color: [color]
+category: "architecture"
+mandatory-skills: ["execution-context-skill", "transport-types-skill", "[domain]-architecture-skill"]
+optional-skills: ["[domain]-testing-skill"]
+related-agents: ["api-architecture-agent", "langgraph-architecture-agent"]
 ---
 
 # [Domain] Architecture Agent

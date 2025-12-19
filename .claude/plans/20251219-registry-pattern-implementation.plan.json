@@ -1,0 +1,451 @@
+{
+  "id": "registry-pattern-20251219",
+  "title": "Claude Code Registry Pattern Implementation",
+  "description": "Implement distributed registry pattern by enhancing YAML frontmatter with registry metadata for all commands, agents, and skills",
+  "prd": "docs/prd/20251219-claude-code-registry-pattern.md",
+  "status": "completed",
+  "progress": 100,
+  "created_at": "2025-12-19T00:00:00Z",
+  "updated_at": "2025-12-19T00:00:00Z",
+  "complexity": "medium",
+  "estimated_effort": "2-3 days",
+  "affected_domains": {
+    "ecosystem": true,
+    "documentation": true,
+    "scripts": true
+  },
+  "goals": [
+    "Enable explicit routing (e.g., /work-plan --agent=web-architecture-agent)",
+    "Enable relationship queries (which agents use which skills)",
+    "Enable validation (mandatory skills references)",
+    "Maintain single source of truth (registry in each file)"
+  ],
+  "scope": {
+    "in_scope": [
+      "Add registry fields to 13 commands",
+      "Add registry fields to 11 agents",
+      "Add registry fields to 27 skills",
+      "Create validation script",
+      "Create query script",
+      "Update builder skills/templates",
+      "Document registry pattern usage"
+    ],
+    "out_of_scope": [
+      "Separate registry file",
+      "Registry UI/dashboard",
+      "Automatic registry generation",
+      "Versioning/migration"
+    ]
+  },
+  "phases": [
+    {
+      "id": "phase-1",
+      "label": "Define Registry Schema",
+      "description": "Document registry fields, define categories and types, create examples, update REGISTRY_PATTERN.md",
+      "status": "completed",
+      "progress": 100,
+      "agent": "claude-code-ecosystem-agent",
+      "depends_on": [],
+      "steps": [
+        {
+          "id": "step-1-1",
+          "action": "Document registry fields for commands, agents, skills",
+          "status": "completed",
+          "deliverables": ["Registry field definitions"]
+        },
+        {
+          "id": "step-1-2",
+          "action": "Define categories and types",
+          "status": "completed",
+          "deliverables": ["Category definitions", "Type definitions"]
+        },
+        {
+          "id": "step-1-3",
+          "action": "Create examples for each component type",
+          "status": "completed",
+          "deliverables": ["Example frontmatter for commands", "Example frontmatter for agents", "Example frontmatter for skills"]
+        },
+        {
+          "id": "step-1-4",
+          "action": "Update REGISTRY_PATTERN.md with final schema",
+          "status": "completed",
+          "deliverables": ["Updated REGISTRY_PATTERN.md"]
+        }
+      ],
+      "validation_checkpoints": [
+        {
+          "id": "checkpoint-1",
+          "label": "Schema Complete",
+          "description": "Registry schema documented and examples created",
+          "triggered_after": ["step-1-4"],
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "id": "phase-2",
+      "label": "Update Commands",
+      "description": "Add registry fields (category, uses-skills, uses-agents, related-commands) to all 13 command files",
+      "status": "completed",
+      "progress": 100,
+      "agent": "claude-code-ecosystem-agent",
+      "depends_on": ["phase-1"],
+      "steps": [
+        {
+          "id": "step-2-1",
+          "action": "Update PR workflow commands (create-pr, review-pr, approve-pr)",
+          "status": "completed",
+          "deliverables": ["Updated create-pr.md", "Updated review-pr.md", "Updated approve-pr.md"]
+        },
+        {
+          "id": "step-2-2",
+          "action": "Update development workflow commands (commit, commit-push, worktree, build-plan, work-plan)",
+          "status": "completed",
+          "deliverables": ["Updated commit.md", "Updated commit-push.md", "Updated worktree.md", "Updated build-plan.md", "Updated work-plan.md"]
+        },
+        {
+          "id": "step-2-3",
+          "action": "Update quality commands (test, monitor, harden)",
+          "status": "completed",
+          "deliverables": ["Updated test.md", "Updated monitor.md", "Updated harden.md"]
+        },
+        {
+          "id": "step-2-4",
+          "action": "Update ecosystem commands (fix-claude, explain-claude)",
+          "status": "completed",
+          "deliverables": ["Updated fix-claude.md", "Updated explain-claude.md"]
+        }
+      ],
+      "validation_checkpoints": [
+        {
+          "id": "checkpoint-2",
+          "label": "All Commands Updated",
+          "description": "All 13 commands have registry fields",
+          "triggered_after": ["step-2-4"],
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "id": "phase-3",
+      "label": "Update Agents",
+      "description": "Add registry fields (category, mandatory-skills, optional-skills, related-agents) to all 11 agent files",
+      "status": "completed",
+      "progress": 100,
+      "agent": "claude-code-ecosystem-agent",
+      "depends_on": ["phase-1"],
+      "steps": [
+        {
+          "id": "step-3-1",
+          "action": "Update architecture agents (web, api, langgraph)",
+          "status": "completed",
+          "deliverables": ["Updated web-architecture-agent.md", "Updated api-architecture-agent.md", "Updated langgraph-architecture-agent.md"]
+        },
+        {
+          "id": "step-3-2",
+          "action": "Update builder agents (agent-builder, langgraph-builder, n8n-builder)",
+          "status": "completed",
+          "deliverables": ["Updated agent-builder-agent.md", "Updated langgraph-api-agent-builder.md", "Updated n8n-api-agent-builder.md"]
+        },
+        {
+          "id": "step-3-3",
+          "action": "Update specialized agents (testing, pr-review, monitoring, hardening, ecosystem)",
+          "status": "completed",
+          "deliverables": ["Updated testing-agent.md", "Updated pr-review-agent.md", "Updated codebase-monitoring-agent.md", "Updated codebase-hardening-agent.md", "Updated claude-code-ecosystem-agent.md"]
+        }
+      ],
+      "validation_checkpoints": [
+        {
+          "id": "checkpoint-3",
+          "label": "All Agents Updated",
+          "description": "All 11 agents have registry fields, mandatory skills validated",
+          "triggered_after": ["step-3-3"],
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "id": "phase-4",
+      "label": "Update Skills",
+      "description": "Add registry fields (category, type, used-by-agents, related-skills) to all 27 skill files",
+      "status": "completed",
+      "progress": 100,
+      "agent": "claude-code-ecosystem-agent",
+      "depends_on": ["phase-1"],
+      "steps": [
+        {
+          "id": "step-4-1",
+          "action": "Update architecture skills (web, api, langgraph)",
+          "status": "completed",
+          "deliverables": ["Updated web-architecture-skill", "Updated api-architecture-skill", "Updated langgraph-architecture-skill"]
+        },
+        {
+          "id": "step-4-2",
+          "action": "Update development skills (web-dev, api-dev, langgraph-dev)",
+          "status": "completed",
+          "deliverables": ["Updated web-development-skill", "Updated api-development-skill", "Updated langgraph-development-skill"]
+        },
+        {
+          "id": "step-4-3",
+          "action": "Update testing skills (web-testing, api-testing, langgraph-testing, e2e-testing)",
+          "status": "completed",
+          "deliverables": ["Updated web-testing-skill", "Updated api-testing-skill", "Updated langgraph-testing-skill", "Updated e2e-testing-skill"]
+        },
+        {
+          "id": "step-4-4",
+          "action": "Update utility skills (execution-context, transport-types, quality-gates, plan-evaluation, worktree-manager)",
+          "status": "completed",
+          "deliverables": ["Updated execution-context-skill", "Updated transport-types-skill", "Updated quality-gates-skill", "Updated plan-evaluation-skill", "Updated worktree-manager-skill"]
+        },
+        {
+          "id": "step-4-5",
+          "action": "Update builder skills (skill-builder, agent-builder, context-agent, rag-agent, media-agent, api-agent, external-agent, orchestrator-agent)",
+          "status": "completed",
+          "deliverables": ["Updated skill-builder-skill", "Updated agent-builder-skill", "Updated context-agent-skill", "Updated rag-agent-skill", "Updated media-agent-skill", "Updated api-agent-skill", "Updated external-agent-skill", "Updated orchestrator-agent-skill"]
+        }
+      ],
+      "validation_checkpoints": [
+        {
+          "id": "checkpoint-4",
+          "label": "All Skills Updated",
+          "description": "All 27 skills have registry fields, relationships validated",
+          "triggered_after": ["step-4-5"],
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "id": "phase-5",
+      "label": "Create Validation Script",
+      "description": "Create scripts/validate-registry.sh to check completeness, relationships, and mandatory skills",
+      "status": "completed",
+      "progress": 100,
+      "agent": null,
+      "depends_on": ["phase-2", "phase-3", "phase-4"],
+      "steps": [
+        {
+          "id": "step-5-1",
+          "action": "Create validation script structure",
+          "status": "completed",
+          "deliverables": ["scripts/validate-registry.sh"]
+        },
+        {
+          "id": "step-5-2",
+          "action": "Implement checks for required fields",
+          "status": "completed",
+          "deliverables": ["Field validation logic"]
+        },
+        {
+          "id": "step-5-3",
+          "action": "Implement relationship validation",
+          "status": "completed",
+          "deliverables": ["Relationship validation logic"]
+        },
+        {
+          "id": "step-5-4",
+          "action": "Implement mandatory skills validation",
+          "status": "completed",
+          "deliverables": ["Mandatory skills validation logic"]
+        },
+        {
+          "id": "step-5-5",
+          "action": "Test validation script on all components",
+          "status": "completed",
+          "deliverables": ["Test results", "Fixed issues"]
+        }
+      ],
+      "validation_checkpoints": [
+        {
+          "id": "checkpoint-5",
+          "label": "Validation Script Works",
+          "description": "Script validates all components, checks relationships, validates mandatory skills",
+          "triggered_after": ["step-5-5"],
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "id": "phase-6",
+      "label": "Create Query Script",
+      "description": "Create scripts/query-registry.sh to query by category, relationships, and generate registry views",
+      "status": "completed",
+      "progress": 100,
+      "agent": null,
+      "depends_on": ["phase-5"],
+      "steps": [
+        {
+          "id": "step-6-1",
+          "action": "Create query script structure",
+          "status": "completed",
+          "deliverables": ["scripts/query-registry.sh"]
+        },
+        {
+          "id": "step-6-2",
+          "action": "Implement category queries",
+          "status": "completed",
+          "deliverables": ["Category query functionality"]
+        },
+        {
+          "id": "step-6-3",
+          "action": "Implement relationship queries",
+          "status": "completed",
+          "deliverables": ["Relationship query functionality"]
+        },
+        {
+          "id": "step-6-4",
+          "action": "Implement registry view generation",
+          "status": "completed",
+          "deliverables": ["JSON registry view", "HTML registry view (optional)"]
+        },
+        {
+          "id": "step-6-5",
+          "action": "Test query script",
+          "status": "completed",
+          "deliverables": ["Test results", "Sample registry views"]
+        }
+      ],
+      "validation_checkpoints": [
+        {
+          "id": "checkpoint-6",
+          "label": "Query Script Works",
+          "description": "Script can query by category, relationships, generate registry views",
+          "triggered_after": ["step-6-5"],
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "id": "phase-7",
+      "label": "Update Builder Skills/Templates",
+      "description": "Update skill-builder-skill and agent-builder-skill templates to include registry fields",
+      "status": "completed",
+      "progress": 100,
+      "agent": "claude-code-ecosystem-agent",
+      "depends_on": ["phase-1"],
+      "steps": [
+        {
+          "id": "step-7-1",
+          "action": "Update skill-builder-skill templates",
+          "status": "completed",
+          "deliverables": ["Updated skill templates with registry fields"]
+        },
+        {
+          "id": "step-7-2",
+          "action": "Update agent-builder-skill templates",
+          "status": "completed",
+          "deliverables": ["Updated agent templates with registry fields"]
+        },
+        {
+          "id": "step-7-3",
+          "action": "Update AGENT-TEMPLATE.md",
+          "status": "completed",
+          "deliverables": ["Updated AGENT-TEMPLATE.md"]
+        },
+        {
+          "id": "step-7-4",
+          "action": "Document registry pattern in builder skills",
+          "status": "completed",
+          "deliverables": ["Updated builder skill documentation"]
+        },
+        {
+          "id": "step-7-5",
+          "action": "Test with new component creation",
+          "status": "completed",
+          "deliverables": ["Test results"]
+        }
+      ],
+      "validation_checkpoints": [
+        {
+          "id": "checkpoint-7",
+          "label": "Builder Templates Updated",
+          "description": "Templates include registry fields, tested with new component creation",
+          "triggered_after": ["step-7-5"],
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "id": "phase-8",
+      "label": "Documentation",
+      "description": "Update HIERARCHY.md, README.md, REGISTRY_PATTERN.md, and SCENARIOS.md with registry pattern information",
+      "status": "completed",
+      "progress": 100,
+      "agent": "claude-code-ecosystem-agent",
+      "depends_on": ["phase-2", "phase-3", "phase-4", "phase-5", "phase-6"],
+      "steps": [
+        {
+          "id": "step-8-1",
+          "action": "Update HIERARCHY.md to reference registry pattern",
+          "status": "completed",
+          "deliverables": ["Updated HIERARCHY.md"]
+        },
+        {
+          "id": "step-8-2",
+          "action": "Update README.md to mention registry capabilities",
+          "status": "completed",
+          "deliverables": ["Updated README.md"]
+        },
+        {
+          "id": "step-8-3",
+          "action": "Update REGISTRY_PATTERN.md with final implementation",
+          "status": "completed",
+          "deliverables": ["Updated REGISTRY_PATTERN.md"]
+        },
+        {
+          "id": "step-8-4",
+          "action": "Add registry examples to SCENARIOS.md",
+          "status": "completed",
+          "deliverables": ["Updated SCENARIOS.md"]
+        }
+      ],
+      "validation_checkpoints": [
+        {
+          "id": "checkpoint-8",
+          "label": "Documentation Complete",
+          "description": "All documentation updated with registry pattern information",
+          "triggered_after": ["step-8-4"],
+          "status": "completed"
+        }
+      ]
+    }
+  ],
+  "execution_strategy": {
+    "mode": "sequential",
+    "coordination_points": [
+      "After Phase 1: Review schema before proceeding",
+      "After Phase 2-4: Run validation script",
+      "After Phase 5: Test validation script",
+      "After Phase 6: Test query script",
+      "After Phase 7: Test builder templates",
+      "After Phase 8: Final review"
+    ]
+  },
+  "success_criteria": [
+    "All 13 commands have category field",
+    "All 11 agents have category and mandatory-skills fields",
+    "All 27 skills have category and type fields",
+    "Validation script passes for all components",
+    "Query script can generate registry views",
+    "Builder templates include registry fields",
+    "Documentation updated"
+  ],
+  "risks": [
+    {
+      "risk": "Incomplete registry data",
+      "mitigation": "Validation script catches missing fields, PR review checks completeness"
+    },
+    {
+      "risk": "Incorrect relationships",
+      "mitigation": "Validation script validates all relationships reference existing components"
+    },
+    {
+      "risk": "Maintenance overhead",
+      "mitigation": "Self-documenting (fields in same file), validation script, PR review"
+    },
+    {
+      "risk": "Breaking changes",
+      "mitigation": "Make all new fields optional, validate backward compatibility"
+    }
+  ]
+}
+

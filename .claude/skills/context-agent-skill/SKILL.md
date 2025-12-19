@@ -1,6 +1,11 @@
 ---
+name: context-agent-skill
 description: How to build context agents - knowledge-based agents using markdown context files. Use when building context agents, creating agent definitions, or registering context agents in the database.
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+category: "builder"
+type: "prescriptive"
+used-by-agents: ["agent-builder-agent"]
+related-skills: ["agent-builder-skill", "rag-agent-skill"]
 ---
 
 # Context Agent Skill

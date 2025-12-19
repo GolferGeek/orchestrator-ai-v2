@@ -2,6 +2,10 @@
 name: web-architecture-skill
 description: "Classify web files and validate against Vue.js web application patterns. Use when working with Vue components, stores, services, composables, views, or any web application code."
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+category: "architecture"
+type: "classification-validation"
+used-by-agents: ["web-architecture-agent", "pr-review-agent"]
+related-skills: ["execution-context-skill", "transport-types-skill", "web-testing-skill"]
 ---
 
 # Web Architecture Skill

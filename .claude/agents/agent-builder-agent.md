@@ -4,6 +4,10 @@ description: Build and register agents of all types (context, rag, media, api, e
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 color: blue
+category: "builder"
+mandatory-skills: ["execution-context-skill", "transport-types-skill", "agent-builder-skill"]
+optional-skills: ["context-agent-skill", "rag-agent-skill", "media-agent-skill", "api-agent-skill", "external-agent-skill", "orchestrator-agent-skill"]
+related-agents: ["langgraph-api-agent-builder", "n8n-api-agent-builder"]
 ---
 
 # Agent Builder Agent

@@ -1,5 +1,9 @@
 ---
 description: "Manage git worktrees for parallel development"
+category: "development"
+uses-skills: ["worktree-manager-skill"]
+uses-agents: []
+related-commands: []
 ---
 
 # Git Worktree Management

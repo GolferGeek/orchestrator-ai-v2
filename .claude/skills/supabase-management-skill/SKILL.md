@@ -1,7 +1,11 @@
 ---
-name: Supabase Management
+name: supabase-management-skill
 description: Manage Supabase database using Orchestrator AI's storage-based sync system. Use when working with Supabase, database snapshots, migrations, agent exports, N8N workflow exports, backups, or storage scripts. CRITICAL: Prevents direct Supabase operations - all operations MUST use storage/scripts/*.sh
 allowed-tools: SlashCommand, Bash, Read, Write, Edit, Glob, Grep
+category: "utility"
+type: "utility"
+used-by-agents: []
+related-skills: []
 ---
 
 # Supabase Management Skill

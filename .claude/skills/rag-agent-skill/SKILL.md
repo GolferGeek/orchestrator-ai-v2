@@ -1,6 +1,11 @@
 ---
+name: rag-agent-skill
 description: How to build RAG agents - agents that query RAG collections and augment LLM responses with retrieved context. Use when building RAG agents, setting up RAG collections, or registering RAG agents in the database.
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+category: "builder"
+type: "prescriptive"
+used-by-agents: ["agent-builder-agent"]
+related-skills: ["agent-builder-skill", "context-agent-skill"]
 ---
 
 # RAG Agent Skill

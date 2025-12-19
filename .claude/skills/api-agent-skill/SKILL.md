@@ -1,6 +1,11 @@
 ---
+name: api-agent-skill
 description: How to build API agents - agents that call external HTTP APIs or wrap LangGraph/N8N workflows. Use when building API agents, determining framework (LangGraph vs N8N), or registering API agents in the database.
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+category: "builder"
+type: "prescriptive"
+used-by-agents: ["agent-builder-agent", "langgraph-api-agent-builder", "n8n-api-agent-builder"]
+related-skills: ["agent-builder-skill", "langgraph-architecture-skill"]
 ---
 
 # API Agent Skill

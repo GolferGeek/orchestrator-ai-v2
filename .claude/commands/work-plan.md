@@ -1,6 +1,10 @@
 ---
 description: "Create and execute a structured work plan from a task, PRD, or existing plan file. Delegates to sub-agents and tracks progress."
 argument-hint: "[task description, PRD file path, or --plan path/to/plan.json]"
+category: "development"
+uses-skills: ["plan-evaluation-skill", "execution-context-skill", "transport-types-skill"]
+uses-agents: ["web-architecture-agent", "api-architecture-agent", "langgraph-architecture-agent"]
+related-commands: ["build-plan"]
 ---
 
 # Work Plan Command

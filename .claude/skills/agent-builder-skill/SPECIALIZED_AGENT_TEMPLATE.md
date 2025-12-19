@@ -13,6 +13,10 @@ description: "[What agent does]. Use when [when to use it]. Keywords: [trigger k
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 color: [color]
+category: "specialized"
+mandatory-skills: ["execution-context-skill", "transport-types-skill", "[domain]-skill"]
+optional-skills: []
+related-agents: []
 ---
 
 # [Agent Name] Agent

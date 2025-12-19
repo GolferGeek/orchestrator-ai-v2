@@ -1,6 +1,10 @@
 ---
 description: "Run codebase monitoring analysis (incremental or full). Analyzes files hierarchically, evaluates health, identifies issues, and generates monitoring artifacts."
 argument-hint: "[scope] [--full] - Scope: 'apps/web', 'apps/api', 'apps/langgraph', or entire project (default). --full: Full analysis ignoring last monitor date."
+category: "quality"
+uses-skills: ["codebase-monitoring-skill"]
+uses-agents: ["codebase-monitoring-agent"]
+related-commands: ["harden", "test"]
 ---
 
 # /monitor Command

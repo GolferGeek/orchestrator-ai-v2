@@ -1,6 +1,11 @@
 ---
+name: codebase-monitoring-skill
 description: Patterns and validation for codebase monitoring. Use when analyzing files, evaluating codebase health, identifying issues, or generating monitoring reports. Keywords: monitoring, file analysis, issue detection, codebase health, hierarchical analysis.
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+category: "utility"
+type: "classification-validation"
+used-by-agents: ["codebase-monitoring-agent", "codebase-hardening-agent"]
+related-skills: ["codebase-hardening-skill"]
 ---
 
 # Codebase Monitoring Skill

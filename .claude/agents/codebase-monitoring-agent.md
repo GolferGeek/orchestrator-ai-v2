@@ -4,6 +4,10 @@ description: Analyze codebase files hierarchically, evaluate health, identify is
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 color: "#4169E1"
+category: "specialized"
+mandatory-skills: ["execution-context-skill", "transport-types-skill", "codebase-monitoring-skill"]
+optional-skills: []
+related-agents: ["codebase-hardening-agent"]
 ---
 
 # Codebase Monitoring Agent

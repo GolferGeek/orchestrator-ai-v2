@@ -4,6 +4,10 @@ description: Build and maintain LangGraph API agents. Use when building LangGrap
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 color: "#8A2BE2"
+category: "builder"
+mandatory-skills: ["execution-context-skill", "transport-types-skill", "langgraph-architecture-skill", "api-agent-skill"]
+optional-skills: ["langgraph-development-skill", "langgraph-testing-skill"]
+related-agents: ["agent-builder-agent", "langgraph-architecture-agent", "n8n-api-agent-builder"]
 ---
 
 # LangGraph API Agent Builder

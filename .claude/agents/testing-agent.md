@@ -4,6 +4,10 @@ description: Run tests, generate tests, fix failing tests, analyze test coverage
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 color: green
+category: "specialized"
+mandatory-skills: ["execution-context-skill", "transport-types-skill", "web-testing-skill", "api-testing-skill", "langgraph-testing-skill", "e2e-testing-skill"]
+optional-skills: []
+related-agents: []
 ---
 
 # Testing Agent
