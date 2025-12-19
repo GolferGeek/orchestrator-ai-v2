@@ -85,6 +85,7 @@ We're rebuilding with a focused approach:
    - ✅ `/monitor` - Run codebase monitoring analysis (incremental or full)
    - ✅ `/harden` - Run codebase hardening on specific issues
    - ✅ `/fix-claude` - Fix or improve Claude Code ecosystem components (meta-meta)
+   - ✅ `/approve-pr` - Approve pull request quickly (without full review)
    - `/create-pr` (Planned) - Create PR with progressive validation
 
 ## Principles

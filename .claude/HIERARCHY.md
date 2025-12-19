@@ -196,6 +196,29 @@ Skills (Patterns & Validation)
 - `skill-builder-skill/` - For skill creation/updates
 - `agent-builder-skill/` - For agent creation/updates
 
+### `/approve-pr`
+**Purpose:** Approve a pull request quickly (without full review)  
+**Uses:** GitHub CLI directly  
+**Workflow:**
+1. Identifies PR (number, branch, or current branch)
+2. Quick verification (CI status, draft status, mergeable)
+3. Approves PR with comment
+4. Displays summary
+
+**Accepts:**
+- PR number or branch name (optional, defaults to current branch)
+- Optional approval comment
+
+**Use Cases:**
+- PR already reviewed and ready
+- CI passing, quick approval needed
+- Following up after requested changes addressed
+- Manual verification complete
+
+**Related:**
+- `/review-pr` - Full PR review (use when review needed)
+- `pr-review-agent.md` - Performs full reviews
+
 ### `/create-pr` (Planned)
 **Purpose:** Create pull request with progressive validation  
 **Uses:** Multiple skills based on changed files  
