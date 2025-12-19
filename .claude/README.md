@@ -65,7 +65,7 @@ We're rebuilding with a focused approach:
      - Future: `crewai-api-agent-builder.md`, etc. (extensible pattern)
 
 6. **Builder Skills** (Subconversations 10-11)
-   - `skill-builder-skill/` - Building Claude Code Skills
+   - ✅ `skill-builder-skill/` - Guide creation of new Claude Code Skills (templates, patterns, validation)
    - `agent-builder-skill/` - Building Claude Code Agents (meta-skill for agent creation patterns)
 
 6. **Testing System** (Subconversation 12)
@@ -108,6 +108,8 @@ We're rebuilding with a focused approach:
 - ✅ Subconversation 6: API Architecture (Agent + Skill) - `api-architecture-agent.md` and `api-architecture-skill/` created
 - ✅ Subconversation 7: LangGraph Architecture (Agent + Skill) - `langgraph-architecture-agent.md` and `langgraph-architecture-skill/` created (includes LLM service and Observability patterns)
 - ✅ Subconversation 8: Agent Builder System (Agent + Skills + Builders) - `agent-builder-agent.md`, agent type skills, and framework builders created
+- ✅ Subconversation 9: Codebase Monitoring & Hardening - Monitoring and hardening systems created
+- ✅ Subconversation 10: Skill Builder Skill - `skill-builder-skill/` created with templates and patterns
 - ✅ Subconversation 12: Testing System (Agent + Skills + Command) - `testing-agent.md`, app-specific testing skills, `e2e-testing-skill/`, and `/test` command created
 
 **Architecture Pattern:**

@@ -1203,16 +1203,27 @@ Skills (Patterns & Validation)
 
 ## Meta Skills (Builder Skills)
 
-### `skill-builder-skill/` (Planned)
-**Purpose:** Building Claude Code Skills  
-**Used By:** When creating new skills  
+### `skill-builder-skill/`
+**Purpose:** Guide creation of new Claude Code Skills following best practices and patterns  
+**Used By:** When creating new skills, extending capabilities, or packaging domain expertise  
 **Capabilities:**
-- Guides skill creation
-- Ensures best practices
+- Guides skill creation workflow
+- Ensures best practices and proper structure
+- Provides templates for different skill types
 - Validates skill structure
+- Integrates with existing skills
+
+**Structure:**
+- `SKILL.md` - Main skill builder documentation
+- `MULTI_FILE_PATTERNS.md` - Multi-file skill patterns
+- `SKILL_STRUCTURE_CHECKLIST.md` - Quick reference checklist
+- `ARCHITECTURE_SKILL_TEMPLATE.md` - Template for architecture skills
+- `DEVELOPMENT_SKILL_TEMPLATE.md` - Template for development skills
+- `UTILITY_SKILL_TEMPLATE.md` - Template for utility skills
 
 **Related:**
 - All skills (meta-skill for creating skills)
+- `meta-skill/` - Original skill creation documentation
 
 ### `agent-builder-skill/` (Planned)
 **Purpose:** Building Claude Code Agents  
