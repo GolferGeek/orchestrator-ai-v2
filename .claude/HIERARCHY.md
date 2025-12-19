@@ -170,6 +170,32 @@ Skills (Patterns & Validation)
 - `api-testing-skill/` - API app testing patterns
 - `langgraph-testing-skill/` - LangGraph app testing patterns
 
+### `/fix-claude`
+**Purpose:** Fix or improve Claude Code ecosystem components based on issues or feedback  
+**Uses:** `claude-code-ecosystem-agent`  
+**Workflow:**
+1. Parses issue description
+2. Identifies component type (skill, agent, command) and issue type
+3. Calls `claude-code-ecosystem-agent` with issue
+4. Agent analyzes problem and determines fix strategy
+5. Agent updates component(s) (description, patterns, workflow)
+6. Agent updates documentation if needed
+7. Displays summary of fixes applied
+
+**Accepts:**
+- Issue description: Discovery issues, behavior issues, pattern issues
+
+**Examples:**
+- `/fix-claude "skill X not being picked up"` → Fixes description/keywords
+- `/fix-claude "agent did Y wrong"` → Adds anti-pattern
+- `/fix-claude "agent did Z right"` → Documents good pattern
+- `/fix-claude "missing pattern for X"` → Adds pattern to skill
+
+**Related:**
+- `claude-code-ecosystem-agent.md` - Performs the analysis and fixes
+- `skill-builder-skill/` - For skill creation/updates
+- `agent-builder-skill/` - For agent creation/updates
+
 ### `/create-pr` (Planned)
 **Purpose:** Create pull request with progressive validation  
 **Uses:** Multiple skills based on changed files  
@@ -611,6 +637,28 @@ Skills (Patterns & Validation)
 - `codebase-hardening-skill/`
 - All architecture and development skills
 
+### `claude-code-ecosystem-agent.md`
+**Purpose:** Specialize in the Claude Code ecosystem itself (skills, agents, commands) - meta-agent for ecosystem maintenance  
+**Capabilities:**
+- Fixes discovery issues (skills/agents not being picked up)
+- Documents anti-patterns when agents do wrong things
+- Documents good patterns when agents do right things
+- Adds missing patterns to skills
+- Updates component descriptions for better discovery
+- Maintains ecosystem consistency and integrity
+
+**Uses:**
+- `skill-builder-skill/` - For creating/updating skills
+- `agent-builder-skill/` - For creating/updating agents
+- `execution-context-skill/` - ExecutionContext validation
+- `transport-types-skill/` - A2A compliance validation
+- Understanding of `.claude/` directory structure
+
+**Related:**
+- `skill-builder-skill/` - Provides skill creation patterns
+- `agent-builder-skill/` - Provides agent creation patterns
+- `/fix-claude` - Command that calls this agent
+
 ---
 
 ## Core Domain Skills (Cross-Cutting)
@@ -870,6 +918,28 @@ Skills (Patterns & Validation)
 **Related:**
 - `codebase-hardening-skill/` - Provides hardening patterns
 - `codebase-monitoring-agent.md` - Provides monitoring artifacts
+
+### `claude-code-ecosystem-agent.md`
+**Purpose:** Specialize in the Claude Code ecosystem itself (skills, agents, commands) - meta-agent for ecosystem maintenance  
+**Capabilities:**
+- Fixes discovery issues (skills/agents not being picked up)
+- Documents anti-patterns when agents do wrong things
+- Documents good patterns when agents do right things
+- Adds missing patterns to skills
+- Updates component descriptions for better discovery
+- Maintains ecosystem consistency and integrity
+
+**Uses:**
+- `skill-builder-skill/` - For creating/updating skills
+- `agent-builder-skill/` - For creating/updating agents
+- `execution-context-skill/` - ExecutionContext validation
+- `transport-types-skill/` - A2A compliance validation
+- Understanding of `.claude/` directory structure
+
+**Related:**
+- `skill-builder-skill/` - Provides skill creation patterns
+- `agent-builder-skill/` - Provides agent creation patterns
+- `/fix-claude` - Command that calls this agent
 
 ---
 
@@ -1225,16 +1295,27 @@ Skills (Patterns & Validation)
 - All skills (meta-skill for creating skills)
 - `meta-skill/` - Original skill creation documentation
 
-### `agent-builder-skill/` (Planned)
-**Purpose:** Building Claude Code Agents  
-**Used By:** When creating new agents  
+### `agent-builder-skill/`
+**Purpose:** Guide creation of new Claude Code Agents following best practices and patterns  
+**Used By:** When creating new agents, extending agent capabilities, or packaging domain expertise into autonomous agents  
 **Capabilities:**
-- Guides agent creation
-- Ensures best practices
-- Validates agent structure
+- Guides agent creation workflow
+- Ensures best practices and proper structure
+- Validates mandatory skill references
+- Provides templates for different agent types
+- Integrates with existing agents
+
+**Structure:**
+- `SKILL.md` - Main agent builder documentation
+- `ARCHITECTURE_AGENT_TEMPLATE.md` - Template for architecture agents
+- `SPECIALIZED_AGENT_TEMPLATE.md` - Template for specialized agents
+- `BUILDER_AGENT_TEMPLATE.md` - Template for builder agents
+- `AGENT_STRUCTURE_CHECKLIST.md` - Quick reference checklist
 
 **Related:**
 - All agents (meta-skill for creating agents)
+- `AGENT-TEMPLATE.md` - Original architecture agent template
+- `agent-builder-agent.md` - Orchestrates agent building
 
 ---
 

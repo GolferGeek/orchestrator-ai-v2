@@ -66,7 +66,7 @@ We're rebuilding with a focused approach:
 
 6. **Builder Skills** (Subconversations 10-11)
    - ✅ `skill-builder-skill/` - Guide creation of new Claude Code Skills (templates, patterns, validation)
-   - `agent-builder-skill/` - Building Claude Code Agents (meta-skill for agent creation patterns)
+   - ✅ `agent-builder-skill/` - Guide creation of new Claude Code Agents (templates, patterns, mandatory skills validation)
 
 6. **Testing System** (Subconversation 12)
    - ✅ `testing-agent.md` - Autonomous testing specialist (runs, generates, fixes tests)
@@ -84,6 +84,7 @@ We're rebuilding with a focused approach:
    - ✅ `/test` - Run tests, generate tests, fix tests, check coverage
    - ✅ `/monitor` - Run codebase monitoring analysis (incremental or full)
    - ✅ `/harden` - Run codebase hardening on specific issues
+   - ✅ `/fix-claude` - Fix or improve Claude Code ecosystem components (meta-meta)
    - `/create-pr` (Planned) - Create PR with progressive validation
 
 ## Principles
@@ -110,7 +111,9 @@ We're rebuilding with a focused approach:
 - ✅ Subconversation 8: Agent Builder System (Agent + Skills + Builders) - `agent-builder-agent.md`, agent type skills, and framework builders created
 - ✅ Subconversation 9: Codebase Monitoring & Hardening - Monitoring and hardening systems created
 - ✅ Subconversation 10: Skill Builder Skill - `skill-builder-skill/` created with templates and patterns
+- ✅ Subconversation 11: Agent Builder Skill - `agent-builder-skill/` created with templates and patterns
 - ✅ Subconversation 12: Testing System (Agent + Skills + Command) - `testing-agent.md`, app-specific testing skills, `e2e-testing-skill/`, and `/test` command created
+- ✅ Meta-Meta: Claude Code Ecosystem Agent - `claude-code-ecosystem-agent.md` and `/fix-claude` command created for ecosystem self-improvement
 
 **Architecture Pattern:**
 - **Agents** = Autonomous domain specialists that do substantial work
