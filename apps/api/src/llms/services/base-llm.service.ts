@@ -26,6 +26,8 @@ import {
   PiiOptions,
   ImageGenerationParams,
   ImageGenerationResponse,
+  VideoGenerationParams,
+  VideoGenerationResponse,
 } from './llm-interfaces';
 
 /**
@@ -77,6 +79,39 @@ export abstract class BaseLLMService {
     context: ExecutionContext,
     params: ImageGenerationParams,
   ): Promise<ImageGenerationResponse>;
+
+  /**
+   * Optional method for video generation - providers implement if supported
+   *
+   * This method is optional because not all providers support video generation.
+   * OpenAI (Sora 2) and Google (Veo 3) implement this method.
+   *
+   * Video generation is typically async - the initial call returns an operationId,
+   * and the caller must poll for completion using pollVideoStatus().
+   *
+   * @param context - ExecutionContext with orgSlug, userId, conversationId, taskId, etc.
+   * @param params - Video generation parameters (prompt, duration, aspectRatio, etc.)
+   * @returns VideoGenerationResponse with status and optional video data
+   */
+  generateVideo?(
+    context: ExecutionContext,
+    params: VideoGenerationParams,
+  ): Promise<VideoGenerationResponse>;
+
+  /**
+   * Optional method to poll video generation status - providers implement if supported
+   *
+   * Video generation is async, so after calling generateVideo(), the caller must
+   * poll this method until status is 'completed' or 'failed'.
+   *
+   * @param operationId - The operation ID returned from generateVideo()
+   * @param context - ExecutionContext for tracking
+   * @returns VideoGenerationResponse with current status and video data when completed
+   */
+  pollVideoStatus?(
+    operationId: string,
+    context: ExecutionContext,
+  ): Promise<VideoGenerationResponse>;
 
   /**
    * Create standardized metadata for responses

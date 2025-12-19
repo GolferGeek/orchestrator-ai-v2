@@ -1193,9 +1193,11 @@ watch(
 
     if (agentType === 'media') {
       // Get media type from agent metadata to determine model_type filter
-      const mediaType = agent.metadata?.mediaType;
-      const defaultProvider = agent.metadata?.defaultProvider;
-      const defaultModel = agent.metadata?.defaultModel;
+      // Check both metadata.config.* (from API) and metadata.* (fallback) paths
+      const config = agent.metadata?.config as Record<string, unknown> | undefined;
+      const mediaType = config?.mediaType || agent.metadata?.mediaType;
+      const defaultProvider = config?.defaultProvider || agent.metadata?.defaultProvider;
+      const defaultModel = config?.defaultModel || agent.metadata?.defaultModel;
 
       // Map media type to model type
       let modelType: 'text-generation' | 'image-generation' | 'video-generation' = 'image-generation';

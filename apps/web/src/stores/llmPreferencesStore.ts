@@ -529,6 +529,7 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
 
     // Set the model type and refetch models
     async setModelType(modelType: ModelType) {
+      console.log(`🎯 [LLMPreferencesStore] setModelType called: ${modelType}`);
       const previousType = this.selectedModelType;
       this.selectedModelType = modelType;
 
@@ -539,6 +540,9 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
 
       // Refetch models with the new type filter
       await this.fetchModels(modelType);
+
+      console.log(`🎯 [LLMPreferencesStore] After fetchModels - models count: ${this.models.length}, availableModels: ${this.availableModels.length}`);
+      console.log(`🎯 [LLMPreferencesStore] Models:`, this.models.map(m => `${m.name} (${m.providerName})`));
 
       // Auto-select first available model for the selected provider
       if (this.selectedProvider && this.availableModels.length > 0 && !this.selectedModel) {

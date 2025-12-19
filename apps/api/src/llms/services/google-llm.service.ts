@@ -12,6 +12,9 @@ import {
   ImageGenerationParams,
   ImageGenerationResponse,
   ImageMetadata,
+  VideoGenerationParams,
+  VideoGenerationResponse,
+  VideoMetadata,
 } from './llm-interfaces';
 import { LLMErrorMapper } from './llm-error-handling';
 import { PIIService } from '../pii/pii.service';
@@ -653,6 +656,440 @@ export class GoogleLLMService extends BaseLLMService {
 
     const price = pricePerImage[model] ?? 0.04;
     return price * imageCount;
+  }
+
+  // =============================================================================
+  // VIDEO GENERATION (Veo 3)
+  // =============================================================================
+
+  /**
+   * Generate video using Google Veo 3 API
+   *
+   * Video generation is async - this method starts the generation job and returns
+   * an operationId. Use pollVideoStatus() to check completion and get the video.
+   *
+   * @param context - ExecutionContext for tracking
+   * @param params - Video generation parameters
+   * @returns VideoGenerationResponse with operationId for polling
+   *
+   * @example
+   * ```typescript
+   * const response = await googleService.generateVideo(context, {
+   *   prompt: 'A cat walking through a garden',
+   *   duration: 8,
+   *   aspectRatio: '16:9',
+   * });
+   * // Poll for completion
+   * let status = await googleService.pollVideoStatus(response.operationId, context);
+   * while (status.status === 'processing') {
+   *   await sleep(10000);
+   *   status = await googleService.pollVideoStatus(response.operationId, context);
+   * }
+   * ```
+   */
+  async generateVideo(
+    context: ExecutionContext,
+    params: VideoGenerationParams,
+  ): Promise<VideoGenerationResponse> {
+    const startTime = Date.now();
+    const requestId = context.taskId || this.generateRequestId('google-video');
+    const model = context.model || this.config.model || 'veo-3-generate';
+
+    this.logger.log(
+      `🎬 [GOOGLE-VIDEO] generateVideo() - model: ${model}, prompt: ${params.prompt.substring(0, 100)}...`,
+    );
+
+    try {
+      // Get Vertex AI project config
+      const projectId = process.env.GOOGLE_CLOUD_PROJECT;
+      const location = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
+
+      if (!projectId) {
+        throw new Error(
+          'GOOGLE_CLOUD_PROJECT environment variable is required for Veo',
+        );
+      }
+
+      // Map parameters to Veo format
+      const durationSeconds = this.mapVideoDuration(params.duration);
+      const aspectRatio = params.aspectRatio || '16:9';
+      const resolution = params.resolution || '720p';
+
+      // Build request body for Veo API
+      // Reference: https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/veo-video-generation
+      const requestBody: Record<string, unknown> = {
+        instances: [
+          {
+            prompt: params.prompt,
+          },
+        ],
+        parameters: {
+          aspectRatio: aspectRatio,
+          durationSeconds: durationSeconds,
+          resolution: resolution,
+          sampleCount: 1, // Veo generates one video at a time
+          generateAudio: params.generateAudio ?? false,
+        },
+      };
+
+      // Add first frame image for image-to-video
+      if (params.firstFrameImageUrl) {
+        const instances = requestBody.instances as Array<
+          Record<string, unknown>
+        >;
+        if (instances[0]) {
+          instances[0].referenceImages = [
+            {
+              referenceImage: params.firstFrameImageUrl,
+              referenceType: 'FIRST_FRAME',
+            },
+          ];
+        }
+      } else if (params.firstFrameImage) {
+        const instances = requestBody.instances as Array<
+          Record<string, unknown>
+        >;
+        if (instances[0]) {
+          const base64 = params.firstFrameImage.toString('base64');
+          instances[0].referenceImages = [
+            {
+              referenceImage: `data:image/png;base64,${base64}`,
+              referenceType: 'FIRST_FRAME',
+            },
+          ];
+        }
+      }
+
+      // Add negative prompt if available
+      if (params.prompt.includes('NOT:')) {
+        // Parse negative prompt from main prompt
+        const [positive, negative] = params.prompt.split('NOT:');
+        const instances = requestBody.instances as Array<
+          Record<string, unknown>
+        >;
+        if (instances[0] && positive) {
+          instances[0].prompt = positive.trim();
+        }
+        (requestBody.parameters as Record<string, unknown>).negativePrompt =
+          negative?.trim();
+      }
+
+      this.logger.debug(`🎬 [GOOGLE-VIDEO] Request body:`, {
+        model,
+        durationSeconds,
+        aspectRatio,
+        resolution,
+        hasFirstFrame: !!params.firstFrameImageUrl || !!params.firstFrameImage,
+      });
+
+      // Make Vertex AI API call
+      // Veo uses long-running operations pattern
+      const endpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:predictLongRunning`;
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${await this.getAccessToken()}`,
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Veo API error: ${response.status} - ${errorText}`);
+      }
+
+      const data = (await response.json()) as {
+        name: string; // Operation ID
+        metadata?: {
+          state?: string;
+        };
+      };
+
+      this.logger.log(
+        `🎬 [GOOGLE-VIDEO] Video generation started: operationId=${data.name}`,
+      );
+
+      const endTime = Date.now();
+
+      // Return response with operation ID for polling
+      return {
+        operationId: data.name,
+        status: this.mapVeoStatus(data.metadata?.state),
+        metadata: {
+          provider: 'google',
+          model,
+          requestId,
+          timestamp: new Date().toISOString(),
+          usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+          timing: { startTime, endTime, duration: endTime - startTime },
+          tier: 'external',
+          status: 'started',
+          providerSpecific: {
+            veoOperationId: data.name,
+            requestedDuration: durationSeconds,
+            aspectRatio,
+            resolution,
+          },
+        },
+      };
+    } catch (error) {
+      const endTime = Date.now();
+
+      this.logger.error(
+        `🎬 [GOOGLE-VIDEO] Error: ${error instanceof Error ? error.message : String(error)}`,
+      );
+
+      return {
+        status: 'failed',
+        metadata: {
+          provider: 'google',
+          model,
+          requestId,
+          timestamp: new Date().toISOString(),
+          usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+          timing: { startTime, endTime, duration: endTime - startTime },
+          tier: 'external',
+          status: 'error',
+          errorMessage:
+            error instanceof Error ? error.message : 'Unknown error',
+        },
+        error: {
+          code: 'GOOGLE_VIDEO_GENERATION_FAILED',
+          message: error instanceof Error ? error.message : 'Unknown error',
+          details: error,
+        },
+      };
+    }
+  }
+
+  /**
+   * Poll video generation status
+   *
+   * Call this method periodically after generateVideo() to check completion.
+   * When status is 'completed', the response will include videoUrl and videoData.
+   *
+   * @param operationId - The operation ID from generateVideo()
+   * @param context - ExecutionContext for tracking
+   * @returns VideoGenerationResponse with current status
+   */
+  async pollVideoStatus(
+    operationId: string,
+    context: ExecutionContext,
+  ): Promise<VideoGenerationResponse> {
+    const startTime = Date.now();
+    const model = context.model || this.config.model || 'veo-3-generate';
+
+    this.logger.debug(
+      `🎬 [GOOGLE-VIDEO] pollVideoStatus() - operationId: ${operationId}`,
+    );
+
+    try {
+      const location = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
+
+      // Poll the operation status
+      // operationId format: projects/{project}/locations/{location}/operations/{operation_id}
+      const endpoint = `https://${location}-aiplatform.googleapis.com/v1/${operationId}`;
+
+      const response = await fetch(endpoint, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${await this.getAccessToken()}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Veo API error: ${response.status} - ${errorText}`);
+      }
+
+      const data = (await response.json()) as {
+        name: string;
+        done?: boolean;
+        metadata?: {
+          state?: string;
+          progress?: number;
+        };
+        response?: {
+          predictions?: Array<{
+            videoUri?: string;
+            durationSeconds?: number;
+            aspectRatio?: string;
+          }>;
+        };
+        error?: {
+          message: string;
+          code?: number;
+        };
+      };
+
+      const endTime = Date.now();
+      const status = data.done
+        ? data.error
+          ? 'failed'
+          : 'completed'
+        : this.mapVeoStatus(data.metadata?.state);
+
+      // Build response
+      const videoResponse: VideoGenerationResponse = {
+        operationId: data.name,
+        status,
+        metadata: {
+          provider: 'google',
+          model,
+          requestId: context.taskId,
+          timestamp: new Date().toISOString(),
+          usage: {
+            inputTokens: 0,
+            outputTokens: 0,
+            totalTokens: 0,
+            // Cost calculated when completed
+            cost:
+              status === 'completed' &&
+              data.response?.predictions?.[0]?.durationSeconds
+                ? this.calculateVideoCost(
+                    model,
+                    data.response.predictions[0].durationSeconds,
+                  )
+                : undefined,
+          },
+          timing: { startTime, endTime, duration: endTime - startTime },
+          tier: 'external',
+          status: status === 'completed' ? 'completed' : 'started',
+          providerSpecific: {
+            veoOperationId: data.name,
+            progress: data.metadata?.progress,
+          },
+        },
+      };
+
+      // If completed, get the video
+      if (status === 'completed' && data.response?.predictions?.[0]?.videoUri) {
+        const prediction = data.response.predictions[0];
+        const videoUri = prediction.videoUri!; // Safe: checked above
+
+        this.logger.log(
+          `🎬 [GOOGLE-VIDEO] Video completed, downloading from ${videoUri}...`,
+        );
+
+        // Download video bytes
+        // For Vertex AI, videos are typically stored in GCS
+        // The videoUri might be a gs:// URI that needs conversion to HTTPS
+        let downloadUrl: string = videoUri;
+        if (videoUri.startsWith('gs://')) {
+          // Convert gs:// to https://storage.googleapis.com/
+          const [bucket, ...pathParts] = videoUri
+            .replace('gs://', '')
+            .split('/');
+          downloadUrl = `https://storage.googleapis.com/${bucket}/${pathParts.join('/')}`;
+        }
+
+        const videoFetch = await fetch(downloadUrl, {
+          headers: {
+            Authorization: `Bearer ${await this.getAccessToken()}`,
+          },
+        });
+
+        if (videoFetch.ok) {
+          const arrayBuffer = await videoFetch.arrayBuffer();
+          videoResponse.videoData = Buffer.from(arrayBuffer);
+          videoResponse.videoUrl = videoUri;
+
+          // Add video metadata
+          videoResponse.videoMetadata = {
+            durationSeconds: prediction.durationSeconds,
+            mimeType: 'video/mp4',
+            sizeBytes: videoResponse.videoData.length,
+            hasAudio: true, // Veo 3 generates with audio
+          } as VideoMetadata;
+        }
+      }
+
+      // If failed, include error
+      if (status === 'failed' && data.error) {
+        videoResponse.error = {
+          code: `VEO_ERROR_${data.error.code || 'UNKNOWN'}`,
+          message: data.error.message,
+        };
+      }
+
+      return videoResponse;
+    } catch (error) {
+      const endTime = Date.now();
+
+      return {
+        operationId,
+        status: 'failed',
+        metadata: {
+          provider: 'google',
+          model,
+          requestId: context.taskId,
+          timestamp: new Date().toISOString(),
+          usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+          timing: { startTime, endTime, duration: endTime - startTime },
+          tier: 'external',
+          status: 'error',
+          errorMessage:
+            error instanceof Error ? error.message : 'Unknown error',
+        },
+        error: {
+          code: 'GOOGLE_VIDEO_POLL_FAILED',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        },
+      };
+    }
+  }
+
+  /**
+   * Map duration to Veo-supported values (up to 8 seconds for Veo 3)
+   */
+  private mapVideoDuration(duration?: number): number {
+    if (!duration) return 4; // Default
+    // Veo 3 supports up to 8 seconds
+    return Math.min(Math.max(duration, 1), 8);
+  }
+
+  /**
+   * Map Veo operation state to our standard status
+   */
+  private mapVeoStatus(
+    state?: string,
+  ): 'pending' | 'processing' | 'completed' | 'failed' {
+    switch (state?.toUpperCase()) {
+      case 'PENDING':
+      case 'QUEUED':
+        return 'pending';
+      case 'RUNNING':
+      case 'IN_PROGRESS':
+        return 'processing';
+      case 'SUCCEEDED':
+      case 'COMPLETED':
+        return 'completed';
+      case 'FAILED':
+      case 'CANCELLED':
+        return 'failed';
+      default:
+        return 'processing';
+    }
+  }
+
+  /**
+   * Calculate cost for video generation
+   *
+   * Veo 3 pricing is based on duration.
+   */
+  private calculateVideoCost(model: string, durationSeconds: number): number {
+    // Approximate pricing (should come from database in production)
+    // Veo 3 pricing: ~$0.25 per second
+    const pricing: Record<string, number> = {
+      'veo-3-generate': 0.25,
+      'veo-3-fast-generate': 0.15,
+      'veo-3.1-generate-preview': 0.3,
+    };
+
+    const perSecondCost = pricing[model] ?? pricing['veo-3-generate'] ?? 0.25;
+    return perSecondCost * durationSeconds;
   }
 
   /**

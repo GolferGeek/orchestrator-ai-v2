@@ -12,6 +12,9 @@ import {
   ImageGenerationParams,
   ImageGenerationResponse,
   ImageMetadata,
+  VideoGenerationParams,
+  VideoGenerationResponse,
+  VideoMetadata,
 } from './llm-interfaces';
 import { PIIService } from '../pii/pii.service';
 import { DictionaryPseudonymizerService } from '../pii/dictionary-pseudonymizer.service';
@@ -509,6 +512,451 @@ export class OpenAILLMService extends BaseLLMService {
       modelPricing[priceKey] ?? modelPricing['1024x1024:standard'] ?? 0.04;
 
     return perImageCost * count;
+  }
+
+  // =============================================================================
+  // VIDEO GENERATION (Sora 2)
+  // =============================================================================
+
+  /**
+   * Generate video using OpenAI Sora 2 API
+   *
+   * Video generation is async - this method starts the generation job and returns
+   * an operationId. Use pollVideoStatus() to check completion and get the video.
+   *
+   * @param context - ExecutionContext for tracking
+   * @param params - Video generation parameters
+   * @returns VideoGenerationResponse with operationId for polling
+   *
+   * @example
+   * ```typescript
+   * const response = await openaiService.generateVideo(context, {
+   *   prompt: 'A cat walking through a garden',
+   *   duration: 8,
+   *   aspectRatio: '16:9',
+   * });
+   * // Poll for completion
+   * let status = await openaiService.pollVideoStatus(response.operationId, context);
+   * while (status.status === 'processing') {
+   *   await sleep(10000);
+   *   status = await openaiService.pollVideoStatus(response.operationId, context);
+   * }
+   * ```
+   */
+  async generateVideo(
+    context: ExecutionContext,
+    params: VideoGenerationParams,
+  ): Promise<VideoGenerationResponse> {
+    const startTime = Date.now();
+    const requestId = context.taskId;
+    const model = context.model || this.config.model || 'sora-2';
+
+    this.logger.log(
+      `🎬 [OPENAI-VIDEO] generateVideo() - model: ${model}, prompt: ${params.prompt.substring(0, 100)}...`,
+    );
+
+    try {
+      // Map duration to Sora allowed values (4, 8, or 12 seconds)
+      const seconds = this.mapVideoDuration(params.duration);
+
+      // Map aspect ratio to size (Sora uses size instead of aspect_ratio)
+      // Allowed values: 720x1280 (9:16), 1280x720 (16:9), 1024x1792, 1792x1024
+      const size = this.mapVideoSize(params.aspectRatio, params.resolution);
+
+      this.logger.debug(`🎬 [OPENAI-VIDEO] Request params:`, {
+        model,
+        seconds,
+        size,
+        hasFirstFrame: !!params.firstFrameImageUrl || !!params.firstFrameImage,
+      });
+
+      // Make POST /videos request using multipart/form-data
+      // Reference: https://platform.openai.com/docs/api-reference/videos
+      const apiKey = this.config.apiKey || process.env.OPENAI_API_KEY;
+      const baseUrl = this.config.baseUrl || 'https://api.openai.com/v1';
+
+      // Build FormData for the request
+      const formData = new FormData();
+      formData.append('model', model);
+      formData.append('prompt', params.prompt);
+      formData.append('seconds', String(seconds));
+      formData.append('size', size);
+
+      // Add first frame image for image-to-video (Node.js compatible)
+      if (params.firstFrameImage) {
+        // Convert Buffer to Blob for FormData
+        // Use type assertion to handle Node.js Buffer → Blob conversion
+        const blob = new Blob([params.firstFrameImage as unknown as BlobPart], {
+          type: 'image/png',
+        });
+        formData.append('input_reference', blob, 'first_frame.png');
+      }
+      // Note: URL-based input_reference not yet supported via form-data
+
+      const response = await fetch(`${baseUrl}/videos`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          // Note: Don't set Content-Type for FormData, browser/node will set it with boundary
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Sora API error: ${response.status} ${errorText}`);
+      }
+
+      const data = (await response.json()) as {
+        id: string;
+        status: string;
+        progress?: number;
+      };
+
+      this.logger.log(
+        `🎬 [OPENAI-VIDEO] Video generation started: id=${data.id}, status=${data.status}`,
+      );
+
+      const endTime = Date.now();
+
+      // Return response with operation ID for polling
+      return {
+        operationId: data.id,
+        status: this.mapVideoStatus(data.status),
+        metadata: {
+          provider: 'openai',
+          model,
+          requestId,
+          timestamp: new Date().toISOString(),
+          usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+          timing: { startTime, endTime, duration: endTime - startTime },
+          tier: 'external',
+          status: 'started',
+          providerSpecific: {
+            soraJobId: data.id,
+            requestedSeconds: seconds,
+            size,
+          },
+        },
+      };
+    } catch (error) {
+      const endTime = Date.now();
+
+      this.logger.error(
+        `🎬 [OPENAI-VIDEO] Error: ${error instanceof Error ? error.message : String(error)}`,
+      );
+
+      return {
+        status: 'failed',
+        metadata: {
+          provider: 'openai',
+          model,
+          requestId,
+          timestamp: new Date().toISOString(),
+          usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+          timing: { startTime, endTime, duration: endTime - startTime },
+          tier: 'external',
+          status: 'error',
+          errorMessage:
+            error instanceof Error ? error.message : 'Unknown error',
+        },
+        error: {
+          code: 'OPENAI_VIDEO_GENERATION_FAILED',
+          message: error instanceof Error ? error.message : 'Unknown error',
+          details: error,
+        },
+      };
+    }
+  }
+
+  /**
+   * Poll video generation status
+   *
+   * Call this method periodically after generateVideo() to check completion.
+   * When status is 'completed', the response will include videoUrl.
+   *
+   * @param operationId - The operation ID from generateVideo()
+   * @param context - ExecutionContext for tracking
+   * @returns VideoGenerationResponse with current status
+   */
+  async pollVideoStatus(
+    operationId: string,
+    context: ExecutionContext,
+  ): Promise<VideoGenerationResponse> {
+    const startTime = Date.now();
+    const model = context.model || this.config.model || 'sora-2';
+
+    this.logger.debug(
+      `🎬 [OPENAI-VIDEO] pollVideoStatus() - id: ${operationId}`,
+    );
+
+    try {
+      const apiKey = this.config.apiKey || process.env.OPENAI_API_KEY;
+      const baseUrl = this.config.baseUrl || 'https://api.openai.com/v1';
+
+      const response = await fetch(`${baseUrl}/videos/${operationId}`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Sora API error: ${response.status} ${errorText}`);
+      }
+
+      const data = (await response.json()) as {
+        id: string;
+        status: string;
+        progress?: number;
+        url?: string; // Some docs show this as 'url'
+        video_url?: string; // Some docs show this as 'video_url'
+        output_url?: string; // Some docs show this as 'output_url'
+        error?: { message: string };
+        duration_seconds?: number;
+        seconds?: number; // Alternative field name
+        aspect_ratio?: string;
+        size?: string;
+        resolution?: string;
+      };
+
+      this.logger.debug(
+        `🎬 [OPENAI-VIDEO] Poll response data: ${JSON.stringify(data)}`,
+      );
+
+      const endTime = Date.now();
+      const status = this.mapVideoStatus(data.status);
+      const durationSeconds = data.duration_seconds || data.seconds || 4;
+
+      // Build response
+      const videoResponse: VideoGenerationResponse = {
+        operationId: data.id,
+        status,
+        metadata: {
+          provider: 'openai',
+          model,
+          requestId: context.taskId,
+          timestamp: new Date().toISOString(),
+          usage: {
+            inputTokens: 0,
+            outputTokens: 0,
+            totalTokens: 0,
+            // Cost calculated when completed
+            cost:
+              status === 'completed'
+                ? this.calculateVideoCost(model, durationSeconds)
+                : undefined,
+          },
+          timing: { startTime, endTime, duration: endTime - startTime },
+          tier: 'external',
+          status: status === 'completed' ? 'completed' : 'started',
+          providerSpecific: {
+            soraJobId: data.id,
+            progress: data.progress,
+          },
+        },
+      };
+
+      // If completed, download the video using the content endpoint
+      if (status === 'completed') {
+        this.logger.debug(
+          `🎬 [OPENAI-VIDEO] Status is completed, attempting to download video...`,
+        );
+        // Try multiple URL sources (different docs show different field names)
+        const videoUrl = data.url || data.video_url || data.output_url;
+
+        if (videoUrl) {
+          // If URL is provided in status response, download from there
+          this.logger.debug(
+            `🎬 [OPENAI-VIDEO] Video completed, downloading from URL: ${videoUrl}`,
+          );
+          const videoFetch = await fetch(videoUrl);
+          if (videoFetch.ok) {
+            const arrayBuffer = await videoFetch.arrayBuffer();
+            videoResponse.videoData = Buffer.from(arrayBuffer);
+            videoResponse.videoUrl = videoUrl;
+          }
+        } else {
+          // Use the dedicated content endpoint (not /download)
+          // Reference: https://platform.openai.com/docs/guides/video-generation
+          const downloadUrl = `${baseUrl}/videos/${operationId}/content`;
+          this.logger.debug(
+            `🎬 [OPENAI-VIDEO] Video completed, using content endpoint: ${downloadUrl}`,
+          );
+
+          const downloadResponse = await fetch(downloadUrl, {
+            method: 'GET',
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+            },
+          });
+
+          this.logger.debug(
+            `🎬 [OPENAI-VIDEO] Download response status: ${downloadResponse.status}, content-type: ${downloadResponse.headers.get('content-type')}`,
+          );
+
+          if (downloadResponse.ok) {
+            const contentType = downloadResponse.headers.get('content-type');
+
+            // Check if response is video/mp4 (actual video) or json (redirect/error)
+            if (contentType?.includes('video/mp4')) {
+              const arrayBuffer = await downloadResponse.arrayBuffer();
+              videoResponse.videoData = Buffer.from(arrayBuffer);
+              videoResponse.videoUrl = downloadUrl;
+              this.logger.debug(
+                `🎬 [OPENAI-VIDEO] Download successful: ${videoResponse.videoData.length} bytes`,
+              );
+            } else if (contentType?.includes('application/json')) {
+              // Some APIs return a JSON with the actual download URL
+              const jsonResponse = (await downloadResponse.json()) as {
+                url?: string;
+                download_url?: string;
+              };
+              this.logger.debug(
+                `🎬 [OPENAI-VIDEO] Download returned JSON: ${JSON.stringify(jsonResponse)}`,
+              );
+
+              // Try to get the actual video URL from the JSON response
+              const actualVideoUrl =
+                jsonResponse.url || jsonResponse.download_url;
+              if (actualVideoUrl) {
+                const actualVideoFetch = await fetch(actualVideoUrl);
+                if (actualVideoFetch.ok) {
+                  const arrayBuffer = await actualVideoFetch.arrayBuffer();
+                  videoResponse.videoData = Buffer.from(arrayBuffer);
+                  videoResponse.videoUrl = actualVideoUrl;
+                  this.logger.debug(
+                    `🎬 [OPENAI-VIDEO] Downloaded from redirected URL: ${videoResponse.videoData.length} bytes`,
+                  );
+                }
+              }
+            }
+          } else {
+            const errorText = await downloadResponse.text();
+            this.logger.warn(
+              `🎬 [OPENAI-VIDEO] Download failed: ${downloadResponse.status} ${errorText}`,
+            );
+          }
+        }
+
+        // Add video metadata
+        if (videoResponse.videoData) {
+          videoResponse.videoMetadata = {
+            durationSeconds,
+            mimeType: 'video/mp4',
+            sizeBytes: videoResponse.videoData.length,
+            hasAudio: true, // Sora 2 generates synced audio
+          } as VideoMetadata;
+        }
+      }
+
+      // If failed, include error
+      if (status === 'failed' && data.error) {
+        videoResponse.error = {
+          code: 'SORA_GENERATION_FAILED',
+          message: data.error.message,
+        };
+      }
+
+      return videoResponse;
+    } catch (error) {
+      const endTime = Date.now();
+
+      return {
+        operationId,
+        status: 'failed',
+        metadata: {
+          provider: 'openai',
+          model,
+          requestId: context.taskId,
+          timestamp: new Date().toISOString(),
+          usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+          timing: { startTime, endTime, duration: endTime - startTime },
+          tier: 'external',
+          status: 'error',
+          errorMessage:
+            error instanceof Error ? error.message : 'Unknown error',
+        },
+        error: {
+          code: 'OPENAI_VIDEO_POLL_FAILED',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        },
+      };
+    }
+  }
+
+  /**
+   * Map duration to Sora-supported values (4, 8, or 12 seconds)
+   */
+  private mapVideoDuration(duration?: number): number {
+    if (!duration) return 4; // Default
+    if (duration <= 4) return 4;
+    if (duration <= 8) return 8;
+    return 12; // Max
+  }
+
+  /**
+   * Map aspect ratio and resolution to Sora size parameter
+   *
+   * Sora allowed sizes: 720x1280 (9:16), 1280x720 (16:9), 1024x1792, 1792x1024
+   */
+  private mapVideoSize(
+    aspectRatio?: '16:9' | '9:16',
+    resolution?: string,
+  ): string {
+    // If resolution is explicitly provided and matches allowed values, use it
+    const allowedSizes = ['720x1280', '1280x720', '1024x1792', '1792x1024'];
+    if (resolution && allowedSizes.includes(resolution)) {
+      return resolution;
+    }
+
+    // Map aspect ratio to default size
+    switch (aspectRatio) {
+      case '9:16':
+        return '720x1280'; // Portrait/vertical
+      case '16:9':
+      default:
+        return '1280x720'; // Landscape/horizontal (default)
+    }
+  }
+
+  /**
+   * Map OpenAI video status to our standard status
+   */
+  private mapVideoStatus(
+    status: string,
+  ): 'pending' | 'processing' | 'completed' | 'failed' {
+    switch (status.toLowerCase()) {
+      case 'queued':
+        return 'pending';
+      case 'in_progress':
+        return 'processing';
+      case 'completed':
+        return 'completed';
+      case 'failed':
+        return 'failed';
+      default:
+        return 'processing';
+    }
+  }
+
+  /**
+   * Calculate cost for video generation
+   *
+   * Sora 2 pricing is based on duration and model quality.
+   * Reference: https://platform.openai.com/docs/models/sora-2
+   */
+  private calculateVideoCost(model: string, durationSeconds: number): number {
+    // Sora 2 pricing per second (720p resolution)
+    // Source: OpenAI pricing - $0.10/second for sora-2, more for pro
+    const pricing: Record<string, number> = {
+      'sora-2': 0.1,
+      'sora-2-pro': 0.2,
+    };
+
+    const perSecondCost = pricing[model] ?? pricing['sora-2'] ?? 0.1;
+    return perSecondCost * durationSeconds;
   }
 
   /**

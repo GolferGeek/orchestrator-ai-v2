@@ -24,6 +24,10 @@
           :is-current="true"
         />
         <span v-if="topic" class="topic-label">{{ topic }}</span>
+        <span v-if="versionCost" class="cost-label">
+          <ion-icon :icon="cashOutline" />
+          ${{ versionCost.toFixed(4) }}
+        </span>
       </div>
 
       <!-- Version History -->
@@ -112,7 +116,7 @@ import {
   IonContent,
   IonFooter,
 } from '@ionic/vue';
-import { closeOutline } from 'ionicons/icons';
+import { closeOutline, cashOutline } from 'ionicons/icons';
 import ContentViewer from '@/components/shared/ContentViewer.vue';
 import VersionSelector from '@/components/shared/VersionSelector.vue';
 import VersionBadge from '@/components/shared/VersionBadge.vue';
@@ -179,6 +183,14 @@ const currentCreationType = computed<VersionCreationType>(() => {
 const currentTaskId = computed(() => {
   const current = versions.value.find((v) => v.id === selectedVersionId.value);
   return current?.taskId;
+});
+
+// Get the cost from current version's metadata
+const versionCost = computed(() => {
+  const current = versions.value.find((v) => v.id === selectedVersionId.value);
+  const metadata = current?.metadata as Record<string, unknown> | undefined;
+  const cost = metadata?.cost;
+  return typeof cost === 'number' ? cost : null;
 });
 
 // Get the deliverable type from store
@@ -504,6 +516,22 @@ function handleClose() {
 .topic-label {
   font-size: 1.1rem;
   font-weight: 500;
+}
+
+.cost-label {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--ion-color-medium);
+  margin-left: auto;
+  padding: 0.25rem 0.5rem;
+  background: var(--ion-color-light);
+  border-radius: 4px;
+}
+
+.cost-label ion-icon {
+  font-size: 0.9rem;
 }
 
 .version-section {
