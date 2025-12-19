@@ -152,6 +152,7 @@ if (!isA2ATaskRequest(req.body)) {
 ## Detailed Documentation
 
 - **[PATTERNS.md](PATTERNS.md)** - Correct usage patterns and examples (front-end, back-end, all modes)
+- **[MODE_EXAMPLES.md](MODE_EXAMPLES.md)** - Examples for each transport type mode (PLAN, BUILD, CONVERSE, HITL)
 - **[VIOLATIONS.md](VIOLATIONS.md)** - Detailed examples of violations and how to fix them
 - **[ENFORCEMENT.md](ENFORCEMENT.md)** - Multi-level enforcement strategy (TypeScript, runtime, code review, testing)
 - **[DISCOVERY.md](DISCOVERY.md)** - .well-known/agent.json discovery mechanism

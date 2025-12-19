@@ -294,6 +294,10 @@ await this.tasksService.createTask(context, dto);
 - **Quality Gates Skill**: Checks for ExecutionContext violations during PR review
 - **Codebase Hardening**: Audits codebase for ExecutionContext violations
 
+## Example Files
+
+- **`COMPLEX_EXAMPLES.md`** - Complex scenarios (multiple services, error handling, conditional calls, parallel calls, caching, observability)
+
 ## Related Files
 
 - **Definition**: `apps/transport-types/core/execution-context.ts`

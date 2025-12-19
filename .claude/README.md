@@ -86,7 +86,7 @@ We're rebuilding with a focused approach:
    - ✅ `/harden` - Run codebase hardening on specific issues
    - ✅ `/fix-claude` - Fix or improve Claude Code ecosystem components (meta-meta)
    - ✅ `/approve-pr` - Approve pull request quickly (without full review)
-   - `/create-pr` (Planned) - Create PR with progressive validation
+   - ✅ `/create-pr` - Create PR with progressive validation
 
 ## Principles
 
@@ -134,4 +134,7 @@ We'll work through 11 subconversations to understand the codebase and build thes
 - `ARCHITECTURE-PATTERN.md` - Agents vs Skills distinction
 - `AGENT-BUILDER-ARCHITECTURE.md` - Agent creation system
 - `AGENT-TEMPLATE.md` - Template for creating architecture agents
+- `COMPLIANCE_REVIEW.md` - Comprehensive compliance review of all components
+- `SCENARIOS.md` - Teaching scenarios for interns and clients
+- `ENHANCEMENT_PLAN.md` - Plan for optional enhancements (examples, `/create-pr`, framework builders, E2E examples)
 

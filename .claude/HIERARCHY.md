@@ -219,7 +219,7 @@ Skills (Patterns & Validation)
 - `/review-pr` - Full PR review (use when review needed)
 - `pr-review-agent.md` - Performs full reviews
 
-### `/create-pr` (Planned)
+### `/create-pr`
 **Purpose:** Create pull request with progressive validation  
 **Uses:** Multiple skills based on changed files  
 **Workflow:**
@@ -230,8 +230,15 @@ Skills (Patterns & Validation)
    - `web-architecture-skill` (if web files changed)
    - `api-architecture-skill` (if API files changed)
    - `langgraph-architecture-skill` (if LangGraph files changed)
-3. Runs quality gates (including tests via `/test`)
-4. Creates PR if all checks pass
+3. Runs quality gates (format, lint, build, test)
+4. Generates PR title and description (auto-generated or provided)
+5. Creates PR via GitHub CLI if all checks pass
+6. Reports results
+
+**Accepts:**
+- Base branch (optional, defaults to main/master)
+- Title (optional, auto-generated from changes)
+- Description (optional, auto-generated from changes and validation results)
 
 **Related:**
 - All architecture skills

@@ -120,6 +120,10 @@ When validating web code:
 - [ ] No state management in services
 - [ ] No API calls in components (use services)
 
+## Example Files
+
+- **`THREE_LAYER_EXAMPLES.md`** - Complete examples showing Store → Service → Component interactions
+
 ## Related
 
 - **`execution-context-skill/`**: ExecutionContext flow validation

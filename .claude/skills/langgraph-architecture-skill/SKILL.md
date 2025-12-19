@@ -93,6 +93,10 @@ See `DATABASE_STATE.md` for database-driven state machine patterns for complex, 
 
 See `VIOLATIONS.md` for common violations and their fixes.
 
+## Example Files
+
+- **`WORKFLOW_PATTERNS.md`** - Examples for different workflow patterns (simple linear, conditional branching, database-driven, HITL, parallel processing)
+
 ## Related Skills
 
 - **execution-context-skill** - ExecutionContext validation (MANDATORY)

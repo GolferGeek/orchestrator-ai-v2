@@ -444,6 +444,21 @@ it('should handle invalid credentials', async () => {
 });
 ```
 
+## Example Files
+
+**Comprehensive examples demonstrating NO MOCKING principle:**
+
+- **`API_EXAMPLES.md`** - API E2E test examples (user registration, agent execution, LLM service, observability, authentication)
+- **`WEB_EXAMPLES.md`** - Web E2E test examples (components, stores, services, conversation windows, ExecutionContext flow)
+- **`LANGGRAPH_EXAMPLES.md`** - LangGraph E2E test examples (workflows, HITL, database-driven state, observability, LLM integration)
+- **`INTEGRATION_EXAMPLES.md`** - Full integration E2E examples (Web → API → LangGraph, agent execution flow, observability flow, ExecutionContext flow)
+
+**Each example file includes:**
+- Complete test code with real services
+- Setup requirements
+- Verification patterns
+- Key principles demonstrated
+
 ## Related Skills
 
 - **web-testing-skill** - Web app E2E testing patterns
@@ -459,4 +474,5 @@ it('should handle invalid credentials', async () => {
 - **E2E tests reveal real problems** - That's their purpose
 - **Mocking defeats the purpose** - E2E tests must be real
 - **Use unit tests for fast feedback** - E2E tests are for integration validation
+- **See example files** - For comprehensive real-world examples
 

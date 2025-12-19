@@ -153,6 +153,10 @@ When validating API code:
 
 **Usage**: Services use `ObservabilityWebhookService.sendEvent()` with ExecutionContext.
 
+## Example Files
+
+- **`LLM_INTEGRATION_EXAMPLES.md`** - Examples for integrating with LLM service (basic calls, custom parameters, agent runners, multiple calls, streaming, error handling)
+
 ## Related
 
 - **`execution-context-skill/`**: ExecutionContext flow validation
