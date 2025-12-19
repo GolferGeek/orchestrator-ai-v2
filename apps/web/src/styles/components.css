@@ -314,28 +314,31 @@
   }
 }
 
-/* Dark theme support */
-@media (prefers-color-scheme: dark) {
-  .feature-card {
-    background: var(--ion-color-step-100);
-    border-color: var(--ion-color-step-200);
-  }
-  
-  .feature-card:hover {
-    border-color: var(--ion-color-primary);
-  }
-  
-  .feature-card.highlight {
-    background: linear-gradient(135deg, var(--ion-color-primary-shade), var(--ion-color-step-100));
-  }
-  
-  .stat {
-    background: var(--ion-color-step-200);
-    color: var(--ion-color-primary-tint);
-  }
-  
-  .video-placeholder-small {
-    background: linear-gradient(135deg, var(--ion-color-step-200), var(--ion-color-step-150));
-    border-color: var(--ion-color-medium);
-  }
+/* Dark theme support - class-based (applied via .ion-palette-dark or [data-theme="dark"]) */
+html.ion-palette-dark .feature-card,
+html[data-theme="dark"] .feature-card {
+  background: var(--ion-color-step-100);
+  border-color: var(--ion-color-step-200);
+}
+
+html.ion-palette-dark .feature-card:hover,
+html[data-theme="dark"] .feature-card:hover {
+  border-color: var(--ion-color-primary);
+}
+
+html.ion-palette-dark .feature-card.highlight,
+html[data-theme="dark"] .feature-card.highlight {
+  background: linear-gradient(135deg, var(--ion-color-primary-shade), var(--ion-color-step-100));
+}
+
+html.ion-palette-dark .stat,
+html[data-theme="dark"] .stat {
+  background: var(--ion-color-step-200);
+  color: var(--ion-color-primary-tint);
+}
+
+html.ion-palette-dark .video-placeholder-small,
+html[data-theme="dark"] .video-placeholder-small {
+  background: linear-gradient(135deg, var(--ion-color-step-200), var(--ion-color-step-150));
+  border-color: var(--ion-color-medium);
 }

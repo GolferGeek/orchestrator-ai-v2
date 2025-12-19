@@ -269,18 +269,21 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
     applyPerformancePreferences();
   };
   const applyTheme = (theme: 'light' | 'dark' | 'auto') => {
-    let effectiveTheme = theme;
-    if (theme === 'auto') {
-      effectiveTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    }
+    let resolvedTheme: 'light' | 'dark' = theme === 'auto' 
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : theme;
     
     // Apply theme using data-theme attribute (matches existing CSS selectors)
-    document.documentElement.setAttribute('data-theme', effectiveTheme);
+    document.documentElement.setAttribute('data-theme', resolvedTheme);
     
-    // Also apply body classes for compatibility
+    // Apply Ionic's class-based dark mode (required for Ionic components)
+    // This is the key class that dark.class.css looks for
+    document.documentElement.classList.toggle('ion-palette-dark', resolvedTheme === 'dark');
+    
+    // Also apply body classes for compatibility with custom CSS
     const body = document.body;
     body.classList.remove('theme-light', 'theme-dark');
-    body.classList.add(`theme-${effectiveTheme}`);
+    body.classList.add(`theme-${resolvedTheme}`);
     
     // Update meta theme-color for mobile browsers
     let themeColorMeta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement;
@@ -289,7 +292,7 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
       themeColorMeta.name = 'theme-color';
       document.head.appendChild(themeColorMeta);
     }
-    themeColorMeta.content = effectiveTheme === 'dark' ? '#1a1a1a' : '#ffffff';
+    themeColorMeta.content = resolvedTheme === 'dark' ? '#1a1a1a' : '#ffffff';
   };
   const applyApiPreferences = async () => {
     if (preferences.value.rememberApiSelection && preferredEndpoint.value) {

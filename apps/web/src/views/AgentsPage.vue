@@ -212,20 +212,39 @@ const handleAgentSelected = async (agent: Record<string, unknown>) => {
   justify-content: center;
   width: 32px;
   height: 32px;
-  border: 1px solid var(--ion-border-color, var(--ion-color-light-shade));
+  border: 1px solid var(--ion-border-color, #d0d0d0);
   border-radius: 4px;
-  background: var(--ion-background-color);
-  color: var(--ion-text-color);
+  background: #ffffff;
+  color: #333333;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .theme-toggle:hover {
-  background: var(--ion-color-light);
+  background: #f0f0f0;
 }
 
 .theme-toggle ion-icon {
   font-size: 18px;
+  color: #333333;
+}
+
+/* Dark mode overrides for theme toggle */
+:global(html.ion-palette-dark) .theme-toggle,
+:global(html[data-theme="dark"]) .theme-toggle {
+  background: var(--ion-background-color, #1a1a1a);
+  color: var(--ion-text-color, #ffffff);
+  border-color: var(--ion-border-color, #444444);
+}
+
+:global(html.ion-palette-dark) .theme-toggle:hover,
+:global(html[data-theme="dark"]) .theme-toggle:hover {
+  background: var(--ion-color-step-100, #2a2a2a);
+}
+
+:global(html.ion-palette-dark) .theme-toggle ion-icon,
+:global(html[data-theme="dark"]) .theme-toggle ion-icon {
+  color: var(--ion-text-color, #ffffff);
 }
 
 /* Organization switcher in toolbar */
@@ -422,34 +441,40 @@ ion-split-pane {
   font-size: 0.85rem;
   margin-left: 64px;
 }
-/* Dark theme support for navigation */
-@media (prefers-color-scheme: dark) {
-  ion-item.selected {
-    --background: #1e3a8a;
-    --color: #3b82f6;
-    border-left-color: #3b82f6;
-  }
+/* Dark theme support for navigation - class-based */
+:global(html.ion-palette-dark) ion-item.selected,
+:global(html[data-theme="dark"]) ion-item.selected {
+  --background: #1e3a8a;
+  --color: #3b82f6;
+  border-left-color: #3b82f6;
+}
 
-  /* Dark theme accordion headers */
-  ion-accordion-group ion-accordion ion-item[slot="header"] {
-    --background: var(--ion-color-primary-shade) !important;
-    --color: var(--ion-color-primary-contrast) !important;
-  }
-  
-  .accordion-header-custom {
-    background-color: rgba(var(--ion-color-primary-rgb), 0.45) !important;
-    background: rgba(var(--ion-color-primary-rgb), 0.45) !important;
-  }
+/* Dark theme accordion headers */
+:global(html.ion-palette-dark) ion-accordion-group ion-accordion ion-item[slot="header"],
+:global(html[data-theme="dark"]) ion-accordion-group ion-accordion ion-item[slot="header"] {
+  --background: var(--ion-color-primary-shade) !important;
+  --color: var(--ion-color-primary-contrast) !important;
+}
 
-  .main-nav-content {
-    background: var(--ion-color-step-50);
-  }
-  .agents-content {
-    background: var(--ion-color-step-50);
-  }
-  .agents-controls {
-    background: var(--ion-color-step-100);
-    border-bottom-color: var(--ion-color-step-200);
-  }
+:global(html.ion-palette-dark) .accordion-header-custom,
+:global(html[data-theme="dark"]) .accordion-header-custom {
+  background-color: rgba(var(--ion-color-primary-rgb), 0.45) !important;
+  background: rgba(var(--ion-color-primary-rgb), 0.45) !important;
+}
+
+:global(html.ion-palette-dark) .main-nav-content,
+:global(html[data-theme="dark"]) .main-nav-content {
+  background: var(--ion-color-step-50);
+}
+
+:global(html.ion-palette-dark) .agents-content,
+:global(html[data-theme="dark"]) .agents-content {
+  background: var(--ion-color-step-50);
+}
+
+:global(html.ion-palette-dark) .agents-controls,
+:global(html[data-theme="dark"]) .agents-controls {
+  background: var(--ion-color-step-100);
+  border-bottom-color: var(--ion-color-step-200);
 }
 </style>
