@@ -24,7 +24,8 @@ Run codebase hardening on specific issues from monitoring report. Auto-fixes iss
   - `apps/web` - Use web app monitoring artifact
   - `apps/api` - Use API app monitoring artifact
   - `apps/langgraph` - Use LangGraph app monitoring artifact
-  - (no scope) - Use project monitoring artifact (default)
+  - `project` - Use project-level monitoring artifact (excludes apps/)
+  - (no scope) - Use all.json monitoring artifact (entire project, default)
 - `target` (optional): Specific issue or refactoring to target
   - `#<issue-id>` - Fix specific issue by ID (e.g., `#42`)
   - `<refactoring-name>` - Target all issues for refactoring (e.g., `supabase-separation`)
@@ -34,13 +35,19 @@ Run codebase hardening on specific issues from monitoring report. Auto-fixes iss
 
 ```
 /harden
-# Use latest project artifact, auto-identify most important issue
+# Use all.json artifact (entire project), auto-identify most important issue
 
 /harden #42
-# Fix issue #42 from latest project artifact
+# Fix issue #42 from all.json artifact
 
 /harden supabase-separation
-# Target all issues for 'supabase-separation' refactoring from latest project artifact
+# Target all issues for 'supabase-separation' refactoring from all.json artifact
+
+/harden project
+# Use project-level artifact (excludes apps/), auto-identify most important issue
+
+/harden project #42
+# Fix issue #42 from project-level artifact
 
 /harden apps/api
 # Use API app artifact, auto-identify most important issue
@@ -55,8 +62,11 @@ Run codebase hardening on specific issues from monitoring report. Auto-fixes iss
 ## Workflow
 
 1. **Determine Artifact**
-   - If scope provided: Use `.monitor/apps-{app}.json`
-   - If no scope: Use `.monitor/project.json`
+   - If `apps/web`: Use `.monitor/apps-web.json`
+   - If `apps/api`: Use `.monitor/apps-api.json`
+   - If `apps/langgraph`: Use `.monitor/apps-langgraph.json`
+   - If `project`: Use `.monitor/project.json` (project-level files only)
+   - If no scope: Use `.monitor/all.json` (entire project)
    - Load monitoring artifact
 
 2. **Determine Target**

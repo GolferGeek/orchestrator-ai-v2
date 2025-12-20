@@ -37,20 +37,7 @@
     "server:status": "pm2 list && (pgrep -f 'cloudflared.*tunnel.*run' > /dev/null && echo '✅ CloudFlare Tunnel running' || echo '❌ CloudFlare Tunnel not running') && echo 'DNS check for api.orchestratorai.io:' && dig +short api.orchestratorai.io | sed 's/^/  /' && echo 'Authoritative check:' && dig @quinton.ns.cloudflare.com +short A api.orchestratorai.io | sed 's/^/  /' && echo 'HTTPS HEAD check:' && (curl -sI https://api.orchestratorai.io | grep -Ei '^(server:|cf-ray:|date:)' || true)",
     "server:logs": "pm2 logs",
     "server:health": "curl -s http://localhost:9000/health && echo '' && curl -s http://localhost:9001",
-    "prod:start": "echo '⚠️  prod:start is deprecated. Use: npm run server:start' && npm run server:start",
-    "prod:stop": "echo '⚠️  prod:stop is deprecated. Use: npm run server:stop' && npm run server:stop",
-    "prod:status": "echo '⚠️  prod:status is deprecated. Use: npm run server:status' && npm run server:status",
-    "initiative:kickoff": "node scripts/kickoff-initiative.js",
-    "initiative:recipe": "node scripts/initiative-recipe.js | cat",
-    "initiative:archive": "node scripts/archive-initiative.js",
-    "ollama:simple": "./scripts/ollama-simple.sh",
-    "ollama:medium": "./scripts/ollama-medium.sh",
-    "ollama:full": "./scripts/ollama-full.sh",
-    "ollama:server": "./scripts/ollama-server.sh",
-    "ollama:stop:all": "./scripts/ollama-stop-all-models.sh",
-    "ollama:add": "./scripts/ollama-add-model.sh",
-    "ollama:stop": "./scripts/ollama-stop-model.sh",
-    "publish:public": "node scripts/publish-public-branch.js",
+    "db:validate-migration": "./scripts/validate-migration.sh",
     "inventory:agents": "node scripts/agents/inventory-file-agents.js > docs/reports/filesystem-agent-inventory.md || node scripts/agents/inventory-file-agents.js",
     "agents:smoke": "API_BASE=http://localhost:6100 node scripts/agents/smoke-validate-seeds.mjs",
     "test:assets": "node apps/api/testing/test-assets.js",
@@ -90,7 +77,9 @@
   },
   "workspaces": [
     "apps/api",
-    "apps/web"
+    "apps/web",
+    "apps/langgraph",
+    "apps/transport-types"
   ],
   "dependencies": {
     "@openai/codex": "^0.34.0",

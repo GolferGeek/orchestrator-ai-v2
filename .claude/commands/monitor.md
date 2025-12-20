@@ -24,17 +24,24 @@ Run codebase monitoring analysis to analyze files hierarchically, evaluate codeb
   - `apps/web` - Analyze web app only
   - `apps/api` - Analyze API app only
   - `apps/langgraph` - Analyze LangGraph app only
-  - (no scope) - Analyze entire project (default)
+  - `project` - Analyze project-level files only (excludes apps/)
+  - (no scope) - Analyze entire project including apps (default)
 - `--full` (optional): Full analysis ignoring last monitor date (default is incremental)
 
 ## Examples
 
 ```
 /monitor
-# Analyze entire project (incremental - only new/changed files)
+# Analyze entire project including apps (incremental - only new/changed files)
 
 /monitor --full
-# Analyze entire project (full - all files)
+# Analyze entire project including apps (full - all files)
+
+/monitor project
+# Analyze project-level files only (excludes apps/)
+
+/monitor project --full
+# Analyze project-level files (full analysis, excludes apps/)
 
 /monitor apps/api
 # Analyze API app only (incremental)
@@ -51,7 +58,8 @@ Run codebase monitoring analysis to analyze files hierarchically, evaluate codeb
 
 2. **Load Existing Artifact** (if exists)
    - Determine artifact path:
-     - `.monitor/project.json` - For entire project
+     - `.monitor/all.json` - For entire project (including apps)
+     - `.monitor/project.json` - For project-level files only (excludes apps/)
      - `.monitor/apps-web.json` - For web app
      - `.monitor/apps-api.json` - For API app
      - `.monitor/apps-langgraph.json` - For LangGraph app
@@ -90,10 +98,28 @@ Run codebase monitoring analysis to analyze files hierarchically, evaluate codeb
 **Location:** `.monitor/` directory (excluded from Git)
 
 **Files:**
-- `.monitor/project.json` - Entire project
+- `.monitor/all.json` - Entire project (including apps)
+- `.monitor/project.json` - Project-level files only (excludes apps/)
 - `.monitor/apps-web.json` - Web app
 - `.monitor/apps-api.json` - API app
 - `.monitor/apps-langgraph.json` - LangGraph app
+
+## Project-Level Scope
+
+When using `/monitor project`, the following directories/files are analyzed:
+- Root config files (`*.json`, `*.js`, `*.ts`, `*.md`, `*.sh`)
+- `.claude/` - Claude Code configuration
+- `deployment/` - Deployment scripts and configs
+- `docs/` - Documentation
+- `demo-agents/` - Demo agent definitions
+- `supabase/` - Supabase migrations and config
+- `storage/` - Storage scripts
+- `.github/` - GitHub workflows
+
+**Excluded from project scope:**
+- `apps/` - Use specific app scopes instead
+- `node_modules/` - Dependencies
+- `.git/` - Git internals
 
 ## Incremental Monitoring
 
