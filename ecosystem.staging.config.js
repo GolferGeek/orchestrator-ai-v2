@@ -1,0 +1,47 @@
+module.exports = {
+  apps: [
+    {
+      name: 'staging-api',
+      script: 'apps/api/dist/main.js',
+      cwd: process.cwd(),
+      env: {
+        NODE_ENV: 'staging',
+        API_PORT: 7100,
+      },
+      env_file: '.env.staging',
+      instances: 1,
+      exec_mode: 'fork',
+      watch: false,
+      max_memory_restart: '1G',
+      error_file: './logs/staging-api-error.log',
+      out_file: './logs/staging-api-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      merge_logs: true,
+      autorestart: true,
+      max_restarts: 10,
+      min_uptime: '10s',
+    },
+    {
+      name: 'staging-web',
+      script: 'apps/web/dist/server.js',
+      cwd: process.cwd(),
+      env: {
+        NODE_ENV: 'staging',
+        PORT: 7101,
+      },
+      env_file: '.env.staging',
+      instances: 1,
+      exec_mode: 'fork',
+      watch: false,
+      max_memory_restart: '500M',
+      error_file: './logs/staging-web-error.log',
+      out_file: './logs/staging-web-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      merge_logs: true,
+      autorestart: true,
+      max_restarts: 10,
+      min_uptime: '10s',
+    },
+  ],
+};
+
