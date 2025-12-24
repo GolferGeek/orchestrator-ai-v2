@@ -1421,21 +1421,20 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
       // 4.5. Special handling for Marketing Swarm: Create task in marketing.swarm_tasks before calling LangGraph
       // The LangGraph endpoint expects the task to already exist in marketing.swarm_tasks table
       this.logger.debug(
-        `[MarketingSwarm] Checking if task creation needed: slug=${definition.slug}, taskId=${taskId}, hasUserMessage=${!!userMessage}`,
+        `🔧 [MarketingSwarm] CRITICAL CHECK: slug=${definition.slug}, taskId=${taskId}, hasUserMessage=${!!userMessage}, userMessageLength=${userMessage?.length || 0}`,
       );
-      // DEBUG: Log request structure to understand what we're receiving
-      this.logger.debug(
-        `[MarketingSwarm] Request structure: userMessage=${!!request.userMessage}, userMessageLength=${request.userMessage?.length || 0}, payload.userMessage=${!!(request.payload as Record<string, unknown>)?.userMessage}, payload.prompt=${!!(request.payload as Record<string, unknown>)?.prompt}, extractedUserMessage=${!!userMessage}, extractedLength=${userMessage?.length || 0}`,
-      );
-      // Extra debug: Show raw request structure for Marketing Swarm
+      // Log request structure for debugging
       if (definition.slug === 'marketing-swarm') {
         this.logger.debug(
-          `[MarketingSwarm] RAW - request keys: ${Object.keys(request).join(', ')}, payload keys: ${Object.keys(request.payload || {}).join(', ')}`,
+          `🔧 [MarketingSwarm] Request structure: request.userMessage=${!!request.userMessage}, payload.userMessage=${!!(request.payload as Record<string, unknown>)?.userMessage}`,
+        );
+        this.logger.debug(
+          `🔧 [MarketingSwarm] RAW - request keys: ${Object.keys(request).join(', ')}, payload keys: ${Object.keys(request.payload || {}).join(', ')}`,
         );
       }
       if (definition.slug === 'marketing-swarm' && taskId && userMessage) {
         this.logger.debug(
-          `[MarketingSwarm] Task creation check passed: taskId=${taskId}, userMessage length=${userMessage.length}`,
+          `✅ [MarketingSwarm] Task creation check PASSED: taskId=${taskId}, userMessage length=${userMessage.length}`,
         );
         try {
           // Parse the userMessage JSON to extract marketing swarm request data
@@ -1456,11 +1455,11 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           try {
             swarmRequestData = JSON.parse(userMessage) as SwarmRequestData;
             this.logger.debug(
-              `[MarketingSwarm] Parsed userMessage: type=${swarmRequestData?.type}, hasContentTypeSlug=${!!swarmRequestData?.contentTypeSlug}, hasPromptData=${!!swarmRequestData?.promptData}, hasConfig=${!!swarmRequestData?.config}`,
+              `🔧 [MarketingSwarm] Parsed userMessage: type=${swarmRequestData?.type}, hasContentTypeSlug=${!!swarmRequestData?.contentTypeSlug}, hasPromptData=${!!swarmRequestData?.promptData}, hasConfig=${!!swarmRequestData?.config}`,
             );
           } catch (parseError) {
-            this.logger.warn(
-              `[MarketingSwarm] Failed to parse userMessage as JSON: ${parseError instanceof Error ? parseError.message : String(parseError)}`,
+            this.logger.debug(
+              `⚠️ [MarketingSwarm] Failed to parse userMessage as JSON: ${parseError instanceof Error ? parseError.message : String(parseError)}`,
             );
             // userMessage is not JSON, try to extract from body if it's already parsed
             if (body && typeof body === 'object') {
@@ -1474,11 +1473,11 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
                     bodyObj.userMessage,
                   ) as SwarmRequestData;
                   this.logger.debug(
-                    `[MarketingSwarm] Parsed userMessage from body: type=${swarmRequestData?.type}`,
+                    `🔧 [MarketingSwarm] Parsed userMessage from body: type=${swarmRequestData?.type}`,
                   );
                 } catch {
-                  this.logger.warn(
-                    `[MarketingSwarm] Failed to parse userMessage from body`,
+                  this.logger.debug(
+                    `⚠️ [MarketingSwarm] Failed to parse userMessage from body`,
                   );
                   // Ignore parse errors
                 }
@@ -1495,10 +1494,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
             swarmRequestData.config
           ) {
             this.logger.debug(
-              `[MarketingSwarm] Valid swarm request data found, proceeding with task creation`,
-            );
-            this.logger.debug(
-              `Creating marketing swarm task in database: taskId=${taskId}`,
+              `✅ [MarketingSwarm] Valid swarm request data found, creating task in database: taskId=${taskId}`,
             );
 
             // Create a Supabase client with marketing schema configured
@@ -1563,18 +1559,17 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           // Log error but don't fail - allow the request to proceed
           // LangGraph will handle the missing task error
           this.logger.debug(
-            `Failed to create marketing swarm task (continuing anyway): ${error instanceof Error ? error.message : String(error)}`,
-            error instanceof Error ? error.stack : undefined,
+            `❌ [MarketingSwarm] Failed to create swarm task: ${error instanceof Error ? error.message : String(error)}`,
           );
         }
       } else {
-        this.logger.debug(
-          `[MarketingSwarm] Skipping task creation: slug=${definition.slug}, taskId=${taskId}, hasUserMessage=${!!userMessage}, userMessagePreview=${userMessage?.substring(0, 100) || 'EMPTY'}`,
-        );
-        // Additional debug for Marketing Swarm to trace userMessage extraction
+        // Only log if this is marketing-swarm (to avoid noise for other agents)
         if (definition.slug === 'marketing-swarm') {
           this.logger.debug(
-            `[MarketingSwarm] DEBUG - request.userMessage: ${!!request.userMessage}, request.payload: ${JSON.stringify(request.payload)?.substring(0, 200)}`,
+            `⚠️ [MarketingSwarm] SKIPPING task creation! slug=${definition.slug}, taskId=${taskId}, hasUserMessage=${!!userMessage}, userMessagePreview=${userMessage?.substring(0, 100) || 'EMPTY'}`,
+          );
+          this.logger.debug(
+            `⚠️ [MarketingSwarm] request.userMessage=${!!request.userMessage}, payload preview: ${JSON.stringify(request.payload)?.substring(0, 300)}`,
           );
         }
       }
