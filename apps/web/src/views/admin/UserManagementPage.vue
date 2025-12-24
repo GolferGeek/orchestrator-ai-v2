@@ -15,9 +15,9 @@
         <ion-spinner></ion-spinner>
         <p>Initializing...</p>
       </div>
-      <div v-else class="user-management-container">
-        <!-- Left Panel: User List -->
-        <div class="user-list-panel">
+      <div v-else class="master-detail-container">
+        <!-- Master Panel: User List -->
+        <div class="master-panel">
           <!-- Organization Selector -->
           <ion-card v-if="organizations.length > 1" class="org-selector-card">
             <ion-card-content>
@@ -89,7 +89,6 @@
                     </ion-badge>
                   </p>
                 </ion-label>
-                <ion-icon :icon="chevronForwardOutline" slot="end"></ion-icon>
               </ion-item>
             </template>
 
@@ -100,8 +99,8 @@
           </ion-list>
         </div>
 
-        <!-- Right Panel: User Details -->
-        <div class="user-details-panel" v-if="selectedUser">
+        <!-- Detail Panel: User Details -->
+        <div class="detail-panel" v-if="selectedUser">
           <ion-card>
             <ion-card-header>
               <div class="user-header">
@@ -221,8 +220,8 @@
           </ion-card>
         </div>
 
-        <!-- Empty State for Right Panel -->
-        <div class="user-details-panel empty-details" v-else>
+        <!-- Empty State for Detail Panel -->
+        <div class="detail-panel empty-details" v-else>
           <div class="empty-state">
             <ion-icon :icon="personCircleOutline" size="large" color="medium"></ion-icon>
             <h2>Select a user</h2>
@@ -428,7 +427,7 @@ import {
   alertController, toastController
 } from '@ionic/vue';
 import {
-  refreshOutline, chevronForwardOutline, peopleOutline,
+  refreshOutline, peopleOutline,
   closeCircleOutline, addCircleOutline, trashOutline, keyOutline,
   mailOutline, personCircleOutline, personAddOutline, removeCircleOutline
 } from 'ionicons/icons';
@@ -1019,19 +1018,25 @@ function getRoleBadgeColor(roleName: string): string {
   overflow-y: auto;
 }
 
-.user-management-container {
+/* Master-Detail Container */
+.master-detail-container {
   display: grid;
-  grid-template-columns: 400px 1fr;
+  grid-template-columns: 350px 1fr;
   height: 100%;
   gap: 1rem;
   padding: 1rem;
 }
 
-.user-list-panel {
+/* Master Panel - User List */
+.master-panel {
   display: flex;
   flex-direction: column;
   gap: 1rem;
   overflow-y: auto;
+  background: var(--ion-background-color);
+  border-radius: 8px;
+  border: 1px solid var(--ion-border-color, var(--ion-color-light-shade));
+  padding: 1rem;
 }
 
 .org-selector-card {
@@ -1040,6 +1045,7 @@ function getRoleBadgeColor(roleName: string): string {
 
 .action-buttons {
   display: flex;
+  flex-direction: column;
   gap: 0.5rem;
 }
 
@@ -1056,12 +1062,35 @@ function getRoleBadgeColor(roleName: string): string {
   overflow-y: auto;
 }
 
+.users-list {
+  background: transparent;
+}
+
 .users-list ion-item {
   cursor: pointer;
+  margin-bottom: 0.5rem;
+  border-radius: 8px;
+  --background: var(--ion-background-color);
+  --border-color: var(--ion-border-color, var(--ion-color-light-shade));
+  border: 1px solid var(--border-color);
+  transition: all 0.2s ease;
+}
+
+.users-list ion-item:hover {
+  --background: var(--ion-color-light-tint);
+  transform: translateX(2px);
 }
 
 .users-list ion-item.selected-user {
-  --background: var(--ion-color-primary-tint);
+  --background: var(--ion-color-primary);
+  --color: white;
+  border-color: var(--ion-color-primary-shade);
+  box-shadow: 0 2px 8px rgba(var(--ion-color-primary-rgb), 0.3);
+}
+
+.users-list ion-item.selected-user ion-label h2,
+.users-list ion-item.selected-user ion-label p {
+  color: white;
 }
 
 .avatar-placeholder {
@@ -1099,15 +1128,19 @@ function getRoleBadgeColor(roleName: string): string {
   margin-bottom: 1rem;
 }
 
-.user-details-panel {
+/* Detail Panel - User Details */
+.detail-panel {
   display: flex;
   flex-direction: column;
   gap: 1rem;
   overflow-y: auto;
-  padding-bottom: 1rem;
+  padding: 1rem;
+  background: var(--ion-background-color);
+  border-radius: 8px;
+  border: 1px solid var(--ion-border-color, var(--ion-color-light-shade));
 }
 
-.user-details-panel.empty-details {
+.detail-panel.empty-details {
   justify-content: center;
   align-items: center;
 }
@@ -1116,6 +1149,14 @@ function getRoleBadgeColor(roleName: string): string {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.user-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .roles-grid,
@@ -1157,12 +1198,12 @@ ion-chip {
 
 /* Responsive design */
 @media (max-width: 992px) {
-  .user-management-container {
+  .master-detail-container {
     grid-template-columns: 1fr;
     grid-template-rows: auto 1fr;
   }
 
-  .user-list-panel {
+  .master-panel {
     max-height: 50vh;
   }
 }
