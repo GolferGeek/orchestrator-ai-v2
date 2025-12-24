@@ -36,3 +36,5 @@ WHERE slug = 'extended-post-writer';
 -- FROM agents
 -- WHERE slug IN ('data-analyst', 'extended-post-writer');
 
+
+
