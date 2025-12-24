@@ -26,6 +26,7 @@
     "agents:seed:hr": "bash ../../scripts/agents/seed-agent.sh ../../docs/feature/matt/payloads/hr_assistant.json"
   },
   "dependencies": {
+    "@anthropic-ai/claude-code": "^0.2.57",
     "@langchain/anthropic": "^0.3.21",
     "@langchain/core": "^0.3.66",
     "@langchain/google-genai": "^0.2.10",
@@ -53,7 +54,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "dotenv": "^17.2.0",
-    "google-auth-library": "^9.0.0",
+    "google-auth-library": "^10.5.0",
     "js-yaml": "^4.1.0",
     "jsonwebtoken": "^9.0.2",
     "mammoth": "^1.11.0",
