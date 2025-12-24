@@ -17,4 +17,13 @@ export class ExecuteCommandDto {
   @IsString()
   @IsOptional()
   skill?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Session ID to resume a previous conversation. If provided, continues the existing session with full context.',
+    example: '7cc98885-14ef-4f81-bc29-95c19a2c82b9',
+  })
+  @IsString()
+  @IsOptional()
+  sessionId?: string;
 }

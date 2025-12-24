@@ -3,9 +3,11 @@
  *
  * Manages the state and logic for the super admin Claude Code panel,
  * including SSE streaming, command execution, and output handling.
+ * Persists conversation history and session ID to localStorage for
+ * continuity across page refreshes.
  */
 
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import {
   claudeCodeService,
   type ClaudeCommand,
@@ -19,6 +21,123 @@ export interface OutputEntry {
   timestamp: Date;
 }
 
+// LocalStorage keys
+const STORAGE_KEYS = {
+  SESSION_ID: 'claude-code-session-id',
+  OUTPUT: 'claude-code-output',
+  STATS: 'claude-code-stats',
+} as const;
+
+/**
+ * Stored stats interface for localStorage
+ */
+interface StoredStats {
+  totalCost: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+}
+
+/**
+ * Load session ID from localStorage
+ */
+function loadSessionId(): string | undefined {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.SESSION_ID);
+    return stored || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Save session ID to localStorage
+ */
+function saveSessionId(sessionId: string | undefined): void {
+  try {
+    if (sessionId) {
+      localStorage.setItem(STORAGE_KEYS.SESSION_ID, sessionId);
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.SESSION_ID);
+    }
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+/**
+ * Load output history from localStorage
+ */
+function loadOutput(): OutputEntry[] {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.OUTPUT);
+    if (!stored) return [];
+
+    const parsed = JSON.parse(stored) as Array<{
+      type: OutputEntry['type'];
+      content: string;
+      timestamp: string;
+    }>;
+
+    // Convert timestamp strings back to Date objects
+    return parsed.map((entry) => ({
+      ...entry,
+      timestamp: new Date(entry.timestamp),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Save output history to localStorage
+ */
+function saveOutput(entries: OutputEntry[]): void {
+  try {
+    // Keep only the last 100 entries to prevent localStorage bloat
+    const toSave = entries.slice(-100);
+    localStorage.setItem(STORAGE_KEYS.OUTPUT, JSON.stringify(toSave));
+  } catch {
+    // Ignore storage errors (e.g., quota exceeded)
+  }
+}
+
+/**
+ * Load stats from localStorage
+ */
+function loadStats(): StoredStats {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.STATS);
+    if (!stored) return { totalCost: 0, totalInputTokens: 0, totalOutputTokens: 0 };
+    return JSON.parse(stored) as StoredStats;
+  } catch {
+    return { totalCost: 0, totalInputTokens: 0, totalOutputTokens: 0 };
+  }
+}
+
+/**
+ * Save stats to localStorage
+ */
+function saveStats(stats: StoredStats): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.STATS, JSON.stringify(stats));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+/**
+ * Clear all persisted state
+ */
+function clearPersistedState(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEYS.SESSION_ID);
+    localStorage.removeItem(STORAGE_KEYS.OUTPUT);
+    localStorage.removeItem(STORAGE_KEYS.STATS);
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 export function useClaudeCodePanel() {
   // Server state
   const isServerAvailable = ref(false);
@@ -29,18 +148,22 @@ export function useClaudeCodePanel() {
   const prompt = ref('');
   const abortController = ref<AbortController | null>(null);
 
-  // Output state
-  const output = ref<OutputEntry[]>([]);
+  // Session state for multi-turn conversations - load from localStorage
+  const sessionId = ref<string | undefined>(loadSessionId());
+
+  // Output state - load from localStorage
+  const output = ref<OutputEntry[]>(loadOutput());
   const currentAssistantMessage = ref('');
 
   // Available commands and skills
   const commands = ref<ClaudeCommand[]>([]);
   const skills = ref<ClaudeSkill[]>([]);
 
-  // Stats
-  const totalCost = ref(0);
-  const totalInputTokens = ref(0);
-  const totalOutputTokens = ref(0);
+  // Stats - load from localStorage
+  const storedStats = loadStats();
+  const totalCost = ref(storedStats.totalCost);
+  const totalInputTokens = ref(storedStats.totalInputTokens);
+  const totalOutputTokens = ref(storedStats.totalOutputTokens);
 
   // Computed
   const canExecute = computed(
@@ -102,6 +225,7 @@ export function useClaudeCodePanel() {
 
   /**
    * Execute the current prompt
+   * Automatically resumes session if one exists for multi-turn conversation
    */
   async function execute(): Promise<void> {
     if (!canExecute.value) return;
@@ -122,6 +246,7 @@ export function useClaudeCodePanel() {
         handleMessage,
         handleError,
         handleComplete,
+        sessionId.value, // Pass session ID for resumption
       );
     } catch (error) {
       handleError(error as Error);
@@ -168,9 +293,16 @@ export function useClaudeCodePanel() {
 
   /**
    * Handle stream completion
+   * Captures session ID for future resumption and persists state
    */
-  function handleComplete(): void {
+  function handleComplete(newSessionId?: string): void {
     isExecuting.value = false;
+
+    // Store session ID for next execution
+    if (newSessionId) {
+      sessionId.value = newSessionId;
+      saveSessionId(newSessionId);
+    }
 
     // Flush any pending assistant message
     if (currentAssistantMessage.value) {
@@ -179,6 +311,14 @@ export function useClaudeCodePanel() {
     }
 
     addOutput('info', '✓ Execution completed');
+
+    // Persist output and stats to localStorage
+    saveOutput(output.value);
+    saveStats({
+      totalCost: totalCost.value,
+      totalInputTokens: totalInputTokens.value,
+      totalOutputTokens: totalOutputTokens.value,
+    });
   }
 
   /**
@@ -194,14 +334,19 @@ export function useClaudeCodePanel() {
   }
 
   /**
-   * Clear output history
+   * Clear output history and start a new session
+   * Also clears localStorage to ensure fresh start on refresh
    */
   function clearOutput(): void {
     output.value = [];
     currentAssistantMessage.value = '';
+    sessionId.value = undefined; // Clear session to start fresh
     totalCost.value = 0;
     totalInputTokens.value = 0;
     totalOutputTokens.value = 0;
+
+    // Clear persisted state
+    clearPersistedState();
   }
 
   /**
@@ -239,6 +384,7 @@ export function useClaudeCodePanel() {
     totalCost,
     totalInputTokens,
     totalOutputTokens,
+    sessionId, // Expose session ID for UI indicators
 
     // Computed
     canExecute,

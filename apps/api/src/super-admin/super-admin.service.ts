@@ -20,7 +20,16 @@ interface SkillInfo {
  */
 interface SDKMessage {
   type?: string;
+  subtype?: string;
+  session_id?: string;
   [key: string]: unknown;
+}
+
+/**
+ * Execution result with session info
+ */
+interface ExecutionResult {
+  sessionId?: string;
 }
 
 @Injectable()
@@ -36,35 +45,64 @@ export class SuperAdminService {
 
   /**
    * Execute a prompt using Claude Agent SDK and stream results via SSE
+   * Supports session resumption for maintaining conversation state
    */
-  async executeWithStreaming(prompt: string, res: Response): Promise<void> {
-    this.logger.log(`Executing prompt: ${prompt}`);
+  async executeWithStreaming(
+    prompt: string,
+    res: Response,
+    sessionId?: string,
+  ): Promise<ExecutionResult> {
+    this.logger.log(
+      `Executing prompt: ${prompt}${sessionId ? ` (resuming session ${sessionId})` : ' (new session)'}`,
+    );
+
+    let capturedSessionId: string | undefined;
 
     try {
+      // Build options - include resume if we have a session ID
+      const options: Record<string, unknown> = {
+        cwd: this.projectRoot,
+        settingSources: ['project'], // Load .claude/* skills, commands, agents
+        permissionMode: 'bypassPermissions',
+        allowDangerouslySkipPermissions: true,
+        allowedTools: [
+          'Skill',
+          'Read',
+          'Write',
+          'Edit',
+          'Bash',
+          'Glob',
+          'Grep',
+          'Task',
+          'WebFetch',
+          'WebSearch',
+          'TodoWrite',
+        ],
+      };
+
+      // Add resume option if continuing a session
+      if (sessionId) {
+        options.resume = sessionId;
+      }
+
       const queryIterator = query({
         prompt,
-        options: {
-          cwd: this.projectRoot,
-          settingSources: ['project'], // Load .claude/* skills, commands, agents
-          permissionMode: 'bypassPermissions',
-          allowDangerouslySkipPermissions: true,
-          allowedTools: [
-            'Skill',
-            'Read',
-            'Write',
-            'Edit',
-            'Bash',
-            'Glob',
-            'Grep',
-            'Task',
-            'WebFetch',
-            'WebSearch',
-            'TodoWrite',
-          ],
-        },
+        options,
       }) as AsyncIterable<SDKMessage>;
 
       for await (const message of queryIterator) {
+        // Capture session ID from init message (but don't send it to client in this noisy format)
+        if (message.type === 'system' && message.subtype === 'init') {
+          capturedSessionId = message.session_id;
+          this.logger.debug(`Session ID: ${capturedSessionId}`);
+          // Send just the session ID to the client
+          res.write('event: session\n');
+          res.write(
+            `data: ${JSON.stringify({ sessionId: capturedSessionId })}\n\n`,
+          );
+          continue;
+        }
+
         // Stream each message as an SSE event
         const eventType = message.type ?? 'message';
         res.write(`event: ${eventType}\n`);
@@ -76,10 +114,14 @@ export class SuperAdminService {
         }
       }
 
-      // Send completion event
+      // Send completion event with session ID for future resumption
       res.write('event: done\n');
-      res.write('data: {"status": "completed"}\n\n');
+      res.write(
+        `data: ${JSON.stringify({ status: 'completed', sessionId: capturedSessionId })}\n\n`,
+      );
       this.logger.log('Execution completed successfully');
+
+      return { sessionId: capturedSessionId };
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
@@ -87,6 +129,8 @@ export class SuperAdminService {
 
       res.write('event: error\n');
       res.write(`data: ${JSON.stringify({ error: errorMessage })}\n\n`);
+
+      return { sessionId: capturedSessionId };
     } finally {
       res.end();
     }

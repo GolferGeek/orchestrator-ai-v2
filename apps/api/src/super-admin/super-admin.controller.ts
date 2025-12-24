@@ -51,7 +51,9 @@ export class SuperAdminController {
   @ApiOperation({
     summary: 'Execute a Claude Code command',
     description:
-      'Executes a prompt or command using Claude Agent SDK. Streams results via SSE. Dev mode + super admin only.',
+      'Executes a prompt or command using Claude Agent SDK. Streams results via SSE. ' +
+      'Supports session resumption - pass sessionId from previous execution to continue conversation. ' +
+      'Dev mode + super admin only.',
   })
   async execute(
     @Body() dto: ExecuteCommandDto,
@@ -60,7 +62,9 @@ export class SuperAdminController {
   ): Promise<void> {
     await this.validateAccess(user.id);
 
-    this.logger.log(`Super admin ${user.id} executing: ${dto.prompt}`);
+    this.logger.log(
+      `Super admin ${user.id} executing: ${dto.prompt}${dto.sessionId ? ` (session: ${dto.sessionId})` : ''}`,
+    );
 
     // Set SSE headers
     res.setHeader('Content-Type', 'text/event-stream');
@@ -68,8 +72,12 @@ export class SuperAdminController {
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
 
-    // Stream execution
-    await this.superAdminService.executeWithStreaming(dto.prompt, res);
+    // Stream execution with optional session resumption
+    await this.superAdminService.executeWithStreaming(
+      dto.prompt,
+      res,
+      dto.sessionId,
+    );
   }
 
   @Get('commands')

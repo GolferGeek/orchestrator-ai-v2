@@ -24,7 +24,14 @@ export interface ClaudeHealthResponse {
 }
 
 export interface ClaudeMessage {
-  type: 'system' | 'assistant' | 'user' | 'result' | 'stream_event' | 'error';
+  type:
+    | 'system'
+    | 'assistant'
+    | 'user'
+    | 'result'
+    | 'stream_event'
+    | 'error'
+    | 'session';
   message?: {
     content: string | { type: string; text?: string }[];
   };
@@ -35,6 +42,12 @@ export interface ClaudeMessage {
     output_tokens: number;
   };
   error?: string;
+  sessionId?: string;
+}
+
+export interface ExecuteResult {
+  abortController: AbortController;
+  sessionId?: string;
 }
 
 class ClaudeCodeService {
@@ -89,16 +102,21 @@ class ClaudeCodeService {
 
   /**
    * Execute a prompt/command and stream results
-   * Returns a ReadableStream that can be used to process SSE events
+   * Returns an AbortController for cancellation
+   * Supports session resumption for multi-turn conversations
    */
   async execute(
     prompt: string,
     onMessage: (message: ClaudeMessage) => void,
     onError: (error: Error) => void,
-    onComplete: () => void,
+    onComplete: (sessionId?: string) => void,
+    sessionId?: string,
   ): Promise<AbortController> {
     const abortController = new AbortController();
     const token = localStorage.getItem('authToken');
+
+    // Track session ID from the response
+    let currentSessionId: string | undefined = sessionId;
 
     try {
       const response = await fetch(`${this.baseUrl}/super-admin/execute`, {
@@ -107,7 +125,7 @@ class ClaudeCodeService {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt, sessionId }),
         signal: abortController.signal,
       });
 
@@ -131,7 +149,7 @@ class ClaudeCodeService {
             const { done, value } = await reader.read();
 
             if (done) {
-              onComplete();
+              onComplete(currentSessionId);
               break;
             }
 
@@ -152,8 +170,19 @@ class ClaudeCodeService {
                   try {
                     const parsed = JSON.parse(data);
 
+                    // Capture session ID from session or done events
+                    if (currentEvent === 'session' && parsed.sessionId) {
+                      currentSessionId = parsed.sessionId;
+                      // Don't call onMessage for session events - just capture the ID
+                      continue;
+                    }
+
                     if (currentEvent === 'done') {
-                      onComplete();
+                      // Done event may include sessionId
+                      if (parsed.sessionId) {
+                        currentSessionId = parsed.sessionId;
+                      }
+                      onComplete(currentSessionId);
                       return;
                     }
 
