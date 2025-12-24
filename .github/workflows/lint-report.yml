@@ -6,6 +6,10 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+  actions: write
+
 jobs:
   lint-report:
     runs-on: ubuntu-latest
