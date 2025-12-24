@@ -1,0 +1,117 @@
+{
+  "slug": "data-analyst",
+  "organization_slug": [
+    "demo-org"
+  ],
+  "name": "Data Analyst",
+  "description": "LangGraph-powered data analyst agent that uses natural language to query databases, list tables, describe schemas, and generate SQL queries with comprehensive result summaries.",
+  "version": "1.0.0",
+  "agent_type": "api",
+  "department": "analytics",
+  "tags": [
+    "data-analysis",
+    "sql",
+    "database",
+    "langgraph",
+    "tool-calling"
+  ],
+  "io_schema": {
+    "input": {
+      "type": "object",
+      "required": [
+        "question"
+      ],
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "User ID for tracking"
+        },
+        "question": {
+          "type": "string",
+          "description": "Natural language question about the data"
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "description": "Current status of the analysis"
+        },
+        "taskId": {
+          "type": "string",
+          "description": "Task ID for the analysis session (used as thread ID)"
+        },
+        "summary": {
+          "type": "string",
+          "description": "Natural language summary of the analysis"
+        },
+        "queryResults": {
+          "type": "object",
+          "description": "Results from SQL execution"
+        },
+        "sqlGenerated": {
+          "type": "string",
+          "description": "Generated SQL query"
+        },
+        "tablesDiscovered": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of database tables discovered"
+        }
+      }
+    }
+  },
+  "capabilities": [
+    "database-query",
+    "sql-generation",
+    "schema-analysis",
+    "data-summarization"
+  ],
+  "context": "{\"markdown\": \"# Data Analyst Agent\\n\\nA LangGraph-powered agent that analyzes databases using natural language queries.\\n\\n## Capabilities\\n- **Schema Discovery**: Lists and describes database tables\\n- **SQL Generation**: Generates SQL from natural language using Ollama/SQLCoder\\n- **Query Execution**: Executes read-only SQL queries safely\\n- **Result Summarization**: Provides clear summaries of query results\\n\\n## Flow\\n1. User asks a question about data\\n2. Agent discovers relevant tables\\n3. Agent describes table schemas\\n4. Agent generates SQL query\\n5. Agent executes query (read-only)\\n6. Agent summarizes results\\n\\n## Safety\\n- All SQL queries are read-only (SELECT only)\\n- Query execution is sandboxed\\n- Results are validated before returning\"}",
+  "endpoint": {
+    "url": "http://localhost:6200/data-analyst/analyze",
+    "method": "POST",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "timeout": 120000,
+    "responseTransform": {
+      "content": "$.data.summary",
+      "metadata": {
+        "status": "$.data.status",
+        "taskId": "$.data.threadId",
+        "queryResults": "$.data.queryResults",
+        "sqlGenerated": "$.data.sqlGenerated",
+        "tablesDiscovered": "$.data.tablesDiscovered"
+      }
+    }
+  },
+  "llm_config": null,
+  "metadata": {
+    "features": [
+      "tool-calling",
+      "checkpointing"
+    ],
+    "provider": "langgraph",
+    "statusEndpoint": "/data-analyst/status/{threadId}",
+    "execution_modes": [
+      "immediate",
+      "polling",
+      "real-time"
+    ],
+    "historyEndpoint": "/data-analyst/history/{threadId}",
+    "langgraphEndpoint": "http://localhost:6200",
+    "execution_capabilities": {
+      "can_plan": false,
+      "can_build": true,
+      "can_converse": true,
+      "requires_human_gate": false
+    }
+  },
+  "created_at": "2025-11-25T16:48:02.919156+00:00",
+  "updated_at": "2025-12-24T15:20:13.010924+00:00"
+}

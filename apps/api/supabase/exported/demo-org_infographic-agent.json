@@ -1,0 +1,144 @@
+{
+  "slug": "infographic-agent",
+  "organization_slug": [
+    "demo-org"
+  ],
+  "name": "Infographic Agent",
+  "description": "Creates professional infographics from any topic or input. Transforms complex information into visually appealing, easy-to-understand graphics.",
+  "version": "1.0.0",
+  "agent_type": "media",
+  "department": "marketing",
+  "tags": [
+    "infographic",
+    "marketing",
+    "visualization",
+    "media",
+    "design"
+  ],
+  "io_schema": {
+    "input": {
+      "type": "object",
+      "required": [
+        "topic"
+      ],
+      "properties": {
+        "style": {
+          "enum": [
+            "corporate",
+            "modern",
+            "minimal",
+            "colorful",
+            "vintage"
+          ],
+          "type": "string",
+          "default": "modern",
+          "description": "Visual style of the infographic"
+        },
+        "topic": {
+          "type": "string",
+          "description": "The topic or content to transform into an infographic"
+        },
+        "sections": {
+          "type": "number",
+          "default": 5,
+          "maximum": 10,
+          "minimum": 1,
+          "description": "Number of sections or data points to include"
+        },
+        "colorScheme": {
+          "type": "string",
+          "description": "Optional color scheme (e.g., blue-orange, monochrome, brand colors)"
+        },
+        "orientation": {
+          "enum": [
+            "portrait",
+            "landscape",
+            "square"
+          ],
+          "type": "string",
+          "default": "portrait",
+          "description": "Orientation of the infographic"
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string"
+              },
+              "assetId": {
+                "type": "string"
+              },
+              "mimeType": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string"
+            },
+            "topic": {
+              "type": "string"
+            },
+            "provider": {
+              "type": "string"
+            },
+            "generatedPrompt": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  },
+  "capabilities": [
+    "image-generation",
+    "infographic-creation"
+  ],
+  "context": "{\"input_modes\": [\"text/plain\", \"application/json\"], \"output_modes\": [\"image/png\", \"image/jpeg\"]}",
+  "endpoint": null,
+  "llm_config": null,
+  "metadata": {
+    "mediaType": "image",
+    "defaultModel": "imagen-3.0-generate-001",
+    "defaultProvider": "google",
+    "supportedModels": {
+      "google": [
+        "imagen-4.0-generate-001",
+        "imagen-4.0-ultra-generate-001"
+      ],
+      "openai": [
+        "gpt-image-1.5",
+        "gpt-image-1"
+      ]
+    },
+    "promptEnhancement": {
+      "enabled": true,
+      "template": "Create a professional infographic about: {topic}. Style: {style}. Layout: {orientation}. Include clear sections with icons and visual hierarchy."
+    },
+    "supportedProviders": [
+      "openai",
+      "google"
+    ],
+    "executionCapabilities": {
+      "canPlan": false,
+      "canBuild": true,
+      "canConverse": false
+    }
+  },
+  "created_at": "2025-12-24T15:21:49.137635+00:00",
+  "updated_at": "2025-12-24T15:21:49.137635+00:00"
+}
