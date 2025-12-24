@@ -91,8 +91,15 @@
         <button class="theme-toggle" @click="toggleTheme" :title="isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'">
           <ion-icon :icon="isDarkMode ? sunnyOutline : moonOutline"></ion-icon>
         </button>
+        <SuperAdminCommandButton @open="showCommandPanel = true" />
       </div>
     </ion-split-pane>
+
+    <!-- Super Admin Claude Code Panel -->
+    <SuperAdminCommandPanel
+      v-if="showCommandPanel"
+      @close="showCommandPanel = false"
+    />
   </ion-page>
 </template>
 <script lang="ts" setup>
@@ -109,6 +116,9 @@ import { useUserPreferencesStore } from '@/stores/userPreferencesStore';
 import { useRouter } from 'vue-router';
 import AgentTreeView from '@/components/AgentTreeView.vue';
 import OrganizationSwitcherApp from '@/components/common/OrganizationSwitcherApp.vue';
+import SuperAdminCommandButton from '@/components/super-admin/SuperAdminCommandButton.vue';
+import SuperAdminCommandPanel from '@/components/super-admin/SuperAdminCommandPanel.vue';
+
 const auth = useAuthStore();
 const conversationsStore = useConversationsStore();
 const chatUiStore = useChatUiStore();
@@ -117,6 +127,9 @@ const router = useRouter();
 // State for accordion and search
 const _mainNavExpanded = ref(true); // Main navigation accordion starts expanded
 const agentsExpanded = ref(true);
+
+// State for super admin command panel
+const showCommandPanel = ref(false);
 
 // Theme - use the preferences store
 const isDarkMode = computed(() => userPreferencesStore.effectiveTheme === 'dark');
