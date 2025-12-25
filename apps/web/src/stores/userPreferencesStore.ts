@@ -269,7 +269,7 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
     applyPerformancePreferences();
   };
   const applyTheme = (theme: 'light' | 'dark' | 'auto') => {
-    let resolvedTheme: 'light' | 'dark' = theme === 'auto' 
+    const resolvedTheme: 'light' | 'dark' = theme === 'auto' 
       ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
       : theme;
     

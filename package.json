@@ -15,6 +15,7 @@
     "n8n:logs": "./apps/n8n/manage.sh logs -f",
     "build:transport-types": "cd apps/transport-types && npm run build",
     "dev:web": "cd apps/web && npm run dev",
+    "dev:flow": "cd apps/orch-flow && npm run dev",
     "dev:start": "./start-dev-local.sh",
     "dev:ports": "./scripts/dev-ports.sh",
     "dev:supabase": "cd apps/api && supabase status",

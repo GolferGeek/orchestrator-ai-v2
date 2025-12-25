@@ -24,16 +24,32 @@
 
       <!-- Quick Commands -->
       <div class="quick-commands">
-        <button
-          v-for="cmd in quickCommands"
-          :key="cmd.name"
-          class="quick-cmd-btn"
-          :disabled="!isServerAvailable || isExecuting"
-          @click="insertCommand(cmd.name)"
-          :title="cmd.description"
-        >
-          {{ cmd.name }}
-        </button>
+        <div class="quick-commands-header">
+          <span class="quick-commands-title">Pinned Commands</span>
+        </div>
+        <div class="quick-commands-list">
+          <div
+            v-for="cmd in quickCommands"
+            :key="cmd.name"
+            class="quick-cmd-wrapper"
+          >
+            <button
+              class="quick-cmd-btn"
+              :disabled="!isServerAvailable || isExecuting"
+              @click="insertCommand(cmd.name)"
+              :title="cmd.description"
+            >
+              {{ cmd.name }}
+            </button>
+            <button
+              class="quick-cmd-pin-btn"
+              @click="unpinCommand(cmd.name)"
+              title="Unpin command"
+            >
+              <ion-icon :icon="star" />
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Output Area -->
@@ -67,15 +83,57 @@
       <!-- Input Area -->
       <div class="input-area">
         <div class="input-row">
-          <textarea
-            v-model="prompt"
-            class="prompt-input"
-            :placeholder="inputPlaceholder"
-            :disabled="!isServerAvailable || isExecuting"
-            rows="3"
-            @keydown.enter.meta="execute"
-            @keydown.enter.ctrl="execute"
-          ></textarea>
+          <div class="input-wrapper">
+            <!-- eslint-disable vue/use-v-on-exact -->
+            <textarea
+              ref="textareaRef"
+              v-model="prompt"
+              class="prompt-input"
+              :placeholder="inputPlaceholder"
+              :disabled="!isServerAvailable || isExecuting"
+              rows="3"
+              @input="handleInput"
+              @keydown="handleKeydown"
+              @keydown.enter.meta.exact="execute"
+              @keydown.enter.ctrl.exact="execute"
+            ></textarea>
+            <!-- eslint-enable vue/use-v-on-exact -->
+
+            <!-- Auto-complete dropdown -->
+            <div
+              v-if="showAutoComplete && filteredCommands.length > 0"
+              class="autocomplete-dropdown"
+            >
+              <button
+                v-for="(cmd, index) in filteredCommands"
+                :key="cmd.name"
+                :class="{ 'is-selected': index === autoCompleteSelectedIndex }"
+                @click="selectCommand(cmd.name)"
+                @mouseenter="autoCompleteSelectedIndex = index"
+              >
+                <div class="autocomplete-item">
+                  <span class="cmd-name">{{ cmd.name }}</span>
+                  <span class="cmd-desc">{{ cmd.description }}</span>
+                </div>
+                <button
+                  v-if="!isCommandPinned(cmd.name)"
+                  class="autocomplete-pin-btn"
+                  @click.stop="togglePin(cmd.name)"
+                  title="Pin command"
+                >
+                  <ion-icon :icon="starOutline" />
+                </button>
+                <button
+                  v-else
+                  class="autocomplete-pin-btn pinned"
+                  @click.stop="togglePin(cmd.name)"
+                  title="Unpin command"
+                >
+                  <ion-icon :icon="star" />
+                </button>
+              </button>
+            </div>
+          </div>
         </div>
         <div class="action-row">
           <div class="action-left">
@@ -133,6 +191,8 @@ import {
   playOutline,
   stopOutline,
   trashOutline,
+  starOutline,
+  star,
 } from 'ionicons/icons';
 import { useClaudeCodePanel, type OutputEntry } from '@/composables/useClaudeCodePanel';
 
@@ -157,25 +217,38 @@ const {
   cancel,
   clearOutput,
   insertCommand,
+  navigateHistory,
+  pinCommand,
+  unpinCommand,
+  pinnedCommands,
 } = useClaudeCodePanel();
 
 const outputRef = ref<HTMLElement | null>(null);
+const textareaRef = ref<HTMLTextAreaElement | null>(null);
 
-// Quick commands to show as buttons
+// Auto-complete state
+const showAutoComplete = ref(false);
+const autoCompleteSelectedIndex = ref(0);
+const autoCompleteFilter = ref('');
+
+// Quick commands to show as buttons - use pinned commands
 const quickCommands = computed(() => {
-  const defaultCommands = [
-    { name: '/test', description: 'Run tests' },
-    { name: '/commit', description: 'Commit changes' },
-    { name: '/create-pr', description: 'Create pull request' },
-    { name: '/monitor', description: 'Run monitoring' },
-  ];
+  // Map pinned command names to command objects
+  return pinnedCommands.value.map((name) => {
+    const cmd = commands.value.find((c) => c.name === name);
+    return cmd || { name, description: '' };
+  });
+});
 
-  // Merge with loaded commands if available
-  if (commands.value.length > 0) {
-    return commands.value.slice(0, 4);
+// Filtered commands for auto-complete
+const filteredCommands = computed(() => {
+  if (!autoCompleteFilter.value) {
+    return commands.value.slice(0, 10);
   }
-
-  return defaultCommands;
+  const filter = autoCompleteFilter.value.toLowerCase();
+  return commands.value
+    .filter((cmd) => cmd.name.toLowerCase().includes(filter))
+    .slice(0, 10);
 });
 
 // Status display
@@ -212,6 +285,89 @@ function getEntryPrefix(type: OutputEntry['type']): string {
       return '';
     default:
       return '';
+  }
+}
+
+// Handle input for auto-complete
+function handleInput(e: Event): void {
+  const value = (e.target as HTMLTextAreaElement).value;
+  const lastSlash = value.lastIndexOf('/');
+
+  if (lastSlash !== -1 && lastSlash === value.length - 1) {
+    // Just typed /
+    showAutoComplete.value = true;
+    autoCompleteFilter.value = '';
+    autoCompleteSelectedIndex.value = 0;
+  } else if (lastSlash !== -1 && !value.substring(lastSlash).includes(' ')) {
+    // Typing after /
+    showAutoComplete.value = true;
+    autoCompleteFilter.value = value.substring(lastSlash);
+    autoCompleteSelectedIndex.value = 0;
+  } else {
+    showAutoComplete.value = false;
+  }
+}
+
+// Handle keydown for auto-complete and history
+function handleKeydown(e: KeyboardEvent): void {
+  // Handle auto-complete navigation
+  if (showAutoComplete.value) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      autoCompleteSelectedIndex.value = Math.min(
+        autoCompleteSelectedIndex.value + 1,
+        filteredCommands.value.length - 1,
+      );
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      autoCompleteSelectedIndex.value = Math.max(autoCompleteSelectedIndex.value - 1, 0);
+    } else if (e.key === 'Tab' || (e.key === 'Enter' && !e.metaKey && !e.ctrlKey)) {
+      e.preventDefault();
+      selectCommand(filteredCommands.value[autoCompleteSelectedIndex.value]?.name);
+    } else if (e.key === 'Escape') {
+      showAutoComplete.value = false;
+    }
+    return;
+  }
+
+  // Handle command history navigation
+  if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    navigateHistory('up');
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    navigateHistory('down');
+  }
+}
+
+// Select a command from auto-complete
+function selectCommand(name: string): void {
+  if (!name) return;
+
+  const lastSlash = prompt.value.lastIndexOf('/');
+  if (lastSlash !== -1) {
+    prompt.value = prompt.value.substring(0, lastSlash) + name + ' ';
+  }
+  showAutoComplete.value = false;
+  autoCompleteSelectedIndex.value = 0;
+
+  // Focus back on textarea
+  nextTick(() => {
+    textareaRef.value?.focus();
+  });
+}
+
+// Check if a command is pinned
+function isCommandPinned(commandName: string): boolean {
+  return pinnedCommands.value.includes(commandName);
+}
+
+// Toggle pin for a command
+function togglePin(commandName: string): void {
+  if (isCommandPinned(commandName)) {
+    unpinCommand(commandName);
+  } else {
+    pinCommand(commandName);
   }
 }
 
@@ -344,11 +500,35 @@ watch(
 
 /* Quick Commands */
 .quick-commands {
-  display: flex;
-  gap: 8px;
   padding: 12px 16px;
   border-bottom: 1px solid var(--ion-border-color);
+}
+
+.quick-commands-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.quick-commands-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ion-color-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.quick-commands-list {
+  display: flex;
+  gap: 8px;
   overflow-x: auto;
+}
+
+.quick-cmd-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .quick-cmd-btn {
@@ -373,6 +553,29 @@ watch(
 .quick-cmd-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.quick-cmd-pin-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ion-color-warning);
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.quick-cmd-pin-btn:hover {
+  background: var(--ion-color-warning-tint);
+}
+
+.quick-cmd-pin-btn ion-icon {
+  font-size: 16px;
 }
 
 /* Output Area */
@@ -486,6 +689,10 @@ watch(
   margin-bottom: 12px;
 }
 
+.input-wrapper {
+  position: relative;
+}
+
 .prompt-input {
   width: 100%;
   padding: 12px;
@@ -507,6 +714,91 @@ watch(
 .prompt-input:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* Auto-complete dropdown */
+.autocomplete-dropdown {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--ion-background-color);
+  border: 1px solid var(--ion-border-color);
+  border-radius: 8px;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+}
+
+.autocomplete-dropdown button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s;
+  gap: 8px;
+}
+
+.autocomplete-dropdown button:hover,
+.autocomplete-dropdown button.is-selected {
+  background: var(--ion-color-primary-tint);
+}
+
+.autocomplete-item {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.cmd-name {
+  font-family: monospace;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ion-text-color);
+}
+
+.cmd-desc {
+  color: var(--ion-color-medium);
+  font-size: 12px;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.autocomplete-pin-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ion-color-medium);
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.autocomplete-pin-btn:hover {
+  background: var(--ion-color-light);
+  color: var(--ion-color-warning);
+}
+
+.autocomplete-pin-btn.pinned {
+  color: var(--ion-color-warning);
+}
+
+.autocomplete-pin-btn ion-icon {
+  font-size: 18px;
 }
 
 .action-row {

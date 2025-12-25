@@ -26,6 +26,8 @@ const STORAGE_KEYS = {
   SESSION_ID: 'claude-code-session-id',
   OUTPUT: 'claude-code-output',
   STATS: 'claude-code-stats',
+  HISTORY: 'claude-code-history',
+  PINNED: 'claude-code-pinned',
 } as const;
 
 /**
@@ -126,6 +128,52 @@ function saveStats(stats: StoredStats): void {
 }
 
 /**
+ * Load command history from localStorage
+ */
+function loadHistory(): string[] {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.HISTORY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Save command history to localStorage
+ */
+function saveHistory(history: string[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(history));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+/**
+ * Load pinned commands from localStorage
+ */
+function loadPinnedCommands(): string[] {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.PINNED);
+    return stored ? JSON.parse(stored) : ['/test', '/commit', '/create-pr', '/monitor'];
+  } catch {
+    return ['/test', '/commit', '/create-pr', '/monitor'];
+  }
+}
+
+/**
+ * Save pinned commands to localStorage
+ */
+function savePinnedCommands(pinned: string[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.PINNED, JSON.stringify(pinned));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+/**
  * Clear all persisted state
  */
 function clearPersistedState(): void {
@@ -133,6 +181,7 @@ function clearPersistedState(): void {
     localStorage.removeItem(STORAGE_KEYS.SESSION_ID);
     localStorage.removeItem(STORAGE_KEYS.OUTPUT);
     localStorage.removeItem(STORAGE_KEYS.STATS);
+    // Don't clear history and pinned commands on clear - they persist across sessions
   } catch {
     // Ignore storage errors
   }
@@ -164,6 +213,14 @@ export function useClaudeCodePanel() {
   const totalCost = ref(storedStats.totalCost);
   const totalInputTokens = ref(storedStats.totalInputTokens);
   const totalOutputTokens = ref(storedStats.totalOutputTokens);
+
+  // Command history - load from localStorage
+  const commandHistory = ref<string[]>(loadHistory());
+  const historyIndex = ref(-1);
+  const isNavigatingHistory = ref(false);
+
+  // Pinned commands - load from localStorage
+  const pinnedCommands = ref<string[]>(loadPinnedCommands());
 
   // Computed
   const canExecute = computed(
@@ -224,6 +281,68 @@ export function useClaudeCodePanel() {
   }
 
   /**
+   * Save command to history
+   */
+  function saveToHistory(command: string): void {
+    const trimmed = command.trim();
+    if (!trimmed) return;
+
+    // Dedupe - don't add if it's the same as the last entry
+    if (commandHistory.value[0] !== trimmed) {
+      commandHistory.value.unshift(trimmed);
+      // Limit to 50 entries
+      commandHistory.value = commandHistory.value.slice(0, 50);
+      saveHistory(commandHistory.value);
+    }
+  }
+
+  /**
+   * Navigate command history (up/down arrows)
+   */
+  function navigateHistory(direction: 'up' | 'down'): void {
+    isNavigatingHistory.value = true;
+
+    if (direction === 'up' && historyIndex.value < commandHistory.value.length - 1) {
+      historyIndex.value++;
+      prompt.value = commandHistory.value[historyIndex.value];
+    } else if (direction === 'down' && historyIndex.value > -1) {
+      historyIndex.value--;
+      prompt.value = historyIndex.value === -1 ? '' : commandHistory.value[historyIndex.value];
+    }
+
+    // Reset flag after a short delay
+    setTimeout(() => {
+      isNavigatingHistory.value = false;
+    }, 10);
+  }
+
+  /**
+   * Pin a command
+   */
+  function pinCommand(command: string): void {
+    if (!pinnedCommands.value.includes(command)) {
+      pinnedCommands.value.push(command);
+      savePinnedCommands(pinnedCommands.value);
+    }
+  }
+
+  /**
+   * Unpin a command
+   */
+  function unpinCommand(command: string): void {
+    pinnedCommands.value = pinnedCommands.value.filter((c) => c !== command);
+    savePinnedCommands(pinnedCommands.value);
+  }
+
+  /**
+   * Reorder pinned commands
+   */
+  function reorderPinnedCommands(newOrder: string[]): void {
+    pinnedCommands.value = newOrder;
+    savePinnedCommands(pinnedCommands.value);
+  }
+
+  /**
    * Execute the current prompt
    * Automatically resumes session if one exists for multi-turn conversation
    */
@@ -231,6 +350,10 @@ export function useClaudeCodePanel() {
     if (!canExecute.value) return;
 
     const currentPrompt = prompt.value.trim();
+
+    // Save to history before clearing
+    saveToHistory(currentPrompt);
+
     isExecuting.value = true;
     currentAssistantMessage.value = '';
 
@@ -239,6 +362,9 @@ export function useClaudeCodePanel() {
 
     // Clear prompt after sending
     prompt.value = '';
+
+    // Reset history index
+    historyIndex.value = -1;
 
     try {
       abortController.value = await claudeCodeService.execute(
@@ -364,6 +490,13 @@ export function useClaudeCodePanel() {
     }
   });
 
+  // Reset history index when prompt changes manually (not during navigation)
+  watch(prompt, () => {
+    if (!isNavigatingHistory.value) {
+      historyIndex.value = -1;
+    }
+  });
+
   // Cleanup on unmount
   onUnmounted(() => {
     if (abortController.value) {
@@ -385,6 +518,9 @@ export function useClaudeCodePanel() {
     totalInputTokens,
     totalOutputTokens,
     sessionId, // Expose session ID for UI indicators
+    commandHistory,
+    historyIndex,
+    pinnedCommands,
 
     // Computed
     canExecute,
@@ -398,5 +534,9 @@ export function useClaudeCodePanel() {
     cancel,
     clearOutput,
     insertCommand,
+    navigateHistory,
+    pinCommand,
+    unpinCommand,
+    reorderPinnedCommands,
   };
 }

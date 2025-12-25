@@ -96,3 +96,4 @@ deployment/build-info.json
 # Test/backup files
 login.json
 workflows_backup.json
+apps/api/supabase/backups/
