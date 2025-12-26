@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Timer } from '@/components/Timer';
 import { TaskPanel } from '@/components/TaskPanel';
 import { NotifyButton } from '@/components/NotifyButton';
@@ -10,8 +10,10 @@ import { OnlineUsers } from '@/components/OnlineUsers';
 import { FilesTab } from '@/components/FilesTab';
 import { NotesTab } from '@/components/NotesTab';
 import { MessagesTab } from '@/components/MessagesTab';
+import { ClaudeCodeButton, ClaudeCodePanel } from '@/components/claude';
 import { useAuth } from '@/hooks/useAuth';
 import { useTeamContext } from '@/contexts/TeamContext';
+import { useClaudeCode } from '@/contexts/ClaudeCodeContext';
 import { useSharedTasks } from '@/hooks/useSharedTasks';
 import { usePartyFoul } from '@/hooks/usePartyFoul';
 import { Button } from '@/components/ui/button';
@@ -21,6 +23,7 @@ import { Clock, LogOut, LayoutGrid, Timer as TimerIcon, FolderOpen, StickyNote, 
 const Index = () => {
   const { user, profile, loading, signOut } = useAuth();
   const { currentTeam, currentTeamMembers } = useTeamContext();
+  const { isOpen: claudePanelOpen, open: openClaudePanel, close: closeClaudePanel } = useClaudeCode();
   const { tasks, incrementPomodoro } = useSharedTasks(undefined, undefined, undefined, currentTeam?.id);
   const { checkForPartyFouls } = usePartyFoul();
   const [activeTab, setActiveTab] = useState('timer');
@@ -220,6 +223,10 @@ const Index = () => {
           </main>
         )}
       </div>
+
+      {/* Claude Code Panel - AI Assistant */}
+      <ClaudeCodeButton onClick={openClaudePanel} />
+      <ClaudeCodePanel isOpen={claudePanelOpen} onClose={closeClaudePanel} />
     </div>
   );
 };
