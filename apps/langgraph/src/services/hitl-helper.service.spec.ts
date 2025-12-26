@@ -71,16 +71,19 @@ describe("HITLHelperService", () => {
     it("should emit HITL waiting observability event", async () => {
       await service.prepareInterrupt(mockCurrentState, mockRequest);
 
-      expect(observability.emitHitlWaiting).toHaveBeenCalledWith({
-        taskId: "task-123",
-        threadId: "thread-456",
-        agentSlug: "extended-post-writer",
-        userId: "user-789",
-        conversationId: "conv-abc",
-        organizationSlug: "org-xyz",
-        message: "Please review the blog post",
-        pendingContent: { blogPost: "Draft content..." },
-      });
+      // emitHitlWaiting takes: context, threadId, pendingContent, message
+      expect(observability.emitHitlWaiting).toHaveBeenCalledWith(
+        expect.objectContaining({
+          taskId: "task-123",
+          agentSlug: "extended-post-writer",
+          userId: "user-789",
+          conversationId: "conv-abc",
+          orgSlug: "org-xyz",
+        }),
+        "thread-456",
+        { blogPost: "Draft content..." },
+        "Please review the blog post",
+      );
     });
 
     it("should use default message when not provided", async () => {
@@ -91,10 +94,12 @@ describe("HITLHelperService", () => {
 
       await service.prepareInterrupt(mockCurrentState, requestWithoutMessage);
 
+      // emitHitlWaiting takes: context, threadId, pendingContent, message
       expect(observability.emitHitlWaiting).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: "Awaiting review for blog-post",
-        }),
+        expect.anything(),
+        "thread-456",
+        expect.anything(),
+        "Awaiting review for blog-post",
       );
     });
 
@@ -173,16 +178,19 @@ describe("HITLHelperService", () => {
 
       await service.processResume(stateWithRequest, response);
 
-      expect(observability.emitHitlResumed).toHaveBeenCalledWith({
-        taskId: "task-123",
-        threadId: "thread-456",
-        agentSlug: "extended-post-writer",
-        userId: "user-789",
-        conversationId: "conv-abc",
-        organizationSlug: undefined,
-        decision: "approve",
-        message: "Decision: approve",
-      });
+      // emitHitlResumed takes: context, threadId, decision, message
+      expect(observability.emitHitlResumed).toHaveBeenCalledWith(
+        expect.objectContaining({
+          taskId: "task-123",
+          agentSlug: "extended-post-writer",
+          userId: "user-789",
+          conversationId: "conv-abc",
+          orgSlug: undefined,
+        }),
+        "thread-456",
+        "approve",
+        "Decision: approve",
+      );
     });
 
     it("should use feedback as message when provided", async () => {
@@ -193,10 +201,12 @@ describe("HITLHelperService", () => {
 
       await service.processResume(stateWithRequest, response);
 
+      // emitHitlResumed takes: context, threadId, decision, message
       expect(observability.emitHitlResumed).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: "Needs more detail",
-        }),
+        expect.anything(),
+        "thread-456",
+        "reject",
+        "Needs more detail",
       );
     });
 

@@ -38,7 +38,12 @@ interface ConfigResponse {
   evaluators: Agent[];
 }
 
-describe('MarketingController (e2e)', () => {
+// Skip this e2e test suite if DATABASE_URL is not configured
+// These tests require a real database connection
+const databaseUrl = process.env.DATABASE_URL;
+const describeOrSkip = databaseUrl ? describe : describe.skip;
+
+describeOrSkip('MarketingController (e2e)', () => {
   let app: INestApplication;
   let authToken: string;
 

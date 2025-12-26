@@ -18,7 +18,7 @@ jest.mock("pg", () => ({
   })),
 }));
 
-import { PostgresCheckpointerService } from "../persistence/postgres-checkpointer.service";
+import { PostgresCheckpointerService } from "../../../persistence/postgres-checkpointer.service";
 
 /**
  * Unit tests for ListTablesTool
@@ -51,7 +51,7 @@ describe("ListTablesTool", () => {
     }).compile();
 
     tool = module.get<ListTablesTool>(ListTablesTool);
-    checkpointer = module.get(PostgresCheckpointerService);
+    _checkpointer = module.get(PostgresCheckpointerService);
   });
 
   it("should be defined", () => {

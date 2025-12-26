@@ -1,7 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { ConfigService } from "@nestjs/config";
 import { SqlQueryTool } from "./sql-query.tool";
-import { LLMUsageReporterService } from "../services/llm-usage-reporter.service";
+import { LLMUsageReporterService } from "../../../services/llm-usage-reporter.service";
 import { createMockExecutionContext } from "@orchestrator-ai/transport-types";
 
 // Mock PostgresSaver before any imports that need it
@@ -21,7 +21,7 @@ jest.mock("pg", () => ({
   })),
 }));
 
-import { PostgresCheckpointerService } from "../persistence/postgres-checkpointer.service";
+import { PostgresCheckpointerService } from "../../../persistence/postgres-checkpointer.service";
 
 // Mock fetch globally
 global.fetch = jest.fn();
@@ -83,7 +83,7 @@ describe("SqlQueryTool", () => {
     }).compile();
 
     tool = module.get<SqlQueryTool>(SqlQueryTool);
-    checkpointer = module.get(PostgresCheckpointerService);
+    _checkpointer = module.get(PostgresCheckpointerService);
     usageReporter = module.get(LLMUsageReporterService);
   });
 

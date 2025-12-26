@@ -482,10 +482,19 @@ export function useClaudeCodePanel() {
    * Handle incoming message from stream
    */
   function handleMessage(message: ClaudeMessage): void {
+    // Debug logging to see what events we're receiving
+    console.debug('[Claude SSE]', message.type, message);
+
     if (message.type === 'assistant') {
       const content = claudeCodeService.extractContent(message);
       if (content) {
-        currentAssistantMessage.value += content;
+        // Flush any existing message as a separate bubble before adding new content
+        if (currentAssistantMessage.value) {
+          addOutput('assistant', currentAssistantMessage.value);
+          currentAssistantMessage.value = '';
+        }
+        // Add this message as a new bubble
+        addOutput('assistant', content);
       }
     } else if (message.type === 'tool_progress') {
       // Handle tool progress events
@@ -538,11 +547,9 @@ export function useClaudeCodePanel() {
       saveSessionId(newSessionId);
     }
 
-    // Flush any pending assistant message
-    if (currentAssistantMessage.value) {
-      addOutput('assistant', currentAssistantMessage.value);
-      currentAssistantMessage.value = '';
-    }
+    // Clear any leftover streaming state (shouldn't be any now)
+    currentAssistantMessage.value = '';
+    clearToolProgress();
 
     addOutput('info', '✓ Execution completed');
 

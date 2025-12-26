@@ -8,6 +8,7 @@ import {
   LLMCallRequest,
 } from "./llm-http-client.service";
 import type { LLMCallResponse as _LLMCallResponse } from "./llm-http-client.service";
+import { createMockExecutionContext } from "@orchestrator-ai/transport-types";
 
 /**
  * Unit tests for LLMHttpClientService
@@ -60,7 +61,7 @@ describe("LLMHttpClientService", () => {
 
     service = module.get<LLMHttpClientService>(LLMHttpClientService);
     httpService = module.get(HttpService);
-    configService = module.get(ConfigService);
+    _configService = module.get(ConfigService);
   });
 
   it("should be defined", () => {
@@ -92,12 +93,16 @@ describe("LLMHttpClientService", () => {
   });
 
   describe("callLLM", () => {
-    const validRequest: LLMCallRequest = {
+    const mockContext = createMockExecutionContext({
+      userId: "test-user-123",
       provider: "anthropic",
       model: "claude-sonnet-4-20250514",
+    });
+
+    const validRequest: LLMCallRequest = {
+      context: mockContext,
       systemMessage: "You are a helpful assistant",
       userMessage: "Hello, world!",
-      userId: "test-user-123",
       callerName: "test-caller",
     };
 
@@ -129,10 +134,10 @@ describe("LLMHttpClientService", () => {
         expect.objectContaining({
           systemPrompt: validRequest.systemMessage,
           userPrompt: validRequest.userMessage,
+          context: validRequest.context,
           options: expect.objectContaining({
-            provider: validRequest.provider,
-            modelName: validRequest.model,
-            userId: validRequest.userId,
+            provider: mockContext.provider,
+            modelName: mockContext.model,
             callerType: "langgraph",
             callerName: validRequest.callerName,
           }),
@@ -162,23 +167,33 @@ describe("LLMHttpClientService", () => {
       expect(result.text).toBe("");
     });
 
-    it("should throw error when userId is missing", async () => {
-      const requestWithoutUserId: LLMCallRequest = {
-        ...validRequest,
+    it("should throw error when userId is missing in context", async () => {
+      const contextWithoutUserId = createMockExecutionContext({
         userId: "",
+        provider: "anthropic",
+        model: "claude-sonnet-4-20250514",
+      });
+
+      const requestWithoutUserId: LLMCallRequest = {
+        context: contextWithoutUserId,
+        userMessage: "Hello",
       };
 
       await expect(service.callLLM(requestWithoutUserId)).rejects.toThrow(
-        "userId is required for LLM calls",
+        "userId is required in ExecutionContext for LLM calls",
       );
     });
 
     it("should use default values for optional parameters", async () => {
-      const minimalRequest: LLMCallRequest = {
+      const minimalContext = createMockExecutionContext({
+        userId: "user-123",
         provider: "openai",
         model: "gpt-4",
+      });
+
+      const minimalRequest: LLMCallRequest = {
+        context: minimalContext,
         userMessage: "Test message",
-        userId: "user-123",
       };
 
       const mockResponse = createMockAxiosResponse({ response: "OK" });
@@ -271,11 +286,15 @@ describe("LLMHttpClientService", () => {
       const mockResponse = createMockAxiosResponse({ response: "OK" });
       httpService.post.mockReturnValue(of(mockResponse));
 
-      const request: LLMCallRequest = {
+      const mockContext = createMockExecutionContext({
+        userId: "user-123",
         provider: "anthropic",
         model: "claude-sonnet-4-20250514",
+      });
+
+      const request: LLMCallRequest = {
+        context: mockContext,
         userMessage: "Test",
-        userId: "user-123",
       };
 
       await service.callLLM(request);

@@ -442,13 +442,33 @@ export function useClaudeCodePanel() {
   }, []);
 
   /**
+   * Clear tool progress state
+   */
+  const clearToolProgress = useCallback(() => {
+    setActiveTools(new Map());
+    setCurrentToolVerb('');
+    toolVerbsRef.current.clear();
+  }, []);
+
+  /**
    * Handle incoming message from stream
    */
   const handleMessage = useCallback((message: ClaudeMessage) => {
+    // Debug logging to see what events we're receiving
+    console.debug('[Claude SSE]', message.type, message);
+
     if (message.type === 'assistant') {
       const content = claudeCodeService.extractContent(message);
       if (content) {
-        setCurrentAssistantMessage((prev) => prev + content);
+        // Flush any existing message as a separate bubble before adding new content
+        setCurrentAssistantMessage((prev) => {
+          if (prev) {
+            addOutput('assistant', prev);
+          }
+          return '';
+        });
+        // Add this message as a new bubble
+        addOutput('assistant', content);
       }
     } else if (message.type === 'tool_progress') {
       // Handle tool progress events
@@ -470,14 +490,12 @@ export function useClaudeCodePanel() {
         return newStats;
       });
       // Clear tool state on result
-      setActiveTools(new Map());
-      setCurrentToolVerb('');
-      toolVerbsRef.current.clear();
+      clearToolProgress();
     } else if (message.type === 'system') {
       // Don't log all system messages, just important ones
       // addOutput('system', JSON.stringify(message, null, 2));
     }
-  }, [addOutput, handleToolProgress, handleStreamEvent]);
+  }, [addOutput, handleToolProgress, handleStreamEvent, clearToolProgress]);
 
   /**
    * Handle stream error
@@ -512,13 +530,9 @@ export function useClaudeCodePanel() {
         saveSessionId(newSessionId);
       }
 
-      // Flush any pending assistant message
-      setCurrentAssistantMessage((prev) => {
-        if (prev) {
-          addOutput('assistant', prev);
-        }
-        return '';
-      });
+      // Clear any leftover streaming state (shouldn't be any now since we create bubbles immediately)
+      setCurrentAssistantMessage('');
+      clearToolProgress();
 
       addOutput('info', '✓ Execution completed');
 
@@ -532,7 +546,7 @@ export function useClaudeCodePanel() {
         return currentStats;
       });
     },
-    [addOutput]
+    [addOutput, clearToolProgress]
   );
 
   /**
@@ -580,12 +594,9 @@ export function useClaudeCodePanel() {
       abortControllerRef.current = null;
     }
     setIsExecuting(false);
-    // Clear tool progress state
-    setActiveTools(new Map());
-    setCurrentToolVerb('');
-    toolVerbsRef.current.clear();
+    clearToolProgress();
     addOutput('info', '⚠ Execution cancelled');
-  }, [addOutput]);
+  }, [addOutput, clearToolProgress]);
 
   /**
    * Clear output history and start a new session
@@ -595,14 +606,11 @@ export function useClaudeCodePanel() {
     setCurrentAssistantMessage('');
     setSessionId(undefined);
     setStats({ totalCost: 0, totalInputTokens: 0, totalOutputTokens: 0 });
-    // Clear tool progress state
-    setActiveTools(new Map());
-    setCurrentToolVerb('');
-    toolVerbsRef.current.clear();
+    clearToolProgress();
 
     // Clear persisted state
     clearPersistedState();
-  }, []);
+  }, [clearToolProgress]);
 
   /**
    * Insert a command into the prompt

@@ -84,6 +84,7 @@ describe('AgentsRepository', () => {
       eq: jest.fn().mockReturnThis(),
       is: jest.fn().mockReturnThis(),
       contains: jest.fn().mockReturnThis(),
+      or: jest.fn().mockReturnThis(),
       limit: jest.fn().mockReturnThis(),
       maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
     };
@@ -94,9 +95,10 @@ describe('AgentsRepository', () => {
     const result = await repo.findBySlug('demo', 'missing');
 
     expect(queryChain.eq).toHaveBeenCalledWith('slug', 'missing');
-    expect(queryChain.contains).toHaveBeenCalledWith('organization_slug', [
-      'demo',
-    ]);
+    // Now uses or() for organization filtering
+    expect(queryChain.or).toHaveBeenCalledWith(
+      'organization_slug.cs.{demo},organization_slug.cs.{global}',
+    );
     expect(result).toBeNull();
   });
 
@@ -135,7 +137,7 @@ describe('AgentsRepository', () => {
 
     // Verify or() was called since organizationSlug is null (for global agents)
     expect(listChain.or).toHaveBeenCalledWith(
-      'organization_slug.is.null,organization_slug.eq.{}',
+      'organization_slug.is.null,organization_slug.eq.{},organization_slug.cs.{global}',
     );
     expect(listChain.contains).not.toHaveBeenCalled();
     expect(result).toEqual([sampleAgent]);
