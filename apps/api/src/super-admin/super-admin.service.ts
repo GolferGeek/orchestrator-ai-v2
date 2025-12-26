@@ -65,6 +65,7 @@ export class SuperAdminService {
         settingSources: ['project'], // Load .claude/* skills, commands, agents
         permissionMode: 'bypassPermissions',
         allowDangerouslySkipPermissions: true,
+        includePartialMessages: true, // Enable stream events for tool progress tracking
         allowedTools: [
           'Skill',
           'Read',
