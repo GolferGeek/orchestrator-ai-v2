@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
+// Helper to use orch_flow schema
+const orchFlow = () => supabase.schema('orch_flow');
+
 export interface TeamMember {
   id: string;
   display_name: string;
@@ -18,7 +21,7 @@ export function useTeamPresence() {
 
     // Fetch all profiles
     const fetchProfiles = async () => {
-      const { data, error } = await supabase
+      const { data, error } = await orchFlow()
         .from('profiles')
         .select('id, display_name');
 
@@ -92,7 +95,7 @@ export function useTeamPresence() {
       .channel('profiles-for-presence')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'profiles' },
+        { event: '*', schema: 'orch_flow', table: 'profiles' },
         () => fetchProfiles()
       )
       .subscribe();

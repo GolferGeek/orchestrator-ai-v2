@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
+// Helper to use orch_flow schema
+const orchFlow = () => supabase.schema('orch_flow');
+
 interface TimerState {
   id: string;
   end_time: string | null;
@@ -51,7 +54,7 @@ export function useSharedTimer(onTimerComplete?: () => void, teamId?: string | n
   // Fetch initial timer state
   useEffect(() => {
     const fetchTimer = async () => {
-      let query = supabase
+      let query = orchFlow()
         .from('timer_state')
         .select('*');
 
@@ -69,7 +72,7 @@ export function useSharedTimer(onTimerComplete?: () => void, teamId?: string | n
         setTimerState(data);
       } else {
         // Create a new timer state for this team if none exists
-        const { data: newTimer, error: createError } = await supabase
+        const { data: newTimer, error: createError } = await orchFlow()
           .from('timer_state')
           .insert({
             team_id: teamId || null,
@@ -95,7 +98,7 @@ export function useSharedTimer(onTimerComplete?: () => void, teamId?: string | n
         'postgres_changes',
         {
           event: '*',
-          schema: 'public',
+          schema: 'orch_flow',
           table: 'timer_state',
         },
         (payload) => {
@@ -130,7 +133,7 @@ export function useSharedTimer(onTimerComplete?: () => void, teamId?: string | n
     const newDuration = newIsBreak ? breakMinutes * 60 : focusMinutes * 60;
     const endTime = new Date(Date.now() + newDuration * 1000).toISOString();
 
-    await supabase
+    await orchFlow()
       .from('timer_state')
       .update({
         is_running: true,
@@ -187,7 +190,7 @@ export function useSharedTimer(onTimerComplete?: () => void, teamId?: string | n
     const durationMs = timerState.duration_seconds * 1000;
     const endTime = new Date(Date.now() + durationMs).toISOString();
 
-    await supabase
+    await orchFlow()
       .from('timer_state')
       .update({
         is_running: true,
@@ -200,7 +203,7 @@ export function useSharedTimer(onTimerComplete?: () => void, teamId?: string | n
   const handlePause = useCallback(async () => {
     if (!timerState) return;
 
-    await supabase
+    await orchFlow()
       .from('timer_state')
       .update({
         is_running: false,
@@ -214,7 +217,7 @@ export function useSharedTimer(onTimerComplete?: () => void, teamId?: string | n
   const handleStop = useCallback(async () => {
     if (!timerState) return;
 
-    await supabase
+    await orchFlow()
       .from('timer_state')
       .update({
         is_running: false,
@@ -231,7 +234,7 @@ export function useSharedTimer(onTimerComplete?: () => void, teamId?: string | n
 
     const newDuration = timerState.is_break ? breakMinutes * 60 : focusMinutes * 60;
 
-    await supabase
+    await orchFlow()
       .from('timer_state')
       .update({
         is_running: false,
@@ -248,7 +251,7 @@ export function useSharedTimer(onTimerComplete?: () => void, teamId?: string | n
     const newIsBreak = !timerState.is_break;
     const newDuration = newIsBreak ? breakMinutes * 60 : focusMinutes * 60;
 
-    await supabase
+    await orchFlow()
       .from('timer_state')
       .update({
         is_running: false,
@@ -268,7 +271,7 @@ export function useSharedTimer(onTimerComplete?: () => void, teamId?: string | n
     
     const newDuration = timerState.is_break ? newBreakMinutes * 60 : newFocusMinutes * 60;
     
-    await supabase
+    await orchFlow()
       .from('timer_state')
       .update({
         duration_seconds: newDuration,

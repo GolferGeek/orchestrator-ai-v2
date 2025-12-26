@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
+// Helper to use orch_flow schema
+const orchFlow = () => supabase.schema('orch_flow');
+
 export interface TeamFile {
   id: string;
   name: string;
@@ -24,7 +27,7 @@ export function useTeamFiles(teamId?: string | null) {
 
   useEffect(() => {
     const fetchFiles = async () => {
-      let query = supabase
+      let query = orchFlow()
         .from('team_files')
         .select('*')
         .order('file_type', { ascending: true })
@@ -46,7 +49,7 @@ export function useTeamFiles(teamId?: string | null) {
 
     const channel = supabase
       .channel('team-files-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_files' },
+      .on('postgres_changes', { event: '*', schema: 'orch_flow', table: 'team_files' },
         (payload) => {
           // Only update if it's for our team
           if (teamId && (payload.new as any)?.team_id !== teamId && (payload.old as any)?.team_id !== teamId) {
@@ -69,7 +72,7 @@ export function useTeamFiles(teamId?: string | null) {
   }, [teamId]);
 
   const createFile = useCallback(async (name: string, content: string = '', path: string = '/', guestName?: string) => {
-    const { data, error } = await supabase.from('team_files').insert({
+    const { data, error } = await orchFlow().from('team_files').insert({
       name,
       content,
       path,
@@ -87,7 +90,7 @@ export function useTeamFiles(teamId?: string | null) {
   }, [user, teamId]);
 
   const createFolder = useCallback(async (name: string, path: string = '/', guestName?: string) => {
-    const { data, error } = await supabase.from('team_files').insert({
+    const { data, error } = await orchFlow().from('team_files').insert({
       name,
       path,
       file_type: 'folder',
@@ -104,7 +107,7 @@ export function useTeamFiles(teamId?: string | null) {
   }, [user, teamId]);
 
   const updateFile = useCallback(async (id: string, updates: { name?: string; content?: string }) => {
-    const { error } = await supabase
+    const { error } = await orchFlow()
       .from('team_files')
       .update({ ...updates, updated_at: new Date().toISOString() })
       .eq('id', id);
@@ -122,7 +125,7 @@ export function useTeamFiles(teamId?: string | null) {
       await supabase.storage.from('team-files').remove([file.storage_path]);
     }
     
-    const { error } = await supabase.from('team_files').delete().eq('id', id);
+    const { error } = await orchFlow().from('team_files').delete().eq('id', id);
     if (error) {
       console.error('Error deleting file:', error);
     }
@@ -143,7 +146,7 @@ export function useTeamFiles(teamId?: string | null) {
 
     const { data } = supabase.storage.from('team-files').getPublicUrl(storagePath);
 
-    const { data: fileRecord, error } = await supabase.from('team_files').insert({
+    const { data: fileRecord, error } = await orchFlow().from('team_files').insert({
       name: file.name,
       path,
       file_type: file.type || 'binary',

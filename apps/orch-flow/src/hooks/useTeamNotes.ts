@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
+// Helper to use orch_flow schema
+const orchFlow = () => supabase.schema('orch_flow');
+
 export interface TeamNote {
   id: string;
   title: string;
@@ -20,7 +23,7 @@ export function useTeamNotes(teamId?: string | null) {
 
   useEffect(() => {
     const fetchNotes = async () => {
-      let query = supabase
+      let query = orchFlow()
         .from('team_notes')
         .select('*')
         .order('is_pinned', { ascending: false })
@@ -42,7 +45,7 @@ export function useTeamNotes(teamId?: string | null) {
 
     const channel = supabase
       .channel('team-notes-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_notes' },
+      .on('postgres_changes', { event: '*', schema: 'orch_flow', table: 'team_notes' },
         (payload) => {
           // Only update if it's for our team
           if (teamId && (payload.new as any)?.team_id !== teamId && (payload.old as any)?.team_id !== teamId) {
@@ -65,7 +68,7 @@ export function useTeamNotes(teamId?: string | null) {
   }, [teamId]);
 
   const createNote = useCallback(async (title: string = 'Untitled Note', content: string = '', guestName?: string) => {
-    const { data, error } = await supabase.from('team_notes').insert({
+    const { data, error } = await orchFlow().from('team_notes').insert({
       title,
       content,
       created_by_user_id: user?.id || null,
@@ -81,7 +84,7 @@ export function useTeamNotes(teamId?: string | null) {
   }, [user, teamId]);
 
   const updateNote = useCallback(async (id: string, updates: { title?: string; content?: string; is_pinned?: boolean }) => {
-    const { error } = await supabase
+    const { error } = await orchFlow()
       .from('team_notes')
       .update({ ...updates, updated_at: new Date().toISOString() })
       .eq('id', id);
@@ -92,7 +95,7 @@ export function useTeamNotes(teamId?: string | null) {
   }, []);
 
   const deleteNote = useCallback(async (id: string) => {
-    const { error } = await supabase.from('team_notes').delete().eq('id', id);
+    const { error } = await orchFlow().from('team_notes').delete().eq('id', id);
     if (error) {
       console.error('Error deleting note:', error);
     }

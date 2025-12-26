@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
+// Helper to use orch_flow schema
+const orchFlow = () => supabase.schema('orch_flow');
+
 export interface Collaborator {
   id: string;
   task_id: string;
@@ -40,9 +43,9 @@ export function useTaskCollaboration(taskId?: string) {
 
     const fetchData = async () => {
       const [collabRes, watchRes, requestRes] = await Promise.all([
-        supabase.from('task_collaborators').select('*').eq('task_id', taskId),
-        supabase.from('task_watchers').select('*').eq('task_id', taskId),
-        supabase.from('task_update_requests').select('*').eq('task_id', taskId).order('created_at', { ascending: false }),
+        orchFlow().from('task_collaborators').select('*').eq('task_id', taskId),
+        orchFlow().from('task_watchers').select('*').eq('task_id', taskId),
+        orchFlow().from('task_update_requests').select('*').eq('task_id', taskId).order('created_at', { ascending: false }),
       ]);
 
       if (collabRes.data) setCollaborators(collabRes.data);
@@ -55,7 +58,7 @@ export function useTaskCollaboration(taskId?: string) {
     // Subscribe to realtime changes
     const collabChannel = supabase
       .channel(`collaborators-${taskId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'task_collaborators', filter: `task_id=eq.${taskId}` },
+      .on('postgres_changes', { event: '*', schema: 'orch_flow', table: 'task_collaborators', filter: `task_id=eq.${taskId}` },
         (payload) => {
           if (payload.eventType === 'INSERT') {
             setCollaborators(prev => [...prev, payload.new as Collaborator]);
@@ -68,7 +71,7 @@ export function useTaskCollaboration(taskId?: string) {
 
     const watchChannel = supabase
       .channel(`watchers-${taskId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'task_watchers', filter: `task_id=eq.${taskId}` },
+      .on('postgres_changes', { event: '*', schema: 'orch_flow', table: 'task_watchers', filter: `task_id=eq.${taskId}` },
         (payload) => {
           if (payload.eventType === 'INSERT') {
             setWatchers(prev => [...prev, payload.new as Watcher]);
@@ -81,7 +84,7 @@ export function useTaskCollaboration(taskId?: string) {
 
     const requestChannel = supabase
       .channel(`requests-${taskId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'task_update_requests', filter: `task_id=eq.${taskId}` },
+      .on('postgres_changes', { event: '*', schema: 'orch_flow', table: 'task_update_requests', filter: `task_id=eq.${taskId}` },
         (payload) => {
           if (payload.eventType === 'INSERT') {
             setUpdateRequests(prev => [payload.new as UpdateRequest, ...prev]);
@@ -100,7 +103,7 @@ export function useTaskCollaboration(taskId?: string) {
   }, [taskId]);
 
   const addCollaborator = useCallback(async (taskIdParam: string, userId?: string, guestName?: string) => {
-    const { error } = await supabase.from('task_collaborators').insert({
+    const { error } = await orchFlow().from('task_collaborators').insert({
       task_id: taskIdParam,
       user_id: userId || null,
       guest_name: guestName || null,
@@ -109,13 +112,13 @@ export function useTaskCollaboration(taskId?: string) {
   }, []);
 
   const removeCollaborator = useCallback(async (collaboratorId: string) => {
-    const { error } = await supabase.from('task_collaborators').delete().eq('id', collaboratorId);
+    const { error } = await orchFlow().from('task_collaborators').delete().eq('id', collaboratorId);
     if (error) console.error('Error removing collaborator:', error);
   }, []);
 
   const toggleWatching = useCallback(async (taskIdParam: string, guestName?: string) => {
     // Fetch current watchers directly from DB to avoid stale state
-    const { data: currentWatchers } = await supabase
+    const { data: currentWatchers } = await orchFlow()
       .from('task_watchers')
       .select('*')
       .eq('task_id', taskIdParam);
@@ -125,10 +128,10 @@ export function useTaskCollaboration(taskId?: string) {
     );
 
     if (existingWatcher) {
-      const { error } = await supabase.from('task_watchers').delete().eq('id', existingWatcher.id);
+      const { error } = await orchFlow().from('task_watchers').delete().eq('id', existingWatcher.id);
       if (error) console.error('Error removing watcher:', error);
     } else {
-      const { error } = await supabase.from('task_watchers').insert({
+      const { error } = await orchFlow().from('task_watchers').insert({
         task_id: taskIdParam,
         user_id: user?.id || null,
         guest_name: !user ? guestName || null : null,
@@ -144,7 +147,7 @@ export function useTaskCollaboration(taskId?: string) {
   }, [user, watchers]);
 
   const requestUpdate = useCallback(async (taskIdParam: string, message?: string, guestName?: string) => {
-    const { error } = await supabase.from('task_update_requests').insert({
+    const { error } = await orchFlow().from('task_update_requests').insert({
       task_id: taskIdParam,
       requested_by_user_id: user?.id || null,
       requested_by_guest: !user ? guestName || null : null,
@@ -154,7 +157,7 @@ export function useTaskCollaboration(taskId?: string) {
   }, [user]);
 
   const resolveRequest = useCallback(async (requestId: string) => {
-    const { error } = await supabase
+    const { error } = await orchFlow()
       .from('task_update_requests')
       .update({ is_resolved: true })
       .eq('id', requestId);
@@ -166,7 +169,7 @@ export function useTaskCollaboration(taskId?: string) {
   }, [user, addCollaborator]);
 
   const leaveTask = useCallback(async (taskIdParam: string, guestName?: string) => {
-    const { data: currentCollaborators } = await supabase
+    const { data: currentCollaborators } = await orchFlow()
       .from('task_collaborators')
       .select('*')
       .eq('task_id', taskIdParam);

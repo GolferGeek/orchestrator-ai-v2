@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
+// Helper to use orch_flow schema
+const orchFlow = () => supabase.schema('orch_flow');
+
 export interface Sprint {
   id: string;
   name: string;
@@ -18,7 +21,7 @@ export function useSprints(teamId?: string | null) {
 
   useEffect(() => {
     const fetchSprints = async () => {
-      let query = supabase
+      let query = orchFlow()
         .from('sprints')
         .select('*')
         .order('created_at', { ascending: false });
@@ -43,7 +46,7 @@ export function useSprints(teamId?: string | null) {
 
     const channel = supabase
       .channel('sprints-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'sprints' },
+      .on('postgres_changes', { event: '*', schema: 'orch_flow', table: 'sprints' },
         (payload) => {
           if (payload.eventType === 'INSERT') {
             setSprints(prev => [payload.new as Sprint, ...prev]);
@@ -71,13 +74,13 @@ export function useSprints(teamId?: string | null) {
 
   const createSprint = useCallback(async (name: string, startDate: string, endDate: string) => {
     // Deactivate other sprints for this team first
-    let deactivateQuery = supabase.from('sprints').update({ is_active: false }).eq('is_active', true);
+    let deactivateQuery = orchFlow().from('sprints').update({ is_active: false }).eq('is_active', true);
     if (teamId) {
       deactivateQuery = deactivateQuery.eq('team_id', teamId);
     }
     await deactivateQuery;
-    
-    const { data, error } = await supabase
+
+    const { data, error } = await orchFlow()
       .from('sprints')
       .insert({
         name,
@@ -103,7 +106,7 @@ export function useSprints(teamId?: string | null) {
       setActiveSprint(prev => prev ? { ...prev, ...updates } : prev);
     }
     
-    const { error } = await supabase
+    const { error } = await orchFlow()
       .from('sprints')
       .update({ ...updates, updated_at: new Date().toISOString() })
       .eq('id', id);
@@ -115,10 +118,10 @@ export function useSprints(teamId?: string | null) {
 
   const setActiveSprintById = useCallback(async (id: string) => {
     // Deactivate all sprints
-    await supabase.from('sprints').update({ is_active: false }).eq('is_active', true);
-    
+    await orchFlow().from('sprints').update({ is_active: false }).eq('is_active', true);
+
     // Activate the selected sprint
-    const { error } = await supabase
+    const { error } = await orchFlow()
       .from('sprints')
       .update({ is_active: true, updated_at: new Date().toISOString() })
       .eq('id', id);
@@ -129,7 +132,7 @@ export function useSprints(teamId?: string | null) {
   }, []);
 
   const deleteSprint = useCallback(async (id: string) => {
-    const { error } = await supabase.from('sprints').delete().eq('id', id);
+    const { error } = await orchFlow().from('sprints').delete().eq('id', id);
     if (error) {
       console.error('Error deleting sprint:', error);
     }

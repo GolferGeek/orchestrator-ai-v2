@@ -58,6 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
+      .schema('orch_flow')
       .from('profiles')
       .select('id, display_name')
       .eq('id', userId)

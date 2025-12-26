@@ -2,6 +2,9 @@ import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+// Helper to use orch_flow schema
+const orchFlow = () => supabase.schema('orch_flow');
+
 interface OnlineUser {
   user_id: string;
   display_name: string;
@@ -14,8 +17,8 @@ export function usePartyFoul() {
     
     // We need to get online users and their in_progress tasks
     // First, let's get all tasks that are in_progress
-    const { data: inProgressTasks } = await supabase
-      .from('tasks')
+    const { data: inProgressTasks } = await orchFlow()
+      .from('shared_tasks')
       .select('user_id')
       .eq('status', 'in_progress')
       .is('parent_task_id', null);

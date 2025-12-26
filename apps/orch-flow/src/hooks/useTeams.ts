@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
+// Helper to use orch_flow schema
+const orchFlow = () => supabase.schema('orch_flow');
+
 export interface Team {
   id: string;
   name: string;
@@ -40,7 +43,7 @@ export function useTeams() {
     }
 
     // Get team IDs the user is a member of
-    const { data: memberships, error: membershipError } = await supabase
+    const { data: memberships, error: membershipError } = await orchFlow()
       .from('team_members')
       .select('team_id')
       .eq('user_id', user.id);
@@ -61,7 +64,7 @@ export function useTeams() {
     }
 
     // Fetch teams
-    const { data: teamsData, error: teamsError } = await supabase
+    const { data: teamsData, error: teamsError } = await orchFlow()
       .from('teams')
       .select('*')
       .in('id', teamIds)
@@ -74,7 +77,7 @@ export function useTeams() {
     }
 
     // Fetch all team members for these teams with profiles
-    const { data: membersData, error: membersError } = await supabase
+    const { data: membersData, error: membersError } = await orchFlow()
       .from('team_members')
       .select('*')
       .in('team_id', teamIds);
@@ -84,13 +87,13 @@ export function useTeams() {
     } else {
       // Fetch profiles for all members
       const userIds = [...new Set(membersData?.map(m => m.user_id) || [])];
-      const { data: profiles } = await supabase
+      const { data: profiles } = await orchFlow()
         .from('profiles')
         .select('id, display_name')
         .in('id', userIds);
 
       const profileMap = new Map(profiles?.map(p => [p.id, p.display_name]) || []);
-      
+
       const membersWithProfiles = membersData?.map(m => ({
         ...m,
         display_name: profileMap.get(m.user_id) || 'Unknown User',
@@ -110,7 +113,7 @@ export function useTeams() {
     }
 
     // Get team IDs the user is already a member of
-    const { data: memberships } = await supabase
+    const { data: memberships } = await orchFlow()
       .from('team_members')
       .select('team_id')
       .eq('user_id', user.id);
@@ -118,7 +121,7 @@ export function useTeams() {
     const memberTeamIds = memberships?.map(m => m.team_id) || [];
 
     // Fetch all public teams
-    let query = supabase
+    let query = orchFlow()
       .from('teams')
       .select('*')
       .eq('is_public', true)
@@ -145,7 +148,7 @@ export function useTeams() {
     // Subscribe to team changes
     const teamsChannel = supabase
       .channel('teams-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'orch_flow', table: 'teams' }, () => {
         fetchTeams();
         fetchAvailableTeams();
       })
@@ -153,7 +156,7 @@ export function useTeams() {
 
     const membersChannel = supabase
       .channel('team-members-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'orch_flow', table: 'team_members' }, () => {
         fetchTeams();
         fetchAvailableTeams();
       })
@@ -169,7 +172,7 @@ export function useTeams() {
     if (!user) return { data: null, error: new Error('Not authenticated') };
 
     // Create the team
-    const { data: team, error: teamError } = await supabase
+    const { data: team, error: teamError } = await orchFlow()
       .from('teams')
       .insert({
         name,
@@ -185,7 +188,7 @@ export function useTeams() {
     }
 
     // Add the creator as a member with 'owner' role
-    const { error: memberError } = await supabase
+    const { error: memberError } = await orchFlow()
       .from('team_members')
       .insert({
         team_id: team.id,
@@ -205,7 +208,7 @@ export function useTeams() {
     if (!user) return { error: new Error('Not authenticated') };
 
     // First check if team requires a passcode
-    const { data: team, error: teamError } = await supabase
+    const { data: team, error: teamError } = await orchFlow()
       .from('teams')
       .select('is_public, join_passcode')
       .eq('id', teamId)
@@ -223,7 +226,7 @@ export function useTeams() {
       }
     }
 
-    const { error } = await supabase
+    const { error } = await orchFlow()
       .from('team_members')
       .insert({
         team_id: teamId,
@@ -242,7 +245,7 @@ export function useTeams() {
     if (!user) return { error: new Error('Not authenticated') };
 
     // Check if user is the last member
-    const { data: members, error: countError } = await supabase
+    const { data: members, error: countError } = await orchFlow()
       .from('team_members')
       .select('id')
       .eq('team_id', teamId);
@@ -255,7 +258,7 @@ export function useTeams() {
     const isLastMember = members?.length === 1;
 
     // Remove user from team
-    const { error } = await supabase
+    const { error } = await orchFlow()
       .from('team_members')
       .delete()
       .eq('team_id', teamId)
@@ -268,7 +271,7 @@ export function useTeams() {
 
     // If last member, delete the team entirely
     if (isLastMember) {
-      const { error: deleteError } = await supabase
+      const { error: deleteError } = await orchFlow()
         .from('teams')
         .delete()
         .eq('id', teamId);
@@ -281,13 +284,13 @@ export function useTeams() {
     return { error: null };
   }, [user]);
 
-  const updateTeam = useCallback(async (id: string, updates: { 
-    name?: string; 
+  const updateTeam = useCallback(async (id: string, updates: {
+    name?: string;
     description?: string;
     is_public?: boolean;
     join_passcode?: string | null;
   }) => {
-    const { error } = await supabase
+    const { error } = await orchFlow()
       .from('teams')
       .update({ ...updates, updated_at: new Date().toISOString() })
       .eq('id', id);
@@ -300,7 +303,7 @@ export function useTeams() {
   }, []);
 
   const deleteTeam = useCallback(async (id: string) => {
-    const { error } = await supabase.from('teams').delete().eq('id', id);
+    const { error } = await orchFlow().from('teams').delete().eq('id', id);
 
     if (error) {
       console.error('Error deleting team:', error);

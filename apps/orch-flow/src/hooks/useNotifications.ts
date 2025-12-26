@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
+// Helper to use orch_flow schema
+const orchFlow = () => supabase.schema('orch_flow');
+
 export interface Notification {
   id: string;
   user_id: string | null;
@@ -21,7 +24,7 @@ export function useNotifications(guestName?: string) {
   // Fetch notifications
   useEffect(() => {
     const fetchNotifications = async () => {
-      let query = supabase
+      let query = orchFlow()
         .from('notifications')
         .select('*')
         .order('created_at', { ascending: false })
@@ -51,7 +54,7 @@ export function useNotifications(guestName?: string) {
         'postgres_changes',
         {
           event: '*',
-          schema: 'public',
+          schema: 'orch_flow',
           table: 'notifications',
         },
         (payload) => {
@@ -107,7 +110,7 @@ export function useNotifications(guestName?: string) {
   }, []);
 
   const markAsRead = useCallback(async (id: string) => {
-    const { error } = await supabase
+    const { error } = await orchFlow()
       .from('notifications')
       .update({ is_read: true })
       .eq('id', id);
@@ -124,7 +127,7 @@ export function useNotifications(guestName?: string) {
     const ids = notifications.filter(n => !n.is_read).map(n => n.id);
     if (ids.length === 0) return;
 
-    const { error } = await supabase
+    const { error } = await orchFlow()
       .from('notifications')
       .update({ is_read: true })
       .in('id', ids);
@@ -142,7 +145,7 @@ export function useNotifications(guestName?: string) {
     message: string,
     taskId?: string
   ) => {
-    const { error } = await supabase.from('notifications').insert({
+    const { error } = await orchFlow().from('notifications').insert({
       user_id: recipientUserId,
       guest_name: recipientGuestName,
       type,

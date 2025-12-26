@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
+// Helper to use orch_flow schema
+const orchFlow = () => supabase.schema('orch_flow');
+
 export interface Channel {
   id: string;
   name: string;
@@ -33,7 +36,7 @@ export const useChannelMessages = (teamId?: string | null) => {
   // Fetch channels
   useEffect(() => {
     const fetchChannels = async () => {
-      let query = supabase
+      let query = orchFlow()
         .from('channels')
         .select('*')
         .order('created_at', { ascending: true });
@@ -63,7 +66,7 @@ export const useChannelMessages = (teamId?: string | null) => {
       .channel('channels-changes')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'channels' },
+        { event: '*', schema: 'orch_flow', table: 'channels' },
         (payload) => {
           // Only update if it's for our team
           if (teamId && (payload.new as any)?.team_id !== teamId && (payload.old as any)?.team_id !== teamId) {
@@ -93,7 +96,7 @@ export const useChannelMessages = (teamId?: string | null) => {
 
     const fetchMessages = async () => {
       // Fetch messages without profile join since there's no FK
-      const { data: messagesData, error } = await supabase
+      const { data: messagesData, error } = await orchFlow()
         .from('channel_messages')
         .select('*')
         .eq('channel_id', activeChannelId)
@@ -109,7 +112,7 @@ export const useChannelMessages = (teamId?: string | null) => {
       let profilesMap: Record<string, string> = {};
       
       if (userIds.length > 0) {
-        const { data: profiles } = await supabase
+        const { data: profiles } = await orchFlow()
           .from('profiles')
           .select('id, display_name')
           .in('id', userIds);
@@ -137,7 +140,7 @@ export const useChannelMessages = (teamId?: string | null) => {
         'postgres_changes',
         {
           event: '*',
-          schema: 'public',
+          schema: 'orch_flow',
           table: 'channel_messages',
           filter: `channel_id=eq.${activeChannelId}`,
         },
@@ -146,7 +149,7 @@ export const useChannelMessages = (teamId?: string | null) => {
             // Fetch the profile for the new message
             const newMessage = payload.new as ChannelMessage;
             if (newMessage.user_id) {
-              const { data: profileData } = await supabase
+              const { data: profileData } = await orchFlow()
                 .from('profiles')
                 .select('display_name')
                 .eq('id', newMessage.user_id)
@@ -170,7 +173,7 @@ export const useChannelMessages = (teamId?: string | null) => {
   const sendMessage = async (content: string, guestName?: string) => {
     if (!activeChannelId || !content.trim()) return;
 
-    const { error } = await supabase.from('channel_messages').insert({
+    const { error } = await orchFlow().from('channel_messages').insert({
       channel_id: activeChannelId,
       content: content.trim(),
       user_id: user?.id || null,
@@ -183,7 +186,7 @@ export const useChannelMessages = (teamId?: string | null) => {
   };
 
   const createChannel = async (name: string, description?: string) => {
-    const { data, error } = await supabase
+    const { data, error } = await orchFlow()
       .from('channels')
       .insert({
         name: name.trim(),
@@ -204,7 +207,7 @@ export const useChannelMessages = (teamId?: string | null) => {
   };
 
   const deleteChannel = async (channelId: string) => {
-    const { error } = await supabase.from('channels').delete().eq('id', channelId);
+    const { error } = await orchFlow().from('channels').delete().eq('id', channelId);
 
     if (error) {
       console.error('Error deleting channel:', error);
