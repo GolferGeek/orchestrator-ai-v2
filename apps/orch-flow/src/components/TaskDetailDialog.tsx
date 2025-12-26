@@ -32,7 +32,9 @@ import {
   ChevronDown,
   Check,
   Calendar,
+  Terminal,
 } from 'lucide-react';
+import { useClaudeCode } from '@/contexts/ClaudeCodeContext';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow, format } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -82,6 +84,7 @@ export function TaskDetailDialog({
     isCollaborator,
   } = useTaskCollaboration(task?.id);
   const { createNotification } = useNotifications(guestName);
+  const { askAboutTask } = useClaudeCode();
 
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [updateMessage, setUpdateMessage] = useState('');
@@ -335,6 +338,18 @@ export function TaskDetailDialog({
               >
                 <MessageSquare className="w-4 h-4 mr-2" />
                 Request Update
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  askAboutTask(task);
+                  onOpenChange(false); // Close dialog when opening Claude panel
+                }}
+              >
+                <Terminal className="w-4 h-4 mr-2" />
+                Ask Claude
               </Button>
             </div>
 

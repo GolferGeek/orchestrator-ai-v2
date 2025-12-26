@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { useClaudeCodePanel } from '@/hooks/useClaudeCodePanel';
+import { useClaudeCode } from '@/contexts/ClaudeCodeContext';
 import { OutputEntry } from './OutputEntry';
 import { PinnedCommands } from './PinnedCommands';
 import { AutoCompleteDropdown } from './AutoCompleteDropdown';
@@ -26,6 +27,10 @@ import { StatsFooter } from './StatsFooter';
 interface ClaudeCodePanelProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Optional initial prompt (e.g., from task context) */
+  initialPrompt?: string;
+  /** Callback when initial prompt has been applied */
+  onInitialPromptApplied?: () => void;
 }
 
 export function ClaudeCodePanel({ isOpen, onClose }: ClaudeCodePanelProps) {
@@ -53,8 +58,23 @@ export function ClaudeCodePanel({ isOpen, onClose }: ClaudeCodePanelProps) {
     unpinCommand,
   } = useClaudeCodePanel();
 
+  // Get context for initial prompt from task
+  const { initialPrompt, clearInitialPrompt, contextTask } = useClaudeCode();
+
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Apply initial prompt when panel opens with task context
+  useEffect(() => {
+    if (isOpen && initialPrompt && !prompt) {
+      setPrompt(initialPrompt);
+      clearInitialPrompt();
+      // Focus the textarea after a short delay
+      setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 100);
+    }
+  }, [isOpen, initialPrompt, prompt, setPrompt, clearInitialPrompt]);
 
   // Auto-complete state
   const [showAutoComplete, setShowAutoComplete] = useState(false);
@@ -195,7 +215,13 @@ export function ClaudeCodePanel({ isOpen, onClose }: ClaudeCodePanelProps) {
           <div className="flex items-center justify-between">
             <SheetTitle className="flex items-center gap-2 text-base">
               <Terminal className="h-5 w-5 text-primary" />
-              Claude Code Panel
+              {contextTask ? (
+                <span className="truncate max-w-[200px]" title={contextTask.title}>
+                  Task: {contextTask.title}
+                </span>
+              ) : (
+                'Claude Code Panel'
+              )}
             </SheetTitle>
             <div className="flex items-center gap-3">
               <span
