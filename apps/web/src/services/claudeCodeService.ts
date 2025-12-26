@@ -23,6 +23,26 @@ export interface ClaudeHealthResponse {
   nodeEnv: string;
 }
 
+export interface ContentBlock {
+  type: string;
+  text?: string;
+  // Tool use block fields
+  id?: string;
+  name?: string;
+  input?: unknown;
+}
+
+export interface RawMessageStreamEvent {
+  type: string;
+  index?: number;
+  content_block?: ContentBlock;
+  delta?: {
+    type: string;
+    text?: string;
+    partial_json?: string;
+  };
+}
+
 export interface ClaudeMessage {
   type:
     | 'system'
@@ -31,9 +51,10 @@ export interface ClaudeMessage {
     | 'result'
     | 'stream_event'
     | 'error'
-    | 'session';
+    | 'session'
+    | 'tool_progress';
   message?: {
-    content: string | { type: string; text?: string }[];
+    content: string | ContentBlock[];
   };
   result?: unknown;
   total_cost_usd?: number;
@@ -43,6 +64,49 @@ export interface ClaudeMessage {
   };
   error?: string;
   sessionId?: string;
+  // Tool progress fields (from SDK tool_progress events)
+  tool_use_id?: string;
+  tool_name?: string;
+  elapsed_time_seconds?: number;
+  parent_tool_use_id?: string | null;
+  // Stream event fields (for parsing tool_use blocks)
+  event?: RawMessageStreamEvent;
+}
+
+/**
+ * Active tool execution tracking
+ */
+export interface ActiveTool {
+  id: string;
+  name: string;
+  startTime: number;
+  elapsedSeconds: number;
+  status: 'running' | 'completed' | 'error';
+}
+
+/**
+ * Fun verbs for tool progress display (like Claude Code CLI)
+ */
+export const TOOL_VERBS: Record<string, string[]> = {
+  Read: ['Reading', 'Scanning', 'Examining', 'Perusing', 'Inspecting'],
+  Write: ['Writing', 'Crafting', 'Composing', 'Creating', 'Generating'],
+  Edit: ['Editing', 'Modifying', 'Tweaking', 'Refining', 'Adjusting'],
+  Bash: ['Executing', 'Running', 'Processing', 'Computing', 'Operating'],
+  Glob: ['Searching', 'Finding', 'Locating', 'Discovering', 'Scanning'],
+  Grep: ['Searching', 'Hunting', 'Scanning', 'Probing', 'Investigating'],
+  Task: ['Delegating', 'Spawning', 'Launching', 'Dispatching', 'Orchestrating'],
+  WebFetch: ['Fetching', 'Retrieving', 'Downloading', 'Pulling', 'Grabbing'],
+  WebSearch: ['Searching', 'Querying', 'Exploring', 'Investigating', 'Researching'],
+  TodoWrite: ['Planning', 'Organizing', 'Tracking', 'Managing', 'Scheduling'],
+  default: ['Processing', 'Working', 'Thinking', 'Computing', 'Analyzing'],
+};
+
+/**
+ * Get a random verb for a tool
+ */
+export function getToolVerb(toolName: string): string {
+  const verbs = TOOL_VERBS[toolName] || TOOL_VERBS.default;
+  return verbs[Math.floor(Math.random() * verbs.length)];
 }
 
 export interface ExecuteResult {

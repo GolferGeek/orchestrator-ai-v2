@@ -71,6 +71,11 @@
             <pre class="entry-content">{{ entry.content }}</pre>
           </div>
 
+          <!-- Tool progress indicator -->
+          <div v-if="isExecuting && (currentToolVerb || activeTools.size > 0)" class="tool-progress-wrapper">
+            <ToolProgress :active-tools="activeTools" :current-verb="currentToolVerb" />
+          </div>
+
           <!-- Current streaming message -->
           <div v-if="currentAssistantMessage" class="output-entry entry-assistant streaming">
             <span class="entry-prefix">Claude:</span>
@@ -195,6 +200,7 @@ import {
   star,
 } from 'ionicons/icons';
 import { useClaudeCodePanel, type OutputEntry } from '@/composables/useClaudeCodePanel';
+import ToolProgress from './ToolProgress.vue';
 
 defineEmits<{
   (e: 'close'): void;
@@ -211,6 +217,8 @@ const {
   totalCost,
   totalInputTokens,
   totalOutputTokens,
+  activeTools,
+  currentToolVerb,
   canExecute,
   hasOutput,
   execute,
@@ -676,6 +684,14 @@ watch(
 @keyframes blink {
   0%, 50% { opacity: 1; }
   51%, 100% { opacity: 0; }
+}
+
+/* Tool Progress */
+.tool-progress-wrapper {
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--ion-color-light-tint);
+  border: 1px solid var(--ion-border-color);
 }
 
 /* Input Area */

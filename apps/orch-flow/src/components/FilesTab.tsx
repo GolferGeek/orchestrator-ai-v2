@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
   Dialog,
   DialogContent,
@@ -115,7 +117,7 @@ export function FilesTab({ teamId }: FilesTabProps) {
   };
 
   const handleOpenFolder = (folder: TeamFile) => {
-    setCurrentPath(currentPath === '/' ? `/${folder.name}` : `${currentPath}/${folder.name}`);
+    setCurrentPath(currentPath === '/' ? `/${folder.name}/` : `${currentPath}/${folder.name}/`);
     setSelectedFile(null);
   };
 
@@ -347,8 +349,14 @@ export function FilesTab({ teamId }: FilesTabProps) {
                 />
               ) : (
                 <ScrollArea className="h-full">
-                  <div className="p-4 prose prose-sm dark:prose-invert max-w-none">
-                    <pre className="whitespace-pre-wrap font-mono text-sm">{selectedFile.content || 'Empty file'}</pre>
+                  <div className="p-8 prose prose-base dark:prose-invert max-w-none prose-headings:font-semibold prose-a:text-primary prose-pre:bg-muted prose-code:text-primary">
+                    {selectedFile.file_type === 'markdown' || selectedFile.name.endsWith('.md') ? (
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {selectedFile.content || '*Empty file*'}
+                      </ReactMarkdown>
+                    ) : (
+                      <pre className="whitespace-pre-wrap font-mono text-sm">{selectedFile.content || 'Empty file'}</pre>
+                    )}
                   </div>
                 </ScrollArea>
               )}

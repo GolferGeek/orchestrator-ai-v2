@@ -23,6 +23,7 @@ import { OutputEntry } from './OutputEntry';
 import { PinnedCommands } from './PinnedCommands';
 import { AutoCompleteDropdown } from './AutoCompleteDropdown';
 import { StatsFooter } from './StatsFooter';
+import { ToolProgress } from './ToolProgress';
 
 interface ClaudeCodePanelProps {
   isOpen: boolean;
@@ -47,6 +48,8 @@ export function ClaudeCodePanel({ isOpen, onClose }: ClaudeCodePanelProps) {
     totalInputTokens,
     totalOutputTokens,
     pinnedCommands,
+    activeTools,
+    currentToolVerb,
     canExecute,
     hasOutput,
     execute,
@@ -274,6 +277,15 @@ export function ClaudeCodePanel({ isOpen, onClose }: ClaudeCodePanelProps) {
               {output.map((entry, index) => (
                 <OutputEntry key={index} entry={entry} />
               ))}
+
+              {/* Tool progress indicator */}
+              {isExecuting && (currentToolVerb || activeTools.size > 0) && (
+                <ToolProgress
+                  activeTools={activeTools}
+                  currentVerb={currentToolVerb}
+                  className="p-3 rounded-lg bg-muted/50 border border-border"
+                />
+              )}
 
               {/* Current streaming message */}
               {currentAssistantMessage && (

@@ -15,7 +15,9 @@ import type {
   ClaudeSkill,
   ClaudeMessage,
   StoredStats,
+  ActiveTool,
 } from '@/types/claudeCode';
+import { getToolVerb } from '@/types/claudeCode';
 
 // LocalStorage keys
 const STORAGE_KEYS = {
@@ -194,6 +196,11 @@ export function useClaudeCodePanel() {
   const [output, setOutput] = useState<OutputEntry[]>(() => loadOutput());
   const [currentAssistantMessage, setCurrentAssistantMessage] = useState('');
 
+  // Tool progress state
+  const [activeTools, setActiveTools] = useState<Map<string, ActiveTool>>(new Map());
+  const [currentToolVerb, setCurrentToolVerb] = useState<string>('');
+  const toolVerbsRef = useRef<Map<string, string>>(new Map()); // Cache verbs per tool ID
+
   // Available commands and skills
   const [commands, setCommands] = useState<ClaudeCommand[]>([]);
   const [skills, setSkills] = useState<ClaudeSkill[]>([]);
@@ -344,6 +351,97 @@ export function useClaudeCodePanel() {
   }, []);
 
   /**
+   * Handle tool progress - update active tools and verb
+   */
+  const handleToolProgress = useCallback((message: ClaudeMessage) => {
+    const toolId = message.tool_use_id;
+    const toolName = message.tool_name;
+    const elapsed = message.elapsed_time_seconds || 0;
+
+    if (!toolId || !toolName) return;
+
+    // Get or create a verb for this tool
+    if (!toolVerbsRef.current.has(toolId)) {
+      toolVerbsRef.current.set(toolId, getToolVerb(toolName));
+    }
+    const verb = toolVerbsRef.current.get(toolId) || 'Processing';
+    setCurrentToolVerb(`${verb}...`);
+
+    // Update active tools
+    setActiveTools((prev) => {
+      const newMap = new Map(prev);
+      const existing = newMap.get(toolId);
+
+      if (existing) {
+        newMap.set(toolId, { ...existing, elapsedSeconds: elapsed });
+      } else {
+        newMap.set(toolId, {
+          id: toolId,
+          name: toolName,
+          startTime: Date.now(),
+          elapsedSeconds: elapsed,
+          status: 'running',
+        });
+      }
+      return newMap;
+    });
+  }, []);
+
+  /**
+   * Handle stream event - detect tool_use blocks starting/completing
+   */
+  const handleStreamEvent = useCallback((message: ClaudeMessage) => {
+    const event = message.event;
+    if (!event) return;
+
+    // Handle content_block_start for tool_use
+    if (event.type === 'content_block_start' && event.content_block?.type === 'tool_use') {
+      const toolId = event.content_block.id;
+      const toolName = event.content_block.name;
+
+      if (toolId && toolName) {
+        // Generate and cache a verb for this tool
+        const verb = getToolVerb(toolName);
+        toolVerbsRef.current.set(toolId, verb);
+        setCurrentToolVerb(`${verb}...`);
+
+        setActiveTools((prev) => {
+          const newMap = new Map(prev);
+          newMap.set(toolId, {
+            id: toolId,
+            name: toolName,
+            startTime: Date.now(),
+            elapsedSeconds: 0,
+            status: 'running',
+          });
+          return newMap;
+        });
+      }
+    }
+
+    // Handle content_block_stop - tool finished
+    if (event.type === 'content_block_stop' && event.index !== undefined) {
+      // Mark tools as completed (we track by index correlation)
+      setActiveTools((prev) => {
+        const newMap = new Map(prev);
+        // Mark most recent running tool as completed
+        for (const [id, tool] of newMap.entries()) {
+          if (tool.status === 'running') {
+            newMap.set(id, { ...tool, status: 'completed' });
+            // Clear verb after tool completes
+            setTimeout(() => {
+              setCurrentToolVerb('');
+              toolVerbsRef.current.delete(id);
+            }, 500);
+            break;
+          }
+        }
+        return newMap;
+      });
+    }
+  }, []);
+
+  /**
    * Handle incoming message from stream
    */
   const handleMessage = useCallback((message: ClaudeMessage) => {
@@ -352,6 +450,12 @@ export function useClaudeCodePanel() {
       if (content) {
         setCurrentAssistantMessage((prev) => prev + content);
       }
+    } else if (message.type === 'tool_progress') {
+      // Handle tool progress events
+      handleToolProgress(message);
+    } else if (message.type === 'stream_event') {
+      // Handle stream events for tool_use detection
+      handleStreamEvent(message);
     } else if (message.type === 'result') {
       // Capture cost and usage stats
       setStats((prev) => {
@@ -365,10 +469,15 @@ export function useClaudeCodePanel() {
         }
         return newStats;
       });
+      // Clear tool state on result
+      setActiveTools(new Map());
+      setCurrentToolVerb('');
+      toolVerbsRef.current.clear();
     } else if (message.type === 'system') {
-      addOutput('system', JSON.stringify(message, null, 2));
+      // Don't log all system messages, just important ones
+      // addOutput('system', JSON.stringify(message, null, 2));
     }
-  }, [addOutput]);
+  }, [addOutput, handleToolProgress, handleStreamEvent]);
 
   /**
    * Handle stream error
@@ -471,6 +580,10 @@ export function useClaudeCodePanel() {
       abortControllerRef.current = null;
     }
     setIsExecuting(false);
+    // Clear tool progress state
+    setActiveTools(new Map());
+    setCurrentToolVerb('');
+    toolVerbsRef.current.clear();
     addOutput('info', '⚠ Execution cancelled');
   }, [addOutput]);
 
@@ -482,6 +595,10 @@ export function useClaudeCodePanel() {
     setCurrentAssistantMessage('');
     setSessionId(undefined);
     setStats({ totalCost: 0, totalInputTokens: 0, totalOutputTokens: 0 });
+    // Clear tool progress state
+    setActiveTools(new Map());
+    setCurrentToolVerb('');
+    toolVerbsRef.current.clear();
 
     // Clear persisted state
     clearPersistedState();
@@ -543,6 +660,10 @@ export function useClaudeCodePanel() {
     commandHistory,
     historyIndex,
     pinnedCommands,
+
+    // Tool progress state
+    activeTools,
+    currentToolVerb,
 
     // Computed
     canExecute,

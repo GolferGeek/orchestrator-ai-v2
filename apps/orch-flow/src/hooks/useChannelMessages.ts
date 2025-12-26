@@ -112,7 +112,8 @@ export const useChannelMessages = (teamId?: string | null) => {
       let profilesMap: Record<string, string> = {};
       
       if (userIds.length > 0) {
-        const { data: profiles } = await orchFlow()
+        // profiles table is in public schema
+        const { data: profiles } = await supabase
           .from('profiles')
           .select('id, display_name')
           .in('id', userIds);
@@ -146,10 +147,10 @@ export const useChannelMessages = (teamId?: string | null) => {
         },
         async (payload) => {
           if (payload.eventType === 'INSERT') {
-            // Fetch the profile for the new message
+            // Fetch the profile for the new message (profiles table is in public schema)
             const newMessage = payload.new as ChannelMessage;
             if (newMessage.user_id) {
-              const { data: profileData } = await orchFlow()
+              const { data: profileData } = await supabase
                 .from('profiles')
                 .select('display_name')
                 .eq('id', newMessage.user_id)

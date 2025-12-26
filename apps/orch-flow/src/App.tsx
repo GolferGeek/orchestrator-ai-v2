@@ -13,7 +13,12 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const App = () => (
-  <BrowserRouter>
+  <BrowserRouter
+    future={{
+      v7_startTransition: true,
+      v7_relativeSplatPath: true,
+    }}
+  >
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <TeamProvider>

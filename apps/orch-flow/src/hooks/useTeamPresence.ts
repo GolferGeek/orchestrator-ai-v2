@@ -19,9 +19,9 @@ export function useTeamPresence() {
   useEffect(() => {
     if (!user) return;
 
-    // Fetch all profiles
+    // Fetch all profiles (profiles table is in public schema, not orch_flow)
     const fetchProfiles = async () => {
-      const { data, error } = await orchFlow()
+      const { data, error } = await supabase
         .from('profiles')
         .select('id, display_name');
 
@@ -90,12 +90,12 @@ export function useTeamPresence() {
         }
       });
 
-    // Listen for profile changes
+    // Listen for profile changes (profiles table is in public schema)
     const profileChannel = supabase
       .channel('profiles-for-presence')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'orch_flow', table: 'profiles' },
+        { event: '*', schema: 'public', table: 'profiles' },
         () => fetchProfiles()
       )
       .subscribe();

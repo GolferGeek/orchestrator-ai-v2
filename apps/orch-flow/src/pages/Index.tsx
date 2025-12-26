@@ -72,7 +72,7 @@ const Index = () => {
               <Clock className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h1 className="font-semibold text-lg leading-tight">Sync Focus</h1>
+              <h1 className="font-semibold text-lg leading-tight">Orch-Flow</h1>
               <p className="text-xs text-muted-foreground">
                 {currentTeam ? currentTeam.name : 'No team selected'}
               </p>

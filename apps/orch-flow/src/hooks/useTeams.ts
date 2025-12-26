@@ -85,9 +85,9 @@ export function useTeams() {
     if (membersError) {
       console.error('Error fetching team members:', membersError);
     } else {
-      // Fetch profiles for all members
+      // Fetch profiles for all members (profiles table is in public schema)
       const userIds = [...new Set(membersData?.map(m => m.user_id) || [])];
-      const { data: profiles } = await orchFlow()
+      const { data: profiles } = await supabase
         .from('profiles')
         .select('id, display_name')
         .in('id', userIds);

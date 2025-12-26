@@ -10,3 +10,4 @@ export { OutputEntry } from './OutputEntry';
 export { PinnedCommands } from './PinnedCommands';
 export { AutoCompleteDropdown } from './AutoCompleteDropdown';
 export { StatsFooter } from './StatsFooter';
+export { ToolProgress } from './ToolProgress';
