@@ -5,14 +5,14 @@ import { supabase } from '@/lib/supabase'
 
 interface AuthStatusResponse {
   auth_enabled: boolean
-  auth_type: 'supabase' | 'password' | 'none'
+  auth_type: 'supabase' | 'none'
   message: string
 }
 
 interface AuthState {
   isAuthenticated: boolean
   token: string | null
-  authType: 'supabase' | 'password' | 'none' | null
+  authType: 'supabase' | 'none' | null
   userEmail: string | null
   isLoading: boolean
   error: string | null
@@ -22,8 +22,7 @@ interface AuthState {
   authRequired: boolean | null
   setHasHydrated: (state: boolean) => void
   checkAuthRequired: () => Promise<boolean>
-  login: (password: string) => Promise<boolean>
-  loginWithSupabase: (email: string, password: string) => Promise<boolean>
+  login: (email: string, password: string) => Promise<boolean>
   setSupabaseToken: (token: string) => Promise<boolean>
   logout: () => void
   checkAuth: () => Promise<boolean>
@@ -87,73 +86,7 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      login: async (password: string) => {
-        set({ isLoading: true, error: null })
-        try {
-          const apiUrl = await getApiUrl()
-
-          // Test auth with notebooks endpoint
-          const response = await fetch(`${apiUrl}/api/notebooks`, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${password}`,
-              'Content-Type': 'application/json'
-            }
-          })
-
-          if (response.ok) {
-            set({
-              isAuthenticated: true,
-              token: password,
-              authType: 'password',
-              isLoading: false,
-              lastAuthCheck: Date.now(),
-              error: null
-            })
-            return true
-          } else {
-            let errorMessage = 'Authentication failed'
-            if (response.status === 401) {
-              errorMessage = 'Invalid password. Please try again.'
-            } else if (response.status === 403) {
-              errorMessage = 'Access denied. Please check your credentials.'
-            } else if (response.status >= 500) {
-              errorMessage = 'Server error. Please try again later.'
-            } else {
-              errorMessage = `Authentication failed (${response.status})`
-            }
-
-            set({
-              error: errorMessage,
-              isLoading: false,
-              isAuthenticated: false,
-              token: null
-            })
-            return false
-          }
-        } catch (error) {
-          console.error('Network error during auth:', error)
-          let errorMessage = 'Authentication failed'
-
-          if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-            errorMessage = 'Unable to connect to server. Please check if the API is running.'
-          } else if (error instanceof Error) {
-            errorMessage = `Network error: ${error.message}`
-          } else {
-            errorMessage = 'An unexpected error occurred during authentication'
-          }
-
-          set({
-            error: errorMessage,
-            isLoading: false,
-            isAuthenticated: false,
-            token: null
-          })
-          return false
-        }
-      },
-
-      loginWithSupabase: async (email: string, password: string) => {
+      login: async (email: string, password: string) => {
         set({ isLoading: true, error: null })
         try {
           // Authenticate with Supabase
@@ -303,11 +236,8 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
-        // Sign out from Supabase if we're using Supabase auth
-        const state = get()
-        if (state.authType === 'supabase') {
-          await supabase.auth.signOut()
-        }
+        // Sign out from Supabase
+        await supabase.auth.signOut()
 
         set({
           isAuthenticated: false,

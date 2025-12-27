@@ -15,14 +15,11 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 export function LoginForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const { login, loginWithSupabase, isLoading, error } = useAuth()
-  const { authRequired, authType, checkAuthRequired, hasHydrated, isAuthenticated } = useAuthStore()
+  const { loginWithSupabase, isLoading, error } = useAuth()
+  const { authRequired, checkAuthRequired, hasHydrated, isAuthenticated } = useAuthStore()
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const [configInfo, setConfigInfo] = useState<{ apiUrl: string; version: string; buildTime: string } | null>(null)
   const router = useRouter()
-
-  // Determine if we should show email+password (Supabase) or just password
-  const isSupabaseAuth = authType === 'supabase'
 
   // Load config info for debugging
   useEffect(() => {
@@ -131,26 +128,16 @@ export function LoginForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    try {
-      if (isSupabaseAuth) {
-        // Supabase authentication with email + password
-        if (email.trim() && password.trim()) {
-          await loginWithSupabase(email, password)
-        }
-      } else {
-        // Password-only authentication
-        if (password.trim()) {
-          await login(password)
-        }
+    if (email.trim() && password.trim()) {
+      try {
+        await loginWithSupabase(email, password)
+      } catch (error) {
+        console.error('Unhandled error during login:', error)
       }
-    } catch (error) {
-      console.error('Unhandled error during login:', error)
     }
   }
 
-  const isFormValid = isSupabaseAuth
-    ? email.trim() && password.trim()
-    : password.trim()
+  const isFormValid = email.trim() && password.trim()
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -158,31 +145,26 @@ export function LoginForm() {
         <CardHeader className="text-center">
           <CardTitle>Open Notebook</CardTitle>
           <CardDescription>
-            {isSupabaseAuth
-              ? 'Sign in with your email and password'
-              : 'Enter your password to access the application'
-            }
+            Sign in with your email and password
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {isSupabaseAuth && (
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={isLoading}
-                  autoComplete="email"
-                />
-              </div>
-            )}
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isLoading}
+                autoComplete="email"
+              />
+            </div>
 
             <div className="space-y-2">
-              {isSupabaseAuth && <Label htmlFor="password">Password</Label>}
+              <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 type="password"
@@ -190,7 +172,7 @@ export function LoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
-                autoComplete={isSupabaseAuth ? 'current-password' : undefined}
+                autoComplete="current-password"
               />
             </div>
 
@@ -213,11 +195,6 @@ export function LoginForm() {
               <div className="text-xs text-center text-muted-foreground pt-2 border-t">
                 <div>Version {configInfo.version}</div>
                 <div className="font-mono text-[10px]">{configInfo.apiUrl}</div>
-                {authType && (
-                  <div className="text-[10px] mt-1">
-                    Auth: {authType}
-                  </div>
-                )}
               </div>
             )}
           </form>
