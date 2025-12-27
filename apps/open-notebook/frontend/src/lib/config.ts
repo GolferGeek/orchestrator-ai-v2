@@ -85,17 +85,21 @@ async function fetchConfig(): Promise<AppConfig> {
   console.log('🔧 [Config] NEXT_PUBLIC_API_URL from build:', envApiUrl || '(not set)')
 
   // STEP 3: Smart default - infer API URL from current frontend URL
-  // If frontend is at http://10.20.30.20:6201, API should be at http://10.20.30.20:6202
-  let defaultApiUrl = 'http://localhost:6202'
+  // API port can be configured via OPEN_NOTEBOOK_API_PORT env var (default: 6202)
+  // Note: In browser context, we can't access process.env directly, so we use the default
+  // The runtime config endpoint will provide the correct port from server-side env vars
+  const defaultApiPort = '6202'
+  let defaultApiUrl = `http://localhost:${defaultApiPort}`
 
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname
     const protocol = window.location.protocol
     console.log('🔧 [Config] Current frontend URL:', `${protocol}//${hostname}${window.location.port ? ':' + window.location.port : ''}`)
 
-    // If not localhost, use the same hostname with port 6202
+    // If not localhost, use the same hostname with default API port
+    // The actual port will be overridden by runtime config if available
     if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
-      defaultApiUrl = `${protocol}//${hostname}:6202`
+      defaultApiUrl = `${protocol}//${hostname}:${defaultApiPort}`
       console.log('🔧 [Config] Detected remote hostname, using:', defaultApiUrl)
     } else {
       console.log('🔧 [Config] Detected localhost, using:', defaultApiUrl)

@@ -9,16 +9,16 @@ import { NextRequest, NextResponse } from 'next/server'
  * Environment Variables:
  * - API_URL: Where the browser/client should make API requests (public/external URL)
  * - INTERNAL_API_URL: Where Next.js server-side should proxy API requests (internal URL)
- *   Default: http://localhost:6202 (used by Next.js rewrites in next.config.ts)
+ * - OPEN_NOTEBOOK_API_PORT: Port for Open Notebook API (default: 6202)
  *
  * Why two different variables?
- * - API_URL: Used by browser clients, can be https://your-domain.com or http://server-ip:6202
- * - INTERNAL_API_URL: Used by Next.js rewrites for server-side proxying, typically http://localhost:6202
+ * - API_URL: Used by browser clients, can be https://your-domain.com or http://server-ip:PORT
+ * - INTERNAL_API_URL: Used by Next.js rewrites for server-side proxying
  *
  * Auto-detection logic for API_URL:
  * 1. If API_URL env var is set, use it (explicit override)
  * 2. Otherwise, detect from incoming HTTP request headers (zero-config)
- * 3. Fallback to localhost:6202 if detection fails
+ * 3. Fallback to localhost with OPEN_NOTEBOOK_API_PORT if detection fails
  *
  * This allows the same Docker image to work in different deployment scenarios.
  */
@@ -31,6 +31,9 @@ export async function GET(request: NextRequest) {
       apiUrl: envApiUrl,
     })
   }
+
+  // Get the API port from environment variable (default: 6202)
+  const apiPort = process.env.OPEN_NOTEBOOK_API_PORT || '6202'
 
   // Priority 2: Auto-detect from request headers
   try {
@@ -47,8 +50,8 @@ export async function GET(request: NextRequest) {
       // Extract just the hostname (remove port if present)
       const hostname = hostHeader.split(':')[0]
 
-      // Construct the API URL with port 6202
-      const apiUrl = `${proto}://${hostname}:6202`
+      // Construct the API URL with configurable port
+      const apiUrl = `${proto}://${hostname}:${apiPort}`
 
       console.log(`[runtime-config] Auto-detected API URL: ${apiUrl} (proto=${proto}, host=${hostHeader})`)
 
@@ -60,9 +63,10 @@ export async function GET(request: NextRequest) {
     console.error('[runtime-config] Auto-detection failed:', error)
   }
 
-  // Priority 3: Fallback to localhost
-  console.log('[runtime-config] Using fallback: http://localhost:6202')
+  // Priority 3: Fallback to localhost with configurable port
+  const fallbackUrl = `http://localhost:${apiPort}`
+  console.log(`[runtime-config] Using fallback: ${fallbackUrl}`)
   return NextResponse.json({
-    apiUrl: 'http://localhost:6202',
+    apiUrl: fallbackUrl,
   })
 }

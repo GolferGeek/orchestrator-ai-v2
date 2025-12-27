@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 6201",
+    "dev": "next dev -p ${OPEN_NOTEBOOK_FRONTEND_PORT:-6201}",
     "build": "next build",
-    "start": "next start -p ${PORT:-6201}",
+    "start": "next start -p ${OPEN_NOTEBOOK_FRONTEND_PORT:-6201}",
     "lint": "next lint"
   },
   "dependencies": {
