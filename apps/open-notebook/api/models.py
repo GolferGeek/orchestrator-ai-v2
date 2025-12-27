@@ -97,6 +97,21 @@ class ProviderAvailabilityResponse(BaseModel):
     )
 
 
+class DiscoveredModel(BaseModel):
+    id: str = Field(..., description="Model ID from provider")
+    name: str = Field(..., description="Model name")
+    provider: str = Field(..., description="Provider name")
+    type: str = Field(..., description="Model type (language, embedding, etc.)")
+    context_window: Optional[int] = Field(None, description="Context window size if known")
+    already_added: bool = Field(False, description="Whether model is already in database")
+
+
+class ModelDiscoveryResponse(BaseModel):
+    provider: str = Field(..., description="Provider name")
+    models: List[DiscoveredModel] = Field(..., description="Discovered models")
+    error: Optional[str] = Field(None, description="Error message if discovery failed")
+
+
 # Transformations API models
 class TransformationCreate(BaseModel):
     name: str = Field(..., description="Transformation name")

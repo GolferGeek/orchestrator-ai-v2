@@ -8,6 +8,7 @@ export const MODEL_QUERY_KEYS = {
   model: (id: string) => ['models', id] as const,
   defaults: ['models', 'defaults'] as const,
   providers: ['models', 'providers'] as const,
+  discover: (provider: string, modelType?: string) => ['models', 'discover', provider, modelType] as const,
 }
 
 export function useModels() {
@@ -107,5 +108,40 @@ export function useProviders() {
   return useQuery({
     queryKey: MODEL_QUERY_KEYS.providers,
     queryFn: () => modelsApi.getProviders(),
+  })
+}
+
+export function useDiscoverModels(provider: string, modelType?: string) {
+  return useQuery({
+    queryKey: MODEL_QUERY_KEYS.discover(provider, modelType),
+    queryFn: () => modelsApi.discoverModels(provider, modelType),
+    enabled: !!provider,
+  })
+}
+
+export function useAddDiscoveredModels() {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+
+  return useMutation({
+    mutationFn: ({ provider, modelIds, modelType }: { provider: string; modelIds: string[]; modelType: string }) =>
+      modelsApi.addDiscoveredModels(provider, modelIds, modelType),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: MODEL_QUERY_KEYS.models })
+      // Also invalidate discovery cache to update already_added flags
+      queryClient.invalidateQueries({ queryKey: ['models', 'discover'] })
+      toast({
+        title: 'Success',
+        description: `Added ${data.length} model(s) successfully`,
+      })
+    },
+    onError: (error: unknown) => {
+      const errorMessage = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to add models'
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      })
+    },
   })
 }

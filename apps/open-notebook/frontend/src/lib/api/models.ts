@@ -1,5 +1,5 @@
 import apiClient from './client'
-import { Model, CreateModelRequest, ModelDefaults, ProviderAvailability } from '@/lib/types/models'
+import { Model, CreateModelRequest, ModelDefaults, ProviderAvailability, ModelDiscoveryResponse } from '@/lib/types/models'
 
 export const modelsApi = {
   list: async () => {
@@ -33,6 +33,21 @@ export const modelsApi = {
 
   getProviders: async () => {
     const response = await apiClient.get<ProviderAvailability>('/models/providers')
+    return response.data
+  },
+
+  discoverModels: async (provider: string, modelType?: string) => {
+    const params = modelType ? { model_type: modelType } : {}
+    const response = await apiClient.get<ModelDiscoveryResponse>(`/models/discover/${provider}`, { params })
+    return response.data
+  },
+
+  addDiscoveredModels: async (provider: string, modelIds: string[], modelType: string) => {
+    const response = await apiClient.post<Model[]>(
+      `/models/discover/${provider}/add`,
+      modelIds,
+      { params: { model_type: modelType } }
+    )
     return response.data
   }
 }

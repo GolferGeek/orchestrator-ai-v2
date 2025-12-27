@@ -28,3 +28,18 @@ export interface ProviderAvailability {
   unavailable: string[]
   supported_types: Record<string, string[]>
 }
+
+export interface DiscoveredModel {
+  id: string
+  name: string
+  provider: string
+  type: 'language' | 'embedding' | 'text_to_speech' | 'speech_to_text'
+  context_window?: number | null
+  already_added: boolean
+}
+
+export interface ModelDiscoveryResponse {
+  provider: string
+  models: DiscoveredModel[]
+  error?: string | null
+}

@@ -7,7 +7,9 @@ from loguru import logger
 
 from api.models import (
     DefaultModelsResponse,
+    DiscoveredModel,
     ModelCreate,
+    ModelDiscoveryResponse,
     ModelResponse,
     ProviderAvailabilityResponse,
 )
@@ -298,3 +300,132 @@ async def get_provider_availability():
     except Exception as e:
         logger.error(f"Error checking provider availability: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error checking provider availability: {str(e)}")
+
+
+@router.get("/models/discover/{provider}", response_model=ModelDiscoveryResponse)
+async def discover_provider_models(
+    provider: str,
+    model_type: Optional[str] = Query(None, description="Filter by model type (language, embedding, text_to_speech, speech_to_text)")
+):
+    """
+    Discover available models from a provider.
+
+    This fetches the list of models available from the provider's API
+    and indicates which ones are already added to the database.
+    """
+    try:
+        # Map our model types to Esperanto types
+        type_mapping = {
+            "language": "language",
+            "embedding": "embedding",
+            "text_to_speech": "text_to_speech",
+            "speech_to_text": "speech_to_text",
+        }
+
+        # Get existing models from database to check what's already added
+        existing_models = await Model.get_all()
+        existing_set = {(m.provider.lower(), m.name.lower(), m.type) for m in existing_models}
+
+        discovered_models: list[DiscoveredModel] = []
+
+        # If model_type specified, only discover for that type
+        types_to_check = [model_type] if model_type else list(type_mapping.keys())
+
+        for mtype in types_to_check:
+            if mtype not in type_mapping:
+                continue
+
+            try:
+                # Use Esperanto to discover models
+                models = AIFactory.get_provider_models(provider, type_mapping[mtype])
+
+                if models:
+                    for m in models:
+                        model_name = m.id if hasattr(m, 'id') else str(m)
+                        already_added = (provider.lower(), model_name.lower(), mtype) in existing_set
+
+                        discovered_models.append(DiscoveredModel(
+                            id=model_name,
+                            name=model_name,
+                            provider=provider,
+                            type=mtype,
+                            context_window=getattr(m, 'context_window', None),
+                            already_added=already_added
+                        ))
+            except Exception as e:
+                logger.warning(f"Failed to discover {mtype} models for {provider}: {e}")
+                # Continue with other types
+
+        return ModelDiscoveryResponse(
+            provider=provider,
+            models=discovered_models,
+            error=None
+        )
+
+    except Exception as e:
+        logger.error(f"Error discovering models for {provider}: {str(e)}")
+        return ModelDiscoveryResponse(
+            provider=provider,
+            models=[],
+            error=str(e)
+        )
+
+
+@router.post("/models/discover/{provider}/add", response_model=list[ModelResponse])
+async def add_discovered_models(
+    provider: str,
+    model_ids: list[str],
+    model_type: str = Query(..., description="Model type (language, embedding, text_to_speech, speech_to_text)")
+):
+    """
+    Add multiple discovered models to the database at once.
+
+    This is a convenience endpoint for bulk-adding models discovered
+    from a provider.
+    """
+    try:
+        valid_types = ["language", "embedding", "text_to_speech", "speech_to_text"]
+        if model_type not in valid_types:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid model type. Must be one of: {valid_types}"
+            )
+
+        added_models: list[ModelResponse] = []
+
+        for model_id in model_ids:
+            # Check if already exists
+            from open_notebook.database.repository import repo_query
+            existing = await repo_query(
+                "SELECT * FROM model WHERE string::lowercase(provider) = $provider AND string::lowercase(name) = $name LIMIT 1",
+                {"provider": provider.lower(), "name": model_id.lower()}
+            )
+
+            if existing:
+                logger.info(f"Model {model_id} already exists for {provider}, skipping")
+                continue
+
+            # Create new model
+            new_model = Model(
+                name=model_id,
+                provider=provider,
+                type=model_type,
+            )
+            await new_model.save()
+
+            added_models.append(ModelResponse(
+                id=new_model.id or "",
+                name=new_model.name,
+                provider=new_model.provider,
+                type=new_model.type,
+                created=str(new_model.created),
+                updated=str(new_model.updated),
+            ))
+
+        return added_models
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error adding discovered models: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error adding models: {str(e)}")

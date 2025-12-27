@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { AddModelForm } from './AddModelForm'
+import { DiscoverModelsDialog } from './DiscoverModelsDialog'
 import { Bot, Mic, Volume2, Search, Trash2, X, ChevronDown, ChevronUp } from 'lucide-react'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { useDeleteModel } from '@/lib/hooks/use-models'
@@ -106,7 +107,10 @@ export function ModelTypeSection({ type, models, providers, isLoading }: ModelTy
                 <CardDescription className="text-xs">{description}</CardDescription>
               </div>
             </div>
-            <AddModelForm modelType={type} providers={providers} />
+            <div className="flex gap-2">
+              <DiscoverModelsDialog modelType={type} providers={providers} />
+              <AddModelForm modelType={type} providers={providers} />
+            </div>
           </div>
         </CardHeader>
         <CardContent className="pt-0">
