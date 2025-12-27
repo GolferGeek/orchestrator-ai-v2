@@ -7,11 +7,16 @@ import os
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
 import uvicorn
 
 # Add the current directory to Python path so imports work
 current_dir = Path(__file__).parent
 sys.path.insert(0, str(current_dir))
+
+# Load environment variables from root .env file (monorepo setup)
+root_env = current_dir.parent.parent / ".env"
+load_dotenv(root_env)
 
 if __name__ == "__main__":
     # Default configuration

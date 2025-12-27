@@ -1,6 +1,10 @@
-# Load environment variables
+# Load environment variables from root .env file (monorepo setup)
+from pathlib import Path
 from dotenv import load_dotenv
-load_dotenv()
+
+# Load from root .env file - apps/open-notebook/api/main.py -> root
+root_env = Path(__file__).parent.parent.parent.parent / ".env"
+load_dotenv(root_env)
 
 from contextlib import asynccontextmanager
 

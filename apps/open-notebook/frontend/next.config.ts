@@ -1,4 +1,10 @@
 import type { NextConfig } from "next";
+import * as dotenv from "dotenv";
+import * as path from "path";
+
+// Load environment variables from root .env file (monorepo setup)
+// This allows open-notebook to use the same env vars as the rest of the monorepo
+dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
 const nextConfig: NextConfig = {
   // Enable standalone output for optimized Docker deployment
