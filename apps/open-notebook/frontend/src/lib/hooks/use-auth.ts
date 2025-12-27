@@ -10,6 +10,7 @@ export function useAuth() {
     isAuthenticated,
     isLoading,
     login,
+    loginWithSupabase,
     logout,
     checkAuth,
     checkAuthRequired,
@@ -53,8 +54,23 @@ export function useAuth() {
     return success
   }
 
-  const handleLogout = () => {
-    logout()
+  const handleLoginWithSupabase = async (email: string, password: string) => {
+    const success = await loginWithSupabase(email, password)
+    if (success) {
+      // Check if there's a stored redirect path
+      const redirectPath = sessionStorage.getItem('redirectAfterLogin')
+      if (redirectPath) {
+        sessionStorage.removeItem('redirectAfterLogin')
+        router.push(redirectPath)
+      } else {
+        router.push('/notebooks')
+      }
+    }
+    return success
+  }
+
+  const handleLogout = async () => {
+    await logout()
     router.push('/login')
   }
 
@@ -63,6 +79,7 @@ export function useAuth() {
     isLoading: isLoading || !hasHydrated, // Treat lack of hydration as loading
     error,
     login: handleLogin,
+    loginWithSupabase: handleLoginWithSupabase,
     logout: handleLogout
   }
 }

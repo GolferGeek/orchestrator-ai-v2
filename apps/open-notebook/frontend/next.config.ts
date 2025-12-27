@@ -4,6 +4,14 @@ const nextConfig: NextConfig = {
   // Enable standalone output for optimized Docker deployment
   output: "standalone",
 
+  // Pass environment variables to the client
+  // These become available as process.env.NEXT_PUBLIC_*
+  env: {
+    // Supabase configuration - read from server env and expose to client
+    NEXT_PUBLIC_SUPABASE_URL: process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  },
+
   // API Rewrites: Proxy /api/* requests to FastAPI backend
   // This simplifies reverse proxy configuration
   // Next.js handles internal routing to the API backend

@@ -7,17 +7,22 @@ import { useAuthStore } from '@/lib/stores/auth-store'
 import { getConfig } from '@/lib/config'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AlertCircle } from 'lucide-react'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 
 export function LoginForm() {
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const { login, isLoading, error } = useAuth()
-  const { authRequired, checkAuthRequired, hasHydrated, isAuthenticated } = useAuthStore()
+  const { login, loginWithSupabase, isLoading, error } = useAuth()
+  const { authRequired, authType, checkAuthRequired, hasHydrated, isAuthenticated } = useAuthStore()
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const [configInfo, setConfigInfo] = useState<{ apiUrl: string; version: string; buildTime: string } | null>(null)
   const router = useRouter()
+
+  // Determine if we should show email+password (Supabase) or just password
+  const isSupabaseAuth = authType === 'supabase'
 
   // Load config info for debugging
   useEffect(() => {
@@ -105,7 +110,7 @@ export function LoginForm() {
                     <div className="break-all">Frontend: {typeof window !== 'undefined' ? window.location.href : 'N/A'}</div>
                   </div>
                   <div className="text-xs pt-2">
-                    Check browser console for detailed logs (look for 🔧 [Config] messages)
+                    Check browser console for detailed logs (look for [Config] messages)
                   </div>
                 </div>
               )}
@@ -125,15 +130,27 @@ export function LoginForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (password.trim()) {
-      try {
-        await login(password)
-      } catch (error) {
-        console.error('Unhandled error during login:', error)
-        // The auth store should handle most errors, but this catches any unhandled ones
+
+    try {
+      if (isSupabaseAuth) {
+        // Supabase authentication with email + password
+        if (email.trim() && password.trim()) {
+          await loginWithSupabase(email, password)
+        }
+      } else {
+        // Password-only authentication
+        if (password.trim()) {
+          await login(password)
+        }
       }
+    } catch (error) {
+      console.error('Unhandled error during login:', error)
     }
   }
+
+  const isFormValid = isSupabaseAuth
+    ? email.trim() && password.trim()
+    : password.trim()
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -141,18 +158,39 @@ export function LoginForm() {
         <CardHeader className="text-center">
           <CardTitle>Open Notebook</CardTitle>
           <CardDescription>
-            Enter your password to access the application
+            {isSupabaseAuth
+              ? 'Sign in with your email and password'
+              : 'Enter your password to access the application'
+            }
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
+            {isSupabaseAuth && (
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={isLoading}
+                  autoComplete="email"
+                />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              {isSupabaseAuth && <Label htmlFor="password">Password</Label>}
               <Input
+                id="password"
                 type="password"
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
+                autoComplete={isSupabaseAuth ? 'current-password' : undefined}
               />
             </div>
 
@@ -166,7 +204,7 @@ export function LoginForm() {
             <Button
               type="submit"
               className="w-full"
-              disabled={isLoading || !password.trim()}
+              disabled={isLoading || !isFormValid}
             >
               {isLoading ? 'Signing in...' : 'Sign In'}
             </Button>
@@ -175,6 +213,11 @@ export function LoginForm() {
               <div className="text-xs text-center text-muted-foreground pt-2 border-t">
                 <div>Version {configInfo.version}</div>
                 <div className="font-mono text-[10px]">{configInfo.apiUrl}</div>
+                {authType && (
+                  <div className="text-[10px] mt-1">
+                    Auth: {authType}
+                  </div>
+                )}
               </div>
             )}
           </form>

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { getApiUrl } from '@/lib/config'
+import { supabase } from '@/lib/supabase'
 
 interface AuthStatusResponse {
   auth_enabled: boolean
@@ -12,6 +13,7 @@ interface AuthState {
   isAuthenticated: boolean
   token: string | null
   authType: 'supabase' | 'password' | 'none' | null
+  userEmail: string | null
   isLoading: boolean
   error: string | null
   lastAuthCheck: number | null
@@ -21,6 +23,7 @@ interface AuthState {
   setHasHydrated: (state: boolean) => void
   checkAuthRequired: () => Promise<boolean>
   login: (password: string) => Promise<boolean>
+  loginWithSupabase: (email: string, password: string) => Promise<boolean>
   setSupabaseToken: (token: string) => Promise<boolean>
   logout: () => void
   checkAuth: () => Promise<boolean>
@@ -32,6 +35,7 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       token: null,
       authType: null,
+      userEmail: null,
       isLoading: false,
       error: null,
       lastAuthCheck: null,
@@ -96,7 +100,7 @@ export const useAuthStore = create<AuthState>()(
               'Content-Type': 'application/json'
             }
           })
-          
+
           if (response.ok) {
             set({
               isAuthenticated: true,
@@ -118,8 +122,8 @@ export const useAuthStore = create<AuthState>()(
             } else {
               errorMessage = `Authentication failed (${response.status})`
             }
-            
-            set({ 
+
+            set({
               error: errorMessage,
               isLoading: false,
               isAuthenticated: false,
@@ -130,7 +134,7 @@ export const useAuthStore = create<AuthState>()(
         } catch (error) {
           console.error('Network error during auth:', error)
           let errorMessage = 'Authentication failed'
-          
+
           if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
             errorMessage = 'Unable to connect to server. Please check if the API is running.'
           } else if (error instanceof Error) {
@@ -138,12 +142,116 @@ export const useAuthStore = create<AuthState>()(
           } else {
             errorMessage = 'An unexpected error occurred during authentication'
           }
-          
-          set({ 
+
+          set({
             error: errorMessage,
             isLoading: false,
             isAuthenticated: false,
             token: null
+          })
+          return false
+        }
+      },
+
+      loginWithSupabase: async (email: string, password: string) => {
+        set({ isLoading: true, error: null })
+        try {
+          // Authenticate with Supabase
+          const { data, error: supabaseError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          })
+
+          if (supabaseError) {
+            let errorMessage = 'Authentication failed'
+            if (supabaseError.message.includes('Invalid login credentials')) {
+              errorMessage = 'Invalid email or password. Please try again.'
+            } else if (supabaseError.message.includes('Email not confirmed')) {
+              errorMessage = 'Please confirm your email before logging in.'
+            } else {
+              errorMessage = supabaseError.message
+            }
+
+            set({
+              error: errorMessage,
+              isLoading: false,
+              isAuthenticated: false,
+              token: null,
+              userEmail: null
+            })
+            return false
+          }
+
+          if (!data.session) {
+            set({
+              error: 'No session returned from authentication',
+              isLoading: false,
+              isAuthenticated: false,
+              token: null,
+              userEmail: null
+            })
+            return false
+          }
+
+          const token = data.session.access_token
+
+          // Validate token with API
+          const apiUrl = await getApiUrl()
+          const response = await fetch(`${apiUrl}/api/notebooks`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          })
+
+          if (response.ok) {
+            set({
+              isAuthenticated: true,
+              token: token,
+              authType: 'supabase',
+              userEmail: email,
+              isLoading: false,
+              lastAuthCheck: Date.now(),
+              error: null
+            })
+            return true
+          } else {
+            // Token is valid with Supabase but API rejected it
+            let errorMessage = 'API authentication failed'
+            if (response.status === 401) {
+              errorMessage = 'Token not accepted by API. Please check API configuration.'
+            } else if (response.status === 403) {
+              errorMessage = 'Access denied by API.'
+            } else {
+              errorMessage = `API error (${response.status})`
+            }
+
+            set({
+              error: errorMessage,
+              isLoading: false,
+              isAuthenticated: false,
+              token: null,
+              userEmail: null
+            })
+            return false
+          }
+        } catch (error) {
+          console.error('Supabase login error:', error)
+          let errorMessage = 'Authentication failed'
+
+          if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+            errorMessage = 'Unable to connect to authentication server.'
+          } else if (error instanceof Error) {
+            errorMessage = error.message
+          }
+
+          set({
+            error: errorMessage,
+            isLoading: false,
+            isAuthenticated: false,
+            token: null,
+            userEmail: null
           })
           return false
         }
@@ -194,15 +302,22 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      logout: () => {
+      logout: async () => {
+        // Sign out from Supabase if we're using Supabase auth
+        const state = get()
+        if (state.authType === 'supabase') {
+          await supabase.auth.signOut()
+        }
+
         set({
           isAuthenticated: false,
           token: null,
           authType: null,
+          userEmail: null,
           error: null
         })
       },
-      
+
       checkAuth: async () => {
         const state = get()
         const { token, lastAuthCheck, isCheckingAuth, isAuthenticated } = state
@@ -235,12 +350,12 @@ export const useAuthStore = create<AuthState>()(
               'Content-Type': 'application/json'
             }
           })
-          
+
           if (response.ok) {
-            set({ 
-              isAuthenticated: true, 
+            set({
+              isAuthenticated: true,
               lastAuthCheck: now,
-              isCheckingAuth: false 
+              isCheckingAuth: false
             })
             return true
           } else {
@@ -254,11 +369,11 @@ export const useAuthStore = create<AuthState>()(
           }
         } catch (error) {
           console.error('checkAuth error:', error)
-          set({ 
-            isAuthenticated: false, 
+          set({
+            isAuthenticated: false,
             token: null,
             lastAuthCheck: null,
-            isCheckingAuth: false 
+            isCheckingAuth: false
           })
           return false
         }
@@ -269,7 +384,8 @@ export const useAuthStore = create<AuthState>()(
       partialize: (state) => ({
         token: state.token,
         isAuthenticated: state.isAuthenticated,
-        authType: state.authType
+        authType: state.authType,
+        userEmail: state.userEmail
       }),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true)
