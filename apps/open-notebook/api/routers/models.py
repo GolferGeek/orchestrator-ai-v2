@@ -220,7 +220,7 @@ async def get_provider_availability():
     try:
         # Check which providers have API keys configured
         provider_status = {
-            "ollama": os.environ.get("OLLAMA_API_BASE") is not None,
+            "ollama": os.environ.get("OLLAMA_API_BASE") is not None or os.environ.get("OLLAMA_BASE_URL") is not None,
             "openai": os.environ.get("OPENAI_API_KEY") is not None,
             "groq": os.environ.get("GROQ_API_KEY") is not None,
             "xai": os.environ.get("XAI_API_KEY") is not None,
