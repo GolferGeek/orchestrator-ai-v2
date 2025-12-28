@@ -30,7 +30,7 @@ export interface JourneyTemplate {
   created_at: string;
 }
 
-// Helper to get orch_flow schema client
+// Helper to get orch_flow schema client (for client onboarding journey)
 const orchFlowSchema = () => supabase.schema('orch_flow');
 
 export function useJourneyTemplates() {

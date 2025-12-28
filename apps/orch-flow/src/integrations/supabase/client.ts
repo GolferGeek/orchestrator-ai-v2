@@ -5,6 +5,14 @@ import type { Database } from './types';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+// Debug: Log environment variables (remove in production)
+if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+  console.error('❌ Missing Supabase environment variables:');
+  console.error('  VITE_SUPABASE_URL:', SUPABASE_URL || 'UNDEFINED');
+  console.error('  VITE_SUPABASE_ANON_KEY:', SUPABASE_PUBLISHABLE_KEY ? 'SET' : 'UNDEFINED');
+  console.error('  All VITE_ vars:', Object.keys(import.meta.env).filter(k => k.startsWith('VITE_')));
+}
+
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
@@ -15,6 +23,6 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   },
   db: {
-    schema: 'orch_flow'
+    schema: 'orch_flow'  // Orch-Flow uses orch_flow schema for all tables
   }
 });

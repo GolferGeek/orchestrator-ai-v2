@@ -1,11 +1,27 @@
 {
-  "timestamp": "2025-12-18-093804",
-  "created_at": "2025-12-18 15:38:04 UTC",
-  "type": "snapshot-no-n8n",
-  "description": "Database snapshot excluding n8n schema for intern setup",
-  "schemas_included": ["public", "auth", "storage", "company", "observability", "rag", "marketing"],
-  "schemas_excluded": ["n8n"],
-  "seed_tables": ["agents", "providers", "models"],
+  "timestamp": "2025-12-04-125206",
+  "date": "2025-12-04",
+  "created_at": "2025-12-04 18:52:08 UTC",
+  "type": "intern-snapshot",
+  "description": "Complete database snapshot for intern/new developer setup",
+  "schemas": ["public", "rag_data", "company_data", "n8n_data", "langgraph"],
+  "includes": {
+    "schema": true,
+    "auth_users": true,
+    "public_users": true,
+    "llm_providers": true,
+    "llm_models": true,
+    "organizations": true,
+    "agents": true,
+    "rbac": true,
+    "system_settings": true,
+    "organization_credentials": true,
+    "pseudonym_dictionaries": true,
+    "redaction_patterns": true
+  },
+  "purpose": "intern-setup",
+  "production_ready": true,
   "db_container": "supabase_db_api-dev",
-  "restore_command": "./scripts/apply-snapshot.sh snapshots/2025-12-18-093804"
+  "db_port": "6012",
+  "restore_command": "cd apps/api/supabase && ./scripts/restore-intern-snapshot.sh"
 }

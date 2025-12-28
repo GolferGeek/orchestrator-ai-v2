@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-// Helper to use orch_flow schema
+// Helper to use orch_flow schema (where Orch-Flow team collaboration tables are)
 const orchFlow = () => supabase.schema('orch_flow');
 
 export type TaskStatus = 'projects' | 'this_week' | 'today' | 'in_progress' | 'done';
@@ -61,7 +61,7 @@ export function useSharedTasks(filterUserId?: string, includeCollaborated?: bool
   useEffect(() => {
     const fetchTasks = async () => {
       let query = orchFlow()
-        .from('shared_tasks')
+        .from('shared_tasks')  // Separate table from public.tasks (used by conversation agent)
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -139,7 +139,7 @@ export function useSharedTasks(filterUserId?: string, includeCollaborated?: bool
 
   const addTask = useCallback(async (title: string, status: TaskStatus = 'today', assignedTo?: string, userId?: string, parentTaskId?: string, projectId?: string | null, sprintId?: string | null, taskTeamId?: string | null) => {
     const isCompleted = status === 'done';
-    const { error } = await orchFlow().from('shared_tasks').insert({
+    const { error } = await orchFlow().from('tasks').insert({
       title,
       status,
       is_completed: isCompleted,
@@ -163,7 +163,7 @@ export function useSharedTasks(filterUserId?: string, includeCollaborated?: bool
     setTasks(prev => prev.map(t => t.id === id ? { ...t, status, is_completed: isCompleted } : t));
 
     const { error } = await orchFlow()
-      .from('shared_tasks')
+      .from('tasks')
       .update({
         status,
         is_completed: isCompleted,
@@ -182,7 +182,7 @@ export function useSharedTasks(filterUserId?: string, includeCollaborated?: bool
     setTasks(prev => prev.map(t => t.id === id ? { ...t, is_completed: !isCompleted, status: newStatus } : t));
 
     const { error } = await orchFlow()
-      .from('shared_tasks')
+      .from('tasks')
       .update({
         is_completed: !isCompleted,
         status: newStatus,
@@ -199,7 +199,7 @@ export function useSharedTasks(filterUserId?: string, includeCollaborated?: bool
     // Optimistic update
     setTasks(prev => prev.filter(t => t.id !== id));
 
-    const { error } = await orchFlow().from('shared_tasks').delete().eq('id', id);
+    const { error } = await orchFlow().from('tasks').delete().eq('id', id);
 
     if (error) {
       console.error('Error deleting task:', error);
@@ -211,7 +211,7 @@ export function useSharedTasks(filterUserId?: string, includeCollaborated?: bool
     setTasks(prev => prev.map(t => t.id === id ? { ...t, user_id: userId, assigned_to: assignedTo } : t));
 
     const { error } = await orchFlow()
-      .from('shared_tasks')
+      .from('tasks')
       .update({
         user_id: userId,
         assigned_to: assignedTo,
@@ -231,7 +231,7 @@ export function useSharedTasks(filterUserId?: string, includeCollaborated?: bool
     setTasks(prev => prev.map(t => t.id === id ? { ...t, pomodoro_count: newCount } : t));
 
     const { error } = await orchFlow()
-      .from('shared_tasks')
+      .from('tasks')
       .update({
         pomodoro_count: newCount,
         updated_at: new Date().toISOString(),
@@ -248,7 +248,7 @@ export function useSharedTasks(filterUserId?: string, includeCollaborated?: bool
     setTasks(prev => prev.map(t => t.id === id ? { ...t, sprint_id: sprintId } : t));
 
     const { error } = await orchFlow()
-      .from('shared_tasks')
+      .from('tasks')
       .update({
         sprint_id: sprintId,
         updated_at: new Date().toISOString(),
@@ -265,7 +265,7 @@ export function useSharedTasks(filterUserId?: string, includeCollaborated?: bool
     setTasks(prev => prev.map(t => t.id === id ? { ...t, due_date: dueDate } : t));
 
     const { error } = await orchFlow()
-      .from('shared_tasks')
+      .from('tasks')
       .update({
         due_date: dueDate,
         updated_at: new Date().toISOString(),
