@@ -23,7 +23,11 @@
     "test:e2e:user-management": "jest --config ./testing/test/jest-e2e.json user-management.e2e-spec",
     "agents:smoke": "API_BASE=http://localhost:6100 node ../../scripts/agents/smoke-validate-seeds.mjs",
     "agents:seed:blog": "bash ../../scripts/agents/seed-agent.sh ../../docs/feature/matt/payloads/blog_post_writer.json",
-    "agents:seed:hr": "bash ../../scripts/agents/seed-agent.sh ../../docs/feature/matt/payloads/hr_assistant.json"
+    "agents:seed:hr": "bash ../../scripts/agents/seed-agent.sh ../../docs/feature/matt/payloads/hr_assistant.json",
+    "db:restore": "cd supabase/scripts && ./restore-database.sh",
+    "db:post-restore": "cd supabase/scripts && ./post-restore-fix.sh",
+    "db:verify": "cd supabase/scripts && ./verify-data.sh",
+    "db:fix-all": "cd supabase/scripts && ./post-restore-fix.sh && ./verify-data.sh"
   },
   "dependencies": {
     "@anthropic-ai/claude-code": "^0.2.57",
