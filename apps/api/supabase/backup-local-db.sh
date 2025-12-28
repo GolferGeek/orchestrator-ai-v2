@@ -9,7 +9,8 @@ set -e
 # Configuration
 BACKUP_DIR="$(dirname "$0")/backups"
 PROJECT_NAME="api"
-DB_CONTAINER="supabase_db_${PROJECT_NAME}"
+# Try to detect the actual container name, default to api-dev
+DB_CONTAINER="supabase_db_${PROJECT_NAME}-dev"
 MAX_BACKUPS=10
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 BACKUP_FILE="${BACKUP_DIR}/supabase_backup_${TIMESTAMP}.sql"
@@ -49,11 +50,17 @@ check_docker() {
 
 # Check if Supabase container is running
 check_supabase() {
-    if ! docker ps --format "table {{.Names}}" | grep -q "^${DB_CONTAINER}$"; then
-        error "Supabase database container '${DB_CONTAINER}' is not running."
-        error "Please run 'supabase start' first."
+    # Try to find the actual container name
+    ACTUAL_CONTAINER=$(docker ps --format "{{.Names}}" | grep -E "supabase_db_(api-dev|api)$" | head -1)
+    if [ -z "$ACTUAL_CONTAINER" ]; then
+        error "Supabase database container not found."
+        error "Looking for: supabase_db_api-dev or supabase_db_api"
+        error "Please run 'cd apps/api && supabase start' first."
         exit 1
     fi
+    # Update DB_CONTAINER to the actual running container
+    DB_CONTAINER="$ACTUAL_CONTAINER"
+    log "Using container: $DB_CONTAINER"
 }
 
 # Create backup directory if it doesn't exist
@@ -142,25 +149,50 @@ restore_database() {
         exit 1
     fi
     
-    warning "This will COMPLETELY REPLACE your current database!"
+    warning "This will COMPLETELY DROP and REPLACE your current database!"
+    warning "All existing data will be PERMANENTLY DELETED!"
     warning "Backup file: $backup_file"
     
     if [ "$FORCE_MODE" != "true" ]; then
-        echo -n "Are you sure you want to continue? (yes/no): "
+        echo -n "Type 'DROP AND RESTORE' to continue: "
         read -r confirmation
-        if [ "$confirmation" != "yes" ]; then
+        if [ "$confirmation" != "DROP AND RESTORE" ]; then
             log "Restore cancelled by user"
             exit 0
         fi
     fi
     
-    log "Starting database restore from: $backup_file"
+    log "Starting clean database restore from: $backup_file"
     
-    # Restore the database
-    if docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres < "$backup_file"; then
+    # Step 1: Terminate active connections
+    log "Terminating active database connections..."
+    docker exec -e PGPASSWORD=postgres "$DB_CONTAINER" \
+        psql -h localhost -p 5432 -U postgres -d postgres \
+        -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'postgres' AND pid != pg_backend_pid();" \
+        2>&1 | grep -v "NOTICE:" || true
+    
+    # Step 2: Drop the database completely
+    log "Dropping existing database..."
+    docker exec -e PGPASSWORD=postgres "$DB_CONTAINER" \
+        psql -h localhost -p 5432 -U postgres -d template1 \
+        -c "DROP DATABASE IF EXISTS postgres;" \
+        2>&1 | grep -v "NOTICE:" || true
+    
+    # Step 3: Create fresh database
+    log "Creating fresh database..."
+    docker exec -e PGPASSWORD=postgres "$DB_CONTAINER" \
+        psql -h localhost -p 5432 -U postgres -d template1 \
+        -c "CREATE DATABASE postgres;" \
+        2>&1 | grep -v "NOTICE:" || true
+    
+    # Step 4: Restore from backup
+    log "Restoring from backup (this may take a few minutes)..."
+    if docker exec -i -e PGPASSWORD=postgres "$DB_CONTAINER" \
+        psql -h localhost -p 5432 -U postgres -d postgres \
+        -v ON_ERROR_STOP=1 < "$backup_file" 2>&1 | grep -v "NOTICE:" | grep -v "already exists" || true; then
         success "Database restore completed successfully!"
     else
-        error "Database restore failed!"
+        error "Database restore failed! Check the output above for errors."
         exit 1
     fi
 }
