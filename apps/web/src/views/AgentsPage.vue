@@ -110,7 +110,7 @@ import {
 import { logOutOutline, starOutline, chatbubblesOutline, documentTextOutline, sunnyOutline, moonOutline } from 'ionicons/icons';
 import { useAuthStore } from '@/stores/rbacStore';
 import { conversation } from '@/services/conversationHelpers';
-import { useConversationsStore } from '@/stores/conversationsStore';
+import { conversationsService } from '@/services/conversationsService';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
 import { useUserPreferencesStore } from '@/stores/userPreferencesStore';
 import { useRouter } from 'vue-router';
@@ -120,7 +120,6 @@ import SuperAdminCommandButton from '@/components/super-admin/SuperAdminCommandB
 import SuperAdminCommandPanel from '@/components/super-admin/SuperAdminCommandPanel.vue';
 
 const auth = useAuthStore();
-const conversationsStore = useConversationsStore();
 const chatUiStore = useChatUiStore();
 const userPreferencesStore = useUserPreferencesStore();
 const router = useRouter();
@@ -193,7 +192,7 @@ const handleAgentSelected = async (agent: Record<string, unknown>) => {
     const conversationId = await conversation.createConversation(agent);
 
     // Refresh conversations list to show the new conversation in sidebar
-    await conversationsStore.fetchConversations(true);
+    await conversationsService.fetchConversations(true);
 
     // Set flag in sessionStorage to indicate active conversation for admin users
     sessionStorage.setItem('activeConversation', 'true');

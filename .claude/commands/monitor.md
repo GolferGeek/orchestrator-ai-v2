@@ -24,6 +24,8 @@ Run codebase monitoring analysis to analyze files hierarchically, evaluate codeb
   - `apps/web` - Analyze web app only
   - `apps/api` - Analyze API app only
   - `apps/langgraph` - Analyze LangGraph app only
+  - `apps/orch-flow` - Analyze orch-flow app only
+  - `apps/open-notebook` - Analyze open-notebook app only
   - `project` - Analyze project-level files only (excludes apps/)
   - (no scope) - Analyze entire project including apps (default)
 - `--full` (optional): Full analysis ignoring last monitor date (default is incremental)
@@ -48,6 +50,15 @@ Run codebase monitoring analysis to analyze files hierarchically, evaluate codeb
 
 /monitor apps/web --full
 # Analyze web app (full analysis)
+
+/monitor apps/langgraph
+# Analyze LangGraph app only (incremental)
+
+/monitor apps/orch-flow
+# Analyze orch-flow app only (incremental)
+
+/monitor apps/open-notebook
+# Analyze open-notebook app only (incremental)
 ```
 
 ## Workflow
@@ -63,6 +74,8 @@ Run codebase monitoring analysis to analyze files hierarchically, evaluate codeb
      - `.monitor/apps-web.json` - For web app
      - `.monitor/apps-api.json` - For API app
      - `.monitor/apps-langgraph.json` - For LangGraph app
+     - `.monitor/apps-orch-flow.json` - For orch-flow app
+     - `.monitor/apps-open-notebook.json` - For open-notebook app
    - Load existing artifact
    - Extract `lastMonitorDate` for incremental analysis
 
@@ -103,6 +116,8 @@ Run codebase monitoring analysis to analyze files hierarchically, evaluate codeb
 - `.monitor/apps-web.json` - Web app
 - `.monitor/apps-api.json` - API app
 - `.monitor/apps-langgraph.json` - LangGraph app
+- `.monitor/apps-orch-flow.json` - Orch-flow app
+- `.monitor/apps-open-notebook.json` - Open-notebook app
 
 ## Project-Level Scope
 

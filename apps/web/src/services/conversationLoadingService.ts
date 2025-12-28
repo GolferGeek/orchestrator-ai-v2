@@ -1,0 +1,217 @@
+/**
+ * Conversation Loading Service
+ *
+ * Handles complex conversation loading and initialization logic.
+ * This service orchestrates loading conversations from query parameters,
+ * ensuring all dependencies (agents, messages) are loaded and ExecutionContext
+ * is properly initialized.
+ *
+ * Architecture Layer: Service
+ * - Makes API calls
+ * - Coordinates multiple services
+ * - Updates stores after success
+ * - Contains business logic
+ */
+
+import { conversationCrudService } from '@/services/conversation/conversationCrudService';
+import { conversationMessageService } from '@/services/conversation/conversationMessageService';
+import { conversationFactoryService } from '@/services/conversation/conversationFactoryService';
+import { useAgentsStore } from '@/stores/agentsStore';
+import { useConversationsStore } from '@/stores/conversationsStore';
+import { useChatUiStore } from '@/stores/ui/chatUiStore';
+import { useExecutionContextStore } from '@/stores/executionContextStore';
+import { useAuthStore } from '@/stores/rbacStore';
+import { useLLMPreferencesStore } from '@/stores/llmPreferencesStore';
+import type { Router, LocationQuery } from 'vue-router';
+
+/**
+ * Result of conversation loading operation
+ */
+export interface ConversationLoadResult {
+  success: boolean;
+  conversationId?: string;
+  error?: string;
+}
+
+/**
+ * Service for loading conversations from various sources
+ */
+class ConversationLoadingService {
+  /**
+   * Load and initialize a conversation from query parameters.
+   * This orchestrates the entire flow:
+   * 1. Check if conversation exists locally
+   * 2. Load from backend if needed
+   * 3. Load messages
+   * 4. Validate agent exists
+   * 5. Update stores
+   * 6. Initialize ExecutionContext
+   * 7. Clean up query parameters
+   *
+   * @param conversationId - The conversation ID from query parameter
+   * @param router - Vue router instance for cleaning up query params
+   * @param currentRoute - Current route object
+   * @returns Result indicating success or failure
+   */
+  async loadConversationFromQuery(
+    conversationId: string,
+    router: Router,
+    currentRoute: { name: string | null | undefined; params: Record<string, unknown>; query: LocationQuery }
+  ): Promise<ConversationLoadResult> {
+    try {
+      // Check authentication
+      const authStore = useAuthStore();
+      if (!authStore.isAuthenticated) {
+        return {
+          success: false,
+          error: 'User not authenticated',
+        };
+      }
+
+      const conversationsStore = useConversationsStore();
+      const chatUiStore = useChatUiStore();
+      const agentsStore = useAgentsStore();
+
+      // Check if conversation is already loaded with messages
+      const existingConversation = conversationsStore.conversationById(conversationId);
+      const existingMessages = conversationsStore.messagesByConversation(conversationId);
+
+      if (existingConversation && existingMessages && existingMessages.length > 0) {
+        // Just switch to it - already loaded
+        chatUiStore.setActiveConversation(conversationId);
+        await this.cleanupQueryParameter(router, currentRoute);
+        return {
+          success: true,
+          conversationId,
+        };
+      }
+
+      // Load conversation metadata and messages from backend
+      const backendConversation = await conversationCrudService.getBackendConversation(conversationId);
+      const messages = await conversationMessageService.loadConversationMessages(conversationId);
+
+      // Ensure agents are loaded
+      if (!agentsStore.availableAgents || agentsStore.availableAgents.length === 0) {
+        await agentsStore.ensureAgentsLoaded();
+      }
+
+      // Find the agent for this conversation
+      const agent = agentsStore.availableAgents?.find(
+        (a) => a.name === backendConversation.agentName
+      );
+
+      if (!agent) {
+        console.error('Agent not found for conversation:', backendConversation.agentName);
+        return {
+          success: false,
+          error: `Agent not found: ${backendConversation.agentName}`,
+        };
+      }
+
+      // Create the conversation object with proper date
+      const createdAt = backendConversation.createdAt
+        ? new Date(backendConversation.createdAt)
+        : new Date();
+      const loadedConversation = conversationFactoryService.createConversationObject(agent, createdAt);
+      loadedConversation.id = conversationId; // Override the generated ID with the actual backend ID
+      loadedConversation.title = backendConversation.title || loadedConversation.title;
+
+      // Add conversation to the store
+      if (existingConversation) {
+        conversationsStore.updateConversation(conversationId, loadedConversation);
+      } else {
+        conversationsStore.setConversation(loadedConversation);
+      }
+
+      // Set messages separately (the store manages messages in a separate Map)
+      conversationsStore.setMessages(conversationId, messages);
+
+      // Verify messages were set - accessing to trigger reactivity
+      void conversationsStore.messagesByConversation(conversationId);
+
+      // Initialize ExecutionContext for this conversation
+      await this.initializeExecutionContextForConversation(
+        conversationId,
+        agent.name,
+        agent.type || 'context'
+      );
+
+      // Set as active conversation
+      chatUiStore.setActiveConversation(conversationId);
+
+      // Clear the query parameter to avoid re-opening on refresh
+      await this.cleanupQueryParameter(router, currentRoute);
+
+      return {
+        success: true,
+        conversationId,
+      };
+    } catch (error) {
+      console.error('Failed to load conversation from query:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  /**
+   * Initialize ExecutionContext for a loaded conversation.
+   * This ensures the context capsule is properly set up when loading
+   * an existing conversation from the backend.
+   *
+   * @param conversationId - The conversation ID
+   * @param agentSlug - The agent slug
+   * @param agentType - The agent type
+   */
+  private async initializeExecutionContextForConversation(
+    conversationId: string,
+    agentSlug: string,
+    agentType: string
+  ): Promise<void> {
+    const authStore = useAuthStore();
+    const llmPreferencesStore = useLLMPreferencesStore();
+    const executionContextStore = useExecutionContextStore();
+
+    const orgSlug = authStore.currentOrganization || 'demo-org';
+    const userId = authStore.user?.id || 'anonymous';
+
+    executionContextStore.initialize({
+      orgSlug,
+      userId,
+      conversationId,
+      agentSlug,
+      agentType,
+      provider: llmPreferencesStore.selectedProvider?.name || 'ollama',
+      model: llmPreferencesStore.selectedModel?.modelName || 'llama3.2:1b',
+      // taskId will be generated by the store
+      // planId and deliverableId will default to NIL_UUID
+    });
+  }
+
+  /**
+   * Clean up the conversationId query parameter after loading.
+   * This prevents the conversation from re-loading on page refresh.
+   *
+   * @param router - Vue router instance
+   * @param currentRoute - Current route object
+   */
+  private async cleanupQueryParameter(
+    router: Router,
+    currentRoute: { name: string | null | undefined; params: Record<string, unknown>; query: LocationQuery }
+  ): Promise<void> {
+    try {
+      await router.replace({
+        name: currentRoute.name as string,
+        params: currentRoute.params,
+        query: { ...currentRoute.query, conversationId: undefined },
+      });
+    } catch (error) {
+      // Router navigation errors are non-critical
+      console.warn('Failed to clean up query parameter:', error);
+    }
+  }
+}
+
+// Export singleton instance
+export const conversationLoadingService = new ConversationLoadingService();

@@ -25,7 +25,6 @@ import type {
   TaskData,
 } from '@/types/task';
 import type { AgentConversation } from '@/types/conversation';
-import { useAgentsStore } from '@/stores/agentsStore';
 
 // ============================================================================
 // Types
@@ -684,141 +683,10 @@ export const useConversationsStore = defineStore('conversations', () => {
   }
 
   // ============================================================================
-  // TEMPORARY ASYNC METHODS - TO BE REMOVED IN PHASE 2
-  // These methods wrap service calls for backward compatibility during migration
-  // Phase 2 will move all async logic to services/agent2agent/actions/
+  // DEPRECATED ASYNC METHODS - REMOVED
+  // All async operations have been moved to conversationsService.ts
+  // Use conversationsService.fetchConversations() and conversationsService.deleteConversation()
   // ============================================================================
-
-  /**
-   * @deprecated Phase 2: Move to converse.actions.ts
-   * Fetch conversations from API and update store
-   */
-  async function fetchConversations(_force = false): Promise<void> {
-    const agent2AgentConversationsService = await import('@/services/agent2AgentConversationsService').then(m => m.default);
-
-    setLoading('_global', true);
-    setError(null);
-
-    try {
-      const response = await agent2AgentConversationsService.listConversations({
-        limit: 1000,
-      });
-
-      // Get agents store to look up agent data
-      const agentsStore = useAgentsStore();
-
-      // Map API response to our Conversation interface
-      const mappedConversations = response.conversations.map(conv => {
-        // Look up the agent to get execution modes (agents should already be loaded)
-        const agent = agentsStore.availableAgents?.find(a => a.name === conv.agentName);
-
-        const normalizeMode = (mode: string): 'immediate' | 'polling' | 'real-time' | 'auto' | null => {
-          switch (mode) {
-            case 'immediate':
-            case 'polling':
-            case 'real-time':
-            case 'auto':
-              return mode;
-            case 'websocket':
-              return 'real-time';
-            default:
-              return null;
-          }
-        };
-
-        // Extract execution modes from agent (check both formats)
-        const agentWithContext = agent as typeof agent & { context?: { execution_modes?: string[] } };
-        const rawModes = agent?.execution_modes ||
-                         agentWithContext?.context?.execution_modes ||
-                         ['immediate'];
-
-        const supportedModes = rawModes
-          .map((mode: string) => normalizeMode(mode))
-          .filter((mode): mode is 'immediate' | 'polling' | 'real-time' | 'auto' => mode !== null) as (
-            | 'immediate'
-            | 'polling'
-            | 'real-time'
-            | 'auto'
-          )[];
-
-        const validModes: ('immediate' | 'polling' | 'real-time' | 'auto')[] =
-          supportedModes.length > 0 ? supportedModes : ['immediate'];
-        const defaultMode: ('immediate' | 'polling' | 'real-time' | 'auto') =
-          (['auto', 'real-time', 'polling', 'immediate'] as const).find((mode) =>
-            validModes.includes(mode),
-          ) ?? validModes[0] ?? 'immediate';
-
-        const mappedConv = {
-          id: conv.id,
-          userId: conv.userId,
-          title: conv.metadata?.title || 'Untitled',
-          agentName: conv.agentName,
-          agentType: conv.agentType as AgentType,
-          organizationSlug: conv.organizationSlug,
-          createdAt: conv.createdAt,
-          updatedAt: conv.updatedAt,
-          startedAt: conv.startedAt,
-          endedAt: conv.endedAt,
-          lastActiveAt: conv.lastActiveAt,
-          taskCount: conv.taskCount || 0,
-          completedTasks: conv.completedTasks || 0,
-          failedTasks: conv.failedTasks || 0,
-          activeTasks: conv.activeTasks || 0,
-          metadata: conv.metadata,
-          // Add agent and execution mode fields
-          agent: agent,
-          executionMode: defaultMode,
-          supportedExecutionModes: validModes,
-          isExecutionModeOverride: false,
-        };
-
-        return mappedConv;
-      });
-
-      setConversations(mappedConversations);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch conversations';
-      setError(errorMessage);
-      throw err;
-    } finally {
-      setLoading('_global', false);
-    }
-  }
-
-  /**
-   * @deprecated Phase 2: Move to converse.actions.ts
-   * Delete conversation via API and update store
-   */
-  async function deleteConversation(conversationId: string): Promise<void> {
-    const { agentConversationsService } = await import('@/services/agentConversationsService');
-
-    try {
-      // Optimistically remove from store
-      removeConversation(conversationId);
-
-      // Make API call
-      await agentConversationsService.deleteConversation(conversationId);
-
-      // Close tabs and clean up deliverables
-      const { useChatUiStore } = await import('./ui/chatUiStore');
-      const { useDeliverablesStore } = await import('./deliverablesStore');
-
-      const chatUiStore = useChatUiStore();
-      const deliverablesStore = useDeliverablesStore();
-
-      chatUiStore.closeConversationTab(conversationId);
-
-      if (deliverablesStore.handleConversationDeleted) {
-        deliverablesStore.handleConversationDeleted(conversationId);
-      }
-    } catch (err) {
-      // Rollback by fetching fresh data
-      await fetchConversations(true);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to delete conversation';
-      setError(errorMessage);
-      throw err;
-    }
-  }
 
   // ============================================================================
   // RETURN PUBLIC API
@@ -883,10 +751,5 @@ export const useConversationsStore = defineStore('conversations', () => {
 
     // Clear all
     clearAll,
-
-    // TEMPORARY: Async methods for backward compatibility (Phase 1 only)
-    // @deprecated Phase 2: These will be moved to services/agent2agent/actions/
-    fetchConversations,
-    deleteConversation,
   };
 });

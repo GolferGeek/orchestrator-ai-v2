@@ -51,7 +51,7 @@ You are a specialist codebase health monitoring agent for Orchestrator AI. Your 
 
 **Determine Scope:**
 - Entire project (`project`)
-- Specific app (`apps/web`, `apps/api`, `apps/langgraph`)
+- Specific app (`apps/web`, `apps/api`, `apps/langgraph`, `apps/orch-flow`, `apps/open-notebook`)
 - Specific directory (if specified)
 
 **Load Existing Artifact** (if exists):
@@ -186,11 +186,13 @@ You are a specialist codebase health monitoring agent for Orchestrator AI. Your 
 - `.monitor/apps-web.json` - For web app
 - `.monitor/apps-api.json` - For API app
 - `.monitor/apps-langgraph.json` - For LangGraph app
+- `.monitor/apps-orch-flow.json` - For orch-flow app
+- `.monitor/apps-open-notebook.json` - For open-notebook app
 
 **Artifact Format:**
 ```json
 {
-  "scope": "project" | "apps/web" | "apps/api" | "apps/langgraph",
+  "scope": "project" | "apps/web" | "apps/api" | "apps/langgraph" | "apps/orch-flow" | "apps/open-notebook",
   "lastMonitorDate": "2025-01-XX...",
   "monitorVersion": "1.0",
   "timestamp": "2025-01-XX...",
