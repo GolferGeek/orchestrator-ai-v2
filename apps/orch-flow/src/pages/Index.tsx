@@ -7,7 +7,6 @@ import { KanbanBoard } from '@/components/KanbanBoard';
 import { TeamSidebar } from '@/components/TeamSidebar';
 import { NotificationBell } from '@/components/NotificationBell';
 import { OnlineUsers } from '@/components/OnlineUsers';
-import { OpenNotebookRedirect } from '@/components/OpenNotebookRedirect';
 import { MessagesTab } from '@/components/MessagesTab';
 import { ClaudeCodeButton, ClaudeCodePanel } from '@/components/claude';
 import { useAuth } from '@/hooks/useAuth';
@@ -17,7 +16,7 @@ import { useSharedTasks } from '@/hooks/useSharedTasks';
 import { usePartyFoul } from '@/hooks/usePartyFoul';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Clock, LogOut, LayoutGrid, Timer as TimerIcon, FolderOpen, StickyNote, MessageSquare } from 'lucide-react';
+import { Clock, LogOut, LayoutGrid, Timer as TimerIcon, MessageSquare } from 'lucide-react';
 
 const Index = () => {
   const { user, profile, loading, signOut } = useAuth();
@@ -89,14 +88,6 @@ const Index = () => {
                 <LayoutGrid className="w-4 h-4" />
                 Kanban
               </TabsTrigger>
-              <TabsTrigger value="files" className="gap-2">
-                <FolderOpen className="w-4 h-4" />
-                Files
-              </TabsTrigger>
-              <TabsTrigger value="notes" className="gap-2">
-                <StickyNote className="w-4 h-4" />
-                Notes
-              </TabsTrigger>
               <TabsTrigger value="messages" className="gap-2">
                 <MessageSquare className="w-4 h-4" />
                 Messages
@@ -123,7 +114,7 @@ const Index = () => {
         {/* Mobile tabs */}
         <div className="md:hidden mt-4">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="w-full grid grid-cols-5">
+            <TabsList className="w-full grid grid-cols-3">
               <TabsTrigger value="timer" className="gap-1 text-xs">
                 <TimerIcon className="w-3 h-3" />
                 Timer
@@ -131,14 +122,6 @@ const Index = () => {
               <TabsTrigger value="kanban" className="gap-1 text-xs">
                 <LayoutGrid className="w-3 h-3" />
                 Kanban
-              </TabsTrigger>
-              <TabsTrigger value="files" className="gap-1 text-xs">
-                <FolderOpen className="w-3 h-3" />
-                Files
-              </TabsTrigger>
-              <TabsTrigger value="notes" className="gap-1 text-xs">
-                <StickyNote className="w-3 h-3" />
-                Notes
               </TabsTrigger>
               <TabsTrigger value="messages" className="gap-1 text-xs">
                 <MessageSquare className="w-3 h-3" />
@@ -184,18 +167,6 @@ const Index = () => {
               />
             </main>
           </div>
-        )}
-
-        {activeTab === 'files' && (
-          <main className="flex-1 p-6 overflow-hidden">
-            <OpenNotebookRedirect type="files" teamId={currentTeam?.id} />
-          </main>
-        )}
-
-        {activeTab === 'notes' && (
-          <main className="flex-1 p-6 overflow-hidden">
-            <OpenNotebookRedirect type="notes" teamId={currentTeam?.id} />
-          </main>
         )}
 
         {activeTab === 'messages' && (

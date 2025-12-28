@@ -57,9 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const fetchProfile = async (userId: string) => {
-    // profiles table is in public schema, not orch_flow
+    // profiles table is in orch_flow schema
     const { data, error } = await supabase
-      .schema('public')
       .from('profiles')
       .select('id, display_name')
       .eq('id', userId)

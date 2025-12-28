@@ -61,7 +61,13 @@ interface TeamContextState {
 const getApiBaseUrl = () => {
   // In development, this is typically http://localhost:6100
   // In production, this would be the API server URL
-  return import.meta.env.VITE_API_URL || 'http://127.0.0.1:6100'
+  // Next.js client-side: use NEXT_PUBLIC_ prefix for env vars exposed to browser
+  if (typeof window !== 'undefined') {
+    // Client-side: use NEXT_PUBLIC_ env var or default
+    return (process.env.NEXT_PUBLIC_API_URL as string) || 'http://127.0.0.1:6100'
+  }
+  // Server-side: use regular env var
+  return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:6100'
 }
 
 export const useTeamContextStore = create<TeamContextState>()(

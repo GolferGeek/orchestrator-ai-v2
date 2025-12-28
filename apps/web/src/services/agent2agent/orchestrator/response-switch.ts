@@ -294,9 +294,36 @@ export async function handleA2AResponse(response: TaskResponse): Promise<A2AResu
       }
 
       console.log('🔍 [RESPONSE-SWITCH] BUILD mode - returning result:', { type: 'deliverable', hasDeliverable: !!deliverable, hasVersion: !!version });
+
+      // If no deliverable in BUILD response, check if it's a conversational response
+      // RAG agents return isConversational: true when they have no results or access
+      if (!deliverable) {
+        const isConversational = (content as { isConversational?: boolean })?.isConversational;
+        const message = (content as { message?: string })?.message;
+
+        if (isConversational && message) {
+          console.log('🔍 [RESPONSE-SWITCH] BUILD mode - conversational response (no deliverable):', message);
+          return {
+            type: 'message',
+            message,
+            metadata: metadata as Record<string, unknown>,
+            context: responseWithContext.context || ctx,
+          };
+        }
+
+        // Not conversational and no deliverable - this is an error
+        const errorMsg = (metadata?.reason as string) || (content?.error as string) || 'Build completed but no deliverable was created';
+        console.error('🔍 [RESPONSE-SWITCH] BUILD mode - no deliverable in response:', errorMsg);
+        return {
+          type: 'error',
+          error: errorMsg,
+          context: responseWithContext.context || ctx,
+        };
+      }
+
       return {
         type: 'deliverable',
-        deliverable: deliverable!,
+        deliverable,
         version,
         context: responseWithContext.context || ctx,
       };

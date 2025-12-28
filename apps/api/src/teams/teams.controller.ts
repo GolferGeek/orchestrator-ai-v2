@@ -90,7 +90,10 @@ export class TeamsController {
     status: 201,
     description: 'Team created successfully',
   })
-  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
   @ApiResponse({ status: 409, description: 'Team name already exists' })
   async createGlobalTeam(
     @Body() dto: CreateTeamDto,
@@ -127,14 +130,18 @@ export class TeamsController {
   @Post('orgs/:orgSlug/teams')
   @ApiOperation({
     summary: 'Create team in organization',
-    description: 'Creates a new team in the specified organization (admin only)',
+    description:
+      'Creates a new team in the specified organization (admin only)',
   })
   @ApiParam({ name: 'orgSlug', description: 'Organization slug' })
   @ApiResponse({
     status: 201,
     description: 'Team created successfully',
   })
-  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
   @ApiResponse({ status: 409, description: 'Team name already exists' })
   async createOrgTeam(
     @Param('orgSlug') orgSlug: string,
@@ -178,7 +185,10 @@ export class TeamsController {
     status: 200,
     description: 'Team updated successfully',
   })
-  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
   @ApiResponse({ status: 404, description: 'Team not found' })
   async updateTeam(
     @Param('teamId') teamId: string,
@@ -195,7 +205,10 @@ export class TeamsController {
   })
   @ApiParam({ name: 'teamId', description: 'Team ID (UUID)' })
   @ApiResponse({ status: 200, description: 'Team deleted successfully' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
   @ApiResponse({ status: 404, description: 'Team not found' })
   async deleteTeam(
     @Param('teamId') teamId: string,
@@ -236,7 +249,10 @@ export class TeamsController {
     status: 201,
     description: 'Member added successfully',
   })
-  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
   @ApiResponse({ status: 404, description: 'Team not found' })
   @ApiResponse({ status: 409, description: 'User is already a member' })
   async addTeamMember(
@@ -263,7 +279,10 @@ export class TeamsController {
     status: 200,
     description: 'Member role updated successfully',
   })
-  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
   @ApiResponse({ status: 404, description: 'Team member not found' })
   async updateTeamMember(
     @Param('teamId') teamId: string,

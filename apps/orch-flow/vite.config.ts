@@ -26,6 +26,13 @@ export default defineConfig(({ mode }) => {
     server: {
       host: "::",
       port,
+      hmr: {
+        // Explicit HMR configuration for WebSocket connection
+        // When using host: "::", we need to tell the browser where to connect
+        host: 'localhost',
+        port: port,
+        protocol: 'ws'
+      }
     },
     plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
     resolve: {

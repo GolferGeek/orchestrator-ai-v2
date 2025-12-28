@@ -17,7 +17,7 @@ import {
 
 interface TeamDbRow {
   id: string;
-  org_slug: string | null;  // Nullable for global teams
+  org_slug: string | null; // Nullable for global teams
   name: string;
   description?: string;
   created_by?: string;
@@ -41,7 +41,7 @@ interface UserTeamDbRow {
   team_id: string;
   team_name: string;
   team_description?: string;
-  org_slug: string | null;  // Nullable for global teams
+  org_slug: string | null; // Nullable for global teams
   member_role: string;
   joined_at: string;
 }
@@ -291,10 +291,7 @@ export class TeamsService {
     const team = await this.getTeamById(teamId);
 
     // Verify user has admin access
-    const isAdmin = await this.rbacService.isAdmin(
-      userId,
-      team.orgSlug ?? '*',
-    );
+    const isAdmin = await this.rbacService.isAdmin(userId, team.orgSlug ?? '*');
     if (!isAdmin) {
       throw new ForbiddenException('Only admins can update teams');
     }
@@ -339,10 +336,7 @@ export class TeamsService {
     const team = await this.getTeamById(teamId);
 
     // Verify user has admin access
-    const isAdmin = await this.rbacService.isAdmin(
-      userId,
-      team.orgSlug ?? '*',
-    );
+    const isAdmin = await this.rbacService.isAdmin(userId, team.orgSlug ?? '*');
     if (!isAdmin) {
       throw new ForbiddenException('Only admins can delete teams');
     }
@@ -556,9 +550,7 @@ export class TeamsService {
       team.orgSlug ?? '*',
     );
     if (!isAdmin && removedBy !== userId) {
-      throw new ForbiddenException(
-        'Only admins can remove other team members',
-      );
+      throw new ForbiddenException('Only admins can remove other team members');
     }
 
     const { error } = await this.supabase

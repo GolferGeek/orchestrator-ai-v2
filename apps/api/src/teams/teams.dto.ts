@@ -21,7 +21,9 @@ export class CreateTeamDto {
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ description: 'Organization slug (optional - null for global teams)' })
+  @ApiPropertyOptional({
+    description: 'Organization slug (optional - null for global teams)',
+  })
   @IsOptional()
   @IsString()
   orgSlug?: string;
@@ -66,7 +68,7 @@ export class UpdateTeamMemberDto {
 
 export interface TeamResponseDto {
   id: string;
-  orgSlug?: string | null;  // Nullable for global teams
+  orgSlug?: string | null; // Nullable for global teams
   name: string;
   description?: string;
   memberCount: number;
@@ -88,7 +90,7 @@ export interface UserTeamResponseDto {
   id: string;
   name: string;
   description?: string;
-  orgSlug?: string | null;  // Nullable for global teams
+  orgSlug?: string | null; // Nullable for global teams
   role: string;
   joinedAt: Date;
 }
