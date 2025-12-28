@@ -23,6 +23,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
 import { ObservabilityModule } from './observability/observability.module';
 import { RagModule } from './rag/rag.module';
 import { RbacModule } from './rbac/rbac.module';
+import { TeamsModule } from './teams/teams.module';
 import { OrganizationsModule } from './admin/organizations/organizations.module';
 import { MarketingModule } from './marketing/marketing.module';
 import { SuperAdminModule } from './super-admin/super-admin.module';
@@ -62,6 +63,7 @@ import { SuperAdminModule } from './super-admin/super-admin.module';
     ObservabilityModule,
     RagModule,
     RbacModule,
+    TeamsModule,
     OrganizationsModule,
     MarketingModule,
     SuperAdminModule, // Dev-only Claude Code panel for super admins

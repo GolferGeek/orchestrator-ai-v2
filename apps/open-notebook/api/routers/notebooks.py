@@ -1,8 +1,9 @@
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from loguru import logger
 
+from api.auth import get_ownership_context, get_ownership_filter
 from api.models import NotebookCreate, NotebookResponse, NotebookUpdate
 from open_notebook.database.repository import ensure_record_id, repo_query
 from open_notebook.domain.notebook import Notebook, Source
@@ -13,21 +14,40 @@ router = APIRouter()
 
 @router.get("/notebooks", response_model=List[NotebookResponse])
 async def get_notebooks(
+    request: Request,
     archived: Optional[bool] = Query(None, description="Filter by archived status"),
     order_by: str = Query("updated desc", description="Order by field and direction"),
 ):
     """Get all notebooks with optional filtering and ordering."""
     try:
-        # Build the query with counts
+        # Get ownership filter from auth context
+        user_id, team_id = get_ownership_filter(request)
+
+        # Build ownership filter clause
+        ownership_conditions = []
+        params = {}
+        if user_id is not None:
+            ownership_conditions.append("user_id = $user_id")
+            params["user_id"] = user_id
+        if team_id is not None:
+            ownership_conditions.append("team_id = $team_id")
+            params["team_id"] = team_id
+
+        where_clause = ""
+        if ownership_conditions:
+            where_clause = f"WHERE ({' OR '.join(ownership_conditions)})"
+
+        # Build the query with counts and ownership filter
         query = f"""
             SELECT *,
             count(<-reference.in) as source_count,
             count(<-artifact.in) as note_count
             FROM notebook
+            {where_clause}
             ORDER BY {order_by}
         """
 
-        result = await repo_query(query)
+        result = await repo_query(query, params) if params else await repo_query(query)
 
         # Filter by archived status if specified
         if archived is not None:
@@ -43,6 +63,9 @@ async def get_notebooks(
                 updated=str(nb.get("updated", "")),
                 source_count=nb.get("source_count", 0),
                 note_count=nb.get("note_count", 0),
+                user_id=nb.get("user_id"),
+                team_id=nb.get("team_id"),
+                created_by=nb.get("created_by"),
             )
             for nb in result
         ]
@@ -54,12 +77,22 @@ async def get_notebooks(
 
 
 @router.post("/notebooks", response_model=NotebookResponse)
-async def create_notebook(notebook: NotebookCreate):
+async def create_notebook(request: Request, notebook: NotebookCreate):
     """Create a new notebook."""
     try:
+        # Get ownership context from auth
+        ownership = get_ownership_context(request)
+
+        # If team_id is provided in request, use it; otherwise use personal ownership
+        team_id = notebook.team_id if notebook.team_id else ownership.team_id
+        user_id = None if team_id else ownership.user_id
+
         new_notebook = Notebook(
             name=notebook.name,
             description=notebook.description,
+            user_id=user_id,
+            team_id=team_id,
+            created_by=ownership.created_by,
         )
         await new_notebook.save()
 
@@ -72,6 +105,9 @@ async def create_notebook(notebook: NotebookCreate):
             updated=str(new_notebook.updated),
             source_count=0,  # New notebook has no sources
             note_count=0,  # New notebook has no notes
+            user_id=new_notebook.user_id,
+            team_id=new_notebook.team_id,
+            created_by=new_notebook.created_by,
         )
     except InvalidInputError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -83,9 +119,12 @@ async def create_notebook(notebook: NotebookCreate):
 
 
 @router.get("/notebooks/{notebook_id}", response_model=NotebookResponse)
-async def get_notebook(notebook_id: str):
+async def get_notebook(request: Request, notebook_id: str):
     """Get a specific notebook by ID."""
     try:
+        # Get ownership filter for access check
+        user_id, team_id = get_ownership_filter(request)
+
         # Query with counts for single notebook
         query = """
             SELECT *,
@@ -99,6 +138,18 @@ async def get_notebook(notebook_id: str):
             raise HTTPException(status_code=404, detail="Notebook not found")
 
         nb = result[0]
+
+        # Check ownership access
+        nb_user_id = nb.get("user_id")
+        nb_team_id = nb.get("team_id")
+        has_access = (
+            (user_id and nb_user_id == user_id) or
+            (team_id and nb_team_id == team_id) or
+            (nb_user_id is None and nb_team_id is None)  # Legacy data without ownership
+        )
+        if not has_access:
+            raise HTTPException(status_code=403, detail="Access denied")
+
         return NotebookResponse(
             id=str(nb.get("id", "")),
             name=nb.get("name", ""),
@@ -108,6 +159,9 @@ async def get_notebook(notebook_id: str):
             updated=str(nb.get("updated", "")),
             source_count=nb.get("source_count", 0),
             note_count=nb.get("note_count", 0),
+            user_id=nb.get("user_id"),
+            team_id=nb.get("team_id"),
+            created_by=nb.get("created_by"),
         )
     except HTTPException:
         raise

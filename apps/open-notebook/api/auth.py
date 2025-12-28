@@ -1,5 +1,6 @@
 import os
-from typing import Optional
+from dataclasses import dataclass
+from typing import Optional, Tuple
 
 from fastapi import HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -14,6 +15,62 @@ try:
 except ImportError:
     SUPABASE_AVAILABLE = False
     logger.warning("Supabase not available. Install with: pip install supabase")
+
+
+@dataclass
+class OwnershipContext:
+    """Context for multi-tenancy ownership."""
+    user_id: Optional[str] = None  # Personal owner (Supabase user ID)
+    team_id: Optional[str] = None  # Team owner (from Orch-Flow teams)
+    created_by: Optional[str] = None  # Who performed the action
+
+
+def get_ownership_context(request: Request) -> OwnershipContext:
+    """
+    Extract ownership context from request state and headers.
+
+    Priority:
+    1. X-Team-ID header for team context
+    2. User ID from authenticated user for personal context
+
+    Returns OwnershipContext with:
+    - user_id set (personal) OR team_id set (team)
+    - created_by always set to authenticated user ID
+    """
+    user = getattr(request.state, "user", None)
+    user_id = user.get("id") if user else None
+
+    # Check for team context header
+    team_id = request.headers.get("X-Team-ID")
+
+    if team_id:
+        # Team context - user_id is None, team_id is set
+        return OwnershipContext(
+            user_id=None,
+            team_id=team_id,
+            created_by=user_id,
+        )
+    else:
+        # Personal context - user_id is set, team_id is None
+        return OwnershipContext(
+            user_id=user_id,
+            team_id=None,
+            created_by=user_id,
+        )
+
+
+def get_ownership_filter(request: Request) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Get user_id and team_id for filtering queries.
+
+    Returns (user_id, team_id) tuple for use in queries.
+    Both may be set to allow showing personal AND team items.
+    """
+    user = getattr(request.state, "user", None)
+    user_id = user.get("id") if user else None
+    team_id = request.headers.get("X-Team-ID")
+
+    return user_id, team_id
 
 
 class SupabaseAuthMiddleware(BaseHTTPMiddleware):

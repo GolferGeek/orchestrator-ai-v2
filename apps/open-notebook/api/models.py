@@ -3,10 +3,20 @@ from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
+# Base mixin for ownership fields
+class OwnershipMixin(BaseModel):
+    """Mixin for multi-tenancy ownership fields."""
+    user_id: Optional[str] = Field(None, description="Personal owner (Supabase user ID)")
+    team_id: Optional[str] = Field(None, description="Team owner (from Orch-Flow teams)")
+    created_by: Optional[str] = Field(None, description="User who created this item")
+
+
 # Notebook models
 class NotebookCreate(BaseModel):
     name: str = Field(..., description="Name of the notebook")
     description: str = Field(default="", description="Description of the notebook")
+    # Ownership - set by API from auth context
+    team_id: Optional[str] = Field(None, description="Team ID for team ownership")
 
 
 class NotebookUpdate(BaseModel):
@@ -17,7 +27,7 @@ class NotebookUpdate(BaseModel):
     )
 
 
-class NotebookResponse(BaseModel):
+class NotebookResponse(OwnershipMixin):
     id: str
     name: str
     description: str
@@ -139,7 +149,7 @@ class TransformationUpdate(BaseModel):
     )
 
 
-class TransformationResponse(BaseModel):
+class TransformationResponse(OwnershipMixin):
     id: str
     name: str
     title: str
@@ -189,6 +199,8 @@ class NoteCreate(BaseModel):
     notebook_id: Optional[str] = Field(
         None, description="Notebook ID to add the note to"
     )
+    # Ownership - set by API from auth context
+    team_id: Optional[str] = Field(None, description="Team ID for team ownership")
 
 
 class NoteUpdate(BaseModel):
@@ -197,7 +209,7 @@ class NoteUpdate(BaseModel):
     note_type: Optional[str] = Field(None, description="Type of note (human, ai)")
 
 
-class NoteResponse(BaseModel):
+class NoteResponse(OwnershipMixin):
     id: str
     title: Optional[str]
     content: Optional[str]
@@ -314,6 +326,8 @@ class SourceCreate(BaseModel):
     async_processing: bool = Field(
         False, description="Whether to process source asynchronously"
     )
+    # Ownership - set by API from auth context
+    team_id: Optional[str] = Field(None, description="Team ID for team ownership")
 
     @model_validator(mode="after")
     def validate_notebook_fields(self):
@@ -340,7 +354,7 @@ class SourceUpdate(BaseModel):
     topics: Optional[List[str]] = Field(None, description="Source topics")
 
 
-class SourceResponse(BaseModel):
+class SourceResponse(OwnershipMixin):
     id: str
     title: Optional[str]
     topics: Optional[List[str]]
@@ -359,7 +373,7 @@ class SourceResponse(BaseModel):
     notebooks: Optional[List[str]] = None
 
 
-class SourceListResponse(BaseModel):
+class SourceListResponse(OwnershipMixin):
     id: str
     title: Optional[str]
     topics: Optional[List[str]]

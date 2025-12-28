@@ -28,9 +28,29 @@ class ObjectModel(BaseModel):
     nullable_fields: ClassVar[set[str]] = set()  # Fields that can be saved as None
     created: Optional[datetime] = None
     updated: Optional[datetime] = None
+    # Multi-tenancy fields
+    user_id: Optional[str] = None  # Personal owner (Supabase auth.users.id)
+    team_id: Optional[str] = None  # Team owner (from Orch-Flow teams table)
+    created_by: Optional[str] = None  # Who created it (always set)
 
     @classmethod
-    async def get_all(cls: Type[T], order_by=None) -> List[T]:
+    async def get_all(
+        cls: Type[T],
+        order_by: Optional[str] = None,
+        user_id: Optional[str] = None,
+        team_id: Optional[str] = None,
+    ) -> List[T]:
+        """
+        Get all records with optional ownership filtering.
+
+        Args:
+            order_by: Optional field to order by
+            user_id: Filter by personal ownership (user's items)
+            team_id: Filter by team ownership (team's items)
+
+        If both user_id and team_id are None, returns all records (backwards compatibility).
+        If either is provided, filters to records where user_id matches OR team_id matches.
+        """
         try:
             # If called from a specific subclass, use its table_name
             if cls.table_name:
@@ -41,12 +61,27 @@ class ObjectModel(BaseModel):
                 raise InvalidInputError(
                     "get_all() must be called from a specific model class"
                 )
-            if order_by:
-                query = f"SELECT * FROM {table_name} ORDER BY {order_by}"
-            else:
-                query = f"SELECT * FROM {table_name}"
 
-            result = await repo_query(query)
+            # Build query with ownership filtering
+            params: Dict[str, Any] = {}
+            where_clauses = []
+
+            if user_id is not None or team_id is not None:
+                ownership_conditions = []
+                if user_id is not None:
+                    ownership_conditions.append("user_id = $user_id")
+                    params["user_id"] = user_id
+                if team_id is not None:
+                    ownership_conditions.append("team_id = $team_id")
+                    params["team_id"] = team_id
+                where_clauses.append(f"({' OR '.join(ownership_conditions)})")
+
+            where_clause = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+            order_clause = f" ORDER BY {order_by}" if order_by else ""
+
+            query = f"SELECT * FROM {table_name}{where_clause}{order_clause}"
+
+            result = await repo_query(query, params) if params else await repo_query(query)
             objects = []
             for obj in result:
                 try:

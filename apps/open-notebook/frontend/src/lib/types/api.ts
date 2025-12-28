@@ -1,4 +1,11 @@
-export interface NotebookResponse {
+// Ownership fields for multi-tenancy
+export interface OwnershipFields {
+  user_id?: string
+  team_id?: string
+  created_by?: string
+}
+
+export interface NotebookResponse extends OwnershipFields {
   id: string
   name: string
   description: string
@@ -63,6 +70,7 @@ export interface SettingsResponse {
 export interface CreateNotebookRequest {
   name: string
   description?: string
+  team_id?: string  // Optional team ownership
 }
 
 export interface UpdateNotebookRequest {

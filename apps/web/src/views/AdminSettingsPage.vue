@@ -138,6 +138,15 @@
                   <ion-icon :icon="businessOutline" />
                   <span>Organizations</span>
                 </div>
+                <div
+                  class="nav-item"
+                  :class="{ active: activeSection === 'teams' }"
+                  @click="selectSection('teams')"
+                  v-permission="'admin:users'"
+                >
+                  <ion-icon :icon="peopleCircleOutline" />
+                  <span>Teams</span>
+                </div>
               </div>
             </div>
 
@@ -260,6 +269,7 @@ import {
   arrowBackOutline,
   sparklesOutline,
   keyOutline,
+  peopleCircleOutline,
 } from 'ionicons/icons';
 import { useAuthStore } from '@/stores/rbacStore';
 import { usePrivacyStore } from '@/stores/privacyStore';
@@ -298,6 +308,7 @@ const detailComponents: Record<string, ReturnType<typeof defineAsyncComponent>> 
   users: defineAsyncComponent(() => import('@/views/admin/UserManagementPage.vue')),
   roles: defineAsyncComponent(() => import('@/views/admin/RoleManagementPage.vue')),
   organizations: defineAsyncComponent(() => import('@/views/admin/OrganizationsAdminPage.vue')),
+  teams: defineAsyncComponent(() => import('@/views/admin/TeamsAdminPage.vue')),
   database: defineAsyncComponent(() => import('@/views/admin/DatabaseAdminPage.vue')),
   agents: defineAsyncComponent(() => import('@/views/admin/AgentsAdminPage.vue')),
   mcp: defineAsyncComponent(() => import('@/views/admin/MCPAdminPage.vue')),

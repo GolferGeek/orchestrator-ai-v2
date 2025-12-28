@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useUpdateNotebook, useDeleteNotebook } from '@/lib/hooks/use-notebooks'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { OwnershipBadge } from '@/components/team/TeamSelector'
 import { useState } from 'react'
 
 interface NotebookCardProps {
@@ -113,16 +114,23 @@ export function NotebookCard({ notebook }: NotebookCardProps) {
               Updated {formatDistanceToNow(new Date(notebook.updated), { addSuffix: true })}
             </div>
 
-            {/* Item counts footer */}
-            <div className="mt-3 flex items-center gap-1.5 border-t pt-3">
-              <Badge variant="outline" className="text-xs flex items-center gap-1 px-1.5 py-0.5 text-primary border-primary/50">
-                <FileText className="h-3 w-3" />
-                <span>{notebook.source_count}</span>
-              </Badge>
-              <Badge variant="outline" className="text-xs flex items-center gap-1 px-1.5 py-0.5 text-primary border-primary/50">
-                <StickyNote className="h-3 w-3" />
-                <span>{notebook.note_count}</span>
-              </Badge>
+            {/* Item counts and ownership footer */}
+            <div className="mt-3 flex items-center justify-between gap-1.5 border-t pt-3">
+              <div className="flex items-center gap-1.5">
+                <Badge variant="outline" className="text-xs flex items-center gap-1 px-1.5 py-0.5 text-primary border-primary/50">
+                  <FileText className="h-3 w-3" />
+                  <span>{notebook.source_count}</span>
+                </Badge>
+                <Badge variant="outline" className="text-xs flex items-center gap-1 px-1.5 py-0.5 text-primary border-primary/50">
+                  <StickyNote className="h-3 w-3" />
+                  <span>{notebook.note_count}</span>
+                </Badge>
+              </div>
+              <OwnershipBadge
+                userId={notebook.user_id}
+                teamId={notebook.team_id}
+                className="text-xs"
+              />
             </div>
           </CardContent>
       </Card>

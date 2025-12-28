@@ -9,12 +9,14 @@ from fastapi import (
     Form,
     HTTPException,
     Query,
+    Request,
     UploadFile,
 )
 from fastapi.responses import FileResponse, Response
 from loguru import logger
 from surreal_commands import execute_command_sync
 
+from api.auth import get_ownership_context, get_ownership_filter
 from api.command_service import CommandService
 from api.models import (
     AssetModel,
@@ -27,7 +29,7 @@ from api.models import (
     SourceUpdate,
 )
 from commands.source_commands import SourceProcessingInput
-from open_notebook.config import UPLOADS_FOLDER
+from open_notebook.config import UPLOADS_FOLDER, get_upload_folder
 from open_notebook.database.repository import ensure_record_id, repo_query
 from open_notebook.domain.notebook import Notebook, Source
 from open_notebook.domain.transformation import Transformation
@@ -59,13 +61,30 @@ def generate_unique_filename(original_filename: str, upload_folder: str) -> str:
         counter += 1
 
 
-async def save_uploaded_file(upload_file: UploadFile) -> str:
-    """Save uploaded file to uploads folder and return file path."""
+async def save_uploaded_file(
+    upload_file: UploadFile,
+    user_id: Optional[str] = None,
+    team_id: Optional[str] = None,
+) -> str:
+    """
+    Save uploaded file to ownership-based folder and return file path.
+
+    Args:
+        upload_file: The uploaded file
+        user_id: Personal owner ID for personal uploads
+        team_id: Team owner ID for team uploads
+
+    Returns:
+        The full file path where the file was saved
+    """
     if not upload_file.filename:
         raise ValueError("No filename provided")
 
+    # Get the appropriate upload folder based on ownership
+    upload_folder = get_upload_folder(user_id=user_id, team_id=team_id)
+
     # Generate unique filename
-    file_path = generate_unique_filename(upload_file.filename, UPLOADS_FOLDER)
+    file_path = generate_unique_filename(upload_file.filename, upload_folder)
 
     try:
         # Save file
@@ -94,6 +113,7 @@ def parse_source_form_data(
     embed: str = Form("false"),  # Accept as string, convert to bool
     delete_source: str = Form("false"),  # Accept as string, convert to bool
     async_processing: str = Form("false"),  # Accept as string, convert to bool
+    team_id: Optional[str] = Form(None),  # Multi-tenancy: team ownership
     file: Optional[UploadFile] = File(None),
 ) -> tuple[SourceCreate, Optional[UploadFile]]:
     """Parse form data into SourceCreate model and return upload file separately."""
@@ -140,6 +160,7 @@ def parse_source_form_data(
             embed=embed_bool,
             delete_source=delete_source_bool,
             async_processing=async_processing_bool,
+            team_id=team_id,  # Multi-tenancy support
         )
         pass  # SourceCreate instance created successfully
     except Exception as e:
@@ -318,6 +339,7 @@ async def get_sources(
 
 @router.post("/sources", response_model=SourceResponse)
 async def create_source(
+    request: Request,
     form_data: tuple[SourceCreate, Optional[UploadFile]] = Depends(
         parse_source_form_data
     ),
@@ -326,6 +348,13 @@ async def create_source(
     source_data, upload_file = form_data
 
     try:
+        # Get ownership context from auth
+        ownership = get_ownership_context(request)
+
+        # If team_id is provided in request, use it; otherwise use personal ownership
+        team_id = source_data.team_id if source_data.team_id else ownership.team_id
+        user_id = None if team_id else ownership.user_id
+
         # Verify all specified notebooks exist (backward compatibility support)
         for notebook_id in (source_data.notebooks or []):
             notebook = await Notebook.get(notebook_id)
@@ -338,7 +367,12 @@ async def create_source(
         file_path = None
         if upload_file and source_data.type == "upload":
             try:
-                file_path = await save_uploaded_file(upload_file)
+                # Save file to ownership-based folder
+                file_path = await save_uploaded_file(
+                    upload_file,
+                    user_id=user_id,
+                    team_id=team_id,
+                )
             except Exception as e:
                 logger.error(f"File upload failed: {e}")
                 raise HTTPException(
@@ -390,10 +424,13 @@ async def create_source(
             # ASYNC PATH: Create source record first, then queue command
             logger.info("Using async processing path")
 
-            # Create minimal source record - let SurrealDB generate the ID
+            # Create minimal source record with ownership - let SurrealDB generate the ID
             source = Source(
                 title=source_data.title or "Processing...",
                 topics=[],
+                user_id=user_id,
+                team_id=team_id,
+                created_by=ownership.created_by,
             )
             await source.save()
 
@@ -469,10 +506,13 @@ async def create_source(
                 # Import command modules to ensure they're registered
                 import commands.source_commands  # noqa: F401
 
-                # Create source record - let SurrealDB generate the ID
+                # Create source record with ownership - let SurrealDB generate the ID
                 source = Source(
                     title=source_data.title or "Processing...",
                     topics=[],
+                    user_id=user_id,
+                    team_id=team_id,
+                    created_by=ownership.created_by,
                 )
                 await source.save()
 

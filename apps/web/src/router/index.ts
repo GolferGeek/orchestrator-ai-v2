@@ -180,6 +180,17 @@ const routes: Array<RouteRecordRaw> = [
         }
       },
       {
+        path: 'admin/teams',
+        name: 'AdminTeams',
+        component: () => import('../views/admin/TeamsAdminPage.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresPermission: 'admin:users',
+          title: 'Teams',
+          description: 'Manage teams and team members'
+        }
+      },
+      {
         path: 'admin/pii-testing',
         name: 'PIITesting',
         component: () => import('../views/PIITestingPage.vue'),

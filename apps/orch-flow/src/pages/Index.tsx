@@ -7,8 +7,7 @@ import { KanbanBoard } from '@/components/KanbanBoard';
 import { TeamSidebar } from '@/components/TeamSidebar';
 import { NotificationBell } from '@/components/NotificationBell';
 import { OnlineUsers } from '@/components/OnlineUsers';
-import { FilesTab } from '@/components/FilesTab';
-import { NotesTab } from '@/components/NotesTab';
+import { OpenNotebookRedirect } from '@/components/OpenNotebookRedirect';
 import { MessagesTab } from '@/components/MessagesTab';
 import { ClaudeCodeButton, ClaudeCodePanel } from '@/components/claude';
 import { useAuth } from '@/hooks/useAuth';
@@ -189,25 +188,13 @@ const Index = () => {
 
         {activeTab === 'files' && (
           <main className="flex-1 p-6 overflow-hidden">
-            <div className="mb-4">
-              <h2 className="text-xl font-semibold">{currentTeam?.name || 'Team'} Files</h2>
-              <p className="text-sm text-muted-foreground">
-                Share files, code snippets, and documents with your team
-              </p>
-            </div>
-            <FilesTab teamId={currentTeam?.id} />
+            <OpenNotebookRedirect type="files" teamId={currentTeam?.id} />
           </main>
         )}
 
         {activeTab === 'notes' && (
           <main className="flex-1 p-6 overflow-hidden">
-            <div className="mb-4">
-              <h2 className="text-xl font-semibold">{currentTeam?.name || 'Team'} Notes</h2>
-              <p className="text-sm text-muted-foreground">
-                Quick notes for the team - save as files when you want to keep them
-              </p>
-            </div>
-            <NotesTab teamId={currentTeam?.id} />
+            <OpenNotebookRedirect type="notes" teamId={currentTeam?.id} />
           </main>
         )}
 

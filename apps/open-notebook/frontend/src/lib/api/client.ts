@@ -15,7 +15,7 @@ export const apiClient = axios.create({
   withCredentials: false,
 })
 
-// Request interceptor to add base URL and auth header
+// Request interceptor to add base URL, auth header, and team context
 apiClient.interceptors.request.use(async (config) => {
   // Set the base URL dynamically from runtime config
   if (!config.baseURL) {
@@ -24,6 +24,7 @@ apiClient.interceptors.request.use(async (config) => {
   }
 
   if (typeof window !== 'undefined') {
+    // Add auth token
     const authStorage = localStorage.getItem('auth-storage')
     if (authStorage) {
       try {
@@ -33,6 +34,19 @@ apiClient.interceptors.request.use(async (config) => {
         }
       } catch (error) {
         console.error('Error parsing auth storage:', error)
+      }
+    }
+
+    // Add team context header if in team mode
+    const teamStorage = localStorage.getItem('team-context-storage')
+    if (teamStorage) {
+      try {
+        const { state } = JSON.parse(teamStorage)
+        if (state?.currentTeamId) {
+          config.headers['X-Team-ID'] = state.currentTeamId
+        }
+      } catch (error) {
+        console.error('Error parsing team context storage:', error)
       }
     }
   }

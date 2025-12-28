@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useTeams, Team, TeamMember } from '@/hooks/useTeams';
 import { useAuth } from '@/hooks/useAuth';
+import type { UserContext } from '@/services/teamsApiService';
 
 interface TeamContextType {
   teams: Team[];
@@ -8,8 +9,12 @@ interface TeamContextType {
   teamMembers: TeamMember[];
   currentTeam: Team | null;
   currentTeamMembers: TeamMember[];
+  currentTeamId: string | null;
   setCurrentTeamId: (teamId: string | null) => void;
   loading: boolean;
+  userContext: UserContext | null;
+  currentOrgSlug: string;
+  setCurrentOrgSlug: (orgSlug: string) => void;
   createTeam: (name: string, description?: string) => Promise<{ data: Team | null; error: Error | null }>;
   joinTeam: (teamId: string, passcode?: string) => Promise<{ error: Error | null }>;
   leaveTeam: (teamId: string) => Promise<{ error: Error | null }>;
@@ -27,6 +32,9 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     availableTeams,
     teamMembers,
     loading,
+    userContext,
+    currentOrgSlug,
+    setCurrentOrgSlug,
     createTeam,
     joinTeam,
     leaveTeam,
@@ -68,13 +76,17 @@ export function TeamProvider({ children }: { children: ReactNode }) {
         teamMembers,
         currentTeam,
         currentTeamMembers,
+        currentTeamId,
         setCurrentTeamId,
         loading,
-        createTeam: createTeam as any,
-        joinTeam: joinTeam as any,
-        leaveTeam: leaveTeam as any,
-        updateTeam: updateTeam as any,
-        deleteTeam: deleteTeam as any,
+        userContext,
+        currentOrgSlug,
+        setCurrentOrgSlug,
+        createTeam: createTeam as unknown as TeamContextType['createTeam'],
+        joinTeam: joinTeam as unknown as TeamContextType['joinTeam'],
+        leaveTeam: leaveTeam as unknown as TeamContextType['leaveTeam'],
+        updateTeam: updateTeam as unknown as TeamContextType['updateTeam'],
+        deleteTeam: deleteTeam as unknown as TeamContextType['deleteTeam'],
         getTeamMembers,
       }}
     >

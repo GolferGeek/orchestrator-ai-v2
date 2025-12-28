@@ -405,17 +405,40 @@ class ChatSession(ObjectModel):
 
 
 async def text_search(
-    keyword: str, results: int, source: bool = True, note: bool = True
+    keyword: str,
+    results: int,
+    source: bool = True,
+    note: bool = True,
+    user_id: Optional[str] = None,
+    team_id: Optional[str] = None,
 ):
+    """
+    Perform text search with optional ownership filtering.
+
+    Args:
+        keyword: Search keyword
+        results: Maximum number of results
+        source: Include sources in search
+        note: Include notes in search
+        user_id: Filter by personal ownership
+        team_id: Filter by team ownership
+    """
     if not keyword:
         raise InvalidInputError("Search keyword cannot be empty")
     try:
         search_results = await repo_query(
             """
             select *
-            from fn::text_search($keyword, $results, $source, $note)
+            from fn::text_search($keyword, $results, $source, $note, $user_id, $team_id)
             """,
-            {"keyword": keyword, "results": results, "source": source, "note": note},
+            {
+                "keyword": keyword,
+                "results": results,
+                "source": source,
+                "note": note,
+                "user_id": user_id,
+                "team_id": team_id,
+            },
         )
         return search_results
     except Exception as e:
@@ -429,8 +452,22 @@ async def vector_search(
     results: int,
     source: bool = True,
     note: bool = True,
-    minimum_score=0.2,
+    minimum_score: float = 0.2,
+    user_id: Optional[str] = None,
+    team_id: Optional[str] = None,
 ):
+    """
+    Perform vector search with optional ownership filtering.
+
+    Args:
+        keyword: Search keyword
+        results: Maximum number of results
+        source: Include sources in search
+        note: Include notes in search
+        minimum_score: Minimum similarity score threshold
+        user_id: Filter by personal ownership
+        team_id: Filter by team ownership
+    """
     if not keyword:
         raise InvalidInputError("Search keyword cannot be empty")
     try:
@@ -440,7 +477,7 @@ async def vector_search(
         embed = (await EMBEDDING_MODEL.aembed([keyword]))[0]
         search_results = await repo_query(
             """
-            SELECT * FROM fn::vector_search($embed, $results, $source, $note, $minimum_score);
+            SELECT * FROM fn::vector_search($embed, $results, $source, $note, $minimum_score, $user_id, $team_id);
             """,
             {
                 "embed": embed,
@@ -448,6 +485,8 @@ async def vector_search(
                 "source": source,
                 "note": note,
                 "minimum_score": minimum_score,
+                "user_id": user_id,
+                "team_id": team_id,
             },
         )
         return search_results
