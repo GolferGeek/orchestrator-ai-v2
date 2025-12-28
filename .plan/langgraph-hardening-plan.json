@@ -1,0 +1,391 @@
+{
+  "planId": "langgraph-hardening-2025-12-28",
+  "title": "LangGraph Codebase Hardening Plan",
+  "description": "Address 18 issues identified in LangGraph monitoring report, prioritized by urgency and severity",
+  "createdAt": "2025-12-28T00:00:00.000Z",
+  "sourceArtifact": ".monitor/apps-langgraph.json",
+  "healthScore": {
+    "before": 72,
+    "targetAfter": 90
+  },
+  "phases": [
+    {
+      "phaseId": "phase-1",
+      "name": "ExecutionContext Capsule Migration (REF-001)",
+      "priority": "HIGH",
+      "description": "Migrate all DTOs, state annotations, and tool calls to use ExecutionContext capsule instead of individual fields",
+      "relatedIssues": ["EC-001", "EC-002", "EC-003", "EC-004", "EC-005", "EC-006", "ARCH-001"],
+      "estimatedImpact": "Fixes 7 of 18 issues (39%)",
+      "steps": [
+        {
+          "stepId": "step-1.1",
+          "name": "Check Test Adequacy for ExecutionContext Migration",
+          "agent": "testing-agent",
+          "skills": ["langgraph-testing-skill", "execution-context-skill"],
+          "action": "analyze_coverage",
+          "targets": [
+            "apps/langgraph/src/common/dto/workflow-request.dto.ts",
+            "apps/langgraph/src/common/dto/workflow-response.dto.ts",
+            "apps/langgraph/src/state/base-state.annotation.ts",
+            "apps/langgraph/src/agents/data-analyst/data-analyst.graph.ts",
+            "apps/langgraph/src/tools/data/database/sql-query.tool.ts"
+          ],
+          "successCriteria": {
+            "coverageThreshold": 75,
+            "testsExist": true
+          },
+          "outputDecision": {
+            "ifAdequate": "proceed-to-step-1.2",
+            "ifInadequate": "document-and-generate-tests"
+          }
+        },
+        {
+          "stepId": "step-1.2",
+          "name": "Update WorkflowRequestDto to use ExecutionContext",
+          "agent": "langgraph-architecture-agent",
+          "skills": ["execution-context-skill", "transport-types-skill", "langgraph-architecture-skill"],
+          "action": "refactor",
+          "issue": "EC-001",
+          "file": "apps/langgraph/src/common/dto/workflow-request.dto.ts",
+          "changes": [
+            "Replace individual fields (taskId, conversationId, userId, provider, model) with ExecutionContext field",
+            "Add @IsValidExecutionContext() decorator from custom validator",
+            "Update all usages to pass full ExecutionContext"
+          ],
+          "validations": [
+            "ExecutionContext capsule pattern followed",
+            "Transport types compliant",
+            "Build passes",
+            "Tests pass"
+          ]
+        },
+        {
+          "stepId": "step-1.3",
+          "name": "Deprecate BaseStateAnnotation in favor of HitlBaseStateAnnotation",
+          "agent": "langgraph-architecture-agent",
+          "skills": ["execution-context-skill", "langgraph-architecture-skill", "langgraph-development-skill"],
+          "action": "refactor",
+          "issues": ["EC-003", "EC-004", "ARCH-001"],
+          "file": "apps/langgraph/src/state/base-state.annotation.ts",
+          "changes": [
+            "Add @deprecated JSDoc to BaseStateAnnotation",
+            "Update BaseStateAnnotation to use ExecutionContext capsule (align with HitlBaseStateAnnotation)",
+            "Document migration path to HitlBaseStateAnnotation"
+          ],
+          "validations": [
+            "ExecutionContext capsule pattern followed",
+            "Existing workflows still compile",
+            "Build passes",
+            "Tests pass"
+          ]
+        },
+        {
+          "stepId": "step-1.4",
+          "name": "Update Data Analyst graph to pass full ExecutionContext to tools",
+          "agent": "langgraph-architecture-agent",
+          "skills": ["execution-context-skill", "langgraph-architecture-skill"],
+          "action": "refactor",
+          "issue": "EC-005",
+          "file": "apps/langgraph/src/agents/data-analyst/data-analyst.graph.ts",
+          "line": 244,
+          "changes": [
+            "Modify executeQueryNode to pass full ExecutionContext instead of extracting individual fields",
+            "Update generateAndExecuteSql call signature"
+          ],
+          "validations": [
+            "ExecutionContext passed as capsule",
+            "Build passes",
+            "Tests pass"
+          ]
+        },
+        {
+          "stepId": "step-1.5",
+          "name": "Update SQL Query Tool to accept ExecutionContext",
+          "agent": "langgraph-architecture-agent",
+          "skills": ["execution-context-skill", "langgraph-architecture-skill"],
+          "action": "refactor",
+          "issue": "EC-006",
+          "file": "apps/langgraph/src/tools/data/database/sql-query.tool.ts",
+          "changes": [
+            "Update generateAndExecuteSql function signature to accept ExecutionContext",
+            "Update all callers to pass full ExecutionContext"
+          ],
+          "validations": [
+            "ExecutionContext capsule pattern followed",
+            "Build passes",
+            "Tests pass"
+          ]
+        },
+        {
+          "stepId": "step-1.6",
+          "name": "Update WorkflowResponseDto to include ExecutionContext",
+          "agent": "langgraph-architecture-agent",
+          "skills": ["execution-context-skill", "transport-types-skill", "langgraph-architecture-skill"],
+          "action": "refactor",
+          "issue": "EC-002",
+          "file": "apps/langgraph/src/common/dto/workflow-response.dto.ts",
+          "changes": [
+            "Add ExecutionContext field to response DTO",
+            "Ensure context continuity in responses"
+          ],
+          "validations": [
+            "ExecutionContext capsule pattern followed",
+            "Build passes",
+            "Tests pass"
+          ]
+        },
+        {
+          "stepId": "step-1.7",
+          "name": "Run Full Test Suite and Validate Phase 1",
+          "agent": "testing-agent",
+          "skills": ["langgraph-testing-skill", "execution-context-skill"],
+          "action": "run_tests",
+          "command": "cd apps/langgraph && npm test",
+          "successCriteria": {
+            "allTestsPass": true,
+            "buildSucceeds": true,
+            "noRegressions": true
+          }
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-2",
+      "name": "A2A Protocol Compliance (REF-002)",
+      "priority": "MEDIUM",
+      "description": "Document API contracts and optionally add A2A-compliant endpoints",
+      "relatedIssues": ["A2A-001", "A2A-002"],
+      "estimatedImpact": "Fixes 2 of 18 issues (11%)",
+      "steps": [
+        {
+          "stepId": "step-2.1",
+          "name": "Analyze A2A Requirements",
+          "agent": "langgraph-architecture-agent",
+          "skills": ["transport-types-skill", "langgraph-architecture-skill"],
+          "action": "analyze",
+          "targets": [
+            "apps/langgraph/src/agents/data-analyst/data-analyst.controller.ts",
+            "apps/langgraph/src/agents/extended-post-writer/extended-post-writer.controller.ts",
+            "apps/langgraph/src/agents/marketing-swarm/marketing-swarm.controller.ts"
+          ],
+          "questions": [
+            "Are these controllers used for external A2A calls or internal service communication?",
+            "Is A2A compliance required for these endpoints?",
+            "What is the intended usage pattern?"
+          ]
+        },
+        {
+          "stepId": "step-2.2",
+          "name": "Document API Contracts",
+          "agent": "langgraph-architecture-agent",
+          "skills": ["transport-types-skill", "langgraph-architecture-skill"],
+          "action": "document",
+          "issues": ["A2A-001", "A2A-002"],
+          "changes": [
+            "Add JSDoc comments documenting that controllers use REST for internal communication",
+            "Document that A2A protocol is handled at the API app level, not LangGraph",
+            "Optionally add A2A-compliant endpoints if needed for external agent-to-agent calls"
+          ]
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-3",
+      "name": "Test Coverage Improvement (REF-003)",
+      "priority": "MEDIUM",
+      "description": "Increase test coverage from 31% to at least 60%",
+      "relatedIssues": ["TEST-001", "TEST-002", "TEST-003", "TEST-004"],
+      "estimatedImpact": "Fixes 4 of 18 issues (22%)",
+      "steps": [
+        {
+          "stepId": "step-3.1",
+          "name": "Generate Tests for Data Analyst Graph Nodes",
+          "agent": "testing-agent",
+          "skills": ["langgraph-testing-skill", "execution-context-skill"],
+          "action": "generate_tests",
+          "issue": "TEST-001",
+          "file": "apps/langgraph/src/agents/data-analyst/data-analyst.graph.ts",
+          "testFile": "apps/langgraph/src/agents/data-analyst/data-analyst.graph.spec.ts",
+          "testTypes": [
+            "Unit tests for startNode",
+            "Unit tests for discoverTablesNode",
+            "Unit tests for executeQueryNode",
+            "Unit tests for conditional edges",
+            "Mocked LLM and database dependencies"
+          ]
+        },
+        {
+          "stepId": "step-3.2",
+          "name": "Generate Tests for Marketing Swarm Graph Nodes",
+          "agent": "testing-agent",
+          "skills": ["langgraph-testing-skill", "execution-context-skill"],
+          "action": "generate_tests",
+          "issue": "TEST-002",
+          "file": "apps/langgraph/src/agents/marketing-swarm/marketing-swarm.graph.ts",
+          "testFile": "apps/langgraph/src/agents/marketing-swarm/marketing-swarm.graph.spec.ts",
+          "testTypes": [
+            "Unit tests for graph nodes",
+            "Unit tests for state transitions",
+            "Mocked LLM dependencies"
+          ]
+        },
+        {
+          "stepId": "step-3.3",
+          "name": "Generate Tests for Extended Post Writer HITL Logic",
+          "agent": "testing-agent",
+          "skills": ["langgraph-testing-skill", "execution-context-skill", "langgraph-development-skill"],
+          "action": "generate_tests",
+          "issue": "TEST-003",
+          "file": "apps/langgraph/src/agents/extended-post-writer/extended-post-writer.graph.ts",
+          "testFile": "apps/langgraph/src/agents/extended-post-writer/extended-post-writer.graph.spec.ts",
+          "testTypes": [
+            "Unit tests for HITL interruption",
+            "Unit tests for HITL resume",
+            "State persistence tests",
+            "Mocked checkpointer"
+          ]
+        },
+        {
+          "stepId": "step-3.4",
+          "name": "Run Coverage Report and Verify Improvement",
+          "agent": "testing-agent",
+          "skills": ["langgraph-testing-skill"],
+          "action": "run_coverage",
+          "command": "cd apps/langgraph && npm run test:cov",
+          "successCriteria": {
+            "coveragePercent": 60,
+            "previousCoverage": 31
+          }
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-4",
+      "name": "Code Quality Cleanup (REF-004)",
+      "priority": "LOW",
+      "description": "Remove code duplication and improve maintainability",
+      "relatedIssues": ["CODE-001", "CODE-002"],
+      "estimatedImpact": "Fixes 2 of 18 issues (11%)",
+      "steps": [
+        {
+          "stepId": "step-4.1",
+          "name": "Remove Redundant Fields in LLM HTTP Client",
+          "agent": "codebase-hardening-agent",
+          "skills": ["execution-context-skill", "codebase-hardening-skill", "langgraph-architecture-skill"],
+          "action": "auto-fix",
+          "issue": "CODE-001",
+          "file": "apps/langgraph/src/services/llm-http-client.service.ts",
+          "line": 89,
+          "changes": [
+            "Remove redundant provider/providerName/modelName from options",
+            "Use context.provider and context.model directly"
+          ]
+        },
+        {
+          "stepId": "step-4.2",
+          "name": "Add Clarifying Comments in Observability Service",
+          "agent": "codebase-hardening-agent",
+          "skills": ["codebase-hardening-skill", "langgraph-architecture-skill"],
+          "action": "auto-fix",
+          "issue": "CODE-002",
+          "file": "apps/langgraph/src/services/observability.service.ts",
+          "line": 82,
+          "changes": [
+            "Add comment explaining taskId duplication is required for webhook routing"
+          ]
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-5",
+      "name": "Documentation Enhancement (REF-005)",
+      "priority": "LOW",
+      "description": "Add comprehensive documentation for LangGraph architecture",
+      "relatedIssues": ["DOC-001", "DOC-002"],
+      "estimatedImpact": "Fixes 2 of 18 issues (11%)",
+      "note": "Documentation tasks - skip if not explicitly requested",
+      "steps": [
+        {
+          "stepId": "step-5.1",
+          "name": "Document DTO Usage",
+          "agent": "langgraph-architecture-agent",
+          "skills": ["langgraph-architecture-skill"],
+          "action": "document",
+          "issue": "DOC-001",
+          "changes": [
+            "Add JSDoc to WorkflowRequestDto and WorkflowResponseDto",
+            "Clarify purpose and usage vs agent-specific DTOs"
+          ]
+        },
+        {
+          "stepId": "step-5.2",
+          "name": "Create LangGraph README (Optional)",
+          "agent": "langgraph-architecture-agent",
+          "skills": ["langgraph-architecture-skill", "langgraph-development-skill"],
+          "action": "create",
+          "issue": "DOC-002",
+          "file": "apps/langgraph/README.md",
+          "content": [
+            "Architecture overview",
+            "ExecutionContext flow through workflows",
+            "HITL patterns and best practices",
+            "Development setup and workflow"
+          ],
+          "optional": true
+        }
+      ]
+    }
+  ],
+  "executionStrategy": {
+    "mode": "sequential-phases-parallel-steps",
+    "description": "Execute phases sequentially (1→2→3→4→5), but steps within each phase can run in parallel when independent",
+    "parallelSteps": {
+      "phase-1": ["step-1.2", "step-1.3", "step-1.4", "step-1.5", "step-1.6"],
+      "phase-3": ["step-3.1", "step-3.2", "step-3.3"]
+    },
+    "dependencies": {
+      "step-1.2": ["step-1.1"],
+      "step-1.3": ["step-1.1"],
+      "step-1.4": ["step-1.1"],
+      "step-1.5": ["step-1.4"],
+      "step-1.6": ["step-1.1"],
+      "step-1.7": ["step-1.2", "step-1.3", "step-1.4", "step-1.5", "step-1.6"],
+      "step-3.4": ["step-3.1", "step-3.2", "step-3.3"]
+    }
+  },
+  "agentSummary": {
+    "langgraph-architecture-agent": {
+      "steps": ["step-1.2", "step-1.3", "step-1.4", "step-1.5", "step-1.6", "step-2.1", "step-2.2", "step-5.1", "step-5.2"],
+      "skills": ["execution-context-skill", "transport-types-skill", "langgraph-architecture-skill", "langgraph-development-skill"]
+    },
+    "testing-agent": {
+      "steps": ["step-1.1", "step-1.7", "step-3.1", "step-3.2", "step-3.3", "step-3.4"],
+      "skills": ["langgraph-testing-skill", "execution-context-skill"]
+    },
+    "codebase-hardening-agent": {
+      "steps": ["step-4.1", "step-4.2"],
+      "skills": ["execution-context-skill", "codebase-hardening-skill", "langgraph-architecture-skill"]
+    }
+  },
+  "successMetrics": {
+    "issuesFixed": {
+      "target": 18,
+      "high": 4,
+      "medium": 8,
+      "low": 6
+    },
+    "healthScore": {
+      "before": 72,
+      "target": 90
+    },
+    "testCoverage": {
+      "before": 31,
+      "target": 60
+    },
+    "qualityGates": {
+      "build": "must pass",
+      "lint": "must pass",
+      "tests": "must pass"
+    }
+  }
+}
