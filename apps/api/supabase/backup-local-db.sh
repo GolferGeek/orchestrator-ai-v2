@@ -187,13 +187,28 @@ restore_database() {
     
     # Step 4: Restore from backup
     log "Restoring from backup (this may take a few minutes)..."
-    if docker exec -i -e PGPASSWORD=postgres "$DB_CONTAINER" \
-        psql -h localhost -p 5432 -U postgres -d postgres \
-        -v ON_ERROR_STOP=1 < "$backup_file" 2>&1 | grep -v "NOTICE:" | grep -v "already exists" || true; then
-        success "Database restore completed successfully!"
+    
+    # Check if backup is compressed
+    if [[ "$backup_file" == *.gz ]]; then
+        log "Decompressing and restoring compressed backup..."
+        if gunzip -c "$backup_file" | docker exec -i -e PGPASSWORD=postgres "$DB_CONTAINER" \
+            psql -h localhost -p 5432 -U postgres -d postgres \
+            -v ON_ERROR_STOP=1 2>&1 | grep -v "NOTICE:" | grep -v "already exists" || true; then
+            success "Database restore completed successfully!"
+        else
+            error "Database restore failed! Check the output above for errors."
+            exit 1
+        fi
     else
-        error "Database restore failed! Check the output above for errors."
-        exit 1
+        log "Restoring uncompressed backup..."
+        if docker exec -i -e PGPASSWORD=postgres "$DB_CONTAINER" \
+            psql -h localhost -p 5432 -U postgres -d postgres \
+            -v ON_ERROR_STOP=1 < "$backup_file" 2>&1 | grep -v "NOTICE:" | grep -v "already exists" || true; then
+            success "Database restore completed successfully!"
+        else
+            error "Database restore failed! Check the output above for errors."
+            exit 1
+        fi
     fi
 }
 
