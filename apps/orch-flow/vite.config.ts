@@ -26,6 +26,17 @@ export default defineConfig(({ mode }) => {
     server: {
       host: "::",
       port,
+      // Allow Tailscale and local hosts in development
+      // Include common Tailscale hostname patterns
+      allowedHosts: mode === 'development' 
+        ? [
+            'gg-macstudio',
+            'localhost',
+            '127.0.0.1',
+            '.local',  // Matches *.local domains
+            '.ts.net', // Matches Tailscale *.ts.net domains
+          ]
+        : undefined,
       hmr: {
         // Explicit HMR configuration for WebSocket connection
         // When using host: "::", we need to tell the browser where to connect
