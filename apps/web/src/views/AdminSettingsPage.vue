@@ -580,6 +580,18 @@ onMounted(async () => {
   text-align: center;
 }
 
+/* Remove background from stats in health status bar (night mode fix) */
+.health-status-bar .stat {
+  background: transparent !important;
+  color: white;
+}
+
+.health-status-bar .stat-value,
+.health-status-bar .stat-label {
+  background: transparent !important;
+  color: white;
+}
+
 .stat-value {
   display: block;
   font-weight: 700;
@@ -846,5 +858,44 @@ onMounted(async () => {
   .health-text {
     font-size: 0.9rem;
   }
+}
+
+/* Dark mode overrides for health status bar stats */
+html.ion-palette-dark .health-status-bar .stat,
+html[data-theme="dark"] .health-status-bar .stat {
+  background: transparent !important;
+  color: white !important;
+}
+
+html.ion-palette-dark .health-status-bar .stat-value,
+html[data-theme="dark"] .health-status-bar .stat-value,
+html.ion-palette-dark .health-status-bar .stat-label,
+html[data-theme="dark"] .health-status-bar .stat-label {
+  background: transparent !important;
+  color: white !important;
+}
+
+/* Dark mode overrides for navigation items */
+html.ion-palette-dark .nav-item,
+html[data-theme="dark"] .nav-item {
+  background: var(--ion-color-step-50, rgba(255, 255, 255, 0.05)) !important;
+  border-color: var(--ion-border-color, rgba(255, 255, 255, 0.1)) !important;
+  color: var(--ion-text-color, #e0e0e0) !important;
+}
+
+html.ion-palette-dark .nav-item:hover,
+html[data-theme="dark"] .nav-item:hover {
+  background: var(--ion-color-step-100, rgba(255, 255, 255, 0.1)) !important;
+}
+
+html.ion-palette-dark .nav-group,
+html[data-theme="dark"] .nav-group {
+  background: var(--ion-color-step-50, rgba(255, 255, 255, 0.03)) !important;
+  border-color: var(--ion-border-color, rgba(255, 255, 255, 0.1)) !important;
+}
+
+html.ion-palette-dark .nav-group-header,
+html[data-theme="dark"] .nav-group-header {
+  border-bottom-color: var(--ion-border-color, rgba(255, 255, 255, 0.1)) !important;
 }
 </style>

@@ -51,7 +51,10 @@
       <!-- Workflow Filters -->
       <ion-card class="filters-card">
         <ion-card-header>
-          <ion-card-title>Filter Workflows</ion-card-title>
+          <ion-card-title>
+            <ion-icon :icon="filterOutline" style="margin-right: 8px;"></ion-icon>
+            Filter Workflows
+          </ion-card-title>
         </ion-card-header>
         <ion-card-content>
           <ion-grid>
@@ -277,18 +280,15 @@
         </ion-card-content>
       </ion-card>
       <!-- Export Actions -->
-      <ion-card class="export-actions">
-        <ion-card-content>
-          <ion-button 
-            expand="block" 
-            fill="outline" 
-            @click="exportWorkflowReport"
-          >
-            <ion-icon :icon="downloadOutline" slot="start"></ion-icon>
-            Export Workflow Report
-          </ion-button>
-        </ion-card-content>
-      </ion-card>
+      <div class="export-actions">
+        <ion-button 
+          expand="block" 
+          @click="exportWorkflowReport"
+        >
+          <ion-icon :icon="downloadOutline" slot="start"></ion-icon>
+          Export Workflow Report
+        </ion-button>
+      </div>
     </div>
     <!-- Empty State -->
     <ion-card v-else class="ion-text-center">
@@ -364,7 +364,8 @@ import {
   timeOutline,
   layersOutline,
   warningOutline,
-  downloadOutline
+  downloadOutline,
+  filterOutline
 } from 'ionicons/icons';
 import type { WorkflowAnalytics } from '@/types/analytics';
 

@@ -6,12 +6,6 @@
           <ion-menu-button color="primary"></ion-menu-button>
         </ion-buttons>
         <ion-title>Deliverables</ion-title>
-        <ion-buttons slot="end">
-          <ion-button @click="createNewDeliverable" fill="clear">
-            <ion-icon :icon="addOutline" slot="start"></ion-icon>
-            New Deliverable
-          </ion-button>
-        </ion-buttons>
       </ion-toolbar>
     </ion-header>
     <ion-content :fullscreen="true">
@@ -87,6 +81,10 @@
                 <ion-select-option value="title_asc">Title A-Z</ion-select-option>
                 <ion-select-option value="type_asc">Type</ion-select-option>
               </ion-select>
+              <ion-button @click="createNewDeliverable" fill="solid">
+                <ion-icon :icon="addOutline" slot="start"></ion-icon>
+                Add Deliverable
+              </ion-button>
             </div>
           </div>
           <!-- Deliverables Grid -->
@@ -862,12 +860,18 @@ const {
 }
 .filter-controls {
   display: flex;
-  gap: 1rem;
+  gap: 0.75rem;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 .filter-controls ion-select {
-  min-width: 140px;
+  min-width: 120px;
+  max-width: 140px;
+  flex: 0 0 auto;
+}
+.filter-controls ion-button {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 .deliverables-grid {
   display: grid;
@@ -878,7 +882,18 @@ const {
   margin: 0;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-  height: fit-content;
+  display: flex;
+  flex-direction: column;
+}
+
+.deliverable-card ion-card-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.deliverable-card .deliverable-actions {
+  margin-top: auto;
 }
 .deliverable-card:hover {
   transform: translateY(-2px);
@@ -1000,11 +1015,14 @@ const {
     grid-template-columns: 1fr;
   }
   .filter-controls {
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 0.5rem;
   }
   .filter-controls ion-select {
-    min-width: auto;
+    min-width: 100px;
+    max-width: 120px;
   }
   .deliverable-actions {
     flex-direction: column;

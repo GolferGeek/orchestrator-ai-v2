@@ -4,83 +4,87 @@
     <ion-card>
       <ion-card-header>
         <ion-card-title>
-          <ion-icon :icon="trendingUpOutline" />
-          Analytics Overview
+          <ion-icon :icon="filterOutline" />
+          Filter Analytics
         </ion-card-title>
       </ion-card-header>
       <ion-card-content>
-        <ion-grid>
-          <ion-row>
-            <ion-col size="12" size-md="4">
-              <ion-item>
-                <ion-input
-                  v-model="localFilters.startDate"
-                  type="date"
-                  label="Start Date"
-                  label-placement="stacked"
-                  @ion-change="applyFilters"
-                />
-              </ion-item>
-            </ion-col>
-            
-            <ion-col size="12" size-md="4">
-              <ion-item>
-                <ion-input
-                  v-model="localFilters.endDate"
-                  type="date"
-                  label="End Date"
-                  label-placement="stacked"
-                  @ion-change="applyFilters"
-                />
-              </ion-item>
-            </ion-col>
-            
-            <ion-col size="12" size-md="4">
-              <ion-item>
-                <ion-select
-                  v-model="localFilters.callerType"
-                  placeholder="All Caller Types"
-                  label="Caller Type"
-                  label-placement="stacked"
-                  interface="popover"
-                  @ion-change="applyFilters"
+        <div class="filters-row">
+          <div class="filter-item">
+            <ion-item>
+              <ion-input
+                v-model="localFilters.startDate"
+                type="date"
+                label="Start Date"
+                label-placement="stacked"
+                @ion-change="applyFilters"
+              />
+            </ion-item>
+          </div>
+          
+          <div class="filter-item">
+            <ion-item>
+              <ion-input
+                v-model="localFilters.endDate"
+                type="date"
+                label="End Date"
+                label-placement="stacked"
+                @ion-change="applyFilters"
+              />
+            </ion-item>
+          </div>
+          
+          <div class="filter-item">
+            <ion-item>
+              <ion-select
+                v-model="localFilters.callerType"
+                placeholder="All Caller Types"
+                label="Caller Type"
+                label-placement="stacked"
+                interface="popover"
+                @ion-change="applyFilters"
+              >
+                <ion-select-option value="">All Types</ion-select-option>
+                <ion-select-option 
+                  v-for="type in callerTypes" 
+                  :key="type" 
+                  :value="type"
                 >
-                  <ion-select-option value="">All Types</ion-select-option>
-                  <ion-select-option 
-                    v-for="type in callerTypes" 
-                    :key="type" 
-                    :value="type"
-                  >
-                    {{ type }}
-                  </ion-select-option>
-                </ion-select>
-              </ion-item>
-            </ion-col>
-          </ion-row>
-          <ion-row>
-            <ion-col size="12" size-md="4">
-              <ion-item>
-                <ion-select
-                  v-model="localFilters.route"
-                  placeholder="All Routes"
-                  label="Route"
-                  label-placement="stacked"
-                  interface="popover"
-                  @ion-change="applyFilters"
-                >
-                  <ion-select-option value="">All Routes</ion-select-option>
-                  <ion-select-option value="local">Local</ion-select-option>
-                  <ion-select-option value="remote">Remote</ion-select-option>
-                </ion-select>
-              </ion-item>
-            </ion-col>
-            <ion-col size="12" size-md="4">
-              <ion-button expand="block" fill="outline" @click="applyPresetLocal7d">
+                  {{ type }}
+                </ion-select-option>
+              </ion-select>
+            </ion-item>
+          </div>
+          
+          <div class="filter-item">
+            <ion-item>
+              <ion-select
+                v-model="localFilters.route"
+                placeholder="All Routes"
+                label="Route"
+                label-placement="stacked"
+                interface="popover"
+                @ion-change="applyFilters"
+              >
+                <ion-select-option value="">All Routes</ion-select-option>
+                <ion-select-option value="local">Local</ion-select-option>
+                <ion-select-option value="remote">Remote</ion-select-option>
+              </ion-select>
+            </ion-item>
+          </div>
+          
+          <div class="filter-item checkbox-item">
+            <ion-item lines="none" class="preset-checkbox-item">
+              <ion-checkbox 
+                v-model="local7dPresetEnabled" 
+                @ion-change="onLocal7dPresetChange"
+                label-placement="end"
+              >
                 Local last 7 days
-              </ion-button>
-            </ion-col>
-          </ion-row>
-        </ion-grid>
+              </ion-checkbox>
+            </ion-item>
+          </div>
+        </div>
       </ion-card-content>
     </ion-card>
 
@@ -150,48 +154,55 @@
     <!-- Charts Section -->
     <div class="charts-section">
       <!-- Daily Usage Chart -->
-  <ion-card>
-    <ion-card-header>
-      <ion-card-title>Daily Usage Trends</ion-card-title>
-    </ion-card-header>
-    <ion-card-content>
-      <div class="chart-container">
-        <div class="chart-placeholder">
-          <!-- This would be where you'd integrate a charting library like Chart.js or ApexCharts -->
-          <div class="chart-mock">
-            <div v-for="(item, index) in chartData" :key="index" class="chart-bar">
-              <div 
-                class="bar" 
-                :style="{ height: `${(item.total_requests / maxRequests) * 100}%` }"
-                :title="`${item.date}: ${item.total_requests} requests`"
-              ></div>
-              <div class="bar-label">{{ formatChartDate(item.date) }}</div>
+      <ion-card>
+        <ion-card-header>
+          <ion-card-title>Daily Usage Trends</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>
+          <div v-if="chartData.length === 0" class="chart-empty-state">
+            <ion-icon :icon="analyticsOutline" color="medium"></ion-icon>
+            <p>No usage data available for the selected period.</p>
+          </div>
+          <div v-else class="chart-container">
+            <div class="chart-placeholder">
+              <div class="chart-mock">
+                <div v-for="(item, index) in chartData" :key="index" class="chart-bar">
+                  <div 
+                    class="bar" 
+                    :style="{ height: `${(item.total_requests / maxRequests) * 100}%` }"
+                    :title="`${item.date}: ${item.total_requests} requests`"
+                  ></div>
+                  <div class="bar-label">{{ formatChartDate(item.date) }}</div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
-    </ion-card-content>
-  </ion-card>
+        </ion-card-content>
+      </ion-card>
 
-  <!-- Route Trend (Daily) -->
-  <ion-card>
-    <ion-card-header>
-      <ion-card-title>Route Trends (Local vs Remote)</ion-card-title>
-    </ion-card-header>
-    <ion-card-content>
-      <div class="chart-container">
-        <div class="chart-placeholder">
-          <div class="chart-mock grouped">
-            <div v-for="(day, idx) in routeTrendDays" :key="idx" class="chart-bar route-group">
-              <div class="bar bar-local" :style="{ height: `${routeMax > 0 ? (routeLocalCounts[day] || 0) / routeMax * 100 : 0}%` }" :title="`${day}: ${routeLocalCounts[day] || 0} local`"></div>
-              <div class="bar bar-remote" :style="{ height: `${routeMax > 0 ? (routeRemoteCounts[day] || 0) / routeMax * 100 : 0}%` }" :title="`${day}: ${routeRemoteCounts[day] || 0} remote`"></div>
-              <div class="bar-label">{{ formatChartDate(day) }}</div>
+      <!-- Route Trend (Daily) -->
+      <ion-card>
+        <ion-card-header>
+          <ion-card-title>Route Trends (Local vs Remote)</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>
+          <div v-if="routeTrendDays.length === 0" class="chart-empty-state">
+            <ion-icon :icon="gitNetworkOutline" color="medium"></ion-icon>
+            <p>No route data available for the selected period.</p>
+          </div>
+          <div v-else class="chart-container">
+            <div class="chart-placeholder">
+              <div class="chart-mock grouped">
+                <div v-for="(day, idx) in routeTrendDays" :key="idx" class="chart-bar route-group">
+                  <div class="bar bar-local" :style="{ height: `${routeMax > 0 ? (routeLocalCounts[day] || 0) / routeMax * 100 : 0}%` }" :title="`${day}: ${routeLocalCounts[day] || 0} local`"></div>
+                  <div class="bar bar-remote" :style="{ height: `${routeMax > 0 ? (routeRemoteCounts[day] || 0) / routeMax * 100 : 0}%` }" :title="`${day}: ${routeRemoteCounts[day] || 0} remote`"></div>
+                  <div class="bar-label">{{ formatChartDate(day) }}</div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
-    </ion-card-content>
-  </ion-card>
+        </ion-card-content>
+      </ion-card>
 
       <!-- Caller Type Breakdown -->
       <ion-card>
@@ -199,7 +210,11 @@
           <ion-card-title>Usage by Caller Type</ion-card-title>
         </ion-card-header>
         <ion-card-content>
-          <div class="breakdown-grid">
+          <div v-if="callerTypeBreakdown.length === 0" class="chart-empty-state">
+            <ion-icon :icon="personCircleOutline" color="medium"></ion-icon>
+            <p>No caller type data available for the selected period.</p>
+          </div>
+          <div v-else class="breakdown-grid">
             <div 
               v-for="breakdown in callerTypeBreakdown" 
               :key="breakdown.callerType"
@@ -210,7 +225,7 @@
                   :icon="getCallerIcon(breakdown.callerType)" 
                   :color="getCallerColor(breakdown.callerType)"
                 />
-                <span class="breakdown-title">{{ breakdown.callerType }}</span>
+                <span class="breakdown-title">{{ breakdown.callerType || 'Unknown' }}</span>
               </div>
               <div class="breakdown-stats">
                 <div class="stat-row">
@@ -219,7 +234,7 @@
                 </div>
                 <div class="stat-row">
                   <span>Success Rate:</span>
-                  <span class="stat-value">{{ breakdown.successRate }}%</span>
+                  <span class="stat-value">{{ formatPercentage(breakdown.successRate) }}</span>
                 </div>
                 <div class="stat-row">
                   <span>Avg Cost:</span>
@@ -327,10 +342,11 @@ import {
   IonSelectOption,
   IonIcon,
   IonButton,
-  IonSpinner
+  IonSpinner,
+  IonCheckbox
 } from '@ionic/vue';
 import {
-  trendingUpOutline,
+  filterOutline,
   layersOutline,
   cashOutline,
   checkmarkCircleOutline,
@@ -340,7 +356,8 @@ import {
   settingsOutline,
   personOutline,
   serverOutline,
-  helpCircleOutline
+  helpCircleOutline,
+  gitNetworkOutline
 } from 'ionicons/icons';
 
 import { useLLMAnalyticsStore } from '@/stores/llmAnalyticsStore';
@@ -361,6 +378,8 @@ const localFilters = ref<{ startDate: string; endDate: string; callerType: strin
   route: ''
 });
 
+const local7dPresetEnabled = ref(false);
+
 // Computed - Use storeToRefs to maintain reactivity
 const { analytics, loading, callerTypes } = storeToRefs(store);
 
@@ -379,9 +398,11 @@ const overallSuccessRate = computed(() => {
 });
 
 const avgDuration = computed(() => {
-  if (!analytics.value || analytics.value.length === 0) return 0;
-  const totalDuration = analytics.value.reduce((sum, item) => sum + item.avg_duration_ms, 0);
-  return totalDuration / analytics.value.length;
+  if (!analytics.value || analytics.value.length === 0) return NaN;
+  const recordsWithDuration = analytics.value.filter(item => item.avg_duration_ms != null && !isNaN(item.avg_duration_ms));
+  if (recordsWithDuration.length === 0) return NaN;
+  const totalDuration = recordsWithDuration.reduce((sum, item) => sum + (item.avg_duration_ms || 0), 0);
+  return totalDuration / recordsWithDuration.length;
 });
 
 const chartData = computed(() => {
@@ -455,19 +476,21 @@ const callerTypeBreakdown = computed(() => {
     }
     
     const entry = breakdown.get(item.caller_type);
-    entry.totalRequests += item.total_requests;
-    entry.successfulRequests += item.successful_requests;
-    entry.totalCost += item.total_cost;
-    entry.totalDuration += item.avg_duration_ms;
+    entry.totalRequests += item.total_requests || 0;
+    entry.successfulRequests += item.successful_requests || 0;
+    entry.totalCost += item.total_cost || 0;
+    entry.totalDuration += item.avg_duration_ms || 0;
     entry.count++;
   });
   
-  return Array.from(breakdown.values()).map(entry => ({
-    ...entry,
-    successRate: entry.totalRequests > 0 ? Math.round((entry.successfulRequests / entry.totalRequests) * 100) : 0,
-    avgCost: entry.count > 0 ? entry.totalCost / entry.count : 0,
-    avgDuration: entry.count > 0 ? entry.totalDuration / entry.count : 0
-  }));
+  return Array.from(breakdown.values())
+    .filter(entry => entry.totalRequests > 0) // Only show entries with actual requests
+    .map(entry => ({
+      ...entry,
+      successRate: entry.totalRequests > 0 ? Math.round((entry.successfulRequests / entry.totalRequests) * 100) : 0,
+      avgCost: entry.count > 0 ? entry.totalCost / entry.count : 0,
+      avgDuration: entry.count > 0 ? entry.totalDuration / entry.count : 0
+    }));
 });
 
 const localRequests = computed(() => {
@@ -520,7 +543,8 @@ const applyFilters = () => {
   fetchRouteTrend(filters);
 };
 
-const formatCurrency = (amount: number) => {
+const formatCurrency = (amount: number | null | undefined) => {
+  if (amount === null || amount === undefined || isNaN(amount)) return '$0.0000';
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
@@ -528,9 +552,15 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
-const formatDuration = (ms: number) => {
+const formatDuration = (ms: number | null | undefined) => {
+  if (ms === null || ms === undefined || isNaN(ms)) return 'No data';
   if (ms < 1000) return `${Math.round(ms)}ms`;
   return `${(ms / 1000).toFixed(2)}s`;
+};
+
+const formatPercentage = (value: number | null | undefined) => {
+  if (value === null || value === undefined || isNaN(value)) return 'N/A';
+  return `${value}%`;
 };
 
 const formatTokens = (tokens: number) => {
@@ -580,14 +610,23 @@ async function fetchRouteTrend(base: { startDate?: string; endDate?: string; cal
   remoteAnalytics.value = await llmAnalyticsService.getUsageAnalytics({ startDate, endDate, callerType, route: 'remote' });
 }
 
-function applyPresetLocal7d() {
-  const start = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  const end = new Date().toISOString().split('T')[0];
-  localFilters.value.startDate = start;
-  localFilters.value.endDate = end;
-  localFilters.value.route = 'local';
-  applyFilters();
-}
+const onLocal7dPresetChange = async (event: CustomEvent) => {
+  const isEnabled = event.detail.checked;
+  if (isEnabled) {
+    const start = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const end = new Date().toISOString().split('T')[0];
+    localFilters.value.startDate = start;
+    localFilters.value.endDate = end;
+    localFilters.value.route = 'local';
+    applyFilters();
+  } else {
+    // Reset to default filters when unchecked
+    localFilters.value.startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    localFilters.value.endDate = new Date().toISOString().split('T')[0];
+    localFilters.value.route = '';
+    applyFilters();
+  }
+};
 </script>
 
 <style scoped>
@@ -627,6 +666,27 @@ function applyPresetLocal7d() {
 
 .charts-section {
   margin-top: 24px;
+}
+
+.chart-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  color: var(--ion-color-medium);
+  text-align: center;
+}
+
+.chart-empty-state ion-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+  opacity: 0.6;
+}
+
+.chart-empty-state p {
+  margin: 0;
+  font-size: 0.875rem;
 }
 
 .chart-container {
@@ -797,7 +857,42 @@ function applyPresetLocal7d() {
   color: var(--ion-color-light);
 }
 
+.preset-checkbox-item {
+  --background: transparent;
+  --padding-start: 0;
+  --padding-end: 0;
+  --inner-padding-end: 0;
+}
+
+.filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.filter-item {
+  flex: 1;
+  min-width: 140px;
+}
+
+.checkbox-item {
+  flex: 0 0 auto;
+  min-width: auto;
+  display: flex;
+  align-items: center;
+}
+
 @media (max-width: 768px) {
+  .filters-row {
+    flex-direction: column;
+  }
+  
+  .filter-item {
+    width: 100%;
+    min-width: 100%;
+  }
+  
   .metric-split {
     flex-direction: column;
     gap: 12px;

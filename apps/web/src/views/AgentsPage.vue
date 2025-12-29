@@ -212,40 +212,24 @@ const handleAgentSelected = async (agent: Record<string, unknown>) => {
   justify-content: center;
   width: 32px;
   height: 32px;
-  border: 1px solid var(--ion-border-color, #d0d0d0);
+  border: 1px solid var(--ion-border-color, rgba(255, 255, 255, 0.1));
   border-radius: 4px;
-  background: #ffffff;
-  color: #333333;
+  background: var(--ion-color-step-50, rgba(255, 255, 255, 0.05));
+  color: var(--ion-text-color, #e0e0e0);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .theme-toggle:hover {
-  background: #f0f0f0;
+  background: var(--ion-color-step-100, rgba(255, 255, 255, 0.1));
 }
 
 .theme-toggle ion-icon {
   font-size: 18px;
-  color: #333333;
+  color: var(--ion-text-color, #e0e0e0);
 }
 
-/* Dark mode overrides for theme toggle */
-:global(html.ion-palette-dark) .theme-toggle,
-:global(html[data-theme="dark"]) .theme-toggle {
-  background: var(--ion-background-color, #1a1a1a);
-  color: var(--ion-text-color, #ffffff);
-  border-color: var(--ion-border-color, #444444);
-}
-
-:global(html.ion-palette-dark) .theme-toggle:hover,
-:global(html[data-theme="dark"]) .theme-toggle:hover {
-  background: var(--ion-color-step-100, #2a2a2a);
-}
-
-:global(html.ion-palette-dark) .theme-toggle ion-icon,
-:global(html[data-theme="dark"]) .theme-toggle ion-icon {
-  color: var(--ion-text-color, #ffffff);
-}
+/* Light mode overrides - moved to unscoped style block below */
 
 /* Organization switcher in toolbar */
 .org-switcher-container {
@@ -287,8 +271,9 @@ hr {
   border-radius: 6px !important;
   margin: 2px 0 !important;
   font-weight: 500 !important;
-  --color: var(--ion-color-dark) !important;
-  color: var(--ion-color-dark) !important;
+  /* Use text color that adapts to theme - dark in light mode, removed !important so dark mode can override */
+  --color: var(--ion-color-dark);
+  color: var(--ion-color-dark);
 }
 
 /* Try targeting the actual Ionic CSS variables */
@@ -464,7 +449,31 @@ ion-split-pane {
 
 :global(html.ion-palette-dark) .main-nav-content,
 :global(html[data-theme="dark"]) .main-nav-content {
-  background: var(--ion-color-step-50);
+  background: var(--ion-color-step-50) !important;
+}
+
+:global(html.ion-palette-dark) .main-nav-content ion-list,
+:global(html[data-theme="dark"]) .main-nav-content ion-list {
+  background: var(--ion-color-step-50) !important;
+}
+
+:global(html.ion-palette-dark) .main-nav-content ion-item,
+:global(html[data-theme="dark"]) .main-nav-content ion-item {
+  --background: var(--ion-color-step-50) !important;
+  background: var(--ion-color-step-50) !important;
+  --color: var(--ion-text-color, #e0e0e0) !important;
+  color: var(--ion-text-color, #e0e0e0) !important;
+}
+
+:global(html.ion-palette-dark) .main-nav-content ion-item ion-label,
+:global(html[data-theme="dark"]) .main-nav-content ion-item ion-label {
+  --color: var(--ion-text-color, #e0e0e0) !important;
+  color: var(--ion-text-color, #e0e0e0) !important;
+}
+
+:global(html.ion-palette-dark) .main-nav-content ion-item ion-icon,
+:global(html[data-theme="dark"]) .main-nav-content ion-item ion-icon {
+  color: var(--ion-text-color, #e0e0e0) !important;
 }
 
 :global(html.ion-palette-dark) .agents-content,
@@ -476,5 +485,110 @@ ion-split-pane {
 :global(html[data-theme="dark"]) .agents-controls {
   background: var(--ion-color-step-100);
   border-bottom-color: var(--ion-color-step-200);
+}
+</style>
+
+<style>
+/* Light mode overrides for theme toggle - unscoped for higher specificity */
+html:not(.ion-palette-dark):not([data-theme="dark"]) .theme-toggle,
+html[data-theme="light"] .theme-toggle {
+  background: var(--ion-color-step-50, rgba(0, 0, 0, 0.05)) !important;
+  color: #333333 !important;
+  border-color: var(--ion-border-color, rgba(0, 0, 0, 0.1)) !important;
+}
+
+html:not(.ion-palette-dark):not([data-theme="dark"]) .theme-toggle:hover,
+html[data-theme="light"] .theme-toggle:hover {
+  background: var(--ion-color-step-100, rgba(0, 0, 0, 0.1)) !important;
+}
+
+html:not(.ion-palette-dark):not([data-theme="dark"]) .theme-toggle ion-icon,
+html[data-theme="light"] .theme-toggle ion-icon {
+  color: #333333 !important;
+}
+
+/* Dark mode accordion header text - must be white for legibility */
+html.ion-palette-dark .accordion-header-custom,
+html[data-theme="dark"] .accordion-header-custom {
+  --color: #ffffff !important;
+  color: #ffffff !important;
+}
+
+html.ion-palette-dark .accordion-header-custom ion-label,
+html[data-theme="dark"] .accordion-header-custom ion-label {
+  --color: #ffffff !important;
+  color: #ffffff !important;
+}
+
+html.ion-palette-dark .accordion-header-custom ion-icon,
+html[data-theme="dark"] .accordion-header-custom ion-icon {
+  color: #ffffff !important;
+}
+
+html.ion-palette-dark ion-accordion ion-item[slot="header"],
+html[data-theme="dark"] ion-accordion ion-item[slot="header"] {
+  --color: #ffffff !important;
+  color: #ffffff !important;
+}
+
+html.ion-palette-dark ion-accordion ion-item[slot="header"] ion-label,
+html[data-theme="dark"] ion-accordion ion-item[slot="header"] ion-label {
+  --color: #ffffff !important;
+  color: #ffffff !important;
+}
+
+/* Also target via ion-menu context for higher specificity */
+html.ion-palette-dark ion-menu .accordion-header-custom,
+html[data-theme="dark"] ion-menu .accordion-header-custom {
+  --color: #ffffff !important;
+  color: #ffffff !important;
+}
+
+html.ion-palette-dark ion-menu .accordion-header-custom ion-label,
+html[data-theme="dark"] ion-menu .accordion-header-custom ion-label {
+  --color: #ffffff !important;
+  color: #ffffff !important;
+}
+
+html.ion-palette-dark ion-menu ion-accordion-group ion-accordion ion-item,
+html[data-theme="dark"] ion-menu ion-accordion-group ion-accordion ion-item {
+  --color: #ffffff !important;
+  color: #ffffff !important;
+}
+
+html.ion-palette-dark ion-menu ion-accordion-group ion-accordion ion-item ion-label,
+html[data-theme="dark"] ion-menu ion-accordion-group ion-accordion ion-item ion-label {
+  --color: #ffffff !important;
+  color: #ffffff !important;
+}
+
+/* Dark mode for Deliverables & Evaluations menu items */
+html.ion-palette-dark .main-nav-content ion-item,
+html[data-theme="dark"] .main-nav-content ion-item {
+  --background: var(--ion-color-step-50, #1f2937) !important;
+  background: var(--ion-color-step-50, #1f2937) !important;
+  --color: var(--ion-text-color, #e0e0e0) !important;
+  color: var(--ion-text-color, #e0e0e0) !important;
+}
+
+html.ion-palette-dark .main-nav-content ion-item ion-label,
+html[data-theme="dark"] .main-nav-content ion-item ion-label {
+  --color: var(--ion-text-color, #e0e0e0) !important;
+  color: var(--ion-text-color, #e0e0e0) !important;
+}
+
+html.ion-palette-dark .main-nav-content ion-item ion-icon,
+html[data-theme="dark"] .main-nav-content ion-item ion-icon {
+  color: var(--ion-text-color, #e0e0e0) !important;
+}
+
+html.ion-palette-dark .main-nav-content ion-list,
+html[data-theme="dark"] .main-nav-content ion-list {
+  background: var(--ion-color-step-50, #1f2937) !important;
+}
+
+html.ion-palette-dark .main-nav-content,
+html[data-theme="dark"] .main-nav-content {
+  background: var(--ion-color-step-50, #1f2937) !important;
 }
 </style>
