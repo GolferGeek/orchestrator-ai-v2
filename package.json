@@ -18,7 +18,7 @@
     "dev:flow": "cd apps/orch-flow && npm run dev",
     "dev:notebook": "export PATH=\"$HOME/.local/bin:/usr/local/bin:/Applications/Docker.app/Contents/Resources/bin:$PATH\" && cd apps/open-notebook && make start-all",
     "dev:all": "./scripts/dev-all-apps.sh",
-    "dev:notebook:api": "export PATH=\"$HOME/.local/bin:$PATH\" && cd apps/open-notebook && uv run python run_api.py",
+    "dev:notebook:api": "export PATH=\"$HOME/.local/bin:/usr/local/bin:/Applications/Docker.app/Contents/Resources/bin:$PATH\" && cd apps/open-notebook && uv run python run_api.py",
     "dev:notebook:frontend": "cd apps/open-notebook/frontend && npm run dev",
     "kill:notebook": "export PATH=\"$HOME/.local/bin:/usr/local/bin:/Applications/Docker.app/Contents/Resources/bin:$PATH\" && cd apps/open-notebook && make stop-all",
     "kill:all": "./scripts/kill-all-apps.sh",
