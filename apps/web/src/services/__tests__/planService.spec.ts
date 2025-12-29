@@ -11,32 +11,34 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { planService } from '../planService';
 import type { PlanVersionData } from '@orchestrator-ai/transport-types';
 
 // Mock the apiService dependency
-const mockApiService = {
-  get: vi.fn(),
-};
-
+const mockGet = vi.fn();
 vi.mock('../apiService', () => ({
-  apiService: mockApiService,
+  apiService: {
+    get: mockGet,
+  },
 }));
 
 // Mock the agent2agent API
-const mockAgent2AgentApi = {
-  plans: {
-    rerun: vi.fn(),
-  },
-};
-
+const mockRerun = vi.fn();
 vi.mock('@/services/agent2agent/api/agent2agent.api', () => ({
-  createAgent2AgentApi: vi.fn(() => mockAgent2AgentApi),
+  createAgent2AgentApi: vi.fn(() => ({
+    plans: {
+      rerun: mockRerun,
+    },
+  })),
 }));
+
+// Import after mocks are defined
+const { planService } = await import('../planService');
 
 describe('PlanService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGet.mockClear();
+    mockRerun.mockClear();
   });
 
   describe('loadPlansByConversation', () => {
@@ -68,11 +70,11 @@ describe('PlanService', () => {
         ],
       };
 
-      mockApiService.get.mockResolvedValue(mockApiResponse);
+      mockGet.mockResolvedValue(mockApiResponse);
 
       const result = await planService.loadPlansByConversation('conv-1');
 
-      expect(mockApiService.get).toHaveBeenCalledWith('/plans/conversation/conv-1');
+      expect(mockGet).toHaveBeenCalledWith('/plans/conversation/conv-1');
       expect(result).toBeTruthy();
       expect(result?.plan.id).toBe('plan-1');
       expect(result?.plan.conversationId).toBe('conv-1');
@@ -83,7 +85,7 @@ describe('PlanService', () => {
     });
 
     it('should return null when no plan found', async () => {
-      mockApiService.get.mockResolvedValue(null);
+      mockGet.mockResolvedValue(null);
 
       const result = await planService.loadPlansByConversation('conv-1');
 
@@ -102,7 +104,7 @@ describe('PlanService', () => {
         versions: [],
       };
 
-      mockApiService.get.mockResolvedValue(mockApiResponse);
+      mockGet.mockResolvedValue(mockApiResponse);
 
       const result = await planService.loadPlansByConversation('conv-1');
 
@@ -141,7 +143,7 @@ describe('PlanService', () => {
         ],
       };
 
-      mockApiService.get.mockResolvedValue(mockApiResponse);
+      mockGet.mockResolvedValue(mockApiResponse);
 
       const result = await planService.loadPlansByConversation('conv-1');
 
@@ -173,7 +175,7 @@ describe('PlanService', () => {
         ],
       };
 
-      mockApiService.get.mockResolvedValue(mockApiResponse);
+      mockGet.mockResolvedValue(mockApiResponse);
 
       const result = await planService.loadPlansByConversation('conv-1');
 
@@ -207,7 +209,7 @@ describe('PlanService', () => {
         ],
       };
 
-      mockApiService.get.mockResolvedValue(mockApiResponse);
+      mockGet.mockResolvedValue(mockApiResponse);
 
       const result = await planService.loadPlansByConversation('conv-1');
 
@@ -226,7 +228,7 @@ describe('PlanService', () => {
         createdAt: '2024-01-01T00:00:00Z',
       };
 
-      mockApiService.get.mockResolvedValue(malformedResponse);
+      mockGet.mockResolvedValue(malformedResponse);
 
       const result = await planService.loadPlansByConversation('conv-1');
 
@@ -239,7 +241,7 @@ describe('PlanService', () => {
     it('should handle API errors gracefully', async () => {
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-      mockApiService.get.mockRejectedValue(new Error('Network error'));
+      mockGet.mockRejectedValue(new Error('Network error'));
 
       const result = await planService.loadPlansByConversation('conv-1');
 
@@ -282,7 +284,7 @@ describe('PlanService', () => {
         ],
       };
 
-      mockApiService.get.mockResolvedValue(mockApiResponse);
+      mockGet.mockResolvedValue(mockApiResponse);
 
       const result = await planService.loadPlansByConversation('conv-1');
 
@@ -302,7 +304,7 @@ describe('PlanService', () => {
         versions: [],
       };
 
-      mockApiService.get.mockResolvedValue(mockApiResponse);
+      mockGet.mockResolvedValue(mockApiResponse);
 
       const result = await planService.loadPlansByConversation('conv-1');
 
@@ -331,7 +333,7 @@ describe('PlanService', () => {
         },
       };
 
-      mockAgent2AgentApi.plans.rerun.mockResolvedValue(mockApiResponse);
+      mockRerun.mockResolvedValue(mockApiResponse);
 
       const llmSelection = {
         providerName: 'openai',
@@ -347,7 +349,7 @@ describe('PlanService', () => {
         llmSelection
       );
 
-      expect(mockAgent2AgentApi.plans.rerun).toHaveBeenCalledWith(
+      expect(mockRerun).toHaveBeenCalledWith(
         'conv-1',
         'version-1',
         {
@@ -382,7 +384,7 @@ describe('PlanService', () => {
         },
       };
 
-      mockAgent2AgentApi.plans.rerun.mockResolvedValue(mockApiResponse);
+      mockRerun.mockResolvedValue(mockApiResponse);
 
       const llmSelection = {
         providerName: 'openai',
@@ -406,7 +408,7 @@ describe('PlanService', () => {
         },
       };
 
-      mockAgent2AgentApi.plans.rerun.mockResolvedValue(mockApiResponse);
+      mockRerun.mockResolvedValue(mockApiResponse);
 
       const llmSelection = {
         providerName: 'openai',
@@ -423,7 +425,7 @@ describe('PlanService', () => {
     it('should handle API errors during rerun', async () => {
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-      mockAgent2AgentApi.plans.rerun.mockRejectedValue(new Error('Network error'));
+      mockRerun.mockRejectedValue(new Error('Network error'));
 
       const llmSelection = {
         providerName: 'openai',
@@ -440,7 +442,7 @@ describe('PlanService', () => {
     it('should handle non-Error exceptions during rerun', async () => {
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-      mockAgent2AgentApi.plans.rerun.mockRejectedValue('String error');
+      mockRerun.mockRejectedValue('String error');
 
       const llmSelection = {
         providerName: 'openai',
@@ -467,7 +469,7 @@ describe('PlanService', () => {
         createdAt: '2024-01-02T00:00:00Z',
       };
 
-      mockAgent2AgentApi.plans.rerun.mockResolvedValue({
+      mockRerun.mockResolvedValue({
         success: true,
         data: { version: mockNewVersion },
       });
@@ -480,7 +482,7 @@ describe('PlanService', () => {
 
       await planService.rerunWithDifferentLLM('test-agent', 'conv-1', 'version-1', llmSelection);
 
-      expect(mockAgent2AgentApi.plans.rerun).toHaveBeenCalledWith(
+      expect(mockRerun).toHaveBeenCalledWith(
         'conv-1',
         'version-1',
         {
@@ -495,7 +497,7 @@ describe('PlanService', () => {
 
   describe('Service Layer Architecture', () => {
     it('should handle async operations properly', async () => {
-      mockApiService.get.mockResolvedValue(null);
+      mockGet.mockResolvedValue(null);
 
       const result = planService.loadPlansByConversation('conv-1');
       expect(result).toBeInstanceOf(Promise);
@@ -506,12 +508,12 @@ describe('PlanService', () => {
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       // loadPlansByConversation returns null on error
-      mockApiService.get.mockRejectedValue(new Error('API error'));
+      mockGet.mockRejectedValue(new Error('API error'));
       const loadResult = await planService.loadPlansByConversation('conv-1');
       expect(loadResult).toBeNull();
 
       // rerunWithDifferentLLM throws on error
-      mockAgent2AgentApi.plans.rerun.mockRejectedValue(new Error('Rerun error'));
+      mockRerun.mockRejectedValue(new Error('Rerun error'));
       await expect(
         planService.rerunWithDifferentLLM('agent', 'conv-1', 'v1', {
           providerName: 'openai',

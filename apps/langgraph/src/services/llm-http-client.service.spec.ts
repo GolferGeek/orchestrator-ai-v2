@@ -136,8 +136,10 @@ describe("LLMHttpClientService", () => {
           userPrompt: validRequest.userMessage,
           context: validRequest.context,
           options: expect.objectContaining({
-            provider: mockContext.provider,
-            modelName: mockContext.model,
+            // NOTE: provider/model are now sourced from context (ExecutionContext is authoritative)
+            // and are NOT duplicated in options - see CODE-001 fix
+            temperature: 0.7,
+            maxTokens: 3500,
             callerType: "langgraph",
             callerName: validRequest.callerName,
           }),

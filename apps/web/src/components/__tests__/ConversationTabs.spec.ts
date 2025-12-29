@@ -39,11 +39,8 @@ vi.mock('@/services/conversationHelpers', () => ({
   },
 }));
 
-// Create wrapper helper
-const createWrapper = () => {
-  const pinia = createPinia();
-  setActivePinia(pinia);
-
+// Create wrapper helper - uses the active Pinia instance
+const createWrapper = (pinia: ReturnType<typeof createPinia>) => {
   return mount(ConversationTabs, {
     global: {
       plugins: [IonicVue, pinia],
@@ -70,9 +67,10 @@ describe('ConversationTabs', () => {
   let conversationsStore: ReturnType<typeof useConversationsStore>;
   let chatUiStore: ReturnType<typeof useChatUiStore>;
   let agentsStore: ReturnType<typeof useAgentsStore>;
+  let pinia: ReturnType<typeof createPinia>;
 
   beforeEach(() => {
-    const pinia = createPinia();
+    pinia = createPinia();
     setActivePinia(pinia);
 
     conversationsStore = useConversationsStore();
@@ -84,35 +82,35 @@ describe('ConversationTabs', () => {
 
   describe('Component Rendering', () => {
     it('renders without crashing', () => {
-      const wrapper = createWrapper();
+      const wrapper = createWrapper(pinia);
       expect(wrapper.exists()).toBe(true);
     });
 
     it('renders tab bar container', () => {
-      const wrapper = createWrapper();
+      const wrapper = createWrapper(pinia);
       const container = wrapper.find('.conversation-tabs-container');
       expect(container.exists()).toBe(true);
     });
 
     it('renders empty state when no conversations are open', () => {
-      const wrapper = createWrapper();
+      const wrapper = createWrapper(pinia);
       const emptyState = wrapper.find('.empty-state');
       expect(emptyState.exists()).toBe(true);
       expect(emptyState.text()).toContain('No conversations open');
     });
 
     it('hides tab bar when no tabs are open', () => {
-      const wrapper = createWrapper();
+      const wrapper = createWrapper(pinia);
       const tabBar = wrapper.find('.conversation-tab-bar');
       expect(tabBar.exists()).toBe(false);
     });
 
     it('shows tab bar when tabs are open', async () => {
-      const wrapper = createWrapper();
       const conv = createMockConversation('conv-1', 'Test Conversation');
-
       conversationsStore.setConversation(conv);
       chatUiStore.openConversationTab('conv-1');
+
+      const wrapper = createWrapper(pinia);
       await wrapper.vm.$nextTick();
 
       const tabBar = wrapper.find('.conversation-tab-bar');
@@ -122,8 +120,6 @@ describe('ConversationTabs', () => {
 
   describe('Open Tabs Management', () => {
     it('displays open conversation tabs', async () => {
-      const wrapper = createWrapper();
-
       const conv1 = createMockConversation('conv-1', 'Conversation 1');
       const conv2 = createMockConversation('conv-2', 'Conversation 2');
 
@@ -131,6 +127,8 @@ describe('ConversationTabs', () => {
       conversationsStore.setConversation(conv2);
       chatUiStore.openConversationTab('conv-1');
       chatUiStore.openConversationTab('conv-2');
+
+      const wrapper = createWrapper(pinia);
       await wrapper.vm.$nextTick();
 
       const tabs = wrapper.findAll('.conversation-tab');
@@ -138,11 +136,11 @@ describe('ConversationTabs', () => {
     });
 
     it('displays correct tab titles', async () => {
-      const wrapper = createWrapper();
-
       const conv = createMockConversation('conv-1', 'Test Conversation');
       conversationsStore.setConversation(conv);
       chatUiStore.openConversationTab('conv-1');
+
+      const wrapper = createWrapper(pinia);
       await wrapper.vm.$nextTick();
 
       const tabTitle = wrapper.find('.tab-title');
@@ -150,8 +148,6 @@ describe('ConversationTabs', () => {
     });
 
     it('marks active tab with active class', async () => {
-      const wrapper = createWrapper();
-
       const conv1 = createMockConversation('conv-1', 'Conversation 1');
       const conv2 = createMockConversation('conv-2', 'Conversation 2');
 
@@ -160,6 +156,8 @@ describe('ConversationTabs', () => {
       chatUiStore.openConversationTab('conv-1');
       chatUiStore.openConversationTab('conv-2');
       chatUiStore.setActiveConversation('conv-2');
+
+      const wrapper = createWrapper(pinia);
       await wrapper.vm.$nextTick();
 
       const tabs = wrapper.findAll('.conversation-tab');
@@ -170,7 +168,7 @@ describe('ConversationTabs', () => {
 
   describe('Tab Switching', () => {
     it('switches to conversation when tab is clicked', async () => {
-      const wrapper = createWrapper();
+      const wrapper = createWrapper(pinia);
 
       const conv1 = createMockConversation('conv-1', 'Conversation 1');
       const conv2 = createMockConversation('conv-2', 'Conversation 2');
@@ -214,7 +212,7 @@ describe('ConversationTabs', () => {
       const mockLoadConversationMessages = conversationHelpers.loadConversationMessages as ReturnType<typeof vi.fn>;
       const mockCreateConversationObject = conversationHelpers.createConversationObject as ReturnType<typeof vi.fn>;
 
-      const wrapper = createWrapper();
+      const wrapper = createWrapper(pinia);
 
       const backendConv = {
         id: 'conv-1',
@@ -247,7 +245,7 @@ describe('ConversationTabs', () => {
 
   describe('Tab Closing', () => {
     it('closes tab when close button is clicked', async () => {
-      const wrapper = createWrapper();
+      const wrapper = createWrapper(pinia);
 
       const conv = createMockConversation('conv-1', 'Test Conversation');
       conversationsStore.setConversation(conv);
@@ -263,7 +261,7 @@ describe('ConversationTabs', () => {
     });
 
     it('does not switch conversation when clicking close button', async () => {
-      const wrapper = createWrapper();
+      const wrapper = createWrapper(pinia);
 
       const conv1 = createMockConversation('conv-1', 'Conversation 1');
       const conv2 = createMockConversation('conv-2', 'Conversation 2');
@@ -285,7 +283,7 @@ describe('ConversationTabs', () => {
     });
 
     it('keeps conversation data in store after closing tab', async () => {
-      const wrapper = createWrapper();
+      const wrapper = createWrapper(pinia);
 
       const conv = createMockConversation('conv-1', 'Test Conversation');
       conversationsStore.setConversation(conv);
@@ -302,7 +300,7 @@ describe('ConversationTabs', () => {
 
   describe('Active Conversation Display', () => {
     it('displays active conversation content', async () => {
-      const wrapper = createWrapper();
+      const wrapper = createWrapper(pinia);
 
       const conv = createMockConversation('conv-1', 'Test Conversation');
       conversationsStore.setConversation(conv);
@@ -314,7 +312,7 @@ describe('ConversationTabs', () => {
     });
 
     it('uses two-pane view by default', async () => {
-      const wrapper = createWrapper();
+      const wrapper = createWrapper(pinia);
 
       const conv = createMockConversation('conv-1', 'Test Conversation');
       conversationsStore.setConversation(conv);
@@ -325,7 +323,7 @@ describe('ConversationTabs', () => {
     });
 
     it('renders ConversationView for two-pane mode', async () => {
-      const wrapper = createWrapper();
+      const wrapper = createWrapper(pinia);
 
       const conv = createMockConversation('conv-1', 'Test Conversation');
       conversationsStore.setConversation(conv);
@@ -339,10 +337,11 @@ describe('ConversationTabs', () => {
 
   describe('Message Sending', () => {
     it('sends message in conversational mode', async () => {
-      const { sendMessage } = await import('@/services/agent2agent/actions');
-      const mockSendMessage = sendMessage as ReturnType<typeof vi.fn>;
+      const actionsModule = await import('@/services/agent2agent/actions');
+      const mockSendMessage = actionsModule.sendMessage as ReturnType<typeof vi.fn>;
+      mockSendMessage.mockClear();
 
-      const wrapper = createWrapper();
+      const wrapper = createWrapper(pinia);
 
       const conv = createMockConversation('conv-1', 'Test Conversation');
       conversationsStore.setConversation(conv);
@@ -356,10 +355,11 @@ describe('ConversationTabs', () => {
     });
 
     it('creates plan in plan mode', async () => {
-      const { createPlan } = await import('@/services/agent2agent/actions');
-      const mockCreatePlan = createPlan as ReturnType<typeof vi.fn>;
+      const actionsModule = await import('@/services/agent2agent/actions');
+      const mockCreatePlan = actionsModule.createPlan as ReturnType<typeof vi.fn>;
+      mockCreatePlan.mockClear();
 
-      const wrapper = createWrapper();
+      const wrapper = createWrapper(pinia);
 
       const conv = createMockConversation('conv-1', 'Test Conversation');
       conversationsStore.setConversation(conv);
@@ -373,10 +373,11 @@ describe('ConversationTabs', () => {
     });
 
     it('creates deliverable in build mode', async () => {
-      const { createDeliverable } = await import('@/services/agent2agent/actions');
-      const mockCreateDeliverable = createDeliverable as ReturnType<typeof vi.fn>;
+      const actionsModule = await import('@/services/agent2agent/actions');
+      const mockCreateDeliverable = actionsModule.createDeliverable as ReturnType<typeof vi.fn>;
+      mockCreateDeliverable.mockClear();
 
-      const wrapper = createWrapper();
+      const wrapper = createWrapper(pinia);
 
       const conv = createMockConversation('conv-1', 'Test Conversation');
       conversationsStore.setConversation(conv);
@@ -393,7 +394,7 @@ describe('ConversationTabs', () => {
       const { sendMessage } = await import('@/services/agent2agent/actions');
       const mockSendMessage = sendMessage as ReturnType<typeof vi.fn>;
 
-      const wrapper = createWrapper();
+      const wrapper = createWrapper(pinia);
 
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -408,19 +409,17 @@ describe('ConversationTabs', () => {
 
   describe('Computed Properties', () => {
     it('computes activeConversation from chatUiStore', async () => {
-      const wrapper = createWrapper();
-
       const conv = createMockConversation('conv-1', 'Test Conversation');
       conversationsStore.setConversation(conv);
       chatUiStore.setActiveConversation('conv-1');
+
+      const wrapper = createWrapper(pinia);
       await wrapper.vm.$nextTick();
 
       expect(wrapper.vm.activeConversation).toEqual(conv);
     });
 
     it('computes openTabs from chatUiStore', async () => {
-      const wrapper = createWrapper();
-
       const conv1 = createMockConversation('conv-1', 'Conversation 1');
       const conv2 = createMockConversation('conv-2', 'Conversation 2');
 
@@ -428,6 +427,8 @@ describe('ConversationTabs', () => {
       conversationsStore.setConversation(conv2);
       chatUiStore.openConversationTab('conv-1');
       chatUiStore.openConversationTab('conv-2');
+
+      const wrapper = createWrapper(pinia);
       await wrapper.vm.$nextTick();
 
       expect(wrapper.vm.openTabs.length).toBe(2);
@@ -436,7 +437,7 @@ describe('ConversationTabs', () => {
     });
 
     it('filters out undefined conversations from openTabs', async () => {
-      const wrapper = createWrapper();
+      const wrapper = createWrapper(pinia);
 
       chatUiStore.openConversationTab('non-existent-conv');
       await wrapper.vm.$nextTick();
@@ -447,7 +448,7 @@ describe('ConversationTabs', () => {
 
   describe('Edge Cases', () => {
     it('handles switching to same conversation', async () => {
-      const wrapper = createWrapper();
+      const wrapper = createWrapper(pinia);
 
       const conv = createMockConversation('conv-1', 'Test Conversation');
       conversationsStore.setConversation(conv);
@@ -470,23 +471,25 @@ describe('ConversationTabs', () => {
     });
 
     it('handles closing last tab', async () => {
-      const wrapper = createWrapper();
-
       const conv = createMockConversation('conv-1', 'Test Conversation');
       conversationsStore.setConversation(conv);
       chatUiStore.openConversationTab('conv-1');
       chatUiStore.setActiveConversation('conv-1');
+
+      const wrapper = createWrapper(pinia);
       await wrapper.vm.$nextTick();
+
+      // Before closing, should have active conversation
+      expect(chatUiStore.activeConversationId).toBe('conv-1');
 
       wrapper.vm.closeConversation('conv-1');
       await wrapper.vm.$nextTick();
 
+      // After closing last tab, active conversation should be null
       expect(chatUiStore.activeConversationId).toBeNull();
     });
 
     it('handles multiple tabs with same agent', async () => {
-      const wrapper = createWrapper();
-
       const conv1 = createMockConversation('conv-1', 'Session 1');
       const conv2 = createMockConversation('conv-2', 'Session 2');
 
@@ -494,6 +497,8 @@ describe('ConversationTabs', () => {
       conversationsStore.setConversation(conv2);
       chatUiStore.openConversationTab('conv-1');
       chatUiStore.openConversationTab('conv-2');
+
+      const wrapper = createWrapper(pinia);
       await wrapper.vm.$nextTick();
 
       const tabs = wrapper.findAll('.conversation-tab');

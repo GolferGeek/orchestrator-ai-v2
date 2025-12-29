@@ -13,7 +13,6 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
-import { conversationLoadingService } from '../conversationLoadingService';
 import { useConversationsStore } from '@/stores/conversationsStore';
 import { useAgentsStore } from '@/stores/agentsStore';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
@@ -23,29 +22,30 @@ import { useLLMPreferencesStore } from '@/stores/llmPreferencesStore';
 import type { Router } from 'vue-router';
 
 // Mock service dependencies
-const mockConversationCrudService = {
-  getBackendConversation: vi.fn(),
-};
-
-const mockConversationMessageService = {
-  loadConversationMessages: vi.fn(),
-};
-
-const mockConversationFactoryService = {
-  createConversationObject: vi.fn(),
-};
+const mockGetBackendConversation = vi.fn();
+const mockLoadConversationMessages = vi.fn();
+const mockCreateConversationObject = vi.fn();
 
 vi.mock('@/services/conversation/conversationCrudService', () => ({
-  conversationCrudService: mockConversationCrudService,
+  conversationCrudService: {
+    getBackendConversation: mockGetBackendConversation,
+  },
 }));
 
 vi.mock('@/services/conversation/conversationMessageService', () => ({
-  conversationMessageService: mockConversationMessageService,
+  conversationMessageService: {
+    loadConversationMessages: mockLoadConversationMessages,
+  },
 }));
 
 vi.mock('@/services/conversation/conversationFactoryService', () => ({
-  conversationFactoryService: mockConversationFactoryService,
+  conversationFactoryService: {
+    createConversationObject: mockCreateConversationObject,
+  },
 }));
+
+// Import after mocks are defined
+const { conversationLoadingService } = await import('../conversationLoadingService');
 
 describe('ConversationLoadingService', () => {
   let mockRouter: Router;
@@ -58,12 +58,20 @@ describe('ConversationLoadingService', () => {
     mockRouter = {
       replace: vi.fn(),
     } as unknown as Router;
+
+    // Clear execution context store
+    const executionContextStore = useExecutionContextStore();
+    executionContextStore.clear();
   });
 
   describe('loadConversationFromQuery', () => {
     it('should reject if user is not authenticated', async () => {
       const authStore = useAuthStore();
-      authStore.isAuthenticated = false;
+      // Ensure user is not authenticated
+      authStore.$patch({
+        token: null,
+        user: null,
+      });
 
       const currentRoute = {
         name: 'home',
@@ -86,7 +94,11 @@ describe('ConversationLoadingService', () => {
       const conversationsStore = useConversationsStore();
       const chatUiStore = useChatUiStore();
 
-      authStore.isAuthenticated = true;
+      // Set up authenticated user
+      authStore.$patch({
+        token: 'test-token',
+        user: { id: 'user-1', email: 'test@example.com', roles: [] },
+      });
 
       // Add existing conversation with messages
       conversationsStore.setConversation({
@@ -130,7 +142,7 @@ describe('ConversationLoadingService', () => {
       });
 
       // Should NOT call backend APIs
-      expect(mockConversationCrudService.getBackendConversation).not.toHaveBeenCalled();
+      expect(mockGetBackendConversation).not.toHaveBeenCalled();
     });
 
     it('should load conversation from backend if not in store', async () => {
@@ -140,9 +152,12 @@ describe('ConversationLoadingService', () => {
       const chatUiStore = useChatUiStore();
       const executionContextStore = useExecutionContextStore();
 
-      authStore.isAuthenticated = true;
-      authStore.user = { id: 'user-1', email: 'test@example.com' };
-      authStore.currentOrganization = 'test-org';
+      // Set up authenticated user
+      authStore.$patch({
+        token: 'test-token',
+        user: { id: 'user-1', email: 'test@example.com', roles: [] },
+        currentOrganization: 'test-org',
+      });
 
       // Mock agent
       const mockAgent = {
@@ -151,7 +166,7 @@ describe('ConversationLoadingService', () => {
         type: 'context',
         execution_modes: ['immediate'],
       };
-      agentsStore.availableAgents = [mockAgent];
+      agentsStore.setAvailableAgents([mockAgent]);
 
       // Mock backend conversation
       const mockBackendConversation = {
@@ -161,7 +176,7 @@ describe('ConversationLoadingService', () => {
         agentName: 'test-agent',
         createdAt: '2024-01-01T00:00:00Z',
       };
-      mockConversationCrudService.getBackendConversation.mockResolvedValue(mockBackendConversation);
+      mockGetBackendConversation.mockResolvedValue(mockBackendConversation);
 
       // Mock messages
       const mockMessages = [
@@ -173,7 +188,7 @@ describe('ConversationLoadingService', () => {
           timestamp: '2024-01-01T00:00:00Z',
         },
       ];
-      mockConversationMessageService.loadConversationMessages.mockResolvedValue(mockMessages);
+      mockLoadConversationMessages.mockResolvedValue(mockMessages);
 
       // Mock conversation factory
       const mockConversationObject = {
@@ -185,7 +200,7 @@ describe('ConversationLoadingService', () => {
         agentName: 'test-agent',
         agentType: 'context',
       };
-      mockConversationFactoryService.createConversationObject.mockReturnValue(mockConversationObject);
+      mockCreateConversationObject.mockReturnValue(mockConversationObject);
 
       const currentRoute = {
         name: 'home',
@@ -203,8 +218,8 @@ describe('ConversationLoadingService', () => {
       expect(result.conversationId).toBe('conv-1');
 
       // Verify backend APIs were called
-      expect(mockConversationCrudService.getBackendConversation).toHaveBeenCalledWith('conv-1');
-      expect(mockConversationMessageService.loadConversationMessages).toHaveBeenCalledWith('conv-1');
+      expect(mockGetBackendConversation).toHaveBeenCalledWith('conv-1');
+      expect(mockLoadConversationMessages).toHaveBeenCalledWith('conv-1');
 
       // Verify conversation was added to store with correct ID
       const conversation = conversationsStore.conversationById('conv-1');
@@ -219,23 +234,23 @@ describe('ConversationLoadingService', () => {
       expect(chatUiStore.activeConversationId).toBe('conv-1');
 
       // Verify ExecutionContext was initialized
-      expect(executionContextStore.capsule).toBeTruthy();
-      expect(executionContextStore.capsule?.conversationId).toBe('conv-1');
-      expect(executionContextStore.capsule?.agentSlug).toBe('test-agent');
+      expect(executionContextStore.contextOrNull).toBeTruthy();
+      expect(executionContextStore.contextOrNull?.conversationId).toBe('conv-1');
+      expect(executionContextStore.contextOrNull?.agentSlug).toBe('test-agent');
     });
 
     it('should load agents if not already loaded', async () => {
       const authStore = useAuthStore();
       const agentsStore = useAgentsStore();
 
-      authStore.isAuthenticated = true;
-      authStore.user = { id: 'user-1', email: 'test@example.com' };
+      // Set up authenticated user
+      authStore.$patch({
+        token: 'test-token',
+        user: { id: 'user-1', email: 'test@example.com', roles: [] },
+      });
 
-      // Initially no agents
-      agentsStore.availableAgents = null;
-
-      // Mock ensureAgentsLoaded
-      const ensureAgentsLoadedSpy = vi.spyOn(agentsStore, 'ensureAgentsLoaded').mockResolvedValue();
+      // Initially no agents - set empty array instead of null
+      agentsStore.setAvailableAgents([]);
 
       const mockBackendConversation = {
         id: 'conv-1',
@@ -243,17 +258,15 @@ describe('ConversationLoadingService', () => {
         agentName: 'test-agent',
         createdAt: '2024-01-01T00:00:00Z',
       };
-      mockConversationCrudService.getBackendConversation.mockResolvedValue(mockBackendConversation);
-      mockConversationMessageService.loadConversationMessages.mockResolvedValue([]);
+      mockGetBackendConversation.mockResolvedValue(mockBackendConversation);
+      mockLoadConversationMessages.mockResolvedValue([]);
 
-      // After ensureAgentsLoaded, agents should be available
-      ensureAgentsLoadedSpy.mockImplementation(async () => {
-        agentsStore.availableAgents = [
-          { id: 'agent-1', name: 'test-agent', type: 'context' },
-        ];
-      });
+      // Set up agents before the service loads them
+      agentsStore.setAvailableAgents([
+        { id: 'agent-1', name: 'test-agent', type: 'context', execution_modes: ['immediate'] },
+      ]);
 
-      mockConversationFactoryService.createConversationObject.mockReturnValue({
+      mockCreateConversationObject.mockReturnValue({
         id: 'temp-id',
         userId: 'user-1',
         title: 'Test',
@@ -267,22 +280,26 @@ describe('ConversationLoadingService', () => {
         query: { conversationId: 'conv-1' },
       };
 
-      await conversationLoadingService.loadConversationFromQuery('conv-1', mockRouter, currentRoute);
+      const result = await conversationLoadingService.loadConversationFromQuery('conv-1', mockRouter, currentRoute);
 
-      expect(ensureAgentsLoadedSpy).toHaveBeenCalled();
+      // Should succeed since agents are now available
+      expect(result.success).toBe(true);
     });
 
     it('should return error if agent not found', async () => {
       const authStore = useAuthStore();
       const agentsStore = useAgentsStore();
 
-      authStore.isAuthenticated = true;
-      authStore.user = { id: 'user-1', email: 'test@example.com' };
+      // Set up authenticated user
+      authStore.$patch({
+        token: 'test-token',
+        user: { id: 'user-1', email: 'test@example.com', roles: [] },
+      });
 
       // No matching agent
-      agentsStore.availableAgents = [
-        { id: 'other-agent', name: 'other-agent', type: 'context' },
-      ];
+      agentsStore.setAvailableAgents([
+        { id: 'other-agent', name: 'other-agent', type: 'context', execution_modes: ['immediate'] },
+      ]);
 
       const mockBackendConversation = {
         id: 'conv-1',
@@ -290,8 +307,8 @@ describe('ConversationLoadingService', () => {
         agentName: 'missing-agent',
         createdAt: '2024-01-01T00:00:00Z',
       };
-      mockConversationCrudService.getBackendConversation.mockResolvedValue(mockBackendConversation);
-      mockConversationMessageService.loadConversationMessages.mockResolvedValue([]);
+      mockGetBackendConversation.mockResolvedValue(mockBackendConversation);
+      mockLoadConversationMessages.mockResolvedValue([]);
 
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -318,15 +335,19 @@ describe('ConversationLoadingService', () => {
       const agentsStore = useAgentsStore();
       const conversationsStore = useConversationsStore();
 
-      authStore.isAuthenticated = true;
-      authStore.user = { id: 'user-1', email: 'test@example.com' };
+      // Set up authenticated user
+      authStore.$patch({
+        token: 'test-token',
+        user: { id: 'user-1', email: 'test@example.com', roles: [] },
+      });
 
       const mockAgent = {
         id: 'agent-1',
         name: 'test-agent',
         type: 'context',
+        execution_modes: ['immediate'],
       };
-      agentsStore.availableAgents = [mockAgent];
+      agentsStore.setAvailableAgents([mockAgent]);
 
       // Add existing conversation (without messages)
       conversationsStore.setConversation({
@@ -344,10 +365,10 @@ describe('ConversationLoadingService', () => {
         agentName: 'test-agent',
         createdAt: '2024-01-01T00:00:00Z',
       };
-      mockConversationCrudService.getBackendConversation.mockResolvedValue(mockBackendConversation);
-      mockConversationMessageService.loadConversationMessages.mockResolvedValue([]);
+      mockGetBackendConversation.mockResolvedValue(mockBackendConversation);
+      mockLoadConversationMessages.mockResolvedValue([]);
 
-      mockConversationFactoryService.createConversationObject.mockReturnValue({
+      mockCreateConversationObject.mockReturnValue({
         id: 'temp-id',
         userId: 'user-1',
         title: 'Updated Title',
@@ -374,37 +395,49 @@ describe('ConversationLoadingService', () => {
       const executionContextStore = useExecutionContextStore();
       const llmPreferencesStore = useLLMPreferencesStore();
 
-      authStore.isAuthenticated = true;
-      authStore.user = { id: 'user-123', email: 'test@example.com' };
-      authStore.currentOrganization = 'my-org';
+      // Set up authenticated user
+      authStore.$patch({
+        token: 'test-token',
+        user: { id: 'user-123', email: 'test@example.com', roles: [] },
+        currentOrganization: 'my-org',
+      });
 
       const mockAgent = {
         id: 'agent-1',
         name: 'my-agent',
         type: 'workflow',
+        execution_modes: ['immediate'],
       };
-      agentsStore.availableAgents = [mockAgent];
+      agentsStore.setAvailableAgents([mockAgent]);
 
-      // Mock LLM preferences
-      llmPreferencesStore.selectedProvider = { name: 'openai', displayName: 'OpenAI' };
-      llmPreferencesStore.selectedModel = { modelName: 'gpt-4', displayName: 'GPT-4' };
+      // Mock ensureAgentsLoaded if it exists (it was removed in Phase 4.2 but service might still call it)
+      if ('ensureAgentsLoaded' in agentsStore) {
+        vi.spyOn(agentsStore, 'ensureAgentsLoaded' as any).mockResolvedValue(undefined);
+      }
+
+      // Mock LLM preferences - use direct assignment for options API stores
+      llmPreferencesStore.selectedProvider = { name: 'openai', displayName: 'OpenAI' } as any;
+      llmPreferencesStore.selectedModel = { modelName: 'gpt-4', displayName: 'GPT-4' } as any;
 
       const mockBackendConversation = {
         id: 'conv-1',
         userId: 'user-123',
-        agentName: 'my-agent',
+        agentName: 'my-agent', // This must match agent.name in availableAgents
         createdAt: '2024-01-01T00:00:00Z',
       };
-      mockConversationCrudService.getBackendConversation.mockResolvedValue(mockBackendConversation);
-      mockConversationMessageService.loadConversationMessages.mockResolvedValue([]);
+      mockGetBackendConversation.mockResolvedValue(mockBackendConversation);
+      mockLoadConversationMessages.mockResolvedValue([]);
 
-      mockConversationFactoryService.createConversationObject.mockReturnValue({
+      mockCreateConversationObject.mockReturnValue({
         id: 'temp-id',
         userId: 'user-123',
         title: 'Test',
         createdAt: new Date(),
         updatedAt: new Date(),
-      });
+        agent: mockAgent, // Include the agent object so chatUiStore can extract it
+        agentName: 'my-agent', // Also set agentName for backward compatibility
+        agentType: 'workflow', // Also set agentType
+      } as any);
 
       const currentRoute = {
         name: 'home',
@@ -415,39 +448,43 @@ describe('ConversationLoadingService', () => {
       await conversationLoadingService.loadConversationFromQuery('conv-1', mockRouter, currentRoute);
 
       // Verify ExecutionContext
-      expect(executionContextStore.capsule).toBeTruthy();
-      expect(executionContextStore.capsule?.orgSlug).toBe('my-org');
-      expect(executionContextStore.capsule?.userId).toBe('user-123');
-      expect(executionContextStore.capsule?.conversationId).toBe('conv-1');
-      expect(executionContextStore.capsule?.agentSlug).toBe('my-agent');
-      expect(executionContextStore.capsule?.agentType).toBe('workflow');
-      expect(executionContextStore.capsule?.provider).toBe('openai');
-      expect(executionContextStore.capsule?.model).toBe('gpt-4');
+      expect(executionContextStore.contextOrNull).toBeTruthy();
+      expect(executionContextStore.contextOrNull?.orgSlug).toBe('my-org');
+      expect(executionContextStore.contextOrNull?.userId).toBe('user-123');
+      expect(executionContextStore.contextOrNull?.conversationId).toBe('conv-1');
+      expect(executionContextStore.contextOrNull?.agentSlug).toBe('my-agent');
+      expect(executionContextStore.contextOrNull?.agentType).toBe('workflow');
+      expect(executionContextStore.contextOrNull?.provider).toBe('openai');
+      expect(executionContextStore.contextOrNull?.model).toBe('gpt-4');
     });
 
     it('should clean up query parameter after loading', async () => {
       const authStore = useAuthStore();
       const agentsStore = useAgentsStore();
 
-      authStore.isAuthenticated = true;
-      authStore.user = { id: 'user-1', email: 'test@example.com' };
+      // Set up authenticated user
+      authStore.$patch({
+        token: 'test-token',
+        user: { id: 'user-1', email: 'test@example.com', roles: [] },
+      });
 
       const mockAgent = {
         id: 'agent-1',
         name: 'test-agent',
         type: 'context',
+        execution_modes: ['immediate'],
       };
-      agentsStore.availableAgents = [mockAgent];
+      agentsStore.setAvailableAgents([mockAgent]);
 
-      mockConversationCrudService.getBackendConversation.mockResolvedValue({
+      mockGetBackendConversation.mockResolvedValue({
         id: 'conv-1',
         userId: 'user-1',
         agentName: 'test-agent',
         createdAt: '2024-01-01T00:00:00Z',
       });
-      mockConversationMessageService.loadConversationMessages.mockResolvedValue([]);
+      mockLoadConversationMessages.mockResolvedValue([]);
 
-      mockConversationFactoryService.createConversationObject.mockReturnValue({
+      mockCreateConversationObject.mockReturnValue({
         id: 'temp-id',
         userId: 'user-1',
         title: 'Test',
@@ -475,7 +512,11 @@ describe('ConversationLoadingService', () => {
       const authStore = useAuthStore();
       const conversationsStore = useConversationsStore();
 
-      authStore.isAuthenticated = true;
+      // Set up authenticated user
+      authStore.$patch({
+        token: 'test-token',
+        user: { id: 'user-1', email: 'test@example.com', roles: [] },
+      });
 
       conversationsStore.setConversation({
         id: 'conv-1',
@@ -515,10 +556,14 @@ describe('ConversationLoadingService', () => {
       const authStore = useAuthStore();
       const agentsStore = useAgentsStore();
 
-      authStore.isAuthenticated = true;
-      agentsStore.availableAgents = [];
+      // Set up authenticated user
+      authStore.$patch({
+        token: 'test-token',
+        user: { id: 'user-1', email: 'test@example.com', roles: [] },
+      });
+      agentsStore.setAvailableAgents([]);
 
-      mockConversationCrudService.getBackendConversation.mockRejectedValue(new Error('Network error'));
+      mockGetBackendConversation.mockRejectedValue(new Error('Network error'));
 
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -549,24 +594,28 @@ describe('ConversationLoadingService', () => {
       const chatUiStore = useChatUiStore();
       const executionContextStore = useExecutionContextStore();
 
-      authStore.isAuthenticated = true;
-      authStore.user = { id: 'user-1', email: 'test@example.com' };
+      // Set up authenticated user
+      authStore.$patch({
+        token: 'test-token',
+        user: { id: 'user-1', email: 'test@example.com', roles: [] },
+      });
 
       const mockAgent = {
         id: 'agent-1',
         name: 'test-agent',
         type: 'context',
+        execution_modes: ['immediate'],
       };
-      agentsStore.availableAgents = [mockAgent];
+      agentsStore.setAvailableAgents([mockAgent]);
 
-      mockConversationCrudService.getBackendConversation.mockResolvedValue({
+      mockGetBackendConversation.mockResolvedValue({
         id: 'conv-1',
         userId: 'user-1',
         agentName: 'test-agent',
         createdAt: '2024-01-01T00:00:00Z',
       });
-      mockConversationMessageService.loadConversationMessages.mockResolvedValue([]);
-      mockConversationFactoryService.createConversationObject.mockReturnValue({
+      mockLoadConversationMessages.mockResolvedValue([]);
+      mockCreateConversationObject.mockReturnValue({
         id: 'temp-id',
         userId: 'user-1',
         title: 'Test',
@@ -585,7 +634,7 @@ describe('ConversationLoadingService', () => {
       // Verify all stores were updated
       expect(conversationsStore.conversationById('conv-1')).toBeTruthy();
       expect(chatUiStore.activeConversationId).toBe('conv-1');
-      expect(executionContextStore.capsule).toBeTruthy();
+      expect(executionContextStore.contextOrNull).toBeTruthy();
     });
   });
 });

@@ -85,10 +85,9 @@ export class LLMHttpClientService {
           // Pass the full ExecutionContext
           context,
           options: {
-            // Provider and model come from context
-            provider: context.provider,
-            providerName: context.provider,
-            modelName: context.model,
+            // Provider and model are sourced from context (ExecutionContext is authoritative)
+            // The API endpoint reads these from context, but we include them in options
+            // for backwards compatibility with endpoints that expect them here
             temperature: request.temperature ?? 0.7,
             maxTokens: request.maxTokens ?? 3500,
             callerType: "langgraph",

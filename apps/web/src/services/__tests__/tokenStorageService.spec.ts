@@ -119,13 +119,24 @@ describe('TokenStorageService', () => {
 
   describe('localStorage Migration', () => {
     it('should migrate tokens from localStorage to sessionStorage', async () => {
+      // Clear migration flag to allow migration in this test
+      sessionStorage.removeItem('tokensMigrated');
+
+      // Clear in-memory tokens first
+      await tokenStorage.clearTokens();
+
       // Simulate old tokens in localStorage
       localStorage.setItem('authToken', 'old-access-token');
       localStorage.setItem('refreshToken', 'old-refresh-token');
 
+      // Create a new instance to force re-initialization
+      // Since we can't reset the initialized flag, we need to reload the module
+      vi.resetModules();
+      const { tokenStorage: freshTokenStorage } = await import('../tokenStorageService');
+
       // Trigger initialization by accessing tokens
-      const accessToken = await tokenStorage.getAccessToken();
-      const refreshToken = await tokenStorage.getRefreshToken();
+      const accessToken = await freshTokenStorage.getAccessToken();
+      const refreshToken = await freshTokenStorage.getRefreshToken();
 
       // Verify tokens were migrated
       expect(accessToken).toBe('old-access-token');
@@ -174,14 +185,21 @@ describe('TokenStorageService', () => {
 
   describe('Session Restoration', () => {
     it('should restore tokens from sessionStorage on initialization', async () => {
+      // Clear in-memory tokens first
+      await tokenStorage.clearTokens();
+
       // Simulate existing tokens in sessionStorage (from previous session)
       sessionStorage.setItem('authToken', 'existing-access-token');
       sessionStorage.setItem('refreshToken', 'existing-refresh-token');
       sessionStorage.setItem('tokensMigrated', 'true');
 
+      // Create a new instance to force re-initialization
+      vi.resetModules();
+      const { tokenStorage: freshTokenStorage } = await import('../tokenStorageService');
+
       // Access tokens (should restore from sessionStorage)
-      const accessToken = await tokenStorage.getAccessToken();
-      const refreshToken = await tokenStorage.getRefreshToken();
+      const accessToken = await freshTokenStorage.getAccessToken();
+      const refreshToken = await freshTokenStorage.getRefreshToken();
 
       expect(accessToken).toBe('existing-access-token');
       expect(refreshToken).toBe('existing-refresh-token');

@@ -79,7 +79,10 @@ export class ObservabilityService {
         // All context fields (taskId, userId, conversationId, agentSlug, orgSlug) are in here
         context,
         // Event-specific fields
-        taskId: context.taskId, // Required by webhook for routing
+        // NOTE: taskId is intentionally duplicated here (also exists in context.taskId)
+        // The webhook endpoint uses this top-level taskId for routing before parsing context.
+        // This duplication is required for the webhook to function correctly.
+        taskId: context.taskId,
         status: this.mapStatusToEventType(event.status),
         timestamp: new Date().toISOString(),
         message: event.message,

@@ -1,6 +1,8 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { HttpModule, HttpService } from "@nestjs/axios";
 import { ConfigService } from "@nestjs/config";
+import { of, throwError } from "rxjs";
+import type { AxiosResponse } from "axios";
 import {
   ObservabilityService,
   LangGraphObservabilityEvent,
@@ -9,15 +11,12 @@ import {
 import { createMockExecutionContext } from "@orchestrator-ai/transport-types";
 
 /**
- * Integration tests for ObservabilityService
+ * Unit and Integration tests for ObservabilityService
  *
- * These tests make REAL HTTP calls to the Orchestrator AI API's webhook endpoint.
- * They verify:
- * 1. Events are correctly sent to /webhooks/status
- * 2. The webhook accepts the event format
- * 3. The full payload structure is correct
+ * Unit tests: Mock HttpService to test all convenience methods and error handling
+ * Integration tests: Make REAL HTTP calls to verify webhook integration
  *
- * Prerequisites:
+ * Prerequisites for integration tests:
  * - API server running on localhost:6100 (or configured API_PORT)
  * - Set INTEGRATION_TESTS=true to run these tests
  */
@@ -26,8 +25,59 @@ import { createMockExecutionContext } from "@orchestrator-ai/transport-types";
 const shouldRunIntegration = process.env.INTEGRATION_TESTS === "true";
 const describeIntegration = shouldRunIntegration ? describe : describe.skip;
 
-// Also keep unit tests that can run without external services
+// Unit tests - mock HTTP service
 describe("ObservabilityService - Unit Tests", () => {
+  let service: ObservabilityService;
+  let httpService: jest.Mocked<HttpService>;
+  let configService: jest.Mocked<ConfigService>;
+
+  // Helper to create mock Axios response
+  const createMockAxiosResponse = <T = unknown>(
+    data: T,
+    status = 200,
+    statusText = "OK",
+  ): AxiosResponse<T> => ({
+    data,
+    status,
+    statusText,
+    headers: {},
+    config: { headers: {} as never },
+  });
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ObservabilityService,
+        {
+          provide: HttpService,
+          useValue: {
+            post: jest.fn(),
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn((key: string) => {
+              const config: Record<string, string> = {
+                API_PORT: "6100",
+                API_HOST: "localhost",
+              };
+              return config[key];
+            }),
+          },
+        },
+      ],
+    }).compile();
+
+    service = module.get<ObservabilityService>(ObservabilityService);
+    httpService = module.get(HttpService);
+    configService = module.get(ConfigService);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
   describe("constructor", () => {
     it("should throw error when API_PORT is not configured", async () => {
       const moduleRef = Test.createTestingModule({
@@ -70,6 +120,742 @@ describe("ObservabilityService - Unit Tests", () => {
 
       const service = module.get<ObservabilityService>(ObservabilityService);
       expect(service).toBeDefined();
+    });
+
+    it("should use default API_HOST when not configured", async () => {
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          ObservabilityService,
+          {
+            provide: HttpService,
+            useValue: { post: jest.fn() },
+          },
+          {
+            provide: ConfigService,
+            useValue: {
+              get: jest.fn((key: string) => {
+                if (key === "API_PORT") return "6100";
+                return undefined;
+              }),
+            },
+          },
+        ],
+      }).compile();
+
+      const serviceWithDefaults =
+        module.get<ObservabilityService>(ObservabilityService);
+      expect(serviceWithDefaults).toBeDefined();
+    });
+  });
+
+  describe("emit", () => {
+    const mockContext = createMockExecutionContext({
+      taskId: "test-task-123",
+      conversationId: "test-conv-123",
+      userId: "test-user-123",
+      agentSlug: "test-agent",
+      orgSlug: "test-org",
+      agentType: "langgraph",
+      provider: "anthropic",
+      model: "claude-sonnet-4-20250514",
+    });
+
+    const threadId = "test-thread-123";
+
+    it("should successfully emit event with required fields", async () => {
+      const mockResponse = createMockAxiosResponse({});
+      httpService.post.mockReturnValue(of(mockResponse));
+
+      const event: LangGraphObservabilityEvent = {
+        context: mockContext,
+        threadId,
+        status: "started",
+        message: "Test message",
+      };
+
+      await service.emit(event);
+
+      expect(httpService.post).toHaveBeenCalledWith(
+        "http://localhost:6100/webhooks/status",
+        expect.objectContaining({
+          context: mockContext,
+          taskId: mockContext.taskId,
+          status: "langgraph.started",
+          message: "Test message",
+          mode: "build",
+          userMessage: "Test message",
+          data: expect.objectContaining({
+            hook_event_type: "langgraph.started",
+            source_app: "langgraph",
+            threadId,
+          }),
+        }),
+        expect.objectContaining({
+          timeout: 2000,
+          validateStatus: expect.any(Function),
+        }),
+      );
+    });
+
+    it("should include step and progress in payload", async () => {
+      const mockResponse = createMockAxiosResponse({});
+      httpService.post.mockReturnValue(of(mockResponse));
+
+      const event: LangGraphObservabilityEvent = {
+        context: mockContext,
+        threadId,
+        status: "processing",
+        message: "Processing step 1",
+        step: "analyze-data",
+        progress: 50,
+      };
+
+      await service.emit(event);
+
+      expect(httpService.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          step: "analyze-data",
+          percent: 50,
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it("should include metadata in data field", async () => {
+      const mockResponse = createMockAxiosResponse({});
+      httpService.post.mockReturnValue(of(mockResponse));
+
+      const event: LangGraphObservabilityEvent = {
+        context: mockContext,
+        threadId,
+        status: "tool_calling",
+        message: "Calling tool",
+        metadata: {
+          toolName: "sql-query",
+          toolInput: { query: "SELECT * FROM test" },
+          customField: "custom-value",
+        },
+      };
+
+      await service.emit(event);
+
+      expect(httpService.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            hook_event_type: "langgraph.tool_calling",
+            source_app: "langgraph",
+            threadId,
+            toolName: "sql-query",
+            toolInput: { query: "SELECT * FROM test" },
+            customField: "custom-value",
+          }),
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it("should not throw when HTTP call fails (non-blocking)", async () => {
+      httpService.post.mockReturnValue(
+        throwError(() => new Error("Network error")),
+      );
+
+      const event: LangGraphObservabilityEvent = {
+        context: mockContext,
+        threadId,
+        status: "started",
+        message: "Test message",
+      };
+
+      // Should not throw - observability failures are non-blocking
+      await expect(service.emit(event)).resolves.not.toThrow();
+    });
+
+    it("should log warning when HTTP call fails", async () => {
+      const loggerWarnSpy = jest.spyOn(service["logger"], "warn");
+      httpService.post.mockReturnValue(
+        throwError(() => new Error("Connection refused")),
+      );
+
+      const event: LangGraphObservabilityEvent = {
+        context: mockContext,
+        threadId,
+        status: "started",
+        message: "Test message",
+      };
+
+      await service.emit(event);
+
+      expect(loggerWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Failed to send observability event"),
+      );
+    });
+  });
+
+  describe("mapStatusToEventType", () => {
+    it.each([
+      ["started", "langgraph.started"],
+      ["processing", "langgraph.processing"],
+      ["hitl_waiting", "langgraph.hitl_waiting"],
+      ["hitl_resumed", "langgraph.hitl_resumed"],
+      ["completed", "langgraph.completed"],
+      ["failed", "langgraph.failed"],
+      ["tool_calling", "langgraph.tool_calling"],
+      ["tool_completed", "langgraph.tool_completed"],
+    ] as [LangGraphStatus, string][])(
+      "should map %s to %s",
+      async (status, expectedEventType) => {
+        const mockContext = createMockExecutionContext();
+        const mockResponse = createMockAxiosResponse({});
+        httpService.post.mockReturnValue(of(mockResponse));
+
+        await service.emit({
+          context: mockContext,
+          threadId: "test-thread",
+          status,
+          message: "Test",
+        });
+
+        expect(httpService.post).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            status: expectedEventType,
+            data: expect.objectContaining({
+              hook_event_type: expectedEventType,
+            }),
+          }),
+          expect.any(Object),
+        );
+      },
+    );
+  });
+
+  describe("emitStarted", () => {
+    const mockContext = createMockExecutionContext();
+    const threadId = "test-thread-123";
+
+    it("should call emit with started status and default message", async () => {
+      const mockResponse = createMockAxiosResponse({});
+      httpService.post.mockReturnValue(of(mockResponse));
+
+      await service.emitStarted(mockContext, threadId);
+
+      expect(httpService.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          status: "langgraph.started",
+          message: "Workflow started",
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it("should call emit with started status and custom message", async () => {
+      const mockResponse = createMockAxiosResponse({});
+      httpService.post.mockReturnValue(of(mockResponse));
+
+      await service.emitStarted(mockContext, threadId, "Custom start message");
+
+      expect(httpService.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          status: "langgraph.started",
+          message: "Custom start message",
+        }),
+        expect.any(Object),
+      );
+    });
+  });
+
+  describe("emitProgress", () => {
+    const mockContext = createMockExecutionContext();
+    const threadId = "test-thread-123";
+
+    it("should call emit with processing status and message", async () => {
+      const mockResponse = createMockAxiosResponse({});
+      httpService.post.mockReturnValue(of(mockResponse));
+
+      await service.emitProgress(
+        mockContext,
+        threadId,
+        "Processing step 1 of 3",
+      );
+
+      expect(httpService.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          status: "langgraph.processing",
+          message: "Processing step 1 of 3",
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it("should include step when provided", async () => {
+      const mockResponse = createMockAxiosResponse({});
+      httpService.post.mockReturnValue(of(mockResponse));
+
+      await service.emitProgress(mockContext, threadId, "Analyzing data", {
+        step: "analyze-phase",
+      });
+
+      expect(httpService.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          step: "analyze-phase",
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it("should include progress percentage when provided", async () => {
+      const mockResponse = createMockAxiosResponse({});
+      httpService.post.mockReturnValue(of(mockResponse));
+
+      await service.emitProgress(mockContext, threadId, "Processing", {
+        progress: 75,
+      });
+
+      expect(httpService.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          percent: 75,
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it("should include metadata when provided", async () => {
+      const mockResponse = createMockAxiosResponse({});
+      httpService.post.mockReturnValue(of(mockResponse));
+
+      await service.emitProgress(mockContext, threadId, "Processing", {
+        metadata: {
+          rowsProcessed: 100,
+          totalRows: 200,
+        },
+      });
+
+      expect(httpService.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            rowsProcessed: 100,
+            totalRows: 200,
+          }),
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it("should include all options when provided", async () => {
+      const mockResponse = createMockAxiosResponse({});
+      httpService.post.mockReturnValue(of(mockResponse));
+
+      await service.emitProgress(mockContext, threadId, "Processing phase 2", {
+        step: "writing",
+        progress: 60,
+        metadata: {
+          phase: "writing",
+          type: "phase_changed",
+        },
+      });
+
+      expect(httpService.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          message: "Processing phase 2",
+          step: "writing",
+          percent: 60,
+          data: expect.objectContaining({
+            phase: "writing",
+            type: "phase_changed",
+          }),
+        }),
+        expect.any(Object),
+      );
+    });
+  });
+
+  describe("emitHitlWaiting", () => {
+    const mockContext = createMockExecutionContext();
+    const threadId = "test-thread-123";
+
+    it("should call emit with hitl_waiting status and default message", async () => {
+      const mockResponse = createMockAxiosResponse({});
+      httpService.post.mockReturnValue(of(mockResponse));
+
+      await service.emitHitlWaiting(mockContext, threadId);
+
+      expect(httpService.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          status: "langgraph.hitl_waiting",
+          message: "Awaiting human review",
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it("should include pendingContent in metadata", async () => {
+      const mockResponse = createMockAxiosResponse({});
+      httpService.post.mockReturnValue(of(mockResponse));
+
+      const pendingContent = {
+        blogPost: "Draft blog post content...",
+        seoDescription: "SEO description pending approval...",
+      };
+
+      await service.emitHitlWaiting(mockContext, threadId, pendingContent);
+
+      expect(httpService.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            pendingContent,
+          }),
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it("should use custom message when provided", async () => {
+      const mockResponse = createMockAxiosResponse({});
+      httpService.post.mockReturnValue(of(mockResponse));
+
+      await service.emitHitlWaiting(
+        mockContext,
+        threadId,
+        null,
+        "Custom HITL message",
+      );
+
+      expect(httpService.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          message: "Custom HITL message",
+        }),
+        expect.any(Object),
+      );
+    });
+  });
+
+  describe("emitHitlResumed", () => {
+    const mockContext = createMockExecutionContext();
+    const threadId = "test-thread-123";
+
+    it.each(["approve", "edit", "reject"] as const)(
+      "should call emit with decision: %s",
+      async (decision) => {
+        const mockResponse = createMockAxiosResponse({});
+        httpService.post.mockReturnValue(of(mockResponse));
+
+        await service.emitHitlResumed(mockContext, threadId, decision);
+
+        expect(httpService.post).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            status: "langgraph.hitl_resumed",
+            message: `Human review decision: ${decision}`,
+            data: expect.objectContaining({
+              decision,
+            }),
+          }),
+          expect.any(Object),
+        );
+      },
+    );
+
+    it("should use custom message when provided", async () => {
+      const mockResponse = createMockAxiosResponse({});
+      httpService.post.mockReturnValue(of(mockResponse));
+
+      await service.emitHitlResumed(
+        mockContext,
+        threadId,
+        "approve",
+        "User approved the content",
+      );
+
+      expect(httpService.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          message: "User approved the content",
+          data: expect.objectContaining({
+            decision: "approve",
+          }),
+        }),
+        expect.any(Object),
+      );
+    });
+  });
+
+  describe("emitToolCalling", () => {
+    const mockContext = createMockExecutionContext();
+    const threadId = "test-thread-123";
+
+    it("should call emit with tool_calling status and toolName", async () => {
+      const mockResponse = createMockAxiosResponse({});
+      httpService.post.mockReturnValue(of(mockResponse));
+
+      await service.emitToolCalling(mockContext, threadId, "sql-query");
+
+      expect(httpService.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          status: "langgraph.tool_calling",
+          message: "Calling tool: sql-query",
+          step: "sql-query",
+          data: expect.objectContaining({
+            toolName: "sql-query",
+          }),
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it("should include toolInput in metadata when provided", async () => {
+      const mockResponse = createMockAxiosResponse({});
+      httpService.post.mockReturnValue(of(mockResponse));
+
+      const toolInput = {
+        query: "SELECT * FROM users WHERE active = true",
+        database: "production",
+      };
+
+      await service.emitToolCalling(
+        mockContext,
+        threadId,
+        "sql-query",
+        toolInput,
+      );
+
+      expect(httpService.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            toolName: "sql-query",
+            toolInput,
+          }),
+        }),
+        expect.any(Object),
+      );
+    });
+  });
+
+  describe("emitToolCompleted", () => {
+    const mockContext = createMockExecutionContext();
+    const threadId = "test-thread-123";
+
+    it("should emit success message when success is true", async () => {
+      const mockResponse = createMockAxiosResponse({});
+      httpService.post.mockReturnValue(of(mockResponse));
+
+      const toolResult = { rows: 42, executionTime: "125ms" };
+
+      await service.emitToolCompleted(
+        mockContext,
+        threadId,
+        "sql-query",
+        true,
+        toolResult,
+      );
+
+      expect(httpService.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          status: "langgraph.tool_completed",
+          message: "Tool completed: sql-query",
+          step: "sql-query",
+          data: expect.objectContaining({
+            toolName: "sql-query",
+            toolResult,
+            success: true,
+          }),
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it("should emit failure message when success is false", async () => {
+      const mockResponse = createMockAxiosResponse({});
+      httpService.post.mockReturnValue(of(mockResponse));
+
+      await service.emitToolCompleted(
+        mockContext,
+        threadId,
+        "sql-query",
+        false,
+        undefined,
+        "Query syntax error: unexpected token",
+      );
+
+      expect(httpService.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          message: "Tool failed: sql-query",
+          data: expect.objectContaining({
+            toolName: "sql-query",
+            success: false,
+            error: "Query syntax error: unexpected token",
+          }),
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it("should include both toolResult and error fields in metadata", async () => {
+      const mockResponse = createMockAxiosResponse({});
+      httpService.post.mockReturnValue(of(mockResponse));
+
+      await service.emitToolCompleted(
+        mockContext,
+        threadId,
+        "list-tables",
+        true,
+        ["users", "orders", "products"],
+      );
+
+      expect(httpService.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            toolName: "list-tables",
+            toolResult: ["users", "orders", "products"],
+            success: true,
+            error: undefined,
+          }),
+        }),
+        expect.any(Object),
+      );
+    });
+  });
+
+  describe("emitCompleted", () => {
+    const mockContext = createMockExecutionContext();
+    const threadId = "test-thread-123";
+
+    it("should call emit with completed status and default message", async () => {
+      const mockResponse = createMockAxiosResponse({});
+      httpService.post.mockReturnValue(of(mockResponse));
+
+      await service.emitCompleted(mockContext, threadId);
+
+      expect(httpService.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          status: "langgraph.completed",
+          message: "Workflow completed successfully",
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it("should include result in metadata when provided", async () => {
+      const mockResponse = createMockAxiosResponse({});
+      httpService.post.mockReturnValue(of(mockResponse));
+
+      const result = {
+        summary: "Analysis complete",
+        rowCount: 42,
+        insights: ["Insight 1", "Insight 2"],
+      };
+
+      await service.emitCompleted(mockContext, threadId, result);
+
+      expect(httpService.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            result,
+          }),
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it("should include duration in metadata when provided", async () => {
+      const mockResponse = createMockAxiosResponse({});
+      httpService.post.mockReturnValue(of(mockResponse));
+
+      await service.emitCompleted(mockContext, threadId, undefined, 5000);
+
+      expect(httpService.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            duration: 5000,
+          }),
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it("should include both result and duration when provided", async () => {
+      const mockResponse = createMockAxiosResponse({});
+      httpService.post.mockReturnValue(of(mockResponse));
+
+      const result = { status: "success", itemsProcessed: 100 };
+      await service.emitCompleted(mockContext, threadId, result, 3500);
+
+      expect(httpService.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            result,
+            duration: 3500,
+          }),
+        }),
+        expect.any(Object),
+      );
+    });
+  });
+
+  describe("emitFailed", () => {
+    const mockContext = createMockExecutionContext();
+    const threadId = "test-thread-123";
+
+    it("should call emit with failed status and error message", async () => {
+      const mockResponse = createMockAxiosResponse({});
+      httpService.post.mockReturnValue(of(mockResponse));
+
+      await service.emitFailed(mockContext, threadId, "Database connection failed");
+
+      expect(httpService.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          status: "langgraph.failed",
+          message: "Workflow failed: Database connection failed",
+          data: expect.objectContaining({
+            error: "Database connection failed",
+          }),
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it("should include duration in metadata when provided", async () => {
+      const mockResponse = createMockAxiosResponse({});
+      httpService.post.mockReturnValue(of(mockResponse));
+
+      await service.emitFailed(
+        mockContext,
+        threadId,
+        "Timeout after 30s",
+        30000,
+      );
+
+      expect(httpService.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            error: "Timeout after 30s",
+            duration: 30000,
+          }),
+        }),
+        expect.any(Object),
+      );
     });
   });
 });

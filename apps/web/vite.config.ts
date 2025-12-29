@@ -203,6 +203,12 @@ export default defineConfig(({ mode }) => {
       setupFiles: ['./src/tests/setup.ts'],
       testTimeout: 10000,
       hookTimeout: 10000,
+      exclude: [
+        'node_modules/**',
+        'dist/**',
+        'tests/e2e/**', // Exclude Playwright E2E tests
+        '**/*.e2e.test.{ts,js}', // Exclude E2E test files
+      ],
       coverage: {
         provider: 'v8',
         reporter: ['text', 'html', 'json', 'json-summary'],
