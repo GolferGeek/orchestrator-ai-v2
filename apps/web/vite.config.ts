@@ -104,11 +104,12 @@ export default defineConfig(({ mode }) => {
       // Prefer VITE_WEB_PORT; for non-VITE values, check process.env.WEB_PORT at runtime via fallback
       port: parseInt((env.VITE_WEB_PORT || process.env.WEB_PORT || (env.VITE_ENFORCE_HTTPS === 'true' ? '7543' : '9001'))),
       host: true,
+      // Allow all hosts for Tailscale/remote access
+      allowedHosts: true,
       https: getHttpsConfig(env),
       hmr: {
-        // Server binds to localhost (this is what Vite can actually bind to)
-        host: 'localhost',
-        port: parseInt((env.VITE_WEB_PORT || process.env.WEB_PORT || (env.VITE_ENFORCE_HTTPS === 'true' ? '7543' : '9001'))),
+        // For remote access (Tailscale/LAN), let the browser determine the host
+        // Setting host to false allows the client to connect to the same host as the page
         protocol: env.VITE_ENFORCE_HTTPS === 'true' ? 'wss' : 'ws'
       }
     },

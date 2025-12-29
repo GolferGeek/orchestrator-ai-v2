@@ -26,11 +26,11 @@ export default defineConfig(({ mode }) => {
     server: {
       host: "::",
       port,
+      // Allow all hosts for Tailscale/remote access
+      allowedHosts: true,
       hmr: {
-        // Explicit HMR configuration for WebSocket connection
-        // When using host: "::", we need to tell the browser where to connect
-        host: 'localhost',
-        port: port,
+        // For remote access (Tailscale/LAN), let the browser determine the host
+        // Setting host to false allows the client to connect to the same host as the page
         protocol: 'ws'
       }
     },
