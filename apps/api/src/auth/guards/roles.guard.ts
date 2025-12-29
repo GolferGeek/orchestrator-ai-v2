@@ -28,8 +28,18 @@ interface UserProfile {
 /**
  * Guard to enforce role-based access control
  *
+ * SECURITY CRITICAL: This guard ensures only users with required roles
+ * can access protected endpoints. It validates roles from the database
+ * to prevent client-side tampering.
+ *
  * This guard works in conjunction with role decorators (@Roles, @AdminOnly, etc.)
  * to ensure users have the required roles to access protected endpoints.
+ *
+ * Security considerations:
+ * - Roles are fetched from database, not from JWT claims (prevents tampering)
+ * - Uses service client to bypass RLS for role lookups
+ * - Validates role values against known enum values
+ * - Error messages are intentionally generic to prevent role enumeration
  *
  * Usage:
  * 1. Apply the guard globally or to individual controllers/routes
@@ -93,11 +103,7 @@ export class RolesGuard implements CanActivate {
       );
 
       if (!hasRequiredRole) {
-        const requiredRolesList = requiredRoles.join(', ');
-
-        throw new ForbiddenException(
-          `Insufficient permissions. Required roles: [${requiredRolesList}]`,
-        );
+        throw new ForbiddenException('Insufficient permissions');
       }
 
       // Add user profile to request for use in controllers
@@ -115,8 +121,15 @@ export class RolesGuard implements CanActivate {
 
   /**
    * Fetch user profile with roles from the database
+   * SECURITY: Uses service client to bypass RLS for admin role checks
+   * This is intentional - role validation must not be subject to user RLS policies
    */
   private async getUserProfile(userId: string): Promise<UserProfile | null> {
+    // SECURITY: Input validation - userId should be a valid UUID
+    if (!userId || typeof userId !== 'string') {
+      return null;
+    }
+
     // Use service client to bypass RLS issues
     const { data: result, error } = await this.supabaseService
       .getServiceClient()
@@ -130,7 +143,7 @@ export class RolesGuard implements CanActivate {
         // Not found
         return null;
       }
-      throw new Error(`Database error: ${error.message}`);
+      throw new Error('Failed to fetch user profile');
     }
 
     const data = result as UserProfile | null;
@@ -139,6 +152,7 @@ export class RolesGuard implements CanActivate {
 
   /**
    * Check if user has any of the required roles
+   * SECURITY: Only validates against known role enum values to prevent injection
    */
   private userHasAnyRole(
     userRoles: string[],
@@ -149,7 +163,8 @@ export class RolesGuard implements CanActivate {
       userRoles = [UserRole.USER];
     }
 
-    // Validate and filter user roles
+    // SECURITY: Validate and filter user roles against known enum values
+    // This prevents malicious role values from the database
     const validUserRoles = userRoles.filter((role) => isValidUserRole(role));
 
     // Check if any user role matches any required role

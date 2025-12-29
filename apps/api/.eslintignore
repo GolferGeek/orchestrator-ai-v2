@@ -1,5 +1,6 @@
 # Ignore supabase scripts
 supabase/scripts/**
+supabase/archive/**
 
 # Ignore dist
 dist/**

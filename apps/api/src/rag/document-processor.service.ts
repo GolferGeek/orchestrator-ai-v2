@@ -219,9 +219,10 @@ export class DocumentProcessorService {
   }> {
     switch (fileType) {
       case 'pdf': {
-        const result = await this.pdfExtractor.extract(buffer);
+        // Use extractPages for PDF to get page information
+        const result = await this.pdfExtractor.extractPages(buffer);
         return {
-          text: result.pages.map((p) => p.content).join('\n\n'),
+          text: result.text,
           pages: result.pages,
         };
       }
@@ -233,7 +234,7 @@ export class DocumentProcessorService {
 
       case 'txt':
       case 'md': {
-        const result = this.textExtractor.extract(buffer);
+        const result = await this.textExtractor.extract(buffer);
         return { text: result.text };
       }
 

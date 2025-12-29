@@ -66,6 +66,15 @@ export class DatabaseTestHelper {
             autoRefreshToken: false,
             persistSession: false,
           },
+          db: {
+            schema: 'public',
+          },
+          global: {
+            headers: {
+              // Service role key bypasses RLS
+              apikey: TEST_DB_CONFIG.supabaseServiceKey,
+            },
+          },
         },
       );
     }
@@ -265,7 +274,11 @@ export class DatabaseTestHelper {
       .delete()
       .eq('organization_slug', 'test-org');
 
-    await client.from('agents').delete().eq('organization_slug', 'test-org');
+    // Note: agents.organization_slug is an array, so we use contains filter
+    await client
+      .from('agents')
+      .delete()
+      .contains('organization_slug', ['test-org']);
   }
 
   // --------------------------------------------------------------------------
@@ -326,17 +339,20 @@ export class DatabaseTestHelper {
    * Verify a record exists in the database
    *
    * @param tableName - Table name
-   * @param id - Record ID
+   * @param id - Record ID or slug (for agents table, use slug)
    * @returns True if record exists
    */
   static async recordExists(tableName: string, id: string): Promise<boolean> {
     DatabaseTestHelper.setupTestDatabase();
     const client = DatabaseTestHelper.supabaseClient!;
 
+    // Special handling for agents table which uses 'slug' as primary key
+    const primaryKeyColumn = tableName === 'agents' ? 'slug' : 'id';
+
     const { data, error } = await client
       .from(tableName)
-      .select('id')
-      .eq('id', id)
+      .select(primaryKeyColumn)
+      .eq(primaryKeyColumn, id)
       .maybeSingle();
 
     if (error) {
@@ -391,7 +407,7 @@ export class DatabaseTestHelper {
     const result = await client
       .from('agents')
       .upsert(agentData, {
-        onConflict: 'organization_slug,slug',
+        onConflict: 'slug',
       })
       .select()
       .single();

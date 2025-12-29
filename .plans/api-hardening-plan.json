@@ -1,0 +1,691 @@
+{
+  "planId": "api-hardening-2025-12-29",
+  "title": "API Codebase Hardening Plan",
+  "description": "Comprehensive hardening plan for 47 issues across 10 refactorings in the API app",
+  "scope": "apps/api",
+  "monitoringArtifact": ".monitor/apps-api.json",
+  "createdAt": "2025-12-29T00:00:00.000Z",
+  "status": "pending",
+  "summary": {
+    "totalIssues": 47,
+    "totalRefactorings": 10,
+    "criticalIssues": 3,
+    "highIssues": 12,
+    "mediumIssues": 22,
+    "lowIssues": 10
+  },
+  "phases": [
+    {
+      "phaseId": "phase-1",
+      "name": "Critical Protocol & Security",
+      "description": "Address critical ExecutionContext, transport-types, and security issues",
+      "priority": "critical",
+      "parallelizable": false,
+      "refactorings": ["execution-context-compliance", "transport-types-compliance", "security-audit"],
+      "issueCount": 16,
+      "workstreams": [
+        {
+          "workstreamId": "ws-1a",
+          "name": "ExecutionContext Compliance Audit",
+          "refactoringId": "execution-context-compliance",
+          "agent": "codebase-hardening-agent",
+          "skills": ["execution-context-skill", "api-architecture-skill"],
+          "issues": ["api-001", "api-004", "api-005", "api-010", "api-014", "api-016", "api-018"],
+          "dependencies": [],
+          "tasks": [
+            {
+              "taskId": "task-1a-1",
+              "description": "Audit agent-platform ExecutionContext flow",
+              "issues": ["api-001"],
+              "files": ["apps/api/src/agent-platform/services/agent-runtime-execution.service.ts"],
+              "testRequirement": "Verify ExecutionContext passed unchanged through all execution paths",
+              "skill": "execution-context-skill"
+            },
+            {
+              "taskId": "task-1a-2",
+              "description": "Audit base-agent-runner ExecutionContext usage",
+              "issues": ["api-004"],
+              "files": ["apps/api/src/agent2agent/services/base-agent-runner.service.ts"],
+              "testRequirement": "Ensure request.context used consistently, not individual fields",
+              "skill": "execution-context-skill"
+            },
+            {
+              "taskId": "task-1a-3",
+              "description": "Verify context-agent-runner mutation is intentional",
+              "issues": ["api-005"],
+              "files": ["apps/api/src/agent2agent/services/context-agent-runner.service.ts"],
+              "testRequirement": "Document and guard planId mutation to only occur from NIL_UUID",
+              "skill": "execution-context-skill"
+            },
+            {
+              "taskId": "task-1a-4",
+              "description": "Audit LLMService ExecutionContext validation",
+              "issues": ["api-010"],
+              "files": ["apps/api/src/llms/llm.service.ts"],
+              "testRequirement": "All LLM methods require and pass ExecutionContext correctly",
+              "skill": "execution-context-skill"
+            },
+            {
+              "taskId": "task-1a-5",
+              "description": "Audit observability ExecutionContext flow",
+              "issues": ["api-014"],
+              "files": ["apps/api/src/observability/observability-webhook.service.ts"],
+              "testRequirement": "All event methods accept ExecutionContext as first parameter",
+              "skill": "execution-context-skill"
+            },
+            {
+              "taskId": "task-1a-6",
+              "description": "Audit RAG services ExecutionContext",
+              "issues": ["api-016"],
+              "files": ["apps/api/src/rag/*.service.ts"],
+              "testRequirement": "All RAG operations receive ExecutionContext",
+              "skill": "execution-context-skill"
+            },
+            {
+              "taskId": "task-1a-7",
+              "description": "Audit MCP services ExecutionContext",
+              "issues": ["api-018"],
+              "files": ["apps/api/src/mcp/*.service.ts"],
+              "testRequirement": "All MCP operations receive ExecutionContext",
+              "skill": "execution-context-skill"
+            }
+          ]
+        },
+        {
+          "workstreamId": "ws-1b",
+          "name": "A2A Transport Types Validation",
+          "refactoringId": "transport-types-compliance",
+          "agent": "codebase-hardening-agent",
+          "skills": ["transport-types-skill", "api-architecture-skill"],
+          "issues": ["api-008", "api-020", "api-023", "api-024", "api-038", "api-039"],
+          "dependencies": [],
+          "tasks": [
+            {
+              "taskId": "task-1b-1",
+              "description": "Add transport-types validation to TaskRequestDto",
+              "issues": ["api-008"],
+              "files": ["apps/api/src/agent2agent/dto/task-request.dto.ts"],
+              "testRequirement": "DTO validates against @orchestrator-ai/transport-types",
+              "skill": "transport-types-skill"
+            },
+            {
+              "taskId": "task-1b-2",
+              "description": "Add transport-types validation to TasksController",
+              "issues": ["api-020"],
+              "files": ["apps/api/src/agent2agent/tasks/tasks.controller.ts"],
+              "testRequirement": "All A2A requests/responses validated against transport-types",
+              "skill": "transport-types-skill"
+            },
+            {
+              "taskId": "task-1b-3",
+              "description": "Add PlanModePayload validation to plan handlers",
+              "issues": ["api-023"],
+              "files": ["apps/api/src/agent2agent/services/base-agent-runner/plan.handlers.ts"],
+              "testRequirement": "Plan actions validate against PlanModePayload types",
+              "skill": "transport-types-skill"
+            },
+            {
+              "taskId": "task-1b-4",
+              "description": "Add BuildModePayload validation to build handlers",
+              "issues": ["api-024"],
+              "files": ["apps/api/src/agent2agent/services/base-agent-runner/build.handlers.ts"],
+              "testRequirement": "Build actions validate against BuildModePayload types",
+              "skill": "transport-types-skill"
+            },
+            {
+              "taskId": "task-1b-5",
+              "description": "Add HitlModePayload validation to HITL handlers",
+              "issues": ["api-038"],
+              "files": ["apps/api/src/agent2agent/services/base-agent-runner/hitl.handlers.ts"],
+              "testRequirement": "HITL actions validate against HitlModePayload types",
+              "skill": "transport-types-skill"
+            },
+            {
+              "taskId": "task-1b-6",
+              "description": "Add ConverseModePayload validation to converse handlers",
+              "issues": ["api-039"],
+              "files": ["apps/api/src/agent2agent/services/base-agent-runner/converse.handlers.ts"],
+              "testRequirement": "Converse actions validate against ConverseModePayload types",
+              "skill": "transport-types-skill"
+            }
+          ]
+        },
+        {
+          "workstreamId": "ws-1c",
+          "name": "Security Critical Components Audit",
+          "refactoringId": "security-audit",
+          "agent": "codebase-hardening-agent",
+          "skills": ["api-testing-skill", "e2e-testing-skill"],
+          "issues": ["api-029", "api-032", "api-037"],
+          "dependencies": [],
+          "tasks": [
+            {
+              "taskId": "task-1c-1",
+              "description": "Security audit and test PII processing services",
+              "issues": ["api-029"],
+              "files": ["apps/api/src/llms/pii/*.service.ts"],
+              "testRequirement": "Comprehensive security tests for PII processing pipeline",
+              "skill": "api-testing-skill"
+            },
+            {
+              "taskId": "task-1c-2",
+              "description": "Security audit and test auth guards",
+              "issues": ["api-032"],
+              "files": ["apps/api/src/auth/guards/*.guard.ts"],
+              "testRequirement": "Unit and integration tests for all auth guards including edge cases",
+              "skill": "api-testing-skill"
+            },
+            {
+              "taskId": "task-1c-3",
+              "description": "Security audit and test API key guard",
+              "issues": ["api-037"],
+              "files": ["apps/api/src/agent2agent/guards/api-key.guard.ts"],
+              "testRequirement": "Comprehensive unit tests for API key validation",
+              "skill": "api-testing-skill"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-2",
+      "name": "High Priority Testing & Refactoring",
+      "description": "Add comprehensive test coverage and refactor LLMService",
+      "priority": "high",
+      "parallelizable": true,
+      "refactorings": ["testing-coverage", "llm-service-refactor"],
+      "issueCount": 18,
+      "workstreams": [
+        {
+          "workstreamId": "ws-2a",
+          "name": "LLM Service Decomposition",
+          "refactoringId": "llm-service-refactor",
+          "agent": "api-architecture-agent",
+          "skills": ["api-architecture-skill", "api-testing-skill"],
+          "issues": ["api-009", "api-011"],
+          "dependencies": ["ws-1a"],
+          "tasks": [
+            {
+              "taskId": "task-2a-1",
+              "description": "Extract LLMGenerationService from LLMService",
+              "issues": ["api-009", "api-011"],
+              "files": ["apps/api/src/llms/llm.service.ts"],
+              "testRequirement": "New service with full test coverage, ExecutionContext as first param",
+              "skill": "api-architecture-skill"
+            },
+            {
+              "taskId": "task-2a-2",
+              "description": "Extract LLMImageService from LLMService",
+              "issues": ["api-009", "api-011"],
+              "files": ["apps/api/src/llms/llm.service.ts"],
+              "testRequirement": "New service with full test coverage, ExecutionContext as first param",
+              "skill": "api-architecture-skill"
+            },
+            {
+              "taskId": "task-2a-3",
+              "description": "Extract LLMVideoService from LLMService",
+              "issues": ["api-009", "api-011"],
+              "files": ["apps/api/src/llms/llm.service.ts"],
+              "testRequirement": "New service with full test coverage, ExecutionContext as first param",
+              "skill": "api-architecture-skill"
+            },
+            {
+              "taskId": "task-2a-4",
+              "description": "Refactor LLMService to orchestrate focused services",
+              "issues": ["api-009", "api-011"],
+              "files": ["apps/api/src/llms/llm.service.ts", "apps/api/src/llms/llm.module.ts"],
+              "testRequirement": "LLMService under 500 lines, delegates to focused services",
+              "skill": "api-architecture-skill"
+            }
+          ]
+        },
+        {
+          "workstreamId": "ws-2b",
+          "name": "Agent Platform Testing",
+          "refactoringId": "testing-coverage",
+          "agent": "testing-agent",
+          "skills": ["api-testing-skill"],
+          "issues": ["api-002", "api-025"],
+          "dependencies": ["ws-1a"],
+          "tasks": [
+            {
+              "taskId": "task-2b-1",
+              "description": "Add tests for agent-platform services",
+              "issues": ["api-002"],
+              "files": ["apps/api/src/agent-platform/services/*.service.ts"],
+              "testRequirement": "Unit tests for: agent-runtime-execution, dispatch, lifecycle, metrics, stream, validation, plan-engine, task-progress",
+              "skill": "api-testing-skill"
+            },
+            {
+              "taskId": "task-2b-2",
+              "description": "Add tests for agent-platform repositories",
+              "issues": ["api-025"],
+              "files": ["apps/api/src/agent-platform/repositories/*.repository.ts"],
+              "testRequirement": "Unit tests for all repositories with mocked Supabase client",
+              "skill": "api-testing-skill"
+            }
+          ]
+        },
+        {
+          "workstreamId": "ws-2c",
+          "name": "Agent Runner Testing",
+          "refactoringId": "testing-coverage",
+          "agent": "testing-agent",
+          "skills": ["api-testing-skill"],
+          "issues": ["api-007", "api-022"],
+          "dependencies": ["ws-1a", "ws-1b"],
+          "tasks": [
+            {
+              "taskId": "task-2c-1",
+              "description": "Add tests for agent runner services",
+              "issues": ["api-007"],
+              "files": ["apps/api/src/agent2agent/services/*.runner.service.ts"],
+              "testRequirement": "Unit tests for: context-agent-runner, api-agent-runner, orchestrator-agent-runner, media-agent-runner, external-agent-runner, rag-agent-runner",
+              "skill": "api-testing-skill"
+            },
+            {
+              "taskId": "task-2c-2",
+              "description": "Add tests for task management services",
+              "issues": ["api-022"],
+              "files": ["apps/api/src/agent2agent/tasks/*.service.ts"],
+              "testRequirement": "Unit tests for: tasks.service, task-message.service, task-status.service, human-loop.service",
+              "skill": "api-testing-skill"
+            }
+          ]
+        },
+        {
+          "workstreamId": "ws-2d",
+          "name": "LLM Services Testing",
+          "refactoringId": "testing-coverage",
+          "agent": "testing-agent",
+          "skills": ["api-testing-skill"],
+          "issues": ["api-012", "api-030", "api-031", "api-046", "api-047"],
+          "dependencies": ["ws-2a"],
+          "tasks": [
+            {
+              "taskId": "task-2d-1",
+              "description": "Add tests for core LLM services",
+              "issues": ["api-012"],
+              "files": ["apps/api/src/llms/*.service.ts"],
+              "testRequirement": "Unit tests for: llm.service, blinded-llm.service, centralized-routing.service, run-metadata.service",
+              "skill": "api-testing-skill"
+            },
+            {
+              "taskId": "task-2d-2",
+              "description": "Add tests for PII services",
+              "issues": ["api-030"],
+              "files": ["apps/api/src/llms/pii/*.service.ts"],
+              "testRequirement": "Unit tests for: pii.service, dictionary-pseudonymizer.service, pattern-redaction.service",
+              "skill": "api-testing-skill"
+            },
+            {
+              "taskId": "task-2d-3",
+              "description": "Add tests for LLM config services",
+              "issues": ["api-031"],
+              "files": ["apps/api/src/llms/config/*.service.ts"],
+              "testRequirement": "Unit tests for: model-configuration.service, sovereign-policy.service",
+              "skill": "api-testing-skill"
+            },
+            {
+              "taskId": "task-2d-4",
+              "description": "Add tests for LLM evaluation services",
+              "issues": ["api-046"],
+              "files": ["apps/api/src/llms/evaluation/*.service.ts"],
+              "testRequirement": "Unit tests for evaluation.service covering all metrics",
+              "skill": "api-testing-skill"
+            },
+            {
+              "taskId": "task-2d-5",
+              "description": "Add tests for LLM usage services",
+              "issues": ["api-047"],
+              "files": ["apps/api/src/llms/usage/*.service.ts"],
+              "testRequirement": "Unit tests for: usage.service, llm-pricing.service, run-metadata.service",
+              "skill": "api-testing-skill"
+            }
+          ]
+        },
+        {
+          "workstreamId": "ws-2e",
+          "name": "Supporting Services Testing",
+          "refactoringId": "testing-coverage",
+          "agent": "testing-agent",
+          "skills": ["api-testing-skill"],
+          "issues": ["api-015", "api-017", "api-034", "api-035", "api-042", "api-043", "api-044"],
+          "dependencies": [],
+          "tasks": [
+            {
+              "taskId": "task-2e-1",
+              "description": "Add tests for observability services",
+              "issues": ["api-015"],
+              "files": ["apps/api/src/observability/*.service.ts"],
+              "testRequirement": "Unit tests for: observability-webhook.service, observability-events.service",
+              "skill": "api-testing-skill"
+            },
+            {
+              "taskId": "task-2e-2",
+              "description": "Add tests for RAG services",
+              "issues": ["api-017"],
+              "files": ["apps/api/src/rag/*.service.ts"],
+              "testRequirement": "Unit tests for: collections, documents, query, embedding, chunking, document-processor",
+              "skill": "api-testing-skill"
+            },
+            {
+              "taskId": "task-2e-3",
+              "description": "Add tests for MCP services",
+              "issues": ["api-034"],
+              "files": ["apps/api/src/mcp/*.service.ts"],
+              "testRequirement": "Unit tests for: mcp.service, mcp-client.service, generic-mcp.client, supabase-mcp.service",
+              "skill": "api-testing-skill"
+            },
+            {
+              "taskId": "task-2e-4",
+              "description": "Add tests for RBAC services",
+              "issues": ["api-035"],
+              "files": ["apps/api/src/rbac/*.service.ts"],
+              "testRequirement": "Unit tests for: rbac.service, rbac.guard - test permission checks thoroughly",
+              "skill": "api-testing-skill"
+            },
+            {
+              "taskId": "task-2e-5",
+              "description": "Add tests for streaming service",
+              "issues": ["api-042"],
+              "files": ["apps/api/src/agent2agent/services/streaming.service.ts"],
+              "testRequirement": "Unit tests covering: stream registration, progress emission, error handling, stream cleanup",
+              "skill": "api-testing-skill"
+            },
+            {
+              "taskId": "task-2e-6",
+              "description": "Add tests for mode router service",
+              "issues": ["api-043"],
+              "files": ["apps/api/src/agent2agent/services/agent-mode-router.service.ts"],
+              "testRequirement": "Unit tests for mode routing logic and validation rules",
+              "skill": "api-testing-skill"
+            },
+            {
+              "taskId": "task-2e-7",
+              "description": "Add tests for execution gateway",
+              "issues": ["api-044"],
+              "files": ["apps/api/src/agent2agent/services/agent-execution-gateway.service.ts"],
+              "testRequirement": "Unit and integration tests covering all execution paths",
+              "skill": "api-testing-skill"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-3",
+      "name": "Medium Priority Improvements",
+      "description": "Code organization and service pattern standardization",
+      "priority": "medium",
+      "parallelizable": true,
+      "refactorings": ["code-organization"],
+      "issueCount": 6,
+      "workstreams": [
+        {
+          "workstreamId": "ws-3a",
+          "name": "Service Pattern Standardization",
+          "refactoringId": "code-organization",
+          "agent": "api-architecture-agent",
+          "skills": ["api-architecture-skill"],
+          "issues": ["api-021", "api-026", "api-027", "api-028", "api-033", "api-045"],
+          "dependencies": ["phase-2"],
+          "tasks": [
+            {
+              "taskId": "task-3a-1",
+              "description": "Extract shared validation logic from TasksController",
+              "issues": ["api-021"],
+              "files": ["apps/api/src/agent2agent/tasks/tasks.controller.ts"],
+              "testRequirement": "Shared validator or guard for reusability",
+              "skill": "api-architecture-skill"
+            },
+            {
+              "taskId": "task-3a-2",
+              "description": "Standardize plan services pattern",
+              "issues": ["api-026"],
+              "files": ["apps/api/src/agent2agent/plans/*.service.ts"],
+              "testRequirement": "Consistent service pattern with other agent2agent services",
+              "skill": "api-architecture-skill"
+            },
+            {
+              "taskId": "task-3a-3",
+              "description": "Standardize deliverable services pattern",
+              "issues": ["api-027"],
+              "files": ["apps/api/src/agent2agent/deliverables/*.service.ts"],
+              "testRequirement": "Consistent service pattern with other agent2agent services",
+              "skill": "api-architecture-skill"
+            },
+            {
+              "taskId": "task-3a-4",
+              "description": "Standardize LLM provider services",
+              "issues": ["api-028"],
+              "files": ["apps/api/src/llms/services/*.service.ts"],
+              "testRequirement": "All provider services extend base-llm.service and implement consistent interfaces",
+              "skill": "api-architecture-skill"
+            },
+            {
+              "taskId": "task-3a-5",
+              "description": "Define common interface for document extractors",
+              "issues": ["api-033"],
+              "files": ["apps/api/src/rag/extractors/*.service.ts"],
+              "testRequirement": "Common interface implemented by all extractors",
+              "skill": "api-architecture-skill"
+            },
+            {
+              "taskId": "task-3a-6",
+              "description": "Review conversation service architecture",
+              "issues": ["api-045"],
+              "files": ["apps/api/src/agent2agent/conversations/*.ts"],
+              "testRequirement": "Clear separation between conversation and message handling",
+              "skill": "api-architecture-skill"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "phaseId": "phase-4",
+      "name": "Low Priority Cleanup",
+      "description": "Logging cleanup, documentation, and code cleanup",
+      "priority": "low",
+      "parallelizable": true,
+      "refactorings": ["logging-cleanup", "documentation", "code-cleanup", "test-structure"],
+      "issueCount": 7,
+      "workstreams": [
+        {
+          "workstreamId": "ws-4a",
+          "name": "Production Logging Cleanup",
+          "refactoringId": "logging-cleanup",
+          "agent": "codebase-hardening-agent",
+          "skills": ["strict-linting-skill"],
+          "issues": ["api-003", "api-006", "api-040"],
+          "dependencies": [],
+          "tasks": [
+            {
+              "taskId": "task-4a-1",
+              "description": "Replace console.log in agent-runtime-execution",
+              "issues": ["api-003"],
+              "files": ["apps/api/src/agent-platform/services/agent-runtime-execution.service.ts"],
+              "testRequirement": "All console.log replaced with this.logger.debug()",
+              "skill": "strict-linting-skill"
+            },
+            {
+              "taskId": "task-4a-2",
+              "description": "Replace console.log in base-agent-runner",
+              "issues": ["api-006"],
+              "files": ["apps/api/src/agent2agent/services/base-agent-runner.service.ts"],
+              "testRequirement": "All console.log replaced with this.logger.debug()",
+              "skill": "strict-linting-skill"
+            },
+            {
+              "taskId": "task-4a-3",
+              "description": "Replace console.log in context-agent-runner",
+              "issues": ["api-040"],
+              "files": ["apps/api/src/agent2agent/services/context-agent-runner.service.ts"],
+              "testRequirement": "All console.log replaced with this.logger.debug()",
+              "skill": "strict-linting-skill"
+            }
+          ]
+        },
+        {
+          "workstreamId": "ws-4b",
+          "name": "Critical Component Documentation",
+          "refactoringId": "documentation",
+          "agent": "codebase-hardening-agent",
+          "skills": [],
+          "issues": ["api-036", "api-041"],
+          "dependencies": [],
+          "tasks": [
+            {
+              "taskId": "task-4b-1",
+              "description": "Document context optimization algorithms",
+              "issues": ["api-036"],
+              "files": ["apps/api/src/agent2agent/context-optimization/*.ts"],
+              "testRequirement": "Comprehensive inline documentation for algorithms",
+              "skill": null
+            },
+            {
+              "taskId": "task-4b-2",
+              "description": "Document SSE streaming protocol",
+              "issues": ["api-041"],
+              "files": ["apps/api/src/agent2agent/services/streaming.service.ts"],
+              "testRequirement": "Comprehensive documentation for event formats and client integration",
+              "skill": null
+            }
+          ]
+        },
+        {
+          "workstreamId": "ws-4c",
+          "name": "Code Cleanup",
+          "refactoringId": "code-cleanup",
+          "agent": "codebase-hardening-agent",
+          "skills": ["strict-linting-skill"],
+          "issues": ["api-013"],
+          "dependencies": ["ws-2a"],
+          "tasks": [
+            {
+              "taskId": "task-4c-1",
+              "description": "Remove deprecated code from LLMService",
+              "issues": ["api-013"],
+              "files": ["apps/api/src/llms/llm.service.ts"],
+              "testRequirement": "Remove generateCentralizedResponse and related deprecated code",
+              "skill": "strict-linting-skill"
+            }
+          ]
+        },
+        {
+          "workstreamId": "ws-4d",
+          "name": "Test Structure Reorganization",
+          "refactoringId": "test-structure",
+          "agent": "codebase-hardening-agent",
+          "skills": [],
+          "issues": ["api-019"],
+          "dependencies": [],
+          "tasks": [
+            {
+              "taskId": "task-4d-1",
+              "description": "Reorganize test helpers location",
+              "issues": ["api-019"],
+              "files": ["apps/api/src/__tests__/helpers/database-helper.ts"],
+              "testRequirement": "Test helpers in dedicated test/ directory",
+              "skill": null
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "agentAssignments": {
+    "codebase-hardening-agent": {
+      "description": "Primary hardening agent for code fixes and audits",
+      "workstreams": ["ws-1a", "ws-1b", "ws-1c", "ws-4a", "ws-4b", "ws-4c", "ws-4d"],
+      "taskCount": 19
+    },
+    "api-architecture-agent": {
+      "description": "Architecture refactoring and pattern standardization",
+      "workstreams": ["ws-2a", "ws-3a"],
+      "taskCount": 10
+    },
+    "testing-agent": {
+      "description": "Test generation and coverage improvement",
+      "workstreams": ["ws-2b", "ws-2c", "ws-2d", "ws-2e"],
+      "taskCount": 16
+    }
+  },
+  "skillUtilization": {
+    "execution-context-skill": {
+      "description": "ExecutionContext capsule pattern enforcement",
+      "workstreams": ["ws-1a"],
+      "taskCount": 7
+    },
+    "transport-types-skill": {
+      "description": "A2A protocol compliance and validation",
+      "workstreams": ["ws-1b"],
+      "taskCount": 6
+    },
+    "api-architecture-skill": {
+      "description": "NestJS API patterns and architecture",
+      "workstreams": ["ws-1a", "ws-1b", "ws-2a", "ws-3a"],
+      "taskCount": 17
+    },
+    "api-testing-skill": {
+      "description": "NestJS testing patterns with Jest",
+      "workstreams": ["ws-1c", "ws-2a", "ws-2b", "ws-2c", "ws-2d", "ws-2e"],
+      "taskCount": 19
+    },
+    "e2e-testing-skill": {
+      "description": "E2E testing with real database",
+      "workstreams": ["ws-1c"],
+      "taskCount": 3
+    },
+    "strict-linting-skill": {
+      "description": "Hardcore linting and code quality",
+      "workstreams": ["ws-4a", "ws-4c"],
+      "taskCount": 4
+    }
+  },
+  "executionStrategy": {
+    "approach": "phased-parallel",
+    "description": "Execute in phases, with parallelization within phases where dependencies allow",
+    "phases": [
+      {
+        "phase": "phase-1",
+        "parallel": false,
+        "reason": "Critical issues must be addressed first as foundation",
+        "workstreams": ["ws-1a", "ws-1b", "ws-1c"]
+      },
+      {
+        "phase": "phase-2",
+        "parallel": true,
+        "reason": "Testing and refactoring can proceed in parallel",
+        "workstreams": ["ws-2a", "ws-2b", "ws-2c", "ws-2d", "ws-2e"]
+      },
+      {
+        "phase": "phase-3",
+        "parallel": true,
+        "reason": "Code organization after testing complete",
+        "workstreams": ["ws-3a"]
+      },
+      {
+        "phase": "phase-4",
+        "parallel": true,
+        "reason": "Low priority cleanup can all run in parallel",
+        "workstreams": ["ws-4a", "ws-4b", "ws-4c", "ws-4d"]
+      }
+    ]
+  },
+  "qualityGates": {
+    "beforeFix": {
+      "description": "Quality checks before any fix",
+      "checks": ["lint passes", "build passes", "existing tests pass"]
+    },
+    "afterFix": {
+      "description": "Quality checks after each fix",
+      "checks": ["lint passes", "build passes", "all tests pass", "new tests added where required"]
+    },
+    "phaseCompletion": {
+      "description": "Quality checks at end of each phase",
+      "checks": ["coverage thresholds met", "all phase issues resolved", "no regressions"]
+    }
+  }
+}

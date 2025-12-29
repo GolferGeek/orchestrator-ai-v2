@@ -16,6 +16,7 @@ import type {
   BuildReadPayload,
   BuildRerunPayload,
   BuildSetCurrentPayload,
+  BuildModePayload,
 } from '@orchestrator-ai/transport-types/modes/build.types';
 import type {
   DeliverableData,
@@ -49,6 +50,46 @@ export type ExecuteBuildFn = (
 ) => Promise<TaskResponseDto>;
 
 /**
+ * Validate build payload structure against transport-types
+ * Ensures action field is present and valid for BUILD mode
+ */
+function validateBuildPayload(payload: unknown): payload is BuildModePayload {
+  if (!payload || typeof payload !== 'object') {
+    // Payload is optional for build create (defaults to 'create' action)
+    return true;
+  }
+
+  const payloadObj = payload as Record<string, unknown>;
+
+  // If action is present, validate it
+  if (payloadObj.action !== undefined) {
+    const validActions = [
+      'create',
+      'read',
+      'list',
+      'edit',
+      'rerun',
+      'set_current',
+      'delete_version',
+      'merge_versions',
+      'copy_version',
+      'delete',
+    ];
+
+    if (
+      typeof payloadObj.action !== 'string' ||
+      !validActions.includes(payloadObj.action)
+    ) {
+      throw new Error(
+        `Invalid build action: ${payloadObj.action}. Must be one of: ${validActions.join(', ')}`,
+      );
+    }
+  }
+
+  return true;
+}
+
+/**
  * Handles BUILD read action by retrieving a deliverable.
  * @param definition - Agent definition context
  * @param request - Incoming task request payload
@@ -68,6 +109,9 @@ export async function handleBuildRead(
   void services.conversationsService;
 
   try {
+    // Validate payload structure
+    validateBuildPayload(request.payload);
+
     const payload = (request.payload ?? {}) as Partial<BuildReadPayload>;
     const { userId, conversationId, executionContext } =
       buildBuildActionContext(definition, request);
@@ -200,6 +244,9 @@ export async function handleBuildList(
   void services.conversationsService;
 
   try {
+    // Validate payload structure
+    validateBuildPayload(request.payload);
+
     const payload = (request.payload ?? {}) as Partial<BuildListPayload>;
     const { userId, executionContext } = buildBuildActionContext(
       definition,
@@ -272,6 +319,9 @@ export async function handleBuildEdit(
   void services.conversationsService;
 
   try {
+    // Validate payload structure
+    validateBuildPayload(request.payload);
+
     const payload = (request.payload ?? {}) as Partial<BuildEditPayload>;
     if (!payload.editedContent) {
       return TaskResponseDto.failure(
@@ -370,6 +420,9 @@ export async function handleBuildRerun(
   void services.conversationsService;
 
   try {
+    // Validate payload structure
+    validateBuildPayload(request.payload);
+
     const payload = (request.payload ?? {}) as unknown as BuildRerunPayload;
     console.log('🔍 [BUILD-RERUN] payload:', {
       versionId: payload.versionId,
@@ -540,6 +593,9 @@ export async function handleBuildSetCurrent(
   void services.conversationsService;
 
   try {
+    // Validate payload structure
+    validateBuildPayload(request.payload);
+
     const payload = (request.payload ??
       {}) as unknown as BuildSetCurrentPayload;
     if (!payload.versionId) {
@@ -610,6 +666,9 @@ export async function handleBuildDeleteVersion(
   void services.conversationsService;
 
   try {
+    // Validate payload structure
+    validateBuildPayload(request.payload);
+
     const payload = (request.payload ??
       {}) as unknown as BuildDeleteVersionPayload;
     if (!payload.versionId) {
@@ -697,6 +756,9 @@ export async function handleBuildMergeVersions(
   void services.conversationsService;
 
   try {
+    // Validate payload structure
+    validateBuildPayload(request.payload);
+
     const payload = (request.payload ??
       {}) as unknown as BuildMergeVersionsPayload;
     if (!payload.versionIds || payload.versionIds.length < 2) {
@@ -872,6 +934,9 @@ export async function handleBuildCopyVersion(
   void services.conversationsService;
 
   try {
+    // Validate payload structure
+    validateBuildPayload(request.payload);
+
     const payload = (request.payload ??
       {}) as unknown as BuildCopyVersionPayload;
     if (!payload.versionId) {
@@ -956,6 +1021,9 @@ export async function handleBuildDelete(
   void services.conversationsService;
 
   try {
+    // Validate payload structure
+    validateBuildPayload(request.payload);
+
     const payload = (request.payload ?? {}) as unknown as BuildDeletePayload;
     void payload;
 

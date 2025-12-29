@@ -138,7 +138,7 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
     request: TaskRequestDto,
     organizationSlug: string | null,
   ): Promise<TaskResponseDto> {
-    console.log(
+    this.logger.debug(
       `🔍 [CONTEXT-RUNNER] executeBuild() ENTRY - agent: ${definition.slug}`,
     );
     const payload = (request.payload ??
@@ -146,9 +146,11 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
 
     try {
       const userId = this.resolveUserId(request);
-      console.log(`🔍 [CONTEXT-RUNNER] userId resolved: ${userId}`);
+      this.logger.debug(`🔍 [CONTEXT-RUNNER] userId resolved: ${userId}`);
       if (!userId) {
-        console.log(`🔍 [CONTEXT-RUNNER] FAILURE: userId is null/undefined`);
+        this.logger.debug(
+          `🔍 [CONTEXT-RUNNER] FAILURE: userId is null/undefined`,
+        );
         return TaskResponseDto.failure(
           AgentTaskMode.BUILD,
           'User identity is required for build execution',
@@ -157,11 +159,13 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
 
       // Use ExecutionContext from request - it flows through unchanged
       const context = request.context;
-      console.log(
+      this.logger.debug(
         `🔍 [CONTEXT-RUNNER] context.conversationId: ${context?.conversationId}`,
       );
       if (!context.conversationId) {
-        console.log(`🔍 [CONTEXT-RUNNER] FAILURE: conversationId missing`);
+        this.logger.debug(
+          `🔍 [CONTEXT-RUNNER] FAILURE: conversationId missing`,
+        );
         return TaskResponseDto.failure(
           AgentTaskMode.BUILD,
           'Conversation context is required for build execution',
@@ -587,7 +591,12 @@ export class ContextAgentRunnerService extends BaseAgentRunner {
       plan = plan ?? listResult.data?.plan ?? null;
     }
 
-    // MUTATION: Set planId when first created (from NIL_UUID)
+    // INTENTIONAL MUTATION: Set planId when first created (from NIL_UUID)
+    // This is the ONLY intentional mutation of ExecutionContext allowed in the system.
+    // When a plan is first created, the context starts with NIL_UUID as planId.
+    // Once the plan is persisted, we update the context to reflect the real planId.
+    // This ensures downstream operations have access to the correct planId.
+    // GUARD: Only mutate when transitioning from NIL_UUID (plan creation)
     if (plan?.id && request.context.planId === NIL_UUID) {
       request.context.planId = plan.id;
     }

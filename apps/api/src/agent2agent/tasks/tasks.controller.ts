@@ -24,6 +24,7 @@ import {
   UpdateTaskDto,
   TaskQueryParams,
 } from '@/agent2agent/types/agent-conversations.types';
+import { ParameterValidator } from '@/common/guards/validation.guard';
 
 @Controller('tasks')
 @UseGuards(JwtAuthGuard)
@@ -36,15 +37,10 @@ export class TasksController {
   ) {}
 
   /**
-   * Validate task ID parameter
+   * Validate task ID parameter (now using shared validator)
    */
   private validateTaskId(taskId: string, userId: string): void {
-    if (!taskId || taskId === 'undefined' || taskId === 'null') {
-      this.logger.warn(
-        `Invalid task ID received: "${taskId}" from user ${userId}`,
-      );
-      throw new BadRequestException('Invalid task ID provided');
-    }
+    ParameterValidator.validateTaskId(taskId, userId);
   }
 
   /**

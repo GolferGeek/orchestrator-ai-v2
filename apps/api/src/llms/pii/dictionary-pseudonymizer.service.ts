@@ -24,6 +24,7 @@ export interface DictionaryReversalResult {
 /**
  * Dictionary-Based Pseudonymizer Service
  *
+ * SECURITY: Implements reversible pseudonymization for PII protection.
  * Simple, fast pseudonymization using a predefined dictionary.
  * No hashing, no complex pattern matching - just direct string replacement.
  *
@@ -32,6 +33,12 @@ export interface DictionaryReversalResult {
  * 2. Case-insensitive search and replace original_value → pseudonym
  * 3. Track what was replaced for reversal
  * 4. Reverse pseudonym → original_value after LLM response
+ *
+ * Security considerations:
+ * - Dictionary entries are cached for performance (5-minute TTL)
+ * - Supports scoped dictionaries (agent > org > global)
+ * - Regex special characters are properly escaped
+ * - Reversal mappings must be stored securely by caller
  */
 @Injectable()
 export class DictionaryPseudonymizerService {
@@ -104,7 +111,7 @@ export class DictionaryPseudonymizerService {
 
       if (error) {
         this.logger.error('Failed to load pseudonym dictionary:', error);
-        throw new Error(`Database error: ${error.message}`);
+        throw new Error('Failed to load pseudonym dictionary');
       }
 
       if (globalData) resultSets.push(globalData as unknown[]);
@@ -209,7 +216,7 @@ export class DictionaryPseudonymizerService {
           mappings.push(entry);
 
           this.logger.log(
-            `🎯 Replaced "${entry.originalValue}" → "${entry.pseudonym}" (${matches.length} occurrences)`,
+            `🎯 Replaced ${matches.length} occurrence(s) of ${entry.dataType}`,
           );
         }
       }
@@ -252,7 +259,7 @@ export class DictionaryPseudonymizerService {
           reversalCount += matches.length;
 
           this.logger.log(
-            `🔄 Reversed "${mapping.pseudonym}" → "${mapping.originalValue}" (${matches.length} occurrences)`,
+            `🔄 Reversed ${matches.length} occurrence(s) of ${mapping.dataType}`,
           );
         }
       }
@@ -272,6 +279,7 @@ export class DictionaryPseudonymizerService {
 
   /**
    * Escape special regex characters in a string
+   * SECURITY: Prevents regex injection by escaping all special characters
    */
   private escapeRegex(string: string): string {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

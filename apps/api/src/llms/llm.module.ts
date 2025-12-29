@@ -33,6 +33,9 @@ import { PatternRedactionService } from './pii/pattern-redaction.service';
 import { LLMServiceFactory } from './services/llm-service-factory';
 import { LLMPricingService } from './llm-pricing.service';
 import { ObservabilityModule } from '../observability/observability.module';
+import { LLMGenerationService } from './services/llm-generation.service';
+import { LLMImageService } from './services/llm-image.service';
+import { LLMVideoService } from './services/llm-video.service';
 
 @Module({
   imports: [
@@ -75,6 +78,10 @@ import { ObservabilityModule } from '../observability/observability.module';
     PatternRedactionService,
     LLMServiceFactory,
     LLMPricingService,
+    // Focused LLM Services (decomposed from LLMService)
+    LLMGenerationService,
+    LLMImageService,
+    LLMVideoService,
     // Note: LLM Provider Services (OpenAI, Anthropic, etc.) are NOT registered as providers
     // They are manually instantiated by LLMServiceFactory with specific configurations
   ],
@@ -98,6 +105,10 @@ import { ObservabilityModule } from '../observability/observability.module';
     PatternRedactionService,
     LLMServiceFactory,
     LLMPricingService,
+    // Focused LLM Services (exported for direct use)
+    LLMGenerationService,
+    LLMImageService,
+    LLMVideoService,
     // Note: LLM Provider Services are not exported as they're factory-created
   ],
 })

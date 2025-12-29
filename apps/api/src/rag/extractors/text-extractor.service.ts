@@ -1,4 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
+import {
+  IDocumentExtractor,
+  ExtractionResult,
+  ExtractionMetadata,
+} from '../interfaces/document-extractor.interface';
 
 export interface TextExtractionResult {
   text: string;
@@ -11,13 +16,20 @@ export interface TextExtractionResult {
  * Handles .txt and .md files by converting buffer to string.
  */
 @Injectable()
-export class TextExtractorService {
+export class TextExtractorService implements IDocumentExtractor {
   private readonly logger = new Logger(TextExtractorService.name);
 
   /**
-   * Extract text from a text/markdown buffer
+   * Check if text extraction is available
    */
-  extract(buffer: Buffer): TextExtractionResult {
+  isAvailable(): boolean {
+    return true; // Text extraction is always available
+  }
+
+  /**
+   * Extract text from a text/markdown buffer (internal method)
+   */
+  private extractInternal(buffer: Buffer): TextExtractionResult {
     try {
       // Detect encoding (default to UTF-8)
       const text = buffer.toString('utf-8').trim();
@@ -44,10 +56,21 @@ export class TextExtractorService {
   }
 
   /**
+   * Extract text and metadata (IDocumentExtractor interface)
+   */
+  async extract(buffer: Buffer): Promise<ExtractionResult> {
+    const result = this.extractInternal(buffer);
+    return {
+      text: result.text,
+      metadata: result.metadata,
+    };
+  }
+
+  /**
    * Extract text as string
    */
-  extractText(buffer: Buffer): string {
-    const result = this.extract(buffer);
+  async extractText(buffer: Buffer): Promise<string> {
+    const result = this.extractInternal(buffer);
     return result.text;
   }
 }

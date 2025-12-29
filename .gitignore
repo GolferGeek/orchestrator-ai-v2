@@ -48,6 +48,9 @@ node_modules/
 apps/api/dist/
 apps/web/dist/
 
+# Test coverage reports
+coverage/
+
 # Environment variables
 .env
 

@@ -5,6 +5,9 @@ import {
   IsOptional,
   IsString,
   ValidateNested,
+  registerDecorator,
+  ValidationOptions,
+  ValidationArguments,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import {
@@ -12,6 +15,7 @@ import {
   TaskMessage,
   TaskRequestParams,
   ExecutionContext,
+  isExecutionContext,
 } from '@orchestrator-ai/transport-types';
 
 // Re-export shared types
@@ -78,6 +82,7 @@ export class TaskRequestDto {
   @IsObject()
   @ValidateNested()
   @Type(() => ExecutionContextDto)
+  @IsValidExecutionContext()
   context!: ExecutionContext;
 
   /**
@@ -99,6 +104,7 @@ export class TaskRequestDto {
    */
   @IsOptional()
   @IsObject()
+  @IsModePayloadValid()
   payload?: Record<string, unknown>;
 
   /**
@@ -129,3 +135,104 @@ export class TaskRequestDto {
  * Task request after normalization (mode is guaranteed to be set)
  */
 export type NormalizedTaskRequestDto = TaskRequestDto & { mode: AgentTaskMode };
+
+/**
+ * Custom validator for mode-specific payloads
+ * Validates payload structure based on agent mode
+ */
+function IsModePayloadValid(validationOptions?: ValidationOptions) {
+  return function (object: object, propertyName: string) {
+    registerDecorator({
+      name: 'isModePayloadValid',
+      target: object.constructor,
+      propertyName: propertyName,
+      options: validationOptions,
+      validator: {
+        validate(value: unknown, args: ValidationArguments) {
+          const request = args.object as TaskRequestDto;
+          const mode = request.mode;
+
+          // Payload is optional for some modes
+          if (!mode || !value) {
+            return true;
+          }
+
+          // Validate payload is an object
+          if (typeof value !== 'object' || value === null) {
+            return false;
+          }
+
+          const payload = value as Record<string, unknown>;
+
+          // Validate based on mode
+          switch (mode) {
+            case AgentTaskMode.PLAN:
+            case AgentTaskMode.BUILD:
+              // PLAN and BUILD modes require 'action' field if payload present
+              if (payload.action) {
+                const validActions = [
+                  'create',
+                  'read',
+                  'list',
+                  'edit',
+                  'rerun',
+                  'set_current',
+                  'delete_version',
+                  'merge_versions',
+                  'copy_version',
+                  'delete',
+                ];
+                return validActions.includes(payload.action as string);
+              }
+              // No action means 'create' by default - allow it
+              return true;
+
+            case AgentTaskMode.HITL:
+              // HITL mode requires 'action' field
+              if (payload.action) {
+                const validActions = ['resume', 'status', 'history', 'pending'];
+                return validActions.includes(payload.action as string);
+              }
+              return false;
+
+            case AgentTaskMode.CONVERSE:
+              // CONVERSE mode has no required action field
+              // Payload is completely optional
+              return true;
+
+            default:
+              // Unknown mode - allow any payload
+              return true;
+          }
+        },
+        defaultMessage(args: ValidationArguments) {
+          const request = args.object as TaskRequestDto;
+          return `Payload does not match ${request.mode} mode requirements. Check transport-types for valid payload structure.`;
+        },
+      },
+    });
+  };
+}
+
+/**
+ * Custom validator for ExecutionContext
+ * Uses transport-types type guard for validation
+ */
+function IsValidExecutionContext(validationOptions?: ValidationOptions) {
+  return function (object: object, propertyName: string) {
+    registerDecorator({
+      name: 'isValidExecutionContext',
+      target: object.constructor,
+      propertyName: propertyName,
+      options: validationOptions,
+      validator: {
+        validate(value: unknown) {
+          return isExecutionContext(value);
+        },
+        defaultMessage() {
+          return 'ExecutionContext does not match transport-types definition. All required fields must be present.';
+        },
+      },
+    });
+  };
+}

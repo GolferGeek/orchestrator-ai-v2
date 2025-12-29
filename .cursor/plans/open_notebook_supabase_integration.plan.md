@@ -1,9 +1,3 @@
----
-name: Open Notebook Supabase Integration
-overview: Integrate open-notebook into orchestratorai-v2 monorepo as apps/open-notebook, replace password auth with Supabase JWT authentication, and configure ports 6201 (frontend) and 6202 (API).
-todos: []
----
-
 # Open Notebook Integrat
 
 ion Plan
@@ -17,18 +11,14 @@ Move open-notebook into orchestratorai-v2 monorepo and integrate with existing S
 ### Current State
 
 - Standalone app with password-based auth (`OPEN_NOTEBOOK_PASSWORD`)
-
 - Ports: 8502 (frontend), 5055 (API), 8000 (SurrealDB)
-
 - Authentication: Simple Bearer token password check
 
 ### Target State
 
 - Integrated into `orchestratorai-v2/apps/open-notebook`
 - Ports: 6201 (frontend), 6202 (API), 6203 (SurrealDB)
-
 - Authentication: Supabase JWT token verification
-
 - Uses same Supabase instance as orchestratorai-v2
 
 ## Implementation Steps
@@ -46,23 +36,18 @@ Move open-notebook into orchestratorai-v2 monorepo and integrate with existing S
 
 - Replace `PasswordAuthMiddleware` with `SupabaseAuthMiddleware`
 - Use Supabase Python client to verify JWT tokens
-
 - Extract user info from verified token and attach to request state
-
 - Fallback to password auth if Supabase not configured (for backward compatibility)
 
 **File: `api/main.py`**
 
 - Update middleware import from `PasswordAuthMiddleware` to `SupabaseAuthMiddleware`
-
 - Keep excluded paths: `/`, `/health`, `/docs`, `/openapi.json`, `/redoc`, `/api/auth/status`, `/api/config`
 
 **File: `api/routers/auth.py`**
 
 - Update `/api/auth/status` endpoint to check for Supabase configuration
-
 - Return `auth_enabled: true` if `SUPABASE_URL` and `SUPABASE_ANON_KEY` are set
-
 - Maintain backward compatibility with `OPEN_NOTEBOOK_PASSWORD`
 
 ### 3. Update Dependencies
@@ -70,7 +55,6 @@ Move open-notebook into orchestratorai-v2 monorepo and integrate with existing S
 **File: `pyproject.toml`**
 
 - Add `supabase>=2.0.0` to dependencies
-
 - Keep all existing dependencies
 
 ### 4. Port Configuration
@@ -78,13 +62,11 @@ Move open-notebook into orchestratorai-v2 monorepo and integrate with existing S
 **File: `run_api.py` or startup script**
 
 - Change API port from 5055 to 6202
-
 - Update uvicorn command: `--port 6202`
 
 **File: `frontend/package.json` or `next.config.ts`**
 
 - Update dev server port from 8502 to 6201
-
 - Update `API_URL` environment variable handling
 
 **File: `docker-compose.dev.yml` (if used)**
@@ -94,7 +76,6 @@ Move open-notebook into orchestratorai-v2 monorepo and integrate with existing S
 **File: `supervisord.single.conf` (if used)**
 
 - Update API port in command: `--port 6202`
-
 - Update frontend port: `PORT="6201"`
 
 ### 5. Environment Variables
@@ -115,11 +96,8 @@ OPEN_NOTEBOOK_PASSWORD=fallback-password  # Only used if Supabase not configured
 **Existing Variables (update SurrealDB URL):**
 
 - `SURREAL_URL=ws://localhost:6203/rpc` (updated from 8000)
-
 - All other SurrealDB configuration (user, password, namespace, database)
-
 - All AI provider API keys
-
 - Data folder paths
 
 ### 6. Frontend Authentication Updates
@@ -127,15 +105,12 @@ OPEN_NOTEBOOK_PASSWORD=fallback-password  # Only used if Supabase not configured
 **File: `frontend/src/lib/stores/auth-store.ts`**
 
 - Update to use Supabase auth tokens instead of password
-
 - Get token from orchestratorai-v2 auth system (likely via shared state or API)
-
 - Send `Authorization: Bearer {supabase-jwt-token}` header
 
 **File: `frontend/src/lib/api/client.ts`**
 
 - Ensure it properly extracts and sends Supabase JWT tokens
-
 - Token should come from orchestratorai-v2's auth context
 
 ### 7. Integration Points
@@ -154,13 +129,9 @@ OPEN_NOTEBOOK_PASSWORD=fallback-password  # Only used if Supabase not configured
 **Keep SurrealDB:**
 
 - Update database port from 8000 to 6203
-
 - Update connection URL to `ws://localhost:6203/rpc`
-
 - Update `SURREAL_URL` environment variable
-
 - Keep all migrations and schema as-is
-
 - SurrealDB remains independent of Supabase
 
 ### 9. Development Setup
@@ -177,53 +148,31 @@ OPEN_NOTEBOOK_PASSWORD=fallback-password  # Only used if Supabase not configured
 
 - [ ] Supabase JWT tokens are accepted
 - [ ] Invalid tokens are rejected (401)
-
 - [ ] User info is attached to request state
-
 - [ ] Frontend correctly sends Supabase tokens
-
 - [ ] Ports 6201 and 6202 are accessible
-
 - [ ] SurrealDB works on port 6203
-
 - [ ] All API endpoints require valid Supabase token
-
 - [ ] Health/status endpoints remain public
-
 - [ ] Backward compatibility with password auth (if configured)
-
 - [ ] LICENSE file is preserved with original copyright
-
 - [ ] README.md maintains original attribution and links
-
 - [ ] ATTRIBUTION.md file created (if needed)
-
 - [ ] All original author credits are visible
 
 ## Files to Modify
 
 1. `api/auth.py` - Replace password auth with Supabase JWT
-
 2. `api/main.py` - Update middleware import
-
 3. `api/routers/auth.py` - Update auth status endpoint
-
 4. `pyproject.toml` - Add supabase dependency
-
 5. `run_api.py` - Update port to 6202
-
 6. `frontend/package.json` or `next.config.ts` - Update port to 6201
-
 7. `frontend/src/lib/stores/auth-store.ts` - Use Supabase tokens
-
 8. `frontend/src/lib/api/client.ts` - Ensure Supabase token handling
-
 9. `docker-compose.dev.yml` - Update port mappings (including SurrealDB to 6203)
-
 10. `supervisord.single.conf` - Update ports (including SurrealDB to 6203)
-
 11. Environment variables - Update `SURREAL_URL` to use port 6203
-
 12. Attribution files - Ensure all copyright and attribution are preserved
 
 ## Attribution and Licensing
@@ -234,18 +183,18 @@ OPEN_NOTEBOOK_PASSWORD=fallback-password  # Only used if Supabase not configured
 
 1. **`LICENSE`** - MIT License file, copyright (c) 2024 Luis Novo
 
-   - Must remain in root of `apps/open-notebook/`
-   - Do not modify or remove copyright notice
+- Must remain in root of `apps/open-notebook/`
+- Do not modify or remove copyright notice
 
 2. **`README.md`** - Original README with full attribution
 
-   - Preserve original author information
-   - Keep links to original repository: https://github.com/lfnovo/open-notebook
-   - Maintain all original badges, links, and credits
+- Preserve original author information
+- Keep links to original repository: https://github.com/lfnovo/open-notebook
+- Maintain all original badges, links, and credits
 
 3. **`pyproject.toml`** - Preserve author field:
 
-   - `authors = [{name = "Luis Novo", email = "lfnovo@gmail.com"}]`
+- `authors = [{name = "Luis Novo", email = "lfnovo@gmail.com"}]`
 
 ### Additional Attribution Requirements:
 
@@ -293,19 +242,12 @@ All original functionality, code structure, and features remain intact.
 ## Dependencies
 
 - Supabase Python client: `supabase>=2.0.0`
-
 - Access to orchestratorai-v2's Supabase configuration
-
 - Supabase JWT tokens from parent application
 
 ## Notes
 
 - SurrealDB configured on port 6203 (in 6000 range as requested)
-
 - Authentication is handled at API level, not database level
-
 - Frontend will need access to Supabase auth tokens from orchestratorai-v2
-
 - Update `SURREAL_URL` environment variable to `ws://localhost:6203/rpc`
-
-- Backward compatibility maintained for password auth if Supabase not configured

@@ -1,4 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
+import {
+  IPagedDocumentExtractor,
+  ExtractionResult,
+  PagedExtractionResult,
+  PageContent,
+  ExtractionMetadata,
+} from '../interfaces/document-extractor.interface';
 
 export interface PdfPage {
   content: string;
@@ -35,7 +42,7 @@ type PdfParseFunction = (
 }>;
 
 @Injectable()
-export class PdfExtractorService {
+export class PdfExtractorService implements IPagedDocumentExtractor {
   private readonly logger = new Logger(PdfExtractorService.name);
   private pdfParse: PdfParseFunction | null = null;
 
@@ -63,9 +70,9 @@ export class PdfExtractorService {
   }
 
   /**
-   * Extract text from a PDF buffer
+   * Extract text from a PDF buffer (internal method)
    */
-  async extract(buffer: Buffer): Promise<PdfExtractionResult> {
+  private async extractPdf(buffer: Buffer): Promise<PdfExtractionResult> {
     if (!this.pdfParse) {
       throw new Error(
         'PDF extraction not available. Install pdf-parse: npm install pdf-parse',
@@ -134,10 +141,54 @@ export class PdfExtractorService {
   }
 
   /**
+   * Extract text and metadata (IDocumentExtractor interface)
+   */
+  async extract(buffer: Buffer): Promise<ExtractionResult> {
+    const pdfResult = await this.extractPdf(buffer);
+
+    const metadata: ExtractionMetadata = {
+      title: pdfResult.metadata.title,
+      author: pdfResult.metadata.author,
+      pageCount: pdfResult.metadata.pageCount,
+      creationDate: pdfResult.metadata.creationDate,
+    };
+
+    return {
+      text: pdfResult.pages.map((p) => p.content).join('\n\n'),
+      metadata,
+    };
+  }
+
+  /**
    * Extract text from PDF as a single string
    */
   async extractText(buffer: Buffer): Promise<string> {
-    const result = await this.extract(buffer);
+    const result = await this.extractPdf(buffer);
     return result.pages.map((p) => p.content).join('\n\n');
+  }
+
+  /**
+   * Extract pages organized by page number (IPagedDocumentExtractor interface)
+   */
+  async extractPages(buffer: Buffer): Promise<PagedExtractionResult> {
+    const pdfResult = await this.extractPdf(buffer);
+
+    const pages: PageContent[] = pdfResult.pages.map((page) => ({
+      content: page.content,
+      pageNumber: page.pageNumber,
+    }));
+
+    const metadata: ExtractionMetadata = {
+      title: pdfResult.metadata.title,
+      author: pdfResult.metadata.author,
+      pageCount: pdfResult.metadata.pageCount,
+      creationDate: pdfResult.metadata.creationDate,
+    };
+
+    return {
+      text: pages.map((p) => p.content).join('\n\n'),
+      metadata,
+      pages,
+    };
   }
 }

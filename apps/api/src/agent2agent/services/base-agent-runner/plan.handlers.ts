@@ -31,6 +31,7 @@ import type {
   PlanListResponseContent,
   PlanRerunResponseContent,
   PlanResponseMetadata,
+  PlanModePayload,
 } from '@orchestrator-ai/transport-types/modes/plan.types';
 import type { ExecutionContext } from '@orchestrator-ai/transport-types';
 
@@ -78,6 +79,46 @@ interface CopyVersionActionResult {
   copiedVersion: PlanVersion;
 }
 
+/**
+ * Validate plan payload structure against transport-types
+ * Ensures action field is present and valid for PLAN mode
+ */
+function validatePlanPayload(payload: unknown): payload is PlanModePayload {
+  if (!payload || typeof payload !== 'object') {
+    // Payload is optional for plan create (defaults to 'create' action)
+    return true;
+  }
+
+  const payloadObj = payload as Record<string, unknown>;
+
+  // If action is present, validate it
+  if (payloadObj.action !== undefined) {
+    const validActions = [
+      'create',
+      'read',
+      'list',
+      'edit',
+      'rerun',
+      'set_current',
+      'delete_version',
+      'merge_versions',
+      'copy_version',
+      'delete',
+    ];
+
+    if (
+      typeof payloadObj.action !== 'string' ||
+      !validActions.includes(payloadObj.action)
+    ) {
+      throw new Error(
+        `Invalid plan action: ${payloadObj.action}. Must be one of: ${validActions.join(', ')}`,
+      );
+    }
+  }
+
+  return true;
+}
+
 export async function handlePlanCreate(
   definition: AgentRuntimeDefinition,
   request: TaskRequestDto,
@@ -85,6 +126,9 @@ export async function handlePlanCreate(
   services: PlanHandlerDependencies,
 ): Promise<TaskResponseDto> {
   try {
+    // Validate payload structure
+    validatePlanPayload(request.payload);
+
     const payload = (request.payload ?? {}) as Partial<PlanCreatePayload>;
     const { userId, conversationId, taskId, executionContext } =
       buildPlanActionContext(definition, request);
@@ -280,6 +324,9 @@ export async function handlePlanRead(
 ): Promise<TaskResponseDto> {
   void organizationSlug;
   try {
+    // Validate payload structure
+    validatePlanPayload(request.payload);
+
     const payload = (request.payload ?? {}) as Partial<PlanReadPayload>;
     const { userId, conversationId, executionContext } = buildPlanActionContext(
       definition,
@@ -383,6 +430,9 @@ export async function handlePlanList(
 ): Promise<TaskResponseDto> {
   void organizationSlug;
   try {
+    // Validate payload structure
+    validatePlanPayload(request.payload);
+
     const payload = (request.payload ?? {}) as Partial<PlanListPayload>;
     const { userId, executionContext } = buildPlanActionContext(
       definition,
@@ -441,6 +491,9 @@ export async function handlePlanEdit(
 ): Promise<TaskResponseDto> {
   void organizationSlug;
   try {
+    // Validate payload structure
+    validatePlanPayload(request.payload);
+
     const payload = (request.payload ?? {}) as Partial<PlanEditPayload>;
     if (!payload.editedContent) {
       return TaskResponseDto.failure(
@@ -512,6 +565,9 @@ export async function handlePlanRerun(
 ): Promise<TaskResponseDto> {
   void organizationSlug;
   try {
+    // Validate payload structure
+    validatePlanPayload(request.payload);
+
     const payload = (request.payload ?? {}) as unknown as PlanRerunPayload;
     if (!payload.versionId || !payload.llmOverride) {
       return TaskResponseDto.failure(
@@ -583,6 +639,9 @@ export async function handlePlanSetCurrent(
 ): Promise<TaskResponseDto> {
   void organizationSlug;
   try {
+    // Validate payload structure
+    validatePlanPayload(request.payload);
+
     const payload = (request.payload ?? {}) as unknown as PlanSetCurrentPayload;
     if (!payload.versionId) {
       return TaskResponseDto.failure(
@@ -639,6 +698,9 @@ export async function handlePlanDeleteVersion(
 ): Promise<TaskResponseDto> {
   void organizationSlug;
   try {
+    // Validate payload structure
+    validatePlanPayload(request.payload);
+
     const payload = (request.payload ??
       {}) as unknown as PlanDeleteVersionPayload;
     if (!payload.versionId) {
@@ -708,6 +770,9 @@ export async function handlePlanMergeVersions(
 ): Promise<TaskResponseDto> {
   void organizationSlug;
   try {
+    // Validate payload structure
+    validatePlanPayload(request.payload);
+
     const payload = (request.payload ??
       {}) as unknown as PlanMergeVersionsPayload;
     if (!payload.versionIds || payload.versionIds.length < 2) {
@@ -793,6 +858,9 @@ export async function handlePlanCopyVersion(
 ): Promise<TaskResponseDto> {
   void organizationSlug;
   try {
+    // Validate payload structure
+    validatePlanPayload(request.payload);
+
     const payload = (request.payload ??
       {}) as unknown as PlanCopyVersionPayload;
     if (!payload.versionId) {
@@ -859,6 +927,9 @@ export async function handlePlanDelete(
 ): Promise<TaskResponseDto> {
   void organizationSlug;
   try {
+    // Validate payload structure
+    validatePlanPayload(request.payload);
+
     const payload = (request.payload ?? {}) as unknown as PlanDeletePayload;
     void payload;
 

@@ -93,11 +93,11 @@ export abstract class BaseAgentRunner implements IAgentRunner {
     const organizationSlug = _organizationSlug;
 
     // Validate mode is specified
-    console.log(
+    this.logger.debug(
       `🔍 [BASE-RUNNER] execute() called - mode: ${mode}, agent: ${definition.slug}`,
     );
     if (!mode) {
-      console.log(`🔍 [BASE-RUNNER] mode not specified - FAILING`);
+      this.logger.debug(`🔍 [BASE-RUNNER] mode not specified - FAILING`);
       this.logger.error('Task mode not specified in request');
       return TaskResponseDto.failure(
         AgentTaskMode.CONVERSE, // Default for error reporting
@@ -107,9 +107,11 @@ export abstract class BaseAgentRunner implements IAgentRunner {
 
     // Validate agent supports the requested mode
     const canExec = this.canExecuteMode(definition, mode);
-    console.log(`🔍 [BASE-RUNNER] canExecuteMode(${mode}): ${canExec}`);
+    this.logger.debug(`🔍 [BASE-RUNNER] canExecuteMode(${mode}): ${canExec}`);
     if (!canExec) {
-      console.log(`🔍 [BASE-RUNNER] canExecuteMode returned false - FAILING`);
+      this.logger.debug(
+        `🔍 [BASE-RUNNER] canExecuteMode returned false - FAILING`,
+      );
       this.logger.warn(
         `Agent ${definition.slug} does not support ${mode} mode`,
       );
@@ -120,7 +122,7 @@ export abstract class BaseAgentRunner implements IAgentRunner {
     }
 
     // Route to appropriate mode handler
-    console.log(`🔍 [BASE-RUNNER] Routing to mode handler: ${mode}`);
+    this.logger.debug(`🔍 [BASE-RUNNER] Routing to mode handler: ${mode}`);
     try {
       switch (mode) {
         case AgentTaskMode.CONVERSE:
@@ -309,7 +311,7 @@ export abstract class BaseAgentRunner implements IAgentRunner {
     request: TaskRequestDto,
     organizationSlug: string | null,
   ): Promise<TaskResponseDto> {
-    console.log(
+    this.logger.debug(
       `🔍 [BASE-RUNNER] handleBuild() ENTRY - agent: ${definition.slug}`,
     );
     const payload = (request.payload ?? {}) as {
@@ -318,7 +320,7 @@ export abstract class BaseAgentRunner implements IAgentRunner {
     };
     const action =
       typeof payload.action === 'string' ? payload.action : 'create';
-    console.log(
+    this.logger.debug(
       `🔍 [BASE-RUNNER] handleBuild() action: ${action}, executionMode: ${payload.executionMode}`,
     );
 
@@ -340,7 +342,7 @@ export abstract class BaseAgentRunner implements IAgentRunner {
     try {
       switch (action) {
         case 'create': {
-          console.log(
+          this.logger.debug(
             `🔍 [BASE-RUNNER] handleBuild() calling executeBuild()...`,
           );
           const result = await this.executeBuild(
@@ -348,7 +350,7 @@ export abstract class BaseAgentRunner implements IAgentRunner {
             request,
             organizationSlug,
           );
-          console.log(
+          this.logger.debug(
             `🔍 [BASE-RUNNER] handleBuild() executeBuild() returned: success=${result.success}`,
           );
           // Add humanResponse for conversational build responses at the base level

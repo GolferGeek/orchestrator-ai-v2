@@ -14,6 +14,7 @@ import {
   StreamTokenClaims,
   StreamTokenService,
 } from '../services/stream-token.service';
+import { timingSafeEqual } from 'crypto';
 
 interface AuthenticatedRequest extends Request {
   user?: SupabaseAuthUserDto;
@@ -22,6 +23,21 @@ interface AuthenticatedRequest extends Request {
   originalUrl: string;
 }
 
+/**
+ * JWT Authentication Guard
+ *
+ * SECURITY CRITICAL: This guard validates JWT tokens for user authentication.
+ * It supports multiple authentication methods:
+ * - Supabase JWT tokens (via Authorization header or query param)
+ * - Stream tokens for SSE endpoints
+ * - Test API keys for development/testing
+ *
+ * Security considerations:
+ * - Tokens are validated using Supabase auth service
+ * - Test API keys are only accepted when explicitly configured
+ * - Query param tokens are sanitized from URLs in logs
+ * - Invalid tokens result in generic error messages to prevent information leakage
+ */
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   private readonly logger = new Logger(JwtAuthGuard.name);
@@ -43,11 +59,17 @@ export class JwtAuthGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
 
-    // Check for API key authentication as fallback FIRST
+    // SECURITY: Check for test API key authentication (development/testing only)
+    // This should only be enabled in non-production environments
     const testApiKey = request.headers['x-test-api-key'] as string;
     const configuredTestKey = process.env.TEST_API_SECRET_KEY;
 
-    if (configuredTestKey && testApiKey && testApiKey === configuredTestKey) {
+    // SECURITY: Use timing-safe comparison even for test keys to prevent timing attacks
+    if (
+      configuredTestKey &&
+      testApiKey &&
+      this.safeCompareStrings(testApiKey, configuredTestKey)
+    ) {
       // Prefer configured test user from environment to satisfy DB FKs in development
       const devUserId =
         process.env.SUPABASE_TEST_USERID ||
@@ -127,7 +149,6 @@ export class JwtAuthGuard implements CanActivate {
         return true;
       } catch (error) {
         this.logger.warn('Token validation failed', {
-          reason: (error as Error)?.message,
           source: bearerToken ? 'header' : 'query',
         });
         // If query token failed as JWT, try as stream token (for backward compatibility)
@@ -152,6 +173,10 @@ export class JwtAuthGuard implements CanActivate {
     throw new UnauthorizedException('No token provided');
   }
 
+  /**
+   * Extract JWT token from Authorization header
+   * SECURITY: Validates header format before extraction
+   */
   private extractBearerToken(request: AuthenticatedRequest): string | null {
     const authHeader = request.headers.authorization;
     if (!authHeader?.startsWith('Bearer ')) {
@@ -161,6 +186,12 @@ export class JwtAuthGuard implements CanActivate {
     return token || null;
   }
 
+  /**
+   * Extract JWT token from query parameters
+   * SECURITY: Validates and sanitizes query parameter input
+   * Note: Query param tokens are primarily used for SSE/streaming endpoints
+   * where Authorization headers may not be easily set by browser EventSource
+   */
   private extractQueryToken(request: AuthenticatedRequest): string | null {
     const query: Record<string, unknown> | undefined = request.query as
       | Record<string, unknown>
@@ -172,6 +203,7 @@ export class JwtAuthGuard implements CanActivate {
     if (!raw) {
       return null;
     }
+    // Handle array values (multiple tokens) - take first one
     if (Array.isArray(raw)) {
       return raw.length ? String(raw[0]) : null;
     }
@@ -194,5 +226,27 @@ export class JwtAuthGuard implements CanActivate {
       userMetadata: {},
       identities: [],
     };
+  }
+
+  /**
+   * SECURITY: Timing-safe string comparison to prevent timing attacks
+   * Uses constant-time algorithm to compare strings of equal length
+   */
+  private safeCompareStrings(a: string, b: string): boolean {
+    try {
+      const bufferA = Buffer.from(a, 'utf8');
+      const bufferB = Buffer.from(b, 'utf8');
+
+      // Fast reject on length mismatch (length is not secret)
+      if (bufferA.length !== bufferB.length) {
+        return false;
+      }
+
+      // Use Node.js crypto.timingSafeEqual for constant-time comparison
+      return timingSafeEqual(bufferA, bufferB);
+    } catch (error) {
+      this.logger.error('Failed to compare strings securely');
+      return false;
+    }
   }
 }

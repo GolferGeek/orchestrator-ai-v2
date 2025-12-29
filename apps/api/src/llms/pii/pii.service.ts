@@ -52,6 +52,9 @@ export interface PIIRestorationResult {
 /**
  * Refactored PII Service - Focus on Detection and Metadata Creation
  *
+ * SECURITY CRITICAL: This service detects and classifies PII in user prompts
+ * before they are sent to external LLM providers.
+ *
  * This service is responsible for:
  * 1. Detecting PII in text using PIIPatternService
  * 2. Creating comprehensive metadata structures
@@ -61,6 +64,12 @@ export interface PIIRestorationResult {
  * This service does NOT:
  * - Apply actual pseudonymization (that's done by PseudonymizerService at LLM boundary)
  * - Handle sanitization workflows (that's orchestrated by CentralizedRoutingService)
+ *
+ * Security considerations:
+ * - Showstopper PII (SSN, credit cards) immediately blocks requests
+ * - Local providers (Ollama) bypass all PII processing
+ * - External providers get PII detection and optional pseudonymization
+ * - Error handling defaults to allowing requests (fail-open for availability)
  */
 @Injectable()
 export class PIIService {
@@ -158,6 +167,8 @@ export class PIIService {
       const convertedMatches = this.convertPIIMatches(detectionResult.matches);
 
       // Step 3: CRITICAL SHOWSTOPPER CHECK - Early Exit Point
+      // SECURITY: Showstopper PII (SSN, credit cards) must block ALL requests
+      // No pseudonymization is acceptable for this class of data
       const showstopperMatches = convertedMatches.filter(
         (match) => match.severity === 'showstopper',
       );
@@ -235,10 +246,7 @@ export class PIIService {
         startTime,
       );
     } catch (error) {
-      this.logger.error(
-        `🔥 [PII-SERVICE] Policy check failed: ${error instanceof Error ? error.message : String(error)}`,
-        error,
-      );
+      this.logger.error('🔥 [PII-SERVICE] Policy check failed', error);
 
       // On error, return metadata indicating failure but allow request
       const errorMetadata: PIIProcessingMetadata = {

@@ -30,6 +30,7 @@ import type {
   HitlDecision,
   HitlGeneratedContent,
   HitlStatus,
+  HitlModePayload,
 } from '@orchestrator-ai/transport-types';
 import {
   handleError,
@@ -60,6 +61,35 @@ interface HitlHistoryPayload {
   action: 'history';
   taskId: string;
   limit?: number;
+}
+
+/**
+ * Validate HITL payload structure against transport-types
+ * Ensures action field is valid for HITL mode
+ * Note: Individual handlers validate required fields (taskId, decision, etc.)
+ */
+function validateHitlPayload(payload: unknown): payload is HitlModePayload {
+  if (!payload || typeof payload !== 'object') {
+    throw new Error('HITL payload must be an object');
+  }
+
+  const payloadObj = payload as Record<string, unknown>;
+
+  // If action is present, validate it
+  if (payloadObj.action !== undefined) {
+    if (typeof payloadObj.action !== 'string') {
+      throw new Error('HITL action must be a string');
+    }
+
+    const validActions = ['resume', 'status', 'history', 'pending'];
+    if (!validActions.includes(payloadObj.action)) {
+      throw new Error(
+        `Invalid HITL action: ${payloadObj.action}. Must be one of: ${validActions.join(', ')}`,
+      );
+    }
+  }
+
+  return true;
 }
 
 /**
@@ -196,6 +226,9 @@ export async function handleHitlResume(
   void services.conversationsService;
 
   try {
+    // Validate payload structure
+    validateHitlPayload(request.payload);
+
     const result = await sendHitlResume(definition, request, services);
 
     if (!result || result.error) {
@@ -398,6 +431,9 @@ export async function handleHitlStatus(
   void services.conversationsService;
 
   try {
+    // Validate payload structure
+    validateHitlPayload(request.payload);
+
     const payload = (request.payload ?? {}) as Partial<HitlStatusPayload>;
 
     if (!payload.taskId) {
@@ -477,6 +513,9 @@ export async function handleHitlHistory(
   void services.conversationsService;
 
   try {
+    // Validate payload structure
+    validateHitlPayload(request.payload);
+
     const payload = (request.payload ?? {}) as Partial<HitlHistoryPayload>;
 
     if (!payload.taskId) {

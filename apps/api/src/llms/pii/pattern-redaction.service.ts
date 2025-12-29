@@ -28,6 +28,7 @@ export interface PatternReversalResult {
 /**
  * Pattern-Based Redaction Service with Reversibility
  *
+ * SECURITY: Implements reversible pattern-based PII redaction.
  * Applies pattern-based redactions (from redaction_patterns table) to text,
  * storing mappings for later reversal. Works alongside dictionary pseudonymization.
  *
@@ -36,6 +37,12 @@ export interface PatternReversalResult {
  * 2. Apply redactions using replacement values from database or [TYPE_REDACTED] format
  * 3. Store mappings for reversal
  * 4. Reverse redactions after LLM response (before pseudonym reversal)
+ *
+ * Security considerations:
+ * - Can exclude showstopper PII from redaction (they should block instead)
+ * - Creates unique placeholders for multiple instances to enable accurate reversal
+ * - Regex special characters are properly escaped
+ * - Reversal mappings must be stored securely by caller
  */
 @Injectable()
 export class PatternRedactionService {
@@ -136,7 +143,7 @@ export class PatternRedactionService {
           processedText.substring(match.endIndex);
 
         this.logger.debug(
-          `🔒 Redacted "${match.value}" → "${replacement}" (${dataType}, instance ${instanceNumber})`,
+          `🔒 Redacted ${dataType} (instance ${instanceNumber})`,
         );
       }
 
@@ -192,7 +199,7 @@ export class PatternRedactionService {
           reversalCount += matches.length;
 
           this.logger.debug(
-            `🔄 Reversed "${mapping.redactedValue}" → "${mapping.originalValue}" (${matches.length} occurrence(s))`,
+            `🔄 Reversed ${matches.length} occurrence(s) of ${mapping.dataType}`,
           );
         }
       }
@@ -246,15 +253,14 @@ export class PatternRedactionService {
 
       return map;
     } catch (error) {
-      this.logger.warn(
-        `Failed to load replacement map: ${error instanceof Error ? error.message : 'Unknown error'}. Using defaults.`,
-      );
+      this.logger.warn('Failed to load replacement map. Using defaults.');
       return {};
     }
   }
 
   /**
    * Escape special regex characters in a string
+   * SECURITY: Prevents regex injection by escaping all special characters
    */
   private escapeRegex(string: string): string {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

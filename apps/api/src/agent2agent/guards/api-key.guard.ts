@@ -14,6 +14,23 @@ import { OrganizationCredentialRecord } from '@agent-platform/interfaces/organiz
 
 type BufferEncodingOption = BufferEncoding | 'base64url';
 
+/**
+ * API Key Authentication Guard
+ *
+ * SECURITY CRITICAL: This guard validates API keys for agent-to-agent communication.
+ * It implements multiple security layers:
+ * - Timing-safe comparison to prevent timing attacks
+ * - Rate limiting to prevent brute force attacks
+ * - Secure hashing with salt/pepper support
+ * - Comprehensive audit logging
+ * - Credential caching to reduce database load
+ *
+ * Security considerations:
+ * - All API key comparisons use constant-time algorithms
+ * - Error messages are intentionally generic to prevent information leakage
+ * - SQL injection is prevented through parameterized queries
+ * - Rate limiting is applied per organization/key fingerprint
+ */
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
   private readonly logger = new Logger(ApiKeyGuard.name);
@@ -65,6 +82,8 @@ export class ApiKeyGuard implements CanActivate {
     const apiKeyHeader =
       request.headers['x-agent-api-key'] || request.headers['x-api-key'];
 
+    // SECURITY: Validate API key presence and type before processing
+    // Error message is intentionally generic to prevent information leakage
     if (!apiKeyHeader || typeof apiKeyHeader !== 'string') {
       throw new UnauthorizedException('Agent API key required.');
     }
@@ -111,6 +130,10 @@ export class ApiKeyGuard implements CanActivate {
     return true;
   }
 
+  /**
+   * Extract and validate organization slug from request params
+   * SECURITY: Input validation prevents SQL injection and malformed requests
+   */
   private extractOrgSlug(params: Record<string, unknown> | undefined): string {
     const raw = params?.orgSlug ?? params?.organizationSlug ?? 'global';
     if (typeof raw !== 'string' || !raw.trim()) {
@@ -118,6 +141,8 @@ export class ApiKeyGuard implements CanActivate {
         'Organization slug missing from request.',
       );
     }
+    // Organization slug is used in database queries via parameterized statements
+    // in OrganizationCredentialsRepository, which prevents SQL injection
     return raw;
   }
 
@@ -263,6 +288,11 @@ export class ApiKeyGuard implements CanActivate {
     }
   }
 
+  /**
+   * SECURITY CRITICAL: Timing-safe comparison of API keys
+   * Uses constant-time algorithm to prevent timing attacks that could
+   * reveal information about the stored key through timing variations.
+   */
   private safeCompare(
     expected: string,
     stored: string,
@@ -271,11 +301,14 @@ export class ApiKeyGuard implements CanActivate {
     try {
       const expectedBuffer = this.toBuffer(expected, encoding);
       const storedBuffer = this.toBuffer(stored, encoding);
+      // Fast reject on length mismatch (length is not secret)
       if (expectedBuffer.length !== storedBuffer.length) {
         return false;
       }
+      // Use Node.js crypto.timingSafeEqual for constant-time comparison
       return timingSafeEqual(expectedBuffer, storedBuffer);
     } catch (error) {
+      // Log error but don't leak key material
       this.logger.error(
         `Failed to compare API keys (encoding=${encoding}): ${String(error)}`,
       );
@@ -297,6 +330,11 @@ export class ApiKeyGuard implements CanActivate {
     return `${org ?? 'global'}::${alias ?? ApiKeyGuard.DEFAULT_ALIAS}`;
   }
 
+  /**
+   * SECURITY: Rate limiting to prevent brute force attacks
+   * Tracks request counts per fingerprint (hash of org+key) to prevent
+   * attackers from guessing valid API keys through repeated attempts.
+   */
   private enforceRateLimit(
     orgSlug: string,
     fingerprint: string,

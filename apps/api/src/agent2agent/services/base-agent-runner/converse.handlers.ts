@@ -1,7 +1,7 @@
 import { AgentRuntimeDefinition } from '@agent-platform/interfaces/agent.interface';
 import type { ConversationMessage } from '../../context-optimization/context-optimization.service';
 import { LLMService } from '@llm/llm.service';
-import { ConverseModePayload } from '@orchestrator-ai/transport-types';
+import type { ConverseModePayload } from '@orchestrator-ai/transport-types';
 import { Agent2AgentConversationsService } from '../agent-conversations.service';
 import {
   fetchConversationHistory,
@@ -21,6 +21,46 @@ export interface ConverseHandlerDependencies {
 }
 
 /**
+ * Validate Converse payload structure against transport-types
+ * Converse mode has no required action field - payload is entirely optional
+ */
+function validateConversePayload(
+  payload: unknown,
+): payload is ConverseModePayload {
+  if (!payload) {
+    // Payload is optional for converse mode
+    return true;
+  }
+
+  if (typeof payload !== 'object' || payload === null) {
+    throw new Error('Converse payload must be an object if provided');
+  }
+
+  const payloadObj = payload as Record<string, unknown>;
+
+  // Validate optional fields if present
+  if ('temperature' in payloadObj && payloadObj.temperature !== undefined) {
+    if (typeof payloadObj.temperature !== 'number') {
+      throw new Error('temperature must be a number');
+    }
+  }
+
+  if ('maxTokens' in payloadObj && payloadObj.maxTokens !== undefined) {
+    if (typeof payloadObj.maxTokens !== 'number') {
+      throw new Error('maxTokens must be a number');
+    }
+  }
+
+  if ('stop' in payloadObj && payloadObj.stop !== undefined) {
+    if (!Array.isArray(payloadObj.stop)) {
+      throw new Error('stop must be an array');
+    }
+  }
+
+  return true;
+}
+
+/**
  * Executes conversational mode for an agent.
  * @param definition - Agent runtime definition configuration
  * @param request - Incoming task request payload
@@ -35,6 +75,9 @@ export async function executeConverse(
   services: ConverseHandlerDependencies,
 ): Promise<TaskResponseDto> {
   try {
+    // Validate payload structure
+    validateConversePayload(request.payload);
+
     const userId = resolveUserId(request);
     if (!userId) {
       throw new Error('Unable to determine user identity for conversation');

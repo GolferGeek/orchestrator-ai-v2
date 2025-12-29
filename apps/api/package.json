@@ -14,7 +14,7 @@
     "start:dev:full": "./start-dev.sh",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
-    "lint": "eslint --ignore-pattern \"testing/**\" --ignore-pattern \"scripts/**\" --ignore-pattern \"dist/**\" --ignore-pattern \"supabase/scripts/**\" .",
+    "lint": "eslint --ignore-pattern \"testing/**\" --ignore-pattern \"scripts/**\" --ignore-pattern \"dist/**\" --ignore-pattern \"supabase/scripts/**\" --ignore-pattern \"supabase/archive/**\" .",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
