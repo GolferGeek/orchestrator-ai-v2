@@ -1,0 +1,134 @@
+{
+  "slug": "extended-post-writer",
+  "organization_slug": [
+    "demo-org"
+  ],
+  "name": "Extended Post Writer",
+  "description": "LangGraph-powered content generation agent with Human-in-the-Loop (HITL) approval. Generates blog posts, SEO descriptions, and social media posts, then pauses for human review before finalizing.",
+  "version": "1.0.0",
+  "agent_type": "context",
+  "department": "marketing",
+  "tags": [
+    "content-creation",
+    "blog",
+    "seo",
+    "social-media",
+    "langgraph",
+    "hitl"
+  ],
+  "io_schema": {
+    "input": {
+      "type": "object",
+      "required": [
+        "topic"
+      ],
+      "properties": {
+        "tone": {
+          "enum": [
+            "professional",
+            "casual",
+            "technical",
+            "conversational"
+          ],
+          "type": "string",
+          "default": "professional",
+          "description": "Writing tone"
+        },
+        "topic": {
+          "type": "string",
+          "description": "Topic for content generation"
+        },
+        "userId": {
+          "type": "string",
+          "description": "User ID for tracking"
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "enum": [
+            "started",
+            "generating",
+            "hitl_waiting",
+            "completed",
+            "rejected",
+            "failed"
+          ],
+          "type": "string",
+          "description": "Current workflow status"
+        },
+        "taskId": {
+          "type": "string",
+          "description": "Task ID for the content generation session (used as thread ID)"
+        },
+        "hitlPending": {
+          "type": "boolean",
+          "description": "Whether human approval is pending"
+        },
+        "finalContent": {
+          "type": "object",
+          "description": "Final approved/edited content after HITL"
+        },
+        "generatedContent": {
+          "type": "object",
+          "properties": {
+            "blogPost": {
+              "type": "string"
+            },
+            "socialPosts": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "seoDescription": {
+              "type": "string"
+            }
+          },
+          "description": "Generated content awaiting review"
+        }
+      }
+    }
+  },
+  "capabilities": [
+    "content-generation",
+    "blog-writing",
+    "seo-optimization",
+    "social-media",
+    "human-in-the-loop"
+  ],
+  "context": "{\"markdown\": \"# Extended Post Writer Agent\\n\\nA LangGraph-powered content generation agent with Human-in-the-Loop (HITL) approval workflow.\\n\\n## Capabilities\\n- **Blog Post Generation**: Creates comprehensive blog posts on any topic\\n- **SEO Description**: Generates optimized meta descriptions\\n- **Social Media Posts**: Creates multiple social media posts for different platforms\\n- **HITL Approval**: Pauses for human review before finalizing content\\n\\n## HITL Workflow\\n1. User provides topic and preferences\\n2. Agent generates all content types\\n3. Workflow pauses with `hitl_waiting` status\\n4. Human reviews content in approval modal\\n5. Human can:\\n   - **Approve**: Accept content as-is\\n   - **Edit**: Modify content then approve\\n   - **Reject**: Reject and provide feedback\\n6. Workflow completes with final content\\n\\n## Resume Actions\\n- `approve`: Accept generated content\\n- `edit`: Accept with modifications (provide editedContent)\\n- `reject`: Reject content (provide feedback)\\n\\n## Endpoints\\n- `POST /extended-post-writer/generate` - Start generation\\n- `POST /extended-post-writer/resume/:threadId` - Resume with decision\\n- `GET /extended-post-writer/status/:threadId` - Check status\"}",
+  "endpoint": null,
+  "llm_config": {
+    "model": "llama3.2:1b",
+    "provider": "ollama"
+  },
+  "metadata": {
+    "features": [
+      "hitl",
+      "checkpointing",
+      "content-generation"
+    ],
+    "provider": "langgraph",
+    "hitlEnabled": true,
+    "resumeEndpoint": "/extended-post-writer/resume/{threadId}",
+    "statusEndpoint": "/extended-post-writer/status/{threadId}",
+    "execution_modes": [
+      "immediate",
+      "polling",
+      "real-time"
+    ],
+    "historyEndpoint": "/extended-post-writer/history/{threadId}",
+    "langgraphEndpoint": "http://localhost:6200",
+    "execution_capabilities": {
+      "can_plan": false,
+      "can_build": true,
+      "can_converse": true,
+      "requires_human_gate": true
+    }
+  },
+  "created_at": "2025-11-25T16:48:02.92047+00:00",
+  "updated_at": "2025-12-24T15:20:13.010924+00:00"
+}

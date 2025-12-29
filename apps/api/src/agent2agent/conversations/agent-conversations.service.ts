@@ -289,6 +289,10 @@ export class AgentConversationsService {
       await this.cleanupMarketingSwarmData(conversationId);
     }
 
+    // Clean up media assets (images/videos) and their storage files BEFORE deleting conversation
+    // This ensures storage files don't become orphaned
+    await this.cleanupConversationAssets(conversationId);
+
     // Delete related LLM usage records first to avoid foreign key constraint violation
     const { error: llmUsageDeleteError } = await this.supabaseService
       .getAnonClient()
@@ -303,22 +307,20 @@ export class AgentConversationsService {
       );
     }
 
-    // Preserve agent_name in deliverables before deleting conversation
-    // The database will automatically set conversation_id to NULL due to SET NULL constraint,
-    // but we want to ensure agent_name is preserved for future editing
-    const { error: deliverablesUpdateError } = await this.supabaseService
+    // Delete deliverables (deliverable_versions will cascade delete)
+    // UI enforces that deliverables are always deleted with their conversations
+    const { error: deliverablesDeleteError } = await this.supabaseService
       .getAnonClient()
       .from(getTableName('deliverables'))
-      .update({
-        agent_name: conversation.agentName, // Preserve the agent name
-        // conversation_id will be automatically set to NULL by the database constraint
-      })
+      .delete()
       .eq('conversation_id', conversationId)
-      .eq('user_id', userId)
-      .is('agent_name', null); // Only update if agent_name is not already set
+      .eq('user_id', userId);
 
-    if (deliverablesUpdateError) {
-      // Don't throw here - this is not critical enough to stop deletion
+    if (deliverablesDeleteError) {
+      this.logger.warn(
+        `Failed to delete deliverables: ${deliverablesDeleteError.message}`,
+      );
+      // Don't throw - continue with conversation deletion
     }
 
     // Delete related tasks (if any)
@@ -410,6 +412,102 @@ export class AgentConversationsService {
       // Log but don't throw - we still want to delete the conversation
       this.logger.warn(
         `Failed to cleanup marketing swarm data for conversation ${conversationId}: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
+      );
+    }
+  }
+
+  /**
+   * Clean up media assets (images/videos) and their storage files for a conversation.
+   * This prevents orphaned storage files when a conversation is deleted.
+   */
+  private async cleanupConversationAssets(
+    conversationId: string,
+  ): Promise<void> {
+    try {
+      const client = this.supabaseService.getServiceClient();
+
+      // Find all assets linked to this conversation
+      const { data: assets, error: fetchError } = await client
+        .from(getTableName('assets'))
+        .select('id, bucket, object_key')
+        .eq('conversation_id', conversationId);
+
+      if (fetchError) {
+        this.logger.warn(
+          `Failed to fetch assets for conversation ${conversationId}: ${fetchError.message}`,
+        );
+        return;
+      }
+
+      if (!assets || assets.length === 0) {
+        this.logger.debug(
+          `No assets to clean up for conversation ${conversationId}`,
+        );
+        return;
+      }
+
+      this.logger.log(
+        `Cleaning up ${assets.length} asset(s) for conversation ${conversationId}`,
+      );
+
+      // Group assets by bucket for efficient deletion
+      const assetsByBucket = assets.reduce(
+        (acc, asset) => {
+          const typedAsset = asset as {
+            id: string;
+            bucket: string;
+            object_key: string;
+          };
+          const bucket = typedAsset.bucket || 'media';
+          if (!acc[bucket]) {
+            acc[bucket] = [];
+          }
+          acc[bucket].push(typedAsset.object_key);
+          return acc;
+        },
+        {} as Record<string, string[]>,
+      );
+
+      // Delete storage files from each bucket
+      for (const [bucket, objectKeys] of Object.entries(assetsByBucket)) {
+        const { error: storageError } = await client.storage
+          .from(bucket)
+          .remove(objectKeys);
+
+        if (storageError) {
+          this.logger.warn(
+            `Failed to delete storage files from bucket ${bucket}: ${storageError.message}`,
+          );
+          // Continue with other buckets even if one fails
+        } else {
+          this.logger.debug(
+            `Deleted ${objectKeys.length} file(s) from bucket ${bucket}`,
+          );
+        }
+      }
+
+      // Delete asset records from database
+      const assetIds = assets.map((a) => (a as { id: string }).id);
+      const { error: deleteError } = await client
+        .from(getTableName('assets'))
+        .delete()
+        .in('id', assetIds);
+
+      if (deleteError) {
+        this.logger.warn(
+          `Failed to delete asset records: ${deleteError.message}`,
+        );
+      } else {
+        this.logger.log(
+          `Successfully cleaned up ${assets.length} asset(s) for conversation ${conversationId}`,
+        );
+      }
+    } catch (error) {
+      // Log but don't throw - we still want to delete the conversation
+      this.logger.warn(
+        `Failed to cleanup assets for conversation ${conversationId}: ${
           error instanceof Error ? error.message : 'Unknown error'
         }`,
       );

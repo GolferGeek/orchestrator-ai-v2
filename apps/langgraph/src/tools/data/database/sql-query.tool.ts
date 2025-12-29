@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PostgresCheckpointerService } from "../../../persistence/postgres-checkpointer.service";
 import { LLMUsageReporterService } from "../../../services/llm-usage-reporter.service";
+import { ExecutionContext } from "@orchestrator-ai/transport-types";
 
 /**
  * SqlQueryTool
@@ -70,15 +71,9 @@ export class SqlQueryTool {
    * Note: This method uses dynamic require to avoid TypeScript's deep type
    * instantiation limits with LangChain's tool types.
    *
-   * @param context - Execution context fields (subset of ExecutionContext from transport-types)
+   * @param context - Full ExecutionContext capsule
    */
-  createNaturalLanguageTool(context: {
-    userId: string;
-    taskId?: string;
-    threadId?: string;
-    conversationId?: string;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  }): any {
+  createNaturalLanguageTool(context: ExecutionContext): any {
     // Import dynamically to avoid type inference at module load time
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { DynamicStructuredTool } = require("@langchain/core/tools");
@@ -209,17 +204,12 @@ export class SqlQueryTool {
    *
    * @param question - The natural language question to convert to SQL
    * @param tableContext - The relevant table schemas
-   * @param context - Execution context fields (subset of ExecutionContext from transport-types)
+   * @param context - Full ExecutionContext capsule
    */
   async generateAndExecuteSql(
     question: string,
     tableContext: string,
-    context: {
-      userId: string;
-      taskId?: string;
-      threadId?: string;
-      conversationId?: string;
-    },
+    context: ExecutionContext,
   ): Promise<string> {
     const startTime = Date.now();
 
@@ -239,7 +229,7 @@ export class SqlQueryTool {
         completionTokens: this.usageReporter.estimateTokens(sql),
         userId: context.userId,
         taskId: context.taskId,
-        threadId: context.threadId,
+        threadId: context.taskId, // Use taskId as threadId for LangGraph
         conversationId: context.conversationId,
         latencyMs,
       });

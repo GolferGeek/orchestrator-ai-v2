@@ -214,6 +214,20 @@ export async function createDeliverable(
         color: 'warning',
       });
       await hitlToast.present();
+    } else if (result.type === 'message') {
+      // Conversational response from BUILD mode (e.g., RAG agent with no results)
+      conversationsStore.addMessage(ctx.conversationId, {
+        role: 'assistant',
+        content: result.message,
+        timestamp: new Date().toISOString(),
+        metadata: {
+          mode: 'build',
+          isConversational: true,
+          ...result.metadata,
+        },
+      });
+
+      // No toast needed - this is a normal conversational response
     } else if (result.type === 'error') {
       conversationsStore.addMessage(ctx.conversationId, {
         role: 'assistant',

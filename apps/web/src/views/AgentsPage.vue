@@ -91,8 +91,15 @@
         <button class="theme-toggle" @click="toggleTheme" :title="isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'">
           <ion-icon :icon="isDarkMode ? sunnyOutline : moonOutline"></ion-icon>
         </button>
+        <SuperAdminCommandButton @open="showCommandPanel = true" />
       </div>
     </ion-split-pane>
+
+    <!-- Super Admin Claude Code Panel -->
+    <SuperAdminCommandPanel
+      v-if="showCommandPanel"
+      @close="showCommandPanel = false"
+    />
   </ion-page>
 </template>
 <script lang="ts" setup>
@@ -103,20 +110,25 @@ import {
 import { logOutOutline, starOutline, chatbubblesOutline, documentTextOutline, sunnyOutline, moonOutline } from 'ionicons/icons';
 import { useAuthStore } from '@/stores/rbacStore';
 import { conversation } from '@/services/conversationHelpers';
-import { useConversationsStore } from '@/stores/conversationsStore';
+import { conversationsService } from '@/services/conversationsService';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
 import { useUserPreferencesStore } from '@/stores/userPreferencesStore';
 import { useRouter } from 'vue-router';
 import AgentTreeView from '@/components/AgentTreeView.vue';
 import OrganizationSwitcherApp from '@/components/common/OrganizationSwitcherApp.vue';
+import SuperAdminCommandButton from '@/components/super-admin/SuperAdminCommandButton.vue';
+import SuperAdminCommandPanel from '@/components/super-admin/SuperAdminCommandPanel.vue';
+
 const auth = useAuthStore();
-const conversationsStore = useConversationsStore();
 const chatUiStore = useChatUiStore();
 const userPreferencesStore = useUserPreferencesStore();
 const router = useRouter();
 // State for accordion and search
 const _mainNavExpanded = ref(true); // Main navigation accordion starts expanded
 const agentsExpanded = ref(true);
+
+// State for super admin command panel
+const showCommandPanel = ref(false);
 
 // Theme - use the preferences store
 const isDarkMode = computed(() => userPreferencesStore.effectiveTheme === 'dark');
@@ -180,7 +192,7 @@ const handleAgentSelected = async (agent: Record<string, unknown>) => {
     const conversationId = await conversation.createConversation(agent);
 
     // Refresh conversations list to show the new conversation in sidebar
-    await conversationsStore.fetchConversations(true);
+    await conversationsService.fetchConversations(true);
 
     // Set flag in sessionStorage to indicate active conversation for admin users
     sessionStorage.setItem('activeConversation', 'true');

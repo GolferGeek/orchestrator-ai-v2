@@ -1,5 +1,9 @@
 ---
 description: "Commit changes and push to current branch after quality checks"
+category: "development"
+uses-skills: ["quality-gates-skill"]
+uses-agents: []
+related-commands: ["commit"]
 ---
 
 # Commit and Push to Current Branch

@@ -20,6 +20,7 @@ import type {
   ImageGenerationParams,
   ImageGenerationResponse,
   VideoGenerationParams,
+  VideoGenerationResponse,
 } from '@/llms/services/llm-interfaces';
 
 /**
@@ -152,8 +153,14 @@ export class MediaAgentRunnerService extends BaseAgentRunner {
       }
 
       // Determine media type from agent config or payload
+      this.logger.log(
+        `🎨 [MEDIA-RUNNER] definition.metadata: ${JSON.stringify(definition.metadata)}`,
+      );
+      this.logger.log(
+        `🎨 [MEDIA-RUNNER] definition.config: ${JSON.stringify(definition.config)}`,
+      );
       const mediaType = this.resolveMediaType(definition, payload);
-      this.logger.log(`🎨 [MEDIA-RUNNER] Media type: ${mediaType}`);
+      this.logger.log(`🎨 [MEDIA-RUNNER] Resolved media type: ${mediaType}`);
 
       // Emit observability event
       this.emitObservabilityEvent(
@@ -181,7 +188,7 @@ export class MediaAgentRunnerService extends BaseAgentRunner {
           );
 
         case 'video':
-          return this.executeVideoGeneration(
+          return await this.executeVideoGeneration(
             definition,
             request,
             context,
@@ -343,6 +350,7 @@ export class MediaAgentRunnerService extends BaseAgentRunner {
         provider,
         model,
         imagesGenerated: storedAssets.length,
+        cost: imageResponse.metadata?.usage?.cost,
       },
     );
 
@@ -392,30 +400,327 @@ export class MediaAgentRunnerService extends BaseAgentRunner {
   }
 
   /**
-   * Execute video generation (placeholder for future implementation)
+   * Execute video generation using Sora 2 or Veo 3
+   *
+   * Video generation is async - starts the job and polls for completion.
+   * Stores the resulting video in Supabase storage and creates a deliverable version.
    */
-  private executeVideoGeneration(
-    _definition: AgentRuntimeDefinition,
+  private async executeVideoGeneration(
+    definition: AgentRuntimeDefinition,
     request: TaskRequestDto,
     context: ExecutionContext,
-    _payload: MediaBuildCreatePayload,
-    _conversationHistory: ConversationMessage[],
-  ): TaskResponseDto {
+    payload: MediaBuildCreatePayload,
+    conversationHistory: ConversationMessage[],
+  ): Promise<TaskResponseDto> {
     this.logger.log(`🎬 [MEDIA-RUNNER] executeVideoGeneration()`);
 
-    // Video generation is async (requires polling)
-    // For now, return a placeholder response indicating it's not implemented
-    this.emitObservabilityEvent(
-      'agent.failed',
-      'Video generation not yet implemented',
-      context,
-      { mode: request.mode, progress: 100 },
+    try {
+      // Get provider/model from context (set by agent definition)
+      const provider = context.provider || 'openai';
+      const model =
+        context.model || (provider === 'openai' ? 'sora-2' : 'veo-3-generate');
+
+      // Build video parameters from request
+      const userMessage = request.userMessage || '';
+      if (!userMessage) {
+        return TaskResponseDto.failure(
+          AgentTaskMode.BUILD,
+          'No user message provided for video generation',
+        );
+      }
+
+      const videoParams = this.buildVideoParams(
+        userMessage,
+        payload,
+        conversationHistory,
+      );
+
+      this.logger.log(
+        `🎬 [MEDIA-RUNNER] Starting video generation: provider=${provider}, model=${model}, duration=${videoParams.duration}s`,
+      );
+
+      // Emit start event
+      this.emitObservabilityEvent(
+        'agent.started',
+        `Starting video generation: provider=${provider}, model=${model}, duration=${videoParams.duration}s`,
+        context,
+        {
+          mode: request.mode,
+          progress: 0,
+        },
+      );
+
+      // Step 1: Start video generation (async)
+      const videoResponse = await this.generateVideo(
+        provider,
+        model,
+        videoParams,
+        context,
+      );
+
+      if (videoResponse.status === 'failed' || videoResponse.error) {
+        const errorMessage =
+          videoResponse.error?.message || 'Video generation failed to start';
+        this.emitObservabilityEvent(
+          'agent.failed',
+          `Video generation failed: ${errorMessage}`,
+          context,
+          {
+            mode: request.mode,
+            progress: 100,
+          },
+        );
+
+        return TaskResponseDto.failure(AgentTaskMode.BUILD, errorMessage);
+      }
+
+      // Step 2: Poll for completion
+      const operationId = videoResponse.operationId;
+      if (!operationId) {
+        throw new Error('No operationId returned from video generation');
+      }
+
+      this.logger.log(
+        `🎬 [MEDIA-RUNNER] Polling for video completion: operationId=${operationId}`,
+      );
+
+      // Poll with exponential backoff (max 10 minutes)
+      const maxWaitMs = 10 * 60 * 1000; // 10 minutes
+      const startTime = Date.now();
+      let pollIntervalMs = 5000; // Start with 5 seconds
+      let completedResponse: VideoGenerationResponse | null = null;
+
+      while (Date.now() - startTime < maxWaitMs) {
+        // Wait before polling
+        await this.sleep(pollIntervalMs);
+
+        // Poll status
+        const statusResponse = await this.pollVideoStatus(
+          provider,
+          model,
+          operationId,
+          context,
+        );
+
+        this.logger.debug(
+          `🎬 [MEDIA-RUNNER] Poll status: ${statusResponse.status}`,
+        );
+
+        if (statusResponse.status === 'completed') {
+          completedResponse = statusResponse;
+          break;
+        } else if (statusResponse.status === 'failed') {
+          const errorMessage =
+            statusResponse.error?.message || 'Video generation failed';
+          this.emitObservabilityEvent(
+            'agent.failed',
+            `Video generation failed: ${errorMessage}`,
+            context,
+            {
+              mode: request.mode,
+              progress: 100,
+            },
+          );
+
+          return TaskResponseDto.failure(AgentTaskMode.BUILD, errorMessage);
+        }
+
+        // Increase poll interval with exponential backoff (max 30 seconds)
+        pollIntervalMs = Math.min(pollIntervalMs * 1.5, 30000);
+      }
+
+      if (!completedResponse) {
+        this.emitObservabilityEvent(
+          'agent.failed',
+          'Video generation timed out',
+          context,
+          { mode: request.mode, progress: 100 },
+        );
+
+        return TaskResponseDto.failure(
+          AgentTaskMode.BUILD,
+          'Video generation timed out after 10 minutes',
+        );
+      }
+
+      // Step 3: Store video in Supabase
+      if (!completedResponse.videoData) {
+        throw new Error('No video data in completed response');
+      }
+
+      this.logger.log(
+        `🎬 [MEDIA-RUNNER] Storing video (${completedResponse.videoData.length} bytes)`,
+      );
+
+      const storedVideo = await this.mediaStorage.storeGeneratedMedia(
+        completedResponse.videoData,
+        context,
+        {
+          prompt: videoParams.prompt,
+          provider,
+          model,
+          mime: completedResponse.videoMetadata?.mimeType || 'video/mp4',
+        },
+      );
+
+      // Step 4: Create deliverable version with video
+      const deliverableId = payload.deliverableId || context.deliverableId;
+      let createResult:
+        | {
+            success: boolean;
+            data?: { deliverable: unknown; version: unknown; isNew: boolean };
+          }
+        | undefined;
+
+      if (deliverableId) {
+        createResult = await this.createMediaDeliverable(
+          definition,
+          context,
+          payload,
+          [storedVideo],
+          {
+            type: 'video-generation',
+            prompt: videoParams.prompt,
+            provider,
+            model,
+            videoDurationSeconds:
+              completedResponse.videoMetadata?.durationSeconds,
+            cost: completedResponse.metadata?.usage?.cost,
+          },
+        );
+      }
+
+      // Emit completion
+      this.emitObservabilityEvent(
+        'agent.completed',
+        `Video generated successfully: ${storedVideo.url}`,
+        context,
+        {
+          mode: request.mode,
+          progress: 100,
+        },
+      );
+
+      return TaskResponseDto.success(AgentTaskMode.BUILD, {
+        content: {
+          deliverable: createResult?.data?.deliverable,
+          version: createResult?.data?.version,
+          isNew: createResult?.data?.isNew,
+          videos: [
+            {
+              assetId: storedVideo.assetId,
+              url: storedVideo.url,
+              durationSeconds: completedResponse.videoMetadata?.durationSeconds,
+              mimeType:
+                completedResponse.videoMetadata?.mimeType || 'video/mp4',
+            },
+          ],
+          message: 'Video generated successfully',
+        },
+        metadata: {
+          provider,
+          model,
+          videoDurationSeconds:
+            completedResponse.videoMetadata?.durationSeconds,
+          cost: completedResponse.metadata?.usage?.cost,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `🎬 [MEDIA-RUNNER] Video generation error: ${error instanceof Error ? error.message : String(error)}`,
+      );
+
+      this.emitObservabilityEvent(
+        'agent.failed',
+        `Video generation error: ${error instanceof Error ? error.message : String(error)}`,
+        context,
+        {
+          mode: request.mode,
+          progress: 100,
+        },
+      );
+
+      return TaskResponseDto.failure(
+        AgentTaskMode.BUILD,
+        error instanceof Error ? error.message : 'Video generation failed',
+      );
+    }
+  }
+
+  /**
+   * Build video generation parameters from request
+   */
+  private buildVideoParams(
+    userMessage: string,
+    payload: MediaBuildCreatePayload,
+    _conversationHistory: ConversationMessage[],
+  ): VideoGenerationParams {
+    const videoConfig = payload.media?.video || {};
+
+    return {
+      prompt: userMessage,
+      duration: videoConfig.duration || 4,
+      aspectRatio: videoConfig.aspectRatio || '16:9',
+      resolution: videoConfig.resolution,
+      firstFrameImageUrl: videoConfig.firstFrameImageUrl,
+      firstFrameImage: videoConfig.firstFrameImage,
+      lastFrameImageUrl: videoConfig.lastFrameImageUrl,
+      lastFrameImage: videoConfig.lastFrameImage,
+      generateAudio: videoConfig.generateAudio,
+    };
+  }
+
+  /**
+   * Generate video using the LLM service
+   */
+  private async generateVideo(
+    provider: string,
+    model: string,
+    params: VideoGenerationParams,
+    context: ExecutionContext,
+  ): Promise<VideoGenerationResponse> {
+    this.logger.log(
+      `🎬 [MEDIA-RUNNER] generateVideo() - provider: ${provider}, model: ${model}`,
     );
 
-    return TaskResponseDto.failure(
-      AgentTaskMode.BUILD,
-      'Video generation is not yet implemented. Coming soon with Sora 2 and Veo 3 support.',
-    );
+    return this.llmService.generateVideo({
+      provider,
+      model,
+      prompt: params.prompt,
+      duration: params.duration,
+      aspectRatio: params.aspectRatio,
+      resolution: params.resolution,
+      firstFrameImageUrl: params.firstFrameImageUrl,
+      firstFrameImage: params.firstFrameImage,
+      lastFrameImageUrl: params.lastFrameImageUrl,
+      lastFrameImage: params.lastFrameImage,
+      generateAudio: params.generateAudio,
+      executionContext: context,
+    });
+  }
+
+  /**
+   * Poll video generation status
+   */
+  private async pollVideoStatus(
+    provider: string,
+    model: string,
+    operationId: string,
+    context: ExecutionContext,
+  ): Promise<VideoGenerationResponse> {
+    return this.llmService.pollVideoStatus({
+      provider,
+      model,
+      operationId,
+      executionContext: context,
+    });
+  }
+
+  /**
+   * Sleep helper for polling
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
@@ -425,16 +730,32 @@ export class MediaAgentRunnerService extends BaseAgentRunner {
     definition: AgentRuntimeDefinition,
     payload: MediaBuildCreatePayload,
   ): MediaType {
-    // Priority: payload > definition config > default
+    // Priority: payload > config.mediaType > metadata.raw.mediaType > config.media.type > default
     if (payload.media?.type) {
       return payload.media.type;
     }
 
-    const configMediaType = (
-      definition.config as { media?: { type?: MediaType } }
-    )?.media?.type;
+    // Check config.mediaType (merged from record.metadata into definition.config)
+    const configMediaType = (definition.config as { mediaType?: MediaType })
+      ?.mediaType;
     if (configMediaType) {
       return configMediaType;
+    }
+
+    // Check metadata.raw.mediaType (raw database metadata stored in metadata.raw)
+    const rawMediaType = (
+      definition.metadata?.raw as { mediaType?: MediaType } | undefined
+    )?.mediaType;
+    if (rawMediaType) {
+      return rawMediaType;
+    }
+
+    // Check config.media.type (nested structure)
+    const nestedConfigMediaType = (
+      definition.config as { media?: { type?: MediaType } }
+    )?.media?.type;
+    if (nestedConfigMediaType) {
+      return nestedConfigMediaType;
     }
 
     // Default to image
@@ -543,6 +864,7 @@ export class MediaAgentRunnerService extends BaseAgentRunner {
       model: string;
       imagesGenerated?: number;
       videoDurationSeconds?: number;
+      cost?: number;
     },
   ): Promise<{
     success: boolean;
@@ -610,6 +932,7 @@ export class MediaAgentRunnerService extends BaseAgentRunner {
           model: metadata.model,
           imagesGenerated: metadata.imagesGenerated,
           videoDurationSeconds: metadata.videoDurationSeconds,
+          cost: metadata.cost,
           assetIds: assets.map((a) => a.assetId),
         },
       },

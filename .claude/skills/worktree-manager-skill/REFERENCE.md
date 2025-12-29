@@ -6,49 +6,98 @@ Technical details, command syntax, and configuration reference.
 
 ### Create Worktree
 ```bash
-/create_worktree <branch-name> [port-offset]
+/worktree create <slot> [feature-name]
 ```
 
 **Parameters:**
-- `branch-name` (required) - Name of the git branch
-- `port-offset` (optional) - Port offset number (default: auto-calculated)
+- `slot` (required) - One of: `wt-1`, `wt-2`, `wt-3`
+- `feature-name` (optional) - Feature name for branch
+
+**Branch created:** `golfergeek-{slot}/{feature-name}`
 
 **Example:**
 ```bash
-/create_worktree feature-auth
-/create_worktree hotfix-bug 3
+/worktree create wt-1 video-generation
+# Creates: worktrees/wt-1/ on branch golfergeek-wt-1/video-generation
 ```
 
 ---
 
 ### List Worktrees
 ```bash
-/list_worktrees
+/worktree list
 ```
-
-**Parameters:** None
 
 **Output includes:**
 - Worktree paths
+- Branch names
 - Port configurations
-- Service status with PIDs
-- Access URLs
-- Quick commands
+- Service status
+- Sync status (ahead/behind main)
 
 ---
 
 ### Remove Worktree
 ```bash
-/remove_worktree <branch-name>
+/worktree remove <slot> [--delete-branch]
 ```
 
 **Parameters:**
-- `branch-name` (required) - Name of the worktree to remove
+- `slot` (required) - One of: `wt-1`, `wt-2`, `wt-3`
+- `--delete-branch` (optional) - Also delete the git branch
 
 **Example:**
 ```bash
-/remove_worktree feature-auth
+/worktree remove wt-1
+/worktree remove wt-2 --delete-branch
 ```
+
+---
+
+### Sync Worktree
+```bash
+/worktree sync [slot|all]
+```
+
+**Parameters:**
+- `slot` (optional) - Specific slot to sync, or `all` for all idle worktrees
+
+**Sync process:**
+1. `git fetch origin main`
+2. `git rebase origin/main`
+3. `npm install` (if package.json changed)
+4. Copy `.env` from main worktree
+
+**Example:**
+```bash
+/worktree sync wt-1    # Sync specific worktree
+/worktree sync all     # Sync all idle worktrees
+```
+
+---
+
+### Switch Worktree
+```bash
+/worktree switch <slot>
+```
+
+**Parameters:**
+- `slot` (required) - One of: `wt-1`, `wt-2`, `wt-3`
+
+**Note:** Auto-syncs before switching.
+
+---
+
+### Status
+```bash
+/worktree status
+```
+
+**Output includes:**
+- Current worktree location
+- Branch name
+- Commits ahead/behind main
+- Modified files
 
 ---
 
@@ -84,25 +133,36 @@ When no port offset is specified, the system:
 
 ### Main Repository
 ```
-project/
+orchestrator-ai-v2/
 ├── .claude/
 │   ├── settings.json
 │   └── commands/
 ├── .env
-├── server/
-└── client/
+├── apps/
+│   ├── api/
+│   └── web/
+└── worktrees/        # Gitignored
 ```
 
 ### Worktree Structure
 ```
-project/
-└── trees/
-    └── <branch-name>/
-        ├── .claude/
-        │   └── settings.json (isolated config)
-        ├── .env (unique ports)
-        ├── server/
-        └── client/
+orchestrator-ai-v2/
+└── worktrees/
+    ├── wt-1/                              # Slot 1
+    │   ├── .env (copied from main)
+    │   ├── apps/
+    │   │   ├── api/
+    │   │   └── web/
+    │   └── node_modules/
+    ├── wt-2/                              # Slot 2
+    └── wt-3/                              # Slot 3
+```
+
+### Branch Naming
+```
+golfergeek-wt-1/feature-name
+golfergeek-wt-2/another-feature
+golfergeek-wt-3/bug-fix
 ```
 
 ---

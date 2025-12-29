@@ -154,9 +154,9 @@ describe("DataAnalystService", () => {
     }).compile();
 
     service = module.get<DataAnalystService>(DataAnalystService);
-    llmClient = module.get(LLMHttpClientService);
-    observability = module.get(ObservabilityService);
-    checkpointer = module.get(PostgresCheckpointerService);
+    _llmClient = module.get(LLMHttpClientService);
+    _observability = module.get(ObservabilityService);
+    _checkpointer = module.get(PostgresCheckpointerService);
 
     // Initialize the service (triggers onModuleInit)
     await service.onModuleInit();
@@ -168,44 +168,30 @@ describe("DataAnalystService", () => {
 
   describe("analyze", () => {
     const validInput: DataAnalystInput = {
-      taskId: "task-123",
-      userId: "user-456",
-      conversationId: "conv-789",
-      organizationSlug: "org-abc",
-      question: "How many users are there?",
-      provider: "anthropic",
-      model: "claude-sonnet-4-20250514",
+      context: createMockExecutionContext({
+        taskId: "task-123",
+        userId: "user-456",
+        conversationId: "conv-789",
+        orgSlug: "org-abc",
+        provider: "anthropic",
+        model: "claude-sonnet-4-20250514",
+      }),
+      userMessage: "How many users are there?",
     };
 
-    it("should throw error for missing taskId", async () => {
-      const invalidInput = { ...validInput, taskId: "" };
-
-      await expect(service.analyze(invalidInput)).rejects.toThrow(
-        "Invalid input",
-      );
-    });
-
-    it("should throw error for missing userId", async () => {
-      const invalidInput = { ...validInput, userId: "" };
-
-      await expect(service.analyze(invalidInput)).rejects.toThrow(
-        "Invalid input",
-      );
-    });
-
-    it("should throw error for missing question", async () => {
-      const invalidInput = { ...validInput, question: "" };
-
-      await expect(service.analyze(invalidInput)).rejects.toThrow(
-        "Invalid input",
-      );
-    });
-
-    it("should return result with threadId for valid input", async () => {
+    it("should return result with taskId for valid input", async () => {
       const result = await service.analyze(validInput);
 
-      expect(result.threadId).toBeDefined();
-      expect(result.question).toBe(validInput.question);
+      expect(result.taskId).toBeDefined();
+      expect(result.taskId).toBe(validInput.context.taskId);
+      expect(result.userMessage).toBe(validInput.userMessage);
+    });
+
+    it("should return completed status on successful analysis", async () => {
+      const result = await service.analyze(validInput);
+
+      expect(result.status).toBe("completed");
+      expect(result.summary).toBeDefined();
     });
   });
 

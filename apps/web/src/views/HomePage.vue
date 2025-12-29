@@ -70,7 +70,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/rbacStore';
 import { useConversationsStore } from '@/stores/conversationsStore';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
-import { conversation } from '@/services/conversationHelpers';
+import { conversationLoadingService } from '@/services/conversationLoadingService';
 import { useUserPreferencesStore } from '@/stores/userPreferencesStore';
 import ConversationTabs from '@/components/ConversationTabs.vue';
 const router = useRouter();
@@ -95,64 +95,19 @@ const pageTitle = computed(() => {
 const handleConversationFromQuery = async () => {
   const conversationId = route.query.conversationId as string;
   if (conversationId && auth.isAuthenticated) {
-    try {
-      // Check if conversation is already loaded with messages
-      const existingConversation = conversationsStore.conversationById(conversationId);
-      const existingMessages = conversationsStore.messagesByConversation(conversationId);
-
-      if (existingConversation && existingMessages && existingMessages.length > 0) {
-        // Just switch to it
-        chatUiStore.setActiveConversation(conversationId);
-      } else {
-        // Load conversation metadata and messages from backend
-        const backendConversation = await conversation.getBackendConversation(conversationId);
-        const messages = await conversation.loadConversationMessages(conversationId);
-
-        // Get agent details from the agents store
-        const { useAgentsStore } = await import('@/stores/agentsStore');
-        const agentsStore = useAgentsStore();
-
-        // Ensure agents are loaded
-        if (!agentsStore.availableAgents || agentsStore.availableAgents.length === 0) {
-          await agentsStore.ensureAgentsLoaded();
-        }
-
-        const agent = agentsStore.availableAgents?.find(a => a.name === backendConversation.agentName);
-
-        if (!agent) {
-          console.error('Agent not found for conversation:', backendConversation.agentName);
-          return;
-        }
-
-        // Create the conversation object with proper date
-        const createdAt = backendConversation.createdAt ? new Date(backendConversation.createdAt) : new Date();
-        const loadedConversation = conversation.createConversationObject(agent, createdAt);
-        loadedConversation.id = conversationId; // Override the generated ID with the actual backend ID
-        loadedConversation.title = backendConversation.title || loadedConversation.title;
-
-        // Add conversation to the store
-        if (existingConversation) {
-          conversationsStore.updateConversation(conversationId, loadedConversation);
-        } else {
-          conversationsStore.setConversation(loadedConversation);
-        }
-
-        // Set messages separately (the store manages messages in a separate Map)
-        conversationsStore.setMessages(conversationId, messages);
-
-        // Verify messages were set - accessing to trigger reactivity
-        void conversationsStore.messagesByConversation(conversationId);
-
-        chatUiStore.setActiveConversation(conversationId);
-      }
-      // Clear the query parameter to avoid re-opening on refresh
-      router.replace({
-        name: route.name as string,
+    // Delegate to service - all business logic lives there
+    const result = await conversationLoadingService.loadConversationFromQuery(
+      conversationId,
+      router,
+      {
+        name: route.name,
         params: route.params,
-        query: { ...route.query, conversationId: undefined }
-      });
-    } catch (error) {
-      console.error('Failed to load conversation from query:', error);
+        query: route.query
+      }
+    );
+
+    if (!result.success) {
+      console.error('Failed to load conversation:', result.error);
     }
   }
 };

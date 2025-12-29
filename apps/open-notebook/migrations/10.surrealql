@@ -1,0 +1,301 @@
+-- Migration 10: Add multi-tenancy support (user_id, team_id, created_by)
+-- Ownership rules:
+--   user_id set + team_id null = Personal item
+--   team_id set + user_id null = Team item
+--   created_by = always set to the user who created the record
+
+-- ============================================
+-- Add ownership fields to notebook table
+-- ============================================
+DEFINE FIELD IF NOT EXISTS user_id ON TABLE notebook TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS team_id ON TABLE notebook TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS created_by ON TABLE notebook TYPE option<string>;
+
+DEFINE INDEX IF NOT EXISTS idx_notebook_user ON TABLE notebook COLUMNS user_id;
+DEFINE INDEX IF NOT EXISTS idx_notebook_team ON TABLE notebook COLUMNS team_id;
+DEFINE INDEX IF NOT EXISTS idx_notebook_created_by ON TABLE notebook COLUMNS created_by;
+
+-- ============================================
+-- Add ownership fields to source table
+-- ============================================
+DEFINE FIELD IF NOT EXISTS user_id ON TABLE source TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS team_id ON TABLE source TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS created_by ON TABLE source TYPE option<string>;
+
+DEFINE INDEX IF NOT EXISTS idx_source_user ON TABLE source COLUMNS user_id;
+DEFINE INDEX IF NOT EXISTS idx_source_team ON TABLE source COLUMNS team_id;
+DEFINE INDEX IF NOT EXISTS idx_source_created_by ON TABLE source COLUMNS created_by;
+
+-- ============================================
+-- Add ownership fields to note table
+-- ============================================
+DEFINE FIELD IF NOT EXISTS user_id ON TABLE note TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS team_id ON TABLE note TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS created_by ON TABLE note TYPE option<string>;
+
+DEFINE INDEX IF NOT EXISTS idx_note_user ON TABLE note COLUMNS user_id;
+DEFINE INDEX IF NOT EXISTS idx_note_team ON TABLE note COLUMNS team_id;
+DEFINE INDEX IF NOT EXISTS idx_note_created_by ON TABLE note COLUMNS created_by;
+
+-- ============================================
+-- Add ownership fields to chat_session table
+-- ============================================
+DEFINE FIELD IF NOT EXISTS user_id ON TABLE chat_session TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS team_id ON TABLE chat_session TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS created_by ON TABLE chat_session TYPE option<string>;
+
+DEFINE INDEX IF NOT EXISTS idx_chat_session_user ON TABLE chat_session COLUMNS user_id;
+DEFINE INDEX IF NOT EXISTS idx_chat_session_team ON TABLE chat_session COLUMNS team_id;
+DEFINE INDEX IF NOT EXISTS idx_chat_session_created_by ON TABLE chat_session COLUMNS created_by;
+
+-- ============================================
+-- Add ownership fields to transformation table
+-- ============================================
+DEFINE FIELD IF NOT EXISTS user_id ON TABLE transformation TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS team_id ON TABLE transformation TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS created_by ON TABLE transformation TYPE option<string>;
+
+DEFINE INDEX IF NOT EXISTS idx_transformation_user ON TABLE transformation COLUMNS user_id;
+DEFINE INDEX IF NOT EXISTS idx_transformation_team ON TABLE transformation COLUMNS team_id;
+DEFINE INDEX IF NOT EXISTS idx_transformation_created_by ON TABLE transformation COLUMNS created_by;
+
+-- ============================================
+-- Add ownership fields to episode table
+-- ============================================
+DEFINE FIELD IF NOT EXISTS user_id ON TABLE episode TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS team_id ON TABLE episode TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS created_by ON TABLE episode TYPE option<string>;
+
+DEFINE INDEX IF NOT EXISTS idx_episode_user ON TABLE episode COLUMNS user_id;
+DEFINE INDEX IF NOT EXISTS idx_episode_team ON TABLE episode COLUMNS team_id;
+DEFINE INDEX IF NOT EXISTS idx_episode_created_by ON TABLE episode COLUMNS created_by;
+
+-- ============================================
+-- Add ownership fields to episode_profile table
+-- ============================================
+DEFINE FIELD IF NOT EXISTS user_id ON TABLE episode_profile TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS team_id ON TABLE episode_profile TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS created_by ON TABLE episode_profile TYPE option<string>;
+
+DEFINE INDEX IF NOT EXISTS idx_episode_profile_user ON TABLE episode_profile COLUMNS user_id;
+DEFINE INDEX IF NOT EXISTS idx_episode_profile_team ON TABLE episode_profile COLUMNS team_id;
+DEFINE INDEX IF NOT EXISTS idx_episode_profile_created_by ON TABLE episode_profile COLUMNS created_by;
+
+-- ============================================
+-- Add ownership fields to speaker_profile table
+-- ============================================
+DEFINE FIELD IF NOT EXISTS user_id ON TABLE speaker_profile TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS team_id ON TABLE speaker_profile TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS created_by ON TABLE speaker_profile TYPE option<string>;
+
+DEFINE INDEX IF NOT EXISTS idx_speaker_profile_user ON TABLE speaker_profile COLUMNS user_id;
+DEFINE INDEX IF NOT EXISTS idx_speaker_profile_team ON TABLE speaker_profile COLUMNS team_id;
+DEFINE INDEX IF NOT EXISTS idx_speaker_profile_created_by ON TABLE speaker_profile COLUMNS created_by;
+
+-- ============================================
+-- Update vector_search function to filter by ownership
+-- ============================================
+REMOVE FUNCTION IF EXISTS fn::vector_search;
+
+DEFINE FUNCTION IF NOT EXISTS fn::vector_search(
+    $query: array<float>,
+    $match_count: int,
+    $sources: bool,
+    $show_notes: bool,
+    $min_similarity: float,
+    $user_id: option<string>,
+    $team_id: option<string>
+) {
+    -- Build ownership filter: either personal (user_id match) or team (team_id match)
+    -- If both are None, return all (backwards compatibility / system queries)
+
+    let $source_embedding_search =
+        IF $sources {(
+            SELECT
+                source.id as id,
+                source.title as title,
+                content,
+                source.id as parent_id,
+                vector::similarity::cosine(embedding, $query) as similarity
+            FROM source_embedding
+            WHERE embedding != none
+                AND array::len(embedding) = array::len($query)
+                AND vector::similarity::cosine(embedding, $query) >= $min_similarity
+                AND (
+                    ($user_id == none AND $team_id == none)
+                    OR source.user_id == $user_id
+                    OR source.team_id == $team_id
+                )
+            ORDER BY similarity DESC
+            LIMIT $match_count
+        )}
+        ELSE { [] };
+
+    let $source_insight_search =
+        IF $sources {(
+            SELECT
+                id,
+                insight_type + ' - ' + (source.title OR '') as title,
+                content,
+                source.id as parent_id,
+                vector::similarity::cosine(embedding, $query) as similarity
+            FROM source_insight
+            WHERE embedding != none
+                AND array::len(embedding) = array::len($query)
+                AND vector::similarity::cosine(embedding, $query) >= $min_similarity
+                AND (
+                    ($user_id == none AND $team_id == none)
+                    OR source.user_id == $user_id
+                    OR source.team_id == $team_id
+                )
+            ORDER BY similarity DESC
+            LIMIT $match_count
+        )}
+        ELSE { [] };
+
+
+    let $note_content_search =
+        IF $show_notes {(
+            SELECT
+                id,
+                title,
+                content,
+                id as parent_id,
+                vector::similarity::cosine(embedding, $query) as similarity
+            FROM note
+            WHERE embedding != none
+                AND array::len(embedding) = array::len($query)
+                AND vector::similarity::cosine(embedding, $query) >= $min_similarity
+                AND (
+                    ($user_id == none AND $team_id == none)
+                    OR user_id == $user_id
+                    OR team_id == $team_id
+                )
+            ORDER BY similarity DESC
+            LIMIT $match_count
+        )}
+        ELSE { [] };
+
+
+    let $all_results = array::union(
+        array::union($source_embedding_search, $source_insight_search),
+        $note_content_search
+    );
+
+
+    RETURN (select id, parent_id, title, math::max(similarity) as similarity,
+    array::flatten(content) as matches
+    from $all_results where id is not None
+    group by id, parent_id, title ORDER BY similarity DESC LIMIT $match_count);
+
+};
+
+-- ============================================
+-- Update text_search function to filter by ownership
+-- ============================================
+REMOVE FUNCTION IF EXISTS fn::text_search;
+
+DEFINE FUNCTION IF NOT EXISTS fn::text_search(
+    $query_text: string,
+    $match_count: int,
+    $sources: bool,
+    $show_notes: bool,
+    $user_id: option<string>,
+    $team_id: option<string>
+) {
+
+    let $source_title_search =
+        IF $sources {(
+            SELECT id, title,
+            search::highlight('`', '`', 1) as content,
+            id as parent_id,
+            math::max(search::score(1)) AS relevance
+            FROM source
+            WHERE title @1@ $query_text
+                AND (
+                    ($user_id == none AND $team_id == none)
+                    OR user_id == $user_id
+                    OR team_id == $team_id
+                )
+            GROUP BY id)}
+        ELSE { [] };
+
+    let $source_embedding_search =
+         IF $sources {(
+            SELECT id as id, source.title as title, search::highlight('`', '`', 1) as content, source.id as parent_id, math::max(search::score(1)) AS relevance
+            FROM source_embedding
+            WHERE content @1@ $query_text
+                AND (
+                    ($user_id == none AND $team_id == none)
+                    OR source.user_id == $user_id
+                    OR source.team_id == $team_id
+                )
+            GROUP BY id)}
+        ELSE { [] };
+
+    let $source_full_search =
+         IF $sources {(
+            SELECT source.id as id, source.title as title, search::highlight('`', '`', 1) as content, source.id as parent_id, math::max(search::score(1)) AS relevance
+            FROM source
+            WHERE full_text @1@ $query_text
+                AND (
+                    ($user_id == none AND $team_id == none)
+                    OR user_id == $user_id
+                    OR team_id == $team_id
+                )
+            GROUP BY id)}
+        ELSE { [] };
+
+    let $source_insight_search =
+         IF $sources {(
+             SELECT id, insight_type + " - " + source.title as title, search::highlight('`', '`', 1) as content, source.id as parent_id,  math::max(search::score(1)) AS relevance
+            FROM source_insight
+            WHERE content @1@ $query_text
+                AND (
+                    ($user_id == none AND $team_id == none)
+                    OR source.user_id == $user_id
+                    OR source.team_id == $team_id
+                )
+            GROUP BY id)}
+        ELSE { [] };
+
+    let $note_title_search =
+         IF $show_notes {(
+             SELECT id, title, search::highlight('`', '`', 1) as content,  id as parent_id, math::max(search::score(1)) AS relevance
+            FROM note
+            WHERE title @1@ $query_text
+                AND (
+                    ($user_id == none AND $team_id == none)
+                    OR user_id == $user_id
+                    OR team_id == $team_id
+                )
+            GROUP BY id)}
+        ELSE { [] };
+
+     let $note_content_search =
+         IF $show_notes {(
+             SELECT id, title, search::highlight('`', '`', 1) as content,  id as parent_id, math::max(search::score(1)) AS relevance
+            FROM note
+            WHERE content @1@ $query_text
+                AND (
+                    ($user_id == none AND $team_id == none)
+                    OR user_id == $user_id
+                    OR team_id == $team_id
+                )
+            GROUP BY id)}
+        ELSE { [] };
+
+    let $source_chunk_results = array::union($source_embedding_search, $source_full_search);
+
+    let $source_asset_results = array::union($source_title_search, $source_insight_search);
+
+    let $source_results = array::union($source_chunk_results, $source_asset_results );
+    let $note_results = array::union($note_title_search, $note_content_search );
+    let $final_results = array::union($source_results, $note_results );
+
+    RETURN (SELECT id, title, content, parent_id, math::max(relevance) as relevance from $final_results
+        where id is not None
+        group by id, title, content, parent_id ORDER BY relevance DESC LIMIT $match_count);
+
+
+};

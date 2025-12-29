@@ -29,6 +29,7 @@ import {
   LLMServiceConfig,
   LLMRequestOptions,
   ImageGenerationResponse,
+  VideoGenerationResponse,
 } from './services/llm-interfaces';
 import {
   Provider,
@@ -2020,6 +2021,226 @@ export class LLMService {
         },
         error: {
           code: 'IMAGE_GENERATION_FAILED',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        },
+      };
+    }
+  }
+
+  /**
+   * Generate video using provider-specific video generation APIs
+   *
+   * Routes to the appropriate provider (OpenAI Sora 2, Google Veo 3) based on ExecutionContext.
+   * Video generation is async - returns an operationId for polling.
+   *
+   * @param params - Video generation parameters including prompt, duration, aspectRatio
+   * @returns VideoGenerationResponse with operationId for polling
+   *
+   * @example
+   * ```typescript
+   * const response = await llmService.generateVideo({
+   *   provider: 'openai',
+   *   model: 'sora-2',
+   *   prompt: 'A cat walking through a garden',
+   *   duration: 8,
+   *   aspectRatio: '16:9',
+   *   executionContext: context,
+   * });
+   * // Poll for completion
+   * let status = await llmService.pollVideoStatus({
+   *   provider: 'openai',
+   *   operationId: response.operationId!,
+   *   executionContext: context,
+   * });
+   * ```
+   */
+  async generateVideo(params: {
+    provider: string;
+    model: string;
+    prompt: string;
+    duration?: number;
+    aspectRatio?: '16:9' | '9:16';
+    resolution?: '720p' | '1080p' | '4k';
+    firstFrameImageUrl?: string;
+    firstFrameImage?: Buffer;
+    lastFrameImageUrl?: string;
+    lastFrameImage?: Buffer;
+    generateAudio?: boolean;
+    executionContext: ExecutionContext;
+  }): Promise<VideoGenerationResponse> {
+    const { provider, model, executionContext, ...videoParams } = params;
+
+    // Validate provider supports video generation
+    const supportedVideoProviders = ['openai', 'google'];
+    if (!supportedVideoProviders.includes(provider.toLowerCase())) {
+      throw new Error(
+        `Video generation not supported for provider: ${provider}. Supported providers: ${supportedVideoProviders.join(', ')}`,
+      );
+    }
+
+    // Emit observability event
+    this.emitLlmObservabilityEvent('agent.llm.started', executionContext, {
+      provider,
+      model,
+      message: 'Video generation started',
+      promptPreview: videoParams.prompt.substring(0, 500),
+      type: 'video-generation',
+    });
+
+    try {
+      // Create service configuration
+      const config: LLMServiceConfig = {
+        provider,
+        model,
+      };
+
+      // Get the service from factory
+      const service = await this.llmServiceFactory.createService(config);
+
+      // Check if the service supports video generation
+      if (!service.generateVideo) {
+        throw new Error(
+          `Provider ${provider} service does not implement video generation`,
+        );
+      }
+
+      // Call the service's generateVideo method
+      const response = await service.generateVideo(executionContext, {
+        prompt: videoParams.prompt,
+        duration: videoParams.duration,
+        aspectRatio: videoParams.aspectRatio,
+        resolution: videoParams.resolution,
+        firstFrameImageUrl: videoParams.firstFrameImageUrl,
+        firstFrameImage: videoParams.firstFrameImage,
+        lastFrameImageUrl: videoParams.lastFrameImageUrl,
+        lastFrameImage: videoParams.lastFrameImage,
+        generateAudio: videoParams.generateAudio,
+      });
+
+      // Emit processing event (video generation is async)
+      this.emitLlmObservabilityEvent('agent.llm.processing', executionContext, {
+        provider,
+        model,
+        message: 'Video generation in progress',
+        operationId: response.operationId,
+        type: 'video-generation',
+      });
+
+      return response;
+    } catch (error) {
+      // Emit error event
+      this.emitLlmObservabilityEvent('agent.llm.failed', executionContext, {
+        provider,
+        model,
+        message: 'Video generation failed',
+        error: error instanceof Error ? error.message : String(error),
+        type: 'video-generation',
+      });
+
+      // Return error response
+      return {
+        status: 'failed',
+        metadata: {
+          provider,
+          model,
+          requestId: executionContext.taskId,
+          timestamp: new Date().toISOString(),
+          usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+          timing: { startTime: Date.now(), endTime: Date.now(), duration: 0 },
+          status: 'error',
+          errorMessage:
+            error instanceof Error ? error.message : 'Unknown error',
+        },
+        error: {
+          code: 'VIDEO_GENERATION_FAILED',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        },
+      };
+    }
+  }
+
+  /**
+   * Poll video generation status
+   *
+   * Call this method periodically after generateVideo() to check completion.
+   * When status is 'completed', the response will include videoData and videoUrl.
+   *
+   * @param params - Polling parameters including provider and operationId
+   * @returns VideoGenerationResponse with current status
+   */
+  async pollVideoStatus(params: {
+    provider: string;
+    model?: string;
+    operationId: string;
+    executionContext: ExecutionContext;
+  }): Promise<VideoGenerationResponse> {
+    const { provider, model, operationId, executionContext } = params;
+
+    try {
+      // Create service configuration
+      const config: LLMServiceConfig = {
+        provider,
+        model: model || (provider === 'openai' ? 'sora-2' : 'veo-3-generate'),
+      };
+
+      // Get the service from factory
+      const service = await this.llmServiceFactory.createService(config);
+
+      // Check if the service supports video polling
+      if (!service.pollVideoStatus) {
+        throw new Error(
+          `Provider ${provider} service does not implement video status polling`,
+        );
+      }
+
+      // Call the service's pollVideoStatus method
+      const response = await service.pollVideoStatus(
+        operationId,
+        executionContext,
+      );
+
+      // Emit completion event if video is done
+      if (response.status === 'completed') {
+        this.emitLlmObservabilityEvent(
+          'agent.llm.completed',
+          executionContext,
+          {
+            provider,
+            model: config.model,
+            message: 'Video generation completed',
+            operationId,
+            type: 'video-generation',
+          },
+        );
+      } else if (response.status === 'failed') {
+        this.emitLlmObservabilityEvent('agent.llm.failed', executionContext, {
+          provider,
+          model: config.model,
+          message: 'Video generation failed',
+          operationId,
+          error: response.error?.message,
+          type: 'video-generation',
+        });
+      }
+
+      return response;
+    } catch (error) {
+      return {
+        operationId,
+        status: 'failed',
+        metadata: {
+          provider,
+          model: model || 'unknown',
+          requestId: executionContext.taskId,
+          timestamp: new Date().toISOString(),
+          usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+          timing: { startTime: Date.now(), endTime: Date.now(), duration: 0 },
+          status: 'error',
+          errorMessage:
+            error instanceof Error ? error.message : 'Unknown error',
+        },
+        error: {
+          code: 'VIDEO_POLL_FAILED',
           message: error instanceof Error ? error.message : 'Unknown error',
         },
       };

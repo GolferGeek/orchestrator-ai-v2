@@ -1,7 +1,11 @@
 ---
-name: Direct Commit
+name: direct-commit-skill
 description: Commit changes directly to current branch after quality checks (lint, build, safety review). Use when user wants to commit without creating a PR, or when user mentions committing, committing changes, or direct commit.
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+category: "utility"
+type: "utility"
+used-by-agents: []
+related-skills: ["quality-gates-skill"]
 ---
 
 **Claude Code Note:** With `allowed-tools: Bash` specified, ALL git commands (including `git diff` and `git fetch`) can be executed WITHOUT prompts. These are read-only operations essential for the workflow.

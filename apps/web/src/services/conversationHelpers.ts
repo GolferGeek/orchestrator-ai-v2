@@ -1,697 +1,108 @@
-import agentConversationsService, { type AgentType } from '@/services/agentConversationsService';
-import agent2AgentConversationsService from '@/services/agent2AgentConversationsService';
-import { useAgentsStore } from '@/stores/agentsStore';
-import { useAuthStore } from '@/stores/rbacStore';
-import { useExecutionContextStore } from '@/stores/executionContextStore';
-import { useLLMPreferencesStore } from '@/stores/llmPreferencesStore';
-import { tasksService } from '@/services/tasksService';
-import type { AgentConversation, AgentChatMessage, ExecutionMode, Agent, AgentChatMode } from '@/types/conversation';
-import { DEFAULT_CHAT_MODES } from '@/types/conversation';
-import { formatAgentName } from '@/utils/caseConverter';
-
 /**
- * Generate a UUID - polyfill for crypto.randomUUID()
+ * Conversation Helpers - Backwards Compatibility Re-exports
+ *
+ * This file has been decomposed into focused service modules:
+ * - conversationMessageService.ts - Message loading and reconstruction
+ * - conversationCrudService.ts - Backend CRUD operations
+ * - conversationFactoryService.ts - Object creation and initialization
+ * - conversationMetadataService.ts - Metadata and capabilities management
+ * - conversationUtilsService.ts - Utility functions (filtering, sorting, validation)
+ * - utils.ts - Shared utilities (UUID generation)
+ *
+ * This file re-exports all services for backwards compatibility.
+ * New code should import directly from the specific service modules.
  */
-function generateUUID(): string {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  
-  // Fallback implementation for browsers that don't support crypto.randomUUID()
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-}
+
+import { conversationMessageService } from '@/services/conversation/conversationMessageService';
+import { conversationCrudService } from '@/services/conversation/conversationCrudService';
+import { conversationFactoryService } from '@/services/conversation/conversationFactoryService';
+import { conversationMetadataService } from '@/services/conversation/conversationMetadataService';
+import { conversationUtilsService } from '@/services/conversation/conversationUtilsService';
+import type { Agent, AgentConversation, ExecutionMode } from '@/types/conversation';
 
 /**
  * Service for managing conversations and backend persistence
+ * @deprecated Use individual services instead (conversationCrudService, conversationMessageService, etc.)
  */
 export class ConversationService {
-
   /**
    * Create a new conversation in the backend
+   * @deprecated Use conversationCrudService.createConversation()
    */
   async createConversation(agent: Agent): Promise<string> {
-    // Get organization slug from authStore - the canonical source of truth
-    const authStore = useAuthStore();
-    const orgSlug = authStore.currentOrganization || 'demo-org';
-
-    // All agents now use the Agent2Agent conversation service
-    // Use dedicated Agent2Agent conversation service for all agents
-    const conversationId = generateUUID(); // Generate ID upfront
-    const createdAt = new Date();
-    const title = this.createConversationTitle(agent, createdAt);
-
-    const backendConversation = await agent2AgentConversationsService.createConversation({
-      agentName: agent.name,
-      agentType: agent.type as AgentType, // Required for backend validation
-      organizationSlug: orgSlug, // Use authStore.currentOrganization as canonical source
-      conversationId: conversationId, // Pass the generated ID
-      metadata: {
-        source: 'frontend',
-        title: title, // Include the formatted title
-      },
-    });
-
-    // Initialize ExecutionContext immediately for the new conversation
-    const executionContextStore = useExecutionContextStore();
-    const llmPreferencesStore = useLLMPreferencesStore();
-
-    executionContextStore.initialize({
-      orgSlug,
-      userId: authStore.user?.id || 'anonymous',
-      conversationId: backendConversation.id,
-      agentSlug: agent.name,
-      agentType: agent.type || 'context',
-      provider: llmPreferencesStore.selectedProvider?.name || 'ollama',
-      model: llmPreferencesStore.selectedModel?.modelName || 'llama3.2:1b',
-    });
-
-    return backendConversation.id;
+    return conversationCrudService.createConversation(agent);
   }
 
   /**
    * Load conversation messages from backend by reconstructing from tasks
+   * @deprecated Use conversationMessageService.loadConversationMessages()
    */
-  async loadConversationMessages(conversationId: string): Promise<AgentChatMessage[]> {
-
-
-    try {
-      // Load all tasks for this conversation
-      const tasksResponse = await tasksService.listTasks({
-        conversationId: conversationId,
-        limit: 100 // Load up to 100 tasks for this conversation
-      });
-
-      const tasks = tasksResponse.tasks || [];
-
-      if (tasks.length > 0) {
-        // Tasks loaded successfully
-      }
-
-
-      // Load deliverables for this conversation to link them to messages
-      const deliverables: unknown[] = [];
-      try {
-        const { deliverablesService } = await import('@/services/deliverablesService');
-        const conversationDeliverables = await deliverablesService.getConversationDeliverables(conversationId);
-        deliverables.push(...conversationDeliverables);
-
-      } catch {
-        // Failed to load conversation deliverables
-      }
-      
-      // Create maps for linking deliverables to messages
-      const messageDeliverableMap = new Map<string, string>(); // message_id -> deliverableId
-      const taskDeliverableMap = new Map<string, string>(); // task_id -> deliverableId
-      
-      // First, extract deliverableId from task responses and create task->deliverable mapping
-      tasks.forEach(task => {
-        if (task.response && task.status === 'completed') {
-          try {
-            const parsedResponse = JSON.parse(task.response);
-            if (parsedResponse.deliverableId) {
-              taskDeliverableMap.set(task.id, parsedResponse.deliverableId);
-            }
-          } catch {
-            // Could not parse task response to extract deliverableId
-          }
-        }
-      });
-      
-      deliverables.forEach(deliverable => {
-        // Keep the existing logic for backwards compatibility
-        if (deliverable.message_id) {
-          messageDeliverableMap.set(deliverable.message_id, deliverable.id);
-        }
-        if (deliverable.metadata?.taskId) {
-          taskDeliverableMap.set(deliverable.metadata.taskId, deliverable.id);
-        }
-      });
-      
-      const messages: AgentChatMessage[] = [];
-      
-      // Convert each task to a pair of messages (user prompt + assistant response)
-      for (const task of tasks) {
-        // Create user message from task prompt
-        if (task.prompt) {
-          const userMessage: AgentChatMessage = {
-            id: `user-${task.id}`,
-            role: 'user',
-            content: task.prompt,
-            timestamp: new Date(task.createdAt),
-            taskId: task.id,
-            metadata: {
-              originalTaskData: {
-                method: task.method,
-                params: task.params,
-                status: task.status
-              }
-            }
-          };
-          messages.push(userMessage);
-        }
-        
-        // Create assistant message based on task status
-        if (task.status === 'completed' && task.response) {
-          // Parse the JSON response to extract the actual content and metadata
-          let responseContent = task.response;
-          let mergedResponseMetadata: Record<string, unknown> = {};
-          let planId: string | undefined;
-
-          try {
-            const parsedResponse = typeof task.response === 'string'
-              ? JSON.parse(task.response)
-              : task.response;
-
-            // Detect if this is a plan task and extract planId
-            const taskMode = task.params?.mode || task.method?.includes('plan') ? 'plan' : null;
-            if (taskMode === 'plan' || parsedResponse?.planId || parsedResponse?.result?.planId) {
-              planId = parsedResponse?.planId || parsedResponse?.result?.planId || parsedResponse?.payload?.planId;
-            }
-
-            // Extract content - try multiple paths for different response formats
-            let extractedContent = null;
-            let hasDeliverable = false;
-
-            // Check if this response has a deliverable (check for both deliverableId and deliverable object)
-            if (parsedResponse?.deliverableId ||
-                parsedResponse?.result?.deliverableId ||
-                parsedResponse?.payload?.deliverableId ||
-                parsedResponse?.deliverable ||
-                parsedResponse?.result?.deliverable ||
-                parsedResponse?.payload?.content?.deliverable) {
-              hasDeliverable = true;
-            }
-
-            // For plan tasks, use a simple message instead of the full plan content
-            if (planId) {
-              extractedContent = parsedResponse?.payload?.content?.message ||
-                                parsedResponse?.result?.content?.message ||
-                                parsedResponse?.content?.message ||
-                                'Plan created successfully';
-            }
-            // For build tasks with deliverables, use a simple message
-            else if (hasDeliverable) {
-              extractedContent = parsedResponse?.payload?.content?.message ||
-                                parsedResponse?.result?.content?.message ||
-                                parsedResponse?.content?.message ||
-                                'Deliverable created successfully';
-            }
-            // For other tasks, extract the message content
-            else {
-              // Try payload.content.message (new format from screenshot)
-              if (parsedResponse?.payload?.content?.message) {
-                extractedContent = parsedResponse.payload.content.message;
-              }
-              // Try result.content.message (agent2agent format)
-              else if (parsedResponse?.result?.content?.message) {
-                extractedContent = parsedResponse.result.content.message;
-              }
-              // Try content.message
-              else if (parsedResponse?.content?.message) {
-                extractedContent = parsedResponse.content.message;
-              }
-              // Try message field directly
-              else if (parsedResponse?.message) {
-                extractedContent = parsedResponse.message;
-              }
-              // Try response or content fields
-              else if (parsedResponse?.response) {
-                extractedContent = parsedResponse.response;
-              }
-              else if (parsedResponse?.content) {
-                extractedContent = parsedResponse.content;
-              }
-            }
-
-            // Use extracted content or fall back to full response
-            responseContent = extractedContent || parsedResponse;
-
-            // Only stringify if it's still an object (shouldn't be if we extracted correctly)
-            if (typeof responseContent === 'object') {
-
-              // If this is a deliverable or plan response without a message, use a simple fallback
-              if (hasDeliverable) {
-                responseContent = 'Deliverable created';
-              } else if (planId) {
-                responseContent = 'Plan created';
-              } else {
-                responseContent = JSON.stringify(responseContent, null, 2);
-              }
-            }
-
-            // Merge backend-provided metadata (provider/model/usage, etc.)
-            if (parsedResponse && typeof parsedResponse === 'object') {
-
-              // Extract metadata from various locations
-              // 1. Top-level provider/model/usage fields
-              if (parsedResponse.provider || parsedResponse.model || parsedResponse.usage) {
-                mergedResponseMetadata = {
-                  ...mergedResponseMetadata,
-                  provider: parsedResponse.provider,
-                  model: parsedResponse.model,
-                  usage: parsedResponse.usage
-                };
-              }
-
-              // 2. result.metadata (agent2agent format)
-              if (parsedResponse.result?.metadata) {
-                mergedResponseMetadata = { ...mergedResponseMetadata, ...parsedResponse.result.metadata };
-              }
-
-              // 3. Top-level metadata object
-              if (parsedResponse.metadata) {
-                mergedResponseMetadata = { ...mergedResponseMetadata, ...parsedResponse.metadata };
-              }
-
-              // 4. payload.metadata
-              if (parsedResponse.payload?.metadata) {
-                mergedResponseMetadata = { ...mergedResponseMetadata, ...parsedResponse.payload.metadata };
-              }
-
-            }
-          } catch {
-            // Keep raw response
-            responseContent = task.response;
-          }
-
-          // Completed task - create assistant message with parsed response and merged metadata
-          const assistantMessageId = `assistant-${task.id}`;
-
-          // For API agents that don't use LLMs, provide defaults
-          const taskMode = task.params?.mode || (task.method?.includes('plan') ? 'plan' : task.method?.includes('build') ? 'build' : 'converse');
-
-          // Check if we have LLM metadata from task storage
-          const storedLlmSelection = task.llmMetadata?.originalLLMSelection;
-          if (storedLlmSelection && !mergedResponseMetadata.provider && !mergedResponseMetadata.model) {
-            // Use stored LLM selection if response didn't include it
-            // LlmSelection uses 'provider' and 'model' fields
-            mergedResponseMetadata.provider = storedLlmSelection.provider;
-            mergedResponseMetadata.model = storedLlmSelection.model;
-          }
-
-          const hasLlmMetadata = mergedResponseMetadata.provider || mergedResponseMetadata.model || (task.llmMetadata && Object.keys(task.llmMetadata).length > 0);
-
-          const assistantMessage: AgentChatMessage = {
-            id: assistantMessageId,
-            role: 'assistant',
-            content: responseContent,
-            timestamp: new Date(task.completedAt || task.updatedAt),
-            taskId: task.id,
-            metadata: {
-              isCompleted: true,
-              completedAt: task.completedAt,
-              responseMetadata: task.responseMetadata,
-              // Include mode information
-              mode: taskMode,
-              // Include LLM metadata stored with the task (contains original selection)
-              ...(task.llmMetadata ? { llmMetadata: task.llmMetadata } : {}),
-              // Include provider/model/usage from response metadata for accurate display
-              ...mergedResponseMetadata,
-              // For API agents without LLM metadata, provide defaults
-              ...(!hasLlmMetadata && taskMode === 'build' ? {
-                provider: 'n8n',
-                model: 'workflow'
-              } : {}),
-              originalTaskData: {
-                method: task.method,
-                status: task.status,
-                progress: task.progress,
-              },
-            },
-          };
-
-          // Check if this message has an associated deliverable
-          // Try multiple sources: maps, response data
-          let deliverableId = messageDeliverableMap.get(assistantMessageId);
-          if (!deliverableId) {
-            deliverableId = taskDeliverableMap.get(task.id);
-          }
-          // Also check if deliverableId is in the parsed response
-          if (!deliverableId && task.response) {
-            try {
-              const parsedResponse = typeof task.response === 'string' ? JSON.parse(task.response) : task.response;
-              deliverableId = parsedResponse?.deliverableId ||
-                             parsedResponse?.result?.deliverableId ||
-                             parsedResponse?.payload?.deliverableId;
-            } catch {
-              // Ignore parse errors
-            }
-          }
-
-          if (deliverableId) {
-            assistantMessage.deliverableId = deliverableId;
-            // Also add to metadata for easier access
-            assistantMessage.metadata.deliverableId = deliverableId;
-          }
-
-          // Check if this message has an associated plan
-          if (planId) {
-            assistantMessage.planId = planId;
-          }
-
-          messages.push(assistantMessage);
-          
-        } else if (['pending', 'running'].includes(task.status)) {
-          // Active task - create placeholder message
-          const placeholderMessage: AgentChatMessage = {
-            id: `placeholder-${task.id}`,
-            role: 'assistant',
-            content: task.progressMessage || 'Processing your request...',
-            timestamp: new Date(task.startedAt || task.createdAt),
-            taskId: task.id,
-            metadata: {
-              isPlaceholder: true,
-              processing_type: 'active_task',
-              originalTaskData: {
-                method: task.method,
-                status: task.status,
-                progress: task.progress,
-                progressMessage: task.progressMessage
-              },
-              lastUpdated: task.updatedAt
-            }
-          };
-          messages.push(placeholderMessage);
-          
-        } else if (task.status === 'failed') {
-          // Failed task - create error message
-          const errorMessage: AgentChatMessage = {
-            id: `error-${task.id}`,
-            role: 'assistant',
-            content: `❌ Task failed: ${task.errorMessage || 'Unknown error occurred'}`,
-            timestamp: new Date(task.completedAt || task.updatedAt),
-            taskId: task.id,
-            metadata: {
-              isCompleted: true,
-              isError: true,
-              errorCode: task.errorCode,
-              errorMessage: task.errorMessage,
-              errorData: task.errorData,
-              originalTaskData: {
-                method: task.method,
-                status: task.status,
-                progress: task.progress
-              }
-            }
-          };
-          messages.push(errorMessage);
-        }
-      }
-      
-      // Sort messages by timestamp
-      messages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-      
-
-      
-      // Log active tasks for restoration
-      const activeTasks = tasks.filter(t => ['pending', 'running'].includes(t.status));
-      if (activeTasks.length > 0) {
-        // Log active tasks for debugging
-      }
-      
-      return messages;
-      
-    } catch (error) {
-console.error(`Failed to load messages for conversation ${conversationId}:`, error);
-      return [];
-    }
+  async loadConversationMessages(conversationId: string) {
+    return conversationMessageService.loadConversationMessages(conversationId);
   }
 
   /**
    * Get active tasks for a conversation that need WebSocket restoration
+   * @deprecated Use conversationMessageService.getActiveTasksForConversation()
    */
-  async getActiveTasksForConversation(conversationId: string): Promise<Array<{
-    taskId: string;
-    status: string;
-    progress: number;
-    progressMessage?: string;
-  }>> {
-    try {
-      const tasksResponse = await tasksService.listTasks({ 
-        conversationId: conversationId,
-        status: 'pending,running' // Filter for active tasks only
-      });
-      
-      const activeTasks = (tasksResponse.tasks || [])
-        .filter(task => ['pending', 'running'].includes(task.status))
-        .map(task => ({
-          taskId: task.id,
-          status: task.status,
-          progress: task.progress,
-          progressMessage: task.progressMessage
-        }));
-      
-
-      return activeTasks;
-      
-    } catch (error) {
-console.error(`Failed to get active tasks for conversation ${conversationId}:`, error);
-      return [];
-    }
+  async getActiveTasksForConversation(conversationId: string) {
+    return conversationMessageService.getActiveTasksForConversation(conversationId);
   }
 
   /**
    * Update execution modes for a conversation based on agent capabilities
+   * @deprecated Use conversationMetadataService.updateConversationExecutionModes()
    */
   async updateConversationExecutionModes(conversation: AgentConversation): Promise<void> {
-    if (!conversation.agent) return;
-
-    try {
-      // Use the existing agents store instead of making a separate API call
-      const agentsStore = useAgentsStore();
-      
-      // Find agent info from the store
-      const agentInfo = agentsStore.availableAgents.find(agent => agent.name === conversation.agent?.name);
-
-      const normalizeMode = (mode: string): ExecutionMode | null => {
-        switch (mode) {
-          case 'immediate':
-          case 'polling':
-          case 'real-time':
-          case 'auto':
-            return mode;
-          case 'websocket':
-            return 'real-time';
-          default:
-            return null;
-        }
-      };
-
-      if (agentInfo?.execution_modes && Array.isArray(agentInfo.execution_modes)) {
-        // Use execution modes directly from agent data
-        const rawModes = agentInfo.execution_modes;
-
-        const supportedModes = rawModes
-          .map((mode: string) => normalizeMode(mode))
-          .filter((mode): mode is ExecutionMode => mode !== null);
-
-        conversation.supportedExecutionModes = supportedModes.length > 0 ? supportedModes : ['immediate'];
-      } else {
-        // Default to immediate mode if no execution modes specified
-        conversation.supportedExecutionModes = ['immediate'];
-      }
-
-      const defaultAllowed: AgentChatMode[] = [...DEFAULT_CHAT_MODES];
-      let allowedChatModes = [...defaultAllowed];
-
-      // Always use execution fields from the original agent object (from hierarchy)
-      // The agentsStore.availableAgents may have stale data
-      const profile = conversation.agent.execution_profile;
-      const capabilities = conversation.agent.execution_capabilities;
-
-      conversation.executionProfile = profile;
-      conversation.executionCapabilities = capabilities;
-
-      if (profile === 'conversation_only') {
-        allowedChatModes = ['converse'];
-      } else {
-        if (capabilities?.can_plan === false) {
-          allowedChatModes = allowedChatModes.filter(mode => mode !== 'plan');
-        }
-
-        if (capabilities?.can_build === false) {
-          allowedChatModes = allowedChatModes.filter(mode => mode !== 'build');
-        }
-      }
-
-
-      conversation.allowedChatModes = allowedChatModes;
-      if (!allowedChatModes.includes(conversation.chatMode)) {
-        // Prefer 'converse' mode if available, otherwise use first allowed mode
-        conversation.chatMode = allowedChatModes.includes('converse') ? 'converse' : (allowedChatModes[0] || DEFAULT_CHAT_MODES[0]);
-      }
-    } catch {
-
-      conversation.supportedExecutionModes = ['immediate'];
-      if (!conversation.allowedChatModes || conversation.allowedChatModes.length === 0) {
-        conversation.allowedChatModes = [...DEFAULT_CHAT_MODES];
-      }
-    }
+    return conversationMetadataService.updateConversationExecutionModes(conversation);
   }
 
   /**
    * Create conversation title based on agent and timestamp
+   * @deprecated Use conversationFactoryService.createConversationTitle()
    */
   createConversationTitle(agent: Agent, createdAt: Date): string {
-    const agentDisplayName = formatAgentName(agent.name);
-    const now = new Date();
-    
-    // If it's today, show time only
-    if (createdAt.toDateString() === now.toDateString()) {
-      const time = createdAt.toLocaleTimeString([], { 
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: true 
-      });
-      return `${agentDisplayName} ${time}`;
-    }
-    
-    // If it's this week, show day and time
-    const daysDiff = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
-    if (daysDiff < 7) {
-      const dayName = createdAt.toLocaleDateString([], { weekday: 'short' });
-      const time = createdAt.toLocaleTimeString([], { 
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: true 
-      });
-      return `${agentDisplayName} ${dayName} ${time}`;
-    }
-    
-    // For older conversations, show full date and time
-    const dateTime = createdAt.toLocaleDateString([], {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
-    return `${agentDisplayName} ${dateTime}`;
+    return conversationFactoryService.createConversationTitle(agent, createdAt);
   }
 
   /**
    * Create a new conversation object
+   * @deprecated Use conversationFactoryService.createConversationObject()
    */
   createConversationObject(agent: Agent, createdAt: Date = new Date()): AgentConversation {
-    // Extract and map execution modes from agent
-    // Check both root level and context.execution_modes (backend format)
-    const agentWithContext = agent as Agent & { context?: { execution_modes?: string[] } };
-    const rawModes = agent.execution_modes ||
-                     agentWithContext.context?.execution_modes ||
-                     ['immediate'];
-
-
-    const normalizeMode = (mode: string): ExecutionMode | null => {
-      switch (mode) {
-        case 'immediate':
-        case 'polling':
-        case 'real-time':
-        case 'auto':
-          return mode;
-        case 'websocket':
-          return 'real-time';
-        default:
-          return null;
-      }
-    };
-
-    const mappedModes = rawModes
-      .map((mode: string) => normalizeMode(mode))
-      .filter((mode): mode is ExecutionMode => mode !== null) as ExecutionMode[];
-
-    const supportedModes: ExecutionMode[] = mappedModes.length > 0 ? mappedModes : ['immediate'];
-
-    // Default to preferred ordering: auto > real-time > polling > immediate
-    const defaultExecutionMode: ExecutionMode =
-      (['auto', 'real-time', 'polling', 'immediate'] as ExecutionMode[]).find((mode) =>
-        supportedModes.includes(mode),
-      ) ?? supportedModes[0];
-
-
-    // Get organization from authStore
-    const authStore = useAuthStore();
-    const organizationSlug = authStore.currentOrganization || null;
-
-    return {
-      id: generateUUID(),
-      agent,
-      organizationSlug,
-      messages: [],
-      createdAt,
-      lastActiveAt: createdAt,
-      chatMode: DEFAULT_CHAT_MODES[0],
-      allowedChatModes: [...DEFAULT_CHAT_MODES],
-      executionMode: defaultExecutionMode,
-      supportedExecutionModes: supportedModes,
-      executionProfile: agent.execution_profile,
-      executionCapabilities: agent.execution_capabilities,
-      title: this.createConversationTitle(agent, createdAt), // Use proper title with timestamp
-      isLoading: false,
-      isSendingMessage: false,
-      isExecutionModeOverride: false,
-      latestPlanId: null,
-      latestPlan: null,
-      plans: [],
-      orchestrationRuns: [],
-      savedOrchestrations: [],
-      streamSubscriptions: {},
-      activeTaskId: null,
-    };
+    return conversationFactoryService.createConversationObject(agent, createdAt);
   }
 
   /**
    * Check if conversation exists in backend
+   * @deprecated Use conversationCrudService.conversationExists()
    */
   async conversationExists(conversationId: string): Promise<boolean> {
-    try {
-      const conversation = await agentConversationsService.getConversation(conversationId);
-      return !!conversation;
-    } catch {
-      return false;
-    }
+    return conversationCrudService.conversationExists(conversationId);
   }
 
   /**
    * Get conversation from backend
+   * @deprecated Use conversationCrudService.getBackendConversation()
    */
   async getBackendConversation(conversationId: string): Promise<AgentConversation> {
-    try {
-      return await agentConversationsService.getConversation(conversationId);
-    } catch (error) {
-console.error(`Failed to get conversation ${conversationId}:`, error);
-      throw error;
-    }
+    return conversationCrudService.getBackendConversation(conversationId);
   }
 
   /**
    * Persist conversation state to backend
+   * @deprecated Use conversationCrudService.persistConversationState()
    */
-  async persistConversationState(_conversation: AgentConversation): Promise<void> {
-    try {
-      // This could be extended to save conversation metadata
-      // For now, we don't need to persist the entire state
-      // The messages are persisted separately when created
-      
-    } catch {
-      // Failed to persist conversation state
-    }
+  async persistConversationState(conversation: AgentConversation): Promise<void> {
+    return conversationCrudService.persistConversationState(conversation);
   }
 
   /**
    * Archive or delete conversation
+   * @deprecated Use conversationCrudService.archiveConversation()
    */
-  async archiveConversation(_conversationId: string): Promise<void> {
-    try {
-
-      // Implementation depends on backend support for archiving
-      // For now, we just log it
-    } catch {
-      // Failed to archive conversation
-    }
+  async archiveConversation(conversationId: string): Promise<void> {
+    return conversationCrudService.archiveConversation(conversationId);
   }
 
   /**
@@ -699,106 +110,81 @@ console.error(`Failed to get conversation ${conversationId}:`, error);
    * @deprecated Use useAgentConversationsStore().fetchConversations() instead for reactive updates
    */
   async getUserConversations(): Promise<AgentConversation[]> {
-    try {
-      const response = await agentConversationsService.listConversations();
-      return response.conversations;
-    } catch {
-      return [];
-    }
+    return conversationCrudService.getUserConversations();
   }
 
   /**
    * Update conversation metadata
+   * @deprecated Use conversationMetadataService.updateConversationMetadata()
    */
   updateConversationMetadata(
-    _conversation: AgentConversation, 
-    _metadata: Partial<{
+    conversation: AgentConversation,
+    metadata: Partial<{
       executionMode: ExecutionMode;
       isExecutionModeOverride: boolean;
       lastActiveAt: Date;
       error?: string;
     }>
   ): void {
-    // Implementation would update conversation metadata
-    // For now, this is a placeholder
+    return conversationMetadataService.updateConversationMetadata(conversation, metadata);
   }
 
   /**
    * Find conversation by ID
+   * @deprecated Use conversationUtilsService.findConversationById()
    */
-  findConversationById(conversations: AgentConversation[], _conversationId: string): AgentConversation | undefined {
-    return conversations.find(conv => conv.id === _conversationId);
+  findConversationById(conversations: AgentConversation[], conversationId: string): AgentConversation | undefined {
+    return conversationUtilsService.findConversationById(conversations, conversationId);
   }
 
   /**
    * Filter conversations by agent
+   * @deprecated Use conversationUtilsService.filterConversationsByAgent()
    */
-  filterConversationsByAgent(conversations: AgentConversation[], _agentName: string): AgentConversation[] {
-    return conversations.filter(conv => conv.agent.name === _agentName);
+  filterConversationsByAgent(conversations: AgentConversation[], agentName: string): AgentConversation[] {
+    return conversationUtilsService.filterConversationsByAgent(conversations, agentName);
   }
 
   /**
    * Sort conversations by last active time
+   * @deprecated Use conversationUtilsService.sortConversationsByActivity()
    */
-  sortConversationsByActivity(_conversations: AgentConversation[]): AgentConversation[] {
-    return _conversations.sort((a, b) => b.lastActiveAt.getTime() - a.lastActiveAt.getTime());
+  sortConversationsByActivity(conversations: AgentConversation[]): AgentConversation[] {
+    return conversationUtilsService.sortConversationsByActivity(conversations);
   }
 
   /**
    * Get conversation statistics
+   * @deprecated Use conversationUtilsService.getConversationStats()
    */
-  getConversationStats(_conversation: AgentConversation): {
-    messageCount: number;
-    userMessages: number;
-    assistantMessages: number;
-    hasActiveTask: boolean;
-    lastActivity: string;
-  } {
-    const messages = _conversation.messages;
-    const userMessages = messages.filter(m => m.role === 'user').length;
-    const assistantMessages = messages.filter(m => m.role === 'assistant').length;
-    const hasActiveTask = messages.some(m => m.metadata?.isPlaceholder);
-    
-    return {
-      messageCount: messages.length,
-      userMessages,
-      assistantMessages,
-      hasActiveTask,
-      lastActivity: _conversation.lastActiveAt.toISOString()
-    };
+  getConversationStats(conversation: AgentConversation) {
+    return conversationUtilsService.getConversationStats(conversation);
   }
 
   /**
    * Clean up conversation resources
+   * @deprecated Use conversationUtilsService.cleanupConversation()
    */
-  cleanupConversation(_conversation: AgentConversation): void {
-    // Clean up any active tasks
-    const activeTasks = _conversation.messages
-      .filter(m => m.metadata?.isPlaceholder)
-      .map(m => m.taskId)
-      .filter(Boolean);
-    
-    activeTasks.forEach(_taskId => {
-      // This could unsubscribe from WebSocket events, etc.
-    });
+  cleanupConversation(conversation: AgentConversation): void {
+    return conversationUtilsService.cleanupConversation(conversation);
   }
 
   /**
    * Validate conversation object
+   * @deprecated Use conversationUtilsService.validateConversation()
    */
-  validateConversation(_conversation: unknown): _conversation is AgentConversation {
-    return (
-      _conversation &&
-      typeof _conversation.id === 'string' &&
-      _conversation.agent &&
-      Array.isArray(_conversation.messages) &&
-      _conversation.createdAt instanceof Date &&
-      _conversation.lastActiveAt instanceof Date &&
-      typeof _conversation.executionMode === 'string' &&
-      Array.isArray(_conversation.supportedExecutionModes)
-    );
+  validateConversation(conversation: unknown): conversation is AgentConversation {
+    return conversationUtilsService.validateConversation(conversation);
   }
 }
 
-// Export singleton instance
+// Export singleton instance for backwards compatibility
 export const conversation = new ConversationService();
+
+// Re-export individual services for new code
+export { conversationMessageService } from '@/services/conversation/conversationMessageService';
+export { conversationCrudService } from '@/services/conversation/conversationCrudService';
+export { conversationFactoryService } from '@/services/conversation/conversationFactoryService';
+export { conversationMetadataService } from '@/services/conversation/conversationMetadataService';
+export { conversationUtilsService } from '@/services/conversation/conversationUtilsService';
+export { generateUUID } from '@/services/conversation/utils';

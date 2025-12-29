@@ -81,5 +81,19 @@ storage/images/
 
 # Task files
 # tasks.json
-# tasks/ 
-.github/workflows/
+# tasks/
+
+# Monitoring artifacts (excluded from Git)
+.monitor/
+
+# Git worktrees for parallel development (local to each developer)
+worktrees/
+
+# Deployment generated files
+deployment/tunnel-id.txt
+deployment/build-info.json
+
+# Test/backup files
+login.json
+workflows_backup.json
+apps/api/supabase/backups/

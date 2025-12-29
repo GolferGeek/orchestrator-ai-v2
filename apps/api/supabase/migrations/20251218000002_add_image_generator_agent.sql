@@ -117,7 +117,7 @@ VALUES (
   NOW(),
   NOW()
 )
-ON CONFLICT (organization_slug, slug) DO UPDATE SET
+ON CONFLICT (slug) DO UPDATE SET
   name = EXCLUDED.name,
   description = EXCLUDED.description,
   version = EXCLUDED.version,

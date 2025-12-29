@@ -308,6 +308,7 @@ import { useChatUiStore } from '@/stores/ui/chatUiStore';
 import { useDeliverablesStore } from '@/stores/deliverablesStore';
 import { deliverablesService } from '@/services/deliverablesService';
 import { usePlanStore } from '@/stores/planStore';
+import { planService } from '@/services/planService';
 import { useAuthStore } from '@/stores/rbacStore';
 import { useAgentsStore } from '@/stores/agentsStore';
 import { videoService } from '@/services/videoService';
@@ -1193,9 +1194,11 @@ watch(
 
     if (agentType === 'media') {
       // Get media type from agent metadata to determine model_type filter
-      const mediaType = agent.metadata?.mediaType;
-      const defaultProvider = agent.metadata?.defaultProvider;
-      const defaultModel = agent.metadata?.defaultModel;
+      // Check both metadata.config.* (from API) and metadata.* (fallback) paths
+      const config = agent.metadata?.config as Record<string, unknown> | undefined;
+      const mediaType = config?.mediaType || agent.metadata?.mediaType;
+      const defaultProvider = config?.defaultProvider || agent.metadata?.defaultProvider;
+      const defaultModel = config?.defaultModel || agent.metadata?.defaultModel;
 
       // Map media type to model type
       let modelType: 'text-generation' | 'image-generation' | 'video-generation' = 'image-generation';
@@ -1234,7 +1237,29 @@ watch(() => props.conversation?.id, async (newId) => {
     const conversationPlans = planStore.plansByConversationId(newId);
     if (conversationPlans.length === 0) {
       try {
-        await planStore.loadPlansByConversation(newId);
+        const planData = await planService.loadPlansByConversation(newId);
+        if (planData) {
+          // Add plan to store
+          planStore.addPlan(planData.plan);
+
+          // Set current version if available
+          if (planData.currentVersionId) {
+            planStore.setCurrentVersion(planData.plan.id, planData.currentVersionId);
+          }
+
+          // Add versions
+          planData.versions.forEach((version) => {
+            planStore.addVersion(planData.plan.id, version);
+
+            // Set as current version if flagged
+            if (version.isCurrentVersion) {
+              planStore.setCurrentVersion(planData.plan.id, version.id);
+            }
+          });
+
+          // Associate with conversation
+          planStore.associatePlanWithConversation(planData.plan.id, newId);
+        }
       } catch (error) {
         console.error('Error loading plan:', error);
       }

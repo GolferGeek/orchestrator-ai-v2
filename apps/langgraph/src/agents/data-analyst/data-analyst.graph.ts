@@ -240,12 +240,7 @@ Please use only tables that exist in this list.`;
     const result = await sqlQueryTool.generateAndExecuteSql(
       enhancedQuestion,
       schemaContext + tablesListHeader,
-      {
-        userId: ctx.userId,
-        taskId: ctx.taskId,
-        threadId: ctx.taskId,
-        conversationId: ctx.conversationId,
-      },
+      ctx, // Pass full ExecutionContext capsule
     );
 
     // Extract SQL from result

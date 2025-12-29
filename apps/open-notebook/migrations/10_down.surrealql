@@ -1,0 +1,71 @@
+-- Down migration 10: Remove multi-tenancy fields
+-- WARNING: This will remove ownership information from all records
+
+-- Remove indexes
+REMOVE INDEX IF EXISTS idx_notebook_user ON TABLE notebook;
+REMOVE INDEX IF EXISTS idx_notebook_team ON TABLE notebook;
+REMOVE INDEX IF EXISTS idx_notebook_created_by ON TABLE notebook;
+
+REMOVE INDEX IF EXISTS idx_source_user ON TABLE source;
+REMOVE INDEX IF EXISTS idx_source_team ON TABLE source;
+REMOVE INDEX IF EXISTS idx_source_created_by ON TABLE source;
+
+REMOVE INDEX IF EXISTS idx_note_user ON TABLE note;
+REMOVE INDEX IF EXISTS idx_note_team ON TABLE note;
+REMOVE INDEX IF EXISTS idx_note_created_by ON TABLE note;
+
+REMOVE INDEX IF EXISTS idx_chat_session_user ON TABLE chat_session;
+REMOVE INDEX IF EXISTS idx_chat_session_team ON TABLE chat_session;
+REMOVE INDEX IF EXISTS idx_chat_session_created_by ON TABLE chat_session;
+
+REMOVE INDEX IF EXISTS idx_transformation_user ON TABLE transformation;
+REMOVE INDEX IF EXISTS idx_transformation_team ON TABLE transformation;
+REMOVE INDEX IF EXISTS idx_transformation_created_by ON TABLE transformation;
+
+REMOVE INDEX IF EXISTS idx_episode_user ON TABLE episode;
+REMOVE INDEX IF EXISTS idx_episode_team ON TABLE episode;
+REMOVE INDEX IF EXISTS idx_episode_created_by ON TABLE episode;
+
+REMOVE INDEX IF EXISTS idx_episode_profile_user ON TABLE episode_profile;
+REMOVE INDEX IF EXISTS idx_episode_profile_team ON TABLE episode_profile;
+REMOVE INDEX IF EXISTS idx_episode_profile_created_by ON TABLE episode_profile;
+
+REMOVE INDEX IF EXISTS idx_speaker_profile_user ON TABLE speaker_profile;
+REMOVE INDEX IF EXISTS idx_speaker_profile_team ON TABLE speaker_profile;
+REMOVE INDEX IF EXISTS idx_speaker_profile_created_by ON TABLE speaker_profile;
+
+-- Remove fields (SurrealDB will drop fields when they're no longer defined)
+REMOVE FIELD IF EXISTS user_id ON TABLE notebook;
+REMOVE FIELD IF EXISTS team_id ON TABLE notebook;
+REMOVE FIELD IF EXISTS created_by ON TABLE notebook;
+
+REMOVE FIELD IF EXISTS user_id ON TABLE source;
+REMOVE FIELD IF EXISTS team_id ON TABLE source;
+REMOVE FIELD IF EXISTS created_by ON TABLE source;
+
+REMOVE FIELD IF EXISTS user_id ON TABLE note;
+REMOVE FIELD IF EXISTS team_id ON TABLE note;
+REMOVE FIELD IF EXISTS created_by ON TABLE note;
+
+REMOVE FIELD IF EXISTS user_id ON TABLE chat_session;
+REMOVE FIELD IF EXISTS team_id ON TABLE chat_session;
+REMOVE FIELD IF EXISTS created_by ON TABLE chat_session;
+
+REMOVE FIELD IF EXISTS user_id ON TABLE transformation;
+REMOVE FIELD IF EXISTS team_id ON TABLE transformation;
+REMOVE FIELD IF EXISTS created_by ON TABLE transformation;
+
+REMOVE FIELD IF EXISTS user_id ON TABLE episode;
+REMOVE FIELD IF EXISTS team_id ON TABLE episode;
+REMOVE FIELD IF EXISTS created_by ON TABLE episode;
+
+REMOVE FIELD IF EXISTS user_id ON TABLE episode_profile;
+REMOVE FIELD IF EXISTS team_id ON TABLE episode_profile;
+REMOVE FIELD IF EXISTS created_by ON TABLE episode_profile;
+
+REMOVE FIELD IF EXISTS user_id ON TABLE speaker_profile;
+REMOVE FIELD IF EXISTS team_id ON TABLE speaker_profile;
+REMOVE FIELD IF EXISTS created_by ON TABLE speaker_profile;
+
+-- Restore original search functions without ownership filtering
+-- (would need to copy from migration 9 here)

@@ -4,8 +4,6 @@
  */
 
 import { ref, reactive, computed, onUnmounted, readonly } from 'vue';
-// import DOMPurify from 'dompurify';
-// import * as yup from 'yup';
 import {
   ValidationResult,
   ValidationError,
@@ -43,18 +41,6 @@ const DEFAULT_CONFIG: ValidationConfig = {
 // =====================================
 // VALIDATION UTILITIES
 // =====================================
-
-/**
- * Sanitize input to prevent XSS and other security issues
- * Enhanced with profile support for different input types
- */
-// function sanitizeInput(value: unknown, options?: SanitizationOptions): unknown {
-//   if (typeof value === 'string') {
-//     const result = sanitizeWithProfile(value, options || { profile: 'moderate' });
-//     return result.sanitized;
-//   }
-//   return value;
-// }
 
 /**
  * Check for common security patterns

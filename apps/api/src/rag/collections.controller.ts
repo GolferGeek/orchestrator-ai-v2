@@ -16,6 +16,7 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CollectionsService, RagCollection } from './collections.service';
 import { CreateCollectionDto, UpdateCollectionDto } from './dto';
+import { RbacService } from '../rbac/rbac.service';
 
 interface AuthenticatedRequest {
   user: {
@@ -40,24 +41,31 @@ function getOrgSlug(orgHeader?: string): string {
 @Controller('api/rag/collections')
 @UseGuards(JwtAuthGuard)
 export class CollectionsController {
-  constructor(private collectionsService: CollectionsService) {}
+  constructor(
+    private collectionsService: CollectionsService,
+    private rbacService: RbacService,
+  ) {}
 
   /**
    * List all collections for the organization
    * GET /api/rag/collections
    * Header: x-organization-slug (required)
    * Filters by user access unless user has admin permissions
+   * Super-admins see ALL collections (user_id passed as null to bypass filtering)
    */
   @Get()
   async listCollections(
     @Request() req: AuthenticatedRequest,
     @Headers('x-organization-slug') orgSlug?: string,
   ): Promise<RagCollection[]> {
-    // Pass user ID to filter collections by access
-    return this.collectionsService.getCollections(
-      getOrgSlug(orgSlug),
-      req.user.id,
-    );
+    // Check if user is super-admin
+    const isSuperAdmin = await this.rbacService.isSuperAdmin(req.user.id);
+
+    // Super-admins get all collections (pass undefined to bypass access control)
+    // Regular users get filtered by their access
+    const userId = isSuperAdmin ? undefined : req.user.id;
+
+    return this.collectionsService.getCollections(getOrgSlug(orgSlug), userId);
   }
 
   /**

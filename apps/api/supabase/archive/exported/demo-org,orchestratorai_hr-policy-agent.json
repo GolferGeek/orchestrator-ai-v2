@@ -1,0 +1,107 @@
+{
+  "slug": "hr-policy-agent",
+  "organization_slug": [
+    "demo-org",
+    "orchestratorai"
+  ],
+  "name": "HR Policy Assistant",
+  "description": "AI-powered HR assistant that answers questions about company policies, benefits, procedures, and employee guidelines using the HR knowledge base.",
+  "version": "1.0.0",
+  "agent_type": "rag-runner",
+  "department": "hr",
+  "tags": [
+    "hr",
+    "policy",
+    "benefits",
+    "employee",
+    "knowledge-base",
+    "rag"
+  ],
+  "io_schema": {
+    "input": {
+      "type": "object",
+      "required": [
+        "question"
+      ],
+      "properties": {
+        "question": {
+          "type": "string",
+          "description": "The HR-related question to answer"
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "required": [
+        "message"
+      ],
+      "properties": {
+        "message": {
+          "type": "string",
+          "description": "The answer to the HR question"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "score": {
+                "type": "number"
+              },
+              "excerpt": {
+                "type": "string"
+              },
+              "document": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "Source documents used to answer the question"
+        }
+      }
+    }
+  },
+  "capabilities": [
+    "hr-policy-lookup",
+    "benefits-information",
+    "procedure-guidance",
+    "employee-handbook",
+    "plan",
+    "build"
+  ],
+  "context": "You are an HR Policy Assistant that helps employees find information about company policies, benefits, and procedures.",
+  "endpoint": null,
+  "llm_config": {
+    "model": "gpt-oss:20b",
+    "provider": "ollama",
+    "parameters": {
+      "topP": 0.9,
+      "maxTokens": 2000,
+      "temperature": 0.3
+    }
+  },
+  "metadata": {
+    "author": "Orchestrator AI Team",
+    "license": "PROPRIETARY",
+    "rag_config": {
+      "top_k": 5,
+      "collection_slug": "hr-policy",
+      "no_access_message": "I do not have access to the HR knowledge base. Please contact HR directly.",
+      "no_results_message": "I could not find information about that in the HR knowledge base. Please contact HR directly for assistance.",
+      "similarity_threshold": 0.6
+    },
+    "mode_profile": "full",
+    "execution_modes": [
+      "immediate",
+      "polling",
+      "real-time"
+    ],
+    "execution_capabilities": {
+      "can_plan": true,
+      "can_build": true,
+      "can_converse": true
+    }
+  },
+  "created_at": "2025-11-24T14:35:09.303179+00:00",
+  "updated_at": "2025-11-24T22:26:41.288776+00:00"
+}

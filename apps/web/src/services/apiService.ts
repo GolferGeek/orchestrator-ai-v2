@@ -8,6 +8,7 @@ import { getSecureApiBaseUrl, getSecureHeaders, validateSecureContext, logSecuri
 import { useApiSanitization } from '@/composables/useApiSanitization';
 import { useErrorStore } from '@/stores/errorStore';
 import { trackAPI } from '../utils/performanceMonitor';
+import { tokenStorage } from './tokenStorageService';
 
 type ConversationHistoryItem = {
   role: string;
@@ -167,39 +168,38 @@ class ApiService {
         // If error is 401 and we haven't already tried to refresh
         if (error.response?.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true;
-          
+
           try {
-            // Try to refresh the token
-            const refreshToken = localStorage.getItem('refreshToken');
+            // Try to refresh the token using secure storage
+            const refreshToken = await tokenStorage.getRefreshToken();
             if (refreshToken) {
-              
+
               // Use a fresh axios instance to avoid interceptor loops
               const refreshResponse = await axios.post(`${this.axiosInstance.defaults.baseURL}/auth/refresh`, {
                 refreshToken: refreshToken
               });
-              
+
               const { accessToken, refreshToken: newRefreshToken } = refreshResponse.data;
-              
-              // Update stored tokens
-              localStorage.setItem('authToken', accessToken);
+
+              // Update stored tokens in secure storage
+              await tokenStorage.setAccessToken(accessToken);
               if (newRefreshToken) {
-                localStorage.setItem('refreshToken', newRefreshToken);
+                await tokenStorage.setRefreshToken(newRefreshToken);
               }
-              
+
               // Update default headers
-              this.setAuthToken(accessToken);
-              
+              await this.setAuthToken(accessToken);
+
               // Retry the original request with the new token
               originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-              
+
               return this.axiosInstance(originalRequest);
             }
           } catch (refreshError) {
             // Clear auth data and redirect to login would happen here
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('refreshToken');
+            await tokenStorage.clearTokens();
             this.clearAuth();
-            
+
             // Log the refresh token failure as a critical error
             this.logApiFailure(refreshError as AxiosError, {
               url: '/auth/refresh',
@@ -423,7 +423,7 @@ class ApiService {
     sessionId: string,
     messageRequest: SendMessageRequest
   ): Promise<SendMessageResponse> {
-    const authToken = localStorage.getItem('authToken');
+    const authToken = await tokenStorage.getAccessToken();
 
     // API now expects camelCase directly
     const apiRequest = {
@@ -454,8 +454,8 @@ class ApiService {
     conversationHistory?: ConversationHistoryItem[],
     llmSelection?: LLMSelection
   ): Promise<TaskResponse> {
-    // Get the current auth token from localStorage to pass to orchestrator
-    const authToken = localStorage.getItem('authToken');
+    // Get the current auth token from secure storage to pass to orchestrator
+    const authToken = await tokenStorage.getAccessToken();
 
     // Get current user information for proper database RLS
     let currentUser = null;
@@ -633,7 +633,7 @@ class ApiService {
   /**
    * Update authorization token
    */
-  setAuthToken(token: string | null): void {
+  async setAuthToken(token: string | null): Promise<void> {
     if (token) {
       this.axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     } else {
@@ -652,7 +652,7 @@ class ApiService {
    * Create a new session
    */
   async createSession(name: string): Promise<unknown> {
-    const authToken = localStorage.getItem('authToken');
+    const authToken = await tokenStorage.getAccessToken();
 
     const response = await this.axiosInstance.post('/sessions',
       { name },
@@ -678,7 +678,7 @@ class ApiService {
       includeLlmData?: boolean;
     } = {}
   ): Promise<SendMessageResponse[]> {
-    const authToken = localStorage.getItem('authToken');
+    const authToken = await tokenStorage.getAccessToken();
 
     const queryParams = new URLSearchParams();
     if (options.skip !== undefined) queryParams.append('skip', options.skip.toString());
@@ -702,7 +702,7 @@ class ApiService {
    * Get user sessions
    */
   async getUserSessions(skip: number = 0, limit: number = 100): Promise<unknown> {
-    const authToken = localStorage.getItem('authToken');
+    const authToken = await tokenStorage.getAccessToken();
 
     const response = await this.axiosInstance.get(
       `/sessions?skip=${skip}&limit=${limit}`,
@@ -720,7 +720,7 @@ class ApiService {
    * Delete a session
    */
   async deleteSession(sessionId: string): Promise<void> {
-    const authToken = localStorage.getItem('authToken');
+    const authToken = await tokenStorage.getAccessToken();
 
     await this.axiosInstance.delete(`/sessions/${sessionId}`, {
       headers: {
@@ -733,7 +733,7 @@ class ApiService {
    * Get agents list for modal display (UI endpoint)
    */
   async getAgentsList(): Promise<unknown> {
-    const authToken = localStorage.getItem('authToken');
+    const authToken = await tokenStorage.getAccessToken();
     const response = await this.axiosInstance.get('/orchestrator/ui/agents-list', {
       headers: {
         'Authorization': authToken ? `Bearer ${authToken}` : undefined
@@ -747,7 +747,7 @@ class ApiService {
    * Get agent capabilities for modal display (UI endpoint)
    */
   async getAgentCapabilities(agentName: string): Promise<unknown> {
-    const authToken = localStorage.getItem('authToken');
+    const authToken = await tokenStorage.getAccessToken();
     const response = await this.axiosInstance.get(`/orchestrator/ui/agent-capabilities/${encodeURIComponent(agentName)}`, {
       headers: {
         'Authorization': authToken ? `Bearer ${authToken}` : undefined
@@ -761,7 +761,7 @@ class ApiService {
    * Get current user profile
    */
   async getCurrentUser(): Promise<unknown> {
-    const authToken = localStorage.getItem('authToken');
+    const authToken = await tokenStorage.getAccessToken();
     const response = await this.axiosInstance.get('/auth/me', {
       headers: {
         'Authorization': authToken ? `Bearer ${authToken}` : undefined
@@ -950,7 +950,7 @@ console.error(`ApiService.post error for ${url}:`, error);
     responseAudio?: string;
   }> {
     try {
-      const authToken = localStorage.getItem('authToken');
+      const authToken = await tokenStorage.getAccessToken();
       
       // Use default agent if not specified
       const agentName = data.agentName || 'assistant';
@@ -1026,7 +1026,7 @@ console.error(`ApiService.post error for ${url}:`, error);
     status: string;
   }> {
     try {
-      const authToken = localStorage.getItem('authToken');
+      const authToken = await tokenStorage.getAccessToken();
       
       const response = await this.axiosInstance.post(
         '/speech/start-conversation',
@@ -1050,7 +1050,7 @@ console.error(`ApiService.post error for ${url}:`, error);
    */
   async endSpeechConversation(conversationId: string): Promise<void> {
     try {
-      const authToken = localStorage.getItem('authToken');
+      const authToken = await tokenStorage.getAccessToken();
       
       await this.axiosInstance.post(
         '/speech/end-conversation',
@@ -1076,7 +1076,7 @@ console.error(`ApiService.post error for ${url}:`, error);
     responseAudio?: string;
   }> {
     try {
-      const authToken = localStorage.getItem('authToken');
+      const authToken = await tokenStorage.getAccessToken();
       const formData = new FormData();
       formData.append('audio', audioBlob);
       formData.append('conversationId', conversationId);
@@ -1111,7 +1111,7 @@ console.error(`ApiService.post error for ${url}:`, error);
     confidence: number;
   }> {
     try {
-      const authToken = localStorage.getItem('authToken');
+      const authToken = await tokenStorage.getAccessToken();
       
       const response = await this.axiosInstance.post(
         '/speech/transcribe',
@@ -1147,7 +1147,7 @@ console.error(`ApiService.post error for ${url}:`, error);
     format: string;
   }> {
     try {
-      const authToken = localStorage.getItem('authToken');
+      const authToken = await tokenStorage.getAccessToken();
       
       const response = await this.axiosInstance.post(
         '/speech/synthesize',

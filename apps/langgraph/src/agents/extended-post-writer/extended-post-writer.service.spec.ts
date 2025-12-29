@@ -125,9 +125,9 @@ describe("ExtendedPostWriterService", () => {
     }).compile();
 
     service = module.get<ExtendedPostWriterService>(ExtendedPostWriterService);
-    llmClient = module.get(LLMHttpClientService);
-    observability = module.get(ObservabilityService);
-    checkpointer = module.get(PostgresCheckpointerService);
+    _llmClient = module.get(LLMHttpClientService);
+    _observability = module.get(ObservabilityService);
+    _checkpointer = module.get(PostgresCheckpointerService);
 
     // Initialize the service (triggers onModuleInit)
     await service.onModuleInit();
@@ -139,47 +139,33 @@ describe("ExtendedPostWriterService", () => {
 
   describe("generate", () => {
     const validInput: ExtendedPostWriterInput = {
-      taskId: "task-123",
-      userId: "user-456",
-      conversationId: "conv-789",
-      organizationSlug: "org-abc",
-      topic: "Introduction to AI",
-      context: "Write for beginners",
+      context: createMockExecutionContext({
+        taskId: "task-123",
+        userId: "user-456",
+        conversationId: "conv-789",
+        orgSlug: "org-abc",
+        provider: "anthropic",
+        model: "claude-sonnet-4-20250514",
+      }),
+      userMessage: "Introduction to AI",
+      additionalContext: "Write for beginners",
       keywords: ["AI", "machine learning", "basics"],
       tone: "casual",
-      provider: "anthropic",
-      model: "claude-sonnet-4-20250514",
     };
 
-    it("should throw error for missing taskId", async () => {
-      const invalidInput = { ...validInput, taskId: "" };
-
-      await expect(service.generate(invalidInput)).rejects.toThrow(
-        "Invalid input",
-      );
-    });
-
-    it("should throw error for missing userId", async () => {
-      const invalidInput = { ...validInput, userId: "" };
-
-      await expect(service.generate(invalidInput)).rejects.toThrow(
-        "Invalid input",
-      );
-    });
-
-    it("should throw error for missing topic", async () => {
-      const invalidInput = { ...validInput, topic: "" };
-
-      await expect(service.generate(invalidInput)).rejects.toThrow(
-        "Invalid input",
-      );
-    });
-
-    it("should return result with threadId for valid input", async () => {
+    it("should return result with taskId for valid input", async () => {
       const result = await service.generate(validInput);
 
-      expect(result.threadId).toBeDefined();
-      expect(result.topic).toBe(validInput.topic);
+      expect(result.taskId).toBeDefined();
+      expect(result.taskId).toBe(validInput.context.taskId);
+      expect(result.userMessage).toBe(validInput.userMessage);
+    });
+
+    it("should return hitl_waiting status on successful generation", async () => {
+      const result = await service.generate(validInput);
+
+      expect(result.status).toBe("hitl_waiting");
+      expect(result.generatedContent).toBeDefined();
     });
   });
 
@@ -230,7 +216,9 @@ describe("ExtendedPostWriterService", () => {
     it("should accept edit decision with edited content", () => {
       expect(editResponse.decision).toBe("edit");
       expect(editResponse.editedContent).toBeDefined();
-      expect(editResponse.editedContent?.blogPost).toBe("Edited blog post...");
+      expect((editResponse.editedContent as GeneratedContent)?.blogPost).toBe(
+        "Edited blog post...",
+      );
     });
 
     it("should accept reject decision with feedback", () => {

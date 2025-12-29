@@ -396,6 +396,7 @@ import { useAgentsStore } from '@/stores/agentsStore';
 import { useConversationsStore } from '@/stores/conversationsStore';
 import { useDeliverablesStore } from '@/stores/deliverablesStore';
 import { deliverablesService } from '@/services/deliverablesService';
+import { conversationsService } from '@/services/conversationsService';
 import { agentsService } from '@/services/agentsService';
 import { useAuthStore } from '@/stores/rbacStore';
 import ConversationDeleteModal from './ConversationDeleteModal.vue';
@@ -521,16 +522,15 @@ const handleDeleteConfirm = async (deleteDeliverables: boolean) => {
     if (!conversationToDelete.value) {
       return;
     }
-    
+
     const conversation = conversationToDelete.value;
-    
+
     // Close modal first
     showDeleteModal.value = false;
-    
+
     // Delete deliverables if requested
     if (deleteDeliverables && conversationToDelete.value.hasDeliverables) {
       try {
-        const { deliverablesService } = await import('@/services/deliverablesService');
         const deliverables = await deliverablesService.getConversationDeliverables(conversation.id);
         for (const deliverable of deliverables) {
           await deliverablesService.deleteDeliverable(deliverable.id);
@@ -539,13 +539,13 @@ const handleDeleteConfirm = async (deleteDeliverables: boolean) => {
         // Continue with conversation deletion even if deliverable deletion fails
       }
     }
-    
-    // Use store method - this will update the UI reactively and handle tab closure
-    await conversationsStore.deleteConversation(conversation.id);
-    
+
+    // Use service method - this will update the UI reactively and handle tab closure
+    await conversationsService.deleteConversation(conversation.id);
+
   } catch (err) {
     console.error('Failed to delete conversation:', err);
-    // Error is already handled in the store
+    // Error is already handled in the service
   } finally {
     conversationToDelete.value = null;
   }
@@ -875,7 +875,7 @@ const refreshDataForOrganization = async (organization: string) => {
     agentsStore.setLastLoadedOrganization(organization);
     agentsStore.setLoading(false);
 
-    await conversationsStore.fetchConversations(true);
+    await conversationsService.fetchConversations(true);
   } catch (err) {
     console.error('Failed to refresh data:', err);
     agentsStore.setError('Failed to refresh agents');
@@ -929,7 +929,7 @@ onMounted(async () => {
   const hasConversations = storeConversations.value.length > 0;
   if (!hasConversations) {
     try {
-      await conversationsStore.fetchConversations(true);
+      await conversationsService.fetchConversations(true);
     } catch (error) {
       console.error('❌ [AgentTreeView] Failed to load conversations:', error);
     }
@@ -948,7 +948,7 @@ watch(
 
       // Then refresh with new org data - pass newOrg directly to avoid timing issues
       await refreshDataForOrganization(newOrg);
-      await conversationsStore.fetchConversations(true);
+      await conversationsService.fetchConversations(true);
     }
   }
 );

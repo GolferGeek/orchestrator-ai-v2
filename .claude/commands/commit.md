@@ -1,5 +1,9 @@
 ---
 description: "Commit changes directly to current branch after quality checks"
+category: "development"
+uses-skills: ["quality-gates-skill"]
+uses-agents: []
+related-commands: ["commit-push"]
 ---
 
 # Commit Directly to Current Branch

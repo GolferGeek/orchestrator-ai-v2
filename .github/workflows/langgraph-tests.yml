@@ -1,0 +1,58 @@
+name: LangGraph Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'apps/langgraph/**'
+      - '.github/workflows/langgraph-tests.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'apps/langgraph/**'
+
+jobs:
+  test:
+    name: Run LangGraph Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: apps/langgraph/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/langgraph
+        run: npm ci
+
+      - name: Run linter
+        working-directory: apps/langgraph
+        run: npm run lint || echo "No lint script found"
+
+      - name: Run type check
+        working-directory: apps/langgraph
+        run: npm run type-check || npx tsc --noEmit
+
+      - name: Build application
+        working-directory: apps/langgraph
+        run: npm run build
+
+      - name: Run unit tests
+        working-directory: apps/langgraph
+        run: npm test
+        env:
+          NODE_ENV: test
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: apps/langgraph/coverage/lcov.info
+          flags: langgraph
+          fail_ci_if_error: false

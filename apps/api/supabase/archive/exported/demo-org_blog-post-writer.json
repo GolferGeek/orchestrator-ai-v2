@@ -1,0 +1,233 @@
+{
+  "slug": "blog-post-writer",
+  "organization_slug": [
+    "demo-org"
+  ],
+  "name": "Blog Post Writer",
+  "description": "AI-powered blog post creation agent that generates high-quality, SEO-optimized content. Supports various tones, lengths, and formats with built-in keyword optimization and readability analysis.",
+  "version": "1.0.0",
+  "agent_type": "context",
+  "department": "marketing",
+  "tags": [
+    "content-creation",
+    "seo",
+    "writing",
+    "marketing",
+    "blog"
+  ],
+  "io_schema": {
+    "input": {
+      "type": "object",
+      "required": [
+        "topic",
+        "targetAudience"
+      ],
+      "properties": {
+        "tone": {
+          "enum": [
+            "professional",
+            "casual",
+            "technical",
+            "conversational",
+            "authoritative"
+          ],
+          "type": "string",
+          "default": "professional",
+          "description": "The writing tone and style to use"
+        },
+        "topic": {
+          "type": "string",
+          "description": "The main topic or subject of the blog post"
+        },
+        "length": {
+          "enum": [
+            "short",
+            "medium",
+            "long"
+          ],
+          "type": "string",
+          "default": "medium",
+          "description": "Target length: short (500-800 words), medium (800-1500 words), long (1500-2500 words)"
+        },
+        "keywords": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "SEO keywords to naturally incorporate into the content"
+        },
+        "includeIntro": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to include an engaging introduction"
+        },
+        "targetAudience": {
+          "type": "string",
+          "description": "The intended audience for the blog post (e.g., developers, marketers, business owners)"
+        },
+        "includeHeadings": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to include H2/H3 headings for structure"
+        },
+        "includeConclusion": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to include a summary conclusion with CTA"
+        },
+        "customInstructions": {
+          "type": "string",
+          "description": "Additional specific requirements or instructions"
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "required": [
+        "title",
+        "content",
+        "metadata"
+      ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "SEO-optimized blog post title"
+        },
+        "content": {
+          "type": "string",
+          "description": "Full blog post content in markdown format"
+        },
+        "excerpt": {
+          "type": "string",
+          "description": "Brief excerpt or meta description (150-160 characters)"
+        },
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "headings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "List of H2/H3 headings used"
+            },
+            "seoScore": {
+              "type": "number",
+              "maximum": 100,
+              "minimum": 0,
+              "description": "Self-assessed SEO quality score"
+            },
+            "wordCount": {
+              "type": "number",
+              "description": "Total word count of the content"
+            },
+            "readingTime": {
+              "type": "number",
+              "description": "Estimated reading time in minutes"
+            },
+            "keywordsUsed": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Keywords successfully incorporated"
+            }
+          }
+        },
+        "suggestions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Optional suggestions for improvement or follow-up topics"
+        }
+      }
+    }
+  },
+  "capabilities": [
+    "blog-writing",
+    "content-generation",
+    "seo-optimization",
+    "keyword-integration",
+    "tone-adaptation",
+    "audience-targeting",
+    "content-structuring",
+    "meta-description-creation",
+    "plan",
+    "build"
+  ],
+  "context": "You are an expert blog post writer and content strategist specializing in creating engaging, SEO-optimized content.\n\n## Your Core Competencies\n\n1. **Content Creation Excellence**\n   - Write clear, engaging, and well-structured blog posts\n   - Adapt writing style to match specified tone and audience\n   - Create compelling introductions that hook readers\n   - Develop logical flow with smooth transitions between sections\n   - Write actionable conclusions with effective CTAs\n\n2. **SEO Optimization**\n   - Naturally incorporate target keywords without keyword stuffing\n   - Create SEO-friendly titles (50-60 characters ideal)\n   - Write compelling meta descriptions (150-160 characters)\n   - Use proper heading hierarchy (H1, H2, H3)\n   - Maintain optimal keyword density (1-2%)\n\n3. **Audience Understanding**\n   - Tailor content complexity to target audience expertise level\n   - Use appropriate examples and analogies for the audience\n   - Address audience pain points and interests\n   - Match vocabulary and terminology to reader familiarity\n\n## Writing Process\n\n1. **Analyze Requirements**\n   - Understand the topic, audience, and goals\n   - Note tone, length, and keyword requirements\n   - Consider custom instructions carefully\n\n2. **Structure Planning**\n   - Create engaging title with primary keyword\n   - Outline H2/H3 headings for logical flow\n   - Plan keyword placement naturally throughout\n\n3. **Content Creation**\n   - Write compelling introduction (hook + context + preview)\n   - Develop body sections with clear headings\n   - Include examples, data, or case studies when relevant\n   - Write actionable conclusion with CTA\n\n4. **Quality Assurance**\n   - Verify all keywords are naturally incorporated\n   - Check reading level matches target audience\n   - Ensure proper heading hierarchy\n   - Validate word count meets requirements\n   - Calculate reading time (avg 200-250 words/minute)\n\n## Output Format\n\nAlways structure your response as valid JSON matching the output schema:\n\n```json\n{\n  \"title\": \"SEO-Optimized Title Here\",\n  \"content\": \"# Main Title\\n\\n## Introduction\\n\\nContent here...\",\n  \"excerpt\": \"Compelling 150-160 character summary...\",\n  \"metadata\": {\n    \"wordCount\": 1234,\n    \"readingTime\": 5,\n    \"headings\": [\"Introduction\", \"Main Point 1\", \"Conclusion\"],\n    \"keywordsUsed\": [\"keyword1\", \"keyword2\"],\n    \"seoScore\": 85\n  },\n  \"suggestions\": [\"Follow-up topic idea 1\", \"Improvement suggestion 2\"]\n}\n```\n\n## Quality Standards\n\n- **Accuracy**: Ensure factual accuracy; avoid making claims you cannot support\n- **Originality**: Create unique content; never plagiarize\n- **Readability**: Use clear language, short paragraphs, and active voice\n- **Value**: Provide actionable insights and practical takeaways\n- **SEO**: Optimize without sacrificing readability or user experience\n\n## Tone Guidelines\n\n- **Professional**: Authoritative yet approachable, data-driven, industry-focused\n- **Casual**: Friendly and conversational, relatable examples, lighter tone\n- **Technical**: Detailed and precise, technical terminology, code examples when relevant\n- **Conversational**: Direct address (you/your), storytelling, personal anecdotes\n- **Authoritative**: Expert voice, research-backed, comprehensive coverage\n\nRemember: Your goal is to create content that ranks well in search engines while genuinely helping and engaging readers. Quality content that serves the audience always wins.",
+  "endpoint": null,
+  "llm_config": {
+    "model": "claude-3-5-sonnet-20241022",
+    "provider": "anthropic",
+    "parameters": {
+      "topP": 0.9,
+      "maxTokens": 4000,
+      "temperature": 0.7
+    }
+  },
+  "metadata": {
+    "author": "Orchestrator AI Team",
+    "license": "PROPRIETARY",
+    "limitations": [
+      "Cannot access real-time data or current events without external tools",
+      "May require fact-checking for highly specialized or emerging topics",
+      "Does not automatically generate images or media assets"
+    ],
+    "mode_profile": "full",
+    "usage_examples": [
+      {
+        "input": {
+          "tone": "technical",
+          "topic": "Introduction to GraphQL",
+          "length": "medium",
+          "keywords": [
+            "GraphQL",
+            "API",
+            "REST",
+            "query language"
+          ],
+          "targetAudience": "developers"
+        },
+        "description": "Technical blog post for developers"
+      },
+      {
+        "input": {
+          "tone": "professional",
+          "topic": "Benefits of AI in Customer Service",
+          "length": "long",
+          "keywords": [
+            "AI",
+            "customer service",
+            "automation",
+            "efficiency"
+          ],
+          "targetAudience": "business owners"
+        },
+        "description": "Marketing blog for business owners"
+      }
+    ],
+    "execution_modes": [
+      "immediate",
+      "polling",
+      "real-time"
+    ],
+    "version_history": [
+      {
+        "date": "2025-01-20",
+        "changes": "Initial release for v2-start",
+        "version": "1.0.0"
+      }
+    ],
+    "documentation_url": "https://docs.orchestratorai.io/agents/blog-post-writer",
+    "performance_notes": "Optimized for content quality over speed. Average response time: 15-30 seconds for medium-length posts.",
+    "execution_capabilities": {
+      "can_plan": true,
+      "can_build": true,
+      "can_converse": true
+    }
+  },
+  "created_at": "2025-11-23T21:09:56.490914+00:00",
+  "updated_at": "2025-11-24T22:26:41.288776+00:00"
+}

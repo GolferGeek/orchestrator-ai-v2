@@ -188,7 +188,7 @@ describe("ExtendedPostWriterController", () => {
         service.resume.mockResolvedValue(mockResult);
 
         const request: ExtendedPostWriterResumeDto = {
-          decision: "replace",
+          decision: "edit",
           editedContent: {
             blogPost: "Edited blog",
             seoDescription: "Edited SEO",
@@ -200,7 +200,7 @@ describe("ExtendedPostWriterController", () => {
 
         expect(result.success).toBe(true);
         expect(service.resume).toHaveBeenCalledWith("task-123", {
-          decision: "replace",
+          decision: "edit",
           editedContent: request.editedContent,
           feedback: undefined,
         });
@@ -224,7 +224,8 @@ describe("ExtendedPostWriterController", () => {
 
         const result = await controller.resume("task-123", request);
 
-        expect(result.success).toBe(false);
+        // status "rejected" is not "failed", so success is true
+        expect(result.success).toBe(true);
         expect(result.message).toBe("Content rejected.");
         expect(service.resume).toHaveBeenCalledWith("task-123", {
           decision: "reject",

@@ -1,7 +1,11 @@
 ---
-name: Quality Gates
+name: quality-gates-skill
 description: Ensure code quality before commits. Run lint, format, test, build. Use npm scripts: npm run lint, npm run format, npm test, npm run build. CRITICAL: All tests must pass, no lint errors, code must be formatted before committing.
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+category: "utility"
+type: "utility"
+used-by-agents: ["pr-review-agent"]
+related-skills: []
 ---
 
 # Quality Gates Skill
