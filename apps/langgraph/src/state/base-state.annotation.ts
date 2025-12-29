@@ -1,8 +1,12 @@
 import { Annotation, MessagesAnnotation } from "@langchain/langgraph";
 import { z } from "zod";
+import type { ExecutionContext } from "@orchestrator-ai/transport-types";
 
 /**
  * Zod schema for validating workflow input
+ *
+ * @deprecated This schema is deprecated. Use ExecutionContext directly instead of individual fields.
+ * For new workflows, pass the full ExecutionContext object and access fields from it.
  */
 export const WorkflowInputSchema = z.object({
   taskId: z.string().min(1, "taskId is required"),
@@ -63,8 +67,24 @@ export type WorkflowMetadata = z.infer<typeof WorkflowMetadataSchema>;
 /**
  * Base state annotation for all LangGraph workflows
  *
+ * @deprecated Use HitlBaseStateAnnotation instead, which correctly uses ExecutionContext capsule.
+ *
+ * MIGRATION PATH:
+ * 1. Replace BaseStateAnnotation with HitlBaseStateAnnotation in your workflow state
+ * 2. Update state initialization to pass executionContext instead of individual fields
+ * 3. Access context fields via state.executionContext.fieldName
+ * 4. Remove usage of individual fields (taskId, userId, etc.)
+ *
+ * BACKWARD COMPATIBILITY:
+ * - Individual fields are kept for backward compatibility
+ * - New executionContext field added for migration
+ * - Both patterns work during transition period
+ *
+ * See: apps/langgraph/src/hitl/hitl-base.state.ts for the correct pattern
+ * See: .claude/skills/execution-context-skill for ExecutionContext capsule pattern
+ *
  * This provides common fields that all workflows should have:
- * - Task/user identification
+ * - Task/user identification (DEPRECATED - use executionContext)
  * - Message history (via MessagesAnnotation)
  * - HITL state
  * - Workflow metadata
@@ -75,45 +95,65 @@ export const BaseStateAnnotation = Annotation.Root({
   // Include message history from LangGraph
   ...MessagesAnnotation.spec,
 
+  // === NEW: ExecutionContext Capsule (PREFERRED) ===
+  // All context fields should come from here in new code
+  // This is the correct pattern per execution-context-skill
+  executionContext: Annotation<ExecutionContext | undefined>({
+    reducer: (_, next) => next,
+    default: () => undefined,
+  }),
+
+  // === DEPRECATED: Individual Fields (kept for backward compatibility) ===
+  // TODO: Remove these fields after all workflows migrate to executionContext
+  // Migration: Use state.executionContext.taskId instead of state.taskId
+
   // Task identification
+  /** @deprecated Use executionContext.taskId instead */
   taskId: Annotation<string>({
     reducer: (_, next) => next,
     default: () => "",
   }),
 
+  /** @deprecated Use executionContext.taskId (passed as thread_id) instead */
   threadId: Annotation<string>({
     reducer: (_, next) => next,
     default: () => "",
   }),
 
   // User identification
+  /** @deprecated Use executionContext.userId instead */
   userId: Annotation<string>({
     reducer: (_, next) => next,
     default: () => "",
   }),
 
+  /** @deprecated Use executionContext.conversationId instead */
   conversationId: Annotation<string | undefined>({
     reducer: (_, next) => next,
     default: () => undefined,
   }),
 
+  /** @deprecated Use executionContext.orgSlug instead */
   organizationSlug: Annotation<string | undefined>({
     reducer: (_, next) => next,
     default: () => undefined,
   }),
 
   // Agent identification
+  /** @deprecated Use executionContext.agentSlug instead */
   agentSlug: Annotation<string>({
     reducer: (_, next) => next,
     default: () => "",
   }),
 
   // LLM configuration
+  /** @deprecated Use executionContext.provider instead */
   provider: Annotation<string>({
     reducer: (_, next) => next,
     default: () => "anthropic",
   }),
 
+  /** @deprecated Use executionContext.model instead */
   model: Annotation<string>({
     reducer: (_, next) => next,
     default: () => "claude-sonnet-4-20250514",

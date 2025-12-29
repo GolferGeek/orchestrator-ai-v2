@@ -104,9 +104,7 @@ describe("SqlQueryTool", () => {
 
   describe("createNaturalLanguageTool", () => {
     it("should create a natural language tool instance", () => {
-      const langGraphTool = tool.createNaturalLanguageTool({
-        userId: "user-123",
-      });
+      const langGraphTool = tool.createNaturalLanguageTool(_mockContext);
 
       // Verify it returns a tool object
       expect(langGraphTool).toBeDefined();
@@ -283,11 +281,10 @@ describe("SqlQueryTool", () => {
   });
 
   describe("generateAndExecuteSql", () => {
-    const context = {
+    const context = createMockExecutionContext({
       userId: "user-123",
       taskId: "task-456",
-      threadId: "thread-789",
-    };
+    });
 
     it("should generate SQL from natural language and execute it", async () => {
       (global.fetch as jest.Mock).mockResolvedValue({
@@ -325,7 +322,6 @@ describe("SqlQueryTool", () => {
         expect.objectContaining({
           userId: "user-123",
           taskId: "task-456",
-          threadId: "thread-789",
           latencyMs: expect.any(Number),
         }),
       );

@@ -659,6 +659,7 @@ describe("base-state.annotation", () => {
   describe("BaseStateAnnotation", () => {
     it("should have all required state fields defined", () => {
       // Test the annotation structure exists
+      expect(BaseStateAnnotation.spec.executionContext).toBeDefined();
       expect(BaseStateAnnotation.spec.taskId).toBeDefined();
       expect(BaseStateAnnotation.spec.threadId).toBeDefined();
       expect(BaseStateAnnotation.spec.userId).toBeDefined();
@@ -674,6 +675,31 @@ describe("base-state.annotation", () => {
       expect(BaseStateAnnotation.spec.hitlResponse).toBeDefined();
       expect(BaseStateAnnotation.spec.hitlStatus).toBeDefined();
       expect(BaseStateAnnotation.spec.metadata).toBeDefined();
+    });
+
+    it("should have executionContext field for capsule pattern", () => {
+      // Verify executionContext field exists
+      expect(BaseStateAnnotation.spec.executionContext).toBeDefined();
+
+      // Verify it can hold ExecutionContext
+      const partialState: Partial<BaseState> = {
+        executionContext: {
+          orgSlug: "test-org",
+          userId: "user-123",
+          conversationId: "conv-456",
+          taskId: "task-789",
+          planId: "00000000-0000-0000-0000-000000000000",
+          deliverableId: "00000000-0000-0000-0000-000000000000",
+          agentSlug: "test-agent",
+          agentType: "context",
+          provider: "anthropic",
+          model: "claude-sonnet-4-20250514",
+        },
+      };
+
+      expect(partialState.executionContext).toBeDefined();
+      expect(partialState.executionContext?.userId).toBe("user-123");
+      expect(partialState.executionContext?.orgSlug).toBe("test-org");
     });
 
     it("should include MessagesAnnotation fields", () => {

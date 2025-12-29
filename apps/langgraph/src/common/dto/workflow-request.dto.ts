@@ -1,20 +1,19 @@
-import { IsString, IsUUID, IsOptional, IsUrl, IsObject } from "class-validator";
+import { IsString, IsOptional, IsUrl, IsObject } from "class-validator";
+import { ExecutionContext } from "@orchestrator-ai/transport-types";
+import { IsValidExecutionContext } from "../validators/execution-context.validator";
 
+/**
+ * Request DTO for generic workflow execution
+ *
+ * Uses ExecutionContext capsule pattern - receives full context as a single object
+ * instead of individual fields (taskId, conversationId, userId, provider, model).
+ *
+ * Validation is done via custom @IsValidExecutionContext decorator
+ * which uses the isExecutionContext() type guard from transport-types.
+ */
 export class WorkflowRequestDto {
-  @IsUUID()
-  taskId: string;
-
-  @IsUUID()
-  conversationId: string;
-
-  @IsUUID()
-  userId: string;
-
-  @IsString()
-  provider: string; // e.g., 'openai', 'anthropic'
-
-  @IsString()
-  model: string; // e.g., 'gpt-4', 'claude-3-opus'
+  @IsValidExecutionContext()
+  context!: ExecutionContext;
 
   @IsString()
   prompt: string; // Main user prompt/announcement

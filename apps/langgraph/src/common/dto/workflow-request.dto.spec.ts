@@ -1,17 +1,22 @@
 import { validate } from "class-validator";
 import { plainToInstance } from "class-transformer";
 import { WorkflowRequestDto } from "./workflow-request.dto";
+import { createMockExecutionContext } from "@orchestrator-ai/transport-types";
 
 describe("WorkflowRequestDto", () => {
   describe("Validation - Happy Path", () => {
     it("should validate a valid WorkflowRequestDto", async () => {
       // Arrange
-      const validData = {
+      const mockContext = createMockExecutionContext({
         taskId: "550e8400-e29b-41d4-a716-446655440000",
         conversationId: "660e8400-e29b-41d4-a716-446655440001",
         userId: "770e8400-e29b-41d4-a716-446655440002",
         provider: "openai",
         model: "gpt-4",
+      });
+
+      const validData = {
+        context: mockContext,
         prompt: "Analyze this data and provide insights",
       };
 
@@ -21,22 +26,22 @@ describe("WorkflowRequestDto", () => {
 
       // Assert
       expect(errors).toHaveLength(0);
-      expect(dto.taskId).toBe(validData.taskId);
-      expect(dto.conversationId).toBe(validData.conversationId);
-      expect(dto.userId).toBe(validData.userId);
-      expect(dto.provider).toBe(validData.provider);
-      expect(dto.model).toBe(validData.model);
+      expect(dto.context).toEqual(mockContext);
       expect(dto.prompt).toBe(validData.prompt);
     });
 
     it("should validate with optional statusWebhook URL", async () => {
       // Arrange
-      const validData = {
+      const mockContext = createMockExecutionContext({
         taskId: "550e8400-e29b-41d4-a716-446655440000",
         conversationId: "660e8400-e29b-41d4-a716-446655440001",
         userId: "770e8400-e29b-41d4-a716-446655440002",
         provider: "anthropic",
         model: "claude-3-opus",
+      });
+
+      const validData = {
+        context: mockContext,
         prompt: "Write a blog post about AI",
         statusWebhook: "http://localhost:6100/webhooks/status",
       };
@@ -52,12 +57,16 @@ describe("WorkflowRequestDto", () => {
 
     it("should validate with HTTPS statusWebhook URL", async () => {
       // Arrange
-      const validData = {
+      const mockContext = createMockExecutionContext({
         taskId: "550e8400-e29b-41d4-a716-446655440000",
         conversationId: "660e8400-e29b-41d4-a716-446655440001",
         userId: "770e8400-e29b-41d4-a716-446655440002",
         provider: "openai",
         model: "gpt-4-turbo",
+      });
+
+      const validData = {
+        context: mockContext,
         prompt: "Generate a report",
         statusWebhook: "https://api.example.com/webhooks/task-updates",
       };
@@ -73,12 +82,16 @@ describe("WorkflowRequestDto", () => {
 
     it("should validate with optional metadata", async () => {
       // Arrange
-      const validData = {
+      const mockContext = createMockExecutionContext({
         taskId: "550e8400-e29b-41d4-a716-446655440000",
         conversationId: "660e8400-e29b-41d4-a716-446655440001",
         userId: "770e8400-e29b-41d4-a716-446655440002",
         provider: "anthropic",
         model: "claude-sonnet-4-20250514",
+      });
+
+      const validData = {
+        context: mockContext,
         prompt: "Create a marketing campaign",
         metadata: {
           organizationId: "org-123",
@@ -99,12 +112,16 @@ describe("WorkflowRequestDto", () => {
 
     it("should validate without optional fields", async () => {
       // Arrange
-      const validData = {
+      const mockContext = createMockExecutionContext({
         taskId: "550e8400-e29b-41d4-a716-446655440000",
         conversationId: "660e8400-e29b-41d4-a716-446655440001",
         userId: "770e8400-e29b-41d4-a716-446655440002",
         provider: "openai",
         model: "gpt-4",
+      });
+
+      const validData = {
+        context: mockContext,
         prompt: "Test prompt",
       };
 
@@ -119,15 +136,10 @@ describe("WorkflowRequestDto", () => {
     });
   });
 
-  describe("Validation - Invalid UUID Fields", () => {
-    it("should fail validation when taskId is not a valid UUID", async () => {
+  describe("Validation - Invalid ExecutionContext", () => {
+    it("should fail validation when context is missing", async () => {
       // Arrange
       const invalidData = {
-        taskId: "invalid-uuid",
-        conversationId: "660e8400-e29b-41d4-a716-446655440001",
-        userId: "770e8400-e29b-41d4-a716-446655440002",
-        provider: "openai",
-        model: "gpt-4",
         prompt: "Test prompt",
       };
 
@@ -137,19 +149,17 @@ describe("WorkflowRequestDto", () => {
 
       // Assert
       expect(errors.length).toBeGreaterThan(0);
-      const taskIdError = errors.find((error) => error.property === "taskId");
-      expect(taskIdError).toBeDefined();
-      expect(taskIdError?.constraints).toHaveProperty("isUuid");
+      const contextError = errors.find((error) => error.property === "context");
+      expect(contextError).toBeDefined();
     });
 
-    it("should fail validation when conversationId is not a valid UUID", async () => {
+    it("should fail validation when context is not a valid ExecutionContext", async () => {
       // Arrange
       const invalidData = {
-        taskId: "550e8400-e29b-41d4-a716-446655440000",
-        conversationId: "not-a-uuid",
-        userId: "770e8400-e29b-41d4-a716-446655440002",
-        provider: "openai",
-        model: "gpt-4",
+        context: {
+          taskId: "550e8400-e29b-41d4-a716-446655440000",
+          // Missing required ExecutionContext fields
+        },
         prompt: "Test prompt",
       };
 
@@ -159,21 +169,28 @@ describe("WorkflowRequestDto", () => {
 
       // Assert
       expect(errors.length).toBeGreaterThan(0);
-      const conversationIdError = errors.find(
-        (error) => error.property === "conversationId",
+      const contextError = errors.find((error) => error.property === "context");
+      expect(contextError).toBeDefined();
+      expect(contextError?.constraints).toHaveProperty(
+        "isValidExecutionContext",
       );
-      expect(conversationIdError).toBeDefined();
-      expect(conversationIdError?.constraints).toHaveProperty("isUuid");
     });
 
-    it("should fail validation when userId is not a valid UUID", async () => {
+    it("should fail validation when context has invalid field types", async () => {
       // Arrange
       const invalidData = {
-        taskId: "550e8400-e29b-41d4-a716-446655440000",
-        conversationId: "660e8400-e29b-41d4-a716-446655440001",
-        userId: "123456",
-        provider: "openai",
-        model: "gpt-4",
+        context: {
+          orgSlug: "test-org",
+          userId: 123, // Should be string
+          conversationId: "660e8400-e29b-41d4-a716-446655440001",
+          taskId: "550e8400-e29b-41d4-a716-446655440000",
+          planId: "00000000-0000-0000-0000-000000000000",
+          deliverableId: "00000000-0000-0000-0000-000000000000",
+          agentSlug: "test-agent",
+          agentType: "test-type",
+          provider: "openai",
+          model: "gpt-4",
+        },
         prompt: "Test prompt",
       };
 
@@ -183,125 +200,24 @@ describe("WorkflowRequestDto", () => {
 
       // Assert
       expect(errors.length).toBeGreaterThan(0);
-      const userIdError = errors.find((error) => error.property === "userId");
-      expect(userIdError).toBeDefined();
-      expect(userIdError?.constraints).toHaveProperty("isUuid");
+      const contextError = errors.find((error) => error.property === "context");
+      expect(contextError).toBeDefined();
     });
   });
 
   describe("Validation - Missing Required Fields", () => {
-    it("should fail validation when taskId is missing", async () => {
-      // Arrange
-      const invalidData = {
-        conversationId: "660e8400-e29b-41d4-a716-446655440001",
-        userId: "770e8400-e29b-41d4-a716-446655440002",
-        provider: "openai",
-        model: "gpt-4",
-        prompt: "Test prompt",
-      };
-
-      // Act
-      const dto = plainToInstance(WorkflowRequestDto, invalidData);
-      const errors = await validate(dto);
-
-      // Assert
-      expect(errors.length).toBeGreaterThan(0);
-      const taskIdError = errors.find((error) => error.property === "taskId");
-      expect(taskIdError).toBeDefined();
-    });
-
-    it("should fail validation when conversationId is missing", async () => {
-      // Arrange
-      const invalidData = {
-        taskId: "550e8400-e29b-41d4-a716-446655440000",
-        userId: "770e8400-e29b-41d4-a716-446655440002",
-        provider: "openai",
-        model: "gpt-4",
-        prompt: "Test prompt",
-      };
-
-      // Act
-      const dto = plainToInstance(WorkflowRequestDto, invalidData);
-      const errors = await validate(dto);
-
-      // Assert
-      expect(errors.length).toBeGreaterThan(0);
-      const conversationIdError = errors.find(
-        (error) => error.property === "conversationId",
-      );
-      expect(conversationIdError).toBeDefined();
-    });
-
-    it("should fail validation when userId is missing", async () => {
-      // Arrange
-      const invalidData = {
-        taskId: "550e8400-e29b-41d4-a716-446655440000",
-        conversationId: "660e8400-e29b-41d4-a716-446655440001",
-        provider: "openai",
-        model: "gpt-4",
-        prompt: "Test prompt",
-      };
-
-      // Act
-      const dto = plainToInstance(WorkflowRequestDto, invalidData);
-      const errors = await validate(dto);
-
-      // Assert
-      expect(errors.length).toBeGreaterThan(0);
-      const userIdError = errors.find((error) => error.property === "userId");
-      expect(userIdError).toBeDefined();
-    });
-
-    it("should fail validation when provider is missing", async () => {
-      // Arrange
-      const invalidData = {
-        taskId: "550e8400-e29b-41d4-a716-446655440000",
-        conversationId: "660e8400-e29b-41d4-a716-446655440001",
-        userId: "770e8400-e29b-41d4-a716-446655440002",
-        model: "gpt-4",
-        prompt: "Test prompt",
-      };
-
-      // Act
-      const dto = plainToInstance(WorkflowRequestDto, invalidData);
-      const errors = await validate(dto);
-
-      // Assert
-      expect(errors.length).toBeGreaterThan(0);
-      const providerError = errors.find(
-        (error) => error.property === "provider",
-      );
-      expect(providerError).toBeDefined();
-    });
-
-    it("should fail validation when model is missing", async () => {
-      // Arrange
-      const invalidData = {
-        taskId: "550e8400-e29b-41d4-a716-446655440000",
-        conversationId: "660e8400-e29b-41d4-a716-446655440001",
-        userId: "770e8400-e29b-41d4-a716-446655440002",
-        provider: "openai",
-        prompt: "Test prompt",
-      };
-
-      // Act
-      const dto = plainToInstance(WorkflowRequestDto, invalidData);
-      const errors = await validate(dto);
-
-      // Assert
-      expect(errors.length).toBeGreaterThan(0);
-      const modelError = errors.find((error) => error.property === "model");
-      expect(modelError).toBeDefined();
-    });
-
     it("should fail validation when prompt is missing", async () => {
       // Arrange
-      const invalidData = {
+      const mockContext = createMockExecutionContext({
         taskId: "550e8400-e29b-41d4-a716-446655440000",
         conversationId: "660e8400-e29b-41d4-a716-446655440001",
         userId: "770e8400-e29b-41d4-a716-446655440002",
         provider: "openai",
         model: "gpt-4",
+      });
+
+      const invalidData = {
+        context: mockContext,
       };
 
       // Act
@@ -316,60 +232,18 @@ describe("WorkflowRequestDto", () => {
   });
 
   describe("Validation - Invalid String Fields", () => {
-    it("should fail validation when provider is not a string", async () => {
-      // Arrange
-      const invalidData = {
-        taskId: "550e8400-e29b-41d4-a716-446655440000",
-        conversationId: "660e8400-e29b-41d4-a716-446655440001",
-        userId: "770e8400-e29b-41d4-a716-446655440002",
-        provider: 123, // Should be string
-        model: "gpt-4",
-        prompt: "Test prompt",
-      };
-
-      // Act
-      const dto = plainToInstance(WorkflowRequestDto, invalidData);
-      const errors = await validate(dto);
-
-      // Assert
-      expect(errors.length).toBeGreaterThan(0);
-      const providerError = errors.find(
-        (error) => error.property === "provider",
-      );
-      expect(providerError).toBeDefined();
-      expect(providerError?.constraints).toHaveProperty("isString");
-    });
-
-    it("should fail validation when model is not a string", async () => {
-      // Arrange
-      const invalidData = {
-        taskId: "550e8400-e29b-41d4-a716-446655440000",
-        conversationId: "660e8400-e29b-41d4-a716-446655440001",
-        userId: "770e8400-e29b-41d4-a716-446655440002",
-        provider: "openai",
-        model: { name: "gpt-4" }, // Should be string
-        prompt: "Test prompt",
-      };
-
-      // Act
-      const dto = plainToInstance(WorkflowRequestDto, invalidData);
-      const errors = await validate(dto);
-
-      // Assert
-      expect(errors.length).toBeGreaterThan(0);
-      const modelError = errors.find((error) => error.property === "model");
-      expect(modelError).toBeDefined();
-      expect(modelError?.constraints).toHaveProperty("isString");
-    });
-
     it("should fail validation when prompt is not a string", async () => {
       // Arrange
-      const invalidData = {
+      const mockContext = createMockExecutionContext({
         taskId: "550e8400-e29b-41d4-a716-446655440000",
         conversationId: "660e8400-e29b-41d4-a716-446655440001",
         userId: "770e8400-e29b-41d4-a716-446655440002",
         provider: "openai",
         model: "gpt-4",
+      });
+
+      const invalidData = {
+        context: mockContext,
         prompt: ["Test", "prompt"], // Should be string
       };
 
@@ -388,12 +262,16 @@ describe("WorkflowRequestDto", () => {
   describe("Validation - Invalid URL Fields", () => {
     it("should fail validation when statusWebhook is not a valid URL", async () => {
       // Arrange
-      const invalidData = {
+      const mockContext = createMockExecutionContext({
         taskId: "550e8400-e29b-41d4-a716-446655440000",
         conversationId: "660e8400-e29b-41d4-a716-446655440001",
         userId: "770e8400-e29b-41d4-a716-446655440002",
         provider: "openai",
         model: "gpt-4",
+      });
+
+      const invalidData = {
+        context: mockContext,
         prompt: "Test prompt",
         statusWebhook: "not-a-valid-url",
       };
@@ -413,12 +291,16 @@ describe("WorkflowRequestDto", () => {
 
     it("should fail validation when statusWebhook has no protocol", async () => {
       // Arrange
-      const invalidData = {
+      const mockContext = createMockExecutionContext({
         taskId: "550e8400-e29b-41d4-a716-446655440000",
         conversationId: "660e8400-e29b-41d4-a716-446655440001",
         userId: "770e8400-e29b-41d4-a716-446655440002",
         provider: "openai",
         model: "gpt-4",
+      });
+
+      const invalidData = {
+        context: mockContext,
         prompt: "Test prompt",
         statusWebhook: "localhost:6100/webhooks", // Missing protocol
       };
@@ -440,12 +322,16 @@ describe("WorkflowRequestDto", () => {
   describe("Validation - Invalid Metadata Field", () => {
     it("should fail validation when metadata is not an object", async () => {
       // Arrange
-      const invalidData = {
+      const mockContext = createMockExecutionContext({
         taskId: "550e8400-e29b-41d4-a716-446655440000",
         conversationId: "660e8400-e29b-41d4-a716-446655440001",
         userId: "770e8400-e29b-41d4-a716-446655440002",
         provider: "openai",
         model: "gpt-4",
+      });
+
+      const invalidData = {
+        context: mockContext,
         prompt: "Test prompt",
         metadata: "not-an-object", // Should be object
       };
@@ -465,12 +351,16 @@ describe("WorkflowRequestDto", () => {
 
     it("should fail validation when metadata is an array", async () => {
       // Arrange
-      const invalidData = {
+      const mockContext = createMockExecutionContext({
         taskId: "550e8400-e29b-41d4-a716-446655440000",
         conversationId: "660e8400-e29b-41d4-a716-446655440001",
         userId: "770e8400-e29b-41d4-a716-446655440002",
         provider: "openai",
         model: "gpt-4",
+      });
+
+      const invalidData = {
+        context: mockContext,
         prompt: "Test prompt",
         metadata: ["item1", "item2"], // Should be object, not array
       };
@@ -501,12 +391,16 @@ describe("WorkflowRequestDto", () => {
       "should validate with provider '%s' and model '%s'",
       async (provider, model) => {
         // Arrange
-        const validData = {
+        const mockContext = createMockExecutionContext({
           taskId: "550e8400-e29b-41d4-a716-446655440000",
           conversationId: "660e8400-e29b-41d4-a716-446655440001",
           userId: "770e8400-e29b-41d4-a716-446655440002",
           provider,
           model,
+        });
+
+        const validData = {
+          context: mockContext,
           prompt: "Test prompt",
         };
 
@@ -516,8 +410,8 @@ describe("WorkflowRequestDto", () => {
 
         // Assert
         expect(errors).toHaveLength(0);
-        expect(dto.provider).toBe(provider);
-        expect(dto.model).toBe(model);
+        expect(dto.context.provider).toBe(provider);
+        expect(dto.context.model).toBe(model);
       },
     );
   });
@@ -525,12 +419,16 @@ describe("WorkflowRequestDto", () => {
   describe("Edge Cases", () => {
     it("should validate with empty string prompt (validation passes, business logic may reject)", async () => {
       // Arrange
-      const validData = {
+      const mockContext = createMockExecutionContext({
         taskId: "550e8400-e29b-41d4-a716-446655440000",
         conversationId: "660e8400-e29b-41d4-a716-446655440001",
         userId: "770e8400-e29b-41d4-a716-446655440002",
         provider: "openai",
         model: "gpt-4",
+      });
+
+      const validData = {
+        context: mockContext,
         prompt: "", // Empty but still a string
       };
 
@@ -545,13 +443,17 @@ describe("WorkflowRequestDto", () => {
 
     it("should validate with very long prompt", async () => {
       // Arrange
-      const longPrompt = "A".repeat(10000);
-      const validData = {
+      const mockContext = createMockExecutionContext({
         taskId: "550e8400-e29b-41d4-a716-446655440000",
         conversationId: "660e8400-e29b-41d4-a716-446655440001",
         userId: "770e8400-e29b-41d4-a716-446655440002",
         provider: "openai",
         model: "gpt-4",
+      });
+
+      const longPrompt = "A".repeat(10000);
+      const validData = {
+        context: mockContext,
         prompt: longPrompt,
       };
 
@@ -566,12 +468,16 @@ describe("WorkflowRequestDto", () => {
 
     it("should validate with nested metadata", async () => {
       // Arrange
-      const validData = {
+      const mockContext = createMockExecutionContext({
         taskId: "550e8400-e29b-41d4-a716-446655440000",
         conversationId: "660e8400-e29b-41d4-a716-446655440001",
         userId: "770e8400-e29b-41d4-a716-446655440002",
         provider: "openai",
         model: "gpt-4",
+      });
+
+      const validData = {
+        context: mockContext,
         prompt: "Test prompt",
         metadata: {
           nested: {
