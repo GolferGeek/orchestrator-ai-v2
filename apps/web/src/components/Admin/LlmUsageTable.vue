@@ -11,12 +11,13 @@
         </ion-card-header>
         <ion-card-content>
           <ion-grid>
+            <!-- Dropdowns Row -->
             <ion-row>
-              <ion-col size="12" size-md="6" size-lg="3">
+              <ion-col size="12" size-md="6" size-lg="2">
                 <ion-item>
                   <ion-select
                     v-model="localFilters.callerType"
-                    placeholder="Caller Type"
+                    placeholder="All Types"
                     interface="popover"
                     @ion-change="applyFilters"
                   >
@@ -32,11 +33,11 @@
                 </ion-item>
               </ion-col>
               
-              <ion-col size="12" size-md="6" size-lg="3">
+              <ion-col size="12" size-md="6" size-lg="2">
                 <ion-item>
                   <ion-select
                     v-model="localFilters.callerName"
-                    placeholder="Caller Name"
+                    placeholder="All Names"
                     interface="popover"
                     @ion-change="applyFilters"
                   >
@@ -52,7 +53,22 @@
                 </ion-item>
               </ion-col>
               
-              <ion-col size="12" size-md="6" size-lg="3">
+              <ion-col size="12" size-md="6" size-lg="1">
+                <ion-item>
+                  <ion-select
+                    v-model="localFilters.route"
+                    placeholder="Local"
+                    interface="popover"
+                    @ion-change="applyFilters"
+                  >
+                    <ion-select-option value="">All Routes</ion-select-option>
+                    <ion-select-option value="local">Local</ion-select-option>
+                    <ion-select-option value="remote">Remote</ion-select-option>
+                  </ion-select>
+                </ion-item>
+              </ion-col>
+              
+              <ion-col size="12" size-md="6" size-lg="2">
                 <ion-item>
                   <ion-input
                     v-model="localFilters.startDate"
@@ -63,7 +79,7 @@
                 </ion-item>
               </ion-col>
               
-              <ion-col size="12" size-md="6" size-lg="3">
+              <ion-col size="12" size-md="6" size-lg="2">
                 <ion-item>
                   <ion-input
                     v-model="localFilters.endDate"
@@ -73,24 +89,8 @@
                   />
                 </ion-item>
               </ion-col>
-            </ion-row>
-            
-            <ion-row>
-              <ion-col size="12" size-md="6" size-lg="3">
-                <ion-item>
-                  <ion-select
-                    v-model="localFilters.route"
-                    placeholder="Route"
-                    interface="popover"
-                    @ion-change="applyFilters"
-                  >
-                    <ion-select-option value="">All Routes</ion-select-option>
-                    <ion-select-option value="local">Local</ion-select-option>
-                    <ion-select-option value="remote">Remote</ion-select-option>
-                  </ion-select>
-                </ion-item>
-              </ion-col>
-              <ion-col size="12" size-md="6" size-lg="3">
+              
+              <ion-col size="12" size-md="6" size-lg="1">
                 <ion-item>
                   <ion-input
                     v-model="localFilters.limit"
@@ -103,48 +103,49 @@
                 </ion-item>
               </ion-col>
               
-              <ion-col size="12" size-md="6" size-lg="3">
-                <ion-button 
-                  fill="outline" 
-                  @click="clearFilters"
-                  :disabled="loading"
-                >
-                  <ion-icon :icon="refreshOutline" slot="start" />
-                  Clear Filters
-                </ion-button>
+              <ion-col size="12" size-md="6" size-lg="2">
+                <ion-item lines="none" class="checkbox-item">
+                  <ion-checkbox 
+                    v-model="local7dPresetEnabled" 
+                    @ion-change="onLocal7dPresetChange"
+                    label-placement="end"
+                  >
+                    Local last 7 days
+                  </ion-checkbox>
+                </ion-item>
               </ion-col>
-              
-              <ion-col size="12" size-md="6" size-lg="3">
-                <ion-button 
-                  fill="solid" 
-                  @click="refreshData"
-                  :disabled="loading"
-                >
-                  <ion-icon :icon="refreshOutline" slot="start" />
-                  Refresh
-                </ion-button>
-              </ion-col>
-
-              <ion-col size="12" size-md="6" size-lg="3">
-                <ion-button 
-                  fill="outline" 
-                  color="secondary"
-                  @click="exportCsv"
-                  :disabled="loading || usageRecords.length === 0"
-                >
-                  Export CSV
-                </ion-button>
-              </ion-col>
-
-              <ion-col size="12" size-md="6" size-lg="3">
-                <ion-button 
-                  fill="outline" 
-                  color="tertiary"
-                  @click="applyPresetLocal7d"
-                  :disabled="loading"
-                >
-                  Local last 7 days
-                </ion-button>
+            </ion-row>
+            
+            <!-- Buttons Row -->
+            <ion-row>
+              <ion-col size="12">
+                <div class="buttons-container">
+                  <ion-button 
+                    fill="outline" 
+                    color="secondary"
+                    @click="exportCsv"
+                    :disabled="loading || usageRecords.length === 0"
+                  >
+                    Export CSV
+                  </ion-button>
+                  
+                  <ion-button 
+                    fill="outline" 
+                    @click="clearFilters"
+                    :disabled="loading"
+                  >
+                    Clear Filters
+                  </ion-button>
+                  
+                  <ion-button 
+                    fill="solid" 
+                    @click="refreshData"
+                    :disabled="loading"
+                  >
+                    <ion-icon :icon="refreshOutline" slot="start" />
+                    Refresh
+                  </ion-button>
+                </div>
               </ion-col>
             </ion-row>
           </ion-grid>
@@ -457,7 +458,8 @@ import {
   IonContent,
   IonList,
   IonLabel,
-  IonBadge
+  IonBadge,
+  IonCheckbox
 } from '@ionic/vue';
 import {
   filterOutline,
@@ -494,6 +496,7 @@ const localFilters = ref({
 
 const showDetailsModal = ref(false);
 const selectedRecord = ref<LlmUsageRecord | null>(null);
+const local7dPresetEnabled = ref(false);
 
 // Computed - Use storeToRefs to maintain reactivity
 const { 
@@ -627,14 +630,23 @@ const exportCsv = () => {
   URL.revokeObjectURL(url);
 };
 
-const applyPresetLocal7d = () => {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7).toISOString().split('T')[0];
-  const end = new Date().toISOString().split('T')[0];
-  localFilters.value.startDate = start;
-  localFilters.value.endDate = end;
-  localFilters.value.route = 'local';
-  applyFilters();
+const onLocal7dPresetChange = async (event: CustomEvent) => {
+  const isChecked = event.detail.checked;
+  if (isChecked) {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7).toISOString().split('T')[0];
+    const end = new Date().toISOString().split('T')[0];
+    localFilters.value.startDate = start;
+    localFilters.value.endDate = end;
+    localFilters.value.route = 'local';
+    applyFilters();
+  } else {
+    // Clear the preset filters when unchecked
+    localFilters.value.startDate = '';
+    localFilters.value.endDate = '';
+    localFilters.value.route = '';
+    applyFilters();
+  }
 };
 
 // Lifecycle
@@ -654,6 +666,21 @@ onUnmounted(() => {
 
 .filters-section {
   margin-bottom: 16px;
+}
+
+.checkbox-item {
+  padding: 0;
+}
+
+.checkbox-item ion-checkbox {
+  margin: 0;
+}
+
+.buttons-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem; /* 16px - matches Ionic grid gutter spacing */
+  align-items: center;
 }
 
 .stats-section {

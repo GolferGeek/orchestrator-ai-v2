@@ -10,7 +10,10 @@
       <!-- Time Range Selector -->
       <ion-card class="filters-card">
         <ion-card-header>
-          <ion-card-title>Analytics Filters</ion-card-title>
+          <ion-card-title>
+            <ion-icon :icon="filterOutline" style="margin-right: 8px;"></ion-icon>
+            Analytics Filters
+          </ion-card-title>
         </ion-card-header>
         <ion-card-content>
           <ion-grid>
@@ -308,7 +311,8 @@ import {
   cardOutline,
   cashOutline,
   trendingUpOutline,
-  downloadOutline
+  downloadOutline,
+  filterOutline
 } from 'ionicons/icons';
 import type { EvaluationAnalytics, WorkflowAnalytics, ConstraintAnalytics } from '@/types/analytics';
 

@@ -108,11 +108,11 @@ function formatOrgName(slug: string): string {
 .org-pill-app {
   padding: 0.35rem 0.75rem;
   border-radius: 4px;
-  background: #ffffff;
-  color: #333333;
+  background: var(--ion-color-step-50, rgba(255, 255, 255, 0.05));
+  color: var(--ion-text-color, #e0e0e0);
   font-size: 0.8rem;
   font-weight: 500;
-  border: 1px solid var(--ion-border-color, #d0d0d0);
+  border: 1px solid var(--ion-border-color, rgba(255, 255, 255, 0.1));
   white-space: nowrap;
 }
 
@@ -124,53 +124,55 @@ ion-select {
   --padding-top: 0.25rem;
   --padding-bottom: 0.25rem;
   --min-height: 32px;
-  --background: #ffffff;
-  --color: #333333;
-  --placeholder-color: #666666;
+  --background: var(--ion-color-step-50, rgba(255, 255, 255, 0.05));
+  --color: var(--ion-text-color, #e0e0e0);
+  --placeholder-color: var(--ion-color-medium, #999999);
   font-size: 0.8rem;
   font-weight: 500;
   border-radius: 4px;
-  border: 1px solid var(--ion-border-color, #d0d0d0);
-  color: #333333;
+  border: 1px solid var(--ion-border-color, rgba(255, 255, 255, 0.1));
+  color: var(--ion-text-color, #e0e0e0);
 }
 
 ion-select::part(text) {
-  color: #333333;
+  color: var(--ion-text-color, #e0e0e0);
 }
 
 ion-select::part(icon) {
-  color: #666666;
+  color: var(--ion-color-medium, #999999);
   opacity: 1;
 }
 
 ion-select::part(container) {
   border-radius: 4px;
 }
+</style>
 
-/* Dark mode overrides */
-:global(html.ion-palette-dark) .org-pill-app,
-:global(html[data-theme="dark"]) .org-pill-app {
-  background: var(--ion-background-color, #1a1a1a);
-  color: var(--ion-text-color, #ffffff);
-  border-color: var(--ion-border-color, #444444);
+<style>
+/* Light mode overrides - unscoped for higher specificity */
+html:not(.ion-palette-dark):not([data-theme="dark"]) .org-pill-app,
+html[data-theme="light"] .org-pill-app {
+  background: var(--ion-color-step-50, rgba(0, 0, 0, 0.05)) !important;
+  color: #333333 !important;
+  border-color: var(--ion-border-color, rgba(0, 0, 0, 0.1)) !important;
 }
 
-:global(html.ion-palette-dark) ion-select,
-:global(html[data-theme="dark"]) ion-select {
-  --background: var(--ion-background-color, #1a1a1a);
-  --color: var(--ion-text-color, #ffffff);
-  --placeholder-color: var(--ion-color-medium, #999999);
-  color: var(--ion-text-color, #ffffff);
-  border-color: var(--ion-border-color, #444444);
+html:not(.ion-palette-dark):not([data-theme="dark"]) .org-switcher-app ion-select,
+html[data-theme="light"] .org-switcher-app ion-select {
+  --background: var(--ion-color-step-50, rgba(0, 0, 0, 0.05)) !important;
+  --color: #333333 !important;
+  --placeholder-color: var(--ion-color-medium, #666666) !important;
+  color: #333333 !important;
+  border-color: var(--ion-border-color, rgba(0, 0, 0, 0.1)) !important;
 }
 
-:global(html.ion-palette-dark) ion-select::part(text),
-:global(html[data-theme="dark"]) ion-select::part(text) {
-  color: var(--ion-text-color, #ffffff);
+html:not(.ion-palette-dark):not([data-theme="dark"]) .org-switcher-app ion-select::part(text),
+html[data-theme="light"] .org-switcher-app ion-select::part(text) {
+  color: #333333 !important;
 }
 
-:global(html.ion-palette-dark) ion-select::part(icon),
-:global(html[data-theme="dark"]) ion-select::part(icon) {
-  color: var(--ion-color-medium, #999999);
+html:not(.ion-palette-dark):not([data-theme="dark"]) .org-switcher-app ion-select::part(icon),
+html[data-theme="light"] .org-switcher-app ion-select::part(icon) {
+  color: #666666 !important;
 }
 </style>

@@ -19,22 +19,15 @@
       <!-- Tab Navigation -->
       <ion-segment v-model="selectedTab" @ion-change="onTabChange">
         <ion-segment-button value="overview">
-          <ion-icon :icon="speedometerOutline" />
           <ion-label>Overview</ion-label>
         </ion-segment-button>
-        
         <ion-segment-button value="records">
-          <ion-icon :icon="listOutline" />
           <ion-label>Records</ion-label>
         </ion-segment-button>
-        
         <ion-segment-button value="analytics">
-          <ion-icon :icon="barChartOutline" />
           <ion-label>Analytics</ion-label>
         </ion-segment-button>
-        
         <ion-segment-button value="monitoring">
-          <ion-icon :icon="pulseOutline" />
           <ion-label>Live</ion-label>
         </ion-segment-button>
       </ion-segment>
@@ -44,120 +37,133 @@
         <!-- Overview Tab -->
         <div v-show="selectedTab === 'overview'" class="tab-panel">
           <div class="overview-section">
-            <!-- Route Filter -->
-            <ion-card>
-              <ion-card-header>
-                <ion-card-title>
-                  <ion-icon :icon="barChartOutline" />
-                  Filters
-                </ion-card-title>
-              </ion-card-header>
-              <ion-card-content>
-                <ion-segment v-model="routeFilter" @ion-change="onRouteFilterChange">
-                  <ion-segment-button value="all">
-                    <ion-label>All</ion-label>
-                  </ion-segment-button>
-                  <ion-segment-button value="local">
-                    <ion-label>Local</ion-label>
-                  </ion-segment-button>
-                  <ion-segment-button value="remote">
-                    <ion-label>Remote</ion-label>
-                  </ion-segment-button>
-                </ion-segment>
-                <div style="margin-top:12px;">
-                  <ion-button size="small" fill="outline" @click="applyPresetLocal7d">Local last 7 days</ion-button>
-                </div>
-              </ion-card-content>
-            </ion-card>
-            <!-- Quick Stats -->
-            <ion-card>
-              <ion-card-header>
-                <ion-card-title>
-                  <ion-icon :icon="statsChartOutline" />
-                  Quick Stats
-                </ion-card-title>
-              </ion-card-header>
-              <ion-card-content>
-                <ion-grid>
-                  <ion-row>
-                    <ion-col size="6" size-md="3">
-                      <div class="quick-stat">
-                        <div class="stat-value">{{ stats?.activeRuns || 0 }}</div>
-                        <div class="stat-label">Active Runs</div>
-                        <ion-chip 
-                          :color="stats?.activeRuns > 0 ? 'success' : 'medium'" 
-                          size="small"
-                        >
-                          <ion-icon :icon="stats?.activeRuns > 0 ? playCircleOutline : pauseCircleOutline" />
-                          {{ stats?.activeRuns > 0 ? 'Running' : 'Idle' }}
-                        </ion-chip>
-                      </div>
-                    </ion-col>
-                    
-                    <ion-col size="6" size-md="3">
-                      <div class="quick-stat">
-                        <div class="stat-value">{{ stats?.totalRunsToday || 0 }}</div>
-                        <div class="stat-label">Runs Today</div>
-                      </div>
-                    </ion-col>
-                    
-                    <ion-col size="6" size-md="3">
-                      <div class="quick-stat">
-                        <div class="stat-value">{{ formatDuration(stats?.avgDuration || 0) }}</div>
-                        <div class="stat-label">Avg Duration</div>
-                      </div>
-                    </ion-col>
-                    
-                    <ion-col size="6" size-md="3">
-                      <div class="quick-stat">
-                        <div class="stat-value">{{ formatCurrency(stats?.avgCost || 0) }}</div>
-                        <div class="stat-label">Avg Cost</div>
-                      </div>
-                    </ion-col>
-                  </ion-row>
-                </ion-grid>
-              </ion-card-content>
-            </ion-card>
+            <!-- Top Row: Filters, Quick Stats, Route Split -->
+            <div class="overview-top-row">
+              <!-- Route Filter -->
+              <ion-card class="overview-card filters-card">
+                <ion-card-header>
+                  <ion-card-title>
+                    <ion-icon :icon="filterOutline" style="margin-right: 8px;"></ion-icon>
+                    Filters
+                  </ion-card-title>
+                </ion-card-header>
+                <ion-card-content>
+                  <div class="filter-row">
+                    <ion-item lines="none" class="route-filter-item">
+                      <ion-select
+                        v-model="routeFilter"
+                        interface="popover"
+                        placeholder="Select Route"
+                        @ion-change="onRouteFilterChange"
+                      >
+                        <ion-select-option value="all">All</ion-select-option>
+                        <ion-select-option value="local">Local</ion-select-option>
+                        <ion-select-option value="remote">Remote</ion-select-option>
+                      </ion-select>
+                    </ion-item>
+                    <ion-item lines="none" class="preset-checkbox-item">
+                      <ion-checkbox 
+                        v-model="local7dPresetEnabled" 
+                        @ion-change="onLocal7dPresetChange"
+                        label-placement="end"
+                      >
+                        Local last 7 days
+                      </ion-checkbox>
+                    </ion-item>
+                  </div>
+                </ion-card-content>
+              </ion-card>
 
-            <!-- Route Split (Local vs Remote) -->
-            <ion-card>
-              <ion-card-header>
-                <ion-card-title>
-                  <ion-icon :icon="barChartOutline" />
-                  Route Split (Local vs Remote)
-                </ion-card-title>
-              </ion-card-header>
-              <ion-card-content>
-                <ion-grid>
-                  <ion-row>
-                    <ion-col size="12" size-md="6">
-                      <div class="route-stat">
-                        <div class="route-label">
-                          <ion-chip color="success" outline>Local</ion-chip>
+              <!-- Quick Stats -->
+              <ion-card class="overview-card stats-card">
+                <ion-card-header>
+                  <ion-card-title>
+                    <ion-icon :icon="statsChartOutline" />
+                    Quick Stats
+                  </ion-card-title>
+                </ion-card-header>
+                <ion-card-content>
+                  <ion-grid>
+                    <ion-row>
+                      <ion-col size="6" size-md="3">
+                        <div class="quick-stat">
+                          <div class="stat-value">{{ stats?.activeRuns || 0 }}</div>
+                          <div class="stat-label">Active Runs</div>
+                          <ion-chip 
+                            :color="stats?.activeRuns > 0 ? 'success' : 'medium'" 
+                            size="small"
+                          >
+                            <ion-icon :icon="stats?.activeRuns > 0 ? playCircleOutline : pauseCircleOutline" style="margin-right: 4px;" />
+                            {{ stats?.activeRuns > 0 ? 'Running' : 'Idle' }}
+                          </ion-chip>
                         </div>
-                        <div class="route-values">
-                          <span class="route-count">{{ routeSplit.local }}</span>
-                          <span class="route-percent">({{ routeSplit.localPercent }}%)</span>
+                      </ion-col>
+                      
+                      <ion-col size="6" size-md="3">
+                        <div class="quick-stat">
+                          <div class="stat-value">{{ stats?.totalRunsToday || 0 }}</div>
+                          <div class="stat-label">Runs Today</div>
                         </div>
-                        <ion-progress-bar color="success" :value="routeSplit.localPercent / 100" />
-                      </div>
-                    </ion-col>
-                    <ion-col size="12" size-md="6">
-                      <div class="route-stat">
-                        <div class="route-label">
-                          <ion-chip color="tertiary" outline>Remote</ion-chip>
+                      </ion-col>
+                      
+                      <ion-col size="6" size-md="3">
+                        <div class="quick-stat">
+                          <div class="stat-value">{{ formatDuration(stats?.avgDuration || 0) }}</div>
+                          <div class="stat-label">Avg Duration</div>
                         </div>
-                        <div class="route-values">
-                          <span class="route-count">{{ routeSplit.remote }}</span>
-                          <span class="route-percent">({{ routeSplit.remotePercent }}%)</span>
+                      </ion-col>
+                      
+                      <ion-col size="6" size-md="3">
+                        <div class="quick-stat">
+                          <div class="stat-value">{{ formatCurrency(stats?.avgCost || 0) }}</div>
+                          <div class="stat-label">Avg Cost</div>
                         </div>
-                        <ion-progress-bar color="tertiary" :value="routeSplit.remotePercent / 100" />
-                      </div>
-                    </ion-col>
-                  </ion-row>
-                </ion-grid>
-              </ion-card-content>
-            </ion-card>
+                      </ion-col>
+                    </ion-row>
+                  </ion-grid>
+                </ion-card-content>
+              </ion-card>
+
+              <!-- Route Split (Local vs Remote) -->
+              <ion-card class="overview-card route-card">
+                <ion-card-header>
+                  <ion-card-title>
+                    <ion-icon :icon="barChartOutline" />
+                    Route Split (Local vs Remote)
+                  </ion-card-title>
+                </ion-card-header>
+                <ion-card-content>
+                  <ion-grid>
+                    <ion-row>
+                      <ion-col size="12" size-md="6">
+                        <div class="route-stat">
+                          <div class="route-label">
+                            <ion-chip color="success" outline>Local</ion-chip>
+                          </div>
+                          <div class="route-values">
+                            <span class="route-count">{{ routeSplit.local }}</span>
+                            <span class="route-percent">({{ routeSplit.localPercent }}%)</span>
+                          </div>
+                          <ion-progress-bar color="success" :value="routeSplit.localPercent / 100" />
+                        </div>
+                      </ion-col>
+                      <ion-col size="12" size-md="6">
+                        <div class="route-stat">
+                          <div class="route-label">
+                            <ion-chip color="tertiary" outline>Remote</ion-chip>
+                          </div>
+                          <div class="route-values">
+                            <span class="route-count">{{ routeSplit.remote }}</span>
+                            <span class="route-percent">({{ routeSplit.remotePercent }}%)</span>
+                          </div>
+                          <ion-progress-bar color="tertiary" :value="routeSplit.remotePercent / 100" />
+                        </div>
+                      </ion-col>
+                    </ion-row>
+                  </ion-grid>
+                </ion-card-content>
+              </ion-card>
+            </div>
 
             <!-- Recent Activity -->
             <ion-card>
@@ -333,13 +339,14 @@ import {
   IonChip,
   IonBadge,
   IonSpinner,
-  IonProgressBar
+  IonProgressBar,
+  IonItem,
+  IonSelect,
+  IonSelectOption,
+  IonCheckbox
 } from '@ionic/vue';
 import {
-  speedometerOutline,
-  listOutline,
   barChartOutline,
-  pulseOutline,
   refreshOutline,
   refreshCircleOutline,
   statsChartOutline,
@@ -356,7 +363,8 @@ import {
   personCircleOutline,
   settingsOutline,
   personOutline,
-  helpCircleOutline
+  helpCircleOutline,
+  filterOutline
 } from 'ionicons/icons';
 
 import { useLLMAnalyticsStore } from '@/stores/llmAnalyticsStore';
@@ -371,6 +379,7 @@ const store = useLLMAnalyticsStore();
 const selectedTab = ref('overview');
 const autoRefreshEnabled = ref(false);
 const routeFilter = ref<'all' | 'local' | 'remote'>('all');
+const local7dPresetEnabled = ref(false);
 
 // Computed - Use storeToRefs to maintain reactivity
 const { usageRecords, stats, activeRuns, loading: _loading } = storeToRefs(store);
@@ -422,14 +431,23 @@ const onRouteFilterChange = async () => {
   await store.fetchAnalytics();
 };
 
-const applyPresetLocal7d = async () => {
-  routeFilter.value = 'local';
-  const start = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  const end = new Date().toISOString().split('T')[0];
-  store.updateFilters({ route: 'local' as string, startDate: start, endDate: end });
-  await store.fetchUsageRecords();
-  store.updateAnalyticsFilters({ route: 'local' as string, startDate: start, endDate: end });
-  await store.fetchAnalytics();
+const onLocal7dPresetChange = async (event: CustomEvent) => {
+  const isEnabled = event.detail.checked;
+  if (isEnabled) {
+    routeFilter.value = 'local';
+    const start = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const end = new Date().toISOString().split('T')[0];
+    store.updateFilters({ route: 'local' as string, startDate: start, endDate: end });
+    await store.fetchUsageRecords();
+    store.updateAnalyticsFilters({ route: 'local' as string, startDate: start, endDate: end });
+    await store.fetchAnalytics();
+  } else {
+    routeFilter.value = 'all';
+    store.updateFilters({ route: undefined, startDate: undefined, endDate: undefined });
+    await store.fetchUsageRecords();
+    store.updateAnalyticsFilters({ route: undefined, startDate: undefined, endDate: undefined });
+    await store.fetchAnalytics();
+  }
 };
 
 const toggleAutoRefresh = () => {
@@ -543,6 +561,11 @@ onUnmounted(() => {
 .detail-body {
   flex: 1;
   overflow-y: auto;
+  padding: 16px;
+}
+
+ion-segment {
+  margin-bottom: 20px;
 }
 
 .tab-content {
@@ -554,11 +577,63 @@ onUnmounted(() => {
 }
 
 .overview-section {
-  padding: 16px;
+  padding: 0;
+}
+
+.overview-top-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.overview-card {
+  flex: 1;
+  margin: 0;
+  min-width: 0;
+}
+
+.filters-card {
+  flex: 0 0 auto;
+  max-width: 280px;
+}
+
+.stats-card {
+  flex: 2;
+}
+
+.route-card {
+  flex: 1.5;
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.route-filter-item {
+  --background: var(--ion-color-light);
+  --border-radius: 8px;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  min-width: 140px;
+}
+
+.route-filter-item ion-select {
+  --placeholder-color: var(--ion-color-medium);
+  --placeholder-opacity: 1;
+}
+
+.preset-checkbox-item {
+  --background: transparent;
+  --padding-start: 0;
+  --padding-end: 0;
+  --inner-padding-end: 0;
 }
 
 .monitoring-section {
-  padding: 16px;
+  padding: 0;
 }
 
 .quick-stat {
@@ -731,7 +806,38 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 
+@media (max-width: 1024px) {
+  .overview-top-row {
+    flex-wrap: wrap;
+  }
+  
+  .filters-card {
+    max-width: none;
+    flex: 1 1 100%;
+  }
+  
+  .stats-card,
+  .route-card {
+    flex: 1 1 calc(50% - 8px);
+  }
+}
+
 @media (max-width: 768px) {
+  .overview-top-row {
+    flex-direction: column;
+  }
+  
+  .overview-card {
+    flex: 1 1 100%;
+  }
+  
+  .filters-card,
+  .stats-card,
+  .route-card {
+    max-width: none;
+    flex: 1 1 100%;
+  }
+  
   .activity-item {
     flex-direction: column;
     align-items: flex-start;

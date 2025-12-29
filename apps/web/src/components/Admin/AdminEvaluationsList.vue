@@ -90,31 +90,28 @@
           <ion-row>
             <!-- Boolean Filters -->
             <ion-col size="12" size-md="4">
-              <ion-item>
-                <ion-checkbox 
-                  v-model="localFilters.hasNotes" 
-                  @ionChange="onFilterChange"
-                ></ion-checkbox>
-                <ion-label class="ion-margin-start">Has Notes</ion-label>
-              </ion-item>
+              <ion-checkbox 
+                v-model="localFilters.hasNotes" 
+                @ionChange="onFilterChange"
+                label-placement="end"
+                justify="start"
+              >Has Notes</ion-checkbox>
             </ion-col>
             <ion-col size="12" size-md="4">
-              <ion-item>
-                <ion-checkbox 
-                  v-model="localFilters.hasWorkflowSteps" 
-                  @ionChange="onFilterChange"
-                ></ion-checkbox>
-                <ion-label class="ion-margin-start">Has Workflow</ion-label>
-              </ion-item>
+              <ion-checkbox 
+                v-model="localFilters.hasWorkflowSteps" 
+                @ionChange="onFilterChange"
+                label-placement="end"
+                justify="start"
+              >Has Workflow</ion-checkbox>
             </ion-col>
             <ion-col size="12" size-md="4">
-              <ion-item>
-                <ion-checkbox 
-                  v-model="localFilters.hasConstraints" 
-                  @ionChange="onFilterChange"
-                ></ion-checkbox>  
-                <ion-label class="ion-margin-start">Has Constraints</ion-label>
-              </ion-item>
+              <ion-checkbox 
+                v-model="localFilters.hasConstraints" 
+                @ionChange="onFilterChange"
+                label-placement="end"
+                justify="start"
+              >Has Constraints</ion-checkbox>
             </ion-col>
           </ion-row>
           <ion-row>
