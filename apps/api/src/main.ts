@@ -163,14 +163,14 @@ async function bootstrap() {
       // Allow requests with no origin (like mobile apps, curl, or tests)
       if (!origin) return callback(null, true);
 
-      // In development mode, allow localhost and test environments
-      // Treat undefined NODE_ENV as development
-      if (
+      // Check if we're in development mode
+      const isDevelopment =
         process.env.NODE_ENV === 'development' ||
         process.env.NODE_ENV === 'test' ||
         !process.env.NODE_ENV ||
-        process.env.NODE_ENV === 'undefined'
-      ) {
+        process.env.NODE_ENV === 'undefined';
+
+      if (isDevelopment) {
         // Allow localhost and common test origins
         if (
           origin.startsWith('http://localhost') ||
@@ -179,6 +179,25 @@ async function bootstrap() {
           origin === 'null' ||
           origin === 'file://'
         ) {
+          return callback(null, true);
+        }
+
+        // Allow Tailscale origins (*.ts.net)
+        if (origin.includes('.ts.net')) {
+          return callback(null, true);
+        }
+
+        // Allow local network IPs (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+        if (
+          /https?:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)/.test(
+            origin,
+          )
+        ) {
+          return callback(null, true);
+        }
+
+        // Allow 100.x.x.x range (Tailscale CGNAT range)
+        if (/https?:\/\/100\.\d+\.\d+\.\d+/.test(origin)) {
           return callback(null, true);
         }
       }
@@ -195,12 +214,7 @@ async function bootstrap() {
       }
 
       // In development, be more permissive for testing
-      // Treat undefined NODE_ENV as development
-      if (
-        process.env.NODE_ENV === 'development' ||
-        !process.env.NODE_ENV ||
-        process.env.NODE_ENV === 'undefined'
-      ) {
+      if (isDevelopment) {
         return callback(null, true);
       }
 
@@ -218,8 +232,6 @@ async function bootstrap() {
       'Accept-Encoding',
       'Pragma',
       'X-CSRF-Token',
-      'X-Requested-With',
-      'Accept',
       'Accept-Version',
       'Content-Length',
       'Content-MD5',
@@ -228,6 +240,7 @@ async function bootstrap() {
       'X-Test-Api-Key',
       'X-Agent-Namespace',
       'x-organization-slug',
+      'X-Team-ID',
     ],
   });
 

@@ -134,6 +134,7 @@ export function validateUrlProtocol(url: string): boolean {
 
 /**
  * Get secure base URL for API endpoints
+ * Uses same-origin API calls when accessed remotely (e.g., via Tailscale)
  */
 export function getSecureApiBaseUrl(): string {
   // Priority order for API base URL
@@ -141,13 +142,25 @@ export function getSecureApiBaseUrl(): string {
     import.meta.env.VITE_API_BASE_URL,
     import.meta.env.VITE_API_NESTJS_BASE_URL,
     import.meta.env.VITE_BASE_URL ? `${import.meta.env.VITE_BASE_URL}:6100` : null,
-    'http://localhost:6100' // Final fallback
   ].filter(Boolean);
-  
-  const baseUrl = candidates[0];
-  
-  // Enforce HTTPS if required
-  return enforceHttpsUrl(baseUrl);
+
+  // If explicit env var is set, use it
+  if (candidates.length > 0) {
+    return enforceHttpsUrl(candidates[0]);
+  }
+
+  // Dynamic fallback: detect if accessed from non-localhost and use same host with API port
+  // This enables Tailscale and other remote access scenarios
+  const hostname = window?.location?.hostname;
+  if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+    // Use the same hostname but with API port (6100 for dev)
+    const protocol = window.location.protocol;
+    const apiPort = import.meta.env.VITE_API_PORT || '6100';
+    return `${protocol}//${hostname}:${apiPort}`;
+  }
+
+  // Final fallback for local development
+  return enforceHttpsUrl('http://localhost:6100');
 }
 
 /**
