@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ExecutionContext, NIL_UUID } from '@orchestrator-ai/transport-types';
+import { ExecutionContext } from '@orchestrator-ai/transport-types';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import {
   HumanMessage,
@@ -29,8 +29,6 @@ import {
   LLMRequestOptions,
 } from './llm-interfaces';
 import {
-  Provider,
-  Model,
   CostCalculation,
   LLMUsageMetrics,
   CIDAFMOptions,
@@ -41,7 +39,6 @@ import type {
   PIIProcessingMetadata,
   PIIMatch,
 } from '../types/pii-metadata.types';
-import { mapProviderFromDb, mapModelFromDb } from '@/utils/case-converter';
 import { getTableName } from '@/supabase/supabase.config';
 import {
   LLMError,

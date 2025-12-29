@@ -619,13 +619,12 @@ describe("MarketingDbService", () => {
     // Skip: Complex Supabase chaining mocks need refactoring
     it.skip("should update output content with accumulated metadata", async () => {
       // Mock for accumulateLlmMetadata (reads current metadata)
-      mockSupabase.single
-        .mockResolvedValueOnce({
-          data: {
-            llm_metadata: { cost: 0.01, tokensUsed: 100, llmCallCount: 1 },
-          },
-          error: null,
-        });
+      mockSupabase.single.mockResolvedValueOnce({
+        data: {
+          llm_metadata: { cost: 0.01, tokensUsed: 100, llmCallCount: 1 },
+        },
+        error: null,
+      });
 
       // Mock for update
       mockSupabase.eq.mockResolvedValueOnce({
@@ -836,12 +835,10 @@ describe("MarketingDbService", () => {
 
     // Skip: Complex Supabase chaining mocks need refactoring
     it.skip("should return empty array when no approved outputs exist", async () => {
-      mockSupabase.eq
-        .mockReturnValueOnce(mockSupabase)
-        .mockResolvedValueOnce({
-          data: [],
-          error: null,
-        });
+      mockSupabase.eq.mockReturnValueOnce(mockSupabase).mockResolvedValueOnce({
+        data: [],
+        error: null,
+      });
 
       const result = await service.buildInitialEvaluations(
         mockTaskId,
@@ -852,12 +849,10 @@ describe("MarketingDbService", () => {
     });
 
     it("should return empty array on database error", async () => {
-      mockSupabase.eq
-        .mockReturnValueOnce(mockSupabase)
-        .mockResolvedValueOnce({
-          data: null,
-          error: { message: "Query failed" },
-        });
+      mockSupabase.eq.mockReturnValueOnce(mockSupabase).mockResolvedValueOnce({
+        data: null,
+        error: { message: "Query failed" },
+      });
 
       const result = await service.buildInitialEvaluations(
         mockTaskId,
@@ -1152,12 +1147,10 @@ describe("MarketingDbService", () => {
 
     // Skip: Complex Supabase chaining mocks need refactoring
     it.skip("should return empty array when no finalists exist", async () => {
-      mockSupabase.eq
-        .mockReturnValueOnce(mockSupabase)
-        .mockResolvedValueOnce({
-          data: [],
-          error: null,
-        });
+      mockSupabase.eq.mockReturnValueOnce(mockSupabase).mockResolvedValueOnce({
+        data: [],
+        error: null,
+      });
 
       const result = await service.buildFinalEvaluations(
         mockTaskId,

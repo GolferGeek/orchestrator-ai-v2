@@ -29,6 +29,13 @@ export interface HookEvent {
     summary?: string;
     timestamp?: number;
     model_name?: string;
+    userId?: string;
+    username?: string;
+    conversationId?: string;
+    taskId?: string;
+    agentSlug?: string;
+    organizationSlug?: string;
+    mode?: string;
     humanInTheLoop?: HumanInTheLoop;
     humanInTheLoopStatus?: HumanInTheLoopStatus;
 }

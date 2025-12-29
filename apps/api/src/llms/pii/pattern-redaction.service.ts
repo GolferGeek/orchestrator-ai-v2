@@ -238,10 +238,11 @@ export class PatternRedactionService {
 
       const map: Record<string, string> = {};
       if (data) {
-        for (const row of data as Array<{
+        const typedData = data as unknown as Array<{
           data_type: string;
           replacement: string;
-        }>) {
+        }>;
+        for (const row of typedData) {
           if (row.data_type && row.replacement) {
             // Use the first replacement found for each data type
             if (!map[row.data_type]) {

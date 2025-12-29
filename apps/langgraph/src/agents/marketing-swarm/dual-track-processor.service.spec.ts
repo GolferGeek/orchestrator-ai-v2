@@ -1,7 +1,10 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { Logger } from "@nestjs/common";
 import { createMockExecutionContext } from "@orchestrator-ai/transport-types";
-import { DualTrackProcessorService, SwarmPhase } from "./dual-track-processor.service";
+import {
+  DualTrackProcessorService,
+  SwarmPhase,
+} from "./dual-track-processor.service";
 import {
   MarketingDbService,
   ExecutionConfig,
@@ -106,7 +109,9 @@ describe("DualTrackProcessorService", () => {
   });
 
   // Mock EvaluationRow
-  const createMockEvaluation = (partial: Partial<EvaluationRow> = {}): EvaluationRow => ({
+  const createMockEvaluation = (
+    partial: Partial<EvaluationRow> = {},
+  ): EvaluationRow => ({
     id: "eval-1",
     task_id: "task-123",
     output_id: "output-1",
@@ -200,9 +205,9 @@ describe("DualTrackProcessorService", () => {
     service = module.get<DualTrackProcessorService>(DualTrackProcessorService);
 
     // Suppress logger output in tests
-    jest.spyOn(Logger.prototype, 'log').mockImplementation();
-    jest.spyOn(Logger.prototype, 'error').mockImplementation();
-    jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    jest.spyOn(Logger.prototype, "log").mockImplementation();
+    jest.spyOn(Logger.prototype, "error").mockImplementation();
+    jest.spyOn(Logger.prototype, "warn").mockImplementation();
   });
 
   afterEach(() => {
@@ -213,9 +218,9 @@ describe("DualTrackProcessorService", () => {
     it("should throw error if task config not found", async () => {
       mockDb.getTaskConfig.mockResolvedValue(null);
 
-      await expect(service.processTask("task-123", mockContext)).rejects.toThrow(
-        "Task config not found"
-      );
+      await expect(
+        service.processTask("task-123", mockContext),
+      ).rejects.toThrow("Task config not found");
     });
 
     it("should execute all phases successfully", async () => {
@@ -242,7 +247,9 @@ describe("DualTrackProcessorService", () => {
       expect(mockObservability.emitStarted).toHaveBeenCalled();
       expect(mockDb.buildOutputMatrix).toHaveBeenCalled();
       expect(mockDb.buildInitialEvaluations).toHaveBeenCalled();
-      expect(mockDb.calculateInitialRankingsAndSelectFinalists).toHaveBeenCalled();
+      expect(
+        mockDb.calculateInitialRankingsAndSelectFinalists,
+      ).toHaveBeenCalled();
       expect(mockDb.buildFinalEvaluations).toHaveBeenCalled();
       expect(mockDb.calculateFinalRankings).toHaveBeenCalled();
       expect(mockDb.updateTaskStatus).toHaveBeenCalledWith(taskId, "completed");
@@ -278,19 +285,21 @@ describe("DualTrackProcessorService", () => {
 
       mockDb.getTaskConfig.mockRejectedValue(new Error(errorMessage));
 
-      await expect(service.processTask(taskId, mockContext)).rejects.toThrow(errorMessage);
+      await expect(service.processTask(taskId, mockContext)).rejects.toThrow(
+        errorMessage,
+      );
 
       expect(mockDb.updateTaskStatus).toHaveBeenCalledWith(
         taskId,
         "failed",
         undefined,
-        errorMessage
+        errorMessage,
       );
       expect(mockObservability.emitFailed).toHaveBeenCalledWith(
         mockContext,
         taskId,
         errorMessage,
-        0
+        0,
       );
     });
 
@@ -316,18 +325,18 @@ describe("DualTrackProcessorService", () => {
       expect(mockObservability.emitStarted).toHaveBeenCalledWith(
         mockContext,
         taskId,
-        expect.any(String)
+        expect.any(String),
       );
       expect(mockObservability.emitProgress).toHaveBeenCalledWith(
         mockContext,
         taskId,
         expect.any(String),
-        expect.any(Object)
+        expect.any(Object),
       );
       expect(mockObservability.emitCompleted).toHaveBeenCalledWith(
         mockContext,
         taskId,
-        expect.any(Object)
+        expect.any(Object),
       );
     });
   });
@@ -353,14 +362,30 @@ describe("DualTrackProcessorService", () => {
       mockDb.getContentTypeContext.mockResolvedValue("Blog post guidelines");
       mockLLMClient.callLLM.mockResolvedValue({
         text: generatedContent,
-        usage: { promptTokens: 100, completionTokens: 400, totalTokens: 500, cost: 0.01 },
+        usage: {
+          promptTokens: 100,
+          completionTokens: 400,
+          totalTokens: 500,
+          cost: 0.01,
+        },
       });
-      mockDb.getOutputById.mockResolvedValue({ ...output, content: generatedContent });
+      mockDb.getOutputById.mockResolvedValue({
+        ...output,
+        content: generatedContent,
+      });
 
-      await (service as any).processWrite(taskId, mockContext, output, mockTaskConfig);
+      await (service as any).processWrite(
+        taskId,
+        mockContext,
+        output,
+        mockTaskConfig,
+      );
 
       // Verify status updates
-      expect(mockDb.updateOutputStatus).toHaveBeenCalledWith(output.id, "writing");
+      expect(mockDb.updateOutputStatus).toHaveBeenCalledWith(
+        output.id,
+        "writing",
+      );
 
       // Verify LLM call with proper ExecutionContext
       expect(mockLLMClient.callLLM).toHaveBeenCalledWith({
@@ -378,7 +403,7 @@ describe("DualTrackProcessorService", () => {
         output.id,
         generatedContent,
         "pending_edit",
-        expect.objectContaining({ tokensUsed: 500, cost: 0.01 })
+        expect.objectContaining({ tokensUsed: 500, cost: 0.01 }),
       );
 
       // Verify version saved
@@ -388,7 +413,7 @@ describe("DualTrackProcessorService", () => {
         generatedContent,
         "write",
         null,
-        expect.any(Object)
+        expect.any(Object),
       );
 
       // Verify progress emitted
@@ -402,7 +427,12 @@ describe("DualTrackProcessorService", () => {
       mockDb.getAgentPersonality.mockResolvedValue(null);
 
       await expect(
-        (service as any).processWrite(taskId, mockContext, output, mockTaskConfig)
+        (service as any).processWrite(
+          taskId,
+          mockContext,
+          output,
+          mockTaskConfig,
+        ),
       ).rejects.toThrow("Writer personality not found");
     });
 
@@ -415,7 +445,12 @@ describe("DualTrackProcessorService", () => {
       mockDb.getPromptData.mockResolvedValue(null);
 
       await expect(
-        (service as any).processWrite(taskId, mockContext, output, mockTaskConfig)
+        (service as any).processWrite(
+          taskId,
+          mockContext,
+          output,
+          mockTaskConfig,
+        ),
       ).rejects.toThrow("Task prompt data not found");
     });
   });
@@ -439,14 +474,27 @@ describe("DualTrackProcessorService", () => {
       });
       mockLLMClient.callLLM.mockResolvedValue({
         text: editorResponse,
-        usage: { promptTokens: 100, completionTokens: 200, totalTokens: 300, cost: 0.005 },
+        usage: {
+          promptTokens: 100,
+          completionTokens: 200,
+          totalTokens: 300,
+          cost: 0.005,
+        },
       });
       mockDb.getOutputById.mockResolvedValue({ ...output, status: "approved" });
 
-      await (service as any).processEdit(taskId, mockContext, output, mockTaskConfig);
+      await (service as any).processEdit(
+        taskId,
+        mockContext,
+        output,
+        mockTaskConfig,
+      );
 
       // Verify status updates
-      expect(mockDb.updateOutputStatus).toHaveBeenCalledWith(output.id, "editing");
+      expect(mockDb.updateOutputStatus).toHaveBeenCalledWith(
+        output.id,
+        "editing",
+      );
 
       // Verify editor called with proper context
       expect(mockLLMClient.callLLM).toHaveBeenCalledWith({
@@ -465,7 +513,7 @@ describe("DualTrackProcessorService", () => {
         "approved",
         expect.any(String),
         1, // Edit cycle incremented
-        expect.any(Object)
+        expect.any(Object),
       );
     });
 
@@ -490,11 +538,24 @@ describe("DualTrackProcessorService", () => {
       });
       mockLLMClient.callLLM.mockResolvedValue({
         text: editorResponse,
-        usage: { promptTokens: 100, completionTokens: 200, totalTokens: 300, cost: 0.005 },
+        usage: {
+          promptTokens: 100,
+          completionTokens: 200,
+          totalTokens: 300,
+          cost: 0.005,
+        },
       });
-      mockDb.getOutputById.mockResolvedValue({ ...output, status: "pending_rewrite" });
+      mockDb.getOutputById.mockResolvedValue({
+        ...output,
+        status: "pending_rewrite",
+      });
 
-      await (service as any).processEdit(taskId, mockContext, output, mockTaskConfig);
+      await (service as any).processEdit(
+        taskId,
+        mockContext,
+        output,
+        mockTaskConfig,
+      );
 
       // Verify content marked for rewrite
       expect(mockDb.updateOutputAfterEdit).toHaveBeenCalledWith(
@@ -503,7 +564,7 @@ describe("DualTrackProcessorService", () => {
         "pending_rewrite",
         expect.stringContaining("Needs more detail"),
         1,
-        expect.any(Object)
+        expect.any(Object),
       );
     });
 
@@ -515,7 +576,8 @@ describe("DualTrackProcessorService", () => {
         edit_cycle: 2, // One cycle before max (maxEditCycles = 3)
       });
       const editorPersonality = createMockPersonality("editor-clarity");
-      const editorResponse = "**Decision**: REQUEST_CHANGES\n**Feedback**: Still needs work";
+      const editorResponse =
+        "**Decision**: REQUEST_CHANGES\n**Feedback**: Still needs work";
 
       mockDb.getOutputById.mockResolvedValue(output);
       mockDb.getAgentPersonality.mockResolvedValue(editorPersonality);
@@ -525,11 +587,24 @@ describe("DualTrackProcessorService", () => {
       });
       mockLLMClient.callLLM.mockResolvedValue({
         text: editorResponse,
-        usage: { promptTokens: 100, completionTokens: 200, totalTokens: 300, cost: 0.005 },
+        usage: {
+          promptTokens: 100,
+          completionTokens: 200,
+          totalTokens: 300,
+          cost: 0.005,
+        },
       });
-      mockDb.getOutputById.mockResolvedValue({ ...output, status: "max_cycles_reached" });
+      mockDb.getOutputById.mockResolvedValue({
+        ...output,
+        status: "max_cycles_reached",
+      });
 
-      await (service as any).processEdit(taskId, mockContext, output, mockTaskConfig);
+      await (service as any).processEdit(
+        taskId,
+        mockContext,
+        output,
+        mockTaskConfig,
+      );
 
       // Verify max cycles reached
       expect(mockDb.updateOutputAfterEdit).toHaveBeenCalledWith(
@@ -538,19 +613,27 @@ describe("DualTrackProcessorService", () => {
         "max_cycles_reached",
         expect.any(String),
         3, // Edit cycle = maxEditCycles
-        expect.any(Object)
+        expect.any(Object),
       );
     });
 
     it("should throw error if editor personality not found", async () => {
       const taskId = "task-123";
-      const output = createMockOutput({ status: "pending_edit", content: "Draft" });
+      const output = createMockOutput({
+        status: "pending_edit",
+        content: "Draft",
+      });
 
       mockDb.getOutputById.mockResolvedValue(output);
       mockDb.getAgentPersonality.mockResolvedValue(null);
 
       await expect(
-        (service as any).processEdit(taskId, mockContext, output, mockTaskConfig)
+        (service as any).processEdit(
+          taskId,
+          mockContext,
+          output,
+          mockTaskConfig,
+        ),
       ).rejects.toThrow("Editor personality not found");
     });
   });
@@ -570,14 +653,30 @@ describe("DualTrackProcessorService", () => {
       mockDb.getAgentPersonality.mockResolvedValue(writerPersonality);
       mockLLMClient.callLLM.mockResolvedValue({
         text: revisedContent,
-        usage: { promptTokens: 200, completionTokens: 400, totalTokens: 600, cost: 0.012 },
+        usage: {
+          promptTokens: 200,
+          completionTokens: 400,
+          totalTokens: 600,
+          cost: 0.012,
+        },
       });
-      mockDb.getOutputById.mockResolvedValue({ ...output, content: revisedContent });
+      mockDb.getOutputById.mockResolvedValue({
+        ...output,
+        content: revisedContent,
+      });
 
-      await (service as any).processRewrite(taskId, mockContext, output, mockTaskConfig);
+      await (service as any).processRewrite(
+        taskId,
+        mockContext,
+        output,
+        mockTaskConfig,
+      );
 
       // Verify status updates
-      expect(mockDb.updateOutputStatus).toHaveBeenCalledWith(output.id, "rewriting");
+      expect(mockDb.updateOutputStatus).toHaveBeenCalledWith(
+        output.id,
+        "rewriting",
+      );
 
       // Verify LLM call includes feedback
       expect(mockLLMClient.callLLM).toHaveBeenCalledWith({
@@ -594,7 +693,7 @@ describe("DualTrackProcessorService", () => {
         output.id,
         revisedContent,
         "pending_edit",
-        expect.any(Object)
+        expect.any(Object),
       );
 
       // Verify version saved with feedback
@@ -604,7 +703,7 @@ describe("DualTrackProcessorService", () => {
         revisedContent,
         "rewrite",
         "Add more examples",
-        expect.any(Object)
+        expect.any(Object),
       );
     });
 
@@ -620,7 +719,12 @@ describe("DualTrackProcessorService", () => {
       mockDb.getAgentPersonality.mockResolvedValue(null);
 
       await expect(
-        (service as any).processRewrite(taskId, mockContext, output, mockTaskConfig)
+        (service as any).processRewrite(
+          taskId,
+          mockContext,
+          output,
+          mockTaskConfig,
+        ),
       ).rejects.toThrow("Writer personality not found");
     });
   });
@@ -631,7 +735,8 @@ describe("DualTrackProcessorService", () => {
       const evaluation = createMockEvaluation({ stage: "initial" });
       const output = createMockOutput({ content: "Content to evaluate" });
       const evaluatorPersonality = createMockPersonality("evaluator-quality");
-      const evaluationResponse = "**Score**: 8\n**Reasoning**: Well-written and clear";
+      const evaluationResponse =
+        "**Score**: 8\n**Reasoning**: Well-written and clear";
 
       mockDb.getAgentPersonality.mockResolvedValue(evaluatorPersonality);
       mockDb.getOutputById.mockResolvedValue(output);
@@ -641,7 +746,12 @@ describe("DualTrackProcessorService", () => {
       });
       mockLLMClient.callLLM.mockResolvedValue({
         text: evaluationResponse,
-        usage: { promptTokens: 50, completionTokens: 150, totalTokens: 200, cost: 0.004 },
+        usage: {
+          promptTokens: 50,
+          completionTokens: 150,
+          totalTokens: 200,
+          cost: 0.004,
+        },
       });
 
       await (service as any).processEvaluation(
@@ -649,7 +759,7 @@ describe("DualTrackProcessorService", () => {
         mockContext,
         evaluation,
         mockTaskConfig,
-        "initial"
+        "initial",
       );
 
       // Verify evaluator called
@@ -670,14 +780,14 @@ describe("DualTrackProcessorService", () => {
         "completed",
         undefined,
         undefined,
-        expect.objectContaining({ tokensUsed: 200, cost: 0.004 })
+        expect.objectContaining({ tokensUsed: 200, cost: 0.004 }),
       );
 
       // Verify cost added to output
       expect(mockDb.addEvaluationCostToOutput).toHaveBeenCalledWith(
         evaluation.output_id,
         0.004,
-        200
+        200,
       );
 
       // Verify progress emitted
@@ -689,9 +799,13 @@ describe("DualTrackProcessorService", () => {
     it("should successfully rank output in final stage", async () => {
       const taskId = "task-123";
       const evaluation = createMockEvaluation({ stage: "final" });
-      const output = createMockOutput({ content: "Content to rank", is_finalist: true });
+      const output = createMockOutput({
+        content: "Content to rank",
+        is_finalist: true,
+      });
       const evaluatorPersonality = createMockPersonality("evaluator-quality");
-      const rankingResponse = "**Rank**: 1\n**Reasoning**: Best content overall";
+      const rankingResponse =
+        "**Rank**: 1\n**Reasoning**: Best content overall";
 
       mockDb.getAgentPersonality.mockResolvedValue(evaluatorPersonality);
       mockDb.getOutputById.mockResolvedValue(output);
@@ -701,7 +815,12 @@ describe("DualTrackProcessorService", () => {
       });
       mockLLMClient.callLLM.mockResolvedValue({
         text: rankingResponse,
-        usage: { promptTokens: 75, completionTokens: 175, totalTokens: 250, cost: 0.005 },
+        usage: {
+          promptTokens: 75,
+          completionTokens: 175,
+          totalTokens: 250,
+          cost: 0.005,
+        },
       });
 
       await (service as any).processEvaluation(
@@ -709,7 +828,7 @@ describe("DualTrackProcessorService", () => {
         mockContext,
         evaluation,
         mockTaskConfig,
-        "final"
+        "final",
       );
 
       // Verify ranking saved with weighted score
@@ -720,7 +839,7 @@ describe("DualTrackProcessorService", () => {
         "completed",
         1, // Rank
         100, // Weighted score for rank 1
-        expect.objectContaining({ tokensUsed: 250, cost: 0.005 })
+        expect.objectContaining({ tokensUsed: 250, cost: 0.005 }),
       );
     });
 
@@ -735,7 +854,7 @@ describe("DualTrackProcessorService", () => {
         mockContext,
         evaluation,
         mockTaskConfig,
-        "initial"
+        "initial",
       );
 
       // Verify evaluation marked as failed
@@ -743,7 +862,7 @@ describe("DualTrackProcessorService", () => {
         evaluation.id,
         null,
         expect.stringContaining("Database error"),
-        "failed"
+        "failed",
       );
     });
   });
@@ -757,12 +876,14 @@ describe("DualTrackProcessorService", () => {
         status: "pending_write",
       });
 
-      mockDb.getNextOutputs.mockResolvedValueOnce([localOutput]).mockResolvedValueOnce([]);
+      mockDb.getNextOutputs
+        .mockResolvedValueOnce([localOutput])
+        .mockResolvedValueOnce([]);
 
       const actions = await (service as any).getNextWriteEditActions(
         taskId,
         mockExecutionConfig,
-        runningCounts
+        runningCounts,
       );
 
       expect(actions).toHaveLength(1);
@@ -779,14 +900,14 @@ describe("DualTrackProcessorService", () => {
       await (service as any).getNextWriteEditActions(
         taskId,
         mockExecutionConfig,
-        runningCounts
+        runningCounts,
       );
 
       // Should not request more local slots (maxLocalConcurrent = 1)
       expect(mockDb.getNextOutputs).not.toHaveBeenCalledWith(
         taskId,
         true,
-        expect.any(Number)
+        expect.any(Number),
       );
     });
 
@@ -799,14 +920,14 @@ describe("DualTrackProcessorService", () => {
       await (service as any).getNextWriteEditActions(
         taskId,
         mockExecutionConfig,
-        runningCounts
+        runningCounts,
       );
 
       // Should not request more cloud slots (maxCloudConcurrent = 3)
       expect(mockDb.getNextOutputs).not.toHaveBeenCalledWith(
         taskId,
         false,
-        expect.any(Number)
+        expect.any(Number),
       );
     });
 
@@ -826,7 +947,7 @@ describe("DualTrackProcessorService", () => {
       const actions = await (service as any).getNextWriteEditActions(
         taskId,
         mockExecutionConfig,
-        runningCounts
+        runningCounts,
       );
 
       expect(actions).toHaveLength(3); // 1 local + 2 cloud
@@ -853,7 +974,7 @@ describe("DualTrackProcessorService", () => {
       const prompt = (service as any).buildWriterPrompt(
         personality,
         promptData,
-        contentTypeContext
+        contentTypeContext,
       );
 
       expect(prompt).toContain("You are a writer-creative agent");
@@ -879,7 +1000,11 @@ describe("DualTrackProcessorService", () => {
         tone: "Formal",
       };
 
-      const prompt = (service as any).buildEditorPrompt(personality, content, promptData);
+      const prompt = (service as any).buildEditorPrompt(
+        personality,
+        content,
+        promptData,
+      );
 
       expect(prompt).toContain("You are a editor-clarity agent");
       expect(prompt).toContain("clarity");
@@ -897,7 +1022,7 @@ describe("DualTrackProcessorService", () => {
       const prompt = (service as any).buildRewritePrompt(
         personality,
         currentContent,
-        editorFeedback
+        editorFeedback,
       );
 
       expect(prompt).toContain("You are a writer-creative agent");
@@ -918,7 +1043,7 @@ describe("DualTrackProcessorService", () => {
       const prompt = (service as any).buildInitialEvaluationPrompt(
         personality,
         content,
-        promptData
+        promptData,
       );
 
       expect(prompt).toContain("You are a evaluator-quality agent");
@@ -930,12 +1055,16 @@ describe("DualTrackProcessorService", () => {
     it("should build final ranking prompt", () => {
       const personality = createMockPersonality("evaluator-quality");
       const content = "Finalist content";
-      const promptData = { topic: "AI", audience: "Professionals", goal: "Inform" };
+      const promptData = {
+        topic: "AI",
+        audience: "Professionals",
+        goal: "Inform",
+      };
 
       const prompt = (service as any).buildFinalRankingPrompt(
         personality,
         content,
-        promptData
+        promptData,
       );
 
       expect(prompt).toContain("FINAL RANKING ROUND");
@@ -950,7 +1079,10 @@ describe("DualTrackProcessorService", () => {
       const response = "**Decision**: APPROVE\n**Feedback**: Excellent work!";
       const originalContent = "Original content";
 
-      const result = (service as any).parseEditorResponse(response, originalContent);
+      const result = (service as any).parseEditorResponse(
+        response,
+        originalContent,
+      );
 
       expect(result.approved).toBe(true);
       expect(result.feedback).toContain("Excellent work");
@@ -964,7 +1096,10 @@ describe("DualTrackProcessorService", () => {
         "**Revised Content**: Improved version";
       const originalContent = "Original content";
 
-      const result = (service as any).parseEditorResponse(response, originalContent);
+      const result = (service as any).parseEditorResponse(
+        response,
+        originalContent,
+      );
 
       expect(result.approved).toBe(false);
       expect(result.feedback).toContain("Needs improvement");
@@ -984,15 +1119,20 @@ describe("DualTrackProcessorService", () => {
       const responseHigh = "**Score**: 15\n**Reasoning**: Amazing";
       const responseLow = "**Score**: 0\n**Reasoning**: Poor";
 
-      const resultHigh = (service as any).parseInitialEvaluationResponse(responseHigh);
-      const resultLow = (service as any).parseInitialEvaluationResponse(responseLow);
+      const resultHigh = (service as any).parseInitialEvaluationResponse(
+        responseHigh,
+      );
+      const resultLow = (service as any).parseInitialEvaluationResponse(
+        responseLow,
+      );
 
       expect(resultHigh.score).toBe(10); // Clamped to max
       expect(resultLow.score).toBe(1); // Clamped to min (0 rounds to 1)
     });
 
     it("should parse final ranking", () => {
-      const response = "**Rank**: 2\n**Reasoning**: Strong content, but not the best";
+      const response =
+        "**Rank**: 2\n**Reasoning**: Strong content, but not the best";
 
       const result = (service as any).parseFinalRankingResponse(response);
 
@@ -1004,7 +1144,9 @@ describe("DualTrackProcessorService", () => {
       const responseHigh = "**Rank**: 10\n**Reasoning**: Best";
       const responseLow = "**Rank**: 0\n**Reasoning**: Worst";
 
-      const resultHigh = (service as any).parseFinalRankingResponse(responseHigh);
+      const resultHigh = (service as any).parseFinalRankingResponse(
+        responseHigh,
+      );
       const resultLow = (service as any).parseFinalRankingResponse(responseLow);
 
       expect(resultHigh.rank).toBe(5); // Clamped to max
@@ -1044,11 +1186,14 @@ describe("DualTrackProcessorService", () => {
         taskId,
         mockContext,
         output,
-        mockTaskConfig
+        mockTaskConfig,
       );
 
       // Verify status was first set to "writing", then to "failed"
-      expect(mockDb.updateOutputStatus).toHaveBeenCalledWith(output.id, "writing");
+      expect(mockDb.updateOutputStatus).toHaveBeenCalledWith(
+        output.id,
+        "writing",
+      );
       expect(mockDb.updateOutputStatus).toHaveBeenCalledWith(
         output.id,
         "failed",
@@ -1056,7 +1201,7 @@ describe("DualTrackProcessorService", () => {
           llm_metadata: expect.objectContaining({
             error: expect.stringContaining("Personality not found"),
           }),
-        })
+        }),
       );
 
       // Verify progress emitted for both status updates
@@ -1065,7 +1210,10 @@ describe("DualTrackProcessorService", () => {
 
     it("should mark output as failed on edit error", async () => {
       const taskId = "task-123";
-      const output = createMockOutput({ status: "pending_edit", content: "Draft" });
+      const output = createMockOutput({
+        status: "pending_edit",
+        content: "Draft",
+      });
 
       mockDb.getOutputById.mockRejectedValue(new Error("Database error"));
 
@@ -1073,7 +1221,7 @@ describe("DualTrackProcessorService", () => {
         taskId,
         mockContext,
         output,
-        mockTaskConfig
+        mockTaskConfig,
       );
 
       expect(mockDb.updateOutputStatus).toHaveBeenCalledWith(
@@ -1083,7 +1231,7 @@ describe("DualTrackProcessorService", () => {
           llm_metadata: expect.objectContaining({
             error: expect.stringContaining("Database error"),
           }),
-        })
+        }),
       );
     });
 
@@ -1101,7 +1249,7 @@ describe("DualTrackProcessorService", () => {
         taskId,
         mockContext,
         output,
-        mockTaskConfig
+        mockTaskConfig,
       );
 
       expect(mockDb.updateOutputStatus).toHaveBeenCalledWith(
@@ -1111,7 +1259,7 @@ describe("DualTrackProcessorService", () => {
           llm_metadata: expect.objectContaining({
             error: expect.stringContaining("Output not found"),
           }),
-        })
+        }),
       );
     });
   });

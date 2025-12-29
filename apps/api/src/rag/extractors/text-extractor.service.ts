@@ -2,7 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import {
   IDocumentExtractor,
   ExtractionResult,
-  ExtractionMetadata,
 } from '../interfaces/document-extractor.interface';
 
 export interface TextExtractionResult {
@@ -58,19 +57,19 @@ export class TextExtractorService implements IDocumentExtractor {
   /**
    * Extract text and metadata (IDocumentExtractor interface)
    */
-  async extract(buffer: Buffer): Promise<ExtractionResult> {
+  extract(buffer: Buffer): Promise<ExtractionResult> {
     const result = this.extractInternal(buffer);
-    return {
+    return Promise.resolve({
       text: result.text,
       metadata: result.metadata,
-    };
+    });
   }
 
   /**
    * Extract text as string
    */
-  async extractText(buffer: Buffer): Promise<string> {
+  extractText(buffer: Buffer): Promise<string> {
     const result = this.extractInternal(buffer);
-    return result.text;
+    return Promise.resolve(result.text);
   }
 }

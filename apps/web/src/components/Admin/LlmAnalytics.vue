@@ -341,7 +341,6 @@ import {
   IonSelect,
   IonSelectOption,
   IonIcon,
-  IonButton,
   IonSpinner,
   IonCheckbox
 } from '@ionic/vue';

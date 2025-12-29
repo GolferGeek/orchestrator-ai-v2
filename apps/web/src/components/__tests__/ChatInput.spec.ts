@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { mount, VueWrapper } from '@vue/test-utils';
+import { mount } from '@vue/test-utils';
 import { IonicVue } from '@ionic/vue';
 import { createPinia, setActivePinia } from 'pinia';
 import ChatInput from '../ChatInput.vue';

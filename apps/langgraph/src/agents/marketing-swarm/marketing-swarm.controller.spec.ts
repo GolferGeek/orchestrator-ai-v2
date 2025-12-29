@@ -4,10 +4,7 @@ import { MarketingSwarmController } from "./marketing-swarm.controller";
 import { MarketingSwarmService } from "./marketing-swarm.service";
 import { MarketingSwarmRequestDto } from "./dto";
 import { createMockExecutionContext } from "@orchestrator-ai/transport-types";
-import {
-  MarketingSwarmResult,
-  TaskStatus,
-} from "./marketing-swarm.service";
+import { MarketingSwarmResult, TaskStatus } from "./marketing-swarm.service";
 import {
   OutputRow,
   EvaluationRow,
@@ -117,9 +114,7 @@ describe("MarketingSwarmController", () => {
       ],
     }).compile();
 
-    controller = module.get<MarketingSwarmController>(
-      MarketingSwarmController,
-    );
+    controller = module.get<MarketingSwarmController>(MarketingSwarmController);
     service = module.get(MarketingSwarmService);
   });
 
@@ -466,12 +461,12 @@ describe("MarketingSwarmController", () => {
     it("should throw NotFoundException for non-existent deliverable", async () => {
       service.getDeliverable.mockResolvedValue(null);
 
-      await expect(
-        controller.getDeliverable("non-existent"),
-      ).rejects.toThrow(NotFoundException);
-      await expect(
-        controller.getDeliverable("non-existent"),
-      ).rejects.toThrow("Deliverable not found for task: non-existent");
+      await expect(controller.getDeliverable("non-existent")).rejects.toThrow(
+        NotFoundException,
+      );
+      await expect(controller.getDeliverable("non-existent")).rejects.toThrow(
+        "Deliverable not found for task: non-existent",
+      );
     });
   });
 

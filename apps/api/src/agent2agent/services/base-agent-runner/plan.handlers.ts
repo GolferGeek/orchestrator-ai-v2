@@ -111,7 +111,7 @@ function validatePlanPayload(payload: unknown): payload is PlanModePayload {
       !validActions.includes(payloadObj.action)
     ) {
       throw new Error(
-        `Invalid plan action: ${payloadObj.action}. Must be one of: ${validActions.join(', ')}`,
+        `Invalid plan action: ${typeof payloadObj.action === 'string' ? payloadObj.action : JSON.stringify(payloadObj.action)}. Must be one of: ${validActions.join(', ')}`,
       );
     }
   }

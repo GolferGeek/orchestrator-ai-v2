@@ -45,7 +45,11 @@ async function bootstrap() {
     });
     app.use(express.json({ limit: '10mb' }));
     app.use(express.urlencoded({ limit: '10mb', extended: true }));
-    const port = parseInt(process.env.SERVER_PORT || '4100');
+    if (!process.env.SERVER_PORT) {
+        throw new Error('SERVER_PORT environment variable is required. ' +
+            'Set SERVER_PORT in your .env file (Dev: 6300, Staging: 8300, Prod: 9300)');
+    }
+    const port = parseInt(process.env.SERVER_PORT);
     await app.listen(port);
     console.log(`✅ Observability server running on http://localhost:${port}`);
     console.log(`📊 WebSocket endpoint: ws://localhost:${port}/stream`);

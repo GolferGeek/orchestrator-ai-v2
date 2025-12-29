@@ -412,12 +412,12 @@ describe('ConversationLoadingService', () => {
 
       // Mock ensureAgentsLoaded if it exists (it was removed in Phase 4.2 but service might still call it)
       if ('ensureAgentsLoaded' in agentsStore) {
-        vi.spyOn(agentsStore, 'ensureAgentsLoaded' as any).mockResolvedValue(undefined);
+        vi.spyOn(agentsStore, 'ensureAgentsLoaded' as never).mockResolvedValue(undefined);
       }
 
       // Mock LLM preferences - use direct assignment for options API stores
-      llmPreferencesStore.selectedProvider = { name: 'openai', displayName: 'OpenAI' } as any;
-      llmPreferencesStore.selectedModel = { modelName: 'gpt-4', displayName: 'GPT-4' } as any;
+      llmPreferencesStore.selectedProvider = { name: 'openai', displayName: 'OpenAI' } as never;
+      llmPreferencesStore.selectedModel = { modelName: 'gpt-4', displayName: 'GPT-4' } as never;
 
       const mockBackendConversation = {
         id: 'conv-1',
@@ -437,7 +437,7 @@ describe('ConversationLoadingService', () => {
         agent: mockAgent, // Include the agent object so chatUiStore can extract it
         agentName: 'my-agent', // Also set agentName for backward compatibility
         agentType: 'workflow', // Also set agentType
-      } as any);
+      } as never);
 
       const currentRoute = {
         name: 'home',

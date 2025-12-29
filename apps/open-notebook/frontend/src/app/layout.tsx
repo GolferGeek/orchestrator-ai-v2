@@ -22,10 +22,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-      </head>
       <body className={inter.className}>
+        <script
+          dangerouslySetInnerHTML={{ __html: themeScript }}
+        />
         <ErrorBoundary>
           <ThemeProvider>
             <QueryProvider>

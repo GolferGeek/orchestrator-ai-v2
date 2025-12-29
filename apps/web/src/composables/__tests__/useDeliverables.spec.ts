@@ -90,9 +90,9 @@ describe('useDeliverables', () => {
     it('should handle invalid response gracefully', async () => {
       const { processAgentResponse } = useDeliverables();
 
-      await processAgentResponse(null as any, 'conv-123');
-      await processAgentResponse(undefined as any, 'conv-123');
-      await processAgentResponse('string' as any, 'conv-123');
+      await processAgentResponse(null as never, 'conv-123');
+      await processAgentResponse(undefined as never, 'conv-123');
+      await processAgentResponse('string' as never, 'conv-123');
 
       expect(true).toBe(true);
     });
@@ -527,7 +527,7 @@ describe('useDeliverables', () => {
         { id: 'v2', versionNumber: 2 },
       ];
 
-      vi.mocked(store.getDeliverableVersions).mockResolvedValue(mockVersions as any);
+      vi.mocked(store.getDeliverableVersions).mockResolvedValue(mockVersions as never);
 
       const versions = await getVersions('del-123');
 
@@ -583,7 +583,7 @@ describe('useDeliverables', () => {
     });
 
     it('should expose computed properties that update', () => {
-      const { hasDeliverables, store } = useDeliverables();
+      const { hasDeliverables } = useDeliverables();
 
       expect(hasDeliverables.value).toBe(false);
 

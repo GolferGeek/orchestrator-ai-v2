@@ -47,17 +47,17 @@
             >
               <!-- Theme Preview -->
               <div class="flex h-16 rounded-md overflow-hidden mb-3">
-                <div 
+                <div
                   class="flex-1"
-                  :style="{ backgroundColor: theme.preview.primary }"
+                  :style="{ backgroundColor: theme.preview?.primary }"
                 ></div>
-                <div 
+                <div
                   class="flex-1"
-                  :style="{ backgroundColor: theme.preview.secondary }"
+                  :style="{ backgroundColor: theme.preview?.secondary }"
                 ></div>
-                <div 
+                <div
                   class="flex-1"
-                  :style="{ backgroundColor: theme.preview.accent }"
+                  :style="{ backgroundColor: theme.preview?.accent }"
                 ></div>
               </div>
               

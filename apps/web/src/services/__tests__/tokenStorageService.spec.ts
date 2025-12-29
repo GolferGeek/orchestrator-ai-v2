@@ -22,7 +22,7 @@ vi.mock('@capacitor/core', () => ({
 
 // Mock Capacitor Preferences (for native platform tests)
 const mockPreferences = {
-  get: vi.fn(async ({ key }: { key: string }) => ({ value: null })),
+  get: vi.fn(async (_params: { key: string }) => ({ value: null })),
   set: vi.fn(async () => ({})),
   remove: vi.fn(async () => ({})),
 };

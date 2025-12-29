@@ -25,16 +25,10 @@ interface TeamDbRow {
   updated_at: string;
 }
 
-interface TeamMemberDbRow {
+interface UserDbRow {
   id: string;
-  team_id: string;
-  user_id: string;
-  role: string;
-  joined_at: string;
-  user?: {
-    email: string;
-    display_name?: string;
-  };
+  email: string;
+  display_name?: string | null;
 }
 
 interface UserTeamDbRow {
@@ -75,21 +69,23 @@ export class TeamsService {
     const organizations = await this.rbacService.getUserOrganizations(userId);
 
     // Get user's teams
-    const { data: teamsData, error: teamsError } = await this.supabase
+    const teamsResult = await this.supabase
       .getServiceClient()
       .rpc('get_user_teams', { p_user_id: userId });
+    const teamsData: unknown = teamsResult.data;
+    const teamsError = teamsResult.error;
 
     if (teamsError) {
       this.logger.error(`Failed to get user teams: ${teamsError.message}`);
     }
 
-    const typedTeams = (teamsData as UserTeamDbRow[]) || [];
+    const typedTeams = (teamsData as unknown as UserTeamDbRow[]) || [];
 
     return {
       user: {
-        id: userData.id,
-        email: userData.email,
-        displayName: userData.display_name,
+        id: userData.id as string,
+        email: userData.email as string,
+        displayName: (userData.display_name as string | undefined) ?? undefined,
       },
       organizations: organizations.map((org) => ({
         slug: org.organizationSlug,
@@ -124,7 +120,7 @@ export class TeamsService {
       throw new Error(`Failed to get global teams: ${error.message}`);
     }
 
-    return this.mapTeamsWithCounts(data as TeamDbRow[]);
+    return this.mapTeamsWithCounts(data as unknown as TeamDbRow[]);
   }
 
   /**
@@ -143,7 +139,7 @@ export class TeamsService {
       throw new Error(`Failed to get teams: ${error.message}`);
     }
 
-    return this.mapTeamsWithCounts(data as TeamDbRow[]);
+    return this.mapTeamsWithCounts(data as unknown as TeamDbRow[]);
   }
 
   /**
@@ -183,18 +179,20 @@ export class TeamsService {
    * Get a single team by ID
    */
   async getTeamById(teamId: string): Promise<TeamResponseDto> {
-    const { data, error } = await this.supabase
+    const result = await this.supabase
       .getServiceClient()
       .from('teams')
       .select('*')
       .eq('id', teamId)
       .single();
+    const data: unknown = result.data;
+    const error = result.error;
 
     if (error || !data) {
       throw new NotFoundException('Team not found');
     }
 
-    const team = data as TeamDbRow;
+    const team = data as unknown as TeamDbRow;
 
     // Get member count
     const { count } = await this.supabase
@@ -241,7 +239,7 @@ export class TeamsService {
       }
     }
 
-    const { data, error } = await this.supabase
+    const result = await this.supabase
       .getServiceClient()
       .from('teams')
       .insert({
@@ -252,6 +250,8 @@ export class TeamsService {
       })
       .select()
       .single();
+    const data: unknown = result.data;
+    const error = result.error;
 
     if (error) {
       if (error.code === '23505') {
@@ -265,7 +265,7 @@ export class TeamsService {
       throw new Error(`Failed to create team: ${error.message}`);
     }
 
-    const team = data as TeamDbRow;
+    const team = data as unknown as TeamDbRow;
 
     return {
       id: team.id,
@@ -296,13 +296,15 @@ export class TeamsService {
       throw new ForbiddenException('Only admins can update teams');
     }
 
-    const { data, error } = await this.supabase
+    const result = await this.supabase
       .getServiceClient()
       .from('teams')
       .update(updates)
       .eq('id', teamId)
       .select()
       .single();
+    const data: unknown = result.data;
+    const error = result.error;
 
     if (error) {
       if (error.code === '23505') {
@@ -314,7 +316,7 @@ export class TeamsService {
       throw new Error(`Failed to update team: ${error.message}`);
     }
 
-    const updatedTeam = data as TeamDbRow;
+    const updatedTeam = data as unknown as TeamDbRow;
 
     return {
       id: updatedTeam.id,
@@ -375,12 +377,14 @@ export class TeamsService {
     }
 
     // Get user details for all members
-    const userIds = membersData.map((m) => m.user_id);
-    const { data: usersData, error: usersError } = await this.supabase
+    const userIds = membersData.map((m: { user_id: string }) => m.user_id);
+    const usersResult = await this.supabase
       .getServiceClient()
       .from('users')
       .select('id, email, display_name')
       .in('id', userIds);
+    const usersData: unknown = usersResult.data;
+    const usersError = usersResult.error;
 
     if (usersError) {
       this.logger.error(`Failed to get user details: ${usersError.message}`);
@@ -388,14 +392,23 @@ export class TeamsService {
     }
 
     // Create a map for quick lookup
+    const typedUsers = (usersData || []) as unknown as UserDbRow[];
     const userMap = new Map(
-      (usersData || []).map((u) => [
+      typedUsers.map((u) => [
         u.id,
-        { email: u.email, displayName: u.display_name },
+        { email: u.email, displayName: u.display_name ?? undefined },
       ]),
     );
 
-    return membersData.map((member) => {
+    const typedMembers = membersData as unknown as Array<{
+      id: string;
+      team_id: string;
+      user_id: string;
+      role: string;
+      joined_at: string;
+    }>;
+
+    return typedMembers.map((member) => {
       const user = userMap.get(member.user_id);
       return {
         id: member.id,
@@ -471,13 +484,21 @@ export class TeamsService {
       .eq('id', userId)
       .single();
 
+    const typedUserData = userData as unknown as UserDbRow | null;
+    const typedData = data as unknown as {
+      id: string;
+      user_id: string;
+      role: string;
+      joined_at: string;
+    };
+
     return {
-      id: data.id,
-      userId: data.user_id,
-      email: userData?.email || '',
-      displayName: userData?.display_name,
-      role: data.role as TeamMemberRole,
-      joinedAt: new Date(data.joined_at),
+      id: typedData.id,
+      userId: typedData.user_id,
+      email: typedUserData?.email || '',
+      displayName: typedUserData?.display_name ?? undefined,
+      role: typedData.role as TeamMemberRole,
+      joinedAt: new Date(typedData.joined_at),
     };
   }
 
@@ -523,13 +544,21 @@ export class TeamsService {
       .eq('id', userId)
       .single();
 
+    const typedUserData = userData as unknown as UserDbRow | null;
+    const typedData = data as unknown as {
+      id: string;
+      user_id: string;
+      role: string;
+      joined_at: string;
+    };
+
     return {
-      id: data.id,
-      userId: data.user_id,
-      email: userData?.email || '',
-      displayName: userData?.display_name,
-      role: data.role as TeamMemberRole,
-      joinedAt: new Date(data.joined_at),
+      id: typedData.id,
+      userId: typedData.user_id,
+      email: typedUserData?.email || '',
+      displayName: typedUserData?.display_name ?? undefined,
+      role: typedData.role as TeamMemberRole,
+      joinedAt: new Date(typedData.joined_at),
     };
   }
 
@@ -570,16 +599,18 @@ export class TeamsService {
    * Get teams for a specific user
    */
   async getUserTeams(userId: string): Promise<UserTeamResponseDto[]> {
-    const { data, error } = await this.supabase
+    const result = await this.supabase
       .getServiceClient()
       .rpc('get_user_teams', { p_user_id: userId });
+    const data: unknown = result.data;
+    const error = result.error;
 
     if (error) {
       this.logger.error(`Failed to get user teams: ${error.message}`);
       throw new Error(`Failed to get user teams: ${error.message}`);
     }
 
-    const typedData = (data as UserTeamDbRow[]) || [];
+    const typedData = (data as unknown as UserTeamDbRow[]) || [];
 
     return typedData.map((team) => ({
       id: team.team_id,

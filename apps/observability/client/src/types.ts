@@ -6,6 +6,7 @@ export interface HumanInTheLoop {
   choices?: string[]; // For multiple choice questions
   timeout?: number; // Optional timeout in seconds
   requiresResponse?: boolean; // Whether response is required or optional
+  status?: 'pending' | 'responded' | 'timeout' | 'error'; // Status property
 }
 
 // Response interface
@@ -48,6 +49,15 @@ export interface HookEvent {
   // NEW: Optional HITL data
   humanInTheLoop?: HumanInTheLoop;
   humanInTheLoopStatus?: HumanInTheLoopStatus;
+
+  // Additional fields used in the UI (from payload or computed)
+  eventType?: string; // Alias for hook_event_type
+  model?: string; // Model information from payload
+  tool_name?: string; // Tool name from payload
+  tool_command?: string; // Tool command from payload
+  tool_file?: { path?: string; [key: string]: any }; // Tool file from payload
+  hitl_question?: string; // HITL question from payload
+  hitl_permission?: string; // HITL permission from payload
 }
 
 export interface FilterOptions {

@@ -2,17 +2,13 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ExecutionContext, NIL_UUID } from '@orchestrator-ai/transport-types';
 import OpenAI from 'openai';
 import {
-  GenerateResponseParams,
   UnifiedGenerateResponseParams,
   LLMResponse,
-  LLMServiceConfig,
   LLMRequestOptions,
   ImageGenerationResponse,
   VideoGenerationResponse,
 } from './services/llm-interfaces';
 import {
-  Provider,
-  Model,
   CostCalculation,
   LLMUsageMetrics,
   CIDAFMOptions,
@@ -527,6 +523,7 @@ export class LLMService {
 
       return response;
     } catch (error) {
+      this.logger.error('Failed to poll video status:', error);
       throw error;
     }
   }

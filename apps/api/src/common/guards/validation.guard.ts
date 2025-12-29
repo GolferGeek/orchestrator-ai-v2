@@ -29,8 +29,8 @@ export class ValidationGuard implements CanActivate {
   canActivate(
     context: NestExecutionContext,
   ): boolean | Promise<boolean> | Observable<boolean> {
-    const request = context.switchToHttp().getRequest();
-    const body = request.body as unknown;
+    const request = context.switchToHttp().getRequest<{ body: unknown }>();
+    const body = request.body;
 
     // Validate A2A request format if it looks like an A2A request
     if (this.isA2ARequest(body)) {
@@ -69,7 +69,8 @@ export class ValidationGuard implements CanActivate {
 
     // Validate ExecutionContext if present
     const bodyObj = body as { params?: { context?: unknown } };
-    if (bodyObj.params && !isExecutionContext(bodyObj.params.context)) {
+    const params = bodyObj.params;
+    if (params && 'context' in params && !isExecutionContext(params.context)) {
       this.logger.warn('Invalid ExecutionContext in A2A request');
       throw new BadRequestException(
         'Invalid ExecutionContext in request - must include all required fields',

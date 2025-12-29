@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useConversationDetail } from '../useConversationDetail';
 import type {
   ConversationDetail,
-  ConversationMessage,
   TaskDetail,
   DeliverableDetail,
 } from '../useConversationDetail';
@@ -394,12 +393,12 @@ describe('useConversationDetail', () => {
 
   describe('Reactivity', () => {
     it('should update isLoading during fetch', async () => {
-      let resolveAxios: (value: any) => void;
+      let resolveAxios: (value: unknown) => void;
       const axiosPromise = new Promise((resolve) => {
         resolveAxios = resolve;
       });
 
-      vi.mocked(axios.get).mockReturnValue(axiosPromise as any);
+      vi.mocked(axios.get).mockReturnValue(axiosPromise as Promise<{ data: unknown }>);
 
       const { fetchConversationDetail, isLoading } = useConversationDetail();
 

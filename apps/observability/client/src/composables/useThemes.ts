@@ -434,7 +434,7 @@ export function useThemes() {
   // Computed properties
   const currentThemeData = computed(() => {
     if (state.value.isCustomTheme) {
-      return state.value.customThemes.find(t => t.id === state.value.currentTheme);
+      return state.value.customThemes?.find(t => t.id === state.value.currentTheme);
     }
     return PREDEFINED_THEMES[state.value.currentTheme as ThemeName];
   });
@@ -444,9 +444,9 @@ export function useThemes() {
   // Core theme management
   const setTheme = (theme: ThemeName | string) => {
     const isCustom = !PREDEFINED_THEME_NAMES.includes(theme as ThemeName);
-    
+
     if (isCustom) {
-      const customTheme = state.value.customThemes.find(t => t.id === theme);
+      const customTheme = state.value.customThemes?.find(t => t.id === theme);
       if (!customTheme) {
         console.error(`Custom theme not found: ${theme}`);
         return;
@@ -471,7 +471,7 @@ export function useThemes() {
     
     // Add new theme class
     const themeData = PREDEFINED_THEMES[themeName];
-    if (themeData) {
+    if (themeData && themeData.cssClass) {
       document.documentElement.classList.add(themeData.cssClass);
       
       // For backward compatibility with existing dark mode
@@ -552,6 +552,9 @@ export function useThemes() {
     };
 
     // Save locally
+    if (!state.value.customThemes) {
+      state.value.customThemes = [];
+    }
     state.value.customThemes.push(theme);
     saveCustomThemes();
 
@@ -568,6 +571,7 @@ export function useThemes() {
   };
 
   const updateCustomTheme = (themeId: string, updates: Partial<CustomTheme>) => {
+    if (!state.value.customThemes) return;
     const index = state.value.customThemes.findIndex(t => t.id === themeId);
     if (index !== -1) {
       state.value.customThemes[index] = {
@@ -580,11 +584,12 @@ export function useThemes() {
   };
 
   const deleteCustomTheme = (themeId: string) => {
+    if (!state.value.customThemes) return;
     const index = state.value.customThemes.findIndex(t => t.id === themeId);
     if (index !== -1) {
       state.value.customThemes.splice(index, 1);
       saveCustomThemes();
-      
+
       // Switch to default theme if current theme was deleted
       if (state.value.currentTheme === themeId) {
         setTheme('light');
@@ -594,7 +599,7 @@ export function useThemes() {
 
   // Import/Export
   const exportTheme = (themeId: string): ThemeImportExport | null => {
-    const theme = state.value.customThemes.find(t => t.id === themeId);
+    const theme = state.value.customThemes?.find(t => t.id === themeId);
     if (!theme) return null;
 
     return {
@@ -624,6 +629,9 @@ export function useThemes() {
         updatedAt: new Date().toISOString()
       };
 
+      if (!state.value.customThemes) {
+        state.value.customThemes = [];
+      }
       state.value.customThemes.push(newTheme);
       saveCustomThemes();
       return true;
@@ -738,22 +746,21 @@ export function useThemes() {
   };
 
   const previewTheme = (theme: ThemeName | CustomTheme) => {
-    managerState.value.previewTheme = theme;
-    
-    // Apply preview temporarily
     if (typeof theme === 'string') {
+      managerState.value.previewTheme = theme;
       applyPredefinedTheme(theme);
     } else {
+      managerState.value.previewTheme = theme.id || theme.name;
       applyCustomTheme(theme);
     }
   };
 
   const cancelPreview = () => {
     managerState.value.previewTheme = null;
-    
+
     // Restore current theme
     if (state.value.isCustomTheme) {
-      const customTheme = state.value.customThemes.find(t => t.id === state.value.currentTheme);
+      const customTheme = state.value.customThemes?.find(t => t.id === state.value.currentTheme);
       if (customTheme) {
         applyCustomTheme(customTheme);
       }
@@ -764,10 +771,7 @@ export function useThemes() {
 
   const applyPreview = () => {
     if (managerState.value.previewTheme) {
-      const theme = typeof managerState.value.previewTheme === 'string' 
-        ? managerState.value.previewTheme 
-        : managerState.value.previewTheme.id;
-      
+      const theme = managerState.value.previewTheme;
       setTheme(theme);
       managerState.value.previewTheme = null;
     }

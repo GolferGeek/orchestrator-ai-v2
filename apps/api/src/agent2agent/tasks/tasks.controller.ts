@@ -11,7 +11,6 @@ import {
   HttpCode,
   HttpStatus,
   Res,
-  BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
 import { Response } from 'express';

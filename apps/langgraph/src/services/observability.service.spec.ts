@@ -820,7 +820,11 @@ describe("ObservabilityService - Unit Tests", () => {
       const mockResponse = createMockAxiosResponse({});
       httpService.post.mockReturnValue(of(mockResponse));
 
-      await service.emitFailed(mockContext, threadId, "Database connection failed");
+      await service.emitFailed(
+        mockContext,
+        threadId,
+        "Database connection failed",
+      );
 
       expect(httpService.post).toHaveBeenCalledWith(
         expect.any(String),

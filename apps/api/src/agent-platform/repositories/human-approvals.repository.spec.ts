@@ -123,7 +123,7 @@ describe('HumanApprovalsRepository', () => {
         expect.objectContaining({
           status: 'approved',
           approved_by: 'user-1',
-          decision_at: expect.any(String),
+          decision_at: expect.any(String) as string,
         }),
       );
       expect(eq).toHaveBeenCalledWith('id', 'approval-1');

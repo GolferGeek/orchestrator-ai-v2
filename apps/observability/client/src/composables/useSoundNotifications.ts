@@ -161,6 +161,7 @@ export function useSoundNotifications() {
   return {
     isEnabled,
     volume,
+    playBeep,
     playCompletionSound,
     playNeedsInputSound,
     playErrorSound,

@@ -81,7 +81,7 @@ function validateBuildPayload(payload: unknown): payload is BuildModePayload {
       !validActions.includes(payloadObj.action)
     ) {
       throw new Error(
-        `Invalid build action: ${payloadObj.action}. Must be one of: ${validActions.join(', ')}`,
+        `Invalid build action: ${typeof payloadObj.action === 'string' ? payloadObj.action : JSON.stringify(payloadObj.action)}. Must be one of: ${validActions.join(', ')}`,
       );
     }
   }

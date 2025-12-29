@@ -7,8 +7,14 @@ import * as path from "path";
 dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
 const nextConfig: NextConfig = {
-  // Enable standalone output for optimized Docker deployment
-  output: "standalone",
+  // Standalone output for optimized Docker deployment
+  output: 'standalone',
+
+  reactStrictMode: true,
+
+  // Workaround for Next.js 15.4.10 Html import bug
+  // Skip trailing slash redirect to reduce static generation
+  skipTrailingSlashRedirect: true,
 
   // Pass environment variables to the client
   // These become available as process.env.NEXT_PUBLIC_*

@@ -101,9 +101,7 @@ describe("MarketingSwarmService", () => {
           provide: MarketingDbService,
           useValue: {
             getAllOutputs: jest.fn().mockResolvedValue([mockOutputRow]),
-            getAllEvaluations: jest
-              .fn()
-              .mockResolvedValue([mockEvaluationRow]),
+            getAllEvaluations: jest.fn().mockResolvedValue([mockEvaluationRow]),
             getDeliverable: jest.fn().mockResolvedValue(null),
             getVersionedDeliverable: jest.fn().mockResolvedValue(null),
             getTaskByConversationId: jest.fn().mockResolvedValue(null),
@@ -652,9 +650,7 @@ describe("MarketingSwarmService", () => {
 
   describe("Error handling", () => {
     it("should handle database connection errors in getStatus", async () => {
-      db.getAllOutputs.mockRejectedValue(
-        new Error("Connection timeout"),
-      );
+      db.getAllOutputs.mockRejectedValue(new Error("Connection timeout"));
 
       const result = await service.getStatus("task-123");
 
@@ -662,9 +658,7 @@ describe("MarketingSwarmService", () => {
     });
 
     it("should handle database connection errors in getFullState", async () => {
-      db.getAllEvaluations.mockRejectedValue(
-        new Error("Connection timeout"),
-      );
+      db.getAllEvaluations.mockRejectedValue(new Error("Connection timeout"));
 
       const result = await service.getFullState("task-123");
 
@@ -672,9 +666,7 @@ describe("MarketingSwarmService", () => {
     });
 
     it("should propagate processor errors in execute", async () => {
-      processor.processTask.mockRejectedValue(
-        new Error("Processing failed"),
-      );
+      processor.processTask.mockRejectedValue(new Error("Processing failed"));
 
       const result = await service.execute({
         context: mockContext,

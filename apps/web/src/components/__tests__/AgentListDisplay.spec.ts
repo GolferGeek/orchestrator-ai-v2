@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { mount, VueWrapper } from '@vue/test-utils';
+import { mount } from '@vue/test-utils';
 import { IonicVue } from '@ionic/vue';
 import { createPinia, setActivePinia } from 'pinia';
 import AgentListDisplay from '../AgentListDisplay.vue';
