@@ -266,13 +266,18 @@ export function useClaudeCodePanel() {
   /**
    * Add entry to output
    */
-  const addOutput = useCallback((type: OutputEntry['type'], content: string) => {
+  const addOutput = useCallback((
+    type: OutputEntry['type'],
+    content: string,
+    metadata?: OutputEntry['metadata']
+  ) => {
     setOutput((prev) => [
       ...prev,
       {
         type,
         content,
         timestamp: new Date(),
+        ...(metadata && { metadata }),
       },
     ]);
   }, []);
@@ -382,10 +387,18 @@ export function useClaudeCodePanel() {
           elapsedSeconds: elapsed,
           status: 'running',
         });
+
+        // Add output entry for new tool execution
+        addOutput('tool', `${toolName} (${verb})`, {
+          eventType: 'tool_progress',
+          toolName,
+          toolId,
+          verb,
+        });
       }
       return newMap;
     });
-  }, []);
+  }, [addOutput]);
 
   /**
    * Handle stream event - detect tool_use blocks starting/completing
@@ -404,6 +417,14 @@ export function useClaudeCodePanel() {
         const verb = getToolVerb(toolName);
         toolVerbsRef.current.set(toolId, verb);
         setCurrentToolVerb(`${verb}...`);
+
+        // Add output entry for tool start event
+        addOutput('event', `Tool started: ${toolName}`, {
+          eventType: 'content_block_start',
+          toolName,
+          toolId,
+          verb,
+        });
 
         setActiveTools((prev) => {
           const newMap = new Map(prev);
@@ -428,6 +449,16 @@ export function useClaudeCodePanel() {
         for (const [id, tool] of newMap.entries()) {
           if (tool.status === 'running') {
             newMap.set(id, { ...tool, status: 'completed' });
+
+            // Add output entry for tool completion
+            const verb = toolVerbsRef.current.get(id);
+            addOutput('event', `Tool completed: ${tool.name}`, {
+              eventType: 'content_block_stop',
+              toolName: tool.name,
+              toolId: id,
+              verb,
+            });
+
             // Clear verb after tool completes
             setTimeout(() => {
               setCurrentToolVerb('');
@@ -439,7 +470,7 @@ export function useClaudeCodePanel() {
         return newMap;
       });
     }
-  }, []);
+  }, [addOutput]);
 
   /**
    * Clear tool progress state
@@ -578,7 +609,8 @@ export function useClaudeCodePanel() {
         handleMessage,
         handleError,
         handleComplete,
-        sessionId
+        sessionId,
+        'orch-flow' // Pass source context for app-specific guidance
       );
     } catch (error) {
       handleError(error as Error);

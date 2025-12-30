@@ -53,7 +53,7 @@ export class CadAgentController {
         context,
         userMessage: request.userMessage,
         projectId: request.projectId,
-        drawingId: request.drawingId,
+        newProjectName: request.newProjectName,
         constraints: request.constraints,
       });
 
@@ -152,15 +152,9 @@ export class CadAgentController {
           case "gltf":
             result.gltf = url;
             // Extract mesh stats if available
-            if (
-              output.mesh_stats &&
-              typeof output.mesh_stats === "object"
-            ) {
+            if (output.mesh_stats && typeof output.mesh_stats === "object") {
               const stats = output.mesh_stats as Record<string, unknown>;
-              if (
-                stats.vertices !== undefined &&
-                stats.faces !== undefined
-              ) {
+              if (stats.vertices !== undefined && stats.faces !== undefined) {
                 meshStats = {
                   vertices: stats.vertices,
                   faces: stats.faces,

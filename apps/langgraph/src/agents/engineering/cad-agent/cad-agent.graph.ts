@@ -6,7 +6,14 @@ import {
   CadConstraints,
 } from "./cad-agent.state";
 import { CadDbService } from "./services/cad-db.service";
-import { CadStorageService, CadFileFormat } from "./services/cad-storage.service";
+import {
+  CadStorageService,
+  CadFileFormat,
+} from "./services/cad-storage.service";
+import {
+  OpenCascadeExecutorService,
+  OcctExecutionResult,
+} from "./services/opencascade-executor.service";
 import { LLMHttpClientService } from "../../../services/llm-http-client.service";
 import { ObservabilityService } from "../../../services/observability.service";
 import { PostgresCheckpointerService } from "../../../persistence/postgres-checkpointer.service";
@@ -22,8 +29,8 @@ const MAX_GENERATION_ATTEMPTS = 3;
  * 2. Apply Constraints → Inject project constraints
  * 3. Generate Code → Generate OpenCASCADE.js code using LLM
  * 4. Validate Code → Validate TypeScript/JS code
- * 5. Execute CAD → Execute OpenCASCADE.js code (PLACEHOLDER)
- * 6. Export Files → Export to multiple formats (PLACEHOLDER)
+ * 5. Execute CAD → Execute OpenCASCADE.js code via WASM
+ * 6. Export Files → Export to STEP, STL, GLTF formats
  * 7. Handle Error → Handle errors
  */
 export function createCadAgentGraph(
@@ -32,7 +39,10 @@ export function createCadAgentGraph(
   checkpointer: PostgresCheckpointerService,
   cadDbService: CadDbService,
   cadStorageService: CadStorageService,
+  occtExecutor: OpenCascadeExecutorService,
 ) {
+  // Store execution result for use in export node
+  let lastExecutionResult: OcctExecutionResult | null = null;
   // Node: Initialize workflow
   async function startNode(
     state: CadAgentState,
@@ -254,7 +264,7 @@ export function createCadAgentGraph(
     };
   }
 
-  // Node: Execute OpenCASCADE.js code (PLACEHOLDER for now)
+  // Node: Execute OpenCASCADE.js code using WASM executor
   async function executeCadNode(
     state: CadAgentState,
   ): Promise<Partial<CadAgentState>> {
@@ -270,41 +280,74 @@ export function createCadAgentGraph(
       await cadDbService.logStep({
         drawingId: state.drawingId,
         stepType: "execution_started",
-        message: "Starting CAD code execution (PLACEHOLDER)",
+        message: "Starting OpenCASCADE.js WASM code execution",
       });
     }
 
     try {
-      // PLACEHOLDER: For now, just log that execution would happen
-      // In future: Use opencascade.js WASM to run code
-      const executionTimeMs = 100; // Placeholder timing
+      if (!state.generatedCode) {
+        throw new Error("No generated code to execute");
+      }
+
+      // Execute code using OpenCASCADE.js WASM
+      const executionResult = await occtExecutor.executeCode(
+        state.generatedCode,
+      );
+
+      if (!executionResult.success) {
+        throw new Error(
+          executionResult.error || "OpenCASCADE execution failed",
+        );
+      }
+
+      // Store result for export node
+      lastExecutionResult = executionResult;
 
       // Log execution completion
       if (state.drawingId) {
         await cadDbService.logStep({
           drawingId: state.drawingId,
           stepType: "execution_completed",
-          message: "CAD code execution completed (PLACEHOLDER)",
-          details: { executionTimeMs },
+          message: "OpenCASCADE.js code execution completed successfully",
+          details: {
+            executionTimeMs: executionResult.executionTimeMs,
+            meshStats: executionResult.meshStats,
+          },
         });
       }
 
       return {
         executionStatus: "completed",
-        executionTimeMs,
+        executionTimeMs: executionResult.executionTimeMs,
+        meshStats: executionResult.meshStats,
         status: "exporting",
         messages: [
           ...state.messages,
           new AIMessage(
-            "CAD code execution completed (PLACEHOLDER - actual execution not yet implemented)",
+            `CAD code execution completed in ${executionResult.executionTimeMs}ms - ` +
+              `vertices: ${executionResult.meshStats?.vertices || 0}, ` +
+              `faces: ${executionResult.meshStats?.faces || 0}`,
           ),
         ],
       };
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
+      // Log execution failure
+      if (state.drawingId) {
+        await cadDbService.logStep({
+          drawingId: state.drawingId,
+          stepType: "execution_failed",
+          message: `OpenCASCADE.js execution failed: ${errorMessage}`,
+        });
+      }
+
       return {
         executionStatus: "failed",
-        executionError: error instanceof Error ? error.message : String(error),
-        error: `CAD execution failed: ${error instanceof Error ? error.message : String(error)}`,
+        executionError: errorMessage,
+        error: `CAD execution failed: ${errorMessage}`,
+        status: "failed",
       };
     }
   }
@@ -332,36 +375,80 @@ export function createCadAgentGraph(
         throw new Error("Missing projectId or drawingId for file export");
       }
 
-      // Generate placeholder CAD file content
-      // TODO: In future, these will be actual CAD files from OpenCASCADE execution
-      const generatedCode = state.generatedCode || "// No code generated";
-      const placeholderStepContent = generatePlaceholderStep(
-        state.userMessage,
-        generatedCode,
-      );
-      const placeholderStlContent = generatePlaceholderStl(state.userMessage);
-      const placeholderGltfContent = generatePlaceholderGltf(state.userMessage);
+      // Use execution result if available, otherwise fall back to placeholders
+      const hasRealExecution =
+        lastExecutionResult?.success &&
+        lastExecutionResult.stepContent &&
+        lastExecutionResult.stlContent &&
+        lastExecutionResult.gltfContent;
+
+      let stepContent: Buffer;
+      let stlContent: Buffer;
+      let gltfContent: Buffer;
+      let dxfContent: Buffer;
+      let thumbnailContent: Buffer;
+      let meshStats = state.meshStats;
+
+      if (hasRealExecution && lastExecutionResult) {
+        // Use real execution results
+        stepContent = Buffer.from(lastExecutionResult.stepContent!, "utf-8");
+        stlContent = Buffer.from(lastExecutionResult.stlContent!, "utf-8");
+        gltfContent = lastExecutionResult.gltfContent!;
+        dxfContent = Buffer.from(lastExecutionResult.dxfContent || "", "utf-8");
+        thumbnailContent =
+          lastExecutionResult.thumbnailContent || Buffer.alloc(0);
+        meshStats = lastExecutionResult.meshStats;
+      } else {
+        // Fall back to placeholders (for testing or if execution failed)
+        const generatedCode = state.generatedCode || "// No code generated";
+        stepContent = Buffer.from(
+          generatePlaceholderStep(state.userMessage, generatedCode),
+          "utf-8",
+        );
+        stlContent = Buffer.from(
+          generatePlaceholderStl(state.userMessage),
+          "utf-8",
+        );
+        gltfContent = Buffer.from(
+          generatePlaceholderGltf(state.userMessage),
+          "utf-8",
+        );
+        dxfContent = Buffer.from(
+          generatePlaceholderDxf(state.userMessage),
+          "utf-8",
+        );
+        thumbnailContent = Buffer.from(generatePlaceholderThumbnail(), "utf-8");
+        meshStats = {
+          vertices: 8,
+          faces: 12,
+          boundingBox: {
+            min: { x: -5, y: -5, z: -5 },
+            max: { x: 5, y: 5, z: 5 },
+          },
+        };
+      }
 
       // Upload files to Supabase Storage
       const outputs: Record<string, string> = {};
-      const formats: CadFileFormat[] = ["step", "stl", "gltf"];
+      const fileContents: Record<CadFileFormat, Buffer> = {
+        step: stepContent,
+        stl: stlContent,
+        gltf: gltfContent,
+        dxf: dxfContent,
+        thumbnail: thumbnailContent,
+      };
+
+      const formats: CadFileFormat[] = [
+        "step",
+        "stl",
+        "gltf",
+        "dxf",
+        "thumbnail",
+      ];
 
       for (const format of formats) {
-        let fileContent: Buffer;
-
-        switch (format) {
-          case "step":
-            fileContent = Buffer.from(placeholderStepContent, "utf-8");
-            break;
-          case "stl":
-            fileContent = Buffer.from(placeholderStlContent, "utf-8");
-            break;
-          case "gltf":
-            fileContent = Buffer.from(placeholderGltfContent, "utf-8");
-            break;
-          default:
-            continue;
-        }
+        const fileContent = fileContents[format];
+        if (fileContent.length === 0) continue;
 
         // Upload to storage
         const storageResult = await cadStorageService.storeFile(
@@ -382,14 +469,7 @@ export function createCadAgentGraph(
           fileSizeBytes: storageResult.sizeBytes,
           meshStats:
             format === "gltf"
-              ? {
-                  vertices: 8, // Placeholder cube stats
-                  faces: 12,
-                  boundingBox: {
-                    min: { x: -5, y: -5, z: -5 },
-                    max: { x: 5, y: 5, z: 5 },
-                  },
-                }
+              ? (meshStats as unknown as Record<string, unknown>)
               : undefined,
         });
       }
@@ -398,8 +478,10 @@ export function createCadAgentGraph(
       await cadDbService.logStep({
         drawingId: state.drawingId,
         stepType: "export_completed",
-        message: "File export completed - files stored in Supabase",
-        details: { outputs },
+        message: hasRealExecution
+          ? "File export completed with real OpenCASCADE geometry"
+          : "File export completed with placeholder geometry",
+        details: { outputs, hasRealExecution },
       });
 
       // Update drawing status to completed
@@ -409,26 +491,26 @@ export function createCadAgentGraph(
 
       await observability.emitCompleted(ctx, ctx.taskId, { outputs }, duration);
 
+      // Clear execution result after export
+      lastExecutionResult = null;
+
       return {
         outputs: {
           step: outputs.step,
           stl: outputs.stl,
           gltf: outputs.gltf,
+          dxf: outputs.dxf,
+          thumbnail: outputs.thumbnail,
         },
-        meshStats: {
-          vertices: 8,
-          faces: 12,
-          boundingBox: {
-            min: { x: -5, y: -5, z: -5 },
-            max: { x: 5, y: 5, z: 5 },
-          },
-        },
+        meshStats,
         status: "completed",
         completedAt: Date.now(),
         messages: [
           ...state.messages,
           new AIMessage(
-            `Files exported successfully to Supabase Storage: STEP, STL, GLTF`,
+            hasRealExecution
+              ? `Files exported successfully: STEP, STL, GLTF, DXF, Thumbnail (vertices: ${meshStats?.vertices}, faces: ${meshStats?.faces})`
+              : `Files exported successfully (placeholder geometry): STEP, STL, GLTF, DXF, Thumbnail`,
           ),
         ],
       };
@@ -559,81 +641,97 @@ function buildConstraintPrompt(constraints: CadConstraints): string {
 function buildOpenCascadeSystemPrompt(constraints: CadConstraints): string {
   return `You are an expert CAD engineer specializing in OpenCASCADE.js.
 
-Your task is to generate TypeScript/JavaScript code using the OpenCASCADE.js library to create 3D CAD models.
+Your task is to generate **plain JavaScript** code using the OpenCASCADE.js library to create 3D CAD models.
 
-**OpenCASCADE.js API Hints:**
+**CRITICAL RULES - FOLLOW EXACTLY:**
+1. Code must be plain JavaScript - NO TypeScript syntax!
+2. NO type annotations, NO import/export statements
+3. ALWAYS use the EXACT class names shown below (with numbered suffixes like _2, _3)
+4. ALWAYS call .Shape() on shape builders to get the actual shape
 
-Basic Primitives:
-- oc.MakeBox(x, y, z) - Create a box
-- oc.MakeCylinder(radius, height) - Create a cylinder
-- oc.MakeSphere(radius) - Create a sphere
-- oc.MakeCone(radius1, radius2, height) - Create a cone
+**OpenCASCADE.js API - EXACT PATTERNS TO USE:**
 
-Boolean Operations:
-- oc.BRepAlgoAPI_Fuse(shape1, shape2) - Union/combine shapes
-- oc.BRepAlgoAPI_Cut(shape1, shape2) - Subtract shape2 from shape1
-- oc.BRepAlgoAPI_Common(shape1, shape2) - Intersection of shapes
+PRIMITIVES - Create shapes using these exact constructors:
+\`\`\`javascript
+// Box: BRepPrimAPI_MakeBox_2(dx, dy, dz)
+const box = new oc.BRepPrimAPI_MakeBox_2(10, 10, 10).Shape();
 
-Transformations:
-- oc.Translate(shape, x, y, z) - Move shape
-- oc.Rotate(shape, axis, angle) - Rotate shape
-- oc.Scale(shape, factor) - Scale shape
+// Sphere at center point: BRepPrimAPI_MakeSphere_5(center, radius)
+const center = new oc.gp_Pnt_3(5, 5, 5);
+const sphere = new oc.BRepPrimAPI_MakeSphere_5(center, 3).Shape();
 
-Features:
-- oc.BRepFilletAPI_MakeFillet(shape, radius) - Add fillets/rounds to edges
-- oc.BRepFilletAPI_MakeChamfer(shape, distance) - Add chamfers to edges
-- oc.BRepPrimAPI_MakePrism(face, vector) - Extrude a face
+// Cylinder: BRepPrimAPI_MakeCylinder_1(radius, height)
+const cylinder = new oc.BRepPrimAPI_MakeCylinder_1(2, 10).Shape();
 
-Export:
-- oc.WriteSTEP(shape, filename) - Export to STEP format
-- oc.WriteSTL(shape, filename) - Export to STL format
+// Cone: BRepPrimAPI_MakeCone_1(r1, r2, height)
+const cone = new oc.BRepPrimAPI_MakeCone_1(5, 2, 10).Shape();
+\`\`\`
 
-**Common CAD Patterns:**
+BOOLEAN OPERATIONS - Combine shapes:
+\`\`\`javascript
+// Cut (subtract shape2 from shape1)
+const cut = new oc.BRepAlgoAPI_Cut_3(shape1, shape2, new oc.Message_ProgressRange_1());
+cut.Build(new oc.Message_ProgressRange_1());
+const cutResult = cut.Shape();
 
-1. Create base shape (box, cylinder, etc.)
-2. Apply transformations (translate, rotate)
-3. Add features (fillets, chamfers, holes via boolean cuts)
-4. Combine multiple shapes (boolean union/subtract)
-5. Export to desired format
+// Fuse (union/add shapes together)
+const fuse = new oc.BRepAlgoAPI_Fuse_3(shape1, shape2, new oc.Message_ProgressRange_1());
+fuse.Build(new oc.Message_ProgressRange_1());
+const fuseResult = fuse.Shape();
+\`\`\`
+
+TRANSFORMATIONS - Move/rotate shapes:
+\`\`\`javascript
+// Create transformation
+const transform = new oc.gp_Trsf_1();
+
+// Translate (move)
+const translation = new oc.gp_Vec_4(dx, dy, dz);
+transform.SetTranslation_1(translation);
+
+// Apply transformation to shape
+const transformed = new oc.BRepBuilderAPI_Transform_2(shape, transform, true).Shape();
+\`\`\`
 
 **Code Requirements:**
 
-1. Return ONLY TypeScript/JavaScript code wrapped in \`\`\`typescript or \`\`\`javascript code blocks
-2. Use OpenCASCADE.js API (assume \`oc\` is the initialized OpenCASCADE instance)
-3. Include a main function that creates and returns the shape
+1. Define a function called "createModel" that takes "oc" as its only parameter
+2. The function must return the final shape
+3. Use ONLY the exact API patterns shown above
 4. Add comments explaining each step
-5. Follow these constraints:
+5. NO TypeScript - plain JavaScript only
+
+Constraints to follow:
 ${buildConstraintPrompt(constraints)}
 
-**Example Code Structure:**
+**Complete Example:**
 
-\`\`\`typescript
-// Import types (if using TypeScript)
-import type { TopoDS_Shape } from "opencascade.js";
-
+\`\`\`javascript
 // Main function to create the CAD model
-function createModel(oc: any): TopoDS_Shape {
-  // Step 1: Create base shape
-  const box = new oc.BRepPrimAPI_MakeBox(10, 10, 10).Shape();
+function createModel(oc) {
+  // Step 1: Create a box 20x20x10
+  const box = new oc.BRepPrimAPI_MakeBox_2(20, 20, 10).Shape();
 
-  // Step 2: Create feature (e.g., hole)
-  const cylinder = new oc.BRepPrimAPI_MakeCylinder(2, 15).Shape();
+  // Step 2: Create a cylinder at center for the hole
+  const cylinder = new oc.BRepPrimAPI_MakeCylinder_1(5, 15).Shape();
 
-  // Step 3: Boolean operation (cut hole)
-  const result = new oc.BRepAlgoAPI_Cut(box, cylinder).Shape();
+  // Step 3: Move cylinder to center of box
+  const transform = new oc.gp_Trsf_1();
+  const translation = new oc.gp_Vec_4(10, 10, 0);
+  transform.SetTranslation_1(translation);
+  const movedCylinder = new oc.BRepBuilderAPI_Transform_2(cylinder, transform, true).Shape();
 
-  // Step 4: Add fillets
-  const fillet = new oc.BRepFilletAPI_MakeFillet(result);
-  // ... add edges to fillet
+  // Step 4: Boolean cut to create the hole
+  const cut = new oc.BRepAlgoAPI_Cut_3(box, movedCylinder, new oc.Message_ProgressRange_1());
+  cut.Build(new oc.Message_ProgressRange_1());
+  const result = cut.Shape();
 
-  return fillet.Shape();
+  // Return the final shape
+  return result;
 }
-
-// Export function
-export { createModel };
 \`\`\`
 
-Generate clean, well-commented OpenCASCADE.js code that follows best practices.`;
+Generate clean JavaScript code that creates the requested CAD model using ONLY the API patterns shown above.`;
 }
 
 /**
@@ -913,14 +1011,30 @@ function generatePlaceholderGltf(prompt: string): string {
 function generateCubeBufferData(): { uri: string; byteLength: number } {
   // 8 vertices of a cube centered at origin with size 10 (-5 to 5)
   const vertices = new Float32Array([
-    -5, -5, -5, // 0: back-bottom-left
-    5, -5, -5, // 1: back-bottom-right
-    5, 5, -5, // 2: back-top-right
-    -5, 5, -5, // 3: back-top-left
-    -5, -5, 5, // 4: front-bottom-left
-    5, -5, 5, // 5: front-bottom-right
-    5, 5, 5, // 6: front-top-right
-    -5, 5, 5, // 7: front-top-left
+    -5,
+    -5,
+    -5, // 0: back-bottom-left
+    5,
+    -5,
+    -5, // 1: back-bottom-right
+    5,
+    5,
+    -5, // 2: back-top-right
+    -5,
+    5,
+    -5, // 3: back-top-left
+    -5,
+    -5,
+    5, // 4: front-bottom-left
+    5,
+    -5,
+    5, // 5: front-bottom-right
+    5,
+    5,
+    5, // 6: front-top-right
+    -5,
+    5,
+    5, // 7: front-top-left
   ]);
 
   // 12 triangles (36 indices) for cube faces
@@ -955,4 +1069,181 @@ function generateCubeBufferData(): { uri: string; byteLength: number } {
     uri: `data:application/octet-stream;base64,${base64}`,
     byteLength: totalLength,
   };
+}
+
+/**
+ * Generate a placeholder DXF file content
+ * DXF (Drawing eXchange Format) is a 2D CAD format
+ * This generates a minimal valid DXF with a simple cube projection
+ */
+function generatePlaceholderDxf(prompt: string): string {
+  const lines: string[] = [];
+
+  // DXF Header section
+  lines.push("0", "SECTION");
+  lines.push("2", "HEADER");
+  lines.push("9", "$ACADVER");
+  lines.push("1", "AC1014"); // AutoCAD R14 format
+  lines.push("9", "$EXTMIN");
+  lines.push("10", "-5");
+  lines.push("20", "-5");
+  lines.push("30", "-5");
+  lines.push("9", "$EXTMAX");
+  lines.push("10", "5");
+  lines.push("20", "5");
+  lines.push("30", "5");
+  lines.push("0", "ENDSEC");
+
+  // Tables section (minimal)
+  lines.push("0", "SECTION");
+  lines.push("2", "TABLES");
+  lines.push("0", "TABLE");
+  lines.push("2", "LAYER");
+  lines.push("70", "1");
+  lines.push("0", "LAYER");
+  lines.push("2", "0"); // Layer name
+  lines.push("70", "0"); // Layer flags
+  lines.push("62", "7"); // Color (white)
+  lines.push("6", "CONTINUOUS"); // Linetype
+  lines.push("0", "ENDTAB");
+  lines.push("0", "ENDSEC");
+
+  // Entities section - draw a square (cube top-down view)
+  lines.push("0", "SECTION");
+  lines.push("2", "ENTITIES");
+
+  // Add comment about placeholder
+  lines.push("999", `Placeholder DXF for: ${prompt.slice(0, 100)}`);
+
+  // Bottom edge
+  lines.push(
+    "0",
+    "LINE",
+    "8",
+    "0",
+    "10",
+    "-5",
+    "20",
+    "-5",
+    "30",
+    "0",
+    "11",
+    "5",
+    "21",
+    "-5",
+    "31",
+    "0",
+  );
+  // Right edge
+  lines.push(
+    "0",
+    "LINE",
+    "8",
+    "0",
+    "10",
+    "5",
+    "20",
+    "-5",
+    "30",
+    "0",
+    "11",
+    "5",
+    "21",
+    "5",
+    "31",
+    "0",
+  );
+  // Top edge
+  lines.push(
+    "0",
+    "LINE",
+    "8",
+    "0",
+    "10",
+    "5",
+    "20",
+    "5",
+    "30",
+    "0",
+    "11",
+    "-5",
+    "21",
+    "5",
+    "31",
+    "0",
+  );
+  // Left edge
+  lines.push(
+    "0",
+    "LINE",
+    "8",
+    "0",
+    "10",
+    "-5",
+    "20",
+    "5",
+    "30",
+    "0",
+    "11",
+    "-5",
+    "21",
+    "-5",
+    "31",
+    "0",
+  );
+
+  lines.push("0", "ENDSEC");
+  lines.push("0", "EOF");
+
+  return lines.join("\n");
+}
+
+/**
+ * Generate a placeholder thumbnail SVG
+ * This creates a simple SVG showing a 3D box representation
+ */
+function generatePlaceholderThumbnail(): string {
+  const width = 256;
+  const height = 256;
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="100%" style="stop-color:#16213e"/>
+    </linearGradient>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#bg)"/>
+
+  <!-- 3D Box representation -->
+  <g transform="translate(128, 100)">
+    <!-- Back face -->
+    <polygon points="-40,-30 40,-30 60,-10 -20,-10" fill="#4a5568" stroke="#718096" stroke-width="1"/>
+    <!-- Left face -->
+    <polygon points="-40,-30 -20,-10 -20,40 -40,20" fill="#2d3748" stroke="#718096" stroke-width="1"/>
+    <!-- Top face -->
+    <polygon points="-40,-30 40,-30 20,-50 -60,-50" fill="#667eea" stroke="#7c3aed" stroke-width="1"/>
+    <!-- Front face -->
+    <polygon points="-20,-10 60,-10 60,40 -20,40" fill="#4c51bf" stroke="#718096" stroke-width="1"/>
+    <!-- Right face -->
+    <polygon points="60,-10 40,-30 40,20 60,40" fill="#5a67d8" stroke="#718096" stroke-width="1"/>
+  </g>
+
+  <!-- Stats text -->
+  <text x="128" y="175" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#a0aec0">
+    10.0 × 10.0 × 10.0
+  </text>
+  <text x="128" y="195" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#718096">
+    8 vertices
+  </text>
+  <text x="128" y="210" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#718096">
+    12 faces
+  </text>
+
+  <!-- CAD Agent badge -->
+  <text x="128" y="240" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#4a5568">
+    CAD Agent (Placeholder)
+  </text>
+</svg>`;
 }

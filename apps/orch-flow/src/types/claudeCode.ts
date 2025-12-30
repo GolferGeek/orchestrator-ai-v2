@@ -5,9 +5,16 @@
  */
 
 export interface OutputEntry {
-  type: 'user' | 'assistant' | 'system' | 'error' | 'info';
+  type: 'user' | 'assistant' | 'system' | 'error' | 'info' | 'tool' | 'event';
   content: string;
   timestamp: Date;
+  // Optional metadata for tool calls and events
+  metadata?: {
+    eventType?: string;
+    toolName?: string;
+    toolId?: string;
+    verb?: string;
+  };
 }
 
 export interface ClaudeCommand {

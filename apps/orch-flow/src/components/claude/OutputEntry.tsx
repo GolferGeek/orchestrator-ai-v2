@@ -11,8 +11,8 @@ interface OutputEntryProps {
   entry: OutputEntryType;
 }
 
-function getEntryPrefix(type: OutputEntryType['type']): string {
-  switch (type) {
+function getEntryPrefix(entry: OutputEntryType): string {
+  switch (entry.type) {
     case 'user':
       return 'You:';
     case 'assistant':
@@ -23,13 +23,19 @@ function getEntryPrefix(type: OutputEntryType['type']): string {
       return 'Error:';
     case 'info':
       return '';
+    case 'tool':
+      return entry.metadata?.verb
+        ? `🔧 ${entry.metadata.verb}`
+        : `🔧 Tool: ${entry.metadata?.toolName || 'Unknown'}`;
+    case 'event':
+      return `📡 Event: ${entry.metadata?.eventType || 'Unknown'}`;
     default:
       return '';
   }
 }
 
 export function OutputEntry({ entry }: OutputEntryProps) {
-  const prefix = getEntryPrefix(entry.type);
+  const prefix = getEntryPrefix(entry);
 
   return (
     <div
@@ -39,7 +45,9 @@ export function OutputEntry({ entry }: OutputEntryProps) {
         entry.type === 'assistant' && 'bg-muted border-l-4 border-green-500',
         entry.type === 'system' && 'bg-muted/50 border-l-4 border-muted-foreground text-xs',
         entry.type === 'error' && 'bg-destructive/10 border-l-4 border-destructive text-destructive',
-        entry.type === 'info' && 'bg-transparent text-muted-foreground text-xs text-center py-1'
+        entry.type === 'info' && 'bg-transparent text-muted-foreground text-xs text-center py-1',
+        entry.type === 'tool' && 'bg-blue-50 dark:bg-blue-950/20 border-l-4 border-blue-500 text-xs',
+        entry.type === 'event' && 'bg-purple-50 dark:bg-purple-950/20 border-l-4 border-purple-500 text-xs'
       )}
     >
       {prefix && (

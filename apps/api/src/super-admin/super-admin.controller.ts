@@ -63,7 +63,7 @@ export class SuperAdminController {
     await this.validateAccess(user.id);
 
     this.logger.log(
-      `Super admin ${user.id} executing: ${dto.prompt}${dto.sessionId ? ` (session: ${dto.sessionId})` : ''}`,
+      `Super admin ${user.id} executing: ${dto.prompt}${dto.sessionId ? ` (session: ${dto.sessionId})` : ''}${dto.sourceContext ? ` (context: ${dto.sourceContext})` : ''}`,
     );
 
     // Set SSE headers
@@ -72,11 +72,12 @@ export class SuperAdminController {
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
 
-    // Stream execution with optional session resumption
+    // Stream execution with optional session resumption and source context
     await this.superAdminService.executeWithStreaming(
       dto.prompt,
       res,
       dto.sessionId,
+      dto.sourceContext,
     );
   }
 

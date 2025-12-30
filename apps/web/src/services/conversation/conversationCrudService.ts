@@ -41,14 +41,31 @@ export class ConversationCrudService {
     const executionContextStore = useExecutionContextStore();
     const llmPreferencesStore = useLLMPreferencesStore();
 
+    // Priority for LLM selection:
+    // 1. Agent's llm_config (from database) - if agent specifies a required model
+    // 2. User's preferences (from llmPreferencesStore)
+    // 3. Fallback defaults
+    const agentLlmConfig = agent.llm_config;
+    const provider = agentLlmConfig?.provider
+      || llmPreferencesStore.selectedProvider?.name
+      || 'ollama';
+    const model = agentLlmConfig?.model
+      || llmPreferencesStore.selectedModel?.modelName
+      || 'llama3.2:1b';
+
+    console.log(`[ConversationCrudService] Creating conversation with LLM: ${provider}/${model}`, {
+      fromAgentConfig: !!agentLlmConfig,
+      agentLlmConfig,
+    });
+
     executionContextStore.initialize({
       orgSlug,
       userId: authStore.user?.id || 'anonymous',
       conversationId: backendConversation.id,
       agentSlug: agent.name,
       agentType: agent.type || 'context',
-      provider: llmPreferencesStore.selectedProvider?.name || 'ollama',
-      model: llmPreferencesStore.selectedModel?.modelName || 'llama3.2:1b',
+      provider,
+      model,
     });
 
     return backendConversation.id;

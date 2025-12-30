@@ -67,8 +67,17 @@
             class="output-entry"
             :class="'entry-' + entry.type"
           >
-            <span class="entry-prefix">{{ getEntryPrefix(entry.type) }}</span>
-            <pre class="entry-content">{{ entry.content }}</pre>
+            <!-- Tool use entry with special formatting -->
+            <template v-if="entry.type === 'tool_use'">
+              <span class="tool-icon">{{ getToolIcon(entry.toolName) }}</span>
+              <span class="tool-name">{{ entry.toolName }}</span>
+              <pre class="tool-input">{{ entry.content }}</pre>
+            </template>
+            <!-- Regular entry -->
+            <template v-else>
+              <span v-if="getEntryPrefix(entry.type)" class="entry-prefix">{{ getEntryPrefix(entry.type) }}</span>
+              <pre class="entry-content">{{ entry.content }}</pre>
+            </template>
           </div>
 
           <!-- Tool progress indicator -->
@@ -291,9 +300,33 @@ function getEntryPrefix(type: OutputEntry['type']): string {
       return 'Error:';
     case 'info':
       return '';
+    case 'tool_use':
+      return ''; // Will show tool icon instead
+    case 'tool_result':
+      return ''; // Will show result icon instead
     default:
       return '';
   }
+}
+
+// Get tool icon/emoji based on tool name
+function getToolIcon(toolName?: string): string {
+  if (!toolName) return '🔧';
+  const icons: Record<string, string> = {
+    Read: '📖',
+    Write: '✍️',
+    Edit: '✏️',
+    Bash: '💻',
+    Glob: '🔍',
+    Grep: '🔎',
+    Task: '🚀',
+    WebFetch: '🌐',
+    WebSearch: '🔍',
+    TodoWrite: '📝',
+    Skill: '⚡',
+    LSP: '🔗',
+  };
+  return icons[toolName] || '🔧';
 }
 
 // Handle input for auto-complete
@@ -664,9 +697,14 @@ watch(
 }
 
 .entry-error {
-  background: var(--ion-color-danger-tint);
-  border-left: 3px solid var(--ion-color-danger);
-  color: var(--ion-color-danger-shade);
+  background: var(--ion-color-danger);
+  border-left: 3px solid var(--ion-color-danger-shade);
+  color: #ffffff;
+}
+
+.entry-error .entry-prefix,
+.entry-error .entry-content {
+  color: #ffffff;
 }
 
 .entry-info {
@@ -675,6 +713,47 @@ watch(
   font-size: 12px;
   text-align: center;
   padding: 4px;
+}
+
+.entry-tool_use {
+  background: #2d2d44;
+  border-left: 3px solid #6366f1;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 12px;
+}
+
+.tool-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  line-height: 1.5;
+}
+
+.tool-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: #a5b4fc;
+  flex-shrink: 0;
+  line-height: 1.5;
+}
+
+.tool-input {
+  margin: 0;
+  font-family: 'SF Mono', Monaco, Menlo, monospace;
+  font-size: 12px;
+  color: #e2e8f0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.entry-tool_result {
+  background: var(--ion-color-light-tint);
+  border-left: 3px solid var(--ion-color-medium);
+  font-size: 12px;
 }
 
 .streaming .cursor-blink {

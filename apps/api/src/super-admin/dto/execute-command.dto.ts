@@ -1,5 +1,12 @@
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsIn } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+/**
+ * Valid source contexts for Claude Code SDK calls.
+ * Each context loads a corresponding .claude/contexts/{source}.md file
+ * that provides app-specific guidance and progressive skill references.
+ */
+export type SourceContext = 'web-app' | 'orch-flow' | 'default';
 
 export class ExecuteCommandDto {
   @ApiProperty({
@@ -26,4 +33,17 @@ export class ExecuteCommandDto {
   @IsString()
   @IsOptional()
   sessionId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Source context identifying which app is calling Claude Code SDK. ' +
+      'Loads app-specific context from .claude/contexts/{sourceContext}.md ' +
+      'which provides architecture guidance and progressive skill references.',
+    example: 'web-app',
+    enum: ['web-app', 'orch-flow', 'default'],
+  })
+  @IsString()
+  @IsOptional()
+  @IsIn(['web-app', 'orch-flow', 'default'])
+  sourceContext?: SourceContext;
 }

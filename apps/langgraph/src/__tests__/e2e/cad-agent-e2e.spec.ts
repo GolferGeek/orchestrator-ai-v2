@@ -29,7 +29,9 @@ const createdProjectIds: string[] = [];
 const createdDrawingIds: string[] = [];
 
 // Helper to create ExecutionContext for tests
-function createTestContext(overrides: Partial<ReturnType<typeof createMockExecutionContext>> = {}) {
+function createTestContext(
+  overrides: Partial<ReturnType<typeof createMockExecutionContext>> = {},
+) {
   return createMockExecutionContext({
     orgSlug: TEST_ORG_SLUG,
     userId: TEST_USER_ID,
@@ -50,13 +52,16 @@ async function callCadAgentGenerate(request: {
   projectId?: string;
   constraints?: Record<string, unknown>;
 }) {
-  const response = await fetch(`${LANGGRAPH_URL}/agents/engineering/cad-agent/generate`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
+  const response = await fetch(
+    `${LANGGRAPH_URL}/agents/engineering/cad-agent/generate`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(request),
     },
-    body: JSON.stringify(request),
-  });
+  );
 
   const data = await response.json();
   return { status: response.status, data };
@@ -64,14 +69,18 @@ async function callCadAgentGenerate(request: {
 
 // Helper to check status
 async function getCadAgentStatus(taskId: string) {
-  const response = await fetch(`${LANGGRAPH_URL}/agents/engineering/cad-agent/status/${taskId}`);
+  const response = await fetch(
+    `${LANGGRAPH_URL}/agents/engineering/cad-agent/status/${taskId}`,
+  );
   const data = await response.json();
   return { status: response.status, data };
 }
 
 // Helper to get outputs
 async function getCadAgentOutputs(drawingId: string) {
-  const response = await fetch(`${LANGGRAPH_URL}/agents/engineering/cad-agent/outputs/${drawingId}`);
+  const response = await fetch(
+    `${LANGGRAPH_URL}/agents/engineering/cad-agent/outputs/${drawingId}`,
+  );
   const data = await response.json();
   return { status: response.status, data };
 }
@@ -80,7 +89,8 @@ describe("CAD Agent E2E Tests", () => {
   beforeAll(async () => {
     // Initialize Supabase client with engineering schema
     const supabaseUrl = process.env.SUPABASE_URL || "http://127.0.0.1:6010";
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    const supabaseKey =
+      process.env.SUPABASE_SERVICE_ROLE_KEY ||
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU";
 
     supabase = createClient(supabaseUrl, supabaseKey, {
@@ -110,7 +120,9 @@ describe("CAD Agent E2E Tests", () => {
     for (const projectId of createdProjectIds) {
       await supabase.from("projects").delete().eq("id", projectId);
     }
-    console.log(`✓ Cleaned up ${createdProjectIds.length} projects and ${createdDrawingIds.length} drawings`);
+    console.log(
+      `✓ Cleaned up ${createdProjectIds.length} projects and ${createdDrawingIds.length} drawings`,
+    );
   });
 
   // ==========================================================================
@@ -177,7 +189,8 @@ describe("CAD Agent E2E Tests", () => {
           // Note: task_id is optional and has FK constraint to public.tasks
           // conversation_id also has FK constraint to public.conversations
           name: "Test Fan Bracket",
-          prompt: "Create a mounting bracket for a 40mm fan with M3 mounting holes",
+          prompt:
+            "Create a mounting bracket for a 40mm fan with M3 mounting holes",
           status: "pending",
           constraints_override: { wall_thickness_min: 3.0 },
         })
@@ -198,14 +211,12 @@ describe("CAD Agent E2E Tests", () => {
       const drawingId = uuidv4();
       const invalidProjectId = uuidv4(); // Non-existent project
 
-      const { error } = await supabase
-        .from("drawings")
-        .insert({
-          id: drawingId,
-          project_id: invalidProjectId,
-          name: "Test Drawing",
-          prompt: "Test prompt",
-        });
+      const { error } = await supabase.from("drawings").insert({
+        id: drawingId,
+        project_id: invalidProjectId,
+        name: "Test Drawing",
+        prompt: "Test prompt",
+      });
 
       // Should fail due to FK constraint
       expect(error).toBeDefined();
@@ -215,24 +226,20 @@ describe("CAD Agent E2E Tests", () => {
     it("1.4: Should cascade delete drawings when project is deleted", async () => {
       // Create project
       const projectId = uuidv4();
-      await supabase
-        .from("projects")
-        .insert({
-          id: projectId,
-          org_slug: TEST_ORG_SLUG,
-          name: `Cascade Test Project ${Date.now()}`,
-        });
+      await supabase.from("projects").insert({
+        id: projectId,
+        org_slug: TEST_ORG_SLUG,
+        name: `Cascade Test Project ${Date.now()}`,
+      });
 
       // Create drawing
       const drawingId = uuidv4();
-      await supabase
-        .from("drawings")
-        .insert({
-          id: drawingId,
-          project_id: projectId,
-          name: "Cascade Test Drawing",
-          prompt: "Test prompt",
-        });
+      await supabase.from("drawings").insert({
+        id: drawingId,
+        project_id: projectId,
+        name: "Cascade Test Drawing",
+        prompt: "Test prompt",
+      });
 
       // Verify drawing exists
       const { data: beforeDelete } = await supabase
@@ -261,14 +268,18 @@ describe("CAD Agent E2E Tests", () => {
   describe("Suite 2: LangGraph Workflow Execution", () => {
     it("2.1: Should require ExecutionContext in request", async () => {
       const { status, data } = await callCadAgentGenerate({
-        context: null as unknown as ReturnType<typeof createMockExecutionContext>,
+        context: null as unknown as ReturnType<
+          typeof createMockExecutionContext
+        >,
         userMessage: "Create a simple box",
       });
 
       expect(status).toBe(400);
       expect(data).toHaveProperty("message");
       // Message could be an array or string - check for ExecutionContext mention
-      const messageStr = Array.isArray(data.message) ? data.message.join(" ") : data.message;
+      const messageStr = Array.isArray(data.message)
+        ? data.message.join(" ")
+        : data.message;
       expect(messageStr).toContain("ExecutionContext");
     });
 
@@ -325,14 +336,12 @@ describe("CAD Agent E2E Tests", () => {
     it("2.3: Should use existing project when projectId provided", async () => {
       // Create a project first
       const projectId = uuidv4();
-      await supabase
-        .from("projects")
-        .insert({
-          id: projectId,
-          org_slug: TEST_ORG_SLUG,
-          name: `Existing Project ${Date.now()}`,
-          constraints: { units: "inches" },
-        });
+      await supabase.from("projects").insert({
+        id: projectId,
+        org_slug: TEST_ORG_SLUG,
+        name: `Existing Project ${Date.now()}`,
+        constraints: { units: "inches" },
+      });
       createdProjectIds.push(projectId);
 
       const context = createTestContext();
@@ -363,25 +372,21 @@ describe("CAD Agent E2E Tests", () => {
       // First, we need a task that exists
       // Create a drawing directly in the database
       const projectId = uuidv4();
-      await supabase
-        .from("projects")
-        .insert({
-          id: projectId,
-          org_slug: TEST_ORG_SLUG,
-          name: `Status Test Project ${Date.now()}`,
-        });
+      await supabase.from("projects").insert({
+        id: projectId,
+        org_slug: TEST_ORG_SLUG,
+        name: `Status Test Project ${Date.now()}`,
+      });
       createdProjectIds.push(projectId);
 
       const drawingId = uuidv4();
-      await supabase
-        .from("drawings")
-        .insert({
-          id: drawingId,
-          project_id: projectId,
-          name: "Status Test Drawing",
-          prompt: "Test prompt",
-          status: "completed",
-        });
+      await supabase.from("drawings").insert({
+        id: drawingId,
+        project_id: projectId,
+        name: "Status Test Drawing",
+        prompt: "Test prompt",
+        status: "completed",
+      });
       createdDrawingIds.push(drawingId);
 
       // Try to get status (will return 404 if no checkpointer state exists)
@@ -463,8 +468,16 @@ describe("CAD Agent E2E Tests", () => {
 
       // Insert multiple code attempts
       const attempts = [
-        { attempt_number: 1, is_valid: false, validation_errors: ["Missing MakeBox"] },
-        { attempt_number: 2, is_valid: false, validation_errors: ["Syntax error"] },
+        {
+          attempt_number: 1,
+          is_valid: false,
+          validation_errors: ["Missing MakeBox"],
+        },
+        {
+          attempt_number: 2,
+          is_valid: false,
+          validation_errors: ["Syntax error"],
+        },
         { attempt_number: 3, is_valid: true, validation_errors: [] },
       ];
 
@@ -516,10 +529,27 @@ describe("CAD Agent E2E Tests", () => {
 
       // Insert CAD outputs
       const outputs = [
-        { format: "step", storage_path: `engineering/${drawingId}/model.step`, file_size_bytes: 12345 },
-        { format: "stl", storage_path: `engineering/${drawingId}/model.stl`, file_size_bytes: 23456 },
-        { format: "gltf", storage_path: `engineering/${drawingId}/model.gltf`, file_size_bytes: 34567, mesh_stats: { vertices: 1000, faces: 500 } },
-        { format: "thumbnail", storage_path: `engineering/${drawingId}/thumbnail.png`, file_size_bytes: 5678 },
+        {
+          format: "step",
+          storage_path: `engineering/${drawingId}/model.step`,
+          file_size_bytes: 12345,
+        },
+        {
+          format: "stl",
+          storage_path: `engineering/${drawingId}/model.stl`,
+          file_size_bytes: 23456,
+        },
+        {
+          format: "gltf",
+          storage_path: `engineering/${drawingId}/model.gltf`,
+          file_size_bytes: 34567,
+          mesh_stats: { vertices: 1000, faces: 500 },
+        },
+        {
+          format: "thumbnail",
+          storage_path: `engineering/${drawingId}/thumbnail.png`,
+          file_size_bytes: 5678,
+        },
       ];
 
       for (const output of outputs) {
@@ -568,8 +598,18 @@ describe("CAD Agent E2E Tests", () => {
 
       // Insert outputs
       await supabase.from("cad_outputs").insert([
-        { id: uuidv4(), drawing_id: drawingId, format: "step", storage_path: `engineering/${drawingId}/model.step` },
-        { id: uuidv4(), drawing_id: drawingId, format: "stl", storage_path: `engineering/${drawingId}/model.stl` },
+        {
+          id: uuidv4(),
+          drawing_id: drawingId,
+          format: "step",
+          storage_path: `engineering/${drawingId}/model.step`,
+        },
+        {
+          id: uuidv4(),
+          drawing_id: drawingId,
+          format: "stl",
+          storage_path: `engineering/${drawingId}/model.stl`,
+        },
       ]);
 
       // Call outputs endpoint
@@ -609,11 +649,22 @@ describe("CAD Agent E2E Tests", () => {
       // Insert execution log entries
       const steps = [
         { step_type: "prompt_received", message: "Received CAD prompt" },
-        { step_type: "constraints_applied", message: "Applied project constraints" },
+        {
+          step_type: "constraints_applied",
+          message: "Applied project constraints",
+        },
         { step_type: "llm_started", message: "Starting LLM code generation" },
-        { step_type: "llm_completed", message: "LLM code generation completed", duration_ms: 1500 },
+        {
+          step_type: "llm_completed",
+          message: "LLM code generation completed",
+          duration_ms: 1500,
+        },
         { step_type: "code_validation", message: "Code validation passed" },
-        { step_type: "execution_completed", message: "CAD execution completed", duration_ms: 200 },
+        {
+          step_type: "execution_completed",
+          message: "CAD execution completed",
+          duration_ms: 200,
+        },
         { step_type: "export_completed", message: "Files exported" },
       ];
 
@@ -660,7 +711,13 @@ describe("CAD Agent E2E Tests", () => {
       createdDrawingIds.push(drawingId);
 
       // Update status through workflow stages
-      const statuses = ["generating", "validating", "executing", "exporting", "completed"];
+      const statuses = [
+        "generating",
+        "validating",
+        "executing",
+        "exporting",
+        "completed",
+      ];
 
       for (const status of statuses) {
         const { error } = await supabase
@@ -834,24 +891,44 @@ describe("CAD Agent E2E Tests", () => {
       createdDrawingIds.push(drawingId);
 
       // Add generated code
-      const { error: codeError } = await supabase.from("generated_code").insert({
-        id: uuidv4(),
-        drawing_id: drawingId,
-        code: "function createModel(oc) { return oc.MakeBox(10,10,10); }",
-        code_type: "opencascade-js",
-        llm_provider: "ollama",
-        llm_model: "qwen2.5-coder:14b",
-        is_valid: true,
-        attempt_number: 1,
-      });
+      const { error: codeError } = await supabase
+        .from("generated_code")
+        .insert({
+          id: uuidv4(),
+          drawing_id: drawingId,
+          code: "function createModel(oc) { return oc.MakeBox(10,10,10); }",
+          code_type: "opencascade-js",
+          llm_provider: "ollama",
+          llm_model: "qwen2.5-coder:14b",
+          is_valid: true,
+          attempt_number: 1,
+        });
       expect(codeError).toBeNull();
 
       // Add outputs
-      const { error: outputsError } = await supabase.from("cad_outputs").insert([
-        { id: uuidv4(), drawing_id: drawingId, format: "step", storage_path: `engineering/${drawingId}/model.step` },
-        { id: uuidv4(), drawing_id: drawingId, format: "stl", storage_path: `engineering/${drawingId}/model.stl` },
-        { id: uuidv4(), drawing_id: drawingId, format: "gltf", storage_path: `engineering/${drawingId}/model.gltf`, mesh_stats: { vertices: 500, faces: 250 } },
-      ]);
+      const { error: outputsError } = await supabase
+        .from("cad_outputs")
+        .insert([
+          {
+            id: uuidv4(),
+            drawing_id: drawingId,
+            format: "step",
+            storage_path: `engineering/${drawingId}/model.step`,
+          },
+          {
+            id: uuidv4(),
+            drawing_id: drawingId,
+            format: "stl",
+            storage_path: `engineering/${drawingId}/model.stl`,
+          },
+          {
+            id: uuidv4(),
+            drawing_id: drawingId,
+            format: "gltf",
+            storage_path: `engineering/${drawingId}/model.gltf`,
+            mesh_stats: { vertices: 500, faces: 250 },
+          },
+        ]);
       expect(outputsError).toBeNull();
 
       // Reconstruct deliverable data (similar to what CadAgentService returns)
@@ -888,10 +965,13 @@ describe("CAD Agent E2E Tests", () => {
         status: drawing!.status,
         userMessage: drawing!.prompt,
         generatedCode: code!.code,
-        outputs: outputs!.reduce((acc, o) => {
-          acc[o.format] = o.storage_path;
-          return acc;
-        }, {} as Record<string, string>),
+        outputs: outputs!.reduce(
+          (acc, o) => {
+            acc[o.format] = o.storage_path;
+            return acc;
+          },
+          {} as Record<string, string>,
+        ),
         meshStats: outputs!.find((o) => o.mesh_stats)?.mesh_stats,
         version: drawing!.version,
       };
@@ -915,7 +995,8 @@ describe("CAD Agent E2E Tests", () => {
 
     beforeAll(() => {
       const supabaseUrl = process.env.SUPABASE_URL || "http://127.0.0.1:6010";
-      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ||
+      const supabaseKey =
+        process.env.SUPABASE_SERVICE_ROLE_KEY ||
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU";
 
       storageClient = createClient(supabaseUrl, supabaseKey, {
@@ -924,11 +1005,15 @@ describe("CAD Agent E2E Tests", () => {
     });
 
     it("6.1: Should have cad-outputs bucket available", async () => {
-      const { data: buckets, error } = await storageClient.storage.listBuckets();
+      const { data: buckets, error } =
+        await storageClient.storage.listBuckets();
 
       // If error, the storage might not be fully initialized
       if (error) {
-        console.log("Storage bucket check - may not be initialized yet:", error.message);
+        console.log(
+          "Storage bucket check - may not be initialized yet:",
+          error.message,
+        );
         return;
       }
 

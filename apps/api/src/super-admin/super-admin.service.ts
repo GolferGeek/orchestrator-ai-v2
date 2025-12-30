@@ -44,21 +44,79 @@ export class SuperAdminService {
   }
 
   /**
+   * Load source context from .claude/contexts/{source}.md
+   * Falls back to default.md if specific context not found
+   */
+  private async loadSourceContext(
+    sourceContext?: string,
+  ): Promise<string | undefined> {
+    const contextName = sourceContext || 'default';
+    const contextFile = join(
+      this.projectRoot,
+      '.claude',
+      'contexts',
+      `${contextName}.md`,
+    );
+
+    if (existsSync(contextFile)) {
+      try {
+        const content = await readFile(contextFile, 'utf-8');
+        this.logger.debug(`Loaded context: ${contextName}`);
+        return content;
+      } catch (error) {
+        this.logger.warn(
+          `Failed to load context ${contextName}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        );
+      }
+    } else {
+      this.logger.debug(`Context file not found: ${contextFile}`);
+    }
+
+    // Fall back to default.md if not already trying that
+    if (contextName !== 'default') {
+      const defaultFile = join(
+        this.projectRoot,
+        '.claude',
+        'contexts',
+        'default.md',
+      );
+      if (existsSync(defaultFile)) {
+        try {
+          const content = await readFile(defaultFile, 'utf-8');
+          this.logger.debug('Loaded default context as fallback');
+          return content;
+        } catch (error) {
+          this.logger.warn(
+            `Failed to load default context: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          );
+        }
+      }
+    }
+
+    return undefined;
+  }
+
+  /**
    * Execute a prompt using Claude Agent SDK and stream results via SSE
    * Supports session resumption for maintaining conversation state
+   * Supports source context to provide app-specific guidance
    */
   async executeWithStreaming(
     prompt: string,
     res: Response,
     sessionId?: string,
+    sourceContext?: string,
   ): Promise<ExecutionResult> {
     this.logger.log(
-      `Executing prompt: ${prompt}${sessionId ? ` (resuming session ${sessionId})` : ' (new session)'}`,
+      `Executing prompt: ${prompt}${sessionId ? ` (resuming session ${sessionId})` : ' (new session)'}${sourceContext ? ` (context: ${sourceContext})` : ''}`,
     );
 
     let capturedSessionId: string | undefined;
 
     try {
+      // Load source context if provided
+      const systemPrompt = await this.loadSourceContext(sourceContext);
+
       // Build options - include resume if we have a session ID
       const options: Record<string, unknown> = {
         cwd: this.projectRoot,
@@ -80,6 +138,11 @@ export class SuperAdminService {
           'TodoWrite',
         ],
       };
+
+      // Add system prompt if we have context
+      if (systemPrompt) {
+        options.systemPrompt = systemPrompt;
+      }
 
       // Add resume option if continuing a session
       if (sessionId) {

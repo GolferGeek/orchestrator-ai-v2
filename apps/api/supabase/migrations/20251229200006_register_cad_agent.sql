@@ -170,6 +170,11 @@ VALUES (
             "constraint-system"
         ],
         "supportedFormats": ["step", "stl", "gltf", "dxf"],
+        "defaultLLM": {
+            "provider": "ollama",
+            "model": "qwen2.5-coder:14b",
+            "description": "Code-capable model required for OpenCASCADE.js code generation"
+        },
         "defaultConstraints": {
             "units": "mm",
             "material": "Aluminum 6061",

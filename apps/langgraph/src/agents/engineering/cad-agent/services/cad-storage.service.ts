@@ -179,7 +179,10 @@ export class CadStorageService implements OnModuleInit {
     drawingId: string,
     format: CadFileFormat,
   ): Promise<StoredCadFileResult> {
-    const orgSlug = context.orgSlug || "global";
+    if (!context.orgSlug) {
+      throw new Error("ExecutionContext.orgSlug is required for CAD storage");
+    }
+    const orgSlug = context.orgSlug;
     const storagePath = this.buildStoragePath(
       orgSlug,
       projectId,
@@ -296,7 +299,9 @@ export class CadStorageService implements OnModuleInit {
       if (deleteError) {
         this.logger.error(`Failed to delete files: ${deleteError.message}`);
       } else {
-        this.logger.log(`Deleted ${filePaths.length} files for drawing ${drawingId}`);
+        this.logger.log(
+          `Deleted ${filePaths.length} files for drawing ${drawingId}`,
+        );
       }
     }
   }

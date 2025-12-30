@@ -212,7 +212,7 @@ export function ClaudeCodePanel({ isOpen, onClose }: ClaudeCodePanelProps) {
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent side="right" className="w-[480px] max-w-full p-0 flex flex-col">
+      <SheetContent side="right" className="w-[600px] max-w-full p-0 flex flex-col">
         {/* Header */}
         <SheetHeader className="px-4 py-3 border-b flex-shrink-0">
           <div className="flex items-center justify-between">

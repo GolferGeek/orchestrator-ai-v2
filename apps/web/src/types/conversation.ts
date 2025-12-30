@@ -42,6 +42,16 @@ export interface AgentExecutionCapabilities {
   requires_human_gate: boolean;
 }
 
+export interface AgentLLMConfig {
+  provider: string;
+  model: string;
+  parameters?: {
+    temperature?: number;
+    maxTokens?: number;
+    topP?: number;
+  };
+}
+
 export interface Agent {
   name: string;
   type: string;
@@ -58,6 +68,8 @@ export interface Agent {
     input?: JsonObject;
     output?: JsonObject;
   } | null;
+  /** LLM configuration from agents table - used to set ExecutionContext when agent is selected */
+  llm_config?: AgentLLMConfig | null;
 }
 
 export interface ConversationPlanRecord {

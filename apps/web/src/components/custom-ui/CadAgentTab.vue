@@ -135,26 +135,38 @@ async function handleGenerate(data: {
   try {
     console.log('[CadAgentTab] Starting generation:', data);
 
-    // Ensure ExecutionContext is initialized
+    // Get llm_config from the conversation's agent
+    const agentLlmConfig = props.conversation?.agent?.llm_config;
+    const provider = agentLlmConfig?.provider || 'ollama';
+    const model = agentLlmConfig?.model || 'qwen2.5-coder:14b'; // Fallback for CAD code generation
+    const conversationId = props.conversation?.id || crypto.randomUUID();
+
+    // Always update ExecutionContext to match this conversation's settings
+    // The agent's llm_config is the source of truth for CAD agent
     if (!executionContextStore.isInitialized) {
-      // Initialize context for this CAD agent conversation
       executionContextStore.initialize({
         orgSlug: orgSlug.value,
         userId: userId.value,
-        conversationId: props.conversation?.id || crypto.randomUUID(),
+        conversationId,
         agentSlug: 'cad-agent',
         agentType: 'api',
-        provider: 'ollama', // CAD agent uses qwen2.5-coder via ollama
-        model: 'qwen2.5-coder:14b',
+        provider,
+        model,
       });
-      console.log('[CadAgentTab] ExecutionContext initialized');
+      console.log('[CadAgentTab] ExecutionContext initialized with LLM:', provider, '/', model, '(from agent.llm_config:', !!agentLlmConfig, ')');
+    } else {
+      // Context already initialized - update to match this conversation's agent settings
+      executionContextStore.setAgent('cad-agent', 'api');
+      executionContextStore.setConversation(conversationId);
+      executionContextStore.setLLM(provider, model);
+      console.log('[CadAgentTab] ExecutionContext updated with LLM:', provider, '/', model, '(from agent.llm_config:', !!agentLlmConfig, ')');
     }
 
     // Connect to SSE stream BEFORE starting generation
     // This ensures we receive all progress events
-    const conversationId = executionContextStore.current.conversationId;
-    cadAgentService.connectToSSEStream(conversationId);
-    console.log('[CadAgentTab] Connected to SSE stream for conversationId:', conversationId);
+    const activeConversationId = executionContextStore.current.conversationId;
+    cadAgentService.connectToSSEStream(activeConversationId);
+    console.log('[CadAgentTab] Connected to SSE stream for conversationId:', activeConversationId);
 
     // Call the CAD agent service (uses A2A orchestrator)
     const result = await cadAgentService.generateCad({

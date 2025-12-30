@@ -18,9 +18,12 @@ import {
 } from '@/services/claudeCodeService';
 
 export interface OutputEntry {
-  type: 'user' | 'assistant' | 'system' | 'error' | 'info';
+  type: 'user' | 'assistant' | 'system' | 'error' | 'info' | 'tool_use' | 'tool_result';
   content: string;
   timestamp: Date;
+  toolName?: string;
+  toolInput?: unknown;
+  isStreaming?: boolean;
 }
 
 // LocalStorage keys
@@ -380,6 +383,7 @@ export function useClaudeCodePanel() {
         handleError,
         handleComplete,
         sessionId.value, // Pass session ID for resumption
+        'web-app', // Pass source context for app-specific guidance
       );
     } catch (error) {
       handleError(error as Error);
@@ -420,8 +424,13 @@ export function useClaudeCodePanel() {
     activeTools.value = new Map(activeTools.value);
   }
 
+  // Track tool inputs as they stream in
+  const toolInputBuffers = new Map<string, string>();
+  // Track which tools we've already displayed
+  const displayedTools = new Set<string>();
+
   /**
-   * Handle stream event - detect tool_use blocks starting/completing
+   * Handle stream event - detect tool_use blocks starting/completing and stream text
    */
   function handleStreamEvent(message: ClaudeMessage): void {
     const event = message.event;
@@ -438,6 +447,9 @@ export function useClaudeCodePanel() {
         toolVerbsCache.set(toolId, verb);
         currentToolVerb.value = `${verb}...`;
 
+        // Initialize input buffer for this tool
+        toolInputBuffers.set(toolId, '');
+
         activeTools.value.set(toolId, {
           id: toolId,
           name: toolName,
@@ -450,11 +462,52 @@ export function useClaudeCodePanel() {
       }
     }
 
-    // Handle content_block_stop - tool finished
+    // Handle content_block_delta - accumulate tool input JSON or stream text
+    if (event.type === 'content_block_delta' && event.delta) {
+      // Handle tool input JSON streaming
+      if (event.delta.type === 'input_json_delta' && event.delta.partial_json) {
+        // Find the tool that's currently receiving input (most recent running tool)
+        for (const [toolId] of activeTools.value.entries()) {
+          const existingBuffer = toolInputBuffers.get(toolId) || '';
+          toolInputBuffers.set(toolId, existingBuffer + event.delta.partial_json);
+          break;
+        }
+      }
+
+      // Handle streaming text
+      if (event.delta.type === 'text_delta' && event.delta.text) {
+        currentAssistantMessage.value += event.delta.text;
+      }
+    }
+
+    // Handle content_block_stop - tool finished, display it
     if (event.type === 'content_block_stop' && event.index !== undefined) {
-      // Mark most recent running tool as completed
+      // Mark most recent running tool as completed and display it
       for (const [id, tool] of activeTools.value.entries()) {
         if (tool.status === 'running') {
+          // Parse and display the tool call if we haven't already
+          if (!displayedTools.has(id)) {
+            displayedTools.add(id);
+            const inputJson = toolInputBuffers.get(id) || '';
+            let parsedInput: unknown = null;
+            try {
+              if (inputJson) {
+                parsedInput = JSON.parse(inputJson);
+              }
+            } catch {
+              parsedInput = inputJson; // Use raw string if parse fails
+            }
+
+            // Add tool use to output
+            output.value.push({
+              type: 'tool_use',
+              content: formatToolCall(tool.name, parsedInput),
+              timestamp: new Date(),
+              toolName: tool.name,
+              toolInput: parsedInput,
+            });
+          }
+
           activeTools.value.set(id, { ...tool, status: 'completed' });
           // Trigger reactivity
           activeTools.value = new Map(activeTools.value);
@@ -462,11 +515,81 @@ export function useClaudeCodePanel() {
           setTimeout(() => {
             currentToolVerb.value = '';
             toolVerbsCache.delete(id);
+            toolInputBuffers.delete(id);
           }, 500);
           break;
         }
       }
     }
+
+    // Handle message_stop - flush any streaming text
+    if (event.type === 'message_stop') {
+      if (currentAssistantMessage.value) {
+        addOutput('assistant', currentAssistantMessage.value);
+        currentAssistantMessage.value = '';
+      }
+    }
+  }
+
+  /**
+   * Format a tool call for display
+   */
+  function formatToolCall(toolName: string, input: unknown): string {
+    if (!input) return toolName;
+
+    // Format based on tool type for better readability
+    if (toolName === 'Read' && typeof input === 'object' && input !== null) {
+      const readInput = input as { file_path?: string };
+      return readInput.file_path || JSON.stringify(input);
+    }
+
+    if (toolName === 'Glob' && typeof input === 'object' && input !== null) {
+      const globInput = input as { pattern?: string; path?: string };
+      return globInput.pattern ? `${globInput.pattern}${globInput.path ? ` in ${globInput.path}` : ''}` : JSON.stringify(input);
+    }
+
+    if (toolName === 'Grep' && typeof input === 'object' && input !== null) {
+      const grepInput = input as { pattern?: string; path?: string; glob?: string };
+      let result = grepInput.pattern || '';
+      if (grepInput.glob) result += ` (${grepInput.glob})`;
+      if (grepInput.path) result += ` in ${grepInput.path}`;
+      return result || JSON.stringify(input);
+    }
+
+    if (toolName === 'Bash' && typeof input === 'object' && input !== null) {
+      const bashInput = input as { command?: string; description?: string };
+      return bashInput.description || bashInput.command || JSON.stringify(input);
+    }
+
+    if (toolName === 'Edit' && typeof input === 'object' && input !== null) {
+      const editInput = input as { file_path?: string };
+      return editInput.file_path || JSON.stringify(input);
+    }
+
+    if (toolName === 'Write' && typeof input === 'object' && input !== null) {
+      const writeInput = input as { file_path?: string };
+      return writeInput.file_path || JSON.stringify(input);
+    }
+
+    if (toolName === 'WebSearch' && typeof input === 'object' && input !== null) {
+      const searchInput = input as { query?: string };
+      return searchInput.query || JSON.stringify(input);
+    }
+
+    if (toolName === 'WebFetch' && typeof input === 'object' && input !== null) {
+      const fetchInput = input as { url?: string };
+      return fetchInput.url || JSON.stringify(input);
+    }
+
+    if (toolName === 'Task' && typeof input === 'object' && input !== null) {
+      const taskInput = input as { description?: string; subagent_type?: string };
+      return taskInput.description
+        ? `${taskInput.subagent_type || 'agent'}: ${taskInput.description}`
+        : JSON.stringify(input);
+    }
+
+    // Default: show JSON
+    return typeof input === 'string' ? input : JSON.stringify(input, null, 2);
   }
 
   /**
@@ -476,6 +599,8 @@ export function useClaudeCodePanel() {
     activeTools.value = new Map();
     currentToolVerb.value = '';
     toolVerbsCache.clear();
+    toolInputBuffers.clear();
+    displayedTools.clear();
   }
 
   /**
@@ -486,23 +611,30 @@ export function useClaudeCodePanel() {
     console.debug('[Claude SSE]', message.type, message);
 
     if (message.type === 'assistant') {
-      const content = claudeCodeService.extractContent(message);
-      if (content) {
-        // Flush any existing message as a separate bubble before adding new content
-        if (currentAssistantMessage.value) {
-          addOutput('assistant', currentAssistantMessage.value);
-          currentAssistantMessage.value = '';
+      // The 'assistant' message contains the complete response
+      // If we've been streaming text via stream_event deltas, flush that first
+      if (currentAssistantMessage.value) {
+        addOutput('assistant', currentAssistantMessage.value);
+        currentAssistantMessage.value = '';
+      } else {
+        // Fallback: if no streaming happened, extract from the complete message
+        const content = claudeCodeService.extractContent(message);
+        if (content) {
+          addOutput('assistant', content);
         }
-        // Add this message as a new bubble
-        addOutput('assistant', content);
       }
     } else if (message.type === 'tool_progress') {
       // Handle tool progress events
       handleToolProgress(message);
     } else if (message.type === 'stream_event') {
-      // Handle stream events for tool_use detection
+      // Handle stream events for tool_use detection and text streaming
       handleStreamEvent(message);
     } else if (message.type === 'result') {
+      // Flush any remaining streaming text
+      if (currentAssistantMessage.value) {
+        addOutput('assistant', currentAssistantMessage.value);
+        currentAssistantMessage.value = '';
+      }
       // Capture cost and usage stats
       if (message.total_cost_usd) {
         totalCost.value += message.total_cost_usd;

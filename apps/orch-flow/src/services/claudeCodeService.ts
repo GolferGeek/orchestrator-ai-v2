@@ -105,6 +105,7 @@ class ClaudeCodeService {
    * Execute a prompt/command and stream results
    * Returns an AbortController for cancellation
    * Supports session resumption for multi-turn conversations
+   * Supports source context to provide app-specific guidance
    */
   async execute(
     prompt: string,
@@ -112,6 +113,7 @@ class ClaudeCodeService {
     onError: (error: Error) => void,
     onComplete: (sessionId?: string) => void,
     sessionId?: string,
+    sourceContext?: 'web-app' | 'orch-flow' | 'default',
   ): Promise<AbortController> {
     const abortController = new AbortController();
     const token = await this.getAuthToken();
@@ -131,7 +133,7 @@ class ClaudeCodeService {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ prompt, sessionId }),
+        body: JSON.stringify({ prompt, sessionId, sourceContext }),
         signal: abortController.signal,
       });
 

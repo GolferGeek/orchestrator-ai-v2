@@ -12,6 +12,7 @@ import { ObservabilityService } from "../../../services/observability.service";
 import { PostgresCheckpointerService } from "../../../persistence/postgres-checkpointer.service";
 import { CadDbService } from "./services/cad-db.service";
 import { CadStorageService } from "./services/cad-storage.service";
+import { OpenCascadeExecutorService } from "./services/opencascade-executor.service";
 
 /**
  * CadAgentService
@@ -33,6 +34,7 @@ export class CadAgentService implements OnModuleInit {
     private readonly checkpointer: PostgresCheckpointerService,
     private readonly cadDb: CadDbService,
     private readonly cadStorage: CadStorageService,
+    private readonly occtExecutor: OpenCascadeExecutorService,
   ) {}
 
   async onModuleInit() {
@@ -43,6 +45,7 @@ export class CadAgentService implements OnModuleInit {
       this.checkpointer,
       this.cadDb,
       this.cadStorage,
+      this.occtExecutor,
     );
     this.logger.log("CAD Agent graph initialized");
   }
@@ -55,12 +58,28 @@ export class CadAgentService implements OnModuleInit {
   async generate(input: CadAgentInput): Promise<CadAgentResult> {
     const startTime = Date.now();
     const { context } = input;
+
+    // Validate required ExecutionContext fields
+    if (!context.orgSlug) {
+      throw new Error(
+        "ExecutionContext.orgSlug is required for CAD generation",
+      );
+    }
+    if (!context.taskId) {
+      throw new Error("ExecutionContext.taskId is required for CAD generation");
+    }
+    if (!context.userId) {
+      throw new Error("ExecutionContext.userId is required for CAD generation");
+    }
+
     const taskId = context.taskId;
 
     // Use taskId as drawingId - they're the same thing
     const drawingId = taskId;
 
-    this.logger.log(`Starting CAD generation: taskId/drawingId=${taskId}`);
+    this.logger.log(
+      `Starting CAD generation: taskId/drawingId=${taskId}, orgSlug=${context.orgSlug}`,
+    );
 
     try {
       // Determine project ID - either use existing or create new
@@ -77,10 +96,14 @@ export class CadAgentService implements OnModuleInit {
             context.userId,
           );
           projectId = project.id;
-          this.logger.log(`Created new project: ${projectId} - ${input.newProjectName}`);
+          this.logger.log(
+            `Created new project: ${projectId} - ${input.newProjectName}`,
+          );
         } else {
           // Fallback: create a project named after the prompt
-          const projectName = input.userMessage.slice(0, 50) + (input.userMessage.length > 50 ? '...' : '');
+          const projectName =
+            input.userMessage.slice(0, 50) +
+            (input.userMessage.length > 50 ? "..." : "");
           const project = await this.cadDb.createProject(
             context.orgSlug,
             projectName,
@@ -89,7 +112,9 @@ export class CadAgentService implements OnModuleInit {
             context.userId,
           );
           projectId = project.id;
-          this.logger.log(`Created project from prompt: ${projectId} - ${projectName}`);
+          this.logger.log(
+            `Created project from prompt: ${projectId} - ${projectName}`,
+          );
         }
       }
 
@@ -238,7 +263,6 @@ export class CadAgentService implements OnModuleInit {
       return [];
     }
   }
-
 
   /**
    * Helper method: Get output URLs from database for a drawing

@@ -106,6 +106,7 @@ export interface ExecutionLogEntry {
     | "code_validation"
     | "execution_started"
     | "execution_completed"
+    | "execution_failed"
     | "export_started"
     | "export_completed"
     | "error";

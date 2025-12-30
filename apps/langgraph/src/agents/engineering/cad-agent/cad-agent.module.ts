@@ -3,6 +3,7 @@ import { CadAgentController } from "./cad-agent.controller";
 import { CadAgentService } from "./cad-agent.service";
 import { CadDbService } from "./services/cad-db.service";
 import { CadStorageService } from "./services/cad-storage.service";
+import { OpenCascadeExecutorService } from "./services/opencascade-executor.service";
 import { SharedServicesModule } from "../../../services/shared-services.module";
 import { PersistenceModule } from "../../../persistence/persistence.module";
 
@@ -13,7 +14,7 @@ import { PersistenceModule } from "../../../persistence/persistence.module";
  * The agent:
  * - Generates OpenCascade.js code from user prompts
  * - Validates the generated code
- * - Executes code in isolated container to produce geometry
+ * - Executes code using OpenCASCADE.js WASM to produce geometry
  * - Exports to multiple formats (STEP, STL, GLTF, DXF)
  * - Stores drawings and outputs in Supabase Storage
  * - Records output metadata in the database
@@ -21,7 +22,12 @@ import { PersistenceModule } from "../../../persistence/persistence.module";
 @Module({
   imports: [SharedServicesModule, PersistenceModule],
   controllers: [CadAgentController],
-  providers: [CadAgentService, CadDbService, CadStorageService],
-  exports: [CadAgentService],
+  providers: [
+    CadAgentService,
+    CadDbService,
+    CadStorageService,
+    OpenCascadeExecutorService,
+  ],
+  exports: [CadAgentService, OpenCascadeExecutorService],
 })
 export class CadAgentModule {}

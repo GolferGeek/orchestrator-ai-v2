@@ -30,7 +30,7 @@ export class CadAgentRequestDto {
 
   @IsOptional()
   @IsString()
-  drawingId?: string;
+  newProjectName?: string;
 
   @IsOptional()
   @IsObject()
