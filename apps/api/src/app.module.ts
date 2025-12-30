@@ -27,6 +27,7 @@ import { TeamsModule } from './teams/teams.module';
 import { OrganizationsModule } from './admin/organizations/organizations.module';
 import { MarketingModule } from './marketing/marketing.module';
 import { SuperAdminModule } from './super-admin/super-admin.module';
+import { EngineeringModule } from './engineering/engineering.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { SuperAdminModule } from './super-admin/super-admin.module';
     TeamsModule,
     OrganizationsModule,
     MarketingModule,
+    EngineeringModule, // Engineering CAD agent module
     SuperAdminModule, // Dev-only Claude Code panel for super admins
   ],
   controllers: [AppController, AnalyticsController],

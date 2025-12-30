@@ -1,9 +1,13 @@
 <template>
   <div class="conversation-view">
-    <!-- Custom UI for agents with hasCustomUI (like Marketing Swarm) -->
+    <!-- Custom UI for agents with hasCustomUI (like Marketing Swarm, CAD Agent) -->
     <template v-if="hasCustomUI">
       <MarketingSwarmTab
         v-if="customUIComponent === 'marketing-swarm'"
+        :conversation="conversation"
+      />
+      <CadAgentTab
+        v-else-if="customUIComponent === 'cad-agent'"
         :conversation="conversation"
       />
       <!-- Add more custom UI components here as needed -->
@@ -344,6 +348,7 @@ import SovereignModeTooltip from './SovereignMode/SovereignModeTooltip.vue';
 import SovereignModeBanner from './SovereignMode/SovereignModeBanner.vue';
 import ConversationalSpeechButton from './ConversationalSpeechButton.vue';
 import MarketingSwarmTab from './custom-ui/MarketingSwarmTab.vue';
+import CadAgentTab from './custom-ui/CadAgentTab.vue';
 import type { Deliverable, DeliverableVersion } from '@/services/deliverablesService';
 import type { PlanData, PlanVersionData } from '@orchestrator-ai/transport-types';
 

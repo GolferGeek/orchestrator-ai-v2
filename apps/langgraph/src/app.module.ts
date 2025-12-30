@@ -8,6 +8,7 @@ import { ToolsModule } from "./tools/tools.module";
 import { DataAnalystModule } from "./agents/data-analyst/data-analyst.module";
 import { ExtendedPostWriterModule } from "./agents/extended-post-writer/extended-post-writer.module";
 import { MarketingSwarmModule } from "./agents/marketing-swarm/marketing-swarm.module";
+import { CadAgentModule } from "./agents/engineering/cad-agent/cad-agent.module";
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { MarketingSwarmModule } from "./agents/marketing-swarm/marketing-swarm.m
     DataAnalystModule,
     ExtendedPostWriterModule,
     MarketingSwarmModule,
+    CadAgentModule,
     // Health check
     HealthModule,
   ],
