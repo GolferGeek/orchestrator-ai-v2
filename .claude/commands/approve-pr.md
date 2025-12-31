@@ -2,7 +2,7 @@
 description: "Approve a pull request. Use when PR has been reviewed and is ready to merge, or for quick approval after verifying CI passes. Can approve with optional comment."
 argument-hint: "[PR number or branch name] [optional comment]"
 category: "pr-workflow"
-uses-skills: []
+uses-skills: ["self-reporting-skill"]
 uses-agents: []
 related-commands: ["create-pr", "review-pr"]
 ---
@@ -151,6 +151,36 @@ Comment: "Approved, but please verify CI passes before merging."
 - **`/review-pr`** - Full PR review with quality gates and architecture validation
 - **`pr-review-agent.md`** - Agent that performs full reviews
 - **GitHub CLI** - Required for PR operations
+
+## MANDATORY: Self-Reporting
+
+**Log command invocation at START:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, details)
+VALUES ('command', 'approve-pr', 'invoked',
+  '{\"pr\": \"PR number or branch\", \"triggered_by\": \"user\"}'::jsonb);"
+```
+
+**Log completion at END:**
+
+```bash
+# Log successful completion
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('command', 'approve-pr', 'completed', true,
+  '{\"outcome\": \"PR approved successfully\"}'::jsonb);"
+```
+
+**If command fails:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('command', 'approve-pr', 'completed', false,
+  '{\"error\": \"description of what went wrong\"}'::jsonb);"
+```
 
 ## Notes
 

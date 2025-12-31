@@ -2,7 +2,7 @@
 description: Manage orch-flow database operations for team files, tasks, notes, and sprints. Use for any orch-flow data operations.
 argument-hint: "[operation] [type] [options]" - Examples: "create file", "list tasks", "get sprint", "create note"
 category: "domain"
-uses-skills: ["orch-flow-skill"]
+uses-skills: ["orch-flow-skill", "self-reporting-skill"]
 uses-agents: ["orch-flow-agent"]
 related-commands: []
 ---
@@ -219,6 +219,35 @@ None yet - this is the primary orch-flow command.
 
 **Agents:**
 - `orch-flow-agent` - Autonomous database operations specialist
+
+## MANDATORY: Self-Reporting
+
+**Log command invocation at START:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, details)
+VALUES ('command', 'orch-flow', 'invoked',
+  '{\"operation\": \"operation\", \"type\": \"type\", \"triggered_by\": \"user\"}'::jsonb);"
+```
+
+**Log completion at END:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('command', 'orch-flow', 'completed', true,
+  '{\"outcome\": \"Operation completed successfully\"}'::jsonb);"
+```
+
+**If command fails:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('command', 'orch-flow', 'completed', false,
+  '{\"error\": \"description of what went wrong\"}'::jsonb);"
+```
 
 ## Notes
 

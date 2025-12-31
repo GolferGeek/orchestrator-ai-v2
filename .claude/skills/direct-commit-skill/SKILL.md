@@ -108,3 +108,23 @@ When pushing to remote, the skill follows a **bulletproof workflow** that:
 - Always run quality gates before committing
 - Progressive safety checks - only check what's relevant
 - Fail fast - don't commit if checks fail
+
+## Self-Reporting
+
+**When this skill is loaded, the agent using it should log the event:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, details)
+VALUES ('skill', 'direct-commit-skill', 'loaded',
+  '{\"loaded_by\": \"agent-name\", \"context\": \"description\"}'::jsonb);"
+```
+
+**After using the skill's patterns, log if they helped:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('skill', 'direct-commit-skill', 'helped', true,
+  '{\"outcome\": \"what the skill helped with\"}'::jsonb);"
+```

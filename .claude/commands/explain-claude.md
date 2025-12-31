@@ -1,7 +1,7 @@
 ---
 description: "Get explanations about Claude Code features, commands, skills, or agents"
 category: "ecosystem"
-uses-skills: []
+uses-skills: ["self-reporting-skill"]
 uses-agents: []
 related-commands: ["fix-claude"]
 ---
@@ -106,6 +106,35 @@ When this command runs:
    - Concepts: `.claude/HIERARCHY.md` + relevant skill docs
 3. Summarizes the key information
 4. Provides examples and tips
+
+## MANDATORY: Self-Reporting
+
+**Log command invocation at START:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, details)
+VALUES ('command', 'explain-claude', 'invoked',
+  '{\"topic\": \"topic name\", \"triggered_by\": \"user\"}'::jsonb);"
+```
+
+**Log completion at END:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('command', 'explain-claude', 'completed', true,
+  '{\"outcome\": \"Explanation provided for topic\"}'::jsonb);"
+```
+
+**If command fails:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('command', 'explain-claude', 'completed', false,
+  '{\"error\": \"Topic not found\"}'::jsonb);"
+```
 
 ## Notes
 

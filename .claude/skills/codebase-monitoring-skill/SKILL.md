@@ -282,3 +282,23 @@ This skill provides patterns and validation for codebase monitoring. It enables 
 - **`transport-types-skill/`** - For A2A compliance validation
 - **Architecture skills** - For file classification
 
+## Self-Reporting
+
+**When this skill is loaded, the agent using it should log the event:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, details)
+VALUES ('skill', 'codebase-monitoring-skill', 'loaded',
+  '{\"loaded_by\": \"agent-name\", \"context\": \"description\"}'::jsonb);"
+```
+
+**After using the skill's patterns, log if they helped:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('skill', 'codebase-monitoring-skill', 'helped', true,
+  '{\"outcome\": \"what the skill helped with\"}'::jsonb);"
+```
+

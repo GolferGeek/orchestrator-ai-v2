@@ -2,7 +2,7 @@
 description: "Run codebase hardening on specific issues from monitoring report. Auto-fixes issues if tests are adequate, otherwise documents issues with fix plans."
 argument-hint: "[scope] [target] - Scope: 'apps/web', 'apps/api', 'apps/langgraph', or project (default). Target: '#<issue-id>', '<refactoring-name>', or auto-identify most important (default)."
 category: "quality"
-uses-skills: ["codebase-hardening-skill", "codebase-monitoring-skill"]
+uses-skills: ["codebase-hardening-skill", "codebase-monitoring-skill", "self-reporting-skill"]
 uses-agents: ["codebase-hardening-agent", "codebase-monitoring-agent"]
 related-commands: ["monitor", "test"]
 ---
@@ -166,6 +166,35 @@ Issue documented with:
   - Proposed solution
   - Required test coverage
   - Implementation steps
+```
+
+## MANDATORY: Self-Reporting
+
+**Log command invocation at START:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, details)
+VALUES ('command', 'harden', 'invoked',
+  '{\"scope\": \"scope\", \"target\": \"target\", \"triggered_by\": \"user\"}'::jsonb);"
+```
+
+**Log completion at END:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('command', 'harden', 'completed', true,
+  '{\"outcome\": \"N issues fixed, M documented\"}'::jsonb);"
+```
+
+**If command fails:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('command', 'harden', 'completed', false,
+  '{\"error\": \"description of what went wrong\"}'::jsonb);"
 ```
 
 ## Related

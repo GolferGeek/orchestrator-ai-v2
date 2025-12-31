@@ -176,3 +176,23 @@ if (!isA2ATaskRequest(req.body)) {
 - **Task Response Types**: `apps/transport-types/response/task-response.types.ts`
 - **Mode Types**: `apps/transport-types/modes/*.types.ts`
 - **A2A Compliance Doc**: `docs/a2a-compliance-evaluation.md`
+
+## Self-Reporting
+
+**When this skill is loaded, the agent using it should log the event:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, details)
+VALUES ('skill', 'transport-types-skill', 'loaded',
+  '{\"loaded_by\": \"agent-name\", \"context\": \"description\"}'::jsonb);"
+```
+
+**After using the skill's patterns, log if they helped:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('skill', 'transport-types-skill', 'helped', true,
+  '{\"outcome\": \"what the skill helped with\"}'::jsonb);"
+```

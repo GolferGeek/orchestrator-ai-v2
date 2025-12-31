@@ -2,7 +2,7 @@
 description: "Build a structured, machine-readable execution plan from PRD(s), optimized for agent delegation and progress tracking."
 argument-hint: "[PRD file path(s) or PRD content]"
 category: "development"
-uses-skills: ["plan-evaluation-skill"]
+uses-skills: ["plan-evaluation-skill", "self-reporting-skill"]
 uses-agents: []
 related-commands: ["work-plan"]
 ---
@@ -312,6 +312,35 @@ Since the plan is JSON, it can be used in Cursor:
 - **Architecture Agents**: Domain specialists that execute plan steps
 - **`schemas/agent-platform/orchestration.schema.json`**: Plan structure schema
 - **`plans.plan_json`**: Database column that stores plan structure
+
+## MANDATORY: Self-Reporting
+
+**Log command invocation at START:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, details)
+VALUES ('command', 'build-plan', 'invoked',
+  '{\"prd\": \"PRD source\", \"triggered_by\": \"user\"}'::jsonb);"
+```
+
+**Log completion at END:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('command', 'build-plan', 'completed', true,
+  '{\"outcome\": \"Plan created with N phases, M steps\"}'::jsonb);"
+```
+
+**If command fails:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('command', 'build-plan', 'completed', false,
+  '{\"error\": \"description of what went wrong\"}'::jsonb);"
+```
 
 ## Notes
 
