@@ -2,7 +2,7 @@
 description: "Review a pull request systematically. Runs quality checks, analyzes code quality and architecture, and generates review comments."
 argument-hint: "[PR number or branch name]"
 category: "pr-workflow"
-uses-skills: ["execution-context-skill", "transport-types-skill", "web-architecture-skill", "api-architecture-skill", "langgraph-architecture-skill", "quality-gates-skill"]
+uses-skills: ["execution-context-skill", "transport-types-skill", "web-architecture-skill", "api-architecture-skill", "langgraph-architecture-skill", "quality-gates-skill", "self-reporting-skill"]
 uses-agents: ["pr-review-agent"]
 related-commands: ["create-pr", "approve-pr"]
 ---
@@ -113,6 +113,35 @@ Reviews PR #123 with full analysis.
 - `execution-context-skill/` - ExecutionContext validation
 - `transport-types-skill/` - A2A compliance validation
 - All architecture skills - For domain-specific validation
+
+## MANDATORY: Self-Reporting
+
+**Log command invocation at START:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, details)
+VALUES ('command', 'review-pr', 'invoked',
+  '{\"pr\": \"PR number\", \"triggered_by\": \"user\"}'::jsonb);"
+```
+
+**Log completion at END:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('command', 'review-pr', 'completed', true,
+  '{\"outcome\": \"PR reviewed\", \"decision\": \"approve/request-changes\"}'::jsonb);"
+```
+
+**If command fails:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('command', 'review-pr', 'completed', false,
+  '{\"error\": \"description of what went wrong\"}'::jsonb);"
+```
 
 ## Notes
 

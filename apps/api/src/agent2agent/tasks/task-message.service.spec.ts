@@ -5,7 +5,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 
 describe('TaskMessageService', () => {
   let service: TaskMessageService;
-  let supabaseService: jest.Mocked<SupabaseService>;
+  let _supabaseService: jest.Mocked<SupabaseService>;
   let eventEmitter: jest.Mocked<EventEmitter2>;
 
   let mockSupabaseClient: any;
@@ -46,7 +46,7 @@ describe('TaskMessageService', () => {
     }).compile();
 
     service = module.get<TaskMessageService>(TaskMessageService);
-    supabaseService = module.get(SupabaseService);
+    _supabaseService = module.get(SupabaseService);
     eventEmitter = module.get(EventEmitter2);
 
     // Reset mocks but maintain chaining

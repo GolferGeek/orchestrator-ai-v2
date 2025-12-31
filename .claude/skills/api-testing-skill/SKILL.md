@@ -433,3 +433,23 @@ describe('MyService', () => {
 - **transport-types-skill** - A2A protocol validation in tests
 - **api-architecture-skill** - API app structure and patterns
 
+## Self-Reporting
+
+**When this skill is loaded, the agent using it should log the event:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, details)
+VALUES ('skill', 'api-testing-skill', 'loaded',
+  '{\"loaded_by\": \"agent-name\", \"context\": \"description\"}'::jsonb);"
+```
+
+**After using the skill's patterns, log if they helped:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('skill', 'api-testing-skill', 'helped', true,
+  '{\"outcome\": \"what the skill helped with\"}'::jsonb);"
+```
+

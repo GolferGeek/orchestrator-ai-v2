@@ -12,14 +12,42 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import { ThemesService } from './themes.service';
-import type { ThemeSearchQuery } from '../types';
+import type { ThemeSearchQuery, ThemeColors } from '../types';
+
+// DTOs for controller endpoints
+interface CreateThemeDto {
+  name: string;
+  displayName: string;
+  description?: string;
+  colors: ThemeColors;
+  isPublic: boolean;
+  tags?: string[];
+  authorId?: string;
+  authorName?: string;
+}
+
+interface UpdateThemeDto {
+  displayName?: string;
+  description?: string;
+  colors?: ThemeColors;
+  isPublic?: boolean;
+  tags?: string[];
+  authorName?: string;
+}
+
+interface ImportThemeDto {
+  theme: Record<string, unknown>;
+  version?: string;
+  exportedAt?: string;
+  exportedBy?: string;
+}
 
 @Controller('api/themes')
 export class ThemesController {
   constructor(private readonly themesService: ThemesService) {}
 
   @Post()
-  async createTheme(@Body() themeData: any, @Res() res: Response) {
+  async createTheme(@Body() themeData: CreateThemeDto, @Res() res: Response) {
     const result = await this.themesService.createTheme(themeData);
     const status = result.success ? HttpStatus.CREATED : HttpStatus.BAD_REQUEST;
     return res.status(status).json(result);
@@ -30,8 +58,8 @@ export class ThemesController {
     @Query('query') query?: string,
     @Query('isPublic') isPublic?: string,
     @Query('authorId') authorId?: string,
-    @Query('sortBy') sortBy?: any,
-    @Query('sortOrder') sortOrder?: any,
+    @Query('sortBy') sortBy?: 'name' | 'created' | 'updated' | 'downloads' | 'rating',
+    @Query('sortOrder') sortOrder?: 'asc' | 'desc',
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
@@ -63,7 +91,7 @@ export class ThemesController {
   @Put(':id')
   async updateTheme(
     @Param('id') id: string,
-    @Body() updates: any,
+    @Body() updates: UpdateThemeDto,
     @Res() res: Response,
   ) {
     const result = await this.themesService.updateThemeById(id, updates);
@@ -105,7 +133,7 @@ export class ThemesController {
 
   @Post('import')
   async importTheme(
-    @Body() importData: any,
+    @Body() importData: ImportThemeDto,
     @Res() res: Response,
     @Query('authorId') authorId?: string,
   ) {

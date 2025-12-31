@@ -219,7 +219,7 @@ describe('ApiAgentRunnerService', () => {
       expect(result.mode).toBe(AgentTaskMode.BUILD);
 
       // Verify HTTP call
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(httpService.request).toHaveBeenCalledWith({
         url: 'https://api.example.com/users',
         method: 'GET',
@@ -234,7 +234,7 @@ describe('ApiAgentRunnerService', () => {
       });
 
       // Verify deliverable creation
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(deliverablesService.executeAction).toHaveBeenCalledWith(
         'create',
         expect.objectContaining({
@@ -303,7 +303,6 @@ describe('ApiAgentRunnerService', () => {
 
       await service.execute(definition, request, mockContext.orgSlug);
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(httpService.request).toHaveBeenCalledWith(
         expect.objectContaining({
           method: 'POST',
@@ -355,7 +354,6 @@ describe('ApiAgentRunnerService', () => {
 
       await service.execute(definition, request, mockContext.orgSlug);
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(httpService.request).toHaveBeenCalledWith(
         expect.objectContaining({
           url: 'https://api.example.com/users/42',
@@ -405,7 +403,6 @@ describe('ApiAgentRunnerService', () => {
 
       await service.execute(definition, request, mockContext.orgSlug);
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(httpService.request).toHaveBeenCalledWith(
         expect.objectContaining({
           params: {
@@ -698,9 +695,7 @@ describe('ApiAgentRunnerService', () => {
 
       let capturedContent: string = '';
       deliverablesService.executeAction.mockImplementation(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (_action: string, params: any, _context: any) => {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
           capturedContent = params.content as string;
           return Promise.resolve({
             success: true,
@@ -789,7 +784,7 @@ describe('ApiAgentRunnerService', () => {
       expect(content?.deliverable?.id).toBe('del-123');
 
       // Verify the read action was executed through deliverablesService
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(deliverablesService.executeAction).toHaveBeenCalledWith(
         'read',
         {},
@@ -800,7 +795,7 @@ describe('ApiAgentRunnerService', () => {
       );
 
       // Should not call HTTP service for non-create actions
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(httpService.request).not.toHaveBeenCalled();
     });
   });

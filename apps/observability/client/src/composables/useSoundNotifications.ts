@@ -2,6 +2,13 @@ import { ref } from 'vue';
 
 export type NotificationSoundType = 'completion' | 'needsInput' | 'error';
 
+// Extend Window to include webkitAudioContext for Safari support
+declare global {
+  interface Window {
+    webkitAudioContext: typeof AudioContext;
+  }
+}
+
 export function useSoundNotifications() {
   const isEnabled = ref(true);
   const volume = ref(0.5);
@@ -11,7 +18,7 @@ export function useSoundNotifications() {
     if (!isEnabled.value) return;
 
     try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
 
@@ -34,7 +41,7 @@ export function useSoundNotifications() {
     if (!isEnabled.value) return;
 
     try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
       const now = audioContext.currentTime;
 
       // Three ascending notes for a pleasant "done" sound
@@ -68,7 +75,7 @@ export function useSoundNotifications() {
     if (!isEnabled.value) return;
 
     try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
       const now = audioContext.currentTime;
 
       // Two alternating notes to get attention
@@ -104,7 +111,7 @@ export function useSoundNotifications() {
     if (!isEnabled.value) return;
 
     try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
       const now = audioContext.currentTime;
 
       // Descending notes for error

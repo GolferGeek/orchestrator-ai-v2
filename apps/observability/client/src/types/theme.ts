@@ -95,7 +95,7 @@ export interface ThemeImportExport {
   exportedBy?: string;
 }
 
-export interface ThemeApiResponse<T = any> {
+export interface ThemeApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;

@@ -635,7 +635,7 @@ export function useThemes() {
       state.value.customThemes.push(newTheme);
       saveCustomThemes();
       return true;
-    } catch (error) {
+    } catch (_error) {
       state.value.error = 'Failed to import theme';
       return false;
     }

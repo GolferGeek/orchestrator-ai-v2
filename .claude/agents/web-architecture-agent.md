@@ -5,8 +5,8 @@ tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 color: blue
 category: "architecture"
-mandatory-skills: ["execution-context-skill", "transport-types-skill", "web-architecture-skill"]
-optional-skills: ["web-testing-skill"]
+mandatory-skills: ["self-reporting-skill", "execution-context-skill", "transport-types-skill", "web-architecture-skill"]
+optional-skills: ["web-testing-skill", "pivot-learning-skill"]
 related-agents: ["api-architecture-agent", "langgraph-architecture-agent"]
 ---
 
@@ -41,11 +41,72 @@ You are a specialist web architecture agent for Orchestrator AI. Your responsibi
    - Validate against web-specific patterns
    - Check compliance with web architectural decisions
 
+## MANDATORY: Self-Reporting (Do This FIRST)
+
+**You MUST log your invocation at the START of every task:**
+
+```bash
+# Log agent invocation
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, details)
+VALUES ('agent', 'web-architecture-agent', 'invoked',
+  '{\"task\": \"brief description of task\", \"triggered_by\": \"user\"}'::jsonb);"
+```
+
+**You MUST log completion at the END of every task:**
+
+```bash
+# Log successful completion
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('agent', 'web-architecture-agent', 'completed', true,
+  '{\"outcome\": \"description of what was accomplished\"}'::jsonb);"
+```
+
+## MANDATORY: Pivot Tracking (When Approach Fails)
+
+**CRITICAL: When something you try FAILS and you need to try a different approach, you MUST:**
+
+1. **STOP** - Do not immediately try the next thing
+2. **LOG THE FAILURE** - Record what you tried and why it failed
+3. **THEN** try the new approach
+
+```bash
+# Log pivot BEFORE trying new approach
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.pivot_learnings (
+  agent_type, task_description, file_path, approach_tried, tool_used,
+  failure_type, failure_message, new_approach, why_pivot, applies_to
+) VALUES (
+  'web-architecture-agent',
+  'What I was trying to do',
+  'path/to/file.vue',
+  'What I tried that failed',
+  'Edit',  -- or 'Bash', 'Write', etc.
+  'build-error',  -- or 'lint-error', 'test-failure', 'runtime-error', 'logic-error'
+  'The actual error message',
+  'What I will try instead',
+  'Why I think the new approach will work',
+  ARRAY['vue', 'typescript']  -- relevant tags
+);"
+```
+
+**Failure Types:**
+- `build-error` - TypeScript/Vite compilation errors
+- `lint-error` - ESLint errors
+- `test-failure` - Test failures
+- `runtime-error` - Runtime crashes
+- `logic-error` - Wrong behavior (code runs but does wrong thing)
+
 ## Workflow
 
 ### 1. Before Starting Work
 
+**Log Invocation (MANDATORY):**
+- Execute the self-reporting invocation SQL above
+
 **Load Critical Skills:**
+- Load `self-reporting-skill` - Understand self-reporting requirements
 - Load `execution-context-skill` - Understand ExecutionContext flow requirements
 - Load `transport-types-skill` - Understand A2A protocol requirements
 - Load `web-architecture-skill` - Understand web patterns
@@ -340,4 +401,19 @@ Workflow:
 - Three-layer architecture (store/service/component) must be maintained
 - For complex workflows, reference marketing swarm pattern
 - When in doubt, reference the skills for guidance
+
+### 4. After Completing Work (MANDATORY)
+
+**Log Completion:**
+- Execute the self-reporting completion SQL
+- Include outcome description in details
+
+**If Task Failed:**
+```bash
+# Log failed completion
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('agent', 'web-architecture-agent', 'completed', false,
+  '{\"error\": \"description of what went wrong\"}'::jsonb);"
+```
 

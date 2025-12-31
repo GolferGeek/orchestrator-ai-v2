@@ -44,6 +44,7 @@ describe('TasksController', () => {
         },
       ],
     })
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       .overrideGuard(require('@/auth/guards/jwt-auth.guard').JwtAuthGuard)
       .useValue({ canActivate: () => true })
       .compile();

@@ -2,7 +2,7 @@
 description: "Create and execute a structured work plan from a task, PRD, or existing plan file. Delegates to sub-agents and tracks progress."
 argument-hint: "[task description, PRD file path, or --plan path/to/plan.json]"
 category: "development"
-uses-skills: ["plan-evaluation-skill", "execution-context-skill", "transport-types-skill"]
+uses-skills: ["plan-evaluation-skill", "execution-context-skill", "transport-types-skill", "self-reporting-skill"]
 uses-agents: ["web-architecture-agent", "api-architecture-agent", "langgraph-architecture-agent"]
 related-commands: ["build-plan"]
 ---
@@ -385,6 +385,35 @@ The plan file is updated in-place, so progress can be tracked across multiple ex
 - **`quality-gates-skill/`**: For quality checkpoints
 - **`schemas/agent-platform/orchestration.schema.json`**: Plan structure schema
 - **PRD Template**: `obsidian/docs/archive/prd/templates/prd-template.md`
+
+## MANDATORY: Self-Reporting
+
+**Log command invocation at START:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, details)
+VALUES ('command', 'work-plan', 'invoked',
+  '{\"input\": \"task or PRD\", \"triggered_by\": \"user\"}'::jsonb);"
+```
+
+**Log completion at END:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('command', 'work-plan', 'completed', true,
+  '{\"outcome\": \"Plan executed\", \"phases_completed\": N}'::jsonb);"
+```
+
+**If command fails:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('command', 'work-plan', 'completed', false,
+  '{\"error\": \"description of what went wrong\"}'::jsonb);"
+```
 
 ## Notes
 

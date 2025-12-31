@@ -47,9 +47,13 @@ describe('AgentRuntimeLifecycleService', () => {
       expect(mockEmitter.emit).toHaveBeenCalledWith(
         'agent.lifecycle.start',
         expect.objectContaining({
-          ...ctx,
+          conversationId: ctx.conversationId,
+          sessionId: ctx.sessionId,
+          organizationSlug: ctx.organizationSlug,
+          agentSlug: ctx.agentSlug,
+          mode: ctx.mode,
           metadata,
-          timestamp: expect.any(String),
+          timestamp: expect.any(String) as string,
         }),
       );
     });
@@ -66,8 +70,10 @@ describe('AgentRuntimeLifecycleService', () => {
       expect(mockEmitter.emit).toHaveBeenCalledWith(
         'agent.lifecycle.start',
         expect.objectContaining({
-          ...ctx,
-          timestamp: expect.any(String),
+          organizationSlug: ctx.organizationSlug,
+          agentSlug: ctx.agentSlug,
+          mode: ctx.mode,
+          timestamp: expect.any(String) as string,
         }),
       );
     });
@@ -93,9 +99,12 @@ describe('AgentRuntimeLifecycleService', () => {
       expect(mockEmitter.emit).toHaveBeenCalledWith(
         'agent.lifecycle.progress',
         expect.objectContaining({
-          ...ctx,
+          conversationId: ctx.conversationId,
+          organizationSlug: ctx.organizationSlug,
+          agentSlug: ctx.agentSlug,
+          mode: ctx.mode,
           progress,
-          timestamp: expect.any(String),
+          timestamp: expect.any(String) as string,
         }),
       );
     });
@@ -115,9 +124,11 @@ describe('AgentRuntimeLifecycleService', () => {
       expect(mockEmitter.emit).toHaveBeenCalledWith(
         'agent.lifecycle.progress',
         expect.objectContaining({
-          ...ctx,
+          organizationSlug: ctx.organizationSlug,
+          agentSlug: ctx.agentSlug,
+          mode: ctx.mode,
           progress,
-          timestamp: expect.any(String),
+          timestamp: expect.any(String) as string,
         }),
       );
     });
@@ -139,9 +150,13 @@ describe('AgentRuntimeLifecycleService', () => {
       expect(mockEmitter.emit).toHaveBeenCalledWith(
         'agent.lifecycle.complete',
         expect.objectContaining({
-          ...ctx,
+          conversationId: ctx.conversationId,
+          sessionId: ctx.sessionId,
+          organizationSlug: ctx.organizationSlug,
+          agentSlug: ctx.agentSlug,
+          mode: ctx.mode,
           result,
-          timestamp: expect.any(String),
+          timestamp: expect.any(String) as string,
         }),
       );
     });
@@ -158,8 +173,10 @@ describe('AgentRuntimeLifecycleService', () => {
       expect(mockEmitter.emit).toHaveBeenCalledWith(
         'agent.lifecycle.complete',
         expect.objectContaining({
-          ...ctx,
-          timestamp: expect.any(String),
+          organizationSlug: ctx.organizationSlug,
+          agentSlug: ctx.agentSlug,
+          mode: ctx.mode,
+          timestamp: expect.any(String) as string,
         }),
       );
     });
@@ -181,10 +198,13 @@ describe('AgentRuntimeLifecycleService', () => {
       expect(mockEmitter.emit).toHaveBeenCalledWith(
         'agent.lifecycle.fail',
         expect.objectContaining({
-          ...ctx,
+          conversationId: ctx.conversationId,
+          organizationSlug: ctx.organizationSlug,
+          agentSlug: ctx.agentSlug,
+          mode: ctx.mode,
           error: { reason },
           metadata,
-          timestamp: expect.any(String),
+          timestamp: expect.any(String) as string,
         }),
       );
     });
@@ -202,9 +222,11 @@ describe('AgentRuntimeLifecycleService', () => {
       expect(mockEmitter.emit).toHaveBeenCalledWith(
         'agent.lifecycle.fail',
         expect.objectContaining({
-          ...ctx,
+          organizationSlug: ctx.organizationSlug,
+          agentSlug: ctx.agentSlug,
+          mode: ctx.mode,
           error: { reason },
-          timestamp: expect.any(String),
+          timestamp: expect.any(String) as string,
         }),
       );
     });

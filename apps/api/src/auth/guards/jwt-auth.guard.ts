@@ -149,7 +149,7 @@ export class JwtAuthGuard implements CanActivate {
         }
 
         return true;
-      } catch (_error) {
+      } catch {
         this.logger.warn('Token validation failed', {
           source: bearerToken ? 'header' : 'query',
         });
@@ -246,7 +246,7 @@ export class JwtAuthGuard implements CanActivate {
 
       // Use Node.js crypto.timingSafeEqual for constant-time comparison
       return timingSafeEqual(bufferA, bufferB);
-    } catch (_error) {
+    } catch {
       this.logger.error('Failed to compare strings securely');
       return false;
     }

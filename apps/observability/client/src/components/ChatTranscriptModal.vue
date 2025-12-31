@@ -109,9 +109,17 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import ChatTranscript from './ChatTranscript.vue';
 
+interface ChatMessage {
+  role?: string;
+  type?: string;
+  content?: string | { type?: string; text?: string; source?: { media_type?: string } }[];
+  tool_use?: { name?: string };
+  tool_result?: { content?: unknown };
+}
+
 const props = defineProps<{
   isOpen: boolean;
-  chat: any[];
+  chat: ChatMessage[];
 }>();
 
 const emit = defineEmits<{
@@ -182,7 +190,7 @@ const copyAllMessages = async () => {
   }
 };
 
-const matchesSearch = (item: any, query: string): boolean => {
+const matchesSearch = (item: ChatMessage & { [key: string]: unknown }, query: string): boolean => {
   const lowerQuery = query.toLowerCase().trim();
   
   // Check direct content (for system messages and simple chat)
@@ -254,7 +262,7 @@ const matchesSearch = (item: any, query: string): boolean => {
   return false;
 };
 
-const matchesFilters = (item: any): boolean => {
+const matchesFilters = (item: ChatMessage & { [key: string]: unknown }): boolean => {
   if (activeFilters.value.length === 0) return true;
   
   // Check message type

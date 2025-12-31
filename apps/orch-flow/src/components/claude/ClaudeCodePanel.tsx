@@ -182,7 +182,7 @@ export function ClaudeCodePanel({ isOpen, onClose }: ClaudeCodePanelProps) {
       e.preventDefault();
       navigateHistory('down');
     }
-  }, [showAutoComplete, filteredCommands, autoCompleteSelectedIndex, execute, navigateHistory]);
+  }, [showAutoComplete, filteredCommands, autoCompleteSelectedIndex, execute, navigateHistory, selectCommand]);
 
   // Select a command from auto-complete
   const selectCommand = useCallback((name: string) => {

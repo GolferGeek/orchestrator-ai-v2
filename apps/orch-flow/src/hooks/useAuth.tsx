@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- context pattern exports both provider and hook */
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';

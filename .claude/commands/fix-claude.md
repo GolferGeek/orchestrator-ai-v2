@@ -2,7 +2,7 @@
 description: "Fix or improve Claude Code ecosystem components (skills, agents, commands) based on issues or feedback. Use when skills aren't being discovered, agents aren't triggering, components need improvement, or patterns need updating."
 argument-hint: "[issue description] - Describe the issue: skill not found, agent not triggering, agent did wrong thing, agent did right thing, missing pattern, etc."
 category: "ecosystem"
-uses-skills: ["skill-builder-skill", "agent-builder-skill"]
+uses-skills: ["skill-builder-skill", "agent-builder-skill", "self-reporting-skill"]
 uses-agents: ["claude-code-ecosystem-agent"]
 related-commands: ["explain-claude"]
 ---
@@ -163,6 +163,35 @@ Changes Made:
 Testing:
   Try: "I need to create a Vue component"
   Should now trigger web-architecture-skill
+```
+
+## MANDATORY: Self-Reporting
+
+**Log command invocation at START:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, details)
+VALUES ('command', 'fix-claude', 'invoked',
+  '{\"issue\": \"issue description\", \"triggered_by\": \"user\"}'::jsonb);"
+```
+
+**Log completion at END:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('command', 'fix-claude', 'completed', true,
+  '{\"outcome\": \"Component fixed\", \"component\": \"component name\"}'::jsonb);"
+```
+
+**If command fails:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('command', 'fix-claude', 'completed', false,
+  '{\"error\": \"description of what went wrong\"}'::jsonb);"
 ```
 
 ## Related

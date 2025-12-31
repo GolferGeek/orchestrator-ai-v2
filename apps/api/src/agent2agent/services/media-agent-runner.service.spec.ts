@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Test, TestingModule } from '@nestjs/testing';
 import { MediaAgentRunnerService } from './media-agent-runner.service';
 import { ContextOptimizationService } from '../context-optimization/context-optimization.service';

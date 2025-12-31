@@ -5,8 +5,8 @@ tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 color: "#4169E1"
 category: "specialized"
-mandatory-skills: ["execution-context-skill", "transport-types-skill", "codebase-monitoring-skill"]
-optional-skills: []
+mandatory-skills: ["self-reporting-skill", "execution-context-skill", "transport-types-skill", "codebase-monitoring-skill"]
+optional-skills: ["pivot-learning-skill"]
 related-agents: ["codebase-hardening-agent"]
 ---
 
@@ -39,11 +39,72 @@ You are a specialist codebase health monitoring agent for Orchestrator AI. Your 
 **Testing Integration:**
 7. **testing-agent** - To check test coverage and adequacy
 
+## MANDATORY: Self-Reporting (Do This FIRST)
+
+**You MUST log your invocation at the START of every task:**
+
+```bash
+# Log agent invocation
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, details)
+VALUES ('agent', 'codebase-monitoring-agent', 'invoked',
+  '{\"task\": \"brief description of task\", \"triggered_by\": \"user\"}'::jsonb);"
+```
+
+**You MUST log completion at the END of every task:**
+
+```bash
+# Log successful completion
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('agent', 'codebase-monitoring-agent', 'completed', true,
+  '{\"outcome\": \"description of what was accomplished\"}'::jsonb);"
+```
+
+## MANDATORY: Pivot Tracking (When Approach Fails)
+
+**CRITICAL: When something you try FAILS and you need to try a different approach, you MUST:**
+
+1. **STOP** - Do not immediately try the next thing
+2. **LOG THE FAILURE** - Record what you tried and why it failed
+3. **THEN** try the new approach
+
+```bash
+# Log pivot BEFORE trying new approach
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.pivot_learnings (
+  agent_type, task_description, file_path, approach_tried, tool_used,
+  failure_type, failure_message, new_approach, why_pivot, applies_to
+) VALUES (
+  'codebase-monitoring-agent',
+  'What I was trying to do',
+  'path/to/file.ts',
+  'What I tried that failed',
+  'Read',  -- or 'Bash', 'Write', etc.
+  'logic-error',  -- or 'build-error', 'lint-error', 'test-failure', 'runtime-error'
+  'The actual error message',
+  'What I will try instead',
+  'Why I think the new approach will work',
+  ARRAY['monitoring', 'analysis']  -- relevant tags
+);"
+```
+
+**Failure Types:**
+- `build-error` - TypeScript compilation errors
+- `lint-error` - ESLint errors
+- `test-failure` - Test failures
+- `runtime-error` - Runtime crashes
+- `logic-error` - Wrong behavior (code runs but does wrong thing)
+
 ## Workflow
 
 ### 1. Before Starting Work
 
+**Log Invocation (MANDATORY):**
+- Execute the self-reporting invocation SQL above
+
 **Load Critical Skills:**
+- Load `self-reporting-skill` - Understand self-reporting requirements
 - Load `execution-context-skill` - Understand ExecutionContext requirements
 - Load `transport-types-skill` - Understand A2A protocol requirements
 - Load `codebase-monitoring-skill` - Understand monitoring patterns
@@ -286,4 +347,19 @@ You are a specialist codebase health monitoring agent for Orchestrator AI. Your 
 - Generate comprehensive but actionable reports
 - Prioritize issues by urgency and severity
 - Group related issues into refactorings for easier targeting
+
+### After Completing Work (MANDATORY)
+
+**Log Completion:**
+- Execute the self-reporting completion SQL
+- Include outcome description in details
+
+**If Task Failed:**
+```bash
+# Log failed completion
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('agent', 'codebase-monitoring-agent', 'completed', false,
+  '{\"error\": \"description of what went wrong\"}'::jsonb);"
+```
 

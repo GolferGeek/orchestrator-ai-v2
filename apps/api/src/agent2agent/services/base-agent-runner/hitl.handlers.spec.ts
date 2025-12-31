@@ -28,13 +28,13 @@ describe('HITL Handlers', () => {
       httpService: {
         post: jest.fn(),
         get: jest.fn(),
-      } as any,
+      } as unknown,
       conversationsService: {
         getConversationMessages: jest.fn().mockResolvedValue([]),
-      } as any,
+      } as unknown,
       deliverablesService: {
         create: jest.fn(),
-      } as any,
+      } as unknown,
     } as jest.Mocked<HitlHandlerDependencies>;
 
     // Mock agent definition with transport endpoint
@@ -72,7 +72,7 @@ describe('HITL Handlers', () => {
         decision: 'approve',
       };
 
-      mockRequest.payload = payload as any;
+      mockRequest.payload = payload as unknown as typeof mockRequest.payload;
 
       const mockResponse = {
         status: 200,
@@ -99,6 +99,7 @@ describe('HITL Handlers', () => {
 
       expect(result).toBeDefined();
       expect(result?.error).toBeUndefined();
+
       expect(mockServices.httpService!.post).toHaveBeenCalledWith(
         expect.stringContaining('/resume/task-1'),
         expect.objectContaining({ decision: 'approve' }),
@@ -110,7 +111,7 @@ describe('HITL Handlers', () => {
       const payload = {
         action: 'resume',
         decision: 'approve',
-      } as any;
+      } as Partial<HitlResumePayload>;
 
       mockRequest.payload = payload;
 
@@ -128,7 +129,7 @@ describe('HITL Handlers', () => {
       const payload = {
         action: 'resume',
         taskId: 'task-1',
-      } as any;
+      } as Partial<HitlResumePayload>;
 
       mockRequest.payload = payload;
 
@@ -149,7 +150,7 @@ describe('HITL Handlers', () => {
         decision: 'approve',
       };
 
-      mockRequest.payload = payload as any;
+      mockRequest.payload = payload as unknown as typeof mockRequest.payload;
       mockServices.httpService = undefined;
 
       const result = await sendHitlResume(
@@ -169,7 +170,7 @@ describe('HITL Handlers', () => {
         decision: 'approve',
       };
 
-      mockRequest.payload = payload as any;
+      mockRequest.payload = payload as unknown as typeof mockRequest.payload;
       mockDefinition.transport = undefined;
 
       const result = await sendHitlResume(
@@ -194,7 +195,7 @@ describe('HITL Handlers', () => {
         },
       };
 
-      mockRequest.payload = payload as any;
+      mockRequest.payload = payload as unknown as typeof mockRequest.payload;
 
       const mockResponse = {
         status: 200,
@@ -229,7 +230,7 @@ describe('HITL Handlers', () => {
         feedback: 'Please make it more technical',
       };
 
-      mockRequest.payload = payload as any;
+      mockRequest.payload = payload as unknown as typeof mockRequest.payload;
 
       const mockResponse = {
         status: 200,
@@ -265,7 +266,7 @@ describe('HITL Handlers', () => {
         decision: 'approve',
       };
 
-      mockRequest.payload = payload as any;
+      mockRequest.payload = payload as unknown as typeof mockRequest.payload;
 
       const finalContent: HitlGeneratedContent = {
         blogPost: 'Final blog content',
@@ -334,7 +335,7 @@ describe('HITL Handlers', () => {
         decision: 'reject',
       };
 
-      mockRequest.payload = payload as any;
+      mockRequest.payload = payload as unknown as typeof mockRequest.payload;
 
       const mockResponse = {
         status: 200,
@@ -367,7 +368,7 @@ describe('HITL Handlers', () => {
         decision: 'approve',
       };
 
-      mockRequest.payload = payload as any;
+      mockRequest.payload = payload as unknown as typeof mockRequest.payload;
 
       mockServices.httpService!.post = jest.fn().mockImplementation(() => {
         throw new Error('Connection timeout');
@@ -391,7 +392,7 @@ describe('HITL Handlers', () => {
         taskId: 'task-1',
       };
 
-      mockRequest.payload = payload as any;
+      mockRequest.payload = payload as unknown as typeof mockRequest.payload;
 
       const mockResponse = {
         data: {
@@ -424,7 +425,7 @@ describe('HITL Handlers', () => {
     it('should fail when taskId is missing', async () => {
       const payload = {
         action: 'status',
-      } as any;
+      } as Partial<HitlStatusPayload>;
 
       mockRequest.payload = payload;
 
@@ -445,7 +446,7 @@ describe('HITL Handlers', () => {
         taskId: 'task-1',
       };
 
-      mockRequest.payload = payload as any;
+      mockRequest.payload = payload as unknown as typeof mockRequest.payload;
       mockServices.httpService = undefined;
 
       const result = await handleHitlStatus(
@@ -467,7 +468,7 @@ describe('HITL Handlers', () => {
         taskId: 'task-1',
       };
 
-      mockRequest.payload = payload as any;
+      mockRequest.payload = payload as unknown as typeof mockRequest.payload;
 
       const mockResponse = {
         data: {
@@ -504,7 +505,7 @@ describe('HITL Handlers', () => {
         taskId: 'task-1',
       };
 
-      mockRequest.payload = payload as any;
+      mockRequest.payload = payload as unknown as typeof mockRequest.payload;
 
       const mockResponse = {
         data: {
@@ -531,13 +532,15 @@ describe('HITL Handlers', () => {
       expect(result.success).toBe(true);
       expect(result.mode).toBe(AgentTaskMode.HITL);
       expect(result.payload.content).toHaveProperty('history');
-      expect(result.payload.content.history).toHaveLength(3);
+      expect(
+        (result.payload.content as { history: unknown[] }).history,
+      ).toHaveLength(3);
     });
 
     it('should fail when taskId is missing', async () => {
       const payload = {
         action: 'history',
-      } as any;
+      } as Partial<HitlHistoryPayload>;
 
       mockRequest.payload = payload;
 
@@ -558,7 +561,7 @@ describe('HITL Handlers', () => {
         taskId: 'task-1',
       };
 
-      mockRequest.payload = payload as any;
+      mockRequest.payload = payload as unknown as typeof mockRequest.payload;
 
       const mockResponse = {
         data: {
@@ -600,7 +603,7 @@ describe('HITL Handlers', () => {
         taskId: 'task-123',
       };
 
-      mockRequest.payload = payload as any;
+      mockRequest.payload = payload as unknown as typeof mockRequest.payload;
 
       const mockResponse = {
         data: {
@@ -623,7 +626,9 @@ describe('HITL Handlers', () => {
 
       // hitlWaiting returns success=true with hitlPending=true
       expect(result.success).toBe(true);
-      expect(result.payload.content.taskId).toBe('task-123');
+      expect((result.payload.content as { taskId: string }).taskId).toBe(
+        'task-123',
+      );
     });
 
     it('should validate all HitlDecision types', () => {
@@ -679,7 +684,7 @@ describe('HITL Handlers', () => {
         decision: 'approve',
       };
 
-      mockRequest.payload = payload as any;
+      mockRequest.payload = payload as unknown as typeof mockRequest.payload;
 
       mockServices.httpService!.post = jest.fn().mockImplementation(() => {
         throw new Error('Network error');
@@ -703,10 +708,10 @@ describe('HITL Handlers', () => {
         decision: 'approve',
       };
 
-      mockRequest.payload = payload as any;
+      mockRequest.payload = payload as unknown as typeof mockRequest.payload;
 
       const timeoutError = new Error('Timeout');
-      (timeoutError as any).code = 'ETIMEDOUT';
+      (timeoutError as Error & { code: string }).code = 'ETIMEDOUT';
 
       mockServices.httpService!.post = jest.fn().mockImplementation(() => {
         throw timeoutError;

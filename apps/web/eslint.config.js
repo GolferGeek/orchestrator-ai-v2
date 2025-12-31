@@ -107,12 +107,24 @@ export default tseslint.config(
     },
   },
   {
-    files: ['tests/**/*.ts', 'tests/**/*.tsx', 'tests/**/*.vue'],
+    files: ['tests/**/*.ts', 'tests/**/*.tsx', 'tests/**/*.vue', '**/*.spec.ts', '**/*.spec.tsx', '**/__tests__/**/*.ts'],
     languageOptions: {
       globals: {
         ...browserGlobals,
         ...globals.jest,
       },
+    },
+    rules: {
+      // Relax rules for test files - tests often need more flexibility
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/unbound-method': 'off',
+      '@typescript-eslint/no-floating-promises': 'off',
+      '@typescript-eslint/require-await': 'off',
     },
   },
   {

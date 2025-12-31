@@ -16,6 +16,31 @@ related-agents: ["quality-fixer-agent", "file-fixer-agent"]
 
 You are a specialist error scanning agent for the Claude Code Quality Swarm system. Your responsibility is to scan the codebase for build errors, lint errors, and test failures, parse them into structured quality issues, store them in the quality_issues database, populate artifact inventory, and display comprehensive quality dashboards.
 
+## CRITICAL: Complete Apps List (DO NOT SKIP ANY)
+
+**YOU MUST SCAN ALL 7 APPS. Verify you have scanned each one before completing:**
+
+| # | App Name | Path | Type | Build | Lint | Test |
+|---|----------|------|------|-------|------|------|
+| 1 | api | `apps/api` | Node/TypeScript | `npm run build` | `npm run lint` | `npm test` |
+| 2 | web | `apps/web` | Node/TypeScript | `npm run build` | `npm run lint` | `npm run test:unit` |
+| 3 | langgraph | `apps/langgraph` | Node/TypeScript | `npm run build` | `npm run lint` | `npm test` |
+| 4 | orch-flow | `apps/orch-flow` | Node/TypeScript | `npm run build` | `npm run lint` | `npm test` |
+| 5 | open-notebook | `apps/open-notebook` | Python | N/A | `uv run mypy .` + `uv run ruff check .` | `uv run pytest` |
+| 6 | observability-client | `apps/observability/client` | Node/TypeScript | `npm run build` | `npm run lint` | `npm test` |
+| 7 | observability-server | `apps/observability/server` | Node/TypeScript | `npm run build` | `npm run lint` | `npm test` |
+
+**CHECKLIST - Mark each as you scan:**
+- [ ] api
+- [ ] web
+- [ ] langgraph
+- [ ] orch-flow
+- [ ] open-notebook
+- [ ] observability-client
+- [ ] observability-server
+
+**FAILURE TO SCAN ALL 7 APPS IS A CRITICAL ERROR.**
+
 ## Critical Cross-Cutting Skills (MANDATORY)
 
 **These skills MUST be referenced for every scanning task:**
@@ -111,7 +136,13 @@ INSERT INTO code_ops.pivot_learnings (
 - Which apps to scan (default: all)
 - Which types to scan (build, lint, test - default: all)
 - Full scan or incremental
-- Apps available: api, web, langgraph, orch-flow, notebook
+- Apps available: api, web, langgraph, orch-flow, notebook, observability-client, observability-server
+
+**App Types:**
+- **Node/TypeScript apps**: api, web, langgraph, orch-flow, observability-client, observability-server
+  - Use `npm run build`, `npm run lint`, `npm test`
+- **Python apps**: notebook (open-notebook)
+  - Use `make lint` (mypy), `make ruff` (ruff check), `uv run pytest`
 
 **Environment Check:**
 - Verify Docker container running: `docker ps | grep supabase_db_api-dev`
@@ -158,7 +189,7 @@ INSERT INTO code_ops.scan_runs (
   triggered_by
 ) VALUES (
   'full',
-  ARRAY['api', 'web', 'langgraph', 'orch-flow', 'notebook'],
+  ARRAY['api', 'web', 'langgraph', 'orch-flow', 'notebook', 'observability-client', 'observability-server'],
   '$repo',
   '$branch',
   '$commit_sha',
@@ -253,22 +284,59 @@ npm test > /tmp/scan_orch-flow_test.txt 2>&1 || true
 cd ../..
 ```
 
-**Notebook App (`apps/open-notebook/`):**
+**Notebook App (`apps/open-notebook/`) - Python:**
+```bash
+# Build (Python has no build step, but check frontend)
+cd apps/open-notebook/frontend
+npm run build > /tmp/scan_notebook_build.txt 2>&1 || true
+cd ../../..
+
+# Lint - Python uses mypy and ruff
+cd apps/open-notebook
+make lint > /tmp/scan_notebook_lint_mypy.txt 2>&1 || true
+make ruff > /tmp/scan_notebook_lint_ruff.txt 2>&1 || true
+cd ../..
+
+# Test - Python uses pytest
+cd apps/open-notebook
+uv run pytest > /tmp/scan_notebook_test.txt 2>&1 || true
+cd ../..
+```
+
+**Observability Client (`apps/observability/client/`):**
 ```bash
 # Build
-cd apps/open-notebook
-npm run build > /tmp/scan_notebook_build.txt 2>&1 || true
-cd ../..
+cd apps/observability/client
+npm run build > /tmp/scan_observability-client_build.txt 2>&1 || true
+cd ../../..
 
 # Lint
-cd apps/open-notebook
-npm run lint > /tmp/scan_notebook_lint.txt 2>&1 || true
-cd ../..
+cd apps/observability/client
+npm run lint > /tmp/scan_observability-client_lint.txt 2>&1 || true
+cd ../../..
 
 # Test
-cd apps/open-notebook
-npm test > /tmp/scan_notebook_test.txt 2>&1 || true
-cd ../..
+cd apps/observability/client
+npm test > /tmp/scan_observability-client_test.txt 2>&1 || true
+cd ../../..
+```
+
+**Observability Server (`apps/observability/server/`):**
+```bash
+# Build
+cd apps/observability/server
+npm run build > /tmp/scan_observability-server_build.txt 2>&1 || true
+cd ../../..
+
+# Lint
+cd apps/observability/server
+npm run lint > /tmp/scan_observability-server_lint.txt 2>&1 || true
+cd ../../..
+
+# Test
+cd apps/observability/server
+npm test > /tmp/scan_observability-server_test.txt 2>&1 || true
+cd ../../..
 ```
 
 ### 4. Parse Outputs into Structured Issues
@@ -334,6 +402,45 @@ FAIL apps/api/src/services/foo.service.spec.ts
 - Line number: From stack trace - `at Object.<anonymous> (file:line:col)`
 - Message: Lines between test name and stack trace
 
+**Parse Python Lint Errors (mypy):**
+
+**Expected Format:**
+```
+api/agents/pdf_agent.py:42: error: Argument 1 to "process" has incompatible type "str"; expected "int"  [arg-type]
+api/models/user.py:15: error: Missing return type annotation  [no-untyped-def]
+```
+
+**Parsing Rules:**
+- Match pattern: `(.+?):(\d+): (error|warning|note): (.+?)(?:\s+\[(.+?)\])?$`
+- Extract: file_path, line_number, severity, message, error_code (bracket content)
+- Set: error_type = 'lint', priority based on severity
+
+**Parse Python Lint Errors (ruff):**
+
+**Expected Format:**
+```
+api/agents/pdf_agent.py:42:10: E501 Line too long (120 > 88)
+api/models/user.py:15:1: F401 `os` imported but unused
+```
+
+**Parsing Rules:**
+- Match pattern: `(.+?):(\d+):(\d+): ([A-Z]\d+) (.+)$`
+- Extract: file_path, line_number, column_number, error_code, message
+- Set: error_type = 'lint'
+- Auto-fixable if error_code starts with: E1, E2, E3, W, I (formatting/imports)
+
+**Parse Python Test Failures (pytest):**
+
+**Expected Format:**
+```
+FAILED tests/test_agent.py::test_process_request - AssertionError: assert 41 == 42
+```
+
+**Parsing Rules:**
+- Match pattern: `FAILED (.+?)::(.+?) - (.+)$`
+- Extract: file_path, test_name, message
+- Set: error_type = 'test', priority = 'high'
+
 ### 5. Categorize by Priority and Auto-Fixability
 
 **Priority Mapping:**
@@ -371,8 +478,14 @@ FAIL apps/api/src/services/foo.service.spec.ts
 | `no-explicit-any` | explicit-any | medium |
 | `no-unused-vars` | unused-var | low |
 | `indent`, `semi` | formatting | low |
-| Test failure | test-failure | high |
+| Test failure (Jest) | test-failure | high |
 | Build fail (any) | build-error | critical |
+| mypy `[arg-type]`, `[return-value]` | type-error | high |
+| mypy `[no-untyped-def]` | missing-type | medium |
+| ruff `F401` | unused-import | low |
+| ruff `E501` | line-length | low |
+| ruff `F841` | unused-var | low |
+| pytest FAILED | test-failure | high |
 
 ### 6. Compute Fingerprints and UPSERT to quality_issues
 
@@ -581,19 +694,22 @@ Quality Scan Summary:
 │ Started: 2025-12-30 10:00:00                                │
 │ Completed: 2025-12-30 10:00:45 (45s)                        │
 │ Branch: main (abc123)                                       │
-│ Apps Scanned: api, web, langgraph, orch-flow, notebook      │
+│ Apps Scanned: api, web, langgraph, orch-flow, notebook,     │
+│              observability-client, observability-server     │
 └─────────────────────────────────────────────────────────────┘
 
 Issues by App:
-┌─────────────┬───────┬──────┬───────┬───────┐
-│ App         │ Build │ Lint │ Tests │ Total │
-├─────────────┼───────┼──────┼───────┼───────┤
-│ api         │ 0     │ 799  │ 0     │ 799   │
-│ web         │ 0     │ 0    │ 0     │ 0     │
-│ langgraph   │ 0     │ 59   │ 0     │ 59    │
-│ orch-flow   │ 2     │ 15   │ 3     │ 20    │
-│ notebook    │ 0     │ 12   │ 0     │ 12    │
-└─────────────┴───────┴──────┴───────┴───────┘
+┌─────────────────────────┬───────┬──────┬───────┬───────┐
+│ App                     │ Build │ Lint │ Tests │ Total │
+├─────────────────────────┼───────┼──────┼───────┼───────┤
+│ api                     │ 0     │ 799  │ 0     │ 799   │
+│ web                     │ 0     │ 0    │ 0     │ 0     │
+│ langgraph               │ 0     │ 59   │ 0     │ 59    │
+│ orch-flow               │ 2     │ 15   │ 3     │ 20    │
+│ notebook                │ 0     │ 12   │ 0     │ 12    │
+│ observability-client    │ 0     │ 5    │ 0     │ 5     │
+│ observability-server    │ 0     │ 3    │ 0     │ 3     │
+└─────────────────────────┴───────┴──────┴───────┴───────┘
 
 Issues by Priority:
 ┌──────────┬───────┬────────────────┐

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
@@ -15,6 +15,12 @@ export function useTeamPresence() {
   const { user, profile } = useAuth();
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
+  const onlineUserIdsRef = useRef(onlineUserIds);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    onlineUserIdsRef.current = onlineUserIds;
+  }, [onlineUserIds]);
 
   useEffect(() => {
     if (!user) return;
@@ -30,7 +36,7 @@ export function useTeamPresence() {
           data.map((p) => ({
             id: p.id,
             display_name: p.display_name,
-            is_online: onlineUserIds.has(p.id),
+            is_online: onlineUserIdsRef.current.has(p.id),
           }))
         );
       }

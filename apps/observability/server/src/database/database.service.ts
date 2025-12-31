@@ -5,6 +5,7 @@ import type {
   FilterOptions,
   Theme,
   ThemeSearchQuery,
+  HumanInTheLoopResponse,
 } from '../types';
 
 @Injectable()
@@ -140,7 +141,7 @@ export class DatabaseService implements OnModuleInit {
 
   async updateEventHITLResponse(
     id: number,
-    response: any,
+    response: HumanInTheLoopResponse,
   ): Promise<HookEvent | null> {
     const status = {
       status: 'responded',
@@ -223,7 +224,7 @@ export class DatabaseService implements OnModuleInit {
 
   async updateTheme(id: string, updates: Partial<Theme>): Promise<boolean> {
     const fields: string[] = [];
-    const values: any[] = [];
+    const values: (string | number | boolean | Date | null)[] = [];
     let paramIndex = 1;
 
     if (updates.displayName !== undefined) {
@@ -300,7 +301,7 @@ export class DatabaseService implements OnModuleInit {
 
   async getThemes(query: ThemeSearchQuery = {}): Promise<Theme[]> {
     const conditions: string[] = [];
-    const values: any[] = [];
+    const values: (string | number | boolean | null)[] = [];
     let paramIndex = 1;
 
     // Apply filters

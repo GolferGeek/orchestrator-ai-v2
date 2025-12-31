@@ -54,7 +54,7 @@ You are a worker agent for the Claude Code Quality Swarm system. Your responsibi
 
 **Input from Coordinator:**
 - `file_path` - Path to file to fix (e.g., "apps/web/src/components/Example.vue")
-- `app` - App name (api, web, langgraph, orch-flow, notebook)
+- `app` - App name (api, web, langgraph, orch-flow, open-notebook, observability-client, observability-server)
 - `agent_session_id` - Unique session ID for this agent (e.g., "agent-1234567890-12345")
 
 **Validate Assignment:**

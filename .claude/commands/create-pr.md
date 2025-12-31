@@ -2,7 +2,7 @@
 description: "Create pull request with progressive validation. Analyzes changed files, runs quality checks, and creates PR if all checks pass."
 argument-hint: "[base branch] [title] [description] - Base branch defaults to main/master, title auto-generated from changes if not provided"
 category: "pr-workflow"
-uses-skills: ["execution-context-skill", "transport-types-skill", "web-architecture-skill", "api-architecture-skill", "langgraph-architecture-skill", "quality-gates-skill"]
+uses-skills: ["execution-context-skill", "transport-types-skill", "web-architecture-skill", "api-architecture-skill", "langgraph-architecture-skill", "quality-gates-skill", "self-reporting-skill"]
 uses-agents: ["web-architecture-agent", "api-architecture-agent", "langgraph-architecture-agent", "pr-review-agent"]
 related-commands: ["review-pr", "approve-pr"]
 ---
@@ -345,6 +345,35 @@ Please run: gh auth login
 - **`pr-review-agent.md`** - Performs PR reviews
 - **Architecture skills** - For validation
 - **`quality-gates-skill/`** - Quality gate patterns
+
+## MANDATORY: Self-Reporting
+
+**Log command invocation at START:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, details)
+VALUES ('command', 'create-pr', 'invoked',
+  '{\"base_branch\": \"main\", \"triggered_by\": \"user\"}'::jsonb);"
+```
+
+**Log completion at END:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('command', 'create-pr', 'completed', true,
+  '{\"outcome\": \"PR created\", \"pr_number\": 123}'::jsonb);"
+```
+
+**If command fails:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('command', 'create-pr', 'completed', false,
+  '{\"error\": \"description of what went wrong\"}'::jsonb);"
+```
 
 ## Notes
 

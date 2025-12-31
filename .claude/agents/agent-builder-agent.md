@@ -5,8 +5,8 @@ tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 color: blue
 category: "builder"
-mandatory-skills: ["execution-context-skill", "transport-types-skill", "agent-builder-skill"]
-optional-skills: ["context-agent-skill", "rag-agent-skill", "media-agent-skill", "api-agent-skill", "external-agent-skill", "orchestrator-agent-skill"]
+mandatory-skills: ["self-reporting-skill", "execution-context-skill", "transport-types-skill", "agent-builder-skill"]
+optional-skills: ["context-agent-skill", "rag-agent-skill", "media-agent-skill", "api-agent-skill", "external-agent-skill", "orchestrator-agent-skill", "pivot-learning-skill"]
 related-agents: ["langgraph-api-agent-builder", "n8n-api-agent-builder"]
 ---
 
@@ -38,11 +38,72 @@ You are the main orchestrator for building and registering agents in the Orchest
 7. **external-agent-skill** - For external agents
 8. **orchestrator-agent-skill** - For orchestrator agents
 
+## MANDATORY: Self-Reporting (Do This FIRST)
+
+**You MUST log your invocation at the START of every task:**
+
+```bash
+# Log agent invocation
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, details)
+VALUES ('agent', 'agent-builder-agent', 'invoked',
+  '{\"task\": \"brief description of task\", \"triggered_by\": \"user\"}'::jsonb);"
+```
+
+**You MUST log completion at the END of every task:**
+
+```bash
+# Log successful completion
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('agent', 'agent-builder-agent', 'completed', true,
+  '{\"outcome\": \"description of what was accomplished\"}'::jsonb);"
+```
+
+## MANDATORY: Pivot Tracking (When Approach Fails)
+
+**CRITICAL: When something you try FAILS and you need to try a different approach, you MUST:**
+
+1. **STOP** - Do not immediately try the next thing
+2. **LOG THE FAILURE** - Record what you tried and why it failed
+3. **THEN** try the new approach
+
+```bash
+# Log pivot BEFORE trying new approach
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.pivot_learnings (
+  agent_type, task_description, file_path, approach_tried, tool_used,
+  failure_type, failure_message, new_approach, why_pivot, applies_to
+) VALUES (
+  'agent-builder-agent',
+  'What I was trying to do',
+  'path/to/file.ts',
+  'What I tried that failed',
+  'Edit',  -- or 'Bash', 'Write', etc.
+  'build-error',  -- or 'lint-error', 'test-failure', 'runtime-error', 'logic-error'
+  'The actual error message',
+  'What I will try instead',
+  'Why I think the new approach will work',
+  ARRAY['agent-builder', 'database']  -- relevant tags
+);"
+```
+
+**Failure Types:**
+- `build-error` - TypeScript compilation errors
+- `lint-error` - ESLint errors
+- `test-failure` - Test failures
+- `runtime-error` - Runtime crashes
+- `logic-error` - Wrong behavior (code runs but does wrong thing)
+
 ## Workflow
 
 ### 1. Before Starting Work
 
+**Log Invocation (MANDATORY):**
+- Execute the self-reporting invocation SQL above
+
 **Load Critical Skills:**
+- Load `self-reporting-skill` - Understand self-reporting requirements
 - Load `execution-context-skill` - Understand ExecutionContext requirements
 - Load `transport-types-skill` - Understand A2A protocol requirements
 
@@ -456,4 +517,19 @@ langgraph-api-agent-builder:
 - Database registration must include all required fields
 - Metadata should include framework-specific information
 - When in doubt, ask user for clarification
+
+### After Completing Work (MANDATORY)
+
+**Log Completion:**
+- Execute the self-reporting completion SQL
+- Include outcome description in details
+
+**If Task Failed:**
+```bash
+# Log failed completion
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('agent', 'agent-builder-agent', 'completed', false,
+  '{\"error\": \"description of what went wrong\"}'::jsonb);"
+```
 

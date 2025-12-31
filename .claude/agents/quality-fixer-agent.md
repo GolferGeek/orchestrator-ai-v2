@@ -110,7 +110,7 @@ INSERT INTO code_ops.pivot_learnings (
 - Which apps to fix (default: all)
 - Which types to fix (build, lint, test - default: all)
 - Which priorities to fix (critical, high, medium, low - default: all)
-- Apps available: api, web, langgraph, orch-flow, notebook
+- Apps available: api, web, langgraph, orch-flow, open-notebook, observability-client, observability-server
 
 **Environment Check:**
 - Verify Docker container running: `docker ps | grep supabase_db_api-dev`

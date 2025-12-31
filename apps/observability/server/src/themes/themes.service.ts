@@ -5,7 +5,42 @@ import type {
   ThemeSearchQuery,
   ThemeValidationError,
   ApiResponse,
+  ThemeColors,
 } from '../types';
+
+// Input types for theme operations
+interface ThemeInput {
+  name?: unknown;
+  displayName?: unknown;
+  description?: unknown;
+  colors?: unknown;
+  isPublic?: unknown;
+  tags?: unknown;
+  authorId?: unknown;
+  authorName?: unknown;
+}
+
+interface ThemeExportData {
+  version: string;
+  theme: Partial<Theme>;
+  exportedAt: string;
+  exportedBy: string;
+}
+
+interface ThemeImportData {
+  theme?: ThemeInput & {
+    authorName?: string;
+  };
+  version?: string;
+}
+
+interface ThemeStats {
+  totalThemes: number;
+  publicThemes: number;
+  privateThemes: number;
+  totalDownloads: number;
+  averageRating: number;
+}
 
 @Injectable()
 export class ThemesService {
@@ -145,7 +180,7 @@ export class ThemesService {
     return namedColors.includes(color.toLowerCase());
   }
 
-  private sanitizeTheme(theme: any): Partial<Theme> {
+  private sanitizeTheme(theme: ThemeInput): Partial<Theme> {
     return {
       name: theme.name
         ?.toString()
@@ -153,7 +188,7 @@ export class ThemesService {
         .replace(/[^a-z0-9-_]/g, '') || '',
       displayName: theme.displayName?.toString().trim() || '',
       description: theme.description?.toString().trim() || '',
-      colors: theme.colors || {},
+      colors: (theme.colors as ThemeColors) || ({} as ThemeColors),
       isPublic: Boolean(theme.isPublic),
       tags: Array.isArray(theme.tags)
         ? theme.tags.filter((tag) => typeof tag === 'string' && tag.trim())
@@ -163,7 +198,7 @@ export class ThemesService {
     };
   }
 
-  async createTheme(themeData: any): Promise<ApiResponse<Theme>> {
+  async createTheme(themeData: ThemeInput): Promise<ApiResponse<Theme>> {
     try {
       const sanitized = this.sanitizeTheme(themeData);
       const errors = this.validateTheme(sanitized);
@@ -229,7 +264,7 @@ export class ThemesService {
 
   async updateThemeById(
     id: string,
-    updates: any,
+    updates: ThemeInput,
   ): Promise<ApiResponse<Theme>> {
     try {
       const existingTheme = await this.databaseService.getTheme(id);
@@ -383,7 +418,7 @@ export class ThemesService {
     }
   }
 
-  async exportThemeById(id: string): Promise<ApiResponse<any>> {
+  async exportThemeById(id: string): Promise<ApiResponse<ThemeExportData>> {
     try {
       const theme = await this.databaseService.getTheme(id);
 
@@ -425,7 +460,7 @@ export class ThemesService {
   }
 
   async importTheme(
-    importData: any,
+    importData: ThemeImportData,
     authorId?: string,
   ): Promise<ApiResponse<Theme>> {
     try {
@@ -453,7 +488,7 @@ export class ThemesService {
     }
   }
 
-  async getThemeStats(): Promise<ApiResponse<any>> {
+  async getThemeStats(): Promise<ApiResponse<ThemeStats>> {
     try {
       const allThemes = await this.databaseService.getThemes();
       const publicThemes = await this.databaseService.getThemes({

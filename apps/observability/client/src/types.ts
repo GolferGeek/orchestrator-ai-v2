@@ -31,8 +31,8 @@ export interface HookEvent {
   source_app: string;
   session_id: string;
   hook_event_type: string;
-  payload: Record<string, any>;
-  chat?: any[];
+  payload: Record<string, unknown>;
+  chat?: unknown[];
   summary?: string;
   timestamp?: number;
   model_name?: string;
@@ -55,7 +55,7 @@ export interface HookEvent {
   model?: string; // Model information from payload
   tool_name?: string; // Tool name from payload
   tool_command?: string; // Tool command from payload
-  tool_file?: { path?: string; [key: string]: any }; // Tool file from payload
+  tool_file?: { path?: string; [key: string]: unknown }; // Tool file from payload
   hitl_question?: string; // HITL question from payload
   hitl_permission?: string; // HITL permission from payload
 }

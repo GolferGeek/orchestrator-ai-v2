@@ -1,7 +1,7 @@
 ---
 description: "Commit changes and push to current branch after quality checks"
 category: "development"
-uses-skills: ["quality-gates-skill"]
+uses-skills: ["quality-gates-skill", "self-reporting-skill"]
 uses-agents: []
 related-commands: ["commit"]
 ---
@@ -122,6 +122,35 @@ fix(web): resolve execution context store update issue
 /commit-push "feat(langgraph): add execution context integration"
 ```
 Runs checks, uses your message, commits, pushes.
+
+## MANDATORY: Self-Reporting
+
+**Log command invocation at START:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, details)
+VALUES ('command', 'commit-push', 'invoked',
+  '{\"branch\": \"current branch\", \"triggered_by\": \"user\"}'::jsonb);"
+```
+
+**Log completion at END:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('command', 'commit-push', 'completed', true,
+  '{\"outcome\": \"Changes committed and pushed\", \"commit_hash\": \"hash\"}'::jsonb);"
+```
+
+**If command fails:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('command', 'commit-push', 'completed', false,
+  '{\"error\": \"description of what went wrong\"}'::jsonb);"
+```
 
 ## Related
 

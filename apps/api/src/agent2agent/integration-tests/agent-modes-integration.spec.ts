@@ -16,7 +16,7 @@ import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
  */
 describe.skip('Agent Modes Integration Tests (Phase 6)', () => {
   let app: INestApplication;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   let httpServer: any;
 
   beforeAll(async () => {

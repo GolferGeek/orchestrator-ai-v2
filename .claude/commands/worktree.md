@@ -1,7 +1,7 @@
 ---
 description: "Manage git worktrees for parallel development"
 category: "development"
-uses-skills: ["worktree-manager-skill"]
+uses-skills: ["worktree-manager-skill", "self-reporting-skill"]
 uses-agents: []
 related-commands: []
 ---
@@ -134,3 +134,32 @@ Run `npm install` in the worktree directory, or use `/worktree sync <slot>`.
 ## Implementation
 
 This command uses the `worktree-manager-skill`. See `.claude/skills/worktree-manager-skill/SKILL.md` for details.
+
+## MANDATORY: Self-Reporting
+
+**Log command invocation at START:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, details)
+VALUES ('command', 'worktree', 'invoked',
+  '{\"action\": \"action\", \"slot\": \"slot\", \"triggered_by\": \"user\"}'::jsonb);"
+```
+
+**Log completion at END:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('command', 'worktree', 'completed', true,
+  '{\"outcome\": \"Worktree action completed\"}'::jsonb);"
+```
+
+**If command fails:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('command', 'worktree', 'completed', false,
+  '{\"error\": \"description of what went wrong\"}'::jsonb);"
+```

@@ -167,6 +167,26 @@ When validating API code:
 - **`transport-types-skill/`**: A2A protocol compliance
 - **`api-architecture-agent.md`**: Autonomous API specialist
 
+## Self-Reporting
+
+**When this skill is loaded, the agent using it should log the event:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, details)
+VALUES ('skill', 'api-architecture-skill', 'loaded',
+  '{\"loaded_by\": \"agent-name\", \"context\": \"description\"}'::jsonb);"
+```
+
+**After using the skill's patterns, log if they helped:**
+
+```bash
+docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
+VALUES ('skill', 'api-architecture-skill', 'helped', true,
+  '{\"outcome\": \"what the skill helped with\"}'::jsonb);"
+```
+
 ## Notes
 
 - This skill is **progressive** - detailed documentation in supporting files

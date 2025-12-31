@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- context pattern exports both provider and hook */
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useTeams, Team, TeamMember } from '@/hooks/useTeams';
 import { useAuth } from '@/hooks/useAuth';

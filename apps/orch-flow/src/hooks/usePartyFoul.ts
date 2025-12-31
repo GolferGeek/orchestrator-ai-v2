@@ -87,8 +87,9 @@ export function usePartyFoul() {
 
 function playPartyFoulSound() {
   try {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    
+    const AudioContextClass = window.AudioContext || (window as Window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const audioContext = new AudioContextClass();
+
     // Play a "sad trombone" style descending tone
     const playNote = (frequency: number, startTime: number, duration: number) => {
       const oscillator = audioContext.createOscillator();

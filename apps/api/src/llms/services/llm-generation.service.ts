@@ -39,7 +39,6 @@ import type {
   PIIProcessingMetadata,
   PIIMatch,
 } from '../types/pii-metadata.types';
-import { getTableName } from '@/supabase/supabase.config';
 import {
   LLMError,
   LLMErrorMapper,
@@ -979,7 +978,9 @@ export class LLMGenerationService {
     try {
       // Ollama is local - no source blinding needed
       if (config.provider === 'ollama') {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
         const ChatOllama = require('@langchain/ollama').ChatOllama;
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call
         return new ChatOllama({
           baseUrl:
             config.baseUrl ||

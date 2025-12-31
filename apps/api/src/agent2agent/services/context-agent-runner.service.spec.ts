@@ -265,7 +265,7 @@ describe('ContextAgentRunnerService', () => {
       expect(result.payload?.metadata?.provider).toBe('anthropic');
 
       // Verify service calls - plansService.findByConversationId now takes ExecutionContext
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(plansService.findByConversationId).toHaveBeenCalledWith(
         expect.objectContaining({
           conversationId: 'conv-123',
@@ -274,10 +274,8 @@ describe('ContextAgentRunnerService', () => {
         }),
       );
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(llmService.generateResponse).toHaveBeenCalled();
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(deliverablesService.executeAction).toHaveBeenCalled();
     });
 
@@ -514,7 +512,7 @@ describe('ContextAgentRunnerService', () => {
       ).toBe('del-123');
 
       // Deliverable is fetched by conversation context
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(deliverablesService.findOne).toHaveBeenCalledWith(
         'del-123',
         'user-123',

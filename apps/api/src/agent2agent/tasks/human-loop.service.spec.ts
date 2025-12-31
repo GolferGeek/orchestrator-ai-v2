@@ -5,7 +5,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 
 describe('HumanLoopService', () => {
   let service: HumanLoopService;
-  let supabaseService: jest.Mocked<SupabaseService>;
+  let _supabaseService: jest.Mocked<SupabaseService>;
   let eventEmitter: jest.Mocked<EventEmitter2>;
 
   let mockSupabaseClient: any;
@@ -43,7 +43,7 @@ describe('HumanLoopService', () => {
     }).compile();
 
     service = module.get<HumanLoopService>(HumanLoopService);
-    supabaseService = module.get(SupabaseService);
+    _supabaseService = module.get(SupabaseService);
     eventEmitter = module.get(EventEmitter2);
 
     // Reset mocks but maintain chaining
@@ -264,15 +264,14 @@ describe('HumanLoopService', () => {
       };
 
       // First call returns pending, second returns completed
-      mockSupabaseClient.single
-        .mockResolvedValueOnce({
-          data: pendingInput,
-          error: null,
-        })
-        .mockResolvedValueOnce({
-          data: completedInput,
-          error: null,
-        });
+      mockSupabaseClient.single.mockResolvedValueOnce({
+        data: pendingInput,
+        error: null,
+      });
+      mockSupabaseClient.single.mockResolvedValueOnce({
+        data: completedInput,
+        error: null,
+      });
 
       // Act
       const promise = service.waitForHumanResponse(inputId, timeoutMs);

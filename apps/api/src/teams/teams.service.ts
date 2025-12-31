@@ -79,7 +79,7 @@ export class TeamsService {
       this.logger.error(`Failed to get user teams: ${teamsError.message}`);
     }
 
-    const typedTeams = (teamsData as unknown as UserTeamDbRow[]) || [];
+    const typedTeams = (teamsData as UserTeamDbRow[]) || [];
 
     return {
       user: {
@@ -265,7 +265,7 @@ export class TeamsService {
       throw new Error(`Failed to create team: ${error.message}`);
     }
 
-    const team = data as unknown as TeamDbRow;
+    const team = data as TeamDbRow;
 
     return {
       id: team.id,
@@ -316,7 +316,7 @@ export class TeamsService {
       throw new Error(`Failed to update team: ${error.message}`);
     }
 
-    const updatedTeam = data as unknown as TeamDbRow;
+    const updatedTeam = data as TeamDbRow;
 
     return {
       id: updatedTeam.id,
@@ -610,7 +610,7 @@ export class TeamsService {
       throw new Error(`Failed to get user teams: ${error.message}`);
     }
 
-    const typedData = (data as unknown as UserTeamDbRow[]) || [];
+    const typedData = (data as UserTeamDbRow[]) || [];
 
     return typedData.map((team) => ({
       id: team.team_id,

@@ -20,7 +20,7 @@ export class ObservabilityService {
         if (ws) {
           try {
             ws.close();
-          } catch (e) {
+          } catch (_e) {
             // Ignore close errors
           }
         }
