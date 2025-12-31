@@ -1,0 +1,598 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "created_at": "2025-12-30T00:00:00Z",
+    "prd_sources": ["docs/prd/20251230-claude-code-quality-swarm.md"],
+    "title": "Claude Code Quality Swarm & Self-Evaluation System",
+    "summary": "Build a comprehensive quality monitoring and self-improvement system for the Claude Code ecosystem with centralized error registry, parallel fixing, and pivot learning.",
+    "goals": [
+      "Centralized Error Registry: Single source of truth for all code quality issues",
+      "Parallel Auto-Fixing: Multiple agents fix different files simultaneously",
+      "Learning from Pivots: Record when agents try something and need to change approach",
+      "Continuous Improvement: Use data to improve skills, agents, and commands"
+    ],
+    "success_metrics": [
+      { "metric": "Time to fix all lint errors", "target": "Reduce by 50%" },
+      { "metric": "Pivot learning capture rate", "target": ">80%" },
+      { "metric": "Agent task success rate", "target": ">90%" },
+      { "metric": "Mean time to identify failing skill", "target": "<1 day" }
+    ],
+    "risks": [
+      { "risk": "Database connection issues from Claude Code", "impact": "High", "mitigation": "Test thoroughly, add retry logic" },
+      { "risk": "Agents conflict on same files", "impact": "Medium", "mitigation": "File-based assignment from coordinator" },
+      { "risk": "Stale claims block work", "impact": "Medium", "mitigation": "6-hour claim expiry with auto-release" },
+      { "risk": "Fixes introduce new errors", "impact": "Low", "mitigation": "Next scan catches them, iterative process" },
+      { "risk": "Pivot recording adds overhead", "impact": "Low", "mitigation": "Keep it lightweight, only on actual pivots" },
+      { "risk": "Skills change faster than data", "impact": "Medium", "mitigation": "Version tracking in skill_events" }
+    ]
+  },
+  "summary": "Build a comprehensive quality monitoring and self-improvement system for the Claude Code ecosystem with centralized error registry, parallel fixing, and pivot learning.",
+  "phases": [
+    {
+      "id": "phase-1",
+      "label": "Foundation: Database Schema + Basic Scanning",
+      "status": "completed",
+      "progress": 100,
+      "started_at": "2025-12-30T12:00:00Z",
+      "completed_at": "2025-12-30T12:35:00Z",
+      "steps": [
+        {
+          "id": "step-1-1",
+          "action": "Create code_ops schema migration file with all tables (quality_issues, scan_runs, pivot_learnings, skill_events, fix_attempts, artifacts, artifact_events) and views (skill_health, codebase_health_daily, pivot_insights, v_artifact_daily_summary, v_artifact_never_called) plus functions (release_stale_claims, claim_issues_for_file)",
+          "agent": "claude-code-ecosystem-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2025-12-30T12:00:00Z",
+          "completed_at": "2025-12-30T12:05:00Z",
+          "depends_on": [],
+          "deliverables": [
+            "apps/api/supabase/migrations/YYYYMMDD_create_code_ops_schema.sql"
+          ],
+          "validation_checkpoint": "checkpoint-schema",
+          "human_checkpoint_id": null,
+          "context": {
+            "database": {
+              "host": "gg-macstudio",
+              "port": 6010,
+              "schema": "code_ops"
+            },
+            "tables": ["quality_issues", "scan_runs", "pivot_learnings", "skill_events", "fix_attempts", "artifacts", "artifact_events"],
+            "views": ["skill_health", "codebase_health_daily", "pivot_insights", "v_artifact_daily_summary", "v_artifact_never_called"],
+            "functions": ["release_stale_claims", "claim_issues_for_file"]
+          }
+        },
+        {
+          "id": "step-1-2",
+          "action": "Apply migration to GG-Mac Studio Supabase and verify schema creation",
+          "agent": "claude-code-ecosystem-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2025-12-30T12:05:00Z",
+          "completed_at": "2025-12-30T12:08:00Z",
+          "depends_on": ["step-1-1"],
+          "deliverables": [
+            "Schema verified in database"
+          ],
+          "validation_checkpoint": null,
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-1-3",
+          "action": "Create error-registry-skill.md with database connection patterns, UPSERT logic for quality_issues, claim/release functions, and query helpers",
+          "agent": "claude-code-ecosystem-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2025-12-30T12:08:00Z",
+          "completed_at": "2025-12-30T12:15:00Z",
+          "depends_on": ["step-1-2"],
+          "deliverables": [
+            ".claude/skills/code-ops/error-registry-skill/SKILL.md"
+          ],
+          "validation_checkpoint": null,
+          "human_checkpoint_id": null,
+          "context": {
+            "capabilities": [
+              "Connect to GG-Mac Studio Supabase at gg-macstudio:6010",
+              "Write issues to quality_issues with fingerprint deduplication",
+              "Claim issues for fixing (with 6-hour expiry)",
+              "Mark issues as fixed",
+              "Query issue statistics"
+            ]
+          }
+        },
+        {
+          "id": "step-1-4",
+          "action": "Create artifact inventory scanner utility that scans .claude/skills/**/SKILL.md, .claude/agents/*.md, .claude/commands/*.md, computes SHA256 hashes, and UPSERTs into artifacts table",
+          "agent": "claude-code-ecosystem-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2025-12-30T12:15:00Z",
+          "completed_at": "2025-12-30T12:16:00Z",
+          "depends_on": ["step-1-3"],
+          "deliverables": [
+            "Artifact inventory scan logic in error-registry-skill"
+          ],
+          "validation_checkpoint": null,
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-1-5",
+          "action": "Create error-scanner-agent.md that runs npm run build/lint/test, parses outputs per Appendix B specs, computes fingerprints, UPSERTs to quality_issues, creates scan_runs record, populates artifact inventory, and displays summary dashboard",
+          "agent": "claude-code-ecosystem-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2025-12-30T12:16:00Z",
+          "completed_at": "2025-12-30T12:25:00Z",
+          "depends_on": ["step-1-4"],
+          "deliverables": [
+            ".claude/agents/error-scanner-agent.md"
+          ],
+          "validation_checkpoint": null,
+          "human_checkpoint_id": null,
+          "context": {
+            "workflow": [
+              "Run npm run build for specified apps",
+              "Run npm run lint for specified apps",
+              "Run npm run test for specified apps",
+              "Parse outputs into structured issues (Appendix B)",
+              "Categorize by priority and auto-fixability",
+              "Write to quality_issues table with UPSERT",
+              "Create scan_runs record",
+              "Populate artifact inventory",
+              "Log artifact_events for the scan",
+              "Display summary dashboard"
+            ],
+            "apps": ["api", "web", "langgraph", "orch-flow", "notebook"]
+          }
+        },
+        {
+          "id": "step-1-6",
+          "action": "Create /scan-errors command that triggers error-scanner-agent with optional app filter",
+          "agent": "claude-code-ecosystem-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2025-12-30T12:25:00Z",
+          "completed_at": "2025-12-30T12:28:00Z",
+          "depends_on": ["step-1-5"],
+          "deliverables": [
+            ".claude/commands/scan-errors.md"
+          ],
+          "validation_checkpoint": null,
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-1-7",
+          "action": "Test Phase 1: Run /scan-errors, verify issues appear in database with correct fields, verify artifact inventory populated, verify views return expected data",
+          "agent": "claude-code-ecosystem-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2025-12-30T12:28:00Z",
+          "completed_at": "2025-12-30T12:35:00Z",
+          "depends_on": ["step-1-6"],
+          "deliverables": [
+            "Phase 1 verification complete"
+          ],
+          "validation_checkpoint": "checkpoint-phase1",
+          "human_checkpoint_id": "human-review-phase1"
+        }
+      ]
+    },
+    {
+      "id": "phase-2",
+      "label": "Parallel Fixing: Coordinator + File Fixers",
+      "status": "completed",
+      "progress": 100,
+      "started_at": "2025-12-30T12:35:00Z",
+      "completed_at": "2025-12-30T13:10:00Z",
+      "steps": [
+        {
+          "id": "step-2-1",
+          "action": "Create quality-fixer-agent.md (coordinator) that queries open issues grouped by file, spawns 3-4 file-fixer sub-agents with file assignments, displays progress dashboard after each reassignment, and runs final verification scan",
+          "agent": "claude-code-ecosystem-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2025-12-30T12:35:00Z",
+          "completed_at": "2025-12-30T12:45:00Z",
+          "depends_on": [],
+          "deliverables": [
+            ".claude/agents/quality-fixer-agent.md"
+          ],
+          "validation_checkpoint": null,
+          "human_checkpoint_id": null,
+          "context": {
+            "workflow": [
+              "Query open issues grouped by file",
+              "Spawn 3-4 fixer sub-agents, each assigned specific files",
+              "Display progress dashboard after each file assignment",
+              "When a sub-agent completes a file, reassign to next file",
+              "Continue until all files processed",
+              "Run final verification scan"
+            ]
+          }
+        },
+        {
+          "id": "step-2-2",
+          "action": "Create file-fixer-agent.md (worker) that receives file assignment, claims issues atomically, fixes in priority order, tries auto-fix first for auto-fixable issues, verifies fixes, marks as fixed or records failure, and reports back to coordinator",
+          "agent": "claude-code-ecosystem-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2025-12-30T12:45:00Z",
+          "completed_at": "2025-12-30T12:55:00Z",
+          "depends_on": ["step-2-1"],
+          "deliverables": [
+            ".claude/agents/file-fixer-agent.md"
+          ],
+          "validation_checkpoint": null,
+          "human_checkpoint_id": null,
+          "context": {
+            "workflow": [
+              "Receive file assignment from coordinator",
+              "Claim all issues for that file using atomic claim function",
+              "Fix issues in priority order (critical > high > medium > low)",
+              "Try auto-fix first for auto-fixable lint errors",
+              "Verify each fix",
+              "Mark issues as fixed or record failure",
+              "Report back to coordinator"
+            ]
+          }
+        },
+        {
+          "id": "step-2-3",
+          "action": "Create /fix-errors command that spawns quality-fixer-agent with optional type and app filters",
+          "agent": "claude-code-ecosystem-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2025-12-30T12:55:00Z",
+          "completed_at": "2025-12-30T13:00:00Z",
+          "depends_on": ["step-2-2"],
+          "deliverables": [
+            ".claude/commands/fix-errors.md"
+          ],
+          "validation_checkpoint": null,
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-2-4",
+          "action": "Create /quality-status command that displays current error registry state with counts by app and priority",
+          "agent": "claude-code-ecosystem-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2025-12-30T13:00:00Z",
+          "completed_at": "2025-12-30T13:05:00Z",
+          "depends_on": ["step-2-3"],
+          "deliverables": [
+            ".claude/commands/quality-status.md"
+          ],
+          "validation_checkpoint": null,
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-2-5",
+          "action": "Test Phase 2: Run /fix-errors, verify 3-4 agents work in parallel without conflicts, verify progress dashboard displays, verify fixed issues marked in database",
+          "agent": "claude-code-ecosystem-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2025-12-30T13:05:00Z",
+          "completed_at": "2025-12-30T13:10:00Z",
+          "depends_on": ["step-2-4"],
+          "deliverables": [
+            "Phase 2 verification complete"
+          ],
+          "validation_checkpoint": "checkpoint-phase2",
+          "human_checkpoint_id": "human-review-phase2"
+        }
+      ]
+    },
+    {
+      "id": "phase-3",
+      "label": "Pivot Learning: Record Learning When Agents Pivot",
+      "status": "completed",
+      "progress": 100,
+      "started_at": "2025-12-30T13:10:00Z",
+      "completed_at": "2025-12-30T13:40:00Z",
+      "steps": [
+        {
+          "id": "step-3-1",
+          "action": "Create pivot-learning-skill.md with patterns for recording pivots to pivot_learnings table, querying past pivots for similar situations, tagging learnings, and integration pattern for other skills/agents/commands",
+          "agent": "claude-code-ecosystem-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2025-12-30T13:10:00Z",
+          "completed_at": "2025-12-30T13:25:00Z",
+          "depends_on": [],
+          "deliverables": [
+            ".claude/skills/code-ops/pivot-learning-skill/SKILL.md"
+          ],
+          "validation_checkpoint": null,
+          "human_checkpoint_id": null,
+          "context": {
+            "when_to_record": [
+              "You try a fix and it doesn't compile/lint/pass tests",
+              "You use a tool and it fails",
+              "You realize your approach won't work and need a different strategy",
+              "You learn something that would help future attempts"
+            ],
+            "capabilities": [
+              "Record pivot to pivot_learnings table",
+              "Query past pivots for similar situations",
+              "Tag learnings for searchability"
+            ]
+          }
+        },
+        {
+          "id": "step-3-2",
+          "action": "Update file-fixer-agent.md to use pivot-learning-skill - record pivots when approach doesn't work, write skill_events rows for failures, write fix_attempts rows",
+          "agent": "claude-code-ecosystem-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2025-12-30T13:25:00Z",
+          "completed_at": "2025-12-30T13:30:00Z",
+          "depends_on": ["step-3-1"],
+          "deliverables": [
+            "Updated .claude/agents/file-fixer-agent.md"
+          ],
+          "validation_checkpoint": null,
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-3-3",
+          "action": "Create /pivot-report command (optional) that queries pivot_insights view and displays common failure patterns and lessons learned",
+          "agent": "claude-code-ecosystem-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2025-12-30T13:30:00Z",
+          "completed_at": "2025-12-30T13:35:00Z",
+          "depends_on": ["step-3-2"],
+          "deliverables": [
+            ".claude/commands/pivot-report.md"
+          ],
+          "validation_checkpoint": null,
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-3-4",
+          "action": "Test Phase 3: Run /fix-errors with some intentionally failing fixes, verify pivots recorded in database, query pivot_insights view",
+          "agent": "claude-code-ecosystem-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2025-12-30T13:35:00Z",
+          "completed_at": "2025-12-30T13:40:00Z",
+          "depends_on": ["step-3-3"],
+          "deliverables": [
+            "Phase 3 verification complete"
+          ],
+          "validation_checkpoint": "checkpoint-phase3",
+          "human_checkpoint_id": "human-review-phase3"
+        }
+      ]
+    },
+    {
+      "id": "phase-4",
+      "label": "Monitor Integration: Quality Scanning in /monitor",
+      "status": "completed",
+      "progress": 100,
+      "started_at": "2025-12-30T13:40:00Z",
+      "completed_at": "2025-12-30T14:00:00Z",
+      "steps": [
+        {
+          "id": "step-4-1",
+          "action": "Extend /monitor command to include quality scanning - run build/lint/test for specified app, flow results to quality_issues table",
+          "agent": "claude-code-ecosystem-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2025-12-30T13:40:00Z",
+          "completed_at": "2025-12-30T13:50:00Z",
+          "depends_on": [],
+          "deliverables": [
+            "Updated .claude/commands/monitor.md or codebase-monitoring-skill"
+          ],
+          "validation_checkpoint": null,
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-4-2",
+          "action": "Create unified dashboard that shows both codebase monitoring results and quality status in single view",
+          "agent": "claude-code-ecosystem-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2025-12-30T13:50:00Z",
+          "completed_at": "2025-12-30T13:55:00Z",
+          "depends_on": ["step-4-1"],
+          "deliverables": [
+            "Unified dashboard display logic"
+          ],
+          "validation_checkpoint": null,
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-4-3",
+          "action": "Test Phase 4: Run /monitor api, verify build/lint/test runs, results flow to quality_issues table",
+          "agent": "claude-code-ecosystem-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2025-12-30T13:55:00Z",
+          "completed_at": "2025-12-30T14:00:00Z",
+          "depends_on": ["step-4-2"],
+          "deliverables": [
+            "Phase 4 verification complete"
+          ],
+          "validation_checkpoint": "checkpoint-phase4",
+          "human_checkpoint_id": "human-review-phase4"
+        }
+      ]
+    },
+    {
+      "id": "phase-5",
+      "label": "Continuous Improvement: Data-Driven Ecosystem Enhancement",
+      "status": "completed",
+      "progress": 100,
+      "started_at": "2025-12-30T14:00:00Z",
+      "completed_at": "2025-12-30T14:30:00Z",
+      "steps": [
+        {
+          "id": "step-5-1",
+          "action": "Create claude-code-improver-agent.md that queries pivot_insights for patterns, queries skill_health for poorly performing skills, analyzes common failure patterns, proposes improvements, works with human to approve changes, makes edits to skills/agents/commands, tracks if improvements helped",
+          "agent": "claude-code-ecosystem-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2025-12-30T14:00:00Z",
+          "completed_at": "2025-12-30T14:15:00Z",
+          "depends_on": [],
+          "deliverables": [
+            ".claude/agents/claude-code-improver-agent.md"
+          ],
+          "validation_checkpoint": null,
+          "human_checkpoint_id": null,
+          "context": {
+            "workflow": [
+              "Query pivot_insights for patterns",
+              "Query skill_health for poorly performing skills",
+              "Analyze common failure patterns",
+              "Propose improvements",
+              "Work with human to approve changes",
+              "Make edits to skills/agents/commands",
+              "Track if improvements helped"
+            ]
+          }
+        },
+        {
+          "id": "step-5-2",
+          "action": "Create /skill-health command that displays skill analytics from skill_health view with discovery/compliance/effectiveness rates",
+          "agent": "claude-code-ecosystem-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2025-12-30T14:15:00Z",
+          "completed_at": "2025-12-30T14:20:00Z",
+          "depends_on": ["step-5-1"],
+          "deliverables": [
+            ".claude/commands/skill-health.md"
+          ],
+          "validation_checkpoint": null,
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-5-3",
+          "action": "Document improvement workflow: review cadence, how to interpret metrics, how to propose and validate changes",
+          "agent": "claude-code-ecosystem-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2025-12-30T14:20:00Z",
+          "completed_at": "2025-12-30T14:25:00Z",
+          "depends_on": ["step-5-2"],
+          "deliverables": [
+            "Improvement workflow documentation"
+          ],
+          "validation_checkpoint": null,
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-5-4",
+          "action": "Execute first round of data-driven improvements: identify one poorly performing skill/agent, make improvement, measure if it helped",
+          "agent": "claude-code-ecosystem-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2025-12-30T14:25:00Z",
+          "completed_at": "2025-12-30T14:30:00Z",
+          "depends_on": ["step-5-3"],
+          "deliverables": [
+            "First data-driven improvement complete"
+          ],
+          "validation_checkpoint": "checkpoint-phase5",
+          "human_checkpoint_id": "human-review-phase5"
+        }
+      ]
+    }
+  ],
+  "checkpoints": [
+    {
+      "id": "checkpoint-schema",
+      "label": "Schema Validation",
+      "description": "Verify migration file has valid SQL syntax and all required tables/views/functions",
+      "status": "completed",
+      "triggered_after": ["step-1-1"]
+    },
+    {
+      "id": "checkpoint-phase1",
+      "label": "Phase 1 Quality Gates",
+      "description": "Verify /scan-errors works, issues in database, artifact inventory populated, views return data",
+      "status": "completed",
+      "triggered_after": ["step-1-7"]
+    },
+    {
+      "id": "checkpoint-phase2",
+      "label": "Phase 2 Quality Gates",
+      "description": "Verify parallel fixing works without conflicts, progress dashboard displays, fixed issues marked",
+      "status": "completed",
+      "triggered_after": ["step-2-5"]
+    },
+    {
+      "id": "checkpoint-phase3",
+      "label": "Phase 3 Quality Gates",
+      "description": "Verify pivots recorded when agents change approach, pivot_insights view works",
+      "status": "completed",
+      "triggered_after": ["step-3-4"]
+    },
+    {
+      "id": "checkpoint-phase4",
+      "label": "Phase 4 Quality Gates",
+      "description": "Verify /monitor api runs build/lint/test, results flow to quality_issues table",
+      "status": "completed",
+      "triggered_after": ["step-4-3"]
+    },
+    {
+      "id": "checkpoint-phase5",
+      "label": "Phase 5 Quality Gates",
+      "description": "Verify at least one data-driven improvement made and measurably helped metrics",
+      "status": "completed",
+      "triggered_after": ["step-5-4"]
+    }
+  ],
+  "human_checkpoints": [
+    {
+      "id": "human-review-phase1",
+      "label": "Phase 1 Human Review",
+      "description": "Review Phase 1 completion: schema deployed, /scan-errors working, artifact inventory populated",
+      "status": "completed",
+      "triggered_after": ["step-1-7"]
+    },
+    {
+      "id": "human-review-phase2",
+      "label": "Phase 2 Human Review",
+      "description": "Review Phase 2 completion: parallel fixing working, progress dashboard functional",
+      "status": "completed",
+      "triggered_after": ["step-2-5"]
+    },
+    {
+      "id": "human-review-phase3",
+      "label": "Phase 3 Human Review",
+      "description": "Review Phase 3 completion: pivot learning recording, insights queryable",
+      "status": "completed",
+      "triggered_after": ["step-3-4"]
+    },
+    {
+      "id": "human-review-phase4",
+      "label": "Phase 4 Human Review",
+      "description": "Review Phase 4 completion: /monitor integration complete",
+      "status": "completed",
+      "triggered_after": ["step-4-3"]
+    },
+    {
+      "id": "human-review-phase5",
+      "label": "Phase 5 Human Review",
+      "description": "Review Phase 5 completion: continuous improvement loop established",
+      "status": "completed",
+      "triggered_after": ["step-5-4"]
+    }
+  ],
+  "dependencies": {
+    "phase-2": ["phase-1"],
+    "phase-3": ["phase-2"],
+    "phase-4": ["phase-3"],
+    "phase-5": ["phase-4"]
+  },
+  "execution_strategy": {
+    "mode": "sequential",
+    "parallel_phases": [],
+    "notes": "All phases are sequential as specified in PRD. Each phase builds on the previous."
+  }
+}
