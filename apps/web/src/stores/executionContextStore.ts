@@ -185,6 +185,18 @@ export const useExecutionContextStore = defineStore('executionContext', () => {
   }
 
   /**
+   * Update conversation ID when switching to a different conversation
+   * while keeping other context fields intact
+   *
+   * @param conversationId - New conversation ID
+   */
+  function setConversation(conversationId: string): void {
+    if (context.value) {
+      context.value = { ...context.value, conversationId };
+    }
+  }
+
+  /**
    * Clear when leaving conversation or logging out
    */
   function clear(): void {
@@ -212,6 +224,7 @@ export const useExecutionContextStore = defineStore('executionContext', () => {
     update,
     setLLM,
     setAgent,
+    setConversation,
     newTaskId,
     clear,
   };

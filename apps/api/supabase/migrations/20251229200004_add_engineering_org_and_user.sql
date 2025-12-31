@@ -106,27 +106,18 @@ INSERT INTO public.users (
     id,
     email,
     display_name,
-    role,
-    roles,
-    namespace_access,
     organization_slug,
     status
 ) VALUES (
     'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d',
     'josh@orchestratorai.io',
     'Josh - Engineering',
-    'super_user',
-    '["super_user", "admin", "user"]'::jsonb,
-    '["engineering", "golfergeek", "demo-org", "global"]'::jsonb,
     'engineering',
     'active'
 )
 ON CONFLICT (id) DO UPDATE SET
     email = EXCLUDED.email,
     display_name = EXCLUDED.display_name,
-    role = EXCLUDED.role,
-    roles = EXCLUDED.roles,
-    namespace_access = EXCLUDED.namespace_access,
     organization_slug = EXCLUDED.organization_slug,
     status = EXCLUDED.status,
     updated_at = NOW();
@@ -135,23 +126,30 @@ ON CONFLICT (id) DO UPDATE SET
 -- ADD JOSH TO RBAC ROLES
 -- =============================================================================
 
--- Add josh as super_user for engineering org
-INSERT INTO public.rbac_user_org_roles (user_id, organization_slug, role_slug)
-VALUES (
-    'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d',
-    'engineering',
-    'super_user'
-)
-ON CONFLICT (user_id, organization_slug, role_slug) DO NOTHING;
+DO $$
+DECLARE
+    v_josh_user_id UUID := 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d';
+    v_super_user_role_id UUID;
+    v_admin_role_id UUID;
+BEGIN
+    -- Get role IDs
+    SELECT id INTO v_super_user_role_id FROM public.rbac_roles WHERE name = 'super_user';
+    SELECT id INTO v_admin_role_id FROM public.rbac_roles WHERE name = 'admin';
 
--- Also add admin access to golfergeek org for cross-org testing
-INSERT INTO public.rbac_user_org_roles (user_id, organization_slug, role_slug)
-VALUES (
-    'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d',
-    'golfergeek',
-    'admin'
-)
-ON CONFLICT (user_id, organization_slug, role_slug) DO NOTHING;
+    -- Add josh as super_user for engineering org
+    IF v_super_user_role_id IS NOT NULL THEN
+        INSERT INTO public.rbac_user_org_roles (user_id, organization_slug, role_id, assigned_by)
+        VALUES (v_josh_user_id, 'engineering', v_super_user_role_id, v_josh_user_id)
+        ON CONFLICT (user_id, organization_slug, role_id) DO NOTHING;
+    END IF;
+
+    -- Also add admin access to golfergeek org for cross-org testing
+    IF v_admin_role_id IS NOT NULL THEN
+        INSERT INTO public.rbac_user_org_roles (user_id, organization_slug, role_id, assigned_by)
+        VALUES (v_josh_user_id, 'golfergeek', v_admin_role_id, v_josh_user_id)
+        ON CONFLICT (user_id, organization_slug, role_id) DO NOTHING;
+    END IF;
+END $$;
 
 -- =============================================================================
 -- LOG SUCCESS

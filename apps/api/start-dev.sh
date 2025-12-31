@@ -152,16 +152,20 @@ start_langgraph() {
     fi
 
     echo -e "${BLUE}🔄 Starting LangGraph workflow server...${NC}"
-    cd ../langgraph
 
-    # Check if dependencies are installed
+    # Build LangGraph first (from its directory)
+    cd ../langgraph
     if [ ! -d "node_modules" ]; then
         echo -e "${BLUE}📦 Installing LangGraph dependencies...${NC}"
         npm install >/dev/null 2>&1
     fi
+    echo -e "${BLUE}📦 Building LangGraph...${NC}"
+    npm run build >/dev/null 2>&1
+    cd - > /dev/null
 
-    # Start LangGraph in background
-    npm run start:dev > /tmp/langgraph.log 2>&1 &
+    # Run from monorepo root to properly resolve hoisted dependencies (e.g., opencascade.js)
+    cd ../..
+    node apps/langgraph/dist/main.js > /tmp/langgraph.log 2>&1 &
     LANGGRAPH_PID=$!
     cd - > /dev/null
 

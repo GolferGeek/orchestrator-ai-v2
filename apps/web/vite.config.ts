@@ -98,7 +98,13 @@ export default defineConfig(({ mode }) => {
       extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json']
     },
     optimizeDeps: {
-      include: ['@orchestrator-ai/transport-types']
+      include: [
+        '@orchestrator-ai/transport-types',
+        'three',
+        'three/addons/controls/OrbitControls.js',
+        'three/addons/loaders/GLTFLoader.js',
+        'three/addons/loaders/STLLoader.js'
+      ]
     },
     server: {
       // Prefer VITE_WEB_PORT; for non-VITE values, check process.env.WEB_PORT at runtime via fallback

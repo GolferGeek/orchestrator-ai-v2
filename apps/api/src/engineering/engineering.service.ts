@@ -5,7 +5,7 @@ import { RealtimeChannel } from '@supabase/supabase-js';
 // Types based on database schema
 export interface Project {
   id: string;
-  org_id: string;
+  org_slug: string;
   name: string;
   description?: string;
   constraints: Record<string, unknown>;
@@ -104,10 +104,10 @@ export class EngineeringService {
   async createProject(params: CreateProjectParams): Promise<Project> {
     const client = this.supabaseService.getServiceClient();
 
-    // Get organization ID from slug
+    // Verify organization exists
     const { data: orgData, error: orgError } = await client
       .from('organizations')
-      .select('id')
+      .select('slug')
       .eq('slug', params.org_slug)
       .single();
 
@@ -123,7 +123,7 @@ export class EngineeringService {
     }
 
     const insertData: Record<string, unknown> = {
-      org_id: orgData.id,
+      org_slug: params.org_slug,
       name: params.name,
       description: params.description || null,
       constraints: params.constraints || {},
@@ -135,7 +135,8 @@ export class EngineeringService {
     }
 
     const result = await client
-      .from('engineering.projects')
+      .schema('engineering')
+      .from('projects')
       .insert(insertData)
       .select()
       .single();
@@ -163,28 +164,11 @@ export class EngineeringService {
   async listProjects(orgSlug: string): Promise<Project[]> {
     const client = this.supabaseService.getServiceClient();
 
-    // Get organization ID from slug
-    const { data: orgData, error: orgError } = await client
-      .from('organizations')
-      .select('id')
-      .eq('slug', orgSlug)
-      .single();
-
-    if (orgError || !orgData) {
-      this.logger.error(
-        `Organization not found: ${orgSlug}`,
-        orgError?.message,
-      );
-      throw new HttpException(
-        `Organization '${orgSlug}' not found`,
-        HttpStatus.NOT_FOUND,
-      );
-    }
-
     const { data, error } = await client
-      .from('engineering.projects')
+      .schema('engineering')
+      .from('projects')
       .select('*')
-      .eq('org_id', (orgData as { id: string }).id)
+      .eq('org_slug', orgSlug)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -205,7 +189,8 @@ export class EngineeringService {
     const client = this.supabaseService.getServiceClient();
 
     const result = await client
-      .from('engineering.projects')
+      .schema('engineering')
+      .from('projects')
       .select('*')
       .eq('id', id)
       .single();
@@ -254,7 +239,8 @@ export class EngineeringService {
     if (updates.metadata !== undefined) updateData.metadata = updates.metadata;
 
     const result = await client
-      .from('engineering.projects')
+      .schema('engineering')
+      .from('projects')
       .update(updateData)
       .eq('id', id)
       .select()
@@ -288,7 +274,8 @@ export class EngineeringService {
     const client = this.supabaseService.getServiceClient();
 
     const result = await client
-      .from('engineering.drawings')
+      .schema('engineering')
+      .from('drawings')
       .select('*')
       .eq('id', id)
       .single();
@@ -317,7 +304,8 @@ export class EngineeringService {
     const client = this.supabaseService.getServiceClient();
 
     const result = await client
-      .from('engineering.drawings')
+      .schema('engineering')
+      .from('drawings')
       .select('*')
       .eq('task_id', taskId)
       .order('created_at', { ascending: false })
@@ -348,7 +336,8 @@ export class EngineeringService {
     const client = this.supabaseService.getServiceClient();
 
     const { data, error } = await client
-      .from('engineering.cad_outputs')
+      .schema('engineering')
+      .from('cad_outputs')
       .select('*')
       .eq('drawing_id', drawingId)
       .order('created_at', { ascending: false });
@@ -371,7 +360,8 @@ export class EngineeringService {
     const client = this.supabaseService.getServiceClient();
 
     const { data, error } = await client
-      .from('engineering.generated_code')
+      .schema('engineering')
+      .from('generated_code')
       .select('*')
       .eq('drawing_id', drawingId)
       .order('attempt_number', { ascending: false });
@@ -394,7 +384,8 @@ export class EngineeringService {
     const client = this.supabaseService.getServiceClient();
 
     const { data, error } = await client
-      .from('engineering.execution_log')
+      .schema('engineering')
+      .from('execution_log')
       .select('*')
       .eq('drawing_id', drawingId)
       .order('created_at', { ascending: true });
