@@ -137,6 +137,46 @@ response = client.predict(
 - Custom model training
 - Premium support tiers
 
+#### Platform Features & Capabilities
+
+**Overview:**
+Gemini Enterprise positions itself as an "operating system for AI" that solves the problem of siloed business data by providing comprehensive tools for building, deploying, and managing AI agents across the enterprise.
+
+**1. Building Agents: The Workbench**
+
+The platform offers tools for every level of technical expertise to create custom AI helpers:
+
+- **Agent Designer:** An intuitive, **no-code tool** for non-technical users (like marketing or finance teams). It allows them to package their specific business process knowledge into automated workflows without requiring programming skills.
+- **Agent Development Kit (ADK):** An **open-source framework** for professional developers to build more sophisticated agents using ready-to-use tools and libraries.
+- **Connectors:** These securely link agents to existing systems such as **Google Drive, Workday, Salesforce, and ServiceNow**, allowing agents to take action across different applications and break down data silos.
+
+**2. Gemini Code Assist**
+
+This specialized agent is designed to accelerate the software development lifecycle:
+
+- **More than Autocomplete:** It offers full code generation, bug fixes, and guidance through natural language interactions.
+- **Integration:** It works within standard developer environments like **VS Code, IntelliJ, and the terminal**, as well as cloud products like BigQuery.
+- **Functionality:** It helps reduce "context switching" by providing an expert programmer's help 24/7 directly within the development workflow, enabling developers to stay focused on their primary tasks.
+
+**3. Google Vids & Multimodal Content**
+
+The platform demonstrates how AI can handle creative and communication tasks:
+
+- **Presentation Conversion:** Google Vids can take an existing slide deck and automatically generate a concise, engaging video presentation.
+- **AI Generation:** It provides editable scripts, selects **AI avatars**, voiceovers, and even adds background music to create professional video content.
+- **Veo Integration:** Using Google's Veo model, users can generate high-quality video clips from text prompts and static images (e.g., making a store photo "come to life" with dynamic video content).
+
+**4. Security, Governance, and Privacy**
+
+Snyder emphasizes that "trust is non-negotiable" for enterprise adoption, and Gemini Enterprise provides multiple layers of security:
+
+- **Governance Dashboard:** A "single pane of glass" for IT leaders to manage the entire AI task force, set permissions, and audit usage across the organization.
+- **Model Armor:** A built-in feature that proactively screens for **malicious inputs** and unsafe interactions to prevent attacks and ensure safe AI operations.
+- **AI Protection Add-on:** An optional security layer that detects and stops specific AI-agentic threats, providing additional defense against sophisticated attacks.
+- **Data Privacy:** A core promise is that **customer data is never used to train Google's models**; "Your data is your data" - ensuring complete data sovereignty and privacy.
+
+**Reference Video:** [Gemini Enterprise Overview by Derek Snyder](https://www.youtube.com/watch?v=VkIRXfty13c)
+
 ### Interview Questions & Answers
 
 #### High-Level Questions
@@ -447,6 +487,54 @@ fine_tune = client.fine_tuning.jobs.create(
 - CCPA compliant
 - ISO 27001
 
+#### ChatGPT Business Product Features
+
+**Overview:**
+ChatGPT Business is OpenAI's AI platform tailored for business applications, offering a secure, shared workspace with advanced AI capabilities to enhance team productivity.
+
+**Key Platform Capabilities:**
+
+1. **Access to Advanced AI Models**
+   - Unlimited GPT-5 messages
+   - Access to GPT-5 thinking mode
+   - Deep research capabilities
+   - Codex for software development acceleration
+   - Advanced reasoning with o1 models
+
+2. **Secure, Shared Workspace**
+   - User management and team administration
+   - Usage tracking and analytics
+   - Integration with internal tools for contextually relevant responses
+   - Shared workspace for team collaboration
+   - Project assignments and workflow management
+
+3. **Data Privacy and Security**
+   - **Data excluded from training by default:** Customer data is never used to train OpenAI's models
+   - **Encryption:** Data encrypted in transit and at rest
+   - **SAML SSO:** Single sign-on integration for enterprise authentication
+   - **Admin roles:** Role-based access control with administrative oversight
+   - **Audit logging:** Complete activity tracking for compliance
+
+4. **Productivity Tools**
+   - **Codex:** Accelerates software development with code generation, bug fixes, and guidance
+   - **Deep Research:** Advanced research capabilities for complex analysis
+   - **Data Analysis:** Advanced data analysis tools for business intelligence
+   - **Content Creation:** Multi-format content generation (reports, documentation, presentations)
+   - **Project Management:** Tools for project assignments and workflow automation
+
+5. **Customization & Integration**
+   - **Internal Sources:** Connect to internal data sources for personalized responses
+   - **Context Grounding:** Responses grounded in team-specific work and knowledge
+   - **Tool Integration:** Integration with existing business tools and workflows
+   - **Custom Workflows:** Ability to create custom AI-powered workflows
+
+**Use Cases by Department:**
+- **Engineering:** Code generation, debugging, documentation, technical research
+- **Marketing:** Content creation, campaign analysis, market research, copywriting
+- **Operations:** Process automation, workflow optimization, data analysis
+- **Product:** Feature planning, user research analysis, product documentation
+- **Finance:** Financial analysis, report generation, data interpretation, forecasting
+
 #### Pricing Structure
 
 **ChatGPT for Business:**
@@ -457,6 +545,10 @@ fine_tune = client.fine_tuning.jobs.create(
   - Advanced data analysis
   - Priority support
   - Admin controls
+  - Secure workspace
+  - Data privacy (excluded from training)
+  - SAML SSO
+  - Usage analytics
 
 **API Pricing (Usage-Based):**
 - **GPT-5:** $0.005/1K input tokens, $0.015/1K output tokens

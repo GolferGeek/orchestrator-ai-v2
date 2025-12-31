@@ -182,7 +182,8 @@ export function ClaudeCodePanel({ isOpen, onClose }: ClaudeCodePanelProps) {
       e.preventDefault();
       navigateHistory('down');
     }
-  }, [showAutoComplete, filteredCommands, autoCompleteSelectedIndex, execute, navigateHistory, selectCommand]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- selectCommand is defined after this callback, using ref pattern would add complexity
+  }, [showAutoComplete, filteredCommands, autoCompleteSelectedIndex, execute, navigateHistory]);
 
   // Select a command from auto-complete
   const selectCommand = useCallback((name: string) => {

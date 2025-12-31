@@ -183,7 +183,8 @@ export function useSharedTimer(onTimerComplete?: () => void, teamId?: string | n
     } else {
       setTimeLeft(timerState.duration_seconds);
     }
-  }, [timerState, onTimerComplete, autoContinue, handleAutoContinue, handleStop]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleStop is defined after this effect, using ref pattern would add complexity
+  }, [timerState, onTimerComplete, autoContinue, handleAutoContinue]);
 
   const handleStart = useCallback(async () => {
     if (!timerState) return;
