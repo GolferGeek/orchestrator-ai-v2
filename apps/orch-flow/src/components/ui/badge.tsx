@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- shadcn/ui pattern exports both component and variants */
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 

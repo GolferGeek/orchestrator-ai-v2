@@ -13,8 +13,9 @@ interface TimerState {
 }
 
 const playTimerEndSound = () => {
-  const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-  
+  const AudioContextClass = window.AudioContext || (window as Window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+  const audioContext = new AudioContextClass();
+
   const playNote = (frequency: number, startTime: number, duration: number) => {
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
@@ -103,10 +104,11 @@ export function useSharedTimer(onTimerComplete?: () => void, teamId?: string | n
         },
         (payload) => {
           // Only update if it's for our team
-          if (teamId && (payload.new as any)?.team_id !== teamId) {
+          const newRecord = payload.new as Record<string, unknown>;
+          if (teamId && newRecord?.team_id !== teamId) {
             return;
           }
-          if (!teamId && (payload.new as any)?.team_id !== null) {
+          if (!teamId && newRecord?.team_id !== null) {
             return;
           }
           console.log('Timer update:', payload);
@@ -181,7 +183,7 @@ export function useSharedTimer(onTimerComplete?: () => void, teamId?: string | n
     } else {
       setTimeLeft(timerState.duration_seconds);
     }
-  }, [timerState, onTimerComplete, autoContinue, handleAutoContinue]);
+  }, [timerState, onTimerComplete, autoContinue, handleAutoContinue, handleStop]);
 
   const handleStart = useCallback(async () => {
     if (!timerState) return;

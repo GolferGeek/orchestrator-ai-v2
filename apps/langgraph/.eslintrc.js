@@ -31,4 +31,21 @@ module.exports = {
     '@typescript-eslint/no-var-requires': 'warn',
     'prefer-const': 'warn',
   },
+  overrides: [
+    {
+      // Relax rules for test files - tests often need more flexibility
+      files: ['**/*.spec.ts', '**/*.spec.tsx', '**/*.test.ts', '**/*.test.tsx', '**/__tests__/**/*.ts'],
+      rules: {
+        '@typescript-eslint/no-explicit-any': 'off',
+        '@typescript-eslint/no-unsafe-argument': 'off',
+        '@typescript-eslint/no-unsafe-assignment': 'off',
+        '@typescript-eslint/no-unsafe-member-access': 'off',
+        '@typescript-eslint/no-unsafe-call': 'off',
+        '@typescript-eslint/no-unsafe-return': 'off',
+        '@typescript-eslint/unbound-method': 'off',
+        '@typescript-eslint/no-floating-promises': 'off',
+        '@typescript-eslint/require-await': 'off',
+      },
+    },
+  ],
 };

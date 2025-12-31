@@ -1,5 +1,4 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { Logger } from '@nestjs/common';
 import { PatternRedactionService } from './pattern-redaction.service';
 import { PIIPatternService } from '../pii-pattern.service';
 import { SupabaseService } from '@/supabase/supabase.service';

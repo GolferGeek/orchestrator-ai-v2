@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { TaskStatusService, TaskStatusState } from './task-status.service';
 import { SupabaseService } from '@/supabase/supabase.service';

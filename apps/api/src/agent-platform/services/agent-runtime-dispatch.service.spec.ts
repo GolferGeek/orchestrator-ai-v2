@@ -3,14 +3,22 @@ import { HttpService } from '@nestjs/axios';
 import { AgentRuntimeDispatchService } from './agent-runtime-dispatch.service';
 import { LLMServiceFactory } from '@llm/services/llm-service-factory';
 import { AgentRuntimeMetricsService } from './agent-runtime-metrics.service';
-import { AgentTaskMode } from '@agent2agent/dto/task-request.dto';
+import {
+  AgentTaskMode,
+  TaskRequestDto,
+} from '@agent2agent/dto/task-request.dto';
 import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
+import { AgentRuntimeDefinition } from '../interfaces/agent.interface';
 
 describe('AgentRuntimeDispatchService', () => {
   let service: AgentRuntimeDispatchService;
   let mockLLMFactory: jest.Mocked<LLMServiceFactory>;
   let mockHttpService: jest.Mocked<HttpService>;
   let mockMetrics: jest.Mocked<AgentRuntimeMetricsService>;
+  let requestMock: jest.Mock;
+  let postMock: jest.Mock;
+  let generateResponseMock: jest.Mock;
+  let recordMock: jest.Mock;
 
   const mockExecutionContext = createMockExecutionContext({
     orgSlug: 'test-org',
@@ -19,12 +27,13 @@ describe('AgentRuntimeDispatchService', () => {
   });
 
   beforeEach(async () => {
+    generateResponseMock = jest.fn() as jest.Mock<unknown, unknown[]>;
     mockLLMFactory = {
-      generateResponse: jest.fn(),
+      generateResponse: generateResponseMock,
     } as unknown as jest.Mocked<LLMServiceFactory>;
 
-    const requestMock = jest.fn();
-    const postMock = jest.fn();
+    requestMock = jest.fn() as jest.Mock<unknown, unknown[]>;
+    postMock = jest.fn() as jest.Mock<unknown, unknown[]>;
     mockHttpService = {
       axiosRef: {
         request: requestMock,
@@ -32,8 +41,9 @@ describe('AgentRuntimeDispatchService', () => {
       },
     } as unknown as jest.Mocked<HttpService>;
 
+    recordMock = jest.fn() as jest.Mock<unknown, unknown[]>;
     mockMetrics = {
-      record: jest.fn(),
+      record: recordMock,
     } as unknown as jest.Mocked<AgentRuntimeMetricsService>;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -56,14 +66,14 @@ describe('AgentRuntimeDispatchService', () => {
 
   describe('dispatch - LLM transport', () => {
     it('should dispatch to LLM service', async () => {
-      const definition: Partial<any> = {
+      const definition = {
         slug: 'test-agent',
         name: 'Test Agent',
         llm: {
           provider: 'openai',
           model: 'gpt-4',
         },
-      };
+      } as unknown as AgentRuntimeDefinition;
 
       const mockResponse = {
         content: 'LLM response',
@@ -79,10 +89,10 @@ describe('AgentRuntimeDispatchService', () => {
         },
       };
 
-      mockLLMFactory.generateResponse.mockResolvedValue(mockResponse);
+      generateResponseMock.mockResolvedValue(mockResponse);
 
       const result = await service.dispatch({
-        definition: definition as any,
+        definition,
         routingDecision: {
           provider: 'openai',
           model: 'gpt-4',
@@ -102,18 +112,18 @@ describe('AgentRuntimeDispatchService', () => {
           mode: AgentTaskMode.CONVERSE,
           payload: {},
           context: mockExecutionContext,
-        } as any,
+        } as unknown as TaskRequestDto,
         executionContext: mockExecutionContext,
       });
 
-      expect(mockLLMFactory.generateResponse).toHaveBeenCalled();
+      expect(generateResponseMock).toHaveBeenCalled();
       expect(result.response.content).toBe('LLM response');
     });
 
     it('should include ExecutionContext in params', async () => {
-      const definition: Partial<any> = {
+      const definition = {
         slug: 'test-agent',
-      };
+      } as unknown as AgentRuntimeDefinition;
 
       const mockResponse = {
         content: 'response',
@@ -129,10 +139,10 @@ describe('AgentRuntimeDispatchService', () => {
         },
       };
 
-      mockLLMFactory.generateResponse.mockResolvedValue(mockResponse);
+      generateResponseMock.mockResolvedValue(mockResponse);
 
       await service.dispatch({
-        definition: definition as any,
+        definition,
         routingDecision: {
           provider: 'openai',
           model: 'gpt-4',
@@ -152,21 +162,25 @@ describe('AgentRuntimeDispatchService', () => {
           mode: AgentTaskMode.CONVERSE,
           payload: {},
           context: mockExecutionContext,
-        } as any,
+        } as unknown as TaskRequestDto,
         executionContext: mockExecutionContext,
       });
 
-      const callArgs = mockLLMFactory.generateResponse.mock.calls[0];
-      if (callArgs) {
-        const params = callArgs[1];
-        expect(params.options?.executionContext).toEqual(mockExecutionContext);
+      const callArgs = generateResponseMock.mock.calls[0] as unknown as [
+        unknown,
+        { options?: { executionContext?: unknown } },
+      ];
+      if (callArgs && callArgs[1]) {
+        expect(callArgs[1].options?.executionContext).toEqual(
+          mockExecutionContext,
+        );
       }
     });
   });
 
   describe('dispatch - API transport', () => {
     it('should dispatch to API endpoint', async () => {
-      const definition: Partial<any> = {
+      const definition = {
         slug: 'api-agent',
         transport: {
           kind: 'api',
@@ -175,7 +189,7 @@ describe('AgentRuntimeDispatchService', () => {
             method: 'POST',
           },
         },
-      };
+      } as unknown as AgentRuntimeDefinition;
 
       const mockApiResponse = {
         status: 200,
@@ -183,12 +197,10 @@ describe('AgentRuntimeDispatchService', () => {
         headers: {},
       };
 
-      (mockHttpService.axiosRef.request as jest.Mock).mockResolvedValue(
-        mockApiResponse as any,
-      );
+      requestMock.mockResolvedValue(mockApiResponse);
 
       const result = await service.dispatch({
-        definition: definition as any,
+        definition,
         routingDecision: {
           provider: 'external_api',
           model: 'api_endpoint',
@@ -208,18 +220,18 @@ describe('AgentRuntimeDispatchService', () => {
           mode: AgentTaskMode.CONVERSE,
           payload: {},
           context: mockExecutionContext,
-        } as any,
+        } as unknown as TaskRequestDto,
         executionContext: mockExecutionContext,
       });
 
-      expect(mockHttpService.axiosRef.request).toHaveBeenCalledWith(
+      expect(requestMock).toHaveBeenCalledWith(
         expect.objectContaining({
           url: 'https://api.example.com/process',
           method: 'POST',
         }),
       );
       expect(result.response.content).toContain('API response');
-      expect(mockMetrics.record).toHaveBeenCalledWith(
+      expect(recordMock).toHaveBeenCalledWith(
         'api',
         'api-agent',
         true,
@@ -229,7 +241,7 @@ describe('AgentRuntimeDispatchService', () => {
     });
 
     it('should handle API error responses', async () => {
-      const definition: Partial<any> = {
+      const definition = {
         slug: 'api-agent',
         transport: {
           kind: 'api',
@@ -237,7 +249,7 @@ describe('AgentRuntimeDispatchService', () => {
             endpoint: 'https://api.example.com/process',
           },
         },
-      };
+      } as unknown as AgentRuntimeDefinition;
 
       const mockApiResponse = {
         status: 500,
@@ -245,12 +257,10 @@ describe('AgentRuntimeDispatchService', () => {
         headers: {},
       };
 
-      (mockHttpService.axiosRef.request as jest.Mock).mockResolvedValue(
-        mockApiResponse as any,
-      );
+      requestMock.mockResolvedValue(mockApiResponse);
 
       const result = await service.dispatch({
-        definition: definition as any,
+        definition,
         routingDecision: {
           provider: 'external_api',
           model: 'api_endpoint',
@@ -270,12 +280,12 @@ describe('AgentRuntimeDispatchService', () => {
           mode: AgentTaskMode.CONVERSE,
           payload: {},
           context: mockExecutionContext,
-        } as any,
+        } as unknown as TaskRequestDto,
         executionContext: mockExecutionContext,
       });
 
       expect(result.response.metadata.status).toBe('error');
-      expect(mockMetrics.record).toHaveBeenCalledWith(
+      expect(recordMock).toHaveBeenCalledWith(
         'api',
         'api-agent',
         false,
@@ -287,7 +297,7 @@ describe('AgentRuntimeDispatchService', () => {
 
   describe('dispatch - External (A2A) transport', () => {
     it('should dispatch to external A2A endpoint', async () => {
-      const definition: Partial<any> = {
+      const definition = {
         slug: 'external-agent',
         transport: {
           kind: 'external',
@@ -295,7 +305,7 @@ describe('AgentRuntimeDispatchService', () => {
             endpoint: 'https://external.example.com/agent',
           },
         },
-      };
+      } as unknown as AgentRuntimeDefinition;
 
       const mockA2AResponse = {
         status: 200,
@@ -307,12 +317,10 @@ describe('AgentRuntimeDispatchService', () => {
         headers: {},
       };
 
-      (mockHttpService.axiosRef.post as jest.Mock).mockResolvedValue(
-        mockA2AResponse as any,
-      );
+      postMock.mockResolvedValue(mockA2AResponse);
 
       const result = await service.dispatch({
-        definition: definition as any,
+        definition,
         routingDecision: {
           provider: 'external_a2a',
           model: 'a2a',
@@ -336,11 +344,11 @@ describe('AgentRuntimeDispatchService', () => {
             conversationId: 'conv-1',
             taskId: 'task-1',
           },
-        } as any,
+        } as unknown as TaskRequestDto,
         executionContext: mockExecutionContext,
       });
 
-      expect(mockHttpService.axiosRef.post).toHaveBeenCalledWith(
+      expect(postMock).toHaveBeenCalledWith(
         'https://external.example.com/agent',
         expect.objectContaining({
           jsonrpc: '2.0',
@@ -349,12 +357,12 @@ describe('AgentRuntimeDispatchService', () => {
             conversationId: 'conv-1',
             sessionId: 'task-1',
             userMessage: 'Hello A2A',
-          }),
+          }) as Record<string, unknown>,
         }),
         expect.any(Object),
       );
       expect(result.response.metadata.provider).toBe('external_a2a');
-      expect(mockMetrics.record).toHaveBeenCalledWith(
+      expect(recordMock).toHaveBeenCalledWith(
         'external',
         'external-agent',
         true,
@@ -364,7 +372,7 @@ describe('AgentRuntimeDispatchService', () => {
     });
 
     it('should map agent task mode to A2A method', async () => {
-      const definition: Partial<any> = {
+      const definition = {
         slug: 'external-agent',
         transport: {
           kind: 'external',
@@ -372,16 +380,16 @@ describe('AgentRuntimeDispatchService', () => {
             endpoint: 'https://external.example.com/agent',
           },
         },
-      };
+      } as unknown as AgentRuntimeDefinition;
 
-      (mockHttpService.axiosRef.post as jest.Mock).mockResolvedValue({
+      postMock.mockResolvedValue({
         status: 200,
         data: { jsonrpc: '2.0', id: 1, result: {} },
         headers: {},
-      } as any);
+      });
 
       await service.dispatch({
-        definition: definition as any,
+        definition,
         routingDecision: {
           provider: 'external_a2a',
           model: 'a2a',
@@ -401,24 +409,25 @@ describe('AgentRuntimeDispatchService', () => {
           mode: AgentTaskMode.PLAN,
           payload: {},
           context: mockExecutionContext,
-        } as any,
+        } as unknown as TaskRequestDto,
         executionContext: mockExecutionContext,
       });
 
-      const callArgs = (mockHttpService.axiosRef.post as jest.Mock).mock
-        .calls[0];
-      if (callArgs) {
-        const body = callArgs[1];
-        expect(body.method).toBe('plan');
+      const callArgs = postMock.mock.calls[0] as unknown as [
+        unknown,
+        { method: string },
+      ];
+      if (callArgs && callArgs[1]) {
+        expect(callArgs[1].method).toBe('plan');
       }
     });
   });
 
   describe('dispatchStream', () => {
-    it('should create streaming result for LLM transport', async () => {
-      const definition: Partial<any> = {
+    it('should create streaming result for LLM transport', () => {
+      const definition = {
         slug: 'test-agent',
-      };
+      } as unknown as AgentRuntimeDefinition;
 
       const mockResponse = {
         content: 'Streamed response',
@@ -434,10 +443,10 @@ describe('AgentRuntimeDispatchService', () => {
         },
       };
 
-      mockLLMFactory.generateResponse.mockResolvedValue(mockResponse);
+      generateResponseMock.mockResolvedValue(mockResponse);
 
       const streamResult = service.dispatchStream({
-        definition: definition as any,
+        definition,
         routingDecision: {
           provider: 'openai',
           model: 'gpt-4',
@@ -457,7 +466,7 @@ describe('AgentRuntimeDispatchService', () => {
           mode: AgentTaskMode.CONVERSE,
           payload: {},
           context: mockExecutionContext,
-        } as any,
+        } as unknown as TaskRequestDto,
         executionContext: mockExecutionContext,
       });
 
@@ -466,12 +475,12 @@ describe('AgentRuntimeDispatchService', () => {
       expect(typeof streamResult.cancel).toBe('function');
     });
 
-    it('should handle stream cancellation', async () => {
-      const definition: Partial<any> = {
+    it('should handle stream cancellation', () => {
+      const definition = {
         slug: 'test-agent',
-      };
+      } as unknown as AgentRuntimeDefinition;
 
-      mockLLMFactory.generateResponse.mockResolvedValue({
+      generateResponseMock.mockResolvedValue({
         content: 'response',
         metadata: {
           provider: 'openai',
@@ -486,7 +495,7 @@ describe('AgentRuntimeDispatchService', () => {
       });
 
       const streamResult = service.dispatchStream({
-        definition: definition as any,
+        definition,
         routingDecision: {
           provider: 'openai',
           model: 'gpt-4',
@@ -506,7 +515,7 @@ describe('AgentRuntimeDispatchService', () => {
           mode: AgentTaskMode.CONVERSE,
           payload: {},
           context: mockExecutionContext,
-        } as any,
+        } as unknown as TaskRequestDto,
         executionContext: mockExecutionContext,
       });
 

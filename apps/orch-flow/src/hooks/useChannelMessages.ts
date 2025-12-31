@@ -69,7 +69,9 @@ export const useChannelMessages = (teamId?: string | null) => {
         { event: '*', schema: 'orch_flow', table: 'channels' },
         (payload) => {
           // Only update if it's for our team
-          if (teamId && (payload.new as any)?.team_id !== teamId && (payload.old as any)?.team_id !== teamId) {
+          const newRecord = payload.new as Record<string, unknown>;
+          const oldRecord = payload.old as Record<string, unknown>;
+          if (teamId && newRecord?.team_id !== teamId && oldRecord?.team_id !== teamId) {
             return;
           }
           if (payload.eventType === 'INSERT') {
@@ -88,6 +90,7 @@ export const useChannelMessages = (teamId?: string | null) => {
     return () => {
       supabase.removeChannel(channelSub);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- activeChannelId intentionally excluded to prevent infinite loop
   }, [teamId]);
 
   // Fetch messages for active channel

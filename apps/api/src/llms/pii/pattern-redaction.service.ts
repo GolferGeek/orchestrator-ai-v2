@@ -253,7 +253,7 @@ export class PatternRedactionService {
       }
 
       return map;
-    } catch (error) {
+    } catch {
       this.logger.warn('Failed to load replacement map. Using defaults.');
       return {};
     }

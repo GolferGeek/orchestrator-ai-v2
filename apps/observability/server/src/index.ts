@@ -52,7 +52,7 @@ async function sendResponseToAgent(
       if (ws) {
         try {
           ws.close();
-        } catch (e) {
+        } catch (_e) {
           // Ignore close errors
         }
       }
@@ -283,8 +283,8 @@ app.get('/api/themes', async (req, res) => {
       query: req.query.query as string || undefined,
       isPublic: req.query.isPublic ? req.query.isPublic === 'true' : undefined,
       authorId: req.query.authorId as string || undefined,
-      sortBy: req.query.sortBy as any || undefined,
-      sortOrder: req.query.sortOrder as any || undefined,
+      sortBy: (req.query.sortBy as 'name' | 'created' | 'updated' | 'downloads' | 'rating') || undefined,
+      sortOrder: (req.query.sortOrder as 'asc' | 'desc') || undefined,
       limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
       offset: req.query.offset ? parseInt(req.query.offset as string) : undefined,
     };

@@ -1,6 +1,6 @@
 import pkg from 'pg';
 const { Pool } = pkg;
-import type { HookEvent, FilterOptions, Theme, ThemeSearchQuery } from './types.js';
+import type { HookEvent, FilterOptions, Theme, ThemeSearchQuery, HumanInTheLoopResponse } from './types.js';
 
 // Use direct PostgreSQL connection instead of Supabase REST API
 // This allows us to access the observability schema without exposing it through PostgREST
@@ -101,7 +101,7 @@ export async function getRecentEvents(limit: number = 300): Promise<HookEvent[]>
 // HITL helper functions
 export async function updateEventHITLResponse(
   id: number,
-  response: any
+  response: HumanInTheLoopResponse
 ): Promise<HookEvent | null> {
   const status = {
     status: 'responded',
@@ -171,7 +171,7 @@ export async function insertTheme(theme: Theme): Promise<Theme> {
 
 export async function updateTheme(id: string, updates: Partial<Theme>): Promise<boolean> {
   const fields: string[] = [];
-  const values: any[] = [];
+  const values: unknown[] = [];
   let paramIndex = 1;
 
   if (updates.displayName !== undefined) {
@@ -243,7 +243,7 @@ export async function getTheme(id: string): Promise<Theme | null> {
 
 export async function getThemes(query: ThemeSearchQuery = {}): Promise<Theme[]> {
   const conditions: string[] = [];
-  const values: any[] = [];
+  const values: unknown[] = [];
   let paramIndex = 1;
 
   // Apply filters

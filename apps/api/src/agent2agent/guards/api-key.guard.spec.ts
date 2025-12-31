@@ -83,7 +83,6 @@ describe('ApiKeyGuard', () => {
       createContext({ 'x-agent-api-key': provided }),
     );
 
-    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(repo.get).toHaveBeenCalledWith('acme', 'agent_api_key');
     expect(result).toBe(true);
   });
@@ -115,7 +114,6 @@ describe('ApiKeyGuard', () => {
       }),
     );
 
-    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(repo.get).toHaveBeenCalledWith('acme', 'custom_alias');
     expect(result).toBe(true);
   });
@@ -165,7 +163,7 @@ describe('ApiKeyGuard', () => {
     await expect(guard.canActivate(createContext({}))).rejects.toThrow(
       UnauthorizedException,
     );
-    // eslint-disable-next-line @typescript-eslint/unbound-method
+
     expect(repo.get).not.toHaveBeenCalled();
   });
 
@@ -207,7 +205,6 @@ describe('ApiKeyGuard', () => {
     await guard.canActivate(ctx);
     await guard.canActivate(ctx);
 
-    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(repo.get).toHaveBeenCalledTimes(1);
   });
 

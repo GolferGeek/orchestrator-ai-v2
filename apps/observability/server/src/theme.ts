@@ -6,7 +6,16 @@ import {
   deleteTheme,
   incrementThemeDownloadCount,
 } from './db.js';
-import type { Theme, ThemeSearchQuery, ThemeValidationError, ApiResponse } from './types.js';
+import type {
+  Theme,
+  ThemeColors,
+  ThemeSearchQuery,
+  ThemeValidationError,
+  ApiResponse,
+  ThemeExportData,
+  ThemeStats,
+  ThemeImportData,
+} from './types.js';
 
 // Utility functions
 function generateId(): string {
@@ -138,23 +147,26 @@ function isValidColor(color: string): boolean {
   return namedColors.includes(color.toLowerCase());
 }
 
-function sanitizeTheme(theme: any): Partial<Theme> {
+function sanitizeTheme(theme: unknown): Partial<Theme> {
+  // Type guard to safely access properties
+  const themeObj = theme as Record<string, unknown>;
+
   return {
-    name: theme.name?.toString().toLowerCase().replace(/[^a-z0-9-_]/g, '') || '',
-    displayName: theme.displayName?.toString().trim() || '',
-    description: theme.description?.toString().trim() || '',
-    colors: theme.colors || {},
-    isPublic: Boolean(theme.isPublic),
-    tags: Array.isArray(theme.tags)
-      ? theme.tags.filter((tag) => typeof tag === 'string' && tag.trim())
+    name: themeObj.name?.toString().toLowerCase().replace(/[^a-z0-9-_]/g, '') || '',
+    displayName: themeObj.displayName?.toString().trim() || '',
+    description: themeObj.description?.toString().trim() || '',
+    colors: (themeObj.colors as ThemeColors | undefined) || {} as ThemeColors,
+    isPublic: Boolean(themeObj.isPublic),
+    tags: Array.isArray(themeObj.tags)
+      ? themeObj.tags.filter((tag) => typeof tag === 'string' && tag.trim())
       : [],
-    authorId: theme.authorId?.toString() || undefined,
-    authorName: theme.authorName?.toString() || undefined,
+    authorId: themeObj.authorId?.toString() || undefined,
+    authorName: themeObj.authorName?.toString() || undefined,
   };
 }
 
 // Theme management functions
-export async function createTheme(themeData: any): Promise<ApiResponse<Theme>> {
+export async function createTheme(themeData: unknown): Promise<ApiResponse<Theme>> {
   try {
     const sanitized = sanitizeTheme(themeData);
     const errors = validateTheme(sanitized);
@@ -216,7 +228,7 @@ export async function createTheme(themeData: any): Promise<ApiResponse<Theme>> {
   }
 }
 
-export async function updateThemeById(id: string, updates: any): Promise<ApiResponse<Theme>> {
+export async function updateThemeById(id: string, updates: unknown): Promise<ApiResponse<Theme>> {
   try {
     const existingTheme = await getTheme(id);
     if (!existingTheme) {
@@ -364,7 +376,7 @@ export async function deleteThemeById(id: string, authorId?: string): Promise<Ap
   }
 }
 
-export async function exportThemeById(id: string): Promise<ApiResponse<any>> {
+export async function exportThemeById(id: string): Promise<ApiResponse<ThemeExportData>> {
   try {
     const theme = await getTheme(id);
 
@@ -405,9 +417,12 @@ export async function exportThemeById(id: string): Promise<ApiResponse<any>> {
   }
 }
 
-export async function importTheme(importData: any, authorId?: string): Promise<ApiResponse<Theme>> {
+export async function importTheme(importData: unknown, authorId?: string): Promise<ApiResponse<Theme>> {
   try {
-    if (!importData.theme) {
+    // Type guard for import data
+    const data = importData as ThemeImportData;
+
+    if (!data.theme) {
       return {
         success: false,
         error: 'Invalid import data - missing theme',
@@ -415,9 +430,9 @@ export async function importTheme(importData: any, authorId?: string): Promise<A
     }
 
     const themeData = {
-      ...importData.theme,
+      ...data.theme,
       authorId,
-      authorName: importData.theme.authorName || 'Imported',
+      authorName: data.theme.authorName || 'Imported',
       isPublic: false, // Imported themes are private by default
     };
 
@@ -432,7 +447,7 @@ export async function importTheme(importData: any, authorId?: string): Promise<A
 }
 
 // Utility function to get theme statistics
-export async function getThemeStats(): Promise<ApiResponse<any>> {
+export async function getThemeStats(): Promise<ApiResponse<ThemeStats>> {
   try {
     const allThemes = await getThemes();
     const publicThemes = await getThemes({ isPublic: true });

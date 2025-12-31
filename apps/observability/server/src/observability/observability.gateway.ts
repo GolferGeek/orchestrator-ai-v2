@@ -28,7 +28,7 @@ export class ObservabilityGateway
 
   constructor(private readonly databaseService: DatabaseService) {}
 
-  afterInit(server: Server) {
+  afterInit(_server: Server) {
     this.logger.log('WebSocket Gateway initialized');
   }
 
@@ -49,7 +49,7 @@ export class ObservabilityGateway
   }
 
   @SubscribeMessage('message')
-  handleMessage(client: Socket, payload: any): void {
+  handleMessage(client: Socket, payload: unknown): void {
     this.logger.log(`Received message from ${client.id}:`, payload);
   }
 

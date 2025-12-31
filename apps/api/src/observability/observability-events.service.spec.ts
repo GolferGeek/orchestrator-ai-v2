@@ -6,12 +6,11 @@ import {
 import { AuthService } from '../auth/auth.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { createMockExecutionContext } from '@orchestrator-ai/transport-types';
-import { firstValueFrom } from 'rxjs';
 
 describe('ObservabilityEventsService', () => {
   let service: ObservabilityEventsService;
   let authService: jest.Mocked<AuthService>;
-  let supabaseService: jest.Mocked<SupabaseService>;
+  let _supabaseService: jest.Mocked<SupabaseService>;
 
   const mockContext = createMockExecutionContext({
     orgSlug: 'test-org',
@@ -73,7 +72,7 @@ describe('ObservabilityEventsService', () => {
       ObservabilityEventsService,
     );
     authService = module.get(AuthService);
-    supabaseService = module.get(SupabaseService);
+    _supabaseService = module.get(SupabaseService);
   });
 
   it('should be defined', () => {
@@ -411,7 +410,7 @@ describe('ObservabilityEventsService', () => {
       service.cacheUsername('user-123', 'Test User');
 
       // Verify by resolving
-      service.resolveUsername('user-123').then((username) => {
+      void service.resolveUsername('user-123').then((username) => {
         expect(username).toBe('Test User');
       });
     });
@@ -420,7 +419,7 @@ describe('ObservabilityEventsService', () => {
       service.cacheUsername('', 'Test User');
 
       // Cache should be empty
-      service.resolveUsername('').then((username) => {
+      void service.resolveUsername('').then((username) => {
         expect(username).toBeUndefined();
       });
     });
@@ -438,7 +437,7 @@ describe('ObservabilityEventsService', () => {
         roles: ['user'],
       });
 
-      service.resolveUsername('user-123').then(() => {
+      void service.resolveUsername('user-123').then(() => {
         expect(authService.getUserProfile).toHaveBeenCalled();
       });
     });

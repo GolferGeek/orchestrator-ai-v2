@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 // Helper to use orch_flow schema
@@ -18,6 +18,12 @@ export function useSprints(teamId?: string | null) {
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [activeSprint, setActiveSprint] = useState<Sprint | null>(null);
   const [loading, setLoading] = useState(true);
+  const activeSprintIdRef = useRef<string | null>(null);
+
+  // Keep ref in sync with activeSprint
+  useEffect(() => {
+    activeSprintIdRef.current = activeSprint?.id ?? null;
+  }, [activeSprint]);
 
   useEffect(() => {
     const fetchSprints = async () => {
@@ -54,12 +60,12 @@ export function useSprints(teamId?: string | null) {
             setSprints(prev => prev.map(s => s.id === payload.new.id ? payload.new as Sprint : s));
             if ((payload.new as Sprint).is_active) {
               setActiveSprint(payload.new as Sprint);
-            } else if (activeSprint?.id === payload.new.id) {
+            } else if (activeSprintIdRef.current === payload.new.id) {
               setActiveSprint(null);
             }
           } else if (payload.eventType === 'DELETE') {
             setSprints(prev => prev.filter(s => s.id !== payload.old.id));
-            if (activeSprint?.id === payload.old.id) {
+            if (activeSprintIdRef.current === payload.old.id) {
               setActiveSprint(null);
             }
           }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
@@ -20,6 +20,7 @@ export function useNotifications(guestName?: string) {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const playNotificationSoundRef = useRef<() => void>(() => {});
 
   // Fetch notifications
   useEffect(() => {
@@ -61,11 +62,11 @@ export function useNotifications(guestName?: string) {
           if (payload.eventType === 'INSERT') {
             const newNotif = payload.new as Notification;
             // Only add if it's for this user/guest
-            if ((user && newNotif.user_id === user.id) || 
+            if ((user && newNotif.user_id === user.id) ||
                 (!user && guestName && newNotif.guest_name === guestName)) {
               setNotifications(prev => [newNotif, ...prev]);
               setUnreadCount(prev => prev + 1);
-              playNotificationSound();
+              playNotificationSoundRef.current();
             }
           } else if (payload.eventType === 'UPDATE') {
             setNotifications(prev =>
@@ -90,7 +91,8 @@ export function useNotifications(guestName?: string) {
 
   const playNotificationSound = useCallback(() => {
     try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AudioContextClass = window.AudioContext || (window as Window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const audioContext = new AudioContextClass();
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
 
@@ -108,6 +110,11 @@ export function useNotifications(guestName?: string) {
       console.log('Could not play notification sound');
     }
   }, []);
+
+  // Keep ref in sync with the callback
+  useEffect(() => {
+    playNotificationSoundRef.current = playNotificationSound;
+  }, [playNotificationSound]);
 
   const markAsRead = useCallback(async (id: string) => {
     const { error } = await orchFlow()

@@ -279,7 +279,7 @@ describe('AgentModeRouterService', () => {
         return mockRunner as any;
       });
 
-      const result = await service.execute({
+      await service.execute({
         context: mockContext,
         request,
       });

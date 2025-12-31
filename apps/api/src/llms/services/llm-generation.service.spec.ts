@@ -20,7 +20,7 @@ describe('LLMGenerationService', () => {
   let llmServiceFactory: jest.Mocked<LLMServiceFactory>;
   let dictionaryPseudonymizerService: jest.Mocked<DictionaryPseudonymizerService>;
   let patternRedactionService: jest.Mocked<PatternRedactionService>;
-  let piiService: jest.Mocked<PIIService>;
+  let _piiService: jest.Mocked<PIIService>;
 
   const mockExecutionContext: ExecutionContext = {
     orgSlug: 'test-org',
@@ -200,7 +200,7 @@ describe('LLMGenerationService', () => {
     llmServiceFactory = module.get(LLMServiceFactory);
     dictionaryPseudonymizerService = module.get(DictionaryPseudonymizerService);
     patternRedactionService = module.get(PatternRedactionService);
-    piiService = module.get(PIIService);
+    _piiService = module.get(PIIService);
   });
 
   it('should be defined', () => {

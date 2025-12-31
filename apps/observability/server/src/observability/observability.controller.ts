@@ -14,7 +14,11 @@ import {
 import { DatabaseService } from '../database/database.service';
 import { ObservabilityGateway } from './observability.gateway';
 import { ObservabilityService } from './observability.service';
-import type { HookEvent, HumanInTheLoopResponse } from '../types';
+import type {
+  HookEvent,
+  HookDataInput,
+  HumanInTheLoopResponse,
+} from '../types';
 
 @Controller()
 export class ObservabilityController {
@@ -33,7 +37,7 @@ export class ObservabilityController {
 
   @Post('hooks')
   @HttpCode(HttpStatus.OK)
-  async handleHook(@Body() hookData: any) {
+  async handleHook(@Body() hookData: HookDataInput) {
     try {
       const event: HookEvent = {
         source_app: hookData.source_app || hookData.sourceApp || 'unknown',

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- exports both component and toast utility */
 import { useTheme } from "next-themes";
 import { Toaster as Sonner, toast } from "sonner";
 

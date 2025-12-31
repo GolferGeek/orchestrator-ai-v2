@@ -78,7 +78,7 @@ export function useChartData(agentIdFilter?: string) {
       const bucketTime = getBucketTimestamp(event.timestamp);
 
       // Find existing bucket or create new one
-      let bucket = dataPoints.value.find(dp => dp.timestamp === bucketTime);
+      const bucket = dataPoints.value.find(dp => dp.timestamp === bucketTime);
       if (bucket) {
         bucket.count++;
         // Track event types
@@ -197,7 +197,7 @@ export function useChartData(agentIdFilter?: string) {
       const bucketTime = getBucketTimestamp(event.timestamp);
 
       // Find existing bucket or create new one
-      let bucket = dataPoints.value.find(dp => dp.timestamp === bucketTime);
+      const bucket = dataPoints.value.find(dp => dp.timestamp === bucketTime);
       if (bucket) {
         bucket.count++;
         bucket.eventTypes[event.hook_event_type] = (bucket.eventTypes[event.hook_event_type] || 0) + 1;

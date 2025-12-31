@@ -219,8 +219,16 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 
+interface ChatMessage {
+  role?: string;
+  type?: string;
+  content?: string | { type?: string; text?: string; source?: { media_type?: string } }[];
+  tool_use?: { name?: string };
+  tool_result?: { content?: unknown };
+}
+
 const props = defineProps<{
-  chat: any[];
+  chat: ChatMessage[];
 }>();
 
 // Track which items have details expanded

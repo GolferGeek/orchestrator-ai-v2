@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- context pattern exports both provider and hook */
 /**
  * Claude Code Context
  *

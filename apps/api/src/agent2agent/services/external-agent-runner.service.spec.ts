@@ -150,7 +150,7 @@ describe('ExternalAgentRunnerService', () => {
       expect(result.mode).toBe(AgentTaskMode.BUILD);
 
       // Verify external agent HTTP call
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(httpService.request).toHaveBeenCalledWith({
         url: 'https://external-agent.example.com/task',
         method: 'POST',
@@ -176,7 +176,7 @@ describe('ExternalAgentRunnerService', () => {
       });
 
       // Verify deliverable creation
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(deliverablesService.executeAction).toHaveBeenCalledWith(
         'create',
         expect.objectContaining({
@@ -233,7 +233,7 @@ describe('ExternalAgentRunnerService', () => {
       await service.execute(definition, request, mockContext.orgSlug);
 
       // Verify no API key in headers
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(httpService.request).toHaveBeenCalledWith(
         expect.objectContaining({
           headers: expect.not.objectContaining({
@@ -292,7 +292,7 @@ describe('ExternalAgentRunnerService', () => {
       ).toBe('Hello from external agent');
 
       // Should not create deliverable for CONVERSE
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(deliverablesService.executeAction).not.toHaveBeenCalled();
     });
   });
@@ -341,7 +341,7 @@ describe('ExternalAgentRunnerService', () => {
       expect(result.mode).toBe(AgentTaskMode.PLAN);
 
       // Should not create deliverable for PLAN
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(deliverablesService.executeAction).not.toHaveBeenCalled();
     });
   });
@@ -616,7 +616,7 @@ describe('ExternalAgentRunnerService', () => {
       ).toBe('del-123');
 
       // Should not call external agent for non-create actions
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(httpService.request).not.toHaveBeenCalled();
     });
   });
