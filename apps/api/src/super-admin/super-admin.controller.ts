@@ -111,16 +111,37 @@ export class SuperAdminController {
   @ApiOperation({
     summary: 'Check Claude Code SDK availability',
     description:
-      'Returns health status and SDK availability. Dev mode + super admin only.',
+      'Returns health status, SDK availability, and execution mode. Dev mode + super admin only.',
   })
-  async health(
-    @CurrentUser() user: SupabaseAuthUserDto,
-  ): Promise<{ status: string; sdkAvailable: boolean; nodeEnv: string }> {
+  async health(@CurrentUser() user: SupabaseAuthUserDto): Promise<{
+    status: string;
+    sdkAvailable: boolean;
+    nodeEnv: string;
+    executionMode: string;
+    capabilities: {
+      canWriteFiles: boolean;
+      canRunBash: boolean;
+      canEditCode: boolean;
+      canQueryDatabase: boolean;
+      canReadFiles: boolean;
+    };
+  }> {
     await this.validateAccess(user.id);
+    const executionMode = this.superAdminService.getExecutionMode();
+    const isDev = executionMode === 'dev';
+
     return {
       status: 'ok',
       sdkAvailable: true,
       nodeEnv: process.env.NODE_ENV || 'unknown',
+      executionMode,
+      capabilities: {
+        canWriteFiles: isDev,
+        canRunBash: isDev,
+        canEditCode: isDev,
+        canQueryDatabase: true, // Both modes can query via Skills
+        canReadFiles: true, // Both modes can read
+      },
     };
   }
 }

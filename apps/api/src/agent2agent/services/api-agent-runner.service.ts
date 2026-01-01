@@ -1602,7 +1602,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           headers,
           data: body,
           params: queryParams,
-          timeout: this.ensureNumber(apiConfig.timeout) ?? 30000,
+          timeout: this.ensureNumber(apiConfig.timeout) ?? 60000,
           validateStatus: () => true, // Don't throw on non-2xx status
         });
 
@@ -3281,7 +3281,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         headers,
         data: body,
         params: queryParams,
-        timeout: this.ensureNumber(apiConfig.timeout) ?? 30000,
+        timeout: this.ensureNumber(apiConfig.timeout) ?? 60000,
         validateStatus: () => true,
       });
 

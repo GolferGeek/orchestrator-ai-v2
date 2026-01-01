@@ -1,11 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
+// Helper to query public schema (for users table)
+const publicSchema = () => supabase.schema('public');
+
 export interface Effort {
   id: string;
+  organization_slug: string;
   name: string;
   description: string | null;
+  status?: string;
+  order_index: number;
+  icon?: string | null;
+  color?: string | null;
+  estimated_days?: number | null;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface Goal {
@@ -14,31 +24,62 @@ export interface Goal {
   name: string;
   description: string | null;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface Project {
   id: string;
-  goal_id: string;
+  effort_id: string; // Projects link to efforts, not goals
   name: string;
   description: string | null;
+  status?: string;
+  order_index: number;
   created_at: string;
+  updated_at?: string;
 }
 
-export function useHierarchy(teamId?: string | null) {
+export function useHierarchy(organizationSlug?: string | null) {
   const [efforts, setEfforts] = useState<Effort[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchAll = useCallback(async () => {
-    // Fetch efforts for this team
-    let effortsQuery = supabase.from('efforts').select('*').order('created_at');
-    if (teamId) {
-      effortsQuery = effortsQuery.eq('team_id', teamId);
+    console.log('[fetchAll] Starting...');
+    // If no organizationSlug provided, try to get it from the current user
+    let orgSlug = organizationSlug;
+    if (!orgSlug) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: userData } = await publicSchema()
+          .from('users')
+          .select('organization_slug')
+          .eq('id', user.id)
+          .single();
+        orgSlug = userData?.organization_slug;
+      }
     }
-    
-    const effortsRes = await effortsQuery;
+    console.log('[fetchAll] orgSlug:', orgSlug);
+
+    if (!orgSlug) {
+      console.log('[fetchAll] No orgSlug, clearing state');
+      setEfforts([]);
+      setGoals([]);
+      setProjects([]);
+      setLoading(false);
+      return;
+    }
+
+    // Fetch efforts for this organization
+    const effortsRes = await supabase
+      .from('efforts')
+      .select('*')
+      .eq('organization_slug', orgSlug)
+      .order('order_index');
+    console.log('[fetchAll] Efforts result:', effortsRes);
+
     const fetchedEfforts = effortsRes.data || [];
+    console.log('[fetchAll] Setting efforts:', fetchedEfforts.length, 'items');
     setEfforts(fetchedEfforts);
 
     if (fetchedEfforts.length === 0) {
@@ -48,51 +89,44 @@ export function useHierarchy(teamId?: string | null) {
       return;
     }
 
-    // Fetch goals for the team's efforts
+    // Fetch goals for these efforts
     const effortIds = fetchedEfforts.map(e => e.id);
     const goalsRes = await supabase
       .from('goals')
       .select('*')
       .in('effort_id', effortIds)
       .order('created_at');
-    
+
     const fetchedGoals = goalsRes.data || [];
     setGoals(fetchedGoals);
 
-    if (fetchedGoals.length === 0) {
-      setProjects([]);
-      setLoading(false);
-      return;
-    }
-
-    // Fetch projects for the team's goals
-    const goalIds = fetchedGoals.map(g => g.id);
+    // Fetch projects for these efforts (projects link to efforts, not goals)
     const projectsRes = await supabase
       .from('projects')
       .select('*')
-      .in('goal_id', goalIds)
-      .order('created_at');
-    
+      .in('effort_id', effortIds)
+      .order('order_index');
+
     setProjects(projectsRes.data || []);
     setLoading(false);
-  }, [teamId]);
+  }, [organizationSlug]);
 
   useEffect(() => {
     fetchAll();
 
     const effortChannel = supabase
       .channel('efforts-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'efforts' }, fetchAll)
+      .on('postgres_changes', { event: '*', schema: 'orch_flow', table: 'efforts' }, fetchAll)
       .subscribe();
 
     const goalChannel = supabase
       .channel('goals-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'goals' }, fetchAll)
+      .on('postgres_changes', { event: '*', schema: 'orch_flow', table: 'goals' }, fetchAll)
       .subscribe();
 
     const projectChannel = supabase
       .channel('projects-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, fetchAll)
+      .on('postgres_changes', { event: '*', schema: 'orch_flow', table: 'projects' }, fetchAll)
       .subscribe();
 
     return () => {
@@ -104,12 +138,45 @@ export function useHierarchy(teamId?: string | null) {
 
   // CRUD operations - refetch after each mutation for immediate UI update
   const addEffort = async (name: string) => {
+    console.log('[addEffort] Starting with name:', name);
+
+    // Get organization_slug from current user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    console.log('[addEffort] Auth result:', { user: user?.id, authError });
+
+    if (!user) {
+      console.error('[addEffort] User not authenticated');
+      return { data: null, error: new Error('User not authenticated') };
+    }
+
+    const { data: userData, error: userError } = await publicSchema()
+      .from('users')
+      .select('organization_slug')
+      .eq('id', user.id)
+      .single();
+    console.log('[addEffort] User data result:', { userData, userError });
+
+    if (!userData?.organization_slug) {
+      console.error('[addEffort] User organization not found');
+      return { data: null, error: new Error('User organization not found') };
+    }
+
+    console.log('[addEffort] Inserting effort with org:', userData.organization_slug);
     const { data, error } = await supabase
       .from('efforts')
-      .insert({ name, team_id: teamId || null })
+      .insert({
+        name,
+        organization_slug: userData.organization_slug,
+        order_index: 0
+      })
       .select()
       .single();
-    if (!error) fetchAll();
+    console.log('[addEffort] Insert result:', { data, error });
+
+    if (!error) {
+      console.log('[addEffort] Success, calling fetchAll');
+      fetchAll();
+    }
     return { data, error };
   };
 
@@ -153,10 +220,14 @@ export function useHierarchy(teamId?: string | null) {
     return { error };
   };
 
-  const addProject = async (goalId: string, name: string) => {
+  const addProject = async (effortId: string, name: string) => {
     const { data, error } = await supabase
       .from('projects')
-      .insert({ goal_id: goalId, name })
+      .insert({
+        effort_id: effortId,
+        name,
+        order_index: 0
+      })
       .select()
       .single();
     if (!error) fetchAll();

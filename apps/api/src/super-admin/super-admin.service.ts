@@ -16,6 +16,45 @@ interface SkillInfo {
 }
 
 /**
+ * Execution mode for Claude Code panel
+ * - 'dev': Full access (file read/write, bash, git) - localhost development
+ * - 'user': Limited access (read-only, database ops) - production/docker
+ */
+type ExecutionMode = 'dev' | 'user';
+
+/**
+ * Tool configurations for each execution mode
+ */
+const MODE_TOOLS: Record<ExecutionMode, string[]> = {
+  dev: [
+    // Full Claude Code experience for developers
+    'Skill',
+    'Read',
+    'Write',
+    'Edit',
+    'Bash',
+    'Glob',
+    'Grep',
+    'Task',
+    'WebFetch',
+    'WebSearch',
+    'TodoWrite',
+  ],
+  user: [
+    // Limited tools for end users in production
+    // Read-only file access for understanding codebase/config
+    'Read',
+    'Glob',
+    'Grep',
+    // Web access for documentation lookups
+    'WebFetch',
+    'WebSearch',
+    // Skills that are safe for users (database queries, status checks)
+    'Skill',
+  ],
+};
+
+/**
  * SDK message type (since the SDK types are loose)
  */
 interface SDKMessage {
@@ -36,11 +75,68 @@ interface ExecutionResult {
 export class SuperAdminService {
   private readonly logger = new Logger(SuperAdminService.name);
   private readonly projectRoot: string;
+  private readonly executionMode: ExecutionMode;
 
   constructor() {
     // Navigate from apps/api to project root
     this.projectRoot = join(process.cwd(), '..', '..');
+    this.executionMode = this.determineExecutionMode();
     this.logger.log(`Project root set to: ${this.projectRoot}`);
+    this.logger.log(`Execution mode: ${this.executionMode}`);
+  }
+
+  /**
+   * Determine execution mode based on environment
+   * - 'dev': NODE_ENV=development (localhost)
+   * - 'user': NODE_ENV=production or running in Docker/container
+   */
+  private determineExecutionMode(): ExecutionMode {
+    const nodeEnv = process.env.NODE_ENV || 'development';
+    const isDocker =
+      existsSync('/.dockerenv') || process.env.RUNNING_IN_DOCKER === 'true';
+
+    if (nodeEnv === 'production' || isDocker) {
+      return 'user';
+    }
+
+    return 'dev';
+  }
+
+  /**
+   * Get current execution mode
+   */
+  getExecutionMode(): ExecutionMode {
+    return this.executionMode;
+  }
+
+  /**
+   * Get mode-specific system prompt guidance
+   */
+  private getModeSystemPrompt(): string {
+    if (this.executionMode === 'dev') {
+      return `You are helping a developer work on the Orchestrator AI codebase.
+You have full access to read, write, and edit files, run bash commands, and use git.
+You can make changes to the codebase, run builds, tests, and deploy code.`;
+    }
+
+    // User mode - more restricted, focused on information and safe database operations
+    return `You are helping a user understand and configure their Orchestrator AI environment.
+
+IMPORTANT LIMITATIONS:
+- You can READ files but CANNOT write or edit them
+- You can search the codebase to answer questions
+- You can query the database for status and configuration
+- You can help configure agents, collections, and settings via database operations
+- You CANNOT run arbitrary shell commands or modify source code
+
+WHAT YOU CAN HELP WITH:
+- Explain how features work
+- Query database for agent status, collections, configurations
+- Help users understand their data and workflows
+- Guide users through configuration changes (via approved Skills)
+- Look up documentation and explain concepts
+
+If the user asks you to modify source code, politely explain that code changes require developer access in a development environment.`;
   }
 
   /**
@@ -117,6 +213,12 @@ export class SuperAdminService {
       // Load source context if provided
       const systemPrompt = await this.loadSourceContext(sourceContext);
 
+      // Get allowed tools based on execution mode
+      const allowedTools = MODE_TOOLS[this.executionMode];
+      this.logger.debug(
+        `Using ${this.executionMode} mode with tools: ${allowedTools.join(', ')}`,
+      );
+
       // Build options - include resume if we have a session ID
       const options: Record<string, unknown> = {
         cwd: this.projectRoot,
@@ -124,24 +226,17 @@ export class SuperAdminService {
         permissionMode: 'bypassPermissions',
         allowDangerouslySkipPermissions: true,
         includePartialMessages: true, // Enable stream events for tool progress tracking
-        allowedTools: [
-          'Skill',
-          'Read',
-          'Write',
-          'Edit',
-          'Bash',
-          'Glob',
-          'Grep',
-          'Task',
-          'WebFetch',
-          'WebSearch',
-          'TodoWrite',
-        ],
+        allowedTools,
       };
 
-      // Add system prompt if we have context
-      if (systemPrompt) {
-        options.systemPrompt = systemPrompt;
+      // Build system prompt with mode-specific guidance
+      const modeGuidance = this.getModeSystemPrompt();
+      const combinedSystemPrompt = systemPrompt
+        ? `${modeGuidance}\n\n${systemPrompt}`
+        : modeGuidance;
+
+      if (combinedSystemPrompt) {
+        options.systemPrompt = combinedSystemPrompt;
       }
 
       // Add resume option if continuing a session

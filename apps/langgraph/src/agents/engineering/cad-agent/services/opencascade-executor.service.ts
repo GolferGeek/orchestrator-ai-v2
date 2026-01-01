@@ -141,6 +141,19 @@ export class OpenCascadeExecutorService implements OnModuleInit {
         throw new Error("Code execution did not produce a valid shape");
       }
 
+      // Log shape info for debugging
+      this.logger.log(`[CAD-EXEC] Shape returned from code execution: ${typeof shape}`);
+      try {
+        const oc = this.oc as Record<string, unknown>;
+        const shapeType = (oc["BRepCheck_Analyzer"] as new (shape: unknown) => { IsValid: () => boolean });
+        if (shapeType) {
+          const analyzer = new shapeType(shape);
+          this.logger.log(`[CAD-EXEC] Shape validity check: ${analyzer.IsValid()}`);
+        }
+      } catch (validityErr) {
+        this.logger.warn(`[CAD-EXEC] Could not check shape validity: ${validityErr}`);
+      }
+
       // Extract mesh statistics
       const meshStats = this.extractMeshStats(shape);
 
@@ -485,9 +498,12 @@ export class OpenCascadeExecutorService implements OnModuleInit {
         },
       };
     } catch (error) {
-      this.logger.warn(
-        `Failed to extract mesh stats: ${error instanceof Error ? error.message : String(error)}`,
+      this.logger.error(
+        `[CAD-EXEC] Failed to extract mesh stats: ${error instanceof Error ? error.message : String(error)}`,
       );
+      if (error instanceof Error && error.stack) {
+        this.logger.error(`[CAD-EXEC] Stack trace: ${error.stack}`);
+      }
 
       // Return placeholder stats
       return {
