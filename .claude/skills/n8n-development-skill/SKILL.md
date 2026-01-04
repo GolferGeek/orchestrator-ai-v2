@@ -22,23 +22,39 @@ N8N runs as a separate application on the standard port **5678**.
 | Docker | `http://localhost:5678` | `http://host.docker.internal:6100` |
 | Production | `https://n8n.yourdomain.com` | `https://api.yourdomain.com` |
 
-**Quick Start (Docker with SQLite - Recommended):**
+**Quick Start (Docker with Postgres):**
+
+1. Create a dedicated Postgres container for N8N:
+```bash
+docker run -d --name n8n-db \
+  -e POSTGRES_USER=n8n \
+  -e POSTGRES_PASSWORD=n8n \
+  -e POSTGRES_DB=n8n \
+  -p 5433:5432 \
+  postgres:15
+```
+
+2. Run N8N connected to Postgres:
 ```bash
 docker run -d --name n8n \
   -p 5678:5678 \
+  -e DB_TYPE=postgresdb \
+  -e DB_POSTGRESDB_HOST=host.docker.internal \
+  -e DB_POSTGRESDB_PORT=5433 \
+  -e DB_POSTGRESDB_DATABASE=n8n \
+  -e DB_POSTGRESDB_USER=n8n \
+  -e DB_POSTGRESDB_PASSWORD=n8n \
   -v ~/.n8n:/home/node/.n8n \
   docker.n8n.io/n8nio/n8n:latest
 ```
 
 Then access N8N at http://localhost:5678
 
-**Why SQLite (default)?**
-- Simpler - one container, no database setup
-- Self-contained - N8N data stays in `~/.n8n`
-- Portable - just backup the folder
-- Sufficient for single-instance use (local dev or production)
-
-Only use Postgres if you need N8N clustering/HA.
+**Why Postgres?**
+- Consistent with the rest of your stack (Supabase uses Postgres)
+- Better tooling - pgAdmin, familiar SQL queries
+- Backup integration - same strategies as main database
+- Future-proof - ready for clustering/HA if needed
 
 ## Core Principles
 
