@@ -14,7 +14,7 @@ This skill enforces prescriptive patterns for building N8N workflows that integr
 
 ## N8N Setup (External)
 
-N8N runs as a separate application on the standard port:
+N8N runs as a separate application on the standard port **5678**.
 
 | Environment | N8N URL | Orchestrator API |
 |-------------|---------|------------------|
@@ -22,7 +22,7 @@ N8N runs as a separate application on the standard port:
 | Docker | `http://localhost:5678` | `http://host.docker.internal:6100` |
 | Production | `https://n8n.yourdomain.com` | `https://api.yourdomain.com` |
 
-**Quick Start (Docker):**
+**Quick Start (Docker with SQLite - Recommended):**
 ```bash
 docker run -d --name n8n \
   -p 5678:5678 \
@@ -31,6 +31,14 @@ docker run -d --name n8n \
 ```
 
 Then access N8N at http://localhost:5678
+
+**Why SQLite (default)?**
+- Simpler - one container, no database setup
+- Self-contained - N8N data stays in `~/.n8n`
+- Portable - just backup the folder
+- Sufficient for single-instance use (local dev or production)
+
+Only use Postgres if you need N8N clustering/HA.
 
 ## Core Principles
 
