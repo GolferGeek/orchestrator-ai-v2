@@ -1,37 +1,44 @@
 ---
 name: n8n-development-skill
-description: Enforce prescriptive patterns for building N8N workflows that integrate with Orchestrator AI. N8N is an optional workflow tool - customers can choose N8N, LangGraph, CrewAI, or any other system. Use when developing or reviewing N8N workflows.
+description: Enforce prescriptive patterns for building N8N workflows that integrate with Orchestrator AI. N8N is an optional external workflow tool. Use when developing or reviewing N8N workflows.
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 category: "development"
 type: "prescriptive"
-used-by-agents: ["n8n-api-agent-builder"]
-related-skills: ["api-agent-skill"]
+used-by-agents: []
+related-skills: ["api-agent-skill", "execution-context-skill"]
 ---
 
 # N8N Development Skill
 
-This skill enforces prescriptive patterns for building N8N workflows that integrate seamlessly with the Orchestrator AI ecosystem. **N8N is NOT a formal part of the system** - it's an optional workflow tool that customers can choose. The same integration patterns apply to LangGraph, CrewAI, or any other workflow system.
+This skill enforces prescriptive patterns for building N8N workflows that integrate seamlessly with the Orchestrator AI ecosystem. **N8N runs externally** - it's an optional workflow tool that users install and run separately. The same integration patterns apply to LangGraph, CrewAI, or any other workflow system.
+
+## N8N Setup (External)
+
+N8N runs as a separate application on the standard port:
+
+| Environment | N8N URL | Orchestrator API |
+|-------------|---------|------------------|
+| Local | `http://localhost:5678` | `http://localhost:6100` |
+| Docker | `http://localhost:5678` | `http://host.docker.internal:6100` |
+| Production | `https://n8n.yourdomain.com` | `https://api.yourdomain.com` |
+
+**Quick Start (Docker):**
+```bash
+docker run -d --name n8n \
+  -p 5678:5678 \
+  -v ~/.n8n:/home/node/.n8n \
+  docker.n8n.io/n8nio/n8n:latest
+```
+
+Then access N8N at http://localhost:5678
 
 ## Core Principles
 
-1. **N8N is Optional**: N8N is just one example of a workflow tool. Customers can use N8N, LangGraph, CrewAI, OpenAI, or any other system. We don't care which one they choose.
+1. **N8N is External**: N8N is not part of this codebase. Users install and run it separately.
 2. **ExecutionContext as Single Source of Truth**: The `ExecutionContext` capsule must flow through the entire workflow, never cherry-picked or partially passed. It is received, not constructed, within N8N.
 3. **Prescriptive Integration**: All external interactions (LLM calls, observability events) must go through Orchestrator AI API endpoints, not direct provider APIs.
 4. **Helper LLM Pattern**: Use the reusable "Helper: LLM Task" sub-workflow for all LLM calls to ensure consistency.
 5. **Status Tracking**: All workflows must emit observability events via the status webhook endpoint.
-
-## N8N MCP Reference
-
-**The N8N MCP server** (`mcp-n8n-server/`) provides programmatic access to N8N workflows:
-- `list_workflows` - List all workflows
-- `get_workflow` - Get workflow details
-- `create_workflow` - Create new workflows
-- `update_workflow` - Update existing workflows
-- `validate_workflow` - Validate workflow structure
-- `execute_workflow` - Run workflows
-- `test_n8n_connection` - Test connectivity
-
-**Use the MCP tools** when building or managing N8N workflows programmatically.
 
 ## Key Areas of Enforcement
 
@@ -260,34 +267,11 @@ Use N8N's parallel execution capabilities for independent tasks:
 - **❌ Skipping Helper LLM**: Use the Helper LLM sub-workflow for consistency, don't create custom LLM nodes.
 - **❌ Hardcoding API URLs**: Use environment variables or configuration for API endpoints.
 
-## N8N MCP Integration
-
-When building workflows programmatically, use the N8N MCP tools:
-
-**Create Workflow:**
-```javascript
-// Use mcp_n8n-mcp_n8n_create_workflow
-// Build nodes array with proper structure
-// Include webhook trigger, Helper LLM calls, status updates
-// Validate before creating
-```
-
-**Validate Workflow:**
-```javascript
-// Use mcp_n8n-mcp_validate_workflow
-// Check for ExecutionContext handling
-// Verify LLM endpoint usage
-// Ensure observability integration
-```
-
 ## Related Files and Concepts
 
-- **N8N MCP Server**: `mcp-n8n-server/` - Programmatic N8N access
-- **Helper LLM Workflow**: ID `9jxl03jCcqg17oOy` - Reusable LLM sub-workflow
 - **LLM Endpoint**: `apps/api/src/llms/llm.controller.ts` - `POST /llm/generate`
 - **Observability Endpoint**: `apps/api/src/webhooks/webhooks.controller.ts` - `POST /webhooks/status`
 - **ExecutionContext Definition**: `apps/transport-types/core/execution-context.ts`
-- **N8N Patterns**: `obsidian/Team Vaults/Matt/AI Coding Environment/n8n-Workflow-Patterns.md`
 
 For detailed examples of correct patterns, refer to `PATTERNS.md`.
 For common violations and their fixes, refer to `VIOLATIONS.md`.

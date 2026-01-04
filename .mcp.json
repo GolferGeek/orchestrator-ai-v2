@@ -1,10 +1,10 @@
 {
   "mcpServers": {
     "n8n": {
-      "command": "node",
-      "args": ["mcp-n8n-server/index.js"],
+      "command": "npx",
+      "args": ["-y", "@czlonkowski/n8n-mcp"],
       "env": {
-        "N8N_WEBHOOK_URL": "${N8N_WEBHOOK_URL}",
+        "N8N_BASE_URL": "http://localhost:5678",
         "N8N_API_KEY": "${N8N_API_KEY}"
       }
     }
