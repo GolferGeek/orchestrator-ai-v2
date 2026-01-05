@@ -47,6 +47,11 @@ start() {
             -e DB_POSTGRESDB_DATABASE=n8n \
             -e DB_POSTGRESDB_USER=n8n \
             -e DB_POSTGRESDB_PASSWORD=n8n \
+            -e N8N_SECURE_COOKIE=false \
+            -e N8N_HOST=0.0.0.0 \
+            -e N8N_EDITOR_BASE_URL=http://gg-macstudio:5678 \
+            -e N8N_PROTOCOL_BASE_URL=http://gg-macstudio:5678 \
+            -e N8N_CORS_ALLOW_ORIGIN="http://gg-macstudio:5678,http://localhost:5678,http://127.0.0.1:5678" \
             -v ~/.n8n:/home/node/.n8n \
             docker.n8n.io/n8nio/n8n:latest
 
@@ -54,6 +59,7 @@ start() {
     fi
 
     echo -e "${GREEN}N8N is available at http://localhost:$N8N_PORT${NC}"
+    echo -e "${GREEN}N8N is also accessible via Tailscale at http://gg-macstudio:$N8N_PORT${NC}"
 }
 
 stop() {
@@ -92,6 +98,37 @@ remove() {
     echo -e "${GREEN}✅ N8N containers removed${NC}"
 }
 
+update() {
+    echo -e "${YELLOW}Updating N8N container with new environment variables...${NC}"
+    echo -e "${YELLOW}Note: Your data in ~/.n8n is safe and will be preserved${NC}"
+    
+    # Stop and remove only the n8n container (not the database)
+    docker stop $N8N_CONTAINER 2>/dev/null || true
+    docker rm $N8N_CONTAINER 2>/dev/null || true
+    
+    # Recreate with updated environment variables
+    echo "Recreating N8N container with updated configuration..."
+    docker run -d --name $N8N_CONTAINER \
+        -p $N8N_PORT:5678 \
+        -e DB_TYPE=postgresdb \
+        -e DB_POSTGRESDB_HOST=host.docker.internal \
+        -e DB_POSTGRESDB_PORT=$N8N_DB_PORT \
+        -e DB_POSTGRESDB_DATABASE=n8n \
+        -e DB_POSTGRESDB_USER=n8n \
+        -e DB_POSTGRESDB_PASSWORD=n8n \
+        -e N8N_SECURE_COOKIE=false \
+        -e N8N_HOST=0.0.0.0 \
+        -e N8N_EDITOR_BASE_URL=http://gg-macstudio:5678 \
+        -e N8N_PROTOCOL_BASE_URL=http://gg-macstudio:5678 \
+        -e N8N_CORS_ALLOW_ORIGIN="http://gg-macstudio:5678,http://localhost:5678,http://127.0.0.1:5678" \
+        -v ~/.n8n:/home/node/.n8n \
+        docker.n8n.io/n8nio/n8n:latest
+    
+    echo -e "${GREEN}✅ N8N container updated (your data is preserved)${NC}"
+    echo -e "${GREEN}N8N is available at http://localhost:$N8N_PORT${NC}"
+    echo -e "${GREEN}N8N is also accessible via Tailscale at http://gg-macstudio:$N8N_PORT${NC}"
+}
+
 case "$1" in
     start)
         start
@@ -111,10 +148,13 @@ case "$1" in
     remove)
         remove
         ;;
+    update)
+        update
+        ;;
     *)
         echo "N8N Docker Management"
         echo ""
-        echo "Usage: $0 {start|stop|restart|status|logs|remove}"
+        echo "Usage: $0 {start|stop|restart|status|logs|remove|update}"
         echo ""
         echo "Commands:"
         echo "  start   - Start N8N (creates containers if needed)"
@@ -122,6 +162,7 @@ case "$1" in
         echo "  restart - Restart N8N containers"
         echo "  status  - Show container status"
         echo "  logs    - Follow N8N logs"
+        echo "  update  - Update N8N container with new env vars (preserves data)"
         echo "  remove  - Remove N8N containers (data preserved in ~/.n8n)"
         exit 1
         ;;

@@ -34,6 +34,9 @@
     "lint:fix": {
       "outputs": []
     },
+    "format": {
+      "outputs": []
+    },
     "type-check": {
       "dependsOn": ["^build"],
       "outputs": []
