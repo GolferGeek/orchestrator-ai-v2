@@ -84,7 +84,6 @@
           <h3>No Collections Yet</h3>
           <p>Create your first collection to start building your knowledge base</p>
           <ion-button @click="openCreateModal">
-            <ion-icon slot="start" :icon="addOutline" />
             Create Collection
           </ion-button>
         </div>

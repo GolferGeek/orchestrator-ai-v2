@@ -131,17 +131,17 @@ export const useChart = (canvasRef: Ref<HTMLCanvasElement | null>, config: Ref<C
   };
 };
 
-// Chart color palettes for consistent styling
+// Chart color palettes for consistent styling (brown/green brand palette)
 export const chartColors = {
-  primary: withFallback(getIonColor('primary'), '#3880ff'),
-  secondary: withFallback(getIonColor('secondary'), '#3dc2ff'),
-  tertiary: withFallback(getIonColor('tertiary'), '#5260ff'),
-  success: withFallback(getIonColor('success'), '#2dd36f'),
+  primary: withFallback(getIonColor('primary'), '#8b5a3c'),
+  secondary: withFallback(getIonColor('secondary'), '#15803d'),
+  tertiary: withFallback(getIonColor('tertiary'), '#ca8a04'),
+  success: withFallback(getIonColor('success'), '#22c55e'),
   warning: withFallback(getIonColor('warning'), '#ffc409'),
   danger: withFallback(getIonColor('danger'), '#eb445a'),
-  dark: withFallback(getIonColor('dark'), '#222428'),
-  medium: withFallback(getIonColor('medium'), '#92949c'),
-  light: withFallback(getIonColor('light'), '#f4f5f8'),
+  dark: withFallback(getIonColor('dark'), '#3c2415'),
+  medium: withFallback(getIonColor('medium'), '#78716c'),
+  light: withFallback(getIonColor('light'), '#fdf8f6'),
 };
 
 // Pre-configured chart options for common use cases

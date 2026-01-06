@@ -11,6 +11,7 @@
         >
           <ion-icon
             :icon="isConnected ? checkmarkCircle : (isConnecting ? hourglassOutline : closeCircle)"
+            class="status-icon"
           />
           {{ isConnected ? 'Connected' : (isConnecting ? 'Connecting...' : 'Disconnected') }}
         </ion-chip>
@@ -415,6 +416,10 @@ onUnmounted(() => {
   display: flex;
   gap: 0.25rem;
   align-items: center;
+}
+
+.status-icon {
+  margin-right: 0.375rem;
 }
 
 .detail-body {
