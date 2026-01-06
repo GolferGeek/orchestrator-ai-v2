@@ -116,6 +116,13 @@ export class DocumentProcessorService {
         `Extracted ${extractionResult.text.length} characters from document ${documentId}`,
       );
 
+      // 1b. Store the original content in the document record
+      await this.documentsService.updateDocumentContent(
+        documentId,
+        organizationSlug,
+        extractionResult.text,
+      );
+
       // 2. Get collection configuration for chunking
       const collection = await this.collectionsService.getCollection(
         collectionId,

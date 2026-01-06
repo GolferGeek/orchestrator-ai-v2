@@ -7,7 +7,15 @@ import {
   IsArray,
   IsUUID,
   IsBoolean,
+  IsIn,
 } from 'class-validator';
+
+export type RagComplexityType =
+  | 'basic'
+  | 'attributed'
+  | 'hybrid'
+  | 'cross-reference'
+  | 'temporal';
 
 export class CreateCollectionDto {
   @IsString()
@@ -49,4 +57,9 @@ export class CreateCollectionDto {
   @IsBoolean()
   @IsOptional()
   privateToCreator?: boolean;
+
+  @IsString()
+  @IsIn(['basic', 'attributed', 'hybrid', 'cross-reference', 'temporal'])
+  @IsOptional()
+  complexityType?: RagComplexityType = 'basic';
 }

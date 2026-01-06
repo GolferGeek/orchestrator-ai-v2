@@ -204,6 +204,35 @@ export class DocumentsController {
   }
 
   /**
+   * Get document content (original text for document viewer)
+   * GET /api/rag/collections/:collectionId/documents/:docId/content
+   * Header: x-organization-slug (required)
+   */
+  @Get(':docId/content')
+  async getDocumentContent(
+    @Param('collectionId') _collectionId: string,
+    @Param('docId') docId: string,
+    @Headers('x-organization-slug') orgSlug?: string,
+  ): Promise<{
+    id: string;
+    filename: string;
+    fileType: string;
+    content: string | null;
+    chunkCount: number;
+  }> {
+    const result = await this.documentsService.getDocumentContent(
+      docId,
+      getOrgSlug(orgSlug),
+    );
+
+    if (!result) {
+      throw new BadRequestException(`Document ${docId} not found`);
+    }
+
+    return result;
+  }
+
+  /**
    * Map file extension to file type
    */
   private getFileType(ext: string): string | null {

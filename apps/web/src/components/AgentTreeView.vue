@@ -58,41 +58,53 @@
 
             <!-- Accordion content: CEO's conversations -->
             <div slot="content" class="accordion-content">
-              <!-- CEO's Conversations -->
+              <!-- CEO's Conversations (collapsible) -->
               <div v-if="group.agents[0]" class="ceo-content">
-                <!-- CEO's Conversations -->
-                <div v-if="group.agents[0].conversations && group.agents[0].conversations.length > 0" class="ceo-conversations">
-                  <h5 class="section-title">CEO Conversations</h5>
-                  <div class="conversations-list">
-                    <ion-item
-                      v-for="conversation in group.agents[0].conversations"
-                      :key="conversation.id"
-                      @click="selectConversation(conversation)"
-                      button
-                      class="conversation-item ceo-conversation"
+                <!-- Conversation list toggle header -->
+                <div
+                  v-if="group.agents[0].conversations && group.agents[0].conversations.length > 0"
+                  class="conversation-toggle-header"
+                  @click="toggleConversationList(group.agents[0].name)"
+                >
+                  <ion-icon
+                    :icon="isConversationListExpanded(group.agents[0].name) ? icons.chevronDownOutline : icons.chevronForwardOutline"
+                    class="toggle-chevron"
+                  />
+                  <span class="toggle-label">Conversations</span>
+                  <ion-badge color="primary" class="toggle-badge">
+                    {{ group.agents[0].conversations.length }}
+                  </ion-badge>
+                </div>
+                <!-- CEO's Conversations (collapsed by default) -->
+                <div v-if="isConversationListExpanded(group.agents[0].name) && group.agents[0].conversations && group.agents[0].conversations.length > 0" class="conversations-list">
+                  <ion-item
+                    v-for="conversation in group.agents[0].conversations"
+                    :key="conversation.id"
+                    @click="selectConversation(conversation)"
+                    button
+                    class="conversation-item ceo-conversation"
+                  >
+                    <ion-icon :icon="icons.chatbubbleOutline" slot="start" color="primary" />
+                    <ion-label>
+                      <p>{{ formatConversationTitle(conversation) }}</p>
+                    </ion-label>
+                    <ion-badge
+                      v-if="conversation.activeTasks > 0"
+                      slot="end"
+                      color="warning"
                     >
-                      <ion-icon :icon="icons.chatbubbleOutline" slot="start" color="primary" />
-                      <ion-label>
-                        <p>{{ formatConversationTitle(conversation) }}</p>
-                      </ion-label>
-                      <ion-badge
-                        v-if="conversation.activeTasks > 0"
-                        slot="end"
-                        color="warning"
-                      >
-                        {{ conversation.activeTasks }}
-                      </ion-badge>
-                      <ion-button
-                        fill="clear"
-                        size="small"
-                        color="danger"
-                        slot="end"
-                        @click="deleteConversation(conversation, $event)"
-                      >
-                        <ion-icon :icon="icons.trashOutline" />
-                      </ion-button>
-                    </ion-item>
-                  </div>
+                      {{ conversation.activeTasks }}
+                    </ion-badge>
+                    <ion-button
+                      fill="clear"
+                      size="small"
+                      color="danger"
+                      slot="end"
+                      @click="deleteConversation(conversation, $event)"
+                    >
+                      <ion-icon :icon="icons.trashOutline" />
+                    </ion-button>
+                  </ion-item>
                 </div>
               </div>
 
@@ -110,6 +122,18 @@
                       {{ agent.totalConversations }}
                     </ion-badge>
                     <div class="header-actions" @click.stop>
+                      <!-- Toggle conversations arrow (only show if agent has conversations) -->
+                      <ion-button
+                        v-if="agent.conversations && agent.conversations.length > 0"
+                        fill="clear"
+                        size="small"
+                        @click="toggleConversationList(agent.name)"
+                        title="Toggle conversation list"
+                        class="header-action-btn toggle-btn"
+                      >
+                        <ion-icon :icon="isConversationListExpanded(agent.name) ? icons.chevronDownOutline : icons.chevronForwardOutline" />
+                      </ion-button>
+                      <!-- New conversation button -->
                       <ion-button
                         fill="clear"
                         size="small"
@@ -122,8 +146,8 @@
                     </div>
                   </ion-item>
 
-                  <!-- Agent's Conversations -->
-                  <div v-if="agent.conversations && agent.conversations.length > 0" class="conversations-list">
+                  <!-- Agent's Conversations (collapsed by default) -->
+                  <div v-if="isConversationListExpanded(agent.name) && agent.conversations && agent.conversations.length > 0" class="conversations-list">
                     <ion-item
                       v-for="conversation in agent.conversations"
                       :key="conversation.id"
@@ -190,41 +214,53 @@
             <!-- Accordion content: Manager's conversations first, then team members -->
             <div slot="content" class="accordion-content">
 
-              <!-- Manager's Conversations (first agent in the group) -->
+              <!-- Manager's Conversations (first agent in the group, collapsible) -->
               <div v-if="group.agents[0]" class="manager-content">
-                <!-- Manager's Conversations -->
-                <div v-if="group.agents[0].conversations && group.agents[0].conversations.length > 0" class="manager-conversations">
-                  <h5 class="section-title">Manager Conversations</h5>
-                  <div class="conversations-list">
-                    <ion-item
-                      v-for="conversation in group.agents[0].conversations"
-                      :key="conversation.id"
-                      @click="selectConversation(conversation)"
-                      button
-                      class="conversation-item manager-conversation"
+                <!-- Conversation list toggle header -->
+                <div
+                  v-if="group.agents[0].conversations && group.agents[0].conversations.length > 0"
+                  class="conversation-toggle-header"
+                  @click="toggleConversationList(group.agents[0].name)"
+                >
+                  <ion-icon
+                    :icon="isConversationListExpanded(group.agents[0].name) ? icons.chevronDownOutline : icons.chevronForwardOutline"
+                    class="toggle-chevron"
+                  />
+                  <span class="toggle-label">Manager Conversations</span>
+                  <ion-badge color="tertiary" class="toggle-badge">
+                    {{ group.agents[0].conversations.length }}
+                  </ion-badge>
+                </div>
+                <!-- Manager's Conversations (collapsed by default) -->
+                <div v-if="isConversationListExpanded(group.agents[0].name) && group.agents[0].conversations && group.agents[0].conversations.length > 0" class="conversations-list">
+                  <ion-item
+                    v-for="conversation in group.agents[0].conversations"
+                    :key="conversation.id"
+                    @click="selectConversation(conversation)"
+                    button
+                    class="conversation-item manager-conversation"
+                  >
+                    <ion-icon :icon="icons.chatbubbleOutline" slot="start" color="primary" />
+                    <ion-label>
+                      <p>{{ formatConversationTitle(conversation) }}</p>
+                    </ion-label>
+                    <ion-badge
+                      v-if="conversation.activeTasks > 0"
+                      slot="end"
+                      color="warning"
                     >
-                      <ion-icon :icon="icons.chatbubbleOutline" slot="start" color="primary" />
-                      <ion-label>
-                        <p>{{ formatConversationTitle(conversation) }}</p>
-                      </ion-label>
-                      <ion-badge
-                        v-if="conversation.activeTasks > 0"
-                        slot="end"
-                        color="warning"
-                      >
-                        {{ conversation.activeTasks }}
-                      </ion-badge>
-                      <ion-button
-                        fill="clear"
-                        size="small"
-                        color="danger"
-                        slot="end"
-                        @click="deleteConversation(conversation, $event)"
-                      >
-                        <ion-icon :icon="icons.trashOutline" />
-                      </ion-button>
-                    </ion-item>
-                  </div>
+                      {{ conversation.activeTasks }}
+                    </ion-badge>
+                    <ion-button
+                      fill="clear"
+                      size="small"
+                      color="danger"
+                      slot="end"
+                      @click="deleteConversation(conversation, $event)"
+                    >
+                      <ion-icon :icon="icons.trashOutline" />
+                    </ion-button>
+                  </ion-item>
                 </div>
               </div>
 
@@ -242,6 +278,18 @@
                     {{ agent.totalConversations }}
                   </ion-badge>
                   <div class="header-actions" @click.stop>
+                    <!-- Toggle conversations arrow (only show if agent has conversations) -->
+                    <ion-button
+                      v-if="agent.conversations && agent.conversations.length > 0"
+                      fill="clear"
+                      size="small"
+                      @click="toggleConversationList(agent.name)"
+                      title="Toggle conversation list"
+                      class="header-action-btn toggle-btn"
+                    >
+                      <ion-icon :icon="isConversationListExpanded(agent.name) ? icons.chevronDownOutline : icons.chevronForwardOutline" />
+                    </ion-button>
+                    <!-- New conversation button -->
                     <ion-button
                       fill="clear"
                       size="small"
@@ -253,13 +301,13 @@
                     </ion-button>
                   </div>
                 </ion-item>
-                
-                <!-- Agent's Conversations -->
-                <div v-if="agent.conversations && agent.conversations.length > 0" class="conversations-list">
-                  <ion-item 
-                    v-for="conversation in agent.conversations" 
+
+                <!-- Agent's Conversations (collapsed by default) -->
+                <div v-if="isConversationListExpanded(agent.name) && agent.conversations && agent.conversations.length > 0" class="conversations-list">
+                  <ion-item
+                    v-for="conversation in agent.conversations"
                     :key="conversation.id"
-                    button 
+                    button
                     @click="selectConversation(conversation)"
                     class="conversation-item"
                   >
@@ -267,16 +315,16 @@
                     <ion-label>
                       <p>{{ formatConversationTitle(conversation) }}</p>
                     </ion-label>
-                    <ion-badge 
-                      v-if="conversation.activeTasks > 0" 
-                      slot="end" 
+                    <ion-badge
+                      v-if="conversation.activeTasks > 0"
+                      slot="end"
                       color="warning"
                     >
                       {{ conversation.activeTasks }}
                     </ion-badge>
-                    <ion-button 
-                      fill="clear" 
-                      size="small" 
+                    <ion-button
+                      fill="clear"
+                      size="small"
                       color="danger"
                       slot="end"
                       @click="deleteConversation(conversation, $event)"
@@ -307,6 +355,18 @@
               {{ agent.totalConversations }}
             </ion-badge>
             <div class="header-actions" @click.stop>
+              <!-- Toggle conversations arrow (only show if agent has conversations) -->
+              <ion-button
+                v-if="agent.conversations && agent.conversations.length > 0"
+                fill="clear"
+                size="small"
+                @click="toggleConversationList(agent.name)"
+                title="Toggle conversation list"
+                class="header-action-btn toggle-btn"
+              >
+                <ion-icon :icon="isConversationListExpanded(agent.name) ? icons.chevronDownOutline : icons.chevronForwardOutline" />
+              </ion-button>
+              <!-- New conversation button -->
               <ion-button
                 fill="clear"
                 size="small"
@@ -318,30 +378,30 @@
               </ion-button>
             </div>
           </ion-item>
-          
-          <!-- Agent's Conversations -->
-          <div v-if="agent.conversations && agent.conversations.length > 0" class="conversations-list">
-            <ion-item 
-                  v-for="conversation in agent.conversations"
-                  :key="conversation.id"
-              button 
+
+          <!-- Agent's Conversations (collapsed by default) -->
+          <div v-if="isConversationListExpanded(agent.name) && agent.conversations && agent.conversations.length > 0" class="conversations-list">
+            <ion-item
+              v-for="conversation in agent.conversations"
+              :key="conversation.id"
+              button
               @click="selectConversation(conversation)"
-                  class="conversation-item"
+              class="conversation-item"
             >
               <ion-icon :icon="icons.chatbubbleOutline" slot="start" color="tertiary" />
               <ion-label>
                 <p>{{ formatConversationTitle(conversation) }}</p>
               </ion-label>
-                        <ion-badge
-                          v-if="conversation.activeTasks > 0"
-                slot="end" 
+              <ion-badge
+                v-if="conversation.activeTasks > 0"
+                slot="end"
                 color="warning"
-                        >
+              >
                 {{ conversation.activeTasks }}
-                        </ion-badge>
-              <ion-button 
-                fill="clear" 
-                size="small" 
+              </ion-badge>
+              <ion-button
+                fill="clear"
+                size="small"
                 color="danger"
                 slot="end"
                 @click="deleteConversation(conversation, $event)"
@@ -349,10 +409,10 @@
                 <ion-icon :icon="icons.trashOutline" />
               </ion-button>
             </ion-item>
-                      </div>
-          
-                  </div>
-                  </div>
+          </div>
+
+        </div>
+      </div>
                 </div>
   </div>
 
@@ -389,6 +449,8 @@ import {
   briefcaseOutline,
   chatbubbleOutline,
   trashOutline,
+  chevronDownOutline,
+  chevronForwardOutline,
 } from 'ionicons/icons';
 import { formatAgentName } from '@/utils/caseConverter';
 import { storeToRefs } from 'pinia';
@@ -418,6 +480,8 @@ const emit = defineEmits<{
 // Reactive state
 const searchQuery = ref(props.searchQuery || '');
 const expandedAccordions = ref<string[]>([]);
+// Track which agents have their conversation list expanded (collapsed by default)
+const expandedConversationLists = ref<Set<string>>(new Set());
 
 // Delete modal state
 const showDeleteModal = ref(false);
@@ -433,6 +497,8 @@ const icons = {
   briefcaseOutline,
   chatbubbleOutline,
   trashOutline,
+  chevronDownOutline,
+  chevronForwardOutline,
 };
 
 // Stores
@@ -485,6 +551,22 @@ const formatLastActive = (date: Date | string) => {
 
 const selectConversation = (conversation: AgentConversation) => {
   emit('conversation-selected', conversation);
+};
+
+// Toggle conversation list expansion for an agent
+const toggleConversationList = (agentName: string) => {
+  if (expandedConversationLists.value.has(agentName)) {
+    expandedConversationLists.value.delete(agentName);
+  } else {
+    expandedConversationLists.value.add(agentName);
+  }
+  // Force reactivity update
+  expandedConversationLists.value = new Set(expandedConversationLists.value);
+};
+
+// Check if an agent's conversation list is expanded
+const isConversationListExpanded = (agentName: string): boolean => {
+  return expandedConversationLists.value.has(agentName);
 };
 
 const deleteConversation = async (conversation: AgentConversation, event: Event) => {
@@ -1216,5 +1298,48 @@ watch(
   margin: 12px 16px 8px 16px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+/* Conversation toggle header (for CEO/Manager's own conversations) */
+.conversation-toggle-header {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  cursor: pointer;
+  background: var(--ion-color-step-50, #f7f7f7);
+  border-radius: 6px;
+  margin: 8px 12px;
+  transition: background 0.2s ease;
+}
+
+.conversation-toggle-header:hover {
+  background: var(--ion-color-step-100, #e7e7e7);
+}
+
+.toggle-chevron {
+  font-size: 16px;
+  color: var(--ion-color-medium);
+  margin-right: 8px;
+  transition: transform 0.2s ease;
+}
+
+.toggle-label {
+  flex: 1;
+  font-size: 0.85rem;
+  color: var(--ion-color-medium-shade);
+  font-weight: 500;
+}
+
+.toggle-badge {
+  font-size: 0.75rem;
+}
+
+/* Toggle button styling for inline header buttons */
+.toggle-btn {
+  --color: var(--ion-color-medium);
+}
+
+.toggle-btn:hover {
+  --color: var(--ion-color-primary);
 }
 </style>

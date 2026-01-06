@@ -9,6 +9,7 @@ export interface RagDocument {
   fileSize: number;
   fileHash: string | null;
   storagePath: string | null;
+  content: string | null;
   status: 'pending' | 'processing' | 'completed' | 'error';
   errorMessage: string | null;
   chunkCount: number;
@@ -27,6 +28,7 @@ interface DbDocument {
   file_size: number;
   file_hash: string | null;
   storage_path: string | null;
+  content: string | null;
   status: string;
   error_message: string | null;
   chunk_count: number;
@@ -73,6 +75,7 @@ export class DocumentsService {
       fileSize: row.file_size,
       fileHash: row.file_hash,
       storagePath: row.storage_path,
+      content: row.content,
       status: row.status as RagDocument['status'],
       errorMessage: row.error_message,
       chunkCount: row.chunk_count,
@@ -144,9 +147,10 @@ export class DocumentsService {
     fileHash?: string,
     storagePath?: string,
     userId?: string,
+    content?: string,
   ): Promise<RagDocument> {
     const row = await this.ragDb.queryOne<DbDocument>(
-      'SELECT * FROM rag_insert_document($1, $2, $3, $4, $5, $6, $7, $8)',
+      'SELECT * FROM rag_insert_document($1, $2, $3, $4, $5, $6, $7, $8, $9)',
       [
         collectionId,
         organizationSlug,
@@ -156,6 +160,7 @@ export class DocumentsService {
         fileHash || null,
         storagePath || null,
         userId || null,
+        content || null,
       ],
     );
 
@@ -170,6 +175,61 @@ export class DocumentsService {
     );
 
     return this.toDocument(row);
+  }
+
+  /**
+   * Update document content (after text extraction)
+   */
+  async updateDocumentContent(
+    documentId: string,
+    organizationSlug: string,
+    content: string,
+  ): Promise<void> {
+    await this.ragDb.execute(
+      `UPDATE rag_data.rag_documents
+       SET content = $1, updated_at = NOW()
+       WHERE id = $2 AND organization_slug = $3`,
+      [content, documentId, organizationSlug],
+    );
+
+    this.logger.log(`Updated content for document ${documentId}`);
+  }
+
+  /**
+   * Get document content only (for document viewer)
+   */
+  async getDocumentContent(
+    documentId: string,
+    organizationSlug: string,
+  ): Promise<{
+    id: string;
+    filename: string;
+    fileType: string;
+    content: string | null;
+    chunkCount: number;
+  } | null> {
+    const row = await this.ragDb.queryOne<{
+      id: string;
+      filename: string;
+      file_type: string;
+      content: string | null;
+      chunk_count: number;
+    }>('SELECT * FROM rag_get_document_content($1, $2)', [
+      documentId,
+      organizationSlug,
+    ]);
+
+    if (!row) {
+      return null;
+    }
+
+    return {
+      id: row.id,
+      filename: row.filename,
+      fileType: row.file_type,
+      content: row.content,
+      chunkCount: row.chunk_count,
+    };
   }
 
   /**
