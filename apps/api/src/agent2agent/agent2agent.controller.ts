@@ -15,7 +15,10 @@ import {
   Req,
   NotFoundException,
   UnauthorizedException,
+  UseInterceptors,
+  UploadedFiles,
 } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { AgentCardBuilderService } from './services/agent-card-builder.service';
 import { AgentExecutionGateway } from './services/agent-execution-gateway.service';
 import { TaskRequestDto } from './dto/task-request.dto';
@@ -71,6 +74,7 @@ import {
   ObservabilityEventRecord,
 } from '../observability/observability-events.service';
 import { Subscription } from 'rxjs';
+import { DocumentProcessingService } from './services/document-processing.service';
 
 interface NormalizedTaskRequest {
   dto: NormalizedTaskRequestDto;
@@ -136,6 +140,7 @@ export class Agent2AgentController {
     private readonly deliverablesService: DeliverablesService,
     private readonly taskUpdateService: TasksService,
     private readonly observabilityEvents: ObservabilityEventsService,
+    private readonly documentProcessing: DocumentProcessingService,
   ) {}
 
   private readonly logger = new Logger(Agent2AgentController.name);
@@ -244,10 +249,12 @@ export class Agent2AgentController {
 
   @Post('agent-to-agent/:orgSlug/:agentSlug/tasks')
   @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FilesInterceptor('files', 10)) // Support up to 10 files
   async executeTask(
     @Param('orgSlug') orgSlug: string,
     @Param('agentSlug') agentSlug: string,
     @Body() body: FrontendTaskRequest,
+    @UploadedFiles() files: Array<Express.Multer.File>,
     @CurrentUser() currentUser: SupabaseAuthUserDto,
     @Req() request: RequestWithStreamData,
   ): Promise<TaskResponseDto | JsonRpcSuccessEnvelope | JsonRpcErrorEnvelope> {
@@ -301,6 +308,70 @@ export class Agent2AgentController {
     const context = dto.context;
 
     try {
+      // =========================================================================
+      // FILE UPLOAD PROCESSING (Phase 2: Multimodal A2A Transport)
+      // Process uploaded files and convert to base64 for metadata storage
+      // Upload original files to legal-documents storage bucket
+      // =========================================================================
+      if (files && files.length > 0) {
+        this.logger.log(
+          `📎 [A2A-CTRL] Processing ${files.length} uploaded file(s)`,
+        );
+
+        // Initialize documents array in metadata if not present
+        if (!dto.metadata) {
+          dto.metadata = {};
+        }
+        if (!dto.metadata.documents) {
+          dto.metadata.documents = [];
+        }
+
+        // Process each file
+        for (const file of files) {
+          try {
+            // Convert file buffer to base64
+            const base64Data = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+
+            // Process document (extract text if applicable, upload to storage)
+            const processedDoc = await this.documentProcessing.processDocument(
+              {
+                filename: file.originalname,
+                mimeType: file.mimetype,
+                size: file.size,
+                base64Data,
+              },
+              context,
+            );
+
+            // Add processed document to metadata
+            (dto.metadata.documents as Array<unknown>).push({
+              documentId: processedDoc.documentId,
+              filename: file.originalname,
+              mimeType: file.mimetype,
+              size: file.size,
+              url: processedDoc.url,
+              storagePath: processedDoc.storagePath,
+              extractedText: processedDoc.extractedText,
+              extractionMethod: processedDoc.extractionMethod,
+              uploadedAt: new Date().toISOString(),
+            });
+
+            this.logger.log(
+              `📎 [A2A-CTRL] Processed file: ${file.originalname} (${processedDoc.extractionMethod || 'no extraction'})`,
+            );
+          } catch (error) {
+            this.logger.error(
+              `📎 [A2A-CTRL] Failed to process file ${file.originalname}: ${error instanceof Error ? error.message : String(error)}`,
+            );
+            // Continue processing other files even if one fails
+          }
+        }
+
+        this.logger.log(
+          `📎 [A2A-CTRL] Finished processing ${files.length} file(s)`,
+        );
+      }
+
       // Build conversation history from messages
       const conversationHistoryFromMessages: ConversationMessage[] =
         dto.messages?.map((msg) => {

@@ -32,6 +32,9 @@ import { HttpModule } from '@nestjs/axios';
 import { StreamingService } from './services/streaming.service';
 import { ObservabilityModule } from '../observability/observability.module';
 import { RagModule } from '../rag/rag.module';
+import { DocumentProcessingService } from './services/document-processing.service';
+import { VisionExtractionService } from './services/vision-extraction.service';
+import { OCRExtractionService } from './services/ocr-extraction.service';
 
 @Module({
   imports: [
@@ -70,6 +73,9 @@ import { RagModule } from '../rag/rag.module';
     Agent2AgentTaskStatusService,
     Agent2AgentConversationsService,
     StreamingService,
+    DocumentProcessingService,
+    VisionExtractionService,
+    OCRExtractionService,
   ],
   exports: [
     AgentExecutionGateway,

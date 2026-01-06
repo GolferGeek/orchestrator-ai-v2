@@ -1,0 +1,771 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "created_at": "2026-01-05T18:19:00Z",
+    "prd_sources": ["docs/prd/20260105-legal-department-ai-m0.md"],
+    "title": "Legal Department AI - Milestone 0: Foundation & Infrastructure",
+    "summary": "Establish complete architectural foundation for Legal Department AI multi-agent system. No feature development - only infrastructure. Proves transport types, ExecutionContext flow, database schema, multimodal input, and all patterns work end-to-end.",
+    "goals": [
+      "Transport types used correctly - Frontend calls API, API calls LangGraph (never direct)",
+      "ExecutionContext flows end-to-end - From frontend through API runner to LangGraph and back",
+      "Database schema exists - Legal-specific tables for domain state",
+      "Multimodal input works - PDF, DOCX, images, scanned documents",
+      "All patterns established - So subsequent milestones just add features"
+    ],
+    "scope": {
+      "in_scope": [
+        "Multimodal document upload via A2A transport (base64 in metadata)",
+        "Database schema (law.*) with RLS policies",
+        "Supabase Storage bucket for original documents",
+        "Agent registration in database",
+        "LangGraph project structure with echo node",
+        "ExecutionContext integration throughout stack",
+        "LLM service integration (API's /llm/generate endpoint)",
+        "Observability integration",
+        "Vue.js conversation pane scaffold",
+        "Document processing infrastructure (PDF, DOCX, vision, OCR)",
+        "Integration tests proving full flow",
+        "Transport types verification"
+      ],
+      "out_of_scope": [
+        "Legal analysis features (CLO routing, specialists, synthesis)",
+        "Production-grade audit logging",
+        "Playbook configuration UI",
+        "Advanced HITL workflows",
+        "Multi-document comparison",
+        "Legal metadata extraction (M1 feature)"
+      ]
+    },
+    "risks": [
+      {
+        "risk": "Vision model not available",
+        "mitigation": "OCR fallback with Tesseract"
+      },
+      {
+        "risk": "Large PDF processing time",
+        "mitigation": "Progress indicators, async processing"
+      },
+      {
+        "risk": "Storage quota limits",
+        "mitigation": "File size limits in bucket config (50MB)"
+      },
+      {
+        "risk": "Context lost in flow",
+        "mitigation": "Integration tests verify ExecutionContext at each step"
+      },
+      {
+        "risk": "LLM routing broken",
+        "mitigation": "Tests verify calls go through API's /llm/generate"
+      }
+    ]
+  },
+  "summary": "Establish complete architectural foundation for Legal Department AI multi-agent system. No feature development - only infrastructure.",
+  "phases": [
+    {
+      "id": "phase-1",
+      "label": "Database & Storage Foundation",
+      "status": "pending",
+      "progress": 0,
+      "started_at": null,
+      "completed_at": null,
+      "steps": [
+        {
+          "id": "step-1-1",
+          "action": "Create law schema migration with all tables (analysis_tasks, document_extractions, specialist_outputs, playbooks, execution_steps)",
+          "activeForm": "Creating law schema migration",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": [],
+          "deliverables": [
+            "apps/api/supabase/migrations/YYYYMMDD_create_law_schema.sql"
+          ],
+          "validation_checkpoint": "checkpoint-1",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-1-2",
+          "action": "Create Supabase Storage bucket migration for legal-documents with RLS policies",
+          "activeForm": "Creating storage bucket migration",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": [],
+          "deliverables": [
+            "apps/api/supabase/migrations/YYYYMMDD_create_legal_documents_bucket.sql"
+          ],
+          "validation_checkpoint": "checkpoint-1",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-1-3",
+          "action": "Create agent registration seed SQL for legal-department agent",
+          "activeForm": "Creating agent registration seed",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": [],
+          "deliverables": [
+            "apps/api/supabase/seed/legal-department-agent.sql"
+          ],
+          "validation_checkpoint": "checkpoint-1",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-1-4",
+          "action": "Apply migrations and seed data to database",
+          "activeForm": "Applying migrations and seed data",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-1-1", "step-1-2", "step-1-3"],
+          "deliverables": [],
+          "validation_checkpoint": "checkpoint-1",
+          "human_checkpoint_id": null
+        }
+      ]
+    },
+    {
+      "id": "phase-2",
+      "label": "Multimodal A2A Transport Support",
+      "status": "pending",
+      "progress": 0,
+      "started_at": null,
+      "completed_at": null,
+      "steps": [
+        {
+          "id": "step-2-1",
+          "action": "Create DocumentProcessingService in API to handle base64 files from metadata",
+          "activeForm": "Creating DocumentProcessingService",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-1-4"],
+          "deliverables": [
+            "apps/api/src/services/document-processing.service.ts"
+          ],
+          "validation_checkpoint": "checkpoint-2",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-2-2",
+          "action": "Create VisionExtractionService for image/scanned document processing",
+          "activeForm": "Creating VisionExtractionService",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-1-4"],
+          "deliverables": [
+            "apps/api/src/services/vision-extraction.service.ts"
+          ],
+          "validation_checkpoint": "checkpoint-2",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-2-3",
+          "action": "Create OCRExtractionService as fallback for vision model failures",
+          "activeForm": "Creating OCRExtractionService",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-1-4"],
+          "deliverables": [
+            "apps/api/src/services/ocr-extraction.service.ts"
+          ],
+          "validation_checkpoint": "checkpoint-2",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-2-4",
+          "action": "Update TasksController to handle multipart/form-data and process files before routing to agent",
+          "activeForm": "Updating TasksController for multipart support",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-2-1", "step-2-2", "step-2-3"],
+          "deliverables": [
+            "apps/api/src/tasks/tasks.controller.ts"
+          ],
+          "validation_checkpoint": "checkpoint-2",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-2-5",
+          "action": "Add ENV configuration for vision model (VISION_MODEL, VISION_PROVIDER, OLLAMA_BASE_URL)",
+          "activeForm": "Adding ENV configuration",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-2-2"],
+          "deliverables": [
+            ".env.example",
+            "apps/api/.env.example"
+          ],
+          "validation_checkpoint": "checkpoint-2",
+          "human_checkpoint_id": null
+        }
+      ]
+    },
+    {
+      "id": "phase-3",
+      "label": "LangGraph Agent Structure",
+      "status": "pending",
+      "progress": 0,
+      "started_at": null,
+      "completed_at": null,
+      "steps": [
+        {
+          "id": "step-3-1",
+          "action": "Create LangGraph project directory structure for legal-department agent",
+          "activeForm": "Creating LangGraph directory structure",
+          "agent": "langgraph-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-1-4"],
+          "deliverables": [
+            "apps/langgraph/src/agents/legal-department/index.ts",
+            "apps/langgraph/src/agents/legal-department/nodes/index.ts",
+            "apps/langgraph/src/agents/legal-department/services/index.ts",
+            "apps/langgraph/src/agents/legal-department/tools/index.ts",
+            "apps/langgraph/src/agents/legal-department/prompts/index.ts"
+          ],
+          "validation_checkpoint": "checkpoint-3",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-3-2",
+          "action": "Create state interface with ExecutionContext, multiple documents support, and legal metadata placeholder",
+          "activeForm": "Creating state interface",
+          "agent": "langgraph-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-3-1"],
+          "deliverables": [
+            "apps/langgraph/src/agents/legal-department/legal-department.state.ts"
+          ],
+          "validation_checkpoint": "checkpoint-3",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-3-3",
+          "action": "Create type definitions for legal department agent",
+          "activeForm": "Creating type definitions",
+          "agent": "langgraph-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-3-1"],
+          "deliverables": [
+            "apps/langgraph/src/agents/legal-department/legal-department.types.ts"
+          ],
+          "validation_checkpoint": "checkpoint-3",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-3-4",
+          "action": "Create simple echo node for M0 testing (proves LLM integration works)",
+          "activeForm": "Creating echo test node",
+          "agent": "langgraph-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-3-2"],
+          "deliverables": [
+            "apps/langgraph/src/agents/legal-department/nodes/echo.node.ts"
+          ],
+          "validation_checkpoint": "checkpoint-3",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-3-5",
+          "action": "Create graph definition with Postgres checkpointer",
+          "activeForm": "Creating graph definition",
+          "agent": "langgraph-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-3-4"],
+          "deliverables": [
+            "apps/langgraph/src/agents/legal-department/legal-department.graph.ts"
+          ],
+          "validation_checkpoint": "checkpoint-3",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-3-6",
+          "action": "Create factory with dependency injection for LLM client and observability",
+          "activeForm": "Creating factory with DI",
+          "agent": "langgraph-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-3-5"],
+          "deliverables": [
+            "apps/langgraph/src/agents/legal-department/legal-department.factory.ts"
+          ],
+          "validation_checkpoint": "checkpoint-3",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-3-7",
+          "action": "Create HTTP endpoint handler that extracts ExecutionContext and invokes graph",
+          "activeForm": "Creating HTTP endpoint handler",
+          "agent": "langgraph-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-3-6"],
+          "deliverables": [
+            "apps/langgraph/src/agents/legal-department/legal-department.endpoint.ts"
+          ],
+          "validation_checkpoint": "checkpoint-3",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-3-8",
+          "action": "Register endpoint in LangGraph router",
+          "activeForm": "Registering endpoint in router",
+          "agent": "langgraph-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-3-7"],
+          "deliverables": [
+            "apps/langgraph/src/router.ts"
+          ],
+          "validation_checkpoint": "checkpoint-3",
+          "human_checkpoint_id": null
+        }
+      ]
+    },
+    {
+      "id": "phase-4",
+      "label": "Frontend Conversation Pane",
+      "status": "pending",
+      "progress": 0,
+      "started_at": null,
+      "completed_at": null,
+      "steps": [
+        {
+          "id": "step-4-1",
+          "action": "Create Vue.js view directory structure for legal-department",
+          "activeForm": "Creating Vue.js directory structure",
+          "agent": "web-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-1-4"],
+          "deliverables": [
+            "apps/web/src/views/agents/legal-department/index.ts",
+            "apps/web/src/views/agents/legal-department/components/"
+          ],
+          "validation_checkpoint": "checkpoint-4",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-4-2",
+          "action": "Create TypeScript types for legal department frontend",
+          "activeForm": "Creating TypeScript types",
+          "agent": "web-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-4-1"],
+          "deliverables": [
+            "apps/web/src/views/agents/legal-department/legalDepartmentTypes.ts"
+          ],
+          "validation_checkpoint": "checkpoint-4",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-4-3",
+          "action": "Create legalDepartmentService with direct fetch calls to API A2A endpoint",
+          "activeForm": "Creating legalDepartmentService",
+          "agent": "web-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-4-2"],
+          "deliverables": [
+            "apps/web/src/views/agents/legal-department/legalDepartmentService.ts"
+          ],
+          "validation_checkpoint": "checkpoint-4",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-4-4",
+          "action": "Create DocumentUpload component with drag-drop support",
+          "activeForm": "Creating DocumentUpload component",
+          "agent": "web-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-4-1"],
+          "deliverables": [
+            "apps/web/src/views/agents/legal-department/components/DocumentUpload.vue"
+          ],
+          "validation_checkpoint": "checkpoint-4",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-4-5",
+          "action": "Create AnalysisProgress component for status tracking",
+          "activeForm": "Creating AnalysisProgress component",
+          "agent": "web-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-4-1"],
+          "deliverables": [
+            "apps/web/src/views/agents/legal-department/components/AnalysisProgress.vue"
+          ],
+          "validation_checkpoint": "checkpoint-4",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-4-6",
+          "action": "Create ResultsDisplay component for showing analysis results",
+          "activeForm": "Creating ResultsDisplay component",
+          "agent": "web-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-4-1"],
+          "deliverables": [
+            "apps/web/src/views/agents/legal-department/components/ResultsDisplay.vue"
+          ],
+          "validation_checkpoint": "checkpoint-4",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-4-7",
+          "action": "Create LegalDepartmentConversation main component",
+          "activeForm": "Creating LegalDepartmentConversation",
+          "agent": "web-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-4-3", "step-4-4", "step-4-5", "step-4-6"],
+          "deliverables": [
+            "apps/web/src/views/agents/legal-department/LegalDepartmentConversation.vue"
+          ],
+          "validation_checkpoint": "checkpoint-4",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-4-8",
+          "action": "Create LegalDepartmentView wrapper component",
+          "activeForm": "Creating LegalDepartmentView",
+          "agent": "web-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-4-7"],
+          "deliverables": [
+            "apps/web/src/views/agents/legal-department/LegalDepartmentView.vue"
+          ],
+          "validation_checkpoint": "checkpoint-4",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-4-9",
+          "action": "Register route for legal-department view",
+          "activeForm": "Registering route",
+          "agent": "web-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-4-8"],
+          "deliverables": [
+            "apps/web/src/router/index.ts"
+          ],
+          "validation_checkpoint": "checkpoint-4",
+          "human_checkpoint_id": null
+        }
+      ]
+    },
+    {
+      "id": "phase-5",
+      "label": "Integration & Testing",
+      "status": "pending",
+      "progress": 0,
+      "started_at": null,
+      "completed_at": null,
+      "steps": [
+        {
+          "id": "step-5-1",
+          "action": "Create transport types verification tests",
+          "activeForm": "Creating transport types tests",
+          "agent": "testing-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-3-8"],
+          "deliverables": [
+            "tests/legal-department/transport-types.test.ts"
+          ],
+          "validation_checkpoint": "checkpoint-5",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-5-2",
+          "action": "Create ExecutionContext flow integration tests",
+          "activeForm": "Creating ExecutionContext flow tests",
+          "agent": "testing-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-3-8"],
+          "deliverables": [
+            "tests/legal-department/execution-context.test.ts"
+          ],
+          "validation_checkpoint": "checkpoint-5",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-5-3",
+          "action": "Create document upload and storage integration tests",
+          "activeForm": "Creating document upload tests",
+          "agent": "testing-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-2-4"],
+          "deliverables": [
+            "tests/legal-department/document-upload.test.ts"
+          ],
+          "validation_checkpoint": "checkpoint-5",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-5-4",
+          "action": "Create document extraction integration tests (PDF, DOCX, images)",
+          "activeForm": "Creating document extraction tests",
+          "agent": "testing-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-2-4"],
+          "deliverables": [
+            "tests/legal-department/document-extraction.test.ts"
+          ],
+          "validation_checkpoint": "checkpoint-5",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-5-5",
+          "action": "Create full flow integration test (Frontend → API → LangGraph → Response)",
+          "activeForm": "Creating full flow integration test",
+          "agent": "testing-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-4-9", "step-3-8"],
+          "deliverables": [
+            "tests/legal-department/integration.test.ts"
+          ],
+          "validation_checkpoint": "checkpoint-5",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-5-6",
+          "action": "Create observability integration tests",
+          "activeForm": "Creating observability tests",
+          "agent": "testing-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-3-8"],
+          "deliverables": [
+            "tests/legal-department/observability.test.ts"
+          ],
+          "validation_checkpoint": "checkpoint-5",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-5-7",
+          "action": "Run all integration tests and verify acceptance criteria",
+          "activeForm": "Running integration tests",
+          "agent": "testing-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-5-1", "step-5-2", "step-5-3", "step-5-4", "step-5-5", "step-5-6"],
+          "deliverables": [],
+          "validation_checkpoint": "checkpoint-5",
+          "human_checkpoint_id": null
+        }
+      ]
+    },
+    {
+      "id": "phase-6",
+      "label": "Final Validation & Documentation",
+      "status": "pending",
+      "progress": 0,
+      "started_at": null,
+      "completed_at": null,
+      "steps": [
+        {
+          "id": "step-6-1",
+          "action": "Run demo script to verify all M0 acceptance criteria",
+          "activeForm": "Running demo script",
+          "agent": "general-purpose",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-5-7"],
+          "deliverables": [],
+          "validation_checkpoint": "checkpoint-6",
+          "human_checkpoint_id": "human-checkpoint-1"
+        },
+        {
+          "id": "step-6-2",
+          "action": "Verify all 16 acceptance criteria from PRD",
+          "activeForm": "Verifying acceptance criteria",
+          "agent": "general-purpose",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-6-1"],
+          "deliverables": [],
+          "validation_checkpoint": "checkpoint-6",
+          "human_checkpoint_id": "human-checkpoint-1"
+        },
+        {
+          "id": "step-6-3",
+          "action": "Update documentation with setup instructions and configuration",
+          "activeForm": "Updating documentation",
+          "agent": "general-purpose",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-6-2"],
+          "deliverables": [
+            "docs/legal-department-ai/m0-setup.md"
+          ],
+          "validation_checkpoint": "checkpoint-6",
+          "human_checkpoint_id": null
+        }
+      ]
+    }
+  ],
+  "checkpoints": [
+    {
+      "id": "checkpoint-1",
+      "label": "Database & Storage Setup Complete",
+      "description": "Verify law schema exists, storage bucket created, agent registered",
+      "status": "pending",
+      "triggered_after": ["step-1-4"]
+    },
+    {
+      "id": "checkpoint-2",
+      "label": "Multimodal A2A Transport Working",
+      "description": "Verify document upload via A2A works, files stored in metadata, extraction services functional",
+      "status": "pending",
+      "triggered_after": ["step-2-4", "step-2-5"]
+    },
+    {
+      "id": "checkpoint-3",
+      "label": "LangGraph Agent Functional",
+      "description": "Verify graph endpoint responds, ExecutionContext flows correctly, echo node works",
+      "status": "pending",
+      "triggered_after": ["step-3-8"]
+    },
+    {
+      "id": "checkpoint-4",
+      "label": "Frontend UI Functional",
+      "description": "Verify conversation pane loads, file upload works, can call API endpoint",
+      "status": "pending",
+      "triggered_after": ["step-4-9"]
+    },
+    {
+      "id": "checkpoint-5",
+      "label": "All Integration Tests Pass",
+      "description": "Run all integration tests - transport types, ExecutionContext, document processing, full flow, observability",
+      "status": "pending",
+      "triggered_after": ["step-5-7"]
+    },
+    {
+      "id": "checkpoint-6",
+      "label": "M0 Acceptance Criteria Met",
+      "description": "All 16 acceptance criteria verified, demo script works end-to-end",
+      "status": "pending",
+      "triggered_after": ["step-6-2"]
+    }
+  ],
+  "human_checkpoints": [
+    {
+      "id": "human-checkpoint-1",
+      "label": "M0 Complete - Ready for M1",
+      "description": "Human verification that M0 foundation is solid before starting M1 feature development",
+      "required_before": [],
+      "questions": [
+        "Does the demo work end-to-end (upload → extract → analyze → response)?",
+        "Are all 16 acceptance criteria met?",
+        "Is the infrastructure stable enough to build features on top?",
+        "Are there any architectural concerns before proceeding to M1?"
+      ]
+    }
+  ],
+  "dependencies": {
+    "phase-2": ["phase-1"],
+    "phase-3": ["phase-1"],
+    "phase-4": ["phase-1"],
+    "phase-5": ["phase-2", "phase-3", "phase-4"],
+    "phase-6": ["phase-5"]
+  },
+  "execution_strategy": {
+    "mode": "mixed",
+    "parallel_phases": [
+      ["phase-2", "phase-3", "phase-4"]
+    ],
+    "notes": "Phase 1 must complete first. Phases 2, 3, and 4 can run in parallel. Phase 5 requires all previous phases. Phase 6 is final validation."
+  }
+}
