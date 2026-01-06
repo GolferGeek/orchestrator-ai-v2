@@ -31,20 +31,26 @@ export function normalizeHierarchyResponse(input: HierarchyNode[] | AgentHierarc
       for (const department in data) {
         const departmentAgents = data[department];
         if (Array.isArray(departmentAgents)) {
-          flatAgents.push(...departmentAgents.map((agent: Record<string, unknown>) => ({
-            id: agent.id || agent.slug,
-            name: agent.slug || agent.name,
-            displayName: agent.displayName || agent.name,
-            type: 'agent' as const, // HierarchyNode type (not agentType)
-            agentType: agent.type, // The actual database agent type (context, api, etc.)
-            organizationSlug: agent.organizationSlug,
-            metadata: {
-              ...agent.metadata,
-              description: agent.description,
-              department,
-            },
-            children: [],
-          })));
+          flatAgents.push(...departmentAgents.map((agent: Record<string, unknown>) => {
+            // organizationSlug may be an array from API - extract first element
+            const orgSlugRaw = agent.organizationSlug;
+            const organizationSlug = Array.isArray(orgSlugRaw) ? orgSlugRaw[0] : orgSlugRaw;
+
+            return {
+              id: agent.id || agent.slug,
+              name: agent.slug || agent.name,
+              displayName: agent.displayName || agent.name,
+              type: 'agent' as const, // HierarchyNode type (not agentType)
+              agentType: agent.type, // The actual database agent type (context, api, etc.)
+              organizationSlug,
+              metadata: {
+                ...agent.metadata,
+                description: agent.description,
+                department,
+              },
+              children: [],
+            };
+          }));
         }
       }
       return {
@@ -79,7 +85,9 @@ export function filterHierarchyByOrganization(
 
     for (const node of tree) {
       const children = Array.isArray(node.children) ? prune(node.children) : [];
-      const nodeOrganization = node.organizationSlug || node.metadata?.organizationSlug;
+      // organizationSlug may be an array from API - extract first element
+      const orgSlugRaw = node.organizationSlug || node.metadata?.organizationSlug;
+      const nodeOrganization = Array.isArray(orgSlugRaw) ? orgSlugRaw[0] : orgSlugRaw;
 
       const matchesOrganization =
         !nodeOrganization || nodeOrganization === organization || nodeOrganization === 'global' || children.length > 0;
