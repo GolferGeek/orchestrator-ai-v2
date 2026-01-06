@@ -142,16 +142,24 @@ export class OpenCascadeExecutorService implements OnModuleInit {
       }
 
       // Log shape info for debugging
-      this.logger.log(`[CAD-EXEC] Shape returned from code execution: ${typeof shape}`);
+      this.logger.log(
+        `[CAD-EXEC] Shape returned from code execution: ${typeof shape}`,
+      );
       try {
         const oc = this.oc as Record<string, unknown>;
-        const shapeType = (oc["BRepCheck_Analyzer"] as new (shape: unknown) => { IsValid: () => boolean });
+        const shapeType = oc["BRepCheck_Analyzer"] as new (shape: unknown) => {
+          IsValid: () => boolean;
+        };
         if (shapeType) {
           const analyzer = new shapeType(shape);
-          this.logger.log(`[CAD-EXEC] Shape validity check: ${analyzer.IsValid()}`);
+          this.logger.log(
+            `[CAD-EXEC] Shape validity check: ${analyzer.IsValid()}`,
+          );
         }
       } catch (validityErr) {
-        this.logger.warn(`[CAD-EXEC] Could not check shape validity: ${validityErr}`);
+        this.logger.warn(
+          `[CAD-EXEC] Could not check shape validity: ${validityErr}`,
+        );
       }
 
       // Extract mesh statistics
