@@ -130,10 +130,12 @@ class ConversationLoadingService {
       void conversationsStore.messagesByConversation(conversationId);
 
       // Initialize ExecutionContext for this conversation
+      // Use agent's organization slug if available
       await this.initializeExecutionContextForConversation(
         conversationId,
         agent.name,
-        agent.type || 'context'
+        agent.type || 'context',
+        agent.organizationSlug || undefined
       );
 
       // Set as active conversation
@@ -163,17 +165,20 @@ class ConversationLoadingService {
    * @param conversationId - The conversation ID
    * @param agentSlug - The agent slug
    * @param agentType - The agent type
+   * @param agentOrgSlug - The agent's organization slug (takes precedence over current user org)
    */
   private async initializeExecutionContextForConversation(
     conversationId: string,
     agentSlug: string,
-    agentType: string
+    agentType: string,
+    agentOrgSlug?: string
   ): Promise<void> {
     const authStore = useAuthStore();
     const llmPreferencesStore = useLLMPreferencesStore();
     const executionContextStore = useExecutionContextStore();
 
-    const orgSlug = authStore.currentOrganization || 'demo-org';
+    // Use agent's organization if provided, otherwise fall back to user's current org
+    const orgSlug = agentOrgSlug || authStore.currentOrganization || 'demo-org';
     const userId = authStore.user?.id || 'anonymous';
 
     executionContextStore.initialize({
