@@ -131,18 +131,18 @@ async function handleGenerate(data: {
   newProjectName?: string;
   constraints: CadConstraints;
   outputFormats: string[];
+  llmProvider: string;
+  llmModel: string;
 }) {
   try {
     console.log('[CadAgentTab] Starting generation:', data);
 
-    // Get llm_config from the conversation's agent
-    const agentLlmConfig = props.conversation?.agent?.llm_config;
-    const provider = agentLlmConfig?.provider || 'ollama';
-    const model = agentLlmConfig?.model || 'qwen2.5-coder:14b'; // Fallback for CAD code generation
+    // Use provider/model from UI selection (user's choice)
+    const provider = data.llmProvider;
+    const model = data.llmModel;
     const conversationId = props.conversation?.id || crypto.randomUUID();
 
-    // Always update ExecutionContext to match this conversation's settings
-    // The agent's llm_config is the source of truth for CAD agent
+    // Always update ExecutionContext to use the user-selected model
     if (!executionContextStore.isInitialized) {
       executionContextStore.initialize({
         orgSlug: orgSlug.value,
@@ -153,13 +153,13 @@ async function handleGenerate(data: {
         provider,
         model,
       });
-      console.log('[CadAgentTab] ExecutionContext initialized with LLM:', provider, '/', model, '(from agent.llm_config:', !!agentLlmConfig, ')');
+      console.log('[CadAgentTab] ExecutionContext initialized with user-selected LLM:', provider, '/', model);
     } else {
-      // Context already initialized - update to match this conversation's agent settings
+      // Context already initialized - update with user's model selection
       executionContextStore.setAgent('cad-agent', 'api');
       executionContextStore.setConversation(conversationId);
       executionContextStore.setLLM(provider, model);
-      console.log('[CadAgentTab] ExecutionContext updated with LLM:', provider, '/', model, '(from agent.llm_config:', !!agentLlmConfig, ')');
+      console.log('[CadAgentTab] ExecutionContext updated with user-selected LLM:', provider, '/', model);
     }
 
     // Connect to SSE stream BEFORE starting generation

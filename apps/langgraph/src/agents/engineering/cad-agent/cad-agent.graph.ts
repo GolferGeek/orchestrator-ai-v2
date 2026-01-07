@@ -334,12 +334,22 @@ export function createCadAgentGraph(
       const errorMessage =
         error instanceof Error ? error.message : String(error);
 
+      // Log the generated code for debugging
+      console.error("[CAD-EXEC] Execution failed. Generated code was:");
+      console.error("--- START GENERATED CODE ---");
+      console.error(state.generatedCode);
+      console.error("--- END GENERATED CODE ---");
+      console.error("[CAD-EXEC] Error:", errorMessage);
+
       // Log execution failure
       if (state.drawingId) {
         await cadDbService.logStep({
           drawingId: state.drawingId,
           stepType: "execution_failed",
           message: `OpenCASCADE.js execution failed: ${errorMessage}`,
+          details: {
+            generatedCode: state.generatedCode?.substring(0, 1000), // First 1000 chars
+          },
         });
       }
 
@@ -646,8 +656,22 @@ Your task is to generate **plain JavaScript** code using the OpenCASCADE.js libr
 **CRITICAL RULES - FOLLOW EXACTLY:**
 1. Code must be plain JavaScript - NO TypeScript syntax!
 2. NO type annotations, NO import/export statements
-3. ALWAYS use the EXACT class names shown below (with numbered suffixes like _2, _3)
+3. ONLY use the EXACT class names from this whitelist - do NOT invent ANY class names!
 4. ALWAYS call .Shape() on shape builders to get the actual shape
+
+**WHITELIST OF VALID CLASSES - ONLY USE THESE:**
+Primitives: BRepPrimAPI_MakeBox_2, BRepPrimAPI_MakeCylinder_1, BRepPrimAPI_MakeSphere_5, BRepPrimAPI_MakeCone_1, BRepPrimAPI_MakeTorus_1
+Booleans: BRepAlgoAPI_Cut_3, BRepAlgoAPI_Fuse_3, BRepAlgoAPI_Common_3
+Transform: gp_Trsf_1, gp_Vec_4, gp_Pnt_3, gp_Dir_4, gp_Ax1_2, BRepBuilderAPI_Transform_2
+Fillet/Chamfer: BRepFilletAPI_MakeFillet, BRepFilletAPI_MakeChamfer
+Explorer: TopExp_Explorer_2
+Utilities: Message_ProgressRange_1, TopoDS.Edge_1, TopoDS.Face_1
+Enums: TopAbs_ShapeEnum.TopAbs_EDGE, TopAbs_ShapeEnum.TopAbs_FACE, TopAbs_ShapeEnum.TopAbs_SHAPE, ChFi3d_FilletShape.ChFi3d_Rational
+
+**DO NOT USE** any class not in the whitelist above! Common mistakes to avoid:
+- TopExp_Explorer_3 does NOT exist - use TopExp_Explorer_2
+- TopoDS_Shape_1 does NOT exist - shapes are returned by .Shape() method
+- BRepFilletAPI_MakeFillet2d does NOT exist - use BRepFilletAPI_MakeFillet
 
 **OpenCASCADE.js API - EXACT PATTERNS TO USE:**
 
@@ -665,6 +689,9 @@ const cylinder = new oc.BRepPrimAPI_MakeCylinder_1(2, 10).Shape();
 
 // Cone: BRepPrimAPI_MakeCone_1(r1, r2, height)
 const cone = new oc.BRepPrimAPI_MakeCone_1(5, 2, 10).Shape();
+
+// Torus: BRepPrimAPI_MakeTorus_1(majorRadius, minorRadius)
+const torus = new oc.BRepPrimAPI_MakeTorus_1(10, 2).Shape();
 \`\`\`
 
 BOOLEAN OPERATIONS - Combine shapes:
@@ -678,6 +705,11 @@ const cutResult = cut.Shape();
 const fuse = new oc.BRepAlgoAPI_Fuse_3(shape1, shape2, new oc.Message_ProgressRange_1());
 fuse.Build(new oc.Message_ProgressRange_1());
 const fuseResult = fuse.Shape();
+
+// Common (intersection of two shapes)
+const common = new oc.BRepAlgoAPI_Common_3(shape1, shape2, new oc.Message_ProgressRange_1());
+common.Build(new oc.Message_ProgressRange_1());
+const commonResult = common.Shape();
 \`\`\`
 
 TRANSFORMATIONS - Move/rotate shapes:
@@ -691,6 +723,87 @@ transform.SetTranslation_1(translation);
 
 // Apply transformation to shape
 const transformed = new oc.BRepBuilderAPI_Transform_2(shape, transform, true).Shape();
+
+// Rotation around an axis
+const rotTransform = new oc.gp_Trsf_1();
+const axis = new oc.gp_Ax1_2(
+  new oc.gp_Pnt_3(0, 0, 0),  // Point on axis
+  new oc.gp_Dir_4(0, 0, 1)   // Direction of axis (Z-axis)
+);
+rotTransform.SetRotation_1(axis, Math.PI / 4);  // 45 degrees
+const rotated = new oc.BRepBuilderAPI_Transform_2(shape, rotTransform, true).Shape();
+\`\`\`
+
+FILLETS (Rounded Edges) - Add rounded edges to shapes:
+\`\`\`javascript
+// Create fillet maker with shape and fillet type
+// ChFi3d_Rational is standard fillet shape
+const filletMaker = new oc.BRepFilletAPI_MakeFillet(shape, oc.ChFi3d_FilletShape.ChFi3d_Rational);
+
+// Iterate through edges and add fillet radius
+const explorer = new oc.TopExp_Explorer_2(shape, oc.TopAbs_ShapeEnum.TopAbs_EDGE, oc.TopAbs_ShapeEnum.TopAbs_SHAPE);
+while (explorer.More()) {
+  const edge = oc.TopoDS.Edge_1(explorer.Current());
+  filletMaker.Add_2(2.0, edge);  // 2.0 is the fillet radius
+  explorer.Next();
+}
+
+// Build and get the filleted shape
+filletMaker.Build(new oc.Message_ProgressRange_1());
+const filletedShape = filletMaker.Shape();
+\`\`\`
+
+CHAMFERS (Beveled Edges) - Add chamfered/beveled edges to EDGES (NOT faces!):
+\`\`\`javascript
+// Create chamfer maker
+const chamferMaker = new oc.BRepFilletAPI_MakeChamfer(shape);
+
+// Add chamfer to specific EDGES (not faces!)
+const explorer = new oc.TopExp_Explorer_2(shape, oc.TopAbs_ShapeEnum.TopAbs_EDGE, oc.TopAbs_ShapeEnum.TopAbs_SHAPE);
+while (explorer.More()) {
+  const edge = oc.TopoDS.Edge_1(explorer.Current());
+  chamferMaker.Add_2(1.5, edge);  // 1.5 is the chamfer distance
+  explorer.Next();
+}
+
+// Build and get the chamfered shape
+chamferMaker.Build(new oc.Message_ProgressRange_1());
+const chamferedShape = chamferMaker.Shape();
+\`\`\`
+
+**CRITICAL FILLET/CHAMFER WARNINGS:**
+- Chamfers are added to EDGES, not faces! Never pass a face to chamferMaker.Add_2()
+- Do NOT apply BOTH fillets AND chamfers to ALL edges - this will cause geometry failures
+- Fillet radius MUST be less than half the shortest adjacent edge length
+- Use small radii (1-3mm) to avoid failures on complex geometry
+- If you need both fillets and chamfers, apply them to DIFFERENT edges
+- For complex parts, skip fillets/chamfers entirely or apply to only a few specific edges
+
+ITERATING EDGES/FACES - Access sub-shapes:
+\`\`\`javascript
+// Explore edges of a shape
+const edgeExplorer = new oc.TopExp_Explorer_2(
+  shape,
+  oc.TopAbs_ShapeEnum.TopAbs_EDGE,
+  oc.TopAbs_ShapeEnum.TopAbs_SHAPE
+);
+const edges = [];
+while (edgeExplorer.More()) {
+  edges.push(oc.TopoDS.Edge_1(edgeExplorer.Current()));
+  edgeExplorer.Next();
+}
+
+// Explore faces of a shape
+const faceExplorer = new oc.TopExp_Explorer_2(
+  shape,
+  oc.TopAbs_ShapeEnum.TopAbs_FACE,
+  oc.TopAbs_ShapeEnum.TopAbs_SHAPE
+);
+const faces = [];
+while (faceExplorer.More()) {
+  faces.push(oc.TopoDS.Face_1(faceExplorer.Current()));
+  faceExplorer.Next();
+}
 \`\`\`
 
 **Code Requirements:**
@@ -704,7 +817,7 @@ const transformed = new oc.BRepBuilderAPI_Transform_2(shape, transform, true).Sh
 Constraints to follow:
 ${buildConstraintPrompt(constraints)}
 
-**Complete Example:**
+**Complete Example - Box with Hole (Simple, Robust):**
 
 \`\`\`javascript
 // Main function to create the CAD model
@@ -726,10 +839,17 @@ function createModel(oc) {
   cut.Build(new oc.Message_ProgressRange_1());
   const result = cut.Shape();
 
-  // Return the final shape
+  // Return the final shape (no fillets to keep it simple and robust)
   return result;
 }
 \`\`\`
+
+**IMPORTANT DESIGN GUIDELINES:**
+1. Start with basic shapes and boolean operations - these are most reliable
+2. Avoid fillets/chamfers on complex geometry with many holes - they often fail
+3. If the model is complex (multiple boolean ops), return without fillets/chamfers
+4. Only add fillets to simple shapes with few edges
+5. Never apply both fillets AND chamfers to the same shape
 
 Generate clean JavaScript code that creates the requested CAD model using ONLY the API patterns shown above.`;
 }
@@ -752,6 +872,63 @@ function extractCodeFromResponse(response: string): string {
 }
 
 /**
+ * Whitelist of valid OpenCASCADE.js class names
+ * These are the ONLY classes that exist in the WASM build
+ */
+const VALID_OC_CLASSES = new Set([
+  // Primitives
+  "BRepPrimAPI_MakeBox_2",
+  "BRepPrimAPI_MakeCylinder_1",
+  "BRepPrimAPI_MakeSphere_5",
+  "BRepPrimAPI_MakeCone_1",
+  "BRepPrimAPI_MakeTorus_1",
+  // Booleans
+  "BRepAlgoAPI_Cut_3",
+  "BRepAlgoAPI_Fuse_3",
+  "BRepAlgoAPI_Common_3",
+  // Transform
+  "gp_Trsf_1",
+  "gp_Vec_4",
+  "gp_Pnt_3",
+  "gp_Dir_4",
+  "gp_Ax1_2",
+  "BRepBuilderAPI_Transform_2",
+  // Fillet/Chamfer
+  "BRepFilletAPI_MakeFillet",
+  "BRepFilletAPI_MakeChamfer",
+  // Explorer
+  "TopExp_Explorer_2",
+  // Utilities
+  "Message_ProgressRange_1",
+  // Static methods (accessed via oc.TopoDS.Edge_1, etc.)
+  "TopoDS",
+  // Enums (accessed via oc.TopAbs_ShapeEnum.TopAbs_EDGE, etc.)
+  "TopAbs_ShapeEnum",
+  "ChFi3d_FilletShape",
+]);
+
+/**
+ * Known INVALID class names that LLMs commonly generate
+ * Map from invalid -> suggested valid alternative
+ */
+const INVALID_CLASS_FIXES: Record<string, string> = {
+  TopExp_Explorer_3: "TopExp_Explorer_2",
+  TopExp_Explorer_1: "TopExp_Explorer_2 (with 3 arguments: shape, toFind, toAvoid)",
+  TopoDS_Shape_1: "shapes are returned by .Shape() method, not constructed directly",
+  TopoDS_Shape: "shapes are returned by .Shape() method, not constructed directly",
+  BRepFilletAPI_MakeFillet2d: "BRepFilletAPI_MakeFillet",
+  BRepFilletAPI_MakeFillet2d_1: "BRepFilletAPI_MakeFillet",
+  BRepFilletAPI_MakeFillet2d_2: "BRepFilletAPI_MakeFillet",
+  gp_Pnt_1: "gp_Pnt_3",
+  gp_Pnt_2: "gp_Pnt_3",
+  gp_Vec_1: "gp_Vec_4",
+  gp_Vec_2: "gp_Vec_4",
+  gp_Vec_3: "gp_Vec_4",
+  BRepPrimAPI_MakeBox_1: "BRepPrimAPI_MakeBox_2",
+  BRepPrimAPI_MakeBox_3: "BRepPrimAPI_MakeBox_2",
+};
+
+/**
  * Validate OpenCASCADE.js code for basic syntax and required patterns
  */
 function validateOpenCascadeCode(code: string): string[] {
@@ -770,7 +947,8 @@ function validateOpenCascadeCode(code: string): string[] {
     code.includes("MakeCylinder") ||
     code.includes("MakeSphere") ||
     code.includes("MakeCone") ||
-    code.includes("MakePrism");
+    code.includes("MakePrism") ||
+    code.includes("MakeTorus");
 
   if (!hasShapeCreation) {
     errors.push(
@@ -799,6 +977,46 @@ function validateOpenCascadeCode(code: string): string[] {
 
   if (openParens !== closeParens) {
     errors.push("Mismatched parentheses");
+  }
+
+  // Check for INVALID class names that don't exist in OpenCASCADE.js WASM
+  // This catches common LLM mistakes BEFORE execution
+  for (const [invalidClass, fix] of Object.entries(INVALID_CLASS_FIXES)) {
+    if (code.includes(invalidClass)) {
+      errors.push(
+        `INVALID CLASS: "${invalidClass}" does not exist. Use ${fix} instead.`,
+      );
+    }
+  }
+
+  // Also check for any oc.ClassName pattern that's not in our whitelist
+  const classUsagePattern = /oc\.([A-Za-z_][A-Za-z0-9_]*)/g;
+  const usedClasses = new Set<string>();
+  let match: RegExpExecArray | null;
+  while ((match = classUsagePattern.exec(code)) !== null) {
+    usedClasses.add(match[1]);
+  }
+
+  for (const usedClass of usedClasses) {
+    // Skip enum/static property access (like TopAbs_ShapeEnum.TopAbs_EDGE)
+    if (
+      usedClass.startsWith("TopAbs_") ||
+      usedClass.startsWith("ChFi3d_") ||
+      usedClass === "TopoDS"
+    ) {
+      continue;
+    }
+    // Check if it's in our whitelist
+    if (!VALID_OC_CLASSES.has(usedClass)) {
+      // Check if it's a known invalid class with a fix
+      if (INVALID_CLASS_FIXES[usedClass]) {
+        // Already handled above
+        continue;
+      }
+      errors.push(
+        `UNKNOWN CLASS: "oc.${usedClass}" is not in the valid class whitelist. Only use classes from the whitelist in the prompt.`,
+      );
+    }
   }
 
   return errors;
