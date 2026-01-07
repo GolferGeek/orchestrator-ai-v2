@@ -59,6 +59,41 @@
       </ion-card-content>
     </ion-card>
 
+    <!-- LLM Model Selection -->
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>AI Model</ion-card-title>
+        <ion-card-subtitle>Select the AI model for code generation</ion-card-subtitle>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-item>
+          <ion-label position="stacked">Model *</ion-label>
+          <ion-select v-model="selectedModel" interface="popover">
+            <ion-select-option value="anthropic:claude-sonnet-4-20250514">
+              Claude Sonnet 4 (Recommended)
+            </ion-select-option>
+            <ion-select-option value="anthropic:claude-3-5-sonnet-20241022">
+              Claude 3.5 Sonnet
+            </ion-select-option>
+            <ion-select-option value="ollama:qwen2.5-coder:14b">
+              Qwen 2.5 Coder 14B (Local)
+            </ion-select-option>
+            <ion-select-option value="ollama:qwen2.5-coder:7b">
+              Qwen 2.5 Coder 7B (Local, Faster)
+            </ion-select-option>
+          </ion-select>
+        </ion-item>
+        <p class="model-description">
+          <span v-if="selectedModel.startsWith('anthropic:')">
+            Cloud-based model with excellent code generation. Requires API key.
+          </span>
+          <span v-else>
+            Local model running on your machine. No API key needed but slower.
+          </span>
+        </p>
+      </ion-card-content>
+    </ion-card>
+
     <!-- Constraints -->
     <ion-card>
       <ion-card-header>
@@ -114,8 +149,8 @@
           <ion-input
             v-model.number="constraints.wall_thickness_min"
             type="number"
-            :min="0.1"
-            :step="0.1"
+            min="0.1"
+            step="0.1"
             placeholder="2.0"
           ></ion-input>
         </ion-item>
@@ -211,6 +246,8 @@ const emit = defineEmits<{
     newProjectName?: string;
     constraints: CadConstraints;
     outputFormats: string[];
+    llmProvider: string;
+    llmModel: string;
   }): void;
 }>();
 
@@ -220,6 +257,8 @@ const store = useCadAgentStore();
 const prompt = ref<string>('');
 const selectedProjectId = ref<string | null>(null);
 const newProjectName = ref<string>('');
+// Default to Claude Sonnet 4 (recommended)
+const selectedModel = ref<string>('anthropic:claude-sonnet-4-20250514');
 
 // Constraints from store (reactive)
 const constraints = computed({
@@ -285,12 +324,17 @@ function handleGenerate() {
   // Determine project info
   const isNewProject = selectedProjectId.value === '__new__';
 
+  // Parse provider:model format
+  const [provider, model] = selectedModel.value.split(':');
+
   emit('generate', {
     prompt: prompt.value.trim(),
     projectId: isNewProject ? undefined : (selectedProjectId.value || undefined),
     newProjectName: isNewProject ? newProjectName.value.trim() : undefined,
     constraints: constraints.value,
     outputFormats: selectedFormats,
+    llmProvider: provider,
+    llmModel: model,
   });
 }
 </script>
@@ -303,6 +347,13 @@ function handleGenerate() {
 }
 
 .project-description {
+  font-size: 0.875rem;
+  color: var(--ion-color-medium);
+  margin-top: 8px;
+  padding: 0 16px;
+}
+
+.model-description {
   font-size: 0.875rem;
   color: var(--ion-color-medium);
   margin-top: 8px;

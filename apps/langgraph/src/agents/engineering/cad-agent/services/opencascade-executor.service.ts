@@ -242,24 +242,49 @@ export class OpenCascadeExecutorService implements OnModuleInit {
 
       // Wrap the code in a function that returns the shape
       // Handle multiple function naming patterns
+      // Also wrap in try-catch to get better error messages from WASM
       const codePreview = JSON.stringify(cleanedCode.slice(0, 300));
       const wrappedCode = `
-        ${cleanedCode}
+        // Helper to extract meaningful error from WASM exceptions
+        function getWasmErrorMessage(err) {
+          if (typeof err === 'number') {
+            // WASM pointer - try to get exception info
+            if (oc.HEAPU8 && oc.___cxa_demangle) {
+              try {
+                // Try to demangle the exception type
+                return 'OpenCASCADE.js WASM exception (pointer: ' + err + '). This usually means invalid geometry or unsupported operation.';
+              } catch (e) {
+                return 'OpenCASCADE.js WASM exception (pointer: ' + err + ')';
+              }
+            }
+            return 'OpenCASCADE.js threw a WASM exception. Common causes: invalid class name, wrong constructor arguments, or unsupported geometry operation. Error pointer: ' + err;
+          }
+          if (err instanceof Error) {
+            return err.message;
+          }
+          return String(err);
+        }
 
-        // Try to find and call the main function
-        // Check various patterns: function declaration, const arrow, etc.
-        if (typeof createModel === 'function') {
-          return createModel(oc);
-        } else if (typeof main === 'function') {
-          return main(oc);
-        } else if (typeof buildModel === 'function') {
-          return buildModel(oc);
-        } else if (typeof makeShape === 'function') {
-          return makeShape(oc);
-        } else if (typeof generateModel === 'function') {
-          return generateModel(oc);
-        } else {
-          throw new Error('No createModel or main function found in generated code. Code preview: ' + ${codePreview});
+        try {
+          ${cleanedCode}
+
+          // Try to find and call the main function
+          // Check various patterns: function declaration, const arrow, etc.
+          if (typeof createModel === 'function') {
+            return createModel(oc);
+          } else if (typeof main === 'function') {
+            return main(oc);
+          } else if (typeof buildModel === 'function') {
+            return buildModel(oc);
+          } else if (typeof makeShape === 'function') {
+            return makeShape(oc);
+          } else if (typeof generateModel === 'function') {
+            return generateModel(oc);
+          } else {
+            throw new Error('No createModel or main function found in generated code. Code preview: ' + ${codePreview});
+          }
+        } catch (wasmErr) {
+          throw new Error(getWasmErrorMessage(wasmErr));
         }
       `;
 

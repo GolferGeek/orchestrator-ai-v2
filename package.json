@@ -32,6 +32,8 @@
     "test": "turbo run test",
     "lint": "turbo run lint --filter=nestjs",
     "format": "turbo run format",
+    "restart:6200": "pkill -f 'node.*langgraph/dist/main' || true && cd apps/langgraph && npm run build && npm run start:dev",
+    "kill:6200": "pkill -f 'node.*langgraph/dist/main' || echo 'No LangGraph process found'",
     "kill:6101": "lsof -ti:6101 | xargs kill -9 2>/dev/null || echo 'No process found on port 6101'",
     "kill:6100": "lsof -ti:6100 | xargs kill -9 2>/dev/null || echo 'No process found on port 6100'",
     "kill:4100": "lsof -ti:4100 | xargs kill -9 2>/dev/null || echo 'No process found on port 4100'",

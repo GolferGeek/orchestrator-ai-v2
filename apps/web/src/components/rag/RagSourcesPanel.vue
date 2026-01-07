@@ -1,196 +1,290 @@
 <template>
-  <div class="rag-sources-panel" v-if="sources && sources.length > 0">
+  <div v-if="sources && sources.length > 0" class="rag-sources-panel">
     <div class="sources-header" @click="toggleExpanded">
-      <ion-icon :icon="documentsOutline" />
+      <ion-icon :icon="expanded ? chevronDownOutline : chevronForwardOutline" class="toggle-icon" />
       <span class="sources-title">Sources ({{ sources.length }})</span>
-      <ion-icon :icon="expanded ? chevronUpOutline : chevronDownOutline" class="toggle-icon" />
+      <ion-badge color="primary" class="sources-badge">RAG</ion-badge>
     </div>
+
     <div v-if="expanded" class="sources-list">
       <div
         v-for="(source, index) in sources"
-        :key="source.chunkId || index"
+        :key="index"
         class="source-item"
-        @click="viewSource(source)"
+        :class="{ 'source-expanded': expandedSources.has(index) }"
       >
-        <div class="source-info">
-          <ion-icon :icon="documentTextOutline" class="doc-icon" />
-          <div class="source-details">
-            <span class="source-filename">{{ source.documentFilename || 'Document' }}</span>
-            <span class="source-meta">
-              <span v-if="source.pageNumber">Page {{ source.pageNumber }}</span>
-              <span v-if="source.score" class="score-badge">{{ (source.score * 100).toFixed(0) }}%</span>
-            </span>
+        <div class="source-header" @click="toggleSource(index)">
+          <div class="source-info">
+            <span class="source-number">[{{ index + 1 }}]</span>
+            <span class="source-document">{{ formatDocumentName(source.document) }}</span>
+            <ion-badge :color="getScoreColor(source.score)" class="source-score">
+              {{ source.score }}%
+            </ion-badge>
+          </div>
+          <div class="source-actions">
+            <ion-button
+              v-if="source.documentId"
+              fill="clear"
+              size="small"
+              @click.stop="openDocumentViewer(source)"
+              title="View full document"
+            >
+              <ion-icon :icon="documentOutline" />
+            </ion-button>
+            <ion-icon
+              :icon="expandedSources.has(index) ? chevronUpOutline : chevronDownOutline"
+              class="expand-icon"
+            />
           </div>
         </div>
-        <div class="source-excerpt" v-if="source.content">
-          {{ truncateContent(source.content) }}
+
+        <div v-if="source.sectionPath" class="source-section">
+          <ion-icon :icon="navigateOutline" class="section-icon" />
+          {{ source.sectionPath }}
+        </div>
+
+        <div v-if="expandedSources.has(index)" class="source-excerpt">
+          <p>{{ source.excerpt }}</p>
         </div>
       </div>
     </div>
   </div>
+
+  <!-- Document Viewer Modal -->
+  <RagDocumentViewer
+    v-if="viewerSource"
+    :is-open="showViewer"
+    :source="viewerSource"
+    :organization-slug="organizationSlug"
+    @close="closeViewer"
+  />
 </template>
 
-<script lang="ts" setup>
+<script setup lang="ts">
 import { ref } from 'vue';
-import { IonIcon } from '@ionic/vue';
+import { IonIcon, IonBadge, IonButton } from '@ionic/vue';
 import {
-  documentsOutline,
-  chevronUpOutline,
   chevronDownOutline,
-  documentTextOutline,
+  chevronForwardOutline,
+  chevronUpOutline,
+  documentOutline,
+  navigateOutline,
 } from 'ionicons/icons';
-
-export interface RagSource {
-  chunkId?: string;
-  documentId?: string;
-  documentFilename?: string;
-  content?: string;
-  score?: number;
-  pageNumber?: number | null;
-  chunkIndex?: number;
-  charOffset?: number;
-  metadata?: Record<string, unknown>;
-  documentIdRef?: string;
-  sectionPath?: string;
-}
+import type { RagSource } from '@/services/ragService';
+import RagDocumentViewer from './RagDocumentViewer.vue';
 
 defineProps<{
   sources: RagSource[];
-  organizationSlug?: string;
+  organizationSlug: string;
 }>();
 
-const expanded = ref(false);
+const expanded = ref(true);
+const expandedSources = ref<Set<number>>(new Set());
+const showViewer = ref(false);
+const viewerSource = ref<RagSource | null>(null);
 
-function toggleExpanded() {
+const toggleExpanded = () => {
   expanded.value = !expanded.value;
-}
+};
 
-function truncateContent(content: string, maxLength = 150): string {
-  if (content.length <= maxLength) return content;
-  return content.substring(0, maxLength).trim() + '...';
-}
+const toggleSource = (index: number) => {
+  if (expandedSources.value.has(index)) {
+    expandedSources.value.delete(index);
+  } else {
+    expandedSources.value.add(index);
+  }
+  // Force reactivity
+  expandedSources.value = new Set(expandedSources.value);
+};
 
-function viewSource(source: RagSource) {
-  // Could open a modal with full document view in the future
-  console.log('View source:', source);
-}
+const formatDocumentName = (filename: string): string => {
+  // Remove extension and convert kebab/snake case to title case
+  return filename
+    .replace(/\.(md|txt|pdf|docx)$/i, '')
+    .replace(/[-_]/g, ' ')
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
+const getScoreColor = (score: number): string => {
+  if (score >= 80) return 'success';
+  if (score >= 60) return 'primary';
+  if (score >= 40) return 'warning';
+  return 'medium';
+};
+
+const openDocumentViewer = (source: RagSource) => {
+  viewerSource.value = source;
+  showViewer.value = true;
+};
+
+const closeViewer = () => {
+  showViewer.value = false;
+  viewerSource.value = null;
+};
 </script>
 
 <style scoped>
 .rag-sources-panel {
   margin-top: 12px;
-  padding: 12px;
-  background: var(--ion-color-light);
+  border: 1px solid var(--ion-border-color, rgba(0, 0, 0, 0.1));
   border-radius: 8px;
-  border: 1px solid var(--ion-border-color, var(--ion-color-light-shade));
+  background: var(--ion-color-step-50, #f8f9fa);
+  overflow: hidden;
 }
 
 .sources-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  padding: 10px 14px;
   cursor: pointer;
-  user-select: none;
+  background: var(--ion-color-step-100, #f0f1f2);
+  transition: background 0.2s ease;
 }
 
-.sources-header ion-icon {
-  font-size: 18px;
-  color: var(--ion-color-primary);
-}
-
-.sources-title {
-  flex: 1;
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--ion-color-primary);
+.sources-header:hover {
+  background: var(--ion-color-step-150, #e8e9ea);
 }
 
 .toggle-icon {
   font-size: 16px;
   color: var(--ion-color-medium);
+  margin-right: 8px;
+}
+
+.sources-title {
+  flex: 1;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ion-text-color);
+}
+
+.sources-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
 }
 
 .sources-list {
-  margin-top: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  padding: 8px;
 }
 
 .source-item {
-  padding: 10px;
-  background: var(--ion-background-color);
+  background: var(--ion-background-color, #fff);
   border-radius: 6px;
-  border: 1px solid var(--ion-border-color, var(--ion-color-light-shade));
-  cursor: pointer;
-  transition: background 0.15s;
+  margin-bottom: 6px;
+  border: 1px solid var(--ion-border-color, rgba(0, 0, 0, 0.08));
+  overflow: hidden;
 }
 
-.source-item:hover {
-  background: var(--ion-color-light-tint);
+.source-item:last-child {
+  margin-bottom: 0;
+}
+
+.source-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.source-header:hover {
+  background: var(--ion-color-step-50, #f8f9fa);
 }
 
 .source-info {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.doc-icon {
-  font-size: 20px;
-  color: var(--ion-color-primary);
-}
-
-.source-details {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  min-width: 0;
 }
 
-.source-filename {
-  font-weight: 500;
-  font-size: 13px;
+.source-number {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ion-color-primary);
+  flex-shrink: 0;
+}
+
+.source-document {
+  font-size: 0.85rem;
   color: var(--ion-text-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.source-meta {
-  font-size: 11px;
-  color: var(--ion-color-medium);
+.source-score {
+  font-size: 0.7rem;
+  flex-shrink: 0;
+}
+
+.source-actions {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 4px;
 }
 
-.score-badge {
-  padding: 1px 6px;
-  background: var(--ion-color-success-tint);
-  color: var(--ion-color-success-shade);
-  border-radius: 4px;
-  font-weight: 500;
+.source-actions ion-button {
+  --padding-start: 6px;
+  --padding-end: 6px;
+  margin: 0;
+}
+
+.expand-icon {
+  font-size: 14px;
+  color: var(--ion-color-medium);
+}
+
+.source-section {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px 8px;
+  font-size: 0.75rem;
+  color: var(--ion-color-medium);
+}
+
+.section-icon {
+  font-size: 12px;
 }
 
 .source-excerpt {
-  margin-top: 6px;
-  font-size: 12px;
+  padding: 10px 12px;
+  background: var(--ion-color-step-50, #f8f9fa);
+  border-top: 1px solid var(--ion-border-color, rgba(0, 0, 0, 0.08));
+}
+
+.source-excerpt p {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
   color: var(--ion-color-medium-shade);
-  line-height: 1.4;
 }
 
-/* Dark mode */
-html.ion-palette-dark .rag-sources-panel,
-html[data-theme="dark"] .rag-sources-panel {
-  background: var(--ion-color-step-50, rgba(255, 255, 255, 0.05));
+/* Dark mode adjustments */
+:global(.ion-palette-dark) .rag-sources-panel,
+:global([data-theme="dark"]) .rag-sources-panel {
+  background: var(--ion-color-step-100, #1e1e1e);
   border-color: var(--ion-border-color, rgba(255, 255, 255, 0.1));
 }
 
-html.ion-palette-dark .source-item,
-html[data-theme="dark"] .source-item {
-  background: var(--ion-color-step-100, rgba(255, 255, 255, 0.08));
-  border-color: var(--ion-border-color, rgba(255, 255, 255, 0.1));
+:global(.ion-palette-dark) .sources-header,
+:global([data-theme="dark"]) .sources-header {
+  background: var(--ion-color-step-150, #2a2a2a);
 }
 
-html.ion-palette-dark .source-item:hover,
-html[data-theme="dark"] .source-item:hover {
-  background: var(--ion-color-step-150, rgba(255, 255, 255, 0.12));
+:global(.ion-palette-dark) .source-item,
+:global([data-theme="dark"]) .source-item {
+  background: var(--ion-color-step-50, #1a1a1a);
+  border-color: var(--ion-border-color, rgba(255, 255, 255, 0.08));
+}
+
+:global(.ion-palette-dark) .source-excerpt,
+:global([data-theme="dark"]) .source-excerpt {
+  background: var(--ion-color-step-100, #222);
 }
 </style>
