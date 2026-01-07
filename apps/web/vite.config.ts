@@ -100,10 +100,7 @@ export default defineConfig(({ mode }) => {
     optimizeDeps: {
       include: [
         '@orchestrator-ai/transport-types',
-        'three',
-        'three/addons/controls/OrbitControls.js',
-        'three/addons/loaders/GLTFLoader.js',
-        'three/addons/loaders/STLLoader.js'
+        'three'
       ]
     },
     server: {

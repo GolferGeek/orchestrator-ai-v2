@@ -1580,7 +1580,7 @@ onMounted(() => {
 .file-database-title {
   font-size: 1.75rem;
   font-weight: var(--font-weight-bold);
-  color: #667eea; /* Blue color */
+  color: #8b5a3c; /* Primary brown color */
   text-align: center;
   margin: 0;
 }

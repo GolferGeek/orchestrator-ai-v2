@@ -30,7 +30,7 @@
         </div>
       </div>
 
-      <!-- Filter Bar -->
+      <!-- Search Bar and Actions -->
       <div class="filter-bar">
         <ion-searchbar
           v-model="searchQuery"
@@ -38,16 +38,6 @@
           @ionInput="applyFilters"
           debounce="300"
         />
-        <ion-select
-          v-model="filterType"
-          placeholder="Filter by type"
-          interface="popover"
-          class="filter-select"
-        >
-          <ion-select-option value="all">All Teams</ion-select-option>
-          <ion-select-option value="global">Global Only</ion-select-option>
-          <ion-select-option value="org">Org Only</ion-select-option>
-        </ion-select>
         <ion-button @click="openCreateModal">
           <ion-icon :icon="addOutline" slot="start" />
           New Team
@@ -818,7 +808,7 @@ onMounted(() => {
   display: flex;
   gap: 1.5rem;
   padding: 1rem 1.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #a16c4a 0%, #6d4428 100%);
   border-radius: 10px;
   margin-bottom: 1.5rem;
   color: white;
@@ -853,10 +843,6 @@ onMounted(() => {
   flex: 1;
   --background: white;
   --border-radius: 8px;
-}
-
-.filter-select {
-  min-width: 150px;
 }
 
 .filter-bar ion-button {

@@ -410,7 +410,7 @@ onMounted(() => {
   display: flex;
   gap: 1.5rem;
   padding: 1rem 1.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #a16c4a 0%, #6d4428 100%);
   border-radius: 10px;
   margin-bottom: 1.5rem;
   color: white;

@@ -2,7 +2,7 @@
   <div class="detail-view">
     <!-- Detail Header -->
     <div class="detail-header">
-      <h2>PII Pattern Management</h2>
+      <h2>Personally Identifiable Information Pattern Management</h2>
       <div class="header-actions">
         <ion-button fill="clear" size="small" @click="handleCreatePattern">
           <ion-icon :icon="addOutline" slot="icon-only" />
@@ -12,11 +12,6 @@
 
     <div class="detail-body">
       <div class="pii-management-container">
-        <!-- Page Header -->
-        <div class="page-header">
-          <p>Manage patterns for detecting and handling personally identifiable information (PII)</p>
-        </div>
-
         <!-- PIIPatternTable Component -->
         <PIIPatternTable
           @edit-pattern="handleEditPattern"
@@ -140,15 +135,5 @@ const handlePatternSaved = async (pattern: PIIPattern) => {
   padding: 1rem;
   max-width: 1200px;
   margin: 0 auto;
-}
-
-.page-header {
-  margin-bottom: 1.5rem;
-}
-
-.page-header p {
-  color: var(--ion-color-medium);
-  font-size: 0.95rem;
-  margin: 0;
 }
 </style>

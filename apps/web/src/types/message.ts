@@ -100,6 +100,19 @@ export interface MessageMetadata {
 
   /** Custom metadata fields */
   custom?: Record<string, string | number | boolean>;
+
+  /** RAG sources (for RAG agent responses) */
+  sources?: Array<{
+    document: string;
+    documentId: string;
+    score: number;
+    excerpt: string;
+    charOffset?: number;
+    documentIdRef?: string;
+    sectionPath?: string;
+    matchType?: string;
+    version?: string;
+  }>;
 }
 
 // =====================================

@@ -19,11 +19,17 @@
   --dark-border-secondary: #4b5563;
   --dark-border-subtle: #374151;
   
-  /* Accent colors */
-  --dark-accent-blue: #3b82f6;
-  --dark-accent-blue-light: #60a5fa;
-  --dark-accent-blue-dark: #1e40af;
-  --dark-accent-blue-bg: #1e3a8a;
+  /* Accent colors - warm brown to match brand palette */
+  --dark-accent-primary: #a16c4a;
+  --dark-accent-primary-light: #b88a6a;
+  --dark-accent-primary-dark: #6d4428;
+  --dark-accent-primary-bg: #3c2415;
+  
+  /* Legacy aliases for backward compatibility */
+  --dark-accent-blue: var(--dark-accent-primary);
+  --dark-accent-blue-light: var(--dark-accent-primary-light);
+  --dark-accent-blue-dark: var(--dark-accent-primary-dark);
+  --dark-accent-blue-bg: var(--dark-accent-primary-bg);
   
   /* Code highlighting */
   --dark-code-bg: #111827;
