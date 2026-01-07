@@ -19,22 +19,20 @@ ON CONFLICT (slug) DO UPDATE SET
 -- 2. Move agents to their new organizations
 -- =============================================================================
 
--- Data Analyst -> global
+-- Core agents used by E2E tests -> finance
 UPDATE public.agents
-SET organization_slug = ARRAY['global'], updated_at = NOW()
+SET organization_slug = ARRAY['finance'], updated_at = NOW()
 WHERE slug = 'data-analyst';
 
--- HR Policy Agent -> global
 UPDATE public.agents
-SET organization_slug = ARRAY['global'], updated_at = NOW()
+SET organization_slug = ARRAY['finance'], updated_at = NOW()
 WHERE slug = 'hr-policy-agent';
 
--- Blog Post Writer -> marketing
 UPDATE public.agents
-SET organization_slug = ARRAY['marketing'], updated_at = NOW()
+SET organization_slug = ARRAY['finance'], updated_at = NOW()
 WHERE slug = 'blog-post-writer';
 
--- Extended Post Writer -> marketing
+-- Other marketing demo agents -> marketing (unchanged)
 UPDATE public.agents
 SET organization_slug = ARRAY['marketing'], updated_at = NOW()
 WHERE slug = 'extended-post-writer';
@@ -93,6 +91,7 @@ BEGIN
     RAISE NOTICE '  engineering';
     RAISE NOTICE '  golfergeek';
     RAISE NOTICE '  hiverarchy';
+    RAISE NOTICE '  finance';
     RAISE NOTICE '  legal';
     RAISE NOTICE '  marketing';
     RAISE NOTICE '  orchestratorai';

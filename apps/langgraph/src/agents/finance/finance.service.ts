@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { ExecutionContext } from "@orchestrator-ai/transport-types";
 import { LLMHttpClientService } from "../../services/llm-http-client.service";
 import { ObservabilityService } from "../../services/observability.service";
@@ -23,9 +23,9 @@ export interface FinanceWorkflowInput {
  * Manages the LangGraph execution and result delivery.
  */
 @Injectable()
-export class FinanceService {
+export class FinanceService implements OnModuleInit {
   private readonly logger = new Logger(FinanceService.name);
-  private graph: FinanceGraph;
+  private graph!: FinanceGraph;
 
   constructor(
     private readonly llmClient: LLMHttpClientService,
@@ -33,13 +33,22 @@ export class FinanceService {
     private readonly checkpointer: PostgresCheckpointerService,
     private readonly financeDb: FinanceDbService,
   ) {
-    // Initialize the graph
+    // Graph initialization deferred to onModuleInit to ensure checkpointer is ready
+  }
+
+  /**
+   * Initialize the graph after all dependencies are ready
+   * This runs after PostgresCheckpointerService.onModuleInit() completes
+   */
+  async onModuleInit() {
+    this.logger.log("Initializing Finance graph...");
     this.graph = createFinanceGraph(
       this.llmClient,
       this.observability,
       this.checkpointer,
       this.financeDb,
     );
+    this.logger.log("Finance graph initialized successfully");
   }
 
   /**

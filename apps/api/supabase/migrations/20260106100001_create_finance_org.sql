@@ -67,6 +67,28 @@ BEGIN
 END $$;
 
 -- =============================================================================
+-- ASSIGN TEST USERS TO FINANCE ORG (FOR E2E + DEMO)
+-- =============================================================================
+-- Keep this email-based so it works across different environments where UUIDs differ.
+DO $$
+DECLARE
+    v_admin_role_id UUID;
+BEGIN
+    SELECT id INTO v_admin_role_id FROM public.rbac_roles WHERE name = 'admin';
+
+    IF v_admin_role_id IS NOT NULL THEN
+        INSERT INTO public.rbac_user_org_roles (user_id, organization_slug, role_id)
+        SELECT u.id, 'finance', v_admin_role_id
+        FROM public.users u
+        WHERE u.email IN (
+            'demo.user@orchestratorai.io',
+            'demo.user@playground.com'
+        )
+        ON CONFLICT (user_id, organization_slug, role_id) DO NOTHING;
+    END IF;
+END $$;
+
+-- =============================================================================
 -- LOG SUCCESS
 -- =============================================================================
 

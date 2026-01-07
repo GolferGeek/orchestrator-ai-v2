@@ -80,7 +80,7 @@ Tests the complete user lifecycle including:
 - Password: `Golfer123!`
 - Display Name: `Golfer`
 - Initial Role: `member`
-- Organization: `demo-org`
+- Organization: `finance`
 
 ### Health Check (`health.e2e-spec.ts`)
 

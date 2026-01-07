@@ -25,7 +25,7 @@ const API_URL = process.env.API_URL || 'http://localhost:6100';
 const TEST_EMAIL = process.env.SUPABASE_TEST_USER || 'demo.user@orchestratorai.io';
 const TEST_PASSWORD = process.env.SUPABASE_TEST_PASSWORD || 'DemoUser123!';
 const TEST_USER_ID = process.env.SUPABASE_TEST_USERID || 'b29a590e-b07f-49df-a25b-574c956b5035';
-const ORG_SLUG = 'demo-org';
+const ORG_SLUG = 'finance';
 
 // NIL_UUID for unset context fields
 const NIL_UUID = '00000000-0000-0000-0000-000000000000';

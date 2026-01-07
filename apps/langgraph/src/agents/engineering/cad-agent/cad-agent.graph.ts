@@ -913,9 +913,12 @@ const VALID_OC_CLASSES = new Set([
  */
 const INVALID_CLASS_FIXES: Record<string, string> = {
   TopExp_Explorer_3: "TopExp_Explorer_2",
-  TopExp_Explorer_1: "TopExp_Explorer_2 (with 3 arguments: shape, toFind, toAvoid)",
-  TopoDS_Shape_1: "shapes are returned by .Shape() method, not constructed directly",
-  TopoDS_Shape: "shapes are returned by .Shape() method, not constructed directly",
+  TopExp_Explorer_1:
+    "TopExp_Explorer_2 (with 3 arguments: shape, toFind, toAvoid)",
+  TopoDS_Shape_1:
+    "shapes are returned by .Shape() method, not constructed directly",
+  TopoDS_Shape:
+    "shapes are returned by .Shape() method, not constructed directly",
   BRepFilletAPI_MakeFillet2d: "BRepFilletAPI_MakeFillet",
   BRepFilletAPI_MakeFillet2d_1: "BRepFilletAPI_MakeFillet",
   BRepFilletAPI_MakeFillet2d_2: "BRepFilletAPI_MakeFillet",

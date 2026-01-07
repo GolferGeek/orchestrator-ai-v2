@@ -42,7 +42,7 @@ describe('User Management E2E Test', () => {
     displayName: 'Golfer',
     roles: ['member'],
     emailConfirm: false,
-    organizationAccess: ['demo-org']
+    organizationAccess: ['finance']
   };
 
   const adminCredentials = {
@@ -98,7 +98,7 @@ describe('User Management E2E Test', () => {
       expect(response.data.email).toBe(testUser.email);
       expect(response.data.displayName).toBe(testUser.displayName);
       expect(response.data.roles).toContain('member');
-      expect(response.data.organizationAccess).toContain('demo-org');
+      expect(response.data.organizationAccess).toContain('finance');
 
       // Store user ID for subsequent tests
       createdUserId = response.data.id;
@@ -112,7 +112,7 @@ describe('User Management E2E Test', () => {
     it('should verify user exists in organization', async () => {
       console.log('\n🔍 Verifying user in organization...');
 
-      const response = await apiClient.get('/api/rbac/organizations/demo-org/users');
+      const response = await apiClient.get('/api/rbac/organizations/finance/users');
 
       const foundUser = response.data.users.find((u: any) => u.userId === createdUserId);
       expect(foundUser).toBeDefined();
@@ -130,7 +130,7 @@ describe('User Management E2E Test', () => {
         `/api/rbac/users/${createdUserId}/roles`,
         {
           params: {
-            organizationSlug: 'demo-org'
+            organizationSlug: 'finance'
           }
         }
       );
@@ -149,7 +149,7 @@ describe('User Management E2E Test', () => {
         `/api/rbac/users/${createdUserId}/roles`,
         {
           roleName: 'admin',
-          organizationSlug: 'demo-org'
+          organizationSlug: 'finance'
         }
       );
 
@@ -166,7 +166,7 @@ describe('User Management E2E Test', () => {
         `/api/rbac/users/${createdUserId}/roles`,
         {
           params: {
-            organizationSlug: 'demo-org'
+            organizationSlug: 'finance'
           }
         }
       );
@@ -185,7 +185,7 @@ describe('User Management E2E Test', () => {
         `/api/rbac/users/${createdUserId}/roles/admin`,
         {
           params: {
-            organizationSlug: 'demo-org'
+            organizationSlug: 'finance'
           }
         }
       );
@@ -203,7 +203,7 @@ describe('User Management E2E Test', () => {
         `/api/rbac/users/${createdUserId}/roles`,
         {
           params: {
-            organizationSlug: 'demo-org'
+            organizationSlug: 'finance'
           }
         }
       );
@@ -284,7 +284,7 @@ describe('User Management E2E Test', () => {
     it('should verify user not in organization', async () => {
       console.log('\n🔍 Verifying user not in organization list...');
 
-      const response = await apiClient.get('/api/rbac/organizations/demo-org/users');
+      const response = await apiClient.get('/api/rbac/organizations/finance/users');
 
       const foundUser = response.data.users.find((u: any) => u.userId === createdUserId);
       expect(foundUser).toBeUndefined();
