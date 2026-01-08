@@ -352,19 +352,19 @@
     {
       "id": "phase-3",
       "label": "Expand Stock Tools + Dashboard UI",
-      "status": "pending",
-      "progress": 0,
-      "started_at": null,
-      "completed_at": null,
+      "status": "completed",
+      "progress": 100,
+      "started_at": "2026-01-08T02:30:00Z",
+      "completed_at": "2026-01-08T03:00:00Z",
       "steps": [
         {
           "id": "step-3-1",
           "action": "Implement BloombergNewsTool parsing RSS feed for stock-related news claims",
           "agent": "api-architecture-agent",
-          "status": "pending",
-          "progress": 0,
-          "started_at": null,
-          "completed_at": null,
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-08T02:30:00Z",
+          "completed_at": "2026-01-08T02:40:00Z",
           "depends_on": ["step-2-8"],
           "deliverables": [
             "apps/api/src/agent2agent/runners/prediction/stock-predictor/tools/bloomberg-news.tool.ts"
@@ -376,10 +376,10 @@
           "id": "step-3-2",
           "action": "Implement ReutersRssTool parsing Reuters RSS for news claims",
           "agent": "api-architecture-agent",
-          "status": "pending",
-          "progress": 0,
-          "started_at": null,
-          "completed_at": null,
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-08T02:30:00Z",
+          "completed_at": "2026-01-08T02:40:00Z",
           "depends_on": ["step-2-8"],
           "deliverables": [
             "apps/api/src/agent2agent/runners/prediction/stock-predictor/tools/reuters-rss.tool.ts"
@@ -391,10 +391,10 @@
           "id": "step-3-3",
           "action": "Implement SecFilingsTool for SEC EDGAR filings (8-K, 10-K events)",
           "agent": "api-architecture-agent",
-          "status": "pending",
-          "progress": 0,
-          "started_at": null,
-          "completed_at": null,
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-08T02:30:00Z",
+          "completed_at": "2026-01-08T02:45:00Z",
           "depends_on": ["step-2-8"],
           "deliverables": [
             "apps/api/src/agent2agent/runners/prediction/stock-predictor/tools/sec-filings.tool.ts"
@@ -406,10 +406,10 @@
           "id": "step-3-4",
           "action": "Create PredictionAgentPane.vue main container orchestrating dashboard components",
           "agent": "web-architecture-agent",
-          "status": "pending",
-          "progress": 0,
-          "started_at": null,
-          "completed_at": null,
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-08T02:30:00Z",
+          "completed_at": "2026-01-08T02:55:00Z",
           "depends_on": ["step-2-8"],
           "deliverables": [
             "apps/web/src/components/AgentPanes/Prediction/PredictionAgentPane.vue"
@@ -421,10 +421,10 @@
           "id": "step-3-5",
           "action": "Create CurrentStateComponent.vue showing latest datapoint and active recommendations",
           "agent": "web-architecture-agent",
-          "status": "pending",
-          "progress": 0,
-          "started_at": null,
-          "completed_at": null,
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-08T02:45:00Z",
+          "completed_at": "2026-01-08T02:55:00Z",
           "depends_on": ["step-3-4"],
           "deliverables": [
             "apps/web/src/components/AgentPanes/Prediction/CurrentStateComponent.vue"
@@ -436,10 +436,10 @@
           "id": "step-3-6",
           "action": "Create InstrumentsComponent.vue for managing tracked instruments with add/remove",
           "agent": "web-architecture-agent",
-          "status": "pending",
-          "progress": 0,
-          "started_at": null,
-          "completed_at": null,
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-08T02:45:00Z",
+          "completed_at": "2026-01-08T02:55:00Z",
           "depends_on": ["step-3-4"],
           "deliverables": [
             "apps/web/src/components/AgentPanes/Prediction/InstrumentsComponent.vue"
@@ -451,10 +451,10 @@
           "id": "step-3-7",
           "action": "Create HistoryComponent.vue showing past predictions with outcomes, pagination, filtering",
           "agent": "web-architecture-agent",
-          "status": "pending",
-          "progress": 0,
-          "started_at": null,
-          "completed_at": null,
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-08T02:45:00Z",
+          "completed_at": "2026-01-08T02:55:00Z",
           "depends_on": ["step-3-4"],
           "deliverables": [
             "apps/web/src/components/AgentPanes/Prediction/HistoryComponent.vue"
@@ -466,10 +466,10 @@
           "id": "step-3-8",
           "action": "Create ToolsComponent.vue showing data source status and recent claims per tool",
           "agent": "web-architecture-agent",
-          "status": "pending",
-          "progress": 0,
-          "started_at": null,
-          "completed_at": null,
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-08T02:45:00Z",
+          "completed_at": "2026-01-08T02:55:00Z",
           "depends_on": ["step-3-4"],
           "deliverables": [
             "apps/web/src/components/AgentPanes/Prediction/ToolsComponent.vue"
@@ -481,10 +481,10 @@
           "id": "step-3-9",
           "action": "Create ConfigComponent.vue with risk profile, thresholds, and admin-only model config section",
           "agent": "web-architecture-agent",
-          "status": "pending",
-          "progress": 0,
-          "started_at": null,
-          "completed_at": null,
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-08T02:45:00Z",
+          "completed_at": "2026-01-08T02:55:00Z",
           "depends_on": ["step-3-4"],
           "deliverables": [
             "apps/web/src/components/AgentPanes/Prediction/ConfigComponent.vue"
@@ -496,10 +496,10 @@
           "id": "step-3-10",
           "action": "Create shared UI components: ClaimCard.vue, RecommendationRow.vue, OutcomeBadge.vue, ConfidenceBar.vue",
           "agent": "web-architecture-agent",
-          "status": "pending",
-          "progress": 0,
-          "started_at": null,
-          "completed_at": null,
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-08T02:40:00Z",
+          "completed_at": "2026-01-08T02:50:00Z",
           "depends_on": ["step-3-4"],
           "deliverables": [
             "apps/web/src/components/AgentPanes/Prediction/shared/ClaimCard.vue",
@@ -514,10 +514,10 @@
           "id": "step-3-11",
           "action": "Create API controller with endpoints: /predictions/current, /predictions/history, /instruments, /tools, /config, /status, /start, /stop, /pause, /resume, /poll-now",
           "agent": "api-architecture-agent",
-          "status": "pending",
-          "progress": 0,
-          "started_at": null,
-          "completed_at": null,
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-08T02:45:00Z",
+          "completed_at": "2026-01-08T02:55:00Z",
           "depends_on": ["step-2-8"],
           "deliverables": [
             "apps/api/src/agent2agent/runners/prediction/prediction.controller.ts"
@@ -529,10 +529,10 @@
           "id": "step-3-12",
           "action": "Create prediction-agent.store.ts Pinia store for dashboard state management",
           "agent": "web-architecture-agent",
-          "status": "pending",
-          "progress": 0,
-          "started_at": null,
-          "completed_at": null,
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-08T02:40:00Z",
+          "completed_at": "2026-01-08T02:50:00Z",
           "depends_on": ["step-3-4"],
           "deliverables": [
             "apps/web/src/stores/prediction-agent.store.ts"
@@ -687,6 +687,22 @@
         },
         {
           "id": "step-4-10",
+          "action": "Update AgentTreeView.vue to differentiate dashboard vs conversation agents: implement getInteractionMode() helper based on agent_type and metadata.interaction_mode, show conversation bubble icon for conversation agents (with 'New Conversation' button), show dashboard icon (e.g., 'D' badge or grid icon) for dashboard agents (opens dashboard pane on click), update click handlers to route dashboard agents to PredictionAgentPane",
+          "agent": "web-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-3-4"],
+          "deliverables": [
+            "apps/web/src/components/AgentTreeView.vue",
+            "apps/web/src/utils/agent-interaction-mode.ts"
+          ],
+          "validation_checkpoint": null,
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-4-11",
           "action": "Add learning API endpoints: /learning/chat, /learning/apply-update, /learning/stats, /learning/insights",
           "agent": "api-architecture-agent",
           "status": "pending",
@@ -969,7 +985,7 @@
       "id": "checkpoint-3",
       "label": "Gate D: Dashboard Complete",
       "description": "UI can display Current State, Instruments, History, Tools, Config from real stored data",
-      "status": "pending",
+      "status": "passed",
       "triggered_after": ["step-3-12"]
     },
     {
@@ -977,7 +993,7 @@
       "label": "Gate E: Learning Loop Functional",
       "description": "Learning queries work with correct joins; at least one applied insight stored and affects context",
       "status": "pending",
-      "triggered_after": ["step-4-10"]
+      "triggered_after": ["step-4-11"]
     },
     {
       "id": "checkpoint-5",

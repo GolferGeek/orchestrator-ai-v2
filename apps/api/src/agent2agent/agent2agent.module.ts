@@ -32,6 +32,7 @@ import { HttpModule } from '@nestjs/axios';
 import { StreamingService } from './services/streaming.service';
 import { ObservabilityModule } from '../observability/observability.module';
 import { RagModule } from '../rag/rag.module';
+import { PredictionModule } from './runners/prediction/prediction.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { RagModule } from '../rag/rag.module';
     DeliverablesModule,
     PlansModule,
     ContextOptimizationModule,
+    PredictionModule,
   ],
   controllers: [Agent2AgentController, AgentApprovalsActionsController],
   providers: [

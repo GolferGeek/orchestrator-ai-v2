@@ -22,3 +22,15 @@ export {
   AlphaVantageToolConfig,
   createAlphaVantageTool,
 } from './alpha-vantage.tool';
+
+// Bloomberg News tool (RSS feed)
+export {
+  BloombergNewsTool,
+  BloombergNewsToolConfig,
+} from './bloomberg-news.tool';
+
+// Reuters RSS tool (RSS feed)
+export { ReutersRssTool, ReutersRssToolConfig } from './reuters-rss.tool';
+
+// SEC Filings tool (EDGAR API)
+export { SecFilingsTool, SecFilingsToolConfig } from './sec-filings.tool';
