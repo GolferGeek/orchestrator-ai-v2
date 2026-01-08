@@ -114,10 +114,23 @@
                 <div v-for="agent in group.agents.slice(1)" :key="agent.name" class="agent-section nested-agent">
                   <!-- Agent Header -->
                   <ion-item class="nested-agent-item">
-                    <ion-icon :icon="icons.personOutline" slot="start" color="medium" />
+                    <ion-icon
+                      :icon="agentShowsDashboard(agent) ? icons.analyticsOutline : icons.personOutline"
+                      slot="start"
+                      :color="agentShowsDashboard(agent) ? 'tertiary' : 'medium'"
+                    />
                     <ion-label>
                       <h4>{{ formatAgentDisplayName(agent, false) }}</h4>
                     </ion-label>
+                    <!-- Dashboard badge for prediction/dashboard agents -->
+                    <ion-badge
+                      v-if="agentShowsDashboard(agent)"
+                      color="tertiary"
+                      class="dashboard-badge"
+                      title="Dashboard Agent"
+                    >
+                      D
+                    </ion-badge>
                     <ion-badge :color="agent.totalConversations > 0 ? 'secondary' : 'light'" class="conversation-count">
                       {{ agent.totalConversations }}
                     </ion-badge>
@@ -133,8 +146,20 @@
                       >
                         <ion-icon :icon="isConversationListExpanded(agent.name) ? icons.chevronDownOutline : icons.chevronForwardOutline" />
                       </ion-button>
-                      <!-- New conversation button -->
+                      <!-- Dashboard button for dashboard agents -->
                       <ion-button
+                        v-if="agentShowsDashboard(agent)"
+                        fill="clear"
+                        size="small"
+                        @click="openAgentDashboard(agent)"
+                        title="Open dashboard"
+                        class="header-action-btn dashboard-btn"
+                      >
+                        <ion-icon :icon="icons.gridOutline" color="tertiary" />
+                      </ion-button>
+                      <!-- New conversation button (show for conversation agents or dashboard agents that support chat) -->
+                      <ion-button
+                        v-if="agentShowsConversation(agent)"
                         fill="clear"
                         size="small"
                         @click="createNewConversation(agent)"
@@ -270,10 +295,23 @@
                 <div v-for="agent in group.agents.slice(1)" :key="agent.name" class="agent-section nested-agent">
                 <!-- Agent Header -->
                 <ion-item class="nested-agent-item">
-                  <ion-icon :icon="icons.personOutline" slot="start" color="medium" />
+                  <ion-icon
+                    :icon="agentShowsDashboard(agent) ? icons.analyticsOutline : icons.personOutline"
+                    slot="start"
+                    :color="agentShowsDashboard(agent) ? 'tertiary' : 'medium'"
+                  />
                   <ion-label>
                     <h4>{{ formatAgentDisplayName(agent, false) }}</h4>
                   </ion-label>
+                  <!-- Dashboard badge for prediction/dashboard agents -->
+                  <ion-badge
+                    v-if="agentShowsDashboard(agent)"
+                    color="tertiary"
+                    class="dashboard-badge"
+                    title="Dashboard Agent"
+                  >
+                    D
+                  </ion-badge>
                   <ion-badge :color="agent.totalConversations > 0 ? 'secondary' : 'light'" class="conversation-count">
                     {{ agent.totalConversations }}
                   </ion-badge>
@@ -289,8 +327,20 @@
                     >
                       <ion-icon :icon="isConversationListExpanded(agent.name) ? icons.chevronDownOutline : icons.chevronForwardOutline" />
                     </ion-button>
-                    <!-- New conversation button -->
+                    <!-- Dashboard button for dashboard agents -->
                     <ion-button
+                      v-if="agentShowsDashboard(agent)"
+                      fill="clear"
+                      size="small"
+                      @click="openAgentDashboard(agent)"
+                      title="Open dashboard"
+                      class="header-action-btn dashboard-btn"
+                    >
+                      <ion-icon :icon="icons.gridOutline" color="tertiary" />
+                    </ion-button>
+                    <!-- New conversation button (show for conversation agents or dashboard agents that support chat) -->
+                    <ion-button
+                      v-if="agentShowsConversation(agent)"
                       fill="clear"
                       size="small"
                       @click="createNewConversation(agent)"
@@ -347,10 +397,23 @@
         <div v-for="agent in group.agents" :key="agent.name" class="agent-section">
           <!-- Agent Header -->
           <ion-item class="specialist-item">
-            <ion-icon :icon="icons.personOutline" color="medium" slot="start" />
+            <ion-icon
+              :icon="agentShowsDashboard(agent) ? icons.analyticsOutline : icons.personOutline"
+              :color="agentShowsDashboard(agent) ? 'tertiary' : 'medium'"
+              slot="start"
+            />
             <ion-label>
               <h3>{{ formatAgentDisplayName(agent, true) }}</h3>
             </ion-label>
+            <!-- Dashboard badge for prediction/dashboard agents -->
+            <ion-badge
+              v-if="agentShowsDashboard(agent)"
+              color="tertiary"
+              class="dashboard-badge"
+              title="Dashboard Agent"
+            >
+              D
+            </ion-badge>
             <ion-badge :color="agent.totalConversations > 0 ? 'primary' : 'medium'" class="conversation-count">
               {{ agent.totalConversations }}
             </ion-badge>
@@ -366,8 +429,20 @@
               >
                 <ion-icon :icon="isConversationListExpanded(agent.name) ? icons.chevronDownOutline : icons.chevronForwardOutline" />
               </ion-button>
-              <!-- New conversation button -->
+              <!-- Dashboard button for dashboard agents -->
               <ion-button
+                v-if="agentShowsDashboard(agent)"
+                fill="clear"
+                size="small"
+                @click="openAgentDashboard(agent)"
+                title="Open dashboard"
+                class="header-action-btn dashboard-btn"
+              >
+                <ion-icon :icon="icons.gridOutline" color="tertiary" />
+              </ion-button>
+              <!-- New conversation button (show for conversation agents or dashboard agents that support chat) -->
+              <ion-button
+                v-if="agentShowsConversation(agent)"
                 fill="clear"
                 size="small"
                 @click="createNewConversation(agent)"
@@ -451,8 +526,19 @@ import {
   trashOutline,
   chevronDownOutline,
   chevronForwardOutline,
+  gridOutline,
+  analyticsOutline,
 } from 'ionicons/icons';
 import { formatAgentName } from '@/utils/caseConverter';
+import {
+  getInteractionMode,
+  shouldShowDashboardIcon,
+  shouldShowConversationIcon,
+  isPredictionAgent,
+  getDashboardComponent,
+  type InteractionModeConfig,
+  type Agent as InteractionAgent,
+} from '@/utils/agent-interaction-mode';
 import { storeToRefs } from 'pinia';
 import { useAgentsStore } from '@/stores/agentsStore';
 import { useConversationsStore } from '@/stores/conversationsStore';
@@ -462,6 +548,7 @@ import { conversationsService } from '@/services/conversationsService';
 import { agentsService } from '@/services/agentsService';
 import { useAuthStore } from '@/stores/rbacStore';
 import ConversationDeleteModal from './ConversationDeleteModal.vue';
+import type { Agent, AgentConversation } from '@/types/conversation';
 
 // Props
 const props = defineProps<{
@@ -469,12 +556,11 @@ const props = defineProps<{
   searchQuery?: string;
 }>();
 
-import type { Agent, AgentConversation } from '@/types/conversation';
-
 // Emits
 const emit = defineEmits<{
   'agent-selected': [agent: Agent];
   'conversation-selected': [conversation: AgentConversation];
+  'open-dashboard': [agent: Agent, componentName: string];
 }>();
 
 // Reactive state
@@ -499,6 +585,8 @@ const icons = {
   trashOutline,
   chevronDownOutline,
   chevronForwardOutline,
+  gridOutline,
+  analyticsOutline,
 };
 
 // Stores
@@ -977,6 +1065,54 @@ const filterAgents = () => {
   // Filtering is handled in computed property
 };
 
+/**
+ * Get the interaction mode config for an agent.
+ * Wraps the utility function for template use.
+ * Uses InteractionAgent type which includes metadata properties.
+ */
+const getAgentInteractionMode = (agent: InteractionAgent): InteractionModeConfig => {
+  return getInteractionMode(agent);
+};
+
+/**
+ * Check if agent should show dashboard icon.
+ * Accepts any agent-like object and casts to InteractionAgent for metadata access.
+ */
+const agentShowsDashboard = (agent: unknown): boolean => {
+  return shouldShowDashboardIcon(agent as InteractionAgent);
+};
+
+/**
+ * Check if agent should show conversation icon.
+ * Accepts any agent-like object and casts to InteractionAgent for metadata access.
+ */
+const agentShowsConversation = (agent: unknown): boolean => {
+  return shouldShowConversationIcon(agent as InteractionAgent);
+};
+
+/**
+ * Open the dashboard for a dashboard-mode agent.
+ * Accepts any agent-like object and casts to InteractionAgent for metadata access.
+ */
+const openAgentDashboard = (agent: unknown) => {
+  const componentName = getDashboardComponent(agent as InteractionAgent);
+  if (componentName) {
+    emit('open-dashboard', agent as Agent, componentName);
+  }
+};
+
+/**
+ * Handle agent action click - routes to dashboard or conversation based on mode.
+ */
+const handleAgentAction = (agent: unknown) => {
+  const mode = getInteractionMode(agent as InteractionAgent);
+  if (mode.mode === 'dashboard' && mode.canOpenDashboard) {
+    openAgentDashboard(agent);
+  } else {
+    createNewConversation(agent as Agent);
+  }
+};
+
 const createNewConversation = async (agent: Agent) => {
   try {
     emit('agent-selected', agent);
@@ -1341,5 +1477,28 @@ watch(
 
 .toggle-btn:hover {
   --color: var(--ion-color-primary);
+}
+
+/* Dashboard agent styling */
+.dashboard-badge {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  margin-right: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.dashboard-btn {
+  --color: var(--ion-color-tertiary);
+}
+
+.dashboard-btn:hover {
+  --color: var(--ion-color-tertiary-shade);
+}
+
+/* Dashboard agent item styling */
+.specialist-item ion-icon[color="tertiary"],
+.nested-agent-item ion-icon[color="tertiary"] {
+  font-size: 18px;
 }
 </style>

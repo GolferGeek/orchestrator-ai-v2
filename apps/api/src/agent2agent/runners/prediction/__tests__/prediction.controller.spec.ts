@@ -42,10 +42,11 @@ describe('PredictionController', () => {
   };
 
   const mockAgentStatus: AgentStatus = {
+    agentId: 'pred-agent-1',
     state: 'running',
-    startedAt: '2026-01-07T10:00:00Z',
     lastPollAt: '2026-01-07T11:00:00Z',
     nextPollAt: '2026-01-07T11:05:00Z',
+    pollIntervalMs: 300000,
     stats: {
       pollCount: 10,
       errorCount: 0,
