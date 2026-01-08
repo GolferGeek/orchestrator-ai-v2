@@ -14,7 +14,11 @@
  */
 
 import { Type } from '@nestjs/common';
-import { PredictionRunnerType } from './base/base-prediction.types';
+import {
+  PredictionRunnerType,
+  RunnerInput,
+  RunnerOutput,
+} from './base/base-prediction.types';
 
 /**
  * Interface that all prediction runners must implement.
@@ -26,6 +30,9 @@ export interface IPredictionRunner {
 
   /** Runner name for logging */
   readonly runnerName: string;
+
+  /** Execute the prediction runner */
+  execute(input: RunnerInput): Promise<RunnerOutput>;
 }
 
 /**

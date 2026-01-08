@@ -18,7 +18,14 @@ import type {
   Claim,
   Datapoint,
   PredictionRunnerConfig,
+  RunnerInput,
+  RunnerOutput,
 } from '../base/base-prediction.types';
+
+// Helper to create mock execute function
+const mockExecute = async (_input: RunnerInput): Promise<RunnerOutput> => {
+  throw new Error('Mock execute not implemented');
+};
 
 describe('Phase 0: Contracts', () => {
   describe('RUNNER_REGISTRY', () => {
@@ -31,6 +38,7 @@ describe('Phase 0: Contracts', () => {
       const mockRunner = class MockRunner implements IPredictionRunner {
         readonly runnerType = 'stock-predictor' as const;
         readonly runnerName = 'Mock Stock Predictor';
+        execute = mockExecute;
       };
 
       RUNNER_REGISTRY.register({
@@ -53,6 +61,7 @@ describe('Phase 0: Contracts', () => {
       const mockRunner = class MockRunner implements IPredictionRunner {
         readonly runnerType = 'stock-predictor' as const;
         readonly runnerName = 'Mock';
+        execute = mockExecute;
       };
 
       RUNNER_REGISTRY.register({
@@ -82,10 +91,12 @@ describe('Phase 0: Contracts', () => {
       const mockRunner1 = class Mock1 implements IPredictionRunner {
         readonly runnerType = 'stock-predictor' as const;
         readonly runnerName = 'Mock1';
+        execute = mockExecute;
       };
       const mockRunner2 = class Mock2 implements IPredictionRunner {
         readonly runnerType = 'crypto-predictor' as const;
         readonly runnerName = 'Mock2';
+        execute = mockExecute;
       };
 
       RUNNER_REGISTRY.register({
