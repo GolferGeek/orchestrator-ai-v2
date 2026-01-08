@@ -46,7 +46,7 @@ describe('LearningConversationService', () => {
         order: jest.fn(() => createChain()),
         single: singleMock,
         // Make chain thenable for direct await (non-single queries)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         then: (resolve?: any, reject?: any) => {
           return directQueryMock().then(resolve, reject);
         },

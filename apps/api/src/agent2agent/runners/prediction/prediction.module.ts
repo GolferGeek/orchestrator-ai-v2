@@ -4,6 +4,17 @@
  * NestJS module for the ambient prediction agent system.
  * Provides controllers and services for managing prediction runners.
  *
+ * DOMAIN MODULES:
+ * - StockPredictorModule: Stock market predictions (AAPL, TSLA, etc.)
+ * - CryptoPredictorModule: Cryptocurrency predictions (BTC, ETH, SOL, etc.)
+ * - MarketPredictorModule: Prediction market predictions (Polymarket)
+ *
+ * SHARED SERVICES:
+ * - AmbientAgentOrchestratorService: Background polling orchestration
+ * - RunnerFactoryService: Runner instance creation
+ * - PredictionDbService: Database persistence
+ * - Learning services: Outcome evaluation, postmortems, context updates
+ *
  * @module prediction.module
  */
 
@@ -22,6 +33,16 @@ import { AgentContextUpdateService } from './base/services/agent-context-update.
 import { SupabaseModule } from '../../../supabase/supabase.module';
 import { LLMModule } from '../../../llms/llm.module';
 
+// Domain-specific predictor modules
+import { StockPredictorModule } from './stock-predictor/stock-predictor.module';
+import { CryptoPredictorModule } from './crypto-predictor/crypto-predictor.module';
+import { MarketPredictorModule } from './market-predictor/market-predictor.module';
+
+// Re-export runner services for external access
+export { StockPredictorRunnerService } from './stock-predictor/stock-predictor-runner.service';
+export { CryptoPredictorRunnerService } from './crypto-predictor/crypto-predictor-runner.service';
+export { MarketPredictorRunnerService } from './market-predictor/market-predictor-runner.service';
+
 /**
  * Prediction Module
  *
@@ -32,9 +53,18 @@ import { LLMModule } from '../../../llms/llm.module';
  * - Runner factory for creating prediction runners
  * - Database service for storing predictions
  * - Learning services for outcome evaluation, postmortems, and context updates
+ * - Domain-specific modules for stocks, crypto, and prediction markets
  */
 @Module({
-  imports: [SupabaseModule, LLMModule],
+  imports: [
+    // Core dependencies
+    SupabaseModule,
+    LLMModule,
+    // Domain-specific predictor modules
+    StockPredictorModule,
+    CryptoPredictorModule,
+    MarketPredictorModule,
+  ],
   controllers: [PredictionController, LearningController],
   providers: [
     AmbientAgentOrchestratorService,
@@ -48,6 +78,7 @@ import { LLMModule } from '../../../llms/llm.module';
     AgentContextUpdateService,
   ],
   exports: [
+    // Shared services
     AmbientAgentOrchestratorService,
     RunnerFactoryService,
     PredictionDbService,
@@ -57,6 +88,10 @@ import { LLMModule } from '../../../llms/llm.module';
     LearningContextBuilderService,
     LearningConversationService,
     AgentContextUpdateService,
+    // Domain modules (re-export for external access)
+    StockPredictorModule,
+    CryptoPredictorModule,
+    MarketPredictorModule,
   ],
 })
 export class PredictionModule {}
