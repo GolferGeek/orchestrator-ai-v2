@@ -9,7 +9,6 @@ import { DataAnalystModule } from "./agents/data-analyst/data-analyst.module";
 import { ExtendedPostWriterModule } from "./agents/extended-post-writer/extended-post-writer.module";
 import { MarketingSwarmModule } from "./agents/marketing-swarm/marketing-swarm.module";
 import { CadAgentModule } from "./agents/engineering/cad-agent/cad-agent.module";
-import { FinanceModule } from "./agents/finance/finance.module";
 
 @Module({
   imports: [
@@ -32,7 +31,6 @@ import { FinanceModule } from "./agents/finance/finance.module";
     ExtendedPostWriterModule,
     MarketingSwarmModule,
     CadAgentModule,
-    FinanceModule,
     // Health check
     HealthModule,
   ],
