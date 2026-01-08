@@ -35,6 +35,11 @@ import {
   RunnerInput,
   RunnerOutput,
   PredictionRunnerConfig,
+  PredictionRunnerType,
+  RiskProfile,
+  PreFilterThresholds,
+  StageModelConfig,
+  LearningConfig,
 } from './base/base-prediction.types';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -57,6 +62,32 @@ interface RunningAgentState {
     errorCount: number;
     totalPollDurationMs: number;
   };
+}
+
+/**
+ * Type for prediction_agents table row
+ */
+interface PredictionAgentRow {
+  agent_slug: string;
+  org_slug: string;
+  runner_type: string;
+  instruments: string[] | null;
+  risk_profile: string | null;
+  poll_interval_ms: number | null;
+  pre_filter_thresholds: Record<string, unknown> | null;
+  model_config: Record<string, unknown> | null;
+  learning_config: Record<string, unknown> | null;
+  tool_overrides: Record<string, unknown> | null;
+}
+
+/**
+ * Type for agents table row (subset of columns we query)
+ */
+interface AgentRow {
+  slug: string;
+  agent_type: string;
+  metadata: Record<string, unknown> | null;
+  llm_config: Record<string, unknown> | null;
 }
 
 @Injectable()
@@ -442,47 +473,160 @@ export class AmbientAgentOrchestratorService
 
   /**
    * Load auto-start agents from database.
+   * Queries prediction_agents table for agents with auto_start=true,
+   * then loads full agent data from public.agents.
    */
   private async loadAutoStartAgents(): Promise<AgentRecord[]> {
     const client = this.supabaseService.getServiceClient();
 
-    const { data, error } = await client
-      .from('agents')
-      .select('*')
-      .eq('agent_type', 'prediction')
-      .eq('is_active', true)
-      // Note: auto_start flag may not exist yet - this will be added in Phase 2
-      // For now, start all active prediction agents
+    // Query prediction_agents for auto-start enabled agents
+    const { data: predictionAgentsRaw, error: predError } = await client
+      .schema('predictions')
+      .from('prediction_agents')
+      .select(
+        'agent_slug, org_slug, runner_type, instruments, risk_profile, poll_interval_ms, pre_filter_thresholds, model_config, learning_config, tool_overrides',
+      )
+      .eq('auto_start', true)
       .order('created_at', { ascending: false });
+    const predictionAgents = predictionAgentsRaw as PredictionAgentRow[] | null;
 
-    if (error) {
-      throw new Error(`Failed to load auto-start agents: ${error.message}`);
+    if (predError) {
+      throw new Error(`Failed to load auto-start agents: ${predError.message}`);
     }
 
-    return (data || []) as AgentRecord[];
+    if (!predictionAgents || predictionAgents.length === 0) {
+      return [];
+    }
+
+    // Load full agent data from public.agents for each prediction agent
+    const agentSlugs = predictionAgents.map((pa) => pa.agent_slug);
+    const { data: agentsRaw, error: agentError } = await client
+      .from('agents')
+      .select('slug, agent_type, metadata, llm_config')
+      .in('slug', agentSlugs);
+    const agents = agentsRaw as AgentRow[] | null;
+
+    if (agentError) {
+      throw new Error(`Failed to load agent details: ${agentError.message}`);
+    }
+
+    // Merge prediction_agents config into agent records
+    const result: AgentRecord[] = [];
+    for (const pa of predictionAgents) {
+      const agent = agents?.find((a) => a.slug === pa.agent_slug);
+      if (agent) {
+        result.push({
+          id: pa.agent_slug, // Use slug as ID for consistency
+          slug: pa.agent_slug,
+          org_slug: pa.org_slug,
+          agent_type: agent.agent_type,
+          metadata: {
+            ...(agent.metadata || {}),
+            runnerConfig: {
+              runner: pa.runner_type as PredictionRunnerType,
+              instruments: pa.instruments || [],
+              riskProfile: (pa.risk_profile || 'moderate') as RiskProfile,
+              pollIntervalMs: pa.poll_interval_ms || 60000,
+              preFilterThresholds:
+                (pa.pre_filter_thresholds as unknown as PreFilterThresholds) || {
+                  minPriceChangePercent: 2,
+                  minSentimentShift: 0.3,
+                  minSignificanceScore: 0.5,
+                },
+              modelConfig: (pa.model_config || undefined) as
+                | StageModelConfig
+                | undefined,
+              learningConfig: (pa.learning_config || undefined) as
+                | LearningConfig
+                | undefined,
+              toolOverrides: pa.tool_overrides || undefined,
+            },
+          },
+          llm_config: agent.llm_config,
+        });
+      }
+    }
+
+    return result;
   }
 
   /**
    * Load a single agent from database.
+   * The agentId is the agent_slug from prediction_agents.
    */
   private async loadAgent(agentId: string): Promise<AgentRecord | null> {
     const client = this.supabaseService.getServiceClient();
 
-    const result = await client
-      .from('agents')
-      .select('*')
-      .eq('id', agentId)
+    // Query prediction_agents by agent_slug
+    const { data: paRaw, error: predError } = await client
+      .schema('predictions')
+      .from('prediction_agents')
+      .select(
+        'agent_slug, org_slug, runner_type, instruments, risk_profile, poll_interval_ms, pre_filter_thresholds, model_config, learning_config, tool_overrides',
+      )
+      .eq('agent_slug', agentId)
       .single();
+    const pa = paRaw as PredictionAgentRow | null;
 
-    if (result.error) {
-      if (result.error.code === 'PGRST116') {
-        // Not found
+    if (predError) {
+      if (predError.code === 'PGRST116') {
         return null;
       }
-      throw new Error(`Failed to load agent: ${result.error.message}`);
+      throw new Error(`Failed to load prediction agent: ${predError.message}`);
     }
 
-    // Type assertion is safe here as we control the query
-    return result.data as AgentRecord;
+    if (!pa) {
+      return null;
+    }
+
+    // Load full agent data from public.agents
+    const { data: agentRaw, error: agentError } = await client
+      .from('agents')
+      .select('slug, agent_type, metadata, llm_config')
+      .eq('slug', agentId)
+      .single();
+    const agent = agentRaw as AgentRow | null;
+
+    if (agentError) {
+      if (agentError.code === 'PGRST116') {
+        return null;
+      }
+      throw new Error(`Failed to load agent: ${agentError.message}`);
+    }
+
+    if (!agent) {
+      return null;
+    }
+
+    // Merge prediction_agents config into agent record
+    return {
+      id: pa.agent_slug,
+      slug: pa.agent_slug,
+      org_slug: pa.org_slug,
+      agent_type: agent.agent_type,
+      metadata: {
+        ...(agent.metadata || {}),
+        runnerConfig: {
+          runner: pa.runner_type as PredictionRunnerType,
+          instruments: pa.instruments || [],
+          riskProfile: (pa.risk_profile || 'moderate') as RiskProfile,
+          pollIntervalMs: pa.poll_interval_ms || 60000,
+          preFilterThresholds:
+            (pa.pre_filter_thresholds as unknown as PreFilterThresholds) || {
+              minPriceChangePercent: 2,
+              minSentimentShift: 0.3,
+              minSignificanceScore: 0.5,
+            },
+          modelConfig: (pa.model_config || undefined) as
+            | StageModelConfig
+            | undefined,
+          learningConfig: (pa.learning_config || undefined) as
+            | LearningConfig
+            | undefined,
+          toolOverrides: pa.tool_overrides || undefined,
+        },
+      },
+      llm_config: agent.llm_config,
+    };
   }
 }

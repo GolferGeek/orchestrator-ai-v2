@@ -55,24 +55,133 @@ describe('PredictionController', () => {
     },
   };
 
-  const mockSupabaseClient = {
-    from: jest.fn().mockReturnThis(),
-    select: jest.fn().mockReturnThis(),
-    eq: jest.fn().mockReturnThis(),
-    order: jest.fn().mockReturnThis(),
-    limit: jest.fn().mockReturnThis(),
-    range: jest.fn().mockReturnThis(),
-    single: jest.fn().mockReturnThis(),
-    update: jest.fn().mockReturnThis(),
-  };
+  // Create a properly chained mock Supabase client
+  // This mock tracks the query being built and returns the right response
+  // based on the terminal method called
+
+  // Store mock responses for sequential calls by terminal method
+  let singleResponses: Array<{ data: unknown; error: unknown }>;
+  let limitResponses: Array<{ data: unknown; error: unknown }>;
+  let rangeResponses: Array<{ data: unknown; error: unknown; count?: number }>;
+  // For queries that end at .eq() (like organization_members select)
+  let terminalSelectResponses: Array<{ data: unknown; error: unknown }>;
+  // For update().eq() calls
+  let updateEqResponses: Array<{ error: unknown }>;
+
+  let mockSupabaseClient: ReturnType<typeof createMockSupabaseClient>;
+
+  function createMockSupabaseClient() {
+    let singleCallIndex = 0;
+    let limitCallIndex = 0;
+    let rangeCallIndex = 0;
+    let terminalSelectCallIndex = 0;
+    let updateEqCallIndex = 0;
+
+    // Track whether we're building an update query
+    let isUpdateQuery = false;
+
+    const mock: {
+      from: jest.Mock;
+      select: jest.Mock;
+      eq: jest.Mock;
+      order: jest.Mock;
+      limit: jest.Mock;
+      range: jest.Mock;
+      single: jest.Mock;
+      update: jest.Mock;
+    } = {
+      from: jest.fn(),
+      select: jest.fn(),
+      eq: jest.fn(),
+      order: jest.fn(),
+      limit: jest.fn(),
+      range: jest.fn(),
+      single: jest.fn(),
+      update: jest.fn(),
+    };
+
+    // from() always chains and resets isUpdateQuery
+    mock.from.mockImplementation(() => {
+      isUpdateQuery = false;
+      return mock;
+    });
+
+    // select() always chains
+    mock.select.mockImplementation(() => mock);
+
+    // eq() chains unless it's after update() in which case it terminates
+    mock.eq.mockImplementation(() => {
+      if (isUpdateQuery) {
+        // This is an update().eq() terminal call
+        const response = updateEqResponses[updateEqCallIndex++] || {
+          error: null,
+        };
+        return Promise.resolve(response);
+      }
+      // eq() chains for most queries, but some queries end at eq()
+      // We need to check if there's more chaining or if this is terminal
+      // Return an object that can either be awaited or chained
+      const chainablePromise = {
+        ...mock,
+        then: (resolve: (val: unknown) => void) => {
+          const response = terminalSelectResponses[
+            terminalSelectCallIndex++
+          ] || { data: [], error: null };
+          return Promise.resolve(response).then(resolve);
+        },
+      };
+      return chainablePromise;
+    });
+
+    // order() always chains
+    mock.order.mockImplementation(() => mock);
+
+    // update() marks this as an update query and chains
+    mock.update.mockImplementation(() => {
+      isUpdateQuery = true;
+      return mock;
+    });
+
+    // Terminal methods that return data
+    mock.limit.mockImplementation(() => {
+      const response = limitResponses[limitCallIndex++] || {
+        data: [],
+        error: null,
+      };
+      return Promise.resolve(response);
+    });
+
+    mock.range.mockImplementation(() => {
+      const response = rangeResponses[rangeCallIndex++] || {
+        data: [],
+        error: null,
+        count: 0,
+      };
+      return Promise.resolve(response);
+    });
+
+    mock.single.mockImplementation(() => {
+      const response = singleResponses[singleCallIndex++] || {
+        data: null,
+        error: { code: 'NO_MOCK' },
+      };
+      return Promise.resolve(response);
+    });
+
+    return mock;
+  }
+
+  function resetMockResponses() {
+    singleResponses = [];
+    limitResponses = [];
+    rangeResponses = [];
+    terminalSelectResponses = [];
+    updateEqResponses = [];
+  }
 
   beforeEach(async () => {
-    mockSupabaseClient.from.mockReturnThis();
-    mockSupabaseClient.select.mockReturnThis();
-    mockSupabaseClient.eq.mockReturnThis();
-    mockSupabaseClient.order.mockReturnThis();
-    mockSupabaseClient.limit.mockReturnThis();
-    mockSupabaseClient.range.mockReturnThis();
+    resetMockResponses();
+    mockSupabaseClient = createMockSupabaseClient();
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [PredictionController],
@@ -115,24 +224,28 @@ describe('PredictionController', () => {
     jest.clearAllMocks();
   });
 
+  // Helper to get a fresh copy of mockAgent to avoid mutation issues
+  function getAgentCopy() {
+    return JSON.parse(JSON.stringify(mockAgent));
+  }
+
   // Helper to setup agent ownership verification
   function setupAgentOwnership(agentFound = true) {
-    // Mock loadAgent
-    mockSupabaseClient.single.mockResolvedValueOnce({
-      data: agentFound ? mockAgent : null,
+    // 1. loadAgent call - single()
+    singleResponses.push({
+      data: agentFound ? getAgentCopy() : null,
       error: agentFound ? null : { code: 'PGRST116' },
     });
 
-    // Mock organization_members query
-    mockSupabaseClient.eq.mockReturnThis();
-    mockSupabaseClient.select.mockResolvedValueOnce({
+    // 2. organization_members query - ends at .eq() which is awaited (terminalSelectResponses)
+    terminalSelectResponses.push({
       data: [{ org_id: 'org-1' }],
       error: null,
     });
 
-    // Mock organizations query
-    mockSupabaseClient.single.mockResolvedValueOnce({
-      data: { id: 'org-1' },
+    // 3. organizations query - single()
+    singleResponses.push({
+      data: { id: 'org-1', slug: 'test-org' },
       error: null,
     });
   }
@@ -141,8 +254,8 @@ describe('PredictionController', () => {
     it('should return current predictions for agent', async () => {
       setupAgentOwnership();
 
-      // Mock datapoints query
-      mockSupabaseClient.limit.mockResolvedValueOnce({
+      // Mock datapoints query - limit() terminal
+      limitResponses.push({
         data: [
           {
             id: 'dp-1',
@@ -153,8 +266,8 @@ describe('PredictionController', () => {
         error: null,
       });
 
-      // Mock recommendations query
-      mockSupabaseClient.limit.mockResolvedValueOnce({
+      // Mock recommendations query - limit() terminal
+      limitResponses.push({
         data: [
           {
             id: 'rec-1',
@@ -166,9 +279,9 @@ describe('PredictionController', () => {
         error: null,
       });
 
-      // Mock loadAgent again for response
-      mockSupabaseClient.single.mockResolvedValueOnce({
-        data: mockAgent,
+      // Mock loadAgent again for response - single()
+      singleResponses.push({
+        data: getAgentCopy(),
         error: null,
       });
 
@@ -183,7 +296,7 @@ describe('PredictionController', () => {
     });
 
     it('should throw NotFoundException for non-existent agent', async () => {
-      mockSupabaseClient.single.mockResolvedValueOnce({
+      singleResponses.push({
         data: null,
         error: { code: 'PGRST116' },
       });
@@ -198,8 +311,8 @@ describe('PredictionController', () => {
     it('should return paginated history', async () => {
       setupAgentOwnership();
 
-      // Mock recommendations query with pagination
-      mockSupabaseClient.range.mockResolvedValueOnce({
+      // Mock recommendations query with pagination - range() terminal
+      rangeResponses.push({
         data: [
           { id: 'rec-1', instrument: 'AAPL', action: 'buy' },
           { id: 'rec-2', instrument: 'MSFT', action: 'sell' },
@@ -225,7 +338,8 @@ describe('PredictionController', () => {
     it('should use default pagination when not specified', async () => {
       setupAgentOwnership();
 
-      mockSupabaseClient.range.mockResolvedValueOnce({
+      // Mock range() terminal
+      rangeResponses.push({
         data: [],
         error: null,
         count: 0,
@@ -253,9 +367,9 @@ describe('PredictionController', () => {
     it('should return tracked instruments', async () => {
       setupAgentOwnership();
 
-      // Mock loadAgent for response
-      mockSupabaseClient.single.mockResolvedValueOnce({
-        data: mockAgent,
+      // Mock loadAgent for response - single()
+      singleResponses.push({
+        data: getAgentCopy(),
         error: null,
       });
 
@@ -268,11 +382,20 @@ describe('PredictionController', () => {
     it('should throw BadRequestException if no runnerConfig', async () => {
       const agentWithoutConfig = { ...mockAgent, metadata: {} };
 
-      mockSupabaseClient.single
-        .mockResolvedValueOnce({ data: agentWithoutConfig, error: null })
-        .mockResolvedValueOnce({ data: [{ org_id: 'org-1' }], error: null })
-        .mockResolvedValueOnce({ data: { id: 'org-1' }, error: null })
-        .mockResolvedValueOnce({ data: agentWithoutConfig, error: null });
+      // 1. loadAgent - single()
+      singleResponses.push({ data: agentWithoutConfig, error: null });
+      // 2. org_members - terminalSelectResponses
+      terminalSelectResponses.push({
+        data: [{ org_id: 'org-1' }],
+        error: null,
+      });
+      // 3. organizations - single()
+      singleResponses.push({
+        data: { id: 'org-1', slug: 'test-org' },
+        error: null,
+      });
+      // 4. loadAgent again - single()
+      singleResponses.push({ data: agentWithoutConfig, error: null });
 
       await expect(
         controller.getInstruments(mockAgentId, mockUser),
@@ -284,14 +407,14 @@ describe('PredictionController', () => {
     it('should update instruments successfully', async () => {
       setupAgentOwnership();
 
-      // Mock loadAgent for update
-      mockSupabaseClient.single.mockResolvedValueOnce({
-        data: mockAgent,
+      // Mock loadAgent for update - single()
+      singleResponses.push({
+        data: getAgentCopy(),
         error: null,
       });
 
-      // Mock update
-      mockSupabaseClient.eq.mockResolvedValueOnce({
+      // Mock update().eq() terminal
+      updateEqResponses.push({
         error: null,
       });
 
@@ -306,8 +429,9 @@ describe('PredictionController', () => {
 
     it('should throw BadRequestException for empty instruments', async () => {
       setupAgentOwnership();
-      mockSupabaseClient.single.mockResolvedValueOnce({
-        data: mockAgent,
+      // Mock loadAgent - single()
+      singleResponses.push({
+        data: getAgentCopy(),
         error: null,
       });
 
@@ -322,8 +446,9 @@ describe('PredictionController', () => {
 
     it('should throw BadRequestException for non-array instruments', async () => {
       setupAgentOwnership();
-      mockSupabaseClient.single.mockResolvedValueOnce({
-        data: mockAgent,
+      // Mock loadAgent - single()
+      singleResponses.push({
+        data: getAgentCopy(),
         error: null,
       });
 
@@ -341,8 +466,8 @@ describe('PredictionController', () => {
     it('should return tool status with recent sources', async () => {
       setupAgentOwnership();
 
-      // Mock datapoints query with tools data
-      mockSupabaseClient.limit.mockResolvedValueOnce({
+      // Mock datapoints query with tools data - limit() terminal
+      limitResponses.push({
         data: [
           {
             id: 'dp-1',
@@ -374,7 +499,8 @@ describe('PredictionController', () => {
     it('should track error status for failed tools', async () => {
       setupAgentOwnership();
 
-      mockSupabaseClient.limit.mockResolvedValueOnce({
+      // Mock limit() terminal
+      limitResponses.push({
         data: [
           {
             id: 'dp-1',
@@ -407,8 +533,9 @@ describe('PredictionController', () => {
     it('should return agent configuration', async () => {
       setupAgentOwnership();
 
-      mockSupabaseClient.single.mockResolvedValueOnce({
-        data: mockAgent,
+      // Mock loadAgent - single()
+      singleResponses.push({
+        data: getAgentCopy(),
         error: null,
       });
 
@@ -425,12 +552,14 @@ describe('PredictionController', () => {
     it('should update configuration successfully', async () => {
       setupAgentOwnership();
 
-      mockSupabaseClient.single.mockResolvedValueOnce({
-        data: mockAgent,
+      // Mock loadAgent - single()
+      singleResponses.push({
+        data: getAgentCopy(),
         error: null,
       });
 
-      mockSupabaseClient.eq.mockResolvedValueOnce({
+      // Mock update().eq() terminal
+      updateEqResponses.push({
         error: null,
       });
 
@@ -464,7 +593,8 @@ describe('PredictionController', () => {
         },
       };
 
-      mockSupabaseClient.single.mockResolvedValueOnce({
+      // Mock loadAgent - single()
+      singleResponses.push({
         data: incompleteAgent,
         error: null,
       });
@@ -587,21 +717,21 @@ describe('PredictionController', () => {
 
   describe('agent ownership verification', () => {
     it('should throw NotFoundException when user does not own agent', async () => {
-      // Mock loadAgent success
-      mockSupabaseClient.single.mockResolvedValueOnce({
-        data: mockAgent,
+      // 1. loadAgent success - single()
+      singleResponses.push({
+        data: getAgentCopy(),
         error: null,
       });
 
-      // Mock user has no org memberships
-      mockSupabaseClient.select.mockResolvedValueOnce({
+      // 2. user has no org memberships - terminalSelectResponses
+      terminalSelectResponses.push({
         data: [],
         error: null,
       });
 
-      // Mock organization lookup
-      mockSupabaseClient.single.mockResolvedValueOnce({
-        data: { id: 'different-org' },
+      // 3. organization lookup - single()
+      singleResponses.push({
+        data: { id: 'different-org', slug: 'different-org' },
         error: null,
       });
 
