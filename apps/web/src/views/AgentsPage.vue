@@ -72,9 +72,10 @@
                   </ion-item>
                   <div slot="content" class="agents-content">
                     <!-- Agent Tree -->
-                    <AgentTreeView 
+                    <AgentTreeView
                       @conversation-selected="handleConversationSelected"
                       @agent-selected="handleAgentSelected"
+                      @open-dashboard="handleOpenDashboard"
                       :compact-mode="true"
                     />
                   </div>
@@ -202,6 +203,25 @@ const handleAgentSelected = async (agent: Record<string, unknown>) => {
     router.push({ path: '/app/home', query: { forceHome: 'true', conversationId } });
   } catch (error) {
     console.error('Failed to handle agent selection:', error);
+  }
+};
+
+const handleOpenDashboard = async (agent: Record<string, unknown>, _componentName: string) => {
+  try {
+    // Dashboard agents: create a conversation and navigate to it
+    // The ConversationView will detect hasCustomUI and show the dashboard component
+    const conversationId = await conversation.createConversation(agent);
+
+    // Refresh conversations list to show the new conversation in sidebar
+    await conversationsService.fetchConversations(true);
+
+    // Set flag in sessionStorage to indicate active conversation
+    sessionStorage.setItem('activeConversation', 'true');
+
+    // Navigate - ConversationView will render the appropriate dashboard component
+    router.push({ path: '/app/home', query: { forceHome: 'true', conversationId } });
+  } catch (error) {
+    console.error('Failed to open dashboard:', error);
   }
 };
 </script>

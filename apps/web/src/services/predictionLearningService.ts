@@ -6,7 +6,7 @@
  * learning conversations.
  */
 
-import { api } from './apiService';
+import { apiService } from './apiService';
 
 // =============================================================================
 // Types
@@ -102,13 +102,13 @@ export interface ApplyLearningsResult {
 // =============================================================================
 
 class PredictionLearningService {
-  private baseUrl = '/api/v1/predictions';
+  private baseUrl = '/predictions';
 
   /**
    * Get learning summary for an agent.
    */
   async getLearningSummary(agentId: string): Promise<LearningSummary> {
-    const response = await api.get<LearningSummary>(
+    const response = await apiService.get<LearningSummary>(
       `${this.baseUrl}/${agentId}/learning/stats`
     );
     return response;
@@ -125,7 +125,7 @@ class PredictionLearningService {
     const params = new URLSearchParams({ limit: limit.toString() });
     if (instrument) params.set('instrument', instrument);
 
-    const response = await api.get<PostmortemSummary[]>(
+    const response = await apiService.get<PostmortemSummary[]>(
       `${this.baseUrl}/${agentId}/learning/postmortems?${params}`
     );
     return response;
@@ -146,7 +146,7 @@ class PredictionLearningService {
     });
     if (instrument) params.set('instrument', instrument);
 
-    const response = await api.get<MissedOpportunitySummary[]>(
+    const response = await apiService.get<MissedOpportunitySummary[]>(
       `${this.baseUrl}/${agentId}/learning/missed-opportunities?${params}`
     );
     return response;
@@ -167,7 +167,7 @@ class PredictionLearningService {
     });
     if (instrument) params.set('instrument', instrument);
 
-    const response = await api.get<UserInsightSummary[]>(
+    const response = await apiService.get<UserInsightSummary[]>(
       `${this.baseUrl}/${agentId}/learning/insights?${params}`
     );
     return response;
@@ -184,7 +184,7 @@ class PredictionLearningService {
       lookbackDays: lookbackDays.toString(),
     });
 
-    const response = await api.get<SpecialistStat[]>(
+    const response = await apiService.get<SpecialistStat[]>(
       `${this.baseUrl}/${agentId}/learning/specialist-stats?${params}`
     );
     return response;
@@ -194,7 +194,7 @@ class PredictionLearningService {
    * Apply all unapplied learnings for an agent.
    */
   async applyAllLearnings(agentId: string): Promise<ApplyLearningsResult> {
-    const response = await api.post<ApplyLearningsResult>(
+    const response = await apiService.post<ApplyLearningsResult>(
       `${this.baseUrl}/${agentId}/learning/apply-all`
     );
     return response;
@@ -204,7 +204,7 @@ class PredictionLearningService {
    * Apply a specific postmortem's learnings.
    */
   async applyPostmortem(agentId: string, postmortemId: string): Promise<void> {
-    await api.post(`${this.baseUrl}/${agentId}/learning/apply-postmortem`, {
+    await apiService.post(`${this.baseUrl}/${agentId}/learning/apply-postmortem`, {
       postmortemId,
     });
   }
@@ -216,7 +216,7 @@ class PredictionLearningService {
     agentId: string,
     opportunityId: string
   ): Promise<void> {
-    await api.post(`${this.baseUrl}/${agentId}/learning/apply-missed-opportunity`, {
+    await apiService.post(`${this.baseUrl}/${agentId}/learning/apply-missed-opportunity`, {
       opportunityId,
     });
   }
@@ -225,7 +225,7 @@ class PredictionLearningService {
    * Apply a specific user insight.
    */
   async applyUserInsight(agentId: string, insightId: string): Promise<void> {
-    await api.post(`${this.baseUrl}/${agentId}/learning/apply-insight`, {
+    await apiService.post(`${this.baseUrl}/${agentId}/learning/apply-insight`, {
       insightId,
     });
   }
@@ -239,7 +239,7 @@ class PredictionLearningService {
     focusReferenceId?: string,
     focusInstrument?: string
   ): Promise<LearningConversation> {
-    const response = await api.post<LearningConversation>(
+    const response = await apiService.post<LearningConversation>(
       `${this.baseUrl}/${agentId}/learning/chat/start`,
       {
         focusType,
@@ -257,7 +257,7 @@ class PredictionLearningService {
     conversationId: string,
     message: string
   ): Promise<MessageResponse> {
-    const response = await api.post<MessageResponse>(
+    const response = await apiService.post<MessageResponse>(
       `${this.baseUrl}/learning/chat/${conversationId}/message`,
       { message }
     );
@@ -268,7 +268,7 @@ class PredictionLearningService {
    * End a learning conversation.
    */
   async endConversation(conversationId: string): Promise<void> {
-    await api.post(`${this.baseUrl}/learning/chat/${conversationId}/end`);
+    await apiService.post(`${this.baseUrl}/learning/chat/${conversationId}/end`);
   }
 
   /**
@@ -277,7 +277,7 @@ class PredictionLearningService {
   async getActiveConversations(
     agentId: string
   ): Promise<LearningConversation[]> {
-    const response = await api.get<LearningConversation[]>(
+    const response = await apiService.get<LearningConversation[]>(
       `${this.baseUrl}/${agentId}/learning/chat/active`
     );
     return response;
@@ -295,7 +295,7 @@ class PredictionLearningService {
       reason: string;
     }
   ): Promise<void> {
-    await api.post(
+    await apiService.post(
       `${this.baseUrl}/learning/chat/${conversationId}/apply-update`,
       update
     );

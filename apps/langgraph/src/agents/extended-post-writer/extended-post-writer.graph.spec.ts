@@ -2,7 +2,6 @@ import { createMockExecutionContext } from "@orchestrator-ai/transport-types";
 import {
   ExtendedPostWriterStateAnnotation,
   ExtendedPostWriterState,
-  GeneratedContent,
 } from "./extended-post-writer.state";
 import { createExtendedPostWriterGraph } from "./extended-post-writer.graph";
 import { LLMHttpClientService } from "../../services/llm-http-client.service";

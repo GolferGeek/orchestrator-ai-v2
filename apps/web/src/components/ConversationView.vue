@@ -14,6 +14,11 @@
         v-else-if="customUIComponent === 'finance'"
         :conversation="conversation"
       />
+      <PredictionAgentPane
+        v-else-if="customUIComponent === 'prediction-dashboard'"
+        :conversation="conversation"
+        :agent="currentAgent"
+      />
       <!-- Add more custom UI components here as needed -->
       <div v-else class="custom-ui-not-found">
         <p>Custom UI component "{{ customUIComponent }}" not found.</p>
@@ -108,12 +113,13 @@
               >
                 <ion-icon :icon="copiedMessageId === message.id ? checkmarkOutline : copyOutline" />
               </button>
-              <!-- eslint-disable-next-line vue/no-v-html -- Sanitized message content -->
+              <!-- eslint-disable vue/no-v-html -->
               <div
                 class="message-content"
                 :class="{ 'markdown-content': message.role === 'assistant' }"
                 v-html="formatMessageContent(message.content, message.role)"
               ></div>
+              <!-- eslint-enable vue/no-v-html -->
               <div v-if="message.timestamp" class="message-timestamp">
                 {{ formatTimestamp(message.timestamp) }}
               </div>
@@ -377,6 +383,7 @@ import ConversationalSpeechButton from './ConversationalSpeechButton.vue';
 import MarketingSwarmTab from './custom-ui/MarketingSwarmTab.vue';
 import CadAgentTab from './custom-ui/CadAgentTab.vue';
 import FinanceTab from './custom-ui/FinanceTab.vue';
+import PredictionAgentPane from './AgentPanes/Prediction/PredictionAgentPane.vue';
 import RagSourcesPanel from './rag/RagSourcesPanel.vue';
 import type { Deliverable, DeliverableVersion } from '@/services/deliverablesService';
 import type { PlanData, PlanVersionData } from '@orchestrator-ai/transport-types';

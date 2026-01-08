@@ -3,13 +3,10 @@
  *
  * Tests for missed opportunity detection in the prediction learning loop.
  */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 
 import { Logger } from '@nestjs/common';
-import {
-  MissedOpportunityService,
-  type MissedOpportunity,
-} from '../missed-opportunity.service';
+import { MissedOpportunityService } from '../missed-opportunity.service';
+import type { MissedOpportunity as _MissedOpportunity } from '../missed-opportunity.service';
 import { SupabaseService } from '../../../../../../supabase/supabase.service';
 import { LLMGenerationService } from '../../../../../../llms/services/llm-generation.service';
 import { Claim, PreFilterThresholds } from '../../base-prediction.types';

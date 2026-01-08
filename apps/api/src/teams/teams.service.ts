@@ -4,6 +4,8 @@ import {
   NotFoundException,
   ForbiddenException,
   ConflictException,
+  InternalServerErrorException,
+  BadRequestException,
 } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { RbacService } from '../rbac/rbac.service';
@@ -223,20 +225,35 @@ export class TeamsService {
     createdBy: string,
   ): Promise<TeamResponseDto> {
     // Verify user has admin access
-    if (orgSlug) {
-      // For org-scoped teams, verify admin access to that org
-      const isAdmin = await this.rbacService.isAdmin(createdBy, orgSlug);
-      if (!isAdmin) {
-        throw new ForbiddenException(
-          'Only admins can create teams in this organization',
-        );
+    try {
+      if (orgSlug) {
+        // For org-scoped teams, verify admin access to that org
+        const isAdmin = await this.rbacService.isAdmin(createdBy, orgSlug);
+        if (!isAdmin) {
+          throw new ForbiddenException(
+            'Only admins can create teams in this organization',
+          );
+        }
+      } else {
+        // For global teams, verify user has any admin role
+        const isAnyAdmin = await this.rbacService.isAdmin(createdBy, '*');
+        if (!isAnyAdmin) {
+          throw new ForbiddenException('Only admins can create global teams');
+        }
       }
-    } else {
-      // For global teams, verify user has any admin role
-      const isAnyAdmin = await this.rbacService.isAdmin(createdBy, '*');
-      if (!isAnyAdmin) {
-        throw new ForbiddenException('Only admins can create global teams');
+    } catch (error) {
+      // Re-throw HttpExceptions (like ForbiddenException) as-is
+      if (error instanceof ForbiddenException) {
+        throw error;
       }
+      // Log and wrap other errors
+      this.logger.error(
+        `Error checking admin status for team creation: ${error instanceof Error ? error.message : String(error)}`,
+        { createdBy, orgSlug },
+      );
+      throw new InternalServerErrorException(
+        'Failed to verify admin permissions',
+      );
     }
 
     const result = await this.supabase
@@ -254,15 +271,53 @@ export class TeamsService {
     const error = result.error;
 
     if (error) {
+      // Handle specific database error codes
       if (error.code === '23505') {
+        // Unique constraint violation
         throw new ConflictException(
           orgSlug
             ? 'A team with this name already exists in this organization'
             : 'A global team with this name already exists',
         );
       }
-      this.logger.error(`Failed to create team: ${error.message}`);
-      throw new Error(`Failed to create team: ${error.message}`);
+      if (error.code === '23503') {
+        // Foreign key constraint violation
+        this.logger.error(
+          `Failed to create team: Foreign key constraint violation. Org slug: ${orgSlug}, Error: ${error.message}`,
+        );
+        throw new BadRequestException(
+          orgSlug
+            ? `Organization '${orgSlug}' does not exist`
+            : 'Invalid organization reference',
+        );
+      }
+      if (
+        error.code === '42501' ||
+        error.message?.includes('permission denied')
+      ) {
+        // RLS policy violation
+        this.logger.error(
+          `Failed to create team: RLS policy violation. User: ${createdBy}, Org: ${orgSlug}, Error: ${error.message}`,
+        );
+        throw new ForbiddenException(
+          'You do not have permission to create teams in this organization',
+        );
+      }
+      // Log full error details for debugging
+      this.logger.error(
+        `Failed to create team: ${error.message || 'Unknown error'}`,
+        {
+          errorCode: error.code,
+          errorDetails: error.details,
+          errorHint: error.hint,
+          orgSlug,
+          name,
+          createdBy,
+        },
+      );
+      throw new InternalServerErrorException(
+        `Failed to create team: ${error.message || 'Unknown database error'}`,
+      );
     }
 
     const team = data as TeamDbRow;

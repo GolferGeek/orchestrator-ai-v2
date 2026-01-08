@@ -128,8 +128,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { usePredictionAgentStore } from '@/stores/predictionAgentStore';
+import { predictionAgentService } from '@/services/predictionAgentService';
 import CurrentStateComponent from './CurrentStateComponent.vue';
 import InstrumentsComponent from './InstrumentsComponent.vue';
 import HistoryComponent from './HistoryComponent.vue';
@@ -137,10 +138,17 @@ import ToolsComponent from './ToolsComponent.vue';
 import ConfigComponent from './ConfigComponent.vue';
 
 interface Props {
-  agentId: string;
+  conversation?: { id: string; agentName?: string; organizationSlug?: string } | null;
+  agent?: { id?: string; slug?: string; name?: string } | null;
 }
 
 const props = defineProps<Props>();
+
+// Derive agentId from agent prop or fall back to conversation.agentName
+const agentId = computed(() => {
+  // Try agent.id first, then agent.slug, then conversation.agentName
+  return props.agent?.id || props.agent?.slug || props.conversation?.agentName || '';
+});
 
 const store = usePredictionAgentStore();
 
@@ -170,9 +178,9 @@ let refreshInterval: ReturnType<typeof setInterval> | null = null;
 
 onMounted(async () => {
   // Initialize store with agent ID
-  store.setAgentId(props.agentId);
+  store.setAgentId(agentId.value);
 
-  // Load initial data (service layer will handle API calls)
+  // Load initial data
   await loadData();
 
   // Set up auto-refresh every 30 seconds
@@ -190,67 +198,140 @@ onUnmounted(() => {
   store.resetState();
 });
 
+// Watch for agentId changes and reload data
+watch(agentId, async (newAgentId, oldAgentId) => {
+  if (newAgentId && newAgentId !== oldAgentId) {
+    store.setAgentId(newAgentId);
+    await loadData();
+  }
+});
+
 async function loadData() {
-  // Service layer will implement these API calls
-  // For now, just placeholder
-  console.log('Loading data for agent:', props.agentId);
+  if (!agentId.value) {
+    console.warn('No agent ID available, skipping data load');
+    return;
+  }
+
+  store.setLoading(true);
+  store.clearError();
+
+  try {
+    // Load all dashboard data in parallel
+    const data = await predictionAgentService.loadDashboardData(agentId.value);
+
+    // Update store with fetched data
+    if (data.status) {
+      store.setAgentStatus(data.status.status);
+    }
+
+    if (data.instruments) {
+      store.setInstruments(data.instruments.instruments);
+    }
+
+    if (data.config) {
+      store.setConfig(data.config.config);
+    }
+
+    if (data.currentPredictions) {
+      if (data.currentPredictions.datapoint) {
+        store.setLatestDatapoint(data.currentPredictions.datapoint);
+      }
+      store.setActiveRecommendations(data.currentPredictions.recommendations);
+    }
+
+    if (data.tools) {
+      // Map tool status response to expected format
+      const toolsStatus = data.tools.tools.map(tool => ({
+        name: tool.name,
+        status: tool.status === 'success' ? 'active' as const :
+                tool.status === 'failed' ? 'error' as const : 'inactive' as const,
+        lastRun: tool.lastRun,
+        claimsCount: tool.recentClaims,
+        errorMessage: tool.errorMessage,
+      }));
+      store.setToolsStatus(toolsStatus);
+    }
+
+    console.log('Dashboard data loaded for agent:', agentId.value);
+  } catch (err) {
+    console.error('Failed to load dashboard data:', err);
+    store.setError(err instanceof Error ? err.message : 'Failed to load data');
+  } finally {
+    store.setLoading(false);
+  }
 }
 
 async function handleStart() {
+  if (!agentId.value) return;
   store.setExecuting(true);
   try {
-    // Service layer will handle API call
-    console.log('Starting agent:', props.agentId);
+    const response = await predictionAgentService.startAgent(agentId.value);
+    store.setAgentStatus(response.status);
+    console.log('Agent started:', agentId.value);
   } catch (err) {
     console.error('Failed to start agent:', err);
+    store.setError(err instanceof Error ? err.message : 'Failed to start agent');
   } finally {
     store.setExecuting(false);
   }
 }
 
 async function handleStop() {
+  if (!agentId.value) return;
   store.setExecuting(true);
   try {
-    // Service layer will handle API call
-    console.log('Stopping agent:', props.agentId);
+    const response = await predictionAgentService.stopAgent(agentId.value);
+    store.setAgentStatus(response.status);
+    console.log('Agent stopped:', agentId.value);
   } catch (err) {
     console.error('Failed to stop agent:', err);
+    store.setError(err instanceof Error ? err.message : 'Failed to stop agent');
   } finally {
     store.setExecuting(false);
   }
 }
 
 async function handlePause() {
+  if (!agentId.value) return;
   store.setExecuting(true);
   try {
-    // Service layer will handle API call
-    console.log('Pausing agent:', props.agentId);
+    const response = await predictionAgentService.pauseAgent(agentId.value);
+    store.setAgentStatus(response.status);
+    console.log('Agent paused:', agentId.value);
   } catch (err) {
     console.error('Failed to pause agent:', err);
+    store.setError(err instanceof Error ? err.message : 'Failed to pause agent');
   } finally {
     store.setExecuting(false);
   }
 }
 
 async function handleResume() {
+  if (!agentId.value) return;
   store.setExecuting(true);
   try {
-    // Service layer will handle API call
-    console.log('Resuming agent:', props.agentId);
+    const response = await predictionAgentService.resumeAgent(agentId.value);
+    store.setAgentStatus(response.status);
+    console.log('Agent resumed:', agentId.value);
   } catch (err) {
     console.error('Failed to resume agent:', err);
+    store.setError(err instanceof Error ? err.message : 'Failed to resume agent');
   } finally {
     store.setExecuting(false);
   }
 }
 
 async function handlePollNow() {
+  if (!agentId.value) return;
   store.setExecuting(true);
   try {
-    // Service layer will handle API call
-    console.log('Triggering immediate poll for agent:', props.agentId);
+    await predictionAgentService.pollNow(agentId.value);
+    console.log('Poll triggered for agent:', agentId.value);
+    // Refresh data after poll
+    await loadData();
   } catch (err) {
     console.error('Failed to trigger poll:', err);
+    store.setError(err instanceof Error ? err.message : 'Failed to trigger poll');
   } finally {
     store.setExecuting(false);
   }

@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
 import {
   ExecutionContext,
   UnauthorizedException,
@@ -17,7 +15,7 @@ const createMockExecutionContext = (options: {
   query?: Record<string, unknown>;
   isPublic?: boolean;
 }): ExecutionContext => {
-  const { headers = {}, query = {}, isPublic = false } = options;
+  const { headers = {}, query = {}, isPublic: _isPublic = false } = options;
 
   return {
     switchToHttp: () => ({
@@ -466,7 +464,7 @@ describe('JwtAuthGuard - Security Tests', () => {
 
       await guard.canActivate(context);
 
-      const request = context.switchToHttp().getRequest();
+      const _request = context.switchToHttp().getRequest();
       // URL should be sanitized if stream token service is called
       // (This is backward compatibility for stream tokens)
     });

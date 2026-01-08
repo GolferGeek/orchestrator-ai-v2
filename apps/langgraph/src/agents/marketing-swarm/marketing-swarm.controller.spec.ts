@@ -81,7 +81,7 @@ describe("MarketingSwarmController", () => {
     created_at: "2025-01-01T00:30:00Z",
   };
 
-  const mockOutputVersionRow: OutputVersionRow = {
+  const _mockOutputVersionRow: OutputVersionRow = {
     id: "version-1",
     output_id: "output-1",
     task_id: "task-123",

@@ -460,12 +460,12 @@ async function createVersion() {
   }
 }
 
-function getActiveVersion(universeId: string): UniverseVersion | undefined {
+function getActiveVersion(_universeId: string): UniverseVersion | undefined {
   // In real implementation, would cache versions per universe
   return undefined;
 }
 
-function getInstrumentCount(universeId: string): number {
+function getInstrumentCount(_universeId: string): number {
   // In real implementation, would get from cached version
   return 0;
 }

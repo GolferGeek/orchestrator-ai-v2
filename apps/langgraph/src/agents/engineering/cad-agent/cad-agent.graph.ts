@@ -1065,7 +1065,7 @@ END-ISO-10303-21;`;
  * STL is a simple triangular mesh format
  * This generates an ASCII STL with a simple cube
  */
-function generatePlaceholderStl(prompt: string): string {
+function generatePlaceholderStl(_prompt: string): string {
   return `solid PlaceholderCube
   facet normal 0 0 -1
     outer loop

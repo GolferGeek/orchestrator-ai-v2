@@ -3,13 +3,10 @@
  *
  * Tests for postmortem analysis functionality in the prediction learning loop.
  */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 
 import { Logger } from '@nestjs/common';
-import {
-  PostmortemService,
-  type PostmortemAnalysis,
-} from '../postmortem.service';
+import { PostmortemService } from '../postmortem.service';
+import type { PostmortemAnalysis as _PostmortemAnalysis } from '../postmortem.service';
 import { SupabaseService } from '../../../../../../supabase/supabase.service';
 import { LLMGenerationService } from '../../../../../../llms/services/llm-generation.service';
 import type {

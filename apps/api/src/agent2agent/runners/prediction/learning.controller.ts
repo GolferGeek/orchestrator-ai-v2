@@ -554,9 +554,10 @@ export class LearningController {
 
   /**
    * Helper: Verify agent ownership.
+   * Supports both prediction agent UUID and public agent slug lookups.
    */
   private async verifyAgentOwnership(
-    agentId: string,
+    agentIdOrSlug: string,
     userId: string,
   ): Promise<void> {
     const client = this.supabaseService.getServiceClient();
@@ -567,59 +568,84 @@ export class LearningController {
     }
 
     interface AgentData {
-      org_slug: string;
+      organization_slug: string[];
     }
 
-    interface MembershipData {
-      organizations: { slug: string } | { slug: string }[];
-    }
+    // Check if it looks like a UUID (standard format with dashes)
+    const isUUID =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        agentIdOrSlug,
+      );
 
-    // Get prediction agent
-    const { data: predAgent, error: paError } = await client
-      .from('predictions.prediction_agents')
-      .select('agent_slug')
-      .eq('id', agentId)
-      .single<PredictionAgentData>();
+    let agentSlug: string;
 
-    if (paError) {
-      if (paError.code === 'PGRST116') {
-        throw new NotFoundException('Prediction agent not found');
+    if (isUUID) {
+      // Get prediction agent by UUID
+      const { data: predAgent, error: paError } = await client
+        .from('predictions.prediction_agents')
+        .select('agent_slug')
+        .eq('id', agentIdOrSlug)
+        .single<PredictionAgentData>();
+
+      if (paError) {
+        if (paError.code === 'PGRST116') {
+          throw new NotFoundException('Prediction agent not found');
+        }
+        throw new BadRequestException(
+          `Failed to load agent: ${paError.message}`,
+        );
       }
-      throw new BadRequestException(`Failed to load agent: ${paError.message}`);
+      agentSlug = predAgent.agent_slug;
+    } else {
+      // Try to find prediction agent by public agent slug
+      const { data: predAgent, error: paError } = await client
+        .from('predictions.prediction_agents')
+        .select('agent_slug')
+        .eq('agent_slug', agentIdOrSlug)
+        .single<PredictionAgentData>();
+
+      if (paError) {
+        if (paError.code === 'PGRST116') {
+          throw new NotFoundException(
+            `Prediction agent not found for slug: ${agentIdOrSlug}`,
+          );
+        }
+        throw new BadRequestException(
+          `Failed to load agent: ${paError.message}`,
+        );
+      }
+      agentSlug = predAgent.agent_slug;
     }
 
-    // Get agent's org
+    // Get agent's organization_slug array
     const { data: agent, error: agError } = await client
       .from('agents')
-      .select('org_slug')
-      .eq('slug', predAgent.agent_slug)
+      .select('organization_slug')
+      .eq('slug', agentSlug)
       .single<AgentData>();
 
     if (agError) {
       throw new BadRequestException(`Failed to load agent: ${agError.message}`);
     }
 
-    // Get user's orgs
-    const { data: memberships, error: memberError } = await client
-      .from('organization_members')
-      .select('organizations!inner(slug)')
-      .eq('user_id', userId);
+    // Get user's organization_slug from users table
+    const { data: user, error: userError } = await client
+      .from('users')
+      .select('organization_slug')
+      .eq('id', userId)
+      .single();
 
-    if (memberError) {
+    if (userError) {
       throw new BadRequestException(
-        `Failed to verify ownership: ${memberError.message}`,
+        `Failed to verify ownership: ${userError.message}`,
       );
     }
 
-    const typedMemberships = (memberships ?? []) as MembershipData[];
-    const userOrgSlugs = typedMemberships
-      .map((m) => {
-        const orgs = m.organizations;
-        return Array.isArray(orgs) ? orgs[0]?.slug : orgs?.slug;
-      })
-      .filter((slug): slug is string => !!slug);
+    const userOrgSlug = (user as { organization_slug: string | null })
+      ?.organization_slug;
 
-    if (!userOrgSlugs.includes(agent.org_slug)) {
+    // Check if the user's org is in the agent's allowed orgs
+    if (!userOrgSlug || !agent.organization_slug.includes(userOrgSlug)) {
       throw new NotFoundException('Agent not found or access denied');
     }
   }

@@ -18,8 +18,8 @@ describe('Prediction Agent Dashboard', () => {
   };
 
   // Store agent info for tests
-  let testAgentId: string;
-  let testAgentSlug: string;
+  let _testAgentId: string;
+  let _testAgentSlug: string;
 
   before(() => {
     // Login and find a prediction agent

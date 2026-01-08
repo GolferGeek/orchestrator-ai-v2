@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Test, TestingModule } from '@nestjs/testing';
 import { TasksService } from './tasks.service';
 import { SupabaseService } from '@/supabase/supabase.service';
@@ -9,7 +8,7 @@ import { TaskStatusService } from './task-status.service';
 
 describe('TasksService', () => {
   let service: TasksService;
-  let supabaseService: jest.Mocked<SupabaseService>;
+  let _supabaseService: jest.Mocked<SupabaseService>;
   let agentConversationsService: jest.Mocked<AgentConversationsService>;
   let eventEmitter: jest.Mocked<EventEmitter2>;
   let taskMessageService: jest.Mocked<TaskMessageService>;
@@ -69,7 +68,7 @@ describe('TasksService', () => {
     }).compile();
 
     service = module.get<TasksService>(TasksService);
-    supabaseService = module.get(SupabaseService);
+    _supabaseService = module.get(SupabaseService);
     agentConversationsService = module.get(AgentConversationsService);
     eventEmitter = module.get(EventEmitter2);
     taskMessageService = module.get(TaskMessageService);

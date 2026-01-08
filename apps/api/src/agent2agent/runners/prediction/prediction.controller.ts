@@ -653,73 +653,62 @@ export class PredictionController {
    * Helper: Verify agent ownership.
    */
   private async verifyAgentOwnership(
-    agentId: string,
+    agentSlug: string,
     userId: string,
   ): Promise<void> {
-    const agent = await this.loadAgent(agentId);
+    const agent = await this.loadAgent(agentSlug);
 
-    // Get user's org
+    // Get user's organization_slug from users table
     const client = this.supabaseService.getServiceClient();
-    const { data: memberships, error: memberError } = await client
-      .from('organization_members')
-      .select('org_id')
-      .eq('user_id', userId);
-
-    if (memberError) {
-      throw new BadRequestException(
-        `Failed to verify ownership: ${memberError.message}`,
-      );
-    }
-
-    const userOrgIds = (memberships || []).map(
-      (m) => (m as { org_id: string }).org_id,
-    );
-
-    // Check if agent belongs to any of user's orgs
-    const { data: org, error: orgError } = await client
-      .from('organizations')
-      .select('id')
-      .eq('slug', agent.org_slug)
+    const { data: user, error: userError } = await client
+      .from('users')
+      .select('organization_slug')
+      .eq('id', userId)
       .single();
 
-    if (orgError) {
+    if (userError) {
       throw new BadRequestException(
-        `Failed to verify ownership: ${orgError.message}`,
+        `Failed to verify ownership: ${userError.message}`,
       );
     }
 
-    if (!userOrgIds.includes((org as { id: string }).id)) {
+    const userOrgSlug = (user as { organization_slug: string | null })
+      ?.organization_slug;
+
+    // Check if the user's org is in the agent's allowed orgs
+    // agent.organization_slug is an array
+    if (!userOrgSlug || !agent.organization_slug.includes(userOrgSlug)) {
       throw new NotFoundException('Agent not found or access denied');
     }
   }
 
   /**
    * Helper: Load agent from database.
+   * The agents table uses slug as primary key and organization_slug as array.
    */
-  private async loadAgent(agentId: string): Promise<{
-    id: string;
+  private async loadAgent(agentSlug: string): Promise<{
     slug: string;
-    org_slug: string;
+    organization_slug: string[];
     metadata?: { runnerConfig?: PredictionRunnerConfig };
   }> {
     const client = this.supabaseService.getServiceClient();
+
     const { data, error } = await client
       .from('agents')
-      .select('id, slug, org_slug, metadata')
-      .eq('id', agentId)
+      .select('slug, organization_slug, metadata')
+      .eq('slug', agentSlug)
       .single();
 
     if (error) {
       if (error.code === 'PGRST116') {
-        throw new NotFoundException('Agent not found');
+        throw new NotFoundException(`Agent not found: ${agentSlug}`);
       }
       throw new BadRequestException(`Failed to load agent: ${error.message}`);
     }
 
     return data as {
-      id: string;
       slug: string;
-      org_slug: string;
+      organization_slug: string[];
       metadata?: { runnerConfig?: PredictionRunnerConfig };
     };
   }

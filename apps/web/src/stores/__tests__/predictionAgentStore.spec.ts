@@ -16,7 +16,7 @@ import { setActivePinia, createPinia } from 'pinia';
 import { usePredictionAgentStore } from '../predictionAgentStore';
 import type {
   AgentStatus,
-  Datapoint,
+  Datapoint as _Datapoint,
   PredictionHistory,
   PredictionRunnerConfig,
   Recommendation,

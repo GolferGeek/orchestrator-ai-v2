@@ -8,7 +8,7 @@ import { mount, VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import PredictionAgentPane from '../PredictionAgentPane.vue';
 import { usePredictionAgentStore } from '@/stores/predictionAgentStore';
-import type { AgentStatus } from '@/types/prediction-agent';
+import type { AgentStatus as _AgentStatus } from '@/types/prediction-agent';
 
 // Mock child components
 vi.mock('../CurrentStateComponent.vue', () => ({

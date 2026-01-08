@@ -48,12 +48,14 @@
         </div>
 
         <!-- Markdown Content -->
+        <!-- eslint-disable vue/no-v-html -->
         <div
           ref="contentContainer"
           class="markdown-content"
           v-html="renderedContent"
           @click="handleContentClick"
         />
+        <!-- eslint-enable vue/no-v-html -->
       </div>
 
       <!-- No Content -->

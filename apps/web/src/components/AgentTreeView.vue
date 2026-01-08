@@ -122,15 +122,6 @@
                     <ion-label>
                       <h4>{{ formatAgentDisplayName(agent, false) }}</h4>
                     </ion-label>
-                    <!-- Dashboard badge for prediction/dashboard agents -->
-                    <ion-badge
-                      v-if="agentShowsDashboard(agent)"
-                      color="tertiary"
-                      class="dashboard-badge"
-                      title="Dashboard Agent"
-                    >
-                      D
-                    </ion-badge>
                     <ion-badge :color="agent.totalConversations > 0 ? 'secondary' : 'light'" class="conversation-count">
                       {{ agent.totalConversations }}
                     </ion-badge>
@@ -303,15 +294,6 @@
                   <ion-label>
                     <h4>{{ formatAgentDisplayName(agent, false) }}</h4>
                   </ion-label>
-                  <!-- Dashboard badge for prediction/dashboard agents -->
-                  <ion-badge
-                    v-if="agentShowsDashboard(agent)"
-                    color="tertiary"
-                    class="dashboard-badge"
-                    title="Dashboard Agent"
-                  >
-                    D
-                  </ion-badge>
                   <ion-badge :color="agent.totalConversations > 0 ? 'secondary' : 'light'" class="conversation-count">
                     {{ agent.totalConversations }}
                   </ion-badge>
@@ -405,15 +387,6 @@
             <ion-label>
               <h3>{{ formatAgentDisplayName(agent, true) }}</h3>
             </ion-label>
-            <!-- Dashboard badge for prediction/dashboard agents -->
-            <ion-badge
-              v-if="agentShowsDashboard(agent)"
-              color="tertiary"
-              class="dashboard-badge"
-              title="Dashboard Agent"
-            >
-              D
-            </ion-badge>
             <ion-badge :color="agent.totalConversations > 0 ? 'primary' : 'medium'" class="conversation-count">
               {{ agent.totalConversations }}
             </ion-badge>
@@ -534,7 +507,7 @@ import {
   getInteractionMode,
   shouldShowDashboardIcon,
   shouldShowConversationIcon,
-  isPredictionAgent,
+  isPredictionAgent as _isPredictionAgent,
   getDashboardComponent,
   type InteractionModeConfig,
   type Agent as InteractionAgent,
@@ -1070,8 +1043,8 @@ const filterAgents = () => {
  * Wraps the utility function for template use.
  * Uses InteractionAgent type which includes metadata properties.
  */
-const getAgentInteractionMode = (agent: InteractionAgent): InteractionModeConfig => {
-  return getInteractionMode(agent);
+const _getAgentInteractionMode = (_agent: InteractionAgent): InteractionModeConfig => {
+  return getInteractionMode(_agent);
 };
 
 /**
@@ -1104,12 +1077,12 @@ const openAgentDashboard = (agent: unknown) => {
 /**
  * Handle agent action click - routes to dashboard or conversation based on mode.
  */
-const handleAgentAction = (agent: unknown) => {
-  const mode = getInteractionMode(agent as InteractionAgent);
+const _handleAgentAction = (_agent: unknown) => {
+  const mode = getInteractionMode(_agent as InteractionAgent);
   if (mode.mode === 'dashboard' && mode.canOpenDashboard) {
-    openAgentDashboard(agent);
+    openAgentDashboard(_agent);
   } else {
-    createNewConversation(agent as Agent);
+    createNewConversation(_agent as Agent);
   }
 };
 
@@ -1480,13 +1453,6 @@ watch(
 }
 
 /* Dashboard agent styling */
-.dashboard-badge {
-  font-size: 0.7rem;
-  padding: 2px 6px;
-  margin-right: 4px;
-  font-weight: 600;
-  text-transform: uppercase;
-}
 
 .dashboard-btn {
   --color: var(--ion-color-tertiary);

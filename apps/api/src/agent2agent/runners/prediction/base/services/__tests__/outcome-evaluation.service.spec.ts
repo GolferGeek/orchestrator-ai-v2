@@ -3,7 +3,6 @@
  *
  * Tests for outcome evaluation functionality in the prediction learning loop.
  */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 
 import { Logger } from '@nestjs/common';
 import {
@@ -357,7 +356,7 @@ describe('OutcomeEvaluationService', () => {
         error: null,
       });
 
-      const cutoffDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const _cutoffDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
       await service.getPendingEvaluations('agent-123', 24);
 

@@ -509,7 +509,7 @@ async function startConversation(focusType: string) {
 }
 
 async function sendMessage() {
-  if (!activeConversation.value || !chatInput.trim()) return;
+  if (!activeConversation.value || !chatInput.value.trim()) return;
 
   const message = chatInput.value.trim();
   chatInput.value = '';
