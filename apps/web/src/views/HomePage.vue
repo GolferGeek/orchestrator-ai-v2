@@ -32,6 +32,10 @@
         <h2>Authentication Required</h2>
         <p>Please <router-link to="/login">log in</router-link> to access your conversations.</p>
       </div>
+      <!-- Direct Dashboard View (for dashboard agents without conversations) -->
+      <div v-else-if="route.query.agentSlug" class="dashboard-container">
+        <AgentDashboardView :agent-slug="route.query.agentSlug as string" />
+      </div>
       <!-- Agent Conversation View or Deliverable View -->
       <div v-else-if="chatUiStore.hasActiveConversation || route.query.deliverableId" class="conversation-container">
         <ConversationTabs />
@@ -73,6 +77,7 @@ import { useChatUiStore } from '@/stores/ui/chatUiStore';
 import { conversationLoadingService } from '@/services/conversationLoadingService';
 import { useUserPreferencesStore } from '@/stores/userPreferencesStore';
 import ConversationTabs from '@/components/ConversationTabs.vue';
+import AgentDashboardView from '@/components/AgentDashboardView.vue';
 const router = useRouter();
 const route = useRoute();
 const auth = useAuthStore();
@@ -192,7 +197,8 @@ const toggleDarkMode = () => {
   --padding-top: 1rem;
   --padding-bottom: 1rem;
 }
-.conversation-container {
+.conversation-container,
+.dashboard-container {
   height: 100%;
   display: flex;
   flex-direction: column;

@@ -115,6 +115,7 @@ import { conversationsService } from '@/services/conversationsService';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
 import { useUserPreferencesStore } from '@/stores/userPreferencesStore';
 import { useRouter } from 'vue-router';
+import { getInteractionMode, type Agent as InteractionAgent } from '@/utils/agent-interaction-mode';
 import AgentTreeView from '@/components/AgentTreeView.vue';
 import OrganizationSwitcherApp from '@/components/common/OrganizationSwitcherApp.vue';
 import SuperAdminCommandButton from '@/components/super-admin/SuperAdminCommandButton.vue';
@@ -208,17 +209,22 @@ const handleAgentSelected = async (agent: Record<string, unknown>) => {
 
 const handleOpenDashboard = async (agent: Record<string, unknown>, _componentName: string) => {
   try {
-    // Dashboard agents: create a conversation and navigate to it
-    // The ConversationView will detect hasCustomUI and show the dashboard component
-    const conversationId = await conversation.createConversation(agent);
+    const interactionMode = getInteractionMode(agent as InteractionAgent);
+    const agentSlug = (agent.slug || agent.name) as string;
 
-    // Refresh conversations list to show the new conversation in sidebar
-    await conversationsService.fetchConversations(true);
-
-    // Set flag in sessionStorage to indicate active conversation
+    // Set flag in sessionStorage to indicate active session
     sessionStorage.setItem('activeConversation', 'true');
 
-    // Navigate - ConversationView will render the appropriate dashboard component
+    // Dashboard agents navigate with agentSlug - the dashboard pane handles its own
+    // ExecutionContext creation (conversationId, taskId) when making API calls
+    if (!interactionMode.canStartConversation) {
+      router.push({ path: '/app/home', query: { forceHome: 'true', agentSlug } });
+      return;
+    }
+
+    // For agents that support both dashboard and conversation UI, create conversation
+    const conversationId = await conversation.createConversation(agent);
+    await conversationsService.fetchConversations(true);
     router.push({ path: '/app/home', query: { forceHome: 'true', conversationId } });
   } catch (error) {
     console.error('Failed to open dashboard:', error);

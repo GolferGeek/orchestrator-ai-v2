@@ -59,6 +59,7 @@ const DASHBOARD_AGENT_TYPES = [
   'prediction_agent',
   'ambient_agent',
   'monitoring_agent',
+  'dashboard',
 ];
 
 /**
@@ -92,10 +93,27 @@ export function getInteractionMode(agent: Agent): InteractionModeConfig {
 
   // Check for hasCustomUI flag
   if (agent.metadata?.hasCustomUI || agent.hasCustomUI) {
+    const customComponent = (agent.metadata?.customUIComponent || agent.customUIComponent) as string | undefined;
+
+    // Conversation pane components with custom UI (still use conversation flow)
+    const conversationPaneComponents = ['marketing-swarm', 'cad-agent'];
+    const isConversationPaneCustomUI = customComponent && conversationPaneComponents.includes(customComponent);
+
+    if (isConversationPaneCustomUI) {
+      // These are conversation agents with custom UI, not dashboard agents
+      return {
+        mode: 'conversation',
+        component: customComponent,
+        canStartConversation: true,
+        canOpenDashboard: false,
+      };
+    }
+
+    // Other custom UI agents are dashboard agents
     return {
       mode: 'dashboard',
       dashboardType: getDashboardType(agent),
-      component: (agent.metadata?.customUIComponent || agent.customUIComponent) as string | undefined,
+      component: customComponent,
       canStartConversation: agent.metadata?.canChat === true,
       canOpenDashboard: true,
     };

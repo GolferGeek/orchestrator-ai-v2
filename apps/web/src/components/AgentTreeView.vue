@@ -122,13 +122,14 @@
                     <ion-label>
                       <h4>{{ formatAgentDisplayName(agent, false) }}</h4>
                     </ion-label>
-                    <ion-badge :color="agent.totalConversations > 0 ? 'secondary' : 'light'" class="conversation-count">
+                    <!-- Conversation count badge - only show for agents that support conversations -->
+                    <ion-badge v-if="agentShowsConversation(agent)" :color="agent.totalConversations > 0 ? 'secondary' : 'light'" class="conversation-count">
                       {{ agent.totalConversations }}
                     </ion-badge>
                     <div class="header-actions" @click.stop>
-                      <!-- Toggle conversations arrow (only show if agent has conversations) -->
+                      <!-- Toggle conversations arrow (only show if agent supports conversations and has some) -->
                       <ion-button
-                        v-if="agent.conversations && agent.conversations.length > 0"
+                        v-if="agentShowsConversation(agent) && agent.conversations && agent.conversations.length > 0"
                         fill="clear"
                         size="small"
                         @click="toggleConversationList(agent.name)"
@@ -162,8 +163,8 @@
                     </div>
                   </ion-item>
 
-                  <!-- Agent's Conversations (collapsed by default) -->
-                  <div v-if="isConversationListExpanded(agent.name) && agent.conversations && agent.conversations.length > 0" class="conversations-list">
+                  <!-- Agent's Conversations (collapsed by default) - only for agents that support conversations -->
+                  <div v-if="agentShowsConversation(agent) && isConversationListExpanded(agent.name) && agent.conversations && agent.conversations.length > 0" class="conversations-list">
                     <ion-item
                       v-for="conversation in agent.conversations"
                       :key="conversation.id"
@@ -294,13 +295,14 @@
                   <ion-label>
                     <h4>{{ formatAgentDisplayName(agent, false) }}</h4>
                   </ion-label>
-                  <ion-badge :color="agent.totalConversations > 0 ? 'secondary' : 'light'" class="conversation-count">
+                  <!-- Conversation count badge - only show for agents that support conversations -->
+                  <ion-badge v-if="agentShowsConversation(agent)" :color="agent.totalConversations > 0 ? 'secondary' : 'light'" class="conversation-count">
                     {{ agent.totalConversations }}
                   </ion-badge>
                   <div class="header-actions" @click.stop>
-                    <!-- Toggle conversations arrow (only show if agent has conversations) -->
+                    <!-- Toggle conversations arrow (only show if agent supports conversations and has some) -->
                     <ion-button
-                      v-if="agent.conversations && agent.conversations.length > 0"
+                      v-if="agentShowsConversation(agent) && agent.conversations && agent.conversations.length > 0"
                       fill="clear"
                       size="small"
                       @click="toggleConversationList(agent.name)"
@@ -334,8 +336,8 @@
                   </div>
                 </ion-item>
 
-                <!-- Agent's Conversations (collapsed by default) -->
-                <div v-if="isConversationListExpanded(agent.name) && agent.conversations && agent.conversations.length > 0" class="conversations-list">
+                <!-- Agent's Conversations (collapsed by default) - only for agents that support conversations -->
+                <div v-if="agentShowsConversation(agent) && isConversationListExpanded(agent.name) && agent.conversations && agent.conversations.length > 0" class="conversations-list">
                   <ion-item
                     v-for="conversation in agent.conversations"
                     :key="conversation.id"
@@ -387,13 +389,14 @@
             <ion-label>
               <h3>{{ formatAgentDisplayName(agent, true) }}</h3>
             </ion-label>
-            <ion-badge :color="agent.totalConversations > 0 ? 'primary' : 'medium'" class="conversation-count">
+            <!-- Conversation count badge - only show for agents that support conversations -->
+            <ion-badge v-if="agentShowsConversation(agent)" :color="agent.totalConversations > 0 ? 'primary' : 'medium'" class="conversation-count">
               {{ agent.totalConversations }}
             </ion-badge>
             <div class="header-actions" @click.stop>
-              <!-- Toggle conversations arrow (only show if agent has conversations) -->
+              <!-- Toggle conversations arrow (only show if agent supports conversations and has some) -->
               <ion-button
-                v-if="agent.conversations && agent.conversations.length > 0"
+                v-if="agentShowsConversation(agent) && agent.conversations && agent.conversations.length > 0"
                 fill="clear"
                 size="small"
                 @click="toggleConversationList(agent.name)"
@@ -427,8 +430,8 @@
             </div>
           </ion-item>
 
-          <!-- Agent's Conversations (collapsed by default) -->
-          <div v-if="isConversationListExpanded(agent.name) && agent.conversations && agent.conversations.length > 0" class="conversations-list">
+          <!-- Agent's Conversations (collapsed by default) - only for agents that support conversations -->
+          <div v-if="agentShowsConversation(agent) && isConversationListExpanded(agent.name) && agent.conversations && agent.conversations.length > 0" class="conversations-list">
             <ion-item
               v-for="conversation in agent.conversations"
               :key="conversation.id"
