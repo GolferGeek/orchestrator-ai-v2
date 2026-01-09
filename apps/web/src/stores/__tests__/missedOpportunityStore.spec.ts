@@ -20,8 +20,6 @@ import { useMissedOpportunityStore } from '../missedOpportunityStore';
 import type {
   MissedOpportunity,
   MissedOpportunityAnalysis,
-  AnalysisStatus,
-  MoveDirection,
 } from '../missedOpportunityStore';
 
 describe('MissedOpportunityStore', () => {

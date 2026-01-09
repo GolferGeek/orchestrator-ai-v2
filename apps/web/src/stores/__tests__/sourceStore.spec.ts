@@ -14,7 +14,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
 import { useSourceStore } from '../sourceStore';
-import type { PredictionSource, SourceType, SourceScopeLevel } from '../sourceStore';
+import type { PredictionSource } from '../sourceStore';
 
 describe('SourceStore', () => {
   beforeEach(() => {

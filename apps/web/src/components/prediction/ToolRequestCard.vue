@@ -60,7 +60,6 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
 import type { ToolRequest } from '@/stores/toolRequestStore';
 
 interface Props {
@@ -68,7 +67,7 @@ interface Props {
   isSelected?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   isSelected: false,
 });
 

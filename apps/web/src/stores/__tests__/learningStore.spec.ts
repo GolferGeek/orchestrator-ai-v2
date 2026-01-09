@@ -19,9 +19,6 @@ import { useLearningStore } from '../learningStore';
 import type {
   PredictionLearning,
   LearningQueueItem,
-  LearningType,
-  LearningScopeLevel,
-  LearningStatus,
 } from '../learningStore';
 
 describe('LearningStore', () => {

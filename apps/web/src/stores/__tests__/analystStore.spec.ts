@@ -15,7 +15,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
 import { useAnalystStore } from '../analystStore';
-import type { PredictionAnalyst, AnalystTemplate, AnalystScopeLevel } from '../analystStore';
+import type { PredictionAnalyst, AnalystTemplate } from '../analystStore';
 
 describe('AnalystStore', () => {
   beforeEach(() => {

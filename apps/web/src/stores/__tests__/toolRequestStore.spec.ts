@@ -18,9 +18,6 @@ import { setActivePinia, createPinia } from 'pinia';
 import { useToolRequestStore } from '../toolRequestStore';
 import type {
   ToolRequest,
-  ToolRequestType,
-  ToolRequestStatus,
-  ToolRequestPriority,
 } from '../toolRequestStore';
 
 describe('ToolRequestStore', () => {

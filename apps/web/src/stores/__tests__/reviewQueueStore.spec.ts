@@ -16,7 +16,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
 import { useReviewQueueStore } from '../reviewQueueStore';
-import type { ReviewQueueItem, ReviewStatus, SignalDisposition } from '../reviewQueueStore';
+import type { ReviewQueueItem } from '../reviewQueueStore';
 
 describe('ReviewQueueStore', () => {
   beforeEach(() => {

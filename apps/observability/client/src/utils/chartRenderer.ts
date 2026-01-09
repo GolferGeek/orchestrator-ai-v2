@@ -1,9 +1,7 @@
 import type { ChartDataPoint, ChartConfig } from '../types';
 
-// Extend CanvasRenderingContext2D to include roundRect method (modern browsers)
-interface ExtendedCanvasRenderingContext2D extends CanvasRenderingContext2D {
-  roundRect?: (x: number, y: number, w: number, h: number, radii?: number | number[]) => void;
-}
+// roundRect is now native in modern browsers and included in TypeScript's lib
+// No need for extension interface - using native CanvasRenderingContext2D
 
 export interface ChartDimensions {
   width: number;
@@ -208,9 +206,8 @@ export class ChartRenderer {
           const isDark = document.documentElement.classList.contains('dark');
           this.ctx.fillStyle = isDark ? 'rgba(75, 85, 99, 0.95)' : 'rgba(0, 0, 0, 0.85)';
           this.ctx.beginPath();
-          const extCtx = this.ctx as ExtendedCanvasRenderingContext2D;
-          if ('roundRect' in this.ctx && typeof extCtx.roundRect === 'function') {
-            extCtx.roundRect(bgX, bgY, bgWidth, bgHeight, 7);
+          if ('roundRect' in this.ctx && typeof this.ctx.roundRect === 'function') {
+            this.ctx.roundRect(bgX, bgY, bgWidth, bgHeight, 7);
           } else {
             // Fallback for browsers without roundRect support
             const radius = 7;
