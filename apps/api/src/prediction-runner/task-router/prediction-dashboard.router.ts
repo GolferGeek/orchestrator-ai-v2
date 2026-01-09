@@ -1,0 +1,334 @@
+/**
+ * Prediction Dashboard Router
+ *
+ * Routes dashboard mode requests to appropriate handlers based on entity and action.
+ * All UI data access for the prediction system uses this router via A2A dashboard mode.
+ *
+ * Request format:
+ * - method: 'dashboard.<entity>.<operation>'
+ * - params.mode: 'dashboard'
+ * - payload.action: '<entity>.<operation>'
+ *
+ * Example:
+ * {
+ *   method: 'dashboard.universes.list',
+ *   params: {
+ *     mode: 'dashboard',
+ *     payload: { action: 'universes.list', filters: { domain: 'stocks' } },
+ *     context: ExecutionContext
+ *   }
+ * }
+ */
+
+import { Injectable, Logger } from '@nestjs/common';
+import type { ExecutionContext } from '@orchestrator-ai/transport-types';
+import type { DashboardRequestPayload } from '@orchestrator-ai/transport-types';
+import {
+  DashboardActionResult,
+  buildDashboardError,
+} from './dashboard-handler.interface';
+
+// Import entity handlers
+import { UniverseHandler } from './handlers/universe.handler';
+import { TargetHandler } from './handlers/target.handler';
+import { PredictionHandler } from './handlers/prediction.handler';
+import { SourceHandler } from './handlers/source.handler';
+import { AnalystHandler } from './handlers/analyst.handler';
+import { LearningHandler } from './handlers/learning.handler';
+import { LearningQueueHandler } from './handlers/learning-queue.handler';
+import { ReviewQueueHandler } from './handlers/review-queue.handler';
+import { StrategyHandler } from './handlers/strategy.handler';
+import { MissedOpportunityHandler } from './handlers/missed-opportunity.handler';
+import { ToolRequestHandler } from './handlers/tool-request.handler';
+
+/**
+ * Supported dashboard entities
+ */
+export type DashboardEntity =
+  | 'universes'
+  | 'targets'
+  | 'predictions'
+  | 'sources'
+  | 'analysts'
+  | 'learnings'
+  | 'learning-queue'
+  | 'review-queue'
+  | 'strategies'
+  | 'missed-opportunities'
+  | 'tool-requests';
+
+/**
+ * Dashboard router response
+ */
+export interface DashboardRouterResponse {
+  success: boolean;
+  content?: unknown;
+  metadata?: Record<string, unknown>;
+  error?: {
+    code: string;
+    message: string;
+    details?: Record<string, unknown>;
+  };
+}
+
+@Injectable()
+export class PredictionDashboardRouter {
+  private readonly logger = new Logger(PredictionDashboardRouter.name);
+
+  constructor(
+    private readonly universeHandler: UniverseHandler,
+    private readonly targetHandler: TargetHandler,
+    private readonly predictionHandler: PredictionHandler,
+    private readonly sourceHandler: SourceHandler,
+    private readonly analystHandler: AnalystHandler,
+    private readonly learningHandler: LearningHandler,
+    private readonly learningQueueHandler: LearningQueueHandler,
+    private readonly reviewQueueHandler: ReviewQueueHandler,
+    private readonly strategyHandler: StrategyHandler,
+    private readonly missedOpportunityHandler: MissedOpportunityHandler,
+    private readonly toolRequestHandler: ToolRequestHandler,
+  ) {}
+
+  /**
+   * Route a dashboard request to the appropriate handler
+   *
+   * @param action - Action string in format '<entity>.<operation>' (e.g., 'universes.list')
+   * @param payload - Dashboard request payload with params, filters, pagination
+   * @param context - ExecutionContext capsule
+   * @returns Dashboard response
+   */
+  async route(
+    action: string,
+    payload: DashboardRequestPayload,
+    context: ExecutionContext,
+  ): Promise<DashboardRouterResponse> {
+    this.logger.debug(
+      `[DASHBOARD-ROUTER] Routing action: ${action} for org: ${context.orgSlug}`,
+    );
+
+    // Parse action into entity and operation
+    const { entity, operation } = this.parseAction(action);
+
+    if (!entity || !operation) {
+      this.logger.warn(`[DASHBOARD-ROUTER] Invalid action format: ${action}`);
+      return this.buildErrorResponse(
+        'INVALID_ACTION',
+        `Invalid action format: ${action}. Expected format: '<entity>.<operation>'`,
+      );
+    }
+
+    // Route to appropriate handler
+    try {
+      const result = await this.routeToHandler(
+        entity,
+        operation,
+        payload,
+        context,
+      );
+      return this.buildResponse(result);
+    } catch (error) {
+      this.logger.error(
+        `[DASHBOARD-ROUTER] Error handling ${action}: ${error instanceof Error ? error.message : String(error)}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      return this.buildErrorResponse(
+        'HANDLER_ERROR',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
+    }
+  }
+
+  /**
+   * Parse action string into entity and operation
+   */
+  private parseAction(action: string): {
+    entity: string | null;
+    operation: string | null;
+  } {
+    if (!action || typeof action !== 'string') {
+      return { entity: null, operation: null };
+    }
+
+    const parts = action.split('.');
+
+    // Handle nested operations like 'learning-queue.respond'
+    if (parts.length === 2) {
+      return { entity: parts[0] ?? null, operation: parts[1] ?? null };
+    }
+
+    // Handle simple actions (shouldn't happen in practice)
+    if (parts.length === 1) {
+      return { entity: null, operation: parts[0] ?? null };
+    }
+
+    // Handle longer paths (e.g., 'dashboard.universes.list' - extract last two parts)
+    if (parts.length > 2) {
+      return {
+        entity: parts[parts.length - 2] ?? null,
+        operation: parts[parts.length - 1] ?? null,
+      };
+    }
+
+    return { entity: null, operation: null };
+  }
+
+  /**
+   * Route to the appropriate handler based on entity
+   */
+  private async routeToHandler(
+    entity: string,
+    operation: string,
+    payload: DashboardRequestPayload,
+    context: ExecutionContext,
+  ): Promise<DashboardActionResult> {
+    const normalizedEntity = entity.toLowerCase();
+
+    switch (normalizedEntity) {
+      case 'universes':
+      case 'universe':
+        return this.universeHandler.execute(operation, payload, context);
+
+      case 'targets':
+      case 'target':
+        return this.targetHandler.execute(operation, payload, context);
+
+      case 'predictions':
+      case 'prediction':
+        return this.predictionHandler.execute(operation, payload, context);
+
+      case 'sources':
+      case 'source':
+        return this.sourceHandler.execute(operation, payload, context);
+
+      case 'analysts':
+      case 'analyst':
+        return this.analystHandler.execute(operation, payload, context);
+
+      case 'learnings':
+      case 'learning':
+        return this.learningHandler.execute(operation, payload, context);
+
+      case 'learning-queue':
+      case 'learningqueue':
+        return this.learningQueueHandler.execute(operation, payload, context);
+
+      case 'review-queue':
+      case 'reviewqueue':
+        return this.reviewQueueHandler.execute(operation, payload, context);
+
+      case 'strategies':
+      case 'strategy':
+        return this.strategyHandler.execute(operation, payload, context);
+
+      case 'missed-opportunities':
+      case 'missedopportunities':
+      case 'missed-opportunity':
+        return this.missedOpportunityHandler.execute(
+          operation,
+          payload,
+          context,
+        );
+
+      case 'tool-requests':
+      case 'toolrequests':
+      case 'tool-request':
+        return this.toolRequestHandler.execute(operation, payload, context);
+
+      default:
+        return buildDashboardError(
+          'UNKNOWN_ENTITY',
+          `Unknown dashboard entity: ${entity}`,
+          { supportedEntities: this.getSupportedEntities() },
+        );
+    }
+  }
+
+  /**
+   * Build success response from handler result
+   */
+  private buildResponse(
+    result: DashboardActionResult,
+  ): DashboardRouterResponse {
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error,
+      };
+    }
+
+    return {
+      success: true,
+      content: result.data,
+      metadata: result.metadata,
+    };
+  }
+
+  /**
+   * Build error response
+   */
+  private buildErrorResponse(
+    code: string,
+    message: string,
+    details?: Record<string, unknown>,
+  ): DashboardRouterResponse {
+    return {
+      success: false,
+      error: {
+        code,
+        message,
+        details,
+      },
+    };
+  }
+
+  /**
+   * Get list of supported entities
+   */
+  getSupportedEntities(): DashboardEntity[] {
+    return [
+      'universes',
+      'targets',
+      'predictions',
+      'sources',
+      'analysts',
+      'learnings',
+      'learning-queue',
+      'review-queue',
+      'strategies',
+      'missed-opportunities',
+      'tool-requests',
+    ];
+  }
+
+  /**
+   * Get supported actions for an entity
+   */
+  getSupportedActions(entity: DashboardEntity): string[] {
+    switch (entity) {
+      case 'universes':
+        return this.universeHandler.getSupportedActions();
+      case 'targets':
+        return this.targetHandler.getSupportedActions();
+      case 'predictions':
+        return this.predictionHandler.getSupportedActions();
+      case 'sources':
+        return this.sourceHandler.getSupportedActions();
+      case 'analysts':
+        return this.analystHandler.getSupportedActions();
+      case 'learnings':
+        return this.learningHandler.getSupportedActions();
+      case 'learning-queue':
+        return this.learningQueueHandler.getSupportedActions();
+      case 'review-queue':
+        return this.reviewQueueHandler.getSupportedActions();
+      case 'strategies':
+        return this.strategyHandler.getSupportedActions();
+      case 'missed-opportunities':
+        return this.missedOpportunityHandler.getSupportedActions();
+      case 'tool-requests':
+        return this.toolRequestHandler.getSupportedActions();
+      default:
+        return [];
+    }
+  }
+}

@@ -63,6 +63,22 @@ import {
   ExpirationRunner,
 } from './runners';
 
+// Phase 8 Dashboard Task Router and Handlers
+import { PredictionDashboardRouter } from './task-router/prediction-dashboard.router';
+import {
+  UniverseHandler,
+  TargetHandler,
+  PredictionHandler,
+  SourceHandler,
+  AnalystHandler,
+  LearningHandler,
+  LearningQueueHandler,
+  ReviewQueueHandler,
+  StrategyHandler,
+  MissedOpportunityHandler,
+  ToolRequestHandler,
+} from './task-router/handlers';
+
 const repositories = [
   UniverseRepository,
   TargetRepository,
@@ -122,9 +138,25 @@ const runners = [
   ExpirationRunner,
 ];
 
+// Phase 8 Dashboard Handlers
+const dashboardHandlers = [
+  PredictionDashboardRouter,
+  UniverseHandler,
+  TargetHandler,
+  PredictionHandler,
+  SourceHandler,
+  AnalystHandler,
+  LearningHandler,
+  LearningQueueHandler,
+  ReviewQueueHandler,
+  StrategyHandler,
+  MissedOpportunityHandler,
+  ToolRequestHandler,
+];
+
 @Module({
   imports: [SupabaseModule, LLMModule],
-  providers: [...repositories, ...services, ...runners],
-  exports: [...services, ...runners],
+  providers: [...repositories, ...services, ...runners, ...dashboardHandlers],
+  exports: [...services, ...runners, ...dashboardHandlers],
 })
 export class PredictionRunnerModule {}
