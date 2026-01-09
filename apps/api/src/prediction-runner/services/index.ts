@@ -6,3 +6,15 @@ export * from './analyst-prompt-builder.service';
 export * from './learning.service';
 export * from './learning-queue.service';
 export * from './analyst-ensemble.service';
+export { EvaluationService, SuggestedLearning } from './evaluation.service';
+// Note: EvaluationResult is exported from evaluation.service but renamed to avoid conflict
+export { EvaluationResult as PredictionEvaluationResult } from './evaluation.service';
+export * from './outcome-tracking.service';
+export * from './snapshot.service';
+export * from './review-queue.service';
+export * from './fast-path.service';
+export * from './missed-opportunity-detection.service';
+export * from './missed-opportunity-analysis.service';
+export * from './signal-detection.service';
+export * from './predictor-management.service';
+export * from './prediction-generation.service';

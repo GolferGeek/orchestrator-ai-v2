@@ -29,3 +29,19 @@ export * from './llm-tier.interface';
 
 // Ensemble interfaces
 export * from './ensemble.interface';
+
+// Snapshot interfaces
+export * from './snapshot.interface';
+
+// Missed opportunity interfaces
+export * from './missed-opportunity.interface';
+
+// Signal detection interfaces
+export * from './signal-detection.interface';
+
+// Threshold evaluation interfaces - export specific items to avoid conflict with universe.interface
+export {
+  ThresholdConfig as PredictionThresholdConfig,
+  ThresholdEvaluationResult,
+  DEFAULT_THRESHOLD_CONFIG,
+} from './threshold-evaluation.interface';

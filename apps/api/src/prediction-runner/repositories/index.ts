@@ -6,3 +6,4 @@ export * from './prediction.repository';
 export * from './analyst.repository';
 export * from './learning.repository';
 export * from './learning-queue.repository';
+export * from './snapshot.repository';

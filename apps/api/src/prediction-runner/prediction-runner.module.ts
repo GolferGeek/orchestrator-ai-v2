@@ -12,6 +12,7 @@ import {
   AnalystRepository,
   LearningRepository,
   LearningQueueRepository,
+  SnapshotRepository,
 } from './repositories';
 
 // Services
@@ -24,6 +25,17 @@ import {
   AnalystEnsembleService,
   LearningService,
   LearningQueueService,
+  // Phase 5 Services
+  SignalDetectionService,
+  PredictorManagementService,
+  PredictionGenerationService,
+  OutcomeTrackingService,
+  EvaluationService,
+  MissedOpportunityDetectionService,
+  MissedOpportunityAnalysisService,
+  FastPathService,
+  SnapshotService,
+  ReviewQueueService,
 } from './services';
 
 const repositories = [
@@ -35,6 +47,7 @@ const repositories = [
   AnalystRepository,
   LearningRepository,
   LearningQueueRepository,
+  SnapshotRepository,
 ];
 
 const services = [
@@ -46,6 +59,17 @@ const services = [
   AnalystEnsembleService,
   LearningService,
   LearningQueueService,
+  // Phase 5 Services
+  SignalDetectionService,
+  PredictorManagementService,
+  PredictionGenerationService,
+  OutcomeTrackingService,
+  EvaluationService,
+  MissedOpportunityDetectionService,
+  MissedOpportunityAnalysisService,
+  FastPathService,
+  SnapshotService,
+  ReviewQueueService,
 ];
 
 @Module({
