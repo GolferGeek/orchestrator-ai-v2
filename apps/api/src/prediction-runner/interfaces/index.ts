@@ -45,3 +45,18 @@ export {
   ThresholdEvaluationResult,
   DEFAULT_THRESHOLD_CONFIG,
 } from './threshold-evaluation.interface';
+
+// Source interfaces
+export * from './source.interface';
+
+// Crawl config interfaces
+export * from './crawl-config.interface';
+
+// Strategy interfaces
+export * from './strategy.interface';
+
+// Tool request interfaces
+export * from './tool-request.interface';
+
+// Target snapshot interfaces
+export * from './target-snapshot.interface';

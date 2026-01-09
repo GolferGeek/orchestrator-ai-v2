@@ -13,6 +13,13 @@ import {
   LearningRepository,
   LearningQueueRepository,
   SnapshotRepository,
+  // Phase 6 Repositories
+  SourceRepository,
+  SourceCrawlRepository,
+  SourceSeenItemRepository,
+  StrategyRepository,
+  ToolRequestRepository,
+  TargetSnapshotRepository,
 } from './repositories';
 
 // Services
@@ -36,6 +43,13 @@ import {
   FastPathService,
   SnapshotService,
   ReviewQueueService,
+  // Phase 6 Services
+  FirecrawlService,
+  ContentHashService,
+  SourceCrawlerService,
+  TargetSnapshotService,
+  StrategyService,
+  ToolRequestService,
 } from './services';
 
 const repositories = [
@@ -48,6 +62,13 @@ const repositories = [
   LearningRepository,
   LearningQueueRepository,
   SnapshotRepository,
+  // Phase 6 Repositories
+  SourceRepository,
+  SourceCrawlRepository,
+  SourceSeenItemRepository,
+  StrategyRepository,
+  ToolRequestRepository,
+  TargetSnapshotRepository,
 ];
 
 const services = [
@@ -70,6 +91,13 @@ const services = [
   FastPathService,
   SnapshotService,
   ReviewQueueService,
+  // Phase 6 Services
+  FirecrawlService,
+  ContentHashService,
+  SourceCrawlerService,
+  TargetSnapshotService,
+  StrategyService,
+  ToolRequestService,
 ];
 
 @Module({

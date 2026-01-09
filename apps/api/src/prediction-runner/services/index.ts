@@ -18,3 +18,10 @@ export * from './missed-opportunity-analysis.service';
 export * from './signal-detection.service';
 export * from './predictor-management.service';
 export * from './prediction-generation.service';
+// Phase 6 services
+export * from './firecrawl.service';
+export * from './content-hash.service';
+export * from './source-crawler.service';
+export * from './target-snapshot.service';
+export * from './strategy.service';
+export * from './tool-request.service';
