@@ -1,0 +1,149 @@
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { SupabaseService } from '@/supabase/supabase.service';
+import {
+  Universe,
+  CreateUniverseData,
+  UpdateUniverseData,
+} from '../interfaces/universe.interface';
+
+type SupabaseError = { message: string; code?: string } | null;
+
+type SupabaseSelectResponse<T> = {
+  data: T | null;
+  error: SupabaseError;
+};
+
+type SupabaseSelectListResponse<T> = {
+  data: T[] | null;
+  error: SupabaseError;
+};
+
+@Injectable()
+export class UniverseRepository {
+  private readonly logger = new Logger(UniverseRepository.name);
+  private readonly schema = 'prediction';
+  private readonly table = 'universes';
+
+  constructor(private readonly supabaseService: SupabaseService) {}
+
+  private getClient() {
+    return this.supabaseService.getServiceClient();
+  }
+
+  async findAll(organizationSlug: string): Promise<Universe[]> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .select('*')
+      .eq('organization_slug', organizationSlug)
+      .eq('is_active', true)
+      .order('created_at', {
+        ascending: false,
+      })) as SupabaseSelectListResponse<Universe>;
+
+    if (error) {
+      this.logger.error(`Failed to fetch universes: ${error.message}`);
+      throw new Error(`Failed to fetch universes: ${error.message}`);
+    }
+
+    return data ?? [];
+  }
+
+  async findById(id: string): Promise<Universe | null> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .select('*')
+      .eq('id', id)
+      .single()) as SupabaseSelectResponse<Universe>;
+
+    if (error && error.code !== 'PGRST116') {
+      this.logger.error(`Failed to fetch universe: ${error.message}`);
+      throw new Error(`Failed to fetch universe: ${error.message}`);
+    }
+
+    return data;
+  }
+
+  async findByIdOrThrow(id: string): Promise<Universe> {
+    const universe = await this.findById(id);
+    if (!universe) {
+      throw new NotFoundException(`Universe not found: ${id}`);
+    }
+    return universe;
+  }
+
+  async create(universeData: CreateUniverseData): Promise<Universe> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .insert(universeData)
+      .select()
+      .single()) as SupabaseSelectResponse<Universe>;
+
+    if (error) {
+      this.logger.error(`Failed to create universe: ${error.message}`);
+      throw new Error(`Failed to create universe: ${error.message}`);
+    }
+
+    if (!data) {
+      throw new Error('Create succeeded but no universe returned');
+    }
+
+    return data;
+  }
+
+  async update(id: string, updateData: UpdateUniverseData): Promise<Universe> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single()) as SupabaseSelectResponse<Universe>;
+
+    if (error) {
+      this.logger.error(`Failed to update universe: ${error.message}`);
+      throw new Error(`Failed to update universe: ${error.message}`);
+    }
+
+    if (!data) {
+      throw new Error('Update succeeded but no universe returned');
+    }
+
+    return data;
+  }
+
+  async delete(id: string): Promise<void> {
+    const { error } = await this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      this.logger.error(`Failed to delete universe: ${error.message}`);
+      throw new Error(`Failed to delete universe: ${error.message}`);
+    }
+  }
+
+  async findByAgentSlug(
+    agentSlug: string,
+    organizationSlug: string,
+  ): Promise<Universe[]> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .select('*')
+      .eq('organization_slug', organizationSlug)
+      .eq('agent_slug', agentSlug)
+      .eq('is_active', true)) as SupabaseSelectListResponse<Universe>;
+
+    if (error) {
+      this.logger.error(`Failed to fetch universes by agent: ${error.message}`);
+      throw new Error(`Failed to fetch universes by agent: ${error.message}`);
+    }
+
+    return data ?? [];
+  }
+}
