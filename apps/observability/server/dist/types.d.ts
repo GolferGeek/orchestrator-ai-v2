@@ -19,13 +19,29 @@ export interface HumanInTheLoopStatus {
     respondedAt?: number;
     response?: HumanInTheLoopResponse;
 }
+export interface HookDataInput {
+    source_app?: string;
+    sourceApp?: string;
+    session_id?: string;
+    sessionId?: string;
+    event_type?: string;
+    hook_event_type?: string;
+    eventType?: string;
+    payload?: Record<string, unknown>;
+    chat?: unknown[];
+    summary?: string;
+    timestamp?: number;
+    model_name?: string;
+    modelName?: string;
+    humanInTheLoop?: HumanInTheLoop;
+}
 export interface HookEvent {
     id?: number;
     source_app: string;
     session_id: string;
     hook_event_type: string;
-    payload: Record<string, any>;
-    chat?: any[];
+    payload: Record<string, unknown>;
+    chat?: unknown[];
     summary?: string;
     timestamp?: number;
     model_name?: string;
@@ -119,10 +135,29 @@ export interface ThemeValidationError {
     message: string;
     code: string;
 }
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
     success: boolean;
     data?: T;
     error?: string;
     message?: string;
     validationErrors?: ThemeValidationError[];
+}
+export interface ThemeExportData {
+    version: string;
+    theme: Partial<Theme>;
+    exportedAt: string;
+    exportedBy: string;
+}
+export interface ThemeStats {
+    totalThemes: number;
+    publicThemes: number;
+    privateThemes: number;
+    totalDownloads: number;
+    averageRating: number;
+}
+export interface ThemeImportData {
+    version?: string;
+    theme: Partial<Theme>;
+    exportedAt?: string;
+    exportedBy?: string;
 }
