@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { v4 as uuidv4 } from 'uuid';
-import { ExecutionContext } from '@orchestrator-ai/transport-types';
+import { ExecutionContext, NIL_UUID } from '@orchestrator-ai/transport-types';
 import { TargetRepository } from '../repositories/target.repository';
 import { UniverseRepository } from '../repositories/universe.repository';
 import { PredictionGenerationService } from '../services/prediction-generation.service';
@@ -74,13 +74,13 @@ export class BatchPredictionGeneratorRunner {
 
     try {
       // Get all universes
-      const universes = await this.universeRepository.findAll();
+      const universes = await this.universeRepository.findAllActive();
 
       for (const universe of universes) {
-        // Get strategy for this universe
-        const strategy = universe.strategy_id
-          ? await this.strategyService.getStrategy(universe.strategy_id)
-          : null;
+        // Get applied strategy for this universe
+        const appliedStrategy = await this.strategyService.getAppliedStrategy(
+          universe.id,
+        );
 
         // Get active targets
         const targets = await this.targetRepository.findActiveByUniverse(
@@ -91,9 +91,19 @@ export class BatchPredictionGeneratorRunner {
           try {
             targetsEvaluated++;
 
-            // Get threshold config from strategy
-            const thresholdConfig = strategy
-              ? this.strategyService.getThresholdConfig(strategy)
+            // Get threshold config from applied strategy parameters
+            const thresholdConfig = appliedStrategy
+              ? {
+                  min_predictors:
+                    appliedStrategy.effective_parameters.min_predictors,
+                  min_combined_strength:
+                    appliedStrategy.effective_parameters.min_combined_strength,
+                  min_direction_consensus:
+                    appliedStrategy.effective_parameters
+                      .min_direction_consensus,
+                  predictor_ttl_hours:
+                    appliedStrategy.effective_parameters.predictor_ttl_hours,
+                }
               : undefined;
 
             // Check predictor threshold
@@ -120,6 +130,8 @@ export class BatchPredictionGeneratorRunner {
               userId: 'system',
               conversationId: `batch-prediction-${Date.now()}`,
               taskId: uuidv4(),
+              planId: NIL_UUID,
+              deliverableId: NIL_UUID,
               agentSlug: 'batch-prediction-generator',
               agentType: 'context',
               provider: 'anthropic',
@@ -180,6 +192,8 @@ export class BatchPredictionGeneratorRunner {
         userId: 'system',
         conversationId: `manual-prediction-${Date.now()}`,
         taskId: uuidv4(),
+        planId: NIL_UUID,
+        deliverableId: NIL_UUID,
         agentSlug: 'manual-prediction-generator',
         agentType: 'context',
         provider: 'anthropic',

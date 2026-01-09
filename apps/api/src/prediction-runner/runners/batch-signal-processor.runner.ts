@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { v4 as uuidv4 } from 'uuid';
-import { ExecutionContext } from '@orchestrator-ai/transport-types';
+import { ExecutionContext, NIL_UUID } from '@orchestrator-ai/transport-types';
 import { SignalRepository } from '../repositories/signal.repository';
 import { TargetRepository } from '../repositories/target.repository';
 import { UniverseRepository } from '../repositories/universe.repository';
@@ -70,7 +70,9 @@ export class BatchSignalProcessorRunner {
     this.isRunning = true;
     const startTime = Date.now();
 
-    this.logger.log(`Starting batch signal processing (worker: ${this.workerId})`);
+    this.logger.log(
+      `Starting batch signal processing (worker: ${this.workerId})`,
+    );
 
     let processed = 0;
     let predictorsCreated = 0;
@@ -80,7 +82,7 @@ export class BatchSignalProcessorRunner {
 
     try {
       // Get all universes to process their targets
-      const universes = await this.universeRepository.findAll();
+      const universes = await this.universeRepository.findAllActive();
 
       for (const universe of universes) {
         // Get active targets in this universe
@@ -113,7 +115,13 @@ export class BatchSignalProcessorRunner {
           `${fastPathTriggered} fast-path, ${errors} errors (${duration}ms)`,
       );
 
-      return { processed, predictorsCreated, rejected, fastPathTriggered, errors };
+      return {
+        processed,
+        predictorsCreated,
+        rejected,
+        fastPathTriggered,
+        errors,
+      };
     } finally {
       this.isRunning = false;
     }
@@ -142,7 +150,13 @@ export class BatchSignalProcessorRunner {
     );
 
     if (pendingSignals.length === 0) {
-      return { processed: 0, predictorsCreated: 0, rejected: 0, fastPathTriggered: 0, errors: 0 };
+      return {
+        processed: 0,
+        predictorsCreated: 0,
+        rejected: 0,
+        fastPathTriggered: 0,
+        errors: 0,
+      };
     }
 
     this.logger.debug(
@@ -172,7 +186,7 @@ export class BatchSignalProcessorRunner {
           // Check for fast path
           if (result.urgency === 'urgent') {
             fastPathTriggered++;
-            await this.triggerFastPath(targetId);
+            await this.triggerFastPath(claimed);
           }
         } else {
           rejected++;
@@ -186,7 +200,13 @@ export class BatchSignalProcessorRunner {
       }
     }
 
-    return { processed, predictorsCreated, rejected, fastPathTriggered, errors };
+    return {
+      processed,
+      predictorsCreated,
+      rejected,
+      fastPathTriggered,
+      errors,
+    };
   }
 
   /**
@@ -202,6 +222,8 @@ export class BatchSignalProcessorRunner {
       userId: 'system',
       conversationId: `batch-${Date.now()}`,
       taskId: uuidv4(),
+      planId: NIL_UUID,
+      deliverableId: NIL_UUID,
       agentSlug: 'batch-signal-processor',
       agentType: 'context',
       provider: 'anthropic',
@@ -222,23 +244,25 @@ export class BatchSignalProcessorRunner {
   /**
    * Trigger fast path processing for urgent signals
    */
-  private async triggerFastPath(targetId: string): Promise<void> {
+  private async triggerFastPath(signal: Signal): Promise<void> {
     try {
       const ctx: ExecutionContext = {
         orgSlug: 'system',
         userId: 'system',
         conversationId: `fastpath-${Date.now()}`,
         taskId: uuidv4(),
+        planId: NIL_UUID,
+        deliverableId: NIL_UUID,
         agentSlug: 'fast-path-processor',
         agentType: 'context',
         provider: 'anthropic',
         model: 'claude-sonnet-4-20250514',
       };
 
-      await this.fastPathService.processUrgentSignal(ctx, targetId);
+      await this.fastPathService.processFastPath(ctx, signal);
     } catch (error) {
       this.logger.error(
-        `Fast path processing failed for target ${targetId}: ` +
+        `Fast path processing failed for signal ${signal.id}: ` +
           `${error instanceof Error ? error.message : 'Unknown error'}`,
       );
     }

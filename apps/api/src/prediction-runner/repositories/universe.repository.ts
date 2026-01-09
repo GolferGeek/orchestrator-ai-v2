@@ -127,6 +127,30 @@ export class UniverseRepository {
     }
   }
 
+  /**
+   * Find all active universes across all organizations
+   * Used by batch runners that process system-wide
+   */
+  async findAllActive(): Promise<Universe[]> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .select('*')
+      .eq('is_active', true)
+      .order('created_at', {
+        ascending: false,
+      })) as SupabaseSelectListResponse<Universe>;
+
+    if (error) {
+      this.logger.error(
+        `Failed to fetch all active universes: ${error.message}`,
+      );
+      throw new Error(`Failed to fetch all active universes: ${error.message}`);
+    }
+
+    return data ?? [];
+  }
+
   async findByAgentSlug(
     agentSlug: string,
     organizationSlug: string,

@@ -174,4 +174,52 @@ export class PredictionRepository {
 
     return data;
   }
+
+  /**
+   * Find all active predictions (not expired, not resolved)
+   */
+  async findActivePredictions(): Promise<Prediction[]> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .select('*')
+      .eq('status', 'active')
+      .order('predicted_at', {
+        ascending: false,
+      })) as SupabaseSelectListResponse<Prediction>;
+
+    if (error) {
+      this.logger.error(`Failed to fetch active predictions: ${error.message}`);
+      throw new Error(`Failed to fetch active predictions: ${error.message}`);
+    }
+
+    return data ?? [];
+  }
+
+  /**
+   * Find resolved predictions that haven't been evaluated yet
+   */
+  async findResolvedWithoutEvaluation(): Promise<Prediction[]> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .select('*')
+      .eq('status', 'resolved')
+      .not('outcome_value', 'is', null)
+      .is('resolution_notes', null)
+      .order('outcome_captured_at', {
+        ascending: true,
+      })) as SupabaseSelectListResponse<Prediction>;
+
+    if (error) {
+      this.logger.error(
+        `Failed to fetch predictions for evaluation: ${error.message}`,
+      );
+      throw new Error(
+        `Failed to fetch predictions for evaluation: ${error.message}`,
+      );
+    }
+
+    return data ?? [];
+  }
 }

@@ -179,9 +179,7 @@ export class SourceCrawlerRunner {
   /**
    * Resolve the target ID for a source based on its scope
    */
-  private async resolveTargetForSource(
-    source: Source,
-  ): Promise<string | null> {
+  private async resolveTargetForSource(source: Source): Promise<string | null> {
     switch (source.scope_level) {
       case 'target':
         // Target-scoped sources have direct target_id

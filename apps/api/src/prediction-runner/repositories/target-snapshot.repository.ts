@@ -95,6 +95,16 @@ export class TargetSnapshotRepository {
   }
 
   /**
+   * Find snapshot closest to a specific Date
+   */
+  async findClosestToTime(
+    targetId: string,
+    timestamp: Date,
+  ): Promise<TargetSnapshot | null> {
+    return this.findAtTime(targetId, timestamp.toISOString());
+  }
+
+  /**
    * Find snapshots within a time range
    */
   async findInRange(

@@ -52,6 +52,17 @@ import {
   ToolRequestService,
 } from './services';
 
+// Phase 7 Runners
+import {
+  SourceCrawlerRunner,
+  BatchSignalProcessorRunner,
+  BatchPredictionGeneratorRunner,
+  OutcomeTrackingRunner,
+  EvaluationRunner,
+  MissedOpportunityScannerRunner,
+  ExpirationRunner,
+} from './runners';
+
 const repositories = [
   UniverseRepository,
   TargetRepository,
@@ -100,9 +111,20 @@ const services = [
   ToolRequestService,
 ];
 
+// Phase 7 Runners
+const runners = [
+  SourceCrawlerRunner,
+  BatchSignalProcessorRunner,
+  BatchPredictionGeneratorRunner,
+  OutcomeTrackingRunner,
+  EvaluationRunner,
+  MissedOpportunityScannerRunner,
+  ExpirationRunner,
+];
+
 @Module({
   imports: [SupabaseModule, LLMModule],
-  providers: [...repositories, ...services],
-  exports: [...services],
+  providers: [...repositories, ...services, ...runners],
+  exports: [...services, ...runners],
 })
 export class PredictionRunnerModule {}
