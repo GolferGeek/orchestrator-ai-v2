@@ -137,14 +137,15 @@ class SupabaseAuthMiddleware(BaseHTTPMiddleware):
         if self.supabase_client:
             try:
                 # Verify JWT token with Supabase
-                response = self.supabase_client.auth.get_user(token)
-                
-                if response.user:
+                auth_response = self.supabase_client.auth.get_user(token)
+
+                if auth_response is not None and auth_response.user is not None:
                     # Token is valid, attach user info to request state
+                    user = auth_response.user
                     request.state.user = {
-                        "id": response.user.id,
-                        "email": response.user.email,
-                        "role": response.user.role or "authenticated",
+                        "id": user.id,
+                        "email": user.email,
+                        "role": user.role or "authenticated",
                     }
                     response_obj = await call_next(request)
                     return response_obj

@@ -36,11 +36,20 @@ def get_test_auth_token() -> str:
     if not all([supabase_url, supabase_anon_key, test_user, test_password]):
         pytest.skip("Supabase test credentials not configured")
 
+    # Type guards to satisfy mypy - values guaranteed non-None by check above
+    assert supabase_url is not None
+    assert supabase_anon_key is not None
+    assert test_user is not None
+    assert test_password is not None
+
     client = create_client(supabase_url, supabase_anon_key)
     response = client.auth.sign_in_with_password({
         "email": test_user,
         "password": test_password,
     })
+
+    if response.session is None:
+        pytest.skip("Failed to authenticate test user - no session returned")
 
     return response.session.access_token
 
