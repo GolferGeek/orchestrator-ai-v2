@@ -320,8 +320,82 @@ Creates a tool wishlist showing which new sources would have helped.
 
 ## Open Questions
 
-1. **Analyst creation UI** - How much guidance do users need to create effective custom analysts?
-2. **Source authentication** - How to handle paywalled sources (The Information, etc.)?
-3. **Cost management** - How to help users understand/control LLM costs?
-4. **Cross-target signals** - How to handle signals that affect multiple targets (Fed announcements)?
-5. **Strategy backtesting** - Should users be able to backtest strategies against historical data?
+1. **Cross-target signals** - Signals affecting multiple targets (Fed announcements) will currently be crawled once per source but create signals for each applicable target. For sources spanning multiple universes, the same content may be crawled multiple times. Consider deduplication at the content level if this becomes a performance issue.
+
+2. **Strategy backtesting** - Deferred. Backtesting is difficult with news-based signals since historical news context is hard to reconstruct. Price-based backtesting is possible but less valuable since news/sources are our primary differentiator.
+
+---
+
+## Resolved Decisions
+
+### 1. User Guidance for Learning
+
+Users need clear guidance on:
+- **Adding URLs**: Wizard-style flow with examples, test-crawl before saving
+- **Creating Analysts**: Templates for common perspectives, guided prompts for perspective/instructions
+- **Effective Learning**: Tutorial on when to add learnings at which level (target vs universe vs domain)
+
+The key insight: **Learnings replace context files**. Instead of editing markdown files, users add learnings through the UI at the appropriate scope level. This is more accessible and auditable.
+
+### 2. Paywalled Source Authentication
+
+Store encrypted credentials in the database:
+
+```sql
+ALTER TABLE prediction_sources ADD COLUMN auth_config JSONB;
+-- {
+--   "type": "basic" | "cookie" | "api_key" | "oauth",
+--   "credentials_encrypted": "...",  -- Encrypted blob
+--   "credential_hint": "username: j***@email.com"  -- For UI display
+-- }
+```
+
+Encryption approach:
+- Encrypt credentials at rest using application-level encryption (AES-256)
+- Decrypt only when passing to Firecrawl
+- Store a hint (masked) for user reference
+- Support different auth types: Basic auth, cookies, API keys
+
+### 3. LLM Cost Tracking
+
+Already supported through our LLM service. Implementation:
+- Track tokens and cost per analyst assessment
+- Store in `prediction_analyst_assessments` table (already has `tokens_used`, `cost` columns)
+- Aggregate and display:
+  - Cost per prediction
+  - Cost per day/week/month
+  - Cost by LLM tier (Gold vs Silver vs Bronze)
+  - Cost by universe/target
+
+Dashboard widget:
+```
+┌─────────────────────────────────────────┐
+│ LLM Usage (January)                     │
+│                                         │
+│ 🟡 Gold:    $12.40 (142 calls)         │
+│ ⚪ Silver:  $4.20 (891 calls)          │
+│ 🟤 Bronze: $0.00 (2,847 calls)         │
+│                                         │
+│ Total: $16.60                          │
+│ Avg per prediction: $0.42              │
+└─────────────────────────────────────────┘
+```
+
+---
+
+## Competitive Differentiation
+
+This system's unique value:
+
+1. **User-defined news sources** - Add any URL, not limited to pre-built integrations
+2. **Multi-AI analyst ensemble** - Multiple perspectives evaluate every signal
+3. **Multi-LLM comparison** - See where different models agree/disagree
+4. **Transparent predictions** - Full explainability, not a black box
+5. **Continuous learning** - System improves from outcomes and user feedback
+6. **Missed opportunity analysis** - Proactively identifies capability gaps
+
+No one else is giving users the ability to easily:
+- Add their own news sources
+- Create custom AI analysts with specific perspectives
+- See predictions broken down by multiple AI models
+- Have the system learn and suggest improvements
