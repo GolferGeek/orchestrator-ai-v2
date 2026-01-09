@@ -25,3 +25,6 @@ export * from './source-crawler.service';
 export * from './target-snapshot.service';
 export * from './strategy.service';
 export * from './tool-request.service';
+// Phase 9 services
+export * from './notification.service';
+export * from './prediction-streaming.service';

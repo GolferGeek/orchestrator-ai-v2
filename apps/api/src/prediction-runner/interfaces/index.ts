@@ -60,3 +60,6 @@ export * from './tool-request.interface';
 
 // Target snapshot interfaces
 export * from './target-snapshot.interface';
+
+// Notification interfaces (Phase 9)
+export * from './notification.interface';

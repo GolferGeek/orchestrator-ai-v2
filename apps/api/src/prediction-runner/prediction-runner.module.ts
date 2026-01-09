@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { SupabaseModule } from '@/supabase/supabase.module';
 import { LLMModule } from '@/llms/llm.module';
+import { ObservabilityModule } from '@/observability/observability.module';
 
 // Repositories
 import {
@@ -50,6 +51,9 @@ import {
   TargetSnapshotService,
   StrategyService,
   ToolRequestService,
+  // Phase 9 Services
+  NotificationService,
+  PredictionStreamingService,
 } from './services';
 
 // Phase 7 Runners
@@ -125,6 +129,9 @@ const services = [
   TargetSnapshotService,
   StrategyService,
   ToolRequestService,
+  // Phase 9 Services
+  NotificationService,
+  PredictionStreamingService,
 ];
 
 // Phase 7 Runners
@@ -155,7 +162,7 @@ const dashboardHandlers = [
 ];
 
 @Module({
-  imports: [SupabaseModule, LLMModule],
+  imports: [SupabaseModule, LLMModule, ObservabilityModule],
   providers: [...repositories, ...services, ...runners, ...dashboardHandlers],
   exports: [...services, ...runners, ...dashboardHandlers],
 })
