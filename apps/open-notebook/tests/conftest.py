@@ -15,6 +15,7 @@ sys.path.insert(0, str(project_root))
 
 # Load root .env to get test credentials
 from dotenv import load_dotenv
+
 root_env = project_root.parent.parent / ".env"
 load_dotenv(root_env)
 

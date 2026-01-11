@@ -7,8 +7,8 @@ import os
 import sys
 from pathlib import Path
 
-from dotenv import load_dotenv
 import uvicorn
+from dotenv import load_dotenv
 
 # Add the current directory to Python path so imports work
 current_dir = Path(__file__).parent

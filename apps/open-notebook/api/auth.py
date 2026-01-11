@@ -4,13 +4,13 @@ from typing import Optional, Tuple
 
 from fastapi import HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
-from loguru import logger
 
 # Try to import Supabase, fall back to password auth if not available
 try:
-    from supabase import create_client, Client
+    from supabase import Client, create_client
     SUPABASE_AVAILABLE = True
 except ImportError:
     SUPABASE_AVAILABLE = False

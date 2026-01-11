@@ -5,8 +5,6 @@ from typing import Annotated, Dict, List, Optional
 from ai_prompter import Prompter
 from langchain_core.messages import AIMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
-
-from open_notebook.utils import clean_thinking_content
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
@@ -15,6 +13,7 @@ from typing_extensions import TypedDict
 from open_notebook.config import LANGGRAPH_CHECKPOINT_FILE
 from open_notebook.domain.notebook import Source, SourceInsight
 from open_notebook.graphs.utils import provision_langchain_model
+from open_notebook.utils import clean_thinking_content
 from open_notebook.utils.context_builder import ContextBuilder
 
 
