@@ -11,6 +11,7 @@ import { ReviewQueueHandler } from '../handlers/review-queue.handler';
 import { StrategyHandler } from '../handlers/strategy.handler';
 import { MissedOpportunityHandler } from '../handlers/missed-opportunity.handler';
 import { ToolRequestHandler } from '../handlers/tool-request.handler';
+import { TestScenarioHandler } from '../handlers/test-scenario.handler';
 import {
   ExecutionContext,
   DashboardRequestPayload,
@@ -29,6 +30,7 @@ describe('PredictionDashboardRouter', () => {
   let strategyHandler: jest.Mocked<StrategyHandler>;
   let missedOpportunityHandler: jest.Mocked<MissedOpportunityHandler>;
   let toolRequestHandler: jest.Mocked<ToolRequestHandler>;
+  let testScenarioHandler: jest.Mocked<TestScenarioHandler>;
 
   const mockContext: ExecutionContext = {
     userId: 'user-123',
@@ -63,6 +65,7 @@ describe('PredictionDashboardRouter', () => {
         { provide: StrategyHandler, useValue: createMockHandler() },
         { provide: MissedOpportunityHandler, useValue: createMockHandler() },
         { provide: ToolRequestHandler, useValue: createMockHandler() },
+        { provide: TestScenarioHandler, useValue: createMockHandler() },
       ],
     }).compile();
 
@@ -78,6 +81,7 @@ describe('PredictionDashboardRouter', () => {
     strategyHandler = module.get(StrategyHandler);
     missedOpportunityHandler = module.get(MissedOpportunityHandler);
     toolRequestHandler = module.get(ToolRequestHandler);
+    testScenarioHandler = module.get(TestScenarioHandler);
 
     jest.clearAllMocks();
   });
@@ -100,6 +104,7 @@ describe('PredictionDashboardRouter', () => {
       expect(entities).toContain('strategies');
       expect(entities).toContain('missed-opportunities');
       expect(entities).toContain('tool-requests');
+      expect(entities).toContain('test-scenarios');
     });
   });
 
@@ -325,6 +330,47 @@ describe('PredictionDashboardRouter', () => {
 
       expect(toolRequestHandler.execute).toHaveBeenCalledWith(
         'updateStatus',
+        mockPayload,
+        mockContext,
+      );
+      expect(result.success).toBe(true);
+    });
+
+    it('should route test-scenarios.list to TestScenarioHandler', async () => {
+      testScenarioHandler.execute.mockResolvedValue({
+        success: true,
+        data: [],
+        metadata: { totalCount: 0 },
+      });
+
+      const result = await router.route(
+        'test-scenarios.list',
+        mockPayload,
+        mockContext,
+      );
+
+      expect(testScenarioHandler.execute).toHaveBeenCalledWith(
+        'list',
+        mockPayload,
+        mockContext,
+      );
+      expect(result.success).toBe(true);
+    });
+
+    it('should route test-scenarios.inject to TestScenarioHandler', async () => {
+      testScenarioHandler.execute.mockResolvedValue({
+        success: true,
+        data: { injected_count: 5 },
+      });
+
+      const result = await router.route(
+        'test-scenarios.inject',
+        mockPayload,
+        mockContext,
+      );
+
+      expect(testScenarioHandler.execute).toHaveBeenCalledWith(
+        'inject',
         mockPayload,
         mockContext,
       );

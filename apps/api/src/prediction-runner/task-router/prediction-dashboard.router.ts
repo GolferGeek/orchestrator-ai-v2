@@ -40,6 +40,8 @@ import { ReviewQueueHandler } from './handlers/review-queue.handler';
 import { StrategyHandler } from './handlers/strategy.handler';
 import { MissedOpportunityHandler } from './handlers/missed-opportunity.handler';
 import { ToolRequestHandler } from './handlers/tool-request.handler';
+// Phase 4 - Test Data Builder UI
+import { TestScenarioHandler } from './handlers/test-scenario.handler';
 
 /**
  * Supported dashboard entities
@@ -55,7 +57,8 @@ export type DashboardEntity =
   | 'review-queue'
   | 'strategies'
   | 'missed-opportunities'
-  | 'tool-requests';
+  | 'tool-requests'
+  | 'test-scenarios';
 
 /**
  * Dashboard router response
@@ -87,6 +90,8 @@ export class PredictionDashboardRouter {
     private readonly strategyHandler: StrategyHandler,
     private readonly missedOpportunityHandler: MissedOpportunityHandler,
     private readonly toolRequestHandler: ToolRequestHandler,
+    // Phase 4 - Test Data Builder UI
+    private readonly testScenarioHandler: TestScenarioHandler,
   ) {}
 
   /**
@@ -234,6 +239,12 @@ export class PredictionDashboardRouter {
       case 'tool-request':
         return this.toolRequestHandler.execute(operation, payload, context);
 
+      // Phase 4 - Test Data Builder UI
+      case 'test-scenarios':
+      case 'testscenarios':
+      case 'test-scenario':
+        return this.testScenarioHandler.execute(operation, payload, context);
+
       default:
         return buildDashboardError(
           'UNKNOWN_ENTITY',
@@ -297,6 +308,7 @@ export class PredictionDashboardRouter {
       'strategies',
       'missed-opportunities',
       'tool-requests',
+      'test-scenarios',
     ];
   }
 
@@ -327,6 +339,8 @@ export class PredictionDashboardRouter {
         return this.missedOpportunityHandler.getSupportedActions();
       case 'tool-requests':
         return this.toolRequestHandler.getSupportedActions();
+      case 'test-scenarios':
+        return this.testScenarioHandler.getSupportedActions();
       default:
         return [];
     }

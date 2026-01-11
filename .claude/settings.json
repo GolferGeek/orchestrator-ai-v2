@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /Users/golfergeek/projects/orchAI/orchestrator-ai-v2 show --name-status b822141)"
+    ]
+  }
+}

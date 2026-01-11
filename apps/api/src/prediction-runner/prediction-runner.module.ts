@@ -88,6 +88,8 @@ import {
   StrategyHandler,
   MissedOpportunityHandler,
   ToolRequestHandler,
+  // Phase 4 - Test Data Builder UI
+  TestScenarioHandler,
 } from './task-router/handlers';
 
 const repositories = [
@@ -173,6 +175,8 @@ const dashboardHandlers = [
   StrategyHandler,
   MissedOpportunityHandler,
   ToolRequestHandler,
+  // Phase 4 - Test Data Builder UI
+  TestScenarioHandler,
 ];
 
 @Module({

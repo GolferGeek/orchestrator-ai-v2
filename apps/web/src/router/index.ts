@@ -293,6 +293,117 @@ const routes: Array<RouteRecordRaw> = [
           title: 'Marketing Swarm Task',
           description: 'View marketing swarm task details'
         }
+      },
+      // Prediction Runner Dashboard Routes
+      {
+        path: 'prediction/dashboard',
+        name: 'PredictionDashboard',
+        component: () => import('../views/prediction/PredictionDashboard.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Prediction Dashboard',
+          description: 'View and manage predictions'
+        }
+      },
+      {
+        path: 'prediction/test-lab',
+        name: 'TestLab',
+        component: () => import('../views/prediction/TestLabView.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Test Lab',
+          description: 'Build and manage test scenarios for the prediction system'
+        }
+      },
+      {
+        path: 'prediction/universes',
+        name: 'UniverseManagement',
+        component: () => import('../views/prediction/UniverseManagement.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Universe Management',
+          description: 'Manage prediction universes and targets'
+        }
+      },
+      {
+        path: 'prediction/review-queue',
+        name: 'ReviewQueue',
+        component: () => import('../views/prediction/ReviewQueue.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Review Queue',
+          description: 'Review and approve predictions'
+        }
+      },
+      {
+        path: 'prediction/learning-queue',
+        name: 'LearningQueue',
+        component: () => import('../views/prediction/LearningQueue.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Learning Queue',
+          description: 'Review and approve learnings'
+        }
+      },
+      {
+        path: 'prediction/learnings',
+        name: 'LearningsManagement',
+        component: () => import('../views/prediction/LearningsManagement.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Learnings Management',
+          description: 'Manage system learnings'
+        }
+      },
+      {
+        path: 'prediction/analysts',
+        name: 'AnalystManagement',
+        component: () => import('../views/prediction/AnalystManagement.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Analyst Management',
+          description: 'Manage prediction analysts'
+        }
+      },
+      {
+        path: 'prediction/tool-wishlist',
+        name: 'ToolWishlist',
+        component: () => import('../views/prediction/ToolWishlist.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Tool Wishlist',
+          description: 'View requested tools and capabilities'
+        }
+      },
+      {
+        path: 'prediction/missed-opportunities',
+        name: 'MissedOpportunities',
+        component: () => import('../views/prediction/MissedOpportunities.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Missed Opportunities',
+          description: 'Analyze missed prediction opportunities'
+        }
+      },
+      {
+        path: 'prediction/:id',
+        name: 'PredictionDetail',
+        component: () => import('../views/prediction/PredictionDetail.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Prediction Detail',
+          description: 'View prediction details'
+        }
+      },
+      {
+        path: 'prediction/target/:id',
+        name: 'TargetDetail',
+        component: () => import('../views/prediction/TargetDetail.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Target Detail',
+          description: 'View target details and predictions'
+        }
       }
     ]
   },

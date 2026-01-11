@@ -14,3 +14,5 @@ export { ReviewQueueHandler } from './review-queue.handler';
 export { StrategyHandler } from './strategy.handler';
 export { MissedOpportunityHandler } from './missed-opportunity.handler';
 export { ToolRequestHandler } from './tool-request.handler';
+// Phase 4 - Test Data Builder UI
+export { TestScenarioHandler } from './test-scenario.handler';

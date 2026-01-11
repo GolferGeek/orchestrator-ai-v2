@@ -527,6 +527,185 @@ export interface LLMCostSummaryParams {
 }
 
 // ============================================================================
+// PHASE 4 TYPES - Test Scenario Operations
+// ============================================================================
+
+export type TestScenarioStatus = 'active' | 'running' | 'completed' | 'failed' | 'archived';
+
+export type InjectionPoint =
+  | 'strategies'
+  | 'universes'
+  | 'targets'
+  | 'sources'
+  | 'source_crawls'
+  | 'source_seen_items'
+  | 'signal_fingerprints'
+  | 'signals'
+  | 'predictors'
+  | 'predictions'
+  | 'snapshots'
+  | 'evaluations'
+  | 'target_snapshots'
+  | 'missed_opportunities'
+  | 'tool_requests'
+  | 'analysts'
+  | 'learnings'
+  | 'learning_queue'
+  | 'review_queue';
+
+export interface TestScenario {
+  id: string;
+  name: string;
+  description: string | null;
+  injection_points: InjectionPoint[];
+  target_id: string | null;
+  organization_slug: string;
+  config: TestScenarioConfig;
+  created_by: string | null;
+  status: TestScenarioStatus;
+  results: TestScenarioResults | null;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export interface TestScenarioConfig {
+  auto_run_tiers?: boolean;
+  tiers_to_run?: string[];
+  tier_config?: Record<string, unknown>;
+}
+
+export interface TestScenarioResults {
+  items_injected?: Record<string, number>;
+  items_generated?: Record<string, number>;
+  tier_results?: Record<
+    string,
+    {
+      success: boolean;
+      processed: number;
+      created: number;
+      errors: string[];
+    }
+  >;
+  errors?: string[];
+}
+
+export interface TestScenarioSummary extends TestScenario {
+  data_counts: Record<string, number>;
+}
+
+export interface TestScenarioListParams {
+  status?: TestScenarioStatus;
+  targetId?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface TestScenarioCreateParams {
+  name: string;
+  description?: string;
+  injection_points: InjectionPoint[];
+  target_id?: string;
+  config?: TestScenarioConfig;
+}
+
+export interface TestScenarioUpdateParams {
+  id: string;
+  name?: string;
+  description?: string;
+  injection_points?: InjectionPoint[];
+  target_id?: string | null;
+  config?: TestScenarioConfig;
+  status?: TestScenarioStatus;
+}
+
+export interface TestScenarioInjectParams {
+  scenarioId: string;
+  table: InjectionPoint;
+  data: unknown[];
+}
+
+export interface TestScenarioGenerateParams {
+  scenarioId: string;
+  type: 'signals' | 'predictions' | 'articles';
+  config: {
+    count: number;
+    target_id?: string;
+    source_id?: string;
+    topic?: string;
+    sentiment?: 'bullish' | 'bearish' | 'mixed';
+    distribution?: { bullish?: number; bearish?: number; neutral?: number };
+    accuracy_rate?: number;
+  };
+}
+
+export interface TestScenarioRunTierParams {
+  scenarioId: string;
+  tier: 'signal-detection' | 'prediction-generation' | 'evaluation';
+}
+
+export interface TestScenarioCleanupParams {
+  scenarioId?: string;
+  cleanupAll?: boolean;
+}
+
+export interface TierRunResult {
+  tier: string;
+  success: boolean;
+  items_processed: number;
+  items_created: number;
+  duration_ms: number;
+  errors: string[];
+}
+
+export interface CleanupResult {
+  cleanup_type: 'scenario' | 'all';
+  scenario_id?: string;
+  tables_cleaned: Array<{
+    table_name: string;
+    rows_deleted: number;
+  }>;
+  total_deleted: number;
+}
+
+export interface InjectResult {
+  table: string;
+  injected_count: number;
+  items: unknown[];
+}
+
+export interface GenerateResult {
+  type: string;
+  generated_count: number;
+  injected_count?: number;
+  items: unknown[];
+  outcomes?: Array<{
+    prediction_index: number;
+    expected_outcome: string;
+    actual_direction: string;
+  }>;
+}
+
+export interface TestScenarioExport {
+  version: string;
+  exportedAt: string;
+  scenario: {
+    name: string;
+    description: string | null;
+    injection_points: InjectionPoint[];
+    target_id: string | null;
+    config: TestScenarioConfig;
+  };
+  data?: {
+    signals?: unknown[];
+    predictors?: unknown[];
+    predictions?: unknown[];
+    outcomes?: unknown[];
+    learnings?: unknown[];
+  };
+}
+
+// ============================================================================
 // SERVICE
 // ============================================================================
 
@@ -1095,6 +1274,136 @@ class PredictionDashboardService {
       predictions: predictionsRes.content || [],
       strategies: strategiesRes.content || [],
     };
+  }
+
+  // ==========================================================================
+  // PHASE 4: TEST SCENARIO OPERATIONS
+  // ==========================================================================
+
+  async listTestScenarios(
+    params?: TestScenarioListParams
+  ): Promise<DashboardResponsePayload<TestScenario[]>> {
+    return this.executeDashboardRequest<TestScenario[]>(
+      'test-scenarios.list',
+      { filters: params },
+      undefined,
+      params ? { page: params.page, pageSize: params.pageSize } : undefined
+    );
+  }
+
+  async getTestScenario(params: {
+    id: string;
+  }): Promise<DashboardResponsePayload<TestScenario>> {
+    return this.executeDashboardRequest<TestScenario>(
+      'test-scenarios.get',
+      params
+    );
+  }
+
+  async getTestScenarioSummaries(): Promise<DashboardResponsePayload<TestScenarioSummary[]>> {
+    return this.executeDashboardRequest<TestScenarioSummary[]>(
+      'test-scenarios.get-summaries'
+    );
+  }
+
+  async createTestScenario(
+    params: TestScenarioCreateParams
+  ): Promise<DashboardResponsePayload<TestScenario>> {
+    return this.executeDashboardRequest<TestScenario>(
+      'test-scenarios.create',
+      params
+    );
+  }
+
+  async updateTestScenario(
+    params: TestScenarioUpdateParams
+  ): Promise<DashboardResponsePayload<TestScenario>> {
+    return this.executeDashboardRequest<TestScenario>(
+      'test-scenarios.update',
+      params
+    );
+  }
+
+  async deleteTestScenario(params: {
+    id: string;
+  }): Promise<DashboardResponsePayload<{ deleted: boolean; id: string }>> {
+    return this.executeDashboardRequest<{ deleted: boolean; id: string }>(
+      'test-scenarios.delete',
+      params
+    );
+  }
+
+  async injectTestData(
+    params: TestScenarioInjectParams
+  ): Promise<DashboardResponsePayload<InjectResult>> {
+    return this.executeDashboardRequest<InjectResult>(
+      'test-scenarios.inject',
+      params
+    );
+  }
+
+  async generateTestData(
+    params: TestScenarioGenerateParams
+  ): Promise<DashboardResponsePayload<GenerateResult>> {
+    return this.executeDashboardRequest<GenerateResult>(
+      'test-scenarios.generate',
+      params
+    );
+  }
+
+  async runTestTier(
+    params: TestScenarioRunTierParams
+  ): Promise<DashboardResponsePayload<TierRunResult>> {
+    return this.executeDashboardRequest<TierRunResult>(
+      'test-scenarios.run-tier',
+      params
+    );
+  }
+
+  async cleanupTestData(
+    params: TestScenarioCleanupParams
+  ): Promise<DashboardResponsePayload<CleanupResult>> {
+    return this.executeDashboardRequest<CleanupResult>(
+      'test-scenarios.cleanup',
+      params
+    );
+  }
+
+  async getTestScenarioCounts(params: {
+    id: string;
+  }): Promise<DashboardResponsePayload<{ scenario_id: string; counts: Record<string, number> }>> {
+    return this.executeDashboardRequest<{ scenario_id: string; counts: Record<string, number> }>(
+      'test-scenarios.get-counts',
+      params
+    );
+  }
+
+  /**
+   * Export a test scenario as JSON (for 4.6 Export/Import JSON feature)
+   * Exports the scenario metadata and all associated test data
+   */
+  async exportTestScenario(params: {
+    id: string;
+    includeData?: boolean; // Include injected test data
+  }): Promise<DashboardResponsePayload<TestScenarioExport>> {
+    return this.executeDashboardRequest<TestScenarioExport>(
+      'test-scenarios.export',
+      params
+    );
+  }
+
+  /**
+   * Import a test scenario from JSON (for 4.6 Export/Import JSON feature)
+   * Creates a new scenario with optional data injection
+   */
+  async importTestScenario(params: {
+    data: TestScenarioExport;
+    newName?: string; // Override name on import
+  }): Promise<DashboardResponsePayload<TestScenario>> {
+    return this.executeDashboardRequest<TestScenario>(
+      'test-scenarios.import',
+      params
+    );
   }
 }
 
