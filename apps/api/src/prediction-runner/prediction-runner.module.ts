@@ -29,6 +29,7 @@ import {
   TestTargetMirrorRepository,
   TestPriceDataRepository,
   TestAuditLogRepository,
+  TestArticleRepository,
 } from './repositories';
 
 // Services
@@ -97,6 +98,10 @@ import {
   ToolRequestHandler,
   // Phase 4 - Test Data Builder UI
   TestScenarioHandler,
+  // Phase 3 - Test Data Management UI
+  TestArticleHandler,
+  TestPriceDataHandler,
+  TestTargetMirrorHandler,
 } from './task-router/handlers';
 
 const repositories = [
@@ -124,6 +129,7 @@ const repositories = [
   TestTargetMirrorRepository,
   TestPriceDataRepository,
   TestAuditLogRepository,
+  TestArticleRepository,
 ];
 
 const services = [
@@ -191,6 +197,10 @@ const dashboardHandlers = [
   ToolRequestHandler,
   // Phase 4 - Test Data Builder UI
   TestScenarioHandler,
+  // Phase 3 - Test Data Management UI
+  TestArticleHandler,
+  TestPriceDataHandler,
+  TestTargetMirrorHandler,
 ];
 
 @Module({

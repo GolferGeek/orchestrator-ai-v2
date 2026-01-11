@@ -16,3 +16,7 @@ export { MissedOpportunityHandler } from './missed-opportunity.handler';
 export { ToolRequestHandler } from './tool-request.handler';
 // Phase 4 - Test Data Builder UI
 export { TestScenarioHandler } from './test-scenario.handler';
+// Phase 3 - Test Data Management UI
+export { TestArticleHandler } from './test-article.handler';
+export { TestPriceDataHandler } from './test-price-data.handler';
+export { TestTargetMirrorHandler } from './test-target-mirror.handler';

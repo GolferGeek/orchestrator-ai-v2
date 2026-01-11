@@ -42,6 +42,10 @@ import { MissedOpportunityHandler } from './handlers/missed-opportunity.handler'
 import { ToolRequestHandler } from './handlers/tool-request.handler';
 // Phase 4 - Test Data Builder UI
 import { TestScenarioHandler } from './handlers/test-scenario.handler';
+// Phase 3 - Test Data Management UI
+import { TestArticleHandler } from './handlers/test-article.handler';
+import { TestPriceDataHandler } from './handlers/test-price-data.handler';
+import { TestTargetMirrorHandler } from './handlers/test-target-mirror.handler';
 
 /**
  * Supported dashboard entities
@@ -58,7 +62,10 @@ export type DashboardEntity =
   | 'strategies'
   | 'missed-opportunities'
   | 'tool-requests'
-  | 'test-scenarios';
+  | 'test-scenarios'
+  | 'test-articles'
+  | 'test-price-data'
+  | 'test-target-mirrors';
 
 /**
  * Dashboard router response
@@ -92,6 +99,10 @@ export class PredictionDashboardRouter {
     private readonly toolRequestHandler: ToolRequestHandler,
     // Phase 4 - Test Data Builder UI
     private readonly testScenarioHandler: TestScenarioHandler,
+    // Phase 3 - Test Data Management UI
+    private readonly testArticleHandler: TestArticleHandler,
+    private readonly testPriceDataHandler: TestPriceDataHandler,
+    private readonly testTargetMirrorHandler: TestTargetMirrorHandler,
   ) {}
 
   /**
@@ -245,6 +256,26 @@ export class PredictionDashboardRouter {
       case 'test-scenario':
         return this.testScenarioHandler.execute(operation, payload, context);
 
+      // Phase 3 - Test Data Management UI
+      case 'test-articles':
+      case 'testarticles':
+      case 'test-article':
+        return this.testArticleHandler.execute(operation, payload, context);
+
+      case 'test-price-data':
+      case 'testpricedata':
+      case 'test-price':
+        return this.testPriceDataHandler.execute(operation, payload, context);
+
+      case 'test-target-mirrors':
+      case 'testtargetmirrors':
+      case 'test-target-mirror':
+        return this.testTargetMirrorHandler.execute(
+          operation,
+          payload,
+          context,
+        );
+
       default:
         return buildDashboardError(
           'UNKNOWN_ENTITY',
@@ -309,6 +340,9 @@ export class PredictionDashboardRouter {
       'missed-opportunities',
       'tool-requests',
       'test-scenarios',
+      'test-articles',
+      'test-price-data',
+      'test-target-mirrors',
     ];
   }
 
@@ -341,6 +375,12 @@ export class PredictionDashboardRouter {
         return this.toolRequestHandler.getSupportedActions();
       case 'test-scenarios':
         return this.testScenarioHandler.getSupportedActions();
+      case 'test-articles':
+        return this.testArticleHandler.getSupportedActions();
+      case 'test-price-data':
+        return this.testPriceDataHandler.getSupportedActions();
+      case 'test-target-mirrors':
+        return this.testTargetMirrorHandler.getSupportedActions();
       default:
         return [];
     }

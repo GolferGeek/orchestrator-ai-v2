@@ -404,6 +404,57 @@ const routes: Array<RouteRecordRaw> = [
           title: 'Target Detail',
           description: 'View target details and predictions'
         }
+      },
+      // Phase 3: Test Data Management UI Routes
+      {
+        path: 'test',
+        name: 'TestControlCenter',
+        component: () => import('../views/test/TestControlCenter.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Test Control Center',
+          description: 'Main hub for test data management'
+        }
+      },
+      {
+        path: 'test/targets',
+        name: 'TargetMirrors',
+        component: () => import('../views/test/TargetMirrorsView.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Targets & Mirrors',
+          description: 'Map production targets to test symbols'
+        }
+      },
+      {
+        path: 'test/articles',
+        name: 'TestArticles',
+        component: () => import('../views/test/TestArticlesView.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Synthetic Articles',
+          description: 'Manage synthetic test articles'
+        }
+      },
+      {
+        path: 'test/prices',
+        name: 'TestPrices',
+        component: () => import('../views/test/TestPriceTimelineView.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Price Timeline',
+          description: 'Manage test price data'
+        }
+      },
+      {
+        path: 'test/scenarios/new',
+        name: 'ScenarioBuilder',
+        component: () => import('../views/test/ScenarioBuilderView.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Scenario Builder',
+          description: 'Create new test scenarios'
+        }
       }
     ]
   },

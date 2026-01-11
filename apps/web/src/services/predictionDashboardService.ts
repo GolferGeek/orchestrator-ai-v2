@@ -706,6 +706,170 @@ export interface TestScenarioExport {
 }
 
 // ============================================================================
+// PHASE 3 TYPES - Test Article Operations
+// ============================================================================
+
+export interface TestArticle {
+  id: string;
+  scenario_id: string;
+  title: string;
+  content: string;
+  target_symbols: string[];
+  sentiment: 'bullish' | 'bearish' | 'neutral' | 'mixed' | null;
+  expected_signal_count: number | null;
+  source_name: string;
+  source_type: string;
+  published_at: string | null;
+  metadata: Record<string, unknown> | null;
+  is_processed: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TestArticleListParams {
+  scenarioId?: string;
+  targetSymbol?: string;
+  isProcessed?: boolean;
+  sentiment?: 'bullish' | 'bearish' | 'neutral' | 'mixed';
+  page?: number;
+  pageSize?: number;
+}
+
+export interface TestArticleCreateParams {
+  scenario_id: string;
+  title: string;
+  content: string;
+  target_symbols: string[];
+  sentiment?: 'bullish' | 'bearish' | 'neutral' | 'mixed';
+  expected_signal_count?: number;
+  source_name?: string;
+  source_type?: string;
+  published_at?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface TestArticleUpdateParams {
+  id: string;
+  title?: string;
+  content?: string;
+  target_symbols?: string[];
+  sentiment?: 'bullish' | 'bearish' | 'neutral' | 'mixed';
+  expected_signal_count?: number;
+  source_name?: string;
+  source_type?: string;
+  published_at?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface TestArticleBulkCreateParams {
+  scenario_id: string;
+  articles: Array<Omit<TestArticleCreateParams, 'scenario_id'>>;
+}
+
+// ============================================================================
+// PHASE 3 TYPES - Test Price Data Operations
+// ============================================================================
+
+export interface TestPriceData {
+  id: string;
+  scenario_id: string;
+  symbol: string;
+  price_date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TestPriceDataListParams {
+  scenarioId?: string;
+  symbol?: string;
+  startDate?: string;
+  endDate?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface TestPriceDataCreateParams {
+  scenario_id: string;
+  symbol: string;
+  price_date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume?: number;
+  metadata?: Record<string, unknown>;
+}
+
+export interface TestPriceDataUpdateParams {
+  id: string;
+  price_date?: string;
+  open?: number;
+  high?: number;
+  low?: number;
+  close?: number;
+  volume?: number;
+  metadata?: Record<string, unknown>;
+}
+
+export interface TestPriceDataBulkCreateParams {
+  scenario_id: string;
+  symbol: string;
+  prices: Array<{
+    price_date: string;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+    volume?: number;
+  }>;
+}
+
+// ============================================================================
+// PHASE 3 TYPES - Test Target Mirror Operations
+// ============================================================================
+
+export interface TestTargetMirror {
+  id: string;
+  organization_slug: string;
+  production_target_id: string;
+  test_symbol: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TestTargetMirrorWithTarget extends TestTargetMirror {
+  production_target?: {
+    id: string;
+    name: string;
+    symbol: string;
+    universe_id: string;
+    target_type: string;
+  };
+}
+
+export interface TestTargetMirrorListParams {
+  includeTargetDetails?: boolean;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface TestTargetMirrorCreateParams {
+  production_target_id: string;
+  test_symbol: string;
+}
+
+export interface TestTargetMirrorEnsureParams {
+  productionTargetId: string;
+  baseSymbol?: string;
+}
+
+// ============================================================================
 // SERVICE
 // ============================================================================
 
@@ -1402,6 +1566,250 @@ class PredictionDashboardService {
   }): Promise<DashboardResponsePayload<TestScenario>> {
     return this.executeDashboardRequest<TestScenario>(
       'test-scenarios.import',
+      params
+    );
+  }
+
+  // ==========================================================================
+  // PHASE 3: TEST ARTICLE OPERATIONS
+  // ==========================================================================
+
+  async listTestArticles(
+    params?: TestArticleListParams
+  ): Promise<DashboardResponsePayload<TestArticle[]>> {
+    return this.executeDashboardRequest<TestArticle[]>(
+      'test-articles.list',
+      params,
+      undefined,
+      params ? { page: params.page, pageSize: params.pageSize } : undefined
+    );
+  }
+
+  async getTestArticle(params: {
+    id: string;
+  }): Promise<DashboardResponsePayload<TestArticle>> {
+    return this.executeDashboardRequest<TestArticle>(
+      'test-articles.get',
+      params
+    );
+  }
+
+  async createTestArticle(
+    params: TestArticleCreateParams
+  ): Promise<DashboardResponsePayload<TestArticle>> {
+    return this.executeDashboardRequest<TestArticle>(
+      'test-articles.create',
+      params
+    );
+  }
+
+  async updateTestArticle(
+    params: TestArticleUpdateParams
+  ): Promise<DashboardResponsePayload<TestArticle>> {
+    return this.executeDashboardRequest<TestArticle>(
+      'test-articles.update',
+      params
+    );
+  }
+
+  async deleteTestArticle(params: {
+    id: string;
+  }): Promise<DashboardResponsePayload<{ deleted: boolean; id: string }>> {
+    return this.executeDashboardRequest<{ deleted: boolean; id: string }>(
+      'test-articles.delete',
+      params
+    );
+  }
+
+  async bulkCreateTestArticles(
+    params: TestArticleBulkCreateParams
+  ): Promise<DashboardResponsePayload<{ created: number; articles: TestArticle[] }>> {
+    return this.executeDashboardRequest<{ created: number; articles: TestArticle[] }>(
+      'test-articles.bulk-create',
+      params
+    );
+  }
+
+  async markTestArticleProcessed(params: {
+    id: string;
+    isProcessed?: boolean;
+  }): Promise<DashboardResponsePayload<TestArticle>> {
+    return this.executeDashboardRequest<TestArticle>(
+      'test-articles.mark-processed',
+      params
+    );
+  }
+
+  async listUnprocessedTestArticles(params?: {
+    scenarioId?: string;
+    targetSymbol?: string;
+  }): Promise<DashboardResponsePayload<TestArticle[]>> {
+    return this.executeDashboardRequest<TestArticle[]>(
+      'test-articles.list-unprocessed',
+      params
+    );
+  }
+
+  // ==========================================================================
+  // PHASE 3: TEST PRICE DATA OPERATIONS
+  // ==========================================================================
+
+  async listTestPriceData(
+    params?: TestPriceDataListParams
+  ): Promise<DashboardResponsePayload<TestPriceData[]>> {
+    return this.executeDashboardRequest<TestPriceData[]>(
+      'test-price-data.list',
+      params,
+      undefined,
+      params ? { page: params.page, pageSize: params.pageSize } : undefined
+    );
+  }
+
+  async getTestPriceData(params: {
+    id: string;
+  }): Promise<DashboardResponsePayload<TestPriceData>> {
+    return this.executeDashboardRequest<TestPriceData>(
+      'test-price-data.get',
+      params
+    );
+  }
+
+  async createTestPriceData(
+    params: TestPriceDataCreateParams
+  ): Promise<DashboardResponsePayload<TestPriceData>> {
+    return this.executeDashboardRequest<TestPriceData>(
+      'test-price-data.create',
+      params
+    );
+  }
+
+  async updateTestPriceData(
+    params: TestPriceDataUpdateParams
+  ): Promise<DashboardResponsePayload<TestPriceData>> {
+    return this.executeDashboardRequest<TestPriceData>(
+      'test-price-data.update',
+      params
+    );
+  }
+
+  async deleteTestPriceData(params: {
+    id: string;
+  }): Promise<DashboardResponsePayload<{ deleted: boolean; id: string }>> {
+    return this.executeDashboardRequest<{ deleted: boolean; id: string }>(
+      'test-price-data.delete',
+      params
+    );
+  }
+
+  async bulkCreateTestPriceData(
+    params: TestPriceDataBulkCreateParams
+  ): Promise<DashboardResponsePayload<{ created: number; prices: TestPriceData[] }>> {
+    return this.executeDashboardRequest<{ created: number; prices: TestPriceData[] }>(
+      'test-price-data.bulk-create',
+      params
+    );
+  }
+
+  async getLatestTestPrice(params: {
+    symbol: string;
+    scenarioId?: string;
+  }): Promise<DashboardResponsePayload<TestPriceData | null>> {
+    return this.executeDashboardRequest<TestPriceData | null>(
+      'test-price-data.get-latest',
+      params
+    );
+  }
+
+  async getTestPricesByDateRange(params: {
+    symbol: string;
+    scenarioId?: string;
+    startDate: string;
+    endDate: string;
+  }): Promise<DashboardResponsePayload<TestPriceData[]>> {
+    return this.executeDashboardRequest<TestPriceData[]>(
+      'test-price-data.get-by-date-range',
+      params
+    );
+  }
+
+  async countTestPricesBySymbol(params: {
+    symbol: string;
+  }): Promise<DashboardResponsePayload<{ symbol: string; count: number }>> {
+    return this.executeDashboardRequest<{ symbol: string; count: number }>(
+      'test-price-data.count-by-symbol',
+      params
+    );
+  }
+
+  // ==========================================================================
+  // PHASE 3: TEST TARGET MIRROR OPERATIONS
+  // ==========================================================================
+
+  async listTestTargetMirrors(
+    params?: TestTargetMirrorListParams
+  ): Promise<DashboardResponsePayload<TestTargetMirror[] | TestTargetMirrorWithTarget[]>> {
+    const action = params?.includeTargetDetails
+      ? 'test-target-mirrors.list-with-targets'
+      : 'test-target-mirrors.list';
+    return this.executeDashboardRequest<TestTargetMirror[] | TestTargetMirrorWithTarget[]>(
+      action,
+      params,
+      undefined,
+      params ? { page: params.page, pageSize: params.pageSize } : undefined
+    );
+  }
+
+  async getTestTargetMirror(params: {
+    id: string;
+    includeTargetDetails?: boolean;
+  }): Promise<DashboardResponsePayload<TestTargetMirror | TestTargetMirrorWithTarget>> {
+    return this.executeDashboardRequest<TestTargetMirror | TestTargetMirrorWithTarget>(
+      'test-target-mirrors.get',
+      params
+    );
+  }
+
+  async getTestTargetMirrorByProductionTarget(params: {
+    productionTargetId: string;
+  }): Promise<DashboardResponsePayload<TestTargetMirror>> {
+    return this.executeDashboardRequest<TestTargetMirror>(
+      'test-target-mirrors.get-by-production-target',
+      params
+    );
+  }
+
+  async getTestTargetMirrorByTestSymbol(params: {
+    testSymbol: string;
+  }): Promise<DashboardResponsePayload<TestTargetMirror>> {
+    return this.executeDashboardRequest<TestTargetMirror>(
+      'test-target-mirrors.get-by-test-symbol',
+      params
+    );
+  }
+
+  async createTestTargetMirror(
+    params: TestTargetMirrorCreateParams
+  ): Promise<DashboardResponsePayload<TestTargetMirror>> {
+    return this.executeDashboardRequest<TestTargetMirror>(
+      'test-target-mirrors.create',
+      params
+    );
+  }
+
+  async ensureTestTargetMirror(
+    params: TestTargetMirrorEnsureParams
+  ): Promise<DashboardResponsePayload<{ mirror: TestTargetMirror; created: boolean }>> {
+    return this.executeDashboardRequest<{ mirror: TestTargetMirror; created: boolean }>(
+      'test-target-mirrors.ensure',
+      params
+    );
+  }
+
+  async deleteTestTargetMirror(params: {
+    id: string;
+  }): Promise<DashboardResponsePayload<{ deleted: boolean; id: string; test_symbol: string }>> {
+    return this.executeDashboardRequest<{ deleted: boolean; id: string; test_symbol: string }>(
+      'test-target-mirrors.delete',
       params
     );
   }
