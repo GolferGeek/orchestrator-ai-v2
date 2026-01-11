@@ -14,3 +14,5 @@ export * from './source-seen-item.repository';
 export * from './strategy.repository';
 export * from './tool-request.repository';
 export * from './target-snapshot.repository';
+// Phase 2 Story Deduplication
+export * from './signal-fingerprint.repository';

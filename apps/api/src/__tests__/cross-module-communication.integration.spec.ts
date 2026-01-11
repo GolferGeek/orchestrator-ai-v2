@@ -138,7 +138,6 @@ describe('Cross-Module Communication Integration', () => {
         AgentRuntimeExecutionService,
       );
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const metadata = executionService.getAgentMetadataFromDefinition(
         {} as any,
         'test-org',
@@ -269,7 +268,7 @@ describe('Cross-Module Communication Integration', () => {
       expect(agent!.slug).toBe('bidirectional-agent');
 
       // Step 2: Get metadata (AgentPlatform)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const metadata = executionService.getAgentMetadataFromDefinition(
         {} as any,
         'test-org',
@@ -289,7 +288,7 @@ describe('Cross-Module Communication Integration', () => {
         'test-org',
         'bidirectional-agent',
       );
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const metadata = executionService.getAgentMetadataFromDefinition(
         {} as any,
         'test-org',

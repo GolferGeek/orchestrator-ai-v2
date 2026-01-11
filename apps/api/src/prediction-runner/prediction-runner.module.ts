@@ -21,6 +21,8 @@ import {
   StrategyRepository,
   ToolRequestRepository,
   TargetSnapshotRepository,
+  // Phase 2 Story Deduplication
+  SignalFingerprintRepository,
 } from './repositories';
 
 // Services
@@ -100,6 +102,8 @@ const repositories = [
   StrategyRepository,
   ToolRequestRepository,
   TargetSnapshotRepository,
+  // Phase 2 Story Deduplication
+  SignalFingerprintRepository,
 ];
 
 const services = [

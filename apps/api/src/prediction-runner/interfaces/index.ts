@@ -63,3 +63,9 @@ export * from './target-snapshot.interface';
 
 // Notification interfaces (Phase 9)
 export * from './notification.interface';
+
+// Test data injection interfaces (Phase 3 - Financial Asset Predictor PRD)
+export * from './test-data.interface';
+
+// Signal fingerprint interfaces (Phase 2 - Story Deduplication)
+export * from './signal-fingerprint.interface';

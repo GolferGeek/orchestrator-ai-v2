@@ -146,10 +146,16 @@ export class SourceCrawlRepository {
     id: string,
     results: {
       items_found: number;
+      items_new?: number;
       signals_created: number;
       duplicates_skipped: number;
       crawl_duration_ms: number;
       metadata?: Record<string, unknown>;
+      // Phase 2: Deduplication metrics by layer
+      duplicates_exact?: number;
+      duplicates_cross_source?: number;
+      duplicates_fuzzy_title?: number;
+      duplicates_phrase_overlap?: number;
     },
   ): Promise<SourceCrawl> {
     return this.update(id, {

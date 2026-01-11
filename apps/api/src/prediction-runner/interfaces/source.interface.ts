@@ -51,6 +51,21 @@ export interface CrawlConfig {
   user_agent?: string;
   /** Proxy configuration */
   proxy?: string;
+
+  // ═══════════════════════════════════════════════════════════════════
+  // DEDUPLICATION CONFIGURATION
+  // ═══════════════════════════════════════════════════════════════════
+
+  /** Enable fuzzy deduplication (Layers 3 & 4) - default: true */
+  fuzzy_dedup_enabled?: boolean;
+  /** Enable cross-source deduplication (Layer 2) - default: true */
+  cross_source_dedup?: boolean;
+  /** Jaccard similarity threshold for title matching (0.0-1.0, default: 0.85) */
+  title_similarity_threshold?: number;
+  /** Key phrase overlap threshold (0.0-1.0, default: 0.70) */
+  phrase_overlap_threshold?: number;
+  /** How far back to look for duplicates in hours (default: 72) */
+  dedup_hours_back?: number;
 }
 
 /**
@@ -137,11 +152,18 @@ export interface SourceCrawl {
   completed_at: string | null;
   status: 'pending' | 'running' | 'success' | 'error';
   items_found: number;
+  items_new: number;
   signals_created: number;
   duplicates_skipped: number;
   error_message: string | null;
   crawl_duration_ms: number | null;
   metadata: Record<string, unknown>;
+
+  // Deduplication metrics by layer
+  duplicates_exact: number; // Layer 1: Same source exact hash
+  duplicates_cross_source: number; // Layer 2: Different source same hash
+  duplicates_fuzzy_title: number; // Layer 3: Title similarity > threshold
+  duplicates_phrase_overlap: number; // Layer 4: Key phrase overlap > threshold
 }
 
 /**
@@ -160,11 +182,18 @@ export interface UpdateSourceCrawlData {
   completed_at?: string;
   status?: 'success' | 'error';
   items_found?: number;
+  items_new?: number;
   signals_created?: number;
   duplicates_skipped?: number;
   error_message?: string;
   crawl_duration_ms?: number;
   metadata?: Record<string, unknown>;
+
+  // Deduplication metrics by layer
+  duplicates_exact?: number;
+  duplicates_cross_source?: number;
+  duplicates_fuzzy_title?: number;
+  duplicates_phrase_overlap?: number;
 }
 
 /**
@@ -179,6 +208,11 @@ export interface SourceSeenItem {
   last_seen_at: string;
   signal_id: string | null;
   metadata: Record<string, unknown>;
+
+  // Fuzzy matching fields (Layer 3 & 4)
+  title_normalized: string | null;
+  key_phrases: string[] | null;
+  fingerprint_hash: string | null;
 }
 
 /**
@@ -190,4 +224,9 @@ export interface CreateSourceSeenItemData {
   original_url?: string;
   signal_id?: string;
   metadata?: Record<string, unknown>;
+
+  // Fuzzy matching fields (Layer 3 & 4)
+  title_normalized?: string;
+  key_phrases?: string[];
+  fingerprint_hash?: string;
 }
