@@ -26,6 +26,7 @@ describe('FirecrawlService', () => {
     auth_config: { type: 'none' },
     crawl_frequency_minutes: 15,
     is_active: true,
+    is_test: false,
     last_crawl_at: null,
     last_crawl_status: null,
     last_error: null,

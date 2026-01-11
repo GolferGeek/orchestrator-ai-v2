@@ -25,6 +25,7 @@ describe('SourceCrawlerRunner', () => {
     crawl_config: {},
     auth_config: { type: 'none' },
     is_active: true,
+    is_test: false,
     last_crawl_at: null,
     last_crawl_status: null,
     last_error: null,
@@ -100,6 +101,12 @@ describe('SourceCrawlerRunner', () => {
           duration_ms: 100,
         },
         signalsCreated: 2,
+        dedupMetrics: {
+          duplicates_exact: 0,
+          duplicates_cross_source: 0,
+          duplicates_fuzzy_title: 0,
+          duplicates_phrase_overlap: 0,
+        },
       });
 
       const result = await runner.crawlByFrequency(15 as CrawlFrequency);
@@ -122,6 +129,12 @@ describe('SourceCrawlerRunner', () => {
           duration_ms: 100,
         },
         signalsCreated: 0,
+        dedupMetrics: {
+          duplicates_exact: 0,
+          duplicates_cross_source: 0,
+          duplicates_fuzzy_title: 0,
+          duplicates_phrase_overlap: 0,
+        },
       });
 
       const result = await runner.crawlByFrequency(15 as CrawlFrequency);
@@ -160,6 +173,12 @@ describe('SourceCrawlerRunner', () => {
           duration_ms: 100,
         },
         signalsCreated: 0,
+        dedupMetrics: {
+          duplicates_exact: 0,
+          duplicates_cross_source: 0,
+          duplicates_fuzzy_title: 0,
+          duplicates_phrase_overlap: 0,
+        },
       });
 
       // Start first run
@@ -193,6 +212,12 @@ describe('SourceCrawlerRunner', () => {
           duration_ms: 100,
         },
         signalsCreated: 3,
+        dedupMetrics: {
+          duplicates_exact: 0,
+          duplicates_cross_source: 0,
+          duplicates_fuzzy_title: 0,
+          duplicates_phrase_overlap: 0,
+        },
       });
 
       const result = await runner.crawlSingleSource('source-1');

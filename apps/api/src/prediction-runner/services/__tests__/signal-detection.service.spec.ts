@@ -51,6 +51,7 @@ describe('SignalDetectionService', () => {
     created_at: '2026-01-08T12:00:00Z',
     updated_at: '2026-01-08T12:00:00Z',
     expired_at: null,
+    is_test: false,
   };
 
   const mockTarget: Target = {

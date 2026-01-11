@@ -31,6 +31,7 @@ describe('BatchSignalProcessorRunner', () => {
     processing_started_at: null,
     review_queue_id: null,
     expired_at: null,
+    is_test: false,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };

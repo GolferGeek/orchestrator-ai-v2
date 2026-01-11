@@ -54,7 +54,12 @@ export interface Signal {
   created_at: string;
   updated_at: string;
   expired_at: string | null;
-  // Test data markers (Phase 3 Test Data Injection Framework)
+  // Test data markers (Phase 2 Test Input Infrastructure / Phase 3 Test Data Injection)
+  // INV-02: Signals from is_test=true sources MUST have is_test=true
+  is_test: boolean;
+  // INV-10: Scenario runs MUST record full version info - linked via scenario_run_id
+  scenario_run_id?: string | null;
+  // Legacy markers (Phase 3 - aliased for backward compatibility)
   is_test_data?: boolean;
   test_scenario_id?: string | null;
 }
@@ -77,7 +82,12 @@ export interface CreateSignalData {
   url?: string;
   metadata?: Record<string, unknown>;
   disposition?: SignalDisposition;
-  // Test data markers (Phase 3 Test Data Injection Framework)
+  // Test data markers (Phase 2 Test Input Infrastructure / Phase 3 Test Data Injection)
+  // INV-02: Signals from is_test=true sources MUST have is_test=true (defaults to false)
+  is_test?: boolean;
+  // INV-10: Scenario runs MUST record full version info - linked via scenario_run_id
+  scenario_run_id?: string;
+  // Legacy markers (Phase 3 - aliased for backward compatibility)
   is_test_data?: boolean;
   test_scenario_id?: string;
 }

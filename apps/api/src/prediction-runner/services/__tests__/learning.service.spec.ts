@@ -27,6 +27,7 @@ describe('LearningService', () => {
     version: 1,
     times_applied: 0,
     times_helpful: 0,
+    is_test: false,
     created_at: '2026-01-08T12:00:00Z',
     updated_at: '2026-01-08T12:00:00Z',
     ...overrides,

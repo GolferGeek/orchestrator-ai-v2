@@ -9,8 +9,11 @@
  * - rss: RSS feed
  * - twitter_search: Twitter/X search query
  * - api: External API endpoint
+ * - test_db: DB-backed synthetic content (Phase 2 Test Input Infrastructure)
+ *   Reads from prediction.test_articles table. Used exclusively for test scenarios.
+ *   All content from test_db sources inherits is_test=true flag.
  */
-export type SourceType = 'web' | 'rss' | 'twitter_search' | 'api';
+export type SourceType = 'web' | 'rss' | 'twitter_search' | 'api' | 'test_db';
 
 /**
  * Source scope level - determines visibility and applicability
@@ -66,6 +69,21 @@ export interface CrawlConfig {
   phrase_overlap_threshold?: number;
   /** How far back to look for duplicates in hours (default: 72) */
   dedup_hours_back?: number;
+
+  // ═══════════════════════════════════════════════════════════════════
+  // TEST_DB SOURCE CONFIGURATION (Phase 2 Test Input Infrastructure)
+  // ═══════════════════════════════════════════════════════════════════
+
+  /** Organization slug for test_db sources (required for test_db) */
+  organization_slug?: string;
+  /** Filter test articles by scenario ID (optional for test_db) */
+  scenario_id?: string;
+  /** Filter by specific target symbols (optional for test_db) */
+  target_symbols?: string[];
+  /** Only fetch unprocessed articles (default: true for test_db) */
+  unprocessed_only?: boolean;
+  /** Maximum articles to fetch per crawl (default: 100 for test_db) */
+  max_articles?: number;
 }
 
 /**
@@ -99,6 +117,8 @@ export interface Source {
   auth_config: AuthConfig;
   crawl_frequency_minutes: CrawlFrequency;
   is_active: boolean;
+  /** Test source flag - if true, all signals from this source are is_test=true (INV-02) */
+  is_test: boolean;
   last_crawl_at: string | null;
   last_crawl_status: 'success' | 'error' | null;
   last_error: string | null;
@@ -123,6 +143,8 @@ export interface CreateSourceData {
   auth_config?: AuthConfig;
   crawl_frequency_minutes?: CrawlFrequency;
   is_active?: boolean;
+  /** Test source flag - defaults to false. Set to true for test_db sources. */
+  is_test?: boolean;
 }
 
 /**

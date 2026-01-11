@@ -7,6 +7,7 @@ import { SignalRepository } from '../../repositories/signal.repository';
 import { SignalFingerprintRepository } from '../../repositories/signal-fingerprint.repository';
 import { FirecrawlService } from '../firecrawl.service';
 import { ContentHashService } from '../content-hash.service';
+import { TestDbSourceCrawlerService } from '../test-db-source-crawler.service';
 import { Source } from '../../interfaces/source.interface';
 
 describe('SourceCrawlerService', () => {
@@ -38,6 +39,7 @@ describe('SourceCrawlerService', () => {
     auth_config: { type: 'none' },
     crawl_frequency_minutes: 15,
     is_active: true,
+    is_test: false,
     last_crawl_at: null,
     last_crawl_status: null,
     last_error: null,
@@ -123,6 +125,17 @@ describe('SourceCrawlerService', () => {
           useValue: mockSignalFingerprintRepository,
         },
         { provide: FirecrawlService, useValue: mockFirecrawlService },
+        {
+          provide: TestDbSourceCrawlerService,
+          useValue: {
+            crawlTestDbSource: jest.fn().mockResolvedValue({
+              success: true,
+              source_id: 'source-123',
+              items: [],
+              duration_ms: 100,
+            }),
+          },
+        },
       ],
     }).compile();
 

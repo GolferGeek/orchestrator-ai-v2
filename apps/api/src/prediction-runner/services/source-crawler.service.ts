@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, forwardRef, Inject } from '@nestjs/common';
 import { SourceRepository } from '../repositories/source.repository';
 import { SourceCrawlRepository } from '../repositories/source-crawl.repository';
 import { SourceSeenItemRepository } from '../repositories/source-seen-item.repository';
@@ -6,6 +6,7 @@ import { SignalRepository } from '../repositories/signal.repository';
 import { SignalFingerprintRepository } from '../repositories/signal-fingerprint.repository';
 import { FirecrawlService } from './firecrawl.service';
 import { ContentHashService } from './content-hash.service';
+import { TestDbSourceCrawlerService } from './test-db-source-crawler.service';
 import { Source, SourceCrawl } from '../interfaces/source.interface';
 import {
   CrawledItem,
@@ -40,6 +41,7 @@ const DEFAULT_DEDUP_CONFIG = {
  * - RSS feed parsing
  * - Twitter/X search (via API)
  * - Generic API sources
+ * - DB-backed test articles (test_db) - Phase 2 Test Input Infrastructure
  * - 4-Layer Content Deduplication
  * - Signal creation from crawled content
  *
@@ -48,6 +50,11 @@ const DEFAULT_DEDUP_CONFIG = {
  * - Layer 2: Cross-source hash check for same target
  * - Layer 3: Fuzzy title matching (Jaccard similarity > 0.85)
  * - Layer 4: Key phrase overlap (> 70% overlap)
+ *
+ * TEST DATA ISOLATION (PRD Phase 2):
+ * - INV-02: Signals from is_test=true sources MUST have is_test=true
+ * - INV-04: Test predictors can ONLY affect T_ prefixed targets
+ * - test_db sources automatically set is_test=true on all signals
  */
 @Injectable()
 export class SourceCrawlerService {
@@ -61,6 +68,8 @@ export class SourceCrawlerService {
     private readonly signalFingerprintRepository: SignalFingerprintRepository,
     private readonly firecrawlService: FirecrawlService,
     private readonly contentHashService: ContentHashService,
+    @Inject(forwardRef(() => TestDbSourceCrawlerService))
+    private readonly testDbSourceCrawlerService: TestDbSourceCrawlerService,
   ) {}
 
   /**
@@ -96,6 +105,9 @@ export class SourceCrawlerService {
       duplicates_phrase_overlap: 0,
     };
 
+    // Track article IDs for test_db sources (to mark as processed)
+    let testDbArticleIds: string[] = [];
+
     try {
       // Crawl based on source type
       switch (source.source_type) {
@@ -111,6 +123,14 @@ export class SourceCrawlerService {
         case 'api':
           result = await this.crawlApi(source);
           break;
+        case 'test_db': {
+          // Phase 2: DB-backed test article crawling
+          const testDbResult =
+            await this.testDbSourceCrawlerService.crawlTestDbSource(source);
+          result = testDbResult;
+          testDbArticleIds = testDbResult.article_ids;
+          break;
+        }
         default: {
           const sourceType: string = source.source_type;
           throw new Error(`Unknown source type: ${sourceType}`);
@@ -167,6 +187,17 @@ export class SourceCrawlerService {
 
       // Update source status
       await this.sourceRepository.markCrawlSuccess(source.id);
+
+      // Mark test_db articles as processed after successful crawl
+      if (
+        source.source_type === 'test_db' &&
+        testDbArticleIds.length > 0 &&
+        signalsCreated > 0
+      ) {
+        await this.testDbSourceCrawlerService.markArticlesProcessed(
+          testDbArticleIds,
+        );
+      }
 
       return {
         crawl: await this.sourceCrawlRepository.findByIdOrThrow(crawl.id),
@@ -341,6 +372,18 @@ export class SourceCrawlerService {
     // ═══════════════════════════════════════════════════════════════════
     // PASSED ALL LAYERS - Create new signal
     // ═══════════════════════════════════════════════════════════════════
+
+    // Determine is_test flag: INV-02 - Signals from test sources MUST be is_test=true
+    // Test sources include: is_test=true flag OR test_db source type
+    const isTestSignal =
+      source.is_test === true || source.source_type === 'test_db';
+
+    // Extract scenario_run_id from item metadata if present (for test data lineage)
+    const scenarioRunId =
+      (item.metadata?.scenario_run_id as string) ||
+      (item.metadata?.scenario_id as string) ||
+      undefined;
+
     const signalData: CreateSignalData = {
       target_id: targetId,
       source_id: source.id,
@@ -352,8 +395,16 @@ export class SourceCrawlerService {
         title: title,
         source_type: source.source_type,
         content_hash: contentHash,
+        // Propagate is_test flag in metadata for downstream processing
+        is_test: isTestSignal,
+        // Include scenario_run_id for test data lineage (INV-10)
+        ...(scenarioRunId && { scenario_run_id: scenarioRunId }),
         ...item.metadata,
       },
+      // Set is_test flag on signal (INV-02 compliance)
+      is_test: isTestSignal,
+      // Link to scenario run for test data (INV-10)
+      scenario_run_id: scenarioRunId,
     };
 
     const signal = await this.signalRepository.create(signalData);
@@ -682,6 +733,10 @@ export class SourceCrawlerService {
         break;
       case 'api':
         result = await this.crawlApi(source);
+        break;
+      case 'test_db':
+        result =
+          await this.testDbSourceCrawlerService.crawlTestDbSource(source);
         break;
       default:
         return {
