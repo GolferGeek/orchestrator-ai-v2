@@ -40,6 +40,8 @@ import { ReviewQueueHandler } from './handlers/review-queue.handler';
 import { StrategyHandler } from './handlers/strategy.handler';
 import { MissedOpportunityHandler } from './handlers/missed-opportunity.handler';
 import { ToolRequestHandler } from './handlers/tool-request.handler';
+// Phase 5 - Learning Promotion Workflow
+import { LearningPromotionHandler } from './handlers/learning-promotion.handler';
 // Phase 4 - Test Data Builder UI
 import { TestScenarioHandler } from './handlers/test-scenario.handler';
 // Phase 3 - Test Data Management UI
@@ -62,6 +64,7 @@ export type DashboardEntity =
   | 'strategies'
   | 'missed-opportunities'
   | 'tool-requests'
+  | 'learning-promotion'
   | 'test-scenarios'
   | 'test-articles'
   | 'test-price-data'
@@ -97,6 +100,8 @@ export class PredictionDashboardRouter {
     private readonly strategyHandler: StrategyHandler,
     private readonly missedOpportunityHandler: MissedOpportunityHandler,
     private readonly toolRequestHandler: ToolRequestHandler,
+    // Phase 5 - Learning Promotion Workflow
+    private readonly learningPromotionHandler: LearningPromotionHandler,
     // Phase 4 - Test Data Builder UI
     private readonly testScenarioHandler: TestScenarioHandler,
     // Phase 3 - Test Data Management UI
@@ -250,6 +255,15 @@ export class PredictionDashboardRouter {
       case 'tool-request':
         return this.toolRequestHandler.execute(operation, payload, context);
 
+      // Phase 5 - Learning Promotion Workflow
+      case 'learning-promotion':
+      case 'learningpromotion':
+        return this.learningPromotionHandler.execute(
+          operation,
+          payload,
+          context,
+        );
+
       // Phase 4 - Test Data Builder UI
       case 'test-scenarios':
       case 'testscenarios':
@@ -339,6 +353,7 @@ export class PredictionDashboardRouter {
       'strategies',
       'missed-opportunities',
       'tool-requests',
+      'learning-promotion',
       'test-scenarios',
       'test-articles',
       'test-price-data',
@@ -373,6 +388,8 @@ export class PredictionDashboardRouter {
         return this.missedOpportunityHandler.getSupportedActions();
       case 'tool-requests':
         return this.toolRequestHandler.getSupportedActions();
+      case 'learning-promotion':
+        return this.learningPromotionHandler.getSupportedActions();
       case 'test-scenarios':
         return this.testScenarioHandler.getSupportedActions();
       case 'test-articles':

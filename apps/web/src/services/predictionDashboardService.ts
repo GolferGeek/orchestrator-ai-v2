@@ -1913,6 +1913,107 @@ class PredictionDashboardService {
       params
     );
   }
+
+  // ==========================================================================
+  // PHASE 5: LEARNING PROMOTION OPERATIONS
+  // ==========================================================================
+
+  /**
+   * Get promotion candidates - test learnings ready for promotion
+   */
+  async getPromotionCandidates(
+    page?: number,
+    pageSize?: number
+  ): Promise<DashboardResponsePayload<unknown[]>> {
+    return this.executeDashboardRequest<unknown[]>(
+      'learning-promotion.list-candidates',
+      undefined,
+      undefined,
+      { page, pageSize }
+    );
+  }
+
+  /**
+   * Validate a learning for promotion
+   */
+  async validateLearning(
+    learningId: string
+  ): Promise<DashboardResponsePayload<unknown>> {
+    return this.executeDashboardRequest<unknown>(
+      'learning-promotion.validate',
+      { learningId }
+    );
+  }
+
+  /**
+   * Promote a learning to production
+   */
+  async promoteLearning(params: {
+    learningId: string;
+    reviewerNotes?: string;
+    backtestResult?: Record<string, unknown>;
+    scenarioRunIds?: string[];
+  }): Promise<DashboardResponsePayload<{
+    success: boolean;
+    productionLearningId: string;
+    promotionHistoryId: string;
+  }>> {
+    return this.executeDashboardRequest<{
+      success: boolean;
+      productionLearningId: string;
+      promotionHistoryId: string;
+    }>('learning-promotion.promote', params);
+  }
+
+  /**
+   * Reject a learning with reason
+   */
+  async rejectLearning(params: {
+    learningId: string;
+    reason: string;
+  }): Promise<DashboardResponsePayload<{ success: boolean }>> {
+    return this.executeDashboardRequest<{ success: boolean }>(
+      'learning-promotion.reject',
+      params
+    );
+  }
+
+  /**
+   * Get promotion history
+   */
+  async getPromotionHistory(
+    page?: number,
+    pageSize?: number
+  ): Promise<DashboardResponsePayload<unknown[]>> {
+    return this.executeDashboardRequest<unknown[]>(
+      'learning-promotion.history',
+      undefined,
+      undefined,
+      { page, pageSize }
+    );
+  }
+
+  /**
+   * Get promotion statistics
+   */
+  async getPromotionStats(): Promise<DashboardResponsePayload<unknown>> {
+    return this.executeDashboardRequest<unknown>(
+      'learning-promotion.stats'
+    );
+  }
+
+  /**
+   * Run a backtest on a learning
+   */
+  async runBacktest(params: {
+    learningId: string;
+    windowDays?: number;
+  }): Promise<DashboardResponsePayload<unknown>> {
+    return this.executeDashboardRequest<unknown>(
+      'learning-promotion.run-backtest',
+      params
+    );
+  }
 }
 
 export const predictionDashboardService = new PredictionDashboardService();

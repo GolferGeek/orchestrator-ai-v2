@@ -102,6 +102,8 @@ import {
   StrategyHandler,
   MissedOpportunityHandler,
   ToolRequestHandler,
+  // Phase 5 - Learning Promotion Workflow
+  LearningPromotionHandler,
   // Phase 4 - Test Data Builder UI
   TestScenarioHandler,
   // Phase 3 - Test Data Management UI
@@ -207,6 +209,8 @@ const dashboardHandlers = [
   StrategyHandler,
   MissedOpportunityHandler,
   ToolRequestHandler,
+  // Phase 5 - Learning Promotion Workflow
+  LearningPromotionHandler,
   // Phase 4 - Test Data Builder UI
   TestScenarioHandler,
   // Phase 3 - Test Data Management UI

@@ -455,6 +455,26 @@ const routes: Array<RouteRecordRaw> = [
           title: 'Scenario Builder',
           description: 'Create new test scenarios'
         }
+      },
+      {
+        path: 'test/learnings/promotion',
+        name: 'LearningPromotion',
+        component: () => import('../views/prediction/test/LearningPromotionView.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Learning Promotion Queue',
+          description: 'Review and promote test learnings to production'
+        }
+      },
+      {
+        path: 'test/backtests',
+        name: 'Backtests',
+        component: () => import('../views/prediction/test/BacktestView.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Backtests',
+          description: 'Run and review backtests for test learnings'
+        }
       }
     ]
   },

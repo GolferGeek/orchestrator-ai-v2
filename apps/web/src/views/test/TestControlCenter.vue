@@ -6,10 +6,11 @@
  * Shows status counts, quick actions, and links to all test management screens.
  */
 
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import TestModeIndicator from '@/components/test/TestModeIndicator.vue';
 import { predictionDashboardService } from '@/services/predictionDashboardService';
+import { learningPromotionService } from '@/services/learningPromotionService';
 import { useTestScenarioStore } from '@/stores/testScenarioStore';
 import { useTestArticleStore } from '@/stores/testArticleStore';
 import { useTestPriceDataStore } from '@/stores/testPriceDataStore';
@@ -31,6 +32,7 @@ const stats = ref({
   articles: { total: 0, processed: 0, unprocessed: 0 },
   priceData: { total: 0, symbols: 0 },
   mirrors: { total: 0 },
+  learnings: { total: 0, promoted: 0, pendingReview: 0, avgSuccessRate: 0 },
 });
 
 // Recent activity (placeholder)
@@ -101,6 +103,18 @@ async function loadData() {
         total: mirrorsRes.content.length,
       };
     }
+
+    // Load learning promotion stats
+    const promotionStatsRes = await learningPromotionService.getPromotionStats();
+    if (promotionStatsRes.content) {
+      const promotionStats = promotionStatsRes.content;
+      stats.value.learnings = {
+        total: promotionStats.totalTestLearnings,
+        promoted: promotionStats.totalPromoted,
+        pendingReview: promotionStats.pendingReview,
+        avgSuccessRate: promotionStats.avgSuccessRate,
+      };
+    }
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load data';
   } finally {
@@ -151,6 +165,18 @@ const quickActions = [
     label: 'View Test Lab',
     icon: 'beaker',
     route: '/app/prediction/test-lab',
+    color: 'secondary',
+  },
+  {
+    label: 'View Promotion Queue',
+    icon: 'arrow-up-circle',
+    route: '/app/test/learnings/promotion',
+    color: 'secondary',
+  },
+  {
+    label: 'Run Backtests',
+    icon: 'activity',
+    route: '/app/test/backtests',
     color: 'secondary',
   },
 ];
@@ -269,6 +295,28 @@ const quickActions = [
               </div>
             </div>
           </div>
+
+          <!-- Learning Promotion -->
+          <div
+            class="stat-card stat-card--learnings"
+            @click="navigateTo('/app/test/learnings/promotion')"
+          >
+            <div class="stat-card__icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                <path d="M2 17l10 5 10-5" />
+                <path d="M2 12l10 5 10-5" />
+              </svg>
+            </div>
+            <div class="stat-card__content">
+              <div class="stat-card__value">{{ stats.learnings.total }}</div>
+              <div class="stat-card__label">Test Learnings</div>
+              <div class="stat-card__breakdown">
+                <span>{{ stats.learnings.pendingReview }} pending</span>
+                <span>{{ stats.learnings.promoted }} promoted</span>
+              </div>
+            </div>
+          </div>
         </section>
 
         <!-- Quick Actions -->
@@ -322,6 +370,14 @@ const quickActions = [
             <RouterLink to="/app/test/scenarios/new" class="nav-card">
               <h3>Scenario Builder</h3>
               <p>Create new test scenarios with guided workflow</p>
+            </RouterLink>
+            <RouterLink to="/app/test/learnings/promotion" class="nav-card">
+              <h3>Learnings & Promotion</h3>
+              <p>Review and promote validated test learnings to production</p>
+            </RouterLink>
+            <RouterLink to="/app/test/backtests" class="nav-card">
+              <h3>Backtests</h3>
+              <p>Validate learnings against historical data before promotion</p>
             </RouterLink>
           </div>
         </section>
@@ -451,6 +507,11 @@ const quickActions = [
 .stat-card--mirrors .stat-card__icon {
   background: #ede9fe;
   color: #7c3aed;
+}
+
+.stat-card--learnings .stat-card__icon {
+  background: #e0e7ff;
+  color: #4f46e5;
 }
 
 .stat-card__value {
