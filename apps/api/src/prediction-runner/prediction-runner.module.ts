@@ -75,6 +75,8 @@ import {
   ScenarioGeneratorService,
   // Phase 4.4 Scenario Variation Generator
   ScenarioVariationService,
+  // Phase 6.2 Analytics API Endpoints
+  AnalyticsService,
 } from './services';
 
 // Phase 7 Runners
@@ -110,6 +112,8 @@ import {
   TestArticleHandler,
   TestPriceDataHandler,
   TestTargetMirrorHandler,
+  // Phase 6.2 - Analytics API Endpoints
+  AnalyticsHandler,
 } from './task-router/handlers';
 
 const repositories = [
@@ -182,6 +186,8 @@ const services = [
   ScenarioGeneratorService,
   // Phase 4.4 Scenario Variation Generator
   ScenarioVariationService,
+  // Phase 6.2 Analytics API Endpoints
+  AnalyticsService,
 ];
 
 // Phase 7 Runners
@@ -217,6 +223,8 @@ const dashboardHandlers = [
   TestArticleHandler,
   TestPriceDataHandler,
   TestTargetMirrorHandler,
+  // Phase 6.2 - Analytics API Endpoints
+  AnalyticsHandler,
 ];
 
 @Module({

@@ -48,6 +48,8 @@ import { TestScenarioHandler } from './handlers/test-scenario.handler';
 import { TestArticleHandler } from './handlers/test-article.handler';
 import { TestPriceDataHandler } from './handlers/test-price-data.handler';
 import { TestTargetMirrorHandler } from './handlers/test-target-mirror.handler';
+// Phase 6.2 - Analytics API Endpoints
+import { AnalyticsHandler } from './handlers/analytics.handler';
 
 /**
  * Supported dashboard entities
@@ -68,7 +70,8 @@ export type DashboardEntity =
   | 'test-scenarios'
   | 'test-articles'
   | 'test-price-data'
-  | 'test-target-mirrors';
+  | 'test-target-mirrors'
+  | 'analytics';
 
 /**
  * Dashboard router response
@@ -108,6 +111,8 @@ export class PredictionDashboardRouter {
     private readonly testArticleHandler: TestArticleHandler,
     private readonly testPriceDataHandler: TestPriceDataHandler,
     private readonly testTargetMirrorHandler: TestTargetMirrorHandler,
+    // Phase 6.2 - Analytics API Endpoints
+    private readonly analyticsHandler: AnalyticsHandler,
   ) {}
 
   /**
@@ -290,6 +295,10 @@ export class PredictionDashboardRouter {
           context,
         );
 
+      // Phase 6.2 - Analytics API Endpoints
+      case 'analytics':
+        return this.analyticsHandler.execute(operation, payload, context);
+
       default:
         return buildDashboardError(
           'UNKNOWN_ENTITY',
@@ -358,6 +367,7 @@ export class PredictionDashboardRouter {
       'test-articles',
       'test-price-data',
       'test-target-mirrors',
+      'analytics',
     ];
   }
 
@@ -398,6 +408,8 @@ export class PredictionDashboardRouter {
         return this.testPriceDataHandler.getSupportedActions();
       case 'test-target-mirrors':
         return this.testTargetMirrorHandler.getSupportedActions();
+      case 'analytics':
+        return this.analyticsHandler.getSupportedActions();
       default:
         return [];
     }

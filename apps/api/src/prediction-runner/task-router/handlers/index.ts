@@ -22,3 +22,5 @@ export { TestScenarioHandler } from './test-scenario.handler';
 export { TestArticleHandler } from './test-article.handler';
 export { TestPriceDataHandler } from './test-price-data.handler';
 export { TestTargetMirrorHandler } from './test-target-mirror.handler';
+// Phase 6.2 - Analytics API Endpoints
+export { AnalyticsHandler } from './analytics.handler';

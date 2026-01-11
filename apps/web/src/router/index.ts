@@ -475,6 +475,16 @@ const routes: Array<RouteRecordRaw> = [
           title: 'Backtests',
           description: 'Run and review backtests for test learnings'
         }
+      },
+      {
+        path: 'test/analytics',
+        name: 'TestAnalytics',
+        component: () => import('../views/prediction/test/AnalyticsDashboardView.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Test Analytics',
+          description: 'Test vs production analytics for the learning loop'
+        }
       }
     ]
   },

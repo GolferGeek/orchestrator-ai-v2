@@ -46,3 +46,5 @@ export * from './ai-article-generator.service';
 export * from './scenario-generator.service';
 // Phase 4.4 Scenario Variation Generator
 export * from './scenario-variation.service';
+// Phase 6.2 Analytics API Endpoints
+export * from './analytics.service';
