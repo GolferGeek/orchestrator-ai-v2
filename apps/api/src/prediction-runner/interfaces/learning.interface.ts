@@ -65,6 +65,7 @@ export interface Learning {
   version: number;
   times_applied: number;
   times_helpful: number;
+  is_test: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -142,4 +143,49 @@ export interface LearningQueue {
   learning_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/**
+ * Learning lineage entity - tracks promotion of learnings from test to production
+ * Based on prediction.learning_lineage table
+ */
+export interface LearningLineage {
+  id: string;
+  organization_slug: string;
+  test_learning_id: string;
+  production_learning_id: string;
+  scenario_runs: string[];
+  validation_metrics: Record<string, unknown>;
+  backtest_result: Record<string, unknown> | null;
+  promoted_by: string;
+  promoted_at: string;
+  notes: string | null;
+  created_at: string;
+}
+
+/**
+ * Learning lineage with user and learning details
+ * Returned by repository methods that join with users and learnings
+ */
+export interface LearningLineageWithDetails extends LearningLineage {
+  promoter_email?: string;
+  promoter_name?: string;
+  test_learning_title?: string;
+  production_learning_title?: string;
+}
+
+/**
+ * Data for creating a new learning lineage record
+ */
+export interface CreateLearningLineageData {
+  id?: string;
+  organization_slug: string;
+  test_learning_id: string;
+  production_learning_id: string;
+  scenario_runs?: string[];
+  validation_metrics?: Record<string, unknown>;
+  backtest_result?: Record<string, unknown>;
+  promoted_by: string;
+  promoted_at?: string;
+  notes?: string;
 }

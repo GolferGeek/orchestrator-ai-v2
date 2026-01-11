@@ -6,6 +6,7 @@ export * from './prediction.repository';
 export * from './analyst.repository';
 export * from './learning.repository';
 export * from './learning-queue.repository';
+export * from './learning-lineage.repository';
 export * from './snapshot.repository';
 // Phase 6 repositories
 export * from './source.repository';
@@ -18,3 +19,8 @@ export * from './target-snapshot.repository';
 export * from './signal-fingerprint.repository';
 // Phase 3 Test Data Injection Framework
 export * from './test-scenario.repository';
+export * from './scenario-run.repository';
+export * from './test-audit-log.repository';
+export * from './test-article.repository';
+export * from './test-target-mirror.repository';
+export * from './test-price-data.repository';

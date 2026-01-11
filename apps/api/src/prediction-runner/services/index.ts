@@ -5,6 +5,7 @@ export * from './analyst.service';
 export * from './analyst-prompt-builder.service';
 export * from './learning.service';
 export * from './learning-queue.service';
+export * from './learning-promotion.service';
 export * from './analyst-ensemble.service';
 export { EvaluationService, SuggestedLearning } from './evaluation.service';
 // Note: EvaluationResult is exported from evaluation.service but renamed to avoid conflict
@@ -31,3 +32,8 @@ export * from './prediction-streaming.service';
 // Phase 3 Test Data Injection Framework
 export * from './test-data-injector.service';
 export * from './test-data-generator.service';
+export * from './scenario-run.service';
+export * from './test-article.service';
+export * from './test-target-mirror.service';
+export * from './test-audit.service';
+export * from './test-price-data.service';

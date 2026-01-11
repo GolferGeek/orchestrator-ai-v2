@@ -288,3 +288,128 @@ export interface MockPredictionData {
   target_price?: number;
   stop_loss?: number;
 }
+
+/**
+ * Scenario run status lifecycle
+ * - pending: Created but not yet started
+ * - running: Currently executing
+ * - completed: Successfully finished
+ * - failed: Execution failed
+ */
+export type ScenarioRunStatus = 'pending' | 'running' | 'completed' | 'failed';
+
+/**
+ * Scenario run entity - tracks execution of a test scenario
+ * Based on prediction.scenario_runs table
+ */
+export interface ScenarioRun {
+  id: string;
+  organization_slug: string;
+  scenario_id: string;
+  status: ScenarioRunStatus;
+  started_at: string | null;
+  completed_at: string | null;
+  triggered_by: string | null;
+  version_info: Record<string, unknown>;
+  outcome_expected: Record<string, unknown>;
+  outcome_actual: Record<string, unknown> | null;
+  outcome_match: boolean | null;
+  error_message: string | null;
+  created_at: string;
+}
+
+/**
+ * Data for creating a new scenario run
+ */
+export interface CreateScenarioRunData {
+  id?: string;
+  organization_slug: string;
+  scenario_id: string;
+  triggered_by?: string;
+  version_info?: Record<string, unknown>;
+  outcome_expected?: Record<string, unknown>;
+}
+
+/**
+ * Data for updating a scenario run
+ */
+export interface UpdateScenarioRunData {
+  status?: ScenarioRunStatus;
+  started_at?: string;
+  completed_at?: string;
+  outcome_actual?: Record<string, unknown> | null;
+  outcome_match?: boolean | null;
+  error_message?: string | null;
+}
+
+/**
+ * Valid audit action types
+ */
+export type AuditAction =
+  | 'scenario_created'
+  | 'scenario_updated'
+  | 'scenario_deleted'
+  | 'scenario_run_started'
+  | 'scenario_run_completed'
+  | 'scenario_run_failed'
+  | 'learning_promoted'
+  | 'learning_rejected'
+  | 'data_injected'
+  | 'data_cleaned';
+
+/**
+ * Valid resource types for audit log
+ */
+export type AuditResourceType =
+  | 'test_scenario'
+  | 'scenario_run'
+  | 'learning'
+  | 'injection';
+
+/**
+ * Test audit log entry - tracks audit trail for test operations
+ * Based on prediction.test_audit_log table
+ */
+export interface TestAuditLogEntry {
+  id: string;
+  organization_slug: string;
+  user_id: string;
+  action: string;
+  resource_type: string;
+  resource_id: string;
+  details: Record<string, unknown>;
+  created_at: string;
+}
+
+/**
+ * Data for creating a new audit log entry
+ */
+export interface CreateAuditLogData {
+  id?: string;
+  organization_slug: string;
+  user_id: string;
+  action: string;
+  resource_type: string;
+  resource_id: string;
+  details?: Record<string, unknown>;
+}
+
+/**
+ * Filter options for audit log queries
+ */
+export interface AuditLogFilter {
+  /** Filter by specific action */
+  action?: string;
+  /** Filter by resource type */
+  resource_type?: string;
+  /** Filter by resource ID */
+  resource_id?: string;
+  /** Filter by user ID */
+  user_id?: string;
+  /** Start date for date range filter */
+  start_date?: string;
+  /** End date for date range filter */
+  end_date?: string;
+  /** Limit number of results */
+  limit?: number;
+}

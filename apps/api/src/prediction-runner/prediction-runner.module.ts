@@ -13,6 +13,7 @@ import {
   AnalystRepository,
   LearningRepository,
   LearningQueueRepository,
+  LearningLineageRepository,
   SnapshotRepository,
   // Phase 6 Repositories
   SourceRepository,
@@ -25,6 +26,9 @@ import {
   SignalFingerprintRepository,
   // Phase 3 Test Data Injection Framework
   TestScenarioRepository,
+  TestTargetMirrorRepository,
+  TestPriceDataRepository,
+  TestAuditLogRepository,
 } from './repositories';
 
 // Services
@@ -37,6 +41,7 @@ import {
   AnalystEnsembleService,
   LearningService,
   LearningQueueService,
+  LearningPromotionService,
   // Phase 5 Services
   SignalDetectionService,
   PredictorManagementService,
@@ -61,6 +66,8 @@ import {
   // Phase 3 Test Data Injection Framework
   TestDataInjectorService,
   TestDataGeneratorService,
+  TestTargetMirrorService,
+  TestPriceDataService,
 } from './services';
 
 // Phase 7 Runners
@@ -101,6 +108,7 @@ const repositories = [
   AnalystRepository,
   LearningRepository,
   LearningQueueRepository,
+  LearningLineageRepository,
   SnapshotRepository,
   // Phase 6 Repositories
   SourceRepository,
@@ -113,6 +121,9 @@ const repositories = [
   SignalFingerprintRepository,
   // Phase 3 Test Data Injection Framework
   TestScenarioRepository,
+  TestTargetMirrorRepository,
+  TestPriceDataRepository,
+  TestAuditLogRepository,
 ];
 
 const services = [
@@ -124,6 +135,7 @@ const services = [
   AnalystEnsembleService,
   LearningService,
   LearningQueueService,
+  LearningPromotionService,
   // Phase 5 Services
   SignalDetectionService,
   PredictorManagementService,
@@ -148,6 +160,8 @@ const services = [
   // Phase 3 Test Data Injection Framework
   TestDataInjectorService,
   TestDataGeneratorService,
+  TestTargetMirrorService,
+  TestPriceDataService,
 ];
 
 // Phase 7 Runners

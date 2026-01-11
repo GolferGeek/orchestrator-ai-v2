@@ -54,6 +54,9 @@ export interface Signal {
   created_at: string;
   updated_at: string;
   expired_at: string | null;
+  // Test data markers (Phase 3 Test Data Injection Framework)
+  is_test_data?: boolean;
+  test_scenario_id?: string | null;
 }
 
 /**
@@ -74,6 +77,9 @@ export interface CreateSignalData {
   url?: string;
   metadata?: Record<string, unknown>;
   disposition?: SignalDisposition;
+  // Test data markers (Phase 3 Test Data Injection Framework)
+  is_test_data?: boolean;
+  test_scenario_id?: string;
 }
 
 export interface UpdateSignalData {
