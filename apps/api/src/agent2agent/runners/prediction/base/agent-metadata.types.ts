@@ -187,6 +187,11 @@ export const DEFAULT_PREFILTER_THRESHOLDS: Record<
   PredictionRunnerType,
   PreFilterThresholds
 > = {
+  'financial-asset-predictor': {
+    minPriceChangePercent: 2, // 2% for stocks, higher for crypto detected dynamically
+    minSentimentShift: 0.2,
+    minSignificanceScore: 0.3,
+  },
   'stock-predictor': {
     minPriceChangePercent: 2,
     minSentimentShift: 0.2,
@@ -213,6 +218,7 @@ export const DEFAULT_PREFILTER_THRESHOLDS: Record<
  * Default poll intervals by runner type (in milliseconds).
  */
 export const DEFAULT_POLL_INTERVALS: Record<PredictionRunnerType, number> = {
+  'financial-asset-predictor': 60000, // 1 minute (adaptive for crypto)
   'stock-predictor': 60000, // 1 minute (market hours)
   'crypto-predictor': 30000, // 30 seconds (24/7)
   'market-predictor': 300000, // 5 minutes (prediction markets)

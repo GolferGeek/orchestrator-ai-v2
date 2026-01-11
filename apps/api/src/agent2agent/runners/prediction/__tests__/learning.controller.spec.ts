@@ -121,22 +121,24 @@ describe('LearningController', () => {
   });
 
   // Helper to setup ownership verification mocks
-  // Flow: predictions.prediction_agents -> single() -> agents -> single() -> organization_members -> (direct await)
+  // Flow: predictions.prediction_agents -> single() -> agents -> single() -> users -> single()
   const setupOwnershipMocks = () => {
     mockSingle
+      // 1. prediction_agents lookup
       .mockResolvedValueOnce({
-        data: { agent_slug: 'test-agent' },
+        data: { agent_slug: 'finance-predictor' },
         error: null,
       })
+      // 2. agents lookup - returns organization_slug as array
       .mockResolvedValueOnce({
-        data: { org_slug: 'test-org' },
+        data: { organization_slug: ['finance'] },
+        error: null,
+      })
+      // 3. users lookup - returns user's organization_slug
+      .mockResolvedValueOnce({
+        data: { organization_slug: 'finance' },
         error: null,
       });
-    // The organization_members query doesn't call .single() - it's awaited directly
-    mockDirectQuery.mockResolvedValueOnce({
-      data: [{ organizations: { slug: 'test-org' } }],
-      error: null,
-    });
   };
 
   describe('getSummary', () => {
@@ -182,16 +184,19 @@ describe('LearningController', () => {
 
     it('should throw NotFoundException for unauthorized access', async () => {
       mockSingle
+        // 1. prediction_agents lookup
         .mockResolvedValueOnce({
-          data: { agent_slug: 'test-agent' },
+          data: { agent_slug: 'finance-predictor' },
           error: null,
         })
+        // 2. agents lookup - agent belongs to 'finance' org
         .mockResolvedValueOnce({
-          data: { org_slug: 'other-org' },
+          data: { organization_slug: ['finance'] },
           error: null,
         })
+        // 3. users lookup - user belongs to different org 'marketing'
         .mockResolvedValueOnce({
-          data: [{ organizations: { slug: 'user-org' } }],
+          data: { organization_slug: 'marketing' },
           error: null,
         });
 
@@ -415,32 +420,34 @@ describe('LearningController', () => {
 
   describe('sendMessage', () => {
     it('should process message in conversation', async () => {
-      // Setup ownership mocks: prediction_agents -> agents -> (direct) organization_members
+      // Setup ownership mocks: prediction_agents -> agents -> users
       // Then additional calls for execution context: prediction_agents -> agents
       mockSingle
+        // 1. prediction_agents lookup (ownership)
         .mockResolvedValueOnce({
-          data: { agent_slug: 'test-agent' },
+          data: { agent_slug: 'finance-predictor' },
           error: null,
         })
+        // 2. agents lookup (ownership) - organization_slug as array
         .mockResolvedValueOnce({
-          data: { org_slug: 'test-org' },
+          data: { organization_slug: ['finance'] },
           error: null,
         })
-        // Execution context calls
+        // 3. users lookup (ownership)
         .mockResolvedValueOnce({
-          data: { agent_slug: 'test-agent' },
+          data: { organization_slug: 'finance' },
           error: null,
         })
+        // 4. prediction_agents lookup (execution context)
         .mockResolvedValueOnce({
-          data: { org_slug: 'test-org', agent_type: 'context', metadata: {} },
+          data: { agent_slug: 'finance-predictor' },
+          error: null,
+        })
+        // 5. agents lookup (execution context)
+        .mockResolvedValueOnce({
+          data: { org_slug: 'finance', agent_type: 'prediction', metadata: {} },
           error: null,
         });
-
-      // organization_members uses direct query (no .single())
-      mockDirectQuery.mockResolvedValueOnce({
-        data: [{ organizations: { slug: 'test-org' } }],
-        error: null,
-      });
 
       learningConversation.processMessage.mockResolvedValueOnce({
         response: 'Here is my response',
@@ -462,32 +469,34 @@ describe('LearningController', () => {
     });
 
     it('should include context updates in response', async () => {
-      // Setup ownership mocks: prediction_agents -> agents -> (direct) organization_members
+      // Setup ownership mocks: prediction_agents -> agents -> users
       // Then additional calls for execution context: prediction_agents -> agents
       mockSingle
+        // 1. prediction_agents lookup (ownership)
         .mockResolvedValueOnce({
-          data: { agent_slug: 'test-agent' },
+          data: { agent_slug: 'finance-predictor' },
           error: null,
         })
+        // 2. agents lookup (ownership) - organization_slug as array
         .mockResolvedValueOnce({
-          data: { org_slug: 'test-org' },
+          data: { organization_slug: ['finance'] },
           error: null,
         })
-        // Execution context calls
+        // 3. users lookup (ownership)
         .mockResolvedValueOnce({
-          data: { agent_slug: 'test-agent' },
+          data: { organization_slug: 'finance' },
           error: null,
         })
+        // 4. prediction_agents lookup (execution context)
         .mockResolvedValueOnce({
-          data: { org_slug: 'test-org', agent_type: 'context', metadata: {} },
+          data: { agent_slug: 'finance-predictor' },
+          error: null,
+        })
+        // 5. agents lookup (execution context)
+        .mockResolvedValueOnce({
+          data: { org_slug: 'finance', agent_type: 'prediction', metadata: {} },
           error: null,
         });
-
-      // organization_members uses direct query (no .single())
-      mockDirectQuery.mockResolvedValueOnce({
-        data: [{ organizations: { slug: 'test-org' } }],
-        error: null,
-      });
 
       learningConversation.processMessage.mockResolvedValueOnce({
         response: 'I will update your context',
@@ -516,18 +525,25 @@ describe('LearningController', () => {
 
   describe('endChat', () => {
     it('should end a learning conversation', async () => {
-      // Setup ownership mocks: prediction_agents -> agents -> (direct) organization_members
+      // Setup ownership mocks: prediction_agents -> agents -> users
       // Then conversation data: select conversation -> update conversation
       mockSingle
+        // 1. prediction_agents lookup (ownership)
         .mockResolvedValueOnce({
-          data: { agent_slug: 'test-agent' },
+          data: { agent_slug: 'finance-predictor' },
           error: null,
         })
+        // 2. agents lookup (ownership) - organization_slug as array
         .mockResolvedValueOnce({
-          data: { org_slug: 'test-org' },
+          data: { organization_slug: ['finance'] },
           error: null,
         })
-        // Conversation queries
+        // 3. users lookup (ownership)
+        .mockResolvedValueOnce({
+          data: { organization_slug: 'finance' },
+          error: null,
+        })
+        // 4. Conversation select query
         .mockResolvedValueOnce({
           data: {
             summary: 'Conversation completed',
@@ -536,15 +552,10 @@ describe('LearningController', () => {
           },
           error: null,
         })
+        // 5. Conversation update query
         .mockResolvedValueOnce({
           error: null,
         });
-
-      // organization_members uses direct query (no .single())
-      mockDirectQuery.mockResolvedValueOnce({
-        data: [{ organizations: { slug: 'test-org' } }],
-        error: null,
-      });
 
       const result = await controller.endChat(
         'agent-123',

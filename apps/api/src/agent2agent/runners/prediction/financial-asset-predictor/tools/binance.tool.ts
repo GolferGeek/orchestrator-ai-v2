@@ -19,10 +19,7 @@
  */
 
 import { Injectable } from '@nestjs/common';
-import {
-  BasePredictionTool,
-  ToolConfig,
-} from '../../stock-predictor/tools/base-tool';
+import { BasePredictionTool, ToolConfig } from './base-tool';
 import { Source, Claim } from '../../base/base-prediction.types';
 
 /**

@@ -22,7 +22,7 @@ import { Injectable } from '@nestjs/common';
 import {
   BasePredictionTool,
   ToolConfig,
-} from '../../stock-predictor/tools/base-tool';
+} from '../../financial-asset-predictor/tools/base-tool';
 import { Source, Claim } from '../../base/base-prediction.types';
 
 /**

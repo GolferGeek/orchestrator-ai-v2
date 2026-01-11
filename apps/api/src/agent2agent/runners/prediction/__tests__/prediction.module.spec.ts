@@ -18,8 +18,7 @@ import { LearningConversationService } from '../base/services/learning-conversat
 import { AgentContextUpdateService } from '../base/services/agent-context-update.service';
 import { PredictionController } from '../prediction.controller';
 import { LearningController } from '../learning.controller';
-import { StockPredictorModule } from '../stock-predictor/stock-predictor.module';
-import { CryptoPredictorModule } from '../crypto-predictor/crypto-predictor.module';
+import { FinancialAssetPredictorModule } from '../financial-asset-predictor/financial-asset-predictor.module';
 import { MarketPredictorModule } from '../market-predictor/market-predictor.module';
 import { RUNNER_REGISTRY } from '../runner.registry';
 
@@ -66,12 +65,12 @@ jest.mock('../learning.controller', () => ({
 }));
 
 // Mock domain modules
-jest.mock('../stock-predictor/stock-predictor.module', () => ({
-  StockPredictorModule: class MockStockPredictorModule {},
-}));
-jest.mock('../crypto-predictor/crypto-predictor.module', () => ({
-  CryptoPredictorModule: class MockCryptoPredictorModule {},
-}));
+jest.mock(
+  '../financial-asset-predictor/financial-asset-predictor.module',
+  () => ({
+    FinancialAssetPredictorModule: class MockFinancialAssetPredictorModule {},
+  }),
+);
 jest.mock('../market-predictor/market-predictor.module', () => ({
   MarketPredictorModule: class MockMarketPredictorModule {},
 }));
@@ -190,19 +189,31 @@ describe('PredictionModule runner registry integration', () => {
   });
 
   describe('runner types', () => {
-    it('should define stock-predictor as a valid runner type', () => {
-      // This test validates that the type system accepts stock-predictor
-      const runnerType = 'stock-predictor' as const;
+    it('should define financial-asset-predictor as a valid runner type', () => {
+      // This test validates that the type system accepts financial-asset-predictor
+      const runnerType = 'financial-asset-predictor' as const;
       expect([
+        'financial-asset-predictor',
         'stock-predictor',
         'crypto-predictor',
         'market-predictor',
       ]).toContain(runnerType);
     });
 
-    it('should define crypto-predictor as a valid runner type', () => {
+    it('should define stock-predictor as a deprecated but valid runner type', () => {
+      const runnerType = 'stock-predictor' as const;
+      expect([
+        'financial-asset-predictor',
+        'stock-predictor',
+        'crypto-predictor',
+        'market-predictor',
+      ]).toContain(runnerType);
+    });
+
+    it('should define crypto-predictor as a deprecated but valid runner type', () => {
       const runnerType = 'crypto-predictor' as const;
       expect([
+        'financial-asset-predictor',
         'stock-predictor',
         'crypto-predictor',
         'market-predictor',
@@ -212,6 +223,7 @@ describe('PredictionModule runner registry integration', () => {
     it('should define market-predictor as a valid runner type', () => {
       const runnerType = 'market-predictor' as const;
       expect([
+        'financial-asset-predictor',
         'stock-predictor',
         'crypto-predictor',
         'market-predictor',
@@ -222,33 +234,23 @@ describe('PredictionModule runner registry integration', () => {
   describe('module exports', () => {
     it('should re-export domain runner services', async () => {
       // These imports should work if module exports are correct
-      const { StockPredictorRunnerService } = await import(
-        '../stock-predictor/stock-predictor-runner.service'
-      );
-      const { CryptoPredictorRunnerService } = await import(
-        '../crypto-predictor/crypto-predictor-runner.service'
+      const { FinancialAssetPredictorRunnerService } = await import(
+        '../financial-asset-predictor/financial-asset-predictor-runner.service'
       );
       const { MarketPredictorRunnerService } = await import(
         '../market-predictor/market-predictor-runner.service'
       );
 
-      expect(StockPredictorRunnerService).toBeDefined();
-      expect(CryptoPredictorRunnerService).toBeDefined();
+      expect(FinancialAssetPredictorRunnerService).toBeDefined();
       expect(MarketPredictorRunnerService).toBeDefined();
     });
   });
 });
 
 describe('PredictionModule domain modules', () => {
-  describe('StockPredictorModule', () => {
+  describe('FinancialAssetPredictorModule', () => {
     it('should be importable', () => {
-      expect(StockPredictorModule).toBeDefined();
-    });
-  });
-
-  describe('CryptoPredictorModule', () => {
-    it('should be importable', () => {
-      expect(CryptoPredictorModule).toBeDefined();
+      expect(FinancialAssetPredictorModule).toBeDefined();
     });
   });
 

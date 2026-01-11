@@ -316,10 +316,30 @@ export interface PredictionRunnerConfig {
  * Supported prediction runner types
  */
 export type PredictionRunnerType =
-  | 'stock-predictor'
-  | 'crypto-predictor'
+  | 'financial-asset-predictor'
+  | 'stock-predictor' // @deprecated - use 'financial-asset-predictor'
+  | 'crypto-predictor' // @deprecated - use 'financial-asset-predictor'
   | 'market-predictor'
   | 'election-predictor';
+
+/**
+ * Target types supported by prediction runners.
+ * Each domain runner can use a subset of these.
+ *
+ * "Target" is the generic term for what a prediction runner analyzes:
+ * - Financial assets: stock, etf, crypto, forex
+ * - Betting markets: prediction-market, sports, politics
+ */
+export type TargetType =
+  // Financial asset types
+  | 'stock'
+  | 'etf'
+  | 'crypto'
+  | 'forex'
+  // Betting market types
+  | 'prediction-market'
+  | 'sports'
+  | 'politics';
 
 /**
  * Risk profiles for recommendation packaging

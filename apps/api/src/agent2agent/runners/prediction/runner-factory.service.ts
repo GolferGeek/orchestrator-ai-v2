@@ -137,7 +137,10 @@ export class RunnerFactoryService {
       );
     }
 
-    const config = agent.metadata.runnerConfig;
+    const config = { ...agent.metadata.runnerConfig };
+
+    // Backwards compatibility: map deprecated runner types to financial-asset-predictor
+    config.runner = this.normalizeRunnerType(config.runner);
 
     // Validate required fields
     if (!config.runner) {
@@ -179,5 +182,30 @@ export class RunnerFactoryService {
       `Runner '${entry.name}' requires tools: ${entry.requiredTools.join(', ')}. ` +
         `Config overrides: ${configuredTools.length > 0 ? configuredTools.join(', ') : 'none'}`,
     );
+  }
+
+  /**
+   * Normalize deprecated runner types to their current equivalents.
+   * Provides backwards compatibility for existing agent configurations.
+   *
+   * @deprecated stock-predictor and crypto-predictor are deprecated in favor of financial-asset-predictor
+   */
+  private normalizeRunnerType(
+    type: PredictionRunnerType,
+  ): PredictionRunnerType {
+    switch (type) {
+      case 'stock-predictor':
+        this.logger.warn(
+          `Runner type 'stock-predictor' is deprecated. Use 'financial-asset-predictor' instead. Auto-migrating.`,
+        );
+        return 'financial-asset-predictor';
+      case 'crypto-predictor':
+        this.logger.warn(
+          `Runner type 'crypto-predictor' is deprecated. Use 'financial-asset-predictor' instead. Auto-migrating.`,
+        );
+        return 'financial-asset-predictor';
+      default:
+        return type;
+    }
   }
 }

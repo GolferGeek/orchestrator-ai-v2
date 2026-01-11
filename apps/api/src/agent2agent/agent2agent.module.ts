@@ -1,4 +1,4 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { Agent2AgentController } from './agent2agent.controller';
 import { AgentApprovalsActionsController } from './controllers/agent-approvals-actions.controller';
 import { AgentPlatformModule } from '../agent-platform/agent-platform.module';
@@ -36,7 +36,7 @@ import { PredictionModule } from './runners/prediction/prediction.module';
 
 @Module({
   imports: [
-    forwardRef(() => AgentPlatformModule),
+    AgentPlatformModule,
     LLMModule,
     AuthModule,
     SupabaseModule,

@@ -29,11 +29,11 @@ describe('PredictionController', () => {
 
   const mockAgent = {
     id: mockAgentId,
-    slug: 'us-tech-stocks-2025',
-    org_slug: 'test-org',
+    slug: 'finance-predictor',
+    organization_slug: ['finance'],
     metadata: {
       runnerConfig: {
-        runner: 'stock-predictor',
+        runner: 'financial-asset-predictor',
         instruments: ['AAPL', 'MSFT', 'GOOGL'],
         riskProfile: 'moderate',
         pollIntervalMs: 300000,
@@ -230,22 +230,17 @@ describe('PredictionController', () => {
   }
 
   // Helper to setup agent ownership verification
+  // Flow: loadAgent (agents.single) -> users.single
   function setupAgentOwnership(agentFound = true) {
-    // 1. loadAgent call - single()
+    // 1. loadAgent call - agents table via single()
     singleResponses.push({
       data: agentFound ? getAgentCopy() : null,
       error: agentFound ? null : { code: 'PGRST116' },
     });
 
-    // 2. organization_members query - ends at .eq() which is awaited (terminalSelectResponses)
-    terminalSelectResponses.push({
-      data: [{ org_id: 'org-1' }],
-      error: null,
-    });
-
-    // 3. organizations query - single()
+    // 2. users query - get user's organization_slug via single()
     singleResponses.push({
-      data: { id: 'org-1', slug: 'test-org' },
+      data: { organization_slug: 'finance' },
       error: null,
     });
   }
@@ -291,7 +286,7 @@ describe('PredictionController', () => {
       );
 
       expect(result.agentId).toBe(mockAgentId);
-      expect(result.agentSlug).toBe('us-tech-stocks-2025');
+      expect(result.agentSlug).toBe('finance-predictor');
       expect(result.recommendations).toHaveLength(1);
     });
 
@@ -384,17 +379,12 @@ describe('PredictionController', () => {
 
       // 1. loadAgent - single()
       singleResponses.push({ data: agentWithoutConfig, error: null });
-      // 2. org_members - terminalSelectResponses
-      terminalSelectResponses.push({
-        data: [{ org_id: 'org-1' }],
-        error: null,
-      });
-      // 3. organizations - single()
+      // 2. users query - single()
       singleResponses.push({
-        data: { id: 'org-1', slug: 'test-org' },
+        data: { organization_slug: 'finance' },
         error: null,
       });
-      // 4. loadAgent again - single()
+      // 3. loadAgent again - single()
       singleResponses.push({ data: agentWithoutConfig, error: null });
 
       await expect(
@@ -542,7 +532,7 @@ describe('PredictionController', () => {
       const result = await controller.getConfig(mockAgentId, mockUser);
 
       expect(result.agentId).toBe(mockAgentId);
-      expect(result.config.runner).toBe('stock-predictor');
+      expect(result.config.runner).toBe('financial-asset-predictor');
       expect(result.config.instruments).toEqual(['AAPL', 'MSFT', 'GOOGL']);
       expect(result.config.riskProfile).toBe('moderate');
     });
@@ -577,7 +567,7 @@ describe('PredictionController', () => {
       expect(result.config.riskProfile).toBe('aggressive');
       expect(result.config.pollIntervalMs).toBe(600000);
       // Should preserve existing fields
-      expect(result.config.runner).toBe('stock-predictor');
+      expect(result.config.runner).toBe('financial-asset-predictor');
       expect(result.config.instruments).toEqual(['AAPL', 'MSFT', 'GOOGL']);
     });
 
@@ -717,21 +707,15 @@ describe('PredictionController', () => {
 
   describe('agent ownership verification', () => {
     it('should throw NotFoundException when user does not own agent', async () => {
-      // 1. loadAgent success - single()
+      // 1. loadAgent success - single() - agent belongs to 'finance'
       singleResponses.push({
         data: getAgentCopy(),
         error: null,
       });
 
-      // 2. user has no org memberships - terminalSelectResponses
-      terminalSelectResponses.push({
-        data: [],
-        error: null,
-      });
-
-      // 3. organization lookup - single()
+      // 2. users query - user belongs to different org 'marketing'
       singleResponses.push({
-        data: { id: 'different-org', slug: 'different-org' },
+        data: { organization_slug: 'marketing' },
         error: null,
       });
 

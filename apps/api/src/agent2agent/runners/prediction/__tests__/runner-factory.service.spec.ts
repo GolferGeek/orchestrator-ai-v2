@@ -20,9 +20,9 @@ import {
 } from '../base/base-prediction.types';
 
 // Mock runner implementation for testing
-class MockStockPredictor implements IPredictionRunner {
-  readonly runnerType: PredictionRunnerType = 'stock-predictor';
-  readonly runnerName = 'MockStockPredictor';
+class MockFinancialAssetPredictor implements IPredictionRunner {
+  readonly runnerType: PredictionRunnerType = 'financial-asset-predictor';
+  readonly runnerName = 'MockFinancialAssetPredictor';
 
   async execute(_input: RunnerInput): Promise<RunnerOutput> {
     return {
@@ -56,13 +56,21 @@ class MockStockPredictor implements IPredictionRunner {
 }
 
 const mockRunnerEntry: RunnerRegistryEntry = {
-  type: 'stock-predictor',
-  runnerClass: MockStockPredictor,
-  name: 'Stock Predictor',
-  description: 'Predicts stock price movements',
+  type: 'financial-asset-predictor',
+  runnerClass: MockFinancialAssetPredictor,
+  name: 'Financial Asset Predictor',
+  description: 'Unified predictor for stocks, ETFs, crypto, and forex',
   requiredTools: ['yahoo-finance'],
   defaultPollIntervalMs: 60000,
-  supportedRiskProfiles: ['conservative', 'moderate', 'aggressive'],
+  supportedRiskProfiles: [
+    'conservative',
+    'moderate',
+    'aggressive',
+    'hodler',
+    'trader',
+    'degen',
+  ],
+  supportedTargetTypes: ['stock', 'etf', 'crypto', 'forex'],
 };
 
 describe('RunnerFactoryService', () => {
@@ -79,7 +87,7 @@ describe('RunnerFactoryService', () => {
     metadata: {
       description: 'Test agent',
       runnerConfig: {
-        runner: 'stock-predictor',
+        runner: 'financial-asset-predictor',
         instruments: ['AAPL', 'MSFT'],
         riskProfile: 'moderate',
         pollIntervalMs: 60000,
@@ -99,7 +107,7 @@ describe('RunnerFactoryService', () => {
     RUNNER_REGISTRY.register(mockRunnerEntry);
 
     moduleRef = {
-      resolve: jest.fn().mockResolvedValue(new MockStockPredictor()),
+      resolve: jest.fn().mockResolvedValue(new MockFinancialAssetPredictor()),
     } as any;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -122,8 +130,8 @@ describe('RunnerFactoryService', () => {
 
       const runner = await service.getRunner(agent);
 
-      expect(runner).toBeInstanceOf(MockStockPredictor);
-      expect(runner.runnerType).toBe('stock-predictor');
+      expect(runner).toBeInstanceOf(MockFinancialAssetPredictor);
+      expect(runner.runnerType).toBe('financial-asset-predictor');
     });
 
     it('should resolve runner via NestJS ModuleRef', async () => {
@@ -131,7 +139,55 @@ describe('RunnerFactoryService', () => {
 
       await service.getRunner(agent);
 
-      expect(moduleRef.resolve).toHaveBeenCalledWith(MockStockPredictor);
+      expect(moduleRef.resolve).toHaveBeenCalledWith(
+        MockFinancialAssetPredictor,
+      );
+    });
+
+    it('should auto-migrate stock-predictor to financial-asset-predictor', async () => {
+      const agent = createAgentRecord({
+        metadata: {
+          runnerConfig: {
+            runner: 'stock-predictor', // Legacy type
+            instruments: ['AAPL'],
+            riskProfile: 'moderate',
+            pollIntervalMs: 60000,
+            preFilterThresholds: {
+              minPriceChangePercent: 2,
+              minSentimentShift: 0.3,
+              minSignificanceScore: 0.5,
+            },
+          },
+        },
+      });
+
+      const runner = await service.getRunner(agent);
+
+      // Should auto-migrate to financial-asset-predictor
+      expect(runner.runnerType).toBe('financial-asset-predictor');
+    });
+
+    it('should auto-migrate crypto-predictor to financial-asset-predictor', async () => {
+      const agent = createAgentRecord({
+        metadata: {
+          runnerConfig: {
+            runner: 'crypto-predictor', // Legacy type
+            instruments: ['BTC', 'ETH'],
+            riskProfile: 'degen',
+            pollIntervalMs: 30000,
+            preFilterThresholds: {
+              minPriceChangePercent: 5,
+              minSentimentShift: 0.3,
+              minSignificanceScore: 0.25,
+            },
+          },
+        },
+      });
+
+      const runner = await service.getRunner(agent);
+
+      // Should auto-migrate to financial-asset-predictor
+      expect(runner.runnerType).toBe('financial-asset-predictor');
     });
 
     it('should throw NotFoundException when runner type not registered', async () => {
@@ -190,7 +246,7 @@ describe('RunnerFactoryService', () => {
       const agent = createAgentRecord({
         metadata: {
           runnerConfig: {
-            runner: 'stock-predictor',
+            runner: 'financial-asset-predictor',
             instruments: [],
             riskProfile: 'moderate',
             pollIntervalMs: 60000,
@@ -213,7 +269,7 @@ describe('RunnerFactoryService', () => {
       const agent = createAgentRecord({
         metadata: {
           runnerConfig: {
-            runner: 'stock-predictor',
+            runner: 'financial-asset-predictor',
             instruments: ['AAPL'],
             pollIntervalMs: 60000,
             preFilterThresholds: {
@@ -242,11 +298,22 @@ describe('RunnerFactoryService', () => {
 
   describe('getRunnerEntry', () => {
     it('should return entry for registered runner', () => {
-      const entry = service.getRunnerEntry('stock-predictor');
+      const entry = service.getRunnerEntry('financial-asset-predictor');
 
       expect(entry).toBeDefined();
-      expect(entry?.name).toBe('Stock Predictor');
+      expect(entry?.name).toBe('Financial Asset Predictor');
       expect(entry?.requiredTools).toContain('yahoo-finance');
+    });
+
+    it('should return supported target types for financial-asset-predictor', () => {
+      const entry = service.getRunnerEntry('financial-asset-predictor');
+
+      expect(entry).toBeDefined();
+      expect(entry?.supportedTargetTypes).toBeDefined();
+      expect(entry?.supportedTargetTypes).toContain('stock');
+      expect(entry?.supportedTargetTypes).toContain('etf');
+      expect(entry?.supportedTargetTypes).toContain('crypto');
+      expect(entry?.supportedTargetTypes).toContain('forex');
     });
 
     it('should return undefined for unregistered runner', () => {
@@ -263,7 +330,7 @@ describe('RunnerFactoryService', () => {
       const runners = service.getAvailableRunners();
 
       expect(runners).toHaveLength(1);
-      expect(runners[0]?.type).toBe('stock-predictor');
+      expect(runners[0]?.type).toBe('financial-asset-predictor');
     });
 
     it('should return empty array when no runners registered', () => {
@@ -277,7 +344,7 @@ describe('RunnerFactoryService', () => {
 
   describe('isRunnerAvailable', () => {
     it('should return true for registered runner', () => {
-      const available = service.isRunnerAvailable('stock-predictor');
+      const available = service.isRunnerAvailable('financial-asset-predictor');
 
       expect(available).toBe(true);
     });
@@ -301,7 +368,7 @@ describe('RUNNER_REGISTRY', () => {
     it('should register a runner entry', () => {
       RUNNER_REGISTRY.register(mockRunnerEntry);
 
-      expect(RUNNER_REGISTRY.has('stock-predictor')).toBe(true);
+      expect(RUNNER_REGISTRY.has('financial-asset-predictor')).toBe(true);
     });
 
     it('should throw error when registering duplicate type', () => {
@@ -317,7 +384,7 @@ describe('RUNNER_REGISTRY', () => {
     it('should return registered entry', () => {
       RUNNER_REGISTRY.register(mockRunnerEntry);
 
-      const entry = RUNNER_REGISTRY.get('stock-predictor');
+      const entry = RUNNER_REGISTRY.get('financial-asset-predictor');
 
       expect(entry).toEqual(mockRunnerEntry);
     });
@@ -335,7 +402,7 @@ describe('RUNNER_REGISTRY', () => {
 
       const types = RUNNER_REGISTRY.getTypes();
 
-      expect(types).toContain('stock-predictor');
+      expect(types).toContain('financial-asset-predictor');
     });
   });
 

@@ -1,19 +1,19 @@
 /**
- * Stock Predictor Module
+ * Financial Asset Predictor Module
  *
- * NestJS module for the Stock Predictor runner.
- * Provides the StockPredictorRunnerService and required dependencies.
+ * NestJS module for the Financial Asset Predictor runner.
+ * Provides the FinancialAssetPredictorRunnerService and required dependencies.
  *
  * DEPENDENCIES:
  * - PostgresCheckpointerModule: LangGraph state persistence
  * - SupabaseModule: Database access for PredictionDbService
  * - ObservabilityModule: Observability events
  *
- * @module stock-predictor.module
+ * @module financial-asset-predictor.module
  */
 
 import { Module } from '@nestjs/common';
-import { StockPredictorRunnerService } from './stock-predictor-runner.service';
+import { FinancialAssetPredictorRunnerService } from './financial-asset-predictor-runner.service';
 import { PostgresCheckpointerModule } from '../base/postgres-checkpointer.module';
 import { PostgresCheckpointerService } from '../base/postgres-checkpointer.service';
 import { DefaultClaimProcessor } from '../base/default-claim-processor';
@@ -32,12 +32,12 @@ import { ObservabilityModule } from '../../../../observability/observability.mod
       inject: [ObservabilityEventsService],
     },
     {
-      provide: StockPredictorRunnerService,
+      provide: FinancialAssetPredictorRunnerService,
       useFactory: (
         checkpointer: PostgresCheckpointerService,
         observabilityService: ObservabilityEventsService,
       ) => {
-        return StockPredictorRunnerService.create(
+        return FinancialAssetPredictorRunnerService.create(
           checkpointer,
           observabilityService,
         );
@@ -45,6 +45,6 @@ import { ObservabilityModule } from '../../../../observability/observability.mod
       inject: [PostgresCheckpointerService, ObservabilityEventsService],
     },
   ],
-  exports: [StockPredictorRunnerService],
+  exports: [FinancialAssetPredictorRunnerService],
 })
-export class StockPredictorModule {}
+export class FinancialAssetPredictorModule {}

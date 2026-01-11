@@ -16,6 +16,7 @@
 import { Type } from '@nestjs/common';
 import {
   PredictionRunnerType,
+  TargetType,
   RunnerInput,
   RunnerOutput,
 } from './base/base-prediction.types';
@@ -39,7 +40,7 @@ export interface IPredictionRunner {
  * Registry entry for a runner implementation
  */
 export interface RunnerRegistryEntry {
-  /** Runner type (e.g., 'stock-predictor') */
+  /** Runner type (e.g., 'financial-asset-predictor') */
   type: PredictionRunnerType;
 
   /** Runner class (NestJS injectable) */
@@ -59,6 +60,9 @@ export interface RunnerRegistryEntry {
 
   /** Supported risk profiles */
   supportedRiskProfiles: string[];
+
+  /** Supported target types (optional - domain-specific) */
+  supportedTargetTypes?: TargetType[];
 }
 
 /**
