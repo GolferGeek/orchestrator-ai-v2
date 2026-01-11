@@ -23,6 +23,8 @@ import {
   TargetSnapshotRepository,
   // Phase 2 Story Deduplication
   SignalFingerprintRepository,
+  // Phase 3 Test Data Injection Framework
+  TestScenarioRepository,
 } from './repositories';
 
 // Services
@@ -56,6 +58,9 @@ import {
   // Phase 9 Services
   NotificationService,
   PredictionStreamingService,
+  // Phase 3 Test Data Injection Framework
+  TestDataInjectorService,
+  TestDataGeneratorService,
 } from './services';
 
 // Phase 7 Runners
@@ -104,6 +109,8 @@ const repositories = [
   TargetSnapshotRepository,
   // Phase 2 Story Deduplication
   SignalFingerprintRepository,
+  // Phase 3 Test Data Injection Framework
+  TestScenarioRepository,
 ];
 
 const services = [
@@ -136,6 +143,9 @@ const services = [
   // Phase 9 Services
   NotificationService,
   PredictionStreamingService,
+  // Phase 3 Test Data Injection Framework
+  TestDataInjectorService,
+  TestDataGeneratorService,
 ];
 
 // Phase 7 Runners

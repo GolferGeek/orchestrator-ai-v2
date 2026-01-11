@@ -28,3 +28,6 @@ export * from './tool-request.service';
 // Phase 9 services
 export * from './notification.service';
 export * from './prediction-streaming.service';
+// Phase 3 Test Data Injection Framework
+export * from './test-data-injector.service';
+export * from './test-data-generator.service';

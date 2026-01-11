@@ -6,6 +6,7 @@ import {
   UpdatePredictionData,
   PredictionStatus,
 } from '../interfaces/prediction.interface';
+import { TestDataFilter } from '../interfaces/test-data.interface';
 
 type SupabaseError = { message: string; code?: string } | null;
 
@@ -19,6 +20,11 @@ type SupabaseSelectListResponse<T> = {
   error: SupabaseError;
 };
 
+/**
+ * Default filter that excludes test data from production queries
+ */
+const DEFAULT_FILTER: TestDataFilter = { includeTestData: false };
+
 @Injectable()
 export class PredictionRepository {
   private readonly logger = new Logger(PredictionRepository.name);
@@ -29,6 +35,26 @@ export class PredictionRepository {
 
   private getClient() {
     return this.supabaseService.getServiceClient();
+  }
+
+  /**
+   * Apply test data filter to a query builder
+   * By default, excludes test data from production queries
+   */
+  private applyTestDataFilter<
+    T extends { eq: (col: string, val: unknown) => T; or: (cond: string) => T },
+  >(query: T, filter: TestDataFilter = DEFAULT_FILTER): T {
+    if (filter.testDataOnly) {
+      query = query.eq('is_test_data', true);
+      if (filter.testScenarioId) {
+        query = query.eq('test_scenario_id', filter.testScenarioId);
+      }
+    } else if (filter.testScenarioId) {
+      query = query.eq('test_scenario_id', filter.testScenarioId);
+    } else if (!filter.includeTestData) {
+      query = query.or('is_test_data.is.null,is_test_data.eq.false');
+    }
+    return query;
   }
 
   async findById(id: string): Promise<Prediction | null> {
@@ -50,6 +76,7 @@ export class PredictionRepository {
   async findByTarget(
     targetId: string,
     status?: PredictionStatus,
+    filter: TestDataFilter = DEFAULT_FILTER,
   ): Promise<Prediction[]> {
     let query = this.getClient()
       .schema(this.schema)
@@ -61,6 +88,7 @@ export class PredictionRepository {
       query = query.eq('status', status);
     }
 
+    query = this.applyTestDataFilter(query, filter);
     query = query.order('predicted_at', { ascending: false });
 
     const { data, error } =
@@ -121,17 +149,23 @@ export class PredictionRepository {
   /**
    * Find predictions that are past their timeframe and need resolution
    * Returns active predictions where expires_at is in the past
+   * @param filter - Test data filter (defaults to excluding test data)
    */
-  async findPendingResolution(): Promise<Prediction[]> {
-    const { data, error } = (await this.getClient()
+  async findPendingResolution(
+    filter: TestDataFilter = DEFAULT_FILTER,
+  ): Promise<Prediction[]> {
+    let query = this.getClient()
       .schema(this.schema)
       .from(this.table)
       .select('*')
       .eq('status', 'active')
-      .lt('expires_at', new Date().toISOString())
-      .order('expires_at', {
-        ascending: true,
-      })) as SupabaseSelectListResponse<Prediction>;
+      .lt('expires_at', new Date().toISOString());
+
+    query = this.applyTestDataFilter(query, filter);
+
+    const { data, error } = (await query.order('expires_at', {
+      ascending: true,
+    })) as SupabaseSelectListResponse<Prediction>;
 
     if (error) {
       this.logger.error(
@@ -177,16 +211,22 @@ export class PredictionRepository {
 
   /**
    * Find all active predictions (not expired, not resolved)
+   * @param filter - Test data filter (defaults to excluding test data)
    */
-  async findActivePredictions(): Promise<Prediction[]> {
-    const { data, error } = (await this.getClient()
+  async findActivePredictions(
+    filter: TestDataFilter = DEFAULT_FILTER,
+  ): Promise<Prediction[]> {
+    let query = this.getClient()
       .schema(this.schema)
       .from(this.table)
       .select('*')
-      .eq('status', 'active')
-      .order('predicted_at', {
-        ascending: false,
-      })) as SupabaseSelectListResponse<Prediction>;
+      .eq('status', 'active');
+
+    query = this.applyTestDataFilter(query, filter);
+
+    const { data, error } = (await query.order('predicted_at', {
+      ascending: false,
+    })) as SupabaseSelectListResponse<Prediction>;
 
     if (error) {
       this.logger.error(`Failed to fetch active predictions: ${error.message}`);
@@ -198,18 +238,24 @@ export class PredictionRepository {
 
   /**
    * Find resolved predictions that haven't been evaluated yet
+   * @param filter - Test data filter (defaults to excluding test data)
    */
-  async findResolvedWithoutEvaluation(): Promise<Prediction[]> {
-    const { data, error } = (await this.getClient()
+  async findResolvedWithoutEvaluation(
+    filter: TestDataFilter = DEFAULT_FILTER,
+  ): Promise<Prediction[]> {
+    let query = this.getClient()
       .schema(this.schema)
       .from(this.table)
       .select('*')
       .eq('status', 'resolved')
       .not('outcome_value', 'is', null)
-      .is('resolution_notes', null)
-      .order('outcome_captured_at', {
-        ascending: true,
-      })) as SupabaseSelectListResponse<Prediction>;
+      .is('resolution_notes', null);
+
+    query = this.applyTestDataFilter(query, filter);
+
+    const { data, error } = (await query.order('outcome_captured_at', {
+      ascending: true,
+    })) as SupabaseSelectListResponse<Prediction>;
 
     if (error) {
       this.logger.error(

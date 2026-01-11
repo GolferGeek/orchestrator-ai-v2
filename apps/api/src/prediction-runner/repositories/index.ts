@@ -16,3 +16,5 @@ export * from './tool-request.repository';
 export * from './target-snapshot.repository';
 // Phase 2 Story Deduplication
 export * from './signal-fingerprint.repository';
+// Phase 3 Test Data Injection Framework
+export * from './test-scenario.repository';

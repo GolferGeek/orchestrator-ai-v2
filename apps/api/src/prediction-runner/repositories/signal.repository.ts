@@ -6,6 +6,7 @@ import {
   UpdateSignalData,
   SignalDisposition,
 } from '../interfaces/signal.interface';
+import { TestDataFilter } from '../interfaces/test-data.interface';
 
 type SupabaseError = { message: string; code?: string } | null;
 
@@ -18,6 +19,11 @@ type SupabaseSelectListResponse<T> = {
   data: T[] | null;
   error: SupabaseError;
 };
+
+/**
+ * Default filter that excludes test data from production queries
+ */
+const DEFAULT_FILTER: TestDataFilter = { includeTestData: false };
 
 @Injectable()
 export class SignalRepository {
@@ -32,25 +38,55 @@ export class SignalRepository {
   }
 
   /**
+   * Apply test data filter to a query builder
+   * By default, excludes test data from production queries
+   */
+  private applyTestDataFilter<
+    T extends { eq: (col: string, val: unknown) => T; or: (cond: string) => T },
+  >(query: T, filter: TestDataFilter = DEFAULT_FILTER): T {
+    if (filter.testDataOnly) {
+      // Only return test data
+      query = query.eq('is_test_data', true);
+      if (filter.testScenarioId) {
+        query = query.eq('test_scenario_id', filter.testScenarioId);
+      }
+    } else if (filter.testScenarioId) {
+      // Return specific scenario's test data
+      query = query.eq('test_scenario_id', filter.testScenarioId);
+    } else if (!filter.includeTestData) {
+      // Exclude test data (default behavior)
+      query = query.or('is_test_data.is.null,is_test_data.eq.false');
+    }
+    // If includeTestData is true and no scenarioId, return everything (no filter)
+    return query;
+  }
+
+  /**
    * Find pending signals for processing
    * Uses FOR UPDATE SKIP LOCKED pattern to prevent race conditions
    * @param targetId - Target ID to filter by
    * @param limit - Maximum number of signals to return
+   * @param filter - Test data filter (defaults to excluding test data)
    */
   async findPendingSignals(
     targetId: string,
     limit: number = 10,
+    filter: TestDataFilter = DEFAULT_FILTER,
   ): Promise<Signal[]> {
     // Note: Supabase client doesn't directly support FOR UPDATE SKIP LOCKED
     // This would need to be implemented via a stored procedure or direct SQL
     // For now, we'll use a simple query and handle locking in claimSignal
-    const { data, error } = (await this.getClient()
+    let query = this.getClient()
       .schema(this.schema)
       .from(this.table)
       .select('*')
       .eq('target_id', targetId)
       .eq('disposition', 'pending')
-      .is('processing_worker', null)
+      .is('processing_worker', null);
+
+    query = this.applyTestDataFilter(query, filter);
+
+    const { data, error } = (await query
       .order('detected_at', { ascending: true })
       .limit(limit)) as SupabaseSelectListResponse<Signal>;
 
@@ -154,16 +190,20 @@ export class SignalRepository {
   async findByTargetAndDisposition(
     targetId: string,
     disposition: SignalDisposition,
+    filter: TestDataFilter = DEFAULT_FILTER,
   ): Promise<Signal[]> {
-    const { data, error } = (await this.getClient()
+    let query = this.getClient()
       .schema(this.schema)
       .from(this.table)
       .select('*')
       .eq('target_id', targetId)
-      .eq('disposition', disposition)
-      .order('detected_at', {
-        ascending: false,
-      })) as SupabaseSelectListResponse<Signal>;
+      .eq('disposition', disposition);
+
+    query = this.applyTestDataFilter(query, filter);
+
+    const { data, error } = (await query.order('detected_at', {
+      ascending: false,
+    })) as SupabaseSelectListResponse<Signal>;
 
     if (error) {
       this.logger.error(

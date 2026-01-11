@@ -5,6 +5,7 @@ import {
   CreatePredictorData,
   UpdatePredictorData,
 } from '../interfaces/predictor.interface';
+import { TestDataFilter } from '../interfaces/test-data.interface';
 
 type SupabaseError = { message: string; code?: string } | null;
 
@@ -18,6 +19,11 @@ type SupabaseSelectListResponse<T> = {
   error: SupabaseError;
 };
 
+/**
+ * Default filter that excludes test data from production queries
+ */
+const DEFAULT_FILTER: TestDataFilter = { includeTestData: false };
+
 @Injectable()
 export class PredictorRepository {
   private readonly logger = new Logger(PredictorRepository.name);
@@ -30,17 +36,43 @@ export class PredictorRepository {
     return this.supabaseService.getServiceClient();
   }
 
-  async findActiveByTarget(targetId: string): Promise<Predictor[]> {
-    const { data, error } = (await this.getClient()
+  /**
+   * Apply test data filter to a query builder
+   * By default, excludes test data from production queries
+   */
+  private applyTestDataFilter<
+    T extends { eq: (col: string, val: unknown) => T; or: (cond: string) => T },
+  >(query: T, filter: TestDataFilter = DEFAULT_FILTER): T {
+    if (filter.testDataOnly) {
+      query = query.eq('is_test_data', true);
+      if (filter.testScenarioId) {
+        query = query.eq('test_scenario_id', filter.testScenarioId);
+      }
+    } else if (filter.testScenarioId) {
+      query = query.eq('test_scenario_id', filter.testScenarioId);
+    } else if (!filter.includeTestData) {
+      query = query.or('is_test_data.is.null,is_test_data.eq.false');
+    }
+    return query;
+  }
+
+  async findActiveByTarget(
+    targetId: string,
+    filter: TestDataFilter = DEFAULT_FILTER,
+  ): Promise<Predictor[]> {
+    let query = this.getClient()
       .schema(this.schema)
       .from(this.table)
       .select('*')
       .eq('target_id', targetId)
       .eq('status', 'active')
-      .gt('expires_at', new Date().toISOString())
-      .order('created_at', {
-        ascending: false,
-      })) as SupabaseSelectListResponse<Predictor>;
+      .gt('expires_at', new Date().toISOString());
+
+    query = this.applyTestDataFilter(query, filter);
+
+    const { data, error } = (await query.order('created_at', {
+      ascending: false,
+    })) as SupabaseSelectListResponse<Predictor>;
 
     if (error) {
       this.logger.error(`Failed to fetch active predictors: ${error.message}`);
