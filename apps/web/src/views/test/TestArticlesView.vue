@@ -9,6 +9,7 @@ import { ref, onMounted, computed } from 'vue';
 import TestModeIndicator from '@/components/test/TestModeIndicator.vue';
 import TestSymbolBadge from '@/components/test/TestSymbolBadge.vue';
 import ArticleEditor from '@/components/test/ArticleEditor.vue';
+import ArticleGeneratorModal from '@/components/test/ArticleGeneratorModal.vue';
 import { predictionDashboardService } from '@/services/predictionDashboardService';
 import type { TestArticle, TestScenario } from '@/services/predictionDashboardService';
 import { useTestArticleStore } from '@/stores/testArticleStore';
@@ -28,6 +29,7 @@ const scenarios = ref<TestScenario[]>([]);
 // Modal states
 const showCreateModal = ref(false);
 const showEditModal = ref(false);
+const showGeneratorModal = ref(false);
 const editingArticle = ref<TestArticle | null>(null);
 
 // Form data
@@ -196,6 +198,22 @@ function openCreateModal() {
   showCreateModal.value = true;
 }
 
+function openGeneratorModal() {
+  showGeneratorModal.value = true;
+}
+
+function handleGenerated(articles: TestArticle[]) {
+  // Add generated articles to store
+  articles.forEach(article => {
+    articleStore.addArticle(article);
+  });
+
+  // Close modal after a short delay to show success
+  setTimeout(() => {
+    showGeneratorModal.value = false;
+  }, 1000);
+}
+
 // Filter handlers
 function setScenarioFilter(scenarioId: string | null) {
   articleStore.setScenarioFilter(scenarioId);
@@ -248,6 +266,9 @@ onMounted(() => {
           </p>
         </div>
         <div class="test-articles-view__actions">
+          <button class="btn btn--secondary" @click="openGeneratorModal">
+            Generate with AI
+          </button>
           <button class="btn btn--primary" @click="openCreateModal">
             Create Article
           </button>
@@ -441,6 +462,14 @@ onMounted(() => {
         </div>
       </div>
     </div>
+
+    <!-- AI Generator Modal -->
+    <ArticleGeneratorModal
+      v-model="showGeneratorModal"
+      :available-symbols="availableSymbols"
+      :scenarios="scenarios"
+      @generated="handleGenerated"
+    />
   </div>
 </template>
 
@@ -461,6 +490,11 @@ onMounted(() => {
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 1.5rem;
+}
+
+.test-articles-view__actions {
+  display: flex;
+  gap: 0.75rem;
 }
 
 .test-articles-view__title {

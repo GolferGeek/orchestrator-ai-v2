@@ -65,13 +65,25 @@ export interface TestScenario {
 /**
  * Configuration for a test scenario
  */
-export interface TestScenarioConfig {
+export interface TestScenarioConfig extends Record<string, unknown> {
   /** Whether to run tier runners after injection */
   auto_run_tiers?: boolean;
   /** Which tiers to run automatically */
   tiers_to_run?: string[];
   /** Custom configuration per tier */
   tier_config?: Record<string, unknown>;
+  /** Source missed opportunity ID (if generated from missed opportunity) */
+  source_missed_opportunity_id?: string;
+  /** Source learning ID (if generated from learning) */
+  source_learning_id?: string;
+  /** Source evaluation ID (if generated from evaluation) */
+  source_evaluation_id?: string | null;
+  /** Expected outcome for the scenario */
+  expected_outcome?: Record<string, unknown>;
+  /** Scenario type */
+  scenario_type?: string;
+  /** Learning type (if generated from learning) */
+  learning_type?: string;
 }
 
 /**

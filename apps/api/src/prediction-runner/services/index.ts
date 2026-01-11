@@ -29,6 +29,9 @@ export * from './tool-request.service';
 // Phase 9 services
 export * from './notification.service';
 export * from './prediction-streaming.service';
+// Phase 2 Test Input Infrastructure
+export * from './test-db-source-crawler.service';
+export * from './test-price-data-router.service';
 // Phase 3 Test Data Injection Framework
 export * from './test-data-injector.service';
 export * from './test-data-generator.service';
@@ -37,3 +40,9 @@ export * from './test-article.service';
 export * from './test-target-mirror.service';
 export * from './test-audit.service';
 export * from './test-price-data.service';
+// Phase 4.1 AI-Powered Article Generation
+export * from './ai-article-generator.service';
+// Phase 4.2 & 4.3 Scenario Generation from Real-World Events
+export * from './scenario-generator.service';
+// Phase 4.4 Scenario Variation Generator
+export * from './scenario-variation.service';

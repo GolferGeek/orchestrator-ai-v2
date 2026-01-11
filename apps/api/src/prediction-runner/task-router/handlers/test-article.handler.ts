@@ -27,6 +27,8 @@ import {
   buildDashboardError,
   buildPaginationMetadata,
 } from '../dashboard-handler.interface';
+import { AiArticleGeneratorService } from '../../services/ai-article-generator.service';
+import { TestArticleGenerationRequest } from '../../interfaces/ai-generation.interface';
 
 interface TestArticleFilters {
   scenarioId?: string;
@@ -86,9 +88,13 @@ export class TestArticleHandler implements IDashboardHandler {
     'bulk-create',
     'mark-processed',
     'list-unprocessed',
+    'generate',
   ];
 
-  constructor(private readonly testArticleRepository: TestArticleRepository) {}
+  constructor(
+    private readonly testArticleRepository: TestArticleRepository,
+    private readonly aiArticleGeneratorService: AiArticleGeneratorService,
+  ) {}
 
   async execute(
     action: string,
@@ -121,6 +127,8 @@ export class TestArticleHandler implements IDashboardHandler {
       case 'list-unprocessed':
       case 'listunprocessed':
         return this.handleListUnprocessed(params);
+      case 'generate':
+        return this.handleGenerate(context, payload);
       default:
         return buildDashboardError(
           'UNSUPPORTED_ACTION',
@@ -516,6 +524,146 @@ export class TestArticleHandler implements IDashboardHandler {
           ? error.message
           : 'Failed to list unprocessed test articles',
       );
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // AI Generation Operations (Phase 4.1)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  private async handleGenerate(
+    context: ExecutionContext,
+    payload: DashboardRequestPayload,
+  ): Promise<DashboardActionResult> {
+    const request = payload.params as unknown as TestArticleGenerationRequest;
+
+    // Validate request parameters
+    if (!request.target_symbols || request.target_symbols.length === 0) {
+      return buildDashboardError(
+        'INVALID_REQUEST',
+        'target_symbols is required and must contain at least one symbol',
+      );
+    }
+
+    // Validate target symbols have T_ prefix (INV-08 compliance)
+    const invalidSymbols = request.target_symbols.filter(
+      (s) => !s.startsWith('T_'),
+    );
+    if (invalidSymbols.length > 0) {
+      return buildDashboardError(
+        'INVALID_SYMBOLS',
+        `Target symbols must start with T_ prefix (INV-08). Invalid symbols: ${invalidSymbols.join(', ')}`,
+        { invalidSymbols },
+      );
+    }
+
+    if (!request.scenario_type) {
+      return buildDashboardError(
+        'INVALID_REQUEST',
+        'scenario_type is required',
+      );
+    }
+
+    if (!request.sentiment) {
+      return buildDashboardError('INVALID_REQUEST', 'sentiment is required');
+    }
+
+    if (!request.strength) {
+      return buildDashboardError('INVALID_REQUEST', 'strength is required');
+    }
+
+    try {
+      this.logger.log(
+        `Generating AI articles for scenario: ${request.scenario_type}, sentiment: ${request.sentiment}, strength: ${request.strength}`,
+      );
+
+      // Call AI article generator service
+      const generationResult =
+        await this.aiArticleGeneratorService.generateArticles(request, context);
+
+      if (!generationResult.success) {
+        return buildDashboardError(
+          'GENERATION_FAILED',
+          'Failed to generate articles',
+          {
+            errors: generationResult.errors,
+            metadata: generationResult.generation_metadata,
+          },
+        );
+      }
+
+      // Create articles in database
+      const requestWithScenario = request as TestArticleGenerationRequest & {
+        scenario_id?: string;
+      };
+
+      const createDataList: CreateTestArticleData[] =
+        generationResult.articles.map((article) => ({
+          organization_slug: context.orgSlug,
+          scenario_id: requestWithScenario.scenario_id, // Optional scenario_id from request
+          title: article.title,
+          content: article.content,
+          source_name: article.simulated_source_name,
+          published_at: article.simulated_published_at,
+          target_symbols: article.target_symbols,
+          sentiment_expected:
+            article.intended_sentiment === 'bullish'
+              ? 'positive'
+              : article.intended_sentiment === 'bearish'
+                ? 'negative'
+                : 'neutral',
+          strength_expected: this.mapStrengthToNumeric(
+            article.intended_strength,
+          ),
+          is_synthetic: true,
+          synthetic_marker: '[SYNTHETIC TEST ARTICLE]',
+          processed: false,
+          created_by: context.userId,
+          metadata: {
+            ai_generated: true,
+            model_used: generationResult.generation_metadata.model_used,
+            generation_timestamp: new Date().toISOString(),
+            scenario_type: request.scenario_type,
+          },
+        }));
+
+      // Bulk create articles in database
+      const createdArticles =
+        await this.testArticleRepository.bulkCreate(createDataList);
+
+      this.logger.log(
+        `Successfully generated and created ${createdArticles.length} articles`,
+      );
+
+      return buildDashboardSuccess({
+        articles: createdArticles,
+        generation_metadata: generationResult.generation_metadata,
+        created_count: createdArticles.length,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to generate articles: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return buildDashboardError(
+        'GENERATION_FAILED',
+        error instanceof Error ? error.message : 'Failed to generate articles',
+      );
+    }
+  }
+
+  /**
+   * Map strength string to numeric value
+   */
+  private mapStrengthToNumeric(strength: string): number {
+    switch (strength.toLowerCase()) {
+      case 'strong':
+        return 0.8;
+      case 'moderate':
+        return 0.5;
+      case 'weak':
+        return 0.2;
+      default:
+        return 0.5;
     }
   }
 }

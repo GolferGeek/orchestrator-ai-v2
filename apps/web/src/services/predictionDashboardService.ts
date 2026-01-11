@@ -766,6 +766,16 @@ export interface TestArticleBulkCreateParams {
   articles: Array<Omit<TestArticleCreateParams, 'scenario_id'>>;
 }
 
+export interface GenerateTestArticleParams {
+  target_symbols: string[];
+  scenario_type: 'earnings_beat' | 'earnings_miss' | 'scandal' | 'regulatory' | 'acquisition' | 'macro_shock' | 'technical' | 'custom';
+  sentiment: 'bullish' | 'bearish' | 'neutral' | 'mixed';
+  strength: 'strong' | 'moderate' | 'weak';
+  custom_prompt?: string;
+  article_count?: number;
+  scenario_id?: string;
+}
+
 // ============================================================================
 // PHASE 3 TYPES - Test Price Data Operations
 // ============================================================================
@@ -1650,6 +1660,28 @@ class PredictionDashboardService {
     );
   }
 
+  async generateTestArticle(
+    params: GenerateTestArticleParams
+  ): Promise<DashboardResponsePayload<{
+    articles: TestArticle[];
+    generation_metadata: {
+      model_used: string;
+      tokens_used: number;
+      generation_time_ms: number;
+    };
+    created_count: number;
+  }>> {
+    return this.executeDashboardRequest<{
+      articles: TestArticle[];
+      generation_metadata: {
+        model_used: string;
+        tokens_used: number;
+        generation_time_ms: number;
+      };
+      created_count: number;
+    }>('test-articles.generate', params);
+  }
+
   // ==========================================================================
   // PHASE 3: TEST PRICE DATA OPERATIONS
   // ==========================================================================
@@ -1739,6 +1771,74 @@ class PredictionDashboardService {
       'test-price-data.count-by-symbol',
       params
     );
+  }
+
+  // ==========================================================================
+  // PHASE 4.6: TEST SCENARIO GENERATION FROM LEARNINGS/MISSED OPPORTUNITIES
+  // ==========================================================================
+
+  /**
+   * Generate test scenario from a missed opportunity
+   * Creates a scenario that replicates the conditions of the missed opportunity
+   */
+  async generateScenarioFromMissed(params: {
+    missedOpportunityId: string;
+    options?: {
+      includeVariations?: boolean;
+      variationCount?: number;
+      articleCount?: number;
+      additionalContext?: string;
+    };
+  }): Promise<DashboardResponsePayload<{
+    scenario: TestScenario;
+    articles: TestArticle[];
+    priceData: TestPriceData[];
+    sourceType: string;
+    sourceId: string;
+    realTargetSymbol: string;
+    testTargetSymbol: string;
+  }>> {
+    return this.executeDashboardRequest<{
+      scenario: TestScenario;
+      articles: TestArticle[];
+      priceData: TestPriceData[];
+      sourceType: string;
+      sourceId: string;
+      realTargetSymbol: string;
+      testTargetSymbol: string;
+    }>('test-scenarios.from-missed', params);
+  }
+
+  /**
+   * Generate test scenario from a learning
+   * Creates a scenario that tests the learning's effectiveness
+   */
+  async generateScenarioFromLearning(params: {
+    learningId: string;
+    options?: {
+      includeVariations?: boolean;
+      variationCount?: number;
+      articleCount?: number;
+      additionalContext?: string;
+    };
+  }): Promise<DashboardResponsePayload<{
+    scenario: TestScenario;
+    articles: TestArticle[];
+    priceData: TestPriceData[];
+    sourceType: string;
+    sourceId: string;
+    realTargetSymbol: string;
+    testTargetSymbol: string;
+  }>> {
+    return this.executeDashboardRequest<{
+      scenario: TestScenario;
+      articles: TestArticle[];
+      priceData: TestPriceData[];
+      sourceType: string;
+      sourceId: string;
+      realTargetSymbol: string;
+      testTargetSymbol: string;
+    }>('test-scenarios.from-learning', params);
   }
 
   // ==========================================================================

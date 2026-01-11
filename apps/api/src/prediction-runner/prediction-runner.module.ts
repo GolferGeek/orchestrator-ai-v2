@@ -69,6 +69,12 @@ import {
   TestDataGeneratorService,
   TestTargetMirrorService,
   TestPriceDataService,
+  // Phase 4.1 AI-Powered Article Generation
+  AiArticleGeneratorService,
+  // Phase 4.2 & 4.3 Scenario Generation from Real-World Events
+  ScenarioGeneratorService,
+  // Phase 4.4 Scenario Variation Generator
+  ScenarioVariationService,
 } from './services';
 
 // Phase 7 Runners
@@ -168,6 +174,12 @@ const services = [
   TestDataGeneratorService,
   TestTargetMirrorService,
   TestPriceDataService,
+  // Phase 4.1 AI-Powered Article Generation
+  AiArticleGeneratorService,
+  // Phase 4.2 & 4.3 Scenario Generation from Real-World Events
+  ScenarioGeneratorService,
+  // Phase 4.4 Scenario Variation Generator
+  ScenarioVariationService,
 ];
 
 // Phase 7 Runners

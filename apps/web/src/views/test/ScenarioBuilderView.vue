@@ -10,12 +10,16 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import TestModeIndicator from '@/components/test/TestModeIndicator.vue';
 import TestSymbolBadge from '@/components/test/TestSymbolBadge.vue';
+import CreateScenarioFromSourceModal from '@/components/test/CreateScenarioFromSourceModal.vue';
 import { predictionDashboardService } from '@/services/predictionDashboardService';
 import type { PredictionTarget, InjectionPoint } from '@/services/predictionDashboardService';
 import { useTestTargetMirrorStore } from '@/stores/testTargetMirrorStore';
 
 const router = useRouter();
 const mirrorStore = useTestTargetMirrorStore();
+
+// Modal state
+const showCreateFromSourceModal = ref(false);
 
 // Wizard state
 const currentStep = ref(1);
@@ -91,7 +95,7 @@ async function loadData() {
         includeTargetDetails: true,
       });
       if (mirrorsRes.content) {
-        mirrorStore.setMirrors(mirrorsRes.content as any);
+        mirrorStore.setMirrors(mirrorsRes.content);
       }
     }
   } catch (err) {
@@ -195,6 +199,11 @@ function goToPrices() {
   router.push('/app/test/prices');
 }
 
+// Handle scenario created from source
+function onScenarioCreated(scenarioId: string) {
+  router.push(`/app/prediction/test-lab?scenario=${scenarioId}`);
+}
+
 onMounted(() => {
   loadData();
 });
@@ -207,10 +216,19 @@ onMounted(() => {
     <div class="scenario-builder__content">
       <!-- Header -->
       <header class="scenario-builder__header">
-        <h1 class="scenario-builder__title">Create Test Scenario</h1>
-        <p class="scenario-builder__subtitle">
-          Build a test scenario with guided workflow
-        </p>
+        <div>
+          <h1 class="scenario-builder__title">Create Test Scenario</h1>
+          <p class="scenario-builder__subtitle">
+            Build a test scenario with guided workflow
+          </p>
+        </div>
+        <button
+          class="btn btn--secondary btn--with-icon"
+          @click="showCreateFromSourceModal = true"
+        >
+          <span class="btn-icon">⚡</span>
+          Create from Real Event
+        </button>
       </header>
 
       <!-- Error -->
@@ -449,6 +467,12 @@ onMounted(() => {
         </button>
       </div>
     </div>
+
+    <!-- Create from Source Modal -->
+    <CreateScenarioFromSourceModal
+      v-model="showCreateFromSourceModal"
+      @created="onScenarioCreated"
+    />
   </div>
 </template>
 
@@ -465,8 +489,11 @@ onMounted(() => {
 }
 
 .scenario-builder__header {
-  text-align: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 2rem;
+  gap: 2rem;
 }
 
 .scenario-builder__title {
@@ -856,6 +883,17 @@ onMounted(() => {
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.btn--with-icon {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.btn-icon {
+  font-size: 1rem;
 }
 
 /* Dark mode */

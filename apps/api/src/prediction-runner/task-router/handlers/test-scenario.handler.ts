@@ -17,6 +17,8 @@ import type { ExecutionContext } from '@orchestrator-ai/transport-types';
 import type { DashboardRequestPayload } from '@orchestrator-ai/transport-types';
 import { TestDataInjectorService } from '../../services/test-data-injector.service';
 import { TestDataGeneratorService } from '../../services/test-data-generator.service';
+import { ScenarioGeneratorService } from '../../services/scenario-generator.service';
+import { ScenarioVariationService } from '../../services/scenario-variation.service';
 import {
   IDashboardHandler,
   DashboardActionResult,
@@ -32,6 +34,10 @@ import {
   MockPredictionConfig,
   MockArticleConfig,
 } from '../../interfaces/test-data.interface';
+import {
+  ScenarioGenerationOptions,
+  ScenarioVariationRequest,
+} from '../../interfaces/ai-generation.interface';
 
 interface TestScenarioFilters {
   status?: string;
@@ -67,6 +73,20 @@ interface CleanupParams {
   cleanupAll?: boolean;
 }
 
+interface GenerateFromMissedParams {
+  missedOpportunityId: string;
+  options?: ScenarioGenerationOptions;
+}
+
+interface GenerateFromLearningParams {
+  learningId: string;
+  options?: ScenarioGenerationOptions;
+}
+
+interface GenerateVariationsParams {
+  request: ScenarioVariationRequest;
+}
+
 @Injectable()
 export class TestScenarioHandler implements IDashboardHandler {
   private readonly logger = new Logger(TestScenarioHandler.name);
@@ -82,11 +102,16 @@ export class TestScenarioHandler implements IDashboardHandler {
     'cleanup',
     'get-counts',
     'get-summaries',
+    'from-missed',
+    'from-learning',
+    'generate-variations',
   ];
 
   constructor(
     private readonly testDataInjectorService: TestDataInjectorService,
     private readonly testDataGeneratorService: TestDataGeneratorService,
+    private readonly scenarioGeneratorService: ScenarioGeneratorService,
+    private readonly scenarioVariationService: ScenarioVariationService,
   ) {}
 
   async execute(
@@ -104,6 +129,9 @@ export class TestScenarioHandler implements IDashboardHandler {
       | GenerateMockParams
       | RunTierParams
       | CleanupParams
+      | GenerateFromMissedParams
+      | GenerateFromLearningParams
+      | GenerateVariationsParams
       | undefined;
 
     switch (action.toLowerCase()) {
@@ -129,6 +157,22 @@ export class TestScenarioHandler implements IDashboardHandler {
         return this.handleGetCounts(params as TestScenarioParams);
       case 'get-summaries':
         return this.handleGetSummaries(context);
+      case 'from-missed':
+        return this.handleFromMissed(
+          context,
+          params as GenerateFromMissedParams,
+        );
+      case 'from-learning':
+        return this.handleFromLearning(
+          context,
+          params as GenerateFromLearningParams,
+        );
+      case 'generate-variations':
+      case 'generatevariations':
+        return this.handleGenerateVariations(
+          context,
+          params as GenerateVariationsParams,
+        );
       default:
         return buildDashboardError(
           'UNSUPPORTED_ACTION',
@@ -613,6 +657,133 @@ export class TestScenarioHandler implements IDashboardHandler {
         error instanceof Error
           ? error.message
           : 'Failed to get scenario summaries',
+      );
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Scenario Generation from Real-World Events (Phase 4.2 & 4.3)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Generate a test scenario from a missed opportunity
+   */
+  private async handleFromMissed(
+    context: ExecutionContext,
+    params?: GenerateFromMissedParams,
+  ): Promise<DashboardActionResult> {
+    if (!params?.missedOpportunityId) {
+      return buildDashboardError(
+        'MISSING_ID',
+        'missedOpportunityId is required',
+      );
+    }
+
+    try {
+      const result =
+        await this.scenarioGeneratorService.generateFromMissedOpportunity(
+          params.missedOpportunityId,
+          params.options || {},
+          context,
+        );
+
+      return buildDashboardSuccess(result);
+    } catch (error) {
+      this.logger.error(
+        `Failed to generate scenario from missed opportunity: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return buildDashboardError(
+        'GENERATE_FROM_MISSED_FAILED',
+        error instanceof Error
+          ? error.message
+          : 'Failed to generate scenario from missed opportunity',
+      );
+    }
+  }
+
+  /**
+   * Generate a test scenario from a learning
+   */
+  private async handleFromLearning(
+    context: ExecutionContext,
+    params?: GenerateFromLearningParams,
+  ): Promise<DashboardActionResult> {
+    if (!params?.learningId) {
+      return buildDashboardError('MISSING_ID', 'learningId is required');
+    }
+
+    try {
+      const result = await this.scenarioGeneratorService.generateFromLearning(
+        params.learningId,
+        params.options || {},
+        context,
+      );
+
+      return buildDashboardSuccess(result);
+    } catch (error) {
+      this.logger.error(
+        `Failed to generate scenario from learning: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return buildDashboardError(
+        'GENERATE_FROM_LEARNING_FAILED',
+        error instanceof Error
+          ? error.message
+          : 'Failed to generate scenario from learning',
+      );
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Scenario Variation Generation (Phase 4.4)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Generate variations of an existing scenario
+   */
+  private async handleGenerateVariations(
+    context: ExecutionContext,
+    params?: GenerateVariationsParams,
+  ): Promise<DashboardActionResult> {
+    if (!params?.request) {
+      return buildDashboardError(
+        'MISSING_REQUEST',
+        'ScenarioVariationRequest is required',
+      );
+    }
+
+    const {
+      sourceScenarioId,
+      variationTypes,
+      variationsPerType: _variationsPerType,
+    } = params.request;
+
+    if (!sourceScenarioId) {
+      return buildDashboardError('MISSING_ID', 'sourceScenarioId is required');
+    }
+
+    if (!variationTypes || variationTypes.length === 0) {
+      return buildDashboardError(
+        'MISSING_VARIATION_TYPES',
+        'At least one variation type is required',
+      );
+    }
+
+    try {
+      const result = await this.scenarioVariationService.generateVariations(
+        params.request,
+        context,
+      );
+
+      return buildDashboardSuccess(result);
+    } catch (error) {
+      this.logger.error(
+        `Failed to generate scenario variations: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return buildDashboardError(
+        'GENERATE_VARIATIONS_FAILED',
+        error instanceof Error
+          ? error.message
+          : 'Failed to generate scenario variations',
       );
     }
   }
