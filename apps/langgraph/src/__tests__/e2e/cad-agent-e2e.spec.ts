@@ -20,7 +20,7 @@ import { v4 as uuidv4 } from "uuid";
 let supabase: SupabaseClient<any, "engineering">;
 
 // Test constants
-const TEST_ORG_SLUG = "demo-org";
+const TEST_ORG_SLUG = "engineering";
 const TEST_USER_ID = "00000000-0000-0000-0000-000000000001"; // engineering-test user
 const LANGGRAPH_URL = process.env.LANGGRAPH_URL || "http://127.0.0.1:6200";
 
