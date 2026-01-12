@@ -5,19 +5,41 @@ import { TargetSnapshotRepository } from '../repositories/target-snapshot.reposi
 import { OutcomeTrackingService } from '../services/outcome-tracking.service';
 import { TargetSnapshotService } from '../services/target-snapshot.service';
 import { Prediction } from '../interfaces/prediction.interface';
+import { ObservabilityEventsService } from '@/observability/observability-events.service';
+import { NIL_UUID } from '@orchestrator-ai/transport-types';
 
 /**
  * Outcome Tracking Runner - Phase 7, Step 7-4
  *
- * Captures outcomes, resolves predictions, and checks expirations.
+ * Captures target value snapshots, resolves predictions, and checks expirations.
+ * This is the central runner for tracking prediction outcomes.
  *
- * Schedule: Every 15 minutes
+ * Schedule: Every 15 minutes (via @Cron decorator)
  *
- * Responsibilities:
- * 1. Capture current prices for targets with active predictions
- * 2. Resolve predictions that have reached their timeframe
+ * Data sources:
+ * - target_snapshots table: Price/value data captured at regular intervals
+ * - predictions table: Active predictions being tracked
+ *
+ * What this runner does:
+ * 1. Capture current prices/values for targets with active predictions (stored in target_snapshots)
+ * 2. Resolve predictions that have reached their timeframe end
  * 3. Expire predictions past their expiration time
- * 4. Track prediction outcomes for evaluation
+ * 4. Emit observability events for monitoring
+ *
+ * Integration with evaluation:
+ * - When a prediction is resolved (via OutcomeTrackingService.resolvePrediction()):
+ *   - The prediction status changes to 'resolved'
+ *   - The outcome_value field is populated with the percentage change
+ * - The EvaluationRunner (runs hourly) then:
+ *   - Queries for resolved predictions without evaluations
+ *   - Creates evaluation records for each resolved prediction
+ * - This is a database-state-based integration, not a direct function call
+ *
+ * Complete pipeline flow:
+ * 1. OutcomeTrackingRunner.captureSnapshots() - Captures price data every 15 min
+ * 2. OutcomeTrackingRunner.resolvePendingPredictions() - Resolves predictions when timeframe ends
+ * 3. EvaluationRunner (hourly) - Evaluates resolved predictions
+ * 4. MissedOpportunityScanner (hourly) - Detects significant moves without predictions
  */
 @Injectable()
 export class OutcomeTrackingRunner {
@@ -29,6 +51,7 @@ export class OutcomeTrackingRunner {
     private readonly targetSnapshotRepository: TargetSnapshotRepository,
     private readonly outcomeTrackingService: OutcomeTrackingService,
     private readonly targetSnapshotService: TargetSnapshotService,
+    private readonly observabilityEvents: ObservabilityEventsService,
   ) {}
 
   /**
@@ -92,6 +115,67 @@ export class OutcomeTrackingRunner {
           `${predictionsResolved} resolved, ${predictionsExpired} expired, ` +
           `${errors} errors (${duration}ms)`,
       );
+
+      // Emit observability event for snapshot capture
+      if (snapshotsCaptured > 0) {
+        await this.observabilityEvents.push({
+          context: {
+            orgSlug: 'system',
+            userId: 'prediction-runner',
+            conversationId: NIL_UUID,
+            taskId: `outcome-tracking-${Date.now()}`,
+            planId: NIL_UUID,
+            deliverableId: NIL_UUID,
+            agentSlug: 'prediction-runner',
+            agentType: 'system',
+            provider: NIL_UUID,
+            model: NIL_UUID,
+          },
+          source_app: 'prediction-runner',
+          hook_event_type: 'prediction.snapshot',
+          status: 'completed',
+          message: `Captured ${snapshotsCaptured} price snapshots`,
+          progress: 100,
+          step: 'snapshot-capture',
+          payload: {
+            snapshotsCaptured,
+            errors,
+            durationMs: duration,
+          },
+          timestamp: Date.now(),
+        });
+      }
+
+      // Emit observability event for resolved predictions
+      if (predictionsResolved > 0) {
+        await this.observabilityEvents.push({
+          context: {
+            orgSlug: 'system',
+            userId: 'prediction-runner',
+            conversationId: NIL_UUID,
+            taskId: `outcome-tracking-${Date.now()}`,
+            planId: NIL_UUID,
+            deliverableId: NIL_UUID,
+            agentSlug: 'prediction-runner',
+            agentType: 'system',
+            provider: NIL_UUID,
+            model: NIL_UUID,
+          },
+          source_app: 'prediction-runner',
+          hook_event_type: 'prediction.resolved',
+          status: 'completed',
+          message: `Resolved ${predictionsResolved} predictions`,
+          progress: 100,
+          step: 'prediction-resolution',
+          payload: {
+            predictionsResolved,
+            predictionsExpired,
+            errors,
+            durationMs: duration,
+          },
+          timestamp: Date.now(),
+        });
+      }
 
       return {
         snapshotsCaptured,

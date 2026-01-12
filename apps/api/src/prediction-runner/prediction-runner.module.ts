@@ -116,6 +116,9 @@ import {
   TestTargetMirrorHandler,
   // Phase 6.2 - Analytics API Endpoints
   AnalyticsHandler,
+  // Sprint 4 - Source Seen Items and Signals Dashboard
+  SourceSeenItemsHandler,
+  SignalsHandler,
 } from './task-router/handlers';
 
 const repositories = [
@@ -229,6 +232,9 @@ const dashboardHandlers = [
   TestTargetMirrorHandler,
   // Phase 6.2 - Analytics API Endpoints
   AnalyticsHandler,
+  // Sprint 4 - Source Seen Items and Signals Dashboard
+  SourceSeenItemsHandler,
+  SignalsHandler,
 ];
 
 @Module({

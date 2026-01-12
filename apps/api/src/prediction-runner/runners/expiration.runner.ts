@@ -4,18 +4,31 @@ import { PredictorRepository } from '../repositories/predictor.repository';
 import { SignalRepository } from '../repositories/signal.repository';
 import { TargetRepository } from '../repositories/target.repository';
 import { UniverseRepository } from '../repositories/universe.repository';
+import { ObservabilityEventsService } from '@/observability/observability-events.service';
+import { NIL_UUID } from '@orchestrator-ai/transport-types';
 
 /**
  * Expiration Runner - Phase 7, Step 7-7
  *
- * Manages lifecycle expiration for predictors and signals.
+ * Manages lifecycle expiration for predictors and signals to maintain system health
+ * and prevent data staleness.
  *
- * Schedule: Every hour
+ * Schedule: Every hour (via @Cron decorator)
  *
- * Responsibilities:
- * 1. Expire stale predictors past their TTL
- * 2. Expire old signals that were never processed
- * 3. Clean up orphaned records
+ * What this runner does:
+ * 1. Expires stale predictors that are past their TTL (expires_at timestamp)
+ * 2. Expires old signals that were never processed (pending signals older than 24 hours)
+ * 3. Emits observability events when expirations occur
+ *
+ * Why expiration is needed:
+ * - Predictors have a time-to-live based on their time_window (e.g., "30d_up" predictor expires after 30 days)
+ * - Signals that aren't processed within 24 hours are considered stale and should be marked expired
+ * - Expiration keeps the system clean and prevents acting on outdated predictions/signals
+ *
+ * Integration with observability:
+ * - Emits `prediction.expired` events after each batch run
+ * - Events include counts of expired predictors and signals
+ * - Allows monitoring of system health and expiration patterns
  */
 @Injectable()
 export class ExpirationRunner {
@@ -30,6 +43,7 @@ export class ExpirationRunner {
     private readonly signalRepository: SignalRepository,
     private readonly targetRepository: TargetRepository,
     private readonly universeRepository: UniverseRepository,
+    private readonly observabilityEvents: ObservabilityEventsService,
   ) {}
 
   /**
@@ -84,6 +98,35 @@ export class ExpirationRunner {
         `Expiration batch complete: ${predictorsExpired} predictors, ` +
           `${signalsExpired} signals expired (${duration}ms)`,
       );
+
+      // Emit observability event for monitoring
+      await this.observabilityEvents.push({
+        context: {
+          orgSlug: 'system',
+          userId: 'prediction-runner',
+          conversationId: NIL_UUID,
+          taskId: `expiration-${Date.now()}`,
+          planId: NIL_UUID,
+          deliverableId: NIL_UUID,
+          agentSlug: 'prediction-runner',
+          agentType: 'system',
+          provider: NIL_UUID,
+          model: NIL_UUID,
+        },
+        source_app: 'prediction-runner',
+        hook_event_type: 'prediction.expired',
+        status: 'completed',
+        message: `${predictorsExpired} predictors and ${signalsExpired} signals expired`,
+        progress: 100,
+        step: 'expiration',
+        payload: {
+          predictorsExpired,
+          signalsExpired,
+          errors,
+          durationMs: duration,
+        },
+        timestamp: Date.now(),
+      });
 
       return { predictorsExpired, signalsExpired, errors };
     } finally {

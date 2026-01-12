@@ -22,7 +22,7 @@ export type NotificationType =
 /**
  * Delivery channels for notifications
  */
-export type NotificationChannel = 'push' | 'sms' | 'email' | 'sse';
+export type NotificationChannel = 'push' | 'sms' | 'email' | 'sse' | 'slack';
 
 /**
  * Priority levels for notifications
@@ -53,6 +53,7 @@ export interface UserNotificationConfig {
     sms?: ChannelPreferences;
     email?: ChannelPreferences;
     sse?: ChannelPreferences;
+    slack?: ChannelPreferences;
   };
   /** Default: include all notification types */
   enabledTypes?: NotificationType[];

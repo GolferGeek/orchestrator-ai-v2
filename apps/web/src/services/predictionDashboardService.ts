@@ -105,6 +105,7 @@ export interface Prediction {
   targetSymbol?: string;
   universeName?: string;
   domain?: string;
+  isTest?: boolean;
 }
 
 export interface TierResult {

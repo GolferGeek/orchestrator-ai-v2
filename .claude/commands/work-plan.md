@@ -64,6 +64,38 @@ Create a structured work plan for a task, identifying which sub-agents will be u
 ```
 Reads structured plan and executes it, updating progress as it goes.
 
+### Execute Specific Sprint/Phase
+```
+/work-plan sprint 4 @docs/plans/prediction-system.plan.json
+/work-plan phase-1 @docs/plans/landing-page.plan.json
+```
+Execute a single phase from a plan file.
+
+### Execute Multiple Sprints/Phases in Parallel (Comma-Delimited)
+```
+/work-plan sprint 5, sprint 6 @docs/plans/prediction-system.plan.json
+/work-plan phase-1, phase-2, phase-3 @docs/plans/landing-page.plan.json
+```
+**When you provide a comma-delimited list of sprints/phases, they execute in parallel.**
+
+The command:
+1. Parses the comma-delimited list to identify phases
+2. Verifies each phase exists in the plan
+3. **Spawns a separate background agent for EACH phase**
+4. Each agent runs independently and concurrently
+5. Monitors completion and aggregates results
+
+**Example - Running Sprint 5 and Sprint 6 in parallel:**
+```
+/work-plan sprint 5, sprint 6 @docs/plans/prediction-system.plan.json
+```
+This spawns:
+- Agent 1: Executes Sprint 5 tasks (s5-1 through s5-8)
+- Agent 2: Executes Sprint 6 tasks (s6-1 through s6-7)
+Both agents run simultaneously, significantly reducing total execution time.
+
+**Note:** Ensure phases don't have conflicting dependencies. Check the plan's `dependencies` section to verify phases can safely run in parallel.
+
 ### Create Plan from PRD and Execute
 ```
 /work-plan docs/prd/active/landing-page-prd.md
@@ -305,6 +337,63 @@ Creates plan, displays it, waits for approval.
 /work-plan "Build landing page" --save
 ```
 Creates plan and saves to file for later execution.
+
+## Parallel Execution (Comma-Delimited Phases)
+
+When the user provides multiple phases separated by commas, execute them in parallel using background agents.
+
+### Detection
+Parse the input for comma-delimited phase identifiers:
+- `sprint 5, sprint 6` → ["sprint-5", "sprint-6"]
+- `phase-1, phase-2, phase-3` → ["phase-1", "phase-2", "phase-3"]
+- `s5, s6` → ["sprint-5", "sprint-6"] (shorthand)
+
+### Implementation
+When comma-delimited phases are detected:
+
+1. **Read the plan file** to get phase details
+2. **For EACH phase in the list**, spawn a background agent using the Task tool:
+   ```
+   <Task>
+     subagent_type: "api-architecture-agent" (or appropriate agent)
+     run_in_background: true
+     prompt: "Execute [phase-id] from plan file [path]. Tasks: [list tasks]..."
+   </Task>
+   ```
+3. **Launch all agents in a SINGLE message** with multiple Task tool calls
+4. **Report** the launched agents and their output file paths
+5. **Optionally monitor** completion using TaskOutput tool
+
+### Example Execution Flow
+
+User: `/work-plan sprint 5, sprint 6 @docs/plans/prediction-system.plan.json`
+
+Assistant Response:
+```
+Launching parallel execution for Sprint 5 and Sprint 6...
+
+Spawning 2 background agents:
+
+[Task: Sprint 5 - Setup Completion & Exploration]
+  - Agent: api-architecture-agent
+  - Tasks: s5-1 through s5-8
+  - Output: /path/to/output-sprint5.log
+
+[Task: Sprint 6 - Advanced Test Framework]
+  - Agent: api-architecture-agent
+  - Tasks: s6-1 through s6-7
+  - Output: /path/to/output-sprint6.log
+
+Both agents are running in parallel. Use TaskOutput to check progress.
+```
+
+### Monitoring Parallel Execution
+
+After launching parallel agents:
+- Use `TaskOutput` with `block: false` to check status
+- Or wait for completion with `block: true`
+- Aggregate results when all agents complete
+- Update plan file with combined progress
 
 ## PRD Parsing
 

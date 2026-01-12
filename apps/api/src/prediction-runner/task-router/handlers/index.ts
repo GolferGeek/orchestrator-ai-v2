@@ -24,3 +24,6 @@ export { TestPriceDataHandler } from './test-price-data.handler';
 export { TestTargetMirrorHandler } from './test-target-mirror.handler';
 // Phase 6.2 - Analytics API Endpoints
 export { AnalyticsHandler } from './analytics.handler';
+// Sprint 4 - Source Seen Items and Signals Dashboard
+export { SourceSeenItemsHandler } from './source-seen-items.handler';
+export { SignalsHandler } from './signals.handler';

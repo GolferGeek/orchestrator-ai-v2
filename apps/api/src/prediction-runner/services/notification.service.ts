@@ -59,8 +59,8 @@ export class NotificationService {
     NotificationPriority,
     NotificationChannel[]
   > = {
-    critical: ['push', 'sms', 'sse'],
-    high: ['push', 'sse'],
+    critical: ['push', 'sms', 'sse', 'slack'],
+    high: ['push', 'sse', 'slack'],
     medium: ['sse', 'email'],
     low: ['sse'],
   };
@@ -562,6 +562,9 @@ export class NotificationService {
       case 'email':
         return this.deliverEmail(userId, payload);
 
+      case 'slack':
+        return this.deliverSlack(userId, payload);
+
       default:
         return {
           channel: channel as NotificationChannel,
@@ -664,6 +667,95 @@ export class NotificationService {
       success: true,
       deliveredAt: new Date().toISOString(),
       messageId: `email-${payload.id}`,
+    };
+  }
+
+  /**
+   * Deliver via Slack Incoming Webhook
+   *
+   * Sprint 4: Slack notification support
+   *
+   * Environment variable: PREDICTION_SLACK_WEBHOOK_URL
+   * Configure a Slack Incoming Webhook URL to enable Slack notifications.
+   */
+  private deliverSlack(
+    userId: string,
+    payload: NotificationPayload,
+  ): NotificationDeliveryResult {
+    const webhookUrl = process.env.PREDICTION_SLACK_WEBHOOK_URL;
+
+    if (!webhookUrl) {
+      this.logger.debug('[SLACK] Webhook URL not configured, skipping');
+      return {
+        channel: 'slack',
+        success: true,
+        deliveredAt: new Date().toISOString(),
+        messageId: `slack-${payload.id}`,
+      };
+    }
+
+    // Determine color based on priority
+    const colors: Record<NotificationPriority, string> = {
+      critical: '#FF0000', // red
+      high: '#FFA500', // orange
+      medium: '#0000FF', // blue
+      low: '#808080', // gray
+    };
+
+    const color = colors[payload.priority] || '#808080';
+
+    // Format message for Slack
+    const slackPayload = {
+      attachments: [
+        {
+          color,
+          title: payload.title,
+          text: payload.message,
+          footer: `Priority: ${payload.priority} | User: ${userId}`,
+          ts: Math.floor(new Date(payload.createdAt).getTime() / 1000),
+          actions: payload.data.actionUrl
+            ? [
+                {
+                  type: 'button',
+                  text: 'View Details',
+                  url: payload.data.actionUrl,
+                },
+              ]
+            : undefined,
+        },
+      ],
+    };
+
+    // Fire and forget - don't block on Slack delivery
+    fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(slackPayload),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          this.logger.warn(
+            `[SLACK] Failed to send notification: ${response.statusText}`,
+          );
+        } else {
+          this.logger.log(
+            `[SLACK] Sent notification to channel: ${payload.title}`,
+          );
+        }
+      })
+      .catch((error) => {
+        this.logger.error(
+          `[SLACK] Error sending notification: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      });
+
+    return {
+      channel: 'slack',
+      success: true,
+      deliveredAt: new Date().toISOString(),
+      messageId: `slack-${payload.id}`,
     };
   }
 }

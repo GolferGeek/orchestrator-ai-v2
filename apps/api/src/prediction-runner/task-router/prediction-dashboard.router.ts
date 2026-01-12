@@ -50,6 +50,9 @@ import { TestPriceDataHandler } from './handlers/test-price-data.handler';
 import { TestTargetMirrorHandler } from './handlers/test-target-mirror.handler';
 // Phase 6.2 - Analytics API Endpoints
 import { AnalyticsHandler } from './handlers/analytics.handler';
+// Sprint 4 - Source Seen Items and Signals Dashboard
+import { SourceSeenItemsHandler } from './handlers/source-seen-items.handler';
+import { SignalsHandler } from './handlers/signals.handler';
 
 /**
  * Supported dashboard entities
@@ -71,7 +74,9 @@ export type DashboardEntity =
   | 'test-articles'
   | 'test-price-data'
   | 'test-target-mirrors'
-  | 'analytics';
+  | 'analytics'
+  | 'source-seen-items'
+  | 'signals';
 
 /**
  * Dashboard router response
@@ -113,6 +118,9 @@ export class PredictionDashboardRouter {
     private readonly testTargetMirrorHandler: TestTargetMirrorHandler,
     // Phase 6.2 - Analytics API Endpoints
     private readonly analyticsHandler: AnalyticsHandler,
+    // Sprint 4 - Source Seen Items and Signals Dashboard
+    private readonly sourceSeenItemsHandler: SourceSeenItemsHandler,
+    private readonly signalsHandler: SignalsHandler,
   ) {}
 
   /**
@@ -299,6 +307,15 @@ export class PredictionDashboardRouter {
       case 'analytics':
         return this.analyticsHandler.execute(operation, payload, context);
 
+      // Sprint 4 - Source Seen Items and Signals Dashboard
+      case 'source-seen-items':
+      case 'sourcesenitems':
+        return this.sourceSeenItemsHandler.execute(operation, payload, context);
+
+      case 'signals':
+      case 'signal':
+        return this.signalsHandler.execute(operation, payload, context);
+
       default:
         return buildDashboardError(
           'UNKNOWN_ENTITY',
@@ -368,6 +385,8 @@ export class PredictionDashboardRouter {
       'test-price-data',
       'test-target-mirrors',
       'analytics',
+      'source-seen-items',
+      'signals',
     ];
   }
 
@@ -410,6 +429,10 @@ export class PredictionDashboardRouter {
         return this.testTargetMirrorHandler.getSupportedActions();
       case 'analytics':
         return this.analyticsHandler.getSupportedActions();
+      case 'source-seen-items':
+        return this.sourceSeenItemsHandler.getSupportedActions();
+      case 'signals':
+        return this.signalsHandler.getSupportedActions();
       default:
         return [];
     }

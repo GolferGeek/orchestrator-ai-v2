@@ -6,7 +6,10 @@
   >
     <div class="card-header">
       <div class="target-info">
-        <span class="target-symbol">{{ prediction.targetSymbol || 'N/A' }}</span>
+        <div class="target-header">
+          <span v-if="prediction.isTest" class="test-badge">TEST</span>
+          <span class="target-symbol">{{ prediction.targetSymbol || 'N/A' }}</span>
+        </div>
         <span class="target-name">{{ prediction.targetName }}</span>
       </div>
       <div class="status-badge" :class="statusClass">
@@ -301,6 +304,23 @@ function formatDate(dateStr: string): string {
 
 .timestamp .value {
   color: var(--text-primary, #111827);
+}
+
+.target-header {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.test-badge {
+  font-size: 0.5rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 0.125rem 0.375rem;
+  border-radius: 3px;
+  background-color: rgba(139, 92, 246, 0.15);
+  color: #7c3aed;
+  margin-right: 0.25rem;
 }
 
 /* Dark mode */
