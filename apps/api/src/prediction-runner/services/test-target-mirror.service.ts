@@ -1,5 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { TestTargetMirrorRepository } from '../repositories/test-target-mirror.repository';
+import {
+  TestTargetMirrorRepository,
+  TestTargetMirror,
+} from '../repositories/test-target-mirror.repository';
 import { TargetRepository } from '../repositories/target.repository';
 import { Target } from '../interfaces/target.interface';
 
@@ -37,15 +40,15 @@ export class TestTargetMirrorService {
    * but this method provides explicit control for testing scenarios.
    *
    * @param productionTargetId - The production target ID to mirror
-   * @param orgSlug - The organization slug (for context/logging)
+   * @param _orgSlug - The organization slug (for context/logging, not stored)
    * @returns The test target (with T_ symbol)
    */
   async ensureMirror(
     productionTargetId: string,
-    orgSlug: string,
+    _orgSlug: string,
   ): Promise<Target> {
     this.logger.log(
-      `Ensuring test mirror exists for production target ${productionTargetId} (org: ${orgSlug})`,
+      `Ensuring test mirror exists for production target ${productionTargetId}`,
     );
 
     // Get the production target
@@ -61,7 +64,7 @@ export class TestTargetMirrorService {
 
     // Check if mirror already exists in the mapping table
     const existingMirror =
-      await this.testTargetMirrorRepository.findByProductionTarget(
+      await this.testTargetMirrorRepository.findByRealTarget(
         productionTargetId,
       );
 
@@ -69,14 +72,13 @@ export class TestTargetMirrorService {
       this.logger.debug(
         `Test mirror already exists for ${productionTarget.symbol}`,
       );
-      // Get the test target entity using the test symbol
-      const testTarget = await this.targetRepository.findBySymbol(
-        productionTarget.universe_id,
-        existingMirror.test_symbol,
+      // Get the test target entity using the test_target_id
+      const testTarget = await this.targetRepository.findById(
+        existingMirror.test_target_id,
       );
       if (!testTarget) {
         throw new Error(
-          `Test target ${existingMirror.test_symbol} not found for mirror ${existingMirror.id}`,
+          `Test target ${existingMirror.test_target_id} not found for mirror ${existingMirror.id}`,
         );
       }
       return testTarget;
@@ -113,9 +115,8 @@ export class TestTargetMirrorService {
 
     // Create the mirror mapping
     await this.testTargetMirrorRepository.create({
-      organization_slug: orgSlug,
-      production_target_id: productionTargetId,
-      test_symbol: testSymbol,
+      real_target_id: productionTargetId,
+      test_target_id: testTarget.id,
     });
 
     this.logger.log(
@@ -134,7 +135,7 @@ export class TestTargetMirrorService {
    */
   async getMirror(productionTargetId: string): Promise<Target | null> {
     const mirror =
-      await this.testTargetMirrorRepository.findByProductionTarget(
+      await this.testTargetMirrorRepository.findByRealTarget(
         productionTargetId,
       );
 
@@ -142,25 +143,8 @@ export class TestTargetMirrorService {
       return null;
     }
 
-    // Get the test target entity from the repository
-    // Note: The repository stores test_target_id but we need to map through test_symbol
-    const testSymbol = mirror.test_symbol;
-    const productionTarget =
-      await this.targetRepository.findById(productionTargetId);
-
-    if (!productionTarget) {
-      this.logger.warn(
-        `Production target ${productionTargetId} not found for mirror lookup`,
-      );
-      return null;
-    }
-
-    const testTarget = await this.targetRepository.findBySymbol(
-      productionTarget.universe_id,
-      testSymbol,
-    );
-
-    return testTarget;
+    // Get the test target entity directly from the mirror's test_target_id
+    return this.targetRepository.findById(mirror.test_target_id);
   }
 
   /**
@@ -176,13 +160,35 @@ export class TestTargetMirrorService {
   }
 
   /**
-   * Get the production target for a test symbol
-   * Reverse lookup from test symbol to production target
+   * Get the production target for a test target ID
+   * Reverse lookup from test target to production target
    *
+   * @param testTargetId - The test target ID (not the symbol)
+   * @returns The production target or null
+   */
+  async getProductionTarget(testTargetId: string): Promise<Target | null> {
+    const mirror =
+      await this.testTargetMirrorRepository.findByTestTarget(testTargetId);
+
+    if (!mirror) {
+      return null;
+    }
+
+    return this.targetRepository.findById(mirror.real_target_id);
+  }
+
+  /**
+   * Get the production target by test symbol
+   * Looks up the test target by symbol first, then finds the mirror
+   *
+   * @param universeId - The universe ID to search in
    * @param testSymbol - The test symbol (e.g., 'T_AAPL')
    * @returns The production target or null
    */
-  async getProductionTarget(testSymbol: string): Promise<Target | null> {
+  async getProductionTargetBySymbol(
+    universeId: string,
+    testSymbol: string,
+  ): Promise<Target | null> {
     // Validate test symbol format
     if (!testSymbol.startsWith('T_')) {
       throw new Error(
@@ -190,65 +196,56 @@ export class TestTargetMirrorService {
       );
     }
 
-    const mirror =
-      await this.testTargetMirrorRepository.findByTestSymbol(testSymbol);
+    // Find the test target by symbol
+    const testTarget = await this.targetRepository.findBySymbol(
+      universeId,
+      testSymbol,
+    );
 
-    if (!mirror) {
+    if (!testTarget) {
       return null;
     }
 
-    return this.targetRepository.findById(mirror.production_target_id);
+    // Look up the mirror and get the production target
+    return this.getProductionTarget(testTarget.id);
   }
 
   /**
-   * List all test mirror mappings for an organization
+   * List all test mirror mappings
    *
-   * @param orgSlug - The organization slug
    * @returns Array of mirror mappings with both production and test targets
    */
-  async listMirrors(orgSlug: string): Promise<
+  async listMirrors(): Promise<
     Array<{
-      mirror: {
-        id: string;
-        production_target_id: string;
-        test_symbol: string;
-        created_at: string;
-      };
+      mirror: TestTargetMirror;
       productionTarget: Target;
       testTarget: Target | null;
     }>
   > {
-    this.logger.log(`Listing test mirrors for organization: ${orgSlug}`);
+    this.logger.log('Listing all test mirrors');
 
-    const mirrors =
-      await this.testTargetMirrorRepository.findByOrganization(orgSlug);
+    const mirrors = await this.testTargetMirrorRepository.findAll();
 
     // Fetch both production and test targets for each mirror
     const results = await Promise.all(
-      mirrors.map(async (mirror) => {
+      mirrors.map(async (mirror: TestTargetMirror) => {
         const productionTarget = await this.targetRepository.findById(
-          mirror.production_target_id,
+          mirror.real_target_id,
         );
 
         if (!productionTarget) {
           this.logger.warn(
-            `Production target ${mirror.production_target_id} not found for mirror ${mirror.id}`,
+            `Production target ${mirror.real_target_id} not found for mirror ${mirror.id}`,
           );
           return null;
         }
 
-        const testTarget = await this.targetRepository.findBySymbol(
-          productionTarget.universe_id,
-          mirror.test_symbol,
+        const testTarget = await this.targetRepository.findById(
+          mirror.test_target_id,
         );
 
         return {
-          mirror: {
-            id: mirror.id,
-            production_target_id: mirror.production_target_id,
-            test_symbol: mirror.test_symbol,
-            created_at: mirror.created_at,
-          },
+          mirror,
           productionTarget,
           testTarget,
         };
@@ -256,16 +253,9 @@ export class TestTargetMirrorService {
     );
 
     // Filter out null results (where production target was not found)
-    return results.filter((result) => result !== null) as Array<{
-      mirror: {
-        id: string;
-        production_target_id: string;
-        test_symbol: string;
-        created_at: string;
-      };
-      productionTarget: Target;
-      testTarget: Target | null;
-    }>;
+    return results.filter(
+      (result): result is NonNullable<typeof result> => result !== null,
+    );
   }
 
   /**

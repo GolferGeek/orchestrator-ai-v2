@@ -3,6 +3,21 @@ import { INestApplication } from '@nestjs/common';
 import { AppModule } from '../../../src/app.module';
 import { LLMService } from '../../../src/llms/llm.service';
 import { LLMServiceFactory } from '../../../src/llms/services/llm-service-factory';
+import type { ExecutionContext } from '@orchestrator-ai/transport-types';
+
+// Test execution context for LLM calls
+const TEST_EXECUTION_CONTEXT: ExecutionContext = {
+  orgSlug: 'demo-org',
+  agentSlug: 'test-agent',
+  agentType: 'context',
+  userId: '00000000-0000-0000-0000-000000000000',
+  conversationId: '00000000-0000-0000-0000-000000000000',
+  taskId: '00000000-0000-0000-0000-000000000000',
+  planId: '00000000-0000-0000-0000-000000000000',
+  deliverableId: '00000000-0000-0000-0000-000000000000',
+  provider: 'ollama',
+  model: 'llama3.2:1b',
+};
 
 describe('Unified LLM Architecture (e2e)', () => {
   let app: INestApplication;
@@ -41,6 +56,7 @@ describe('Unified LLM Architecture (e2e)', () => {
           callerType: 'test',
           callerName: 'unified-architecture-test',
           dataClassification: 'internal',
+          executionContext: TEST_EXECUTION_CONTEXT,
         }
       });
 
@@ -69,6 +85,7 @@ describe('Unified LLM Architecture (e2e)', () => {
           includeMetadata: true,
           callerType: 'test',
           callerName: 'unified-metadata-test',
+          executionContext: TEST_EXECUTION_CONTEXT,
         }
       });
 
@@ -149,6 +166,7 @@ describe('Unified LLM Architecture (e2e)', () => {
         options: {
           temperature: 0.1,
           maxTokens: 10,
+          executionContext: TEST_EXECUTION_CONTEXT,
         }
       });
 
@@ -175,6 +193,7 @@ describe('Unified LLM Architecture (e2e)', () => {
             maxTokens: 20,
             callerType: 'test',
             callerName: `concurrent-test-${i + 1}`,
+            executionContext: TEST_EXECUTION_CONTEXT,
           }
         })
       );
@@ -245,12 +264,15 @@ describe('Unified LLM Architecture (e2e)', () => {
           modelName: 'llama3.2:1b',
           temperature: 0.1,
           maxTokens: 10,
+          executionContext: TEST_EXECUTION_CONTEXT,
         }
       );
 
       expect(result).toBeDefined();
       expect(typeof result).toBe('string');
-      expect(result.length).toBeGreaterThan(0);
+      if (typeof result === 'string') {
+        expect(result.length).toBeGreaterThan(0);
+      }
       
       console.log('✅ Legacy method works:', result);
     }, 30000);
@@ -268,6 +290,7 @@ describe('Unified LLM Architecture (e2e)', () => {
           userMessage: 'Test',
           options: {
             maxTokens: 10,
+            executionContext: TEST_EXECUTION_CONTEXT,
           }
         })
       ).rejects.toThrow();
@@ -279,7 +302,9 @@ describe('Unified LLM Architecture (e2e)', () => {
       console.log('🧪 Testing missing provider handling...');
       
       await expect(
-        llmService.generateResponse('Test prompt', 'Test message', {})
+        llmService.generateResponse('Test prompt', 'Test message', {
+          executionContext: TEST_EXECUTION_CONTEXT,
+        })
       ).rejects.toThrow('No LLM provider and model specified');
 
       console.log('✅ Missing provider handled correctly');

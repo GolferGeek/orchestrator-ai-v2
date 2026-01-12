@@ -88,7 +88,10 @@ export class TargetHandler implements IDashboardHandler {
     if (!universeId) {
       return buildDashboardError(
         'MISSING_UNIVERSE_ID',
-        'Universe ID is required to list targets',
+        'universeId is required. Call universes.list first to get available universes.',
+        {
+          hint: 'Use action "universes.list" to get universes for this agent, then pass universeId in params',
+        },
       );
     }
 

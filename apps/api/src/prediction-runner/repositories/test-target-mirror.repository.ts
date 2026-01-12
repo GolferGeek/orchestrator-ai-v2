@@ -15,14 +15,17 @@ type SupabaseSelectListResponse<T> = {
 };
 
 /**
- * Test target mirror entity - maps production targets to test symbols
+ * Test target mirror entity - maps real targets to test targets
  * Based on prediction.test_target_mirrors table
+ *
+ * Schema matches migration 20260111000010:
+ * - real_target_id: References the production target
+ * - test_target_id: References the test mirror target (symbol LIKE 'T_%')
  */
 export interface TestTargetMirror {
   id: string;
-  organization_slug: string;
-  production_target_id: string;
-  test_symbol: string;
+  real_target_id: string;
+  test_target_id: string;
   created_at: string;
 }
 
@@ -31,17 +34,16 @@ export interface TestTargetMirror {
  */
 export interface CreateTestTargetMirrorData {
   id?: string;
-  organization_slug: string;
-  production_target_id: string;
-  test_symbol: string;
+  real_target_id: string;
+  test_target_id: string;
 }
 
 /**
  * Repository for test target mirrors (prediction.test_target_mirrors)
  * Part of the Test Data Injection Framework (Phase 3)
  *
- * Maps production targets to test symbols for data isolation.
- * Test symbols must start with 'T_' prefix.
+ * Maps real targets to test targets for data isolation.
+ * Test target symbols start with 'T_' prefix.
  */
 @Injectable()
 export class TestTargetMirrorRepository {
@@ -75,16 +77,13 @@ export class TestTargetMirrorRepository {
   }
 
   /**
-   * Find all test target mirrors for an organization
+   * Find all test target mirrors
    */
-  async findByOrganization(
-    organizationSlug: string,
-  ): Promise<TestTargetMirror[]> {
+  async findAll(): Promise<TestTargetMirror[]> {
     const { data, error } = (await this.getClient()
       .schema(this.schema)
       .from(this.table)
       .select('*')
-      .eq('organization_slug', organizationSlug)
       .order('created_at', {
         ascending: false,
       })) as SupabaseSelectListResponse<TestTargetMirror>;
@@ -100,24 +99,24 @@ export class TestTargetMirrorRepository {
   }
 
   /**
-   * Find a test target mirror by production target ID
+   * Find a test target mirror by real (production) target ID
    */
-  async findByProductionTarget(
-    productionTargetId: string,
+  async findByRealTarget(
+    realTargetId: string,
   ): Promise<TestTargetMirror | null> {
     const { data, error } = (await this.getClient()
       .schema(this.schema)
       .from(this.table)
       .select('*')
-      .eq('production_target_id', productionTargetId)
+      .eq('real_target_id', realTargetId)
       .single()) as SupabaseSelectResponse<TestTargetMirror>;
 
     if (error && error.code !== 'PGRST116') {
       this.logger.error(
-        `Failed to fetch test target mirror by production target: ${error.message}`,
+        `Failed to fetch test target mirror by real target: ${error.message}`,
       );
       throw new Error(
-        `Failed to fetch test target mirror by production target: ${error.message}`,
+        `Failed to fetch test target mirror by real target: ${error.message}`,
       );
     }
 
@@ -125,22 +124,24 @@ export class TestTargetMirrorRepository {
   }
 
   /**
-   * Find a test target mirror by test symbol
+   * Find a test target mirror by test target ID
    */
-  async findByTestSymbol(testSymbol: string): Promise<TestTargetMirror | null> {
+  async findByTestTarget(
+    testTargetId: string,
+  ): Promise<TestTargetMirror | null> {
     const { data, error } = (await this.getClient()
       .schema(this.schema)
       .from(this.table)
       .select('*')
-      .eq('test_symbol', testSymbol)
+      .eq('test_target_id', testTargetId)
       .single()) as SupabaseSelectResponse<TestTargetMirror>;
 
     if (error && error.code !== 'PGRST116') {
       this.logger.error(
-        `Failed to fetch test target mirror by test symbol: ${error.message}`,
+        `Failed to fetch test target mirror by test target: ${error.message}`,
       );
       throw new Error(
-        `Failed to fetch test target mirror by test symbol: ${error.message}`,
+        `Failed to fetch test target mirror by test target: ${error.message}`,
       );
     }
 
@@ -153,11 +154,6 @@ export class TestTargetMirrorRepository {
   async create(
     mirrorData: CreateTestTargetMirrorData,
   ): Promise<TestTargetMirror> {
-    // Validate test symbol prefix
-    if (!mirrorData.test_symbol.startsWith('T_')) {
-      throw new Error('Test symbol must start with T_ prefix');
-    }
-
     const dataToInsert = {
       ...mirrorData,
       id: mirrorData.id ?? uuidv4(),
@@ -182,7 +178,7 @@ export class TestTargetMirrorRepository {
     }
 
     this.logger.log(
-      `Created test target mirror: ${data.id} (${data.production_target_id} -> ${data.test_symbol})`,
+      `Created test target mirror: ${data.id} (${data.real_target_id} -> ${data.test_target_id})`,
     );
     return data;
   }
@@ -208,56 +204,24 @@ export class TestTargetMirrorRepository {
   }
 
   /**
-   * Ensure a test target mirror exists for a production target
-   * Creates one if it doesn't exist
-   * @param productionTargetId - The production target ID to mirror
-   * @param organizationSlug - The organization slug
-   * @param baseSymbol - Optional base symbol for the test symbol (default: uses UUID)
-   * @returns The existing or newly created test target mirror
+   * Get the test target ID for a real target
+   * Returns null if no mirror exists
+   * @param realTargetId - The real target ID
+   * @returns The test target ID or null
    */
-  async ensureMirrorExists(
-    productionTargetId: string,
-    organizationSlug: string,
-    baseSymbol?: string,
-  ): Promise<TestTargetMirror> {
-    // Check if mirror already exists
-    const existing = await this.findByProductionTarget(productionTargetId);
-    if (existing) {
-      return existing;
-    }
-
-    // Generate test symbol
-    const testSymbol = baseSymbol
-      ? `T_${baseSymbol}`
-      : `T_${uuidv4().substring(0, 8).toUpperCase()}`;
-
-    // Create new mirror
-    return this.create({
-      organization_slug: organizationSlug,
-      production_target_id: productionTargetId,
-      test_symbol: testSymbol,
-    });
+  async getTestTargetId(realTargetId: string): Promise<string | null> {
+    const mirror = await this.findByRealTarget(realTargetId);
+    return mirror?.test_target_id ?? null;
   }
 
   /**
-   * Get the test symbol for a production target
+   * Get the real target ID for a test target
    * Returns null if no mirror exists
-   * @param productionTargetId - The production target ID
-   * @returns The test symbol or null
+   * @param testTargetId - The test target ID
+   * @returns The real target ID or null
    */
-  async getTestSymbol(productionTargetId: string): Promise<string | null> {
-    const mirror = await this.findByProductionTarget(productionTargetId);
-    return mirror?.test_symbol ?? null;
-  }
-
-  /**
-   * Get the production target ID for a test symbol
-   * Returns null if no mirror exists
-   * @param testSymbol - The test symbol
-   * @returns The production target ID or null
-   */
-  async getProductionTargetId(testSymbol: string): Promise<string | null> {
-    const mirror = await this.findByTestSymbol(testSymbol);
-    return mirror?.production_target_id ?? null;
+  async getRealTargetId(testTargetId: string): Promise<string | null> {
+    const mirror = await this.findByTestTarget(testTargetId);
+    return mirror?.real_target_id ?? null;
   }
 }

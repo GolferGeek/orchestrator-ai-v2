@@ -46,6 +46,16 @@ export class UniverseService {
   }
 
   /**
+   * Find universes for a specific agent (alias for findByAgentSlug)
+   */
+  async findByAgent(
+    agentSlug: string,
+    organizationSlug: string,
+  ): Promise<Universe[]> {
+    return this.findByAgentSlug(agentSlug, organizationSlug);
+  }
+
+  /**
    * Get effective thresholds for a universe
    * Merges default thresholds with strategy defaults (if applicable) and universe-specific overrides
    *

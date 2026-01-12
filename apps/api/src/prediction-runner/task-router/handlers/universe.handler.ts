@@ -83,7 +83,11 @@ export class UniverseHandler implements IDashboardHandler {
     params?: UniverseParams,
   ): Promise<DashboardActionResult> {
     try {
-      const universes = await this.universeService.findAll(context.orgSlug);
+      // Get universes for this specific agent
+      const universes = await this.universeService.findByAgent(
+        context.agentSlug,
+        context.orgSlug,
+      );
 
       // Apply filters if provided
       let filtered = universes;

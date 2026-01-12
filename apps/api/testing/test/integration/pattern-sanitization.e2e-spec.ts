@@ -64,6 +64,7 @@ interface LLMUsageRecord {
   redaction_types: string[];
   data_sanitization_applied: boolean;
   sanitization_level: string;
+  is_local?: boolean;
 }
 
 describe('Pattern-Based Sanitization E2E Tests', () => {
