@@ -27,3 +27,5 @@ export { AnalyticsHandler } from './analytics.handler';
 // Sprint 4 - Source Seen Items and Signals Dashboard
 export { SourceSeenItemsHandler } from './source-seen-items.handler';
 export { SignalsHandler } from './signals.handler';
+// Sprint 5 - Manual Evaluation Override
+export { EvaluationHandler } from './evaluation.handler';

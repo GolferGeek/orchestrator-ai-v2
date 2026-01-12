@@ -35,6 +35,7 @@ interface PredictionFilters {
 
 interface PredictionParams {
   id?: string;
+  ids?: string[];
   targetId?: string;
   filters?: PredictionFilters;
   page?: number;
@@ -50,6 +51,7 @@ export class PredictionHandler implements IDashboardHandler {
     'get',
     'getSnapshot',
     'getDeepDive',
+    'compare',
   ];
 
   constructor(
@@ -86,6 +88,8 @@ export class PredictionHandler implements IDashboardHandler {
       case 'deep-dive':
       case 'deepdive':
         return this.handleGetDeepDive(params);
+      case 'compare':
+        return this.handleCompare(params);
       default:
         return buildDashboardError(
           'UNSUPPORTED_ACTION',
@@ -451,5 +455,241 @@ export class PredictionHandler implements IDashboardHandler {
           : 'Failed to get prediction deep-dive',
       );
     }
+  }
+
+  /**
+   * Compare multiple predictions side by side
+   *
+   * Sprint 5: Phase 3.8 - Prediction comparison feature
+   *
+   * @param params - Must include ids array with 2+ prediction IDs
+   * @returns Comparison data including predictions, accuracy stats, analyst assessments
+   */
+  private async handleCompare(
+    params?: PredictionParams,
+  ): Promise<DashboardActionResult> {
+    const ids = params?.ids ?? [];
+
+    if (ids.length < 2) {
+      return buildDashboardError(
+        'INVALID_IDS',
+        'At least 2 prediction IDs are required for comparison',
+        { received: ids.length },
+      );
+    }
+
+    if (ids.length > 10) {
+      return buildDashboardError(
+        'TOO_MANY_IDS',
+        'Maximum 10 predictions can be compared at once',
+        { received: ids.length },
+      );
+    }
+
+    try {
+      // Fetch all predictions
+      const predictions = await Promise.all(
+        ids.map((id) => this.predictionRepository.findById(id)),
+      );
+
+      // Filter out null results
+      const validPredictions = predictions.filter((p) => p !== null);
+
+      if (validPredictions.length < 2) {
+        return buildDashboardError(
+          'INSUFFICIENT_PREDICTIONS',
+          'At least 2 valid predictions are required for comparison',
+          {
+            requested: ids.length,
+            found: validPredictions.length,
+            missing: ids.filter((id, idx) => predictions[idx] === null),
+          },
+        );
+      }
+
+      // Get snapshots for each prediction
+      const snapshots = await Promise.all(
+        validPredictions.map((p) => this.snapshotService.getSnapshot(p.id)),
+      );
+
+      // Build comparison data for each prediction
+      const comparisonItems = await Promise.all(
+        validPredictions.map(async (prediction, idx) => {
+          const snapshot = snapshots[idx];
+
+          // Get predictors for this prediction
+          const predictorIds =
+            snapshot?.predictors?.map((p) => p.predictor_id) ?? [];
+          const predictors = await Promise.all(
+            predictorIds
+              .slice(0, 5)
+              .map((id) => this.predictorRepository.findById(id)),
+          );
+          const validPredictors = predictors.filter((p) => p !== null);
+
+          // Build analyst assessment summary
+          const analystSummary =
+            snapshot?.analyst_assessments?.map((a) => ({
+              analystSlug: a.analyst.slug,
+              tier: a.tier,
+              direction: a.direction,
+              confidence: a.confidence,
+            })) ?? [];
+
+          return {
+            prediction: {
+              id: prediction.id,
+              targetId: prediction.target_id,
+              direction: prediction.direction,
+              magnitude: prediction.magnitude,
+              confidence: prediction.confidence,
+              timeframeHours: prediction.timeframe_hours,
+              status: prediction.status,
+              predictedAt: prediction.predicted_at,
+              expiresAt: prediction.expires_at,
+              outcomeValue: prediction.outcome_value,
+            },
+            stats: {
+              predictorCount: predictorIds.length,
+              analystCount: analystSummary.length,
+              averageStrength:
+                validPredictors.length > 0
+                  ? validPredictors.reduce((sum, p) => sum + p.strength, 0) /
+                    validPredictors.length
+                  : 0,
+              averageConfidence:
+                validPredictors.length > 0
+                  ? validPredictors.reduce((sum, p) => sum + p.confidence, 0) /
+                    validPredictors.length
+                  : 0,
+            },
+            analystAssessments: analystSummary,
+            thresholdsMet: snapshot?.threshold_evaluation ?? null,
+          };
+        }),
+      );
+
+      // Calculate comparison summary
+      const directionAgreement =
+        this.calculateDirectionAgreement(comparisonItems);
+      const confidenceRange = this.calculateConfidenceRange(comparisonItems);
+      const outcomeComparison =
+        this.calculateOutcomeComparison(comparisonItems);
+
+      return buildDashboardSuccess({
+        predictions: comparisonItems,
+        comparison: {
+          totalCompared: comparisonItems.length,
+          directionAgreement,
+          confidenceRange,
+          outcomeComparison,
+          // Group by target to show same-target predictions together
+          byTarget: this.groupByTarget(comparisonItems),
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to compare predictions: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return buildDashboardError(
+        'COMPARE_FAILED',
+        error instanceof Error
+          ? error.message
+          : 'Failed to compare predictions',
+      );
+    }
+  }
+
+  /**
+   * Calculate direction agreement across predictions
+   */
+  private calculateDirectionAgreement(
+    items: Array<{ prediction: { direction: string } }>,
+  ): { unanimous: boolean; directions: Record<string, number> } {
+    const directions: Record<string, number> = {};
+
+    for (const item of items) {
+      const dir = item.prediction.direction;
+      directions[dir] = (directions[dir] || 0) + 1;
+    }
+
+    const unanimous = Object.keys(directions).length === 1;
+
+    return { unanimous, directions };
+  }
+
+  /**
+   * Calculate confidence range across predictions
+   */
+  private calculateConfidenceRange(
+    items: Array<{ prediction: { confidence: number } }>,
+  ): { min: number; max: number; average: number; spread: number } {
+    const confidences = items.map((i) => i.prediction.confidence);
+    const min = Math.min(...confidences);
+    const max = Math.max(...confidences);
+    const average =
+      confidences.reduce((sum, c) => sum + c, 0) / confidences.length;
+
+    return {
+      min,
+      max,
+      average,
+      spread: max - min,
+    };
+  }
+
+  /**
+   * Calculate outcome comparison for resolved predictions
+   */
+  private calculateOutcomeComparison(
+    items: Array<{
+      prediction: {
+        status: string;
+        outcomeValue: number | null;
+        direction: string;
+      };
+    }>,
+  ): {
+    resolvedCount: number;
+    correctCount: number;
+    accuracyPct: number | null;
+  } {
+    const resolved = items.filter((i) => i.prediction.status === 'resolved');
+    const resolvedCount = resolved.length;
+
+    if (resolvedCount === 0) {
+      return { resolvedCount: 0, correctCount: 0, accuracyPct: null };
+    }
+
+    const correct = resolved.filter((i) => {
+      const outcome = i.prediction.outcomeValue;
+      if (outcome === null) return false;
+      const actualDirection = outcome > 0 ? 'up' : 'down';
+      return i.prediction.direction === actualDirection;
+    });
+
+    const correctCount = correct.length;
+    const accuracyPct = (correctCount / resolvedCount) * 100;
+
+    return { resolvedCount, correctCount, accuracyPct };
+  }
+
+  /**
+   * Group comparison items by target ID
+   */
+  private groupByTarget(
+    items: Array<{ prediction: { targetId: string; id: string } }>,
+  ): Record<string, string[]> {
+    const byTarget: Record<string, string[]> = {};
+
+    for (const item of items) {
+      const targetId = item.prediction.targetId;
+      if (!byTarget[targetId]) {
+        byTarget[targetId] = [];
+      }
+      byTarget[targetId].push(item.prediction.id);
+    }
+
+    return byTarget;
   }
 }

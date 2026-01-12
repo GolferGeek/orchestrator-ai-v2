@@ -79,6 +79,8 @@ import {
   AnalyticsService,
   // Phase 2 Test Input Infrastructure
   TestDbSourceCrawlerService,
+  // Sprint 5 - Learning Impact Tracking
+  LearningImpactService,
 } from './services';
 
 // Phase 7 Runners
@@ -119,6 +121,8 @@ import {
   // Sprint 4 - Source Seen Items and Signals Dashboard
   SourceSeenItemsHandler,
   SignalsHandler,
+  // Sprint 5 - Manual Evaluation Override
+  EvaluationHandler,
 } from './task-router/handlers';
 
 const repositories = [
@@ -195,6 +199,8 @@ const services = [
   AnalyticsService,
   // Phase 2 Test Input Infrastructure
   TestDbSourceCrawlerService,
+  // Sprint 5 - Learning Impact Tracking
+  LearningImpactService,
 ];
 
 // Phase 7 Runners
@@ -235,6 +241,8 @@ const dashboardHandlers = [
   // Sprint 4 - Source Seen Items and Signals Dashboard
   SourceSeenItemsHandler,
   SignalsHandler,
+  // Sprint 5 - Manual Evaluation Override
+  EvaluationHandler,
 ];
 
 @Module({

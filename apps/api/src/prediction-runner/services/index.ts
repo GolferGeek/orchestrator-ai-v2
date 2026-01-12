@@ -48,3 +48,5 @@ export * from './scenario-generator.service';
 export * from './scenario-variation.service';
 // Phase 6.2 Analytics API Endpoints
 export * from './analytics.service';
+// Sprint 5 - Learning Impact Tracking
+export * from './learning-impact.service';
