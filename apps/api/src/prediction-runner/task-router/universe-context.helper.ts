@@ -63,7 +63,10 @@ export class UniverseContextHelper {
       const universe = await this.universeRepository.findById(universeId);
 
       if (!universe) {
-        return buildDashboardError('UNIVERSE_NOT_FOUND', `Universe not found: ${universeId}`);
+        return buildDashboardError(
+          'UNIVERSE_NOT_FOUND',
+          `Universe not found: ${universeId}`,
+        );
       }
 
       // Validate universe belongs to this agent
@@ -106,7 +109,9 @@ export class UniverseContextHelper {
   /**
    * Check if the result is an error (DashboardActionResult) or success (UniverseContext)
    */
-  isError(result: UniverseContext | DashboardActionResult): result is DashboardActionResult {
+  isError(
+    result: UniverseContext | DashboardActionResult,
+  ): result is DashboardActionResult {
     return 'success' in result && result.success === false;
   }
 
@@ -117,7 +122,9 @@ export class UniverseContextHelper {
    * @param context - Execution context with agentSlug and orgSlug
    * @returns Universe or null if none found
    */
-  async getDefaultUniverse(context: ExecutionContext): Promise<Universe | null> {
+  async getDefaultUniverse(
+    context: ExecutionContext,
+  ): Promise<Universe | null> {
     const universes = await this.universeRepository.findByAgentSlug(
       context.agentSlug,
       context.orgSlug,
@@ -138,6 +145,9 @@ export class UniverseContextHelper {
    * @returns Array of universes
    */
   async getUniversesForAgent(context: ExecutionContext): Promise<Universe[]> {
-    return this.universeRepository.findByAgentSlug(context.agentSlug, context.orgSlug);
+    return this.universeRepository.findByAgentSlug(
+      context.agentSlug,
+      context.orgSlug,
+    );
   }
 }

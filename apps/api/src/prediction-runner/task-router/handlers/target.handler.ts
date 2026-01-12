@@ -32,6 +32,42 @@ interface TargetParams {
   pageSize?: number;
 }
 
+type TargetType = 'stock' | 'crypto' | 'election' | 'polymarket';
+
+interface LlmProviderModel {
+  provider: string;
+  model: string;
+}
+
+interface LlmConfig {
+  gold?: LlmProviderModel;
+  silver?: LlmProviderModel;
+  bronze?: LlmProviderModel;
+}
+
+/**
+ * camelCase params from transport-types contract
+ * Maps to snake_case DTOs for database persistence
+ */
+interface CreateTargetParams {
+  universeId: string;
+  symbol: string;
+  name: string;
+  targetType: TargetType;
+  context?: string;
+  isActive?: boolean;
+  llmConfigOverride?: LlmConfig;
+  metadata?: Record<string, unknown>;
+}
+
+interface UpdateTargetParams {
+  name?: string;
+  context?: string;
+  isActive?: boolean;
+  llmConfigOverride?: LlmConfig;
+  metadata?: Record<string, unknown>;
+}
+
 @Injectable()
 export class TargetHandler implements IDashboardHandler {
   private readonly logger = new Logger(TargetHandler.name);
@@ -170,24 +206,26 @@ export class TargetHandler implements IDashboardHandler {
   private async handleCreate(
     payload: DashboardRequestPayload,
   ): Promise<DashboardActionResult> {
-    const data = payload.params as Partial<CreateTargetDto>;
+    // Accept camelCase params from transport contract
+    const data = payload.params as Partial<CreateTargetParams>;
 
-    if (!data.universe_id || !data.symbol || !data.name || !data.target_type) {
+    if (!data.universeId || !data.symbol || !data.name || !data.targetType) {
       return buildDashboardError(
         'INVALID_DATA',
-        'universe_id, symbol, name, and target_type are required',
+        'universeId, symbol, name, and targetType are required',
       );
     }
 
     try {
+      // Map camelCase params to snake_case DTO for database
       const createDto: CreateTargetDto = {
-        universe_id: data.universe_id,
+        universe_id: data.universeId,
         symbol: data.symbol,
         name: data.name,
-        target_type: data.target_type,
+        target_type: data.targetType,
         context: data.context,
-        is_active: data.is_active ?? true,
-        llm_config_override: data.llm_config_override,
+        is_active: data.isActive ?? true,
+        llm_config_override: data.llmConfigOverride,
         metadata: data.metadata,
       };
 
@@ -212,17 +250,19 @@ export class TargetHandler implements IDashboardHandler {
       return buildDashboardError('MISSING_ID', 'Target ID is required');
     }
 
-    const data = payload.params as Partial<UpdateTargetDto>;
+    // Accept camelCase params from transport contract
+    const data = payload.params as Partial<UpdateTargetParams>;
 
     try {
+      // Map camelCase params to snake_case DTO for database
       const updateDto: UpdateTargetDto = {};
 
       // Only include fields that are explicitly provided
       if (data.name !== undefined) updateDto.name = data.name;
       if (data.context !== undefined) updateDto.context = data.context;
-      if (data.is_active !== undefined) updateDto.is_active = data.is_active;
-      if (data.llm_config_override !== undefined)
-        updateDto.llm_config_override = data.llm_config_override;
+      if (data.isActive !== undefined) updateDto.is_active = data.isActive;
+      if (data.llmConfigOverride !== undefined)
+        updateDto.llm_config_override = data.llmConfigOverride;
       if (data.metadata !== undefined) updateDto.metadata = data.metadata;
 
       const target = await this.targetService.update(params.id, updateDto);

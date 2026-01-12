@@ -47,28 +47,32 @@ interface SourceParams {
   crawlConfig?: Record<string, unknown>;
 }
 
+/**
+ * camelCase params from transport-types contract
+ * Maps to snake_case DTOs for database persistence
+ */
 interface CreateSourceParams {
-  target_id?: string;
-  universe_id?: string;
+  targetId?: string;
+  universeId?: string;
   domain?: 'stocks' | 'crypto' | 'elections' | 'polymarket';
-  scope_level: string;
+  scopeLevel: string;
   name: string;
-  source_type: string;
+  sourceType: string;
   url: string;
-  crawl_config?: CrawlConfig;
-  auth_config?: AuthConfig;
-  crawl_frequency_minutes?: number;
-  is_active?: boolean;
+  crawlConfig?: CrawlConfig;
+  authConfig?: AuthConfig;
+  crawlFrequencyMinutes?: number;
+  isActive?: boolean;
 }
 
 interface UpdateSourceParams {
   name?: string;
   description?: string;
   url?: string;
-  crawl_config?: CrawlConfig;
-  auth_config?: AuthConfig;
-  crawl_frequency_minutes?: number;
-  is_active?: boolean;
+  crawlConfig?: CrawlConfig;
+  authConfig?: AuthConfig;
+  crawlFrequencyMinutes?: number;
+  isActive?: boolean;
 }
 
 @Injectable()
@@ -224,41 +228,43 @@ export class SourceHandler implements IDashboardHandler {
   private async handleCreate(
     payload: DashboardRequestPayload,
   ): Promise<DashboardActionResult> {
+    // Accept camelCase params from transport contract
     const data = payload.params as unknown as CreateSourceParams;
 
-    if (!data.name || !data.source_type || !data.url || !data.scope_level) {
+    if (!data.name || !data.sourceType || !data.url || !data.scopeLevel) {
       return buildDashboardError(
         'INVALID_DATA',
-        'name, source_type, url, and scope_level are required',
+        'name, sourceType, url, and scopeLevel are required',
       );
     }
 
     try {
+      // Map camelCase params to snake_case DTO for database
       const createData: CreateSourceData = {
-        target_id: data.target_id,
-        universe_id: data.universe_id,
+        target_id: data.targetId,
+        universe_id: data.universeId,
         domain: data.domain,
-        scope_level: data.scope_level as
+        scope_level: data.scopeLevel as
           | 'runner'
           | 'domain'
           | 'universe'
           | 'target',
         name: data.name,
-        source_type: data.source_type as
+        source_type: data.sourceType as
           | 'web'
           | 'rss'
           | 'twitter_search'
           | 'api',
         url: data.url,
-        crawl_config: data.crawl_config,
-        auth_config: data.auth_config,
-        crawl_frequency_minutes: (data.crawl_frequency_minutes || 15) as
+        crawl_config: data.crawlConfig,
+        auth_config: data.authConfig,
+        crawl_frequency_minutes: (data.crawlFrequencyMinutes || 15) as
           | 5
           | 10
           | 15
           | 30
           | 60,
-        is_active: data.is_active ?? true,
+        is_active: data.isActive ?? true,
       };
 
       const source = await this.sourceRepository.create(createData);
@@ -282,28 +288,30 @@ export class SourceHandler implements IDashboardHandler {
       return buildDashboardError('MISSING_ID', 'Source ID is required');
     }
 
+    // Accept camelCase params from transport contract
     const data = payload.params as unknown as UpdateSourceParams;
 
     try {
+      // Map camelCase params to snake_case DTO for database
       const updateData: UpdateSourceData = {};
 
       if (data.name !== undefined) updateData.name = data.name;
       if (data.description !== undefined)
         updateData.description = data.description;
       if (data.url !== undefined) updateData.url = data.url;
-      if (data.crawl_config !== undefined)
-        updateData.crawl_config = data.crawl_config;
-      if (data.auth_config !== undefined)
-        updateData.auth_config = data.auth_config;
-      if (data.crawl_frequency_minutes !== undefined) {
-        updateData.crawl_frequency_minutes = data.crawl_frequency_minutes as
+      if (data.crawlConfig !== undefined)
+        updateData.crawl_config = data.crawlConfig;
+      if (data.authConfig !== undefined)
+        updateData.auth_config = data.authConfig;
+      if (data.crawlFrequencyMinutes !== undefined) {
+        updateData.crawl_frequency_minutes = data.crawlFrequencyMinutes as
           | 5
           | 10
           | 15
           | 30
           | 60;
       }
-      if (data.is_active !== undefined) updateData.is_active = data.is_active;
+      if (data.isActive !== undefined) updateData.is_active = data.isActive;
 
       const source = await this.sourceRepository.update(params.id, updateData);
       return buildDashboardSuccess(source);

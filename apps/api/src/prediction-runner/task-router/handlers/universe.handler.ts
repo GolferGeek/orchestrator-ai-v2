@@ -30,6 +30,60 @@ interface UniverseParams {
   pageSize?: number;
 }
 
+type DomainType = 'stocks' | 'crypto' | 'elections' | 'polymarket';
+
+interface LlmProviderModel {
+  provider: string;
+  model: string;
+}
+
+interface LlmConfig {
+  gold?: LlmProviderModel;
+  silver?: LlmProviderModel;
+  bronze?: LlmProviderModel;
+}
+
+interface ThresholdConfig {
+  min_predictors?: number;
+  min_combined_strength?: number;
+  min_direction_consensus?: number;
+  predictor_ttl_hours?: number;
+}
+
+interface NotificationConfig {
+  urgent_enabled: boolean;
+  new_prediction_enabled: boolean;
+  outcome_enabled: boolean;
+  channels: ('push' | 'sms' | 'email' | 'sse')[];
+}
+
+/**
+ * camelCase params from transport-types contract
+ * Maps to snake_case DTOs for database persistence
+ */
+interface CreateUniverseParams {
+  name: string;
+  domain: DomainType;
+  description?: string;
+  agentSlug?: string;
+  strategyId?: string;
+  isActive?: boolean;
+  thresholds?: ThresholdConfig;
+  llmConfig?: LlmConfig;
+  notificationConfig?: NotificationConfig;
+}
+
+interface UpdateUniverseParams {
+  name?: string;
+  description?: string;
+  domain?: DomainType;
+  strategyId?: string;
+  isActive?: boolean;
+  thresholds?: ThresholdConfig;
+  llmConfig?: LlmConfig;
+  notificationConfig?: NotificationConfig;
+}
+
 @Injectable()
 export class UniverseHandler implements IDashboardHandler {
   private readonly logger = new Logger(UniverseHandler.name);
@@ -151,7 +205,8 @@ export class UniverseHandler implements IDashboardHandler {
     context: ExecutionContext,
     payload: DashboardRequestPayload,
   ): Promise<DashboardActionResult> {
-    const data = payload.params as Partial<CreateUniverseDto>;
+    // Accept camelCase params from transport contract
+    const data = payload.params as Partial<CreateUniverseParams>;
 
     if (!data.name || !data.domain) {
       return buildDashboardError(
@@ -161,17 +216,18 @@ export class UniverseHandler implements IDashboardHandler {
     }
 
     try {
+      // Map camelCase params to snake_case DTO for database
       const createDto: CreateUniverseDto = {
         name: data.name,
         domain: data.domain,
         organization_slug: context.orgSlug,
-        agent_slug: data.agent_slug || context.agentSlug || 'prediction-runner',
+        agent_slug: data.agentSlug || context.agentSlug || 'prediction-runner',
         description: data.description,
-        strategy_id: data.strategy_id,
-        is_active: data.is_active ?? true,
+        strategy_id: data.strategyId,
+        is_active: data.isActive ?? true,
         thresholds: data.thresholds,
-        llm_config: data.llm_config,
-        notification_config: data.notification_config,
+        llm_config: data.llmConfig,
+        notification_config: data.notificationConfig,
       };
 
       const universe = await this.universeService.create(createDto);
@@ -195,9 +251,11 @@ export class UniverseHandler implements IDashboardHandler {
       return buildDashboardError('MISSING_ID', 'Universe ID is required');
     }
 
-    const data = payload.params as Partial<UpdateUniverseDto>;
+    // Accept camelCase params from transport contract
+    const data = payload.params as Partial<UpdateUniverseParams>;
 
     try {
+      // Map camelCase params to snake_case DTO for database
       const updateDto: UpdateUniverseDto = {};
 
       // Only include fields that are explicitly provided
@@ -205,13 +263,13 @@ export class UniverseHandler implements IDashboardHandler {
       if (data.description !== undefined)
         updateDto.description = data.description;
       if (data.domain !== undefined) updateDto.domain = data.domain;
-      if (data.strategy_id !== undefined)
-        updateDto.strategy_id = data.strategy_id;
-      if (data.is_active !== undefined) updateDto.is_active = data.is_active;
+      if (data.strategyId !== undefined)
+        updateDto.strategy_id = data.strategyId;
+      if (data.isActive !== undefined) updateDto.is_active = data.isActive;
       if (data.thresholds !== undefined) updateDto.thresholds = data.thresholds;
-      if (data.llm_config !== undefined) updateDto.llm_config = data.llm_config;
-      if (data.notification_config !== undefined)
-        updateDto.notification_config = data.notification_config;
+      if (data.llmConfig !== undefined) updateDto.llm_config = data.llmConfig;
+      if (data.notificationConfig !== undefined)
+        updateDto.notification_config = data.notificationConfig;
 
       const universe = await this.universeService.update(params.id, updateDto);
       return buildDashboardSuccess(universe);

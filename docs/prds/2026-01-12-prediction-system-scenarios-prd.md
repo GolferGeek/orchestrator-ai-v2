@@ -1,12 +1,15 @@
 # Prediction System Scenarios PRD
 
+**Last Updated:** 2026-01-12 21:00 UTC
+**Status:** In Progress - BLOCKING ISSUE IDENTIFIED
+**Owner:** Finance Organization
+**Version:** 1.5
+
+---
+
 ## Overview
 
 This PRD documents all user scenarios for the Prediction System, their current implementation status, and remaining work needed for a complete demo-ready system.
-
-**Last Updated:** 2026-01-12
-**Status:** In Progress
-**Owner:** Finance Organization
 
 ---
 
@@ -29,8 +32,49 @@ Organization (finance)
 
 - **Agent = Container for Universes**: One agent can manage multiple universes
 - **Universe = Scope for Operations**: Most operations require `universeId`
-- **Universe owns LLM Config**: Each universe can have its own tier contexts
+- **Universe owns LLM Config**: Each universe can have its own tier contexts (gold/silver/bronze)
 - **Test Data Isolation**: T_ prefixed targets mirror production targets
+- **Strategies are Read-Only**: System-defined strategies only; custom strategies require database access
+
+### LLM Tier System
+
+Universes support tiered LLM configuration for different quality/cost tradeoffs:
+
+```typescript
+interface LlmConfig {
+  gold?: { provider: string; model: string };   // Highest quality (e.g., claude-opus)
+  silver?: { provider: string; model: string }; // Balanced (e.g., claude-sonnet)
+  bronze?: { provider: string; model: string }; // Fast/cheap (e.g., claude-haiku)
+}
+```
+
+- **Universe sets defaults**: Each universe configures its tier preferences
+- **Target can override**: Individual targets can specify `llmConfigOverride` (DB column: `llm_config_override`)
+- **Tier resolution**: `llm-tier-resolver.service` maps requests to appropriate tier
+- **Ensemble predictions**: Multiple analysts may use different tiers
+
+**Note on `temperature`:** The shared dashboard transport types standardize on provider/model (and tier mappings). If we want per-universe/per-target `temperature`, it should be added explicitly to `apps/transport-types/modes/dashboard.types.ts` and mapped in handlers; until then, keep dashboard API examples provider/model(+tiers) only.
+
+### Entity Scoping Rules
+
+| Entity | Scope | Notes |
+|--------|-------|-------|
+| Universe | Agent | Agent can have multiple universes |
+| Target | Universe | Strictly universe-scoped |
+| Source | Flexible | Can be target, universe, domain, or runner scoped |
+| Analyst | Universe | Universe-scoped personas |
+| Strategy | System | Read-only, system-defined only |
+| Prediction | Target | Belongs to specific target |
+
+### API Parameter Convention
+
+**Important:** The codebase uses different conventions at different layers:
+
+- **Dashboard request params** (transport-types + web UI): `camelCase` (e.g., `universeId`, `targetId`)
+- **Database columns** (SQL): `snake_case` (e.g., `universe_id`, `target_id`)
+- **Mapping** should happen at the API boundary (handlers/services) so callers always use `camelCase`
+
+When writing dashboard API calls, use `camelCase` in params per `apps/transport-types/modes/dashboard.types.ts`.
 
 ### Storage & Retention Strategy
 
@@ -116,10 +160,10 @@ POST /agent-to-agent/finance/stock-predictor/tasks
       "name": "Asia Semiconductors",
       "domain": "stocks",
       "description": "Tracking TSMC, Samsung, and Asian chip makers",
-      "llm_config": {
-        "provider": "anthropic",
-        "model": "claude-sonnet-4-20250514",
-        "temperature": 0.3
+      "llmConfig": {
+        "tiers": {
+          "silver": { "provider": "anthropic", "model": "claude-sonnet-4-20250514" }
+        }
       }
     }
   }
@@ -128,7 +172,7 @@ POST /agent-to-agent/finance/stock-predictor/tasks
 
 | Status | Handler | Service | Repository | E2E Test |
 |--------|---------|---------|------------|----------|
-| ✅ Implemented | universe.handler | universe.service | universe.repository | ❌ Missing |
+| ⚠️ Partial | universe.handler | universe.service | universe.repository | ❌ Missing |
 
 **Remaining Work:**
 - [ ] E2E test for universe creation
@@ -148,10 +192,10 @@ POST /agent-to-agent/finance/stock-predictor/tasks
   "payload": {
     "action": "targets.create",
     "params": {
-      "universe_id": "<universe-id>",
+      "universeId": "<universe-id>",
       "symbol": "AAPL",
       "name": "Apple Inc.",
-      "target_type": "stock",
+      "targetType": "stock",
       "context": "Consumer electronics, services, Mac, iPhone, iPad"
     }
   }
@@ -160,7 +204,7 @@ POST /agent-to-agent/finance/stock-predictor/tasks
 
 | Status | Handler | Service | Repository | E2E Test |
 |--------|---------|---------|------------|----------|
-| ✅ Implemented | target.handler | target.service | target.repository | ❌ Missing |
+| ⚠️ Partial | target.handler | target.service | target.repository | ❌ Missing |
 
 **Remaining Work:**
 - [ ] E2E test for target creation
@@ -197,12 +241,92 @@ POST /agent-to-agent/finance/stock-predictor/tasks
   "payload": {
     "action": "sources.create",
     "params": {
-      "universe_id": "<universe-id>",
-      "target_id": "<target-id>",
-      "source_type": "rss",
-      "url": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=AAPL",
+      "scopeLevel": "target",
+      "universeId": "<universe-id>",
+      "targetId": "<target-id>",
+      "sourceType": "rss",
       "name": "Yahoo Finance AAPL RSS",
-      "crawl_frequency_minutes": 10
+      "url": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=AAPL",
+      "crawlFrequencyMinutes": 10
+    }
+  }
+}
+```
+
+**Note:** Handler currently expects snake_case (`source_type`, `scope_level`, `universe_id`, `target_id`, `crawl_frequency_minutes`). Sprint 0 will fix handlers to accept camelCase as shown above.
+
+| Status | Handler | Service | Repository | E2E Test |
+|--------|---------|---------|------------|----------|
+| ⚠️ Partial | source.handler | source-crawler.service | source.repository | ❌ Missing |
+
+**Available Source Handler Actions:**
+- `sources.list` - List sources for universe/target
+- `sources.get` - Get source by ID
+- `sources.create` - Create new source
+- `sources.update` - Update source config
+- `sources.delete` - Delete source
+- `sources.test-crawl` - Preview crawl results without persisting
+
+**Valid `sourceType` values:** `web` (Firecrawl scraping), `rss`, `twitter_search`, `api`
+
+**Valid `scopeLevel` values:** `runner` (global), `domain`, `universe`, `target`
+
+**Valid `crawlFrequencyMinutes` values:** `5`, `10`, `15`, `30`, `60`
+
+**Remaining Work:**
+- [ ] E2E test for source creation
+- [ ] E2E test for test-crawl action
+
+---
+
+### 1.5 Add News Site Source (Firecrawl)
+
+**Description:** Add a news website as a source (uses Firecrawl for scraping). This example shows a universe-scoped source that applies to all targets in the universe.
+
+**API:**
+```typescript
+POST /agent-to-agent/finance/stock-predictor/tasks
+{
+  "mode": "dashboard",
+  "payload": {
+    "action": "sources.create",
+    "params": {
+      "scopeLevel": "universe",
+      "universeId": "<universe-id>",
+      "sourceType": "web",
+      "name": "Bloomberg Tech News",
+      "url": "https://www.bloomberg.com/technology",
+      "crawlFrequencyMinutes": 30
+    }
+  }
+}
+```
+
+**Note:** When `scopeLevel` is "universe", omit `targetId` - the source applies to all targets in that universe. Handler currently expects snake_case; Sprint 0 will fix to accept camelCase.
+
+| Status | Handler | Service | Repository | E2E Test |
+|--------|---------|---------|------------|----------|
+| ⚠️ Partial | source.handler | firecrawl.service | source.repository | ❌ Missing |
+
+**Remaining Work:**
+- [ ] E2E test for Firecrawl source creation
+- [ ] Verify Firecrawl API key configuration
+
+---
+
+### 1.6 Test Crawl (Preview)
+
+**Description:** Preview what a source crawl would return without persisting data
+
+**API:**
+```typescript
+POST /agent-to-agent/finance/stock-predictor/tasks
+{
+  "mode": "dashboard",
+  "payload": {
+    "action": "sources.test-crawl",
+    "params": {
+      "id": "<source-id>"
     }
   }
 }
@@ -210,74 +334,134 @@ POST /agent-to-agent/finance/stock-predictor/tasks
 
 | Status | Handler | Service | Repository | E2E Test |
 |--------|---------|---------|------------|----------|
-| ⚠️ Unknown | source.handler | ? | source.repository | ❌ Missing |
+| ⚠️ Partial | source.handler | source-crawler.service | - | ❌ Missing |
 
 **Remaining Work:**
-- [ ] Verify source.handler exists and has create action
-- [ ] Add crawl_frequency_minutes support
-- [ ] E2E test for source creation
+- [ ] E2E test for test-crawl
 
 ---
 
-### 1.5 Add News Site Source
-
-**Description:** Add a news website as a source (uses Firecrawl for scraping)
-
-| Status | Handler | Service | Repository | E2E Test |
-|--------|---------|---------|------------|----------|
-| ⚠️ Unknown | source.handler | firecrawl.service | source.repository | ❌ Missing |
-
-**Remaining Work:**
-- [ ] Verify Firecrawl integration for non-RSS sources
-- [ ] E2E test for news site source
-
----
-
-### 1.6 Configure Crawl Frequency
+### 1.7 Configure Crawl Frequency
 
 **Description:** Set how often sources are crawled per source or per universe
 
 | Status | Handler | Service | Repository | E2E Test |
 |--------|---------|---------|------------|----------|
-| ❌ Not Implemented | - | - | - | - |
+| ⚠️ Partial | source.handler (update) | source-crawler.runner | source.repository | ❌ Missing |
 
 **Remaining Work:**
-- [ ] Add crawl_frequency to source schema if not present
-- [ ] Source crawler runner respects per-source frequency
-- [ ] UI/API to update frequency
+- [ ] Verify source crawler runner respects per-source frequency
+- [ ] E2E test for frequency update
+- [ ] Document default frequency values
 
 ---
 
-### 1.7 Add/Configure Analysts
+### 1.8 Add/Configure Analysts
 
 **Description:** Create analyst personas that make predictions
 
+**API (examples):**
+```typescript
+POST /agent-to-agent/finance/stock-predictor/tasks
+{
+  "mode": "dashboard",
+  "payload": {
+    "action": "analysts.create",
+    "params": {
+      "slug": "momentum-mike",
+      "name": "Momentum Mike",
+      "perspective": "Prefers momentum + trend continuation signals",
+      "scopeLevel": "universe",
+      "universeId": "<universe-id>",
+      "tierInstructions": {
+        "silver": "Be concise. Cite the strongest 1-2 signals only."
+      }
+    }
+  }
+}
+
+// Update:
+{
+  "mode": "dashboard",
+  "payload": {
+    "action": "analysts.update",
+    "params": {
+      "id": "<analyst-id>",
+      "defaultWeight": 1.2,
+      "active": true
+    }
+  }
+}
+
+// Delete:
+{
+  "mode": "dashboard",
+  "payload": {
+    "action": "analysts.delete",
+    "params": { "id": "<analyst-id>" }
+  }
+}
+```
+
 | Status | Handler | Service | Repository | E2E Test |
 |--------|---------|---------|------------|----------|
-| ✅ Implemented | analyst.handler | analyst.service | analyst.repository | ✅ List only |
+| ⚠️ Partial | analyst.handler | analyst.service | analyst.repository | ⚠️ List only |
 
 **Remaining Work:**
-- [ ] E2E test for analyst CRUD
+- [ ] E2E test for analyst CRUD (create, update, delete)
 - [ ] Unit tests for analyst.handler
 
 ---
 
-### 1.8 Create/Modify Strategies
+### 1.9 View/Recommend Strategies (Read-Only)
 
-**Description:** Define prediction strategies and frameworks
+**Description:** View system-defined strategies and get recommendations
+
+**Important Limitation:** Strategy handler is **read-only**. It supports `list`, `get`, and `recommend` actions only. Custom strategy creation/modification requires direct database access.
+
+**API:**
+```typescript
+POST /agent-to-agent/finance/stock-predictor/tasks
+{
+  "mode": "dashboard",
+  "payload": {
+    "action": "strategies.list",
+    "params": { "universeId": "<universe-id>" }
+  }
+}
+
+// Or get recommendations:
+{
+  "mode": "dashboard",
+  "payload": {
+    "action": "strategies.recommend",
+    "params": { "targetId": "<target-id>", "context": "earnings announcement" }
+  }
+}
+```
 
 | Status | Handler | Service | Repository | E2E Test |
 |--------|---------|---------|------------|----------|
-| ⚠️ Partial | strategy.handler | strategy.service | strategy.repository | ❌ Missing |
+| ✅ Read-only | strategy.handler | strategy.service | strategy.repository | ❌ Missing |
+
+**Available Actions:**
+- `strategies.list` - List system strategies
+- `strategies.get` - Get strategy by ID
+- `strategies.recommend` - Get strategy recommendations for context
+
+**Not Available (by design):**
+- ~~`strategies.create`~~ - System strategies only
+- ~~`strategies.update`~~ - System strategies only
+- ~~`strategies.delete`~~ - System strategies only
 
 **Remaining Work:**
-- [ ] Verify strategy handler actions
-- [ ] E2E test for strategy CRUD
-- [ ] Unit tests for strategy.handler
+- [ ] E2E test for strategy.list
+- [ ] E2E test for strategy.recommend
+- [ ] Document available system strategies
 
 ---
 
-### 1.9 Feed Deduplication & Historical Tracking
+### 1.10 Feed Deduplication & Historical Tracking
 
 **Description:** Track seen articles/items to avoid re-processing duplicates. When sources are crawled, articles are hashed and checked against historical records before processing.
 
@@ -424,6 +608,21 @@ Query params: `?userId=&agentSlug=&conversationId=&token=`
 
 **Description:** View newly discovered articles/items from sources
 
+**API (planned once handler exists):**
+```typescript
+POST /agent-to-agent/finance/stock-predictor/tasks
+{
+  "mode": "dashboard",
+  "payload": {
+    "action": "source-seen-items.list",
+    "params": {
+      "sourceId": "<source-id>"
+    },
+    "pagination": { "limit": 50 }
+  }
+}
+```
+
 | Status | Table | Handler | E2E Test |
 |--------|-------|---------|----------|
 | ⚠️ Partial | source_seen_items | ❌ No handler | ❌ Missing |
@@ -438,6 +637,31 @@ Query params: `?userId=&agentSlug=&conversationId=&token=`
 ### 2.3 Watch Signals Detected
 
 **Description:** See signals being detected from articles in real-time
+
+**API (planned once handler exists):**
+```typescript
+POST /agent-to-agent/finance/stock-predictor/tasks
+{
+  "mode": "dashboard",
+  "payload": {
+    "action": "signals.list",
+    "params": {
+      "universeId": "<universe-id>",
+      "targetId": "<target-id>"
+    },
+    "pagination": { "limit": 50 }
+  }
+}
+
+// Get one signal (with fingerprint/details):
+{
+  "mode": "dashboard",
+  "payload": {
+    "action": "signals.get",
+    "params": { "id": "<signal-id>" }
+  }
+}
+```
 
 | Status | Service | Handler | Real-time |
 |--------|---------|---------|-----------|
@@ -586,6 +810,34 @@ POST /agent-to-agent/finance/stock-predictor/tasks
 ### 4.1 View Predictions Ready for Evaluation
 
 **Description:** List predictions past their horizon date ready for evaluation
+
+**API (examples):**
+```typescript
+POST /agent-to-agent/finance/stock-predictor/tasks
+{
+  "mode": "dashboard",
+  "payload": {
+    "action": "review-queue.list",
+    "params": {
+      "universeId": "<universe-id>",
+      "status": "pending"
+    }
+  }
+}
+
+// Respond (approve/reject/modify):
+{
+  "mode": "dashboard",
+  "payload": {
+    "action": "review-queue.respond",
+    "params": {
+      "id": "<review-queue-item-id>",
+      "decision": "approve",
+      "reviewerNotes": "Looks correct based on the source article."
+    }
+  }
+}
+```
 
 | Status | Handler | E2E Test |
 |--------|---------|----------|
@@ -860,19 +1112,201 @@ View: https://app.orchestrator.ai/predictions/xxx
 
 ---
 
+## Phase 9: Agent Hardening (Non-RBAC) & Production Readiness
+
+**Important context:** Authentication, authorization, and RBAC are handled by the **A2A API harness**. This phase focuses on **agent/system hardening** that the harness does not automatically guarantee: correctness of scoping, reliability, cost controls, deterministic testing, external integration safety, and observability integrity.
+
+### 9.1 Contract & Data Shape Hardening (Transport ↔ Web ↔ API ↔ DB)
+
+**Goal:** Make request/response contracts unambiguous and enforced so the UI + tests + agent stay in lockstep.
+
+- [ ] Fix the **camelCase vs snake_case** mismatch (see **Blocking Issues → Contract Mismatch**) so all dashboard create/update operations work with shared transport types
+- [ ] Ensure API examples in this PRD match `apps/transport-types/modes/dashboard.types.ts`
+- [ ] Add request validation for critical enums and config shapes (domain, sourceType, scopeLevel, prediction status/direction, etc.)
+- [ ] Ensure responses include all fields required by the dashboard components (avoid “partial UI” states due to missing fields)
+
+**Done when:**
+- All Phase 1 create/update operations are proven via E2E and can be executed from the UI without shape workarounds.
+
+---
+
+### 9.2 Multi-Tenant & Test Isolation Correctness (Scoping Guarantees)
+
+**Goal:** Even with RBAC in the harness, ensure the agent logic and DB queries are correctly scoped and cannot cross-contaminate.
+
+- [ ] Verify every list/get/create/update/delete operation is scoped correctly by `orgSlug` and relevant entity scope (`agentSlug`, `universeId`, `targetId`)
+- [ ] Ensure `is_test` behavior is consistent across:
+  - predictions generation
+  - analytics defaults and optional inclusion (`includeTest`)
+  - notifications (no production notifications for test data)
+  - UI indicators for test entities
+- [ ] Add “negative tests” that prove cross-org data cannot leak (authorized but wrong org context should return empty/404)
+
+**Done when:**
+- Cross-scope leakage is proven impossible by tests (at least API E2E coverage).
+
+---
+
+### 9.3 Reliability, Backpressure, and Cost Controls
+
+**Goal:** Prevent runaway background work and ensure predictable behavior under load.
+
+- [ ] Add explicit rate limits / backpressure rules for:
+  - crawl frequency per source
+  - maximum items processed per crawl cycle
+  - per-universe concurrency limits
+- [ ] Ensure deduplication is “hard” (no repeated processing of same content across sources/targets)
+- [ ] Add configurable caps for LLM usage (per tier and per universe) and clear error behavior when limits are hit
+- [ ] Ensure runners are idempotent and safe to restart (no double-processing)
+
+**Done when:**
+- We can run the agent continuously without cost spikes or runaway queues, and failures recover safely on the next cycle.
+
+---
+
+### 9.4 External Integrations Hardening (Firecrawl, Price APIs, Slack)
+
+**Goal:** Make integrations robust, safe, and observable.
+
+- [ ] Standardize retry/backoff/timeouts per integration (RSS, Firecrawl, price providers, Slack)
+- [ ] Ensure secrets/config are validated at startup (fail-fast with clear errors; no silent fallbacks)
+- [ ] Add explicit “degraded mode” behaviors (e.g., Firecrawl down → skip source, emit event, keep pipeline healthy)
+- [ ] Add integration-specific E2E tests where possible (or deterministic “mock endpoint” tests for Slack webhook)
+
+**Done when:**
+- Integration failures are visible, do not crash the system, and do not corrupt data.
+
+---
+
+### 9.5 Observability Integrity & Operator UX
+
+**Goal:** Operators can understand what happened, and events are correct and safe.
+
+- [ ] Ensure every emitted event includes correct ExecutionContext and entity IDs needed for drill-down
+- [ ] Ensure event payloads do not leak cross-tenant details
+- [ ] Add “pipeline stage” events across crawl → dedup → signal → predictor → prediction → evaluation → learning
+- [ ] Add operator-facing dashboards/widgets for failures (crawl failing, price fetch failing, queue backlog)
+
+**Done when:**
+- You can debug any scenario using the activity feed + history without SSH’ing into the server.
+
+---
+
+### 9.6 Deterministic End-to-End Verification (Demo/Release Gate)
+
+**Goal:** Prove the system works end-to-end with one repeatable, comprehensive test.
+
+- [ ] Implement the **Full Pipeline Proof** test (see **Demo Readiness Gates**) that runs:
+  - create universe → create target → verify T_ mirror → add source → crawl/test-crawl → generate signals → generate predictors → generate prediction → view deep-dive → evaluate → learning actions (as applicable)
+- [ ] Add a matching **UI E2E** that covers the demo path in `/prediction/*`
+- [ ] Document a one-command local validation run (API E2E + UI E2E) that produces a “demo ready” pass/fail signal
+
+**Done when:**
+- A teammate can run the test suite and get a reliable go/no-go for demos/releases.
+
+---
+
+## Background Runners
+
+The prediction system uses scheduled runners for autonomous operations:
+
+| Runner | Purpose | Schedule | Status |
+|--------|---------|----------|--------|
+| `source-crawler.runner` | Crawl sources for new articles | Per-source frequency | ✅ Documented |
+| `batch-signal-processor.runner` | Process signals into predictors | On new signals | ✅ Documented |
+| `batch-prediction-generator.runner` | Generate predictions from ready predictors | On predictor ready | ✅ Documented |
+| `evaluation.runner` | Auto-evaluate expired predictions | Hourly | ✅ Documented |
+| `expiration.runner` | Mark predictions as expired | Hourly | ⚠️ Undocumented |
+| `outcome-tracking.runner` | Capture actual price outcomes | Daily | ⚠️ Undocumented |
+| `missed-opportunity-scanner.runner` | Find missed prediction opportunities | Daily | ✅ Documented |
+
+### Undocumented Runners
+
+**expiration.runner**: Marks predictions as expired when their timeframe passes.
+- Runs hourly
+- Updates prediction status from 'active' to 'expired'
+- Should emit `prediction.expired` event (not currently implemented)
+
+**outcome-tracking.runner**: Captures actual price/outcome data for evaluation.
+- Runs daily (or more frequently)
+- Fetches real price data from market APIs
+- Stores in `target_snapshots` table
+- Critical for evaluation accuracy
+
+**Remaining Work:**
+- [ ] Document expiration.runner behavior and schedule
+- [ ] Document outcome-tracking.runner data sources
+- [ ] Add `prediction.expired` event emission
+- [ ] Verify outcome data is used correctly in evaluation
+
+---
+
+## Error Handling
+
+### Source Crawl Failures
+
+| Error Type | Behavior | User Visibility |
+|------------|----------|-----------------|
+| RSS feed down | Retry with exponential backoff (3 attempts) | Source status shows 'error' |
+| Firecrawl API error | Log error, skip source this cycle | Admin alert (if configured) |
+| Rate limiting | Respect Retry-After header | Crawl delayed |
+| Parse errors | Log and continue with valid articles | Partial results returned |
+
+**Recovery:**
+- Sources auto-retry on next scheduled crawl
+- Manual retry via `sources.test-crawl` action
+- Admin can pause/resume problematic sources
+
+### Insufficient Signals
+
+When a predictor doesn't have enough signals to meet `min_predictors` threshold:
+
+| Scenario | Behavior |
+|----------|----------|
+| Below threshold | Predictor remains in 'pending' state, no prediction generated |
+| Threshold met | Predictor moves to 'ready', prediction generated |
+| Timeout without signals | Predictor expires without prediction (configurable) |
+
+### Empty State Handling
+
+| Operation | Empty State Behavior |
+|-----------|---------------------|
+| List predictions on empty target | Returns empty array, no error |
+| List targets on empty universe | Returns empty array, no error |
+| Create universe without targets | Valid - targets added later |
+| Evaluate prediction without signals | Uses available context, lower confidence |
+
+### Test Data Isolation
+
+**How isolation works:**
+- T_ prefixed targets are automatically flagged `is_test=true`
+- All predictions from T_ targets inherit `is_test=true`
+- Analytics endpoints exclude `is_test=true` by default
+- Dashboard shows test predictions with visual indicator
+- Test predictions never trigger production notifications
+
+**Remaining Work:**
+- [ ] Add `includeTest` param to analytics endpoints
+- [ ] Visual indicator for test predictions in UI
+- [ ] Verify notification filtering by is_test
+
+---
+
 ## Test Coverage Summary
 
 ### Current State
 
 | Category | Files | With Tests | Coverage |
 |----------|-------|------------|----------|
-| Handlers | 16 | 1 | 6% |
-| Repositories | 20 | 1 | 5% |
+| Handlers | 17 | 1 | 6% |
+| Repositories | 23 | 1 | 4% |
 | Services | 38 | 17 | 45% |
 | Runners | 7 | 7 | 100% |
 | E2E Tests | 14 | 14 | Basic ops only |
 
 ### Priority Test Additions
+
+**Demo readiness:** The test suite is considered “demo-complete” only when all **Demo Readiness Gates** in **Blocking Issues → Demo Readiness Gates (Definition of Done)** are green (contract alignment + core API E2E + demo-path UI E2E + one full pipeline proof).
 
 1. **High Priority - Core Demo Flow**
    - [ ] Universe CRUD E2E
@@ -894,6 +1328,38 @@ View: https://app.orchestrator.ai/predictions/xxx
 ---
 
 ## Implementation Priorities
+
+### Sprint 0: Agent Hardening Foundation (Pre-Demo Blockers)
+
+**Focus:** Fix critical blockers from Phase 9 that must be resolved before demo work can proceed safely.
+
+**From Phase 9.1 - Contract Hardening:**
+1. Fix camelCase vs snake_case mismatch in handlers (see Blocking Issues)
+   - Update `target.handler.ts` to accept camelCase params for **create + update** (map internally to DTO/DB snake_case)
+   - Update `source.handler.ts` to accept camelCase params for **create + update** (map internally to DTO/DB snake_case)
+   - Update `universe.handler.ts` to accept camelCase params for **create + update** (map internally to DTO/DB snake_case)
+2. Add E2E regression coverage proving camelCase requests work
+   - Create: universe/target/source create works with transport-types params
+   - Update: universe/target/source update works with transport-types params
+
+**From Phase 9.2 - Scoping Correctness:**
+3. Add negative tests proving cross-org / cross-scope data cannot leak
+   - Use a valid auth token, but request with the wrong `orgSlug` / wrong `agentSlug` / wrong `universeId`
+   - Expected: empty list, `NOT_FOUND`, or clear scoped error (no cross-tenant data returned)
+4. Verify `is_test` isolation across predictions, analytics, and notifications
+
+**From Phase 9.6 - Pipeline Verification:**
+5. Create one "full pipeline proof" E2E test (deterministic happy path)
+   - create universe → create target → verify **T_ mirror** exists → add source → crawl/test-crawl → signal → predictor → prediction
+   - view prediction deep-dive / snapshot (as applicable)
+   - evaluate prediction (and optionally verify learning queue entry if generated)
+
+**Done when:**
+- All universe/target/source **create + update** operations work with camelCase params from transport types
+- Demo Readiness Gate 1 (Contract Alignment) is green
+- At least one full-pipeline E2E test passes end-to-end without manual intervention
+
+---
 
 ### Sprint 1: Core Demo Flow
 1. Verify all CRUD operations work for Universe, Target, Source
@@ -933,6 +1399,79 @@ View: https://app.orchestrator.ai/predictions/xxx
 
 ---
 
+## Blocking Issues
+
+### CRITICAL: camelCase vs snake_case Contract Mismatch
+
+**Status:** 🔴 Blocking - Must fix before demo
+
+**Problem:** The transport types (`apps/transport-types/modes/dashboard.types.ts`) define camelCase params for create operations, but backend handlers still expect snake_case:
+
+| Layer | Convention | Example |
+|-------|------------|---------|
+| Transport Types (shared) | camelCase | `universeId`, `targetType`, `llmConfigOverride` |
+| Backend Handlers (API) | snake_case | `universe_id`, `target_type`, `llm_config_override` |
+
+**Impact:**
+- Frontend sending camelCase will fail validation in handlers
+- All create/update operations in Phase 1 are broken at runtime
+- Tests don't catch this because E2E tests for create flows are missing
+
+**Affected Handlers:**
+- `target.handler.ts` - `handleCreate()` expects `universe_id`, `target_type`
+- `source.handler.ts` - `handleCreate()` expects `source_type`, `scope_level`, `universe_id`
+- `universe.handler.ts` - `handleCreate()` expects `llm_config`, `strategy_id`
+
+**Resolution Options:**
+
+1. **Option A: Fix handlers to accept camelCase** (Recommended)
+   - Update handlers to read camelCase from params
+   - Map to snake_case DTOs internally
+   - Aligns with transport types and frontend expectations
+
+2. **Option B: Change transport types to snake_case**
+   - Update `dashboard.types.ts` to use snake_case
+   - Update frontend to send snake_case
+   - Inconsistent with JavaScript conventions
+
+**Files to Fix (Option A):**
+- [ ] `apps/api/src/prediction-runner/task-router/handlers/target.handler.ts`
+- [ ] `apps/api/src/prediction-runner/task-router/handlers/source.handler.ts`
+- [ ] `apps/api/src/prediction-runner/task-router/handlers/universe.handler.ts`
+- [ ] Add E2E tests for create operations to catch regressions
+
+### Demo Readiness Gates (Definition of Done)
+
+These gates must be **green** before we can claim the PRD scenarios are fully addressed end-to-end (backend + frontend + tests) and are **safe to demo**.
+
+#### Gate 1: Contract Alignment (Blocking)
+- [ ] Dashboard mode request params are **consistent across**:
+  - `apps/transport-types/modes/dashboard.types.ts` (shared types)
+  - Frontend dashboard services (web)
+  - Backend dashboard handlers (api)
+- [ ] Universe/Target/Source create+update accept **camelCase** request params as defined in transport types (recommended), and map internally to DB/DTO `snake_case` as needed.
+- [ ] Add at least one regression test that fails if camelCase create requests stop working.
+
+#### Gate 2: Core Demo Flow (API E2E)
+- [ ] **Universe CRUD**: `universes.create/update/delete` API E2E
+- [ ] **Target CRUD**: `targets.create/update/delete` API E2E
+- [ ] **T_ Mirror verification**: create target → assert `auto_create_test_mirror` fired → assert `test-target-mirrors.list` shows mirror
+- [ ] **Source CRUD**: `sources.create/update/delete` API E2E
+- [ ] **Test crawl**: `sources.test-crawl` API E2E (RSS + Firecrawl where applicable)
+
+#### Gate 3: Demo-Path UI Journeys (Frontend E2E)
+- [ ] Cypress (or Playwright) tests cover the **actual /prediction UI path** for:
+  - Create Universe → add Target → add Source → verify surfaced in UI
+  - Navigate PredictionDashboard → open prediction detail → open deep-dive/snapshot view
+  - Learning/review queue basic navigation + action (where applicable)
+
+#### Gate 4: Full Pipeline Proof (Single End-to-End Scenario)
+- [ ] One “happy path” end-to-end test exists that proves the **full range** works together:
+  - Create universe → create target → verify T_ mirror → add source → crawl/test-crawl → generate signals → generate predictors → generate prediction → view prediction deep-dive → evaluate → learning queue/promotion (as applicable)
+- [ ] This test is deterministic enough to run in CI/dev and is the primary **demo readiness proof**.
+
+---
+
 ## Appendix: Handler Action Reference
 
 ### Universe Handler
@@ -949,14 +1488,137 @@ View: https://app.orchestrator.ai/predictions/xxx
 - `targets.update` - Update target
 - `targets.delete` - Delete target
 
+### Source Handler
+- `sources.list` - List sources for universe/target
+- `sources.get` - Get source by ID
+- `sources.create` - Create new source
+- `sources.update` - Update source config
+- `sources.delete` - Delete source
+- `sources.test-crawl` - Preview crawl results without persisting
+
+### Source Seen Items Handler (Planned)
+- `source-seen-items.list` - List seen articles/items per source *(not yet implemented)*
+- `source-seen-items.stats` - Get deduplication statistics *(not yet implemented)*
+
+### Analyst Handler
+- `analysts.list` - List analysts for universe
+- `analysts.get` - Get analyst by ID
+- `analysts.create` - Create analyst persona
+- `analysts.update` - Update analyst
+- `analysts.delete` - Delete analyst
+
+### Strategy Handler (Read-Only)
+- `strategies.list` - List system strategies
+- `strategies.get` - Get strategy by ID
+- `strategies.recommend` - Get strategy recommendations
+
 ### Prediction Handler
-- `predictions.list` - List predictions
-- `predictions.get` - Get prediction with details
+- `predictions.list` - List predictions (with filters)
+- `predictions.get` - Get prediction with full details
+- `predictions.get-snapshot` - Get prediction state at point in time
+
+### Review Queue Handler
+- `review-queue.list` - List predictions ready for review
+- `review-queue.get` - Get review item details
+- `review-queue.respond` - Submit review response
+
+### Learning Handler
+- `learnings.list` - List learnings
+- `learnings.get` - Get learning by ID
+- `learnings.create` - Create learning
+- `learnings.update` - Update learning
+- `learnings.supersede` - Mark learning as superseded
+
+### Learning Queue Handler
+- `learning-queue.list` - List items in learning queue
+- `learning-queue.get` - Get queue item details
+- `learning-queue.respond` - Process queue item
+
+### Learning Promotion Handler
+- `learning-promotion.list-candidates` - List promotion candidates
+- `learning-promotion.validate` - Validate candidate for promotion
+- `learning-promotion.promote` - Promote learning to strategy
+- `learning-promotion.reject` - Reject promotion candidate
+- `learning-promotion.history` - View promotion history
+- `learning-promotion.stats` - Get promotion statistics
+- `learning-promotion.run-backtest` - Run backtest on candidate
+
+### Missed Opportunity Handler
+- `missed-opportunities.list` - List missed opportunities
+- `missed-opportunities.detect` - Trigger detection scan
+- `missed-opportunities.analyze` - Analyze specific opportunity
+
+### Test Scenario Handler
+- `test-scenarios.list` - List test scenarios
+- `test-scenarios.get` - Get scenario by ID
+- `test-scenarios.create` - Create test scenario
+- `test-scenarios.update` - Update scenario
+- `test-scenarios.delete` - Delete scenario
+- `test-scenarios.run` - Execute scenario
+- `test-scenarios.create-variation` - Create scenario variation
+- Plus 7 more actions for advanced scenario management
+
+### Test Article Handler
+- `test-articles.list` - List test articles
+- `test-articles.get` - Get article by ID
+- `test-articles.create` - Create test article
+- `test-articles.bulk-create` - Bulk create articles
+- `test-articles.generate` - AI-generate test article
+- `test-articles.update` - Update article
+- `test-articles.delete` - Delete article
+
+### Test Price Data Handler
+- `test-price-data.list` - List price data
+- `test-price-data.get` - Get price data by ID
+- `test-price-data.create` - Create price data point
+- `test-price-data.bulk-create` - Bulk create price data
+- `test-price-data.by-date-range` - Query by date range
+- `test-price-data.update` - Update price data
+- `test-price-data.delete` - Delete price data
+
+### Test Target Mirror Handler
+- `test-target-mirrors.list` - List T_ mirrors
+- `test-target-mirrors.get` - Get mirror by ID
+- `test-target-mirrors.create` - Create mirror manually
+- `test-target-mirrors.update` - Update mirror
+- `test-target-mirrors.delete` - Delete mirror
+- Plus advanced query actions
 
 ### Analytics Handler
 - `analytics.summary` - System overview
 - `analytics.accuracy-comparison` - Compare accuracy metrics
+- `analytics.learning-velocity` - Learning promotion rate
+- `analytics.scenario-effectiveness` - Test scenario metrics
+- `analytics.promotion-funnel` - Promotion pipeline metrics
 
-### Learning Promotion Handler
-- `learning-promotion.list-candidates` - List promotion candidates
-- `learning-promotion.stats` - Get promotion statistics
+### Tool Request Handler
+- `tool-requests.list` - List tool requests
+- `tool-requests.get` - Get request by ID
+- `tool-requests.create` - Create tool request
+- `tool-requests.update-status` - Update request status
+
+---
+
+## Appendix: Status Values
+
+### Prediction Status
+- `active` - Prediction is live, awaiting outcome
+- `expired` - Timeframe passed, ready for evaluation
+- `resolved` - Evaluated with outcome
+- `cancelled` - Manually cancelled
+
+### Source Status
+- `active` - Source is being crawled
+- `paused` - Temporarily disabled
+- `error` - Crawl failing, needs attention
+- `archived` - Permanently disabled
+
+### Signal Sentiment
+- `bullish` - Positive indicator
+- `bearish` - Negative indicator
+- `neutral` - No clear direction
+
+### Prediction Direction
+- `up` - Price expected to increase
+- `down` - Price expected to decrease
+- `flat` - No significant change expected
