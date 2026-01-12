@@ -50,3 +50,8 @@ export * from './scenario-variation.service';
 export * from './analytics.service';
 // Sprint 5 - Learning Impact Tracking
 export * from './learning-impact.service';
+// Sprint 6 - Advanced Test Framework & Monitoring
+export * from './test-scenario-comparison.service';
+export * from './test-scenario-batch.service';
+export * from './alert.service';
+export * from './anomaly-detection.service';

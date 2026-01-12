@@ -101,6 +101,25 @@ export interface AccuracyByTargetDto {
 }
 
 /**
+ * Interface for signal detection rate analytics (RESPONSE)
+ * Phase 7.5 - Track signal generation metrics per source/target over time
+ */
+export interface SignalDetectionRateDto {
+  period_date?: string; // Present when grouped by time
+  source_id?: string; // Present when grouped by source
+  source_name?: string; // Present when grouped by source
+  target_id?: string; // Present when grouped by target
+  target_name?: string; // Present when grouped by target
+  signal_direction?: string; // Present when grouped by direction (bullish/bearish/neutral)
+  signal_urgency?: string; // Present when grouped by urgency (urgent/notable/routine)
+  total_signals: number;
+  total_crawls?: number; // Total crawls in the period (when grouping includes source)
+  signal_to_crawl_ratio?: number | null; // Signals per crawl (%)
+  articles_crawled?: number; // Total articles found in crawls
+  signal_to_article_ratio?: number | null; // % of articles that generated signals
+}
+
+/**
  * Interface for analytics summary (RESPONSE)
  * Combines key metrics from all analytics views
  */

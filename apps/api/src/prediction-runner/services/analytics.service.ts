@@ -8,6 +8,7 @@ import {
   AnalyticsSummaryDto,
   AccuracyByStrategyDto,
   AccuracyByTargetDto,
+  SignalDetectionRateDto,
 } from '../dto/analytics.dto';
 
 // Database row types for analytics views
@@ -647,5 +648,309 @@ export class AnalyticsService {
     results.sort((a, b) => b.total_predictions - a.total_predictions);
 
     return results;
+  }
+
+  /**
+   * Get signal detection rate analytics
+   * Track signals detected per source/target over time
+   *
+   * Phase 7.5 - Signal Detection Rate
+   *
+   * @param orgSlug - Organization slug (for future org-scoped filtering)
+   * @param startDate - Optional start date for filtering
+   * @param endDate - Optional end date for filtering
+   * @param groupBy - How to group results: 'day', 'week', 'month', 'source', 'target', 'direction', 'urgency'
+   * @param universeId - Optional universe filter
+   * @param targetId - Optional target filter
+   * @param includeTest - Whether to include test signals (default: false)
+   * @returns Array of signal detection rate records
+   */
+  async getSignalDetectionRate(
+    orgSlug: string,
+    startDate?: string,
+    endDate?: string,
+    groupBy:
+      | 'day'
+      | 'week'
+      | 'month'
+      | 'source'
+      | 'target'
+      | 'direction'
+      | 'urgency' = 'day',
+    universeId?: string,
+    targetId?: string,
+    includeTest = false,
+  ): Promise<SignalDetectionRateDto[]> {
+    this.logger.debug(
+      `Fetching signal detection rate for org: ${orgSlug}, groupBy: ${groupBy}, dateRange: ${startDate ?? 'all'} to ${endDate ?? 'now'}`,
+    );
+
+    const supabase = this.supabaseService.getServiceClient();
+
+    // Build the base query with joins
+    let query = supabase
+      .schema('prediction')
+      .from('signals')
+      .select(
+        `
+        id,
+        detected_at,
+        direction,
+        urgency,
+        source_id,
+        target_id,
+        is_test,
+        sources!inner (
+          id,
+          name,
+          universe_id
+        ),
+        targets!inner (
+          id,
+          name
+        )
+      `,
+      );
+
+    // Apply filters
+    if (!includeTest) {
+      query = query.eq('is_test', false);
+    }
+
+    if (startDate) {
+      query = query.gte('detected_at', startDate);
+    }
+    if (endDate) {
+      query = query.lte('detected_at', endDate);
+    }
+
+    if (universeId) {
+      query = query.eq('sources.universe_id', universeId);
+    }
+
+    if (targetId) {
+      query = query.eq('target_id', targetId);
+    }
+
+    const { data: signalData, error: signalError } = await query;
+
+    if (signalError) {
+      this.logger.error(
+        `Failed to fetch signal detection rate: ${signalError.message}`,
+      );
+      throw new Error(
+        `Failed to fetch signal detection rate: ${signalError.message}`,
+      );
+    }
+
+    // Type for the joined data
+    type SignalRow = {
+      id: string;
+      detected_at: string;
+      direction: string;
+      urgency: string | null;
+      source_id: string;
+      target_id: string;
+      is_test: boolean;
+      sources: {
+        id: string;
+        name: string;
+        universe_id: string | null;
+      } | null;
+      targets: {
+        id: string;
+        name: string;
+      } | null;
+    };
+
+    const signals = (signalData as unknown as SignalRow[] | null) ?? [];
+
+    // If grouping includes source, fetch crawl data for signal-to-crawl ratio
+    let crawlData: Map<string, { crawls: number; articles: number }> | null =
+      null;
+    if (
+      (groupBy === 'source' ||
+        groupBy === 'day' ||
+        groupBy === 'week' ||
+        groupBy === 'month') &&
+      signals.length > 0
+    ) {
+      const sourceIds = Array.from(new Set(signals.map((s) => s.source_id)));
+
+      let crawlQuery = supabase
+        .schema('prediction')
+        .from('source_crawls')
+        .select('source_id, items_found, signals_created, started_at')
+        .in('source_id', sourceIds)
+        .eq('status', 'success');
+
+      if (!includeTest) {
+        crawlQuery = crawlQuery.eq('is_test_data', false);
+      }
+
+      if (startDate) {
+        crawlQuery = crawlQuery.gte('started_at', startDate);
+      }
+      if (endDate) {
+        crawlQuery = crawlQuery.lte('started_at', endDate);
+      }
+
+      const { data: crawls, error: crawlError } = await crawlQuery;
+
+      if (!crawlError && crawls) {
+        crawlData = new Map();
+        for (const crawl of crawls as Array<{
+          source_id: string;
+          items_found: number;
+          signals_created: number;
+          started_at: string;
+        }>) {
+          const key =
+            groupBy === 'source'
+              ? crawl.source_id
+              : this.getTimePeriodKey(crawl.started_at, groupBy);
+
+          const existing = crawlData.get(key) ?? { crawls: 0, articles: 0 };
+          existing.crawls++;
+          existing.articles += crawl.items_found ?? 0;
+          crawlData.set(key, existing);
+        }
+      }
+    }
+
+    // Group signals based on groupBy parameter
+    const groupMap = new Map<string, SignalDetectionRateDto>();
+
+    for (const signal of signals) {
+      let key: string;
+      let dto: Partial<SignalDetectionRateDto>;
+
+      switch (groupBy) {
+        case 'source':
+          key = signal.source_id;
+          dto = {
+            source_id: signal.source_id,
+            source_name: signal.sources?.name ?? 'Unknown',
+          };
+          break;
+
+        case 'target':
+          key = signal.target_id;
+          dto = {
+            target_id: signal.target_id,
+            target_name: signal.targets?.name ?? 'Unknown',
+          };
+          break;
+
+        case 'direction':
+          key = signal.direction;
+          dto = {
+            signal_direction: signal.direction,
+          };
+          break;
+
+        case 'urgency':
+          key = signal.urgency ?? 'none';
+          dto = {
+            signal_urgency: signal.urgency ?? 'none',
+          };
+          break;
+
+        case 'day':
+        case 'week':
+        case 'month':
+          key = this.getTimePeriodKey(signal.detected_at, groupBy);
+          dto = {
+            period_date: key,
+          };
+          break;
+
+        default:
+          key = this.getTimePeriodKey(signal.detected_at, 'day');
+          dto = {
+            period_date: key,
+          };
+      }
+
+      const existing = groupMap.get(key) ?? {
+        ...dto,
+        total_signals: 0,
+      };
+
+      existing.total_signals++;
+      groupMap.set(key, existing);
+    }
+
+    // Convert to array and add crawl/article metrics
+    const results: SignalDetectionRateDto[] = [];
+    for (const [key, stats] of groupMap) {
+      if (crawlData) {
+        const crawlStats = crawlData.get(key);
+        if (crawlStats) {
+          stats.total_crawls = crawlStats.crawls;
+          stats.articles_crawled = crawlStats.articles;
+          stats.signal_to_crawl_ratio =
+            crawlStats.crawls > 0
+              ? (stats.total_signals / crawlStats.crawls) * 100
+              : null;
+          stats.signal_to_article_ratio =
+            crawlStats.articles > 0
+              ? (stats.total_signals / crawlStats.articles) * 100
+              : null;
+        }
+      }
+      results.push(stats);
+    }
+
+    // Sort results appropriately
+    if (groupBy === 'day' || groupBy === 'week' || groupBy === 'month') {
+      results.sort((a, b) =>
+        (b.period_date ?? '').localeCompare(a.period_date ?? ''),
+      );
+    } else {
+      results.sort((a, b) => b.total_signals - a.total_signals);
+    }
+
+    return results;
+  }
+
+  /**
+   * Helper method to get time period key for grouping
+   */
+  private getTimePeriodKey(
+    dateStr: string,
+    groupBy: 'day' | 'week' | 'month',
+  ): string {
+    const date = new Date(dateStr);
+
+    switch (groupBy) {
+      case 'day': {
+        const isoStr = date.toISOString();
+        return isoStr.split('T')[0] ?? isoStr.substring(0, 10); // YYYY-MM-DD
+      }
+
+      case 'week': {
+        // Get ISO week number
+        const target = new Date(date.valueOf());
+        const dayNr = (date.getDay() + 6) % 7;
+        target.setDate(target.getDate() - dayNr + 3);
+        const firstThursday = target.valueOf();
+        target.setMonth(0, 1);
+        if (target.getDay() !== 4) {
+          target.setMonth(0, 1 + ((4 - target.getDay() + 7) % 7));
+        }
+        const weekNumber =
+          1 + Math.ceil((firstThursday - target.valueOf()) / 604800000);
+        return `${date.getFullYear()}-W${weekNumber.toString().padStart(2, '0')}`;
+      }
+
+      case 'month':
+        return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`; // YYYY-MM
+
+      default: {
+        const isoStr = date.toISOString();
+        return isoStr.split('T')[0] ?? isoStr.substring(0, 10);
+      }
+    }
   }
 }

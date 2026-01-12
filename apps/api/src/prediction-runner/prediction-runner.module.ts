@@ -30,6 +30,7 @@ import {
   TestPriceDataRepository,
   TestAuditLogRepository,
   TestArticleRepository,
+  ScenarioRunRepository,
 } from './repositories';
 
 // Services
@@ -81,6 +82,12 @@ import {
   TestDbSourceCrawlerService,
   // Sprint 5 - Learning Impact Tracking
   LearningImpactService,
+  // Sprint 6 - Advanced Test Framework & Monitoring
+  ScenarioRunService,
+  TestScenarioComparisonService,
+  TestScenarioBatchService,
+  AlertService,
+  AnomalyDetectionService,
 } from './services';
 
 // Phase 7 Runners
@@ -151,6 +158,7 @@ const repositories = [
   TestPriceDataRepository,
   TestAuditLogRepository,
   TestArticleRepository,
+  ScenarioRunRepository,
 ];
 
 const services = [
@@ -201,6 +209,12 @@ const services = [
   TestDbSourceCrawlerService,
   // Sprint 5 - Learning Impact Tracking
   LearningImpactService,
+  // Sprint 6 - Advanced Test Framework & Monitoring
+  ScenarioRunService,
+  TestScenarioComparisonService,
+  TestScenarioBatchService,
+  AlertService,
+  AnomalyDetectionService,
 ];
 
 // Phase 7 Runners
