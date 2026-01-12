@@ -65,17 +65,24 @@ export class AgentExecutionGateway {
       organizationSlug: context.orgSlug,
     });
 
-    const assessment = await this.routingPolicy.evaluate(request, agent);
-    const routingMetadata = {
-      ...(assessment.metadata ?? {}),
-      agentMetadata,
-    };
+    // Skip routing policy for dashboard mode (pure data operations, no LLM calls)
+    // Cast mode to string to handle custom modes not in AgentTaskMode enum
+    const isDashboardMode = (request.mode as unknown as string) === 'dashboard';
+    let routingMetadata: Record<string, unknown> = { agentMetadata };
 
-    if (assessment.showstopper) {
-      return TaskResponseDto.human(
-        assessment.humanMessage ?? 'Routing policy requires human review.',
-        'routing_showstopper',
-      );
+    if (!isDashboardMode) {
+      const assessment = await this.routingPolicy.evaluate(request, agent);
+      routingMetadata = {
+        ...(assessment.metadata ?? {}),
+        agentMetadata,
+      };
+
+      if (assessment.showstopper) {
+        return TaskResponseDto.human(
+          assessment.humanMessage ?? 'Routing policy requires human review.',
+          'routing_showstopper',
+        );
+      }
     }
 
     // Enforce execution capabilities before routing
@@ -135,7 +142,28 @@ export class AgentExecutionGateway {
           }
           break;
         default:
-          response = TaskResponseDto.failure(request.mode!, 'Unsupported mode');
+          // Handle custom modes (e.g., 'dashboard' for prediction agents)
+          // Route through modeRouter which delegates to type-specific runners
+          this.logger.debug(
+            `🔍 [GATEWAY-DEBUG] Custom mode detected: ${request.mode}, routing to modeRouter`,
+          );
+          try {
+            response = await this.modeRouter.execute({
+              context,
+              definition,
+              request,
+              routingMetadata,
+            });
+            this.logger.debug(
+              `🔍 [GATEWAY-DEBUG] modeRouter.execute() for custom mode returned: success=${response?.success}`,
+            );
+          } catch (routerError) {
+            this.logger.error(
+              `🔍 [GATEWAY-DEBUG] modeRouter.execute() for custom mode threw error:`,
+              routerError,
+            );
+            throw routerError;
+          }
       }
 
       // Emit completion or failure based on response

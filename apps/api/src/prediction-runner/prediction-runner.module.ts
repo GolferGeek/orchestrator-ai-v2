@@ -77,6 +77,8 @@ import {
   ScenarioVariationService,
   // Phase 6.2 Analytics API Endpoints
   AnalyticsService,
+  // Phase 2 Test Input Infrastructure
+  TestDbSourceCrawlerService,
 } from './services';
 
 // Phase 7 Runners
@@ -188,6 +190,8 @@ const services = [
   ScenarioVariationService,
   // Phase 6.2 Analytics API Endpoints
   AnalyticsService,
+  // Phase 2 Test Input Infrastructure
+  TestDbSourceCrawlerService,
 ];
 
 // Phase 7 Runners

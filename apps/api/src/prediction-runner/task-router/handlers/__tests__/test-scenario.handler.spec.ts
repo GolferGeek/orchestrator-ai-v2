@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TestScenarioHandler } from '../test-scenario.handler';
 import { TestDataInjectorService } from '../../../services/test-data-injector.service';
 import { TestDataGeneratorService } from '../../../services/test-data-generator.service';
+import { ScenarioGeneratorService } from '../../../services/scenario-generator.service';
+import { ScenarioVariationService } from '../../../services/scenario-variation.service';
 import {
   ExecutionContext,
   DashboardRequestPayload,
@@ -20,6 +22,8 @@ describe('TestScenarioHandler', () => {
   let handler: TestScenarioHandler;
   let mockInjectorService: Partial<TestDataInjectorService>;
   let mockGeneratorService: Partial<TestDataGeneratorService>;
+  let mockScenarioGeneratorService: Partial<ScenarioGeneratorService>;
+  let mockScenarioVariationService: Partial<ScenarioVariationService>;
 
   const mockContext: ExecutionContext = {
     userId: 'user-123',
@@ -148,11 +152,51 @@ describe('TestScenarioHandler', () => {
       ] as MockArticle[]),
     };
 
+    mockScenarioGeneratorService = {
+      generateFromMissedOpportunity: jest.fn().mockResolvedValue({
+        name: 'Generated Scenario',
+        description: 'Auto-generated from missed opportunity',
+        injection_points: ['signals'],
+        target_id: 'target-123',
+        organization_slug: 'test-org',
+        config: {},
+      }),
+      generateFromLearning: jest.fn().mockResolvedValue({
+        name: 'Generated Scenario',
+        description: 'Auto-generated from learning',
+        injection_points: ['signals'],
+        target_id: 'target-123',
+        organization_slug: 'test-org',
+        config: {},
+      }),
+    };
+
+    mockScenarioVariationService = {
+      generateVariations: jest.fn().mockResolvedValue([
+        {
+          name: 'Variation 1',
+          description: 'First variation',
+          injection_points: ['signals'],
+          target_id: 'target-123',
+          organization_slug: 'test-org',
+          config: { modifier: 'bullish' },
+        },
+      ]),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TestScenarioHandler,
         { provide: TestDataInjectorService, useValue: mockInjectorService },
         { provide: TestDataGeneratorService, useValue: mockGeneratorService },
+        {
+          provide: ScenarioGeneratorService,
+          useValue: mockScenarioGeneratorService,
+        },
+        {
+          provide: ScenarioVariationService,
+          useValue: mockScenarioVariationService,
+        },
       ],
     }).compile();
 

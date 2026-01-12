@@ -11,7 +11,12 @@ import { ReviewQueueHandler } from '../handlers/review-queue.handler';
 import { StrategyHandler } from '../handlers/strategy.handler';
 import { MissedOpportunityHandler } from '../handlers/missed-opportunity.handler';
 import { ToolRequestHandler } from '../handlers/tool-request.handler';
+import { LearningPromotionHandler } from '../handlers/learning-promotion.handler';
 import { TestScenarioHandler } from '../handlers/test-scenario.handler';
+import { TestArticleHandler } from '../handlers/test-article.handler';
+import { TestPriceDataHandler } from '../handlers/test-price-data.handler';
+import { TestTargetMirrorHandler } from '../handlers/test-target-mirror.handler';
+import { AnalyticsHandler } from '../handlers/analytics.handler';
 import {
   ExecutionContext,
   DashboardRequestPayload,
@@ -30,7 +35,12 @@ describe('PredictionDashboardRouter', () => {
   let strategyHandler: jest.Mocked<StrategyHandler>;
   let missedOpportunityHandler: jest.Mocked<MissedOpportunityHandler>;
   let toolRequestHandler: jest.Mocked<ToolRequestHandler>;
+  let _learningPromotionHandler: jest.Mocked<LearningPromotionHandler>;
   let testScenarioHandler: jest.Mocked<TestScenarioHandler>;
+  let _testArticleHandler: jest.Mocked<TestArticleHandler>;
+  let _testPriceDataHandler: jest.Mocked<TestPriceDataHandler>;
+  let _testTargetMirrorHandler: jest.Mocked<TestTargetMirrorHandler>;
+  let _analyticsHandler: jest.Mocked<AnalyticsHandler>;
 
   const mockContext: ExecutionContext = {
     userId: 'user-123',
@@ -65,7 +75,12 @@ describe('PredictionDashboardRouter', () => {
         { provide: StrategyHandler, useValue: createMockHandler() },
         { provide: MissedOpportunityHandler, useValue: createMockHandler() },
         { provide: ToolRequestHandler, useValue: createMockHandler() },
+        { provide: LearningPromotionHandler, useValue: createMockHandler() },
         { provide: TestScenarioHandler, useValue: createMockHandler() },
+        { provide: TestArticleHandler, useValue: createMockHandler() },
+        { provide: TestPriceDataHandler, useValue: createMockHandler() },
+        { provide: TestTargetMirrorHandler, useValue: createMockHandler() },
+        { provide: AnalyticsHandler, useValue: createMockHandler() },
       ],
     }).compile();
 
@@ -81,7 +96,12 @@ describe('PredictionDashboardRouter', () => {
     strategyHandler = module.get(StrategyHandler);
     missedOpportunityHandler = module.get(MissedOpportunityHandler);
     toolRequestHandler = module.get(ToolRequestHandler);
+    _learningPromotionHandler = module.get(LearningPromotionHandler);
     testScenarioHandler = module.get(TestScenarioHandler);
+    _testArticleHandler = module.get(TestArticleHandler);
+    _testPriceDataHandler = module.get(TestPriceDataHandler);
+    _testTargetMirrorHandler = module.get(TestTargetMirrorHandler);
+    _analyticsHandler = module.get(AnalyticsHandler);
 
     jest.clearAllMocks();
   });
