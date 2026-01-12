@@ -4,6 +4,8 @@ import { SourceRepository } from '../repositories/source.repository';
 import { TargetRepository } from '../repositories/target.repository';
 import { SourceCrawlerService } from '../services/source-crawler.service';
 import { CrawlFrequency, Source } from '../interfaces/source.interface';
+import { ObservabilityEventsService } from '@/observability/observability-events.service';
+import { ExecutionContext, NIL_UUID } from '@orchestrator-ai/transport-types';
 
 /**
  * Source Crawler Runner - Phase 7, Step 7-1
@@ -36,6 +38,7 @@ export class SourceCrawlerRunner {
     private readonly sourceRepository: SourceRepository,
     private readonly targetRepository: TargetRepository,
     private readonly sourceCrawlerService: SourceCrawlerService,
+    private readonly observabilityEventsService: ObservabilityEventsService,
   ) {}
 
   /**
@@ -98,7 +101,37 @@ export class SourceCrawlerRunner {
     this.isRunning[frequency] = true;
     const startTime = Date.now();
 
+    // Create execution context for observability
+    const ctx: ExecutionContext = {
+      orgSlug: 'system',
+      userId: NIL_UUID,
+      conversationId: NIL_UUID,
+      taskId: `crawl-${frequency}min-${Date.now()}`,
+      planId: NIL_UUID,
+      deliverableId: NIL_UUID,
+      agentSlug: 'prediction-runner',
+      agentType: 'runner',
+      provider: NIL_UUID,
+      model: NIL_UUID,
+    };
+
     this.logger.log(`Starting ${frequency}-minute source crawl`);
+
+    // Emit source.crawl.started event
+    await this.observabilityEventsService.push({
+      context: ctx,
+      source_app: 'prediction-runner',
+      hook_event_type: 'source.crawl.started',
+      status: 'started',
+      message: `Starting ${frequency}-minute source crawl`,
+      progress: 0,
+      step: 'crawl-started',
+      payload: {
+        frequency,
+        crawlType: 'scheduled',
+      },
+      timestamp: Date.now(),
+    });
 
     let total = 0;
     let successful = 0;
@@ -112,6 +145,27 @@ export class SourceCrawlerRunner {
 
       if (total === 0) {
         this.logger.debug(`No ${frequency}-min sources due for crawl`);
+
+        // Emit completed event even for empty crawls
+        await this.observabilityEventsService.push({
+          context: ctx,
+          source_app: 'prediction-runner',
+          hook_event_type: 'source.crawl.completed',
+          status: 'completed',
+          message: `No ${frequency}-min sources due for crawl`,
+          progress: 100,
+          step: 'crawl-completed',
+          payload: {
+            frequency,
+            total: 0,
+            successful: 0,
+            failed: 0,
+            signalsCreated: 0,
+            durationMs: Date.now() - startTime,
+          },
+          timestamp: Date.now(),
+        });
+
         return { total: 0, successful: 0, failed: 0, signalsCreated: 0 };
       }
 
@@ -140,6 +194,26 @@ export class SourceCrawlerRunner {
         `Completed ${frequency}-min crawl: ${successful}/${total} successful, ` +
           `${signalsCreated} signals created (${duration}ms)`,
       );
+
+      // Emit source.crawl.completed event
+      await this.observabilityEventsService.push({
+        context: ctx,
+        source_app: 'prediction-runner',
+        hook_event_type: 'source.crawl.completed',
+        status: 'completed',
+        message: `Completed ${frequency}-min crawl: ${successful}/${total} successful, ${signalsCreated} signals created`,
+        progress: 100,
+        step: 'crawl-completed',
+        payload: {
+          frequency,
+          total,
+          successful,
+          failed,
+          signalsCreated,
+          durationMs: duration,
+        },
+        timestamp: Date.now(),
+      });
 
       return { total, successful, failed, signalsCreated };
     } finally {

@@ -3,12 +3,21 @@
     <header class="dashboard-header">
       <h1>Prediction Dashboard</h1>
       <div class="header-actions">
+        <button class="btn btn-secondary" @click="showActivityFeed = !showActivityFeed">
+          <span class="icon">&#128202;</span>
+          {{ showActivityFeed ? 'Hide Activity' : 'Watch Activity' }}
+        </button>
         <button class="btn btn-secondary" @click="refreshData">
           <span class="icon">&#8635;</span>
           Refresh
         </button>
       </div>
     </header>
+
+    <!-- Activity Feed Panel -->
+    <section v-if="showActivityFeed" class="activity-feed-section">
+      <PredictionActivityFeed @close="showActivityFeed = false" />
+    </section>
 
     <!-- Filters Section -->
     <section class="filters-section">
@@ -146,6 +155,7 @@ import { useRouter } from 'vue-router';
 import { usePredictionStore } from '@/stores/predictionStore';
 import { predictionDashboardService } from '@/services/predictionDashboardService';
 import PredictionCard from '@/components/prediction/PredictionCard.vue';
+import PredictionActivityFeed from '@/components/prediction/PredictionActivityFeed.vue';
 
 const router = useRouter();
 const store = usePredictionStore();
@@ -153,6 +163,7 @@ const store = usePredictionStore();
 const selectedUniverse = ref<string | null>(null);
 const statusFilter = ref<'all' | 'active' | 'resolved' | 'expired' | 'cancelled'>('all');
 const domainFilter = ref<string | null>(null);
+const showActivityFeed = ref(false);
 
 const hasFilters = computed(() => {
   return selectedUniverse.value !== null || statusFilter.value !== 'all' || domainFilter.value !== null;
@@ -231,6 +242,11 @@ onMounted(() => {
   font-weight: 600;
   color: var(--text-primary, #111827);
   margin: 0;
+}
+
+/* Activity Feed Section */
+.activity-feed-section {
+  margin-bottom: 1.5rem;
 }
 
 .header-actions {

@@ -10,6 +10,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { ExecutionContext } from '@orchestrator-ai/transport-types';
 import type { DashboardRequestPayload } from '@orchestrator-ai/transport-types';
 import { PredictionRepository } from '../../repositories/prediction.repository';
+import { PredictorRepository } from '../../repositories/predictor.repository';
+import { SignalRepository } from '../../repositories/signal.repository';
+import { SignalFingerprintRepository } from '../../repositories/signal-fingerprint.repository';
+import { SourceSeenItemRepository } from '../../repositories/source-seen-item.repository';
 import { SnapshotService } from '../../services/snapshot.service';
 import {
   IDashboardHandler,
@@ -41,10 +45,19 @@ interface PredictionParams {
 @Injectable()
 export class PredictionHandler implements IDashboardHandler {
   private readonly logger = new Logger(PredictionHandler.name);
-  private readonly supportedActions = ['list', 'get', 'getSnapshot'];
+  private readonly supportedActions = [
+    'list',
+    'get',
+    'getSnapshot',
+    'getDeepDive',
+  ];
 
   constructor(
     private readonly predictionRepository: PredictionRepository,
+    private readonly predictorRepository: PredictorRepository,
+    private readonly signalRepository: SignalRepository,
+    private readonly signalFingerprintRepository: SignalFingerprintRepository,
+    private readonly sourceSeenItemRepository: SourceSeenItemRepository,
     private readonly snapshotService: SnapshotService,
   ) {}
 
@@ -68,6 +81,11 @@ export class PredictionHandler implements IDashboardHandler {
       case 'get-snapshot':
       case 'snapshot':
         return this.handleGetSnapshot(params);
+      case 'getdeepdive':
+      case 'get-deep-dive':
+      case 'deep-dive':
+      case 'deepdive':
+        return this.handleGetDeepDive(params);
       default:
         return buildDashboardError(
           'UNSUPPORTED_ACTION',
@@ -254,6 +272,183 @@ export class PredictionHandler implements IDashboardHandler {
       return buildDashboardError(
         'SNAPSHOT_FAILED',
         error instanceof Error ? error.message : 'Failed to get snapshot',
+      );
+    }
+  }
+
+  /**
+   * Get full prediction deep-dive with lineage:
+   * - Prediction details
+   * - Source article references
+   * - Signal fingerprints
+   * - Analyst reasoning chain
+   * - Contributing predictors with signals
+   */
+  private async handleGetDeepDive(
+    params?: PredictionParams,
+  ): Promise<DashboardActionResult> {
+    if (!params?.id) {
+      return buildDashboardError('MISSING_ID', 'Prediction ID is required');
+    }
+
+    try {
+      // Get prediction
+      const prediction = await this.predictionRepository.findById(params.id);
+      if (!prediction) {
+        return buildDashboardError(
+          'NOT_FOUND',
+          `Prediction not found: ${params.id}`,
+        );
+      }
+
+      // Get snapshot for predictor IDs and analyst assessments
+      const snapshot = await this.snapshotService.getSnapshot(params.id);
+
+      // Get predictors that contributed to this prediction
+      const predictorIds =
+        snapshot?.predictors?.map((p) => p.predictor_id) ?? [];
+      const predictors = await Promise.all(
+        predictorIds.map((id) => this.predictorRepository.findById(id)),
+      );
+      const validPredictors = predictors.filter((p) => p !== null);
+
+      // Get signals for each predictor
+      const signalIds = validPredictors
+        .map((p) => p.signal_id)
+        .filter((id): id is string => !!id);
+      const signals = await Promise.all(
+        signalIds.map((id) => this.signalRepository.findById(id)),
+      );
+      const validSignals = signals.filter((s) => s !== null);
+
+      // Get fingerprints for signals
+      const fingerprints = await Promise.all(
+        signalIds.map((id) =>
+          this.signalFingerprintRepository.findBySignalId(id),
+        ),
+      );
+
+      // Get source articles (from seen items) for signals
+      const sourceArticles = await Promise.all(
+        validSignals.map(async (signal) => {
+          const contentHash = signal.metadata?.content_hash as
+            | string
+            | undefined;
+          if (!contentHash) return null;
+          return this.sourceSeenItemRepository.findByContentHash(
+            signal.source_id,
+            contentHash,
+          );
+        }),
+      );
+
+      // Build reasoning chain from analyst assessments
+      const reasoningChain =
+        snapshot?.analyst_assessments?.map((assessment) => ({
+          analystSlug: assessment.analyst.slug,
+          tier: assessment.tier,
+          direction: assessment.direction,
+          confidence: assessment.confidence,
+          reasoning: assessment.reasoning,
+          keyFactors: assessment.key_factors,
+          risks: assessment.risks,
+          learningsApplied: assessment.learnings_applied,
+        })) ?? [];
+
+      // Build complete lineage response
+      return buildDashboardSuccess({
+        prediction: {
+          id: prediction.id,
+          targetId: prediction.target_id,
+          direction: prediction.direction,
+          magnitude: prediction.magnitude,
+          confidence: prediction.confidence,
+          timeframeHours: prediction.timeframe_hours,
+          status: prediction.status,
+          predictedAt: prediction.predicted_at,
+          expiresAt: prediction.expires_at,
+          outcomeValue: prediction.outcome_value,
+          resolutionNotes: prediction.resolution_notes,
+          reasoning: prediction.reasoning,
+        },
+        lineage: {
+          // Contributing predictors with their signals
+          predictors: validPredictors.map((predictor, idx) => {
+            const signal = validSignals.find(
+              (s) => s.id === predictor.signal_id,
+            );
+            const fingerprint = fingerprints[idx];
+            const article = sourceArticles[idx];
+
+            return {
+              id: predictor.id,
+              direction: predictor.direction,
+              strength: predictor.strength,
+              confidence: predictor.confidence,
+              reasoning: predictor.reasoning,
+              analystSlug: predictor.analyst_slug,
+              createdAt: predictor.created_at,
+              signal: signal
+                ? {
+                    id: signal.id,
+                    content: signal.content,
+                    direction: signal.direction,
+                    urgency: signal.urgency,
+                    sourceId: signal.source_id,
+                    detectedAt: signal.detected_at,
+                    url: signal.url,
+                  }
+                : null,
+              fingerprint: fingerprint
+                ? {
+                    titleNormalized: fingerprint.title_normalized,
+                    keyPhrases: fingerprint.key_phrases,
+                    fingerprintHash: fingerprint.fingerprint_hash,
+                  }
+                : null,
+              sourceArticle: article
+                ? {
+                    url: article.original_url,
+                    title:
+                      typeof article.metadata?.title === 'string'
+                        ? article.metadata.title
+                        : undefined,
+                    firstSeenAt: article.first_seen_at,
+                    contentHash: article.content_hash,
+                  }
+                : null,
+            };
+          }),
+          // Analyst reasoning chain
+          analystAssessments: reasoningChain,
+          // LLM ensemble details
+          llmEnsemble: snapshot?.llm_ensemble ?? null,
+          // Threshold evaluation
+          thresholdEvaluation: snapshot?.threshold_evaluation ?? null,
+          // Timeline of events
+          timeline: snapshot?.timeline ?? [],
+        },
+        // Summary stats
+        stats: {
+          predictorCount: validPredictors.length,
+          signalCount: validSignals.length,
+          analystCount: reasoningChain.length,
+          averageConfidence:
+            validPredictors.length > 0
+              ? validPredictors.reduce((sum, p) => sum + p.confidence, 0) /
+                validPredictors.length
+              : 0,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to get prediction deep-dive: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return buildDashboardError(
+        'DEEPDIVE_FAILED',
+        error instanceof Error
+          ? error.message
+          : 'Failed to get prediction deep-dive',
       );
     }
   }

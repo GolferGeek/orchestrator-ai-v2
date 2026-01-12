@@ -9,6 +9,8 @@ import {
   ThresholdEvaluationResult,
   DEFAULT_THRESHOLD_CONFIG,
 } from '../interfaces/threshold-evaluation.interface';
+import { ObservabilityEventsService } from '@/observability/observability-events.service';
+import { ExecutionContext, NIL_UUID } from '@orchestrator-ai/transport-types';
 
 /**
  * Tier 2: Predictor Management Service
@@ -28,7 +30,28 @@ import {
 export class PredictorManagementService {
   private readonly logger = new Logger(PredictorManagementService.name);
 
-  constructor(private readonly predictorRepository: PredictorRepository) {}
+  constructor(
+    private readonly predictorRepository: PredictorRepository,
+    private readonly observabilityEventsService: ObservabilityEventsService,
+  ) {}
+
+  /**
+   * Create execution context for observability events
+   */
+  private createObservabilityContext(targetId: string): ExecutionContext {
+    return {
+      orgSlug: 'system',
+      userId: NIL_UUID,
+      conversationId: NIL_UUID,
+      taskId: `predictor-eval-${targetId}-${Date.now()}`,
+      planId: NIL_UUID,
+      deliverableId: NIL_UUID,
+      agentSlug: 'predictor-management',
+      agentType: 'service',
+      provider: NIL_UUID,
+      model: NIL_UUID,
+    };
+  }
 
   /**
    * Get active predictors for a target
@@ -122,6 +145,32 @@ export class PredictorManagementService {
         `meets=${meetsThreshold}, active=${activeCount}, ` +
         `strength=${combinedStrength}, consensus=${directionConsensus.toFixed(2)}`,
     );
+
+    // Emit predictor.ready event when threshold is met
+    if (meetsThreshold) {
+      const ctx = this.createObservabilityContext(targetId);
+      await this.observabilityEventsService.push({
+        context: ctx,
+        source_app: 'prediction-runner',
+        hook_event_type: 'predictor.ready',
+        status: 'ready',
+        message: `Predictor threshold met for target: ${activeCount} predictors, ${combinedStrength} combined strength, ${(directionConsensus * 100).toFixed(0)}% consensus (${dominantDirection})`,
+        progress: null,
+        step: 'predictor-ready',
+        payload: {
+          targetId,
+          activeCount,
+          combinedStrength,
+          directionConsensus,
+          dominantDirection,
+          bullishCount,
+          bearishCount,
+          neutralCount,
+          avgConfidence,
+        },
+        timestamp: Date.now(),
+      });
+    }
 
     return result;
   }

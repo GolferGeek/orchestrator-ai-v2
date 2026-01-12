@@ -4,6 +4,7 @@ import { SignalRepository } from '../repositories/signal.repository';
 import { PredictorRepository } from '../repositories/predictor.repository';
 import { AnalystEnsembleService } from './analyst-ensemble.service';
 import { TargetService } from './target.service';
+import { ObservabilityEventsService } from '@/observability/observability-events.service';
 import {
   Signal,
   SignalUrgency,
@@ -40,6 +41,7 @@ export class SignalDetectionService {
     private readonly predictorRepository: PredictorRepository,
     private readonly ensembleService: AnalystEnsembleService,
     private readonly targetService: TargetService,
+    private readonly observabilityEventsService: ObservabilityEventsService,
   ) {}
 
   /**
@@ -104,6 +106,31 @@ export class SignalDetectionService {
         effectiveConfig,
       );
     }
+
+    // Emit signal.detected event for observability
+    await this.observabilityEventsService.push({
+      context: ctx,
+      source_app: 'prediction-runner',
+      hook_event_type: 'signal.detected',
+      status: evaluation.shouldCreatePredictor ? 'approved' : 'rejected',
+      message: evaluation.shouldCreatePredictor
+        ? `Signal approved - creating predictor (${evaluation.direction}, confidence: ${(evaluation.confidence * 100).toFixed(0)}%)`
+        : `Signal rejected (confidence: ${(evaluation.confidence * 100).toFixed(0)}%)`,
+      progress: null,
+      step: 'signal-detected',
+      payload: {
+        signalId: input.signal.id,
+        targetId: input.targetId,
+        targetSymbol: target.symbol,
+        direction: evaluation.direction,
+        confidence: evaluation.confidence,
+        urgency,
+        shouldCreatePredictor: evaluation.shouldCreatePredictor,
+        keyFactors: evaluation.key_factors,
+        risks: evaluation.risks,
+      },
+      timestamp: Date.now(),
+    });
 
     return {
       signal: input.signal,

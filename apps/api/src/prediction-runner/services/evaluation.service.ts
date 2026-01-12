@@ -5,6 +5,8 @@ import {
   Prediction,
   PredictionDirection,
 } from '../interfaces/prediction.interface';
+import { ObservabilityEventsService } from '@/observability/observability-events.service';
+import { ExecutionContext, NIL_UUID } from '@orchestrator-ai/transport-types';
 
 /**
  * Evaluation result for a resolved prediction
@@ -54,7 +56,26 @@ export class EvaluationService {
   constructor(
     private readonly predictionRepository: PredictionRepository,
     private readonly snapshotService: SnapshotService,
+    private readonly observabilityEventsService: ObservabilityEventsService,
   ) {}
+
+  /**
+   * Create execution context for observability events
+   */
+  private createObservabilityContext(predictionId: string): ExecutionContext {
+    return {
+      orgSlug: 'system',
+      userId: NIL_UUID,
+      conversationId: NIL_UUID,
+      taskId: `eval-${predictionId}-${Date.now()}`,
+      planId: NIL_UUID,
+      deliverableId: NIL_UUID,
+      agentSlug: 'evaluation-service',
+      agentType: 'service',
+      provider: NIL_UUID,
+      model: NIL_UUID,
+    };
+  }
 
   /**
    * Evaluate a resolved prediction
@@ -132,6 +153,33 @@ export class EvaluationService {
         `magnitude=${(magnitudeAccuracy * 100).toFixed(0)}%, ` +
         `overall=${(overallScore * 100).toFixed(0)}%`,
     );
+
+    // Emit prediction.evaluated event for observability
+    const ctx = this.createObservabilityContext(predictionId);
+    await this.observabilityEventsService.push({
+      context: ctx,
+      source_app: 'prediction-runner',
+      hook_event_type: 'prediction.evaluated',
+      status: directionCorrect ? 'correct' : 'incorrect',
+      message: `Prediction evaluated: ${directionCorrect ? 'CORRECT' : 'WRONG'} (${(overallScore * 100).toFixed(0)}% score) - predicted ${prediction.direction}, actual ${actualDirection}`,
+      progress: null,
+      step: 'prediction-evaluated',
+      payload: {
+        predictionId,
+        targetId: prediction.target_id,
+        directionCorrect,
+        magnitudeAccuracy,
+        timingAccuracy,
+        overallScore,
+        predictedDirection: prediction.direction,
+        actualDirection,
+        predictedMagnitude: predictedMagnitudeNumeric,
+        actualMagnitude,
+        predictedConfidence: prediction.confidence,
+        horizonHours: prediction.timeframe_hours,
+      },
+      timestamp: Date.now(),
+    });
 
     return result;
   }

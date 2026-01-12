@@ -21,6 +21,8 @@ import {
   DeduplicationMetrics,
   ProcessItemResult,
 } from '../interfaces/signal-fingerprint.interface';
+import { ObservabilityEventsService } from '@/observability/observability-events.service';
+import { ExecutionContext, NIL_UUID } from '@orchestrator-ai/transport-types';
 
 /**
  * Default deduplication configuration
@@ -70,7 +72,26 @@ export class SourceCrawlerService {
     private readonly contentHashService: ContentHashService,
     @Inject(forwardRef(() => TestDbSourceCrawlerService))
     private readonly testDbSourceCrawlerService: TestDbSourceCrawlerService,
+    private readonly observabilityEventsService: ObservabilityEventsService,
   ) {}
+
+  /**
+   * Create execution context for observability events
+   */
+  private createObservabilityContext(sourceId: string): ExecutionContext {
+    return {
+      orgSlug: 'system',
+      userId: NIL_UUID,
+      conversationId: NIL_UUID,
+      taskId: `source-crawl-${sourceId}-${Date.now()}`,
+      planId: NIL_UUID,
+      deliverableId: NIL_UUID,
+      agentSlug: 'source-crawler',
+      agentType: 'service',
+      provider: NIL_UUID,
+      model: NIL_UUID,
+    };
+  }
 
   /**
    * Crawl a source and create signals from new content
@@ -421,6 +442,30 @@ export class SourceCrawlerService {
     this.logger.debug(
       `Created signal ${signal.id} for content ${contentHash.substring(0, 8)}...`,
     );
+
+    // Emit article.discovered event for observability
+    const ctx = this.createObservabilityContext(source.id);
+    await this.observabilityEventsService.push({
+      context: ctx,
+      source_app: 'prediction-runner',
+      hook_event_type: 'article.discovered',
+      status: 'discovered',
+      message: `New article discovered: ${title.substring(0, 100)}${title.length > 100 ? '...' : ''}`,
+      progress: null,
+      step: 'article-discovered',
+      payload: {
+        sourceId: source.id,
+        sourceName: source.name,
+        sourceType: source.source_type,
+        targetId,
+        signalId: signal.id,
+        articleTitle: title,
+        articleUrl: item.url,
+        isTest: isTestSignal,
+        direction: signal.direction,
+      },
+      timestamp: Date.now(),
+    });
 
     // Update seen item with signal ID if we have the seenItem
     if (seenItem) {

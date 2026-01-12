@@ -5,6 +5,7 @@ import { PredictorManagementService } from './predictor-management.service';
 import { SnapshotService } from './snapshot.service';
 import { AnalystEnsembleService } from './analyst-ensemble.service';
 import { TargetService } from './target.service';
+import { ObservabilityEventsService } from '@/observability/observability-events.service';
 import {
   Prediction,
   PredictionDirection,
@@ -48,6 +49,7 @@ export class PredictionGenerationService {
     private readonly snapshotService: SnapshotService,
     private readonly ensembleService: AnalystEnsembleService,
     private readonly targetService: TargetService,
+    private readonly observabilityEventsService: ObservabilityEventsService,
   ) {}
 
   /**
@@ -181,6 +183,32 @@ export class PredictionGenerationService {
       thresholdResult,
       ensembleResult,
     );
+
+    // Emit prediction.created event for observability
+    await this.observabilityEventsService.push({
+      context: ctx,
+      source_app: 'prediction-runner',
+      hook_event_type: 'prediction.created',
+      status: 'created',
+      message: `Prediction created: ${target.symbol} ${direction} ${magnitudeCategory} (${(confidence * 100).toFixed(0)}% confidence)`,
+      progress: null,
+      step: 'prediction-created',
+      payload: {
+        predictionId: prediction.id,
+        targetId,
+        targetSymbol: target.symbol,
+        direction,
+        magnitude: magnitudeCategory,
+        magnitudePercent: magnitude,
+        confidence,
+        timeframeHours: horizonHours,
+        expiresAt: expiresAt.toISOString(),
+        predictorCount: predictors.length,
+        combinedStrength: thresholdResult.combinedStrength,
+        directionConsensus: thresholdResult.directionConsensus,
+      },
+      timestamp: Date.now(),
+    });
 
     return prediction;
   }
