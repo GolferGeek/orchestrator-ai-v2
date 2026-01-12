@@ -6,6 +6,8 @@ import {
   ScenarioEffectivenessDto,
   PromotionFunnelDto,
   AnalyticsSummaryDto,
+  AccuracyByStrategyDto,
+  AccuracyByTargetDto,
 } from '../dto/analytics.dto';
 
 // Database row types for analytics views
@@ -43,6 +45,9 @@ interface PromotionFunnelRow {
   count: number;
   pct_of_total: number | null;
 }
+
+// Note: AccuracyByStrategyRow and AccuracyByTargetRow interfaces are not needed
+// because we aggregate data from predictions table directly rather than from views
 
 /**
  * Analytics Service
@@ -367,5 +372,280 @@ export class AnalyticsService {
         promoted: funnelMap['promoted'] ?? 0,
       },
     };
+  }
+
+  /**
+   * Get accuracy by strategy analytics
+   * Breakdown of prediction accuracy by strategy used
+   *
+   * Phase 4.8 - Accuracy by Strategy
+   *
+   * @param orgSlug - Organization slug (for future org-scoped filtering)
+   * @param includeTest - Whether to include test predictions (default: false)
+   * @returns Array of accuracy-by-strategy records
+   */
+  async getAccuracyByStrategy(
+    orgSlug: string,
+    includeTest = false,
+  ): Promise<AccuracyByStrategyDto[]> {
+    this.logger.debug(
+      `Fetching accuracy by strategy for org: ${orgSlug}, includeTest: ${includeTest}`,
+    );
+
+    const supabase = this.supabaseService.getServiceClient();
+
+    // Query predictions with strategy information
+    // Since there's no dedicated view, we'll aggregate from predictions table
+    const { data, error } = await supabase
+      .schema('prediction')
+      .from('predictions')
+      .select(
+        `
+        id,
+        direction,
+        magnitude,
+        confidence,
+        status,
+        outcome_value,
+        is_test,
+        predicted_at,
+        target_id,
+        targets!inner (
+          id,
+          name,
+          strategies (
+            id,
+            name
+          )
+        )
+      `,
+      )
+      .eq('status', 'resolved');
+
+    if (error) {
+      this.logger.error(
+        `Failed to fetch accuracy by strategy: ${error.message}`,
+      );
+      throw new Error(`Failed to fetch accuracy by strategy: ${error.message}`);
+    }
+
+    // Aggregate by strategy
+    const strategyMap = new Map<
+      string,
+      {
+        total: number;
+        resolved: number;
+        correct: number;
+        confidenceSum: number;
+        magnitudeSum: number;
+        timingSum: number;
+      }
+    >();
+
+    // Supabase returns joined tables as single objects when using !inner
+    type PredictionRow = {
+      id: string;
+      direction: string;
+      magnitude: string;
+      confidence: number;
+      status: string;
+      outcome_value: number | null;
+      is_test: boolean;
+      targets: {
+        id: string;
+        name: string;
+        strategies: Array<{ id: string; name: string }> | null;
+      } | null;
+    };
+
+    for (const row of (data as unknown as PredictionRow[] | null) ?? []) {
+      // Skip test data unless includeTest is true
+      if (!includeTest && row.is_test) continue;
+
+      const strategies = row.targets?.strategies ?? [];
+      const strategyName =
+        strategies.length > 0
+          ? (strategies[0]?.name ?? 'Unknown')
+          : 'No Strategy';
+
+      const existing = strategyMap.get(strategyName) ?? {
+        total: 0,
+        resolved: 0,
+        correct: 0,
+        confidenceSum: 0,
+        magnitudeSum: 0,
+        timingSum: 0,
+      };
+
+      existing.total++;
+      existing.resolved++;
+      existing.confidenceSum += row.confidence ?? 0;
+
+      // Determine if prediction was correct (simplified: direction matched outcome)
+      if (row.outcome_value !== null) {
+        const outcomeDirection = row.outcome_value > 0 ? 'up' : 'down';
+        if (row.direction === outcomeDirection) {
+          existing.correct++;
+        }
+      }
+
+      strategyMap.set(strategyName, existing);
+    }
+
+    // Convert to DTOs
+    const results: AccuracyByStrategyDto[] = [];
+    for (const [strategyName, stats] of strategyMap) {
+      results.push({
+        strategy_name: strategyName,
+        total_predictions: stats.total,
+        resolved_predictions: stats.resolved,
+        correct_predictions: stats.correct,
+        accuracy_pct:
+          stats.resolved > 0 ? (stats.correct / stats.resolved) * 100 : null,
+        avg_confidence:
+          stats.total > 0 ? stats.confidenceSum / stats.total : null,
+        avg_magnitude_score: null, // Would need evaluation data
+        avg_timing_score: null, // Would need evaluation data
+      });
+    }
+
+    // Sort by total predictions descending
+    results.sort((a, b) => b.total_predictions - a.total_predictions);
+
+    return results;
+  }
+
+  /**
+   * Get accuracy by target analytics
+   * Breakdown of prediction accuracy by target
+   *
+   * Phase 4.9 - Accuracy by Target
+   *
+   * @param orgSlug - Organization slug (for future org-scoped filtering)
+   * @param includeTest - Whether to include test targets (default: false)
+   * @returns Array of accuracy-by-target records
+   */
+  async getAccuracyByTarget(
+    orgSlug: string,
+    includeTest = false,
+  ): Promise<AccuracyByTargetDto[]> {
+    this.logger.debug(
+      `Fetching accuracy by target for org: ${orgSlug}, includeTest: ${includeTest}`,
+    );
+
+    const supabase = this.supabaseService.getServiceClient();
+
+    // Query predictions grouped by target
+    const { data, error } = await supabase
+      .schema('prediction')
+      .from('predictions')
+      .select(
+        `
+        id,
+        direction,
+        confidence,
+        status,
+        outcome_value,
+        is_test,
+        target_id,
+        targets!inner (
+          id,
+          name,
+          target_type,
+          is_test
+        )
+      `,
+      )
+      .eq('status', 'resolved');
+
+    if (error) {
+      this.logger.error(`Failed to fetch accuracy by target: ${error.message}`);
+      throw new Error(`Failed to fetch accuracy by target: ${error.message}`);
+    }
+
+    // Aggregate by target
+    const targetMap = new Map<
+      string,
+      {
+        target_name: string;
+        target_type: string;
+        is_test: boolean;
+        total: number;
+        resolved: number;
+        correct: number;
+        confidenceSum: number;
+      }
+    >();
+
+    // Supabase returns joined tables as single objects when using !inner
+    type PredictionWithTarget = {
+      id: string;
+      direction: string;
+      confidence: number;
+      status: string;
+      outcome_value: number | null;
+      is_test: boolean;
+      target_id: string;
+      targets: {
+        id: string;
+        name: string;
+        target_type: string;
+        is_test: boolean;
+      } | null;
+    };
+
+    for (const row of (data as unknown as PredictionWithTarget[] | null) ??
+      []) {
+      // Skip test data unless includeTest is true
+      if (!includeTest && (row.is_test || row.targets?.is_test)) continue;
+
+      const targetId = row.target_id;
+      const existing = targetMap.get(targetId) ?? {
+        target_name: row.targets?.name ?? 'Unknown',
+        target_type: row.targets?.target_type ?? 'unknown',
+        is_test: row.targets?.is_test ?? false,
+        total: 0,
+        resolved: 0,
+        correct: 0,
+        confidenceSum: 0,
+      };
+
+      existing.total++;
+      existing.resolved++;
+      existing.confidenceSum += row.confidence ?? 0;
+
+      // Determine if prediction was correct
+      if (row.outcome_value !== null) {
+        const outcomeDirection = row.outcome_value > 0 ? 'up' : 'down';
+        if (row.direction === outcomeDirection) {
+          existing.correct++;
+        }
+      }
+
+      targetMap.set(targetId, existing);
+    }
+
+    // Convert to DTOs
+    const results: AccuracyByTargetDto[] = [];
+    for (const [targetId, stats] of targetMap) {
+      results.push({
+        target_id: targetId,
+        target_name: stats.target_name,
+        target_type: stats.target_type,
+        total_predictions: stats.total,
+        resolved_predictions: stats.resolved,
+        correct_predictions: stats.correct,
+        accuracy_pct:
+          stats.resolved > 0 ? (stats.correct / stats.resolved) * 100 : null,
+        avg_confidence:
+          stats.total > 0 ? stats.confidenceSum / stats.total : null,
+        is_test: stats.is_test,
+      });
+    }
+
+    // Sort by total predictions descending
+    results.sort((a, b) => b.total_predictions - a.total_predictions);
+
+    return results;
   }
 }

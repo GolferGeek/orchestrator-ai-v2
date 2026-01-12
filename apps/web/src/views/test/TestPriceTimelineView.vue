@@ -5,7 +5,7 @@
  * Test Price Timeline - manage OHLCV price data for test scenarios.
  */
 
-import { ref, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import TestModeIndicator from '@/components/test/TestModeIndicator.vue';
 import TestSymbolBadge from '@/components/test/TestSymbolBadge.vue';
 import OHLCVInput from '@/components/test/OHLCVInput.vue';
@@ -90,7 +90,7 @@ async function loadData() {
     if (mirrorStore.mirrors.length === 0) {
       const mirrorsRes = await predictionDashboardService.listTestTargetMirrors();
       if (mirrorsRes.content) {
-        mirrorStore.setMirrors(mirrorsRes.content as any);
+        mirrorStore.setMirrors(mirrorsRes.content);
       }
     }
 
@@ -349,7 +349,7 @@ onMounted(() => {
           </div>
           <div class="price-chart__visualization">
             <div
-              v-for="(point, idx) in chartData"
+              v-for="point in chartData"
               :key="point.date"
               class="price-bar"
               :style="{

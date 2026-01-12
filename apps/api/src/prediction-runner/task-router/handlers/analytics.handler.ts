@@ -21,6 +21,7 @@ import {
 interface AnalyticsParams {
   startDate?: string;
   endDate?: string;
+  includeTest?: boolean;
 }
 
 @Injectable()
@@ -28,6 +29,8 @@ export class AnalyticsHandler implements IDashboardHandler {
   private readonly logger = new Logger(AnalyticsHandler.name);
   private readonly supportedActions = [
     'accuracy-comparison',
+    'accuracy-by-strategy',
+    'accuracy-by-target',
     'learning-velocity',
     'scenario-effectiveness',
     'promotion-funnel',
@@ -50,6 +53,10 @@ export class AnalyticsHandler implements IDashboardHandler {
     switch (action.toLowerCase()) {
       case 'accuracy-comparison':
         return this.handleAccuracyComparison(params, context);
+      case 'accuracy-by-strategy':
+        return this.handleAccuracyByStrategy(params, context);
+      case 'accuracy-by-target':
+        return this.handleAccuracyByTarget(params, context);
       case 'learning-velocity':
         return this.handleLearningVelocity(params, context);
       case 'scenario-effectiveness':
@@ -244,6 +251,84 @@ export class AnalyticsHandler implements IDashboardHandler {
         error instanceof Error
           ? error.message
           : 'Failed to get analytics summary',
+      );
+    }
+  }
+
+  /**
+   * Get accuracy by strategy analytics
+   * Breakdown of prediction accuracy by strategy used
+   *
+   * Phase 4.8 - Accuracy by Strategy
+   */
+  private async handleAccuracyByStrategy(
+    params?: AnalyticsParams,
+    context?: ExecutionContext,
+  ): Promise<DashboardActionResult> {
+    if (!context?.orgSlug) {
+      return buildDashboardError(
+        'MISSING_ORG_SLUG',
+        'Organization slug is required',
+      );
+    }
+
+    try {
+      const data = await this.analyticsService.getAccuracyByStrategy(
+        context.orgSlug,
+        params?.includeTest ?? false,
+      );
+
+      return buildDashboardSuccess(data, {
+        totalCount: data.length,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to get accuracy by strategy: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return buildDashboardError(
+        'ACCURACY_BY_STRATEGY_FAILED',
+        error instanceof Error
+          ? error.message
+          : 'Failed to get accuracy by strategy',
+      );
+    }
+  }
+
+  /**
+   * Get accuracy by target analytics
+   * Breakdown of prediction accuracy by target
+   *
+   * Phase 4.9 - Accuracy by Target
+   */
+  private async handleAccuracyByTarget(
+    params?: AnalyticsParams,
+    context?: ExecutionContext,
+  ): Promise<DashboardActionResult> {
+    if (!context?.orgSlug) {
+      return buildDashboardError(
+        'MISSING_ORG_SLUG',
+        'Organization slug is required',
+      );
+    }
+
+    try {
+      const data = await this.analyticsService.getAccuracyByTarget(
+        context.orgSlug,
+        params?.includeTest ?? false,
+      );
+
+      return buildDashboardSuccess(data, {
+        totalCount: data.length,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to get accuracy by target: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return buildDashboardError(
+        'ACCURACY_BY_TARGET_FAILED',
+        error instanceof Error
+          ? error.message
+          : 'Failed to get accuracy by target',
       );
     }
   }

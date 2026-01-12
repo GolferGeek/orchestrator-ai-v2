@@ -70,6 +70,37 @@ export interface PromotionFunnelDto {
 }
 
 /**
+ * Interface for accuracy by strategy analytics (RESPONSE)
+ * Phase 4.8 - Breakdown of prediction accuracy by strategy used
+ */
+export interface AccuracyByStrategyDto {
+  strategy_name: string;
+  total_predictions: number;
+  resolved_predictions: number;
+  correct_predictions: number;
+  accuracy_pct: number | null;
+  avg_confidence: number | null;
+  avg_magnitude_score: number | null;
+  avg_timing_score: number | null;
+}
+
+/**
+ * Interface for accuracy by target analytics (RESPONSE)
+ * Phase 4.9 - Breakdown of prediction accuracy by target
+ */
+export interface AccuracyByTargetDto {
+  target_id: string;
+  target_name: string;
+  target_type: string;
+  total_predictions: number;
+  resolved_predictions: number;
+  correct_predictions: number;
+  accuracy_pct: number | null;
+  avg_confidence: number | null;
+  is_test: boolean;
+}
+
+/**
  * Interface for analytics summary (RESPONSE)
  * Combines key metrics from all analytics views
  */

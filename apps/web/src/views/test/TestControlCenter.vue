@@ -98,7 +98,7 @@ async function loadData() {
     // Load mirrors
     const mirrorsRes = await predictionDashboardService.listTestTargetMirrors({ includeTargetDetails: true });
     if (mirrorsRes.content) {
-      mirrorStore.setMirrors(mirrorsRes.content as any);
+      mirrorStore.setMirrors(mirrorsRes.content);
       stats.value.mirrors = {
         total: mirrorsRes.content.length,
       };

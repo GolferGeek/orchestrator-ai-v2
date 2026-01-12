@@ -74,7 +74,7 @@ async function loadData() {
     if (mirrorStore.mirrors.length === 0) {
       const mirrorsRes = await predictionDashboardService.listTestTargetMirrors();
       if (mirrorsRes.content) {
-        mirrorStore.setMirrors(mirrorsRes.content as any);
+        mirrorStore.setMirrors(mirrorsRes.content);
       }
     }
   } catch (err) {
