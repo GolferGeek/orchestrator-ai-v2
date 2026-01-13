@@ -8,6 +8,7 @@ import { SignalFingerprintRepository } from '../../repositories/signal-fingerpri
 import { FirecrawlService } from '../firecrawl.service';
 import { ContentHashService } from '../content-hash.service';
 import { TestDbSourceCrawlerService } from '../test-db-source-crawler.service';
+import { ObservabilityEventsService } from '@/observability/observability-events.service';
 import { Source } from '../../interfaces/source.interface';
 
 describe('SourceCrawlerService', () => {
@@ -134,6 +135,12 @@ describe('SourceCrawlerService', () => {
               items: [],
               duration_ms: 100,
             }),
+          },
+        },
+        {
+          provide: ObservabilityEventsService,
+          useValue: {
+            push: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],

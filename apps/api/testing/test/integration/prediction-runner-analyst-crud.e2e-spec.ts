@@ -141,8 +141,11 @@ describe('Prediction Runner Analyst CRUD E2E Tests', () => {
 
       // Should have at least some system analysts
       if (analysts.length > 0) {
-        expect(analysts[0].slug).toBeDefined();
-        expect(analysts[0].name).toBeDefined();
+        const firstAnalyst = analysts[0];
+        if (firstAnalyst) {
+          expect(firstAnalyst.slug).toBeDefined();
+          expect(firstAnalyst.name).toBeDefined();
+        }
       }
     }, DASHBOARD_TIMEOUT);
 

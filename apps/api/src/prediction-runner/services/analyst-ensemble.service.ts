@@ -8,6 +8,7 @@ import {
   LlmTierResolverService,
   TierResolutionContext,
 } from './llm-tier-resolver.service';
+import { LlmUsageLimiterService } from './llm-usage-limiter.service';
 import { ActiveAnalyst } from '../interfaces/analyst.interface';
 import { Target } from '../interfaces/target.interface';
 import { LlmTier } from '../interfaces/llm-tier.interface';
@@ -42,6 +43,7 @@ export class AnalystEnsembleService {
     private readonly promptBuilderService: AnalystPromptBuilderService,
     private readonly llmTierResolverService: LlmTierResolverService,
     private readonly llmService: LLMService,
+    private readonly llmUsageLimiterService: LlmUsageLimiterService,
   ) {}
 
   /**
@@ -148,11 +150,42 @@ export class AnalystEnsembleService {
       resolutionContext,
     );
 
+    // Check LLM usage limits before calling
+    const estimatedTokens = this.estimateTokens(
+      prompt.systemPrompt,
+      prompt.userPrompt,
+    );
+    const usageCheck = this.llmUsageLimiterService.canUseTokens(
+      target.universe_id,
+      estimatedTokens,
+    );
+
+    if (!usageCheck.allowed) {
+      this.logger.warn(
+        `LLM usage limit reached for universe ${target.universe_id}: ${usageCheck.reason}`,
+      );
+      throw new Error(`LLM usage limit exceeded: ${usageCheck.reason}`);
+    }
+
     // Call LLM
     const response = await this.llmService.generateResponse(
       prompt.systemPrompt,
       prompt.userPrompt,
       { executionContext: context },
+    );
+
+    // Record actual usage (estimate output tokens as ~50% of input)
+    const actualTokens = estimatedTokens + Math.floor(estimatedTokens * 0.5);
+    this.llmUsageLimiterService.recordUsage(
+      target.universe_id,
+      actualTokens,
+      `analyst_assessment:${analyst.slug}`,
+    );
+
+    // Check and emit usage warnings
+    await this.llmUsageLimiterService.checkAndEmitWarnings(
+      context,
+      target.universe_id,
     );
 
     // Parse response
@@ -228,6 +261,15 @@ export class AnalystEnsembleService {
       obj !== null &&
       ('direction' in obj || 'confidence' in obj || 'reasoning' in obj)
     );
+  }
+
+  /**
+   * Estimate token count for prompts
+   * Uses rough approximation of ~4 characters per token
+   */
+  private estimateTokens(systemPrompt: string, userPrompt: string): number {
+    const totalChars = systemPrompt.length + userPrompt.length;
+    return Math.ceil(totalChars / 4);
   }
 
   /**

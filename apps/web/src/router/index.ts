@@ -386,6 +386,26 @@ const routes: Array<RouteRecordRaw> = [
         }
       },
       {
+        path: 'prediction/alerts',
+        name: 'PredictionAlerts',
+        component: () => import('../views/prediction/AlertsView.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Prediction Alerts',
+          description: 'View active alerts and alert history'
+        }
+      },
+      {
+        path: 'prediction/crawl-status',
+        name: 'SourceCrawlStatus',
+        component: () => import('../views/prediction/SourceCrawlStatus.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Source Crawl Status',
+          description: 'Monitor source crawl status and errors'
+        }
+      },
+      {
         path: 'prediction/:id',
         name: 'PredictionDetail',
         component: () => import('../views/prediction/PredictionDetail.vue'),

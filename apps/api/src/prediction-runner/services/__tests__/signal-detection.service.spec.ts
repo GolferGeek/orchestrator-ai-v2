@@ -4,6 +4,7 @@ import { SignalRepository } from '../../repositories/signal.repository';
 import { PredictorRepository } from '../../repositories/predictor.repository';
 import { AnalystEnsembleService } from '../analyst-ensemble.service';
 import { TargetService } from '../target.service';
+import { ObservabilityEventsService } from '@/observability/observability-events.service';
 import { Signal } from '../../interfaces/signal.interface';
 import { Target } from '../../interfaces/target.interface';
 import { ExecutionContext } from '@orchestrator-ai/transport-types';
@@ -133,6 +134,12 @@ describe('SignalDetectionService', () => {
           provide: TargetService,
           useValue: {
             findByIdOrThrow: jest.fn(),
+          },
+        },
+        {
+          provide: ObservabilityEventsService,
+          useValue: {
+            push: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],

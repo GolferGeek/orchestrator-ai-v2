@@ -183,14 +183,31 @@ describe('Review Queue E2E Tests', () => {
     }, DASHBOARD_TIMEOUT);
 
     it('should filter by targetId', async () => {
-      // First get a target ID from the list
-      const universeResult = await callDashboard(PREDICTION_AGENT, 'targets.list', {
+      // First get a universe ID
+      const universeListResult = await callDashboard(PREDICTION_AGENT, 'universes.list', {
         pageSize: 1,
       });
 
-      expect(universeResult.success).toBe(true);
-      const universeContent = universeResult.payload.content as { data: { id: string }[] };
-      const targets = Array.isArray(universeContent) ? universeContent : (universeContent.data ?? []);
+      expect(universeListResult.success).toBe(true);
+      const universeListContent = universeListResult.payload.content as { id: string }[] | { data: { id: string }[] };
+      const universes = Array.isArray(universeListContent) ? universeListContent : (universeListContent.data ?? []);
+
+      if (universes.length === 0 || !universes[0]?.id) {
+        console.log('No universes available - skipping filter test');
+        return;
+      }
+
+      const universeId = universes[0].id;
+
+      // Now get targets from that universe
+      const targetResult = await callDashboard(PREDICTION_AGENT, 'targets.list', {
+        universeId,
+        pageSize: 1,
+      });
+
+      expect(targetResult.success).toBe(true);
+      const targetContent = targetResult.payload.content as { id: string }[] | { data: { id: string }[] };
+      const targets = Array.isArray(targetContent) ? targetContent : (targetContent.data ?? []);
 
       if (targets.length > 0 && targets[0]?.id) {
         const targetId = targets[0].id;
@@ -204,7 +221,7 @@ describe('Review Queue E2E Tests', () => {
         expect(result.success).toBe(true);
         expect(result.payload.content).toBeDefined();
       } else {
-        console.log('No targets available - skipping filter test');
+        console.log('No targets available in universe - skipping filter test');
       }
     }, DASHBOARD_TIMEOUT);
 

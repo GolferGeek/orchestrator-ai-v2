@@ -4,6 +4,7 @@ import { PredictionRepository } from '../../repositories/prediction.repository';
 import { TargetSnapshotRepository } from '../../repositories/target-snapshot.repository';
 import { OutcomeTrackingService } from '../../services/outcome-tracking.service';
 import { TargetSnapshotService } from '../../services/target-snapshot.service';
+import { ObservabilityEventsService } from '@/observability/observability-events.service';
 import { Prediction } from '../../interfaces/prediction.interface';
 
 describe('OutcomeTrackingRunner', () => {
@@ -78,6 +79,12 @@ describe('OutcomeTrackingRunner', () => {
           provide: TargetSnapshotService,
           useValue: {
             fetchAndCaptureValue: jest.fn(),
+          },
+        },
+        {
+          provide: ObservabilityEventsService,
+          useValue: {
+            push: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],

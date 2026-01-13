@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, OnModuleInit, Logger } from '@nestjs/common';
 import { SupabaseModule } from '@/supabase/supabase.module';
 import { LLMModule } from '@/llms/llm.module';
 import { ObservabilityModule } from '@/observability/observability.module';
@@ -88,6 +88,12 @@ import {
   TestScenarioBatchService,
   AlertService,
   AnomalyDetectionService,
+  // Sprint 7 - Operations & Reliability
+  BackpressureService,
+  PredictionExportService,
+  ExternalIntegrationService,
+  LlmUsageLimiterService,
+  DegradedModeService,
 } from './services';
 
 // Phase 7 Runners
@@ -130,6 +136,8 @@ import {
   SignalsHandler,
   // Sprint 5 - Manual Evaluation Override
   EvaluationHandler,
+  // Sprint 7 - Audit Log Dashboard
+  AuditLogHandler,
 } from './task-router/handlers';
 
 const repositories = [
@@ -215,6 +223,12 @@ const services = [
   TestScenarioBatchService,
   AlertService,
   AnomalyDetectionService,
+  // Sprint 7 - Operations & Reliability
+  BackpressureService,
+  PredictionExportService,
+  ExternalIntegrationService,
+  LlmUsageLimiterService,
+  DegradedModeService,
 ];
 
 // Phase 7 Runners
@@ -257,11 +271,105 @@ const dashboardHandlers = [
   SignalsHandler,
   // Sprint 5 - Manual Evaluation Override
   EvaluationHandler,
+  // Sprint 7 - Audit Log Dashboard
+  AuditLogHandler,
 ];
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CONFIGURATION VALIDATION
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Sprint 7 - Startup Config Validation
+ * PRD Phase 9.4: Validate secrets/config at startup with fail-fast behavior
+ */
+
+interface ConfigValidationResult {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
+/**
+ * Validates required configuration for PredictionRunnerModule
+ */
+function validatePredictionRunnerConfig(): ConfigValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  // Required configuration
+  if (!process.env.SUPABASE_URL) {
+    errors.push('SUPABASE_URL is required for database operations');
+  }
+
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    errors.push(
+      'SUPABASE_SERVICE_ROLE_KEY is required for database operations',
+    );
+  }
+
+  if (!process.env.FIRECRAWL_API_KEY) {
+    errors.push('FIRECRAWL_API_KEY is required for source crawling');
+  }
+
+  // Optional but recommended configuration
+  if (!process.env.POLYGON_API_KEY) {
+    warnings.push(
+      'POLYGON_API_KEY not set - Polygon.io stock data will be disabled',
+    );
+  }
+
+  if (!process.env.PREDICTION_SLACK_WEBHOOK_URL) {
+    warnings.push(
+      'PREDICTION_SLACK_WEBHOOK_URL not set - Slack notifications will be disabled',
+    );
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings,
+  };
+}
 
 @Module({
   imports: [SupabaseModule, LLMModule, ObservabilityModule],
   providers: [...repositories, ...services, ...runners, ...dashboardHandlers],
   exports: [...services, ...runners, ...dashboardHandlers],
 })
-export class PredictionRunnerModule {}
+export class PredictionRunnerModule implements OnModuleInit {
+  private readonly logger = new Logger(PredictionRunnerModule.name);
+
+  /**
+   * Sprint 7 - Startup Configuration Validation
+   * PRD Phase 9.4: Validate required secrets/config at startup with fail-fast behavior
+   */
+  onModuleInit() {
+    this.logger.log('Validating PredictionRunnerModule configuration...');
+
+    const validation = validatePredictionRunnerConfig();
+
+    // Log warnings for optional config
+    if (validation.warnings.length > 0) {
+      this.logger.warn('Configuration warnings:');
+      for (const warning of validation.warnings) {
+        this.logger.warn(`  - ${warning}`);
+      }
+    }
+
+    // Fail fast if required config is missing
+    if (!validation.valid) {
+      this.logger.error('Configuration validation failed!');
+      for (const error of validation.errors) {
+        this.logger.error(`  - ${error}`);
+      }
+      throw new Error(
+        `PredictionRunnerModule startup failed: ${validation.errors.join(', ')}`,
+      );
+    }
+
+    this.logger.log(
+      'PredictionRunnerModule configuration validated successfully',
+    );
+  }
+}

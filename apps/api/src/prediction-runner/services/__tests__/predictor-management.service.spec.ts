@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PredictorManagementService } from '../predictor-management.service';
 import { PredictorRepository } from '../../repositories/predictor.repository';
+import { ObservabilityEventsService } from '@/observability/observability-events.service';
 import { Predictor } from '../../interfaces/predictor.interface';
 
 describe('PredictorManagementService', () => {
@@ -45,6 +46,12 @@ describe('PredictorManagementService', () => {
             findActiveByTarget: jest.fn(),
             expireOldPredictors: jest.fn(),
             consumePredictor: jest.fn(),
+          },
+        },
+        {
+          provide: ObservabilityEventsService,
+          useValue: {
+            push: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],

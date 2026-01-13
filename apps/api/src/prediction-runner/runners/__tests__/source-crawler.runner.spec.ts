@@ -3,6 +3,8 @@ import { SourceCrawlerRunner } from '../source-crawler.runner';
 import { SourceRepository } from '../../repositories/source.repository';
 import { TargetRepository } from '../../repositories/target.repository';
 import { SourceCrawlerService } from '../../services/source-crawler.service';
+import { BackpressureService } from '../../services/backpressure.service';
+import { ObservabilityEventsService } from '@/observability/observability-events.service';
 import { Source, CrawlFrequency } from '../../interfaces/source.interface';
 
 describe('SourceCrawlerRunner', () => {
@@ -10,6 +12,8 @@ describe('SourceCrawlerRunner', () => {
   let sourceRepository: jest.Mocked<SourceRepository>;
   let _targetRepository: jest.Mocked<TargetRepository>;
   let sourceCrawlerService: jest.Mocked<SourceCrawlerService>;
+  let _observabilityEventsService: jest.Mocked<ObservabilityEventsService>;
+  let _backpressureService: jest.Mocked<BackpressureService>;
 
   const mockSource: Source = {
     id: 'source-1',
@@ -57,6 +61,23 @@ describe('SourceCrawlerRunner', () => {
             crawlSource: jest.fn(),
           },
         },
+        {
+          provide: ObservabilityEventsService,
+          useValue: {
+            push: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: BackpressureService,
+          useValue: {
+            canStartCrawl: jest.fn().mockReturnValue({ allowed: true }),
+            recordCrawlStart: jest.fn(),
+            recordCrawlComplete: jest.fn(),
+            isUnderBackpressure: jest
+              .fn()
+              .mockReturnValue({ isUnderBackpressure: false }),
+          },
+        },
       ],
     }).compile();
 
@@ -64,6 +85,8 @@ describe('SourceCrawlerRunner', () => {
     sourceRepository = module.get(SourceRepository);
     _targetRepository = module.get(TargetRepository);
     sourceCrawlerService = module.get(SourceCrawlerService);
+    _observabilityEventsService = module.get(ObservabilityEventsService);
+    _backpressureService = module.get(BackpressureService);
   });
 
   afterEach(() => {

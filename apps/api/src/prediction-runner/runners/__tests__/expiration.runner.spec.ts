@@ -4,6 +4,7 @@ import { PredictorRepository } from '../../repositories/predictor.repository';
 import { SignalRepository } from '../../repositories/signal.repository';
 import { TargetRepository } from '../../repositories/target.repository';
 import { UniverseRepository } from '../../repositories/universe.repository';
+import { ObservabilityEventsService } from '@/observability/observability-events.service';
 import { Signal } from '../../interfaces/signal.interface';
 
 describe('ExpirationRunner', () => {
@@ -88,6 +89,12 @@ describe('ExpirationRunner', () => {
           provide: UniverseRepository,
           useValue: {
             findAllActive: jest.fn(),
+          },
+        },
+        {
+          provide: ObservabilityEventsService,
+          useValue: {
+            push: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],

@@ -4,6 +4,7 @@ import { AnalystService } from '../analyst.service';
 import { LearningService } from '../learning.service';
 import { AnalystPromptBuilderService } from '../analyst-prompt-builder.service';
 import { LlmTierResolverService } from '../llm-tier-resolver.service';
+import { LlmUsageLimiterService } from '../llm-usage-limiter.service';
 import { LLMService } from '@/llms/llm.service';
 import { ActiveAnalyst } from '../../interfaces/analyst.interface';
 import { Target } from '../../interfaces/target.interface';
@@ -108,6 +109,16 @@ describe('AnalystEnsembleService', () => {
           provide: LLMService,
           useValue: {
             generateResponse: jest.fn(),
+          },
+        },
+        {
+          provide: LlmUsageLimiterService,
+          useValue: {
+            canUseTokens: jest
+              .fn()
+              .mockReturnValue({ allowed: true, remaining: 100000 }),
+            recordUsage: jest.fn(),
+            checkAndEmitWarnings: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],

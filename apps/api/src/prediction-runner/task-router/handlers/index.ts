@@ -29,3 +29,5 @@ export { SourceSeenItemsHandler } from './source-seen-items.handler';
 export { SignalsHandler } from './signals.handler';
 // Sprint 5 - Manual Evaluation Override
 export { EvaluationHandler } from './evaluation.handler';
+// Sprint 7 - Audit Log Dashboard
+export { AuditLogHandler } from './audit-log.handler';

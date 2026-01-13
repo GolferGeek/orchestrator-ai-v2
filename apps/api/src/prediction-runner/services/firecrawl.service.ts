@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import {
   FirecrawlScrapeRequest,
   FirecrawlScrapeResponse,
@@ -11,6 +11,7 @@ import {
   CrawlConfig,
   AuthConfig,
 } from '../interfaces/source.interface';
+import { ExternalIntegrationService } from './external-integration.service';
 
 /**
  * FirecrawlService - Integration with Firecrawl API for web scraping
@@ -30,7 +31,10 @@ export class FirecrawlService {
   private readonly baseUrl: string;
   private readonly defaultTimeout = 30000;
 
-  constructor() {
+  constructor(
+    @Optional()
+    private readonly externalIntegrationService?: ExternalIntegrationService,
+  ) {
     this.apiKey = process.env.FIRECRAWL_API_KEY || '';
     this.baseUrl =
       process.env.FIRECRAWL_BASE_URL || 'https://api.firecrawl.dev/v1';
@@ -51,6 +55,7 @@ export class FirecrawlService {
 
   /**
    * Scrape a single URL using Firecrawl
+   * Uses ExternalIntegrationService for retry/backoff and DegradedModeService for fallbacks
    *
    * @param url - URL to scrape
    * @param options - Scrape options
@@ -69,7 +74,7 @@ export class FirecrawlService {
 
     const startTime = Date.now();
 
-    try {
+    const scrapeOperation = async (): Promise<FirecrawlScrapeResponse> => {
       // Validate URL
       this.validateUrl(url);
 
@@ -96,16 +101,27 @@ export class FirecrawlService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        this.logger.error(
+        throw new Error(
           `Firecrawl API error: ${response.status} - ${errorText}`,
         );
-        return {
-          success: false,
-          error: `Firecrawl API error: ${response.status} - ${errorText}`,
-        };
       }
 
-      const result = (await response.json()) as FirecrawlScrapeResponse;
+      return (await response.json()) as FirecrawlScrapeResponse;
+    };
+
+    try {
+      let result: FirecrawlScrapeResponse;
+
+      // Use ExternalIntegrationService for retry if available
+      if (this.externalIntegrationService) {
+        result = await this.externalIntegrationService.executeWithRetry(
+          'firecrawl',
+          scrapeOperation,
+          { maxRetries: 2, timeoutMs: this.defaultTimeout },
+        );
+      } else {
+        result = await scrapeOperation();
+      }
 
       const duration = Date.now() - startTime;
       this.logger.debug(`Scraped ${url} in ${duration}ms`);
@@ -115,6 +131,7 @@ export class FirecrawlService {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       this.logger.error(`Failed to scrape ${url}: ${errorMessage}`);
+
       return {
         success: false,
         error: errorMessage,

@@ -17,6 +17,8 @@ import { TestArticleHandler } from '../handlers/test-article.handler';
 import { TestPriceDataHandler } from '../handlers/test-price-data.handler';
 import { TestTargetMirrorHandler } from '../handlers/test-target-mirror.handler';
 import { AnalyticsHandler } from '../handlers/analytics.handler';
+import { SourceSeenItemsHandler } from '../handlers/source-seen-items.handler';
+import { SignalsHandler } from '../handlers/signals.handler';
 import {
   ExecutionContext,
   DashboardRequestPayload,
@@ -81,6 +83,8 @@ describe('PredictionDashboardRouter', () => {
         { provide: TestPriceDataHandler, useValue: createMockHandler() },
         { provide: TestTargetMirrorHandler, useValue: createMockHandler() },
         { provide: AnalyticsHandler, useValue: createMockHandler() },
+        { provide: SourceSeenItemsHandler, useValue: createMockHandler() },
+        { provide: SignalsHandler, useValue: createMockHandler() },
       ],
     }).compile();
 

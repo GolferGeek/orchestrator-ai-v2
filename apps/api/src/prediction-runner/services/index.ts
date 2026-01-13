@@ -55,3 +55,9 @@ export * from './test-scenario-comparison.service';
 export * from './test-scenario-batch.service';
 export * from './alert.service';
 export * from './anomaly-detection.service';
+// Sprint 7 - Operations & Reliability
+export * from './backpressure.service';
+export * from './prediction-export.service';
+export * from './external-integration.service';
+export * from './llm-usage-limiter.service';
+export * from './degraded-mode.service';

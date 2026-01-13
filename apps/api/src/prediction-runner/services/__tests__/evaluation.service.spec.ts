@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { EvaluationService, EvaluationResult } from '../evaluation.service';
 import { PredictionRepository } from '../../repositories/prediction.repository';
 import { SnapshotService } from '../snapshot.service';
+import { ObservabilityEventsService } from '@/observability/observability-events.service';
 import { Prediction } from '../../interfaces/prediction.interface';
 
 describe('EvaluationService', () => {
@@ -49,6 +50,12 @@ describe('EvaluationService', () => {
           provide: SnapshotService,
           useValue: {
             buildSnapshotData: jest.fn(),
+          },
+        },
+        {
+          provide: ObservabilityEventsService,
+          useValue: {
+            push: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],

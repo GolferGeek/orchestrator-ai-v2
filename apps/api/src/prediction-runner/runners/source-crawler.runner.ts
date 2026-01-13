@@ -3,6 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { SourceRepository } from '../repositories/source.repository';
 import { TargetRepository } from '../repositories/target.repository';
 import { SourceCrawlerService } from '../services/source-crawler.service';
+import { BackpressureService } from '../services/backpressure.service';
 import { CrawlFrequency, Source } from '../interfaces/source.interface';
 import { ObservabilityEventsService } from '@/observability/observability-events.service';
 import { ExecutionContext, NIL_UUID } from '@orchestrator-ai/transport-types';
@@ -39,6 +40,7 @@ export class SourceCrawlerRunner {
     private readonly targetRepository: TargetRepository,
     private readonly sourceCrawlerService: SourceCrawlerService,
     private readonly observabilityEventsService: ObservabilityEventsService,
+    private readonly backpressureService: BackpressureService,
   ) {}
 
   /**
@@ -223,31 +225,49 @@ export class SourceCrawlerRunner {
 
   /**
    * Crawl a single source and create signals
+   * Applies backpressure controls before crawling
    */
   private async crawlSource(
     source: Source,
-  ): Promise<{ success: boolean; signalsCreated: number }> {
-    // Get target ID for the source
-    // Sources can be scoped at runner/domain/universe/target level
-    // We need to find the appropriate target(s) to create signals for
-    const targetId = await this.resolveTargetForSource(source);
-
-    if (!targetId) {
-      this.logger.warn(
-        `Could not resolve target for source ${source.id} (scope: ${source.scope_level})`,
+  ): Promise<{ success: boolean; signalsCreated: number; skipped?: boolean }> {
+    // Check backpressure before starting crawl
+    const crawlCheck = this.backpressureService.canStartCrawl(source.id);
+    if (!crawlCheck.allowed) {
+      this.logger.debug(
+        `Skipping source ${source.id} due to backpressure: ${crawlCheck.reason}`,
       );
-      return { success: false, signalsCreated: 0 };
+      return { success: false, signalsCreated: 0, skipped: true };
     }
 
-    const result = await this.sourceCrawlerService.crawlSource(
-      source,
-      targetId,
-    );
+    // Record crawl start for backpressure tracking
+    this.backpressureService.recordCrawlStart(source.id);
 
-    return {
-      success: result.result.success,
-      signalsCreated: result.signalsCreated,
-    };
+    try {
+      // Get target ID for the source
+      // Sources can be scoped at runner/domain/universe/target level
+      // We need to find the appropriate target(s) to create signals for
+      const targetId = await this.resolveTargetForSource(source);
+
+      if (!targetId) {
+        this.logger.warn(
+          `Could not resolve target for source ${source.id} (scope: ${source.scope_level})`,
+        );
+        return { success: false, signalsCreated: 0 };
+      }
+
+      const result = await this.sourceCrawlerService.crawlSource(
+        source,
+        targetId,
+      );
+
+      return {
+        success: result.result.success,
+        signalsCreated: result.signalsCreated,
+      };
+    } finally {
+      // Always record crawl completion for backpressure tracking
+      this.backpressureService.recordCrawlComplete(source.id);
+    }
   }
 
   /**
