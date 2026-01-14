@@ -31,10 +31,10 @@ export interface FirecrawlScrapeOptions {
 
 /**
  * Firecrawl scrape request
+ * Note: Firecrawl v1 API expects options at top level, not nested
  */
-export interface FirecrawlScrapeRequest {
+export interface FirecrawlScrapeRequest extends FirecrawlScrapeOptions {
   url: string;
-  options?: FirecrawlScrapeOptions;
 }
 
 /**

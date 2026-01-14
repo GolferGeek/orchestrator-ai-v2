@@ -130,15 +130,15 @@ export class LlmTierResolverService {
     defaults.set('gold', {
       tier: 'gold',
       provider: 'anthropic',
-      model: 'claude-opus-4-5-20251101',
-      model_tier: 'flagship',
+      model: 'claude-sonnet-4-20250514',
+      model_tier: 'standard',
     });
 
     defaults.set('silver', {
       tier: 'silver',
       provider: 'anthropic',
-      model: 'claude-sonnet-4-20250514',
-      model_tier: 'standard',
+      model: 'claude-haiku-4-20250514',
+      model_tier: 'economy',
     });
 
     defaults.set('bronze', {

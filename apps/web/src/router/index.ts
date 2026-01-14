@@ -316,13 +316,23 @@ const routes: Array<RouteRecordRaw> = [
         }
       },
       {
-        path: 'prediction/universes',
-        name: 'UniverseManagement',
+        path: 'prediction/portfolios',
+        name: 'PortfolioManagement',
         component: () => import('../views/prediction/UniverseManagement.vue'),
         meta: {
           requiresAuth: true,
-          title: 'Universe Management',
-          description: 'Manage prediction universes and targets'
+          title: 'Portfolio Management',
+          description: 'Manage prediction portfolios and targets'
+        }
+      },
+      {
+        path: 'prediction/portfolio/:id',
+        name: 'PortfolioDetail',
+        component: () => import('../views/prediction/PortfolioDetail.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Portfolio Detail',
+          description: 'View and manage portfolio instruments'
         }
       },
       {

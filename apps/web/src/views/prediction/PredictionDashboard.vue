@@ -3,6 +3,10 @@
     <header class="dashboard-header">
       <h1>Prediction Dashboard</h1>
       <div class="header-actions">
+        <button class="btn btn-secondary" @click="goToPortfolios">
+          <span class="icon">&#128193;</span>
+          Manage Portfolios
+        </button>
         <button class="btn btn-secondary" @click="showActivityFeed = !showActivityFeed">
           <span class="icon">&#128202;</span>
           {{ showActivityFeed ? 'Hide Activity' : 'Watch Activity' }}
@@ -22,13 +26,13 @@
     <!-- Filters Section -->
     <section class="filters-section">
       <div class="filter-group">
-        <label for="universe-filter">Universe</label>
+        <label for="universe-filter">Portfolio</label>
         <select
           id="universe-filter"
           v-model="selectedUniverse"
           @change="onUniverseChange"
         >
-          <option :value="null">All Universes</option>
+          <option :value="null">All Portfolios</option>
           <option
             v-for="universe in store.universes"
             :key="universe.id"
@@ -74,7 +78,7 @@
       </div>
       <div class="stat-card">
         <span class="stat-value">{{ store.universes.length }}</span>
-        <span class="stat-label">Universes</span>
+        <span class="stat-label">Portfolios</span>
       </div>
       <div class="stat-card agreement-stats">
         <div class="agreement-row">
@@ -150,15 +154,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { usePredictionStore } from '@/stores/predictionStore';
+import { useAuthStore } from '@/stores/rbacStore';
 import { predictionDashboardService } from '@/services/predictionDashboardService';
 import PredictionCard from '@/components/prediction/PredictionCard.vue';
 import PredictionActivityFeed from '@/components/prediction/PredictionActivityFeed.vue';
 
 const router = useRouter();
+const route = useRoute();
 const store = usePredictionStore();
+const authStore = useAuthStore();
+
+// Get agentSlug from query parameter (passed when clicking prediction agent in sidebar)
+const agentSlug = computed(() => route.query.agentSlug as string | undefined);
 
 const selectedUniverse = ref<string | null>(null);
 const statusFilter = ref<'all' | 'active' | 'resolved' | 'expired' | 'cancelled'>('all');
@@ -170,12 +180,27 @@ const hasFilters = computed(() => {
 });
 
 async function loadData() {
+  // Wait for organization context to be available
+  const org = authStore.currentOrganization;
+  if (!org) {
+    console.log('Waiting for organization context...');
+    return;
+  }
+
+  // Set the agent slug for API calls (from URL query param or default)
+  const agent = agentSlug.value || 'us-tech-stocks';
+  predictionDashboardService.setAgentSlug(agent);
+
+  // Debug: Log the organization and agent being used
+  console.log('Loading prediction data for organization:', org, 'agentSlug:', agent);
+
   store.setLoading(true);
   store.clearError();
 
   try {
     const data = await predictionDashboardService.loadDashboardData(
-      selectedUniverse.value || undefined
+      selectedUniverse.value || undefined,
+      agentSlug.value
     );
 
     store.setUniverses(data.universes);
@@ -210,7 +235,7 @@ function onFilterChange() {
 
 function onPredictionSelect(id: string) {
   store.selectPrediction(id);
-  router.push({ name: 'prediction-detail', params: { id } });
+  router.push({ name: 'PredictionDetail', params: { id } });
 }
 
 function goToPage(page: number) {
@@ -218,8 +243,26 @@ function goToPage(page: number) {
   loadData();
 }
 
+function goToPortfolios() {
+  router.push({ name: 'PortfolioManagement' });
+}
+
+// Watch for organization context to become available
+watch(
+  () => authStore.currentOrganization,
+  (newOrg) => {
+    if (newOrg) {
+      loadData();
+    }
+  },
+  { immediate: true }
+);
+
 onMounted(() => {
-  loadData();
+  // If organization is already set, load data
+  if (authStore.currentOrganization) {
+    loadData();
+  }
 });
 </script>
 
@@ -235,6 +278,8 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.5rem;
+  /* Leave space on the right for the fixed toolbar (org switcher, theme toggle, profile) */
+  padding-right: 200px;
 }
 
 .dashboard-header h1 {

@@ -94,9 +94,9 @@ export class TargetService {
       `Using system default LLM config for target ${target.symbol}`,
     );
     return {
-      gold: { provider: 'anthropic', model: 'claude-opus-4-5' },
-      silver: { provider: 'anthropic', model: 'claude-sonnet-4-5' },
-      bronze: { provider: 'anthropic', model: 'claude-haiku-4' },
+      gold: { provider: 'anthropic', model: 'claude-sonnet-4-20250514' },
+      silver: { provider: 'anthropic', model: 'claude-haiku-4-20250514' },
+      bronze: { provider: 'anthropic', model: 'claude-haiku-4-20250514' },
     };
   }
 }

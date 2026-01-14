@@ -147,6 +147,81 @@ export class SourceRepository {
   }
 
   /**
+   * Find all sources for a universe (dashboard listing - includes inactive)
+   * Unlike findByScope, this does NOT filter by is_active
+   */
+  async findByUniverseForDashboard(universeId: string): Promise<Source[]> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .select('*')
+      .eq('universe_id', universeId)
+      .order('created_at', {
+        ascending: false,
+      })) as SupabaseSelectListResponse<Source>;
+
+    if (error) {
+      this.logger.error(
+        `Failed to fetch sources for universe dashboard: ${error.message}`,
+      );
+      throw new Error(
+        `Failed to fetch sources for universe dashboard: ${error.message}`,
+      );
+    }
+
+    return data ?? [];
+  }
+
+  /**
+   * Find all sources for a target (dashboard listing - includes inactive)
+   */
+  async findByTargetForDashboard(targetId: string): Promise<Source[]> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .select('*')
+      .eq('target_id', targetId)
+      .order('created_at', {
+        ascending: false,
+      })) as SupabaseSelectListResponse<Source>;
+
+    if (error) {
+      this.logger.error(
+        `Failed to fetch sources for target dashboard: ${error.message}`,
+      );
+      throw new Error(
+        `Failed to fetch sources for target dashboard: ${error.message}`,
+      );
+    }
+
+    return data ?? [];
+  }
+
+  /**
+   * Find all sources (dashboard listing - includes inactive)
+   */
+  async findAllForDashboard(): Promise<Source[]> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .select('*')
+      .order('created_at', {
+        ascending: false,
+      })) as SupabaseSelectListResponse<Source>;
+
+    if (error) {
+      this.logger.error(
+        `Failed to fetch all sources for dashboard: ${error.message}`,
+      );
+      throw new Error(
+        `Failed to fetch all sources for dashboard: ${error.message}`,
+      );
+    }
+
+    return data ?? [];
+  }
+
+  /**
    * Find all active sources for a target (including inherited from universe/domain/runner)
    */
   async findForTarget(

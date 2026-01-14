@@ -14,6 +14,7 @@ import { PredictorRepository } from '../../repositories/predictor.repository';
 import { SignalRepository } from '../../repositories/signal.repository';
 import { SignalFingerprintRepository } from '../../repositories/signal-fingerprint.repository';
 import { SourceSeenItemRepository } from '../../repositories/source-seen-item.repository';
+import { TargetRepository } from '../../repositories/target.repository';
 import { SnapshotService } from '../../services/snapshot.service';
 import {
   IDashboardHandler,
@@ -31,6 +32,7 @@ interface PredictionFilters {
   direction?: string;
   fromDate?: string;
   toDate?: string;
+  includeTestData?: boolean;
 }
 
 interface PredictionParams {
@@ -60,6 +62,7 @@ export class PredictionHandler implements IDashboardHandler {
     private readonly signalRepository: SignalRepository,
     private readonly signalFingerprintRepository: SignalFingerprintRepository,
     private readonly sourceSeenItemRepository: SourceSeenItemRepository,
+    private readonly targetRepository: TargetRepository,
     private readonly snapshotService: SnapshotService,
   ) {}
 
@@ -73,10 +76,12 @@ export class PredictionHandler implements IDashboardHandler {
     );
 
     const params = payload.params as PredictionParams | undefined;
+    // Merge filters from payload.filters into params.filters for list operations
+    const filters = payload.filters as PredictionFilters | undefined;
 
     switch (action.toLowerCase()) {
       case 'list':
-        return this.handleList(params);
+        return this.handleList(params, filters);
       case 'get':
         return this.handleGet(params);
       case 'getsnapshot':
@@ -105,42 +110,75 @@ export class PredictionHandler implements IDashboardHandler {
 
   private async handleList(
     params?: PredictionParams,
+    filters?: PredictionFilters,
   ): Promise<DashboardActionResult> {
-    const targetId = params?.targetId || params?.filters?.targetId;
+    // Merge filters from both sources (params.filters and payload.filters)
+    const mergedFilters = { ...params?.filters, ...filters };
+    const targetId = params?.targetId || mergedFilters?.targetId;
+    const universeId = mergedFilters?.universeId;
+
+    this.logger.debug(
+      `[PREDICTION-HANDLER] handleList - targetId: ${targetId}, universeId: ${universeId}, filters: ${JSON.stringify(mergedFilters)}`,
+    );
 
     try {
       let predictions;
+      // Track universe_id for enrichment
+      let knownUniverseId: string | undefined = universeId;
+      // Build test data filter from merged filters
+      const testDataFilter = {
+        includeTestData: mergedFilters?.includeTestData ?? false,
+      };
 
       if (targetId) {
         // Filter by target
         predictions = await this.predictionRepository.findByTarget(
           targetId,
-          params?.filters?.status,
+          mergedFilters?.status,
+          testDataFilter,
         );
-      } else if (params?.filters?.status === 'active') {
+        // Get universe_id from the target
+        const target = await this.targetRepository.findById(targetId);
+        if (target) {
+          knownUniverseId = target.universe_id;
+        }
+      } else if (universeId) {
+        // Filter by universe (portfolio)
+        predictions = await this.predictionRepository.findByUniverse(
+          universeId,
+          mergedFilters?.status,
+          testDataFilter,
+        );
+      } else if (mergedFilters?.status === 'active') {
         // Get all active predictions
-        predictions = await this.predictionRepository.findActivePredictions();
+        predictions =
+          await this.predictionRepository.findActivePredictions(testDataFilter);
       } else {
         // Default: get active predictions
-        predictions = await this.predictionRepository.findActivePredictions();
+        predictions =
+          await this.predictionRepository.findActivePredictions(testDataFilter);
       }
+
+      this.logger.debug(
+        `[PREDICTION-HANDLER] Found ${predictions.length} predictions`,
+      );
 
       // Apply additional filters
       let filtered = predictions;
 
-      if (params?.filters?.direction) {
+      if (mergedFilters?.direction) {
         filtered = filtered.filter(
-          (p) => p.direction === params.filters!.direction,
+          (p) => p.direction === mergedFilters.direction,
         );
       }
 
-      if (params?.filters?.fromDate) {
-        const fromDate = new Date(params.filters.fromDate);
+      if (mergedFilters?.fromDate) {
+        const fromDate = new Date(mergedFilters.fromDate);
         filtered = filtered.filter((p) => new Date(p.predicted_at) >= fromDate);
       }
 
-      if (params?.filters?.toDate) {
-        const toDate = new Date(params.filters.toDate);
+      if (mergedFilters?.toDate) {
+        const toDate = new Date(mergedFilters.toDate);
         filtered = filtered.filter((p) => new Date(p.predicted_at) <= toDate);
       }
 
@@ -153,11 +191,73 @@ export class PredictionHandler implements IDashboardHandler {
         startIndex + pageSize,
       );
 
+      // Enrich predictions with target details and transform to frontend format
+      // Look up target info for all predictions
+      const targetIds = [
+        ...new Set(paginatedPredictions.map((p) => p.target_id)),
+      ];
+      const targetMap = new Map<
+        string,
+        { universe_id: string; symbol: string; name: string }
+      >();
+
+      await Promise.all(
+        targetIds.map(async (tid) => {
+          const target = await this.targetRepository.findById(tid);
+          if (target) {
+            targetMap.set(tid, {
+              universe_id: target.universe_id,
+              symbol: target.symbol,
+              name: target.name,
+            });
+          }
+        }),
+      );
+
+      // Transform predictions to frontend format (camelCase + enriched data)
+      const enrichedPredictions = paginatedPredictions.map((p) => {
+        const target = targetMap.get(p.target_id);
+        return {
+          // Core fields
+          id: p.id,
+          targetId: p.target_id,
+          universeId: knownUniverseId || target?.universe_id || null,
+          taskId: p.task_id,
+          status: p.status,
+          direction: p.direction,
+          confidence: p.confidence,
+          magnitude: p.magnitude,
+          timeframe: p.timeframe_hours ? `${p.timeframe_hours}h` : undefined,
+          timeframeHours: p.timeframe_hours,
+          reasoning: p.reasoning,
+          // Dates
+          generatedAt: p.predicted_at,
+          predictedAt: p.predicted_at,
+          expiresAt: p.expires_at,
+          resolvedAt: p.outcome_captured_at,
+          // Entry/exit values
+          entryValue: p.entry_price,
+          exitValue: p.target_price,
+          stopLoss: p.stop_loss,
+          // Outcome
+          outcomeValue: p.outcome_value,
+          resolutionNotes: p.resolution_notes,
+          // Enriched target info
+          targetSymbol: target?.symbol || null,
+          targetName: target?.name || null,
+          // Test data flag
+          isTest: p.is_test_data === true,
+          // Ensemble data
+          llmEnsembleResults: p.llm_ensemble || undefined,
+          analystEnsemble: p.analyst_ensemble || undefined,
+        };
+      });
+
       // Optionally include snapshots
-      let results = paginatedPredictions;
+      let results = enrichedPredictions;
       if (params?.includeSnapshot) {
         results = await Promise.all(
-          paginatedPredictions.map(async (prediction) => {
+          enrichedPredictions.map(async (prediction) => {
             const snapshot = await this.snapshotService.getSnapshot(
               prediction.id,
             );
@@ -247,27 +347,27 @@ export class PredictionHandler implements IDashboardHandler {
         );
       }
 
-      // Return full explainability data
+      // Return snapshot data directly (frontend expects snapshot object, not wrapped)
+      // Field names match frontend PredictionSnapshot interface
       return buildDashboardSuccess({
-        prediction,
-        snapshot: {
-          // All predictors that contributed
-          predictors: snapshot.predictors,
-          // Signals considered but rejected (and why)
-          rejectedSignals: snapshot.rejected_signals,
-          // Each analyst's individual assessment
-          analystAssessments: snapshot.analyst_assessments,
-          // Each LLM tier's assessment
-          llmEnsemble: snapshot.llm_ensemble,
-          // Learnings that were applied
-          learningsApplied: snapshot.learnings_applied,
-          // Threshold evaluation details
-          thresholdEvaluation: snapshot.threshold_evaluation,
-          // Complete timeline
-          timeline: snapshot.timeline,
-          // Metadata
-          createdAt: snapshot.created_at,
-        },
+        id: snapshot.id,
+        predictionId: snapshot.prediction_id,
+        // All predictors that contributed
+        predictors: snapshot.predictors,
+        // Signals considered but rejected (and why)
+        rejectedSignals: snapshot.rejected_signals,
+        // Each analyst's individual assessment
+        analystAssessments: snapshot.analyst_assessments,
+        // Each LLM tier's assessment (frontend expects 'llmEnsembleResults')
+        llmEnsembleResults: snapshot.llm_ensemble,
+        // Learnings that were applied
+        appliedLearnings: snapshot.learnings_applied,
+        // Threshold evaluation details
+        thresholdEvaluation: snapshot.threshold_evaluation,
+        // Complete timeline
+        timeline: snapshot.timeline,
+        // Metadata
+        createdAt: snapshot.created_at,
       });
     } catch (error) {
       this.logger.error(

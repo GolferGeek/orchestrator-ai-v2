@@ -56,6 +56,7 @@ export interface InteractionModeConfig {
  * Agent types that use dashboard mode by default
  */
 const DASHBOARD_AGENT_TYPES = [
+  'prediction',
   'prediction_agent',
   'ambient_agent',
   'monitoring_agent',

@@ -50,6 +50,7 @@ interface SourceParams {
 /**
  * camelCase params from transport-types contract
  * Maps to snake_case DTOs for database persistence
+ * URL can be at top level (legacy) or in crawlConfig (transport-types contract)
  */
 interface CreateSourceParams {
   targetId?: string;
@@ -58,8 +59,8 @@ interface CreateSourceParams {
   scopeLevel: string;
   name: string;
   sourceType: string;
-  url: string;
-  crawlConfig?: CrawlConfig;
+  url?: string; // Optional - can also be in crawlConfig.url
+  crawlConfig?: CrawlConfig & { url?: string }; // url can be here per transport-types
   authConfig?: AuthConfig;
   crawlFrequencyMinutes?: number;
   isActive?: boolean;
@@ -69,10 +70,11 @@ interface UpdateSourceParams {
   name?: string;
   description?: string;
   url?: string;
-  crawlConfig?: CrawlConfig;
+  crawlConfig?: CrawlConfig & { url?: string }; // url can be in crawlConfig per transport-types
   authConfig?: AuthConfig;
   crawlFrequencyMinutes?: number;
-  isActive?: boolean;
+  isActive?: boolean; // Legacy
+  active?: boolean; // Per transport-types contract
 }
 
 @Injectable()
@@ -106,7 +108,7 @@ export class SourceHandler implements IDashboardHandler {
 
     switch (action.toLowerCase()) {
       case 'list':
-        return this.handleList(params);
+        return this.handleList(params, payload.filters);
       case 'get':
         return this.handleGet(params);
       case 'create':
@@ -133,44 +135,49 @@ export class SourceHandler implements IDashboardHandler {
 
   private async handleList(
     params?: SourceParams,
+    filters?: Record<string, unknown>,
   ): Promise<DashboardActionResult> {
     try {
       let sources: Source[];
 
-      // Determine scope for listing using findByScope
-      const targetId = params?.targetId || params?.filters?.targetId;
-      const universeId = params?.universeId || params?.filters?.universeId;
-      const scopeLevel = params?.filters?.scopeLevel;
+      // Determine scope for listing
+      // Check both params (for backward compat) and filters (transport-types contract)
+      const targetId =
+        params?.targetId ||
+        params?.filters?.targetId ||
+        (filters?.targetId as string | undefined);
+      const universeId =
+        params?.universeId ||
+        params?.filters?.universeId ||
+        (filters?.universeId as string | undefined);
 
+      // Dashboard listing should show ALL sources (including inactive)
+      // Use dashboard-specific methods that don't filter by is_active
       if (targetId) {
-        sources = await this.sourceRepository.findByScope('target', targetId);
+        sources =
+          await this.sourceRepository.findByTargetForDashboard(targetId);
       } else if (universeId) {
-        sources = await this.sourceRepository.findByScope(
-          'universe',
-          universeId,
-        );
-      } else if (scopeLevel) {
-        sources = await this.sourceRepository.findByScope(
-          scopeLevel as 'runner' | 'domain' | 'universe' | 'target',
-        );
+        sources =
+          await this.sourceRepository.findByUniverseForDashboard(universeId);
       } else {
-        // Get runner-level (global) sources
-        sources = await this.sourceRepository.findByScope('runner');
+        // Get all sources for dashboard
+        sources = await this.sourceRepository.findAllForDashboard();
       }
 
       // Apply additional filters
       let filtered = sources;
 
-      if (params?.filters?.sourceType) {
-        filtered = filtered.filter(
-          (s) => s.source_type === params.filters!.sourceType,
-        );
+      const sourceTypeFilter =
+        params?.filters?.sourceType ||
+        (filters?.sourceType as string | undefined);
+      if (sourceTypeFilter) {
+        filtered = filtered.filter((s) => s.source_type === sourceTypeFilter);
       }
 
-      if (params?.filters?.isActive !== undefined) {
-        filtered = filtered.filter(
-          (s) => s.is_active === params.filters!.isActive,
-        );
+      const isActiveFilter =
+        params?.filters?.isActive ?? (filters?.isActive as boolean | undefined);
+      if (isActiveFilter !== undefined) {
+        filtered = filtered.filter((s) => s.is_active === isActiveFilter);
       }
 
       // Simple pagination
@@ -231,10 +238,13 @@ export class SourceHandler implements IDashboardHandler {
     // Accept camelCase params from transport contract
     const data = payload.params as unknown as CreateSourceParams;
 
-    if (!data.name || !data.sourceType || !data.url || !data.scopeLevel) {
+    // URL can be at top level (legacy) or in crawlConfig (transport-types contract)
+    const url = data.url || data.crawlConfig?.url;
+
+    if (!data.name || !data.sourceType || !url || !data.scopeLevel) {
       return buildDashboardError(
         'INVALID_DATA',
-        'name, sourceType, url, and scopeLevel are required',
+        'name, sourceType, url (or crawlConfig.url), and scopeLevel are required',
       );
     }
 
@@ -255,7 +265,7 @@ export class SourceHandler implements IDashboardHandler {
           | 'rss'
           | 'twitter_search'
           | 'api',
-        url: data.url,
+        url: url,
         crawl_config: data.crawlConfig,
         auth_config: data.authConfig,
         crawl_frequency_minutes: (data.crawlFrequencyMinutes || 15) as
@@ -298,7 +308,11 @@ export class SourceHandler implements IDashboardHandler {
       if (data.name !== undefined) updateData.name = data.name;
       if (data.description !== undefined)
         updateData.description = data.description;
-      if (data.url !== undefined) updateData.url = data.url;
+
+      // URL can be at top level or in crawlConfig
+      const url = data.url || data.crawlConfig?.url;
+      if (url !== undefined) updateData.url = url;
+
       if (data.crawlConfig !== undefined)
         updateData.crawl_config = data.crawlConfig;
       if (data.authConfig !== undefined)
@@ -311,7 +325,10 @@ export class SourceHandler implements IDashboardHandler {
           | 30
           | 60;
       }
-      if (data.isActive !== undefined) updateData.is_active = data.isActive;
+
+      // Accept both isActive (legacy) and active (transport-types contract)
+      const isActive = data.isActive ?? data.active;
+      if (isActive !== undefined) updateData.is_active = isActive;
 
       const source = await this.sourceRepository.update(params.id, updateData);
       return buildDashboardSuccess(source);

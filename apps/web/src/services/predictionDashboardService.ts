@@ -881,12 +881,170 @@ export interface TestTargetMirrorEnsureParams {
 }
 
 // ============================================================================
+// TRANSFORMERS - Convert snake_case API responses to camelCase frontend types
+// ============================================================================
+
+interface ApiUniverse {
+  id: string;
+  name: string;
+  domain: 'stocks' | 'crypto' | 'elections' | 'polymarket';
+  description?: string | null;
+  organization_slug: string;
+  agent_slug: string;
+  strategy_id?: string | null;
+  llm_config?: Record<string, unknown> | null;
+  thresholds?: Record<string, unknown> | null;
+  notification_config?: Record<string, unknown>;
+  is_active?: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+function transformUniverse(api: ApiUniverse): PredictionUniverse {
+  const llmConfig = api.llm_config as Record<string, unknown> | null;
+  return {
+    id: api.id,
+    name: api.name,
+    domain: api.domain,
+    description: api.description ?? undefined,
+    organizationSlug: api.organization_slug,
+    agentSlug: api.agent_slug,
+    strategyId: api.strategy_id ?? undefined,
+    llmConfig: llmConfig ? {
+      provider: llmConfig.provider as string | undefined,
+      model: llmConfig.model as string | undefined,
+      tiers: llmConfig.tiers as {
+        gold?: { provider: string; model: string };
+        silver?: { provider: string; model: string };
+        bronze?: { provider: string; model: string };
+      } | undefined,
+    } : undefined,
+    createdAt: api.created_at,
+    updatedAt: api.updated_at,
+  };
+}
+
+function transformUniverses(apis: ApiUniverse[]): PredictionUniverse[] {
+  if (!Array.isArray(apis)) {
+    console.warn('transformUniverses received non-array:', apis);
+    return [];
+  }
+  return apis.map(transformUniverse);
+}
+
+// Target transformer (snake_case API -> camelCase frontend)
+interface ApiTarget {
+  id: string;
+  universe_id: string;
+  name: string;
+  symbol: string;
+  target_type: string;
+  context?: string | null;
+  llm_config_override?: Record<string, unknown> | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+function transformTarget(api: ApiTarget): PredictionTarget {
+  return {
+    id: api.id,
+    universeId: api.universe_id,
+    name: api.name,
+    symbol: api.symbol,
+    targetType: api.target_type,
+    context: api.context ?? undefined,
+    llmConfigOverride: api.llm_config_override ?? undefined,
+    active: api.is_active,
+    createdAt: api.created_at,
+    updatedAt: api.updated_at,
+  };
+}
+
+function transformTargets(apis: ApiTarget[]): PredictionTarget[] {
+  if (!Array.isArray(apis)) {
+    console.warn('transformTargets received non-array:', apis);
+    return [];
+  }
+  return apis.map(transformTarget);
+}
+
+// Source transformer (snake_case API -> camelCase frontend)
+interface ApiSource {
+  id: string;
+  name: string;
+  description?: string | null;
+  source_type: string;
+  url: string;
+  scope_level: string;
+  domain?: string | null;
+  universe_id?: string | null;
+  target_id?: string | null;
+  crawl_config: Record<string, unknown>;
+  auth_config?: Record<string, unknown> | null;
+  crawl_frequency_minutes: number;
+  is_active: boolean;
+  is_test?: boolean;
+  last_crawl_at?: string | null;
+  last_crawl_status?: string | null;
+  last_error?: string | null;
+  consecutive_errors?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+function transformSource(api: ApiSource): PredictionSource {
+  return {
+    id: api.id,
+    name: api.name,
+    sourceType: api.source_type as 'web' | 'rss' | 'twitter_search' | 'api',
+    scopeLevel: api.scope_level as 'runner' | 'domain' | 'universe' | 'target',
+    domain: api.domain ?? undefined,
+    universeId: api.universe_id ?? undefined,
+    targetId: api.target_id ?? undefined,
+    crawlConfig: {
+      ...api.crawl_config,
+      url: api.url, // Include url in crawlConfig for frontend convenience
+    },
+    authConfig: api.auth_config ?? undefined,
+    active: api.is_active,
+    lastCrawledAt: api.last_crawl_at ?? undefined,
+    createdAt: api.created_at,
+    updatedAt: api.updated_at,
+  };
+}
+
+function transformSources(apis: ApiSource[]): PredictionSource[] {
+  if (!Array.isArray(apis)) {
+    console.warn('transformSources received non-array:', apis);
+    return [];
+  }
+  return apis.map(transformSource);
+}
+
+// ============================================================================
 // SERVICE
 // ============================================================================
 
 class PredictionDashboardService {
-  private agentSlug = 'prediction-runner';
+  private defaultAgentSlug = 'us-tech-stocks'; // Default prediction agent
+  private currentAgentSlug: string | null = null;
   private authStore: ReturnType<typeof useAuthStore> | null = null;
+
+  /**
+   * Set the current agent slug for API calls
+   * Call this before making dashboard requests when switching agents
+   */
+  setAgentSlug(agentSlug: string): void {
+    this.currentAgentSlug = agentSlug;
+  }
+
+  /**
+   * Get the current agent slug, falling back to default
+   */
+  private getAgentSlug(): string {
+    return this.currentAgentSlug || this.defaultAgentSlug;
+  }
 
   private getAuthStore(): ReturnType<typeof useAuthStore> {
     if (!this.authStore) {
@@ -900,6 +1058,10 @@ class PredictionDashboardService {
     if (!org) {
       throw new Error('No organization context available');
     }
+    // Reject global org slug '*' - need a specific organization for prediction API
+    if (org === '*') {
+      throw new Error('Please select a specific organization to view predictions. Global (*) organization is not supported.');
+    }
     return org;
   }
 
@@ -912,8 +1074,31 @@ class PredictionDashboardService {
   }
 
   private getContext(): ExecutionContext {
-    const store = useExecutionContextStore();
-    return store.current;
+    const contextStore = useExecutionContextStore();
+    const authStore = this.getAuthStore();
+
+    // For dashboard mode, we don't require a conversation context
+    // Create a minimal context with required fields
+    if (contextStore.isInitialized) {
+      return contextStore.current;
+    }
+
+    // Create minimal dashboard context when no conversation is active
+    const orgSlug = this.getOrgSlug();
+    const userId = authStore.user?.id || '';
+
+    return {
+      orgSlug,
+      userId,
+      conversationId: '00000000-0000-0000-0000-000000000000', // NIL UUID for dashboard mode
+      taskId: crypto.randomUUID(),
+      planId: '00000000-0000-0000-0000-000000000000',
+      deliverableId: '00000000-0000-0000-0000-000000000000',
+      agentSlug: this.getAgentSlug(),
+      agentType: 'prediction',
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-20250514',
+    };
   }
 
   private async executeDashboardRequest<T>(
@@ -923,7 +1108,7 @@ class PredictionDashboardService {
     pagination?: { page?: number; pageSize?: number }
   ): Promise<DashboardResponsePayload<T>> {
     const org = this.getOrgSlug();
-    const endpoint = `${API_BASE_URL}/agent-to-agent/${encodeURIComponent(org)}/${encodeURIComponent(this.agentSlug)}/tasks`;
+    const endpoint = `${API_BASE_URL}/agent-to-agent/${encodeURIComponent(org)}/${encodeURIComponent(this.getAgentSlug())}/tasks`;
 
     const payload: DashboardRequestPayload = {
       action,
@@ -972,38 +1157,56 @@ class PredictionDashboardService {
   async listUniverses(
     params?: UniverseListParams
   ): Promise<DashboardResponsePayload<PredictionUniverse[]>> {
-    return this.executeDashboardRequest<PredictionUniverse[]>(
+    const response = await this.executeDashboardRequest<ApiUniverse[]>(
       'universes.list',
       undefined,
       params
     );
+    // Transform snake_case API response to camelCase frontend type
+    return {
+      ...response,
+      content: response.content ? transformUniverses(response.content) : null,
+    };
   }
 
   async getUniverse(
     params: UniverseGetParams
   ): Promise<DashboardResponsePayload<PredictionUniverse>> {
-    return this.executeDashboardRequest<PredictionUniverse>(
+    const response = await this.executeDashboardRequest<ApiUniverse>(
       'universes.get',
       params
     );
+    // Transform snake_case API response to camelCase frontend type
+    return {
+      ...response,
+      content: response.content ? transformUniverse(response.content) : null,
+    };
   }
 
   async createUniverse(
     params: UniverseCreateParams
   ): Promise<DashboardResponsePayload<PredictionUniverse>> {
-    return this.executeDashboardRequest<PredictionUniverse>(
+    const response = await this.executeDashboardRequest<ApiUniverse>(
       'universes.create',
       params
     );
+    return {
+      ...response,
+      content: response.content ? transformUniverse(response.content) : null,
+    };
   }
 
   async updateUniverse(
     params: UniverseUpdateParams
   ): Promise<DashboardResponsePayload<PredictionUniverse>> {
-    return this.executeDashboardRequest<PredictionUniverse>(
+    const response = await this.executeDashboardRequest<ApiUniverse>(
       'universes.update',
       params
     );
+    return {
+      ...response,
+      content: response.content ? transformUniverse(response.content) : null,
+    };
   }
 
   async deleteUniverse(
@@ -1022,38 +1225,56 @@ class PredictionDashboardService {
   async listTargets(
     params?: TargetListParams
   ): Promise<DashboardResponsePayload<PredictionTarget[]>> {
-    return this.executeDashboardRequest<PredictionTarget[]>(
+    // Pass universeId in params (first position) as backend expects it there
+    const response = await this.executeDashboardRequest<ApiTarget[]>(
       'targets.list',
-      undefined,
-      params
+      params, // universeId goes in params, not filters
+      undefined
     );
+    // Transform snake_case API response to camelCase frontend type
+    return {
+      ...response,
+      content: response.content ? transformTargets(response.content) : null,
+    };
   }
 
   async getTarget(
     params: TargetGetParams
   ): Promise<DashboardResponsePayload<PredictionTarget>> {
-    return this.executeDashboardRequest<PredictionTarget>(
+    const response = await this.executeDashboardRequest<ApiTarget>(
       'targets.get',
       params
     );
+    return {
+      ...response,
+      content: response.content ? transformTarget(response.content) : null,
+    };
   }
 
   async createTarget(
     params: TargetCreateParams
   ): Promise<DashboardResponsePayload<PredictionTarget>> {
-    return this.executeDashboardRequest<PredictionTarget>(
+    const response = await this.executeDashboardRequest<ApiTarget>(
       'targets.create',
       params
     );
+    return {
+      ...response,
+      content: response.content ? transformTarget(response.content) : null,
+    };
   }
 
   async updateTarget(
     params: TargetUpdateParams
   ): Promise<DashboardResponsePayload<PredictionTarget>> {
-    return this.executeDashboardRequest<PredictionTarget>(
+    const response = await this.executeDashboardRequest<ApiTarget>(
       'targets.update',
       params
     );
+    return {
+      ...response,
+      content: response.content ? transformTarget(response.content) : null,
+    };
   }
 
   async deleteTarget(
@@ -1106,38 +1327,54 @@ class PredictionDashboardService {
   async listSources(
     params?: SourceListParams
   ): Promise<DashboardResponsePayload<PredictionSource[]>> {
-    return this.executeDashboardRequest<PredictionSource[]>(
+    const response = await this.executeDashboardRequest<ApiSource[]>(
       'sources.list',
       undefined,
       params
     );
+    return {
+      ...response,
+      content: response.content ? transformSources(response.content) : null,
+    };
   }
 
   async getSource(
     params: SourceGetParams
   ): Promise<DashboardResponsePayload<PredictionSource>> {
-    return this.executeDashboardRequest<PredictionSource>(
+    const response = await this.executeDashboardRequest<ApiSource>(
       'sources.get',
       params
     );
+    return {
+      ...response,
+      content: response.content ? transformSource(response.content) : null,
+    };
   }
 
   async createSource(
     params: SourceCreateParams
   ): Promise<DashboardResponsePayload<PredictionSource>> {
-    return this.executeDashboardRequest<PredictionSource>(
+    const response = await this.executeDashboardRequest<ApiSource>(
       'sources.create',
       params
     );
+    return {
+      ...response,
+      content: response.content ? transformSource(response.content) : null,
+    };
   }
 
   async updateSource(
     params: SourceUpdateParams
   ): Promise<DashboardResponsePayload<PredictionSource>> {
-    return this.executeDashboardRequest<PredictionSource>(
+    const response = await this.executeDashboardRequest<ApiSource>(
       'sources.update',
       params
     );
+    return {
+      ...response,
+      content: response.content ? transformSource(response.content) : null,
+    };
   }
 
   async deleteSource(
@@ -1431,22 +1668,33 @@ class PredictionDashboardService {
   // CONVENIENCE METHODS
   // ==========================================================================
 
-  async loadDashboardData(universeId?: string): Promise<{
+  async loadDashboardData(universeId?: string, agentSlug?: string): Promise<{
     universes: PredictionUniverse[];
     predictions: Prediction[];
     strategies: PredictionStrategy[];
   }> {
-    const filters = universeId ? { universeId } : undefined;
+    const universeFilters = agentSlug ? { agentSlug } : undefined;
+    const predictionFilters = universeId ? { universeId } : undefined;
 
     const [universesRes, predictionsRes, strategiesRes] = await Promise.all([
-      this.listUniverses(),
-      this.listPredictions(filters, { pageSize: 50 }),
+      this.listUniverses(universeFilters),
+      this.listPredictions(predictionFilters, { pageSize: 50 }),
       this.listStrategies(),
     ]);
 
+    // If agentSlug provided, filter universes and predictions to only those for this agent
+    let universes: PredictionUniverse[] = universesRes.content || [];
+    let predictions: Prediction[] = predictionsRes.content || [];
+
+    if (agentSlug) {
+      universes = universes.filter((u: PredictionUniverse) => u.agentSlug === agentSlug);
+      const universeIds = new Set(universes.map((u: PredictionUniverse) => u.id));
+      predictions = predictions.filter((p: Prediction) => universeIds.has(p.universeId));
+    }
+
     return {
-      universes: universesRes.content || [],
-      predictions: predictionsRes.content || [],
+      universes,
+      predictions,
       strategies: strategiesRes.content || [],
     };
   }

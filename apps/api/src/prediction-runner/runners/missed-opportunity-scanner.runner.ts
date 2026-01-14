@@ -147,7 +147,7 @@ export class MissedOpportunityScannerRunner {
       agentSlug: 'missed-opportunity-analyzer',
       agentType: 'context',
       provider: 'anthropic',
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-haiku-4-20250514',
     };
 
     this.logger.debug(`Triggering analysis for missed opportunity ${miss.id}`);
@@ -214,7 +214,7 @@ export class MissedOpportunityScannerRunner {
         agentSlug: 'missed-opportunity-analyzer',
         agentType: 'context',
         provider: 'anthropic',
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-haiku-4-20250514',
       };
 
       await this.missedOpportunityAnalysisService.analyzeMissedOpportunity(

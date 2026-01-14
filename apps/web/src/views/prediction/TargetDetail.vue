@@ -193,11 +193,11 @@ async function loadTargetData() {
 }
 
 function goBack() {
-  router.push({ name: 'prediction-dashboard' });
+  router.push({ name: 'PredictionDashboard' });
 }
 
 function onPredictionSelect(id: string) {
-  router.push({ name: 'prediction-detail', params: { id } });
+  router.push({ name: 'PredictionDetail', params: { id } });
 }
 
 function formatDate(dateStr: string): string {

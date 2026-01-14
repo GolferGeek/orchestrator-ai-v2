@@ -1,10 +1,10 @@
 <template>
   <div class="universe-management">
     <header class="management-header">
-      <h1>Universe Management</h1>
+      <h1>Portfolio Management</h1>
       <button class="btn btn-primary" @click="openCreateModal">
         <span class="icon">+</span>
-        New Universe
+        New Portfolio
       </button>
     </header>
 
@@ -31,7 +31,7 @@
     <!-- Loading State -->
     <div v-if="isLoading" class="loading-state">
       <div class="spinner"></div>
-      <span>Loading universes...</span>
+      <span>Loading portfolios...</span>
     </div>
 
     <!-- Error State -->
@@ -44,9 +44,9 @@
     <!-- Empty State -->
     <div v-else-if="filteredUniverses.length === 0" class="empty-state">
       <span class="empty-icon">&#127758;</span>
-      <h3>No Universes Found</h3>
-      <p>{{ selectedDomain ? `No universes in the ${selectedDomain} domain` : 'Create your first prediction universe to get started' }}</p>
-      <button class="btn btn-primary" @click="openCreateModal">Create Universe</button>
+      <h3>No Portfolios Found</h3>
+      <p>{{ selectedDomain ? `No portfolios in the ${selectedDomain} domain` : 'Create your first portfolio to get started' }}</p>
+      <button class="btn btn-primary" @click="openCreateModal">Create Portfolio</button>
     </div>
 
     <!-- Universes Grid -->
@@ -69,7 +69,7 @@
     <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
       <div class="modal-content">
         <header class="modal-header">
-          <h2>{{ editingUniverse ? 'Edit Universe' : 'Create Universe' }}</h2>
+          <h2>{{ editingUniverse ? 'Edit Portfolio' : 'Create Portfolio' }}</h2>
           <button class="close-btn" @click="closeModal">&times;</button>
         </header>
 
@@ -279,11 +279,13 @@ async function loadUniverses() {
     store.setStrategies(data.strategies);
     store.setPredictions(data.predictions);
 
-    // Load targets for counts
-    const targetsRes = await predictionDashboardService.listTargets();
-    if (targetsRes.content) {
-      store.setTargets(targetsRes.content);
-    }
+    // Load targets for each universe in parallel (API requires universeId)
+    const targetPromises = data.universes.map((universe) =>
+      predictionDashboardService.listTargets({ universeId: universe.id })
+    );
+    const targetResults = await Promise.all(targetPromises);
+    const allTargets = targetResults.flatMap((res) => res.content || []);
+    store.setTargets(allTargets);
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load universes';
   } finally {
@@ -293,7 +295,7 @@ async function loadUniverses() {
 
 function onUniverseSelect(id: string) {
   selectedUniverseId.value = id;
-  router.push({ name: 'prediction-dashboard', query: { universeId: id } });
+  router.push({ name: 'PortfolioDetail', params: { id } });
 }
 
 function openCreateModal() {

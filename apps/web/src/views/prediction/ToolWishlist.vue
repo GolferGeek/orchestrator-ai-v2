@@ -62,9 +62,9 @@
         </div>
 
         <div class="filter-group">
-          <label>Universe:</label>
+          <label>Portfolio:</label>
           <select v-model="filters.universeId" @change="applyFilters">
-            <option :value="null">All Universes</option>
+            <option :value="null">All Portfolios</option>
             <option
               v-for="universe in universes"
               :key="universe.id"

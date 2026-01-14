@@ -29,12 +29,12 @@
       </button>
     </div>
 
-    <!-- Universe/Target Filters -->
+    <!-- Portfolio/Target Filters -->
     <div v-if="universes.length > 0" class="filters">
       <div class="filter-group">
-        <label for="universe-filter">Universe</label>
+        <label for="universe-filter">Portfolio</label>
         <select id="universe-filter" v-model="selectedUniverseId">
-          <option :value="null">All universes</option>
+          <option :value="null">All portfolios</option>
           <option v-for="universe in universes" :key="universe.id" :value="universe.id">
             {{ universe.name }}
           </option>

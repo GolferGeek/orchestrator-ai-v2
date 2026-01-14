@@ -33,9 +33,9 @@
     <!-- Filters -->
     <section class="filters-section">
       <div class="filter-group">
-        <label for="universe-filter">Universe</label>
+        <label for="universe-filter">Portfolio</label>
         <select id="universe-filter" v-model="selectedUniverse" @change="loadSources">
-          <option :value="null">All Universes</option>
+          <option :value="null">All Portfolios</option>
           <option v-for="u in universes" :key="u.id" :value="u.id">
             {{ u.name }}
           </option>

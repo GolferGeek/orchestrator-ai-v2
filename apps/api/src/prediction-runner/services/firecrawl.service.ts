@@ -78,14 +78,15 @@ export class FirecrawlService {
       // Validate URL
       this.validateUrl(url);
 
+      // Firecrawl v1 API expects options at top level, not nested
       const request: FirecrawlScrapeRequest = {
         url,
-        options: {
-          formats: options?.formats || ['markdown'],
-          onlyMainContent: options?.onlyMainContent ?? true,
-          timeout: options?.timeout || this.defaultTimeout,
-          ...options,
-        },
+        formats: options?.formats || ['markdown'],
+        onlyMainContent: options?.onlyMainContent ?? true,
+        timeout: options?.timeout || this.defaultTimeout,
+        waitFor: options?.waitFor,
+        headers: options?.headers,
+        includeTags: options?.includeTags,
       };
 
       this.logger.debug(`Scraping URL: ${url}`);

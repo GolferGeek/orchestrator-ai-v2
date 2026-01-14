@@ -102,6 +102,91 @@ export class PredictionRepository {
     return data ?? [];
   }
 
+  /**
+   * Find predictions by universe ID
+   * Since predictions link to targets which link to universes,
+   * we need to join through the targets table
+   */
+  async findByUniverse(
+    universeId: string,
+    status?: PredictionStatus,
+    filter: TestDataFilter = DEFAULT_FILTER,
+  ): Promise<Prediction[]> {
+    this.logger.debug(
+      `[findByUniverse] Starting - universeId: ${universeId}, status: ${status}, filter: ${JSON.stringify(filter)}`,
+    );
+
+    // First get all target IDs for this universe
+    const { data: targets, error: targetError } = await this.getClient()
+      .schema(this.schema)
+      .from('targets')
+      .select('id')
+      .eq('universe_id', universeId);
+
+    if (targetError) {
+      this.logger.error(`Failed to fetch targets: ${targetError.message}`);
+      throw new Error(`Failed to fetch targets: ${targetError.message}`);
+    }
+
+    this.logger.debug(
+      `[findByUniverse] Found ${targets?.length ?? 0} targets for universe`,
+    );
+
+    if (!targets || targets.length === 0) {
+      return [];
+    }
+
+    const targetIds = targets.map((t: { id: string }) => t.id);
+    this.logger.debug(`[findByUniverse] Target IDs: ${targetIds.join(', ')}`);
+
+    // Query ALL predictions for these targets first (without filters) to debug
+    const { data: allPredictions } = await this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .select('id, status, is_test_data')
+      .in('target_id', targetIds);
+
+    this.logger.debug(
+      `[findByUniverse] All predictions for targets (no filters): ${allPredictions?.length ?? 0}`,
+    );
+    if (allPredictions && allPredictions.length > 0) {
+      this.logger.debug(
+        `[findByUniverse] Sample predictions: ${JSON.stringify(allPredictions.slice(0, 3))}`,
+      );
+    }
+
+    let query = this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .select('*')
+      .in('target_id', targetIds);
+
+    if (status) {
+      query = query.eq('status', status);
+    }
+
+    query = this.applyTestDataFilter(query, filter);
+    query = query.order('predicted_at', { ascending: false });
+
+    const { data, error } =
+      (await query) as SupabaseSelectListResponse<Prediction>;
+
+    if (error) {
+      this.logger.error(
+        `Failed to fetch predictions by universe: ${error.message}`,
+      );
+      throw new Error(
+        `Failed to fetch predictions by universe: ${error.message}`,
+      );
+    }
+
+    this.logger.debug(
+      `[findByUniverse] Final result after filters: ${data?.length ?? 0} predictions`,
+    );
+
+    return data ?? [];
+  }
+
   async create(predictionData: CreatePredictionData): Promise<Prediction> {
     const { data, error } = (await this.getClient()
       .schema(this.schema)

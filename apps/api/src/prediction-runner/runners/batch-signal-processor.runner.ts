@@ -227,7 +227,7 @@ export class BatchSignalProcessorRunner {
       agentSlug: 'batch-signal-processor',
       agentType: 'context',
       provider: 'anthropic',
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-haiku-4-20250514',
     };
 
     const result = await this.signalDetectionService.processSignal(ctx, {
@@ -256,7 +256,7 @@ export class BatchSignalProcessorRunner {
         agentSlug: 'fast-path-processor',
         agentType: 'context',
         provider: 'anthropic',
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-haiku-4-20250514',
       };
 
       await this.fastPathService.processFastPath(ctx, signal);

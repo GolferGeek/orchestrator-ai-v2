@@ -119,7 +119,7 @@
                   v-permission="'finance:admin'"
                 >
                   <ion-icon :icon="trendingUpOutline" />
-                  <span>Finance Universes</span>
+                  <span>Finance Portfolios</span>
                 </div>
                 <div
                   class="nav-item"

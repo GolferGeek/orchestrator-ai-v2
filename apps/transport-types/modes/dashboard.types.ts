@@ -188,6 +188,8 @@ export interface PredictionListParams {
   targetId?: string;
   status?: 'active' | 'resolved' | 'expired' | 'cancelled';
   domain?: string;
+  /** Include test data in results (default: false) */
+  includeTestData?: boolean;
 }
 
 export interface PredictionGetParams {

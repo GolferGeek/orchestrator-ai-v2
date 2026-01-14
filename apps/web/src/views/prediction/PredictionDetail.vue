@@ -58,7 +58,7 @@
         <div class="summary-grid">
           <div v-if="prediction.magnitude" class="summary-item">
             <span class="item-label">Magnitude</span>
-            <span class="item-value">{{ prediction.magnitude.toFixed(2) }}%</span>
+            <span class="item-value">{{ prediction.magnitude.toString().toUpperCase() }}</span>
           </div>
           <div v-if="prediction.timeframe" class="summary-item">
             <span class="item-label">Timeframe</span>
@@ -92,22 +92,22 @@
       <!-- Explainability Sections (from Snapshot) -->
       <template v-if="snapshot">
         <!-- LLM Ensemble Results -->
-        <LLMEnsembleView :llm-ensemble-results="snapshot.llmEnsembleResults" />
+        <LLMEnsembleView v-if="snapshot.llmEnsembleResults" :llm-ensemble-results="snapshot.llmEnsembleResults" />
 
         <!-- Threshold Evaluation -->
-        <ThresholdEvaluation :evaluation="snapshot.thresholdEvaluation" />
+        <ThresholdEvaluation v-if="snapshot.thresholdEvaluation" :evaluation="snapshot.thresholdEvaluation" />
 
         <!-- Analyst Breakdown -->
-        <AnalystBreakdown :assessments="snapshot.analystAssessments" />
+        <AnalystBreakdown v-if="snapshot.analystAssessments" :assessments="snapshot.analystAssessments" />
 
         <!-- Predictors -->
-        <PredictorList :predictors="snapshot.predictors" />
+        <PredictorList v-if="snapshot.predictors" :predictors="snapshot.predictors" />
 
         <!-- Applied Learnings -->
-        <LearningsApplied :learnings="snapshot.appliedLearnings" />
+        <LearningsApplied v-if="snapshot.appliedLearnings" :learnings="snapshot.appliedLearnings" />
 
         <!-- Rejected Signals -->
-        <section v-if="snapshot.rejectedSignals.length > 0" class="rejected-signals">
+        <section v-if="snapshot.rejectedSignals?.length > 0" class="rejected-signals">
           <h3 class="section-title">
             Rejected Signals
             <span class="count">({{ snapshot.rejectedSignals.length }})</span>
@@ -127,7 +127,7 @@
         </section>
 
         <!-- Timeline -->
-        <PredictionTimeline :timeline="snapshot.timeline" />
+        <PredictionTimeline v-if="snapshot.timeline" :timeline="snapshot.timeline" />
       </template>
 
       <!-- No Snapshot Available -->

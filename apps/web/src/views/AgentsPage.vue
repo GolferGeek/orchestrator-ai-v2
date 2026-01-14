@@ -104,7 +104,7 @@
   </ion-page>
 </template>
 <script lang="ts" setup>
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, onMounted, nextTick } from 'vue';
 import {
   IonPage, IonContent, IonIcon, IonItem, IonLabel, IonList, IonMenu, IonNote, IonRouterOutlet, IonSplitPane, IonHeader, IonToolbar, IonTitle, IonAccordion, IonAccordionGroup
 } from '@ionic/vue';
@@ -115,7 +115,7 @@ import { conversationsService } from '@/services/conversationsService';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
 import { useUserPreferencesStore } from '@/stores/userPreferencesStore';
 import { useRouter } from 'vue-router';
-import { getInteractionMode, type Agent as InteractionAgent } from '@/utils/agent-interaction-mode';
+import { getInteractionMode, isPredictionAgent, type Agent as InteractionAgent } from '@/utils/agent-interaction-mode';
 import AgentTreeView from '@/components/AgentTreeView.vue';
 import OrganizationSwitcherApp from '@/components/common/OrganizationSwitcherApp.vue';
 import SuperAdminCommandButton from '@/components/super-admin/SuperAdminCommandButton.vue';
@@ -214,6 +214,15 @@ const handleOpenDashboard = async (agent: Record<string, unknown>, _componentNam
 
     // Set flag in sessionStorage to indicate active session
     sessionStorage.setItem('activeConversation', 'true');
+
+    // Prediction agents route to the new prediction dashboard routes
+    // Use setTimeout to ensure Ionic Vue's router outlet is ready
+    if (isPredictionAgent(agent as unknown as InteractionAgent)) {
+      setTimeout(() => {
+        router.push({ path: '/app/prediction/dashboard', query: { agentSlug } });
+      }, 50);
+      return;
+    }
 
     // Dashboard agents navigate with agentSlug - the dashboard pane handles its own
     // ExecutionContext creation (conversationId, taskId) when making API calls

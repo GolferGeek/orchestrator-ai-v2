@@ -43,6 +43,10 @@ export interface Prediction {
   resolution_notes: string | null;
   created_at: string;
   updated_at: string;
+  /** Flag indicating if this is test data */
+  is_test_data?: boolean | null;
+  /** Test scenario ID if this is test data */
+  test_scenario_id?: string | null;
 }
 
 export interface CreatePredictionData {

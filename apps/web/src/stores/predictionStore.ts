@@ -225,7 +225,11 @@ export const usePredictionStore = defineStore('prediction', () => {
   }
 
   function getTargetsForUniverse(universeId: string): PredictionTarget[] {
-    return state.value.targets.filter((t) => t.universeId === universeId);
+    const targets = state.value?.targets;
+    if (!Array.isArray(targets)) {
+      return [];
+    }
+    return targets.filter((t) => t.universeId === universeId);
   }
 
   function getPredictionsForTarget(targetId: string): Prediction[] {

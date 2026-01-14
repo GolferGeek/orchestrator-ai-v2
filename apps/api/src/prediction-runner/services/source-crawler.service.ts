@@ -450,7 +450,7 @@ export class SourceCrawlerService {
       source_app: 'prediction-runner',
       hook_event_type: 'article.discovered',
       status: 'discovered',
-      message: `New article discovered: ${title.substring(0, 100)}${title.length > 100 ? '...' : ''}`,
+      message: `${title.substring(0, 100)}${title.length > 100 ? '...' : ''}`,
       progress: null,
       step: 'article-discovered',
       payload: {

@@ -19,23 +19,23 @@
 
     <div class="card-body">
       <div class="direction-section">
-        <div class="direction-indicator" :class="prediction.direction">
+        <div class="direction-indicator" :class="prediction.direction || 'neutral'">
           <span class="direction-icon">{{ directionIcon }}</span>
-          <span class="direction-label">{{ prediction.direction.toUpperCase() }}</span>
+          <span class="direction-label">{{ (prediction.direction || 'neutral').toUpperCase() }}</span>
         </div>
         <div class="confidence-bar">
           <div
             class="confidence-fill"
-            :style="{ width: `${prediction.confidence * 100}%` }"
+            :style="{ width: `${Number(prediction.confidence || 0) * 100}%` }"
           ></div>
-          <span class="confidence-label">{{ Math.round(prediction.confidence * 100) }}%</span>
+          <span class="confidence-label">{{ Math.round(Number(prediction.confidence || 0) * 100) }}%</span>
         </div>
       </div>
 
       <div class="metrics-row">
-        <div v-if="prediction.magnitude" class="metric">
+        <div v-if="prediction.magnitude != null" class="metric">
           <span class="metric-label">Magnitude</span>
-          <span class="metric-value">{{ prediction.magnitude.toFixed(2) }}%</span>
+          <span class="metric-value">{{ prediction.magnitude.toString().toUpperCase() }}</span>
         </div>
         <div v-if="prediction.timeframe" class="metric">
           <span class="metric-label">Timeframe</span>
@@ -86,7 +86,7 @@ defineEmits<{
   select: [id: string];
 }>();
 
-const statusClass = computed(() => `status-${props.prediction.status}`);
+const statusClass = computed(() => `status-${props.prediction.status || 'active'}`);
 
 const directionIcon = computed(() => {
   switch (props.prediction.direction) {

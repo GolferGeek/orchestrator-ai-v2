@@ -287,7 +287,13 @@ const handleOffline = () => {
 watch(currentGlobalError, (newError, oldError) => {
   // Check if component is still mounted before updating
   if (instance?.isUnmounted) return;
-  
+
+  // Skip Vue internal errors to prevent cascade
+  if (newError?.message?.includes('emitsOptions') ||
+      newError?.message?.includes('Cannot read properties of null')) {
+    return;
+  }
+
   if (newError && newError.id !== oldError?.id) {
     showGlobalError.value = true;
   }

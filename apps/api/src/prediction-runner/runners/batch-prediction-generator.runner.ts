@@ -135,7 +135,7 @@ export class BatchPredictionGeneratorRunner {
               agentSlug: 'batch-prediction-generator',
               agentType: 'context',
               provider: 'anthropic',
-              model: 'claude-sonnet-4-20250514',
+              model: 'claude-haiku-4-20250514',
             };
 
             // Generate prediction
@@ -197,7 +197,7 @@ export class BatchPredictionGeneratorRunner {
         agentSlug: 'manual-prediction-generator',
         agentType: 'context',
         provider: 'anthropic',
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-haiku-4-20250514',
       };
 
       const prediction =
