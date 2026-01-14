@@ -167,6 +167,98 @@ export interface PredictionSnapshot {
   createdAt: string;
 }
 
+/**
+ * Full prediction lineage data from deep-dive endpoint
+ * Includes complete chain: Prediction -> Predictors -> Signals -> Articles
+ */
+export interface PredictionDeepDive {
+  prediction: {
+    id: string;
+    targetId: string;
+    direction: string;
+    magnitude?: string;
+    confidence: number;
+    timeframeHours?: number;
+    status: string;
+    predictedAt: string;
+    expiresAt?: string;
+    outcomeValue?: number;
+    resolutionNotes?: string;
+    reasoning?: string;
+  };
+  lineage: {
+    predictors: Array<{
+      id: string;
+      direction: string;
+      strength: number;
+      confidence: number;
+      reasoning?: string;
+      analystSlug?: string;
+      createdAt: string;
+      signal: {
+        id: string;
+        content: string;
+        direction: string;
+        urgency?: string;
+        sourceId: string;
+        detectedAt: string;
+        url?: string;
+      } | null;
+      fingerprint: {
+        titleNormalized?: string;
+        keyPhrases?: string[];
+        fingerprintHash?: string;
+      } | null;
+      sourceArticle: {
+        url?: string;
+        title?: string;
+        firstSeenAt?: string;
+        contentHash?: string;
+      } | null;
+    }>;
+    analystAssessments: Array<{
+      analystSlug: string;
+      tier: string;
+      direction: string;
+      confidence: number;
+      reasoning?: string;
+      keyFactors?: string[];
+      risks?: string[];
+      learningsApplied?: string[];
+    }>;
+    llmEnsemble: {
+      tiers_used?: string[];
+      tier_results?: Record<string, {
+        direction: string;
+        confidence: number;
+        model: string;
+        provider: string;
+      }>;
+      agreement_level?: number;
+    } | null;
+    thresholdEvaluation: {
+      min_predictors?: number;
+      actual_predictors?: number;
+      min_combined_strength?: number;
+      actual_combined_strength?: number;
+      min_consensus?: number;
+      actual_consensus?: number;
+      passed?: boolean;
+    } | null;
+    timeline: Array<{
+      timestamp: string;
+      event_type: string;
+      details?: Record<string, unknown>;
+    }>;
+  };
+  stats: {
+    predictorCount: number;
+    signalCount: number;
+    analystCount: number;
+    averageConfidence: number;
+  };
+}
+
 export interface PredictionSource {
   id: string;
   name: string;
@@ -1320,6 +1412,19 @@ class PredictionDashboardService {
     );
   }
 
+  /**
+   * Get full prediction deep-dive with complete lineage
+   * Prediction -> Predictors -> Signals -> Articles
+   */
+  async getPredictionDeepDive(
+    params: { id: string }
+  ): Promise<DashboardResponsePayload<PredictionDeepDive>> {
+    return this.executeDashboardRequest<PredictionDeepDive>(
+      'predictions.deepDive',
+      params
+    );
+  }
+
   // ==========================================================================
   // SOURCE OPERATIONS
   // ==========================================================================
@@ -2262,6 +2367,334 @@ class PredictionDashboardService {
       'learning-promotion.run-backtest',
       params
     );
+  }
+
+  // ==========================================================================
+  // MANUAL PROCESSING OPERATIONS
+  // ==========================================================================
+  // These actions allow manual triggering of pipeline steps:
+  // 1. processSignals: Signal → Predictor conversion
+  // 2. generatePredictions: Predictor → Prediction generation
+  // 3. crawlSources: Source crawl → Signal creation
+
+  /**
+   * Result of manual signal processing
+   */
+  // Types are defined inline for simplicity
+
+  /**
+   * Manually process pending signals for a target or all targets in a universe
+   * Converts signals to predictors through the analyst ensemble
+   *
+   * @param params.targetId - Target to process signals for (single target)
+   * @param params.universeId - Process signals for all active targets in universe
+   * @param params.batchSize - Max signals to process per target (default: 10)
+   * @param params.includeTest - Include test data (default: false)
+   */
+  async processSignals(params: {
+    targetId?: string;
+    universeId?: string;
+    batchSize?: number;
+    includeTest?: boolean;
+  }): Promise<DashboardResponsePayload<{
+    // Single target response
+    processed?: number;
+    predictorsCreated?: number;
+    rejected?: number;
+    errors?: number;
+    results?: Array<{
+      signalId: string;
+      status: 'predictor_created' | 'rejected' | 'error';
+      confidence?: number;
+      direction?: string;
+      error?: string;
+    }>;
+    // Universe-level response
+    targetsProcessed?: number;
+    totalProcessed?: number;
+    totalPredictorsCreated?: number;
+    totalRejected?: number;
+    totalErrors?: number;
+    targetResults?: Array<{
+      targetId: string;
+      targetSymbol: string;
+      processed: number;
+      predictorsCreated: number;
+      rejected: number;
+      errors: number;
+    }>;
+    message: string;
+  }>> {
+    return this.executeDashboardRequest<{
+      processed?: number;
+      predictorsCreated?: number;
+      rejected?: number;
+      errors?: number;
+      results?: Array<{
+        signalId: string;
+        status: 'predictor_created' | 'rejected' | 'error';
+        confidence?: number;
+        direction?: string;
+        error?: string;
+      }>;
+      targetsProcessed?: number;
+      totalProcessed?: number;
+      totalPredictorsCreated?: number;
+      totalRejected?: number;
+      totalErrors?: number;
+      targetResults?: Array<{
+        targetId: string;
+        targetSymbol: string;
+        processed: number;
+        predictorsCreated: number;
+        rejected: number;
+        errors: number;
+      }>;
+      message: string;
+    }>('signals.process', params);
+  }
+
+  /**
+   * Manually generate predictions from active predictors
+   * Evaluates thresholds and creates predictions for targets
+   *
+   * @param params.targetId - Single target to generate for
+   * @param params.universeId - Generate for all active targets in universe
+   * @param params.forceGenerate - Force generation even if thresholds not met (future use)
+   */
+  async generatePredictions(params: {
+    targetId?: string;
+    universeId?: string;
+    forceGenerate?: boolean;
+    filters?: {
+      includeTestData?: boolean;
+    };
+  }): Promise<DashboardResponsePayload<{
+    generated: number;
+    skipped: number;
+    errors: number;
+    results: Array<{
+      targetId: string;
+      targetSymbol?: string;
+      status: 'prediction_generated' | 'threshold_not_met' | 'no_predictors' | 'error';
+      predictionId?: string;
+      direction?: string;
+      confidence?: number;
+      predictorCount?: number;
+      error?: string;
+    }>;
+    message: string;
+  }>> {
+    return this.executeDashboardRequest<{
+      generated: number;
+      skipped: number;
+      errors: number;
+      results: Array<{
+        targetId: string;
+        targetSymbol?: string;
+        status: 'prediction_generated' | 'threshold_not_met' | 'no_predictors' | 'error';
+        predictionId?: string;
+        direction?: string;
+        confidence?: number;
+        predictorCount?: number;
+        error?: string;
+      }>;
+      message: string;
+    }>('predictions.generate', params);
+  }
+
+  /**
+   * Manually crawl sources and create signals
+   * Triggers source crawling and persists resulting signals
+   *
+   * @param params.id - Single source to crawl
+   * @param params.targetId - Crawl all sources for a target
+   * @param params.universeId - Crawl all sources for a universe
+   */
+  async crawlSources(params: {
+    id?: string;
+    targetId?: string;
+    universeId?: string;
+  }): Promise<DashboardResponsePayload<{
+    sourcesProcessed: number;
+    successCount: number;
+    errorCount: number;
+    skippedCount: number;
+    totalSignalsCreated: number;
+    results: Array<{
+      sourceId: string;
+      sourceName: string;
+      sourceUrl: string;
+      status: 'success' | 'error' | 'skipped';
+      signalsCreated?: number;
+      error?: string;
+    }>;
+    message: string;
+  }>> {
+    return this.executeDashboardRequest<{
+      sourcesProcessed: number;
+      successCount: number;
+      errorCount: number;
+      skippedCount: number;
+      totalSignalsCreated: number;
+      results: Array<{
+        sourceId: string;
+        sourceName: string;
+        sourceUrl: string;
+        status: 'success' | 'error' | 'skipped';
+        signalsCreated?: number;
+        error?: string;
+      }>;
+      message: string;
+    }>('sources.crawl', params);
+  }
+
+  /**
+   * Run the full prediction pipeline for a universe
+   * Executes all three steps in sequence:
+   * 1. Crawl sources -> Create signals
+   * 2. Process signals -> Create predictors
+   * 3. Generate predictions -> Create predictions
+   *
+   * @param params.universeId - Universe to run the pipeline for
+   * @param params.batchSize - Max signals to process per target (default: 50)
+   * @param params.includeTest - Include test data (default: false)
+   */
+  async runFullPipeline(params: {
+    universeId: string;
+    batchSize?: number;
+    includeTest?: boolean;
+  }): Promise<{
+    success: boolean;
+    crawlResult: {
+      sourcesProcessed: number;
+      signalsCreated: number;
+      errors: number;
+      message: string;
+    };
+    processResult: {
+      targetsProcessed: number;
+      signalsProcessed: number;
+      predictorsCreated: number;
+      errors: number;
+      message: string;
+    };
+    generateResult: {
+      predictionsGenerated: number;
+      skipped: number;
+      errors: number;
+      message: string;
+    };
+    summary: string;
+  }> {
+    const batchSize = params.batchSize ?? 50;
+    const includeTest = params.includeTest ?? false;
+
+    // Step 1: Crawl sources
+    let crawlResult = {
+      sourcesProcessed: 0,
+      signalsCreated: 0,
+      errors: 0,
+      message: 'Not started',
+    };
+
+    try {
+      const crawlResponse = await this.crawlSources({
+        universeId: params.universeId,
+      });
+      if (crawlResponse.content) {
+        crawlResult = {
+          sourcesProcessed: crawlResponse.content.sourcesProcessed,
+          signalsCreated: crawlResponse.content.totalSignalsCreated,
+          errors: crawlResponse.content.errorCount,
+          message: crawlResponse.content.message,
+        };
+      }
+    } catch (error) {
+      crawlResult = {
+        sourcesProcessed: 0,
+        signalsCreated: 0,
+        errors: 1,
+        message: error instanceof Error ? error.message : 'Crawl failed',
+      };
+    }
+
+    // Step 2: Process signals
+    let processResult = {
+      targetsProcessed: 0,
+      signalsProcessed: 0,
+      predictorsCreated: 0,
+      errors: 0,
+      message: 'Not started',
+    };
+
+    try {
+      const processResponse = await this.processSignals({
+        universeId: params.universeId,
+        batchSize,
+        includeTest,
+      });
+      if (processResponse.content) {
+        processResult = {
+          targetsProcessed: processResponse.content.targetsProcessed ?? 0,
+          signalsProcessed: processResponse.content.totalProcessed ?? processResponse.content.processed ?? 0,
+          predictorsCreated: processResponse.content.totalPredictorsCreated ?? processResponse.content.predictorsCreated ?? 0,
+          errors: processResponse.content.totalErrors ?? processResponse.content.errors ?? 0,
+          message: processResponse.content.message,
+        };
+      }
+    } catch (error) {
+      processResult = {
+        targetsProcessed: 0,
+        signalsProcessed: 0,
+        predictorsCreated: 0,
+        errors: 1,
+        message: error instanceof Error ? error.message : 'Signal processing failed',
+      };
+    }
+
+    // Step 3: Generate predictions
+    let generateResult = {
+      predictionsGenerated: 0,
+      skipped: 0,
+      errors: 0,
+      message: 'Not started',
+    };
+
+    try {
+      const generateResponse = await this.generatePredictions({
+        universeId: params.universeId,
+        filters: { includeTestData: includeTest },
+      });
+      if (generateResponse.content) {
+        generateResult = {
+          predictionsGenerated: generateResponse.content.generated,
+          skipped: generateResponse.content.skipped,
+          errors: generateResponse.content.errors,
+          message: generateResponse.content.message,
+        };
+      }
+    } catch (error) {
+      generateResult = {
+        predictionsGenerated: 0,
+        skipped: 0,
+        errors: 1,
+        message: error instanceof Error ? error.message : 'Prediction generation failed',
+      };
+    }
+
+    // Build summary
+    const totalErrors = crawlResult.errors + processResult.errors + generateResult.errors;
+    const success = totalErrors === 0;
+    const summary = `Pipeline complete: ${crawlResult.signalsCreated} signals created, ${processResult.predictorsCreated} predictors created, ${generateResult.predictionsGenerated} predictions generated${totalErrors > 0 ? ` (${totalErrors} errors)` : ''}`;
+
+    return {
+      success,
+      crawlResult,
+      processResult,
+      generateResult,
+      summary,
+    };
   }
 }
 

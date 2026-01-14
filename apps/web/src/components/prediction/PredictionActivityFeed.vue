@@ -238,8 +238,13 @@ const filteredEvents = computed(() => {
   return events.value.filter(e => activeFilters.value.includes(e.hook_event_type));
 });
 
+const isLoadingHistory = ref(false);
+
 const emptyMessage = computed(() => {
-  if (!isConnected.value) {
+  if (isLoadingHistory.value) {
+    return 'Loading recent activity...';
+  }
+  if (!isConnected.value && events.value.length === 0) {
     return 'Connect to see live prediction activity';
   }
   if (activeFilters.value.length > 0 && !activeFilters.value.includes('all')) {
@@ -426,7 +431,43 @@ function truncateContent(content: string, maxLength = 500): string {
   return content.substring(0, maxLength) + '...';
 }
 
-onMounted(() => {
+async function loadHistoricalEvents() {
+  const token = authStore.token;
+  if (!token) return;
+
+  isLoadingHistory.value = true;
+
+  try {
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:6100';
+    // Get events from last 24 hours for a reasonable history
+    const since = Date.now() - 24 * 60 * 60 * 1000;
+    const response = await fetch(`${apiUrl}/observability/history?since=${since}&limit=100`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      // Filter for prediction-related events and add to events list
+      const historicalEvents = (data.events || [])
+        .filter((e: ObservabilityEvent) => isPredictionEvent(e.hook_event_type))
+        .sort((a: ObservabilityEvent, b: ObservabilityEvent) => a.timestamp - b.timestamp);
+
+      // Prepend historical events (they're older than any live events)
+      events.value = [...historicalEvents, ...events.value];
+    }
+  } catch (err) {
+    console.error('Failed to load historical events:', err);
+  } finally {
+    isLoadingHistory.value = false;
+  }
+}
+
+onMounted(async () => {
+  // Load historical events first
+  await loadHistoricalEvents();
+  // Then connect to live stream
   connect();
 });
 

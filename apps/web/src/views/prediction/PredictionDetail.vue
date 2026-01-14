@@ -1,7 +1,9 @@
 <template>
-  <div class="prediction-detail">
-    <!-- Header -->
-    <header class="detail-header">
+  <ion-page>
+    <ion-content ref="contentRef" :fullscreen="true">
+      <div class="prediction-detail">
+        <!-- Header -->
+        <header class="detail-header">
       <button class="back-button" @click="goBack">
         <span class="icon">&larr;</span>
         Back to Dashboard
@@ -48,11 +50,11 @@
     <div v-else class="detail-content">
       <!-- Summary Section -->
       <section class="summary-section">
-        <div class="direction-card" :class="prediction.direction">
+        <div class="direction-card" :class="prediction.direction || 'unknown'">
           <span class="direction-icon">{{ directionIcon }}</span>
           <div class="direction-info">
-            <span class="direction-label">{{ prediction.direction.toUpperCase() }}</span>
-            <span class="confidence">{{ Math.round(prediction.confidence * 100) }}% confidence</span>
+            <span class="direction-label">{{ (prediction.direction || 'UNKNOWN').toUpperCase() }}</span>
+            <span class="confidence">{{ Math.round((prediction.confidence || 0) * 100) }}% confidence</span>
           </div>
         </div>
         <div class="summary-grid">
@@ -83,73 +85,22 @@
         </div>
       </section>
 
-      <!-- Snapshot Loading -->
-      <div v-if="store.isLoadingSnapshot" class="loading-snapshot">
-        <div class="spinner small"></div>
-        <span>Loading explainability data...</span>
-      </div>
-
-      <!-- Explainability Sections (from Snapshot) -->
-      <template v-if="snapshot">
-        <!-- LLM Ensemble Results -->
-        <LLMEnsembleView v-if="snapshot.llmEnsembleResults" :llm-ensemble-results="snapshot.llmEnsembleResults" />
-
-        <!-- Threshold Evaluation -->
-        <ThresholdEvaluation v-if="snapshot.thresholdEvaluation" :evaluation="snapshot.thresholdEvaluation" />
-
-        <!-- Analyst Breakdown -->
-        <AnalystBreakdown v-if="snapshot.analystAssessments" :assessments="snapshot.analystAssessments" />
-
-        <!-- Predictors -->
-        <PredictorList v-if="snapshot.predictors" :predictors="snapshot.predictors" />
-
-        <!-- Applied Learnings -->
-        <LearningsApplied v-if="snapshot.appliedLearnings" :learnings="snapshot.appliedLearnings" />
-
-        <!-- Rejected Signals -->
-        <section v-if="snapshot.rejectedSignals?.length > 0" class="rejected-signals">
-          <h3 class="section-title">
-            Rejected Signals
-            <span class="count">({{ snapshot.rejectedSignals.length }})</span>
-          </h3>
-          <div class="signals-list">
-            <div
-              v-for="signal in snapshot.rejectedSignals"
-              :key="signal.id"
-              class="signal-item"
-            >
-              <div class="signal-header">
-                <span class="signal-reason">{{ signal.reason }}</span>
-              </div>
-              <p class="signal-content">{{ signal.content }}</p>
-            </div>
-          </div>
-        </section>
-
-        <!-- Timeline -->
-        <PredictionTimeline v-if="snapshot.timeline" :timeline="snapshot.timeline" />
-      </template>
-
-      <!-- No Snapshot Available -->
-      <div v-else-if="!store.isLoadingSnapshot" class="no-snapshot">
-        <p>Detailed explainability data is not available for this prediction.</p>
-      </div>
+      <!-- Full Lineage Tree View -->
+      <PredictionLineageTree :prediction-id="predictionId" />
     </div>
-  </div>
+      </div>
+    </ion-content>
+  </ion-page>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { IonPage, IonContent } from '@ionic/vue';
 import { usePredictionStore } from '@/stores/predictionStore';
 import { predictionDashboardService } from '@/services/predictionDashboardService';
 import LLMComparisonBadge from '@/components/prediction/LLMComparisonBadge.vue';
-import LLMEnsembleView from '@/components/prediction/LLMEnsembleView.vue';
-import ThresholdEvaluation from '@/components/prediction/ThresholdEvaluation.vue';
-import AnalystBreakdown from '@/components/prediction/AnalystBreakdown.vue';
-import PredictorList from '@/components/prediction/PredictorList.vue';
-import LearningsApplied from '@/components/prediction/LearningsApplied.vue';
-import PredictionTimeline from '@/components/prediction/PredictionTimeline.vue';
+import PredictionLineageTree from '@/components/prediction/PredictionLineageTree.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -160,7 +111,6 @@ const error = ref<string | null>(null);
 
 const predictionId = computed(() => route.params.id as string);
 const prediction = computed(() => store.selectedPrediction);
-const snapshot = computed(() => store.currentSnapshot);
 
 const directionIcon = computed(() => {
   switch (prediction.value?.direction) {
@@ -196,8 +146,6 @@ async function loadPredictionData() {
 
     if (pred) {
       store.selectPrediction(pred.id);
-      // Load snapshot for explainability
-      await loadSnapshot();
     }
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load prediction';
@@ -206,29 +154,8 @@ async function loadPredictionData() {
   }
 }
 
-async function loadSnapshot() {
-  if (!predictionId.value) return;
-
-  store.setLoadingSnapshot(true);
-
-  try {
-    const response = await predictionDashboardService.getPredictionSnapshot({
-      id: predictionId.value,
-    });
-    if (response.content) {
-      store.setSnapshot(response.content);
-    }
-  } catch (err) {
-    // Snapshot may not exist for all predictions
-    console.warn('Failed to load snapshot:', err);
-    store.setSnapshot(null);
-  } finally {
-    store.setLoadingSnapshot(false);
-  }
-}
-
 function goBack() {
-  router.push({ name: 'prediction-dashboard' });
+  router.push({ name: 'PredictionDashboard' });
 }
 
 function formatDate(dateStr: string): string {
@@ -242,12 +169,19 @@ function formatDate(dateStr: string): string {
   });
 }
 
+// Content ref for scroll control
+const contentRef = ref<InstanceType<typeof IonContent> | null>(null);
+
 // Watch for route changes
 watch(predictionId, () => {
   loadPredictionData();
 });
 
-onMounted(() => {
+onMounted(async () => {
+  // Scroll to top when page loads
+  if (contentRef.value) {
+    await contentRef.value.$el.scrollToTop(0);
+  }
   loadPredictionData();
 });
 </script>

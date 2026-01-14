@@ -215,26 +215,27 @@ const handleOpenDashboard = async (agent: Record<string, unknown>, _componentNam
     // Set flag in sessionStorage to indicate active session
     sessionStorage.setItem('activeConversation', 'true');
 
+    // Use nextTick to ensure Vue's reactivity system has completed any pending updates
+    // before triggering navigation - this prevents Ionic Vue page transition race conditions
+    await nextTick();
+
     // Prediction agents route to the new prediction dashboard routes
-    // Use setTimeout to ensure Ionic Vue's router outlet is ready
     if (isPredictionAgent(agent as unknown as InteractionAgent)) {
-      setTimeout(() => {
-        router.push({ path: '/app/prediction/dashboard', query: { agentSlug } });
-      }, 50);
+      await router.push({ path: '/app/prediction/dashboard', query: { agentSlug } });
       return;
     }
 
     // Dashboard agents navigate with agentSlug - the dashboard pane handles its own
     // ExecutionContext creation (conversationId, taskId) when making API calls
     if (!interactionMode.canStartConversation) {
-      router.push({ path: '/app/home', query: { forceHome: 'true', agentSlug } });
+      await router.push({ path: '/app/home', query: { forceHome: 'true', agentSlug } });
       return;
     }
 
     // For agents that support both dashboard and conversation UI, create conversation
     const conversationId = await conversation.createConversation(agent);
     await conversationsService.fetchConversations(true);
-    router.push({ path: '/app/home', query: { forceHome: 'true', conversationId } });
+    await router.push({ path: '/app/home', query: { forceHome: 'true', conversationId } });
   } catch (error) {
     console.error('Failed to open dashboard:', error);
   }

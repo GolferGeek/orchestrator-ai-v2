@@ -4,18 +4,25 @@
  * Handles dashboard mode requests for predictions.
  * Predictions are the final output of the system - forecasts for targets.
  * Includes snapshot access for full explainability.
+ *
+ * Updated: Added 'generate' action for manual predictor-to-prediction conversion
  */
 
 import { Injectable, Logger } from '@nestjs/common';
+import { v4 as uuidv4 } from 'uuid';
 import type { ExecutionContext } from '@orchestrator-ai/transport-types';
+import { NIL_UUID } from '@orchestrator-ai/transport-types';
 import type { DashboardRequestPayload } from '@orchestrator-ai/transport-types';
+// Note: forceGenerate param is kept for potential future use but not yet implemented
 import { PredictionRepository } from '../../repositories/prediction.repository';
 import { PredictorRepository } from '../../repositories/predictor.repository';
+import type { Predictor } from '../../interfaces/predictor.interface';
 import { SignalRepository } from '../../repositories/signal.repository';
 import { SignalFingerprintRepository } from '../../repositories/signal-fingerprint.repository';
 import { SourceSeenItemRepository } from '../../repositories/source-seen-item.repository';
 import { TargetRepository } from '../../repositories/target.repository';
 import { SnapshotService } from '../../services/snapshot.service';
+import { PredictionGenerationService } from '../../services/prediction-generation.service';
 import {
   IDashboardHandler,
   DashboardActionResult,
@@ -39,10 +46,13 @@ interface PredictionParams {
   id?: string;
   ids?: string[];
   targetId?: string;
+  universeId?: string;
   filters?: PredictionFilters;
   page?: number;
   pageSize?: number;
   includeSnapshot?: boolean;
+  /** Force generation even if thresholds not met (default: false) */
+  forceGenerate?: boolean;
 }
 
 @Injectable()
@@ -54,6 +64,7 @@ export class PredictionHandler implements IDashboardHandler {
     'getSnapshot',
     'getDeepDive',
     'compare',
+    'generate',
   ];
 
   constructor(
@@ -64,6 +75,7 @@ export class PredictionHandler implements IDashboardHandler {
     private readonly sourceSeenItemRepository: SourceSeenItemRepository,
     private readonly targetRepository: TargetRepository,
     private readonly snapshotService: SnapshotService,
+    private readonly predictionGenerationService: PredictionGenerationService,
   ) {}
 
   async execute(
@@ -95,6 +107,8 @@ export class PredictionHandler implements IDashboardHandler {
         return this.handleGetDeepDive(params);
       case 'compare':
         return this.handleCompare(params);
+      case 'generate':
+        return this.handleGenerate(params, context);
       default:
         return buildDashboardError(
           'UNSUPPORTED_ACTION',
@@ -349,23 +363,79 @@ export class PredictionHandler implements IDashboardHandler {
 
       // Return snapshot data directly (frontend expects snapshot object, not wrapped)
       // Field names match frontend PredictionSnapshot interface
+      // Transform all nested objects from snake_case to camelCase
+
+      // Transform predictors array
+      const transformedPredictors = (snapshot.predictors || []).map((p) => ({
+        id: p.predictor_id,
+        direction: p.direction || 'unknown',
+        strength: p.strength ?? 0,
+        confidence: p.confidence ?? 0,
+        reasoning: p.signal_content || '',
+        signalId: p.predictor_id, // use predictor_id as fallback for signalId
+        analystSlug: p.analyst_slug,
+        createdAt: p.created_at,
+      }));
+
+      // Transform rejected signals array
+      const transformedRejectedSignals = (snapshot.rejected_signals || []).map(
+        (s) => ({
+          id: s.signal_id,
+          content: s.content,
+          rejectionReason: s.rejection_reason,
+          confidence: s.confidence,
+          rejectedAt: s.rejected_at,
+        }),
+      );
+
+      // Transform threshold evaluation (snake_case to camelCase)
+      const thresholdEval = snapshot.threshold_evaluation || {};
+      const transformedThresholdEvaluation = {
+        minPredictors: thresholdEval.min_predictors ?? 0,
+        actualPredictors: thresholdEval.actual_predictors ?? 0,
+        minStrength: thresholdEval.min_combined_strength ?? 0,
+        actualStrength: thresholdEval.actual_combined_strength ?? 0,
+        minConsensus: thresholdEval.min_consensus ?? 0,
+        actualConsensus: thresholdEval.actual_consensus ?? 0,
+        passed: thresholdEval.passed ?? false,
+      };
+
+      // Transform learnings applied
+      const transformedLearnings = (snapshot.learnings_applied || []).map(
+        (l) => ({
+          id: l.learning_id,
+          type: l.type,
+          content: l.content,
+          scope: l.scope,
+          appliedTo: l.applied_to,
+        }),
+      );
+
+      // Transform LLM ensemble results
+      const llmEnsemble = snapshot.llm_ensemble || {};
+      const transformedLlmEnsemble = {
+        tiersUsed: llmEnsemble.tiers_used || [],
+        tierResults: llmEnsemble.tier_results || {},
+        agreementLevel: llmEnsemble.agreement_level ?? 0,
+      };
+
       return buildDashboardSuccess({
         id: snapshot.id,
         predictionId: snapshot.prediction_id,
-        // All predictors that contributed
-        predictors: snapshot.predictors,
+        // All predictors that contributed (transformed to camelCase)
+        predictors: transformedPredictors,
         // Signals considered but rejected (and why)
-        rejectedSignals: snapshot.rejected_signals,
+        rejectedSignals: transformedRejectedSignals,
         // Each analyst's individual assessment
-        analystAssessments: snapshot.analyst_assessments,
+        analystAssessments: snapshot.analyst_assessments || [],
         // Each LLM tier's assessment (frontend expects 'llmEnsembleResults')
-        llmEnsembleResults: snapshot.llm_ensemble,
+        llmEnsembleResults: transformedLlmEnsemble,
         // Learnings that were applied
-        appliedLearnings: snapshot.learnings_applied,
-        // Threshold evaluation details
-        thresholdEvaluation: snapshot.threshold_evaluation,
+        appliedLearnings: transformedLearnings,
+        // Threshold evaluation details (transformed to camelCase)
+        thresholdEvaluation: transformedThresholdEvaluation,
         // Complete timeline
-        timeline: snapshot.timeline,
+        timeline: snapshot.timeline || [],
         // Metadata
         createdAt: snapshot.created_at,
       });
@@ -409,12 +479,29 @@ export class PredictionHandler implements IDashboardHandler {
       const snapshot = await this.snapshotService.getSnapshot(params.id);
 
       // Get predictors that contributed to this prediction
+      // First try from snapshot, then fall back to direct query by consumed_by_prediction_id
+      let validPredictors: Predictor[] = [];
+
+      // Filter out undefined/null predictor IDs before attempting to fetch
       const predictorIds =
-        snapshot?.predictors?.map((p) => p.predictor_id) ?? [];
-      const predictors = await Promise.all(
-        predictorIds.map((id) => this.predictorRepository.findById(id)),
-      );
-      const validPredictors = predictors.filter((p) => p !== null);
+        snapshot?.predictors
+          ?.map((p) => p.predictor_id)
+          .filter((id): id is string => !!id) ?? [];
+
+      if (predictorIds.length > 0) {
+        // Snapshot has valid predictor IDs - fetch them
+        const predictors = await Promise.all(
+          predictorIds.map((id) => this.predictorRepository.findById(id)),
+        );
+        validPredictors = predictors.filter((p): p is Predictor => p !== null);
+      }
+
+      // If no predictors from snapshot, query directly by prediction ID
+      if (validPredictors.length === 0) {
+        validPredictors = await this.predictorRepository.findByPredictionId(
+          params.id,
+        );
+      }
 
       // Get signals for each predictor
       const signalIds = validPredictors
@@ -618,8 +705,11 @@ export class PredictionHandler implements IDashboardHandler {
           const snapshot = snapshots[idx];
 
           // Get predictors for this prediction
+          // Filter out undefined/null predictor IDs
           const predictorIds =
-            snapshot?.predictors?.map((p) => p.predictor_id) ?? [];
+            snapshot?.predictors
+              ?.map((p) => p.predictor_id)
+              .filter((id): id is string => !!id) ?? [];
           const predictors = await Promise.all(
             predictorIds
               .slice(0, 5)
@@ -791,5 +881,176 @@ export class PredictionHandler implements IDashboardHandler {
     }
 
     return byTarget;
+  }
+
+  /**
+   * Manually generate predictions from active predictors
+   * Evaluates predictor thresholds and generates predictions for targets
+   *
+   * This is useful for:
+   * - Testing the predictor-to-prediction pipeline
+   * - Manually triggering generation when cron jobs aren't running
+   * - Generating predictions for specific targets on-demand
+   */
+  private async handleGenerate(
+    params?: PredictionParams,
+    baseContext?: ExecutionContext,
+  ): Promise<DashboardActionResult> {
+    // Either targetId or universeId is required
+    if (!params?.targetId && !params?.universeId) {
+      return buildDashboardError(
+        'MISSING_PARAMS',
+        'Either targetId or universeId is required for prediction generation',
+      );
+    }
+
+    this.logger.log(
+      `[PREDICTION-HANDLER] Generating predictions - targetId: ${params.targetId}, universeId: ${params.universeId}, force: ${params.forceGenerate}`,
+    );
+
+    try {
+      // Create execution context
+      const ctx: ExecutionContext = baseContext
+        ? {
+            ...baseContext,
+            taskId: uuidv4(),
+            agentSlug: 'manual-prediction-generator',
+          }
+        : {
+            orgSlug: 'system',
+            userId: 'system',
+            conversationId: `manual-gen-${Date.now()}`,
+            taskId: uuidv4(),
+            planId: NIL_UUID,
+            deliverableId: NIL_UUID,
+            agentSlug: 'manual-prediction-generator',
+            agentType: 'context',
+            provider: 'anthropic',
+            model: 'claude-haiku-4-20250514',
+          };
+
+      const results: Array<{
+        targetId: string;
+        targetSymbol?: string;
+        status:
+          | 'prediction_generated'
+          | 'threshold_not_met'
+          | 'no_predictors'
+          | 'error';
+        predictionId?: string;
+        direction?: string;
+        confidence?: number;
+        predictorCount?: number;
+        error?: string;
+      }> = [];
+
+      let generated = 0;
+      let skipped = 0;
+      let errors = 0;
+
+      // Get targets to process
+      let targetsToProcess: Array<{
+        id: string;
+        symbol: string;
+        universe_id: string;
+      }> = [];
+
+      if (params.targetId) {
+        // Single target
+        const target = await this.targetRepository.findById(params.targetId);
+        if (!target) {
+          return buildDashboardError(
+            'NOT_FOUND',
+            `Target not found: ${params.targetId}`,
+          );
+        }
+        targetsToProcess = [target];
+      } else if (params.universeId) {
+        // All active targets in universe
+        targetsToProcess = await this.targetRepository.findActiveByUniverse(
+          params.universeId,
+        );
+      }
+
+      // Process each target
+      for (const target of targetsToProcess) {
+        try {
+          // Get active predictors for this target
+          const activePredictors =
+            await this.predictorRepository.findActiveByTarget(target.id, {
+              includeTestData: params.filters?.includeTestData ?? false,
+            });
+
+          if (activePredictors.length === 0) {
+            results.push({
+              targetId: target.id,
+              targetSymbol: target.symbol,
+              status: 'no_predictors',
+              predictorCount: 0,
+            });
+            skipped++;
+            continue;
+          }
+
+          // Generate prediction via the service
+          // Uses attemptPredictionGeneration which handles threshold evaluation internally
+          const prediction =
+            await this.predictionGenerationService.attemptPredictionGeneration(
+              ctx,
+              target.id,
+            );
+
+          if (prediction) {
+            generated++;
+            results.push({
+              targetId: target.id,
+              targetSymbol: target.symbol,
+              status: 'prediction_generated',
+              predictionId: prediction.id,
+              direction: prediction.direction,
+              confidence: prediction.confidence,
+              predictorCount: activePredictors.length,
+            });
+          } else {
+            skipped++;
+            results.push({
+              targetId: target.id,
+              targetSymbol: target.symbol,
+              status: 'threshold_not_met',
+              predictorCount: activePredictors.length,
+            });
+          }
+        } catch (error) {
+          errors++;
+          this.logger.error(
+            `Error generating prediction for target ${target.id}: ${error instanceof Error ? error.message : String(error)}`,
+          );
+          results.push({
+            targetId: target.id,
+            targetSymbol: target.symbol,
+            status: 'error',
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+
+      return buildDashboardSuccess({
+        generated,
+        skipped,
+        errors,
+        results,
+        message: `Processed ${targetsToProcess.length} targets: ${generated} predictions generated, ${skipped} skipped, ${errors} errors`,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to generate predictions: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return buildDashboardError(
+        'GENERATE_FAILED',
+        error instanceof Error
+          ? error.message
+          : 'Failed to generate predictions',
+      );
+    }
   }
 }

@@ -25,14 +25,12 @@ export class SnapshotRepository {
   }
 
   async create(snapshotData: CreateSnapshotData): Promise<PredictionSnapshot> {
-    const now = new Date().toISOString();
-
     const insertData = {
       prediction_id: snapshotData.prediction_id,
-      captured_at: now,
       predictors: snapshotData.predictors,
       rejected_signals: snapshotData.rejected_signals,
-      analyst_assessments: snapshotData.analyst_assessments,
+      // Database column is 'analyst_predictions', interface uses 'analyst_assessments'
+      analyst_predictions: snapshotData.analyst_assessments,
       llm_ensemble: snapshotData.llm_ensemble,
       learnings_applied: snapshotData.learnings_applied,
       threshold_evaluation: snapshotData.threshold_evaluation,

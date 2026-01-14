@@ -1,6 +1,8 @@
 <template>
-  <div class="prediction-dashboard">
-    <header class="dashboard-header">
+  <ion-page>
+    <ion-content ref="contentRef" :fullscreen="true">
+      <div class="prediction-dashboard">
+        <header class="dashboard-header">
       <h1>Prediction Dashboard</h1>
       <div class="header-actions">
         <button class="btn btn-secondary" @click="goToPortfolios">
@@ -150,12 +152,15 @@
         Next
       </button>
     </section>
-  </div>
+      </div>
+    </ion-content>
+  </ion-page>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import { IonPage, IonContent } from '@ionic/vue';
 import { usePredictionStore } from '@/stores/predictionStore';
 import { useAuthStore } from '@/stores/rbacStore';
 import { predictionDashboardService } from '@/services/predictionDashboardService';
@@ -258,7 +263,15 @@ watch(
   { immediate: true }
 );
 
-onMounted(() => {
+// Content ref for scroll control
+const contentRef = ref<InstanceType<typeof IonContent> | null>(null);
+
+onMounted(async () => {
+  // Scroll to top when page loads
+  if (contentRef.value) {
+    await contentRef.value.$el.scrollToTop(0);
+  }
+
   // If organization is already set, load data
   if (authStore.currentOrganization) {
     loadData();

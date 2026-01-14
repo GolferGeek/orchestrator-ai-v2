@@ -26,7 +26,7 @@ import { Signal } from '../interfaces/signal.interface';
 @Injectable()
 export class BatchSignalProcessorRunner {
   private readonly logger = new Logger(BatchSignalProcessorRunner.name);
-  private readonly workerId = `worker-${uuidv4().slice(0, 8)}`;
+  private readonly workerId = uuidv4(); // UUID required by processing_worker column
   private readonly batchSize = 50;
   private isRunning = false;
 

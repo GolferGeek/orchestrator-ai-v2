@@ -54,7 +54,7 @@ export class PredictionGenerationService {
 
   /**
    * Attempt to generate a prediction for a target
-   * Returns null if threshold not met
+   * Returns null if threshold not met or if an active prediction already exists
    */
   async attemptPredictionGeneration(
     ctx: ExecutionContext,
@@ -64,6 +64,19 @@ export class PredictionGenerationService {
     const effectiveConfig = { ...DEFAULT_THRESHOLD_CONFIG, ...config };
 
     this.logger.log(`Attempting prediction generation for target: ${targetId}`);
+
+    // Check for existing active prediction - prevent duplicates
+    const existingPredictions = await this.predictionRepository.findByTarget(
+      targetId,
+      'active',
+    );
+    if (existingPredictions.length > 0) {
+      this.logger.debug(
+        `Skipping prediction generation for ${targetId}: ` +
+          `${existingPredictions.length} active prediction(s) already exist`,
+      );
+      return null;
+    }
 
     // Evaluate threshold
     const thresholdResult =

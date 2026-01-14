@@ -86,6 +86,47 @@
         </div>
       </section>
 
+      <!-- Pipeline Actions Section -->
+      <section class="actions-section">
+        <h2>Pipeline Actions</h2>
+        <p class="actions-description">Manually trigger pipeline processing steps for this target.</p>
+        <div class="action-buttons">
+          <button
+            class="btn btn-action"
+            :disabled="actionInProgress !== null"
+            @click="handleCrawlSources"
+          >
+            <span v-if="actionInProgress === 'crawl'" class="spinner-small"></span>
+            <span v-else class="action-icon">🔄</span>
+            {{ actionInProgress === 'crawl' ? 'Crawling...' : 'Crawl Sources' }}
+          </button>
+          <button
+            class="btn btn-action"
+            :disabled="actionInProgress !== null"
+            @click="handleProcessSignals"
+          >
+            <span v-if="actionInProgress === 'process'" class="spinner-small"></span>
+            <span v-else class="action-icon">⚡</span>
+            {{ actionInProgress === 'process' ? 'Processing...' : 'Process Signals' }}
+          </button>
+          <button
+            class="btn btn-action"
+            :disabled="actionInProgress !== null"
+            @click="handleGeneratePredictions"
+          >
+            <span v-if="actionInProgress === 'generate'" class="spinner-small"></span>
+            <span v-else class="action-icon">🎯</span>
+            {{ actionInProgress === 'generate' ? 'Generating...' : 'Generate Predictions' }}
+          </button>
+        </div>
+        <!-- Action Result -->
+        <div v-if="actionResult" class="action-result" :class="actionResult.type">
+          <span class="result-icon">{{ actionResult.type === 'success' ? '✓' : '✗' }}</span>
+          <span class="result-message">{{ actionResult.message }}</span>
+          <button class="close-result" @click="actionResult = null">×</button>
+        </div>
+      </section>
+
       <!-- Predictions for this Target -->
       <section class="predictions-section">
         <h2>
@@ -125,6 +166,10 @@ const store = usePredictionStore();
 
 const isLoading = ref(false);
 const error = ref<string | null>(null);
+
+// Pipeline action state
+const actionInProgress = ref<'crawl' | 'process' | 'generate' | null>(null);
+const actionResult = ref<{ type: 'success' | 'error'; message: string } | null>(null);
 
 // Placeholder signals - would be loaded from API
 const signals = ref<Array<{
@@ -198,6 +243,108 @@ function goBack() {
 
 function onPredictionSelect(id: string) {
   router.push({ name: 'PredictionDetail', params: { id } });
+}
+
+// Pipeline action handlers
+async function handleCrawlSources() {
+  if (!targetId.value || actionInProgress.value) return;
+
+  actionInProgress.value = 'crawl';
+  actionResult.value = null;
+
+  try {
+    const response = await predictionDashboardService.crawlSources({
+      targetId: targetId.value,
+    });
+
+    if (response.success && response.content) {
+      actionResult.value = {
+        type: 'success',
+        message: response.content.message,
+      };
+    } else {
+      actionResult.value = {
+        type: 'error',
+        message: response.error?.message || 'Failed to crawl sources',
+      };
+    }
+  } catch (err) {
+    actionResult.value = {
+      type: 'error',
+      message: err instanceof Error ? err.message : 'Failed to crawl sources',
+    };
+  } finally {
+    actionInProgress.value = null;
+  }
+}
+
+async function handleProcessSignals() {
+  if (!targetId.value || actionInProgress.value) return;
+
+  actionInProgress.value = 'process';
+  actionResult.value = null;
+
+  try {
+    const response = await predictionDashboardService.processSignals({
+      targetId: targetId.value,
+      batchSize: 20,
+    });
+
+    if (response.success && response.content) {
+      actionResult.value = {
+        type: 'success',
+        message: response.content.message,
+      };
+      // Reload data to show new predictors
+      await loadTargetData();
+    } else {
+      actionResult.value = {
+        type: 'error',
+        message: response.error?.message || 'Failed to process signals',
+      };
+    }
+  } catch (err) {
+    actionResult.value = {
+      type: 'error',
+      message: err instanceof Error ? err.message : 'Failed to process signals',
+    };
+  } finally {
+    actionInProgress.value = null;
+  }
+}
+
+async function handleGeneratePredictions() {
+  if (!targetId.value || actionInProgress.value) return;
+
+  actionInProgress.value = 'generate';
+  actionResult.value = null;
+
+  try {
+    const response = await predictionDashboardService.generatePredictions({
+      targetId: targetId.value,
+    });
+
+    if (response.success && response.content) {
+      actionResult.value = {
+        type: 'success',
+        message: response.content.message,
+      };
+      // Reload data to show new predictions
+      await loadTargetData();
+    } else {
+      actionResult.value = {
+        type: 'error',
+        message: response.error?.message || 'Failed to generate predictions',
+      };
+    }
+  } catch (err) {
+    actionResult.value = {
+      type: 'error',
+      message: err instanceof Error ? err.message : 'Failed to generate predictions',
+    };
+  } finally {
+    actionInProgress.value = null;
+  }
 }
 
 function formatDate(dateStr: string): string {
@@ -469,6 +616,121 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1rem;
+}
+
+/* Pipeline Actions Section */
+.actions-section {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.actions-section h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary, #111827);
+  margin: 0 0 0.5rem 0;
+}
+
+.actions-description {
+  font-size: 0.875rem;
+  color: var(--text-secondary, #6b7280);
+  margin: 0 0 1rem 0;
+}
+
+.action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.btn-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 6px;
+  background: var(--card-bg, #ffffff);
+  color: var(--text-primary, #111827);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-action:hover:not(:disabled) {
+  background: var(--btn-secondary-hover, #f3f4f6);
+  border-color: var(--primary-color, #3b82f6);
+}
+
+.btn-action:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.action-icon {
+  font-size: 1rem;
+}
+
+.spinner-small {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border-color, #e5e7eb);
+  border-top-color: var(--primary-color, #3b82f6);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.action-result {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.action-result.success {
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.action-result.error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.result-icon {
+  font-weight: 700;
+}
+
+.result-message {
+  flex: 1;
+}
+
+.close-result {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  opacity: 0.6;
+  color: inherit;
+  padding: 0;
+  line-height: 1;
+}
+
+.close-result:hover {
+  opacity: 1;
 }
 
 /* Dark mode */

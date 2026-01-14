@@ -194,6 +194,71 @@
               <span class="stat-label">Active Predictions</span>
             </div>
           </div>
+
+          <!-- Pipeline Actions -->
+          <div class="pipeline-actions-card">
+            <h3>Pipeline Actions</h3>
+            <p class="pipeline-description">
+              Manually trigger pipeline steps for all instruments in this portfolio.
+              Steps are executed sequentially: Sources &rarr; Signals &rarr; Predictors &rarr; Predictions
+            </p>
+
+            <div class="pipeline-buttons">
+              <button
+                class="btn btn-action"
+                :disabled="pipelineInProgress !== null"
+                @click="handleCrawlAllSources"
+              >
+                <span v-if="pipelineInProgress === 'crawl'" class="spinner-small"></span>
+                <span v-else class="action-icon">1</span>
+                {{ pipelineInProgress === 'crawl' ? 'Crawling...' : 'Crawl Sources' }}
+              </button>
+
+              <button
+                class="btn btn-action"
+                :disabled="pipelineInProgress !== null"
+                @click="handleProcessAllSignals"
+              >
+                <span v-if="pipelineInProgress === 'signals'" class="spinner-small"></span>
+                <span v-else class="action-icon">2</span>
+                {{ pipelineInProgress === 'signals' ? 'Processing...' : 'Process Signals' }}
+              </button>
+
+              <button
+                class="btn btn-action"
+                :disabled="pipelineInProgress !== null"
+                @click="handleGenerateAllPredictions"
+              >
+                <span v-if="pipelineInProgress === 'predictions'" class="spinner-small"></span>
+                <span v-else class="action-icon">3</span>
+                {{ pipelineInProgress === 'predictions' ? 'Generating...' : 'Generate Predictions' }}
+              </button>
+
+              <button
+                class="btn btn-action btn-full-pipeline"
+                :disabled="pipelineInProgress !== null"
+                @click="handleRunFullPipeline"
+              >
+                <span v-if="pipelineInProgress === 'full'" class="spinner-small"></span>
+                <span v-else class="action-icon">&#9654;</span>
+                {{ pipelineInProgress === 'full' ? 'Running Pipeline...' : 'Run Full Pipeline' }}
+              </button>
+            </div>
+
+            <!-- Pipeline Result -->
+            <div v-if="pipelineResult" class="pipeline-result" :class="{ error: pipelineResult.isError }">
+              <div class="result-header">
+                <span class="result-icon">{{ pipelineResult.isError ? '!' : '&#10003;' }}</span>
+                <strong>{{ pipelineResult.title }}</strong>
+              </div>
+              <p class="result-message">{{ pipelineResult.message }}</p>
+              <div v-if="pipelineResult.details" class="result-details">
+                <div v-for="(detail, idx) in pipelineResult.details" :key="idx" class="detail-item">
+                  {{ detail }}
+                </div>
+              </div>
+            </div>
+          </div>
         </section>
 
         <!-- Instruments Tab -->
@@ -762,6 +827,15 @@ const sources = ref<PredictionSource[]>([]);
 const isSavingSource = ref(false);
 const isDeletingSource = ref(false);
 
+// Pipeline state
+const pipelineInProgress = ref<'crawl' | 'signals' | 'predictions' | 'full' | null>(null);
+const pipelineResult = ref<{
+  isError: boolean;
+  title: string;
+  message: string;
+  details?: string[];
+} | null>(null);
+
 // Settings form
 const settingsForm = ref({
   name: '',
@@ -1321,6 +1395,152 @@ async function loadSources() {
   }
 }
 
+// Pipeline Actions
+async function handleCrawlAllSources() {
+  if (!portfolioId.value) return;
+
+  pipelineInProgress.value = 'crawl';
+  pipelineResult.value = null;
+
+  try {
+    const response = await predictionDashboardService.crawlSources({
+      universeId: portfolioId.value,
+    });
+
+    if (response.content) {
+      pipelineResult.value = {
+        isError: response.content.errorCount > 0,
+        title: 'Crawl Complete',
+        message: response.content.message,
+        details: [
+          `Sources processed: ${response.content.sourcesProcessed}`,
+          `Signals created: ${response.content.totalSignalsCreated}`,
+          `Errors: ${response.content.errorCount}`,
+        ],
+      };
+    }
+  } catch (err) {
+    pipelineResult.value = {
+      isError: true,
+      title: 'Crawl Failed',
+      message: err instanceof Error ? err.message : 'Unknown error',
+    };
+  } finally {
+    pipelineInProgress.value = null;
+  }
+}
+
+async function handleProcessAllSignals() {
+  if (!portfolioId.value) return;
+
+  pipelineInProgress.value = 'signals';
+  pipelineResult.value = null;
+
+  try {
+    const response = await predictionDashboardService.processSignals({
+      universeId: portfolioId.value,
+      batchSize: 50,
+    });
+
+    if (response.content) {
+      const totalErrors = response.content.totalErrors ?? response.content.errors ?? 0;
+      pipelineResult.value = {
+        isError: totalErrors > 0,
+        title: 'Signal Processing Complete',
+        message: response.content.message,
+        details: [
+          `Targets processed: ${response.content.targetsProcessed ?? 1}`,
+          `Signals processed: ${response.content.totalProcessed ?? response.content.processed ?? 0}`,
+          `Predictors created: ${response.content.totalPredictorsCreated ?? response.content.predictorsCreated ?? 0}`,
+          `Rejected: ${response.content.totalRejected ?? response.content.rejected ?? 0}`,
+          `Errors: ${totalErrors}`,
+        ],
+      };
+    }
+  } catch (err) {
+    pipelineResult.value = {
+      isError: true,
+      title: 'Signal Processing Failed',
+      message: err instanceof Error ? err.message : 'Unknown error',
+    };
+  } finally {
+    pipelineInProgress.value = null;
+  }
+}
+
+async function handleGenerateAllPredictions() {
+  if (!portfolioId.value) return;
+
+  pipelineInProgress.value = 'predictions';
+  pipelineResult.value = null;
+
+  try {
+    const response = await predictionDashboardService.generatePredictions({
+      universeId: portfolioId.value,
+    });
+
+    if (response.content) {
+      pipelineResult.value = {
+        isError: response.content.errors > 0,
+        title: 'Prediction Generation Complete',
+        message: response.content.message,
+        details: [
+          `Predictions generated: ${response.content.generated}`,
+          `Skipped (threshold not met): ${response.content.skipped}`,
+          `Errors: ${response.content.errors}`,
+        ],
+      };
+
+      // Reload predictions after generation
+      await loadPortfolioData();
+    }
+  } catch (err) {
+    pipelineResult.value = {
+      isError: true,
+      title: 'Prediction Generation Failed',
+      message: err instanceof Error ? err.message : 'Unknown error',
+    };
+  } finally {
+    pipelineInProgress.value = null;
+  }
+}
+
+async function handleRunFullPipeline() {
+  if (!portfolioId.value) return;
+
+  pipelineInProgress.value = 'full';
+  pipelineResult.value = null;
+
+  try {
+    const result = await predictionDashboardService.runFullPipeline({
+      universeId: portfolioId.value,
+      batchSize: 50,
+    });
+
+    pipelineResult.value = {
+      isError: !result.success,
+      title: result.success ? 'Pipeline Complete' : 'Pipeline Completed with Errors',
+      message: result.summary,
+      details: [
+        `Step 1 (Crawl): ${result.crawlResult.message}`,
+        `Step 2 (Signals): ${result.processResult.message}`,
+        `Step 3 (Predictions): ${result.generateResult.message}`,
+      ],
+    };
+
+    // Reload data after full pipeline
+    await loadPortfolioData();
+  } catch (err) {
+    pipelineResult.value = {
+      isError: true,
+      title: 'Pipeline Failed',
+      message: err instanceof Error ? err.message : 'Unknown error',
+    };
+  } finally {
+    pipelineInProgress.value = null;
+  }
+}
+
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
   return date.toLocaleString('en-US', {
@@ -1815,6 +2035,157 @@ onMounted(() => {
   font-size: 0.75rem;
   color: var(--text-secondary, #6b7280);
   text-transform: uppercase;
+}
+
+/* Pipeline Actions */
+.pipeline-actions-card {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin-top: 1.5rem;
+}
+
+.pipeline-actions-card h3 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary, #111827);
+  margin: 0 0 0.5rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.pipeline-description {
+  font-size: 0.8125rem;
+  color: var(--text-secondary, #6b7280);
+  margin: 0 0 1rem 0;
+}
+
+.pipeline-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.btn-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background-color: var(--btn-secondary-bg, #f3f4f6);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary, #111827);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-action:hover:not(:disabled) {
+  background-color: var(--btn-secondary-hover, #e5e7eb);
+  border-color: var(--primary-color, #3b82f6);
+}
+
+.btn-action:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-full-pipeline {
+  background-color: var(--primary-color, #3b82f6);
+  color: white;
+  border-color: var(--primary-color, #3b82f6);
+}
+
+.btn-full-pipeline:hover:not(:disabled) {
+  background-color: #2563eb;
+  border-color: #2563eb;
+}
+
+.action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.btn-full-pipeline .action-icon {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.spinner-small {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border-color, #e5e7eb);
+  border-top-color: var(--primary-color, #3b82f6);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.btn-full-pipeline .spinner-small {
+  border-color: rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+}
+
+.pipeline-result {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.pipeline-result.error {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.result-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.result-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background-color: #22c55e;
+  color: white;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.pipeline-result.error .result-icon {
+  background-color: #ef4444;
+}
+
+.result-message {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.875rem;
+  color: var(--text-primary, #111827);
+}
+
+.result-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.detail-item {
+  font-size: 0.8125rem;
+  color: var(--text-secondary, #6b7280);
+  padding-left: 1.75rem;
 }
 
 /* Section Header */

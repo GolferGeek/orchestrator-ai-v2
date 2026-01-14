@@ -12,19 +12,19 @@
         v-for="predictor in predictors"
         :key="predictor.id"
         class="predictor-item"
-        :class="predictor.direction"
+        :class="predictor.direction || 'neutral'"
       >
         <div class="predictor-header">
-          <span class="direction-badge" :class="predictor.direction">
-            {{ predictor.direction.toUpperCase() }}
+          <span class="direction-badge" :class="predictor.direction || 'neutral'">
+            {{ (predictor.direction || 'unknown').toUpperCase() }}
           </span>
           <span class="strength">
-            Strength: {{ predictor.strength }}/10
+            Strength: {{ predictor.strength ?? 0 }}/10
           </span>
         </div>
-        <p class="reasoning">{{ predictor.reasoning }}</p>
+        <p class="reasoning">{{ predictor.reasoning || 'No reasoning provided' }}</p>
         <div class="predictor-footer">
-          <span class="signal-ref">Signal: {{ predictor.signalId.slice(0, 8) }}...</span>
+          <span class="signal-ref">ID: {{ formatId(predictor.signalId || predictor.id) }}</span>
         </div>
       </div>
     </div>
@@ -34,10 +34,10 @@
 <script setup lang="ts">
 interface Predictor {
   id: string;
-  direction: string;
-  strength: number;
-  reasoning: string;
-  signalId: string;
+  direction?: string;
+  strength?: number;
+  reasoning?: string;
+  signalId?: string;
 }
 
 interface Props {
@@ -45,6 +45,14 @@ interface Props {
 }
 
 defineProps<Props>();
+
+/**
+ * Format an ID for display - show first 8 characters with ellipsis
+ */
+const formatId = (id: string | undefined): string => {
+  if (!id) return 'N/A';
+  return id.length > 8 ? `${id.slice(0, 8)}...` : id;
+};
 </script>
 
 <style scoped>

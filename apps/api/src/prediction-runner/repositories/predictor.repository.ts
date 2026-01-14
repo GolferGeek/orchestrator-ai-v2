@@ -98,6 +98,32 @@ export class PredictorRepository {
     return data;
   }
 
+  /**
+   * Find all predictors consumed by a specific prediction
+   * Used for lineage/deep-dive views to show which predictors contributed
+   */
+  async findByPredictionId(predictionId: string): Promise<Predictor[]> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .select('*')
+      .eq('consumed_by_prediction_id', predictionId)
+      .order('created_at', {
+        ascending: false,
+      })) as SupabaseSelectListResponse<Predictor>;
+
+    if (error) {
+      this.logger.error(
+        `Failed to fetch predictors by prediction: ${error.message}`,
+      );
+      throw new Error(
+        `Failed to fetch predictors by prediction: ${error.message}`,
+      );
+    }
+
+    return data ?? [];
+  }
+
   async create(predictorData: CreatePredictorData): Promise<Predictor> {
     const { data, error } = (await this.getClient()
       .schema(this.schema)

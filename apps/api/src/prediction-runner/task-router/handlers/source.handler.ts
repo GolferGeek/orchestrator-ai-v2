@@ -4,9 +4,12 @@
  * Handles dashboard mode requests for prediction sources.
  * Sources are data feeds (web, RSS, API) that generate signals.
  * Includes test-crawl action to preview crawl results without persisting.
+ *
+ * Updated: Added 'crawl' action for manual source crawling with signal persistence
  */
 
 import { Injectable, Logger } from '@nestjs/common';
+import { v4 as uuidv4 } from 'uuid';
 import type { ExecutionContext } from '@orchestrator-ai/transport-types';
 import type { DashboardRequestPayload } from '@orchestrator-ai/transport-types';
 import { SourceRepository } from '../../repositories/source.repository';
@@ -87,6 +90,7 @@ export class SourceHandler implements IDashboardHandler {
     'update',
     'delete',
     'testCrawl',
+    'crawl',
   ];
 
   constructor(
@@ -120,6 +124,8 @@ export class SourceHandler implements IDashboardHandler {
       case 'testcrawl':
       case 'test-crawl':
         return this.handleTestCrawl(params, payload);
+      case 'crawl':
+        return this.handleCrawl(params, context);
       default:
         return buildDashboardError(
           'UNSUPPORTED_ACTION',
@@ -442,6 +448,155 @@ export class SourceHandler implements IDashboardHandler {
       return buildDashboardError(
         'TEST_CRAWL_FAILED',
         error instanceof Error ? error.message : 'Failed to test crawl',
+      );
+    }
+  }
+
+  /**
+   * Manually crawl a source and persist signals
+   * This is useful for:
+   * - Testing the full crawl-to-signal pipeline
+   * - Manually triggering crawls when cron jobs aren't running
+   * - Crawling specific sources on-demand
+   */
+  private async handleCrawl(
+    params: SourceParams | undefined,
+    baseContext: ExecutionContext,
+  ): Promise<DashboardActionResult> {
+    const sourceId = params?.id;
+    const targetId = params?.targetId;
+    const universeId = params?.universeId;
+
+    this.logger.log(
+      `[SOURCE-HANDLER] Manual crawl request - sourceId: ${sourceId}, targetId: ${targetId}, universeId: ${universeId}`,
+    );
+
+    try {
+      // Create execution context for this crawl (available for future use)
+      const _ctx: ExecutionContext = {
+        ...baseContext,
+        taskId: uuidv4(),
+        agentSlug: 'manual-source-crawler',
+      };
+
+      const results: Array<{
+        sourceId: string;
+        sourceName: string;
+        sourceUrl: string;
+        status: 'success' | 'error' | 'skipped';
+        signalsCreated?: number;
+        error?: string;
+      }> = [];
+
+      let totalSignals = 0;
+      let successCount = 0;
+      let errorCount = 0;
+      let skippedCount = 0;
+
+      // Determine which sources to crawl
+      let sourcesToCrawl: Source[] = [];
+
+      if (sourceId) {
+        // Single source
+        const source = await this.sourceRepository.findById(sourceId);
+        if (!source) {
+          return buildDashboardError(
+            'NOT_FOUND',
+            `Source not found: ${sourceId}`,
+          );
+        }
+        sourcesToCrawl = [source];
+      } else if (targetId) {
+        // All sources for a target (using dashboard method to get all, including inactive)
+        sourcesToCrawl =
+          await this.sourceRepository.findByTargetForDashboard(targetId);
+      } else if (universeId) {
+        // All sources for a universe (using dashboard method)
+        sourcesToCrawl =
+          await this.sourceRepository.findByUniverseForDashboard(universeId);
+      } else {
+        return buildDashboardError(
+          'MISSING_PARAMS',
+          'Either source id, targetId, or universeId is required for crawling',
+        );
+      }
+
+      // Crawl each source
+      for (const source of sourcesToCrawl) {
+        if (!source.is_active) {
+          skippedCount++;
+          results.push({
+            sourceId: source.id,
+            sourceName: source.name,
+            sourceUrl: source.url,
+            status: 'skipped',
+            error: 'Source is inactive',
+          });
+          continue;
+        }
+
+        try {
+          // Crawl the source and persist signals
+          // Note: crawlSource takes (source, targetId) - target is required for signal creation
+          // If source is target-scoped, use source.target_id; otherwise skip or use a default
+          const crawlTargetId = source.target_id;
+          if (!crawlTargetId) {
+            skippedCount++;
+            results.push({
+              sourceId: source.id,
+              sourceName: source.name,
+              sourceUrl: source.url,
+              status: 'skipped',
+              error: 'Source has no target_id - cannot create signals',
+            });
+            continue;
+          }
+
+          const crawlResult = await this.sourceCrawlerService.crawlSource(
+            source,
+            crawlTargetId,
+          );
+
+          successCount++;
+          totalSignals += crawlResult.signalsCreated || 0;
+          results.push({
+            sourceId: source.id,
+            sourceName: source.name,
+            sourceUrl: source.url,
+            status: 'success',
+            signalsCreated: crawlResult.signalsCreated || 0,
+          });
+        } catch (error) {
+          errorCount++;
+          this.logger.error(
+            `Failed to crawl source ${source.id}: ${error instanceof Error ? error.message : String(error)}`,
+          );
+          results.push({
+            sourceId: source.id,
+            sourceName: source.name,
+            sourceUrl: source.url,
+            status: 'error',
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+
+      return buildDashboardSuccess({
+        sourcesProcessed: sourcesToCrawl.length,
+        successCount,
+        errorCount,
+        skippedCount,
+        totalSignalsCreated: totalSignals,
+        results,
+        message: `Crawled ${successCount} sources, created ${totalSignals} signals (${errorCount} errors, ${skippedCount} skipped)`,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to crawl sources: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return buildDashboardError(
+        'CRAWL_FAILED',
+        error instanceof Error ? error.message : 'Failed to crawl sources',
       );
     }
   }
