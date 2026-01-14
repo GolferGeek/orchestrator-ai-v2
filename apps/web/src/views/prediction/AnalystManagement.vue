@@ -1,7 +1,13 @@
 <template>
   <div class="analyst-management">
     <header class="management-header">
-      <h1>Analyst Management</h1>
+      <div class="header-left">
+        <button class="back-button" @click="goBackToDashboard">
+          <span class="back-icon">&larr;</span>
+          Back to Dashboard
+        </button>
+        <h1>Analyst Management</h1>
+      </div>
       <button class="btn btn-primary" @click="openCreateModal">
         <span class="icon">+</span>
         New Analyst
@@ -289,6 +295,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, reactive } from 'vue';
+import { useRouter } from 'vue-router';
 import { useAnalystStore } from '@/stores/analystStore';
 import { usePredictionStore } from '@/stores/predictionStore';
 import {
@@ -297,8 +304,13 @@ import {
 } from '@/services/predictionDashboardService';
 import AnalystCard from '@/components/prediction/AnalystCard.vue';
 
+const router = useRouter();
 const analystStore = useAnalystStore();
 const predictionStore = usePredictionStore();
+
+function goBackToDashboard() {
+  router.push({ name: 'PredictionDashboard' });
+}
 
 const isLoading = ref(false);
 const error = ref<string | null>(null);
@@ -529,6 +541,33 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.5rem;
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  background: none;
+  border: none;
+  font-size: 0.875rem;
+  color: var(--text-secondary, #6b7280);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.back-button:hover {
+  color: var(--primary-color, #3b82f6);
+}
+
+.back-icon {
+  font-size: 1rem;
 }
 
 .management-header h1 {

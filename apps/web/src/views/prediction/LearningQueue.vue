@@ -1,11 +1,17 @@
 <template>
   <div class="learning-queue">
     <header class="management-header">
-      <div class="header-info">
-        <h1>Learning Queue</h1>
-        <span v-if="pendingCount > 0" class="pending-count">
-          {{ pendingCount }} pending review
-        </span>
+      <div class="header-left">
+        <button class="back-button" @click="goBackToDashboard">
+          <span class="back-icon">&larr;</span>
+          Back to Dashboard
+        </button>
+        <div class="header-title-row">
+          <h1>Learning Queue</h1>
+          <span v-if="pendingCount > 0" class="pending-count">
+            {{ pendingCount }} pending review
+          </span>
+        </div>
       </div>
     </header>
 
@@ -226,6 +232,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, reactive } from 'vue';
+import { useRouter } from 'vue-router';
 import { useLearningStore } from '@/stores/learningStore';
 import { usePredictionStore } from '@/stores/predictionStore';
 import {
@@ -234,8 +241,13 @@ import {
 } from '@/services/predictionDashboardService';
 import LearningQueueCard from '@/components/prediction/LearningQueueCard.vue';
 
+const router = useRouter();
 const learningStore = useLearningStore();
 const predictionStore = usePredictionStore();
+
+function goBackToDashboard() {
+  router.push({ name: 'PredictionDashboard' });
+}
 
 const isLoading = ref(false);
 const error = ref<string | null>(null);
@@ -440,7 +452,34 @@ onMounted(() => {
   margin-bottom: 1.5rem;
 }
 
-.header-info {
+.header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  background: none;
+  border: none;
+  font-size: 0.875rem;
+  color: var(--text-secondary, #6b7280);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.back-button:hover {
+  color: var(--primary-color, #3b82f6);
+}
+
+.back-icon {
+  font-size: 1rem;
+}
+
+.header-title-row {
   display: flex;
   align-items: center;
   gap: 1rem;

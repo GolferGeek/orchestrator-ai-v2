@@ -1,7 +1,13 @@
 <template>
   <div class="learnings-management">
     <header class="management-header">
-      <h1>Learnings Management</h1>
+      <div class="header-left">
+        <button class="back-button" @click="goBackToDashboard">
+          <span class="back-icon">&larr;</span>
+          Back to Dashboard
+        </button>
+        <h1>Learnings Management</h1>
+      </div>
       <button class="btn btn-primary" @click="openCreateModal">
         <span class="icon">+</span>
         New Learning
@@ -249,12 +255,15 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, reactive } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useLearningStore } from '@/stores/learningStore';
 import type { PredictionLearning, LearningScopeLevel, LearningType, LearningSourceType, LearningStatus } from '@/stores/learningStore';
 import { predictionDashboardService } from '@/services/predictionDashboardService';
 import LearningCard from '@/components/prediction/LearningCard.vue';
 import { usePredictionStore } from '@/stores/predictionStore';
 
+const route = useRoute();
+const router = useRouter();
 const store = useLearningStore();
 const predictionStore = usePredictionStore();
 
@@ -482,9 +491,44 @@ function clearAllFilters() {
   selectedStatus.value = null;
 }
 
-onMounted(() => {
-  loadLearnings();
+onMounted(async () => {
+  // Load learnings first so dropdowns are populated
+  await loadLearnings();
+
+  // Check for pre-fill query params (from PredictionDetail "Create Learning" action)
+  const { prefill, targetId, scopeLevel, suggestedTitle, suggestedContent, learningType } = route.query;
+
+  if (prefill === 'true') {
+    // Pre-fill form fields
+    if (targetId) {
+      formData.targetId = targetId as string;
+    }
+    if (scopeLevel) {
+      formData.scopeLevel = scopeLevel as LearningScopeLevel;
+    }
+    if (suggestedTitle) {
+      formData.title = suggestedTitle as string;
+    }
+    if (suggestedContent) {
+      formData.content = suggestedContent as string;
+    }
+    if (learningType) {
+      formData.learningType = learningType as LearningType;
+    }
+    // Default source type to 'human' for manual creation
+    formData.sourceType = 'human';
+
+    // Auto-open the create modal
+    showModal.value = true;
+
+    // Clear the query params to prevent re-opening on navigation
+    router.replace({ query: {} });
+  }
 });
+
+function goBackToDashboard() {
+  router.push({ name: 'PredictionDashboard' });
+}
 </script>
 
 <style scoped>
@@ -499,6 +543,33 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.5rem;
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  background: none;
+  border: none;
+  font-size: 0.875rem;
+  color: var(--text-secondary, #6b7280);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.back-button:hover {
+  color: var(--primary-color, #3b82f6);
+}
+
+.back-icon {
+  font-size: 1rem;
 }
 
 .management-header h1 {

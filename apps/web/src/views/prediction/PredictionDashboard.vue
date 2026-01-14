@@ -66,6 +66,16 @@
           <option value="polymarket">Polymarket</option>
         </select>
       </div>
+
+      <div class="filter-group">
+        <label for="outcome-filter">Outcome</label>
+        <select id="outcome-filter" v-model="outcomeFilter" @change="onFilterChange">
+          <option :value="null">All Outcomes</option>
+          <option value="correct">Correct</option>
+          <option value="incorrect">Incorrect</option>
+          <option value="pending">Pending</option>
+        </select>
+      </div>
     </section>
 
     <!-- Stats Summary -->
@@ -96,6 +106,38 @@
           <span>{{ store.llmAgreementStats.noAgreement }} None</span>
         </div>
         <span class="stat-label">LLM Agreement</span>
+      </div>
+    </section>
+
+    <!-- Training Hub Section -->
+    <section class="training-hub">
+      <h3>Training & Learning</h3>
+      <div class="hub-grid">
+        <button class="hub-card" @click="navigateToTraining('LearningsManagement')">
+          <span class="hub-icon">&#128161;</span>
+          <span class="hub-label">Learnings</span>
+          <span class="hub-description">Manage prediction rules & patterns</span>
+        </button>
+        <button class="hub-card" @click="navigateToTraining('AnalystManagement')">
+          <span class="hub-icon">&#128101;</span>
+          <span class="hub-label">Analysts</span>
+          <span class="hub-description">Configure AI analyst personas</span>
+        </button>
+        <button class="hub-card" @click="navigateToTraining('MissedOpportunities')">
+          <span class="hub-icon">&#128269;</span>
+          <span class="hub-label">Missed Opportunities</span>
+          <span class="hub-description">Analyze unpredicted moves</span>
+        </button>
+        <button class="hub-card" @click="navigateToTraining('LearningQueue')">
+          <span class="hub-icon">&#128229;</span>
+          <span class="hub-label">Learning Queue</span>
+          <span class="hub-description">Review AI-suggested learnings</span>
+        </button>
+        <button class="hub-card" @click="navigateToTraining('TestLab')">
+          <span class="hub-icon">&#128248;</span>
+          <span class="hub-label">Test Lab</span>
+          <span class="hub-description">Build & run test scenarios</span>
+        </button>
       </div>
     </section>
 
@@ -178,10 +220,11 @@ const agentSlug = computed(() => route.query.agentSlug as string | undefined);
 const selectedUniverse = ref<string | null>(null);
 const statusFilter = ref<'all' | 'active' | 'resolved' | 'expired' | 'cancelled'>('all');
 const domainFilter = ref<string | null>(null);
+const outcomeFilter = ref<'correct' | 'incorrect' | 'pending' | null>(null);
 const showActivityFeed = ref(false);
 
 const hasFilters = computed(() => {
-  return selectedUniverse.value !== null || statusFilter.value !== 'all' || domainFilter.value !== null;
+  return selectedUniverse.value !== null || statusFilter.value !== 'all' || domainFilter.value !== null || outcomeFilter.value !== null;
 });
 
 async function loadData() {
@@ -235,6 +278,7 @@ function onFilterChange() {
   store.setFilters({
     status: statusFilter.value,
     domain: domainFilter.value,
+    outcome: outcomeFilter.value,
   });
 }
 
@@ -250,6 +294,10 @@ function goToPage(page: number) {
 
 function goToPortfolios() {
   router.push({ name: 'PortfolioManagement' });
+}
+
+function navigateToTraining(screenName: string) {
+  router.push({ name: screenName });
 }
 
 // Watch for organization context to become available
@@ -435,6 +483,67 @@ onMounted(async () => {
   background-color: #ef4444;
 }
 
+/* Training Hub */
+.training-hub {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 8px;
+}
+
+.training-hub h3 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary, #6b7280);
+  text-transform: uppercase;
+  margin: 0 0 1rem 0;
+  letter-spacing: 0.05em;
+}
+
+.hub-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.hub-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  padding: 0.75rem 1rem;
+  background: var(--hub-card-bg, #f9fafb);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.hub-card:hover {
+  background: var(--hub-card-hover, #f3f4f6);
+  border-color: var(--primary-color, #3b82f6);
+  transform: translateY(-1px);
+}
+
+.hub-icon {
+  font-size: 1.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.hub-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary, #111827);
+}
+
+.hub-description {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #6b7280);
+  line-height: 1.3;
+}
+
 /* States */
 .loading-state,
 .error-state,
@@ -523,6 +632,8 @@ onMounted(async () => {
     --btn-secondary-bg: #374151;
     --btn-secondary-text: #f9fafb;
     --btn-secondary-hover: #4b5563;
+    --hub-card-bg: #374151;
+    --hub-card-hover: #4b5563;
   }
 }
 </style>

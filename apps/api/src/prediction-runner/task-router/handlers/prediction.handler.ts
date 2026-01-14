@@ -40,6 +40,8 @@ interface PredictionFilters {
   fromDate?: string;
   toDate?: string;
   includeTestData?: boolean;
+  /** Filter by outcome: 'correct', 'incorrect', or 'pending' (not yet evaluated) */
+  outcome?: 'correct' | 'incorrect' | 'pending';
 }
 
 interface PredictionParams {
@@ -194,6 +196,29 @@ export class PredictionHandler implements IDashboardHandler {
       if (mergedFilters?.toDate) {
         const toDate = new Date(mergedFilters.toDate);
         filtered = filtered.filter((p) => new Date(p.predicted_at) <= toDate);
+      }
+
+      // Apply outcome filter (correct/incorrect/pending)
+      if (mergedFilters?.outcome) {
+        filtered = filtered.filter((p) => {
+          // Pending: no outcome value yet (not resolved)
+          if (mergedFilters.outcome === 'pending') {
+            return p.outcome_value === null || p.outcome_value === undefined;
+          }
+
+          // Must have an outcome value to be correct or incorrect
+          if (p.outcome_value === null || p.outcome_value === undefined) {
+            return false;
+          }
+
+          // Determine if direction was correct based on outcome_value
+          // outcome_value is percentage change: positive = price went up, negative = price went down
+          const actualDirection =
+            p.outcome_value > 0 ? 'up' : p.outcome_value < 0 ? 'down' : 'flat';
+          const wasCorrect = p.direction === actualDirection;
+
+          return mergedFilters.outcome === 'correct' ? wasCorrect : !wasCorrect;
+        });
       }
 
       // Simple pagination

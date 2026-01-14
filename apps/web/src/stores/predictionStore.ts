@@ -20,6 +20,7 @@ interface PredictionFilters {
   targetId: string | null;
   status: 'all' | 'active' | 'resolved' | 'expired' | 'cancelled';
   domain: string | null;
+  outcome: 'correct' | 'incorrect' | 'pending' | null;
 }
 
 interface PredictionState {
@@ -70,6 +71,7 @@ export const usePredictionStore = defineStore('prediction', () => {
       targetId: null,
       status: 'all',
       domain: null,
+      outcome: null,
     },
     page: 1,
     pageSize: 20,
@@ -129,6 +131,29 @@ export const usePredictionStore = defineStore('prediction', () => {
 
     if (state.value.filters.domain) {
       result = result.filter((p) => p.domain === state.value.filters.domain);
+    }
+
+    // Apply outcome filter (correct/incorrect/pending)
+    if (state.value.filters.outcome) {
+      result = result.filter((p) => {
+        const outcomeValue = p.outcomeValue;
+
+        // Pending: no outcome value yet
+        if (state.value.filters.outcome === 'pending') {
+          return outcomeValue === null || outcomeValue === undefined;
+        }
+
+        // Must have an outcome value to be correct or incorrect
+        if (outcomeValue === null || outcomeValue === undefined) {
+          return false;
+        }
+
+        // Determine if direction was correct based on outcomeValue
+        const actualDirection = outcomeValue > 0 ? 'up' : outcomeValue < 0 ? 'down' : 'flat';
+        const wasCorrect = p.direction === actualDirection;
+
+        return state.value.filters.outcome === 'correct' ? wasCorrect : !wasCorrect;
+      });
     }
 
     return result;
@@ -374,6 +399,7 @@ export const usePredictionStore = defineStore('prediction', () => {
       targetId: null,
       status: 'all',
       domain: null,
+      outcome: null,
     };
   }
 
@@ -406,6 +432,7 @@ export const usePredictionStore = defineStore('prediction', () => {
         targetId: null,
         status: 'all',
         domain: null,
+        outcome: null,
       },
       page: 1,
       pageSize: 20,

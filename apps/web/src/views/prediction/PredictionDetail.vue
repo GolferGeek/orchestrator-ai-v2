@@ -85,6 +85,34 @@
         </div>
       </section>
 
+      <!-- Actions Section -->
+      <section class="actions-section">
+        <h3>Actions</h3>
+        <div class="actions-grid">
+          <button class="action-card" @click="createLearningFromPrediction">
+            <span class="action-icon">&#128161;</span>
+            <div class="action-content">
+              <span class="action-label">Create Learning</span>
+              <span class="action-description">Create a learning rule based on this prediction</span>
+            </div>
+          </button>
+          <button class="action-card" @click="viewMissedOpportunities">
+            <span class="action-icon">&#128269;</span>
+            <div class="action-content">
+              <span class="action-label">Missed Opportunities</span>
+              <span class="action-description">View related unpredicted moves</span>
+            </div>
+          </button>
+          <button class="action-card" @click="viewTargetAnalysts">
+            <span class="action-icon">&#128101;</span>
+            <div class="action-content">
+              <span class="action-label">View Analysts</span>
+              <span class="action-description">See analysts for this target</span>
+            </div>
+          </button>
+        </div>
+      </section>
+
       <!-- Full Lineage Tree View -->
       <PredictionLineageTree :prediction-id="predictionId" />
     </div>
@@ -156,6 +184,55 @@ async function loadPredictionData() {
 
 function goBack() {
   router.push({ name: 'PredictionDashboard' });
+}
+
+function createLearningFromPrediction() {
+  if (!prediction.value) return;
+
+  const pred = prediction.value;
+  const suggestedContent = buildSuggestedLearningContent();
+
+  router.push({
+    name: 'LearningsManagement',
+    query: {
+      prefill: 'true',
+      targetId: pred.targetId,
+      scopeLevel: 'target',
+      suggestedTitle: `Learning from ${pred.targetSymbol} prediction (${pred.direction})`,
+      suggestedContent,
+      learningType: 'pattern',
+    },
+  });
+}
+
+function buildSuggestedLearningContent(): string {
+  if (!prediction.value) return '';
+
+  const pred = prediction.value;
+  const parts: string[] = [];
+
+  parts.push(`Based on prediction for ${pred.targetSymbol} (${pred.targetName}).`);
+  parts.push(`Direction: ${pred.direction || 'unknown'}, Confidence: ${Math.round((pred.confidence || 0) * 100)}%`);
+
+  if (pred.magnitude) {
+    parts.push(`Magnitude: ${pred.magnitude}`);
+  }
+
+  if (pred.timeframe) {
+    parts.push(`Timeframe: ${pred.timeframe}`);
+  }
+
+  parts.push(`\nGenerated: ${formatDate(pred.generatedAt)}`);
+
+  return parts.join('\n');
+}
+
+function viewMissedOpportunities() {
+  router.push({ name: 'MissedOpportunities' });
+}
+
+function viewTargetAnalysts() {
+  router.push({ name: 'AnalystManagement' });
 }
 
 function formatDate(dateStr: string): string {
@@ -433,6 +510,71 @@ onMounted(async () => {
   color: var(--text-secondary, #6b7280);
 }
 
+/* Actions Section */
+.actions-section {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.actions-section h3 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary, #6b7280);
+  text-transform: uppercase;
+  margin: 0 0 0.75rem 0;
+  letter-spacing: 0.05em;
+}
+
+.actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+
+.action-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--action-card-bg, #f9fafb);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.action-card:hover {
+  background: var(--action-card-hover, #f3f4f6);
+  border-color: var(--primary-color, #3b82f6);
+  transform: translateY(-1px);
+}
+
+.action-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.action-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.action-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary, #111827);
+}
+
+.action-description {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #6b7280);
+  line-height: 1.3;
+}
+
 .summary-grid {
   flex: 1;
   display: grid;
@@ -548,6 +690,8 @@ onMounted(async () => {
     --btn-secondary-bg: #374151;
     --btn-secondary-text: #f9fafb;
     --btn-secondary-hover: #4b5563;
+    --action-card-bg: #374151;
+    --action-card-hover: #4b5563;
   }
 }
 </style>

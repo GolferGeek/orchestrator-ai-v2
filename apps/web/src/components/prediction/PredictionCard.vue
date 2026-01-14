@@ -12,8 +12,17 @@
         </div>
         <span class="target-name">{{ prediction.targetName }}</span>
       </div>
-      <div class="status-badge" :class="statusClass">
-        {{ prediction.status }}
+      <div class="badges">
+        <span
+          v-if="outcomeStatus"
+          class="outcome-badge"
+          :class="outcomeStatus"
+        >
+          {{ outcomeStatus === 'correct' ? '✓ Correct' : '✗ Wrong' }}
+        </span>
+        <div class="status-badge" :class="statusClass">
+          {{ prediction.status }}
+        </div>
       </div>
     </div>
 
@@ -88,6 +97,23 @@ defineEmits<{
 
 const statusClass = computed(() => `status-${props.prediction.status || 'active'}`);
 
+// Determine outcome status for resolved predictions
+const outcomeStatus = computed((): 'correct' | 'incorrect' | null => {
+  const pred = props.prediction;
+
+  // Only show outcome for resolved predictions with outcome data
+  if (pred.status !== 'resolved') return null;
+
+  const outcomeValue = pred.outcomeValue;
+  if (outcomeValue === null || outcomeValue === undefined) return null;
+
+  // Determine actual direction from outcome value
+  const actualDirection = outcomeValue > 0 ? 'up' : outcomeValue < 0 ? 'down' : 'flat';
+
+  // Compare predicted direction with actual
+  return pred.direction === actualDirection ? 'correct' : 'incorrect';
+});
+
 const directionIcon = computed(() => {
   switch (props.prediction.direction) {
     case 'up':
@@ -154,12 +180,35 @@ function formatDate(dateStr: string): string {
   color: var(--text-secondary, #6b7280);
 }
 
+.badges {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .status-badge {
   font-size: 0.625rem;
   font-weight: 600;
   text-transform: uppercase;
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
+}
+
+.outcome-badge {
+  font-size: 0.625rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.outcome-badge.correct {
+  background-color: rgba(34, 197, 94, 0.15);
+  color: #16a34a;
+}
+
+.outcome-badge.incorrect {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
 }
 
 .status-active {

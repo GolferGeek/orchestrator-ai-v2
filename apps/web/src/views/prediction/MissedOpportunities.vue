@@ -1,8 +1,12 @@
 <template>
   <div class="missed-opportunities">
     <header class="management-header">
-      <h1>Missed Opportunities</h1>
-      <div class="header-info">
+      <div class="header-left">
+        <button class="back-button" @click="goBackToDashboard">
+          <span class="back-icon">&larr;</span>
+          Back to Dashboard
+        </button>
+        <h1>Missed Opportunities</h1>
         <span class="info-text">System-detected opportunities for learning</span>
       </div>
     </header>
@@ -322,6 +326,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, reactive } from 'vue';
+import { useRouter } from 'vue-router';
 import { useMissedOpportunityStore } from '@/stores/missedOpportunityStore';
 import type { AnalysisStatus, MoveDirection } from '@/stores/missedOpportunityStore';
 import {
@@ -330,7 +335,12 @@ import {
 } from '@/services/predictionDashboardService';
 import MissedOpportunityCard from '@/components/prediction/MissedOpportunityCard.vue';
 
+const router = useRouter();
 const store = useMissedOpportunityStore();
+
+function goBackToDashboard() {
+  router.push({ name: 'PredictionDashboard' });
+}
 
 const isLoading = ref(false);
 const error = ref<string | null>(null);
@@ -502,16 +512,38 @@ onMounted(() => {
   margin-bottom: 1.5rem;
 }
 
+.header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  background: none;
+  border: none;
+  font-size: 0.875rem;
+  color: var(--text-secondary, #6b7280);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.back-button:hover {
+  color: var(--primary-color, #3b82f6);
+}
+
+.back-icon {
+  font-size: 1rem;
+}
+
 .management-header h1 {
   font-size: 1.5rem;
   font-weight: 600;
   color: var(--text-primary, #111827);
   margin: 0;
-}
-
-.header-info {
-  display: flex;
-  align-items: center;
 }
 
 .info-text {
