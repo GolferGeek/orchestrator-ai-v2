@@ -9,6 +9,7 @@ export * from './learning-promotion.service';
 export * from './analyst-ensemble.service';
 export * from './analyst-position.service';
 export * from './analyst-performance.service';
+export * from './analyst-motivation.service';
 export { EvaluationService, SuggestedLearning } from './evaluation.service';
 // Note: EvaluationResult is exported from evaluation.service but renamed to avoid conflict
 export { EvaluationResult as PredictionEvaluationResult } from './evaluation.service';
@@ -63,3 +64,5 @@ export * from './prediction-export.service';
 export * from './external-integration.service';
 export * from './llm-usage-limiter.service';
 export * from './degraded-mode.service';
+// Phase 4 - User Portfolios
+export * from './user-position.service';

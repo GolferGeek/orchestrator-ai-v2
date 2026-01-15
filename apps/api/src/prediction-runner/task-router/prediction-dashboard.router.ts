@@ -53,6 +53,8 @@ import { AnalyticsHandler } from './handlers/analytics.handler';
 // Sprint 4 - Source Seen Items and Signals Dashboard
 import { SourceSeenItemsHandler } from './handlers/source-seen-items.handler';
 import { SignalsHandler } from './handlers/signals.handler';
+// Phase 3 - Agent Activity (HITL Notifications)
+import { AgentActivityHandler } from './handlers/agent-activity.handler';
 
 /**
  * Supported dashboard entities
@@ -76,7 +78,8 @@ export type DashboardEntity =
   | 'test-target-mirrors'
   | 'analytics'
   | 'source-seen-items'
-  | 'signals';
+  | 'signals'
+  | 'agent-activity';
 
 /**
  * Dashboard router response
@@ -121,6 +124,8 @@ export class PredictionDashboardRouter {
     // Sprint 4 - Source Seen Items and Signals Dashboard
     private readonly sourceSeenItemsHandler: SourceSeenItemsHandler,
     private readonly signalsHandler: SignalsHandler,
+    // Phase 3 - Agent Activity (HITL Notifications)
+    private readonly agentActivityHandler: AgentActivityHandler,
   ) {}
 
   /**
@@ -316,6 +321,11 @@ export class PredictionDashboardRouter {
       case 'signal':
         return this.signalsHandler.execute(operation, payload, context);
 
+      // Phase 3 - Agent Activity (HITL Notifications)
+      case 'agent-activity':
+      case 'agentactivity':
+        return this.agentActivityHandler.execute(operation, payload, context);
+
       default:
         return buildDashboardError(
           'UNKNOWN_ENTITY',
@@ -387,6 +397,7 @@ export class PredictionDashboardRouter {
       'analytics',
       'source-seen-items',
       'signals',
+      'agent-activity',
     ];
   }
 
@@ -433,6 +444,8 @@ export class PredictionDashboardRouter {
         return this.sourceSeenItemsHandler.getSupportedActions();
       case 'signals':
         return this.signalsHandler.getSupportedActions();
+      case 'agent-activity':
+        return this.agentActivityHandler.getSupportedActions();
       default:
         return [];
     }

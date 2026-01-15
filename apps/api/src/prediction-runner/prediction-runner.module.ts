@@ -45,6 +45,7 @@ import {
   AnalystEnsembleService,
   AnalystPositionService,
   AnalystPerformanceService,
+  AnalystMotivationService,
   LearningService,
   LearningQueueService,
   LearningPromotionService,
@@ -98,6 +99,8 @@ import {
   ExternalIntegrationService,
   LlmUsageLimiterService,
   DegradedModeService,
+  // Phase 4 - User Portfolios
+  UserPositionService,
 } from './services';
 
 // Phase 7 Runners
@@ -142,6 +145,8 @@ import {
   EvaluationHandler,
   // Sprint 7 - Audit Log Dashboard
   AuditLogHandler,
+  // Phase 3 - Agent Activity (HITL Notifications)
+  AgentActivityHandler,
 } from './task-router/handlers';
 
 const repositories = [
@@ -184,6 +189,7 @@ const services = [
   AnalystEnsembleService,
   AnalystPositionService,
   AnalystPerformanceService,
+  AnalystMotivationService,
   LearningService,
   LearningQueueService,
   LearningPromotionService,
@@ -237,6 +243,8 @@ const services = [
   ExternalIntegrationService,
   LlmUsageLimiterService,
   DegradedModeService,
+  // Phase 4 - User Portfolios
+  UserPositionService,
 ];
 
 // Phase 7 Runners
@@ -281,6 +289,8 @@ const dashboardHandlers = [
   EvaluationHandler,
   // Sprint 7 - Audit Log Dashboard
   AuditLogHandler,
+  // Phase 3 - Agent Activity (HITL Notifications)
+  AgentActivityHandler,
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════

@@ -203,6 +203,7 @@ export interface AnalystPerformanceMetrics {
 export type ModificationType =
   | 'rule_added'
   | 'rule_removed'
+  | 'rule_modified'
   | 'weight_changed'
   | 'journal_entry'
   | 'status_change';

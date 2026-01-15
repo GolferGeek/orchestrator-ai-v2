@@ -31,3 +31,5 @@ export { SignalsHandler } from './signals.handler';
 export { EvaluationHandler } from './evaluation.handler';
 // Sprint 7 - Audit Log Dashboard
 export { AuditLogHandler } from './audit-log.handler';
+// Phase 3 - Agent Activity (HITL Notifications)
+export { AgentActivityHandler } from './agent-activity.handler';

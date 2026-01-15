@@ -9,6 +9,7 @@ import {
   TierResolutionContext,
 } from './llm-tier-resolver.service';
 import { LlmUsageLimiterService } from './llm-usage-limiter.service';
+import { AnalystMotivationService } from './analyst-motivation.service';
 import { AnalystRepository } from '../repositories/analyst.repository';
 import { ActiveAnalyst } from '../interfaces/analyst.interface';
 import { Target } from '../interfaces/target.interface';
@@ -78,6 +79,7 @@ export class AnalystEnsembleService {
     private readonly llmTierResolverService: LlmTierResolverService,
     private readonly llmService: LLMService,
     private readonly llmUsageLimiterService: LlmUsageLimiterService,
+    private readonly analystMotivationService: AnalystMotivationService,
   ) {}
 
   /**
@@ -291,15 +293,57 @@ export class AnalystEnsembleService {
           )
         : []; // Agent fork doesn't use learnings - it self-adapts
 
+    // For agent fork, check status and get effective weight
+    let effectiveWeight = analyst.effective_weight;
+    let shouldInclude = true;
+    let performanceContextMarkdown: string | undefined;
+
+    if (forkType === 'agent') {
+      // Get performance context for agent fork
+      const performanceContext =
+        await this.analystMotivationService.buildPerformanceContext(
+          analyst.analyst_id,
+          forkType,
+        );
+
+      if (performanceContext) {
+        // Check if analyst should be included in ensemble
+        shouldInclude = this.analystMotivationService.shouldIncludeInEnsemble(
+          performanceContext.status,
+        );
+
+        // Get effective weight (reduced for probation)
+        effectiveWeight = this.analystMotivationService.getEffectiveWeight(
+          analyst.effective_weight,
+          performanceContext.status,
+        );
+
+        // Generate performance context markdown for prompt injection
+        performanceContextMarkdown =
+          this.analystMotivationService.formatPerformanceContextForPrompt(
+            performanceContext,
+          );
+
+        if (!shouldInclude) {
+          this.logger.log(
+            `Analyst ${analyst.slug} is suspended - running in paper-only mode`,
+          );
+        }
+      }
+    }
+
     // Override analyst context if we have a fork-specific version
     const effectiveAnalyst = contextVersion
       ? {
           ...analyst,
           perspective: contextVersion.perspective,
           tier_instructions: contextVersion.tier_instructions,
-          effective_weight: contextVersion.default_weight,
+          effective_weight: effectiveWeight,
         }
-      : analyst;
+      : {
+          ...analyst,
+          effective_weight: effectiveWeight,
+        };
 
     // Build prompt with fork context
     const prompt = this.promptBuilderService.buildPrompt({
@@ -312,6 +356,8 @@ export class AnalystEnsembleService {
         direction: input.direction,
         metadata: input.metadata,
       },
+      // Inject performance context for agent fork
+      performanceContext: performanceContextMarkdown,
     });
 
     // Resolve LLM tier and create context
@@ -366,7 +412,7 @@ export class AnalystEnsembleService {
     const parsed = this.parseAnalystResponse(responseText);
 
     return {
-      analyst,
+      analyst: effectiveAnalyst,
       tier,
       direction: parsed.direction,
       confidence: parsed.confidence,
@@ -376,6 +422,7 @@ export class AnalystEnsembleService {
       learnings_applied: prompt.learningIds,
       fork_type: forkType,
       context_version_id: contextVersion?.id,
+      is_paper_only: !shouldInclude, // Mark as paper-only if suspended
     };
   }
 

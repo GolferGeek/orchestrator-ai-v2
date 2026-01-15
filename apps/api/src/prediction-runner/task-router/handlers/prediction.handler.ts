@@ -23,6 +23,7 @@ import { SourceSeenItemRepository } from '../../repositories/source-seen-item.re
 import { TargetRepository } from '../../repositories/target.repository';
 import { SnapshotService } from '../../services/snapshot.service';
 import { PredictionGenerationService } from '../../services/prediction-generation.service';
+import { UserPositionService } from '../../services/user-position.service';
 import {
   IDashboardHandler,
   DashboardActionResult,
@@ -55,6 +56,10 @@ interface PredictionParams {
   includeSnapshot?: boolean;
   /** Force generation even if thresholds not met (default: false) */
   forceGenerate?: boolean;
+  /** Quantity for position creation (use action) */
+  quantity?: number;
+  /** Entry price override for position creation (use action) */
+  entryPrice?: number;
 }
 
 @Injectable()
@@ -67,6 +72,9 @@ export class PredictionHandler implements IDashboardHandler {
     'getDeepDive',
     'compare',
     'generate',
+    'use',
+    'calculateSize',
+    'portfolio',
   ];
 
   constructor(
@@ -78,6 +86,7 @@ export class PredictionHandler implements IDashboardHandler {
     private readonly targetRepository: TargetRepository,
     private readonly snapshotService: SnapshotService,
     private readonly predictionGenerationService: PredictionGenerationService,
+    private readonly userPositionService: UserPositionService,
   ) {}
 
   async execute(
@@ -111,6 +120,13 @@ export class PredictionHandler implements IDashboardHandler {
         return this.handleCompare(params);
       case 'generate':
         return this.handleGenerate(params, context);
+      case 'use':
+        return this.handleUse(params, context);
+      case 'calculatesize':
+      case 'calculate-size':
+        return this.handleCalculateSize(params, context);
+      case 'portfolio':
+        return this.handlePortfolio(context);
       default:
         return buildDashboardError(
           'UNSUPPORTED_ACTION',
@@ -1075,6 +1091,236 @@ export class PredictionHandler implements IDashboardHandler {
         error instanceof Error
           ? error.message
           : 'Failed to generate predictions',
+      );
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PHASE 4: USER PORTFOLIO ACTIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Mark a prediction as "used" and create a position in user's portfolio
+   */
+  private async handleUse(
+    params: PredictionParams | undefined,
+    context: ExecutionContext,
+  ): Promise<DashboardActionResult> {
+    if (!params?.id) {
+      return buildDashboardError(
+        'MISSING_PREDICTION_ID',
+        'Prediction ID is required to create a position',
+      );
+    }
+
+    if (!params.quantity || params.quantity <= 0) {
+      return buildDashboardError(
+        'INVALID_QUANTITY',
+        'A positive quantity is required to create a position',
+      );
+    }
+
+    try {
+      const result =
+        await this.userPositionService.createPositionFromPrediction({
+          userId: context.userId,
+          orgSlug: context.orgSlug,
+          predictionId: params.id,
+          quantity: params.quantity,
+          entryPrice: params.entryPrice,
+        });
+
+      this.logger.log(
+        `Created position for user ${context.userId}: ${result.position.direction} ${result.position.quantity} ${result.position.symbol}`,
+      );
+
+      return buildDashboardSuccess({
+        position: result.position,
+        portfolio: {
+          id: result.portfolio.id,
+          currentBalance: result.portfolio.current_balance,
+          totalRealizedPnl: result.portfolio.total_realized_pnl,
+        },
+        prediction: {
+          id: result.prediction.id,
+          direction: result.prediction.direction,
+          confidence: result.prediction.confidence,
+        },
+        message: `Position created: ${result.position.direction} ${result.position.quantity} ${result.position.symbol} @ $${result.position.entry_price}`,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to create position: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return buildDashboardError(
+        'USE_FAILED',
+        error instanceof Error ? error.message : 'Failed to create position',
+      );
+    }
+  }
+
+  /**
+   * Calculate recommended position size for a prediction
+   */
+  private async handleCalculateSize(
+    params: PredictionParams | undefined,
+    context: ExecutionContext,
+  ): Promise<DashboardActionResult> {
+    if (!params?.id) {
+      return buildDashboardError(
+        'MISSING_PREDICTION_ID',
+        'Prediction ID is required to calculate position size',
+      );
+    }
+
+    try {
+      // Get user's portfolio
+      const portfolio = await this.userPositionService.getOrCreatePortfolio(
+        context.userId,
+        context.orgSlug,
+      );
+
+      // Get prediction to get target
+      const prediction = await this.predictionRepository.findById(params.id);
+      if (!prediction) {
+        return buildDashboardError(
+          'NOT_FOUND',
+          `Prediction not found: ${params.id}`,
+        );
+      }
+
+      // Get current price from target snapshot
+      const target = await this.targetRepository.findById(prediction.target_id);
+      if (!target) {
+        return buildDashboardError(
+          'NOT_FOUND',
+          `Target not found: ${prediction.target_id}`,
+        );
+      }
+
+      // Use entry price from params or get from target snapshot
+      const currentPrice = params.entryPrice;
+      if (!currentPrice) {
+        // Note: In a real implementation, we'd get the price from TargetSnapshotRepository
+        // For now, we require the price to be provided
+        return buildDashboardError(
+          'MISSING_PRICE',
+          'Entry price is required to calculate position size. Provide entryPrice parameter.',
+        );
+      }
+
+      const recommendation =
+        await this.userPositionService.calculateRecommendedSize(
+          params.id,
+          portfolio.current_balance,
+          currentPrice,
+        );
+
+      return buildDashboardSuccess({
+        prediction: {
+          id: prediction.id,
+          direction: prediction.direction,
+          confidence: prediction.confidence,
+          magnitude: prediction.magnitude,
+        },
+        portfolio: {
+          id: portfolio.id,
+          currentBalance: portfolio.current_balance,
+        },
+        recommendation: {
+          recommendedQuantity: recommendation.recommendedQuantity,
+          reasoning: recommendation.reasoning,
+          riskAmount: recommendation.riskAmount,
+          entryPrice: recommendation.entryPrice,
+          stopPrice: recommendation.stopPrice,
+          targetPrice: recommendation.targetPrice,
+          potentialProfit: recommendation.potentialProfit,
+          potentialLoss: recommendation.potentialLoss,
+          riskRewardRatio: recommendation.riskRewardRatio,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to calculate position size: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return buildDashboardError(
+        'CALCULATE_SIZE_FAILED',
+        error instanceof Error
+          ? error.message
+          : 'Failed to calculate position size',
+      );
+    }
+  }
+
+  /**
+   * Get user's portfolio summary with open positions
+   */
+  private async handlePortfolio(
+    context: ExecutionContext,
+  ): Promise<DashboardActionResult> {
+    try {
+      const summary = await this.userPositionService.getPortfolioSummary(
+        context.userId,
+        context.orgSlug,
+      );
+
+      if (!summary.portfolio) {
+        // Create a new portfolio for the user
+        const portfolio = await this.userPositionService.getOrCreatePortfolio(
+          context.userId,
+          context.orgSlug,
+        );
+
+        return buildDashboardSuccess({
+          portfolio: {
+            id: portfolio.id,
+            initialBalance: portfolio.initial_balance,
+            currentBalance: portfolio.current_balance,
+            totalRealizedPnl: portfolio.total_realized_pnl,
+            totalUnrealizedPnl: portfolio.total_unrealized_pnl,
+          },
+          openPositions: [],
+          summary: {
+            totalUnrealizedPnl: 0,
+            totalRealizedPnl: 0,
+            winRate: 0,
+            openPositionCount: 0,
+          },
+        });
+      }
+
+      return buildDashboardSuccess({
+        portfolio: {
+          id: summary.portfolio.id,
+          initialBalance: summary.portfolio.initial_balance,
+          currentBalance: summary.portfolio.current_balance,
+          totalRealizedPnl: summary.portfolio.total_realized_pnl,
+          totalUnrealizedPnl: summary.portfolio.total_unrealized_pnl,
+        },
+        openPositions: summary.openPositions.map((pos) => ({
+          id: pos.id,
+          symbol: pos.symbol,
+          direction: pos.direction,
+          quantity: pos.quantity,
+          entryPrice: pos.entry_price,
+          currentPrice: pos.current_price,
+          unrealizedPnl: pos.unrealized_pnl,
+          openedAt: pos.opened_at,
+        })),
+        summary: {
+          totalUnrealizedPnl: summary.totalUnrealizedPnl,
+          totalRealizedPnl: summary.totalRealizedPnl,
+          winRate: summary.winRate,
+          openPositionCount: summary.openPositions.length,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to get portfolio: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return buildDashboardError(
+        'PORTFOLIO_FAILED',
+        error instanceof Error ? error.message : 'Failed to get portfolio',
       );
     }
   }

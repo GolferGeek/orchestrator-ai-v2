@@ -16,6 +16,8 @@ export interface PromptContext {
     direction?: string;
     metadata?: Record<string, unknown>;
   };
+  /** Performance context markdown for agent fork (optional) */
+  performanceContext?: string;
 }
 
 /**
@@ -35,7 +37,8 @@ export class AnalystPromptBuilderService {
    * Build prompt for analyst assessment of a signal
    */
   buildPrompt(context: PromptContext): BuiltPrompt {
-    const { analyst, tier, target, learnings, input } = context;
+    const { analyst, tier, target, learnings, input, performanceContext } =
+      context;
 
     this.logger.log(
       `Building prompt for analyst: ${analyst.slug}, tier: ${tier}, target: ${target.symbol}`,
@@ -60,6 +63,11 @@ export class AnalystPromptBuilderService {
       this.logger.log(`Applied ${learnings.length} learnings to prompt`);
     }
 
+    // Build performance context section for agent fork
+    const performanceSection = performanceContext
+      ? `\n\n${performanceContext}`
+      : '';
+
     // Build system prompt
     const systemPrompt = `You are ${analyst.name}, a ${analyst.perspective}.
 
@@ -73,7 +81,7 @@ ${tierInstructions ? `## Analysis Instructions\n${tierInstructions}` : ''}
 - Name: ${target.name}
 - Type: ${target.target_type}
 ${target.context ? `- Context: ${target.context}` : ''}
-${learningsSection}
+${learningsSection}${performanceSection}
 
 ## Output Format
 You must provide your analysis in the following JSON format:

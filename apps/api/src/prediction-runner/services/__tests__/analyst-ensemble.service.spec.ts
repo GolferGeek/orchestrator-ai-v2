@@ -5,6 +5,7 @@ import { LearningService } from '../learning.service';
 import { AnalystPromptBuilderService } from '../analyst-prompt-builder.service';
 import { LlmTierResolverService } from '../llm-tier-resolver.service';
 import { LlmUsageLimiterService } from '../llm-usage-limiter.service';
+import { AnalystMotivationService } from '../analyst-motivation.service';
 import { LLMService } from '@/llms/llm.service';
 import { AnalystRepository } from '../../repositories/analyst.repository';
 import { ActiveAnalyst } from '../../interfaces/analyst.interface';
@@ -133,6 +134,17 @@ describe('AnalystEnsembleService', () => {
               .mockReturnValue({ allowed: true, remaining: 100000 }),
             recordUsage: jest.fn(),
             checkAndEmitWarnings: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: AnalystMotivationService,
+          useValue: {
+            buildPerformanceContext: jest.fn().mockResolvedValue(null),
+            shouldIncludeInEnsemble: jest.fn().mockReturnValue(true),
+            getEffectiveWeight: jest
+              .fn()
+              .mockImplementation((weight) => weight),
+            formatPerformanceContextForPrompt: jest.fn().mockReturnValue(''),
           },
         },
       ],

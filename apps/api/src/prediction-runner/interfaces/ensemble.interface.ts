@@ -45,6 +45,8 @@ export interface AnalystAssessmentResult {
   fork_type?: ForkType;
   /** Context version used for this assessment */
   context_version_id?: string;
+  /** Whether this assessment is paper-only (suspended analyst) */
+  is_paper_only?: boolean;
 }
 
 /**
