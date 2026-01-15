@@ -41,6 +41,82 @@ interface LiveMonitorEvent {
   details?: Record<string, unknown>;
 }
 
+// Phase 8: Replay Test Types
+type ReplayTestStatus = 'pending' | 'snapshot_created' | 'running' | 'completed' | 'failed' | 'restored';
+type RollbackDepth = 'predictions' | 'predictors' | 'signals';
+
+interface ReplayTestResults {
+  total_comparisons: number;
+  direction_matches: number;
+  original_correct_count: number;
+  replay_correct_count: number;
+  improvements: number;
+  original_accuracy_pct: number | null;
+  replay_accuracy_pct: number | null;
+  accuracy_delta: number | null;
+  total_pnl_original: number | null;
+  total_pnl_replay: number | null;
+  pnl_delta: number | null;
+  avg_confidence_diff: number | null;
+}
+
+interface ReplayTestSummary {
+  id: string;
+  organization_slug: string;
+  name: string;
+  description: string | null;
+  status: ReplayTestStatus;
+  rollback_depth: RollbackDepth;
+  rollback_to: string;
+  universe_id: string | null;
+  target_ids: string[] | null;
+  results: ReplayTestResults | null;
+  error_message: string | null;
+  created_by: string | null;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  // Summary metrics
+  total_comparisons: number;
+  direction_matches: number;
+  original_correct_count: number;
+  replay_correct_count: number;
+  improvements: number;
+  original_accuracy_pct: number | null;
+  replay_accuracy_pct: number | null;
+  total_pnl_original: number | null;
+  total_pnl_replay: number | null;
+  total_pnl_improvement: number | null;
+  avg_confidence_diff: number | null;
+}
+
+interface ReplayAffectedRecords {
+  table_name: string;
+  record_ids: string[];
+  row_count: number;
+}
+
+interface ReplayTestState {
+  // Replay tests list
+  replayTests: ReplayTestSummary[];
+
+  // Selected replay test
+  selectedReplayTestId: string | null;
+
+  // Preview data
+  previewAffectedRecords: ReplayAffectedRecords[];
+  previewTotalRecords: number;
+
+  // Loading states
+  isLoadingReplayTests: boolean;
+  isRunningReplayTest: boolean;
+  isPreviewingReplay: boolean;
+
+  // Modal state
+  showCreateReplayModal: boolean;
+  showReplayResultsModal: boolean;
+}
+
 interface TestScenarioState {
   // Scenarios list
   scenarios: TestScenarioSummary[];
@@ -82,6 +158,9 @@ interface TestScenarioState {
   liveMonitorEvents: LiveMonitorEvent[];
   liveMonitorEnabled: boolean;
   liveMonitorMaxEvents: number;
+
+  // Phase 8: Replay tests
+  replay: ReplayTestState;
 }
 
 export const useTestScenarioStore = defineStore('testScenario', () => {
@@ -116,6 +195,18 @@ export const useTestScenarioStore = defineStore('testScenario', () => {
     liveMonitorEvents: [],
     liveMonitorEnabled: false,
     liveMonitorMaxEvents: 100,
+    // Phase 8: Replay tests
+    replay: {
+      replayTests: [],
+      selectedReplayTestId: null,
+      previewAffectedRecords: [],
+      previewTotalRecords: 0,
+      isLoadingReplayTests: false,
+      isRunningReplayTest: false,
+      isPreviewingReplay: false,
+      showCreateReplayModal: false,
+      showReplayResultsModal: false,
+    },
   });
 
   // ============================================================================
@@ -437,6 +528,18 @@ export const useTestScenarioStore = defineStore('testScenario', () => {
       liveMonitorEvents: [],
       liveMonitorEnabled: false,
       liveMonitorMaxEvents: 100,
+      // Phase 8: Replay tests
+      replay: {
+        replayTests: [],
+        selectedReplayTestId: null,
+        previewAffectedRecords: [],
+        previewTotalRecords: 0,
+        isLoadingReplayTests: false,
+        isRunningReplayTest: false,
+        isPreviewingReplay: false,
+        showCreateReplayModal: false,
+        showReplayResultsModal: false,
+      },
     };
   }
 
@@ -454,6 +557,127 @@ export const useTestScenarioStore = defineStore('testScenario', () => {
     state.value.lastTierResult = null;
     state.value.error = null;
     state.value.liveMonitorEvents = [];
+  }
+
+  // ============================================================================
+  // PHASE 8: REPLAY TEST COMPUTED/GETTERS
+  // ============================================================================
+
+  // Helper to safely get replay tests array (guards against null/undefined)
+  const getReplayTestsArray = () => state.value.replay?.replayTests ?? [];
+
+  const replayTests = computed(() => getReplayTestsArray());
+  const selectedReplayTestId = computed(() => state.value.replay?.selectedReplayTestId ?? null);
+  const previewAffectedRecords = computed(() => state.value.replay?.previewAffectedRecords ?? []);
+  const previewTotalRecords = computed(() => state.value.replay?.previewTotalRecords ?? 0);
+  const isLoadingReplayTests = computed(() => state.value.replay?.isLoadingReplayTests ?? false);
+  const isRunningReplayTest = computed(() => state.value.replay?.isRunningReplayTest ?? false);
+  const isPreviewingReplay = computed(() => state.value.replay?.isPreviewingReplay ?? false);
+  const showCreateReplayModal = computed(() => state.value.replay?.showCreateReplayModal ?? false);
+  const showReplayResultsModal = computed(() => state.value.replay?.showReplayResultsModal ?? false);
+
+  const selectedReplayTest = computed(() => {
+    const tests = getReplayTestsArray();
+    const selectedId = state.value.replay?.selectedReplayTestId;
+    return selectedId ? tests.find((t) => t.id === selectedId) : undefined;
+  });
+
+  const completedReplayTests = computed(() =>
+    getReplayTestsArray().filter((t) => t.status === 'completed')
+  );
+
+  const pendingReplayTests = computed(() =>
+    getReplayTestsArray().filter((t) => t.status === 'pending' || t.status === 'snapshot_created')
+  );
+
+  const runningReplayTest = computed(() =>
+    getReplayTestsArray().find((t) => t.status === 'running')
+  );
+
+  function getReplayTestById(id: string): ReplayTestSummary | undefined {
+    return getReplayTestsArray().find((t) => t.id === id);
+  }
+
+  // ============================================================================
+  // PHASE 8: REPLAY TEST MUTATIONS
+  // ============================================================================
+
+  function setReplayTests(tests: ReplayTestSummary[]) {
+    // Guard against null/undefined - always set to an array
+    state.value.replay.replayTests = Array.isArray(tests) ? tests : [];
+  }
+
+  function addReplayTest(test: ReplayTestSummary) {
+    const tests = getReplayTestsArray();
+    const idx = tests.findIndex((t) => t.id === test.id);
+    if (idx >= 0) {
+      state.value.replay.replayTests[idx] = test;
+    } else {
+      state.value.replay.replayTests = [test, ...tests];
+    }
+  }
+
+  function updateReplayTest(id: string, updates: Partial<ReplayTestSummary>) {
+    const tests = getReplayTestsArray();
+    const idx = tests.findIndex((t) => t.id === id);
+    if (idx >= 0) {
+      state.value.replay.replayTests[idx] = { ...tests[idx], ...updates };
+    }
+  }
+
+  function removeReplayTest(id: string) {
+    state.value.replay.replayTests = getReplayTestsArray().filter((t) => t.id !== id);
+    if (state.value.replay.selectedReplayTestId === id) {
+      state.value.replay.selectedReplayTestId = null;
+    }
+  }
+
+  function selectReplayTest(id: string | null) {
+    state.value.replay.selectedReplayTestId = id;
+  }
+
+  function setPreviewAffectedRecords(records: ReplayAffectedRecords[], totalRecords: number) {
+    state.value.replay.previewAffectedRecords = records;
+    state.value.replay.previewTotalRecords = totalRecords;
+  }
+
+  function clearPreviewAffectedRecords() {
+    state.value.replay.previewAffectedRecords = [];
+    state.value.replay.previewTotalRecords = 0;
+  }
+
+  function setLoadingReplayTests(loading: boolean) {
+    state.value.replay.isLoadingReplayTests = loading;
+  }
+
+  function setRunningReplayTest(running: boolean) {
+    state.value.replay.isRunningReplayTest = running;
+  }
+
+  function setPreviewingReplay(previewing: boolean) {
+    state.value.replay.isPreviewingReplay = previewing;
+  }
+
+  function setShowCreateReplayModal(show: boolean) {
+    state.value.replay.showCreateReplayModal = show;
+  }
+
+  function setShowReplayResultsModal(show: boolean) {
+    state.value.replay.showReplayResultsModal = show;
+  }
+
+  function resetReplayState() {
+    state.value.replay = {
+      replayTests: [],
+      selectedReplayTestId: null,
+      previewAffectedRecords: [],
+      previewTotalRecords: 0,
+      isLoadingReplayTests: false,
+      isRunningReplayTest: false,
+      isPreviewingReplay: false,
+      showCreateReplayModal: false,
+      showReplayResultsModal: false,
+    };
   }
 
   // ============================================================================
@@ -536,5 +760,38 @@ export const useTestScenarioStore = defineStore('testScenario', () => {
     clearLiveMonitorEvents,
     setLiveMonitorEnabled,
     toggleLiveMonitor,
+
+    // Phase 8: Replay test state (computed)
+    replayTests,
+    selectedReplayTestId,
+    previewAffectedRecords,
+    previewTotalRecords,
+    isLoadingReplayTests,
+    isRunningReplayTest,
+    isPreviewingReplay,
+    showCreateReplayModal,
+    showReplayResultsModal,
+    selectedReplayTest,
+    completedReplayTests,
+    pendingReplayTests,
+    runningReplayTest,
+
+    // Phase 8: Replay test getters
+    getReplayTestById,
+
+    // Phase 8: Replay test mutations
+    setReplayTests,
+    addReplayTest,
+    updateReplayTest,
+    removeReplayTest,
+    selectReplayTest,
+    setPreviewAffectedRecords,
+    clearPreviewAffectedRecords,
+    setLoadingReplayTests,
+    setRunningReplayTest,
+    setPreviewingReplay,
+    setShowCreateReplayModal,
+    setShowReplayResultsModal,
+    resetReplayState,
   };
 });

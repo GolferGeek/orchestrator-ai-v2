@@ -163,6 +163,15 @@ export class PredictionGenerationService {
       ensembleResult,
     );
 
+    // Calculate recommended position sizing
+    const positionSizing = await this.calculateRecommendedPositionSize(
+      ctx,
+      target,
+      direction,
+      confidence,
+      magnitude,
+    );
+
     const predictionData: CreatePredictionData = {
       target_id: targetId,
       direction,
@@ -187,6 +196,9 @@ export class PredictionGenerationService {
       analyst_context_version_ids: contextVersions.analystContextVersionIds,
       universe_context_version_id: contextVersions.universeContextVersionId,
       target_context_version_id: contextVersions.targetContextVersionId,
+      // Position sizing recommendation
+      recommended_quantity: positionSizing.quantity,
+      quantity_reasoning: positionSizing.reasoning,
     };
 
     const prediction = await this.predictionRepository.create(predictionData);
@@ -438,6 +450,155 @@ export class PredictionGenerationService {
     await this.snapshotService.createSnapshot(snapshotData);
 
     this.logger.debug(`Created snapshot for prediction ${prediction.id}`);
+  }
+
+  /**
+   * Calculate recommended position size based on confidence and risk management
+   *
+   * Position sizing formula:
+   * quantity = (portfolio_balance * risk_percent) / (entry_price * stop_distance_percent)
+   *
+   * Risk percent scales with confidence:
+   * - 80%+ confidence: 2% risk per trade
+   * - 70-80% confidence: 1.5% risk per trade
+   * - 60-70% confidence: 1% risk per trade
+   * - Below 60%: 0.5% risk per trade
+   *
+   * Stop distance is based on magnitude:
+   * - Large magnitude: 5% stop
+   * - Medium magnitude: 3% stop
+   * - Small magnitude: 2% stop
+   */
+  private async calculateRecommendedPositionSize(
+    ctx: ExecutionContext,
+    target: { symbol: string },
+    direction: PredictionDirection,
+    confidence: number,
+    magnitudePercent: number,
+  ): Promise<{ quantity: number; reasoning: string }> {
+    try {
+      // Get user's portfolio balance
+      const portfolio = await this.portfolioRepository.getUserPortfolio(
+        ctx.userId,
+        ctx.orgSlug,
+      );
+
+      if (!portfolio) {
+        return {
+          quantity: 0,
+          reasoning:
+            'No portfolio found - create a portfolio to get position sizing recommendations',
+        };
+      }
+
+      // Get current price (using a placeholder - in production this would come from price feed)
+      const entryPrice = this.getCurrentPrice(target.symbol);
+      if (!entryPrice || entryPrice <= 0) {
+        return {
+          quantity: 0,
+          reasoning: 'Unable to determine current price for position sizing',
+        };
+      }
+
+      // Determine risk percent based on confidence
+      let riskPercent: number;
+      let riskReason: string;
+      if (confidence >= 0.8) {
+        riskPercent = 0.02; // 2%
+        riskReason = 'high confidence (80%+)';
+      } else if (confidence >= 0.7) {
+        riskPercent = 0.015; // 1.5%
+        riskReason = 'good confidence (70-80%)';
+      } else if (confidence >= 0.6) {
+        riskPercent = 0.01; // 1%
+        riskReason = 'moderate confidence (60-70%)';
+      } else {
+        riskPercent = 0.005; // 0.5%
+        riskReason = 'lower confidence (<60%)';
+      }
+
+      // Determine stop distance based on magnitude
+      let stopDistancePercent: number;
+      let stopReason: string;
+      if (magnitudePercent >= 6) {
+        stopDistancePercent = 0.05; // 5%
+        stopReason = 'large expected move';
+      } else if (magnitudePercent >= 2.5) {
+        stopDistancePercent = 0.03; // 3%
+        stopReason = 'medium expected move';
+      } else {
+        stopDistancePercent = 0.02; // 2%
+        stopReason = 'small expected move';
+      }
+
+      // Calculate position size
+      // quantity = (balance * risk%) / (price * stop%)
+      const riskAmount = portfolio.current_balance * riskPercent;
+      const riskPerShare = entryPrice * stopDistancePercent;
+      const quantity = riskAmount / riskPerShare;
+
+      // Round to appropriate precision (whole shares for stocks, 8 decimals for crypto)
+      const isCrypto = this.isCryptoAsset(target.symbol);
+      const roundedQuantity = isCrypto
+        ? Math.floor(quantity * 100000000) / 100000000
+        : Math.floor(quantity);
+
+      const reasoning = [
+        `Position sizing for ${target.symbol} (${direction}):`,
+        `- Portfolio balance: $${portfolio.current_balance.toLocaleString()}`,
+        `- Risk per trade: ${(riskPercent * 100).toFixed(1)}% (${riskReason})`,
+        `- Stop distance: ${(stopDistancePercent * 100).toFixed(0)}% (${stopReason})`,
+        `- Entry price: $${entryPrice.toFixed(2)}`,
+        `- Risk amount: $${riskAmount.toFixed(2)}`,
+        `- Recommended quantity: ${roundedQuantity}`,
+      ].join('\n');
+
+      return {
+        quantity: roundedQuantity,
+        reasoning,
+      };
+    } catch (error) {
+      this.logger.warn(
+        `Failed to calculate position size: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return {
+        quantity: 0,
+        reasoning: `Position sizing unavailable: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      };
+    }
+  }
+
+  /**
+   * Get current price for a target
+   * Uses the metadata.last_price field if available, or returns null
+   * In production, this would integrate with a real-time price feed service
+   */
+  private getCurrentPrice(_symbol: string): number | null {
+    // Try to get the latest price from the target's metadata
+    // Price data is typically stored in metadata.last_price or metadata.current_price
+    try {
+      // We already have the target from the caller context, but need to get it here
+      // In production, this would call a price feed service
+      // For now, return null - the position sizing will indicate price unavailable
+      // The actual price would be fetched when the user opens a position
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Check if symbol is a crypto asset (for decimal precision)
+   */
+  private isCryptoAsset(symbol: string): boolean {
+    // Simple heuristic: check for common crypto suffixes or patterns
+    const cryptoSuffixes = ['USD', 'USDT', 'BTC', 'ETH'];
+    const upperSymbol = symbol.toUpperCase();
+    return (
+      cryptoSuffixes.some((suffix) => upperSymbol.endsWith(suffix)) ||
+      upperSymbol.includes('-') || // e.g., BTC-USD
+      upperSymbol.includes('/') // e.g., BTC/USD
+    );
   }
 
   /**

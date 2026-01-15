@@ -173,4 +173,79 @@ export class LearningRepository {
       superseded_by: supersededById,
     });
   }
+
+  /**
+   * Get all active learnings (not filtered by target)
+   * Useful for replay tests to sync all learnings
+   */
+  async getAllActiveLearnings(): Promise<Learning[]> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .select('*')
+      .eq('status', 'active')
+      .eq('is_test', false)) as SupabaseSelectListResponse<Learning>;
+
+    if (error) {
+      this.logger.error(`Failed to get all active learnings: ${error.message}`);
+      throw new Error(`Failed to get all active learnings: ${error.message}`);
+    }
+
+    return data ?? [];
+  }
+
+  /**
+   * Create a test copy of a learning for replay test
+   * The copy has is_test=true and resets application counters
+   */
+  async createTestCopy(
+    learning: Learning,
+    testScenarioId: string,
+  ): Promise<Learning> {
+    const testLearningData: Partial<Learning> = {
+      scope_level: learning.scope_level,
+      domain: learning.domain,
+      universe_id: learning.universe_id,
+      target_id: learning.target_id,
+      analyst_id: learning.analyst_id,
+      learning_type: learning.learning_type,
+      title: `[TEST] ${learning.title}`,
+      description: learning.description,
+      config: {
+        ...learning.config,
+        source_learning_id: learning.id, // Track original
+        test_scenario_id: testScenarioId,
+      },
+      source_type: learning.source_type,
+      source_evaluation_id: learning.source_evaluation_id,
+      source_missed_opportunity_id: learning.source_missed_opportunity_id,
+      status: 'active',
+      version: 1,
+      times_applied: 0,
+      times_helpful: 0,
+      is_test: true,
+    };
+
+    return this.create(testLearningData);
+  }
+
+  /**
+   * Delete test learnings for a specific test scenario
+   * Used during replay test cleanup
+   */
+  async deleteTestLearnings(testScenarioId: string): Promise<number> {
+    const { error, count } = await this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .delete({ count: 'exact' })
+      .eq('is_test', true)
+      .contains('config', { test_scenario_id: testScenarioId });
+
+    if (error) {
+      this.logger.error(`Failed to delete test learnings: ${error.message}`);
+      throw new Error(`Failed to delete test learnings: ${error.message}`);
+    }
+
+    return count ?? 0;
+  }
 }

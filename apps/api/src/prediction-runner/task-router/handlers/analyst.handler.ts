@@ -56,6 +56,7 @@ export class AnalystHandler implements IDashboardHandler {
     'forksSummary',
     'getForkHistory',
     'adoptChange',
+    'rollback',
   ];
 
   constructor(
@@ -94,6 +95,8 @@ export class AnalystHandler implements IDashboardHandler {
         return this.handleGetForkHistory(params);
       case 'adoptchange':
         return this.handleAdoptChange(params, payload);
+      case 'rollback':
+        return this.handleRollback(params, payload);
       default:
         return buildDashboardError(
           'UNSUPPORTED_ACTION',
@@ -578,6 +581,101 @@ export class AnalystHandler implements IDashboardHandler {
       return buildDashboardError(
         'ADOPT_FAILED',
         error instanceof Error ? error.message : 'Failed to adopt change',
+      );
+    }
+  }
+
+  /**
+   * Rollback an analyst's context to a previous version
+   * Creates a new version that copies content from the target version
+   */
+  private async handleRollback(
+    params: AnalystParams | undefined,
+    payload: DashboardRequestPayload,
+  ): Promise<DashboardActionResult> {
+    if (!params?.id) {
+      return buildDashboardError('MISSING_ID', 'Analyst ID is required');
+    }
+
+    const rollbackData = payload.params as {
+      id?: string;
+      targetVersionId?: string;
+      forkType?: ForkType;
+      reason?: string;
+    };
+
+    if (!rollbackData.targetVersionId) {
+      return buildDashboardError(
+        'MISSING_VERSION_ID',
+        'Target version ID is required for rollback',
+      );
+    }
+
+    const forkType: ForkType = rollbackData.forkType ?? 'user';
+    const reason = rollbackData.reason ?? 'Manual rollback';
+
+    try {
+      // Get analyst info first
+      const analyst = await this.analystService.findById(params.id);
+      if (!analyst) {
+        return buildDashboardError('NOT_FOUND', 'Analyst not found');
+      }
+
+      // Get the target version to show what we're rolling back to
+      const targetVersion =
+        await this.portfolioRepository.getAnalystContextVersionById(
+          rollbackData.targetVersionId,
+        );
+
+      if (!targetVersion) {
+        return buildDashboardError(
+          'VERSION_NOT_FOUND',
+          'Target version not found',
+        );
+      }
+
+      // Perform the rollback
+      const newVersion =
+        await this.portfolioRepository.rollbackAnalystContextVersion(
+          params.id,
+          forkType,
+          rollbackData.targetVersionId,
+          reason,
+        );
+
+      this.logger.log(
+        `Rolled back analyst ${analyst.slug} ${forkType} fork to v${targetVersion.version_number}, created new v${newVersion.version_number}`,
+      );
+
+      return buildDashboardSuccess({
+        success: true,
+        analyst: {
+          id: analyst.id,
+          slug: analyst.slug,
+          name: analyst.name,
+        },
+        forkType,
+        rolledBackTo: {
+          versionId: targetVersion.id,
+          versionNumber: targetVersion.version_number,
+          changeReason: targetVersion.change_reason,
+          changedBy: targetVersion.changed_by,
+          createdAt: targetVersion.created_at,
+        },
+        newVersion: {
+          versionId: newVersion.id,
+          versionNumber: newVersion.version_number,
+          changeReason: newVersion.change_reason,
+        },
+        reason,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to rollback: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return buildDashboardError(
+        'ROLLBACK_FAILED',
+        error instanceof Error ? error.message : 'Failed to rollback',
       );
     }
   }

@@ -13,82 +13,183 @@
           <span v-if="pendingCount > 0" class="pending-count">
             {{ pendingCount }} pending review
           </span>
+          <span v-if="unacknowledgedActivityCount > 0" class="activity-count">
+            {{ unacknowledgedActivityCount }} agent updates
+          </span>
         </div>
       </div>
     </header>
 
-    <!-- Status Filter Tabs -->
-    <div class="status-tabs">
+    <!-- Main View Tabs (Learning Queue vs Agent Activity) -->
+    <div class="main-tabs">
       <button
-        class="status-tab"
-        :class="{ active: selectedStatus === null }"
-        @click="selectedStatus = null"
+        class="main-tab"
+        :class="{ active: activeView === 'queue' }"
+        @click="activeView = 'queue'"
       >
-        All
+        Learning Queue
+        <span v-if="pendingCount > 0" class="tab-badge">{{ pendingCount }}</span>
       </button>
       <button
-        v-for="status in statuses"
-        :key="status"
-        class="status-tab"
-        :class="{ active: selectedStatus === status }"
-        @click="selectedStatus = status"
+        class="main-tab"
+        :class="{ active: activeView === 'activity' }"
+        @click="activeView = 'activity'"
       >
-        {{ status }}
+        Agent Activity
+        <span v-if="unacknowledgedActivityCount > 0" class="tab-badge activity">{{ unacknowledgedActivityCount }}</span>
       </button>
     </div>
 
-    <!-- Portfolio/Target Filters -->
-    <div v-if="universes.length > 0" class="filters">
-      <div class="filter-group">
-        <label for="universe-filter">Portfolio</label>
-        <select id="universe-filter" v-model="selectedUniverseId">
-          <option :value="null">All portfolios</option>
-          <option v-for="universe in universes" :key="universe.id" :value="universe.id">
-            {{ universe.name }}
-          </option>
-        </select>
+    <!-- Learning Queue View -->
+    <div v-show="activeView === 'queue'">
+      <!-- Status Filter Tabs -->
+      <div class="status-tabs">
+        <button
+          class="status-tab"
+          :class="{ active: selectedStatus === null }"
+          @click="selectedStatus = null"
+        >
+          All
+        </button>
+        <button
+          v-for="status in statuses"
+          :key="status"
+          class="status-tab"
+          :class="{ active: selectedStatus === status }"
+          @click="selectedStatus = status"
+        >
+          {{ status }}
+        </button>
       </div>
-      <div class="filter-group">
-        <label for="target-filter">Target</label>
-        <select id="target-filter" v-model="selectedTargetId" :disabled="!selectedUniverseId">
-          <option :value="null">All targets</option>
-          <option v-for="target in filteredTargets" :key="target.id" :value="target.id">
-            {{ target.name }}
-          </option>
-        </select>
+
+      <!-- Portfolio/Target Filters -->
+      <div v-if="universes.length > 0" class="filters">
+        <div class="filter-group">
+          <label for="universe-filter">Portfolio</label>
+          <select id="universe-filter" v-model="selectedUniverseId">
+            <option :value="null">All portfolios</option>
+            <option v-for="universe in universes" :key="universe.id" :value="universe.id">
+              {{ universe.name }}
+            </option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="target-filter">Target</label>
+          <select id="target-filter" v-model="selectedTargetId" :disabled="!selectedUniverseId">
+            <option :value="null">All targets</option>
+            <option v-for="target in filteredTargets" :key="target.id" :value="target.id">
+              {{ target.name }}
+            </option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Loading State -->
+      <div v-if="isLoading" class="loading-state">
+        <div class="spinner"></div>
+        <span>Loading learning queue...</span>
+      </div>
+
+      <!-- Error State -->
+      <div v-else-if="error" class="error-state">
+        <span class="error-icon">!</span>
+        <span>{{ error }}</span>
+        <button class="btn btn-secondary" @click="loadQueue">Try Again</button>
+      </div>
+
+      <!-- Empty State -->
+      <div v-else-if="filteredQueueItems.length === 0" class="empty-state">
+        <span class="empty-icon">&#128240;</span>
+        <h3>No Queue Items</h3>
+        <p>{{ getEmptyStateMessage() }}</p>
+      </div>
+
+      <!-- Queue Grid -->
+      <div v-else class="queue-grid">
+        <LearningQueueCard
+          v-for="item in filteredQueueItems"
+          :key="item.id"
+          :queue-item="item"
+          :is-selected="item.id === selectedQueueItemId"
+          @select="onQueueItemSelect"
+          @review="openReviewModal"
+        />
       </div>
     </div>
 
-    <!-- Loading State -->
-    <div v-if="isLoading" class="loading-state">
-      <div class="spinner"></div>
-      <span>Loading learning queue...</span>
-    </div>
+    <!-- Agent Activity View -->
+    <div v-show="activeView === 'activity'" class="agent-activity-view">
+      <!-- Loading State -->
+      <div v-if="isLoadingActivity" class="loading-state">
+        <div class="spinner"></div>
+        <span>Loading agent activity...</span>
+      </div>
 
-    <!-- Error State -->
-    <div v-else-if="error" class="error-state">
-      <span class="error-icon">!</span>
-      <span>{{ error }}</span>
-      <button class="btn btn-secondary" @click="loadQueue">Try Again</button>
-    </div>
+      <!-- Empty State -->
+      <div v-else-if="agentActivity.length === 0" class="empty-state">
+        <span class="empty-icon">&#129302;</span>
+        <h3>No Agent Activity</h3>
+        <p>Agent self-modifications will appear here when analysts adapt their own context.</p>
+      </div>
 
-    <!-- Empty State -->
-    <div v-else-if="filteredQueueItems.length === 0" class="empty-state">
-      <span class="empty-icon">&#128240;</span>
-      <h3>No Queue Items</h3>
-      <p>{{ getEmptyStateMessage() }}</p>
-    </div>
+      <!-- Activity List -->
+      <div v-else class="activity-list">
+        <div class="activity-actions">
+          <button
+            v-if="unacknowledgedActivityCount > 0"
+            class="btn btn-secondary"
+            @click="acknowledgeAllActivity"
+          >
+            Acknowledge All ({{ unacknowledgedActivityCount }})
+          </button>
+        </div>
 
-    <!-- Queue Grid -->
-    <div v-else class="queue-grid">
-      <LearningQueueCard
-        v-for="item in filteredQueueItems"
-        :key="item.id"
-        :queue-item="item"
-        :is-selected="item.id === selectedQueueItemId"
-        @select="onQueueItemSelect"
-        @review="openReviewModal"
-      />
+        <div
+          v-for="activity in agentActivity"
+          :key="activity.id"
+          class="activity-card"
+          :class="{ unacknowledged: !activity.acknowledged }"
+        >
+          <div class="activity-header">
+            <div class="activity-analyst">
+              <span class="analyst-name">{{ activity.analystName || activity.analystId }}</span>
+              <span class="modification-type-badge" :class="activity.modificationType">
+                {{ formatModificationType(activity.modificationType) }}
+              </span>
+            </div>
+            <span class="activity-time">{{ formatTimestamp(activity.createdAt) }}</span>
+          </div>
+
+          <div class="activity-summary">{{ activity.summary }}</div>
+
+          <div class="activity-reason">
+            <strong>Trigger:</strong> {{ activity.triggerReason }}
+          </div>
+
+          <div v-if="activity.performanceContext" class="activity-performance">
+            <strong>Performance Context:</strong>
+            <span v-if="activity.performanceContext.currentBalance !== undefined">
+              Balance: ${{ Number(activity.performanceContext.currentBalance).toLocaleString() }}
+            </span>
+            <span v-if="activity.performanceContext.winRate !== undefined">
+              Win Rate: {{ (Number(activity.performanceContext.winRate) * 100).toFixed(1) }}%
+            </span>
+          </div>
+
+          <div class="activity-actions-row">
+            <button
+              v-if="!activity.acknowledged"
+              class="btn btn-small btn-secondary"
+              @click="acknowledgeActivity(activity.id)"
+            >
+              Acknowledge
+            </button>
+            <span v-else class="acknowledged-label">
+              Acknowledged {{ formatTimestamp(activity.acknowledgedAt) }}
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Review Modal -->
@@ -254,6 +355,9 @@ function goBackToDashboard() {
   router.push({ name: 'PredictionDashboard' });
 }
 
+// Main view state
+const activeView = ref<'queue' | 'activity'>('queue');
+
 const isLoading = ref(false);
 const error = ref<string | null>(null);
 const selectedStatus = ref<'pending' | 'approved' | 'rejected' | 'modified' | null>(null);
@@ -265,6 +369,9 @@ const isSaving = ref(false);
 const reviewingItem = ref<LearningQueueItem | null>(null);
 const reviewDecision = ref<'approve' | 'reject' | 'modify' | null>(null);
 const reviewNotes = ref('');
+
+// Agent Activity state
+const isLoadingActivity = ref(false);
 
 const statuses = ['pending', 'approved', 'rejected', 'modified'];
 
@@ -309,6 +416,10 @@ const filteredQueueItems = computed(() => {
 const pendingCount = computed(() => {
   return learningStore.learningQueue.filter((item) => item.status === 'pending').length;
 });
+
+// Agent Activity computed properties
+const agentActivity = computed(() => learningStore.agentActivity);
+const unacknowledgedActivityCount = computed(() => learningStore.unacknowledgedActivityCount);
 
 async function loadQueue() {
   isLoading.value = true;
@@ -438,8 +549,69 @@ function getEmptyStateMessage(): string {
   return 'The learning queue is empty. AI will suggest learnings based on evaluations and missed opportunities.';
 }
 
+// Agent Activity functions
+async function loadAgentActivity() {
+  isLoadingActivity.value = true;
+  try {
+    const response = await predictionDashboardService.listAgentActivity();
+    if (response.content) {
+      learningStore.setAgentActivity(response.content);
+    }
+  } catch (err) {
+    console.error('Failed to load agent activity:', err);
+  } finally {
+    isLoadingActivity.value = false;
+  }
+}
+
+async function acknowledgeActivity(activityId: string) {
+  try {
+    await predictionDashboardService.acknowledgeAgentActivity(activityId);
+    learningStore.acknowledgeAgentActivity(activityId);
+  } catch (err) {
+    console.error('Failed to acknowledge activity:', err);
+  }
+}
+
+async function acknowledgeAllActivity() {
+  try {
+    await predictionDashboardService.acknowledgeAllAgentActivity();
+    learningStore.acknowledgeAllAgentActivity();
+  } catch (err) {
+    console.error('Failed to acknowledge all activity:', err);
+  }
+}
+
+function formatModificationType(type: string): string {
+  const typeMap: Record<string, string> = {
+    rule_added: 'Rule Added',
+    rule_removed: 'Rule Removed',
+    weight_changed: 'Weight Changed',
+    journal_entry: 'Journal Entry',
+    status_change: 'Status Change',
+  };
+  return typeMap[type] || type.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function formatTimestamp(timestamp: string | null): string {
+  if (!timestamp) return '';
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString();
+}
+
 onMounted(() => {
   loadQueue();
+  loadAgentActivity();
 });
 </script>
 
@@ -947,6 +1119,188 @@ onMounted(() => {
   color: #059669;
 }
 
+/* Main Tabs */
+.main-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid var(--border-color, #e5e7eb);
+}
+
+.main-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-secondary, #6b7280);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.main-tab:hover {
+  color: var(--text-primary, #111827);
+}
+
+.main-tab.active {
+  color: var(--primary-color, #3b82f6);
+  border-bottom-color: var(--primary-color, #3b82f6);
+}
+
+.tab-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.125rem 0.5rem;
+  border-radius: 10px;
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+}
+
+.tab-badge.activity {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+}
+
+.activity-count {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+}
+
+/* Agent Activity View */
+.agent-activity-view {
+  padding-top: 1rem;
+}
+
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.activity-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
+
+.activity-card {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 8px;
+  padding: 1rem;
+  transition: all 0.2s;
+}
+
+.activity-card.unacknowledged {
+  border-left: 3px solid #f59e0b;
+  background: rgba(245, 158, 11, 0.02);
+}
+
+.activity-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+}
+
+.activity-analyst {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.analyst-name {
+  font-weight: 600;
+  color: var(--text-primary, #111827);
+}
+
+.modification-type-badge {
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.modification-type-badge.rule_added {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #059669;
+}
+
+.modification-type-badge.rule_removed {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+.modification-type-badge.weight_changed {
+  background-color: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+}
+
+.modification-type-badge.journal_entry {
+  background-color: rgba(139, 92, 246, 0.1);
+  color: #7c3aed;
+}
+
+.modification-type-badge.status_change {
+  background-color: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+}
+
+.activity-time {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #6b7280);
+}
+
+.activity-summary {
+  font-size: 0.9rem;
+  color: var(--text-primary, #111827);
+  margin-bottom: 0.75rem;
+  line-height: 1.4;
+}
+
+.activity-reason {
+  font-size: 0.8rem;
+  color: var(--text-secondary, #6b7280);
+  margin-bottom: 0.5rem;
+}
+
+.activity-performance {
+  font-size: 0.8rem;
+  color: var(--text-secondary, #6b7280);
+  margin-bottom: 0.75rem;
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.activity-actions-row {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color, #e5e7eb);
+}
+
+.btn-small {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8rem;
+}
+
+.acknowledged-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #6b7280);
+  font-style: italic;
+}
+
 /* Dark mode */
 @media (prefers-color-scheme: dark) {
   .learning-queue {
@@ -963,6 +1317,10 @@ onMounted(() => {
     --btn-secondary-text: #f9fafb;
     --btn-secondary-hover: #4b5563;
     --progress-bg: #374151;
+  }
+
+  .activity-card.unacknowledged {
+    background: rgba(245, 158, 11, 0.05);
   }
 }
 </style>

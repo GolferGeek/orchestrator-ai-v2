@@ -83,6 +83,10 @@ export interface LearningConfig {
   indicators?: string[];
   success_rate?: number;
   conditions?: string[];
+  /** ID of original learning when this is a test copy */
+  source_learning_id?: string;
+  /** ID of test scenario this learning belongs to */
+  test_scenario_id?: string;
 }
 
 /**

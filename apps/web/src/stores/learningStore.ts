@@ -17,6 +17,83 @@ export type LearningType = 'rule' | 'pattern' | 'weight_adjustment' | 'threshold
 export type LearningSourceType = 'human' | 'ai_suggested' | 'ai_approved';
 export type LearningStatus = 'active' | 'superseded' | 'inactive';
 
+// Agent Activity Types (Phase 7 - Agent Self-Modification Notifications)
+export type AgentModificationType = 'rule_added' | 'rule_removed' | 'weight_changed' | 'journal_entry' | 'status_change';
+
+export interface AgentActivityItem {
+  id: string;
+  analystId: string;
+  analystName?: string;
+  modificationType: AgentModificationType;
+  summary: string;
+  details: Record<string, unknown>;
+  triggerReason: string;
+  performanceContext: Record<string, unknown>;
+  acknowledged: boolean;
+  acknowledgedAt: string | null;
+  createdAt: string;
+}
+
+// Learning Session Types (Phase 7 - Bidirectional Learning)
+export type ExchangeOutcome = 'adopted' | 'rejected' | 'noted' | 'pending';
+export type ExchangeInitiator = 'user' | 'agent';
+
+export interface LearningExchange {
+  id: string;
+  analystId: string;
+  analystName?: string;
+  initiatedBy: ExchangeInitiator;
+  question: string;
+  response: string | null;
+  contextDiff: Record<string, unknown>;
+  performanceEvidence: Record<string, unknown>;
+  outcome: ExchangeOutcome;
+  adoptionDetails: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface ForkComparisonReport {
+  analystId: string;
+  analystName: string;
+  period: string;
+  userFork: {
+    currentBalance: number;
+    totalPnl: number;
+    winRate: number;
+    winCount: number;
+    lossCount: number;
+  };
+  agentFork: {
+    currentBalance: number;
+    totalPnl: number;
+    winRate: number;
+    winCount: number;
+    lossCount: number;
+  };
+  contextDiffs: Array<{
+    field: string;
+    userValue: string;
+    agentValue: string;
+  }>;
+  divergentPredictions: Array<{
+    predictionId: string;
+    targetSymbol: string;
+    userDirection: string;
+    agentDirection: string;
+    userConfidence: number;
+    agentConfidence: number;
+    actualOutcome: string;
+  }>;
+}
+
+export interface LearningSession {
+  isActive: boolean;
+  analystId: string | null;
+  comparisonReport: ForkComparisonReport | null;
+  exchanges: LearningExchange[];
+  pendingUserQuestion: string;
+}
+
 export interface PredictionLearning {
   id: string;
   title: string;
@@ -82,6 +159,12 @@ interface LearningState {
   isLoading: boolean;
   isLoadingQueue: boolean;
   error: string | null;
+  // Phase 7: Agent Activity (self-modification notifications)
+  agentActivity: AgentActivityItem[];
+  isLoadingAgentActivity: boolean;
+  // Phase 7: Learning Session (bidirectional learning)
+  learningSession: LearningSession;
+  isLoadingSession: boolean;
 }
 
 export const useLearningStore = defineStore('learning', () => {
@@ -111,6 +194,18 @@ export const useLearningStore = defineStore('learning', () => {
     isLoading: false,
     isLoadingQueue: false,
     error: null,
+    // Phase 7: Agent Activity
+    agentActivity: [],
+    isLoadingAgentActivity: false,
+    // Phase 7: Learning Session
+    learningSession: {
+      isActive: false,
+      analystId: null,
+      comparisonReport: null,
+      exchanges: [],
+      pendingUserQuestion: '',
+    },
+    isLoadingSession: false,
   });
 
   // ============================================================================
@@ -226,6 +321,38 @@ export const useLearningStore = defineStore('learning', () => {
       grouped[learning.scopeLevel].push(learning);
     }
     return grouped;
+  });
+
+  // Phase 7: Agent Activity computed
+  const agentActivity = computed(() => state.value.agentActivity);
+  const isLoadingAgentActivity = computed(() => state.value.isLoadingAgentActivity);
+
+  const unacknowledgedAgentActivity = computed(() => {
+    const activity = Array.isArray(state.value.agentActivity) ? state.value.agentActivity : [];
+    return activity.filter((a) => !a.acknowledged);
+  });
+
+  const unacknowledgedActivityCount = computed(() => unacknowledgedAgentActivity.value.length);
+
+  // Phase 7: Learning Session computed
+  const learningSession = computed(() => state.value.learningSession);
+  const isLoadingSession = computed(() => state.value.isLoadingSession);
+
+  const isLearningSessionActive = computed(() => state.value.learningSession.isActive);
+
+  const sessionComparisonReport = computed(() => state.value.learningSession.comparisonReport);
+
+  const sessionExchanges = computed(() => state.value.learningSession.exchanges);
+
+  const pendingExchanges = computed(() => {
+    return state.value.learningSession.exchanges.filter((e) => e.outcome === 'pending');
+  });
+
+  const pendingExchangeCount = computed(() => pendingExchanges.value.length);
+
+  // Combined badge count for HITL (unacknowledged activity + pending exchanges)
+  const hitlBadgeCount = computed(() => {
+    return unacknowledgedActivityCount.value + pendingExchangeCount.value;
   });
 
   // ============================================================================
@@ -381,6 +508,121 @@ export const useLearningStore = defineStore('learning', () => {
     };
   }
 
+  // ============================================================================
+  // AGENT ACTIVITY MUTATIONS (Phase 7)
+  // ============================================================================
+
+  function setLoadingAgentActivity(loading: boolean) {
+    state.value.isLoadingAgentActivity = loading;
+  }
+
+  function setAgentActivity(activity: AgentActivityItem[]) {
+    state.value.agentActivity = Array.isArray(activity) ? activity : [];
+  }
+
+  function addAgentActivityItem(item: AgentActivityItem) {
+    if (!Array.isArray(state.value.agentActivity)) {
+      state.value.agentActivity = [];
+    }
+    // Add to beginning (most recent first)
+    state.value.agentActivity.unshift(item);
+  }
+
+  function acknowledgeAgentActivity(id: string) {
+    const activity = Array.isArray(state.value.agentActivity) ? state.value.agentActivity : [];
+    const idx = activity.findIndex((a) => a.id === id);
+    if (idx >= 0) {
+      state.value.agentActivity[idx] = {
+        ...state.value.agentActivity[idx],
+        acknowledged: true,
+        acknowledgedAt: new Date().toISOString(),
+      };
+    }
+  }
+
+  function acknowledgeAllAgentActivity() {
+    const now = new Date().toISOString();
+    state.value.agentActivity = state.value.agentActivity.map((a) => ({
+      ...a,
+      acknowledged: true,
+      acknowledgedAt: a.acknowledgedAt || now,
+    }));
+  }
+
+  // ============================================================================
+  // LEARNING SESSION MUTATIONS (Phase 7)
+  // ============================================================================
+
+  function setLoadingSession(loading: boolean) {
+    state.value.isLoadingSession = loading;
+  }
+
+  function startLearningSession(analystId: string) {
+    state.value.learningSession = {
+      isActive: true,
+      analystId,
+      comparisonReport: null,
+      exchanges: [],
+      pendingUserQuestion: '',
+    };
+  }
+
+  function setComparisonReport(report: ForkComparisonReport | null) {
+    state.value.learningSession.comparisonReport = report;
+  }
+
+  function setSessionExchanges(exchanges: LearningExchange[]) {
+    state.value.learningSession.exchanges = Array.isArray(exchanges) ? exchanges : [];
+  }
+
+  function addSessionExchange(exchange: LearningExchange) {
+    if (!Array.isArray(state.value.learningSession.exchanges)) {
+      state.value.learningSession.exchanges = [];
+    }
+    state.value.learningSession.exchanges.push(exchange);
+  }
+
+  function updateExchangeOutcome(
+    exchangeId: string,
+    outcome: ExchangeOutcome,
+    adoptionDetails?: Record<string, unknown>,
+  ) {
+    const exchanges = state.value.learningSession.exchanges;
+    const idx = exchanges.findIndex((e) => e.id === exchangeId);
+    if (idx >= 0) {
+      state.value.learningSession.exchanges[idx] = {
+        ...exchanges[idx],
+        outcome,
+        adoptionDetails: adoptionDetails || null,
+      };
+    }
+  }
+
+  function setExchangeResponse(exchangeId: string, response: string) {
+    const exchanges = state.value.learningSession.exchanges;
+    const idx = exchanges.findIndex((e) => e.id === exchangeId);
+    if (idx >= 0) {
+      state.value.learningSession.exchanges[idx] = {
+        ...exchanges[idx],
+        response,
+      };
+    }
+  }
+
+  function setPendingUserQuestion(question: string) {
+    state.value.learningSession.pendingUserQuestion = question;
+  }
+
+  function endLearningSession() {
+    state.value.learningSession = {
+      isActive: false,
+      analystId: null,
+      comparisonReport: null,
+      exchanges: [],
+      pendingUserQuestion: '',
+    };
+  }
+
   function resetState() {
     state.value = {
       learnings: [],
@@ -404,6 +646,18 @@ export const useLearningStore = defineStore('learning', () => {
       isLoading: false,
       isLoadingQueue: false,
       error: null,
+      // Phase 7: Agent Activity
+      agentActivity: [],
+      isLoadingAgentActivity: false,
+      // Phase 7: Learning Session
+      learningSession: {
+        isActive: false,
+        analystId: null,
+        comparisonReport: null,
+        exchanges: [],
+        pendingUserQuestion: '',
+      },
+      isLoadingSession: false,
     };
   }
 
@@ -433,6 +687,22 @@ export const useLearningStore = defineStore('learning', () => {
     learningsByType,
     learningsByScopeLevel,
 
+    // Phase 7: Agent Activity (computed)
+    agentActivity,
+    isLoadingAgentActivity,
+    unacknowledgedAgentActivity,
+    unacknowledgedActivityCount,
+
+    // Phase 7: Learning Session (computed)
+    learningSession,
+    isLoadingSession,
+    isLearningSessionActive,
+    sessionComparisonReport,
+    sessionExchanges,
+    pendingExchanges,
+    pendingExchangeCount,
+    hitlBadgeCount,
+
     // Getters (functions)
     getLearningById,
     getQueueItemById,
@@ -460,5 +730,23 @@ export const useLearningStore = defineStore('learning', () => {
     setQueueFilters,
     clearQueueFilters,
     resetState,
+
+    // Phase 7: Agent Activity Mutations
+    setLoadingAgentActivity,
+    setAgentActivity,
+    addAgentActivityItem,
+    acknowledgeAgentActivity,
+    acknowledgeAllAgentActivity,
+
+    // Phase 7: Learning Session Mutations
+    setLoadingSession,
+    startLearningSession,
+    setComparisonReport,
+    setSessionExchanges,
+    addSessionExchange,
+    updateExchangeOutcome,
+    setExchangeResponse,
+    setPendingUserQuestion,
+    endLearningSession,
   };
 });

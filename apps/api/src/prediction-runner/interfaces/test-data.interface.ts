@@ -427,3 +427,221 @@ export interface AuditLogFilter {
   /** Limit number of results */
   limit?: number;
 }
+
+// =============================================================================
+// PHASE 8: HISTORICAL REPLAY TEST TYPES
+// =============================================================================
+
+/**
+ * Replay test status lifecycle
+ * - pending: Created but not started
+ * - snapshot_created: Snapshot taken, ready to run
+ * - running: Pipeline executing
+ * - completed: Finished successfully
+ * - failed: Failed at some step
+ * - restored: Original data restored (cleanup complete)
+ */
+export type ReplayTestStatus =
+  | 'pending'
+  | 'snapshot_created'
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'restored';
+
+/**
+ * Rollback depth options
+ * - predictions: Only predictions rolled back
+ * - predictors: Predictions + predictors rolled back
+ * - signals: Signals + predictors + predictions rolled back
+ */
+export type RollbackDepth = 'predictions' | 'predictors' | 'signals';
+
+/**
+ * Configuration for a replay test
+ */
+export interface ReplayTestConfig extends Record<string, unknown> {
+  /** Whether to auto-run pipeline after snapshot */
+  auto_run?: boolean;
+  /** Skip confirmation dialogs (for programmatic use) */
+  skip_confirmation?: boolean;
+  /** Mark replay predictions as test data instead of deleting */
+  keep_replay_predictions?: boolean;
+}
+
+/**
+ * Aggregated results from a replay test
+ */
+export interface ReplayTestResults {
+  /** Total number of predictions compared */
+  total_comparisons: number;
+  /** Number of direction matches between original and replay */
+  direction_matches: number;
+  /** Number of originally correct predictions */
+  original_correct_count: number;
+  /** Number of replay predictions that were correct */
+  replay_correct_count: number;
+  /** Number of cases where replay improved on original */
+  improvements: number;
+  /** Original accuracy percentage */
+  original_accuracy_pct: number | null;
+  /** Replay accuracy percentage */
+  replay_accuracy_pct: number | null;
+  /** Accuracy improvement (replay - original) */
+  accuracy_delta: number | null;
+  /** Total P&L from original predictions */
+  total_pnl_original: number | null;
+  /** Total P&L from replay predictions */
+  total_pnl_replay: number | null;
+  /** P&L improvement */
+  pnl_delta: number | null;
+  /** Average confidence difference */
+  avg_confidence_diff: number | null;
+}
+
+/**
+ * Replay test entity
+ * Based on prediction.replay_tests table
+ */
+export interface ReplayTest {
+  id: string;
+  organization_slug: string;
+  name: string;
+  description: string | null;
+  status: ReplayTestStatus;
+  rollback_depth: RollbackDepth;
+  rollback_to: string;
+  universe_id: string | null;
+  target_ids: string[] | null;
+  config: ReplayTestConfig;
+  results: ReplayTestResults | null;
+  error_message: string | null;
+  created_by: string | null;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+/**
+ * Data for creating a new replay test
+ */
+export interface CreateReplayTestData {
+  name: string;
+  description?: string;
+  organization_slug: string;
+  rollback_depth: RollbackDepth;
+  rollback_to: string;
+  universe_id: string;
+  target_ids?: string[];
+  config?: ReplayTestConfig;
+  created_by?: string;
+}
+
+/**
+ * Data for updating a replay test
+ */
+export interface UpdateReplayTestData {
+  name?: string;
+  description?: string;
+  status?: ReplayTestStatus;
+  results?: ReplayTestResults | null;
+  error_message?: string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+}
+
+/**
+ * Replay test snapshot entity
+ * Stores original data before deletion
+ */
+export interface ReplayTestSnapshot {
+  id: string;
+  replay_test_id: string;
+  table_name: 'signals' | 'predictors' | 'predictions' | 'analyst_assessments';
+  original_data: unknown[];
+  record_ids: string[];
+  row_count: number;
+  created_at: string;
+}
+
+/**
+ * Per-prediction comparison result
+ */
+export interface ReplayTestResult {
+  id: string;
+  replay_test_id: string;
+  target_id: string | null;
+
+  // Original prediction data
+  original_prediction_id: string | null;
+  original_direction: string | null;
+  original_confidence: number | null;
+  original_magnitude: string | null;
+  original_predicted_at: string | null;
+
+  // Replay prediction data
+  replay_prediction_id: string | null;
+  replay_direction: string | null;
+  replay_confidence: number | null;
+  replay_magnitude: string | null;
+  replay_predicted_at: string | null;
+
+  // Comparison metrics
+  direction_match: boolean | null;
+  confidence_diff: number | null;
+
+  // Ground truth
+  evaluation_id: string | null;
+  actual_outcome: string | null;
+  actual_outcome_value: number | null;
+
+  // Accuracy assessment
+  original_correct: boolean | null;
+  replay_correct: boolean | null;
+  improvement: boolean | null;
+
+  // P&L comparison
+  pnl_original: number | null;
+  pnl_replay: number | null;
+  pnl_diff: number | null;
+
+  created_at: string;
+}
+
+/**
+ * Replay test summary with aggregated metrics
+ * Based on prediction.replay_test_summary view
+ */
+export interface ReplayTestSummary extends ReplayTest {
+  /** Total number of comparisons */
+  total_comparisons: number;
+  /** Direction matches count */
+  direction_matches: number;
+  /** Original correct count */
+  original_correct_count: number;
+  /** Replay correct count */
+  replay_correct_count: number;
+  /** Number of improvements */
+  improvements: number;
+  /** Original accuracy percentage */
+  original_accuracy_pct: number | null;
+  /** Replay accuracy percentage */
+  replay_accuracy_pct: number | null;
+  /** Total original P&L */
+  total_pnl_original: number | null;
+  /** Total replay P&L */
+  total_pnl_replay: number | null;
+  /** Total P&L improvement */
+  total_pnl_improvement: number | null;
+  /** Average confidence difference */
+  avg_confidence_diff: number | null;
+}
+
+/**
+ * Records that would be affected by a replay test
+ */
+export interface ReplayAffectedRecords {
+  table_name: string;
+  record_ids: string[];
+  row_count: number;
+}

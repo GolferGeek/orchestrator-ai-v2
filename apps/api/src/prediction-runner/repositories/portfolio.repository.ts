@@ -503,32 +503,6 @@ export class PortfolioRepository {
     return data;
   }
 
-  async getAnalystContextVersionHistory(
-    analystId: string,
-    forkType: ForkType,
-  ): Promise<AnalystContextVersion[]> {
-    const { data, error } = (await this.getClient()
-      .schema(this.schema)
-      .from('analyst_context_versions')
-      .select('*')
-      .eq('analyst_id', analystId)
-      .eq('fork_type', forkType)
-      .order('version_number', {
-        ascending: false,
-      })) as SupabaseSelectListResponse<AnalystContextVersion>;
-
-    if (error) {
-      this.logger.error(
-        `Failed to get analyst context version history: ${error.message}`,
-      );
-      throw new Error(
-        `Failed to get analyst context version history: ${error.message}`,
-      );
-    }
-
-    return data ?? [];
-  }
-
   async createAnalystContextVersion(
     input: CreateAnalystContextVersionInput,
   ): Promise<AnalystContextVersion> {
@@ -1140,6 +1114,144 @@ export class PortfolioRepository {
     }
 
     return data ?? [];
+  }
+
+  // =============================================================================
+  // ROLLBACK FUNCTIONALITY
+  // =============================================================================
+
+  /**
+   * Get all context versions for an analyst (for version history UI)
+   */
+  async getAnalystContextVersionHistory(
+    analystId: string,
+    forkType: ForkType,
+  ): Promise<AnalystContextVersion[]> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from('analyst_context_versions')
+      .select('*')
+      .eq('analyst_id', analystId)
+      .eq('fork_type', forkType)
+      .order('version_number', {
+        ascending: false,
+      })) as SupabaseSelectListResponse<AnalystContextVersion>;
+
+    if (error) {
+      this.logger.error(
+        `Failed to get analyst context version history: ${error.message}`,
+      );
+      throw new Error(
+        `Failed to get analyst context version history: ${error.message}`,
+      );
+    }
+
+    return data ?? [];
+  }
+
+  /**
+   * Get a specific context version by ID
+   */
+  async getAnalystContextVersionById(
+    versionId: string,
+  ): Promise<AnalystContextVersion | null> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from('analyst_context_versions')
+      .select('*')
+      .eq('id', versionId)
+      .single()) as SupabaseSelectResponse<AnalystContextVersion>;
+
+    if (error && error.code !== 'PGRST116') {
+      this.logger.error(`Failed to get context version: ${error.message}`);
+      throw new Error(`Failed to get context version: ${error.message}`);
+    }
+
+    return data;
+  }
+
+  /**
+   * Rollback an analyst's context to a previous version
+   *
+   * This creates a NEW version that copies the content from the target version,
+   * preserving the full history. The rollback itself is logged.
+   *
+   * @param analystId The analyst ID
+   * @param forkType Which fork to rollback ('user' or 'agent')
+   * @param targetVersionId The version ID to rollback to
+   * @param reason Why the rollback is being performed
+   * @returns The new version created from the rollback
+   */
+  async rollbackAnalystContextVersion(
+    analystId: string,
+    forkType: ForkType,
+    targetVersionId: string,
+    reason: string,
+  ): Promise<AnalystContextVersion> {
+    // Get the target version to copy from
+    const targetVersion =
+      await this.getAnalystContextVersionById(targetVersionId);
+    if (!targetVersion) {
+      throw new Error(`Target version not found: ${targetVersionId}`);
+    }
+
+    // Verify it belongs to the same analyst and fork
+    if (targetVersion.analyst_id !== analystId) {
+      throw new Error('Target version does not belong to this analyst');
+    }
+    if (targetVersion.fork_type !== forkType) {
+      throw new Error('Target version does not belong to this fork type');
+    }
+
+    // Get the current version to mark as not current
+    const currentVersion = await this.getCurrentAnalystContextVersion(
+      analystId,
+      forkType,
+    );
+
+    if (currentVersion) {
+      // Mark current as not current
+      await this.getClient()
+        .schema(this.schema)
+        .from('analyst_context_versions')
+        .update({ is_current: false })
+        .eq('id', currentVersion.id);
+    }
+
+    // Get the next version number
+    const nextVersionNumber = currentVersion
+      ? currentVersion.version_number + 1
+      : 1;
+
+    // Create new version as a rollback (copies content from target)
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from('analyst_context_versions')
+      .insert({
+        analyst_id: analystId,
+        fork_type: forkType,
+        version_number: nextVersionNumber,
+        perspective: targetVersion.perspective,
+        tier_instructions: targetVersion.tier_instructions,
+        default_weight: targetVersion.default_weight,
+        agent_journal: targetVersion.agent_journal,
+        change_reason: `Rollback to v${targetVersion.version_number}: ${reason}`,
+        changed_by: 'user',
+        is_current: true,
+      })
+      .select()
+      .single()) as SupabaseSelectResponse<AnalystContextVersion>;
+
+    if (error) {
+      this.logger.error(`Failed to create rollback version: ${error.message}`);
+      throw new Error(`Failed to create rollback version: ${error.message}`);
+    }
+
+    this.logger.log(
+      `Rolled back analyst ${analystId} ${forkType} fork from v${currentVersion?.version_number ?? 0} to v${targetVersion.version_number} (new version: v${nextVersionNumber})`,
+    );
+
+    return data!;
   }
 
   // =============================================================================

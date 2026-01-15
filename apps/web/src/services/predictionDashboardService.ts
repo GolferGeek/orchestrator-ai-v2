@@ -495,6 +495,108 @@ export interface ReviewQueueRespondParams {
 }
 
 // ============================================================================
+// PHASE 7 TYPES - Agent Activity (Self-Modification Notifications)
+// ============================================================================
+
+export type AgentModificationType =
+  | 'rule_added'
+  | 'rule_removed'
+  | 'weight_changed'
+  | 'journal_entry'
+  | 'status_change';
+
+export interface AgentActivityItem {
+  id: string;
+  analystId: string;
+  analystName?: string;
+  modificationType: AgentModificationType;
+  summary: string;
+  details: Record<string, unknown>;
+  triggerReason: string;
+  performanceContext: Record<string, unknown>;
+  acknowledged: boolean;
+  acknowledgedAt: string | null;
+  createdAt: string;
+}
+
+// ============================================================================
+// PHASE 7 TYPES - Learning Session (Bidirectional Learning)
+// ============================================================================
+
+export type ExchangeOutcome = 'adopted' | 'rejected' | 'noted' | 'pending';
+export type ExchangeInitiator = 'user' | 'agent';
+
+export interface LearningExchange {
+  id: string;
+  analystId: string;
+  analystName?: string;
+  initiatedBy: ExchangeInitiator;
+  question: string;
+  response: string | null;
+  contextDiff: Record<string, unknown>;
+  performanceEvidence: Record<string, unknown>;
+  outcome: ExchangeOutcome;
+  adoptionDetails: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface ForkComparisonReport {
+  analystId: string;
+  analystName: string;
+  period: string;
+  userFork: {
+    currentBalance: number;
+    totalPnl: number;
+    winRate: number;
+    winCount: number;
+    lossCount: number;
+  };
+  agentFork: {
+    currentBalance: number;
+    totalPnl: number;
+    winRate: number;
+    winCount: number;
+    lossCount: number;
+  };
+  contextDiffs: Array<{
+    field: string;
+    userValue: string;
+    agentValue: string;
+  }>;
+  divergentPredictions: Array<{
+    predictionId: string;
+    targetSymbol: string;
+    userDirection: string;
+    agentDirection: string;
+    userConfidence: number;
+    agentConfidence: number;
+    actualOutcome: string;
+  }>;
+}
+
+export interface LearningSessionResponse {
+  analystId: string;
+  analystName: string;
+  comparisonReport: ForkComparisonReport;
+  exchanges: LearningExchange[];
+}
+
+export interface AnalystContextVersion {
+  id: string;
+  analystId: string;
+  forkType: 'user' | 'agent';
+  versionNumber: number;
+  perspective: string;
+  tierInstructions: Record<string, string>;
+  defaultWeight: number;
+  agentJournal: string | null;
+  changeReason: string;
+  changedBy: string;
+  isCurrent: boolean;
+  createdAt: string;
+}
+
+// ============================================================================
 // PHASE 11 TYPES - Missed Opportunity Operations
 // ============================================================================
 
@@ -796,6 +898,114 @@ export interface TestScenarioExport {
     outcomes?: unknown[];
     learnings?: unknown[];
   };
+}
+
+// ============================================================================
+// PHASE 8 TYPES - Historical Replay Tests
+// ============================================================================
+
+export type ReplayTestStatus = 'pending' | 'snapshot_created' | 'running' | 'completed' | 'failed' | 'restored';
+export type RollbackDepth = 'predictions' | 'predictors' | 'signals';
+
+export interface ReplayTestResults {
+  total_comparisons: number;
+  direction_matches: number;
+  original_correct_count: number;
+  replay_correct_count: number;
+  improvements: number;
+  original_accuracy_pct: number | null;
+  replay_accuracy_pct: number | null;
+  accuracy_delta: number | null;
+  total_pnl_original: number | null;
+  total_pnl_replay: number | null;
+  pnl_delta: number | null;
+  avg_confidence_diff: number | null;
+}
+
+export interface ReplayTest {
+  id: string;
+  organization_slug: string;
+  name: string;
+  description: string | null;
+  status: ReplayTestStatus;
+  rollback_depth: RollbackDepth;
+  rollback_to: string;
+  universe_id: string | null;
+  target_ids: string[] | null;
+  config: Record<string, unknown>;
+  results: ReplayTestResults | null;
+  error_message: string | null;
+  created_by: string | null;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export interface ReplayTestSummary extends ReplayTest {
+  total_comparisons: number;
+  direction_matches: number;
+  original_correct_count: number;
+  replay_correct_count: number;
+  improvements: number;
+  original_accuracy_pct: number | null;
+  replay_accuracy_pct: number | null;
+  total_pnl_original: number | null;
+  total_pnl_replay: number | null;
+  total_pnl_improvement: number | null;
+  avg_confidence_diff: number | null;
+}
+
+export interface ReplayAffectedRecords {
+  table_name: string;
+  record_ids: string[];
+  row_count: number;
+}
+
+export interface ReplayTestResult {
+  id: string;
+  replay_test_id: string;
+  target_id: string | null;
+  original_prediction_id: string | null;
+  original_direction: string | null;
+  original_confidence: number | null;
+  replay_prediction_id: string | null;
+  replay_direction: string | null;
+  replay_confidence: number | null;
+  direction_match: boolean | null;
+  confidence_diff: number | null;
+  original_correct: boolean | null;
+  replay_correct: boolean | null;
+  improvement: boolean | null;
+  pnl_original: number | null;
+  pnl_replay: number | null;
+  pnl_diff: number | null;
+  created_at: string;
+}
+
+export interface ReplayTestCreateParams {
+  name: string;
+  description?: string;
+  rollbackDepth: RollbackDepth;
+  rollbackTo: string;
+  universeId: string;
+  targetIds?: string[];
+  config?: Record<string, unknown>;
+}
+
+export interface ReplayTestPreviewParams {
+  rollbackDepth: RollbackDepth;
+  rollbackTo: string;
+  universeId: string;
+  targetIds?: string[];
+}
+
+export interface ReplayTestPreviewResult {
+  rollback_depth: RollbackDepth;
+  rollback_to: string;
+  universe_id: string;
+  target_ids: string[] | undefined;
+  total_records: number;
+  by_table: ReplayAffectedRecords[];
 }
 
 // ============================================================================
@@ -1935,6 +2145,97 @@ class PredictionDashboardService {
   }
 
   // ==========================================================================
+  // PHASE 8: HISTORICAL REPLAY TEST OPERATIONS
+  // ==========================================================================
+
+  /**
+   * List all replay tests for the organization
+   */
+  async listReplayTests(params?: {
+    page?: number;
+    pageSize?: number;
+  }): Promise<DashboardResponsePayload<ReplayTestSummary[]>> {
+    return this.executeDashboardRequest<ReplayTestSummary[]>(
+      'replay-tests.list',
+      params,
+      undefined,
+      params ? { page: params.page, pageSize: params.pageSize } : undefined
+    );
+  }
+
+  /**
+   * Get a single replay test by ID
+   */
+  async getReplayTest(params: { id: string }): Promise<DashboardResponsePayload<ReplayTestSummary>> {
+    return this.executeDashboardRequest<ReplayTestSummary>(
+      'replay-tests.get',
+      params
+    );
+  }
+
+  /**
+   * Create a new replay test
+   */
+  async createReplayTest(
+    params: ReplayTestCreateParams
+  ): Promise<DashboardResponsePayload<ReplayTest>> {
+    return this.executeDashboardRequest<ReplayTest>(
+      'replay-tests.create',
+      params
+    );
+  }
+
+  /**
+   * Delete a replay test
+   */
+  async deleteReplayTest(params: { id: string }): Promise<DashboardResponsePayload<{ deleted: boolean; id: string }>> {
+    return this.executeDashboardRequest<{ deleted: boolean; id: string }>(
+      'replay-tests.delete',
+      params
+    );
+  }
+
+  /**
+   * Preview what records would be affected by a replay test
+   */
+  async previewReplayTest(
+    params: ReplayTestPreviewParams
+  ): Promise<DashboardResponsePayload<ReplayTestPreviewResult>> {
+    return this.executeDashboardRequest<ReplayTestPreviewResult>(
+      'replay-tests.preview',
+      params
+    );
+  }
+
+  /**
+   * Run a replay test
+   */
+  async runReplayTest(params: { id: string }): Promise<DashboardResponsePayload<ReplayTestSummary>> {
+    return this.executeDashboardRequest<ReplayTestSummary>(
+      'replay-tests.run',
+      params
+    );
+  }
+
+  /**
+   * Get detailed results for a replay test
+   */
+  async getReplayTestResults(params: { id: string }): Promise<DashboardResponsePayload<{
+    replay_test_id: string;
+    count: number;
+    results: ReplayTestResult[];
+  }>> {
+    return this.executeDashboardRequest<{
+      replay_test_id: string;
+      count: number;
+      results: ReplayTestResult[];
+    }>(
+      'replay-tests.results',
+      params
+    );
+  }
+
+  // ==========================================================================
   // PHASE 3: TEST ARTICLE OPERATIONS
   // ==========================================================================
 
@@ -2695,6 +2996,171 @@ class PredictionDashboardService {
       generateResult,
       summary,
     };
+  }
+
+  // ============================================================================
+  // AGENT ACTIVITY (Phase 7 - Self-Modification Notifications)
+  // ============================================================================
+
+  /**
+   * List agent self-modification activity
+   */
+  async listAgentActivity(
+    params?: { analystId?: string; acknowledged?: boolean; limit?: number },
+  ): Promise<DashboardResponsePayload<AgentActivityItem[]>> {
+    return this.callDashboard<AgentActivityItem[]>({
+      entity: 'agent_activity',
+      action: 'list',
+      params,
+    });
+  }
+
+  /**
+   * Acknowledge a single agent activity item
+   */
+  async acknowledgeAgentActivity(
+    activityId: string,
+  ): Promise<DashboardResponsePayload<{ success: boolean }>> {
+    return this.callDashboard<{ success: boolean }>({
+      entity: 'agent_activity',
+      action: 'acknowledge',
+      params: { id: activityId },
+    });
+  }
+
+  /**
+   * Acknowledge all unacknowledged agent activity
+   */
+  async acknowledgeAllAgentActivity(): Promise<
+    DashboardResponsePayload<{ success: boolean; count: number }>
+  > {
+    return this.callDashboard<{ success: boolean; count: number }>({
+      entity: 'agent_activity',
+      action: 'acknowledge_all',
+    });
+  }
+
+  // ============================================================================
+  // LEARNING SESSION (Phase 7 - Bidirectional Learning)
+  // ============================================================================
+
+  /**
+   * Start a learning session with an analyst
+   */
+  async startLearningSession(
+    analystId: string,
+  ): Promise<DashboardResponsePayload<LearningSessionResponse>> {
+    return this.callDashboard<LearningSessionResponse>({
+      entity: 'learning_session',
+      action: 'start',
+      params: { analystId },
+    });
+  }
+
+  /**
+   * Get fork comparison report for an analyst
+   */
+  async getForkComparison(
+    analystId: string,
+    period?: string,
+  ): Promise<DashboardResponsePayload<ForkComparisonReport>> {
+    return this.callDashboard<ForkComparisonReport>({
+      entity: 'learning_session',
+      action: 'compare',
+      params: { analystId, period },
+    });
+  }
+
+  /**
+   * Create a learning exchange (ask a question)
+   */
+  async createLearningExchange(params: {
+    analystId: string;
+    initiatedBy: 'user' | 'agent';
+    question: string;
+    contextDiff?: Record<string, unknown>;
+  }): Promise<DashboardResponsePayload<LearningExchange>> {
+    return this.callDashboard<LearningExchange>({
+      entity: 'learning_session',
+      action: 'ask',
+      params,
+    });
+  }
+
+  /**
+   * Respond to a learning exchange
+   */
+  async respondToExchange(params: {
+    exchangeId: string;
+    response: string;
+  }): Promise<DashboardResponsePayload<LearningExchange>> {
+    return this.callDashboard<LearningExchange>({
+      entity: 'learning_session',
+      action: 'respond',
+      params,
+    });
+  }
+
+  /**
+   * Update exchange outcome (adopt, reject, note)
+   */
+  async updateExchangeOutcome(params: {
+    exchangeId: string;
+    outcome: 'adopted' | 'rejected' | 'noted';
+    adoptionDetails?: Record<string, unknown>;
+  }): Promise<DashboardResponsePayload<LearningExchange>> {
+    return this.callDashboard<LearningExchange>({
+      entity: 'learning_session',
+      action: 'outcome',
+      params,
+    });
+  }
+
+  /**
+   * End a learning session
+   */
+  async endLearningSession(
+    analystId: string,
+  ): Promise<DashboardResponsePayload<{ success: boolean }>> {
+    return this.callDashboard<{ success: boolean }>({
+      entity: 'learning_session',
+      action: 'end',
+      params: { analystId },
+    });
+  }
+
+  // ============================================================================
+  // ANALYST VERSION HISTORY (Phase 7 - Context Versioning)
+  // ============================================================================
+
+  /**
+   * Get analyst context version history
+   */
+  async getAnalystVersionHistory(
+    analystId: string,
+    forkType?: 'user' | 'agent',
+  ): Promise<DashboardResponsePayload<AnalystContextVersion[]>> {
+    return this.callDashboard<AnalystContextVersion[]>({
+      entity: 'analyst',
+      action: 'version_history',
+      params: { analystId, forkType },
+    });
+  }
+
+  /**
+   * Rollback analyst context to a specific version
+   */
+  async rollbackAnalystVersion(params: {
+    analystId: string;
+    targetVersionId: string;
+    forkType: 'user' | 'agent';
+    reason: string;
+  }): Promise<DashboardResponsePayload<{ success: boolean; newVersion: AnalystContextVersion }>> {
+    return this.callDashboard<{ success: boolean; newVersion: AnalystContextVersion }>({
+      entity: 'analyst',
+      action: 'rollback',
+      params,
+    });
   }
 }
 

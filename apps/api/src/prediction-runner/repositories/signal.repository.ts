@@ -216,4 +216,56 @@ export class SignalRepository {
 
     return data ?? [];
   }
+
+  // =============================================================================
+  // REPLAY TEST METHODS
+  // =============================================================================
+
+  /**
+   * Find signals by IDs
+   * Used for replay test data injection
+   */
+  async findByIds(ids: string[]): Promise<Signal[]> {
+    if (ids.length === 0) return [];
+
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .select('*')
+      .in('id', ids)) as SupabaseSelectListResponse<Signal>;
+
+    if (error) {
+      this.logger.error(`Failed to fetch signals by IDs: ${error.message}`);
+      throw new Error(`Failed to fetch signals by IDs: ${error.message}`);
+    }
+
+    return data ?? [];
+  }
+
+  /**
+   * Create a test copy of a signal for replay testing
+   * The copy is marked with is_test_data=true and test_scenario_id
+   */
+  async createTestCopy(
+    signal: Signal,
+    testScenarioId: string,
+  ): Promise<Signal> {
+    // Create a copy without the id, timestamps, and with test markers
+    const testSignalData: CreateSignalData = {
+      target_id: signal.target_id,
+      source_id: signal.source_id,
+      content: signal.content,
+      direction: signal.direction,
+      url: signal.url ?? undefined,
+      detected_at: new Date().toISOString(), // New detection time
+      disposition: 'pending', // Reset to pending for processing
+      metadata: signal.metadata,
+      // Test data markers
+      is_test: true,
+      is_test_data: true,
+      test_scenario_id: testScenarioId,
+    };
+
+    return this.create(testSignalData);
+  }
 }

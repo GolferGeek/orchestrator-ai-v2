@@ -226,4 +226,76 @@ export class PredictorRepository {
 
     return data;
   }
+
+  // =============================================================================
+  // REPLAY TEST METHODS
+  // =============================================================================
+
+  /**
+   * Find predictors by IDs
+   * Used for replay test data injection
+   */
+  async findByIds(ids: string[]): Promise<Predictor[]> {
+    if (ids.length === 0) return [];
+
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .select('*')
+      .in('id', ids)) as SupabaseSelectListResponse<Predictor>;
+
+    if (error) {
+      this.logger.error(`Failed to fetch predictors by IDs: ${error.message}`);
+      throw new Error(`Failed to fetch predictors by IDs: ${error.message}`);
+    }
+
+    return data ?? [];
+  }
+
+  /**
+   * Create a test copy of a predictor for replay testing
+   * The copy is marked with is_test_data=true and test_scenario_id
+   */
+  async createTestCopy(
+    predictor: Predictor,
+    testScenarioId: string,
+  ): Promise<Predictor> {
+    // Create a copy without the id, timestamps, and with test markers
+    // Use direct insert with test markers since CreatePredictorData doesn't include them
+    const testPredictorData = {
+      signal_id: predictor.signal_id,
+      target_id: predictor.target_id,
+      direction: predictor.direction,
+      strength: predictor.strength,
+      confidence: predictor.confidence,
+      reasoning: predictor.reasoning,
+      analyst_slug: predictor.analyst_slug,
+      analyst_assessment: predictor.analyst_assessment,
+      expires_at: predictor.expires_at,
+      status: 'active', // Reset to active for processing
+      // Test data markers
+      is_test_data: true,
+      test_scenario_id: testScenarioId,
+    };
+
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .insert(testPredictorData)
+      .select()
+      .single()) as SupabaseSelectResponse<Predictor>;
+
+    if (error) {
+      this.logger.error(
+        `Failed to create test copy predictor: ${error.message}`,
+      );
+      throw new Error(`Failed to create test copy predictor: ${error.message}`);
+    }
+
+    if (!data) {
+      throw new Error('Create test copy succeeded but no predictor returned');
+    }
+
+    return data;
+  }
 }
