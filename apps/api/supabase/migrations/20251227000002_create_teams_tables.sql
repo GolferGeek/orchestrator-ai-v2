@@ -241,7 +241,7 @@ AS $$
 $$;
 
 -- =============================================================================
--- SEED INITIAL TEAMS FOR DEMO-ORG
+-- SEED INITIAL TEAMS FOR MARKETING ORG
 -- =============================================================================
 DO $$
 DECLARE
@@ -257,24 +257,24 @@ BEGIN
   -- Create teams if they don't exist
   INSERT INTO public.teams (org_slug, name, description, created_by)
   VALUES
-    ('demo-org', 'AI SLT', 'Senior Leadership Team', v_admin_user_id),
-    ('demo-org', 'AI Evangelists', 'AI advocacy and education', v_admin_user_id),
-    ('demo-org', 'AI Hardware', 'Hardware infrastructure team', v_admin_user_id),
-    ('demo-org', 'AI Software', 'Software development team', v_admin_user_id),
-    ('demo-org', 'AI Agent Development', 'Agent development specialists', v_admin_user_id)
+    ('marketing', 'AI SLT', 'Senior Leadership Team', v_admin_user_id),
+    ('marketing', 'AI Evangelists', 'AI advocacy and education', v_admin_user_id),
+    ('marketing', 'AI Hardware', 'Hardware infrastructure team', v_admin_user_id),
+    ('marketing', 'AI Software', 'Software development team', v_admin_user_id),
+    ('marketing', 'AI Agent Development', 'Agent development specialists', v_admin_user_id)
   ON CONFLICT (org_slug, name) DO NOTHING;
 
-  -- Add all users in demo-org to all teams (except Demo User)
+  -- Add all users in marketing org to all teams (except Demo User)
   FOR v_user_record IN
     SELECT DISTINCT u.id
     FROM public.users u
     JOIN rbac_user_org_roles uor ON u.id = uor.user_id
-    WHERE uor.organization_slug = 'demo-org'
+    WHERE uor.organization_slug = 'marketing'
       AND u.email != 'demo.user@orchestratorai.io'
   LOOP
     -- Add user to each team
     FOR v_team_id IN
-      SELECT id FROM public.teams WHERE org_slug = 'demo-org'
+      SELECT id FROM public.teams WHERE org_slug = 'marketing'
     LOOP
       INSERT INTO public.team_members (team_id, user_id, role)
       VALUES (v_team_id, v_user_record.id, 'member')
@@ -282,7 +282,7 @@ BEGIN
     END LOOP;
   END LOOP;
 
-  RAISE NOTICE 'Teams created and members assigned for demo-org';
+  RAISE NOTICE 'Teams created and members assigned for marketing org';
 END $$;
 
 -- =============================================================================

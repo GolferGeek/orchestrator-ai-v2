@@ -19,10 +19,16 @@ Detailed step-by-step instructions for each worktree operation.
 The command handles:
 - Creates git worktree in `trees/<branch-name>`
 - Configures unique ports (auto-calculated if offset not provided)
-- Sets up all environment files (.env, .claude/settings.json)
+- **Copies `.env` from main worktree** (critical for API keys/secrets)
+- Sets up all environment files (.claude/settings.json)
 - Installs dependencies (npm/bun install)
 - Starts services in background (server + client)
 - Provides access URLs
+
+**IMPORTANT:** After creating the git worktree, copy the `.env` file:
+```bash
+cp .env worktrees/<slot>/.env
+```
 
 ### Step 4: Share results with user
 Include:

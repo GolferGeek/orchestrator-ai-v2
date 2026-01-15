@@ -14,7 +14,7 @@
     "start:dev:full": "./start-dev.sh",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
-    "lint": "eslint --ignore-pattern \"testing/**\" --ignore-pattern \"scripts/**\" --ignore-pattern \"dist/**\" --ignore-pattern \"supabase/scripts/**\" --ignore-pattern \"supabase/archive/**\" .",
+    "lint": "eslint --ignore-pattern \"testing/**\" --ignore-pattern \"scripts/**\" --ignore-pattern \"dist/**\" --ignore-pattern \"supabase/scripts/**\" --ignore-pattern \"supabase/archive/**\" --ignore-pattern \"**/__tests__/integration/**\" .",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
@@ -30,10 +30,13 @@
     "db:fix-all": "cd supabase/scripts && ./post-restore-fix.sh && ./verify-data.sh"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.1.14",
     "@anthropic-ai/claude-code": "^0.2.57",
     "@langchain/anthropic": "^0.3.21",
     "@langchain/core": "^0.3.66",
     "@langchain/google-genai": "^0.2.10",
+    "@langchain/langgraph": "^1.0.7",
+    "@langchain/langgraph-checkpoint-postgres": "^1.0.0",
     "@langchain/ollama": "^0.2.1",
     "@langchain/openai": "^0.5.18",
     "@nestjs/axios": "^4.0.0",
@@ -70,8 +73,7 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "typeorm": "^0.3.25",
-    "uuid": "^11.1.0",
-    "@anthropic-ai/claude-agent-sdk": "^0.1.14"
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.18.0",

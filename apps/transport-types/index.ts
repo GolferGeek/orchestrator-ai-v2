@@ -163,6 +163,69 @@ export type {
 
 export { isLangGraphInterruptResponse } from './modes/hitl.types';
 
+// Dashboard Mode
+export type {
+  DashboardAction,
+  DashboardRequestPayload,
+  DashboardResponsePayload,
+  DashboardModePayload,
+  DashboardRequestMetadata,
+  DashboardResponseMetadata,
+  // Universe
+  UniverseListParams,
+  UniverseGetParams,
+  UniverseCreateParams,
+  UniverseUpdateParams,
+  UniverseDeleteParams,
+  // Target
+  TargetListParams,
+  TargetGetParams,
+  TargetCreateParams,
+  TargetUpdateParams,
+  TargetDeleteParams,
+  // Prediction
+  PredictionListParams,
+  PredictionGetParams,
+  PredictionGetSnapshotParams,
+  // Source
+  SourceListParams,
+  SourceGetParams,
+  SourceCreateParams,
+  SourceUpdateParams,
+  SourceDeleteParams,
+  SourceTestCrawlParams,
+  // Analyst
+  AnalystListParams,
+  AnalystGetParams,
+  AnalystCreateParams,
+  AnalystUpdateParams,
+  AnalystDeleteParams,
+  // Learning
+  LearningListParams,
+  LearningGetParams,
+  LearningCreateParams,
+  LearningUpdateParams,
+  LearningDeleteParams,
+  // Learning Queue
+  LearningQueueListParams,
+  LearningQueueGetParams,
+  LearningQueueRespondParams,
+  // Review Queue
+  ReviewQueueListParams,
+  ReviewQueueGetParams,
+  ReviewQueueRespondParams,
+  // Strategy
+  StrategyListParams,
+  StrategyGetParams,
+  // Missed Opportunity
+  MissedOpportunityListParams,
+  MissedOpportunityGetParams,
+  // Tool Request
+  ToolRequestListParams,
+  ToolRequestCreateParams,
+  ToolRequestUpdateStatusParams,
+} from './modes/dashboard.types';
+
 // ============================================================================
 // STREAMING (SSE) TYPES
 // ============================================================================

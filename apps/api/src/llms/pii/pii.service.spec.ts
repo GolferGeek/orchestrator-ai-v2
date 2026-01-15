@@ -1,10 +1,9 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Test, TestingModule } from '@nestjs/testing';
-import { Logger } from '@nestjs/common';
+import type { Logger as _Logger } from '@nestjs/common';
 import { PIIService } from './pii.service';
 import { SupabaseService } from '@/supabase/supabase.service';
 import { PIIPatternService } from '../pii-pattern.service';
-import { PIIProcessingMetadata } from '@/llms/types/pii-metadata.types';
+import type { PIIProcessingMetadata as _PIIProcessingMetadata } from '@/llms/types/pii-metadata.types';
 
 describe('PIIService', () => {
   let service: PIIService;
@@ -578,7 +577,7 @@ describe('PIIService', () => {
         patternsChecked: 0,
       });
 
-      const result = await service.checkPolicy(prompt, options);
+      const _result = await service.checkPolicy(prompt, options);
 
       // Should process as external provider (not local)
       expect(mockPIIPatternService.detectPII).toHaveBeenCalled();

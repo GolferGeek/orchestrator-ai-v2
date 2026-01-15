@@ -139,6 +139,13 @@ export class RagDatabaseService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * Execute a query without returning results (for INSERT/UPDATE/DELETE)
+   */
+  async execute(text: string, params?: unknown[]): Promise<void> {
+    await this.query(text, params);
+  }
+
+  /**
    * Get a client from the pool for transaction support
    */
   async getClient(): Promise<PoolClient> {

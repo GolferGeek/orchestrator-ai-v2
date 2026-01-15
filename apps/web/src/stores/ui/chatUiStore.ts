@@ -188,12 +188,16 @@ export const useChatUiStore = defineStore('chatUi', () => {
         const agentSlug = conversation.agentName || conversation.agent?.name || 'unknown';
         const agentType = conversation.agentType || conversation.agent?.type || 'context';
 
+        // Use conversation's organization (from agent) if available, otherwise fall back to user's current org
+        const agentOrgSlug = conversation.organizationSlug || conversation.agent?.organizationSlug;
+        const orgSlug = agentOrgSlug || authStore.currentOrganization || 'demo-org';
+
         // Get LLM selection (provider/model)
         const provider = llmPreferencesStore.selectedProvider?.name || 'ollama';
         const model = llmPreferencesStore.selectedModel?.modelName || 'llama3.2:1b';
 
         executionContextStore.initialize({
-          orgSlug: authStore.currentOrganization || 'demo-org',
+          orgSlug,
           userId: authStore.user?.id || 'anonymous',
           conversationId,
           agentSlug,

@@ -1,6 +1,6 @@
 <template>
   <div class="conversation-view">
-    <!-- Custom UI for agents with hasCustomUI (like Marketing Swarm, CAD Agent) -->
+    <!-- Custom UI for agents with hasCustomUI (like Marketing Swarm, CAD Agent, Finance) -->
     <template v-if="hasCustomUI">
       <MarketingSwarmTab
         v-if="customUIComponent === 'marketing-swarm'"
@@ -9,6 +9,15 @@
       <CadAgentTab
         v-else-if="customUIComponent === 'cad-agent'"
         :conversation="conversation"
+      />
+      <FinanceTab
+        v-else-if="customUIComponent === 'finance'"
+        :conversation="conversation"
+      />
+      <PredictionAgentPane
+        v-else-if="customUIComponent === 'prediction-dashboard'"
+        :conversation="conversation"
+        :agent="currentAgent"
       />
       <!-- Add more custom UI components here as needed -->
       <div v-else class="custom-ui-not-found">
@@ -94,8 +103,23 @@
           >
             <!-- Simple message bubble for converse mode -->
             <div v-if="isSimpleMessage(message)" class="simple-message-bubble" :class="message.role">
-              <!-- eslint-disable-next-line vue/no-v-html -- Sanitized message content -->
-              <div class="message-content" v-html="formatMessageContent(message.content)"></div>
+              <!-- Copy button for assistant messages -->
+              <button
+                v-if="message.role === 'assistant'"
+                class="copy-button"
+                :class="{ 'copied': copiedMessageId === message.id }"
+                @click="copyMessageContent(message)"
+                :title="copiedMessageId === message.id ? 'Copied!' : 'Copy to clipboard'"
+              >
+                <ion-icon :icon="copiedMessageId === message.id ? checkmarkOutline : copyOutline" />
+              </button>
+              <!-- eslint-disable vue/no-v-html -->
+              <div
+                class="message-content"
+                :class="{ 'markdown-content': message.role === 'assistant' }"
+                v-html="formatMessageContent(message.content, message.role)"
+              ></div>
+              <!-- eslint-enable vue/no-v-html -->
               <div v-if="message.timestamp" class="message-timestamp">
                 {{ formatTimestamp(message.timestamp) }}
               </div>
@@ -103,6 +127,12 @@
               <div v-if="message.metadata?.resolvedByDisplayName" class="attribution-badge">
                 ✓ Resolved by: {{ message.metadata.resolvedByDisplayName }}
               </div>
+              <!-- RAG Sources Panel (for RAG agent responses) -->
+              <RagSourcesPanel
+                v-if="message.role === 'assistant' && message.metadata?.sources?.length"
+                :sources="message.metadata.sources"
+                :organization-slug="props.conversation?.organizationSlug || 'demo'"
+              />
             </div>
             <!-- Task item for plan/build/orchestrate modes -->
             <AgentTaskItem
@@ -306,7 +336,10 @@ import {
   documentTextOutline,
   hammerOutline,
   chatbubbleOutline,
+  copyOutline,
+  checkmarkOutline,
 } from 'ionicons/icons';
+import { marked } from 'marked';
 import { useConversationsStore } from '@/stores/conversationsStore';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
 import { useDeliverablesStore } from '@/stores/deliverablesStore';
@@ -349,6 +382,9 @@ import SovereignModeBanner from './SovereignMode/SovereignModeBanner.vue';
 import ConversationalSpeechButton from './ConversationalSpeechButton.vue';
 import MarketingSwarmTab from './custom-ui/MarketingSwarmTab.vue';
 import CadAgentTab from './custom-ui/CadAgentTab.vue';
+import FinanceTab from './custom-ui/FinanceTab.vue';
+import PredictionAgentPane from './AgentPanes/Prediction/PredictionAgentPane.vue';
+import RagSourcesPanel from './rag/RagSourcesPanel.vue';
 import type { Deliverable, DeliverableVersion } from '@/services/deliverablesService';
 import type { PlanData, PlanVersionData } from '@orchestrator-ai/transport-types';
 
@@ -548,11 +584,33 @@ const isSimpleMessage = (message: AgentChatMessage) => {
   return false;
 };
 
-// Format message content (convert markdown to HTML for simple messages)
-const formatMessageContent = (content: string) => {
-  // Simple formatting - convert newlines to <br>
-  // Could use marked here for full markdown support
+// Track which message was just copied (for visual feedback)
+const copiedMessageId = ref<string | null>(null);
+
+// Format message content - use markdown for assistant, simple for user
+const formatMessageContent = (content: string, role: 'user' | 'assistant' = 'user') => {
+  if (role === 'assistant') {
+    // Parse markdown to HTML for assistant messages
+    return marked.parse(content, { async: false }) as string;
+  }
+  // Simple formatting for user messages - convert newlines to <br>
   return content.replace(/\n/g, '<br>');
+};
+
+// Copy message content to clipboard
+const copyMessageContent = async (message: { id: string; content: string }) => {
+  try {
+    await navigator.clipboard.writeText(message.content);
+    copiedMessageId.value = message.id;
+    // Reset after 2 seconds
+    setTimeout(() => {
+      if (copiedMessageId.value === message.id) {
+        copiedMessageId.value = null;
+      }
+    }, 2000);
+  } catch (err) {
+    console.error('Failed to copy message:', err);
+  }
 };
 
 // Format timestamp
@@ -1426,6 +1484,7 @@ watch(() => authStore.isAuthenticated, async (isAuthenticated) => {
   border-radius: 16px;
   max-width: 80%;
   word-wrap: break-word;
+  position: relative;
 }
 
 .simple-message-bubble.user {
@@ -1452,6 +1511,158 @@ watch(() => authStore.isAuthenticated, async (isAuthenticated) => {
   opacity: 0.7;
   margin-top: 4px;
   text-align: right;
+}
+
+/* Copy button */
+.copy-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: transparent;
+  border: none;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s, background 0.2s;
+  color: var(--ion-color-medium);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.simple-message-bubble:hover .copy-button {
+  opacity: 0.7;
+}
+
+.copy-button:hover {
+  opacity: 1 !important;
+  background: var(--ion-color-step-100, rgba(0, 0, 0, 0.08));
+}
+
+.copy-button.copied {
+  opacity: 1;
+  color: var(--ion-color-success);
+}
+
+.copy-button ion-icon {
+  font-size: 16px;
+}
+
+/* Markdown content styling for assistant messages */
+.simple-message-bubble .message-content.markdown-content {
+  padding-right: 28px; /* Make room for copy button */
+}
+
+.simple-message-bubble .message-content.markdown-content :deep(h1) {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 0 0 12px 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--ion-border-color, rgba(0, 0, 0, 0.1));
+}
+
+.simple-message-bubble .message-content.markdown-content :deep(h2) {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 16px 0 8px 0;
+}
+
+.simple-message-bubble .message-content.markdown-content :deep(h3) {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 12px 0 6px 0;
+}
+
+.simple-message-bubble .message-content.markdown-content :deep(p) {
+  margin: 0 0 10px 0;
+}
+
+.simple-message-bubble .message-content.markdown-content :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.simple-message-bubble .message-content.markdown-content :deep(ul),
+.simple-message-bubble .message-content.markdown-content :deep(ol) {
+  margin: 0 0 10px 0;
+  padding-left: 20px;
+}
+
+.simple-message-bubble .message-content.markdown-content :deep(li) {
+  margin-bottom: 4px;
+}
+
+.simple-message-bubble .message-content.markdown-content :deep(blockquote) {
+  margin: 10px 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--ion-color-primary);
+  background: var(--ion-color-step-50, rgba(0, 0, 0, 0.03));
+  font-style: italic;
+}
+
+.simple-message-bubble .message-content.markdown-content :deep(code) {
+  background: var(--ion-color-step-100, rgba(0, 0, 0, 0.06));
+  padding: 2px 5px;
+  border-radius: 3px;
+  font-size: 0.9em;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+
+.simple-message-bubble .message-content.markdown-content :deep(pre) {
+  background: var(--ion-color-step-100, #2d3748);
+  color: #e2e8f0;
+  padding: 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 10px 0;
+}
+
+.simple-message-bubble .message-content.markdown-content :deep(pre code) {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+.simple-message-bubble .message-content.markdown-content :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+  font-size: 0.9em;
+}
+
+.simple-message-bubble .message-content.markdown-content :deep(th),
+.simple-message-bubble .message-content.markdown-content :deep(td) {
+  padding: 6px 10px;
+  border: 1px solid var(--ion-border-color, rgba(0, 0, 0, 0.1));
+  text-align: left;
+}
+
+.simple-message-bubble .message-content.markdown-content :deep(th) {
+  background: var(--ion-color-step-50, rgba(0, 0, 0, 0.03));
+  font-weight: 600;
+}
+
+.simple-message-bubble .message-content.markdown-content :deep(a) {
+  color: var(--ion-color-primary);
+  text-decoration: none;
+}
+
+.simple-message-bubble .message-content.markdown-content :deep(a:hover) {
+  text-decoration: underline;
+}
+
+.simple-message-bubble .message-content.markdown-content :deep(hr) {
+  border: none;
+  border-top: 1px solid var(--ion-border-color, rgba(0, 0, 0, 0.1));
+  margin: 12px 0;
+}
+
+.simple-message-bubble .message-content.markdown-content :deep(strong) {
+  font-weight: 600;
+}
+
+.simple-message-bubble .message-content.markdown-content :deep(em) {
+  font-style: italic;
 }
 
 /* Sub-agent attribution badge (Orchestrator V2) */
@@ -1727,6 +1938,33 @@ html[data-theme="dark"] .thinking-message {
 }
 html[data-theme="dark"] .dot {
   background-color: #6b7280;
+}
+
+/* Dark mode: Copy button */
+html[data-theme="dark"] .copy-button {
+  color: #a0aec0;
+}
+
+html[data-theme="dark"] .copy-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Dark mode: Markdown content */
+html[data-theme="dark"] .simple-message-bubble .message-content.markdown-content :deep(code) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+html[data-theme="dark"] .simple-message-bubble .message-content.markdown-content :deep(pre) {
+  background: #1a1a2e;
+  color: #e2e8f0;
+}
+
+html[data-theme="dark"] .simple-message-bubble .message-content.markdown-content :deep(blockquote) {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+html[data-theme="dark"] .simple-message-bubble .message-content.markdown-content :deep(th) {
+  background: rgba(255, 255, 255, 0.05);
 }
 
 /* Sovereign Mode Styles */

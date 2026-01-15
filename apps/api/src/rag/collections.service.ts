@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { RagDatabaseService } from './rag-database.service';
 import { CreateCollectionDto, UpdateCollectionDto } from './dto';
+import { RagComplexityType } from './dto/create-collection.dto';
 
 export interface RagCollection {
   id: string;
@@ -15,6 +16,7 @@ export interface RagCollection {
   status: 'active' | 'processing' | 'error';
   requiredRole: string | null;
   allowedUsers: string[] | null;
+  complexityType: RagComplexityType;
   createdBy: string | null;
   documentCount: number;
   chunkCount: number;
@@ -36,6 +38,7 @@ interface DbCollection {
   status: string;
   required_role: string | null;
   allowed_users: string[] | null;
+  complexity_type: string;
   document_count: number;
   chunk_count: number;
   total_tokens: number;
@@ -67,6 +70,7 @@ export class CollectionsService {
       status: row.status as 'active' | 'processing' | 'error',
       requiredRole: row.required_role,
       allowedUsers: row.allowed_users,
+      complexityType: (row.complexity_type || 'basic') as RagComplexityType,
       createdBy: row.created_by,
       documentCount: row.document_count,
       chunkCount: row.chunk_count,
@@ -153,7 +157,7 @@ export class CollectionsService {
     }
 
     const row = await this.ragDb.queryOne<DbCollection>(
-      `SELECT * FROM rag_create_collection($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+      `SELECT * FROM rag_create_collection($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
       [
         organizationSlug,
         dto.name,
@@ -166,6 +170,7 @@ export class CollectionsService {
         userId || null,
         dto.requiredRole || null,
         allowedUsers,
+        dto.complexityType || 'basic',
       ],
     );
 
@@ -185,7 +190,7 @@ export class CollectionsService {
     dto: UpdateCollectionDto,
   ): Promise<RagCollection> {
     const row = await this.ragDb.queryOne<DbCollection>(
-      `SELECT * FROM rag_update_collection($1, $2, $3, $4, $5, $6, $7)`,
+      `SELECT * FROM rag_update_collection($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
         collectionId,
         organizationSlug,
@@ -194,6 +199,7 @@ export class CollectionsService {
         dto.requiredRole !== undefined ? dto.requiredRole : null,
         dto.allowedUsers || null,
         dto.clearAllowedUsers || false,
+        dto.complexityType || null,
       ],
     );
 

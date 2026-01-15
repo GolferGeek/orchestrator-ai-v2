@@ -4,7 +4,10 @@ import {
   IsArray,
   IsUUID,
   IsBoolean,
+  IsIn,
 } from 'class-validator';
+
+import { RagComplexityType } from './create-collection.dto';
 
 export class UpdateCollectionDto {
   @IsString()
@@ -27,4 +30,9 @@ export class UpdateCollectionDto {
   @IsBoolean()
   @IsOptional()
   clearAllowedUsers?: boolean;
+
+  @IsString()
+  @IsIn(['basic', 'attributed', 'hybrid', 'cross-reference', 'temporal'])
+  @IsOptional()
+  complexityType?: RagComplexityType;
 }

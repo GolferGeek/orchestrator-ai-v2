@@ -141,8 +141,12 @@ export class AgentsRepository {
     const client = this.getClient();
     let query = client.from(AGENTS_TABLE).select('*');
 
-    // Filter by organization (organization_slug is TEXT[], an array column)
-    if (organizationSlug) {
+    // Handle special cases for organization filter
+    // '*' means "All Organizations" - return ALL agents
+    if (organizationSlug === '*') {
+      // No filter - return all agents
+      this.logger.debug('Listing all agents (organization_slug = "*")');
+    } else if (organizationSlug) {
       // Query for agents that belong to this specific organization OR global agents
       // Use contains operator to check if the array contains the organization slug
       // Also include agents with 'global' in their organization_slug array

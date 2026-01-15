@@ -1,4 +1,4 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { Agent2AgentController } from './agent2agent.controller';
 import { AgentApprovalsActionsController } from './controllers/agent-approvals-actions.controller';
 import { AgentPlatformModule } from '../agent-platform/agent-platform.module';
@@ -12,6 +12,7 @@ import { ExternalAgentRunnerService } from './services/external-agent-runner.ser
 import { OrchestratorAgentRunnerService } from './services/orchestrator-agent-runner.service';
 import { RagAgentRunnerService } from './services/rag-agent-runner.service';
 import { MediaAgentRunnerService } from './services/media-agent-runner.service';
+import { PredictionAgentRunnerService } from './services/prediction-agent-runner.service';
 import { MediaStorageHelper } from './services/media-storage.helper';
 import { RoutingPolicyAdapterService } from './services/routing-policy-adapter.service';
 import { ApiKeyGuard } from './guards/api-key.guard';
@@ -32,10 +33,11 @@ import { HttpModule } from '@nestjs/axios';
 import { StreamingService } from './services/streaming.service';
 import { ObservabilityModule } from '../observability/observability.module';
 import { RagModule } from '../rag/rag.module';
+import { PredictionRunnerModule } from '../prediction-runner/prediction-runner.module';
 
 @Module({
   imports: [
-    forwardRef(() => AgentPlatformModule),
+    AgentPlatformModule,
     LLMModule,
     AuthModule,
     SupabaseModule,
@@ -49,6 +51,8 @@ import { RagModule } from '../rag/rag.module';
     DeliverablesModule,
     PlansModule,
     ContextOptimizationModule,
+    // Prediction Runner Module (provides PredictionDashboardRouter and handlers)
+    PredictionRunnerModule,
   ],
   controllers: [Agent2AgentController, AgentApprovalsActionsController],
   providers: [
@@ -62,6 +66,7 @@ import { RagModule } from '../rag/rag.module';
     OrchestratorAgentRunnerService,
     RagAgentRunnerService,
     MediaAgentRunnerService,
+    PredictionAgentRunnerService,
     MediaStorageHelper,
     RoutingPolicyAdapterService,
     ApiKeyGuard,

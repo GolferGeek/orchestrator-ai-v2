@@ -108,14 +108,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import ChatTranscript from './ChatTranscript.vue';
-
-interface ChatMessage {
-  role?: string;
-  type?: string;
-  content?: string | { type?: string; text?: string; source?: { media_type?: string } }[];
-  tool_use?: { name?: string };
-  tool_result?: { content?: unknown };
-}
+import type { ChatMessage } from '../types';
 
 const props = defineProps<{
   isOpen: boolean;
@@ -190,7 +183,7 @@ const copyAllMessages = async () => {
   }
 };
 
-const matchesSearch = (item: ChatMessage & { [key: string]: unknown }, query: string): boolean => {
+const matchesSearch = (item: ChatMessage, query: string): boolean => {
   const lowerQuery = query.toLowerCase().trim();
   
   // Check direct content (for system messages and simple chat)
@@ -262,7 +255,7 @@ const matchesSearch = (item: ChatMessage & { [key: string]: unknown }, query: st
   return false;
 };
 
-const matchesFilters = (item: ChatMessage & { [key: string]: unknown }): boolean => {
+const matchesFilters = (item: ChatMessage): boolean => {
   if (activeFilters.value.length === 0) return true;
   
   // Check message type
@@ -276,7 +269,7 @@ const matchesFilters = (item: ChatMessage & { [key: string]: unknown }): boolean
   }
   
   // Check for system messages with hook types
-  if (item.type === 'system' && item.content) {
+  if (item.type === 'system' && item.content && typeof item.content === 'string') {
     // Extract hook type from system content (e.g., "PreToolUse:Read")
     const hookMatch = item.content.match(/([A-Za-z]+):/)?.[1];
     if (hookMatch && activeFilters.value.includes(hookMatch)) {

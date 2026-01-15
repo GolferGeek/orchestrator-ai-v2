@@ -1,4 +1,4 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { SupabaseModule } from '@/supabase/supabase.module';
 import { LLMModule } from '@/llms/llm.module';
@@ -20,7 +20,9 @@ import { AgentRuntimePlansAdapter } from './services/agent-runtime-plans.adapter
 import { DeliverablesModule } from '@/agent2agent/deliverables/deliverables.module';
 import { PlansModule } from '@/agent2agent/plans/plans.module';
 import { AssetsModule } from '@/assets/assets.module';
-import { Agent2AgentModule } from '@/agent2agent/agent2agent.module';
+// NOTE: Agent2AgentModule import removed - was causing circular dependency
+// AgentPlatformModule only needs the sub-modules (Deliverables, Plans, Tasks, ContextOptimization)
+// which are already imported directly below
 import { AgentRuntimeNormalizationService } from './services/agent-runtime-normalization.service';
 import { AgentRuntimeRedactionService } from './services/agent-runtime-redaction.service';
 import { HumanApprovalsRepository } from './repositories/human-approvals.repository';
@@ -46,7 +48,6 @@ import { ContextOptimizationModule } from '@/agent2agent/context-optimization/co
     PlansModule,
     AssetsModule,
     ContextOptimizationModule,
-    forwardRef(() => Agent2AgentModule),
     // Agent Platform Sub-modules
     HierarchyModule,
     TasksModule,

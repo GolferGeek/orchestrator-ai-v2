@@ -7,9 +7,6 @@ RED='\033[0;31m'
 YELLOW='\033[0;33m'
 NC='\033[0m' # No Color
 
-N8N_MANAGE_SCRIPT="../n8n/manage.sh"
-N8N_CONTAINER_NAME="orchestrator-n8n"
-N8N_STARTED_BY_SCRIPT=false
 LANGGRAPH_STARTED_BY_SCRIPT=false
 
 echo -e "${BLUE}🚀 Starting OrchAI NestJS API${NC}"
@@ -97,37 +94,6 @@ check_port() {
     if lsof -Pi :$1 -sTCP:LISTEN -t >/dev/null 2>&1; then
         return 0
     else
-        return 1
-    fi
-}
-
-is_n8n_running() {
-    if docker ps --filter "name=$N8N_CONTAINER_NAME" --filter "status=running" --format '{{.Names}}' | grep -q "^$N8N_CONTAINER_NAME$"; then
-        return 0
-    else
-        return 1
-    fi
-}
-
-start_n8n() {
-    if [ ! -x "$N8N_MANAGE_SCRIPT" ]; then
-        echo -e "${RED}⚠️  n8n helper script not found at $N8N_MANAGE_SCRIPT${NC}"
-        return 1
-    fi
-
-    if is_n8n_running; then
-        echo -e "${GREEN}✅ n8n container already running${NC}"
-        return 0
-    fi
-
-    echo -e "${BLUE}🤖 Ensuring n8n is running...${NC}"
-    if "$N8N_MANAGE_SCRIPT" up >/dev/null 2>&1; then
-        echo -e "${GREEN}✅ n8n is running at http://localhost:5678${NC}"
-        N8N_STARTED_BY_SCRIPT=true
-        return 0
-    else
-        echo -e "${RED}❌ Failed to start n8n container${NC}"
-        echo -e "${BLUE}💡 Try running: ./apps/n8n/manage.sh up${NC}"
         return 1
     fi
 }
@@ -249,10 +215,6 @@ else
     fi
 fi
 
-if ! start_n8n; then
-    echo -e "${YELLOW}⚠️  Continuing without local n8n instance${NC}"
-fi
-
 if ! start_langgraph; then
     echo -e "${YELLOW}⚠️  Continuing without local LangGraph server${NC}"
 fi
@@ -276,12 +238,6 @@ cleanup() {
         # Also kill any child processes on port 6200
         lsof -ti:6200 | xargs kill -9 2>/dev/null || true
         echo -e "${GREEN}✅ LangGraph server stopped${NC}"
-    fi
-
-    if [ "$N8N_STARTED_BY_SCRIPT" = true ] && [ -x "$N8N_MANAGE_SCRIPT" ]; then
-        echo -e "${RED}🤖 Stopping n8n container...${NC}"
-        "$N8N_MANAGE_SCRIPT" down >/dev/null 2>&1 || true
-        echo -e "${GREEN}✅ n8n container stopped${NC}"
     fi
 
     echo -e "${GREEN}🏁 Cleanup complete${NC}"

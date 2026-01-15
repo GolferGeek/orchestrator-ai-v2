@@ -147,7 +147,7 @@ export const useErrorStore = defineStore('error', () => {
   };
   
   const addError = async (
-    error: Error, 
+    error: Error,
     context?: {
       component?: string;
       url?: string;
@@ -156,6 +156,26 @@ export const useErrorStore = defineStore('error', () => {
       additionalContext?: JsonObject;
     }
   ): Promise<AppError> => {
+    // Skip Vue internal errors that cause cascade issues
+    const vueInternalPatterns = [
+      'emitsOptions',
+      'Cannot read properties of null',
+      'shouldUpdateComponent',
+      'updateComponent',
+    ];
+    if (vueInternalPatterns.some(pattern => error.message?.includes(pattern))) {
+      console.warn('[ErrorStore] Skipping Vue internal error to prevent cascade:', error.message);
+      // Return a dummy error object to satisfy the return type
+      return {
+        id: 'skipped',
+        type: 'unknown',
+        message: error.message,
+        timestamp: Date.now(),
+        severity: 'low',
+        resolved: true,
+      } as AppError;
+    }
+
     const errorType = determineErrorType(error);
     const severity = determineErrorSeverity(error, errorType);
     

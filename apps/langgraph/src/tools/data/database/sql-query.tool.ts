@@ -73,6 +73,7 @@ export class SqlQueryTool {
    *
    * @param context - Full ExecutionContext capsule
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   createNaturalLanguageTool(context: ExecutionContext): any {
     // Import dynamically to avoid type inference at module load time
     // eslint-disable-next-line @typescript-eslint/no-var-requires

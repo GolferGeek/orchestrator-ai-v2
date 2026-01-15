@@ -78,19 +78,19 @@ export function useChartData(agentIdFilter?: string) {
       const bucketTime = getBucketTimestamp(event.timestamp);
 
       // Find existing bucket or create new one
-      const bucket = dataPoints.value.find(dp => dp.timestamp === bucketTime);
-      if (bucket) {
-        bucket.count++;
+      const existingBucket = dataPoints.value.find(dp => dp.timestamp === bucketTime);
+      if (existingBucket) {
+        existingBucket.count++;
         // Track event types
-        if (!bucket.eventTypes) {
-          bucket.eventTypes = {};
+        if (!existingBucket.eventTypes) {
+          existingBucket.eventTypes = {};
         }
-        bucket.eventTypes[event.hook_event_type] = (bucket.eventTypes[event.hook_event_type] || 0) + 1;
+        existingBucket.eventTypes[event.hook_event_type] = (existingBucket.eventTypes[event.hook_event_type] || 0) + 1;
         // Track sessions
-        if (!bucket.sessions) {
-          bucket.sessions = {};
+        if (!existingBucket.sessions) {
+          existingBucket.sessions = {};
         }
-        bucket.sessions[event.session_id] = (bucket.sessions[event.session_id] || 0) + 1;
+        existingBucket.sessions[event.session_id] = (existingBucket.sessions[event.session_id] || 0) + 1;
       } else {
         dataPoints.value.push({
           timestamp: bucketTime,
@@ -197,11 +197,11 @@ export function useChartData(agentIdFilter?: string) {
       const bucketTime = getBucketTimestamp(event.timestamp);
 
       // Find existing bucket or create new one
-      const bucket = dataPoints.value.find(dp => dp.timestamp === bucketTime);
-      if (bucket) {
-        bucket.count++;
-        bucket.eventTypes[event.hook_event_type] = (bucket.eventTypes[event.hook_event_type] || 0) + 1;
-        bucket.sessions[event.session_id] = (bucket.sessions[event.session_id] || 0) + 1;
+      const foundBucket = dataPoints.value.find(dp => dp.timestamp === bucketTime);
+      if (foundBucket) {
+        foundBucket.count++;
+        foundBucket.eventTypes[event.hook_event_type] = (foundBucket.eventTypes[event.hook_event_type] || 0) + 1;
+        foundBucket.sessions[event.session_id] = (foundBucket.sessions[event.session_id] || 0) + 1;
       } else {
         dataPoints.value.push({
           timestamp: bucketTime,

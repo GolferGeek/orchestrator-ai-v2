@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import { ThemesService } from './themes.service';
-import type { ThemeSearchQuery, ThemeColors } from '../types';
+import type { ThemeSearchQuery, ThemeColors, ThemeStats, ApiResponse } from '../types';
 
 // DTOs for controller endpoints
 interface CreateThemeDto {
@@ -77,7 +77,7 @@ export class ThemesController {
   }
 
   @Get('stats')
-  async getStats() {
+  async getStats(): Promise<ApiResponse<ThemeStats>> {
     return this.themesService.getThemeStats();
   }
 

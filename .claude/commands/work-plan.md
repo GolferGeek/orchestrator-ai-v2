@@ -47,7 +47,11 @@ Create a structured work plan for a task, identifying which sub-agents will be u
    - Coordination points
    - Validation checkpoints
 
-6. **Optionally Executes:**
+6. **Auto-Adds Final Phases (unless skipped):**
+   - Testing Phase: Run/add tests, verify coverage
+   - Commit Phase: Run `/commit` for lint, build, safety review
+
+7. **Optionally Executes:**
    - Can execute plan immediately
    - Or save for later execution
    - Or review and modify before execution
@@ -239,16 +243,32 @@ The plan includes:
 - **Dependencies:** Phase 2, Phase 3
 - **Validation:** End-to-end testing, quality gates
 
+### Phase 5: Testing & Quality (AUTO-ADDED)
+- Run and fix any existing tests
+- Add new tests for new functionality
+- Ensure test coverage for critical paths
+- **Dependencies:** All previous phases
+- **Validation:** All tests pass
+
+### Phase 6: Final Commit (AUTO-ADDED)
+- Run `/commit` to execute quality checks (lint, build, safety)
+- Fix any linting issues
+- Create commit with proper message
+- **Dependencies:** Phase 5 (tests passing)
+- **Validation:** Clean commit, no quality violations
+
 ## Execution Strategy
 
 **Sequential Execution:**
-1. Phase 1 → Validate → Phase 2 → Validate → Phase 3 → Validate → Phase 4
+1. Phase 1 → Validate → Phase 2 → Validate → Phase 3 → Validate → Phase 4 → Phase 5 (Testing) → Phase 6 (Commit)
 
 **Coordination Points:**
 - After Phase 1: Review landing page
 - After Phase 2: Review authentication UI
 - After Phase 3: Review API endpoints
 - After Phase 4: Full integration review
+- After Phase 5: All tests passing
+- After Phase 6: Clean commit ready
 
 ## Validation Checkpoints
 
@@ -256,6 +276,8 @@ The plan includes:
 - **After Phase 2:** ExecutionContext validation
 - **After Phase 3:** A2A compliance validation
 - **After Phase 4:** Full PR review
+- **After Phase 5:** Test coverage validation
+- **After Phase 6:** Commit validation (lint, build, safety)
 
 ## Next Steps
 
@@ -331,6 +353,61 @@ The plan automatically identifies agents based on:
 4. **Explicit Mentions:**
    - User says "use web agent" → `web-architecture-agent`
    - User says "use API agent" → `api-architecture-agent`
+
+## Auto-Added Final Phases
+
+**IMPORTANT:** Unless the user explicitly requests otherwise, `/work-plan` automatically adds two final phases to every development plan:
+
+### Testing Phase (Auto-Added)
+
+At the end of all development phases, before committing:
+
+1. **Run existing tests** - Execute `npm run test` for affected apps
+2. **Fix broken tests** - If tests fail due to changes, fix them
+3. **Add new tests** - Create tests for new functionality:
+   - Unit tests for new services/functions
+   - Component tests for new Vue components
+   - Integration tests for new API endpoints
+4. **Verify coverage** - Ensure critical paths are covered
+
+**Skip if:** User explicitly says "no tests", "skip tests", or tests were already added during development phases.
+
+### Commit Phase (Auto-Added)
+
+After tests pass:
+
+1. **Run `/commit` command** - This executes:
+   - `npm run lint` - Fix any linting issues
+   - `npm run build` - Verify build passes
+   - Safety review for sensitive changes
+   - Creates properly formatted commit message
+2. **Fix any issues** - If lint/build fails, fix and retry
+3. **Commit changes** - With co-authored-by attribution
+
+**Skip if:** User explicitly says "don't commit", "no commit", or requests separate PR handling.
+
+### Example Auto-Added Phases
+
+```
+## Work Breakdown (Auto-Generated)
+
+### Phase 1-N: [Development Phases]
+... (as planned)
+
+### Phase N+1: Testing & Quality (AUTO-ADDED)
+- Run affected test suites
+- Add tests for new functionality
+- Verify test coverage
+- **Dependencies:** All development phases
+- **Validation:** All tests pass
+
+### Phase N+2: Final Commit (AUTO-ADDED)
+- Run /commit (lint, build, safety review)
+- Fix any quality issues
+- Create commit
+- **Dependencies:** Testing phase
+- **Validation:** Clean commit
+```
 
 ## Plan Modification
 
@@ -424,4 +501,7 @@ VALUES ('command', 'work-plan', 'completed', false,
 - Plan files are **machine-readable** (JSON) for use in Cursor and other tools
 - Plan files include **progress tracking** for monitoring execution
 - Plan files are **updated in-place** during execution (progress is preserved)
+- **Testing and Commit phases are auto-added** unless explicitly skipped
+- Use `--no-tests` to skip auto-added testing phase
+- Use `--no-commit` to skip auto-added commit phase
 

@@ -1,10 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { Logger } from "@nestjs/common";
 import { createMockExecutionContext } from "@orchestrator-ai/transport-types";
-import {
-  DualTrackProcessorService,
-  SwarmPhase,
-} from "./dual-track-processor.service";
+import { DualTrackProcessorService } from "./dual-track-processor.service";
 import {
   MarketingDbService,
   ExecutionConfig,

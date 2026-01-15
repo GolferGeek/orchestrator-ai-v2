@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Test, TestingModule } from '@nestjs/testing';
 import { MediaAgentRunnerService } from './media-agent-runner.service';
 import { ContextOptimizationService } from '../context-optimization/context-optimization.service';
@@ -546,7 +545,7 @@ describe('MediaAgentRunnerService', () => {
 
       // Act - this will timeout in the actual implementation
       // For testing, we'll mock a failure scenario
-      const result = await service.execute(
+      const _result = await service.execute(
         definition,
         request,
         mockContext.orgSlug,

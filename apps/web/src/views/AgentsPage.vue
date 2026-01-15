@@ -72,9 +72,10 @@
                   </ion-item>
                   <div slot="content" class="agents-content">
                     <!-- Agent Tree -->
-                    <AgentTreeView 
+                    <AgentTreeView
                       @conversation-selected="handleConversationSelected"
                       @agent-selected="handleAgentSelected"
+                      @open-dashboard="handleOpenDashboard"
                       :compact-mode="true"
                     />
                   </div>
@@ -103,7 +104,7 @@
   </ion-page>
 </template>
 <script lang="ts" setup>
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, onMounted, nextTick } from 'vue';
 import {
   IonPage, IonContent, IonIcon, IonItem, IonLabel, IonList, IonMenu, IonNote, IonRouterOutlet, IonSplitPane, IonHeader, IonToolbar, IonTitle, IonAccordion, IonAccordionGroup
 } from '@ionic/vue';
@@ -114,6 +115,7 @@ import { conversationsService } from '@/services/conversationsService';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
 import { useUserPreferencesStore } from '@/stores/userPreferencesStore';
 import { useRouter } from 'vue-router';
+import { getInteractionMode, isPredictionAgent, type Agent as InteractionAgent } from '@/utils/agent-interaction-mode';
 import AgentTreeView from '@/components/AgentTreeView.vue';
 import OrganizationSwitcherApp from '@/components/common/OrganizationSwitcherApp.vue';
 import SuperAdminCommandButton from '@/components/super-admin/SuperAdminCommandButton.vue';
@@ -202,6 +204,40 @@ const handleAgentSelected = async (agent: Record<string, unknown>) => {
     router.push({ path: '/app/home', query: { forceHome: 'true', conversationId } });
   } catch (error) {
     console.error('Failed to handle agent selection:', error);
+  }
+};
+
+const handleOpenDashboard = async (agent: Record<string, unknown>, _componentName: string) => {
+  try {
+    const interactionMode = getInteractionMode(agent as InteractionAgent);
+    const agentSlug = (agent.slug || agent.name) as string;
+
+    // Set flag in sessionStorage to indicate active session
+    sessionStorage.setItem('activeConversation', 'true');
+
+    // Use nextTick to ensure Vue's reactivity system has completed any pending updates
+    // before triggering navigation - this prevents Ionic Vue page transition race conditions
+    await nextTick();
+
+    // Prediction agents route to the new prediction dashboard routes
+    if (isPredictionAgent(agent as unknown as InteractionAgent)) {
+      await router.push({ path: '/app/prediction/dashboard', query: { agentSlug } });
+      return;
+    }
+
+    // Dashboard agents navigate with agentSlug - the dashboard pane handles its own
+    // ExecutionContext creation (conversationId, taskId) when making API calls
+    if (!interactionMode.canStartConversation) {
+      await router.push({ path: '/app/home', query: { forceHome: 'true', agentSlug } });
+      return;
+    }
+
+    // For agents that support both dashboard and conversation UI, create conversation
+    const conversationId = await conversation.createConversation(agent);
+    await conversationsService.fetchConversations(true);
+    await router.push({ path: '/app/home', query: { forceHome: 'true', conversationId } });
+  } catch (error) {
+    console.error('Failed to open dashboard:', error);
   }
 };
 </script>

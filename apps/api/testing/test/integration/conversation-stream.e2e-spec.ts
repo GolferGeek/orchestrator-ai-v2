@@ -25,7 +25,7 @@ import { EventSource } from 'eventsource';
 const API_URL = process.env.API_URL || 'http://localhost:6100';
 const TEST_EMAIL = process.env.SUPABASE_TEST_USER || 'demo.user@orchestratorai.io';
 const TEST_PASSWORD = process.env.SUPABASE_TEST_PASSWORD || 'DemoUser123!';
-const ORG_SLUG = 'demo-org';
+const ORG_SLUG = 'finance';
 const AGENT_SLUG = 'blog-post-writer';
 const NIL_UUID = '00000000-0000-0000-0000-000000000000';
 

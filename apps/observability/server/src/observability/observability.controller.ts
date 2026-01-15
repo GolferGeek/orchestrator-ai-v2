@@ -39,19 +39,26 @@ export class ObservabilityController {
   @HttpCode(HttpStatus.OK)
   async handleHook(@Body() hookData: HookDataInput) {
     try {
+      // Extract session_id with proper type handling
+      const sessionIdFromPayload = hookData.payload?.session_id;
+      const sessionId: string =
+        hookData.session_id ||
+        hookData.sessionId ||
+        (typeof sessionIdFromPayload === 'string' ? sessionIdFromPayload : null) ||
+        'unknown';
+
+      // Ensure payload is Record<string, unknown>
+      const payload: Record<string, unknown> = hookData.payload || {};
+
       const event: HookEvent = {
         source_app: hookData.source_app || hookData.sourceApp || 'unknown',
-        session_id:
-          hookData.session_id ||
-          hookData.sessionId ||
-          hookData.payload?.session_id ||
-          'unknown',
+        session_id: sessionId,
         hook_event_type:
           hookData.event_type ||
           hookData.hook_event_type ||
           hookData.eventType ||
           'Unknown',
-        payload: hookData.payload || hookData,
+        payload,
         timestamp: hookData.timestamp || Date.now(),
         summary: hookData.summary,
         chat: hookData.chat,

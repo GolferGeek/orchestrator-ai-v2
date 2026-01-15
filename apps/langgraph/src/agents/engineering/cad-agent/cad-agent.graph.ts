@@ -913,9 +913,12 @@ const VALID_OC_CLASSES = new Set([
  */
 const INVALID_CLASS_FIXES: Record<string, string> = {
   TopExp_Explorer_3: "TopExp_Explorer_2",
-  TopExp_Explorer_1: "TopExp_Explorer_2 (with 3 arguments: shape, toFind, toAvoid)",
-  TopoDS_Shape_1: "shapes are returned by .Shape() method, not constructed directly",
-  TopoDS_Shape: "shapes are returned by .Shape() method, not constructed directly",
+  TopExp_Explorer_1:
+    "TopExp_Explorer_2 (with 3 arguments: shape, toFind, toAvoid)",
+  TopoDS_Shape_1:
+    "shapes are returned by .Shape() method, not constructed directly",
+  TopoDS_Shape:
+    "shapes are returned by .Shape() method, not constructed directly",
   BRepFilletAPI_MakeFillet2d: "BRepFilletAPI_MakeFillet",
   BRepFilletAPI_MakeFillet2d_1: "BRepFilletAPI_MakeFillet",
   BRepFilletAPI_MakeFillet2d_2: "BRepFilletAPI_MakeFillet",
@@ -1062,7 +1065,7 @@ END-ISO-10303-21;`;
  * STL is a simple triangular mesh format
  * This generates an ASCII STL with a simple cube
  */
-function generatePlaceholderStl(prompt: string): string {
+function generatePlaceholderStl(_prompt: string): string {
   return `solid PlaceholderCube
   facet normal 0 0 -1
     outer loop

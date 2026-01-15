@@ -20,7 +20,13 @@ import { DeliverablesService } from '../deliverables/deliverables.service';
 import { PlansService } from '../plans/services/plans.service';
 import { StreamingService } from './streaming.service';
 import { CollectionsService, RagCollection } from '@/rag/collections.service';
-import { QueryService, SearchResult } from '@/rag/query.service';
+import {
+  QueryService,
+  SearchResult,
+  RelatedDocument,
+  QueryResponse,
+} from '@/rag/query.service';
+import { RagComplexityType } from '@/rag/dto/create-collection.dto';
 
 /**
  * RAG Agent Configuration stored in agent metadata
@@ -107,8 +113,12 @@ export class RagAgentRunnerService extends BaseAgentRunner {
     request: TaskRequestDto,
     organizationSlug: string | null,
   ): Promise<TaskResponseDto> {
+    this.logger.debug(
+      `🔍 [RAG-RUNNER] handleConverse() ENTRY - agent: ${definition.slug}, org: ${organizationSlug}`,
+    );
     try {
       const userId = this.resolveUserId(request);
+      this.logger.debug(`🔍 [RAG-RUNNER] userId: ${userId}`);
       if (!userId) {
         return TaskResponseDto.failure(
           AgentTaskMode.CONVERSE,
@@ -117,6 +127,9 @@ export class RagAgentRunnerService extends BaseAgentRunner {
       }
 
       const context = request.context;
+      this.logger.debug(
+        `🔍 [RAG-RUNNER] conversationId: ${context?.conversationId}`,
+      );
       if (!context?.conversationId) {
         return TaskResponseDto.failure(
           AgentTaskMode.CONVERSE,
@@ -126,8 +139,14 @@ export class RagAgentRunnerService extends BaseAgentRunner {
 
       // Get RAG configuration from agent metadata
       const ragConfig = this.extractRagConfig(definition);
+      this.logger.debug(
+        `🔍 [RAG-RUNNER] ragConfig: ${ragConfig ? JSON.stringify(ragConfig) : 'null'}`,
+      );
       if (!ragConfig) {
         // Fallback to base handler if no RAG config
+        this.logger.warn(
+          `🔍 [RAG-RUNNER] No ragConfig found - falling back to base handler`,
+        );
         return await super.handleConverse(
           definition,
           request,
@@ -140,15 +159,25 @@ export class RagAgentRunnerService extends BaseAgentRunner {
         definition,
         organizationSlug,
       );
+      this.logger.debug(`🔍 [RAG-RUNNER] resolvedOrgSlug: ${resolvedOrgSlug}`);
 
       // Get collection by slug
+      this.logger.debug(
+        `🔍 [RAG-RUNNER] Looking for collection: ${ragConfig.collection_slug} in org: ${resolvedOrgSlug}`,
+      );
       const collection = await this.getCollectionBySlug(
         ragConfig.collection_slug,
         resolvedOrgSlug,
         userId,
       );
+      this.logger.debug(
+        `🔍 [RAG-RUNNER] collection found: ${collection ? collection.slug : 'null'}`,
+      );
 
       if (!collection) {
+        this.logger.warn(
+          `🔍 [RAG-RUNNER] Collection not found or no access - returning no_access_message`,
+        );
         const noAccessMessage =
           ragConfig.no_access_message ||
           "I don't have access to the information needed to answer that question.";
@@ -175,17 +204,12 @@ export class RagAgentRunnerService extends BaseAgentRunner {
         );
       }
 
-      // Query the collection
-      const queryResponse = await this.queryService.queryCollection(
-        collection.id,
+      // Query the collection using complexity-based strategy
+      const queryResponse = await this.executeComplexityQuery(
+        collection,
         resolvedOrgSlug,
-        {
-          query: userMessage,
-          topK: ragConfig.top_k ?? 5,
-          similarityThreshold: ragConfig.similarity_threshold ?? 0.5,
-          strategy: 'basic',
-          includeMetadata: true,
-        },
+        userMessage,
+        ragConfig,
       );
 
       // Build augmented prompt with RAG results
@@ -444,17 +468,12 @@ export class RagAgentRunnerService extends BaseAgentRunner {
         );
       }
 
-      // Query the collection
-      const queryResponse = await this.queryService.queryCollection(
-        collection.id,
+      // Query the collection using complexity-based strategy
+      const queryResponse = await this.executeComplexityQuery(
+        collection,
         resolvedOrgSlug,
-        {
-          query: userMessage,
-          topK: ragConfig.top_k ?? 5,
-          similarityThreshold: ragConfig.similarity_threshold ?? 0.5,
-          strategy: 'basic',
-          includeMetadata: true,
-        },
+        userMessage,
+        ragConfig,
       );
 
       // Handle no results
@@ -706,15 +725,58 @@ export class RagAgentRunnerService extends BaseAgentRunner {
   }
 
   /**
-   * Build RAG-augmented system prompt
+   * Execute complexity-based query
+   * Routes to appropriate search strategy based on collection's complexity type
+   */
+  private async executeComplexityQuery(
+    collection: RagCollection,
+    organizationSlug: string,
+    userMessage: string,
+    ragConfig: RagConfig,
+  ): Promise<QueryResponse> {
+    const complexityType = collection.complexityType || 'basic';
+
+    // Use complexity-based query for non-basic types
+    if (complexityType !== 'basic') {
+      return await this.queryService.queryByComplexity(
+        collection.id,
+        organizationSlug,
+        complexityType,
+        {
+          query: userMessage,
+          topK: ragConfig.top_k ?? 5,
+          similarityThreshold: ragConfig.similarity_threshold ?? 0.5,
+          includeMetadata: true,
+        },
+      );
+    }
+
+    // Basic search for default type
+    return await this.queryService.queryCollection(
+      collection.id,
+      organizationSlug,
+      {
+        query: userMessage,
+        topK: ragConfig.top_k ?? 5,
+        similarityThreshold: ragConfig.similarity_threshold ?? 0.5,
+        strategy: 'basic',
+        includeMetadata: true,
+      },
+    );
+  }
+
+  /**
+   * Build RAG-augmented system prompt with complexity-specific instructions
    */
   private buildRagPrompt(
     definition: AgentRuntimeDefinition,
     collection: RagCollection,
     results: SearchResult[],
     conversationHistory: ConversationMessage[],
+    relatedDocuments?: RelatedDocument[],
   ): string {
     const sections: string[] = [];
+    const complexityType = collection.complexityType || 'basic';
 
     // Base system prompt from agent definition
     const basePrompt =
@@ -731,7 +793,7 @@ export class RagAgentRunnerService extends BaseAgentRunner {
       sections.push(collection.description);
     }
 
-    // Retrieved documents
+    // Retrieved documents with complexity-specific formatting
     sections.push('## Retrieved Context');
     sections.push(
       "The following excerpts from the knowledge base are relevant to the user's question:",
@@ -744,8 +806,45 @@ export class RagAgentRunnerService extends BaseAgentRunner {
       const source = result.documentFilename || 'Unknown source';
       const score = (result.score * 100).toFixed(1);
 
-      sections.push(`### Source ${i + 1}: ${source} (${score}% relevant)`);
+      // Build source header with complexity-specific info
+      let sourceHeader = `### Source ${i + 1}: ${source} (${score}% relevant)`;
+
+      // Add document ID for attributed search
+      if (result.documentIdRef) {
+        sourceHeader = `### Source ${i + 1}: [${result.documentIdRef}] ${source} (${score}% relevant)`;
+      }
+
+      // Add section path for attributed search
+      if (result.sectionPath) {
+        sourceHeader += `\n**Section:** ${result.sectionPath}`;
+      }
+
+      // Add match type for hybrid search
+      if (result.matchType) {
+        const matchLabel =
+          result.matchType === 'both' ? 'keyword + semantic' : result.matchType;
+        sourceHeader += `\n**Match Type:** ${matchLabel}`;
+      }
+
+      // Add version for temporal search
+      if (result.version) {
+        sourceHeader += `\n**Version:** ${result.version}`;
+      }
+
+      sections.push(sourceHeader);
       sections.push(result.content);
+    }
+
+    // Add related documents for cross-reference search
+    if (relatedDocuments && relatedDocuments.length > 0) {
+      sections.push('## Related Documents');
+      sections.push(
+        'The following documents are related to the retrieved context:',
+      );
+      for (const doc of relatedDocuments) {
+        const docRef = doc.documentIdRef || doc.documentId;
+        sections.push(`- **[${docRef}]** ${doc.title} (${doc.relationship})`);
+      }
     }
 
     // Recent conversation context
@@ -757,30 +856,83 @@ export class RagAgentRunnerService extends BaseAgentRunner {
       sections.push(`## Recent Conversation\n${recentMessages}`);
     }
 
-    // Instructions
-    sections.push(`## Instructions
-- Answer the user's question using ONLY the information from the Retrieved Context above
-- If the context doesn't contain enough information, say so clearly
-- Cite your sources when possible (e.g., "According to [document name]...")
-- Be concise and direct
-- Do not make up information not found in the context`);
+    // Complexity-specific instructions
+    const instructions = this.getComplexityInstructions(complexityType);
+    sections.push(`## Instructions\n${instructions}`);
 
     return sections.join('\n\n');
   }
 
   /**
-   * Format search results as sources for response
+   * Get complexity-specific instructions for the LLM
    */
-  private formatSources(
-    results: SearchResult[],
-  ): Array<{ document: string; score: number; excerpt: string }> {
+  private getComplexityInstructions(complexityType: RagComplexityType): string {
+    const baseInstructions = `- Answer the user's question using ONLY the information from the Retrieved Context above
+- If the context doesn't contain enough information, say so clearly
+- Be concise and direct
+- Do not make up information not found in the context`;
+
+    switch (complexityType) {
+      case 'attributed':
+        return `${baseInstructions}
+- ALWAYS cite your sources using document ID and section (e.g., "[FP-001, Article II]")
+- Include specific citations for each fact or claim`;
+
+      case 'hybrid':
+        return `${baseInstructions}
+- Note that matches may be keyword-based (exact terms) or semantic (meaning-based)
+- Prioritize results that match both keyword and semantic criteria
+- Cite sources with their match type when relevant`;
+
+      case 'cross-reference':
+        return `${baseInstructions}
+- Reference related documents when they provide additional context
+- Use "See also:" to point to related materials
+- Connect information across documents when answering complex questions`;
+
+      case 'temporal':
+        return `${baseInstructions}
+- Note the version of documents when citing
+- If comparing versions, clearly indicate what changed
+- Prefer the latest version unless specifically asked about older versions`;
+
+      case 'basic':
+      default:
+        return `${baseInstructions}
+- Cite your sources when possible (e.g., "According to [document name]...")`;
+    }
+  }
+
+  /**
+   * Format search results as sources for response
+   * Includes extended fields for advanced RAG types
+   */
+  private formatSources(results: SearchResult[]): Array<{
+    document: string;
+    documentId: string;
+    score: number;
+    excerpt: string;
+    charOffset?: number;
+    documentIdRef?: string;
+    sectionPath?: string;
+    matchType?: string;
+    version?: string;
+  }> {
     return results.map((result) => ({
       document: result.documentFilename,
+      documentId: result.documentId, // UUID for document content retrieval
       score: parseFloat((result.score * 100).toFixed(1)),
       excerpt:
         result.content.length > 200
           ? result.content.substring(0, 200) + '...'
           : result.content,
+      // Char offset for highlighting in document viewer
+      ...(result.charOffset !== undefined && { charOffset: result.charOffset }),
+      // Extended fields for advanced RAG types
+      ...(result.documentIdRef && { documentIdRef: result.documentIdRef }),
+      ...(result.sectionPath && { sectionPath: result.sectionPath }),
+      ...(result.matchType && { matchType: result.matchType }),
+      ...(result.version && { version: result.version }),
     }));
   }
 
