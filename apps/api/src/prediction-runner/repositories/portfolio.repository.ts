@@ -12,6 +12,7 @@ import {
   AgentSelfModificationLog,
   AnalystForkComparison,
   AnalystPerformanceMetrics,
+  ForkLearningExchange,
   ForkType,
   PositionDirection,
   CreatePositionInput,
@@ -991,6 +992,150 @@ export class PortfolioRepository {
       );
       throw new Error(
         `Failed to get closed positions for analyst: ${error.message}`,
+      );
+    }
+
+    return data ?? [];
+  }
+
+  // =============================================================================
+  // FORK LEARNING EXCHANGES
+  // =============================================================================
+
+  /**
+   * Create a new learning exchange
+   */
+  async createLearningExchange(
+    analystId: string,
+    initiatedBy: 'user' | 'agent',
+    question: string,
+    contextDiff?: Record<string, unknown>,
+    performanceEvidence?: Record<string, unknown>,
+  ): Promise<ForkLearningExchange> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from('fork_learning_exchanges')
+      .insert({
+        analyst_id: analystId,
+        initiated_by: initiatedBy,
+        question: question,
+        context_diff: contextDiff,
+        performance_evidence: performanceEvidence,
+        outcome: 'pending',
+      })
+      .select()
+      .single()) as SupabaseSelectResponse<ForkLearningExchange>;
+
+    if (error) {
+      this.logger.error(`Failed to create learning exchange: ${error.message}`);
+      throw new Error(`Failed to create learning exchange: ${error.message}`);
+    }
+
+    return data!;
+  }
+
+  /**
+   * Update a learning exchange with response and outcome
+   */
+  async updateLearningExchange(
+    id: string,
+    response: string,
+    outcome: 'adopted' | 'rejected' | 'noted' | 'pending',
+    adoptionDetails?: Record<string, unknown>,
+  ): Promise<ForkLearningExchange> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from('fork_learning_exchanges')
+      .update({
+        response: response,
+        outcome: outcome,
+        adoption_details: adoptionDetails,
+      })
+      .eq('id', id)
+      .select()
+      .single()) as SupabaseSelectResponse<ForkLearningExchange>;
+
+    if (error) {
+      this.logger.error(`Failed to update learning exchange: ${error.message}`);
+      throw new Error(`Failed to update learning exchange: ${error.message}`);
+    }
+
+    return data!;
+  }
+
+  /**
+   * Get learning exchanges for an analyst
+   */
+  async getLearningExchanges(
+    analystId: string,
+    initiatedBy?: 'user' | 'agent',
+    outcome?: 'adopted' | 'rejected' | 'noted' | 'pending',
+  ): Promise<ForkLearningExchange[]> {
+    let query = this.getClient()
+      .schema(this.schema)
+      .from('fork_learning_exchanges')
+      .select('*')
+      .eq('analyst_id', analystId)
+      .order('created_at', { ascending: false });
+
+    if (initiatedBy) {
+      query = query.eq('initiated_by', initiatedBy);
+    }
+    if (outcome) {
+      query = query.eq('outcome', outcome);
+    }
+
+    const { data, error } =
+      (await query) as SupabaseSelectListResponse<ForkLearningExchange>;
+
+    if (error) {
+      this.logger.error(`Failed to get learning exchanges: ${error.message}`);
+      throw new Error(`Failed to get learning exchanges: ${error.message}`);
+    }
+
+    return data ?? [];
+  }
+
+  /**
+   * Get a learning exchange by ID
+   */
+  async getLearningExchangeById(
+    id: string,
+  ): Promise<ForkLearningExchange | null> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from('fork_learning_exchanges')
+      .select('*')
+      .eq('id', id)
+      .single()) as SupabaseSelectResponse<ForkLearningExchange>;
+
+    if (error && error.code !== 'PGRST116') {
+      this.logger.error(`Failed to get learning exchange: ${error.message}`);
+      throw new Error(`Failed to get learning exchange: ${error.message}`);
+    }
+
+    return data;
+  }
+
+  /**
+   * Get pending learning exchanges (for HITL queue)
+   */
+  async getPendingLearningExchanges(): Promise<ForkLearningExchange[]> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from('fork_learning_exchanges')
+      .select('*')
+      .eq('outcome', 'pending')
+      .order('created_at', {
+        ascending: false,
+      })) as SupabaseSelectListResponse<ForkLearningExchange>;
+
+    if (error) {
+      this.logger.error(
+        `Failed to get pending learning exchanges: ${error.message}`,
+      );
+      throw new Error(
+        `Failed to get pending learning exchanges: ${error.message}`,
       );
     }
 

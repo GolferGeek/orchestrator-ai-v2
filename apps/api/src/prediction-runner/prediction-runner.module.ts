@@ -147,6 +147,8 @@ import {
   AuditLogHandler,
   // Phase 3 - Agent Activity (HITL Notifications)
   AgentActivityHandler,
+  // Phase 5 - Learning Session (Bidirectional Learning)
+  LearningSessionHandler,
 } from './task-router/handlers';
 
 const repositories = [
@@ -291,6 +293,8 @@ const dashboardHandlers = [
   AuditLogHandler,
   // Phase 3 - Agent Activity (HITL Notifications)
   AgentActivityHandler,
+  // Phase 5 - Learning Session (Bidirectional Learning)
+  LearningSessionHandler,
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════

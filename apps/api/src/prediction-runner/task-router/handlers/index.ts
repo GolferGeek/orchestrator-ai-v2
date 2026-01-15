@@ -33,3 +33,5 @@ export { EvaluationHandler } from './evaluation.handler';
 export { AuditLogHandler } from './audit-log.handler';
 // Phase 3 - Agent Activity (HITL Notifications)
 export { AgentActivityHandler } from './agent-activity.handler';
+// Phase 5 - Learning Session (Bidirectional Learning)
+export { LearningSessionHandler } from './learning-session.handler';

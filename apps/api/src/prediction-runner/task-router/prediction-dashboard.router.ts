@@ -55,6 +55,8 @@ import { SourceSeenItemsHandler } from './handlers/source-seen-items.handler';
 import { SignalsHandler } from './handlers/signals.handler';
 // Phase 3 - Agent Activity (HITL Notifications)
 import { AgentActivityHandler } from './handlers/agent-activity.handler';
+// Phase 5 - Learning Session (Bidirectional Learning)
+import { LearningSessionHandler } from './handlers/learning-session.handler';
 
 /**
  * Supported dashboard entities
@@ -79,7 +81,8 @@ export type DashboardEntity =
   | 'analytics'
   | 'source-seen-items'
   | 'signals'
-  | 'agent-activity';
+  | 'agent-activity'
+  | 'learning-session';
 
 /**
  * Dashboard router response
@@ -126,6 +129,8 @@ export class PredictionDashboardRouter {
     private readonly signalsHandler: SignalsHandler,
     // Phase 3 - Agent Activity (HITL Notifications)
     private readonly agentActivityHandler: AgentActivityHandler,
+    // Phase 5 - Learning Session (Bidirectional Learning)
+    private readonly learningSessionHandler: LearningSessionHandler,
   ) {}
 
   /**
@@ -326,6 +331,11 @@ export class PredictionDashboardRouter {
       case 'agentactivity':
         return this.agentActivityHandler.execute(operation, payload, context);
 
+      // Phase 5 - Learning Session (Bidirectional Learning)
+      case 'learning-session':
+      case 'learningsession':
+        return this.learningSessionHandler.execute(operation, payload, context);
+
       default:
         return buildDashboardError(
           'UNKNOWN_ENTITY',
@@ -446,6 +456,8 @@ export class PredictionDashboardRouter {
         return this.signalsHandler.getSupportedActions();
       case 'agent-activity':
         return this.agentActivityHandler.getSupportedActions();
+      case 'learning-session':
+        return this.learningSessionHandler.getSupportedActions();
       default:
         return [];
     }
