@@ -61,6 +61,11 @@ export * from './agent';
 export * from './auth';
 
 // =====================================
+// RISK AGENT TYPES
+// =====================================
+export * from './risk-agent';
+
+// =====================================
 // LLM MONITORING TYPES (selective export to avoid conflicts)
 // =====================================
 export type {

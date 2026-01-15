@@ -7,6 +7,7 @@ import { OrchestratorAgentRunnerService } from './orchestrator-agent-runner.serv
 import { RagAgentRunnerService } from './rag-agent-runner.service';
 import { MediaAgentRunnerService } from './media-agent-runner.service';
 import { PredictionAgentRunnerService } from './prediction-agent-runner.service';
+import { RiskAgentRunnerService } from './risk-agent-runner.service';
 
 /**
  * Registry service for agent runners.
@@ -41,6 +42,8 @@ export class AgentRunnerRegistryService {
     private readonly mediaAgentRunner: MediaAgentRunnerService,
     @Inject(forwardRef(() => PredictionAgentRunnerService))
     private readonly predictionAgentRunner: PredictionAgentRunnerService,
+    @Inject(forwardRef(() => RiskAgentRunnerService))
+    private readonly riskAgentRunner: RiskAgentRunnerService,
   ) {
     this.runners = new Map();
 
@@ -52,6 +55,7 @@ export class AgentRunnerRegistryService {
     this.registerRunner('rag-runner', this.ragAgentRunner);
     this.registerRunner('media', this.mediaAgentRunner);
     this.registerRunner('prediction', this.predictionAgentRunner);
+    this.registerRunner('risk', this.riskAgentRunner);
   }
 
   /**

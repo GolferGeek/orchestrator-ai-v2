@@ -19,6 +19,11 @@
         :conversation="conversation"
         :agent="currentAgent"
       />
+      <RiskAgentPane
+        v-else-if="customUIComponent === 'investment-risk-dashboard'"
+        :conversation="conversation"
+        :agent="currentAgent"
+      />
       <!-- Add more custom UI components here as needed -->
       <div v-else class="custom-ui-not-found">
         <p>Custom UI component "{{ customUIComponent }}" not found.</p>
@@ -384,6 +389,7 @@ import MarketingSwarmTab from './custom-ui/MarketingSwarmTab.vue';
 import CadAgentTab from './custom-ui/CadAgentTab.vue';
 import FinanceTab from './custom-ui/FinanceTab.vue';
 import PredictionAgentPane from './AgentPanes/Prediction/PredictionAgentPane.vue';
+import RiskAgentPane from './AgentPanes/Risk/RiskAgentPane.vue';
 import RagSourcesPanel from './rag/RagSourcesPanel.vue';
 import type { Deliverable, DeliverableVersion } from '@/services/deliverablesService';
 import type { PlanData, PlanVersionData } from '@orchestrator-ai/transport-types';
