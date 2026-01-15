@@ -267,6 +267,36 @@ export class CompositeScoreRepository {
   }
 
   /**
+   * Find scores older than a given date (for evaluation processing)
+   */
+  async findScoresOlderThan(
+    date: Date,
+    filter?: CompositeScoreFilter,
+  ): Promise<RiskCompositeScore[]> {
+    let query = this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .select('*')
+      .lt('created_at', date.toISOString())
+      .eq('status', 'active');
+
+    query = this.applyTestFilter(query, filter);
+
+    const { data, error } = (await query.order('created_at', {
+      ascending: false,
+    })) as SupabaseSelectListResponse<RiskCompositeScore>;
+
+    if (error) {
+      this.logger.error(
+        `Failed to fetch old composite scores: ${error.message}`,
+      );
+      throw new Error(`Failed to fetch old composite scores: ${error.message}`);
+    }
+
+    return data ?? [];
+  }
+
+  /**
    * Find score history for a subject (for timeline view)
    */
   async findHistory(

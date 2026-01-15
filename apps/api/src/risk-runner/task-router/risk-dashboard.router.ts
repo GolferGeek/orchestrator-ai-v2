@@ -19,6 +19,9 @@ import { SubjectHandler } from './handlers/subject.handler';
 import { CompositeScoreHandler } from './handlers/composite-score.handler';
 import { AssessmentHandler } from './handlers/assessment.handler';
 import { DebateHandler } from './handlers/debate.handler';
+import { LearningQueueHandler } from './handlers/learning-queue.handler';
+import { EvaluationHandler } from './handlers/evaluation.handler';
+import { AlertHandler } from './handlers/alert.handler';
 
 /**
  * Supported dashboard entities
@@ -28,7 +31,10 @@ export type RiskDashboardEntity =
   | 'subjects'
   | 'composite-scores'
   | 'assessments'
-  | 'debates';
+  | 'debates'
+  | 'learning-queue'
+  | 'evaluations'
+  | 'alerts';
 
 /**
  * Dashboard router response
@@ -54,6 +60,9 @@ export class RiskDashboardRouter {
     private readonly compositeScoreHandler: CompositeScoreHandler,
     private readonly assessmentHandler: AssessmentHandler,
     private readonly debateHandler: DebateHandler,
+    private readonly learningQueueHandler: LearningQueueHandler,
+    private readonly evaluationHandler: EvaluationHandler,
+    private readonly alertHandler: AlertHandler,
   ) {}
 
   /**
@@ -167,6 +176,19 @@ export class RiskDashboardRouter {
       case 'debate':
         return this.debateHandler.execute(operation, payload, context);
 
+      case 'learning-queue':
+      case 'learningqueue':
+      case 'learnings':
+        return this.learningQueueHandler.execute(operation, payload, context);
+
+      case 'evaluations':
+      case 'evaluation':
+        return this.evaluationHandler.execute(operation, payload, context);
+
+      case 'alerts':
+      case 'alert':
+        return this.alertHandler.execute(operation, payload, context);
+
       default:
         return buildDashboardError(
           'UNKNOWN_ENTITY',
@@ -218,7 +240,16 @@ export class RiskDashboardRouter {
    * Get list of supported entities
    */
   getSupportedEntities(): RiskDashboardEntity[] {
-    return ['scopes', 'subjects', 'composite-scores', 'assessments', 'debates'];
+    return [
+      'scopes',
+      'subjects',
+      'composite-scores',
+      'assessments',
+      'debates',
+      'learning-queue',
+      'evaluations',
+      'alerts',
+    ];
   }
 
   /**
@@ -236,6 +267,12 @@ export class RiskDashboardRouter {
         return this.assessmentHandler.getSupportedActions();
       case 'debates':
         return this.debateHandler.getSupportedActions();
+      case 'learning-queue':
+        return this.learningQueueHandler.getSupportedActions();
+      case 'evaluations':
+        return this.evaluationHandler.getSupportedActions();
+      case 'alerts':
+        return this.alertHandler.getSupportedActions();
       default:
         return [];
     }

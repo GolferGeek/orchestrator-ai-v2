@@ -5,3 +5,5 @@ export * from './subject.handler';
 export * from './composite-score.handler';
 export * from './assessment.handler';
 export * from './debate.handler';
+export * from './learning-queue.handler';
+export * from './evaluation.handler';

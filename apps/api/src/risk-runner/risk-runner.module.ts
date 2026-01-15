@@ -23,10 +23,19 @@ import {
   DimensionAnalyzerService,
   RiskAnalysisService,
   DebateService,
+  RiskEvaluationService,
+  RiskLearningService,
+  HistoricalReplayService,
+  RiskAlertService,
 } from './services';
 
 // Runners
-import { RiskAnalysisRunner } from './runners';
+import {
+  RiskAnalysisRunner,
+  RiskEvaluationRunner,
+  RiskLearningRunner,
+  RiskAlertRunner,
+} from './runners';
 
 // Dashboard Handlers
 import { RiskDashboardRouter } from './task-router/risk-dashboard.router';
@@ -36,6 +45,9 @@ import {
   CompositeScoreHandler,
   AssessmentHandler,
   DebateHandler,
+  LearningQueueHandler,
+  EvaluationHandler,
+  AlertHandler,
 } from './task-router/handlers';
 
 const repositories = [
@@ -56,9 +68,12 @@ const services = [
   DimensionAnalyzerService,
   RiskAnalysisService,
   DebateService,
+  RiskEvaluationService,
+  RiskLearningService,
+  HistoricalReplayService,
 ];
 
-const runners = [RiskAnalysisRunner];
+const runners = [RiskAnalysisRunner, RiskEvaluationRunner, RiskLearningRunner];
 
 const dashboardHandlers = [
   RiskDashboardRouter,
@@ -67,6 +82,8 @@ const dashboardHandlers = [
   CompositeScoreHandler,
   AssessmentHandler,
   DebateHandler,
+  LearningQueueHandler,
+  EvaluationHandler,
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════
