@@ -7,6 +7,8 @@ export * from './learning.service';
 export * from './learning-queue.service';
 export * from './learning-promotion.service';
 export * from './analyst-ensemble.service';
+export * from './analyst-position.service';
+export * from './analyst-performance.service';
 export { EvaluationService, SuggestedLearning } from './evaluation.service';
 // Note: EvaluationResult is exported from evaluation.service but renamed to avoid conflict
 export { EvaluationResult as PredictionEvaluationResult } from './evaluation.service';

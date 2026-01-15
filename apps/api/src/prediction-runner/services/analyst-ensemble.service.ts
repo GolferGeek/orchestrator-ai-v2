@@ -9,6 +9,7 @@ import {
   TierResolutionContext,
 } from './llm-tier-resolver.service';
 import { LlmUsageLimiterService } from './llm-usage-limiter.service';
+import { AnalystRepository } from '../repositories/analyst.repository';
 import { ActiveAnalyst } from '../interfaces/analyst.interface';
 import { Target } from '../interfaces/target.interface';
 import { LlmTier } from '../interfaces/llm-tier.interface';
@@ -19,6 +20,10 @@ import {
   AggregationMethod,
 } from '../interfaces/ensemble.interface';
 import { LlmConfig } from '../interfaces/universe.interface';
+import {
+  ForkType,
+  AnalystContextVersion,
+} from '../interfaces/portfolio.interface';
 
 export interface EnsembleOptions {
   // Which tiers to run (default: all enabled)
@@ -31,6 +36,34 @@ export interface EnsembleOptions {
     universeConfig?: LlmConfig | null;
     agentConfig?: LlmConfig | null;
   };
+  // Which fork(s) to run assessments for (default: both)
+  forkTypes?: ForkType[];
+  // Whether to run both forks (default: true for full dual-fork mode)
+  enableDualFork?: boolean;
+}
+
+/**
+ * Result from running dual-fork ensemble
+ */
+export interface DualForkEnsembleResult {
+  // Assessments organized by fork type
+  userForkAssessments: AnalystAssessmentResult[];
+  agentForkAssessments: AnalystAssessmentResult[];
+  // Aggregated results per fork
+  userForkAggregated: {
+    direction: string;
+    confidence: number;
+    consensus_strength: number;
+    reasoning: string;
+  };
+  agentForkAggregated: {
+    direction: string;
+    confidence: number;
+    consensus_strength: number;
+    reasoning: string;
+  };
+  // Combined result (defaults to user fork for backward compatibility)
+  combined: EnsembleResult;
 }
 
 @Injectable()
@@ -39,6 +72,7 @@ export class AnalystEnsembleService {
 
   constructor(
     private readonly analystService: AnalystService,
+    private readonly analystRepository: AnalystRepository,
     private readonly learningService: LearningService,
     private readonly promptBuilderService: AnalystPromptBuilderService,
     private readonly llmTierResolverService: LlmTierResolverService,
@@ -111,27 +145,165 @@ export class AnalystEnsembleService {
   }
 
   /**
-   * Run a single analyst assessment
+   * Run dual-fork ensemble - generates assessments for both user and agent forks
+   * This is the main entry point for the dual-fork system
    */
-  private async runAnalystAssessment(
+  async runDualForkEnsemble(
+    baseContext: ExecutionContext,
+    target: Target,
+    input: EnsembleInput,
+    options?: EnsembleOptions,
+  ): Promise<DualForkEnsembleResult> {
+    this.logger.log(`Running dual-fork ensemble for target: ${target.symbol}`);
+
+    // Get active analysts for this target
+    const analysts = await this.analystService.getActiveAnalysts(target.id);
+    if (analysts.length === 0) {
+      this.logger.warn(`No active analysts for target: ${target.id}`);
+      throw new Error('No active analysts available for evaluation');
+    }
+    this.logger.log(
+      `Found ${analysts.length} active analysts, running dual-fork assessments`,
+    );
+
+    // Build resolution context
+    const resolutionContext: TierResolutionContext = {
+      targetLlmConfig: options?.llmConfigContext?.targetConfig,
+      universeLlmConfig: options?.llmConfigContext?.universeConfig,
+      agentLlmConfig: options?.llmConfigContext?.agentConfig,
+    };
+
+    // Get context versions for all analysts (both forks)
+    const userContextVersions =
+      await this.analystRepository.getAllCurrentContextVersions('user');
+    const agentContextVersions =
+      await this.analystRepository.getAllCurrentContextVersions('agent');
+
+    // Run assessments for both forks
+    const userForkAssessments: AnalystAssessmentResult[] = [];
+    const agentForkAssessments: AnalystAssessmentResult[] = [];
+
+    for (const analyst of analysts) {
+      // User fork assessment
+      try {
+        const userContextVersion = userContextVersions.get(analyst.analyst_id);
+        const userAssessment = await this.runAnalystAssessmentWithFork(
+          baseContext,
+          analyst,
+          target,
+          input,
+          resolutionContext,
+          'user',
+          userContextVersion,
+        );
+        userForkAssessments.push(userAssessment);
+      } catch (error) {
+        this.logger.error(
+          `Failed to run user fork for analyst ${analyst.slug}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+
+      // Agent fork assessment
+      try {
+        const agentContextVersion = agentContextVersions.get(
+          analyst.analyst_id,
+        );
+        const agentAssessment = await this.runAnalystAssessmentWithFork(
+          baseContext,
+          analyst,
+          target,
+          input,
+          resolutionContext,
+          'agent',
+          agentContextVersion,
+        );
+        agentForkAssessments.push(agentAssessment);
+      } catch (error) {
+        this.logger.error(
+          `Failed to run agent fork for analyst ${analyst.slug}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+
+    // Aggregate results per fork
+    const aggregationMethod = options?.aggregationMethod || 'weighted_ensemble';
+
+    const userForkAggregated =
+      userForkAssessments.length > 0
+        ? this.aggregateAssessments(userForkAssessments, aggregationMethod)
+        : {
+            direction: 'neutral',
+            confidence: 0,
+            consensus_strength: 0,
+            reasoning: 'No user fork assessments available',
+          };
+
+    const agentForkAggregated =
+      agentForkAssessments.length > 0
+        ? this.aggregateAssessments(agentForkAssessments, aggregationMethod)
+        : {
+            direction: 'neutral',
+            confidence: 0,
+            consensus_strength: 0,
+            reasoning: 'No agent fork assessments available',
+          };
+
+    // Combined result uses user fork for backward compatibility
+    const combined: EnsembleResult = {
+      assessments: [...userForkAssessments, ...agentForkAssessments],
+      aggregated: userForkAggregated,
+    };
+
+    this.logger.log(
+      `Dual-fork ensemble complete: user=${userForkAssessments.length}, agent=${agentForkAssessments.length} assessments`,
+    );
+
+    return {
+      userForkAssessments,
+      agentForkAssessments,
+      userForkAggregated,
+      agentForkAggregated,
+      combined,
+    };
+  }
+
+  /**
+   * Run a single analyst assessment with fork context
+   */
+  private async runAnalystAssessmentWithFork(
     baseContext: ExecutionContext,
     analyst: ActiveAnalyst,
     target: Target,
     input: EnsembleInput,
     resolutionContext: TierResolutionContext,
+    forkType: ForkType,
+    contextVersion?: AnalystContextVersion,
   ): Promise<AnalystAssessmentResult> {
     const tier = analyst.effective_tier;
 
-    // Get learnings for this analyst
-    const learnings = await this.learningService.getActiveLearnings(
-      target.id,
-      tier,
-      analyst.analyst_id,
-    );
+    // Get learnings for this analyst (learnings only apply to user fork)
+    const learnings =
+      forkType === 'user'
+        ? await this.learningService.getActiveLearnings(
+            target.id,
+            tier,
+            analyst.analyst_id,
+          )
+        : []; // Agent fork doesn't use learnings - it self-adapts
 
-    // Build prompt
+    // Override analyst context if we have a fork-specific version
+    const effectiveAnalyst = contextVersion
+      ? {
+          ...analyst,
+          perspective: contextVersion.perspective,
+          tier_instructions: contextVersion.tier_instructions,
+          effective_weight: contextVersion.default_weight,
+        }
+      : analyst;
+
+    // Build prompt with fork context
     const prompt = this.promptBuilderService.buildPrompt({
-      analyst,
+      analyst: effectiveAnalyst,
       tier,
       target,
       learnings,
@@ -146,7 +318,7 @@ export class AnalystEnsembleService {
     const { context } = await this.llmTierResolverService.createTierContext(
       baseContext,
       tier,
-      analyst.slug,
+      `${analyst.slug}:${forkType}`,
       resolutionContext,
     );
 
@@ -179,7 +351,7 @@ export class AnalystEnsembleService {
     this.llmUsageLimiterService.recordUsage(
       target.universe_id,
       actualTokens,
-      `analyst_assessment:${analyst.slug}`,
+      `analyst_assessment:${analyst.slug}:${forkType}`,
     );
 
     // Check and emit usage warnings
@@ -202,7 +374,31 @@ export class AnalystEnsembleService {
       key_factors: parsed.key_factors || [],
       risks: parsed.risks || [],
       learnings_applied: prompt.learningIds,
+      fork_type: forkType,
+      context_version_id: contextVersion?.id,
     };
+  }
+
+  /**
+   * Run a single analyst assessment (backward compatible - uses user fork)
+   */
+  private async runAnalystAssessment(
+    baseContext: ExecutionContext,
+    analyst: ActiveAnalyst,
+    target: Target,
+    input: EnsembleInput,
+    resolutionContext: TierResolutionContext,
+  ): Promise<AnalystAssessmentResult> {
+    // Delegate to fork-aware version with user fork for backward compatibility
+    return this.runAnalystAssessmentWithFork(
+      baseContext,
+      analyst,
+      target,
+      input,
+      resolutionContext,
+      'user',
+      undefined, // No explicit context version = use analyst's current values
+    );
   }
 
   /**

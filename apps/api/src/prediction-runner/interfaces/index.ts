@@ -69,3 +69,6 @@ export * from './test-data.interface';
 
 // Signal fingerprint interfaces (Phase 2 - Story Deduplication)
 export * from './signal-fingerprint.interface';
+
+// Portfolio & Context Versioning interfaces
+export * from './portfolio.interface';

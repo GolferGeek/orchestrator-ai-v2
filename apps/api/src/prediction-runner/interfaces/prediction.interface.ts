@@ -47,6 +47,15 @@ export interface Prediction {
   is_test_data?: boolean | null;
   /** Test scenario ID if this is test data */
   test_scenario_id?: string | null;
+  /** Recommended position quantity based on confidence/risk */
+  recommended_quantity?: number | null;
+  /** Explanation for recommended quantity */
+  quantity_reasoning?: string | null;
+  /** Context version IDs for traceability */
+  runner_context_version_id?: string | null;
+  analyst_context_version_ids?: Record<string, string> | null;
+  universe_context_version_id?: string | null;
+  target_context_version_id?: string | null;
 }
 
 export interface CreatePredictionData {
@@ -65,6 +74,15 @@ export interface CreatePredictionData {
   analyst_ensemble: Record<string, unknown>;
   llm_ensemble: Record<string, unknown>;
   status?: PredictionStatus;
+  /** Recommended position quantity */
+  recommended_quantity?: number;
+  /** Explanation for recommended quantity */
+  quantity_reasoning?: string;
+  /** Context version IDs for traceability */
+  runner_context_version_id?: string;
+  analyst_context_version_ids?: Record<string, string>;
+  universe_context_version_id?: string;
+  target_context_version_id?: string;
 }
 
 export interface UpdatePredictionData {

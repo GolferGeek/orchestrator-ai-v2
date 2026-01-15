@@ -5,6 +5,11 @@ import {
   ActiveAnalyst,
   LlmTier,
 } from '../interfaces/analyst.interface';
+import {
+  ForkType,
+  ChangedBy,
+  AnalystContextVersion,
+} from '../interfaces/portfolio.interface';
 
 type SupabaseError = { message: string; code?: string } | null;
 
@@ -147,6 +152,24 @@ export class AnalystRepository {
     return updated;
   }
 
+  /**
+   * Get all active (enabled) analysts regardless of scope
+   */
+  async getActive(): Promise<Analyst[]> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .select('*')
+      .eq('is_enabled', true)) as SupabaseSelectListResponse<Analyst>;
+
+    if (error) {
+      this.logger.error(`Failed to get active analysts: ${error.message}`);
+      throw new Error(`Failed to get active analysts: ${error.message}`);
+    }
+
+    return data ?? [];
+  }
+
   async findByDomain(domain: string): Promise<Analyst[]> {
     const { data, error } = (await this.getClient()
       .schema(this.schema)
@@ -192,5 +215,204 @@ export class AnalystRepository {
       this.logger.error(`Failed to delete analyst: ${error.message}`);
       throw new Error(`Failed to delete analyst: ${error.message}`);
     }
+  }
+
+  // =============================================================================
+  // CONTEXT VERSIONING METHODS
+  // =============================================================================
+
+  /**
+   * Update analyst with version capture
+   * Creates a new version in analyst_context_versions before updating
+   * @param id Analyst ID
+   * @param analystData Data to update
+   * @param forkType Which fork to version (user or agent)
+   * @param changeReason Reason for the change
+   * @param changedBy Who made the change
+   */
+  async updateWithVersionCapture(
+    id: string,
+    analystData: Partial<Analyst>,
+    forkType: ForkType,
+    changeReason: string,
+    changedBy: ChangedBy,
+  ): Promise<{ analyst: Analyst; version: AnalystContextVersion }> {
+    // Get current analyst state
+    const currentAnalyst = await this.findByIdOrThrow(id);
+
+    // Create new version before updating
+    const version = await this.createContextVersion(
+      id,
+      forkType,
+      analystData.perspective ?? currentAnalyst.perspective,
+      analystData.tier_instructions ?? currentAnalyst.tier_instructions,
+      analystData.default_weight ?? currentAnalyst.default_weight,
+      changeReason,
+      changedBy,
+    );
+
+    // Now update the analyst
+    const updated = await this.update(id, analystData);
+
+    this.logger.log(
+      `Created version ${version.version_number} for analyst ${currentAnalyst.slug} (${forkType} fork)`,
+    );
+
+    return { analyst: updated, version };
+  }
+
+  /**
+   * Create a new context version for an analyst fork
+   */
+  async createContextVersion(
+    analystId: string,
+    forkType: ForkType,
+    perspective: string,
+    tierInstructions: Record<string, string | undefined>,
+    defaultWeight: number,
+    changeReason: string,
+    changedBy: ChangedBy,
+    agentJournal?: string,
+  ): Promise<AnalystContextVersion> {
+    // Mark previous version as not current
+    await this.getClient()
+      .schema(this.schema)
+      .from('analyst_context_versions')
+      .update({ is_current: false })
+      .eq('analyst_id', analystId)
+      .eq('fork_type', forkType)
+      .eq('is_current', true);
+
+    // Get next version number
+    const { data: versions } = (await this.getClient()
+      .schema(this.schema)
+      .from('analyst_context_versions')
+      .select('version_number')
+      .eq('analyst_id', analystId)
+      .eq('fork_type', forkType)
+      .order('version_number', { ascending: false })
+      .limit(1)) as SupabaseSelectListResponse<{ version_number: number }>;
+
+    const nextVersion =
+      versions && versions.length > 0 && versions[0]
+        ? versions[0].version_number + 1
+        : 1;
+
+    // Create new version
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from('analyst_context_versions')
+      .insert({
+        analyst_id: analystId,
+        fork_type: forkType,
+        version_number: nextVersion,
+        perspective,
+        tier_instructions: tierInstructions,
+        default_weight: defaultWeight,
+        agent_journal: agentJournal,
+        change_reason: changeReason,
+        changed_by: changedBy,
+        is_current: true,
+      })
+      .select()
+      .single()) as SupabaseSelectResponse<AnalystContextVersion>;
+
+    if (error) {
+      this.logger.error(`Failed to create context version: ${error.message}`);
+      throw new Error(`Failed to create context version: ${error.message}`);
+    }
+
+    return data!;
+  }
+
+  /**
+   * Get current context version for an analyst fork
+   */
+  async getCurrentContextVersion(
+    analystId: string,
+    forkType: ForkType,
+  ): Promise<AnalystContextVersion | null> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from('analyst_context_versions')
+      .select('*')
+      .eq('analyst_id', analystId)
+      .eq('fork_type', forkType)
+      .eq('is_current', true)
+      .single()) as SupabaseSelectResponse<AnalystContextVersion>;
+
+    if (error && error.code !== 'PGRST116') {
+      this.logger.error(
+        `Failed to get current context version: ${error.message}`,
+      );
+      throw new Error(
+        `Failed to get current context version: ${error.message}`,
+      );
+    }
+
+    return data;
+  }
+
+  /**
+   * Get all context versions for an analyst fork
+   */
+  async getContextVersionHistory(
+    analystId: string,
+    forkType: ForkType,
+  ): Promise<AnalystContextVersion[]> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from('analyst_context_versions')
+      .select('*')
+      .eq('analyst_id', analystId)
+      .eq('fork_type', forkType)
+      .order('version_number', {
+        ascending: false,
+      })) as SupabaseSelectListResponse<AnalystContextVersion>;
+
+    if (error) {
+      this.logger.error(
+        `Failed to get context version history: ${error.message}`,
+      );
+      throw new Error(
+        `Failed to get context version history: ${error.message}`,
+      );
+    }
+
+    return data ?? [];
+  }
+
+  /**
+   * Get current context versions for all analysts of a specific fork type
+   * Useful for capturing version IDs when creating predictions
+   */
+  async getAllCurrentContextVersions(
+    forkType: ForkType,
+  ): Promise<Map<string, AnalystContextVersion>> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from('analyst_context_versions')
+      .select('*')
+      .eq('fork_type', forkType)
+      .eq(
+        'is_current',
+        true,
+      )) as SupabaseSelectListResponse<AnalystContextVersion>;
+
+    if (error) {
+      this.logger.error(
+        `Failed to get all current context versions: ${error.message}`,
+      );
+      throw new Error(
+        `Failed to get all current context versions: ${error.message}`,
+      );
+    }
+
+    const versionMap = new Map<string, AnalystContextVersion>();
+    for (const version of data ?? []) {
+      versionMap.set(version.analyst_id, version);
+    }
+
+    return versionMap;
   }
 }

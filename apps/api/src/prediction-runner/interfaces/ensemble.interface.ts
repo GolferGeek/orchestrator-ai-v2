@@ -5,6 +5,7 @@
 
 import { ActiveAnalyst } from './analyst.interface';
 import { LlmTier } from './llm-tier.interface';
+import { ForkType } from './portfolio.interface';
 
 /**
  * Aggregation method for combining analyst assessments
@@ -40,6 +41,10 @@ export interface AnalystAssessmentResult {
   risks: string[];
   learnings_applied: string[]; // learning IDs
   llm_usage_id?: string;
+  /** Which fork this assessment is from (user or agent) */
+  fork_type?: ForkType;
+  /** Context version used for this assessment */
+  context_version_id?: string;
 }
 
 /**

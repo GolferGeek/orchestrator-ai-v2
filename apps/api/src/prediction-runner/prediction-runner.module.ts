@@ -31,6 +31,8 @@ import {
   TestAuditLogRepository,
   TestArticleRepository,
   ScenarioRunRepository,
+  // Portfolio & Context Versioning
+  PortfolioRepository,
 } from './repositories';
 
 // Services
@@ -41,6 +43,8 @@ import {
   AnalystPromptBuilderService,
   LlmTierResolverService,
   AnalystEnsembleService,
+  AnalystPositionService,
+  AnalystPerformanceService,
   LearningService,
   LearningQueueService,
   LearningPromotionService,
@@ -167,6 +171,8 @@ const repositories = [
   TestAuditLogRepository,
   TestArticleRepository,
   ScenarioRunRepository,
+  // Portfolio & Context Versioning
+  PortfolioRepository,
 ];
 
 const services = [
@@ -176,6 +182,8 @@ const services = [
   AnalystPromptBuilderService,
   LlmTierResolverService,
   AnalystEnsembleService,
+  AnalystPositionService,
+  AnalystPerformanceService,
   LearningService,
   LearningQueueService,
   LearningPromotionService,

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ExecutionContext } from '@orchestrator-ai/transport-types';
 import { PredictionRepository } from '../repositories/prediction.repository';
+import { PortfolioRepository } from '../repositories/portfolio.repository';
 import { PredictorManagementService } from './predictor-management.service';
 import { SnapshotService } from './snapshot.service';
 import { AnalystEnsembleService } from './analyst-ensemble.service';
@@ -45,6 +46,7 @@ export class PredictionGenerationService {
 
   constructor(
     private readonly predictionRepository: PredictionRepository,
+    private readonly portfolioRepository: PortfolioRepository,
     private readonly predictorManagementService: PredictorManagementService,
     private readonly snapshotService: SnapshotService,
     private readonly ensembleService: AnalystEnsembleService,
@@ -154,6 +156,13 @@ export class PredictionGenerationService {
     // Convert numeric magnitude to categorical
     const magnitudeCategory = this.categorizeMagnitude(magnitude);
 
+    // Capture context versions for traceability
+    const contextVersions = await this.captureContextVersions(
+      target.universe_id,
+      targetId,
+      ensembleResult,
+    );
+
     const predictionData: CreatePredictionData = {
       target_id: targetId,
       direction,
@@ -173,6 +182,11 @@ export class PredictionGenerationService {
         consensus_strength: ensembleResult.aggregated.consensus_strength,
       },
       status: 'active',
+      // Context version traceability
+      runner_context_version_id: contextVersions.runnerContextVersionId,
+      analyst_context_version_ids: contextVersions.analystContextVersionIds,
+      universe_context_version_id: contextVersions.universeContextVersionId,
+      target_context_version_id: contextVersions.targetContextVersionId,
     };
 
     const prediction = await this.predictionRepository.create(predictionData);
@@ -424,5 +438,70 @@ export class PredictionGenerationService {
     await this.snapshotService.createSnapshot(snapshotData);
 
     this.logger.debug(`Created snapshot for prediction ${prediction.id}`);
+  }
+
+  /**
+   * Capture current context versions for traceability
+   * Returns version IDs for runner, universe, target, and all analysts
+   */
+  private async captureContextVersions(
+    universeId: string,
+    targetId: string,
+    ensembleResult: EnsembleResult,
+  ): Promise<{
+    runnerContextVersionId?: string;
+    universeContextVersionId?: string;
+    targetContextVersionId?: string;
+    analystContextVersionIds?: Record<string, string>;
+  }> {
+    try {
+      // Get current context versions in parallel
+      const [
+        runnerVersion,
+        universeVersion,
+        targetVersion,
+        analystVersionsMap,
+      ] = await Promise.all([
+        this.portfolioRepository
+          .getCurrentRunnerContextVersion('stock-predictor')
+          .catch(() => null),
+        this.portfolioRepository
+          .getCurrentUniverseContextVersion(universeId)
+          .catch(() => null),
+        this.portfolioRepository
+          .getCurrentTargetContextVersion(targetId)
+          .catch(() => null),
+        // Get user fork versions for predictions (user fork is the official version)
+        this.portfolioRepository
+          .getAllCurrentAnalystContextVersions('user')
+          .catch(() => new Map<string, string>()),
+      ]);
+
+      // Build analyst context version IDs from the assessments
+      const analystContextVersionIds: Record<string, string> = {};
+      for (const assessment of ensembleResult.assessments) {
+        const analystId = assessment.analyst.analyst_id;
+        const versionId = analystVersionsMap.get(analystId);
+        if (versionId) {
+          analystContextVersionIds[analystId] = versionId;
+        }
+      }
+
+      return {
+        runnerContextVersionId: runnerVersion?.id,
+        universeContextVersionId: universeVersion?.id,
+        targetContextVersionId: targetVersion?.id,
+        analystContextVersionIds:
+          Object.keys(analystContextVersionIds).length > 0
+            ? analystContextVersionIds
+            : undefined,
+      };
+    } catch (error) {
+      this.logger.warn(
+        `Failed to capture context versions: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      // Return empty - context versioning is optional
+      return {};
+    }
   }
 }

@@ -24,3 +24,5 @@ export * from './test-audit-log.repository';
 export * from './test-article.repository';
 export * from './test-target-mirror.repository';
 export * from './test-price-data.repository';
+// Portfolio & Context Versioning
+export * from './portfolio.repository';
