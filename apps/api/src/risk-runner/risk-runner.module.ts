@@ -71,9 +71,15 @@ const services = [
   RiskEvaluationService,
   RiskLearningService,
   HistoricalReplayService,
+  RiskAlertService,
 ];
 
-const runners = [RiskAnalysisRunner, RiskEvaluationRunner, RiskLearningRunner];
+const runners = [
+  RiskAnalysisRunner,
+  RiskEvaluationRunner,
+  RiskLearningRunner,
+  RiskAlertRunner,
+];
 
 const dashboardHandlers = [
   RiskDashboardRouter,
@@ -84,6 +90,7 @@ const dashboardHandlers = [
   DebateHandler,
   LearningQueueHandler,
   EvaluationHandler,
+  AlertHandler,
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════
