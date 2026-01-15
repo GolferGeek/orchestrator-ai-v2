@@ -1,5 +1,7 @@
 <template>
-  <div class="tool-wishlist">
+  <ion-page>
+    <ion-content :fullscreen="true">
+      <div class="tool-wishlist">
     <header class="management-header">
       <h1>Tool Wishlist</h1>
       <button class="btn btn-primary" @click="openCreateModal">
@@ -349,11 +351,14 @@
         </div>
       </div>
     </div>
-  </div>
+      </div>
+    </ion-content>
+  </ion-page>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, reactive } from 'vue';
+import { IonPage, IonContent } from '@ionic/vue';
 import { useToolRequestStore } from '@/stores/toolRequestStore';
 import type { ToolRequest, ToolRequestType, ToolRequestStatus, ToolRequestPriority } from '@/stores/toolRequestStore';
 import { usePredictionStore } from '@/stores/predictionStore';

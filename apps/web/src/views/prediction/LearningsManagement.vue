@@ -1,5 +1,7 @@
 <template>
-  <div class="learnings-management">
+  <ion-page>
+    <ion-content :fullscreen="true">
+      <div class="learnings-management">
     <header class="management-header">
       <div class="header-left">
         <button class="back-button" @click="goBackToDashboard">
@@ -250,12 +252,15 @@
         </div>
       </div>
     </div>
-  </div>
+      </div>
+    </ion-content>
+  </ion-page>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { IonPage, IonContent } from '@ionic/vue';
 import { useLearningStore } from '@/stores/learningStore';
 import type { PredictionLearning, LearningScopeLevel, LearningType, LearningSourceType, LearningStatus } from '@/stores/learningStore';
 import { predictionDashboardService } from '@/services/predictionDashboardService';

@@ -1,5 +1,7 @@
 <template>
-  <div class="source-crawl-status">
+  <ion-page>
+    <ion-content :fullscreen="true">
+      <div class="source-crawl-status">
     <header class="dashboard-header">
       <h1>Source Crawl Status</h1>
       <div class="header-actions">
@@ -155,11 +157,14 @@
         </div>
       </div>
     </section>
-  </div>
+      </div>
+    </ion-content>
+  </ion-page>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, reactive } from 'vue';
+import { IonPage, IonContent } from '@ionic/vue';
 import { predictionDashboardService } from '@/services/predictionDashboardService';
 
 interface Source {

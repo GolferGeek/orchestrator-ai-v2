@@ -1,5 +1,7 @@
 <template>
-  <div class="portfolio-detail">
+  <ion-page>
+    <ion-content :fullscreen="true">
+      <div class="portfolio-detail">
     <!-- Header -->
     <header class="detail-header">
       <button class="back-button" @click="goBack">
@@ -787,12 +789,15 @@
         </div>
       </div>
     </div>
-  </div>
+      </div>
+    </ion-content>
+  </ion-page>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { IonPage, IonContent } from '@ionic/vue';
 import { usePredictionStore } from '@/stores/predictionStore';
 import { predictionDashboardService, type PredictionTarget, type PredictionSource } from '@/services/predictionDashboardService';
 import PredictionCard from '@/components/prediction/PredictionCard.vue';

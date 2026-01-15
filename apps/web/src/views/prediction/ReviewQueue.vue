@@ -1,5 +1,7 @@
 <template>
-  <div class="review-queue">
+  <ion-page>
+    <ion-content :fullscreen="true">
+      <div class="review-queue">
     <header class="management-header">
       <h1>Review Queue</h1>
     </header>
@@ -243,11 +245,14 @@
         </div>
       </div>
     </div>
-  </div>
+      </div>
+    </ion-content>
+  </ion-page>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+import { IonPage, IonContent } from '@ionic/vue';
 import { useReviewQueueStore } from '@/stores/reviewQueueStore';
 import {
   predictionDashboardService,

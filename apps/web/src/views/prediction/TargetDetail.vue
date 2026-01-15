@@ -1,5 +1,7 @@
 <template>
-  <div class="target-detail">
+  <ion-page>
+    <ion-content :fullscreen="true">
+      <div class="target-detail">
     <!-- Header -->
     <header class="detail-header">
       <button class="back-button" @click="goBack">
@@ -149,12 +151,15 @@
       <!-- Signals Section (placeholder) -->
       <SignalList :signals="signals" />
     </div>
-  </div>
+      </div>
+    </ion-content>
+  </ion-page>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { IonPage, IonContent } from '@ionic/vue';
 import { usePredictionStore } from '@/stores/predictionStore';
 import { predictionDashboardService } from '@/services/predictionDashboardService';
 import PredictionCard from '@/components/prediction/PredictionCard.vue';

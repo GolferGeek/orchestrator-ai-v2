@@ -1,5 +1,7 @@
 <template>
-  <div class="universe-management">
+  <ion-page>
+    <ion-content :fullscreen="true">
+      <div class="universe-management">
     <header class="management-header">
       <h1>Portfolio Management</h1>
       <button class="btn btn-primary" @click="openCreateModal">
@@ -204,12 +206,15 @@
         </div>
       </div>
     </div>
-  </div>
+      </div>
+    </ion-content>
+  </ion-page>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, reactive } from 'vue';
 import { useRouter } from 'vue-router';
+import { IonPage, IonContent } from '@ionic/vue';
 import { usePredictionStore } from '@/stores/predictionStore';
 import {
   predictionDashboardService,

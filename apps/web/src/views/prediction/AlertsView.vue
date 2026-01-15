@@ -1,5 +1,7 @@
 <template>
-  <div class="alerts-view">
+  <ion-page>
+    <ion-content :fullscreen="true">
+      <div class="alerts-view">
     <header class="dashboard-header">
       <h1>System Alerts</h1>
       <div class="header-actions">
@@ -161,12 +163,15 @@
         </div>
       </div>
     </section>
-  </div>
+      </div>
+    </ion-content>
+  </ion-page>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, reactive } from 'vue';
 import { useRouter } from 'vue-router';
+import { IonPage, IonContent } from '@ionic/vue';
 import { predictionDashboardService } from '@/services/predictionDashboardService';
 
 interface Alert {

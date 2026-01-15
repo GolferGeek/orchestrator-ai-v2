@@ -1,5 +1,7 @@
 <template>
-  <div class="analyst-management">
+  <ion-page>
+    <ion-content :fullscreen="true">
+      <div class="analyst-management">
     <header class="management-header">
       <div class="header-left">
         <button class="back-button" @click="goBackToDashboard">
@@ -290,12 +292,15 @@
         </div>
       </div>
     </div>
-  </div>
+      </div>
+    </ion-content>
+  </ion-page>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, reactive } from 'vue';
 import { useRouter } from 'vue-router';
+import { IonPage, IonContent } from '@ionic/vue';
 import { useAnalystStore } from '@/stores/analystStore';
 import { usePredictionStore } from '@/stores/predictionStore';
 import {

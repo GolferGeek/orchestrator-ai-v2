@@ -190,15 +190,16 @@ export const useMissedOpportunityStore = defineStore('missedOpportunity', () => 
 
   // Stats
   const opportunityStats = computed(() => {
-    const total = state.value.opportunities.length;
+    const opps = Array.isArray(state.value.opportunities) ? state.value.opportunities : [];
+    const total = opps.length;
     const avgMovePercent = total > 0
-      ? state.value.opportunities.reduce((sum, o) => sum + o.movePercent, 0) / total
+      ? opps.reduce((sum, o) => sum + o.movePercent, 0) / total
       : 0;
-    const upMoves = state.value.opportunities.filter((o) => o.direction === 'up').length;
-    const downMoves = state.value.opportunities.filter((o) => o.direction === 'down').length;
-    const pending = state.value.opportunities.filter((o) => o.analysisStatus === 'pending').length;
-    const analyzed = state.value.opportunities.filter((o) => o.analysisStatus === 'analyzed').length;
-    const actioned = state.value.opportunities.filter((o) => o.analysisStatus === 'actioned').length;
+    const upMoves = opps.filter((o) => o.direction === 'up').length;
+    const downMoves = opps.filter((o) => o.direction === 'down').length;
+    const pending = opps.filter((o) => o.analysisStatus === 'pending').length;
+    const analyzed = opps.filter((o) => o.analysisStatus === 'analyzed').length;
+    const actioned = opps.filter((o) => o.analysisStatus === 'actioned').length;
 
     return {
       total,
@@ -216,11 +217,13 @@ export const useMissedOpportunityStore = defineStore('missedOpportunity', () => 
   // ============================================================================
 
   function getOpportunityById(id: string): MissedOpportunity | undefined {
-    return state.value.opportunities.find((o) => o.id === id);
+    const opps = Array.isArray(state.value.opportunities) ? state.value.opportunities : [];
+    return opps.find((o) => o.id === id);
   }
 
   function getOpportunitiesForTarget(targetId: string): MissedOpportunity[] {
-    return state.value.opportunities.filter((o) => o.targetId === targetId);
+    const opps = Array.isArray(state.value.opportunities) ? state.value.opportunities : [];
+    return opps.filter((o) => o.targetId === targetId);
   }
 
   // ============================================================================
@@ -244,10 +247,13 @@ export const useMissedOpportunityStore = defineStore('missedOpportunity', () => 
   }
 
   function setOpportunities(opportunities: MissedOpportunity[]) {
-    state.value.opportunities = opportunities;
+    state.value.opportunities = Array.isArray(opportunities) ? opportunities : [];
   }
 
   function addOpportunity(opportunity: MissedOpportunity) {
+    if (!Array.isArray(state.value.opportunities)) {
+      state.value.opportunities = [];
+    }
     const idx = state.value.opportunities.findIndex((o) => o.id === opportunity.id);
     if (idx >= 0) {
       state.value.opportunities[idx] = opportunity;
@@ -257,14 +263,16 @@ export const useMissedOpportunityStore = defineStore('missedOpportunity', () => 
   }
 
   function updateOpportunity(id: string, updates: Partial<MissedOpportunity>) {
-    const idx = state.value.opportunities.findIndex((o) => o.id === id);
+    const opps = Array.isArray(state.value.opportunities) ? state.value.opportunities : [];
+    const idx = opps.findIndex((o) => o.id === id);
     if (idx >= 0) {
       state.value.opportunities[idx] = { ...state.value.opportunities[idx], ...updates };
     }
   }
 
   function removeOpportunity(id: string) {
-    state.value.opportunities = state.value.opportunities.filter((o) => o.id !== id);
+    const opps = Array.isArray(state.value.opportunities) ? state.value.opportunities : [];
+    state.value.opportunities = opps.filter((o) => o.id !== id);
     if (state.value.selectedOpportunityId === id) {
       state.value.selectedOpportunityId = null;
       state.value.currentAnalysis = null;

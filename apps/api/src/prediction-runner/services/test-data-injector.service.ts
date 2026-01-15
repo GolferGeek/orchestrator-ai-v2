@@ -651,7 +651,8 @@ export class TestDataInjectorService {
   async getScenarioDataCounts(
     scenarioId: string,
   ): Promise<Record<string, number>> {
-    const tables: InjectionPoint[] = [
+    // Tables that use test_scenario_id column
+    const tablesWithTestScenarioId: InjectionPoint[] = [
       'signals',
       'predictors',
       'predictions',
@@ -661,14 +662,34 @@ export class TestDataInjectorService {
       'learning_queue',
     ];
 
+    // Tables that use scenario_id column (dedicated test data tables)
+    const tablesWithScenarioId: InjectionPoint[] = [
+      'test_articles',
+      'test_price_data',
+    ];
+
     const counts: Record<string, number> = {};
 
-    for (const table of tables) {
+    // Query tables using test_scenario_id
+    for (const table of tablesWithTestScenarioId) {
       const { count, error } = await this.getClient()
         .schema(this.schema)
         .from(table)
         .select('*', { count: 'exact', head: true })
         .eq('test_scenario_id', scenarioId);
+
+      if (!error) {
+        counts[table] = count ?? 0;
+      }
+    }
+
+    // Query tables using scenario_id
+    for (const table of tablesWithScenarioId) {
+      const { count, error } = await this.getClient()
+        .schema(this.schema)
+        .from(table)
+        .select('*', { count: 'exact', head: true })
+        .eq('scenario_id', scenarioId);
 
       if (!error) {
         counts[table] = count ?? 0;

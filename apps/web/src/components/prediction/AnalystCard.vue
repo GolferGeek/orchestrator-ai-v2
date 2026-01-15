@@ -34,7 +34,7 @@
 
     <div class="card-stats">
       <div class="stat">
-        <span class="stat-value">{{ analyst.defaultWeight.toFixed(2) }}</span>
+        <span class="stat-value">{{ (analyst.defaultWeight ?? 1.0).toFixed(2) }}</span>
         <span class="stat-label">Weight</span>
       </div>
       <div v-if="analyst.domain" class="stat">

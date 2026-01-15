@@ -1,5 +1,7 @@
 <template>
-  <div class="missed-opportunities">
+  <ion-page>
+    <ion-content :fullscreen="true">
+      <div class="missed-opportunities">
     <header class="management-header">
       <div class="header-left">
         <button class="back-button" @click="goBackToDashboard">
@@ -321,12 +323,15 @@
         </div>
       </div>
     </div>
-  </div>
+      </div>
+    </ion-content>
+  </ion-page>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, reactive } from 'vue';
 import { useRouter } from 'vue-router';
+import { IonPage, IonContent } from '@ionic/vue';
 import { useMissedOpportunityStore } from '@/stores/missedOpportunityStore';
 import type { AnalysisStatus, MoveDirection } from '@/stores/missedOpportunityStore';
 import {

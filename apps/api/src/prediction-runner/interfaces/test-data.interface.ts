@@ -40,7 +40,9 @@ export type InjectionPoint =
   | 'analysts'
   | 'learnings'
   | 'learning_queue'
-  | 'review_queue';
+  | 'review_queue'
+  | 'test_articles'
+  | 'test_price_data';
 
 /**
  * Test scenario entity - tracks a test data injection scenario

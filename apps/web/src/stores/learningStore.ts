@@ -127,16 +127,18 @@ export const useLearningStore = defineStore('learning', () => {
   const isLoadingQueue = computed(() => state.value.isLoadingQueue);
   const error = computed(() => state.value.error);
 
-  const selectedLearning = computed(() =>
-    state.value.learnings.find((l) => l.id === state.value.selectedLearningId)
-  );
+  const selectedLearning = computed(() => {
+    const learnings = Array.isArray(state.value.learnings) ? state.value.learnings : [];
+    return learnings.find((l) => l.id === state.value.selectedLearningId);
+  });
 
-  const selectedQueueItem = computed(() =>
-    state.value.learningQueue.find((q) => q.id === state.value.selectedQueueItemId)
-  );
+  const selectedQueueItem = computed(() => {
+    const queue = Array.isArray(state.value.learningQueue) ? state.value.learningQueue : [];
+    return queue.find((q) => q.id === state.value.selectedQueueItemId);
+  });
 
   const filteredLearnings = computed(() => {
-    let result = state.value.learnings;
+    let result = Array.isArray(state.value.learnings) ? state.value.learnings : [];
 
     if (state.value.filters.scopeLevel) {
       result = result.filter((l) => l.scopeLevel === state.value.filters.scopeLevel);
@@ -170,7 +172,7 @@ export const useLearningStore = defineStore('learning', () => {
   });
 
   const filteredLearningQueue = computed(() => {
-    let result = state.value.learningQueue;
+    let result = Array.isArray(state.value.learningQueue) ? state.value.learningQueue : [];
 
     if (state.value.queueFilters.status) {
       result = result.filter((q) => q.status === state.value.queueFilters.status);
@@ -187,13 +189,15 @@ export const useLearningStore = defineStore('learning', () => {
     return result;
   });
 
-  const activeLearnings = computed(() =>
-    state.value.learnings.filter((l) => l.status === 'active')
-  );
+  const activeLearnings = computed(() => {
+    const learnings = Array.isArray(state.value.learnings) ? state.value.learnings : [];
+    return learnings.filter((l) => l.status === 'active');
+  });
 
-  const pendingQueueItems = computed(() =>
-    state.value.learningQueue.filter((q) => q.status === 'pending')
-  );
+  const pendingQueueItems = computed(() => {
+    const queue = Array.isArray(state.value.learningQueue) ? state.value.learningQueue : [];
+    return queue.filter((q) => q.status === 'pending');
+  });
 
   const learningsByType = computed(() => {
     const grouped: Record<LearningType, PredictionLearning[]> = {
@@ -203,7 +207,8 @@ export const useLearningStore = defineStore('learning', () => {
       threshold: [],
       avoid: [],
     };
-    for (const learning of state.value.learnings) {
+    const learnings = Array.isArray(state.value.learnings) ? state.value.learnings : [];
+    for (const learning of learnings) {
       grouped[learning.learningType].push(learning);
     }
     return grouped;
@@ -216,7 +221,8 @@ export const useLearningStore = defineStore('learning', () => {
       universe: [],
       target: [],
     };
-    for (const learning of state.value.learnings) {
+    const learnings = Array.isArray(state.value.learnings) ? state.value.learnings : [];
+    for (const learning of learnings) {
       grouped[learning.scopeLevel].push(learning);
     }
     return grouped;
@@ -227,23 +233,28 @@ export const useLearningStore = defineStore('learning', () => {
   // ============================================================================
 
   function getLearningById(id: string): PredictionLearning | undefined {
-    return state.value.learnings.find((l) => l.id === id);
+    const learnings = Array.isArray(state.value.learnings) ? state.value.learnings : [];
+    return learnings.find((l) => l.id === id);
   }
 
   function getQueueItemById(id: string): LearningQueueItem | undefined {
-    return state.value.learningQueue.find((q) => q.id === id);
+    const queue = Array.isArray(state.value.learningQueue) ? state.value.learningQueue : [];
+    return queue.find((q) => q.id === id);
   }
 
   function getLearningsForUniverse(universeId: string): PredictionLearning[] {
-    return state.value.learnings.filter((l) => l.universeId === universeId);
+    const learnings = Array.isArray(state.value.learnings) ? state.value.learnings : [];
+    return learnings.filter((l) => l.universeId === universeId);
   }
 
   function getLearningsForTarget(targetId: string): PredictionLearning[] {
-    return state.value.learnings.filter((l) => l.targetId === targetId);
+    const learnings = Array.isArray(state.value.learnings) ? state.value.learnings : [];
+    return learnings.filter((l) => l.targetId === targetId);
   }
 
   function getLearningsForAnalyst(analystId: string): PredictionLearning[] {
-    return state.value.learnings.filter((l) => l.analystId === analystId);
+    const learnings = Array.isArray(state.value.learnings) ? state.value.learnings : [];
+    return learnings.filter((l) => l.analystId === analystId);
   }
 
   // ============================================================================
@@ -268,10 +279,13 @@ export const useLearningStore = defineStore('learning', () => {
 
   // Learning mutations
   function setLearnings(learnings: PredictionLearning[]) {
-    state.value.learnings = learnings;
+    state.value.learnings = Array.isArray(learnings) ? learnings : [];
   }
 
   function addLearning(learning: PredictionLearning) {
+    if (!Array.isArray(state.value.learnings)) {
+      state.value.learnings = [];
+    }
     const idx = state.value.learnings.findIndex((l) => l.id === learning.id);
     if (idx >= 0) {
       state.value.learnings[idx] = learning;
@@ -281,14 +295,16 @@ export const useLearningStore = defineStore('learning', () => {
   }
 
   function updateLearning(id: string, updates: Partial<PredictionLearning>) {
-    const idx = state.value.learnings.findIndex((l) => l.id === id);
+    const learnings = Array.isArray(state.value.learnings) ? state.value.learnings : [];
+    const idx = learnings.findIndex((l) => l.id === id);
     if (idx >= 0) {
       state.value.learnings[idx] = { ...state.value.learnings[idx], ...updates };
     }
   }
 
   function removeLearning(id: string) {
-    state.value.learnings = state.value.learnings.filter((l) => l.id !== id);
+    const learnings = Array.isArray(state.value.learnings) ? state.value.learnings : [];
+    state.value.learnings = learnings.filter((l) => l.id !== id);
     if (state.value.selectedLearningId === id) {
       state.value.selectedLearningId = null;
     }
@@ -296,10 +312,13 @@ export const useLearningStore = defineStore('learning', () => {
 
   // Queue mutations
   function setLearningQueue(queue: LearningQueueItem[]) {
-    state.value.learningQueue = queue;
+    state.value.learningQueue = Array.isArray(queue) ? queue : [];
   }
 
   function addQueueItem(item: LearningQueueItem) {
+    if (!Array.isArray(state.value.learningQueue)) {
+      state.value.learningQueue = [];
+    }
     const idx = state.value.learningQueue.findIndex((q) => q.id === item.id);
     if (idx >= 0) {
       state.value.learningQueue[idx] = item;
@@ -309,14 +328,16 @@ export const useLearningStore = defineStore('learning', () => {
   }
 
   function updateQueueItem(id: string, updates: Partial<LearningQueueItem>) {
-    const idx = state.value.learningQueue.findIndex((q) => q.id === id);
+    const queue = Array.isArray(state.value.learningQueue) ? state.value.learningQueue : [];
+    const idx = queue.findIndex((q) => q.id === id);
     if (idx >= 0) {
       state.value.learningQueue[idx] = { ...state.value.learningQueue[idx], ...updates };
     }
   }
 
   function removeQueueItem(id: string) {
-    state.value.learningQueue = state.value.learningQueue.filter((q) => q.id !== id);
+    const queue = Array.isArray(state.value.learningQueue) ? state.value.learningQueue : [];
+    state.value.learningQueue = queue.filter((q) => q.id !== id);
     if (state.value.selectedQueueItemId === id) {
       state.value.selectedQueueItemId = null;
     }
