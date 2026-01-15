@@ -7,3 +7,4 @@ export * from './assessment.handler';
 export * from './debate.handler';
 export * from './learning-queue.handler';
 export * from './evaluation.handler';
+export * from './alert.handler';
