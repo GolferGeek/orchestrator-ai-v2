@@ -44,7 +44,11 @@ export interface RiskThresholdConfig {
  */
 export interface RiskAnalysisConfig {
   riskRadar?: { enabled: boolean };
-  redTeam?: { enabled: boolean };
+  redTeam?: {
+    enabled: boolean;
+    threshold?: number; // Score threshold above which debate is triggered (default: 50)
+    lowConfidenceThreshold?: number; // Confidence below which debate is triggered (default: 0.5)
+  };
 }
 
 export interface CreateRiskScopeData {

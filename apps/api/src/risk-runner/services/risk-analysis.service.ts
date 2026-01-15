@@ -1,8 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { ExecutionContext } from '@orchestrator-ai/transport-types';
 import { RiskScope } from '../interfaces/scope.interface';
 import { RiskSubject } from '../interfaces/subject.interface';
 import { RiskCompositeScore } from '../interfaces/composite-score.interface';
+import { RiskDebate } from '../interfaces/debate.interface';
 import { ScopeRepository } from '../repositories/scope.repository';
 import { SubjectRepository } from '../repositories/subject.repository';
 import { DimensionRepository } from '../repositories/dimension.repository';
@@ -10,11 +11,14 @@ import { AssessmentRepository } from '../repositories/assessment.repository';
 import { CompositeScoreRepository } from '../repositories/composite-score.repository';
 import { DimensionAnalyzerService } from './dimension-analyzer.service';
 import { ScoreAggregationService } from './score-aggregation.service';
+import { DebateService } from './debate.service';
 
 export interface AnalysisResult {
   subject: RiskSubject;
   compositeScore: RiskCompositeScore;
   assessmentCount: number;
+  debate?: RiskDebate;
+  debateTriggered: boolean;
 }
 
 @Injectable()
@@ -29,6 +33,8 @@ export class RiskAnalysisService {
     private readonly compositeScoreRepo: CompositeScoreRepository,
     private readonly dimensionAnalyzer: DimensionAnalyzerService,
     private readonly scoreAggregation: ScoreAggregationService,
+    @Inject(forwardRef(() => DebateService))
+    private readonly debateService: DebateService,
   ) {}
 
   /**
@@ -130,10 +136,46 @@ export class RiskAnalysisService {
       `Risk analysis complete for ${subject.identifier}: score=${compositeScore.overall_score}`,
     );
 
+    // 8. Check if Red Team debate should be triggered
+    let debate: RiskDebate | undefined;
+    let debateTriggered = false;
+
+    if (
+      this.debateService.shouldTriggerDebate(compositeScore, analysisConfig)
+    ) {
+      this.logger.log(
+        `Triggering Red Team debate for ${subject.identifier} (score: ${compositeScore.overall_score})`,
+      );
+
+      try {
+        const debateResult = await this.debateService.runDebate({
+          subject,
+          compositeScore,
+          assessments: createdAssessments,
+          scopeId: scope.id,
+          context,
+        });
+
+        debate = debateResult.debate;
+        debateTriggered = true;
+
+        this.logger.log(
+          `Debate completed for ${subject.identifier}: score adjusted ${compositeScore.overall_score} → ${debateResult.adjustedScore} (${debateResult.adjustment >= 0 ? '+' : ''}${debateResult.adjustment})`,
+        );
+      } catch (error) {
+        this.logger.error(
+          `Debate failed for ${subject.identifier}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        // Continue without debate - don't fail the entire analysis
+      }
+    }
+
     return {
       subject,
       compositeScore,
       assessmentCount: createdAssessments.length,
+      debate,
+      debateTriggered,
     };
   }
 

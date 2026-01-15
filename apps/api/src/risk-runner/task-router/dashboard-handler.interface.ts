@@ -22,6 +22,7 @@ export interface DashboardActionResult<T = unknown> {
     page?: number;
     pageSize?: number;
     hasMore?: boolean;
+    message?: string;
   };
 }
 

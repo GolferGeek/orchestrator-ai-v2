@@ -67,6 +67,7 @@ export interface ArbiterSynthesis {
   adjustment_reasoning: string;
   confidence_level: number;
   key_takeaways: string[];
+  recommended_adjustment: number; // Score adjustment recommendation (-30 to +30)
 }
 
 /**

@@ -22,6 +22,7 @@ import {
   ScoreAggregationService,
   DimensionAnalyzerService,
   RiskAnalysisService,
+  DebateService,
 } from './services';
 
 // Runners
@@ -34,6 +35,7 @@ import {
   SubjectHandler,
   CompositeScoreHandler,
   AssessmentHandler,
+  DebateHandler,
 } from './task-router/handlers';
 
 const repositories = [
@@ -53,6 +55,7 @@ const services = [
   ScoreAggregationService,
   DimensionAnalyzerService,
   RiskAnalysisService,
+  DebateService,
 ];
 
 const runners = [RiskAnalysisRunner];
@@ -63,6 +66,7 @@ const dashboardHandlers = [
   SubjectHandler,
   CompositeScoreHandler,
   AssessmentHandler,
+  DebateHandler,
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════

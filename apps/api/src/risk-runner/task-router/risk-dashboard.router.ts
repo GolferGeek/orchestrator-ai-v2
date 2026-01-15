@@ -18,6 +18,7 @@ import { ScopeHandler } from './handlers/scope.handler';
 import { SubjectHandler } from './handlers/subject.handler';
 import { CompositeScoreHandler } from './handlers/composite-score.handler';
 import { AssessmentHandler } from './handlers/assessment.handler';
+import { DebateHandler } from './handlers/debate.handler';
 
 /**
  * Supported dashboard entities
@@ -26,7 +27,8 @@ export type RiskDashboardEntity =
   | 'scopes'
   | 'subjects'
   | 'composite-scores'
-  | 'assessments';
+  | 'assessments'
+  | 'debates';
 
 /**
  * Dashboard router response
@@ -51,6 +53,7 @@ export class RiskDashboardRouter {
     private readonly subjectHandler: SubjectHandler,
     private readonly compositeScoreHandler: CompositeScoreHandler,
     private readonly assessmentHandler: AssessmentHandler,
+    private readonly debateHandler: DebateHandler,
   ) {}
 
   /**
@@ -160,6 +163,10 @@ export class RiskDashboardRouter {
       case 'assessment':
         return this.assessmentHandler.execute(operation, payload, context);
 
+      case 'debates':
+      case 'debate':
+        return this.debateHandler.execute(operation, payload, context);
+
       default:
         return buildDashboardError(
           'UNKNOWN_ENTITY',
@@ -211,7 +218,7 @@ export class RiskDashboardRouter {
    * Get list of supported entities
    */
   getSupportedEntities(): RiskDashboardEntity[] {
-    return ['scopes', 'subjects', 'composite-scores', 'assessments'];
+    return ['scopes', 'subjects', 'composite-scores', 'assessments', 'debates'];
   }
 
   /**
@@ -227,6 +234,8 @@ export class RiskDashboardRouter {
         return this.compositeScoreHandler.getSupportedActions();
       case 'assessments':
         return this.assessmentHandler.getSupportedActions();
+      case 'debates':
+        return this.debateHandler.getSupportedActions();
       default:
         return [];
     }

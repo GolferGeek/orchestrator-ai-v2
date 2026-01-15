@@ -3,3 +3,4 @@
 export * from './score-aggregation.service';
 export * from './dimension-analyzer.service';
 export * from './risk-analysis.service';
+export * from './debate.service';
