@@ -39,7 +39,7 @@ export type AgentInteractionMode = 'conversation' | 'dashboard';
 /**
  * Dashboard types for different agent UIs
  */
-export type DashboardType = 'prediction' | 'monitoring' | 'analytics' | 'custom';
+export type DashboardType = 'prediction' | 'monitoring' | 'analytics' | 'risk' | 'custom';
 
 /**
  * Interaction mode configuration
@@ -61,6 +61,7 @@ const DASHBOARD_AGENT_TYPES = [
   'ambient_agent',
   'monitoring_agent',
   'dashboard',
+  'risk',
 ];
 
 /**
@@ -71,6 +72,7 @@ const DASHBOARD_RUNNERS = [
   'crypto-predictor',
   'market-predictor',
   'election-predictor',
+  'risk-analyzer',
 ];
 
 /**
@@ -163,13 +165,21 @@ function getDashboardType(agent: Agent): DashboardType {
 
   // Check runner config
   const runnerConfig = agent.metadata?.runnerConfig as { runner?: string } | undefined;
-  if (runnerConfig?.runner && DASHBOARD_RUNNERS.includes(runnerConfig.runner)) {
-    return 'prediction';
+  if (runnerConfig?.runner) {
+    if (runnerConfig.runner === 'risk-analyzer') {
+      return 'risk';
+    }
+    if (DASHBOARD_RUNNERS.includes(runnerConfig.runner)) {
+      return 'prediction';
+    }
   }
 
   // Check agent type
   if (agent.type) {
     const agentType = agent.type.toLowerCase();
+    if (agentType === 'risk') {
+      return 'risk';
+    }
     if (agentType.includes('prediction') || agentType.includes('ambient')) {
       return 'prediction';
     }
@@ -231,6 +241,10 @@ export function getDashboardComponent(agent: Agent): string | null {
 
   if (config.dashboardType === 'prediction') {
     return 'PredictionAgentPane';
+  }
+
+  if (config.dashboardType === 'risk') {
+    return 'RiskAgentPane';
   }
 
   return null;

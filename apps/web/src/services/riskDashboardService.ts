@@ -238,7 +238,7 @@ class RiskDashboardService {
   }
 
   async createSubject(params: CreateSubjectRequest): Promise<DashboardActionResponse<RiskSubject>> {
-    return this.executeDashboardRequest<RiskSubject>('subjects.create', params);
+    return this.executeDashboardRequest<RiskSubject>('subjects.create', params as unknown as Record<string, unknown>);
   }
 
   async updateSubject(

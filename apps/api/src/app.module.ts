@@ -29,6 +29,7 @@ import { MarketingModule } from './marketing/marketing.module';
 import { SuperAdminModule } from './super-admin/super-admin.module';
 import { EngineeringModule } from './engineering/engineering.module';
 import { PredictionRunnerModule } from './prediction-runner/prediction-runner.module';
+import { RiskRunnerModule } from './risk-runner/risk-runner.module';
 
 @Module({
   imports: [
@@ -71,6 +72,7 @@ import { PredictionRunnerModule } from './prediction-runner/prediction-runner.mo
     EngineeringModule, // Engineering CAD agent module
     SuperAdminModule, // Dev-only Claude Code panel for super admins
     PredictionRunnerModule, // Prediction system with cron jobs for signal/predictor/prediction processing
+    RiskRunnerModule, // Risk analysis system with cron jobs for risk assessment and learning
   ],
   controllers: [AppController, AnalyticsController],
   providers: [AppService, AgentRegistryService],

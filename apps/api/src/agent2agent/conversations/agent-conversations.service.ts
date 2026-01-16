@@ -55,6 +55,7 @@ export class AgentConversationsService {
    */
   private validateAgentType(agentType: string): AgentType {
     // Ensure the type is one of the allowed values
+    // Note: langgraph and risk agents don't use conversations (they use workflows/dashboards)
     const validTypes: AgentType[] = [
       'context',
       'api',
@@ -62,6 +63,7 @@ export class AgentConversationsService {
       'orchestrator',
       'media',
       'rag-runner',
+      'prediction',
     ];
     // Allow file-based types
     if (validTypes.includes(agentType)) {

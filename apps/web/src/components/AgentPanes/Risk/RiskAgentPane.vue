@@ -97,7 +97,7 @@
 
           <!-- Main content - Radar or Detail -->
           <div class="main-content">
-            <template v-if="selectedSubject">
+            <template v-if="selectedSubject && selectedSubject.subject">
               <RiskDetailView
                 :subject="selectedSubject.subject"
                 :composite-score="selectedSubject.compositeScore"

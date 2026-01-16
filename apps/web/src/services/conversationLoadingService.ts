@@ -16,6 +16,7 @@
 import { conversationCrudService } from '@/services/conversation/conversationCrudService';
 import { conversationMessageService } from '@/services/conversation/conversationMessageService';
 import { conversationFactoryService } from '@/services/conversation/conversationFactoryService';
+import { agentsService } from '@/services/agentsService';
 import { useAgentsStore } from '@/stores/agentsStore';
 import { useConversationsStore } from '@/stores/conversationsStore';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
@@ -90,9 +91,10 @@ class ConversationLoadingService {
       const backendConversation = await conversationCrudService.getBackendConversation(conversationId);
       const messages = await conversationMessageService.loadConversationMessages(conversationId);
 
-      // Ensure agents are loaded
+      // Ensure agents are loaded using agentsService
       if (!agentsStore.availableAgents || agentsStore.availableAgents.length === 0) {
-        await agentsStore.ensureAgentsLoaded();
+        const agents = await agentsService.getAvailableAgents();
+        agentsStore.setAvailableAgents(agents);
       }
 
       // Find the agent for this conversation

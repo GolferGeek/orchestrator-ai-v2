@@ -20,6 +20,10 @@
         v-if="dashboardComponent === 'prediction-dashboard' || dashboardComponent === 'PredictionAgentPane'"
         :agent="agent"
       />
+      <RiskAgentPane
+        v-else-if="dashboardComponent === 'investment-risk-dashboard' || dashboardComponent === 'RiskAgentPane'"
+        :agent="agent"
+      />
       <!-- Fallback for unknown dashboard types -->
       <div v-else class="unknown-dashboard">
         <ion-icon :icon="analyticsOutline" size="large" color="medium" />
@@ -41,11 +45,13 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { IonSpinner, IonIcon } from '@ionic/vue';
 import { alertCircleOutline, analyticsOutline } from 'ionicons/icons';
 import { useAgentsStore } from '@/stores/agentsStore';
+import { agentsService } from '@/services/agentsService';
 import { getDashboardComponent } from '@/utils/agent-interaction-mode';
 import type { AgentInfo } from '@/types/chat';
 
 // Dashboard components (not conversation pane components like MarketingSwarmTab)
 import PredictionAgentPane from './AgentPanes/Prediction/PredictionAgentPane.vue';
+import RiskAgentPane from './AgentPanes/Risk/RiskAgentPane.vue';
 
 interface Props {
   agentSlug: string;
@@ -99,9 +105,10 @@ const loadAgent = async () => {
   error.value = null;
 
   try {
-    // Ensure agents are loaded in the store
+    // Ensure agents are loaded in the store using agentsService
     if (!agentsStore.availableAgents || agentsStore.availableAgents.length === 0) {
-      await agentsStore.ensureAgentsLoaded();
+      const agents = await agentsService.getAvailableAgents();
+      agentsStore.setAvailableAgents(agents);
     }
 
     // Check if agent was found
