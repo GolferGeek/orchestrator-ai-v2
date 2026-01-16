@@ -116,12 +116,42 @@ describe('PortfolioHandler', () => {
     ],
     dimensions: ['market', 'fundamental'],
     cells: [
-      { subject_index: 0, dimension_index: 0, score: 80, relative_score: 'high' },
-      { subject_index: 0, dimension_index: 1, score: 70, relative_score: 'high' },
-      { subject_index: 1, dimension_index: 0, score: 60, relative_score: 'average' },
-      { subject_index: 1, dimension_index: 1, score: 50, relative_score: 'average' },
-      { subject_index: 2, dimension_index: 0, score: 40, relative_score: 'low' },
-      { subject_index: 2, dimension_index: 1, score: 30, relative_score: 'low' },
+      {
+        subject_index: 0,
+        dimension_index: 0,
+        score: 80,
+        relative_score: 'high',
+      },
+      {
+        subject_index: 0,
+        dimension_index: 1,
+        score: 70,
+        relative_score: 'high',
+      },
+      {
+        subject_index: 1,
+        dimension_index: 0,
+        score: 60,
+        relative_score: 'average',
+      },
+      {
+        subject_index: 1,
+        dimension_index: 1,
+        score: 50,
+        relative_score: 'average',
+      },
+      {
+        subject_index: 2,
+        dimension_index: 0,
+        score: 40,
+        relative_score: 'low',
+      },
+      {
+        subject_index: 2,
+        dimension_index: 1,
+        score: 30,
+        relative_score: 'low',
+      },
     ],
   };
 
@@ -129,13 +159,48 @@ describe('PortfolioHandler', () => {
     scope_id: 'scope-1',
     period: 'week',
     data_points: [
-      { date: '2026-01-09', average_risk_score: 50, subjects_assessed: 3, high_risk_subjects: 1 },
-      { date: '2026-01-10', average_risk_score: 52, subjects_assessed: 3, high_risk_subjects: 1 },
-      { date: '2026-01-11', average_risk_score: 53, subjects_assessed: 3, high_risk_subjects: 1 },
-      { date: '2026-01-12', average_risk_score: 55, subjects_assessed: 3, high_risk_subjects: 1 },
-      { date: '2026-01-13', average_risk_score: 54, subjects_assessed: 3, high_risk_subjects: 1 },
-      { date: '2026-01-14', average_risk_score: 55, subjects_assessed: 3, high_risk_subjects: 1 },
-      { date: '2026-01-15', average_risk_score: 55, subjects_assessed: 3, high_risk_subjects: 1 },
+      {
+        date: '2026-01-09',
+        average_risk_score: 50,
+        subjects_assessed: 3,
+        high_risk_subjects: 1,
+      },
+      {
+        date: '2026-01-10',
+        average_risk_score: 52,
+        subjects_assessed: 3,
+        high_risk_subjects: 1,
+      },
+      {
+        date: '2026-01-11',
+        average_risk_score: 53,
+        subjects_assessed: 3,
+        high_risk_subjects: 1,
+      },
+      {
+        date: '2026-01-12',
+        average_risk_score: 55,
+        subjects_assessed: 3,
+        high_risk_subjects: 1,
+      },
+      {
+        date: '2026-01-13',
+        average_risk_score: 54,
+        subjects_assessed: 3,
+        high_risk_subjects: 1,
+      },
+      {
+        date: '2026-01-14',
+        average_risk_score: 55,
+        subjects_assessed: 3,
+        high_risk_subjects: 1,
+      },
+      {
+        date: '2026-01-15',
+        average_risk_score: 55,
+        subjects_assessed: 3,
+        high_risk_subjects: 1,
+      },
     ],
     trend_direction: 'worsening',
     change_percentage: 10,
@@ -187,30 +252,47 @@ describe('PortfolioHandler', () => {
 
   describe('execute - summary', () => {
     it('should generate portfolio summary for a scope', async () => {
-      portfolioService.getPortfolioSummary.mockResolvedValue(mockPortfolioSummary);
+      portfolioService.getPortfolioSummary.mockResolvedValue(
+        mockPortfolioSummary,
+      );
 
-      const payload = createPayload('portfolio.summary', { scopeId: 'scope-1' });
-      const result = await handler.execute('summary', payload, mockExecutionContext);
+      const payload = createPayload('portfolio.summary', {
+        scopeId: 'scope-1',
+      });
+      const result = await handler.execute(
+        'summary',
+        payload,
+        mockExecutionContext,
+      );
 
       expect(result.success).toBe(true);
       expect(result.data).toEqual(mockPortfolioSummary);
       expect(result.metadata?.assessmentCoverage).toBe(100);
-      expect(portfolioService.getPortfolioSummary).toHaveBeenCalledWith('scope-1', {
-        includeInactiveSubjects: undefined,
-        maxAlerts: undefined,
-      });
+      expect(portfolioService.getPortfolioSummary).toHaveBeenCalledWith(
+        'scope-1',
+        {
+          includeInactiveSubjects: undefined,
+          maxAlerts: undefined,
+        },
+      );
     });
 
     it('should return error when scopeId is missing', async () => {
       const payload = createPayload('portfolio.summary');
-      const result = await handler.execute('summary', payload, mockExecutionContext);
+      const result = await handler.execute(
+        'summary',
+        payload,
+        mockExecutionContext,
+      );
 
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('MISSING_SCOPE_ID');
     });
 
     it('should pass optional parameters', async () => {
-      portfolioService.getPortfolioSummary.mockResolvedValue(mockPortfolioSummary);
+      portfolioService.getPortfolioSummary.mockResolvedValue(
+        mockPortfolioSummary,
+      );
 
       const payload = createPayload('portfolio.summary', {
         scopeId: 'scope-1',
@@ -219,10 +301,13 @@ describe('PortfolioHandler', () => {
       });
       await handler.execute('summary', payload, mockExecutionContext);
 
-      expect(portfolioService.getPortfolioSummary).toHaveBeenCalledWith('scope-1', {
-        includeInactiveSubjects: true,
-        maxAlerts: 10,
-      });
+      expect(portfolioService.getPortfolioSummary).toHaveBeenCalledWith(
+        'scope-1',
+        {
+          includeInactiveSubjects: true,
+          maxAlerts: 10,
+        },
+      );
     });
 
     it('should handle service error', async () => {
@@ -230,8 +315,14 @@ describe('PortfolioHandler', () => {
         new Error('Scope not found: invalid-scope'),
       );
 
-      const payload = createPayload('portfolio.summary', { scopeId: 'invalid-scope' });
-      const result = await handler.execute('summary', payload, mockExecutionContext);
+      const payload = createPayload('portfolio.summary', {
+        scopeId: 'invalid-scope',
+      });
+      const result = await handler.execute(
+        'summary',
+        payload,
+        mockExecutionContext,
+      );
 
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('SUMMARY_GENERATION_FAILED');
@@ -246,8 +337,14 @@ describe('PortfolioHandler', () => {
       };
       portfolioService.getPortfolioSummary.mockResolvedValue(partialSummary);
 
-      const payload = createPayload('portfolio.summary', { scopeId: 'scope-1' });
-      const result = await handler.execute('summary', payload, mockExecutionContext);
+      const payload = createPayload('portfolio.summary', {
+        scopeId: 'scope-1',
+      });
+      const result = await handler.execute(
+        'summary',
+        payload,
+        mockExecutionContext,
+      );
 
       expect(result.success).toBe(true);
       expect(result.metadata?.assessmentCoverage).toBe(60);
@@ -261,8 +358,14 @@ describe('PortfolioHandler', () => {
       };
       portfolioService.getPortfolioSummary.mockResolvedValue(emptyPortfolio);
 
-      const payload = createPayload('portfolio.summary', { scopeId: 'scope-1' });
-      const result = await handler.execute('summary', payload, mockExecutionContext);
+      const payload = createPayload('portfolio.summary', {
+        scopeId: 'scope-1',
+      });
+      const result = await handler.execute(
+        'summary',
+        payload,
+        mockExecutionContext,
+      );
 
       expect(result.success).toBe(true);
       expect(result.metadata?.assessmentCoverage).toBe(0);
@@ -271,21 +374,35 @@ describe('PortfolioHandler', () => {
 
   describe('execute - contributions', () => {
     it('should get subject contributions for a scope', async () => {
-      portfolioService.getSubjectContributions.mockResolvedValue(mockSubjectContributions);
+      portfolioService.getSubjectContributions.mockResolvedValue(
+        mockSubjectContributions,
+      );
 
-      const payload = createPayload('portfolio.contributions', { scopeId: 'scope-1' });
-      const result = await handler.execute('contributions', payload, mockExecutionContext);
+      const payload = createPayload('portfolio.contributions', {
+        scopeId: 'scope-1',
+      });
+      const result = await handler.execute(
+        'contributions',
+        payload,
+        mockExecutionContext,
+      );
 
       expect(result.success).toBe(true);
       expect(result.data).toEqual(mockSubjectContributions);
       expect(result.metadata?.totalSubjects).toBe(3);
       expect(result.metadata?.highRiskSubjects).toBe(1);
-      expect(portfolioService.getSubjectContributions).toHaveBeenCalledWith('scope-1');
+      expect(portfolioService.getSubjectContributions).toHaveBeenCalledWith(
+        'scope-1',
+      );
     });
 
     it('should return error when scopeId is missing', async () => {
       const payload = createPayload('portfolio.contributions');
-      const result = await handler.execute('contributions', payload, mockExecutionContext);
+      const result = await handler.execute(
+        'contributions',
+        payload,
+        mockExecutionContext,
+      );
 
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('MISSING_SCOPE_ID');
@@ -296,8 +413,14 @@ describe('PortfolioHandler', () => {
         new Error('Scope not found'),
       );
 
-      const payload = createPayload('portfolio.contributions', { scopeId: 'invalid-scope' });
-      const result = await handler.execute('contributions', payload, mockExecutionContext);
+      const payload = createPayload('portfolio.contributions', {
+        scopeId: 'invalid-scope',
+      });
+      const result = await handler.execute(
+        'contributions',
+        payload,
+        mockExecutionContext,
+      );
 
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('CONTRIBUTIONS_FAILED');
@@ -310,8 +433,14 @@ describe('PortfolioHandler', () => {
       }));
       portfolioService.getSubjectContributions.mockResolvedValue(allHighRisk);
 
-      const payload = createPayload('portfolio.contributions', { scopeId: 'scope-1' });
-      const result = await handler.execute('contributions', payload, mockExecutionContext);
+      const payload = createPayload('portfolio.contributions', {
+        scopeId: 'scope-1',
+      });
+      const result = await handler.execute(
+        'contributions',
+        payload,
+        mockExecutionContext,
+      );
 
       expect(result.success).toBe(true);
       expect(result.metadata?.highRiskSubjects).toBe(3);
@@ -320,21 +449,35 @@ describe('PortfolioHandler', () => {
 
   describe('execute - heatmap', () => {
     it('should generate portfolio heatmap for a scope', async () => {
-      portfolioService.getPortfolioHeatmap.mockResolvedValue(mockPortfolioHeatmap);
+      portfolioService.getPortfolioHeatmap.mockResolvedValue(
+        mockPortfolioHeatmap,
+      );
 
-      const payload = createPayload('portfolio.heatmap', { scopeId: 'scope-1' });
-      const result = await handler.execute('heatmap', payload, mockExecutionContext);
+      const payload = createPayload('portfolio.heatmap', {
+        scopeId: 'scope-1',
+      });
+      const result = await handler.execute(
+        'heatmap',
+        payload,
+        mockExecutionContext,
+      );
 
       expect(result.success).toBe(true);
       expect(result.data).toEqual(mockPortfolioHeatmap);
       expect(result.metadata?.subjectCount).toBe(3);
       expect(result.metadata?.dimensionCount).toBe(2);
-      expect(portfolioService.getPortfolioHeatmap).toHaveBeenCalledWith('scope-1');
+      expect(portfolioService.getPortfolioHeatmap).toHaveBeenCalledWith(
+        'scope-1',
+      );
     });
 
     it('should return error when scopeId is missing', async () => {
       const payload = createPayload('portfolio.heatmap');
-      const result = await handler.execute('heatmap', payload, mockExecutionContext);
+      const result = await handler.execute(
+        'heatmap',
+        payload,
+        mockExecutionContext,
+      );
 
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('MISSING_SCOPE_ID');
@@ -345,8 +488,14 @@ describe('PortfolioHandler', () => {
         new Error('Failed to generate heatmap'),
       );
 
-      const payload = createPayload('portfolio.heatmap', { scopeId: 'scope-1' });
-      const result = await handler.execute('heatmap', payload, mockExecutionContext);
+      const payload = createPayload('portfolio.heatmap', {
+        scopeId: 'scope-1',
+      });
+      const result = await handler.execute(
+        'heatmap',
+        payload,
+        mockExecutionContext,
+      );
 
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('HEATMAP_FAILED');
@@ -358,18 +507,29 @@ describe('PortfolioHandler', () => {
       portfolioService.getPortfolioTrend.mockResolvedValue(mockPortfolioTrend);
 
       const payload = createPayload('portfolio.trend', { scopeId: 'scope-1' });
-      const result = await handler.execute('trend', payload, mockExecutionContext);
+      const result = await handler.execute(
+        'trend',
+        payload,
+        mockExecutionContext,
+      );
 
       expect(result.success).toBe(true);
       expect(result.data).toEqual(mockPortfolioTrend);
       expect(result.metadata?.trendDirection).toBe('worsening');
       expect(result.metadata?.dataPoints).toBe(7);
-      expect(portfolioService.getPortfolioTrend).toHaveBeenCalledWith('scope-1', 'week');
+      expect(portfolioService.getPortfolioTrend).toHaveBeenCalledWith(
+        'scope-1',
+        'week',
+      );
     });
 
     it('should return error when scopeId is missing', async () => {
       const payload = createPayload('portfolio.trend');
-      const result = await handler.execute('trend', payload, mockExecutionContext);
+      const result = await handler.execute(
+        'trend',
+        payload,
+        mockExecutionContext,
+      );
 
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('MISSING_SCOPE_ID');
@@ -387,7 +547,10 @@ describe('PortfolioHandler', () => {
       });
       await handler.execute('trend', payload, mockExecutionContext);
 
-      expect(portfolioService.getPortfolioTrend).toHaveBeenCalledWith('scope-1', 'day');
+      expect(portfolioService.getPortfolioTrend).toHaveBeenCalledWith(
+        'scope-1',
+        'day',
+      );
     });
 
     it('should handle month period', async () => {
@@ -400,10 +563,17 @@ describe('PortfolioHandler', () => {
         scopeId: 'scope-1',
         period: 'month',
       });
-      const result = await handler.execute('trend', payload, mockExecutionContext);
+      const result = await handler.execute(
+        'trend',
+        payload,
+        mockExecutionContext,
+      );
 
       expect(result.success).toBe(true);
-      expect(portfolioService.getPortfolioTrend).toHaveBeenCalledWith('scope-1', 'month');
+      expect(portfolioService.getPortfolioTrend).toHaveBeenCalledWith(
+        'scope-1',
+        'month',
+      );
     });
 
     it('should handle service error', async () => {
@@ -412,18 +582,29 @@ describe('PortfolioHandler', () => {
       );
 
       const payload = createPayload('portfolio.trend', { scopeId: 'scope-1' });
-      const result = await handler.execute('trend', payload, mockExecutionContext);
+      const result = await handler.execute(
+        'trend',
+        payload,
+        mockExecutionContext,
+      );
 
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('TREND_FAILED');
     });
 
     it('should report different trend directions', async () => {
-      const improvingTrend = { ...mockPortfolioTrend, trend_direction: 'improving' as const };
+      const improvingTrend = {
+        ...mockPortfolioTrend,
+        trend_direction: 'improving' as const,
+      };
       portfolioService.getPortfolioTrend.mockResolvedValue(improvingTrend);
 
       const payload = createPayload('portfolio.trend', { scopeId: 'scope-1' });
-      const result = await handler.execute('trend', payload, mockExecutionContext);
+      const result = await handler.execute(
+        'trend',
+        payload,
+        mockExecutionContext,
+      );
 
       expect(result.success).toBe(true);
       expect(result.metadata?.trendDirection).toBe('improving');
@@ -433,7 +614,11 @@ describe('PortfolioHandler', () => {
   describe('execute - unsupported action', () => {
     it('should return error for unsupported action', async () => {
       const payload = createPayload('portfolio.unsupported');
-      const result = await handler.execute('unsupported', payload, mockExecutionContext);
+      const result = await handler.execute(
+        'unsupported',
+        payload,
+        mockExecutionContext,
+      );
 
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('UNSUPPORTED_ACTION');

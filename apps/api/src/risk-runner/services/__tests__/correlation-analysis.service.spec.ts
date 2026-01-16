@@ -339,12 +339,12 @@ describe('CorrelationAnalysisService', () => {
       // Create subjects with similar dimension scores
       const similarAssessments = {
         'subject-1': [
-          { ...mockAssessments['subject-1'][0], score: 80 },
-          { ...mockAssessments['subject-1'][1], score: 70 },
+          { ...mockAssessments['subject-1'][0]!, score: 80 },
+          { ...mockAssessments['subject-1'][1]!, score: 70 },
         ],
         'subject-2': [
-          { ...mockAssessments['subject-2'][0], score: 75 },
-          { ...mockAssessments['subject-2'][1], score: 65 },
+          { ...mockAssessments['subject-2'][0]!, score: 75 },
+          { ...mockAssessments['subject-2'][1]!, score: 65 },
         ],
       };
 
@@ -523,16 +523,16 @@ describe('CorrelationAnalysisService', () => {
       // Create subjects with highly correlated scores
       const highlyCorrelatedAssessments = {
         'subject-1': [
-          { ...mockAssessments['subject-1'][0], score: 80 },
-          { ...mockAssessments['subject-1'][1], score: 80 },
+          { ...mockAssessments['subject-1'][0]!, score: 80 },
+          { ...mockAssessments['subject-1'][1]!, score: 80 },
         ],
         'subject-2': [
-          { ...mockAssessments['subject-2'][0], score: 80 },
-          { ...mockAssessments['subject-2'][1], score: 80 },
+          { ...mockAssessments['subject-2'][0]!, score: 80 },
+          { ...mockAssessments['subject-2'][1]!, score: 80 },
         ],
         'subject-3': [
-          { ...mockAssessments['subject-3'][0], score: 80 },
-          { ...mockAssessments['subject-3'][1], score: 80 },
+          { ...mockAssessments['subject-3'][0]!, score: 80 },
+          { ...mockAssessments['subject-3'][1]!, score: 80 },
         ],
       };
 
