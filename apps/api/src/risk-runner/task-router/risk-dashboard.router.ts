@@ -22,6 +22,9 @@ import { DebateHandler } from './handlers/debate.handler';
 import { LearningQueueHandler } from './handlers/learning-queue.handler';
 import { EvaluationHandler } from './handlers/evaluation.handler';
 import { AlertHandler } from './handlers/alert.handler';
+// Phase 5: Advanced features
+import { CorrelationHandler } from './handlers/correlation.handler';
+import { PortfolioHandler } from './handlers/portfolio.handler';
 
 /**
  * Supported dashboard entities
@@ -34,7 +37,9 @@ export type RiskDashboardEntity =
   | 'debates'
   | 'learning-queue'
   | 'evaluations'
-  | 'alerts';
+  | 'alerts'
+  | 'correlations'
+  | 'portfolio';
 
 /**
  * Dashboard router response
@@ -63,6 +68,9 @@ export class RiskDashboardRouter {
     private readonly learningQueueHandler: LearningQueueHandler,
     private readonly evaluationHandler: EvaluationHandler,
     private readonly alertHandler: AlertHandler,
+    // Phase 5: Advanced features
+    private readonly correlationHandler: CorrelationHandler,
+    private readonly portfolioHandler: PortfolioHandler,
   ) {}
 
   /**
@@ -189,6 +197,15 @@ export class RiskDashboardRouter {
       case 'alert':
         return this.alertHandler.execute(operation, payload, context);
 
+      // Phase 5: Advanced features
+      case 'correlations':
+      case 'correlation':
+        return this.correlationHandler.execute(operation, payload, context);
+
+      case 'portfolio':
+      case 'portfolios':
+        return this.portfolioHandler.execute(operation, payload, context);
+
       default:
         return buildDashboardError(
           'UNKNOWN_ENTITY',
@@ -249,6 +266,8 @@ export class RiskDashboardRouter {
       'learning-queue',
       'evaluations',
       'alerts',
+      'correlations',
+      'portfolio',
     ];
   }
 
@@ -273,6 +292,10 @@ export class RiskDashboardRouter {
         return this.evaluationHandler.getSupportedActions();
       case 'alerts':
         return this.alertHandler.getSupportedActions();
+      case 'correlations':
+        return this.correlationHandler.getSupportedActions();
+      case 'portfolio':
+        return this.portfolioHandler.getSupportedActions();
       default:
         return [];
     }

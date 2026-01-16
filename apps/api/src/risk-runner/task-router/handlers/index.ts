@@ -8,3 +8,7 @@ export * from './debate.handler';
 export * from './learning-queue.handler';
 export * from './evaluation.handler';
 export * from './alert.handler';
+
+// Phase 5: Advanced features
+export * from './correlation.handler';
+export * from './portfolio.handler';

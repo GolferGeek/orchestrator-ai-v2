@@ -16,3 +16,7 @@ export * from './alert.interface';
 // Learning entities
 export * from './learning.interface';
 export * from './evaluation.interface';
+
+// Phase 5: Advanced features
+export * from './correlation.interface';
+export * from './portfolio.interface';

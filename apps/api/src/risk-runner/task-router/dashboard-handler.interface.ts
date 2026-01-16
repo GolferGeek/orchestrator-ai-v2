@@ -23,6 +23,8 @@ export interface DashboardActionResult<T = unknown> {
     pageSize?: number;
     hasMore?: boolean;
     message?: string;
+    // Phase 5: Additional metadata fields for advanced features
+    [key: string]: unknown;
   };
 }
 

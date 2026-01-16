@@ -27,6 +27,8 @@ import {
   RiskLearningService,
   HistoricalReplayService,
   RiskAlertService,
+  CorrelationAnalysisService,
+  PortfolioRiskService,
 } from './services';
 
 // Runners
@@ -48,6 +50,8 @@ import {
   LearningQueueHandler,
   EvaluationHandler,
   AlertHandler,
+  CorrelationHandler,
+  PortfolioHandler,
 } from './task-router/handlers';
 
 const repositories = [
@@ -72,6 +76,8 @@ const services = [
   RiskLearningService,
   HistoricalReplayService,
   RiskAlertService,
+  CorrelationAnalysisService,
+  PortfolioRiskService,
 ];
 
 const runners = [
@@ -91,6 +97,8 @@ const dashboardHandlers = [
   LearningQueueHandler,
   EvaluationHandler,
   AlertHandler,
+  CorrelationHandler,
+  PortfolioHandler,
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════

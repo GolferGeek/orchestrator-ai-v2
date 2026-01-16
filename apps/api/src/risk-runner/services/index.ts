@@ -8,3 +8,7 @@ export * from './risk-evaluation.service';
 export * from './risk-learning.service';
 export * from './historical-replay.service';
 export * from './risk-alert.service';
+
+// Phase 5: Advanced features
+export * from './correlation-analysis.service';
+export * from './portfolio-risk.service';

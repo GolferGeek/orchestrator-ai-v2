@@ -73,6 +73,40 @@ export class AlertRepository {
   }
 
   /**
+   * Find alerts by scope (via subjects in scope)
+   * Phase 5: Portfolio-level alert retrieval
+   */
+  async findByScope(
+    scopeId: string,
+    filter?: AlertFilter,
+  ): Promise<RiskAlert[]> {
+    // Join alerts with subjects to filter by scope
+    let query = this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .select(
+        `
+        *,
+        subjects!inner(scope_id)
+      `,
+      )
+      .eq('subjects.scope_id', scopeId);
+
+    query = this.applyTestFilter(query, filter);
+
+    const { data, error } = (await query.order('created_at', {
+      ascending: false,
+    })) as SupabaseSelectListResponse<RiskAlert>;
+
+    if (error) {
+      this.logger.error(`Failed to fetch alerts by scope: ${error.message}`);
+      throw new Error(`Failed to fetch alerts by scope: ${error.message}`);
+    }
+
+    return data ?? [];
+  }
+
+  /**
    * Find unacknowledged alerts using the view
    */
   async findUnacknowledged(
