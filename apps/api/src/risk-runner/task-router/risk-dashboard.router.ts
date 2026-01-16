@@ -16,6 +16,7 @@ import {
 // Import entity handlers
 import { ScopeHandler } from './handlers/scope.handler';
 import { SubjectHandler } from './handlers/subject.handler';
+import { DimensionHandler } from './handlers/dimension.handler';
 import { CompositeScoreHandler } from './handlers/composite-score.handler';
 import { AssessmentHandler } from './handlers/assessment.handler';
 import { DebateHandler } from './handlers/debate.handler';
@@ -32,6 +33,7 @@ import { PortfolioHandler } from './handlers/portfolio.handler';
 export type RiskDashboardEntity =
   | 'scopes'
   | 'subjects'
+  | 'dimensions'
   | 'composite-scores'
   | 'assessments'
   | 'debates'
@@ -62,6 +64,7 @@ export class RiskDashboardRouter {
   constructor(
     private readonly scopeHandler: ScopeHandler,
     private readonly subjectHandler: SubjectHandler,
+    private readonly dimensionHandler: DimensionHandler,
     private readonly compositeScoreHandler: CompositeScoreHandler,
     private readonly assessmentHandler: AssessmentHandler,
     private readonly debateHandler: DebateHandler,
@@ -171,6 +174,10 @@ export class RiskDashboardRouter {
       case 'subject':
         return this.subjectHandler.execute(operation, payload, context);
 
+      case 'dimensions':
+      case 'dimension':
+        return this.dimensionHandler.execute(operation, payload, context);
+
       case 'composite-scores':
       case 'compositescores':
       case 'composite-score':
@@ -260,6 +267,7 @@ export class RiskDashboardRouter {
     return [
       'scopes',
       'subjects',
+      'dimensions',
       'composite-scores',
       'assessments',
       'debates',
@@ -280,6 +288,8 @@ export class RiskDashboardRouter {
         return this.scopeHandler.getSupportedActions();
       case 'subjects':
         return this.subjectHandler.getSupportedActions();
+      case 'dimensions':
+        return this.dimensionHandler.getSupportedActions();
       case 'composite-scores':
         return this.compositeScoreHandler.getSupportedActions();
       case 'assessments':

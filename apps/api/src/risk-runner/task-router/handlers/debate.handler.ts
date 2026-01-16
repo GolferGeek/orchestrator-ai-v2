@@ -31,7 +31,9 @@ export class DebateHandler implements IDashboardHandler {
     'view',
     'trigger',
     'getBySubject',
+    'by-subject',
     'getLatest',
+    'latest',
     'contexts.list',
     'contexts.get',
   ];
@@ -61,8 +63,10 @@ export class DebateHandler implements IDashboardHandler {
       case 'trigger':
         return this.handleTrigger(payload, context);
       case 'getbysubject':
+      case 'by-subject':
         return this.handleGetBySubject(payload);
       case 'getlatest':
+      case 'latest':
         return this.handleGetLatest(payload);
       case 'contexts.list':
         return this.handleListContexts(payload);
@@ -92,8 +96,9 @@ export class DebateHandler implements IDashboardHandler {
 
     if (!subjectId) {
       return buildDashboardError(
-        'MISSING_SUBJECT_ID',
-        'Subject ID is required',
+        'MISSING_FILTER',
+        'Subject ID is required. Use debates.by-subject for subject-specific queries.',
+        { supportedFilters: ['subjectId'] },
       );
     }
 

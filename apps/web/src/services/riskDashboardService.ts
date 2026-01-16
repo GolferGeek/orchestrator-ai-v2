@@ -58,6 +58,7 @@ interface DashboardRequestPayload {
 
 class RiskDashboardService {
   private currentAgentSlug: string = DEFAULT_AGENT_SLUG;
+  private currentOrgSlug: string | null = null;
   private authStore: ReturnType<typeof useAuthStore> | null = null;
 
   /**
@@ -66,6 +67,14 @@ class RiskDashboardService {
    */
   setAgentSlug(agentSlug: string): void {
     this.currentAgentSlug = agentSlug;
+  }
+
+  /**
+   * Set the organization slug for dashboard requests
+   * Call this to override the organization from URL query params
+   */
+  setOrgSlug(orgSlug: string | null): void {
+    this.currentOrgSlug = orgSlug;
   }
 
   /**
@@ -83,7 +92,8 @@ class RiskDashboardService {
   }
 
   private getOrgSlug(): string {
-    const org = this.getAuthStore().currentOrganization;
+    // Use explicit org slug if set, otherwise fall back to auth store
+    const org = this.currentOrgSlug || this.getAuthStore().currentOrganization;
     if (!org) {
       throw new Error('No organization context available');
     }

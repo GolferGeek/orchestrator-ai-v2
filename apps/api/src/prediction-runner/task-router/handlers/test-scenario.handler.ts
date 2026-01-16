@@ -148,7 +148,7 @@ export class TestScenarioHandler implements IDashboardHandler {
       case 'inject':
         return this.handleInject(params as InjectDataParams);
       case 'generate':
-        return this.handleGenerate(params as GenerateMockParams);
+        return this.handleGenerate(context, params as GenerateMockParams);
       case 'run-tier':
         return this.handleRunTier(params as RunTierParams);
       case 'cleanup':
@@ -422,6 +422,7 @@ export class TestScenarioHandler implements IDashboardHandler {
   }
 
   private async handleGenerate(
+    context: ExecutionContext,
     params?: GenerateMockParams,
   ): Promise<DashboardActionResult> {
     if (!params?.scenarioId || !params?.type || !params?.config) {
@@ -483,11 +484,17 @@ export class TestScenarioHandler implements IDashboardHandler {
           const articleConfig = params.config as MockArticleConfig;
           const articles =
             this.testDataGeneratorService.generateMockArticles(articleConfig);
-          // Articles are returned but not directly injected - they would be converted to signals
+          // Inject articles into test_articles table
+          const injected = await this.testDataInjectorService.injectArticles(
+            params.scenarioId,
+            context.orgSlug,
+            articles,
+          );
           return buildDashboardSuccess({
             type: 'articles',
             generated_count: articles.length,
-            items: articles,
+            injected_count: injected.length,
+            items: injected,
           });
         }
 

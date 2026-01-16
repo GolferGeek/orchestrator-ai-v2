@@ -220,6 +220,59 @@ export class TestDataInjectorService {
     return this.injectIntoTable<T>('strategies', strategies, scenarioId);
   }
 
+  /**
+   * Inject articles into test_articles table
+   * Note: test_articles uses scenario_id instead of test_scenario_id
+   */
+  async injectArticles(
+    scenarioId: string,
+    organizationSlug: string,
+    articles: Array<{
+      title: string;
+      content: string;
+      url?: string;
+      published_at: string;
+      author?: string;
+      source_name?: string;
+    }>,
+  ): Promise<Array<{ id: string; title: string; scenario_id: string }>> {
+    if (articles.length === 0) {
+      return [];
+    }
+
+    // Transform MockArticle to CreateTestArticleData format
+    const articleData = articles.map((article) => ({
+      organization_slug: organizationSlug,
+      scenario_id: scenarioId,
+      title: article.title,
+      content: article.content,
+      source_name: article.source_name ?? 'Test News Site',
+      published_at: article.published_at,
+      target_symbols: [],
+      is_synthetic: true,
+      synthetic_marker: `test-scenario-${scenarioId}`,
+      processed: false,
+      metadata: { author: article.author, url: article.url },
+    }));
+
+    const { data: inserted, error } = await this.getClient()
+      .schema(this.schema)
+      .from('test_articles')
+      .insert(articleData)
+      .select('id, title, scenario_id');
+
+    if (error) {
+      this.logger.error(`Failed to inject articles: ${error.message}`);
+      throw new Error(`Failed to inject articles: ${error.message}`);
+    }
+
+    this.logger.debug(
+      `Injected ${inserted?.length ?? 0} articles for scenario ${scenarioId}`,
+    );
+
+    return inserted ?? [];
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   // OUTCOME INJECTION (for testing evaluations)
   // ═══════════════════════════════════════════════════════════════════════════

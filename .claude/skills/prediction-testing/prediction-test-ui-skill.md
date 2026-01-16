@@ -77,6 +77,23 @@ http://localhost:6101
     - Learning Session: "Start Learning Session" button to compare fork performance and exchange learnings
 - **Verified 2026-01-16**: 1 analyst (Base Analyst), Inactive status, weight 1.00
 
+### 3b. Analyst - Create Modal
+- **Access**: Click "+ New Analyst" button in Analyst Management
+- **Structure**:
+  - **Header**: "Create Analyst"
+  - **Form Fields**:
+    - Slug (required): text input, lowercase with hyphens only
+    - Name (required): text input
+    - Perspective (required): textarea
+    - Scope Level (required): dropdown - Runner (Global) | Domain | Universe | Target
+    - Default Weight (required): number input (0.0 to 1.0), default 0.5
+    - Tier Instructions (optional section):
+      - Gold Tier: textarea for gold tier LLM instructions
+      - Silver Tier: textarea for silver tier LLM instructions
+      - Bronze Tier: textarea for bronze tier LLM instructions
+  - **Buttons**: Cancel | Create
+- **Verified 2026-01-16**: Modal opens correctly with all fields
+
 ### 4. Review Queue (HITL)
 - **URL**: `/prediction/review`
 - **Expected**: 4 items awaiting review

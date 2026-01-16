@@ -9,6 +9,7 @@ import {
   buildPaginationMetadata,
 } from '../dashboard-handler.interface';
 import { ScopeRepository } from '../../repositories/scope.repository';
+import { RiskAnalysisService } from '../../services/risk-analysis.service';
 
 @Injectable()
 export class ScopeHandler implements IDashboardHandler {
@@ -19,9 +20,13 @@ export class ScopeHandler implements IDashboardHandler {
     'create',
     'update',
     'delete',
+    'analyze',
   ];
 
-  constructor(private readonly scopeRepo: ScopeRepository) {}
+  constructor(
+    private readonly scopeRepo: ScopeRepository,
+    private readonly riskAnalysisService: RiskAnalysisService,
+  ) {}
 
   async execute(
     action: string,
@@ -41,6 +46,8 @@ export class ScopeHandler implements IDashboardHandler {
         return this.handleUpdate(payload);
       case 'delete':
         return this.handleDelete(payload);
+      case 'analyze':
+        return this.handleAnalyze(payload, context);
       default:
         return buildDashboardError(
           'UNSUPPORTED_ACTION',
@@ -161,5 +168,68 @@ export class ScopeHandler implements IDashboardHandler {
     await this.scopeRepo.delete(id);
 
     return buildDashboardSuccess({ deleted: true, id });
+  }
+
+  /**
+   * Analyze all subjects in a scope - batch risk analysis
+   */
+  private async handleAnalyze(
+    payload: DashboardRequestPayload,
+    context: ExecutionContext,
+  ): Promise<DashboardActionResult> {
+    const params = payload.params as Record<string, unknown> | undefined;
+    const id = params?.id as string | undefined;
+
+    if (!id) {
+      return buildDashboardError('MISSING_ID', 'Scope ID is required');
+    }
+
+    // Get the scope
+    const scope = await this.scopeRepo.findById(id);
+    if (!scope) {
+      return buildDashboardError('NOT_FOUND', `Scope not found: ${id}`);
+    }
+
+    try {
+      const results = await this.riskAnalysisService.analyzeScope(
+        scope,
+        context,
+      );
+
+      const successCount = results.length;
+      const avgScore =
+        successCount > 0
+          ? Math.round(
+              results.reduce((sum, r) => sum + r.compositeScore.overall_score, 0) /
+                successCount,
+            )
+          : 0;
+
+      return buildDashboardSuccess(
+        {
+          scopeId: scope.id,
+          scopeName: scope.name,
+          analyzedCount: successCount,
+          averageScore: avgScore,
+          results: results.map((r) => ({
+            subjectId: r.subject.id,
+            identifier: r.subject.identifier,
+            overallScore: r.compositeScore.overall_score,
+            debateTriggered: r.debateTriggered,
+          })),
+        },
+        {
+          message: `Batch analysis complete for ${scope.name}: ${successCount} subjects analyzed, avg score=${avgScore}`,
+        },
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to analyze scope ${id}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return buildDashboardError(
+        'ANALYSIS_FAILED',
+        error instanceof Error ? error.message : 'Batch analysis failed',
+      );
+    }
   }
 }

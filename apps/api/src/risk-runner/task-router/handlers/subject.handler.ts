@@ -9,6 +9,8 @@ import {
   buildPaginationMetadata,
 } from '../dashboard-handler.interface';
 import { SubjectRepository } from '../../repositories/subject.repository';
+import { ScopeRepository } from '../../repositories/scope.repository';
+import { RiskAnalysisService } from '../../services/risk-analysis.service';
 
 @Injectable()
 export class SubjectHandler implements IDashboardHandler {
@@ -19,14 +21,19 @@ export class SubjectHandler implements IDashboardHandler {
     'create',
     'update',
     'delete',
+    'analyze',
   ];
 
-  constructor(private readonly subjectRepo: SubjectRepository) {}
+  constructor(
+    private readonly subjectRepo: SubjectRepository,
+    private readonly scopeRepo: ScopeRepository,
+    private readonly riskAnalysisService: RiskAnalysisService,
+  ) {}
 
   async execute(
     action: string,
     payload: DashboardRequestPayload,
-    _context: ExecutionContext,
+    context: ExecutionContext,
   ): Promise<DashboardActionResult> {
     this.logger.debug(`Executing subject action: ${action}`);
 
@@ -41,6 +48,8 @@ export class SubjectHandler implements IDashboardHandler {
         return this.handleUpdate(payload);
       case 'delete':
         return this.handleDelete(payload);
+      case 'analyze':
+        return this.handleAnalyze(payload, context);
       default:
         return buildDashboardError(
           'UNSUPPORTED_ACTION',
@@ -163,5 +172,66 @@ export class SubjectHandler implements IDashboardHandler {
     await this.subjectRepo.delete(id);
 
     return buildDashboardSuccess({ deleted: true, id });
+  }
+
+  /**
+   * Analyze a subject - runs full risk analysis
+   */
+  private async handleAnalyze(
+    payload: DashboardRequestPayload,
+    context: ExecutionContext,
+  ): Promise<DashboardActionResult> {
+    const params = payload.params as Record<string, unknown> | undefined;
+    const id = params?.id as string | undefined;
+
+    if (!id) {
+      return buildDashboardError('MISSING_ID', 'Subject ID is required');
+    }
+
+    // Get the subject
+    const subject = await this.subjectRepo.findById(id);
+    if (!subject) {
+      return buildDashboardError('NOT_FOUND', `Subject not found: ${id}`);
+    }
+
+    // Get the scope for this subject
+    const scope = await this.scopeRepo.findById(subject.scope_id);
+    if (!scope) {
+      return buildDashboardError(
+        'NOT_FOUND',
+        `Scope not found for subject: ${id}`,
+      );
+    }
+
+    try {
+      const result = await this.riskAnalysisService.analyzeSubject(
+        subject,
+        scope,
+        context,
+      );
+
+      return buildDashboardSuccess(
+        {
+          subjectId: result.subject.id,
+          identifier: result.subject.identifier,
+          overallScore: result.compositeScore.overall_score,
+          confidence: result.compositeScore.confidence,
+          assessmentCount: result.assessmentCount,
+          debateTriggered: result.debateTriggered,
+          debateId: result.debate?.id,
+        },
+        {
+          message: `Analysis complete for ${result.subject.identifier}: score=${result.compositeScore.overall_score}`,
+        },
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to analyze subject ${id}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return buildDashboardError(
+        'ANALYSIS_FAILED',
+        error instanceof Error ? error.message : 'Analysis failed',
+      );
+    }
   }
 }

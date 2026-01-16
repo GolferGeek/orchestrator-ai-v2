@@ -44,6 +44,7 @@ import { RiskDashboardRouter } from './task-router/risk-dashboard.router';
 import {
   ScopeHandler,
   SubjectHandler,
+  DimensionHandler,
   CompositeScoreHandler,
   AssessmentHandler,
   DebateHandler,
@@ -91,6 +92,7 @@ const dashboardHandlers = [
   RiskDashboardRouter,
   ScopeHandler,
   SubjectHandler,
+  DimensionHandler,
   CompositeScoreHandler,
   AssessmentHandler,
   DebateHandler,

@@ -1750,18 +1750,39 @@ class PredictionDashboardService {
   async createAnalyst(
     params: AnalystCreateParams
   ): Promise<DashboardResponsePayload<PredictionAnalyst>> {
+    // Transform camelCase to snake_case for API compatibility
+    const transformedParams = {
+      slug: params.slug,
+      name: params.name,
+      perspective: params.perspective,
+      scope_level: params.scopeLevel,
+      domain: params.domain,
+      universe_id: params.universeId,
+      target_id: params.targetId,
+      default_weight: params.defaultWeight,
+      tier_instructions: params.tierInstructions,
+    };
     return this.executeDashboardRequest<PredictionAnalyst>(
       'analysts.create',
-      params
+      transformedParams
     );
   }
 
   async updateAnalyst(
     params: AnalystUpdateParams
   ): Promise<DashboardResponsePayload<PredictionAnalyst>> {
+    // Transform camelCase to snake_case for API compatibility
+    const transformedParams = {
+      id: params.id,
+      name: params.name,
+      perspective: params.perspective,
+      default_weight: params.defaultWeight,
+      tier_instructions: params.tierInstructions,
+      active: params.active,
+    };
     return this.executeDashboardRequest<PredictionAnalyst>(
       'analysts.update',
-      params
+      transformedParams
     );
   }
 
@@ -1778,32 +1799,82 @@ class PredictionDashboardService {
   // PHASE 11: LEARNING OPERATIONS
   // ==========================================================================
 
+  /**
+   * Transform learning response from snake_case (API) to camelCase (frontend)
+   */
+  private transformLearningResponse(learning: Record<string, unknown>): PredictionLearning {
+    return {
+      id: learning.id as string,
+      title: learning.title as string,
+      scopeLevel: (learning.scope_level as string) || (learning.scopeLevel as string),
+      domain: (learning.domain as string | null) || null,
+      universeId: (learning.universe_id as string | null) || (learning.universeId as string | null) || null,
+      targetId: (learning.target_id as string | null) || (learning.targetId as string | null) || null,
+      analystId: (learning.analyst_id as string | null) || (learning.analystId as string | null) || null,
+      learningType: (learning.learning_type as string) || (learning.learningType as string),
+      content: (learning.description as string) || (learning.content as string) || '',
+      sourceType: (learning.source_type as string) || (learning.sourceType as string),
+      status: learning.status as string,
+      supersededBy: (learning.superseded_by as string | null) || (learning.supersededBy as string | null) || null,
+      createdAt: (learning.created_at as string) || (learning.createdAt as string),
+      updatedAt: (learning.updated_at as string) || (learning.updatedAt as string),
+    } as PredictionLearning;
+  }
+
   async listLearnings(
     params?: LearningListParams
   ): Promise<DashboardResponsePayload<PredictionLearning[]>> {
-    return this.executeDashboardRequest<PredictionLearning[]>(
+    const response = await this.executeDashboardRequest<Record<string, unknown>[]>(
       'learnings.list',
       undefined,
       params
     );
+    // Transform snake_case response to camelCase
+    if (response.content && Array.isArray(response.content)) {
+      response.content = response.content.map((l) => this.transformLearningResponse(l)) as unknown as Record<string, unknown>[];
+    }
+    return response as unknown as DashboardResponsePayload<PredictionLearning[]>;
   }
 
   async getLearning(params: {
     id: string;
   }): Promise<DashboardResponsePayload<PredictionLearning>> {
-    return this.executeDashboardRequest<PredictionLearning>(
+    const response = await this.executeDashboardRequest<Record<string, unknown>>(
       'learnings.get',
       params
     );
+    // Transform snake_case response to camelCase
+    if (response.content) {
+      response.content = this.transformLearningResponse(response.content) as unknown as Record<string, unknown>;
+    }
+    return response as unknown as DashboardResponsePayload<PredictionLearning>;
   }
 
   async createLearning(
     params: LearningCreateParams
   ): Promise<DashboardResponsePayload<PredictionLearning>> {
-    return this.executeDashboardRequest<PredictionLearning>(
+    // Transform camelCase to snake_case for API compatibility
+    // Note: API expects 'description' but frontend uses 'content'
+    const transformedParams = {
+      title: params.title,
+      scope_level: params.scopeLevel,
+      domain: params.domain,
+      universe_id: params.universeId,
+      target_id: params.targetId,
+      analyst_id: params.analystId,
+      learning_type: params.learningType,
+      description: params.content, // API field name differs from frontend
+      source_type: params.sourceType,
+    };
+    const response = await this.executeDashboardRequest<Record<string, unknown>>(
       'learnings.create',
-      params
+      transformedParams
     );
+    // Transform snake_case response to camelCase
+    if (response.content) {
+      response.content = this.transformLearningResponse(response.content) as unknown as Record<string, unknown>;
+    }
+    return response as unknown as DashboardResponsePayload<PredictionLearning>;
   }
 
   async updateLearning(

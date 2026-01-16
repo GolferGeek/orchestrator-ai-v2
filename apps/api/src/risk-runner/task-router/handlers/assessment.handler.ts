@@ -17,7 +17,9 @@ export class AssessmentHandler implements IDashboardHandler {
     'list',
     'get',
     'getBySubject',
+    'by-subject',
     'getByTask',
+    'by-task',
   ];
 
   constructor(private readonly assessmentRepo: AssessmentRepository) {}
@@ -35,8 +37,10 @@ export class AssessmentHandler implements IDashboardHandler {
       case 'get':
         return this.handleGet(payload);
       case 'getbysubject':
+      case 'by-subject':
         return this.handleGetBySubject(payload);
       case 'getbytask':
+      case 'by-task':
         return this.handleGetByTask(payload);
       default:
         return buildDashboardError(
@@ -56,15 +60,27 @@ export class AssessmentHandler implements IDashboardHandler {
   ): Promise<DashboardActionResult> {
     const params = payload.params as Record<string, unknown> | undefined;
     const subjectId = params?.subjectId as string | undefined;
+    const taskId = params?.taskId as string | undefined;
 
-    if (!subjectId) {
+    // Must provide either subjectId or taskId
+    if (!subjectId && !taskId) {
       return buildDashboardError(
-        'MISSING_SUBJECT_ID',
-        'Subject ID is required',
+        'MISSING_FILTER',
+        'Either subjectId or taskId is required. Use assessments.by-subject or assessments.by-task for specific queries.',
+        { supportedFilters: ['subjectId', 'taskId'] },
       );
     }
 
-    const assessments = await this.assessmentRepo.findBySubject(subjectId);
+    let assessments: Awaited<
+      ReturnType<typeof this.assessmentRepo.findBySubject>
+    >;
+    if (subjectId) {
+      assessments = await this.assessmentRepo.findBySubject(subjectId);
+    } else if (taskId) {
+      assessments = await this.assessmentRepo.findByTask(taskId);
+    } else {
+      assessments = [];
+    }
 
     // Apply pagination
     const page = payload.pagination?.page ?? 1;
