@@ -227,7 +227,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue';
-import { useLearningStore, type ForkComparisonReport, type LearningExchange, type ExchangeOutcome } from '@/stores/learningStore';
+import { useLearningStore, type ExchangeOutcome } from '@/stores/learningStore';
 import { predictionDashboardService } from '@/services/predictionDashboardService';
 
 const props = defineProps<{

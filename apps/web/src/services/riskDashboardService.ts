@@ -26,7 +26,6 @@ import type {
   RiskLearning,
   PendingLearningView,
   RiskEvaluation,
-  DashboardFilters,
   DashboardStats,
   DashboardActionResponse,
   AnalyzeSubjectResponse,

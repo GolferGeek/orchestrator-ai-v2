@@ -19,6 +19,8 @@ import { TestTargetMirrorHandler } from '../handlers/test-target-mirror.handler'
 import { AnalyticsHandler } from '../handlers/analytics.handler';
 import { SourceSeenItemsHandler } from '../handlers/source-seen-items.handler';
 import { SignalsHandler } from '../handlers/signals.handler';
+import { AgentActivityHandler } from '../handlers/agent-activity.handler';
+import { LearningSessionHandler } from '../handlers/learning-session.handler';
 import {
   ExecutionContext,
   DashboardRequestPayload,
@@ -85,6 +87,8 @@ describe('PredictionDashboardRouter', () => {
         { provide: AnalyticsHandler, useValue: createMockHandler() },
         { provide: SourceSeenItemsHandler, useValue: createMockHandler() },
         { provide: SignalsHandler, useValue: createMockHandler() },
+        { provide: AgentActivityHandler, useValue: createMockHandler() },
+        { provide: LearningSessionHandler, useValue: createMockHandler() },
       ],
     }).compile();
 

@@ -516,7 +516,6 @@ import { usePredictionStore } from '@/stores/predictionStore';
 import {
   predictionDashboardService,
   type PredictionAnalyst,
-  type ForkComparisonReport,
 } from '@/services/predictionDashboardService';
 import AnalystCard from '@/components/prediction/AnalystCard.vue';
 import LearningSessionDialog from '@/components/prediction/LearningSessionDialog.vue';

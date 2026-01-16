@@ -224,6 +224,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   predictionIds: () => [],
+  fetchComparisonFn: undefined,
 });
 
 const emit = defineEmits<{
