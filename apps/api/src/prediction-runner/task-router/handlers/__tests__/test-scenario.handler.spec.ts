@@ -82,6 +82,13 @@ describe('TestScenarioHandler', () => {
           test_scenario_id: 'scenario-123',
         },
       ]),
+      injectArticles: jest.fn().mockResolvedValue([
+        {
+          id: 'article-1',
+          is_test_data: true,
+          test_scenario_id: 'scenario-123',
+        },
+      ]),
       runSignalDetection: jest.fn().mockResolvedValue({
         success: true,
         items_processed: 5,
