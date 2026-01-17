@@ -1,7 +1,7 @@
 <template>
   <div class="learnings-tab">
     <div v-if="learnings.length === 0" class="empty-state">
-      <span class="empty-icon">&#128161;</span>
+      <span class="empty-icon">💡</span>
       <h3>No Pending Learnings</h3>
       <p>The system will suggest learnings based on analysis outcomes.</p>
     </div>
@@ -13,26 +13,26 @@
         class="learning-card"
       >
         <div class="learning-header">
-          <span :class="['type-badge', learning.learningType]">
-            {{ formatType(learning.learningType) }}
+          <span :class="['type-badge', getLearningType(learning as any)]">
+            {{ formatType(getLearningType(learning as any)) }}
           </span>
-          <span class="learning-scope">{{ learning.scopeName }}</span>
+          <span class="learning-scope">{{ getScopeName(learning as any) }}</span>
         </div>
 
-        <p class="learning-description">{{ learning.description }}</p>
+        <p class="learning-description">{{ getDescription(learning as any) }}</p>
 
-        <div v-if="learning.dimensionName" class="learning-dimension">
-          <strong>Dimension:</strong> {{ learning.dimensionName }}
+        <div v-if="getDimensionName(learning as any)" class="learning-dimension">
+          <strong>Dimension:</strong> {{ getDimensionName(learning as any) }}
         </div>
 
-        <div class="learning-change">
+        <div v-if="getSuggestedChange(learning as any)" class="learning-change">
           <strong>Suggested Change:</strong>
-          <pre>{{ JSON.stringify(learning.suggestedChange, null, 2) }}</pre>
+          <pre>{{ JSON.stringify(getSuggestedChange(learning as any), null, 2) }}</pre>
         </div>
 
         <div class="learning-meta">
-          <span>Created: {{ formatDate(learning.createdAt) }}</span>
-          <span v-if="learning.queuePriority">Priority: {{ learning.queuePriority }}</span>
+          <span>Created: {{ formatDate(getCreatedAt(learning as any)) }}</span>
+          <span v-if="getQueuePriority(learning as any)">Confidence: {{ (getQueuePriority(learning as any)! * 100).toFixed(0) }}%</span>
         </div>
 
         <div class="learning-actions">
@@ -51,6 +51,29 @@
 <script setup lang="ts">
 import type { PendingLearningView } from '@/types/risk-agent';
 
+// Extended type to handle snake_case from API
+type ApiLearning = PendingLearningView & {
+  learning_type?: string;
+  learningType?: string;
+  suggested_learning_type?: string;
+  scope_name?: string;
+  scopeName?: string;
+  dimension_name?: string;
+  dimensionName?: string;
+  suggested_change?: Record<string, unknown>;
+  suggestedChange?: Record<string, unknown>;
+  suggested_config?: Record<string, unknown>;
+  queue_priority?: number;
+  queuePriority?: number;
+  ai_confidence?: number;
+  aiConfidence?: number;
+  created_at?: string;
+  createdAt?: string;
+  suggested_title?: string;
+  suggested_description?: string;
+  ai_reasoning?: string;
+};
+
 defineProps<{
   learnings: PendingLearningView[];
 }>();
@@ -60,12 +83,44 @@ defineEmits<{
   reject: [learningId: string];
 }>();
 
-function formatType(type: string): string {
+function getLearningType(learning: ApiLearning): string {
+  return learning.learningType || learning.learning_type || learning.suggested_learning_type || 'pattern';
+}
+
+function getScopeName(learning: ApiLearning): string {
+  return learning.scopeName || learning.scope_name || 'Unknown Scope';
+}
+
+function getDimensionName(learning: ApiLearning): string | undefined {
+  return learning.dimensionName || learning.dimension_name;
+}
+
+function getDescription(learning: ApiLearning): string {
+  return learning.description || learning.suggested_description || '';
+}
+
+function getSuggestedChange(learning: ApiLearning): Record<string, unknown> | undefined {
+  return learning.suggestedChange || learning.suggested_change || learning.suggested_config;
+}
+
+function getQueuePriority(learning: ApiLearning): number | undefined {
+  return learning.queuePriority ?? learning.queue_priority ?? learning.aiConfidence ?? learning.ai_confidence;
+}
+
+function getCreatedAt(learning: ApiLearning): string {
+  return learning.createdAt || learning.created_at || '';
+}
+
+function formatType(type: string | undefined): string {
+  if (!type) return 'Unknown';
   return type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function formatDate(isoString: string): string {
-  return new Date(isoString).toLocaleString();
+function formatDate(isoString: string | undefined): string {
+  if (!isoString) return 'Unknown';
+  const date = new Date(isoString);
+  if (isNaN(date.getTime())) return 'Unknown';
+  return date.toLocaleString();
 }
 </script>
 

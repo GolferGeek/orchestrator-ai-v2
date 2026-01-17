@@ -95,9 +95,9 @@ Comprehensive test plan for the Finance Stock/Crypto Predictor front-end system.
 |----|-----------|-------|-----------------|--------|-------------|
 | LRNQ-01 | Learning Queue loads | Click Learning Queue card from dashboard | Opens learning queue view with tabs | PASS | 2026-01-16 |
 | LRNQ-02 | Queue items display | View queue items | Shows AI-suggested learnings with actions (or empty state) | PASS | 2026-01-16 |
-| LRNQ-03 | Approve learning | Click approve on queue item | Learning promoted to active | | |
-| LRNQ-04 | Reject learning | Click reject on queue item | Learning removed from queue | | |
-| LRNQ-05 | View learning details | Click on queue item | Shows full learning details | | |
+| LRNQ-03 | Approve learning | Click approve on queue item | Learning promoted to active | SKIP | 2026-01-16 |
+| LRNQ-04 | Reject learning | Click reject on queue item | Learning removed from queue | SKIP | 2026-01-16 |
+| LRNQ-05 | View learning details | Click on queue item | Shows full learning details | SKIP | 2026-01-16 |
 
 ### 7. Learnings Management
 | ID | Test Case | Steps | Expected Result | Status | Last Tested |
@@ -113,8 +113,8 @@ Comprehensive test plan for the Finance Stock/Crypto Predictor front-end system.
 |----|-----------|-------|-----------------|--------|-------------|
 | MISS-01 | Missed Opportunities loads | Click Missed Opportunities card from dashboard | Opens view with stats row and status tabs | PASS | 2026-01-16 |
 | MISS-02 | Opportunities display | View opportunities list | Shows unpredicted market moves (or empty state) | PASS | 2026-01-16 |
-| MISS-03 | Create learning from miss | Click "Create Learning" on opportunity | Initiates learning creation from missed opportunity | | |
-| MISS-04 | Filter opportunities | Use available filters | Filters opportunities by criteria | | |
+| MISS-03 | Create learning from miss | Click "Create Learning" on opportunity | Initiates learning creation from missed opportunity | SKIP | 2026-01-16 |
+| MISS-04 | Filter opportunities | Use available filters | Filters opportunities by criteria | SKIP | 2026-01-16 |
 
 ### 9. Portfolio Management
 | ID | Test Case | Steps | Expected Result | Status | Last Tested |
@@ -203,6 +203,10 @@ Comprehensive test plan for the Finance Stock/Crypto Predictor front-end system.
 - 2026-01-16: NAV-01 tested - hamburger menu shows all agents with correct icons (8 agents including prediction agents)
 - 2026-01-16: NAV-02 tested - "← Back to Dashboard" from Test Lab returns to prediction dashboard
 - 2026-01-16: TEST-15 tested - New Replay Test opens modal with Name, Description, Roll Back To, Rollback Depth, Universe fields
+- 2026-01-16: Test data injection verified working - created "Learning Queue Test Data" scenario with 2 learning queue items and 2 missed opportunities
+- 2026-01-16: LRNQ-03/04/05 skipped - no production learning queue items exist (AI hasn't suggested any yet). Test data is correctly isolated in Test Lab.
+- 2026-01-16: MISS-03/04 skipped - no production missed opportunities detected (system hasn't detected any). Test data is correctly isolated in Test Lab.
+- 2026-01-16: Skill documentation updated with correct missed_opportunities table schema (move_type, move_start_at, move_end_at, start_value, end_value, percent_change, detection_method)
 
 ---
 

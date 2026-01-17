@@ -134,8 +134,19 @@ WHERE name = 'Mixed Signal Analysis';
 
 -- =====================================================================================
 -- STEP 5: Generate realistic test articles for each scenario
+-- DISABLED: test_articles table schema changed - columns renamed
 -- =====================================================================================
 
+-- NOTE: This step is commented out because the test_articles table schema
+-- has different column names than what this migration was written for:
+-- - symbol -> target_symbols (array)
+-- - headline -> title
+-- - sentiment -> sentiment_expected
+-- - source -> source_name
+-- - is_test_data -> is_synthetic
+-- Also requires organization_slug which is missing.
+
+/*
 DO $$
 DECLARE
   v_bull_market_id UUID;
@@ -254,11 +265,21 @@ BEGIN
 
   RAISE NOTICE 'Created test articles for all 4 scenarios';
 END $$;
+*/
 
 -- =====================================================================================
 -- STEP 6: Generate realistic price data for each scenario
+-- DISABLED: test_price_data table schema changed - columns renamed
 -- =====================================================================================
 
+-- NOTE: This step is commented out because the test_price_data table schema
+-- has different column names than what this migration was written for:
+-- - timestamp -> price_timestamp
+-- - symbol must start with T_ prefix
+-- - is_test_data doesn't exist
+-- Also requires organization_slug which is missing.
+
+/*
 DO $$
 DECLARE
   v_bull_market_id UUID;
@@ -392,6 +413,7 @@ BEGIN
 
   RAISE NOTICE 'Created price data for all 4 scenarios';
 END $$;
+*/
 
 -- =====================================================================================
 -- VERIFICATION
@@ -404,8 +426,8 @@ DECLARE
   v_price_count INTEGER;
 BEGIN
   SELECT COUNT(*) INTO v_scenario_count FROM prediction.test_scenarios;
-  SELECT COUNT(*) INTO v_article_count FROM prediction.test_articles WHERE is_test_data = true;
-  SELECT COUNT(*) INTO v_price_count FROM prediction.test_price_data WHERE is_test_data = true;
+  SELECT COUNT(*) INTO v_article_count FROM prediction.test_articles WHERE is_synthetic = true;
+  SELECT COUNT(*) INTO v_price_count FROM prediction.test_price_data;
 
   RAISE NOTICE '========== TEST SCENARIO CLEANUP VERIFICATION ==========';
   RAISE NOTICE 'Total test scenarios: %', v_scenario_count;

@@ -67,17 +67,51 @@ export class PredictionGenerationService {
 
     this.logger.log(`Attempting prediction generation for target: ${targetId}`);
 
-    // Check for existing active prediction - prevent duplicates
+    // Check for existing active prediction
     const existingPredictions = await this.predictionRepository.findByTarget(
       targetId,
       'active',
     );
+
     if (existingPredictions.length > 0) {
-      this.logger.debug(
-        `Skipping prediction generation for ${targetId}: ` +
-          `${existingPredictions.length} active prediction(s) already exist`,
+      const existingPrediction = existingPredictions[0]!;
+
+      // Evaluate current predictors to see if refresh is needed
+      const thresholdResult =
+        await this.predictorManagementService.evaluateThreshold(
+          targetId,
+          effectiveConfig,
+        );
+
+      if (!thresholdResult.meetsThreshold) {
+        this.logger.debug(
+          `Active prediction exists for ${targetId}, threshold not met for refresh`,
+        );
+        return existingPrediction;
+      }
+
+      // Check if we should refresh the existing prediction
+      const shouldRefresh = this.shouldRefreshPrediction(
+        existingPrediction,
+        thresholdResult,
       );
-      return null;
+
+      if (shouldRefresh.refresh) {
+        this.logger.log(
+          `Refreshing prediction for ${targetId}: ${shouldRefresh.reason}`,
+        );
+        return this.refreshPrediction(
+          ctx,
+          existingPrediction,
+          thresholdResult,
+          effectiveConfig,
+        );
+      }
+
+      this.logger.debug(
+        `Active prediction for ${targetId} is still valid, no refresh needed`,
+      );
+      return existingPrediction;
     }
 
     // Evaluate threshold
@@ -103,6 +137,197 @@ export class PredictionGenerationService {
       targetId,
       thresholdResult,
       effectiveConfig,
+    );
+  }
+
+  /**
+   * Determine if an existing prediction should be refreshed
+   * Refresh if: direction changes OR confidence shifts > 15%
+   */
+  private shouldRefreshPrediction(
+    existing: Prediction,
+    newThreshold: ThresholdEvaluationResult,
+  ): { refresh: boolean; reason: string } {
+    // Map new dominant direction to prediction direction
+    const newDirection = this.mapPredictorToPredictonDirection(
+      newThreshold.dominantDirection,
+    );
+
+    // Check for direction change
+    if (existing.direction !== newDirection) {
+      return {
+        refresh: true,
+        reason: `direction changed from ${existing.direction} to ${newDirection}`,
+      };
+    }
+
+    // Estimate new confidence based on threshold (simplified)
+    // Full confidence calculation happens in generatePrediction
+    const estimatedNewConfidence =
+      newThreshold.directionConsensus * 0.6 +
+      newThreshold.details.avgConfidence * 0.4;
+
+    // Check for significant confidence shift (> 15%)
+    const confidenceDiff = Math.abs(
+      existing.confidence - estimatedNewConfidence,
+    );
+    if (confidenceDiff > 0.15) {
+      return {
+        refresh: true,
+        reason: `confidence shifted by ${(confidenceDiff * 100).toFixed(0)}% (${(existing.confidence * 100).toFixed(0)}% → ${(estimatedNewConfidence * 100).toFixed(0)}%)`,
+      };
+    }
+
+    return { refresh: false, reason: 'no significant change' };
+  }
+
+  /**
+   * Refresh an existing prediction with new predictor data
+   * Updates confidence, reasoning, and appends to version history
+   */
+  async refreshPrediction(
+    ctx: ExecutionContext,
+    existingPrediction: Prediction,
+    thresholdResult: ThresholdEvaluationResult,
+    _config: ThresholdConfig,
+  ): Promise<Prediction> {
+    const targetId = existingPrediction.target_id;
+    this.logger.log(`Refreshing prediction ${existingPrediction.id}`);
+
+    const target = await this.targetService.findByIdOrThrow(targetId);
+
+    // Get active predictors (will NOT be consumed - they continue to contribute)
+    const predictors =
+      await this.predictorManagementService.getActivePredictors(targetId);
+
+    // Run fresh ensemble evaluation
+    const ensembleInput: EnsembleInput = {
+      targetId,
+      content: this.buildPredictionContext(predictors, thresholdResult),
+      direction: thresholdResult.dominantDirection,
+    };
+
+    const ensembleResult = await this.ensembleService.runEnsemble(
+      ctx,
+      target,
+      ensembleInput,
+    );
+
+    // Calculate new prediction parameters
+    const newDirection = this.mapPredictorToPredictonDirection(
+      thresholdResult.dominantDirection,
+    );
+    const newMagnitude = this.estimateMagnitude(predictors, ensembleResult);
+    const newConfidence = this.calculateFinalConfidence(
+      thresholdResult,
+      ensembleResult,
+    );
+    const magnitudeCategory = this.categorizeMagnitude(newMagnitude);
+
+    // Build version history entry
+    const previousVersion = {
+      timestamp: existingPrediction.updated_at || existingPrediction.created_at,
+      direction: existingPrediction.direction,
+      confidence: existingPrediction.confidence,
+      magnitude: existingPrediction.magnitude || 'unknown',
+      predictor_count:
+        (existingPrediction.analyst_ensemble as { predictor_count?: number })
+          ?.predictor_count || 0,
+    };
+
+    // Get existing version history or create new
+    const existingEnsemble =
+      (existingPrediction.analyst_ensemble as {
+        versions?: Array<{
+          timestamp: string;
+          direction: string;
+          confidence: number;
+          magnitude: string;
+          predictor_count: number;
+        }>;
+      }) || {};
+    const versions = [...(existingEnsemble.versions || [])];
+    versions.push(previousVersion);
+
+    // Update prediction with new values
+    const updatedPrediction = await this.predictionRepository.update(
+      existingPrediction.id,
+      {
+        direction: newDirection,
+        confidence: newConfidence,
+        magnitude: magnitudeCategory,
+        reasoning: ensembleResult.aggregated.reasoning,
+      },
+    );
+
+    // Update analyst_ensemble with new data and version history
+    // Note: This requires a separate update since analyst_ensemble is JSONB
+    await this.updateAnalystEnsemble(existingPrediction.id, {
+      predictor_count: predictors.length,
+      combined_strength: thresholdResult.combinedStrength,
+      direction_consensus: thresholdResult.directionConsensus,
+      versions,
+      last_refresh: new Date().toISOString(),
+    });
+
+    this.logger.log(
+      `Refreshed prediction ${existingPrediction.id}: ` +
+        `${newDirection} (was ${existingPrediction.direction}), ` +
+        `confidence ${(newConfidence * 100).toFixed(0)}% (was ${(existingPrediction.confidence * 100).toFixed(0)}%)`,
+    );
+
+    // Emit prediction.refreshed event for observability
+    await this.observabilityEventsService.push({
+      context: ctx,
+      source_app: 'prediction-runner',
+      hook_event_type: 'prediction.refreshed',
+      status: 'refreshed',
+      message: `Prediction refreshed: ${target.symbol} ${newDirection} (${(newConfidence * 100).toFixed(0)}% confidence)`,
+      progress: null,
+      step: 'prediction-refreshed',
+      payload: {
+        predictionId: existingPrediction.id,
+        targetId,
+        targetSymbol: target.symbol,
+        previousDirection: existingPrediction.direction,
+        newDirection,
+        previousConfidence: existingPrediction.confidence,
+        newConfidence,
+        previousMagnitude: existingPrediction.magnitude,
+        newMagnitude: magnitudeCategory,
+        predictorCount: predictors.length,
+        combinedStrength: thresholdResult.combinedStrength,
+        directionConsensus: thresholdResult.directionConsensus,
+        versionCount: versions.length,
+      },
+      timestamp: Date.now(),
+    });
+
+    return updatedPrediction;
+  }
+
+  /**
+   * Update the analyst_ensemble JSONB field
+   */
+  private async updateAnalystEnsemble(
+    predictionId: string,
+    ensemble: {
+      predictor_count: number;
+      combined_strength: number;
+      direction_consensus: number;
+      versions?: Array<{
+        timestamp: string;
+        direction: string;
+        confidence: number;
+        magnitude: string;
+        predictor_count: number;
+      }>;
+      last_refresh?: string;
+    },
+  ): Promise<void> {
+    await this.predictionRepository.updateAnalystEnsemble(
+      predictionId,
+      ensemble,
     );
   }
 

@@ -284,7 +284,7 @@ export class RiskEvaluationRunner {
       agentSlug,
       agentType: 'api',
       provider: process.env.DEFAULT_LLM_PROVIDER || 'anthropic',
-      model: process.env.DEFAULT_LLM_MODEL || 'claude-3-5-sonnet-latest',
+      model: process.env.DEFAULT_LLM_MODEL || 'claude-sonnet-4-20250514',
     };
   }
 

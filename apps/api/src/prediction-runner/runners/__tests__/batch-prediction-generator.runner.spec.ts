@@ -170,6 +170,10 @@ describe('BatchPredictionGeneratorRunner', () => {
           bearishCount: 1,
           neutralCount: 0,
           avgConfidence: 0.75,
+          weightedBullish: 3.5,
+          weightedBearish: 0.8,
+          weightedNeutral: 0,
+          totalWeight: 4.3,
         },
       });
       predictionGenerationService.attemptPredictionGeneration.mockResolvedValue(
@@ -202,6 +206,10 @@ describe('BatchPredictionGeneratorRunner', () => {
           bearishCount: 1,
           neutralCount: 0,
           avgConfidence: 0.5,
+          weightedBullish: 0.8,
+          weightedBearish: 0.6,
+          weightedNeutral: 0,
+          totalWeight: 1.4,
         },
       });
 
@@ -278,6 +286,10 @@ describe('BatchPredictionGeneratorRunner', () => {
           bearishCount: 1,
           neutralCount: 0,
           avgConfidence: 0.75,
+          weightedBullish: 3.5,
+          weightedBearish: 0.8,
+          weightedNeutral: 0,
+          totalWeight: 4.3,
         },
       });
 

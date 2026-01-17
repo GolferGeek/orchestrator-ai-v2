@@ -1,7 +1,7 @@
 <template>
   <div class="alerts-tab">
     <div v-if="alerts.length === 0" class="empty-state">
-      <span class="empty-icon">&#128077;</span>
+      <span class="empty-icon">👍</span>
       <h3>No Unacknowledged Alerts</h3>
       <p>All alerts have been reviewed and acknowledged.</p>
     </div>
@@ -16,24 +16,24 @@
           <span :class="['severity-badge', alert.severity]">
             {{ alert.severity.toUpperCase() }}
           </span>
-          <span class="alert-time">{{ formatTime(alert.createdAt) }}</span>
+          <span class="alert-time">{{ formatTime(getCreatedAt(alert as any)) }}</span>
         </div>
 
         <div class="alert-subject">
-          <strong>{{ alert.subjectName || alert.subjectIdentifier }}</strong>
+          <strong>{{ getSubjectName(alert as any) }}</strong>
         </div>
 
         <p class="alert-message">{{ alert.message }}</p>
 
         <div v-if="alert.details" class="alert-details">
-          <span v-if="alert.details.triggerScore !== undefined">
-            Score: {{ formatScore(alert.details.triggerScore) }}
+          <span v-if="getTriggerScore(alert as any) !== undefined">
+            Score: {{ formatScore(getTriggerScore(alert as any)) }}
           </span>
-          <span v-if="alert.details.threshold !== undefined">
-            Threshold: {{ formatScore(alert.details.threshold) }}
+          <span v-if="getThreshold(alert as any) !== undefined">
+            Threshold: {{ formatScore(getThreshold(alert as any)) }}
           </span>
-          <span v-if="alert.details.changePercent !== undefined">
-            Change: {{ formatPercent(alert.details.changePercent) }}
+          <span v-if="getChangePercent(alert as any) !== undefined">
+            Change: {{ formatPercent(getChangePercent(alert as any)) }}
           </span>
         </div>
 
@@ -50,6 +50,22 @@
 <script setup lang="ts">
 import type { UnacknowledgedAlertView } from '@/types/risk-agent';
 
+// Extended type to handle snake_case from API
+type ApiAlert = UnacknowledgedAlertView & {
+  created_at?: string;
+  subject_name?: string;
+  subject_identifier?: string;
+  details?: {
+    triggerScore?: number;
+    trigger_score?: number;
+    threshold?: number;
+    changePercent?: number;
+    change_percent?: number;
+    actual_score?: number;
+    [key: string]: unknown;
+  };
+};
+
 defineProps<{
   alerts: UnacknowledgedAlertView[];
 }>();
@@ -58,16 +74,45 @@ defineEmits<{
   acknowledge: [alertId: string];
 }>();
 
-function formatTime(isoString: string): string {
+function getCreatedAt(alert: ApiAlert): string {
+  return alert.createdAt || alert.created_at || '';
+}
+
+function getSubjectName(alert: ApiAlert): string {
+  return alert.subjectName || alert.subject_name || alert.subjectIdentifier || alert.subject_identifier || 'Unknown';
+}
+
+function getTriggerScore(alert: ApiAlert): number | undefined {
+  return alert.details?.triggerScore ?? alert.details?.trigger_score ?? alert.details?.actual_score;
+}
+
+function getThreshold(alert: ApiAlert): number | undefined {
+  return alert.details?.threshold;
+}
+
+function getChangePercent(alert: ApiAlert): number | undefined {
+  return alert.details?.changePercent ?? alert.details?.change_percent;
+}
+
+function formatTime(isoString: string | undefined): string {
+  if (!isoString) return 'Invalid Date';
   const date = new Date(isoString);
+  if (isNaN(date.getTime())) return 'Invalid Date';
   return date.toLocaleString();
 }
 
-function formatScore(score: number): string {
+function formatScore(score: number | undefined): string {
+  if (score === undefined || score === null) return '-';
+  // If score is > 1, assume it's already a percentage (0-100 scale)
+  // If score is <= 1, assume it's a decimal (0-1 scale)
+  if (score > 1) {
+    return score.toFixed(0) + '%';
+  }
   return (score * 100).toFixed(0) + '%';
 }
 
-function formatPercent(value: number): string {
+function formatPercent(value: number | undefined): string {
+  if (value === undefined || value === null) return '-';
   const sign = value >= 0 ? '+' : '';
   return sign + value.toFixed(1) + '%';
 }

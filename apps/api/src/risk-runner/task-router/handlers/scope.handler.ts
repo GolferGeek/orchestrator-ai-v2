@@ -200,8 +200,10 @@ export class ScopeHandler implements IDashboardHandler {
       const avgScore =
         successCount > 0
           ? Math.round(
-              results.reduce((sum, r) => sum + r.compositeScore.overall_score, 0) /
-                successCount,
+              results.reduce(
+                (sum, r) => sum + r.compositeScore.overall_score,
+                0,
+              ) / successCount,
             )
           : 0;
 

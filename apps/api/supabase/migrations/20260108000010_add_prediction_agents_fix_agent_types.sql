@@ -9,6 +9,13 @@
 -- =============================================================================
 
 -- =============================================================================
+-- PREREQUISITE: Create finance organization if it doesn't exist
+-- =============================================================================
+INSERT INTO public.organizations (slug, name, description)
+VALUES ('finance', 'Finance', 'Financial services and prediction agents')
+ON CONFLICT (slug) DO NOTHING;
+
+-- =============================================================================
 -- STEP 1: Remove deprecated finance-research agent (if exists)
 -- =============================================================================
 DELETE FROM public.agents WHERE slug = 'finance-research';

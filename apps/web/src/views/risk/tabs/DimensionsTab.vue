@@ -8,7 +8,7 @@
     </div>
 
     <div v-if="dimensions.length === 0" class="empty-state">
-      <span class="empty-icon">&#128203;</span>
+      <span class="empty-icon">📋</span>
       <h3>No Dimensions Configured</h3>
       <p>Add risk dimensions to enable multi-dimensional analysis.</p>
     </div>
@@ -24,8 +24,8 @@
             <h4>{{ dimension.name }}</h4>
             <span class="dimension-slug">{{ dimension.slug }}</span>
           </div>
-          <span :class="['status-badge', dimension.isActive ? 'active' : 'inactive']">
-            {{ dimension.isActive ? 'Active' : 'Inactive' }}
+          <span :class="['status-badge', (dimension.isActive || (dimension as any).is_active) ? 'active' : 'inactive']">
+            {{ (dimension.isActive || (dimension as any).is_active) ? 'Active' : 'Inactive' }}
           </span>
         </div>
 
@@ -38,7 +38,7 @@
             <strong>Weight:</strong> {{ dimension.weight.toFixed(2) }}
           </span>
           <span class="created">
-            Created: {{ formatDate(dimension.createdAt) }}
+            Created: {{ formatDate(dimension.createdAt || (dimension as any).created_at) }}
           </span>
         </div>
 
@@ -50,7 +50,7 @@
             class="btn btn-small"
             @click="toggleActive(dimension)"
           >
-            {{ dimension.isActive ? 'Deactivate' : 'Activate' }}
+            {{ (dimension.isActive || (dimension as any).is_active) ? 'Deactivate' : 'Activate' }}
           </button>
           <button
             class="btn btn-small btn-danger"
@@ -210,7 +210,8 @@ function submitForm() {
 }
 
 function toggleActive(dimension: RiskDimension) {
-  emit('update', dimension.id, { isActive: !dimension.isActive });
+  const currentActive = dimension.isActive || (dimension as any).is_active;
+  emit('update', dimension.id, { isActive: !currentActive });
 }
 
 function confirmDelete(dimension: RiskDimension) {
@@ -224,8 +225,15 @@ function confirmDeleteAction() {
   }
 }
 
-function formatDate(isoString: string): string {
-  return new Date(isoString).toLocaleDateString();
+function formatDate(isoString: string | undefined | null): string {
+  if (!isoString) {
+    return 'Not available';
+  }
+  const date = new Date(isoString);
+  if (isNaN(date.getTime())) {
+    return 'Not available';
+  }
+  return date.toLocaleDateString();
 }
 </script>
 

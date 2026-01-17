@@ -54,6 +54,25 @@ export class PredictorManagementService {
   }
 
   /**
+   * Calculate time-decay weight for a predictor
+   * Uses exponential decay: weight = exp(-decayRate * hoursOld)
+   * This gives newer predictors more influence than older ones
+   *
+   * @param createdAt - When the predictor was created
+   * @param decayRate - Decay rate (0.05 gives ~50% weight at 14 hours)
+   * @returns Weight between 0 and 1 (1 = brand new, decays toward 0)
+   */
+  private calculateTimeWeight(createdAt: string, decayRate: number): number {
+    if (decayRate === 0) return 1; // No decay - equal weighting
+
+    const createdDate = new Date(createdAt);
+    const now = new Date();
+    const hoursOld = (now.getTime() - createdDate.getTime()) / (1000 * 60 * 60);
+
+    return Math.exp(-decayRate * hoursOld);
+  }
+
+  /**
    * Get active predictors for a target
    */
   async getActivePredictors(targetId: string): Promise<Predictor[]> {
@@ -66,16 +85,19 @@ export class PredictorManagementService {
 
   /**
    * Evaluate if predictors meet threshold for prediction creation
+   * Uses time-weighted consensus where newer predictors have more influence
    */
   async evaluateThreshold(
     targetId: string,
     config?: ThresholdConfig,
   ): Promise<ThresholdEvaluationResult> {
     const effectiveConfig = { ...DEFAULT_THRESHOLD_CONFIG, ...config };
+    // Default decay rate is 0.05 (~50% weight after 14 hours)
+    const decayRate = effectiveConfig.time_decay_rate ?? 0.05;
 
     const predictors = await this.getActivePredictors(targetId);
 
-    // Count by direction
+    // Count by direction (raw counts for reference)
     const bullishPredictors = predictors.filter(
       (p) => p.direction === 'bullish',
     );
@@ -91,7 +113,31 @@ export class PredictorManagementService {
     const neutralCount = neutralPredictors.length;
     const activeCount = predictors.length;
 
-    // Calculate combined strength
+    // Calculate time-weighted sums by direction
+    // Newer predictors contribute more to the direction consensus
+    let weightedBullish = 0;
+    let weightedBearish = 0;
+    let weightedNeutral = 0;
+    let totalWeight = 0;
+
+    for (const predictor of predictors) {
+      const weight = this.calculateTimeWeight(predictor.created_at, decayRate);
+      totalWeight += weight;
+
+      switch (predictor.direction) {
+        case 'bullish':
+          weightedBullish += weight;
+          break;
+        case 'bearish':
+          weightedBearish += weight;
+          break;
+        case 'neutral':
+          weightedNeutral += weight;
+          break;
+      }
+    }
+
+    // Calculate combined strength (unweighted - still represents total signal strength)
     const combinedStrength = predictors.reduce((sum, p) => sum + p.strength, 0);
 
     // Calculate average confidence
@@ -100,25 +146,33 @@ export class PredictorManagementService {
         ? predictors.reduce((sum, p) => sum + p.confidence, 0) / activeCount
         : 0;
 
-    // Determine dominant direction
+    // Determine dominant direction using WEIGHTED sums
+    // This gives newer predictors more say in determining the overall direction
     let dominantDirection: 'bullish' | 'bearish' | 'neutral';
-    if (bullishCount > bearishCount && bullishCount > neutralCount) {
+    if (
+      weightedBullish > weightedBearish &&
+      weightedBullish > weightedNeutral
+    ) {
       dominantDirection = 'bullish';
-    } else if (bearishCount > bullishCount && bearishCount > neutralCount) {
+    } else if (
+      weightedBearish > weightedBullish &&
+      weightedBearish > weightedNeutral
+    ) {
       dominantDirection = 'bearish';
     } else {
       dominantDirection = 'neutral';
     }
 
-    // Calculate direction consensus (% of predictors agreeing with dominant)
-    const dominantCount =
+    // Calculate direction consensus using WEIGHTED ratios
+    // This means a recent predictor disagreeing with older ones carries more weight
+    const dominantWeight =
       dominantDirection === 'bullish'
-        ? bullishCount
+        ? weightedBullish
         : dominantDirection === 'bearish'
-          ? bearishCount
-          : neutralCount;
+          ? weightedBearish
+          : weightedNeutral;
     const directionConsensus =
-      activeCount > 0 ? dominantCount / activeCount : 0;
+      totalWeight > 0 ? dominantWeight / totalWeight : 0;
 
     // Check if thresholds are met
     const meetsThreshold =
@@ -137,13 +191,18 @@ export class PredictorManagementService {
         bearishCount,
         neutralCount,
         avgConfidence,
+        // Include weighted metrics for transparency
+        weightedBullish,
+        weightedBearish,
+        weightedNeutral,
+        totalWeight,
       },
     };
 
     this.logger.debug(
       `Threshold evaluation for ${targetId}: ` +
         `meets=${meetsThreshold}, active=${activeCount}, ` +
-        `strength=${combinedStrength}, consensus=${directionConsensus.toFixed(2)}`,
+        `strength=${combinedStrength}, weighted consensus=${directionConsensus.toFixed(2)} (${dominantDirection})`,
     );
 
     // Emit predictor.ready event when threshold is met
@@ -154,7 +213,7 @@ export class PredictorManagementService {
         source_app: 'prediction-runner',
         hook_event_type: 'predictor.ready',
         status: 'ready',
-        message: `Predictor threshold met for target: ${activeCount} predictors, ${combinedStrength} combined strength, ${(directionConsensus * 100).toFixed(0)}% consensus (${dominantDirection})`,
+        message: `Predictor threshold met for target: ${activeCount} predictors, ${combinedStrength} combined strength, ${(directionConsensus * 100).toFixed(0)}% weighted consensus (${dominantDirection})`,
         progress: null,
         step: 'predictor-ready',
         payload: {
@@ -167,6 +226,12 @@ export class PredictorManagementService {
           bearishCount,
           neutralCount,
           avgConfidence,
+          // Time-weighted metrics
+          weightedBullish,
+          weightedBearish,
+          weightedNeutral,
+          totalWeight,
+          timeDecayRate: decayRate,
         },
         timestamp: Date.now(),
       });

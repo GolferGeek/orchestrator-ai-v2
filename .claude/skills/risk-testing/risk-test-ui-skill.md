@@ -13,16 +13,51 @@ Test risk analysis system front-end screens using Claude Code Chrome extension, 
 ## Base URLs
 
 ```
-WEB_URL: http://localhost:6101
-API_URL: http://localhost:6100
+WEB_URL: http://localhost:6103   # Development web app (port 6103, not 6101)
+API_URL: http://localhost:6100    # API server
 ```
 
 ## Testing Flow
 
-1. **Get expected data from API** (using test-helper.sh)
-2. **Navigate to screen** in browser
-3. **Verify displayed data** matches expected
-4. **Document findings** and update skill
+1. **Ensure authentication** (check login status or authenticate via browser)
+2. **Get expected data from API** (using test-helper.sh) or **verify via database**
+3. **Navigate to screen** in browser
+4. **Verify displayed data** matches expected
+5. **Document findings** and update skill
+
+---
+
+## Browser Login Automation
+
+When tokens expire or starting fresh, authenticate via browser:
+
+### Login URL
+```
+http://localhost:6103/login
+```
+
+### Login Steps (Chrome Extension)
+1. Navigate to login page
+2. Find email input (`ref_id` or by text "Email")
+3. Enter test email: use `SUPABASE_TEST_USER` from `.env`
+4. Find password input
+5. Enter test password: use `SUPABASE_TEST_PASSWORD` from `.env`
+6. Click "Login" or "Sign In" button
+7. Wait for redirect to dashboard
+8. Verify auth by checking for user menu or profile element
+
+### Detecting Token Expiration
+If you see any of these, re-authenticate:
+- 401 Unauthorized errors in console
+- Redirect to /login page
+- "Session expired" message
+- Network requests failing with auth errors
+
+### Quick Auth Check (JavaScript)
+```javascript
+// Check if authenticated
+localStorage.getItem('access_token') !== null
+```
 
 ---
 
@@ -30,15 +65,31 @@ API_URL: http://localhost:6100
 
 ### Accessing Risk Dashboard
 
+**Method 1: Direct URL (Recommended)**
+```
+/app/risk/dashboard?agentSlug=investment-risk-agent&orgSlug=finance
+```
+
+**Method 2: Via Menu**
 1. Click hamburger menu in top-left
 2. Expand "Agents & Conversations" section
 3. Find "Investment Risk Agent" with shield icon
 4. Click grid icon to open dashboard view
 
-### Direct URL
+### Full URLs for Testing
 ```
-/app/home?forceHome=true&agentSlug=investment-risk-agent
+# Risk Dashboard with org context
+http://localhost:6103/app/risk/dashboard?agentSlug=investment-risk-agent&orgSlug=finance
+
+# Login page (if redirect needed)
+http://localhost:6103/login?redirect=/app/risk/dashboard?agentSlug=investment-risk-agent%26orgSlug=finance
 ```
+
+### Query Parameters
+| Param | Required | Description |
+|-------|----------|-------------|
+| agentSlug | Yes | `investment-risk-agent` |
+| orgSlug | Yes | Organization slug (e.g., `finance`) |
 
 ---
 
@@ -47,9 +98,10 @@ API_URL: http://localhost:6100
 ### Phase 1: Basic Navigation
 
 #### 1.1 Dashboard Loads
-- **URL**: `/app/home?forceHome=true&agentSlug=investment-risk-agent`
-- **Verify**: Page loads with title "Investment Risk Dashboard"
-- **Elements**: Header, tabs, sidebar visible
+- **URL**: `/app/risk/dashboard?agentSlug=investment-risk-agent&orgSlug=finance`
+- **Verify**: Page loads with title "Risk Dashboard" or scope name
+- **Elements**: Header, tabs (Overview, Alerts, Dimensions, Learnings, Settings), sidebar visible
+- **Auth Required**: Yes - will redirect to login if not authenticated
 
 #### 1.2 Tab Navigation
 - **Tabs**: Overview | Alerts | Dimensions | Learnings | Settings
@@ -350,8 +402,58 @@ Then verify UI shows same counts.
 
 | Screen | URL Pattern |
 |--------|-------------|
-| Risk Dashboard | `/app/home?forceHome=true&agentSlug=investment-risk-agent` |
-| (via menu) | Hamburger → Agents & Conversations → Investment Risk Agent |
+| Risk Dashboard | `/app/risk/dashboard?agentSlug=investment-risk-agent&orgSlug=finance` |
+| Login Page | `/login` |
+| Login with redirect | `/login?redirect=/app/risk/dashboard?agentSlug=investment-risk-agent%26orgSlug=finance` |
+
+---
+
+## Database Verification (Quick Checks)
+
+Use Supabase CLI or direct SQL to verify test data exists:
+
+### Check Scopes
+```bash
+# Via psql (from apps/api directory)
+npm run supabase:local -- db exec --sql "SELECT id, name, domain, org_slug FROM risk.scopes WHERE org_slug = 'finance'"
+```
+
+### Check Dimensions
+```bash
+npm run supabase:local -- db exec --sql "SELECT id, name, slug, weight FROM risk.dimensions WHERE scope_id = 'b454c2f7-a071-4ea3-acf8-1439b6b2b6c0'"
+```
+
+### Check Subjects
+```bash
+npm run supabase:local -- db exec --sql "SELECT id, identifier, name, type FROM risk.subjects WHERE scope_id = 'b454c2f7-a071-4ea3-acf8-1439b6b2b6c0'"
+```
+
+### Quick Data Summary
+```bash
+npm run supabase:local -- db exec --sql "
+  SELECT
+    (SELECT COUNT(*) FROM risk.scopes WHERE org_slug = 'finance') as scopes,
+    (SELECT COUNT(*) FROM risk.dimensions WHERE scope_id = 'b454c2f7-a071-4ea3-acf8-1439b6b2b6c0') as dimensions,
+    (SELECT COUNT(*) FROM risk.subjects WHERE scope_id = 'b454c2f7-a071-4ea3-acf8-1439b6b2b6c0') as subjects
+"
+```
+
+### Test Data IDs (for reference)
+```
+Scope ID: b454c2f7-a071-4ea3-acf8-1439b6b2b6c0
+Org Slug: finance
+Agent Slug: investment-risk-agent
+Domain: investment
+
+Subjects:
+- AAPL: Apple Inc.
+- MSFT: Microsoft Corporation
+- TSLA: Tesla Inc.
+
+Dimensions:
+- Market Risk (weight: 1.2)
+- Fundamental Risk (weight: 1.0)
+```
 
 ---
 

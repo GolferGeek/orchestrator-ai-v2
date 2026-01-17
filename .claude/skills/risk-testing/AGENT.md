@@ -96,8 +96,42 @@ orgSlug: finance
 agentSlug: investment-risk-agent
 agentType: risk
 API_URL: http://localhost:6100
-WEB_URL: http://localhost:6101
+WEB_URL: http://localhost:6103
+RISK_DASHBOARD_URL: /app/risk/dashboard?agentSlug=investment-risk-agent&orgSlug=finance
+SCOPE_ID: b454c2f7-a071-4ea3-acf8-1439b6b2b6c0
 ```
+
+## Pre-Test Checklist
+
+Before running tests, verify:
+
+1. **Services Running**:
+   ```bash
+   # Check API health
+   curl -s http://localhost:6100/health
+
+   # Check Web app
+   curl -s http://localhost:6103 | head -1
+   ```
+
+2. **Test Data Exists**:
+   ```bash
+   # Quick DB check (from apps/api directory)
+   npm run supabase:local -- db exec --sql "SELECT COUNT(*) as scopes FROM risk.scopes WHERE org_slug = 'finance'"
+   ```
+
+3. **Auth Token Valid** (for browser testing):
+   - Check browser console for 401 errors
+   - If token expired, re-login via browser
+
+## Common Issues & Solutions
+
+| Issue | Symptom | Solution |
+|-------|---------|----------|
+| Token expired | 401 errors, redirect to login | Re-authenticate via browser login |
+| Wrong org | "Select organization" message | Add `orgSlug=finance` to URL |
+| No data showing | Empty lists | Verify test data in database |
+| API not responding | Connection errors | Check API server is running on port 6100 |
 
 ## Credentials
 

@@ -290,3 +290,125 @@ Before testing UI, run API test to get expected data:
 ```
 
 Then verify UI shows same count.
+
+---
+
+## Test Data Injection
+
+The prediction system supports injecting test data via the API for regression testing.
+
+### Available Injection Points
+
+The `testScenario.inject` action supports these tables:
+- `signals` - Signal data
+- `predictors` - Predictor data
+- `predictions` - Prediction data
+- `evaluations` - Evaluation data
+- `sources` - Source configuration
+- `missed_opportunities` - Missed opportunity records
+- `learning_queue` - Learning queue items (AI-suggested learnings)
+- `analysts` - Analyst configurations
+- `strategies` - Strategy configurations
+- `test_articles` - Test articles for signal detection
+
+### Injecting Learning Queue Items
+
+Use the test-helper.sh script to inject learning queue items:
+
+```bash
+# Create a learning queue item for testing
+./test-helper.sh "testScenario.inject" '{
+  "scenarioId": "<scenario-uuid>",
+  "table": "learning_queue",
+  "data": [{
+    "suggested_scope_level": "target",
+    "suggested_domain": "stocks",
+    "suggested_target_id": "<target-uuid>",
+    "suggested_learning_type": "pattern",
+    "suggested_title": "Test Pattern Learning",
+    "suggested_description": "AI detected a recurring pattern in AAPL signals",
+    "suggested_config": {"indicators": ["volume_spike", "price_momentum"]},
+    "ai_reasoning": "Based on 5 successful predictions following this pattern",
+    "ai_confidence": 0.85,
+    "status": "pending"
+  }]
+}'
+```
+
+### Injecting Missed Opportunities
+
+```bash
+# Create a missed opportunity for testing
+./test-helper.sh "testScenario.inject" '{
+  "scenarioId": "<scenario-uuid>",
+  "table": "missed_opportunities",
+  "data": [{
+    "target_id": "<target-uuid>",
+    "move_type": "significant_up",
+    "move_start_at": "2026-01-14T09:30:00Z",
+    "move_end_at": "2026-01-15T16:00:00Z",
+    "start_value": 180.50,
+    "end_value": 195.83,
+    "percent_change": 8.50,
+    "detected_at": "2026-01-15T10:00:00Z",
+    "detection_method": "threshold",
+    "discovered_drivers": [],
+    "signals_we_had": [],
+    "signals_we_missed": [],
+    "source_gaps": [],
+    "suggested_learnings": [],
+    "analysis_status": "pending"
+  }]
+}'
+```
+
+### Required Fields by Table
+
+#### learning_queue
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| suggested_scope_level | string | Yes | runner/domain/universe/target |
+| suggested_learning_type | string | Yes | rule/pattern/weight_adjustment/threshold/avoid |
+| suggested_title | string | Yes | Title of suggested learning |
+| suggested_description | string | Yes | Detailed description |
+| suggested_config | object | Yes | Learning configuration |
+| ai_reasoning | string | Yes | AI's reasoning for suggestion |
+| ai_confidence | number | Yes | Confidence score 0-1 |
+| status | string | Yes | pending/approved/rejected/modified |
+
+#### missed_opportunities
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| target_id | uuid | Yes | Target ID |
+| move_type | string | Yes | significant_up/significant_down/breakout/breakdown |
+| move_start_at | timestamp | Yes | Move start time |
+| move_end_at | timestamp | Yes | Move end time |
+| start_value | number | Yes | Starting price value |
+| end_value | number | Yes | Ending price value |
+| percent_change | number | Yes | Percentage change |
+| detected_at | timestamp | Yes | When detected (defaults to NOW()) |
+| detection_method | string | Yes | threshold/pattern/manual |
+| discovered_drivers | jsonb | No | What caused this move (default []) |
+| signals_we_had | jsonb | No | Signals we had but didn't act on (default []) |
+| signals_we_missed | jsonb | No | Signals from sources we don't have (default []) |
+| source_gaps | jsonb | No | Missing data sources (default []) |
+| suggested_learnings | jsonb | No | AI-suggested learnings (default []) |
+| analysis_status | string | No | pending/analyzing/complete/failed (default pending) |
+
+### Quick Test Data Script
+
+Create test data for all skipped tests:
+```bash
+#!/bin/bash
+# Create a test scenario first
+SCENARIO_ID=$(./test-helper.sh "testScenario.create" '{"name": "UI Regression Test Data", "description": "Test data for regression testing", "injectionPoints": ["learning_queue", "missed_opportunities"]}' | jq -r '.payload.data.id')
+
+# Get a target ID
+TARGET_ID="<get from prediction.targets table>"
+
+# Inject learning queue item
+./test-helper.sh "testScenario.inject" "{\"scenarioId\": \"$SCENARIO_ID\", \"table\": \"learning_queue\", \"data\": [...]}"
+
+# Inject missed opportunity
+./test-helper.sh "testScenario.inject" "{\"scenarioId\": \"$SCENARIO_ID\", \"table\": \"missed_opportunities\", \"data\": [...]}"
+```

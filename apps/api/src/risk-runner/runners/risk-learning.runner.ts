@@ -303,7 +303,7 @@ Identify 1-3 actionable learning patterns.`;
       agentSlug: 'risk-learning-runner',
       agentType: 'api',
       provider: process.env.DEFAULT_LLM_PROVIDER || 'anthropic',
-      model: process.env.DEFAULT_LLM_MODEL || 'claude-3-5-sonnet-latest',
+      model: process.env.DEFAULT_LLM_MODEL || 'claude-sonnet-4-20250514',
     };
 
     const response = await this.llmService.generateResponse(

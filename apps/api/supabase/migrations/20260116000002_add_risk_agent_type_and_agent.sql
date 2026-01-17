@@ -118,7 +118,7 @@ INSERT INTO risk.scopes (
     domain,
     description,
     llm_config,
-    threshold_config,
+    thresholds,
     analysis_config,
     is_active
 )
@@ -133,9 +133,7 @@ VALUES (
     '{"riskRadar": {"enabled": true, "parallelDimensions": true}, "debate": {"enabled": true, "autoTrigger": true}, "learning": {"enabled": true, "autoApprove": false}}'::jsonb,
     true
 )
-ON CONFLICT (organization_slug, agent_slug, name) DO UPDATE SET
-    description = EXCLUDED.description,
-    updated_at = NOW()
+ON CONFLICT DO NOTHING
 RETURNING id;
 
 -- =============================================================================
@@ -266,7 +264,7 @@ BEGIN
     AND scope_id = (SELECT id FROM risk.scopes WHERE agent_slug = 'investment-risk-agent' LIMIT 1);
 
     IF v_dimension_id IS NOT NULL THEN
-        INSERT INTO risk.dimension_contexts (dimension_id, version, analysis_prompt, output_schema, is_active)
+        INSERT INTO risk.dimension_contexts (dimension_id, version, system_prompt, output_schema, is_active)
         VALUES (
             v_dimension_id,
             1,
@@ -290,7 +288,7 @@ Provide a risk score from 0 (lowest risk) to 1 (highest risk) with detailed reas
     AND scope_id = (SELECT id FROM risk.scopes WHERE agent_slug = 'investment-risk-agent' LIMIT 1);
 
     IF v_dimension_id IS NOT NULL THEN
-        INSERT INTO risk.dimension_contexts (dimension_id, version, analysis_prompt, output_schema, is_active)
+        INSERT INTO risk.dimension_contexts (dimension_id, version, system_prompt, output_schema, is_active)
         VALUES (
             v_dimension_id,
             1,
@@ -314,7 +312,7 @@ Provide a risk score from 0 (lowest risk) to 1 (highest risk) with detailed reas
     AND scope_id = (SELECT id FROM risk.scopes WHERE agent_slug = 'investment-risk-agent' LIMIT 1);
 
     IF v_dimension_id IS NOT NULL THEN
-        INSERT INTO risk.dimension_contexts (dimension_id, version, analysis_prompt, output_schema, is_active)
+        INSERT INTO risk.dimension_contexts (dimension_id, version, system_prompt, output_schema, is_active)
         VALUES (
             v_dimension_id,
             1,
@@ -338,7 +336,7 @@ Provide a risk score from 0 (lowest risk) to 1 (highest risk) with detailed reas
     AND scope_id = (SELECT id FROM risk.scopes WHERE agent_slug = 'investment-risk-agent' LIMIT 1);
 
     IF v_dimension_id IS NOT NULL THEN
-        INSERT INTO risk.dimension_contexts (dimension_id, version, analysis_prompt, output_schema, is_active)
+        INSERT INTO risk.dimension_contexts (dimension_id, version, system_prompt, output_schema, is_active)
         VALUES (
             v_dimension_id,
             1,
@@ -362,7 +360,7 @@ Provide a risk score from 0 (lowest risk) to 1 (highest risk) with detailed reas
     AND scope_id = (SELECT id FROM risk.scopes WHERE agent_slug = 'investment-risk-agent' LIMIT 1);
 
     IF v_dimension_id IS NOT NULL THEN
-        INSERT INTO risk.dimension_contexts (dimension_id, version, analysis_prompt, output_schema, is_active)
+        INSERT INTO risk.dimension_contexts (dimension_id, version, system_prompt, output_schema, is_active)
         VALUES (
             v_dimension_id,
             1,
@@ -386,7 +384,7 @@ Provide a risk score from 0 (lowest risk) to 1 (highest risk) with detailed reas
     AND scope_id = (SELECT id FROM risk.scopes WHERE agent_slug = 'investment-risk-agent' LIMIT 1);
 
     IF v_dimension_id IS NOT NULL THEN
-        INSERT INTO risk.dimension_contexts (dimension_id, version, analysis_prompt, output_schema, is_active)
+        INSERT INTO risk.dimension_contexts (dimension_id, version, system_prompt, output_schema, is_active)
         VALUES (
             v_dimension_id,
             1,
@@ -421,10 +419,10 @@ BEGIN
 
     IF v_scope_id IS NOT NULL THEN
         -- Blue Team (Risk Defense) Context
-        INSERT INTO risk.debate_contexts (scope_id, role, analysis_prompt, is_active)
+        INSERT INTO risk.debate_contexts (scope_id, role, system_prompt, is_active)
         VALUES (
             v_scope_id,
-            'blue_team',
+            'blue',
             'You are the Blue Team analyst defending the investment thesis. Your role is to:
 1. Present the bull case for this investment
 2. Highlight strengths and positive indicators
@@ -438,10 +436,10 @@ Be rigorous but fair. Acknowledge legitimate risks while presenting counterargum
         ON CONFLICT DO NOTHING;
 
         -- Red Team (Risk Challenge) Context
-        INSERT INTO risk.debate_contexts (scope_id, role, analysis_prompt, is_active)
+        INSERT INTO risk.debate_contexts (scope_id, role, system_prompt, is_active)
         VALUES (
             v_scope_id,
-            'red_team',
+            'red',
             'You are the Red Team analyst challenging the investment. Your role is to:
 1. Present the bear case for this investment
 2. Identify hidden or underappreciated risks
@@ -455,7 +453,7 @@ Be rigorous and thorough. Your job is to stress-test the investment thesis.',
         ON CONFLICT DO NOTHING;
 
         -- Arbiter (Synthesis) Context
-        INSERT INTO risk.debate_contexts (scope_id, role, analysis_prompt, is_active)
+        INSERT INTO risk.debate_contexts (scope_id, role, system_prompt, is_active)
         VALUES (
             v_scope_id,
             'arbiter',

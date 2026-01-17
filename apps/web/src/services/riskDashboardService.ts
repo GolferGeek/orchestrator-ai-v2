@@ -186,7 +186,14 @@ class RiskDashboardService {
       throw new Error(data.error.message || 'Dashboard request failed');
     }
 
-    return data.result?.payload || data.result || { success: true, content: null };
+    // API returns { success, payload: { content, metadata }, context }
+    // We need to extract payload and add success flag
+    const responsePayload = data.payload || data.result?.payload || data.result || {};
+    return {
+      success: data.success ?? true,
+      content: responsePayload.content ?? null,
+      metadata: responsePayload.metadata ?? null,
+    };
   }
 
   // ==========================================================================

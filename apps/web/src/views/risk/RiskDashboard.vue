@@ -14,22 +14,27 @@
 
         <!-- Scope Selection -->
         <section class="scope-section">
-          <div class="filter-group">
-            <label for="scope-filter">Scope</label>
-            <select
-              id="scope-filter"
-              v-model="selectedScopeId"
-              @change="onScopeChange"
-            >
-              <option :value="null" disabled>Select a scope</option>
-              <option
-                v-for="scope in store.scopes"
-                :key="scope.id"
-                :value="scope.id"
+          <div class="scope-controls">
+            <div class="filter-group">
+              <label for="scope-filter">Scope</label>
+              <select
+                id="scope-filter"
+                v-model="selectedScopeId"
+                @change="onScopeChange"
               >
-                {{ scope.name }} ({{ scope.domain }})
-              </option>
-            </select>
+                <option :value="null" disabled>Select a scope</option>
+                <option
+                  v-for="scope in store.scopes"
+                  :key="scope.id"
+                  :value="scope.id"
+                >
+                  {{ scope.name }} ({{ scope.domain }})
+                </option>
+              </select>
+            </div>
+            <button class="btn btn-primary btn-create-scope" @click="showCreateScopeModal = true">
+              + New Scope
+            </button>
           </div>
         </section>
 
@@ -62,7 +67,7 @@
 
         <!-- No Scope Selected -->
         <div v-else-if="!selectedScopeId" class="empty-state">
-          <span class="empty-icon">&#128270;</span>
+          <span class="empty-icon">🔍</span>
           <h3>Select a Scope</h3>
           <p>Please select a scope to view risk analysis data.</p>
         </div>
@@ -76,7 +81,7 @@
             :subjects="store.subjects"
             :composite-scores="store.compositeScores"
             :stats="store.stats"
-            @select-subject="onSelectSubject"
+            @select-subject="(id, score) => onSelectSubject(id, score)"
             @analyze="onAnalyzeSubject"
           />
 
@@ -113,6 +118,25 @@
           />
         </div>
       </div>
+
+      <!-- Subject Detail Panel -->
+      <SubjectDetailPanel
+        :is-open="showDetailPanel"
+        :subject="store.selectedSubject"
+        :is-loading="isLoadingDetail"
+        :is-analyzing="store.isAnalyzing"
+        :error="detailError"
+        @close="onCloseDetailPanel"
+        @analyze="onAnalyzeSubject"
+      />
+
+      <!-- Create Scope Modal -->
+      <CreateScopeModal
+        ref="createScopeModalRef"
+        :is-open="showCreateScopeModal"
+        @close="showCreateScopeModal = false"
+        @create="onCreateScope"
+      />
     </ion-content>
   </ion-page>
 </template>
@@ -129,6 +153,8 @@ import AlertsTab from './tabs/AlertsTab.vue';
 import DimensionsTab from './tabs/DimensionsTab.vue';
 import LearningsTab from './tabs/LearningsTab.vue';
 import SettingsTab from './tabs/SettingsTab.vue';
+import SubjectDetailPanel from './components/SubjectDetailPanel.vue';
+import CreateScopeModal from './components/CreateScopeModal.vue';
 
 const route = useRoute();
 const store = useRiskDashboardStore();
@@ -143,13 +169,23 @@ const orgSlug = computed(() => (route.query.orgSlug as string) || null);
 const activeTab = ref<'overview' | 'alerts' | 'dimensions' | 'learnings' | 'settings'>('overview');
 const selectedScopeId = ref<string | null>(null);
 
+// Detail panel state
+const showDetailPanel = ref(false);
+const selectedSubjectId = ref<string | null>(null);
+const isLoadingDetail = ref(false);
+const detailError = ref<string | null>(null);
+
+// Create scope modal state
+const showCreateScopeModal = ref(false);
+const createScopeModalRef = ref<InstanceType<typeof CreateScopeModal> | null>(null);
+
 // Tabs configuration
 const tabs = computed(() => [
-  { id: 'overview' as const, label: 'Overview', icon: '&#128200;', badge: null },
-  { id: 'alerts' as const, label: 'Alerts', icon: '&#128276;', badge: store.alerts.length || null },
-  { id: 'dimensions' as const, label: 'Dimensions', icon: '&#128202;', badge: null },
-  { id: 'learnings' as const, label: 'Learnings', icon: '&#128161;', badge: store.pendingLearnings.length || null },
-  { id: 'settings' as const, label: 'Settings', icon: '&#9881;', badge: null },
+  { id: 'overview' as const, label: 'Overview', icon: '📈', badge: null },
+  { id: 'alerts' as const, label: 'Alerts', icon: '🔔', badge: store.alerts.length || null },
+  { id: 'dimensions' as const, label: 'Dimensions', icon: '📊', badge: null },
+  { id: 'learnings' as const, label: 'Learnings', icon: '💡', badge: store.pendingLearnings.length || null },
+  { id: 'settings' as const, label: 'Settings', icon: '⚙️', badge: null },
 ]);
 
 // Load initial data
@@ -205,27 +241,38 @@ async function loadScopeData(scopeId: string) {
       riskDashboardService.listLearnings({ scopeId, status: 'pending' }),
     ]);
 
-    if (dimensionsRes.success && dimensionsRes.content) {
+    if (dimensionsRes.success && Array.isArray(dimensionsRes.content)) {
       store.setDimensions(dimensionsRes.content);
     }
-    if (subjectsRes.success && subjectsRes.content) {
+    if (subjectsRes.success && Array.isArray(subjectsRes.content)) {
       store.setSubjects(subjectsRes.content);
     }
-    if (scoresRes.success && scoresRes.content) {
+    if (scoresRes.success && Array.isArray(scoresRes.content)) {
       store.setCompositeScores(scoresRes.content);
     }
-    if (alertsRes.success && alertsRes.content) {
+    if (alertsRes.success && Array.isArray(alertsRes.content)) {
       store.setAlerts(alertsRes.content);
     }
-    if (learningsRes.success && learningsRes.content) {
+    if (learningsRes.success && Array.isArray(learningsRes.content)) {
       store.setPendingLearnings(learningsRes.content);
     }
 
-    // Update stats
+    // Calculate average score from composite scores (handle both 0-1 and 0-100 scales)
+    let avgScore = 0;
+    if (store.compositeScores.length > 0) {
+      const total = store.compositeScores.reduce((sum, s: any) => {
+        const score = s.overall_score ?? s.score ?? 0;
+        // Normalize to 0-1 scale
+        return sum + (score > 1 ? score / 100 : score);
+      }, 0);
+      avgScore = total / store.compositeScores.length;
+    }
+
+    // Update stats - use compositeScores.length for total subjects since subjects API may return empty
     store.setStats({
-      totalSubjects: store.subjects.length,
+      totalSubjects: store.subjects.length > 0 ? store.subjects.length : store.compositeScores.length,
       analyzedSubjects: store.compositeScores.length,
-      averageScore: store.averageRiskScore,
+      averageScore: avgScore,
       criticalAlerts: store.criticalAlerts.length,
       warningAlerts: store.warningAlerts.length,
       pendingLearnings: store.pendingLearnings.length,
@@ -252,9 +299,92 @@ function onScopeChange() {
   }
 }
 
-function onSelectSubject(subjectId: string) {
-  // TODO: Navigate to subject detail or show detail panel
-  console.log('Selected subject:', subjectId);
+async function onSelectSubject(subjectId: string, compositeScore?: any) {
+  selectedSubjectId.value = subjectId;
+  showDetailPanel.value = true;
+  await loadSubjectDetails(subjectId, compositeScore);
+}
+
+async function loadSubjectDetails(subjectId: string, passedCompositeScore?: any) {
+  isLoadingDetail.value = true;
+  detailError.value = null;
+
+  try {
+    // Use passed composite score or find in store
+    const existingScore = passedCompositeScore || store.compositeScores.find(
+      (s: any) => s.subjectId === subjectId || s.subject_id === subjectId
+    );
+
+    // Fetch additional details in parallel
+    const [assessmentsRes, debateRes, alertsRes] = await Promise.all([
+      riskDashboardService.getAssessmentsBySubject(subjectId).catch(() => ({ success: false, content: [] })),
+      riskDashboardService.getLatestDebate(subjectId).catch(() => ({ success: true, content: null })),
+      riskDashboardService.listAlerts({ subjectId }).catch(() => ({ success: false, content: [] })),
+    ]);
+
+    if (existingScore) {
+      // Build subject from composite score data (handles snake_case)
+      const subject = {
+        id: subjectId,
+        identifier: (existingScore as any).subject_identifier || existingScore.subjectIdentifier || '',
+        name: (existingScore as any).subject_name || existingScore.subjectName || 'Unknown',
+        subjectType: (existingScore as any).subject_type || existingScore.subjectType || '',
+        scopeId: existingScore.scopeId || '',
+        isActive: true,
+        createdAt: existingScore.createdAt || '',
+        updatedAt: existingScore.updatedAt || '',
+      };
+
+      store.setSelectedSubject({
+        subject,
+        compositeScore: existingScore,
+        assessments: assessmentsRes.success && Array.isArray(assessmentsRes.content) ? assessmentsRes.content : [],
+        debate: debateRes.success && debateRes.content ? debateRes.content : null,
+        alerts: alertsRes.success && Array.isArray(alertsRes.content) ? alertsRes.content : [],
+        evaluations: [],
+      });
+    } else {
+      console.error('No composite score found for subject:', subjectId);
+      detailError.value = 'Failed to load subject details';
+    }
+  } catch (error) {
+    console.error('Error loading subject details:', error);
+    detailError.value = error instanceof Error ? error.message : 'Failed to load subject details';
+  } finally {
+    isLoadingDetail.value = false;
+  }
+}
+
+function onCloseDetailPanel() {
+  showDetailPanel.value = false;
+  selectedSubjectId.value = null;
+  store.setSelectedSubject(null);
+}
+
+async function onCreateScope(params: {
+  name: string;
+  domain: string;
+  description?: string;
+  thresholdConfig?: { alertThreshold: number; debateThreshold: number; staleDays: number };
+  analysisConfig?: { riskRadar: { enabled: boolean }; debate: { enabled: boolean }; learning: { enabled: boolean } };
+}) {
+  createScopeModalRef.value?.setSubmitting(true);
+
+  try {
+    const response = await riskDashboardService.createScope(params);
+
+    if (response.success && response.content) {
+      store.addScope(response.content);
+      // Auto-select the new scope
+      selectedScopeId.value = response.content.id;
+      await loadScopeData(response.content.id);
+      showCreateScopeModal.value = false;
+    } else {
+      createScopeModalRef.value?.setError('Failed to create scope');
+    }
+  } catch (error) {
+    createScopeModalRef.value?.setError(error instanceof Error ? error.message : 'Failed to create scope');
+  }
 }
 
 async function onAnalyzeSubject(subjectId: string) {
@@ -263,6 +393,10 @@ async function onAnalyzeSubject(subjectId: string) {
     await riskDashboardService.analyzeSubject(subjectId);
     if (selectedScopeId.value) {
       await loadScopeData(selectedScopeId.value);
+    }
+    // Reload subject details if the panel is open for this subject
+    if (showDetailPanel.value && selectedSubjectId.value === subjectId) {
+      await loadSubjectDetails(subjectId);
     }
   } catch (error) {
     store.setError(error instanceof Error ? error.message : 'Analysis failed');
@@ -429,11 +563,31 @@ onMounted(async () => {
   margin-bottom: 1.5rem;
 }
 
+.scope-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+}
+
 .filter-group {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  max-width: 300px;
+  min-width: 300px;
+}
+
+.btn-primary {
+  background-color: var(--primary-color, #a87c4f);
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-color-dark, #8f693f);
+}
+
+.btn-create-scope {
+  white-space: nowrap;
+  height: fit-content;
 }
 
 .filter-group label {

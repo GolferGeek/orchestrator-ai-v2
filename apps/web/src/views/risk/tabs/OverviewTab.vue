@@ -32,7 +32,7 @@
       <h3>Risk Analysis Results</h3>
 
       <div v-if="compositeScores.length === 0" class="empty-state">
-        <span class="empty-icon">&#128202;</span>
+        <span class="empty-icon">📊</span>
         <p>No risk analysis results yet. Add subjects and run analysis.</p>
       </div>
 
@@ -41,32 +41,32 @@
           v-for="score in compositeScores"
           :key="score.id"
           class="subject-card"
-          @click="$emit('select-subject', score.subjectId)"
+          @click="$emit('select-subject', getSubjectId(score), score)"
         >
           <div class="subject-header">
-            <h4>{{ score.subjectName || score.subjectIdentifier }}</h4>
-            <span :class="['score-badge', getScoreClass(score.score)]">
-              {{ formatScore(score.score) }}
+            <h4>{{ getSubjectDisplayName(score) }}</h4>
+            <span :class="['score-badge', getScoreClass(getOverallScore(score))]">
+              {{ formatScoreFromApi(score) }}
             </span>
           </div>
           <div class="subject-details">
-            <span class="subject-type">{{ score.subjectType }}</span>
-            <span class="subject-age" :class="{ stale: score.ageHours > 168 }">
-              {{ formatAge(score.ageHours) }}
+            <span class="subject-type">{{ getSubjectType(score) }}</span>
+            <span class="subject-age" :class="{ stale: getAgeHours(score) > 168 }">
+              {{ formatAge(getAgeHours(score)) }}
             </span>
           </div>
           <div class="subject-dimensions">
             <div
-              v-for="(dimScore, slug) in score.dimensionScores"
+              v-for="(dimScore, slug) in getDimensionScores(score)"
               :key="slug"
               class="dimension-score"
             >
               <span class="dim-name">{{ slug }}</span>
-              <span class="dim-value">{{ formatScore(dimScore.score) }}</span>
+              <span class="dim-value">{{ formatDimensionScore(dimScore) }}</span>
             </div>
           </div>
           <div class="subject-actions">
-            <button class="btn btn-small" @click.stop="$emit('analyze', score.subjectId)">
+            <button class="btn btn-small" @click.stop="$emit('analyze', getSubjectId(score))">
               Re-analyze
             </button>
           </div>
@@ -88,13 +88,98 @@ const props = defineProps<{
 }>();
 
 defineEmits<{
-  'select-subject': [subjectId: string];
+  'select-subject': [subjectId: string, compositeScore: ActiveCompositeScoreView];
   'analyze': [subjectId: string];
 }>();
 
 const averageScoreFormatted = computed(() => {
   return props.stats.averageScore > 0 ? formatScore(props.stats.averageScore) : '-';
 });
+
+// Type for API response which may have snake_case fields
+type ApiScore = ActiveCompositeScoreView & {
+  overall_score?: number;
+  subject_id?: string;
+  subject_identifier?: string;
+  subject_name?: string;
+  subject_type?: string;
+  dimension_scores?: Record<string, number>;
+  created_at?: string;
+};
+
+// Helper to get subject ID (handles both camelCase and snake_case)
+function getSubjectId(score: ApiScore): string {
+  return score.subjectId || score.subject_id || '';
+}
+
+// Helper to get display name
+function getSubjectDisplayName(score: ApiScore): string {
+  return score.subjectName || score.subject_name ||
+         score.subjectIdentifier || score.subject_identifier || 'Unknown';
+}
+
+// Helper to get subject type
+function getSubjectType(score: ApiScore): string {
+  return score.subjectType || score.subject_type || '';
+}
+
+// Helper to get overall score (API returns 0-100, frontend expects 0-1)
+function getOverallScore(score: ApiScore): number {
+  // Check for overall_score (0-100 from API) first
+  if (typeof score.overall_score === 'number') {
+    return score.overall_score / 100;
+  }
+  // Fallback to score (already 0-1)
+  if (typeof score.score === 'number') {
+    return score.score;
+  }
+  return 0;
+}
+
+// Format score from API response (handles both 0-100 and 0-1 scales)
+function formatScoreFromApi(score: ApiScore): string {
+  // Check for overall_score (0-100 from API) first
+  if (typeof score.overall_score === 'number') {
+    return score.overall_score.toFixed(0) + '%';
+  }
+  // Fallback to score (0-1 scale, multiply by 100)
+  if (typeof score.score === 'number') {
+    return (score.score * 100).toFixed(0) + '%';
+  }
+  return '-';
+}
+
+// Get dimension scores (handles both formats)
+function getDimensionScores(score: ApiScore): Record<string, number> {
+  return score.dimensionScores || score.dimension_scores || {};
+}
+
+// Format dimension score (could be 0-100 or 0-1)
+function formatDimensionScore(dimScore: number | { score: number }): string {
+  const value = typeof dimScore === 'object' ? dimScore.score : dimScore;
+  // If score is > 1, assume it's 0-100 scale
+  if (value > 1) {
+    return value.toFixed(0) + '%';
+  }
+  return (value * 100).toFixed(0) + '%';
+}
+
+// Calculate age hours from created_at timestamp
+function getAgeHours(score: ApiScore): number {
+  // If ageHours is provided, use it
+  if (typeof score.ageHours === 'number') {
+    return score.ageHours;
+  }
+  // Calculate from created_at
+  const createdAt = score.createdAt || score.created_at;
+  if (createdAt) {
+    const created = new Date(createdAt);
+    const now = new Date();
+    const diffMs = now.getTime() - created.getTime();
+    return diffMs / (1000 * 60 * 60); // Convert to hours
+  }
+  return 0;
+}
 
 function formatScore(score: number): string {
   return (score * 100).toFixed(0) + '%';
@@ -107,6 +192,7 @@ function getScoreClass(score: number): string {
 }
 
 function formatAge(hours: number): string {
+  if (!hours || isNaN(hours)) return 'Unknown';
   if (hours < 1) return 'Just now';
   if (hours < 24) return `${Math.floor(hours)}h ago`;
   const days = Math.floor(hours / 24);

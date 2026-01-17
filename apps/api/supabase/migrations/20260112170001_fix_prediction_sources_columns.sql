@@ -35,16 +35,16 @@ ALTER TABLE prediction.sources
 
 -- Update indexes to use new column names
 DROP INDEX IF EXISTS prediction.idx_prediction_sources_last_crawled;
-CREATE INDEX idx_prediction_sources_last_crawl ON prediction.sources(last_crawl_at DESC);
+CREATE INDEX IF NOT EXISTS idx_prediction_sources_last_crawl ON prediction.sources(last_crawl_at DESC);
 
 DROP INDEX IF EXISTS prediction.idx_prediction_sources_failures;
-CREATE INDEX idx_prediction_sources_errors ON prediction.sources(consecutive_errors) WHERE consecutive_errors > 0;
+CREATE INDEX IF NOT EXISTS idx_prediction_sources_errors ON prediction.sources(consecutive_errors) WHERE consecutive_errors > 0;
 
 -- Add index for crawl frequency (for frequency-based cron queries)
-CREATE INDEX idx_prediction_sources_frequency ON prediction.sources(crawl_frequency_minutes, is_active) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_prediction_sources_frequency ON prediction.sources(crawl_frequency_minutes, is_active) WHERE is_active = true;
 
 -- Add index for test sources
-CREATE INDEX idx_prediction_sources_is_test ON prediction.sources(is_test) WHERE is_test = true;
+CREATE INDEX IF NOT EXISTS idx_prediction_sources_is_test ON prediction.sources(is_test) WHERE is_test = true;
 
 -- =============================================================================
 -- COMMENTS

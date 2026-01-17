@@ -241,14 +241,23 @@ AS $$
 $$;
 
 -- =============================================================================
--- SEED INITIAL TEAMS FOR MARKETING ORG
+-- SEED INITIAL TEAMS FOR MARKETING ORG (if marketing org exists)
 -- =============================================================================
 DO $$
 DECLARE
   v_admin_user_id UUID;
   v_team_id UUID;
   v_user_record RECORD;
+  v_marketing_exists BOOLEAN;
 BEGIN
+  -- Check if marketing org exists
+  SELECT EXISTS(SELECT 1 FROM public.organizations WHERE slug = 'marketing') INTO v_marketing_exists;
+
+  IF NOT v_marketing_exists THEN
+    RAISE NOTICE 'Marketing org does not exist, skipping team seeding';
+    RETURN;
+  END IF;
+
   -- Get admin user ID for created_by
   SELECT id INTO v_admin_user_id
   FROM public.users

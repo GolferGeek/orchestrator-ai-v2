@@ -232,6 +232,26 @@ export class PredictionRepository {
   }
 
   /**
+   * Update the analyst_ensemble JSONB field specifically
+   * Used for adding version history without affecting other fields
+   */
+  async updateAnalystEnsemble(
+    id: string,
+    ensemble: Record<string, unknown>,
+  ): Promise<void> {
+    const { error } = await this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .update({ analyst_ensemble: ensemble })
+      .eq('id', id);
+
+    if (error) {
+      this.logger.error(`Failed to update analyst_ensemble: ${error.message}`);
+      throw new Error(`Failed to update analyst_ensemble: ${error.message}`);
+    }
+  }
+
+  /**
    * Find predictions that are past their timeframe and need resolution
    * Returns active predictions where expires_at is in the past
    * @param filter - Test data filter (defaults to excluding test data)

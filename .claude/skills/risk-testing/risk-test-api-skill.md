@@ -349,3 +349,105 @@ call_risk_dashboard "subjects.create" '{
 3. Store IDs from list calls for subsequent operations
 4. Test data should use `is_test: true` flag
 5. Run phases sequentially - each builds on previous
+
+---
+
+## Direct Database Verification
+
+When API calls fail or you need to verify data directly, use these SQL queries:
+
+### Run from apps/api directory
+```bash
+npm run supabase:local -- db exec --sql "YOUR SQL HERE"
+```
+
+### Common Verification Queries
+
+#### Check All Test Data Counts
+```sql
+SELECT
+  (SELECT COUNT(*) FROM risk.scopes WHERE org_slug = 'finance') as scopes,
+  (SELECT COUNT(*) FROM risk.dimensions) as total_dimensions,
+  (SELECT COUNT(*) FROM risk.subjects) as total_subjects,
+  (SELECT COUNT(*) FROM risk.assessments) as assessments,
+  (SELECT COUNT(*) FROM risk.composite_scores) as composite_scores
+```
+
+#### View Scopes with Details
+```sql
+SELECT id, name, domain, org_slug, is_active, created_at
+FROM risk.scopes
+ORDER BY created_at DESC
+```
+
+#### View Dimensions for Scope
+```sql
+SELECT d.id, d.name, d.slug, d.weight, d.is_active
+FROM risk.dimensions d
+WHERE d.scope_id = 'b454c2f7-a071-4ea3-acf8-1439b6b2b6c0'
+ORDER BY d.weight DESC
+```
+
+#### View Subjects for Scope
+```sql
+SELECT s.id, s.identifier, s.name, s.subject_type, s.is_active
+FROM risk.subjects s
+WHERE s.scope_id = 'b454c2f7-a071-4ea3-acf8-1439b6b2b6c0'
+ORDER BY s.identifier
+```
+
+#### Check Latest Composite Scores
+```sql
+SELECT
+  subj.identifier,
+  cs.score,
+  cs.confidence,
+  cs.created_at as scored_at
+FROM risk.composite_scores cs
+JOIN risk.subjects subj ON cs.subject_id = subj.id
+ORDER BY cs.created_at DESC
+LIMIT 10
+```
+
+#### Check Recent Alerts
+```sql
+SELECT
+  a.severity,
+  subj.identifier,
+  a.message,
+  a.acknowledged,
+  a.created_at
+FROM risk.alerts a
+JOIN risk.subjects subj ON a.subject_id = subj.id
+ORDER BY a.created_at DESC
+LIMIT 10
+```
+
+### Test Data Reference IDs
+
+```
+Scope ID: b454c2f7-a071-4ea3-acf8-1439b6b2b6c0
+Org Slug: finance
+Agent Slug: investment-risk-agent
+
+Subjects (approximate):
+- AAPL: Apple Inc.
+- MSFT: Microsoft Corporation
+- TSLA: Tesla Inc.
+
+Dimensions:
+- Market Risk (weight: 1.2)
+- Fundamental Risk (weight: 1.0)
+```
+
+---
+
+## Troubleshooting
+
+| Issue | Check | Solution |
+|-------|-------|----------|
+| 401 Unauthorized | Token expired | Re-authenticate, get new token |
+| 404 Not Found | Wrong entity/action | Check action format: `entity.operation` |
+| Empty results | No data in DB | Run database verification queries |
+| Connection refused | API not running | Check `curl localhost:6100/health` |
+| Wrong org data | Org context | Ensure orgSlug matches data in DB |

@@ -1,7 +1,7 @@
 <template>
   <div class="settings-tab">
     <div v-if="!scope" class="empty-state">
-      <span class="empty-icon">&#9881;</span>
+      <span class="empty-icon">⚙️</span>
       <h3>No Scope Selected</h3>
       <p>Select a scope to view and edit settings.</p>
     </div>
@@ -24,75 +24,75 @@
           </div>
           <div class="info-item">
             <label>Status</label>
-            <span :class="['status', scope.isActive ? 'active' : 'inactive']">
-              {{ scope.isActive ? 'Active' : 'Inactive' }}
+            <span :class="['status', isActive ? 'active' : 'inactive']">
+              {{ isActive ? 'Active' : 'Inactive' }}
             </span>
           </div>
         </div>
       </section>
 
-      <section v-if="scope.thresholdConfig" class="settings-section">
+      <section v-if="thresholdConfig" class="settings-section">
         <h3>Alert Thresholds</h3>
         <div class="threshold-grid">
           <div class="threshold-item">
             <label>Alert Threshold</label>
-            <span>{{ formatPercent(scope.thresholdConfig.alertThreshold) }}</span>
+            <span>{{ formatPercent(thresholdConfig.alertThreshold) }}</span>
             <p class="help-text">Trigger alerts when risk score exceeds this value</p>
           </div>
           <div class="threshold-item">
             <label>Debate Threshold</label>
-            <span>{{ formatPercent(scope.thresholdConfig.debateThreshold) }}</span>
+            <span>{{ formatPercent(thresholdConfig.debateThreshold) }}</span>
             <p class="help-text">Automatically trigger Red/Blue team debate above this score</p>
           </div>
           <div class="threshold-item">
             <label>Stale Days</label>
-            <span>{{ scope.thresholdConfig.staleDays }} days</span>
+            <span>{{ thresholdConfig.staleDays }} days</span>
             <p class="help-text">Mark assessments as stale after this period</p>
           </div>
         </div>
       </section>
 
-      <section v-if="scope.llmConfig" class="settings-section">
+      <section v-if="llmConfig" class="settings-section">
         <h3>LLM Configuration</h3>
         <div class="llm-config">
           <div class="config-item">
             <label>Provider</label>
-            <span>{{ scope.llmConfig.provider }}</span>
+            <span>{{ llmConfig.provider }}</span>
           </div>
           <div class="config-item">
             <label>Model</label>
-            <span>{{ scope.llmConfig.model }}</span>
+            <span>{{ llmConfig.model }}</span>
           </div>
-          <div v-if="scope.llmConfig.temperature" class="config-item">
+          <div v-if="llmConfig.temperature" class="config-item">
             <label>Temperature</label>
-            <span>{{ scope.llmConfig.temperature }}</span>
+            <span>{{ llmConfig.temperature }}</span>
           </div>
-          <div v-if="scope.llmConfig.maxTokens" class="config-item">
+          <div v-if="llmConfig.maxTokens" class="config-item">
             <label>Max Tokens</label>
-            <span>{{ scope.llmConfig.maxTokens }}</span>
+            <span>{{ llmConfig.maxTokens }}</span>
           </div>
         </div>
       </section>
 
-      <section v-if="scope.analysisConfig" class="settings-section">
+      <section v-if="analysisConfig" class="settings-section">
         <h3>Analysis Features</h3>
         <div class="features-grid">
           <div class="feature-item">
             <span class="feature-name">Risk Radar</span>
-            <span :class="['feature-status', scope.analysisConfig.riskRadar?.enabled ? 'enabled' : 'disabled']">
-              {{ scope.analysisConfig.riskRadar?.enabled ? 'Enabled' : 'Disabled' }}
+            <span :class="['feature-status', analysisConfig.riskRadar?.enabled ? 'enabled' : 'disabled']">
+              {{ analysisConfig.riskRadar?.enabled ? 'Enabled' : 'Disabled' }}
             </span>
           </div>
           <div class="feature-item">
             <span class="feature-name">Red/Blue Team Debate</span>
-            <span :class="['feature-status', scope.analysisConfig.debate?.enabled ? 'enabled' : 'disabled']">
-              {{ scope.analysisConfig.debate?.enabled ? 'Enabled' : 'Disabled' }}
+            <span :class="['feature-status', analysisConfig.debate?.enabled ? 'enabled' : 'disabled']">
+              {{ analysisConfig.debate?.enabled ? 'Enabled' : 'Disabled' }}
             </span>
           </div>
           <div class="feature-item">
             <span class="feature-name">Learning System</span>
-            <span :class="['feature-status', scope.analysisConfig.learning?.enabled ? 'enabled' : 'disabled']">
-              {{ scope.analysisConfig.learning?.enabled ? 'Enabled' : 'Disabled' }}
+            <span :class="['feature-status', analysisConfig.learning?.enabled ? 'enabled' : 'disabled']">
+              {{ analysisConfig.learning?.enabled ? 'Enabled' : 'Disabled' }}
             </span>
           </div>
         </div>
@@ -103,11 +103,11 @@
         <div class="meta-grid">
           <div class="meta-item">
             <label>Created</label>
-            <span>{{ formatDate(scope.createdAt) }}</span>
+            <span>{{ formatDate(scope.createdAt || (scope as any).created_at) }}</span>
           </div>
           <div class="meta-item">
             <label>Last Updated</label>
-            <span>{{ formatDate(scope.updatedAt) }}</span>
+            <span>{{ formatDate(scope.updatedAt || (scope as any).updated_at) }}</span>
           </div>
           <div class="meta-item">
             <label>Scope ID</label>
@@ -120,9 +120,18 @@
 </template>
 
 <script setup lang="ts">
-import type { RiskScope } from '@/types/risk-agent';
+import { computed } from 'vue';
+import type { RiskScope, RiskThresholdConfig, RiskLlmConfig, RiskAnalysisConfig } from '@/types/risk-agent';
 
-defineProps<{
+// Extended type to handle snake_case from API
+type ApiScope = RiskScope & {
+  thresholds?: RiskThresholdConfig & { alertThreshold?: number; debateThreshold?: number; staleDays?: number };
+  llm_config?: RiskLlmConfig;
+  analysis_config?: RiskAnalysisConfig;
+  is_active?: boolean;
+};
+
+const props = defineProps<{
   scope: RiskScope | null;
 }>();
 
@@ -130,12 +139,45 @@ defineEmits<{
   update: [params: Record<string, unknown>];
 }>();
 
-function formatPercent(value: number): string {
+// Computed properties to handle both camelCase and snake_case
+const thresholdConfig = computed(() => {
+  if (!props.scope) return null;
+  const s = props.scope as ApiScope;
+  return s.thresholdConfig || s.thresholds || null;
+});
+
+const llmConfig = computed(() => {
+  if (!props.scope) return null;
+  const s = props.scope as ApiScope;
+  return s.llmConfig || s.llm_config || null;
+});
+
+const analysisConfig = computed(() => {
+  if (!props.scope) return null;
+  const s = props.scope as ApiScope;
+  return s.analysisConfig || s.analysis_config || null;
+});
+
+const isActive = computed(() => {
+  if (!props.scope) return false;
+  const s = props.scope as ApiScope;
+  return s.isActive ?? s.is_active ?? false;
+});
+
+function formatPercent(value: number | undefined): string {
+  if (value === undefined || value === null) return '-';
   return (value * 100).toFixed(0) + '%';
 }
 
-function formatDate(isoString: string): string {
-  return new Date(isoString).toLocaleString();
+function formatDate(value: string | undefined | null): string {
+  if (!value) {
+    return 'Not available';
+  }
+  const date = new Date(value);
+  if (isNaN(date.getTime())) {
+    return 'Not available';
+  }
+  return date.toLocaleString();
 }
 </script>
 

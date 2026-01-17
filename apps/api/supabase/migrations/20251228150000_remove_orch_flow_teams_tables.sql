@@ -7,8 +7,31 @@
 -- ============================================
 -- Step 1: Remove from Realtime publication
 -- ============================================
-ALTER PUBLICATION supabase_realtime DROP TABLE IF EXISTS orch_flow.teams;
-ALTER PUBLICATION supabase_realtime DROP TABLE IF EXISTS orch_flow.team_members;
+-- Remove orch_flow.teams from realtime publication (if exists)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+    AND schemaname = 'orch_flow'
+    AND tablename = 'teams'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime DROP TABLE orch_flow.teams;
+  END IF;
+END $$;
+
+-- Remove orch_flow.team_members from realtime publication (if exists)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+    AND schemaname = 'orch_flow'
+    AND tablename = 'team_members'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime DROP TABLE orch_flow.team_members;
+  END IF;
+END $$;
 
 -- ============================================
 -- Step 2: Drop foreign key constraints that reference orch_flow.teams
@@ -26,19 +49,29 @@ ALTER TABLE IF EXISTS orch_flow.shared_tasks DROP CONSTRAINT IF EXISTS shared_ta
 ALTER TABLE IF EXISTS orch_flow.channels DROP CONSTRAINT IF EXISTS channels_team_id_fkey;
 
 -- ============================================
--- Step 3: Drop RLS policies for team_members
+-- Step 3: Drop RLS policies for team_members (only if table exists)
 -- ============================================
-DROP POLICY IF EXISTS "Team members can view team members" ON orch_flow.team_members;
-DROP POLICY IF EXISTS "Team members can view their own membership" ON orch_flow.team_members;
-DROP POLICY IF EXISTS "Anyone can view team members" ON orch_flow.team_members;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'orch_flow' AND tablename = 'team_members') THEN
+    DROP POLICY IF EXISTS "Team members can view team members" ON orch_flow.team_members;
+    DROP POLICY IF EXISTS "Team members can view their own membership" ON orch_flow.team_members;
+    DROP POLICY IF EXISTS "Anyone can view team members" ON orch_flow.team_members;
+  END IF;
+END $$;
 
 -- ============================================
--- Step 4: Drop RLS policies for teams
+-- Step 4: Drop RLS policies for teams (only if table exists)
 -- ============================================
-DROP POLICY IF EXISTS "Anyone can view teams" ON orch_flow.teams;
-DROP POLICY IF EXISTS "Team creators can create teams" ON orch_flow.teams;
-DROP POLICY IF EXISTS "Team creators can update teams" ON orch_flow.teams;
-DROP POLICY IF EXISTS "Team creators can delete teams" ON orch_flow.teams;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'orch_flow' AND tablename = 'teams') THEN
+    DROP POLICY IF EXISTS "Anyone can view teams" ON orch_flow.teams;
+    DROP POLICY IF EXISTS "Team creators can create teams" ON orch_flow.teams;
+    DROP POLICY IF EXISTS "Team creators can update teams" ON orch_flow.teams;
+    DROP POLICY IF EXISTS "Team creators can delete teams" ON orch_flow.teams;
+  END IF;
+END $$;
 
 -- ============================================
 -- Step 5: Drop indexes
@@ -58,4 +91,3 @@ DROP TABLE IF EXISTS orch_flow.teams CASCADE;
 -- remain as UUID columns without foreign key constraints. They store team IDs
 -- that Orch-Flow receives from the API (which queries public.teams).
 -- ============================================
-
