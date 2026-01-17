@@ -18,6 +18,7 @@
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest --watch",
     "lint": "eslint .",
+    "format": "eslint . --fix",
     "debug:loop": "node scripts/debug-loop.js"
   },
   "dependencies": {

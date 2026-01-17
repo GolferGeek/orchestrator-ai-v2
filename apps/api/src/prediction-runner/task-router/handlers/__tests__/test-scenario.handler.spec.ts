@@ -4,6 +4,7 @@ import { TestDataInjectorService } from '../../../services/test-data-injector.se
 import { TestDataGeneratorService } from '../../../services/test-data-generator.service';
 import { ScenarioGeneratorService } from '../../../services/scenario-generator.service';
 import { ScenarioVariationService } from '../../../services/scenario-variation.service';
+import { SourceRepository } from '../../../repositories/source.repository';
 import {
   ExecutionContext,
   DashboardRequestPayload,
@@ -24,6 +25,7 @@ describe('TestScenarioHandler', () => {
   let mockGeneratorService: Partial<TestDataGeneratorService>;
   let mockScenarioGeneratorService: Partial<ScenarioGeneratorService>;
   let mockScenarioVariationService: Partial<ScenarioVariationService>;
+  let mockSourceRepository: Pick<SourceRepository, 'findAll'>;
 
   const mockContext: ExecutionContext = {
     userId: 'user-123',
@@ -184,6 +186,12 @@ describe('TestScenarioHandler', () => {
       ]),
     };
 
+    mockSourceRepository = {
+      findAll: jest.fn().mockResolvedValue([
+        { id: 'source-123', name: 'Mock Source' } as unknown as never,
+      ]),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TestScenarioHandler,
@@ -197,6 +205,7 @@ describe('TestScenarioHandler', () => {
           provide: ScenarioVariationService,
           useValue: mockScenarioVariationService,
         },
+        { provide: SourceRepository, useValue: mockSourceRepository },
       ],
     }).compile();
 

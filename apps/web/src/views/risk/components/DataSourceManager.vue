@@ -275,7 +275,7 @@
                     v-model="headersJson"
                     class="form-control mono"
                     rows="2"
-                    placeholder='{"Authorization": "Bearer xxx"}'
+                    placeholder="{&quot;Authorization&quot;: &quot;Bearer xxx&quot;}"
                   ></textarea>
                 </div>
               </div>

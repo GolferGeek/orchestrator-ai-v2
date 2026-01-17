@@ -54,6 +54,10 @@ export class LlmTierResolverService {
    * Load tier mappings from the prediction.llm_tier_mapping view.
    * This view maps tiers to models from public.llm_models.
    *
+   * IMPORTANT: Environment variables DEFAULT_LLM_PROVIDER and DEFAULT_LLM_MODEL
+   * take HIGHEST priority and will override database mappings. This allows
+   * switching to local LLMs (Ollama) without database changes.
+   *
    * The view structure:
    * - prediction_tier: 'gold' | 'silver' | 'bronze' (mapped from model_tier)
    * - provider: provider name
@@ -61,6 +65,17 @@ export class LlmTierResolverService {
    * - model_tier: 'flagship' | 'standard' | 'economy' | 'local'
    */
   private async loadTierMappings(): Promise<Map<LlmTier, LlmTierMapping>> {
+    // Check for environment override FIRST - highest priority
+    const envProvider = process.env.DEFAULT_LLM_PROVIDER;
+    const envModel = process.env.DEFAULT_LLM_MODEL;
+
+    if (envProvider && envModel) {
+      this.logger.log(
+        `Environment LLM override active: ${envProvider}/${envModel} for all tiers`,
+      );
+      return this.getDefaultMappings(); // This will return env-based mappings
+    }
+
     const now = Date.now();
 
     // Return cached if still valid
@@ -123,9 +138,32 @@ export class LlmTierResolverService {
   /**
    * Get default tier mappings as fallback.
    * These are used when the database is unavailable or missing tier mappings.
+   *
+   * If DEFAULT_LLM_PROVIDER and DEFAULT_LLM_MODEL are set in environment,
+   * all tiers will use that provider/model to avoid API costs.
    */
   private getDefaultMappings(): Map<LlmTier, LlmTierMapping> {
     const defaults = new Map<LlmTier, LlmTierMapping>();
+
+    // Check for environment override - if set, use for ALL tiers
+    const envProvider = process.env.DEFAULT_LLM_PROVIDER;
+    const envModel = process.env.DEFAULT_LLM_MODEL;
+
+    if (envProvider && envModel) {
+      this.logger.log(
+        `Using environment LLM override for all tiers: ${envProvider}/${envModel}`,
+      );
+
+      for (const tier of ['gold', 'silver', 'bronze'] as LlmTier[]) {
+        defaults.set(tier, {
+          tier,
+          provider: envProvider,
+          model: envModel,
+          model_tier: 'local',
+        });
+      }
+      return defaults;
+    }
 
     defaults.set('gold', {
       tier: 'gold',

@@ -44,10 +44,18 @@ export class SourceCrawlerRunner {
   ) {}
 
   /**
+   * Check if scheduled crawling is disabled via environment variable
+   */
+  private isScheduledCrawlingDisabled(): boolean {
+    return process.env.DISABLE_SCHEDULED_CRAWLING === 'true';
+  }
+
+  /**
    * 5-minute crawl for breaking news sources
    */
   @Cron(CronExpression.EVERY_5_MINUTES)
   async crawl5MinSources(): Promise<void> {
+    if (this.isScheduledCrawlingDisabled()) return;
     await this.crawlByFrequency(5);
   }
 
@@ -56,6 +64,7 @@ export class SourceCrawlerRunner {
    */
   @Cron(CronExpression.EVERY_10_MINUTES)
   async crawl10MinSources(): Promise<void> {
+    if (this.isScheduledCrawlingDisabled()) return;
     await this.crawlByFrequency(10);
   }
 
@@ -64,6 +73,7 @@ export class SourceCrawlerRunner {
    */
   @Cron('*/15 * * * *')
   async crawl15MinSources(): Promise<void> {
+    if (this.isScheduledCrawlingDisabled()) return;
     await this.crawlByFrequency(15);
   }
 
@@ -72,6 +82,7 @@ export class SourceCrawlerRunner {
    */
   @Cron(CronExpression.EVERY_30_MINUTES)
   async crawl30MinSources(): Promise<void> {
+    if (this.isScheduledCrawlingDisabled()) return;
     await this.crawlByFrequency(30);
   }
 
@@ -80,6 +91,7 @@ export class SourceCrawlerRunner {
    */
   @Cron(CronExpression.EVERY_HOUR)
   async crawlHourlySources(): Promise<void> {
+    if (this.isScheduledCrawlingDisabled()) return;
     await this.crawlByFrequency(60);
   }
 
