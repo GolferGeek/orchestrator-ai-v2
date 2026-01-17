@@ -525,7 +525,7 @@ watch(() => props.scopeId, () => {
 
 watch(() => props.dimensions, (newDims) => {
   if (newDims?.length) {
-    dimensions.value = newDims;
+    availableDimensions.value = newDims;
   }
 }, { immediate: true });
 
