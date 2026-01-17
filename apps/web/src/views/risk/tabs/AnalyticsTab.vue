@@ -41,7 +41,10 @@
           v-if="scopeId"
           :scope-id="scopeId"
           :subjects="subjects"
-          :dimensions="dimensions"
+          :comparison="comparisonData"
+          :show-save-option="true"
+          @compare="handleCompare"
+          @save="handleSaveComparison"
           @error="onError"
         />
       </div>
@@ -121,7 +124,8 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import type { RiskSubject, RiskDimension, ExecutiveSummary as ExecutiveSummaryType, ScenarioResult, Scenario, Report, Simulation } from '@/types/risk-agent';
+import type { RiskSubject, RiskDimension, ExecutiveSummary as ExecutiveSummaryType, ScenarioResult, Scenario, Report, Simulation, SubjectComparison as SubjectComparisonType } from '@/types/risk-agent';
+import { riskDashboardService } from '@/services/riskDashboardService';
 
 // Import Phase 1 & 2 components
 import ScoreHistoryChart from '../components/ScoreHistoryChart.vue';
@@ -174,6 +178,47 @@ const sections = [
 
 // State
 const activeSection = ref('history');
+const comparisonData = ref<SubjectComparisonType | null>(null);
+const isLoadingComparison = ref(false);
+
+// Comparison handlers
+async function handleCompare(subjectIds: string[]) {
+  if (subjectIds.length < 2) {
+    comparisonData.value = null;
+    return;
+  }
+
+  isLoadingComparison.value = true;
+  try {
+    const response = await riskDashboardService.compareSubjects(subjectIds);
+    if (response.success && response.content) {
+      comparisonData.value = response.content;
+    } else {
+      emit('error', response.metadata?.reason || 'Failed to compare subjects');
+    }
+  } catch (err) {
+    emit('error', err instanceof Error ? err.message : 'Failed to compare subjects');
+  } finally {
+    isLoadingComparison.value = false;
+  }
+}
+
+async function handleSaveComparison(data: { name: string; subjectIds: string[] }) {
+  if (!props.scopeId) return;
+
+  try {
+    const response = await riskDashboardService.saveComparison({
+      scopeId: props.scopeId,
+      name: data.name,
+      subjectIds: data.subjectIds,
+    });
+    if (!response.success) {
+      emit('error', response.metadata?.reason || 'Failed to save comparison');
+    }
+  } catch (err) {
+    emit('error', err instanceof Error ? err.message : 'Failed to save comparison');
+  }
+}
 
 // Event handlers
 function onSelectSubject(subjectId: string) {
