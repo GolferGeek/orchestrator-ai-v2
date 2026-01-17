@@ -19,6 +19,7 @@ import { TestDataInjectorService } from '../../services/test-data-injector.servi
 import { TestDataGeneratorService } from '../../services/test-data-generator.service';
 import { ScenarioGeneratorService } from '../../services/scenario-generator.service';
 import { ScenarioVariationService } from '../../services/scenario-variation.service';
+import { SourceRepository } from '../../repositories/source.repository';
 import {
   IDashboardHandler,
   DashboardActionResult,
@@ -112,6 +113,7 @@ export class TestScenarioHandler implements IDashboardHandler {
     private readonly testDataGeneratorService: TestDataGeneratorService,
     private readonly scenarioGeneratorService: ScenarioGeneratorService,
     private readonly scenarioVariationService: ScenarioVariationService,
+    private readonly sourceRepository: SourceRepository,
   ) {}
 
   async execute(
@@ -436,6 +438,40 @@ export class TestScenarioHandler implements IDashboardHandler {
       switch (params.type) {
         case 'signals': {
           const signalConfig = params.config as MockSignalConfig;
+
+          // Resolve missing target_id from scenario
+          if (!signalConfig.target_id) {
+            const scenario = await this.testDataInjectorService.getScenario(
+              params.scenarioId,
+            );
+            if (scenario?.target_id) {
+              signalConfig.target_id = scenario.target_id;
+            } else {
+              return buildDashboardError(
+                'MISSING_TARGET_ID',
+                'target_id is required for signal generation. Either provide it in the config or set a target on the scenario.',
+              );
+            }
+          }
+
+          // Resolve missing source_id by looking up available sources
+          if (!signalConfig.source_id) {
+            const sources = await this.sourceRepository.findAll();
+            const firstSource = sources[0];
+            if (firstSource) {
+              // Use the first available active source
+              signalConfig.source_id = firstSource.id;
+              this.logger.debug(
+                `Auto-selected source ${firstSource.id} (${firstSource.name}) for signal generation`,
+              );
+            } else {
+              return buildDashboardError(
+                'MISSING_SOURCE_ID',
+                'source_id is required for signal generation. No active sources found. Please create a source first.',
+              );
+            }
+          }
+
           const signals =
             this.testDataGeneratorService.generateMockSignals(signalConfig);
           const injected = await this.testDataInjectorService.injectSignals(
@@ -452,6 +488,22 @@ export class TestScenarioHandler implements IDashboardHandler {
 
         case 'predictions': {
           const predConfig = params.config as MockPredictionConfig;
+
+          // Resolve missing target_id from scenario
+          if (!predConfig.target_id) {
+            const scenario = await this.testDataInjectorService.getScenario(
+              params.scenarioId,
+            );
+            if (scenario?.target_id) {
+              predConfig.target_id = scenario.target_id;
+            } else {
+              return buildDashboardError(
+                'MISSING_TARGET_ID',
+                'target_id is required for prediction generation. Either provide it in the config or set a target on the scenario.',
+              );
+            }
+          }
+
           const predsWithOutcomes =
             this.testDataGeneratorService.generateMockPredictionsWithOutcomes(
               predConfig,
