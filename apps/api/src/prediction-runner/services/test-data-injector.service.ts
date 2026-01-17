@@ -124,14 +124,20 @@ export class TestDataInjectorService {
 
   /**
    * Inject signals with test data markers
+   * Note: Sets is_test=true to satisfy database constraint when source is a test source
    */
   async injectSignals(
     scenarioId: string,
     signals: CreateSignalData[],
   ): Promise<Array<Signal & TestDataMarkers>> {
+    // Add is_test flag to all signals (required when source has is_test=true)
+    const signalsWithTestFlag = signals.map((signal) => ({
+      ...signal,
+      is_test: true,
+    }));
     return this.injectIntoTable<CreateSignalData>(
       'signals',
-      signals,
+      signalsWithTestFlag,
       scenarioId,
     ) as Promise<Array<Signal & TestDataMarkers>>;
   }
