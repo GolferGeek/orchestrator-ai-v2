@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   MonteCarloService,
-  DimensionDistribution,
   SimulationParameters,
 } from '../monte-carlo.service';
 import { SupabaseService } from '@/supabase/supabase.service';
@@ -85,7 +84,11 @@ describe('MonteCarloService', () => {
 
       const parameters: SimulationParameters = {
         dimensionDistributions: {
-          'market-volatility': { distribution: 'normal', mean: 0.5, stdDev: 0.15 },
+          'market-volatility': {
+            distribution: 'normal',
+            mean: 0.5,
+            stdDev: 0.15,
+          },
           'liquidity-risk': { distribution: 'uniform', min: 0.2, max: 0.8 },
         },
       };
@@ -130,7 +133,11 @@ describe('MonteCarloService', () => {
 
       const parameters: SimulationParameters = {
         dimensionDistributions: {
-          'market-volatility': { distribution: 'normal', mean: 0.5, stdDev: 0.15 },
+          'market-volatility': {
+            distribution: 'normal',
+            mean: 0.5,
+            stdDev: 0.15,
+          },
         },
       };
 
@@ -202,15 +209,34 @@ describe('MonteCarloService', () => {
   describe('listSimulations', () => {
     it('should list simulations for a scope', async () => {
       const mockSimulations = [
-        { id: 'sim-1', scope_id: 'scope-1', name: 'Sim 1', status: 'completed', created_at: '2026-01-17T00:00:00Z' },
-        { id: 'sim-2', scope_id: 'scope-1', name: 'Sim 2', status: 'running', created_at: '2026-01-17T01:00:00Z' },
+        {
+          id: 'sim-1',
+          scope_id: 'scope-1',
+          name: 'Sim 1',
+          status: 'completed',
+          created_at: '2026-01-17T00:00:00Z',
+        },
+        {
+          id: 'sim-2',
+          scope_id: 'scope-1',
+          name: 'Sim 2',
+          status: 'running',
+          created_at: '2026-01-17T01:00:00Z',
+        },
       ];
 
       // Make mockClient thenable so `await query` works
       // The service builds the chain and then awaits it
-      (mockClient as any).then = jest.fn().mockImplementation((resolve: (value: { data: any; error: null }) => void) =>
-        resolve({ data: mockSimulations, error: null }),
-      );
+      const thenableClient = mockClient as unknown as {
+        then: (
+          resolve: (value: { data: unknown; error: null }) => void,
+        ) => void;
+      };
+      thenableClient.then = jest
+        .fn()
+        .mockImplementation((resolve) =>
+          resolve({ data: mockSimulations, error: null }),
+        );
 
       const result = await service.listSimulations('scope-1', { limit: 10 });
 
@@ -222,11 +248,18 @@ describe('MonteCarloService', () => {
 
     it('should filter by status when provided', async () => {
       // Make mockClient thenable so `await query` works
-      (mockClient as any).then = jest.fn().mockImplementation((resolve: (value: { data: any; error: null }) => void) =>
-        resolve({ data: [], error: null }),
-      );
+      const thenableClient = mockClient as unknown as {
+        then: (
+          resolve: (value: { data: unknown; error: null }) => void,
+        ) => void;
+      };
+      thenableClient.then = jest
+        .fn()
+        .mockImplementation((resolve) => resolve({ data: [], error: null }));
 
-      const result = await service.listSimulations('scope-1', { status: 'completed' });
+      const result = await service.listSimulations('scope-1', {
+        status: 'completed',
+      });
 
       expect(mockClient.eq).toHaveBeenCalledWith('scope_id', 'scope-1');
       expect(mockClient.eq).toHaveBeenCalledWith('status', 'completed');
@@ -268,7 +301,7 @@ describe('MonteCarloService', () => {
       };
 
       // Track the results that get saved
-      let savedResults: any = null;
+      let savedResults: unknown = null;
 
       mockClient.single.mockResolvedValueOnce({
         data: mockCreatedSimulation,
@@ -281,7 +314,11 @@ describe('MonteCarloService', () => {
       });
 
       mockClient.single.mockResolvedValueOnce({
-        data: { ...mockCreatedSimulation, status: 'completed', results: savedResults },
+        data: {
+          ...mockCreatedSimulation,
+          status: 'completed',
+          results: savedResults,
+        },
         error: null,
       });
 
@@ -307,17 +344,31 @@ describe('MonteCarloService', () => {
         // VaR values should exist and be ordered
         expect(result.results.var95).toBeDefined();
         expect(result.results.var99).toBeDefined();
-        expect(result.results.var99).toBeGreaterThanOrEqual(result.results.var95);
+        expect(result.results.var99).toBeGreaterThanOrEqual(
+          result.results.var95,
+        );
 
         // CVaR should be at least as high as VaR
-        expect(result.results.cvar95).toBeGreaterThanOrEqual(result.results.var95);
-        expect(result.results.cvar99).toBeGreaterThanOrEqual(result.results.var99);
+        expect(result.results.cvar95).toBeGreaterThanOrEqual(
+          result.results.var95,
+        );
+        expect(result.results.cvar99).toBeGreaterThanOrEqual(
+          result.results.var99,
+        );
 
         // Percentiles should be ordered
-        expect(result.results.percentile5).toBeLessThanOrEqual(result.results.percentile25);
-        expect(result.results.percentile25).toBeLessThanOrEqual(result.results.median);
-        expect(result.results.median).toBeLessThanOrEqual(result.results.percentile75);
-        expect(result.results.percentile75).toBeLessThanOrEqual(result.results.percentile95);
+        expect(result.results.percentile5).toBeLessThanOrEqual(
+          result.results.percentile25,
+        );
+        expect(result.results.percentile25).toBeLessThanOrEqual(
+          result.results.median,
+        );
+        expect(result.results.median).toBeLessThanOrEqual(
+          result.results.percentile75,
+        );
+        expect(result.results.percentile75).toBeLessThanOrEqual(
+          result.results.percentile95,
+        );
 
         // Distribution histogram should have entries
         expect(result.results.distribution.length).toBeGreaterThan(0);

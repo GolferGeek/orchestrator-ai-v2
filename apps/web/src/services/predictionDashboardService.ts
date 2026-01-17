@@ -1324,6 +1324,55 @@ function transformSources(apis: ApiSource[]): PredictionSource[] {
   return apis.map(transformSource);
 }
 
+// Analyst transformer (snake_case API -> camelCase frontend)
+interface ApiAnalyst {
+  id: string;
+  slug: string;
+  name: string;
+  perspective: string;
+  scope_level: string;
+  domain?: string | null;
+  universe_id?: string | null;
+  target_id?: string | null;
+  default_weight: number;
+  tier_instructions?: {
+    gold?: string;
+    silver?: string;
+    bronze?: string;
+  } | null;
+  learned_patterns?: string[] | null;
+  is_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+function transformAnalyst(api: ApiAnalyst): PredictionAnalyst {
+  return {
+    id: api.id,
+    slug: api.slug,
+    name: api.name,
+    perspective: api.perspective,
+    scopeLevel: api.scope_level as 'runner' | 'domain' | 'universe' | 'target',
+    domain: api.domain ?? undefined,
+    universeId: api.universe_id ?? undefined,
+    targetId: api.target_id ?? undefined,
+    defaultWeight: api.default_weight,
+    tierInstructions: api.tier_instructions ?? undefined,
+    learnedPatterns: api.learned_patterns ?? undefined,
+    active: api.is_enabled,
+    createdAt: api.created_at,
+    updatedAt: api.updated_at,
+  };
+}
+
+function transformAnalysts(apis: ApiAnalyst[]): PredictionAnalyst[] {
+  if (!Array.isArray(apis)) {
+    console.warn('transformAnalysts received non-array:', apis);
+    return [];
+  }
+  return apis.map(transformAnalyst);
+}
+
 // ============================================================================
 // SERVICE
 // ============================================================================
@@ -1731,20 +1780,30 @@ class PredictionDashboardService {
   async listAnalysts(
     params?: AnalystListParams
   ): Promise<DashboardResponsePayload<PredictionAnalyst[]>> {
-    return this.executeDashboardRequest<PredictionAnalyst[]>(
+    const response = await this.executeDashboardRequest<ApiAnalyst[]>(
       'analysts.list',
       undefined,
       params
     );
+    // Transform snake_case API response to camelCase frontend format
+    return {
+      ...response,
+      content: response.content ? transformAnalysts(response.content) : null,
+    };
   }
 
   async getAnalyst(params: {
     id: string;
   }): Promise<DashboardResponsePayload<PredictionAnalyst>> {
-    return this.executeDashboardRequest<PredictionAnalyst>(
+    const response = await this.executeDashboardRequest<ApiAnalyst>(
       'analysts.get',
       params
     );
+    // Transform snake_case API response to camelCase frontend format
+    return {
+      ...response,
+      content: response.content ? transformAnalyst(response.content) : null,
+    };
   }
 
   async createAnalyst(
@@ -1762,10 +1821,15 @@ class PredictionDashboardService {
       default_weight: params.defaultWeight,
       tier_instructions: params.tierInstructions,
     };
-    return this.executeDashboardRequest<PredictionAnalyst>(
+    const response = await this.executeDashboardRequest<ApiAnalyst>(
       'analysts.create',
       transformedParams
     );
+    // Transform snake_case API response to camelCase frontend format
+    return {
+      ...response,
+      content: response.content ? transformAnalyst(response.content) : null,
+    };
   }
 
   async updateAnalyst(
@@ -1778,12 +1842,17 @@ class PredictionDashboardService {
       perspective: params.perspective,
       default_weight: params.defaultWeight,
       tier_instructions: params.tierInstructions,
-      active: params.active,
+      is_enabled: params.active, // Use is_enabled for backend
     };
-    return this.executeDashboardRequest<PredictionAnalyst>(
+    const response = await this.executeDashboardRequest<ApiAnalyst>(
       'analysts.update',
       transformedParams
     );
+    // Transform snake_case API response to camelCase frontend format
+    return {
+      ...response,
+      content: response.content ? transformAnalyst(response.content) : null,
+    };
   }
 
   async deleteAnalyst(params: {

@@ -7,13 +7,10 @@ import { SubjectRepository } from '../../../repositories/subject.repository';
 import { ExecutionContext } from '@orchestrator-ai/transport-types';
 import { DashboardRequestPayload } from '@orchestrator-ai/transport-types';
 
-// Type helper for test assertions
-type AnyData = any;
-
 describe('AnalyticsHandler', () => {
   let handler: AnalyticsHandler;
-  let supabaseService: jest.Mocked<SupabaseService>;
-  let compositeScoreRepo: jest.Mocked<CompositeScoreRepository>;
+  let _supabaseService: jest.Mocked<SupabaseService>;
+  let _compositeScoreRepo: jest.Mocked<CompositeScoreRepository>;
   let dimensionRepo: jest.Mocked<DimensionRepository>;
   let subjectRepo: jest.Mocked<SubjectRepository>;
 
@@ -134,8 +131,8 @@ describe('AnalyticsHandler', () => {
     }).compile();
 
     handler = module.get<AnalyticsHandler>(AnalyticsHandler);
-    supabaseService = module.get(SupabaseService);
-    compositeScoreRepo = module.get(CompositeScoreRepository);
+    _supabaseService = module.get(SupabaseService);
+    _compositeScoreRepo = module.get(CompositeScoreRepository);
     dimensionRepo = module.get(DimensionRepository);
     subjectRepo = module.get(SubjectRepository);
   });
@@ -202,9 +199,10 @@ describe('AnalyticsHandler', () => {
       );
 
       expect(result.success).toBe(true);
-      const data = result.data as AnyData;
+      expect(Array.isArray(result.data)).toBe(true);
+      const data = result.data as Array<Record<string, unknown>>;
       expect(data).toHaveLength(2);
-      expect(data[0].overallScore).toBe(0.65);
+      expect(data[0]?.['overallScore']).toBe(0.65);
       expect(result.metadata?.subjectId).toBe('subject-1');
     });
 
@@ -299,14 +297,18 @@ describe('AnalyticsHandler', () => {
     ];
 
     it('should return heatmap data for a scope', async () => {
-      dimensionRepo.findByScope.mockResolvedValue(mockDimensions as any);
+      dimensionRepo.findByScope.mockResolvedValue(
+        mockDimensions as unknown as never,
+      );
       mockClient.rpc.mockResolvedValue({ data: mockHeatmapData, error: null });
       mockClient.single.mockResolvedValue({
         data: { id: 'scope-1', name: 'Test Scope' },
         error: null,
       });
 
-      const payload = createPayload('analytics.heatmap', { scopeId: 'scope-1' });
+      const payload = createPayload('analytics.heatmap', {
+        scopeId: 'scope-1',
+      });
       const result = await handler.execute(
         'heatmap',
         payload,
@@ -519,7 +521,9 @@ describe('AnalyticsHandler', () => {
     ];
 
     it('should return correlation matrix for a scope', async () => {
-      dimensionRepo.findByScope.mockResolvedValue(mockDimensions as any);
+      dimensionRepo.findByScope.mockResolvedValue(
+        mockDimensions as unknown as never,
+      );
       mockClient.rpc.mockResolvedValue({
         data: mockCorrelationData,
         error: null,
@@ -585,9 +589,11 @@ describe('AnalyticsHandler', () => {
 
     it('should compare multiple subjects', async () => {
       subjectRepo.findById
-        .mockResolvedValueOnce(mockSubjects[0] as any)
-        .mockResolvedValueOnce(mockSubjects[1] as any);
-      dimensionRepo.findByScope.mockResolvedValue(mockDimensions as any);
+        .mockResolvedValueOnce(mockSubjects[0] as unknown as never)
+        .mockResolvedValueOnce(mockSubjects[1] as unknown as never);
+      dimensionRepo.findByScope.mockResolvedValue(
+        mockDimensions as unknown as never,
+      );
       mockClient.order.mockResolvedValue({
         data: mockCompositeScores,
         error: null,
@@ -703,7 +709,10 @@ describe('AnalyticsHandler', () => {
     ];
 
     it('should list comparisons for a scope', async () => {
-      mockClient.order.mockResolvedValue({ data: mockComparisons, error: null });
+      mockClient.order.mockResolvedValue({
+        data: mockComparisons,
+        error: null,
+      });
 
       const payload = createPayload('analytics.list-comparisons', {
         scopeId: 'scope-1',

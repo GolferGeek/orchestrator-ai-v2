@@ -226,14 +226,21 @@ const overallScore = computed(() => {
   if (!cs) return 0;
   // Handle both snake_case and camelCase, and both 0-1 and 0-100 scales
   // API returns overall_score in 0-100 scale
-  const raw = (cs as any).overall_score ?? (cs as any).score ?? 0;
+  const csRecord = cs as unknown as Record<string, unknown>;
+  const raw =
+    (typeof csRecord['overall_score'] === 'number'
+      ? csRecord['overall_score']
+      : undefined) ??
+    (typeof csRecord['score'] === 'number' ? csRecord['score'] : undefined) ??
+    0;
   return raw > 1 ? raw / 100 : raw;
 });
 
 const overallConfidence = computed(() => {
   const cs = props.subject?.compositeScore;
   if (!cs) return 0;
-  const raw = (cs as any).confidence ?? 0;
+  const csRecord = cs as unknown as Record<string, unknown>;
+  const raw = typeof csRecord['confidence'] === 'number' ? csRecord['confidence'] : 0;
   return raw > 1 ? raw / 100 : raw;
 });
 
@@ -242,12 +249,31 @@ const dimensionScoresFromComposite = computed(() => {
   const cs = props.subject?.compositeScore;
   if (!cs) return [];
   // Handle both snake_case and camelCase - API returns dimension_scores
-  const scores = (cs as any).dimension_scores || (cs as any).dimensionScores || {};
-  return Object.entries(scores).map(([slug, data]: [string, any]) => {
+  const csRecord = cs as unknown as Record<string, unknown>;
+  const scores =
+    (typeof csRecord['dimension_scores'] === 'object' && csRecord['dimension_scores'])
+      ? (csRecord['dimension_scores'] as Record<string, unknown>)
+      : (typeof csRecord['dimensionScores'] === 'object' && csRecord['dimensionScores'])
+        ? (csRecord['dimensionScores'] as Record<string, unknown>)
+        : {};
+  return Object.entries(scores).map(([slug, data]: [string, unknown]) => {
     // Dimension scores can be raw numbers (0-100) or objects with score property
-    const rawScore = typeof data === 'object' ? (data.score ?? 0) : data;
-    const rawConfidence = typeof data === 'object' ? (data.confidence ?? 0) : 0.8;
-    const weight = typeof data === 'object' ? (data.weight ?? 1) : 1;
+    const dataRecord =
+      typeof data === 'object' && data !== null && !Array.isArray(data)
+        ? (data as Record<string, unknown>)
+        : null;
+    const rawScore =
+      dataRecord && typeof dataRecord['score'] === 'number'
+        ? dataRecord['score']
+        : typeof data === 'number'
+          ? data
+          : 0;
+    const rawConfidence =
+      dataRecord && typeof dataRecord['confidence'] === 'number'
+        ? dataRecord['confidence']
+        : 0.8;
+    const weight =
+      dataRecord && typeof dataRecord['weight'] === 'number' ? dataRecord['weight'] : 1;
     return {
       id: slug,
       dimensionSlug: slug,

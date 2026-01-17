@@ -210,7 +210,12 @@ function submitForm() {
 }
 
 function toggleActive(dimension: RiskDimension) {
-  const currentActive = dimension.isActive || (dimension as any).is_active;
+  const dimensionRecord = dimension as unknown as Record<string, unknown>;
+  const currentActive =
+    dimension.isActive ??
+    (typeof dimensionRecord['is_active'] === 'boolean'
+      ? dimensionRecord['is_active']
+      : false);
   emit('update', dimension.id, { isActive: !currentActive });
 }
 

@@ -236,7 +236,11 @@ export class RiskDashboardRouter {
       // Phase 7: AI-Powered features
       case 'advanced-analytics':
       case 'advancedanalytics':
-        return this.advancedAnalyticsHandler.execute(operation, payload, context);
+        return this.advancedAnalyticsHandler.execute(
+          operation,
+          payload,
+          context,
+        );
 
       // Phase 8: Advanced Simulation
       case 'simulations':

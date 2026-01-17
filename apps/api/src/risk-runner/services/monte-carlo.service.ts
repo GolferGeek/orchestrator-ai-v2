@@ -7,6 +7,12 @@
 
 import { Injectable, Logger } from '@nestjs/common';
 import { SupabaseService } from '@/supabase/supabase.service';
+import {
+  asArray,
+  asPostgrestResult,
+  asRecord,
+  isRecord,
+} from '../utils/safe-access';
 
 // Distribution types supported
 export type DistributionType = 'normal' | 'uniform' | 'beta' | 'triangular';
@@ -95,25 +101,29 @@ export class MonteCarloService {
     );
 
     // Create simulation record
-    const { data: simulation, error: createError } = await this.supabaseService.getServiceClient()
-      .schema('risk')
-      .from('simulations')
-      .insert({
-        scope_id: scopeId,
-        subject_id: subjectId || null,
-        name,
-        description: description || null,
-        iterations,
-        parameters,
-        status: 'running',
-        started_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
+    const createResult = asPostgrestResult(
+      await this.supabaseService
+        .getServiceClient()
+        .schema('risk')
+        .from('simulations')
+        .insert({
+          scope_id: scopeId,
+          subject_id: subjectId || null,
+          name,
+          description: description || null,
+          iterations,
+          parameters,
+          status: 'running',
+          started_at: new Date().toISOString(),
+        })
+        .select()
+        .single(),
+    );
+    const simulation = asRecord(createResult.data);
 
-    if (createError || !simulation) {
+    if (createResult.error?.message || !simulation) {
       throw new Error(
-        `Failed to create simulation: ${createError?.message || 'Unknown error'}`,
+        `Failed to create simulation: ${createResult.error?.message || 'Unknown error'}`,
       );
     }
 
@@ -127,30 +137,40 @@ export class MonteCarloService {
       results.executionTimeMs = executionTimeMs;
 
       // Update simulation with results
-      const { data: updated, error: updateError } = await this.supabaseService.getServiceClient()
-        .schema('risk')
-        .from('simulations')
-        .update({
-          results,
-          status: 'completed',
-          completed_at: new Date().toISOString(),
-        })
-        .eq('id', simulation.id)
-        .select()
-        .single();
+      const updateResult = asPostgrestResult(
+        await this.supabaseService
+          .getServiceClient()
+          .schema('risk')
+          .from('simulations')
+          .update({
+            results,
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+          })
+          .eq('id', simulation['id'])
+          .select()
+          .single(),
+      );
 
-      if (updateError) {
-        throw new Error(`Failed to update simulation: ${updateError.message}`);
+      if (updateResult.error?.message) {
+        throw new Error(
+          `Failed to update simulation: ${updateResult.error.message}`,
+        );
       }
 
       this.logger.debug(
         `[MONTE-CARLO] Simulation completed in ${executionTimeMs}ms`,
       );
 
-      return this.mapSimulationFromDb(updated);
+      const updatedRow = asRecord(updateResult.data);
+      if (!updatedRow) {
+        throw new Error('Failed to update simulation: no data returned');
+      }
+      return this.mapSimulationFromDb(updatedRow);
     } catch (error) {
       // Update simulation with error
-      await this.supabaseService.getServiceClient()
+      await this.supabaseService
+        .getServiceClient()
         .schema('risk')
         .from('simulations')
         .update({
@@ -159,7 +179,7 @@ export class MonteCarloService {
             error instanceof Error ? error.message : 'Unknown error',
           completed_at: new Date().toISOString(),
         })
-        .eq('id', simulation.id);
+        .eq('id', simulation['id']);
 
       throw error;
     }
@@ -460,18 +480,22 @@ export class MonteCarloService {
    * Get a simulation by ID
    */
   async getSimulation(simulationId: string): Promise<Simulation | null> {
-    const { data, error } = await this.supabaseService.getServiceClient()
-      .schema('risk')
-      .from('simulations')
-      .select('*')
-      .eq('id', simulationId)
-      .single();
+    const result = asPostgrestResult(
+      await this.supabaseService
+        .getServiceClient()
+        .schema('risk')
+        .from('simulations')
+        .select('*')
+        .eq('id', simulationId)
+        .single(),
+    );
+    const row = asRecord(result.data);
 
-    if (error || !data) {
+    if (result.error?.message || !row) {
       return null;
     }
 
-    return this.mapSimulationFromDb(data);
+    return this.mapSimulationFromDb(row);
   }
 
   /**
@@ -486,7 +510,8 @@ export class MonteCarloService {
       offset?: number;
     },
   ): Promise<Simulation[]> {
-    let query = this.supabaseService.getServiceClient()
+    let query = this.supabaseService
+      .getServiceClient()
       .schema('risk')
       .from('simulations')
       .select('*')
@@ -509,20 +534,23 @@ export class MonteCarloService {
       );
     }
 
-    const { data, error } = await query;
+    const result = asPostgrestResult(await query);
 
-    if (error) {
-      throw new Error(`Failed to list simulations: ${error.message}`);
+    if (result.error?.message) {
+      throw new Error(`Failed to list simulations: ${result.error.message}`);
     }
 
-    return (data || []).map((s) => this.mapSimulationFromDb(s));
+    return (asArray(result.data) ?? [])
+      .filter(isRecord)
+      .map((s) => this.mapSimulationFromDb(s));
   }
 
   /**
    * Delete a simulation
    */
   async deleteSimulation(simulationId: string): Promise<void> {
-    const { error } = await this.supabaseService.getServiceClient()
+    const { error } = await this.supabaseService
+      .getServiceClient()
       .schema('risk')
       .from('simulations')
       .delete()

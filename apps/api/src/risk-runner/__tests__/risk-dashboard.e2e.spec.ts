@@ -25,6 +25,10 @@ import { LearningQueueHandler } from '../task-router/handlers/learning-queue.han
 import { EvaluationHandler } from '../task-router/handlers/evaluation.handler';
 import { CorrelationHandler } from '../task-router/handlers/correlation.handler';
 import { PortfolioHandler } from '../task-router/handlers/portfolio.handler';
+import { DimensionHandler } from '../task-router/handlers/dimension.handler';
+import { AnalyticsHandler } from '../task-router/handlers/analytics.handler';
+import { AdvancedAnalyticsHandler } from '../task-router/handlers/advanced-analytics.handler';
+import { SimulationHandler } from '../task-router/handlers/simulation.handler';
 import { ScopeRepository } from '../repositories/scope.repository';
 import { SubjectRepository } from '../repositories/subject.repository';
 import { DimensionRepository } from '../repositories/dimension.repository';
@@ -43,6 +47,11 @@ import { DebateService } from '../services/debate.service';
 import { CorrelationAnalysisService } from '../services/correlation-analysis.service';
 import { PortfolioRiskService } from '../services/portfolio-risk.service';
 import { HistoricalReplayService } from '../services/historical-replay.service';
+import { ExecutiveSummaryService } from '../services/executive-summary.service';
+import { ScenarioAnalysisService } from '../services/scenario-analysis.service';
+import { ReportGeneratorService } from '../services/report-generator.service';
+import { MonteCarloService } from '../services/monte-carlo.service';
+import { LiveDataService } from '../services/live-data.service';
 import { SupabaseService } from '@/supabase/supabase.service';
 import { LLMService } from '@/llms/llm.service';
 import { ExecutionContext, NIL_UUID } from '@orchestrator-ai/transport-types';
@@ -239,6 +248,7 @@ describe('Risk Dashboard E2E Flow', () => {
         RiskDashboardRouter,
         ScopeHandler,
         SubjectHandler,
+        DimensionHandler,
         AssessmentHandler,
         CompositeScoreHandler,
         AlertHandler,
@@ -247,6 +257,9 @@ describe('Risk Dashboard E2E Flow', () => {
         EvaluationHandler,
         CorrelationHandler,
         PortfolioHandler,
+        AnalyticsHandler,
+        AdvancedAnalyticsHandler,
+        SimulationHandler,
         { provide: ScopeRepository, useValue: scopeRepo },
         { provide: SubjectRepository, useValue: subjectRepo },
         { provide: CompositeScoreRepository, useValue: compositeScoreRepo },
@@ -383,6 +396,36 @@ describe('Risk Dashboard E2E Flow', () => {
                 reasoning: 'Test',
               }),
             }),
+          },
+        },
+        {
+          provide: ExecutiveSummaryService,
+          useValue: {
+            generateSummary: jest.fn().mockResolvedValue({}),
+          },
+        },
+        {
+          provide: ScenarioAnalysisService,
+          useValue: {
+            runAnalysis: jest.fn().mockResolvedValue({}),
+          },
+        },
+        {
+          provide: ReportGeneratorService,
+          useValue: {
+            generateReport: jest.fn().mockResolvedValue({}),
+          },
+        },
+        {
+          provide: MonteCarloService,
+          useValue: {
+            runSimulation: jest.fn().mockResolvedValue({}),
+          },
+        },
+        {
+          provide: LiveDataService,
+          useValue: {
+            getData: jest.fn().mockResolvedValue({}),
           },
         },
       ],

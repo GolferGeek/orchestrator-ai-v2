@@ -22,6 +22,15 @@ import { SupabaseService } from '@/supabase/supabase.service';
 import { CompositeScoreRepository } from '../../repositories/composite-score.repository';
 import { DimensionRepository } from '../../repositories/dimension.repository';
 import { SubjectRepository } from '../../repositories/subject.repository';
+import {
+  asArray,
+  asNumber,
+  asPostgrestResult,
+  asRecord,
+  asString,
+  isRecord,
+  type UnknownRecord,
+} from '../../utils/safe-access';
 
 @Injectable()
 export class AnalyticsHandler implements IDashboardHandler {
@@ -119,30 +128,33 @@ export class AnalyticsHandler implements IDashboardHandler {
     }
 
     try {
-      const { data, error } = await this.getClient()
-        .schema(this.schema)
-        .rpc('get_score_history', {
+      const result = asPostgrestResult(
+        await this.getClient().schema(this.schema).rpc('get_score_history', {
           p_subject_id: subjectId,
           p_days: days,
           p_limit: limit,
-        });
+        }),
+      );
 
-      if (error) {
-        this.logger.error(`Failed to get score history: ${error.message}`);
-        return buildDashboardError('QUERY_FAILED', error.message);
+      if (result.error?.message) {
+        this.logger.error(
+          `Failed to get score history: ${result.error.message}`,
+        );
+        return buildDashboardError('QUERY_FAILED', result.error.message);
       }
 
       // Transform to frontend format
-      const history = (data || []).map((row: any) => ({
-        id: row.id,
-        overallScore: row.overall_score,
-        dimensionScores: row.dimension_scores,
-        confidence: row.confidence,
-        previousScore: row.previous_score,
-        scoreChange: row.score_change,
-        scoreChangePercent: row.score_change_percent,
-        debateAdjustment: row.debate_adjustment,
-        createdAt: row.created_at,
+      const rows = (asArray(result.data) ?? []).filter(isRecord);
+      const history = rows.map((row) => ({
+        id: asString(row['id']) ?? '',
+        overallScore: asNumber(row['overall_score']) ?? 0,
+        dimensionScores: asRecord(row['dimension_scores']) ?? {},
+        confidence: asNumber(row['confidence']) ?? 0,
+        previousScore: asNumber(row['previous_score']),
+        scoreChange: asNumber(row['score_change']),
+        scoreChangePercent: asNumber(row['score_change_percent']),
+        debateAdjustment: asNumber(row['debate_adjustment']) ?? 0,
+        createdAt: asString(row['created_at']) ?? '',
       }));
 
       return buildDashboardSuccess(history, {
@@ -180,11 +192,12 @@ export class AnalyticsHandler implements IDashboardHandler {
     }
 
     try {
-      const { data, error } = await this.getClient()
-        .schema(this.schema)
-        .from('score_trends')
-        .select(
-          `
+      const result = asPostgrestResult(
+        await this.getClient()
+          .schema(this.schema)
+          .from('score_trends')
+          .select(
+            `
           subject_id,
           current_score,
           change_7d,
@@ -197,27 +210,31 @@ export class AnalyticsHandler implements IDashboardHandler {
           first_assessment,
           latest_assessment
         `,
-        )
-        .eq('subject_id', scopeId);
+          )
+          .eq('subject_id', scopeId),
+      );
 
-      if (error) {
-        this.logger.error(`Failed to get score trends: ${error.message}`);
-        return buildDashboardError('QUERY_FAILED', error.message);
+      if (result.error?.message) {
+        this.logger.error(
+          `Failed to get score trends: ${result.error.message}`,
+        );
+        return buildDashboardError('QUERY_FAILED', result.error.message);
       }
 
       // Transform to frontend format
-      const trends = (data || []).map((row: any) => ({
-        subjectId: row.subject_id,
-        currentScore: row.current_score,
-        change7d: row.change_7d,
-        change30d: row.change_30d,
-        totalAssessments: row.total_assessments,
-        avgScore: row.avg_score,
-        maxScore: row.max_score,
-        minScore: row.min_score,
-        scoreStddev: row.score_stddev,
-        firstAssessment: row.first_assessment,
-        latestAssessment: row.latest_assessment,
+      const rows = (asArray(result.data) ?? []).filter(isRecord);
+      const trends = rows.map((row) => ({
+        subjectId: asString(row['subject_id']) ?? '',
+        currentScore: asNumber(row['current_score']) ?? 0,
+        change7d: asNumber(row['change_7d']) ?? 0,
+        change30d: asNumber(row['change_30d']) ?? 0,
+        totalAssessments: asNumber(row['total_assessments']) ?? 0,
+        avgScore: asNumber(row['avg_score']) ?? 0,
+        maxScore: asNumber(row['max_score']) ?? 0,
+        minScore: asNumber(row['min_score']) ?? 0,
+        scoreStddev: asNumber(row['score_stddev']) ?? 0,
+        firstAssessment: asString(row['first_assessment']) ?? '',
+        latestAssessment: asString(row['latest_assessment']) ?? '',
       }));
 
       return buildDashboardSuccess(trends, { scopeId, count: trends.length });
@@ -252,26 +269,29 @@ export class AnalyticsHandler implements IDashboardHandler {
     }
 
     try {
-      const { data, error } = await this.getClient()
-        .schema(this.schema)
-        .rpc('get_scope_score_history', {
-          p_scope_id: scopeId,
-          p_days: days,
-        });
+      const result = asPostgrestResult(
+        await this.getClient()
+          .schema(this.schema)
+          .rpc('get_scope_score_history', {
+            p_scope_id: scopeId,
+            p_days: days,
+          }),
+      );
 
-      if (error) {
+      if (result.error?.message) {
         this.logger.error(
-          `Failed to get scope score history: ${error.message}`,
+          `Failed to get scope score history: ${result.error.message}`,
         );
-        return buildDashboardError('QUERY_FAILED', error.message);
+        return buildDashboardError('QUERY_FAILED', result.error.message);
       }
 
       // Transform to frontend format
-      const history = (data || []).map((row: any) => ({
-        subjectId: row.subject_id,
-        subjectName: row.subject_name,
-        subjectIdentifier: row.subject_identifier,
-        scores: row.scores || [],
+      const rows = (asArray(result.data) ?? []).filter(isRecord);
+      const history = rows.map((row) => ({
+        subjectId: asString(row['subject_id']) ?? '',
+        subjectName: asString(row['subject_name']) ?? '',
+        subjectIdentifier: asString(row['subject_identifier']) ?? '',
+        scores: asArray(row['scores']) ?? [],
       }));
 
       return buildDashboardSuccess(history, { scopeId, days });
@@ -312,34 +332,43 @@ export class AnalyticsHandler implements IDashboardHandler {
       const dimensions = await this.dimensionRepository.findByScope(scopeId);
 
       // Get heatmap data
-      const { data, error } = await this.getClient()
-        .schema(this.schema)
-        .rpc('get_heatmap_data', {
-          p_scope_id: scopeId,
-          p_risk_level: riskLevel || null,
-        });
+      const heatmapResult = asPostgrestResult(
+        await this.getClient()
+          .schema(this.schema)
+          .rpc('get_heatmap_data', {
+            p_scope_id: scopeId,
+            p_risk_level: riskLevel || null,
+          }),
+      );
 
-      if (error) {
-        this.logger.error(`Failed to get heatmap data: ${error.message}`);
-        return buildDashboardError('QUERY_FAILED', error.message);
+      if (heatmapResult.error?.message) {
+        this.logger.error(
+          `Failed to get heatmap data: ${heatmapResult.error.message}`,
+        );
+        return buildDashboardError('QUERY_FAILED', heatmapResult.error.message);
       }
 
       // Get scope info
-      const { data: scopeData } = await this.getClient()
-        .schema(this.schema)
-        .from('scopes')
-        .select('id, name')
-        .eq('id', scopeId)
-        .single();
+      const scopeResult = asPostgrestResult(
+        await this.getClient()
+          .schema(this.schema)
+          .from('scopes')
+          .select('id, name')
+          .eq('id', scopeId)
+          .single(),
+      );
+      const scopeData = asRecord(scopeResult.data);
 
       // Transform to frontend format
-      const rows = (data || []).map((row: any) => ({
-        subjectId: row.subject_id,
-        subjectName: row.subject_name,
-        subjectIdentifier: row.subject_identifier,
-        subjectType: row.subject_type,
-        dimensions: row.dimensions || [],
-      }));
+      const rows = (asArray(heatmapResult.data) ?? [])
+        .filter(isRecord)
+        .map((row) => ({
+          subjectId: asString(row['subject_id']) ?? '',
+          subjectName: asString(row['subject_name']) ?? '',
+          subjectIdentifier: asString(row['subject_identifier']) ?? '',
+          subjectType: asString(row['subject_type']) ?? '',
+          dimensions: asArray(row['dimensions']) ?? [],
+        }));
 
       return buildDashboardSuccess(
         {
@@ -354,7 +383,7 @@ export class AnalyticsHandler implements IDashboardHandler {
             displayOrder: d.display_order,
           })),
           scopeId,
-          scopeName: scopeData?.name || '',
+          scopeName: asString(scopeData?.['name']) ?? '',
         },
         {
           subjectCount: rows.length,
@@ -391,21 +420,24 @@ export class AnalyticsHandler implements IDashboardHandler {
     }
 
     try {
-      const { data, error } = await this.getClient()
-        .schema(this.schema)
-        .from('portfolio_aggregate')
-        .select('*')
-        .eq('scope_id', scopeId)
-        .single();
+      const result = asPostgrestResult(
+        await this.getClient()
+          .schema(this.schema)
+          .from('portfolio_aggregate')
+          .select('*')
+          .eq('scope_id', scopeId)
+          .single(),
+      );
 
-      if (error && error.code !== 'PGRST116') {
+      if (result.error?.message && result.error.code !== 'PGRST116') {
         this.logger.error(
-          `Failed to get portfolio aggregate: ${error.message}`,
+          `Failed to get portfolio aggregate: ${result.error.message}`,
         );
-        return buildDashboardError('QUERY_FAILED', error.message);
+        return buildDashboardError('QUERY_FAILED', result.error.message);
       }
 
-      if (!data) {
+      const row = asRecord(result.data);
+      if (!row) {
         return buildDashboardSuccess({
           scopeId,
           scopeName: '',
@@ -427,21 +459,21 @@ export class AnalyticsHandler implements IDashboardHandler {
 
       // Transform to frontend format
       return buildDashboardSuccess({
-        scopeId: data.scope_id,
-        scopeName: data.scope_name,
-        domain: data.domain,
-        subjectCount: data.subject_count,
-        avgScore: data.avg_score,
-        maxScore: data.max_score,
-        minScore: data.min_score,
-        scoreStddev: data.score_stddev,
-        avgConfidence: data.avg_confidence,
-        criticalCount: data.critical_count,
-        highCount: data.high_count,
-        mediumCount: data.medium_count,
-        lowCount: data.low_count,
-        latestAssessment: data.latest_assessment,
-        oldestAssessment: data.oldest_assessment,
+        scopeId: asString(row['scope_id']) ?? '',
+        scopeName: asString(row['scope_name']) ?? '',
+        domain: asString(row['domain']) ?? '',
+        subjectCount: asNumber(row['subject_count']) ?? 0,
+        avgScore: asNumber(row['avg_score']) ?? 0,
+        maxScore: asNumber(row['max_score']) ?? 0,
+        minScore: asNumber(row['min_score']) ?? 0,
+        scoreStddev: asNumber(row['score_stddev']) ?? 0,
+        avgConfidence: asNumber(row['avg_confidence']) ?? 0,
+        criticalCount: asNumber(row['critical_count']) ?? 0,
+        highCount: asNumber(row['high_count']) ?? 0,
+        mediumCount: asNumber(row['medium_count']) ?? 0,
+        lowCount: asNumber(row['low_count']) ?? 0,
+        latestAssessment: asString(row['latest_assessment']),
+        oldestAssessment: asString(row['oldest_assessment']),
       });
     } catch (error) {
       this.logger.error(
@@ -475,28 +507,33 @@ export class AnalyticsHandler implements IDashboardHandler {
     }
 
     try {
-      const { data, error } = await this.getClient()
-        .schema(this.schema)
-        .from('risk_distribution')
-        .select('*')
-        .eq('scope_id', scopeId);
+      const result = asPostgrestResult(
+        await this.getClient()
+          .schema(this.schema)
+          .from('risk_distribution')
+          .select('*')
+          .eq('scope_id', scopeId),
+      );
 
-      if (error) {
-        this.logger.error(`Failed to get risk distribution: ${error.message}`);
-        return buildDashboardError('QUERY_FAILED', error.message);
+      if (result.error?.message) {
+        this.logger.error(
+          `Failed to get risk distribution: ${result.error.message}`,
+        );
+        return buildDashboardError('QUERY_FAILED', result.error.message);
       }
 
       // Transform to frontend format with proper order
       const orderMap = { critical: 0, high: 1, medium: 2, low: 3 };
-      const distribution = (data || [])
-        .map((row: any) => ({
-          riskLevel: row.risk_level,
-          color: row.color,
-          count: row.count,
-          percentage: row.percentage,
+      const distribution = (asArray(result.data) ?? [])
+        .filter(isRecord)
+        .map((row) => ({
+          riskLevel: asString(row['risk_level']) ?? 'low',
+          color: asString(row['color']) ?? '',
+          count: asNumber(row['count']) ?? 0,
+          percentage: asNumber(row['percentage']) ?? 0,
         }))
         .sort(
-          (a: any, b: any) =>
+          (a, b) =>
             (orderMap[a.riskLevel as keyof typeof orderMap] || 0) -
             (orderMap[b.riskLevel as keyof typeof orderMap] || 0),
         );
@@ -534,34 +571,38 @@ export class AnalyticsHandler implements IDashboardHandler {
     }
 
     try {
-      const { data, error } = await this.getClient()
-        .schema(this.schema)
-        .from('dimension_contribution')
-        .select('*')
-        .eq('scope_id', scopeId);
+      const result = asPostgrestResult(
+        await this.getClient()
+          .schema(this.schema)
+          .from('dimension_contribution')
+          .select('*')
+          .eq('scope_id', scopeId),
+      );
 
-      if (error) {
+      if (result.error?.message) {
         this.logger.error(
-          `Failed to get dimension contributions: ${error.message}`,
+          `Failed to get dimension contributions: ${result.error.message}`,
         );
-        return buildDashboardError('QUERY_FAILED', error.message);
+        return buildDashboardError('QUERY_FAILED', result.error.message);
       }
 
       // Transform to frontend format
-      const contributions = (data || []).map((row: any) => ({
-        dimensionId: row.dimension_id,
-        dimensionSlug: row.dimension_slug,
-        dimensionName: row.dimension_name,
-        icon: row.dimension_icon,
-        color: row.dimension_color,
-        weight: row.weight,
-        assessmentCount: row.assessment_count,
-        avgScore: row.avg_score,
-        avgConfidence: row.avg_confidence,
-        maxScore: row.max_score,
-        minScore: row.min_score,
-        weightedContribution: row.weighted_contribution,
-      }));
+      const contributions = (asArray(result.data) ?? [])
+        .filter(isRecord)
+        .map((row) => ({
+          dimensionId: asString(row['dimension_id']) ?? '',
+          dimensionSlug: asString(row['dimension_slug']) ?? '',
+          dimensionName: asString(row['dimension_name']) ?? '',
+          icon: asString(row['dimension_icon']),
+          color: asString(row['dimension_color']),
+          weight: asNumber(row['weight']) ?? 0,
+          assessmentCount: asNumber(row['assessment_count']) ?? 0,
+          avgScore: asNumber(row['avg_score']) ?? 0,
+          avgConfidence: asNumber(row['avg_confidence']) ?? 0,
+          maxScore: asNumber(row['max_score']) ?? 0,
+          minScore: asNumber(row['min_score']) ?? 0,
+          weightedContribution: asNumber(row['weighted_contribution']) ?? 0,
+        }));
 
       return buildDashboardSuccess(contributions, {
         scopeId,
@@ -603,32 +644,36 @@ export class AnalyticsHandler implements IDashboardHandler {
       const dimensions = await this.dimensionRepository.findByScope(scopeId);
 
       // Calculate correlations
-      const { data, error } = await this.getClient()
-        .schema(this.schema)
-        .rpc('calculate_correlations', { p_scope_id: scopeId });
+      const result = asPostgrestResult(
+        await this.getClient()
+          .schema(this.schema)
+          .rpc('calculate_correlations', { p_scope_id: scopeId }),
+      );
 
-      if (error) {
-        this.logger.error(`Failed to calculate correlations: ${error.message}`);
-        return buildDashboardError('QUERY_FAILED', error.message);
+      if (result.error?.message) {
+        this.logger.error(
+          `Failed to calculate correlations: ${result.error.message}`,
+        );
+        return buildDashboardError('QUERY_FAILED', result.error.message);
       }
 
       // Transform correlations
-      const correlations = (data || []).map((row: any) => ({
-        dimension1Id: row.dimension1_id,
-        dimension1Slug: row.dimension1_slug,
-        dimension1Name: row.dimension1_name,
-        dimension2Id: row.dimension2_id,
-        dimension2Slug: row.dimension2_slug,
-        dimension2Name: row.dimension2_name,
-        correlation: row.correlation,
-        sampleSize: row.sample_size,
-      }));
+      const correlations = (asArray(result.data) ?? [])
+        .filter(isRecord)
+        .map((row) => ({
+          dimension1Id: asString(row['dimension1_id']) ?? '',
+          dimension1Slug: asString(row['dimension1_slug']) ?? '',
+          dimension1Name: asString(row['dimension1_name']) ?? '',
+          dimension2Id: asString(row['dimension2_id']) ?? '',
+          dimension2Slug: asString(row['dimension2_slug']) ?? '',
+          dimension2Name: asString(row['dimension2_name']) ?? '',
+          correlation: asNumber(row['correlation']) ?? 0,
+          sampleSize: asNumber(row['sample_size']) ?? 0,
+        }));
 
       // Build 2D matrix
       const dimSlugs = dimensions.map((d) => d.slug);
-      const matrix: number[][] = dimSlugs.map(() =>
-        dimSlugs.map(() => 0),
-      );
+      const matrix: number[][] = dimSlugs.map(() => dimSlugs.map(() => 0));
 
       // Fill diagonal with 1s
       for (let i = 0; i < dimSlugs.length; i++) {
@@ -716,24 +761,31 @@ export class AnalyticsHandler implements IDashboardHandler {
       }
 
       // Get composite scores
-      const { data: scoreData, error: scoreError } = await this.getClient()
-        .schema(this.schema)
-        .from('composite_scores')
-        .select('*')
-        .in('subject_id', subjectIds)
-        .eq('status', 'active')
-        .eq('is_test', false)
-        .order('created_at', { ascending: false });
+      const scoresResult = asPostgrestResult(
+        await this.getClient()
+          .schema(this.schema)
+          .from('composite_scores')
+          .select('*')
+          .in('subject_id', subjectIds)
+          .eq('status', 'active')
+          .eq('is_test', false)
+          .order('created_at', { ascending: false }),
+      );
 
-      if (scoreError) {
-        return buildDashboardError('QUERY_FAILED', scoreError.message);
+      if (scoresResult.error?.message) {
+        return buildDashboardError('QUERY_FAILED', scoresResult.error.message);
       }
+      const scoreData = scoresResult.data;
 
       // Get latest score per subject
-      const latestScores = new Map<string, any>();
-      for (const score of scoreData || []) {
-        if (!latestScores.has(score.subject_id)) {
-          latestScores.set(score.subject_id, score);
+      const latestScores = new Map<string, UnknownRecord>();
+      for (const scoreRow of (asArray(scoreData) ?? []).filter(isRecord)) {
+        const subjectId = asString(scoreRow['subject_id']);
+        if (!subjectId) {
+          continue;
+        }
+        if (!latestScores.has(subjectId)) {
+          latestScores.set(subjectId, scoreRow);
         }
       }
 
@@ -757,10 +809,12 @@ export class AnalyticsHandler implements IDashboardHandler {
         const scores = subjectIds
           .map((subjectId) => {
             const cs = latestScores.get(subjectId);
-            const dimScores = cs?.dimension_scores || {};
-            const scoreData = dimScores[dimSlug];
-            const score =
-              typeof scoreData === 'object' ? scoreData?.score : scoreData;
+            const dimScores = asRecord(cs?.['dimension_scores']) ?? {};
+            const dimValue = dimScores[dimSlug];
+            const dimObj = asRecord(dimValue);
+            const score = dimObj
+              ? (asNumber(dimObj['score']) ?? 0)
+              : (asNumber(dimValue) ?? 0);
             return {
               subjectId,
               score: score ?? 0,
@@ -776,8 +830,7 @@ export class AnalyticsHandler implements IDashboardHandler {
 
         return {
           dimensionSlug: dimSlug,
-          dimensionName:
-            dim?.display_name || dim?.name || dimSlug,
+          dimensionName: dim?.display_name || dim?.name || dimSlug,
           icon: dim?.icon,
           color: dim?.color,
           scores,
@@ -788,7 +841,7 @@ export class AnalyticsHandler implements IDashboardHandler {
       const rankings = subjectIds.map((subjectId) => {
         const subject = validSubjects.find((s) => s?.id === subjectId);
         const cs = latestScores.get(subjectId);
-        const overallScore = cs?.overall_score ?? 0;
+        const overallScore = asNumber(cs?.['overall_score']) ?? 0;
         const dimRanks: Record<string, number> = {};
 
         dimensionComparisons.forEach((dc) => {
@@ -813,19 +866,19 @@ export class AnalyticsHandler implements IDashboardHandler {
 
       return buildDashboardSuccess({
         subjects: validSubjects.map((s) => ({
-          id: s!.id,
-          scopeId: s!.scope_id,
-          identifier: s!.identifier,
-          name: s!.name,
-          subjectType: s!.subject_type,
+          id: s.id,
+          scopeId: s.scope_id,
+          identifier: s.identifier,
+          name: s.name,
+          subjectType: s.subject_type,
         })),
         compositeScores: Array.from(latestScores.values()).map((cs) => ({
-          id: cs.id,
-          subjectId: cs.subject_id,
-          overallScore: cs.overall_score,
-          dimensionScores: cs.dimension_scores,
-          confidence: cs.confidence,
-          createdAt: cs.created_at,
+          id: asString(cs['id']) ?? '',
+          subjectId: asString(cs['subject_id']) ?? '',
+          overallScore: asNumber(cs['overall_score']) ?? 0,
+          dimensionScores: asRecord(cs['dimension_scores']) ?? {},
+          confidence: asNumber(cs['confidence']) ?? 0,
+          createdAt: asString(cs['created_at']) ?? '',
         })),
         dimensionComparisons,
         rankings,
@@ -862,27 +915,32 @@ export class AnalyticsHandler implements IDashboardHandler {
     }
 
     try {
-      const { data, error } = await this.getClient()
-        .schema(this.schema)
-        .from('comparisons')
-        .insert({
-          scope_id: scopeId,
-          name,
-          subject_ids: subjectIds,
-        })
-        .select()
-        .single();
+      const insertResult = asPostgrestResult(
+        await this.getClient()
+          .schema(this.schema)
+          .from('comparisons')
+          .insert({
+            scope_id: scopeId,
+            name,
+            subject_ids: subjectIds,
+          })
+          .select()
+          .single(),
+      );
 
-      if (error) {
-        return buildDashboardError('INSERT_FAILED', error.message);
+      if (insertResult.error?.message) {
+        return buildDashboardError('INSERT_FAILED', insertResult.error.message);
       }
+      const inserted = asRecord(insertResult.data) ?? {};
 
       return buildDashboardSuccess({
-        id: data.id,
-        scopeId: data.scope_id,
-        name: data.name,
-        subjectIds: data.subject_ids,
-        createdAt: data.created_at,
+        id: asString(inserted['id']) ?? '',
+        scopeId: asString(inserted['scope_id']) ?? '',
+        name: asString(inserted['name']) ?? '',
+        subjectIds: (asArray(inserted['subject_ids']) ?? []).filter(
+          (id): id is string => typeof id === 'string',
+        ),
+        createdAt: asString(inserted['created_at']) ?? '',
       });
     } catch (error) {
       this.logger.error(
@@ -914,23 +972,28 @@ export class AnalyticsHandler implements IDashboardHandler {
     }
 
     try {
-      const { data, error } = await this.getClient()
-        .schema(this.schema)
-        .from('comparisons')
-        .select('*')
-        .eq('scope_id', scopeId)
-        .order('created_at', { ascending: false });
+      const result = asPostgrestResult(
+        await this.getClient()
+          .schema(this.schema)
+          .from('comparisons')
+          .select('*')
+          .eq('scope_id', scopeId)
+          .order('created_at', { ascending: false }),
+      );
 
-      if (error) {
-        return buildDashboardError('QUERY_FAILED', error.message);
+      if (result.error?.message) {
+        return buildDashboardError('QUERY_FAILED', result.error.message);
       }
 
-      const comparisons = (data || []).map((row: any) => ({
-        id: row.id,
-        scopeId: row.scope_id,
-        name: row.name,
-        subjectIds: row.subject_ids,
-        createdAt: row.created_at,
+      const rows = (asArray(result.data) ?? []).filter(isRecord);
+      const comparisons = rows.map((row) => ({
+        id: asString(row['id']) ?? '',
+        scopeId: asString(row['scope_id']) ?? '',
+        name: asString(row['name']) ?? '',
+        subjectIds: (asArray(row['subject_ids']) ?? []).filter(
+          (id): id is string => typeof id === 'string',
+        ),
+        createdAt: asString(row['created_at']) ?? '',
       }));
 
       return buildDashboardSuccess(comparisons, { count: comparisons.length });

@@ -24,7 +24,7 @@
         </svg>
         <div class="score-display">
           <span class="score-value" :style="{ color: scoreColor }">
-            {{ formatScore(aggregate?.avgScore || 0) }}
+            {{ formatScore(aggregateData?.avgScore || 0) }}
           </span>
           <span class="score-label">Portfolio Risk</span>
         </div>
@@ -34,29 +34,29 @@
     <!-- Statistics Grid -->
     <div class="stats-grid">
       <div class="stat-item">
-        <span class="stat-value">{{ aggregate?.subjectCount || 0 }}</span>
+        <span class="stat-value">{{ aggregateData?.subjectCount || 0 }}</span>
         <span class="stat-label">Subjects</span>
       </div>
       <div class="stat-item">
-        <span class="stat-value">{{ formatScore(aggregate?.maxScore || 0) }}</span>
+        <span class="stat-value">{{ formatScore(aggregateData?.maxScore || 0) }}</span>
         <span class="stat-label">Max Risk</span>
       </div>
       <div class="stat-item">
-        <span class="stat-value">{{ formatScore(aggregate?.minScore || 0) }}</span>
+        <span class="stat-value">{{ formatScore(aggregateData?.minScore || 0) }}</span>
         <span class="stat-label">Min Risk</span>
       </div>
       <div class="stat-item">
-        <span class="stat-value">{{ (aggregate?.avgConfidence || 0).toFixed(0) }}%</span>
+        <span class="stat-value">{{ (aggregateData?.avgConfidence || 0).toFixed(0) }}%</span>
         <span class="stat-label">Avg Confidence</span>
       </div>
     </div>
 
     <!-- Risk Distribution -->
-    <div v-if="distribution && distribution.length > 0" class="distribution-section">
+    <div v-if="distributionData && distributionData.length > 0" class="distribution-section">
       <h4>Risk Distribution</h4>
       <div class="distribution-chart">
         <div
-          v-for="item in distribution"
+          v-for="item in distributionData"
           :key="item.riskLevel"
           class="distribution-bar"
           :style="{ width: `${item.percentage}%`, backgroundColor: item.color }"
@@ -66,7 +66,7 @@
         </div>
       </div>
       <div class="distribution-legend">
-        <div v-for="item in distribution" :key="item.riskLevel" class="legend-item">
+        <div v-for="item in distributionData" :key="item.riskLevel" class="legend-item">
           <span class="legend-dot" :style="{ backgroundColor: item.color }"></span>
           <span class="legend-text">{{ capitalize(item.riskLevel) }}: {{ item.count }}</span>
         </div>
@@ -74,7 +74,7 @@
     </div>
 
     <!-- Dimension Contribution -->
-    <div v-if="contributions && contributions.length > 0" class="contributions-section">
+    <div v-if="contributionsData && contributionsData.length > 0" class="contributions-section">
       <h4>Dimension Contributions</h4>
       <div class="contributions-list">
         <div
@@ -125,10 +125,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import type { PortfolioAggregate, RiskDistribution, DimensionContribution } from '@/types/risk-agent';
+import { riskDashboardService } from '@/services/riskDashboardService';
 
 interface Props {
+  scopeId?: string | null;
   aggregate?: PortfolioAggregate | null;
   distribution?: RiskDistribution[];
   contributions?: DimensionContribution[];
@@ -138,6 +140,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  scopeId: null,
   aggregate: null,
   distribution: () => [],
   contributions: () => [],
@@ -146,9 +149,71 @@ const props = withDefaults(defineProps<Props>(), {
   showTrend: true,
 });
 
+const emit = defineEmits<{
+  'error': [error: string];
+}>();
+
+// Internal state for data fetching
+const internalAggregate = ref<PortfolioAggregate | null>(null);
+const internalDistribution = ref<RiskDistribution[]>([]);
+const internalContributions = ref<DimensionContribution[]>([]);
+const isLoading = ref(false);
+const error = ref<string | null>(null);
+
+// Use either provided data or internally fetched data
+const aggregateData = computed(() => props.aggregate || internalAggregate.value);
+const distributionData = computed(() => props.distribution?.length ? props.distribution : internalDistribution.value);
+const contributionsData = computed(() => props.contributions?.length ? props.contributions : internalContributions.value);
+
+// Fetch data when scopeId changes
+async function fetchPortfolioData() {
+  if (!props.scopeId) return;
+
+  isLoading.value = true;
+  error.value = null;
+
+  try {
+    // Fetch aggregate data
+    const aggResponse = await riskDashboardService.getPortfolioAggregate(props.scopeId);
+    if (aggResponse.success && aggResponse.content) {
+      internalAggregate.value = aggResponse.content;
+    }
+
+    // Fetch distribution data
+    const distResponse = await riskDashboardService.getRiskDistribution(props.scopeId);
+    if (distResponse.success && distResponse.content) {
+      internalDistribution.value = distResponse.content;
+    }
+
+    // Fetch contributions data
+    const contribResponse = await riskDashboardService.getDimensionContributions(props.scopeId);
+    if (contribResponse.success && contribResponse.content) {
+      internalContributions.value = contribResponse.content;
+    }
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Failed to load portfolio data';
+    emit('error', error.value);
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+// Watch for scopeId changes
+watch(() => props.scopeId, (newScopeId) => {
+  if (newScopeId) {
+    fetchPortfolioData();
+  }
+}, { immediate: true });
+
+onMounted(() => {
+  if (props.scopeId && !props.aggregate) {
+    fetchPortfolioData();
+  }
+});
+
 // Score color based on risk level
 const scoreColor = computed(() => {
-  const score = props.aggregate?.avgScore || 0;
+  const score = aggregateData.value?.avgScore || 0;
   if (score >= 70) return '#dc2626';
   if (score >= 50) return '#f97316';
   if (score >= 30) return '#eab308';
@@ -161,15 +226,15 @@ const gaugeBackgroundPath = computed(() => {
 });
 
 const gaugeScorePath = computed(() => {
-  const score = props.aggregate?.avgScore || 0;
+  const score = aggregateData.value?.avgScore || 0;
   const angle = -150 + (score / 100) * 300;
   return describeArc(60, 60, 45, -150, angle);
 });
 
 // Sort contributions by weighted contribution
 const sortedContributions = computed(() => {
-  if (!props.contributions) return [];
-  return [...props.contributions].sort((a, b) => b.weightedContribution - a.weightedContribution);
+  if (!contributionsData.value?.length) return [];
+  return [...contributionsData.value].sort((a, b) => b.weightedContribution - a.weightedContribution);
 });
 
 // Helper functions

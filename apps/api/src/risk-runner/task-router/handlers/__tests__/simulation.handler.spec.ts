@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { SimulationHandler } from '../simulation.handler';
 import {
   MonteCarloService,
-  type SimulationParameters,
   type Simulation,
   type SimulationResults,
 } from '../../../services/monte-carlo.service';
@@ -40,7 +39,7 @@ describe('SimulationHandler', () => {
     variance: 0.0144,
     percentile5: 0.32,
     percentile25: 0.44,
-    percentile75: 0.60,
+    percentile75: 0.6,
     percentile95: 0.72,
     percentile99: 0.81,
     var95: 0.72,
@@ -68,7 +67,11 @@ describe('SimulationHandler', () => {
     iterations: 10000,
     parameters: {
       dimensionDistributions: {
-        'market-volatility': { distribution: 'normal', mean: 0.5, stdDev: 0.15 },
+        'market-volatility': {
+          distribution: 'normal',
+          mean: 0.5,
+          stdDev: 0.15,
+        },
         'liquidity-risk': { distribution: 'normal', mean: 0.4, stdDev: 0.1 },
       },
     },
@@ -89,7 +92,10 @@ describe('SimulationHandler', () => {
     config: { endpoint: 'https://api.example.com/data', method: 'GET' },
     schedule: 'hourly',
     dimensionMapping: {
-      'market-volatility': { sourceField: 'volatility', transform: 'normalize' },
+      'market-volatility': {
+        sourceField: 'volatility',
+        transform: 'normalize',
+      },
     },
     subjectFilter: null,
     status: 'active',
@@ -180,7 +186,11 @@ describe('SimulationHandler', () => {
             name: 'Test Simulation',
             parameters: {
               dimensionDistributions: {
-                'market-volatility': { distribution: 'normal', mean: 0.5, stdDev: 0.15 },
+                'market-volatility': {
+                  distribution: 'normal',
+                  mean: 0.5,
+                  stdDev: 0.15,
+                },
               },
             },
             iterations: 10000,
@@ -290,7 +300,9 @@ describe('SimulationHandler', () => {
 
         expect(result.success).toBe(true);
         expect(result.data).toEqual({ deleted: true });
-        expect(monteCarloService.deleteSimulation).toHaveBeenCalledWith('sim-1');
+        expect(monteCarloService.deleteSimulation).toHaveBeenCalledWith(
+          'sim-1',
+        );
       });
     });
 
@@ -300,7 +312,9 @@ describe('SimulationHandler', () => {
           'normal-low': { distribution: 'normal', mean: 0.3, stdDev: 0.1 },
           'normal-medium': { distribution: 'normal', mean: 0.5, stdDev: 0.15 },
         };
-        monteCarloService.getDistributionTemplates.mockReturnValue(templates as any);
+        monteCarloService.getDistributionTemplates.mockReturnValue(
+          templates as unknown as never,
+        );
 
         const result = await handler.execute(
           'get-distribution-templates',
@@ -508,7 +522,9 @@ describe('SimulationHandler', () => {
 
     describe('get-due-sources', () => {
       it('should get data sources due for fetching', async () => {
-        liveDataService.getSourcesDueForFetch.mockResolvedValue([mockDataSource]);
+        liveDataService.getSourcesDueForFetch.mockResolvedValue([
+          mockDataSource,
+        ]);
 
         const result = await handler.execute(
           'get-due-sources',
@@ -536,7 +552,9 @@ describe('SimulationHandler', () => {
     });
 
     it('should handle service errors gracefully', async () => {
-      monteCarloService.runSimulation.mockRejectedValue(new Error('Database error'));
+      monteCarloService.runSimulation.mockRejectedValue(
+        new Error('Database error'),
+      );
 
       const result = await handler.execute(
         'run-simulation',

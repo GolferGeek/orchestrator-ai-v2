@@ -7,6 +7,15 @@
 
 import { Injectable, Logger } from '@nestjs/common';
 import { SupabaseService } from '@/supabase/supabase.service';
+import {
+  asArray,
+  asNumber,
+  asPostgrestResult,
+  asRecord,
+  asString,
+  isRecord,
+  type UnknownRecord,
+} from '../utils/safe-access';
 
 export interface ScenarioAdjustment {
   dimensionSlug: string;
@@ -53,6 +62,20 @@ export interface Scenario {
   created_at: string;
   updated_at: string;
 }
+
+type SubjectRow = {
+  id: string;
+  name: string;
+  identifier: string;
+  scope_id?: string;
+};
+type DimensionRow = { id: string; slug: string; name: string; weight: number };
+type CompositeScoreRow = {
+  id: string;
+  subject_id: string;
+  overall_score: number;
+  dimension_scores: UnknownRecord;
+};
 
 @Injectable()
 export class ScenarioAnalysisService {
@@ -104,13 +127,24 @@ export class ScenarioAnalysisService {
       for (const dim of dimensions) {
         const dimData = dimensionScores[dim.slug];
         const baselineScore =
-          typeof dimData === 'object' ? dimData?.score ?? 0 : (dimData ?? 0);
+          typeof dimData === 'object' &&
+          dimData !== null &&
+          !Array.isArray(dimData)
+            ? (asNumber((dimData as UnknownRecord)['score']) ?? 0)
+            : (asNumber(dimData) ?? 0);
         const weight =
-          typeof dimData === 'object' ? dimData?.weight ?? dim.weight : dim.weight;
+          typeof dimData === 'object' &&
+          dimData !== null &&
+          !Array.isArray(dimData)
+            ? (asNumber((dimData as UnknownRecord)['weight']) ?? dim.weight)
+            : dim.weight;
 
         const adjustment = adjustmentMap.get(dim.slug) ?? 0;
         // Apply adjustment, clamping between 0 and 1
-        const adjustedScore = Math.max(0, Math.min(1, baselineScore + adjustment));
+        const adjustedScore = Math.max(
+          0,
+          Math.min(1, baselineScore + adjustment),
+        );
 
         dimensionDetails.push({
           dimensionSlug: dim.slug,
@@ -125,7 +159,9 @@ export class ScenarioAnalysisService {
 
       const baselineScore = score.overall_score ?? 0;
       const adjustedScore =
-        totalAdjustedWeight > 0 ? totalAdjustedScore / totalAdjustedWeight : baselineScore;
+        totalAdjustedWeight > 0
+          ? totalAdjustedScore / totalAdjustedWeight
+          : baselineScore;
 
       subjectResults.push({
         subjectId: subject.id,
@@ -198,28 +234,30 @@ export class ScenarioAnalysisService {
     // Capture baseline snapshot
     const baseline = await this.captureBaseline(params.scopeId);
 
-    const { data, error } = await this.getClient()
-      .schema(this.schema)
-      .from('scenarios')
-      .insert({
-        scope_id: params.scopeId,
-        name: params.name,
-        description: params.description || null,
-        adjustments: adjustmentMap,
-        baseline_snapshot: baseline,
-        results: params.results || null,
-        is_template: params.isTemplate ?? false,
-        created_by: params.createdBy || null,
-      })
-      .select()
-      .single();
+    const result = asPostgrestResult(
+      await this.getClient()
+        .schema(this.schema)
+        .from('scenarios')
+        .insert({
+          scope_id: params.scopeId,
+          name: params.name,
+          description: params.description || null,
+          adjustments: adjustmentMap,
+          baseline_snapshot: baseline,
+          results: params.results || null,
+          is_template: params.isTemplate ?? false,
+          created_by: params.createdBy || null,
+        })
+        .select()
+        .single(),
+    );
 
-    if (error) {
-      this.logger.error(`Failed to save scenario: ${error.message}`);
-      throw error;
+    if (result.error?.message) {
+      this.logger.error(`Failed to save scenario: ${result.error.message}`);
+      throw new Error(result.error.message);
     }
 
-    return data as Scenario;
+    return asRecord(result.data) as unknown as Scenario;
   }
 
   /**
@@ -254,19 +292,21 @@ export class ScenarioAnalysisService {
    * Get a specific scenario
    */
   async getScenario(id: string): Promise<Scenario | null> {
-    const { data, error } = await this.getClient()
-      .schema(this.schema)
-      .from('scenarios')
-      .select('*')
-      .eq('id', id)
-      .single();
+    const result = asPostgrestResult(
+      await this.getClient()
+        .schema(this.schema)
+        .from('scenarios')
+        .select('*')
+        .eq('id', id)
+        .single(),
+    );
 
-    if (error && error.code !== 'PGRST116') {
-      this.logger.error(`Failed to get scenario: ${error.message}`);
-      throw error;
+    if (result.error?.message && result.error.code !== 'PGRST116') {
+      this.logger.error(`Failed to get scenario: ${result.error.message}`);
+      throw new Error(result.error.message);
     }
 
-    return data as Scenario | null;
+    return (asRecord(result.data) as Scenario | null) ?? null;
   }
 
   /**
@@ -307,7 +347,7 @@ export class ScenarioAnalysisService {
   /**
    * Get subjects for a scope
    */
-  private async getSubjects(scopeId: string): Promise<any[]> {
+  private async getSubjects(scopeId: string): Promise<SubjectRow[]> {
     const { data, error } = await this.getClient()
       .schema(this.schema)
       .from('subjects')
@@ -320,13 +360,18 @@ export class ScenarioAnalysisService {
       return [];
     }
 
-    return data || [];
+    const rows = (asArray(data) ?? []).filter(isRecord);
+    return rows.map((row) => ({
+      id: asString(row['id']) ?? '',
+      name: asString(row['name']) ?? '',
+      identifier: asString(row['identifier']) ?? '',
+    }));
   }
 
   /**
    * Get dimensions for a scope
    */
-  private async getDimensions(scopeId: string): Promise<any[]> {
+  private async getDimensions(scopeId: string): Promise<DimensionRow[]> {
     const { data, error } = await this.getClient()
       .schema(this.schema)
       .from('dimensions')
@@ -340,23 +385,33 @@ export class ScenarioAnalysisService {
       return [];
     }
 
-    return data || [];
+    const rows = (asArray(data) ?? []).filter(isRecord);
+    return rows.map((row) => ({
+      id: asString(row['id']) ?? '',
+      slug: asString(row['slug']) ?? '',
+      name: asString(row['name']) ?? '',
+      weight: asNumber(row['weight']) ?? 0,
+    }));
   }
 
   /**
    * Get composite scores for a scope
    */
-  private async getCompositeScores(scopeId: string): Promise<any[]> {
+  private async getCompositeScores(
+    scopeId: string,
+  ): Promise<CompositeScoreRow[]> {
     const { data, error } = await this.getClient()
       .schema(this.schema)
       .from('composite_scores')
-      .select(`
+      .select(
+        `
         id,
         subject_id,
         overall_score,
         dimension_scores,
         subjects!inner(scope_id)
-      `)
+      `,
+      )
       .eq('subjects.scope_id', scopeId)
       .eq('status', 'active')
       .eq('is_test', false);
@@ -366,13 +421,21 @@ export class ScenarioAnalysisService {
       return [];
     }
 
-    return data || [];
+    const rows = (asArray(data) ?? []).filter(isRecord);
+    return rows.map((row) => ({
+      id: asString(row['id']) ?? '',
+      subject_id: asString(row['subject_id']) ?? '',
+      overall_score: asNumber(row['overall_score']) ?? 0,
+      dimension_scores: asRecord(row['dimension_scores']) ?? {},
+    }));
   }
 
   /**
    * Capture baseline snapshot for a scope
    */
-  private async captureBaseline(scopeId: string): Promise<Record<string, unknown>> {
+  private async captureBaseline(
+    scopeId: string,
+  ): Promise<Record<string, unknown>> {
     const [subjects, dimensions, scores] = await Promise.all([
       this.getSubjects(scopeId),
       this.getDimensions(scopeId),
@@ -385,10 +448,10 @@ export class ScenarioAnalysisService {
       dimensionCount: dimensions.length,
       avgScore:
         scores.length > 0
-          ? scores.reduce((sum: number, s: any) => sum + (s.overall_score ?? 0), 0) /
+          ? scores.reduce((sum, s) => sum + (s.overall_score ?? 0), 0) /
             scores.length
           : 0,
-      scores: scores.map((s: any) => ({
+      scores: scores.map((s) => ({
         subjectId: s.subject_id,
         overallScore: s.overall_score,
         dimensionScores: s.dimension_scores,

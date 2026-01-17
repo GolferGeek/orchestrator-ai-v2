@@ -151,29 +151,30 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { Chart, registerables } from 'chart.js';
 import type { RiskSubject, SubjectComparison as ComparisonType } from '@/types/risk-agent';
+import { riskDashboardService } from '@/services/riskDashboardService';
 
 // Register Chart.js
 Chart.register(...registerables);
 
 interface Props {
+  scopeId?: string | null;
   subjects?: RiskSubject[];
   comparison?: ComparisonType | null;
   title?: string;
   showTitle?: boolean;
   showSaveOption?: boolean;
-  isLoading?: boolean;
   minSubjects?: number;
   maxSubjects?: number;
   initialSelected?: string[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  scopeId: null,
   subjects: () => [],
   comparison: null,
   title: 'Subject Comparison',
   showTitle: true,
   showSaveOption: false,
-  isLoading: false,
   minSubjects: 2,
   maxSubjects: 6,
   initialSelected: () => [],
@@ -182,7 +183,36 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   'compare': [subjectIds: string[]];
   'save': [data: { name: string; subjectIds: string[] }];
+  'error': [error: string];
 }>();
+
+// Internal state for data fetching
+const internalSubjects = ref<RiskSubject[]>([]);
+const isLoading = ref(false);
+
+// Fetch subjects when scopeId changes
+async function fetchSubjects() {
+  if (!props.scopeId) return;
+
+  isLoading.value = true;
+  try {
+    const response = await riskDashboardService.listSubjects({ scopeId: props.scopeId });
+    if (response.success && response.content) {
+      internalSubjects.value = response.content;
+    }
+  } catch (err) {
+    emit('error', err instanceof Error ? err.message : 'Failed to load subjects');
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+// Watch for scopeId changes - always fetch subjects to ensure data availability
+watch(() => props.scopeId, (newScopeId) => {
+  if (newScopeId) {
+    fetchSubjects();
+  }
+}, { immediate: true });
 
 const radarCanvas = ref<HTMLCanvasElement | null>(null);
 let radarChart: Chart | null = null;
@@ -200,8 +230,13 @@ const subjectColors = [
   '#ec4899', // Pink
 ];
 
-// Available subjects for selection
+// Available subjects for selection - prefer fetched data, fall back to props
 const availableSubjects = computed(() => {
+  // Prefer internally fetched subjects (always up-to-date from API)
+  if (internalSubjects.value.length > 0) {
+    return internalSubjects.value;
+  }
+  // Fall back to props if available
   return props.subjects || [];
 });
 
@@ -236,7 +271,16 @@ function formatScore(score: number): string {
 function getOverallScore(subjectId: string): string {
   const score = props.comparison?.compositeScores.find(s => s.subjectId === subjectId);
   if (!score) return '-';
-  const value = (score as any).overall_score ?? (score as any).overallScore ?? score.score ?? 0;
+  const scoreRecord = score as unknown as Record<string, unknown>;
+  const value =
+    (typeof scoreRecord['overall_score'] === 'number'
+      ? scoreRecord['overall_score']
+      : undefined) ??
+    (typeof scoreRecord['overallScore'] === 'number'
+      ? scoreRecord['overallScore']
+      : undefined) ??
+    score.score ??
+    0;
   return formatScore(value);
 }
 

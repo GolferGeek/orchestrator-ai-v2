@@ -184,8 +184,7 @@ export class SimulationHandler implements IDashboardHandler {
       return buildDashboardError('MISSING_PARAM', 'simulationId is required');
     }
 
-    const simulation =
-      await this.monteCarloService.getSimulation(simulationId);
+    const simulation = await this.monteCarloService.getSimulation(simulationId);
 
     if (!simulation) {
       return buildDashboardError(

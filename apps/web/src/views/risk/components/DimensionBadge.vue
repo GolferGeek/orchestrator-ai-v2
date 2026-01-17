@@ -16,7 +16,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent } from 'vue';
+import { computed, defineAsyncComponent, type Component } from 'vue';
 import type { RiskDimension } from '@/types/risk-agent';
 
 interface Props {
@@ -40,29 +40,29 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 // Icon mapping for lucide-vue-next icons
-const iconMap: Record<string, () => Promise<any>> = {
-  'chart-line': () => import('lucide-vue-next').then(m => m.TrendingUp),
-  'trending-up': () => import('lucide-vue-next').then(m => m.TrendingUp),
-  'droplet': () => import('lucide-vue-next').then(m => m.Droplet),
-  'water': () => import('lucide-vue-next').then(m => m.Droplet),
-  'credit-card': () => import('lucide-vue-next').then(m => m.CreditCard),
-  'scale': () => import('lucide-vue-next').then(m => m.Scale),
-  'cog': () => import('lucide-vue-next').then(m => m.Cog),
-  'settings': () => import('lucide-vue-next').then(m => m.Settings),
-  'activity': () => import('lucide-vue-next').then(m => m.Activity),
-  'bar-chart-2': () => import('lucide-vue-next').then(m => m.BarChart2),
-  'globe': () => import('lucide-vue-next').then(m => m.Globe),
-  'git-merge': () => import('lucide-vue-next').then(m => m.GitMerge),
-  'zap': () => import('lucide-vue-next').then(m => m.Zap),
-  'target': () => import('lucide-vue-next').then(m => m.Target),
-  'map': () => import('lucide-vue-next').then(m => m.Map),
-  'percent': () => import('lucide-vue-next').then(m => m.Percent),
-  'dollar-sign': () => import('lucide-vue-next').then(m => m.DollarSign),
-  'cpu': () => import('lucide-vue-next').then(m => m.Cpu),
-  'users': () => import('lucide-vue-next').then(m => m.Users),
-  'shield': () => import('lucide-vue-next').then(m => m.Shield),
-  'alert-triangle': () => import('lucide-vue-next').then(m => m.AlertTriangle),
-  'circle': () => import('lucide-vue-next').then(m => m.Circle),
+const iconMap: Record<string, () => Promise<Component>> = {
+  'chart-line': async () => (await import('lucide-vue-next')).TrendingUp,
+  'trending-up': async () => (await import('lucide-vue-next')).TrendingUp,
+  droplet: async () => (await import('lucide-vue-next')).Droplet,
+  water: async () => (await import('lucide-vue-next')).Droplet,
+  'credit-card': async () => (await import('lucide-vue-next')).CreditCard,
+  scale: async () => (await import('lucide-vue-next')).Scale,
+  cog: async () => (await import('lucide-vue-next')).Cog,
+  settings: async () => (await import('lucide-vue-next')).Settings,
+  activity: async () => (await import('lucide-vue-next')).Activity,
+  'bar-chart-2': async () => (await import('lucide-vue-next')).BarChart2,
+  globe: async () => (await import('lucide-vue-next')).Globe,
+  'git-merge': async () => (await import('lucide-vue-next')).GitMerge,
+  zap: async () => (await import('lucide-vue-next')).Zap,
+  target: async () => (await import('lucide-vue-next')).Target,
+  map: async () => (await import('lucide-vue-next')).Map,
+  percent: async () => (await import('lucide-vue-next')).Percent,
+  'dollar-sign': async () => (await import('lucide-vue-next')).DollarSign,
+  cpu: async () => (await import('lucide-vue-next')).Cpu,
+  users: async () => (await import('lucide-vue-next')).Users,
+  shield: async () => (await import('lucide-vue-next')).Shield,
+  'alert-triangle': async () => (await import('lucide-vue-next')).AlertTriangle,
+  circle: async () => (await import('lucide-vue-next')).Circle,
 };
 
 // Get values from dimension object or direct props

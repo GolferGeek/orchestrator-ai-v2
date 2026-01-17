@@ -7,6 +7,13 @@
 
 import { Injectable, Logger } from '@nestjs/common';
 import { SupabaseService } from '@/supabase/supabase.service';
+import {
+  asArray,
+  asPostgrestResult,
+  asRecord,
+  asString,
+  isRecord,
+} from '../utils/safe-access';
 
 // Data source types
 export type DataSourceType = 'firecrawl' | 'api' | 'rss' | 'webhook' | 'manual';
@@ -71,7 +78,12 @@ export interface WebhookConfig {
 }
 
 // Source configuration (union type)
-export type SourceConfig = FirecrawlConfig | ApiConfig | RssConfig | WebhookConfig | Record<string, unknown>;
+export type SourceConfig =
+  | FirecrawlConfig
+  | ApiConfig
+  | RssConfig
+  | WebhookConfig
+  | Record<string, unknown>;
 
 // Data source record
 export interface DataSource {
@@ -155,50 +167,58 @@ export class LiveDataService {
       ? this.calculateNextFetch(params.schedule)
       : null;
 
-    const { data, error } = await this.supabaseService.getServiceClient()
-      .schema('risk')
-      .from('data_sources')
-      .insert({
-        scope_id: params.scopeId,
-        name: params.name,
-        description: params.description || null,
-        source_type: params.sourceType,
-        config: params.config,
-        schedule: params.schedule || null,
-        dimension_mapping: params.dimensionMapping || {},
-        subject_filter: params.subjectFilter || null,
-        auto_reanalyze: params.autoReanalyze ?? true,
-        reanalyze_threshold: params.reanalyzeThreshold ?? 0.1,
-        next_fetch_at: nextFetch,
-      })
-      .select()
-      .single();
+    const result = asPostgrestResult(
+      await this.supabaseService
+        .getServiceClient()
+        .schema('risk')
+        .from('data_sources')
+        .insert({
+          scope_id: params.scopeId,
+          name: params.name,
+          description: params.description || null,
+          source_type: params.sourceType,
+          config: params.config,
+          schedule: params.schedule || null,
+          dimension_mapping: params.dimensionMapping || {},
+          subject_filter: params.subjectFilter || null,
+          auto_reanalyze: params.autoReanalyze ?? true,
+          reanalyze_threshold: params.reanalyzeThreshold ?? 0.1,
+          next_fetch_at: nextFetch,
+        })
+        .select()
+        .single(),
+    );
+    const row = asRecord(result.data);
 
-    if (error || !data) {
+    if (result.error?.message || !row) {
       throw new Error(
-        `Failed to create data source: ${error?.message || 'Unknown error'}`,
+        `Failed to create data source: ${result.error?.message || 'Unknown error'}`,
       );
     }
 
-    return this.mapDataSourceFromDb(data);
+    return this.mapDataSourceFromDb(row);
   }
 
   /**
    * Get a data source by ID
    */
   async getDataSource(dataSourceId: string): Promise<DataSource | null> {
-    const { data, error } = await this.supabaseService.getServiceClient()
-      .schema('risk')
-      .from('data_sources')
-      .select('*')
-      .eq('id', dataSourceId)
-      .single();
+    const result = asPostgrestResult(
+      await this.supabaseService
+        .getServiceClient()
+        .schema('risk')
+        .from('data_sources')
+        .select('*')
+        .eq('id', dataSourceId)
+        .single(),
+    );
+    const row = asRecord(result.data);
 
-    if (error || !data) {
+    if (result.error?.message || !row) {
       return null;
     }
 
-    return this.mapDataSourceFromDb(data);
+    return this.mapDataSourceFromDb(row);
   }
 
   /**
@@ -213,7 +233,8 @@ export class LiveDataService {
       offset?: number;
     },
   ): Promise<DataSource[]> {
-    let query = this.supabaseService.getServiceClient()
+    let query = this.supabaseService
+      .getServiceClient()
       .schema('risk')
       .from('data_sources')
       .select('*')
@@ -236,13 +257,15 @@ export class LiveDataService {
       );
     }
 
-    const { data, error } = await query;
+    const result = asPostgrestResult(await query);
 
-    if (error) {
-      throw new Error(`Failed to list data sources: ${error.message}`);
+    if (result.error?.message) {
+      throw new Error(`Failed to list data sources: ${result.error.message}`);
     }
 
-    return (data || []).map((s) => this.mapDataSourceFromDb(s));
+    return (asArray(result.data) ?? [])
+      .filter(isRecord)
+      .map((s) => this.mapDataSourceFromDb(s));
   }
 
   /**
@@ -293,28 +316,33 @@ export class LiveDataService {
       }
     }
 
-    const { data, error } = await this.supabaseService.getServiceClient()
-      .schema('risk')
-      .from('data_sources')
-      .update(dbUpdates)
-      .eq('id', dataSourceId)
-      .select()
-      .single();
+    const result = asPostgrestResult(
+      await this.supabaseService
+        .getServiceClient()
+        .schema('risk')
+        .from('data_sources')
+        .update(dbUpdates)
+        .eq('id', dataSourceId)
+        .select()
+        .single(),
+    );
+    const row = asRecord(result.data);
 
-    if (error || !data) {
+    if (result.error?.message || !row) {
       throw new Error(
-        `Failed to update data source: ${error?.message || 'Unknown error'}`,
+        `Failed to update data source: ${result.error?.message || 'Unknown error'}`,
       );
     }
 
-    return this.mapDataSourceFromDb(data);
+    return this.mapDataSourceFromDb(row);
   }
 
   /**
    * Delete a data source
    */
   async deleteDataSource(dataSourceId: string): Promise<void> {
-    const { error } = await this.supabaseService.getServiceClient()
+    const { error } = await this.supabaseService
+      .getServiceClient()
       .schema('risk')
       .from('data_sources')
       .delete()
@@ -372,7 +400,9 @@ export class LiveDataService {
           };
           break;
         default:
-          throw new Error(`Unsupported source type: ${source.sourceType}`);
+          throw new Error(
+            `Unsupported source type: ${String(source.sourceType)}`,
+          );
       }
 
       result.durationMs = Date.now() - startTime;
@@ -408,7 +438,12 @@ export class LiveDataService {
       });
 
       // Update source with error
-      await this.updateSourceFetchStatus(source.id, 'failed', null, errorMessage);
+      await this.updateSourceFetchStatus(
+        source.id,
+        'failed',
+        null,
+        errorMessage,
+      );
 
       return {
         success: false,
@@ -536,17 +571,21 @@ export class LiveDataService {
       reanalysisTriggered?: boolean;
     },
   ): Promise<void> {
-    await this.supabaseService.getServiceClient().schema('risk').from('data_source_fetch_history').insert({
-      data_source_id: dataSourceId,
-      status: record.status,
-      fetch_duration_ms: record.fetchDurationMs ?? null,
-      raw_response: record.rawResponse ?? null,
-      parsed_data: record.parsedData ?? null,
-      error_message: record.errorMessage ?? null,
-      dimensions_updated: record.dimensionsUpdated ?? [],
-      subjects_affected: record.subjectsAffected ?? [],
-      reanalysis_triggered: record.reanalysisTriggered ?? false,
-    });
+    await this.supabaseService
+      .getServiceClient()
+      .schema('risk')
+      .from('data_source_fetch_history')
+      .insert({
+        data_source_id: dataSourceId,
+        status: record.status,
+        fetch_duration_ms: record.fetchDurationMs ?? null,
+        raw_response: record.rawResponse ?? null,
+        parsed_data: record.parsedData ?? null,
+        error_message: record.errorMessage ?? null,
+        dimensions_updated: record.dimensionsUpdated ?? [],
+        subjects_affected: record.subjectsAffected ?? [],
+        reanalysis_triggered: record.reanalysisTriggered ?? false,
+      });
   }
 
   /**
@@ -585,7 +624,8 @@ export class LiveDataService {
       }
     }
 
-    await this.supabaseService.getServiceClient()
+    await this.supabaseService
+      .getServiceClient()
       .schema('risk')
       .from('data_sources')
       .update(updates)
@@ -599,31 +639,41 @@ export class LiveDataService {
     dataSourceId: string,
     limit: number = 20,
   ): Promise<FetchHistoryRecord[]> {
-    const { data, error } = await this.supabaseService.getServiceClient()
-      .schema('risk')
-      .from('data_source_fetch_history')
-      .select('*')
-      .eq('data_source_id', dataSourceId)
-      .order('fetched_at', { ascending: false })
-      .limit(limit);
+    const result = asPostgrestResult(
+      await this.supabaseService
+        .getServiceClient()
+        .schema('risk')
+        .from('data_source_fetch_history')
+        .select('*')
+        .eq('data_source_id', dataSourceId)
+        .order('fetched_at', { ascending: false })
+        .limit(limit),
+    );
 
-    if (error) {
-      throw new Error(`Failed to get fetch history: ${error.message}`);
+    if (result.error?.message) {
+      throw new Error(`Failed to get fetch history: ${result.error.message}`);
     }
 
-    return (data || []).map((row) => ({
-      id: row.id,
-      dataSourceId: row.data_source_id,
-      status: row.status,
-      fetchDurationMs: row.fetch_duration_ms,
-      rawResponse: row.raw_response,
-      parsedData: row.parsed_data,
-      errorMessage: row.error_message,
-      dimensionsUpdated: row.dimensions_updated || [],
-      subjectsAffected: row.subjects_affected || [],
-      reanalysisTriggered: row.reanalysis_triggered,
-      reanalysisTaskIds: row.reanalysis_task_ids || [],
-      fetchedAt: row.fetched_at,
+    const rows = (asArray(result.data) ?? []).filter(isRecord);
+    return rows.map((row) => ({
+      id: asString(row['id']) ?? '',
+      dataSourceId: asString(row['data_source_id']) ?? '',
+      status: asString(row['status']) as FetchStatus,
+      fetchDurationMs: row['fetch_duration_ms'] as number | null,
+      rawResponse: row['raw_response'],
+      parsedData: row['parsed_data'],
+      errorMessage: asString(row['error_message']),
+      dimensionsUpdated: (asArray(row['dimensions_updated']) ?? []).filter(
+        (v): v is string => typeof v === 'string',
+      ),
+      subjectsAffected: (asArray(row['subjects_affected']) ?? []).filter(
+        (v): v is string => typeof v === 'string',
+      ),
+      reanalysisTriggered: Boolean(row['reanalysis_triggered']),
+      reanalysisTaskIds: (asArray(row['reanalysis_task_ids']) ?? []).filter(
+        (v): v is string => typeof v === 'string',
+      ),
+      fetchedAt: asString(row['fetched_at']) ?? '',
     }));
   }
 
@@ -672,19 +722,24 @@ export class LiveDataService {
    * Get sources that are due for fetching
    */
   async getSourcesDueForFetch(): Promise<DataSource[]> {
-    const { data, error } = await this.supabaseService.getServiceClient()
-      .schema('risk')
-      .from('data_sources')
-      .select('*')
-      .eq('status', 'active')
-      .lte('next_fetch_at', new Date().toISOString())
-      .order('next_fetch_at', { ascending: true });
+    const result = asPostgrestResult(
+      await this.supabaseService
+        .getServiceClient()
+        .schema('risk')
+        .from('data_sources')
+        .select('*')
+        .eq('status', 'active')
+        .lte('next_fetch_at', new Date().toISOString())
+        .order('next_fetch_at', { ascending: true }),
+    );
 
-    if (error) {
-      throw new Error(`Failed to get due sources: ${error.message}`);
+    if (result.error?.message) {
+      throw new Error(`Failed to get due sources: ${result.error.message}`);
     }
 
-    return (data || []).map((s) => this.mapDataSourceFromDb(s));
+    return (asArray(result.data) ?? [])
+      .filter(isRecord)
+      .map((s) => this.mapDataSourceFromDb(s));
   }
 
   /**
@@ -726,7 +781,10 @@ export class LiveDataService {
       sourceType: row.source_type as DataSourceType,
       config: row.config as SourceConfig,
       schedule: row.schedule as string | null,
-      dimensionMapping: row.dimension_mapping as Record<string, DimensionMapping>,
+      dimensionMapping: row.dimension_mapping as Record<
+        string,
+        DimensionMapping
+      >,
       subjectFilter: row.subject_filter as DataSourceSubjectFilter | null,
       status: row.status as DataSourceStatus,
       errorMessage: row.error_message as string | null,

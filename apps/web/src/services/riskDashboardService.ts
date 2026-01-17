@@ -282,7 +282,10 @@ class RiskDashboardService {
     subjectType?: string;
     isActive?: boolean;
   }): Promise<DashboardActionResponse<RiskSubject[]>> {
-    return this.executeDashboardRequest<RiskSubject[]>('subjects.list', undefined, filters);
+    // scopeId must be passed in params for the backend to receive it
+    const params = filters?.scopeId ? { scopeId: filters.scopeId } : undefined;
+    const remainingFilters = filters ? { subjectType: filters.subjectType, isActive: filters.isActive } : undefined;
+    return this.executeDashboardRequest<RiskSubject[]>('subjects.list', params, remainingFilters);
   }
 
   async getSubject(id: string): Promise<DashboardActionResponse<RiskSubject>> {

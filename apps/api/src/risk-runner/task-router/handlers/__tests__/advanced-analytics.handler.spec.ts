@@ -178,7 +178,9 @@ describe('AdvancedAnalyticsHandler', () => {
         expires_at: null,
       } as any);
 
-      const payload = createPayload('get-latest-summary', { scopeId: 'scope-1' });
+      const payload = createPayload('get-latest-summary', {
+        scopeId: 'scope-1',
+      });
       const result = await handler.execute(
         'get-latest-summary',
         payload,
@@ -193,7 +195,9 @@ describe('AdvancedAnalyticsHandler', () => {
     it('should return null when no summary exists', async () => {
       executiveSummaryService.getLatestSummary.mockResolvedValue(null);
 
-      const payload = createPayload('get-latest-summary', { scopeId: 'scope-1' });
+      const payload = createPayload('get-latest-summary', {
+        scopeId: 'scope-1',
+      });
       const result = await handler.execute(
         'get-latest-summary',
         payload,
@@ -379,7 +383,9 @@ describe('AdvancedAnalyticsHandler', () => {
     };
 
     it('should generate a report', async () => {
-      reportGeneratorService.generateReport.mockResolvedValue(mockReport as any);
+      reportGeneratorService.generateReport.mockResolvedValue(
+        mockReport as any,
+      );
 
       const payload = createPayload('generate-report', {
         scopeId: 'scope-1',

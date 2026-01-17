@@ -130,8 +130,8 @@ export class AnalystHandler implements IDashboardHandler {
           params.filters?.domain,
         );
       } else {
-        // Default: get system analysts
-        analysts = await this.analystService.findRunnerLevel();
+        // Default: get all enabled analysts
+        analysts = await this.analystService.findAll();
       }
 
       // Apply additional filters

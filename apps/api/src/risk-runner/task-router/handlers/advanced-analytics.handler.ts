@@ -19,6 +19,7 @@ import {
 import { ExecutiveSummaryService } from '../../services/executive-summary.service';
 import { ScenarioAnalysisService } from '../../services/scenario-analysis.service';
 import { ReportGeneratorService } from '../../services/report-generator.service';
+import type { ScenarioResult } from '../../services/scenario-analysis.service';
 
 @Injectable()
 export class AdvancedAnalyticsHandler implements IDashboardHandler {
@@ -119,7 +120,11 @@ export class AdvancedAnalyticsHandler implements IDashboardHandler {
   ): Promise<DashboardActionResult> {
     const params = payload.params as Record<string, unknown> | undefined;
     const scopeId = params?.scopeId as string | undefined;
-    const summaryType = params?.summaryType as 'daily' | 'weekly' | 'ad-hoc' | undefined;
+    const summaryType = params?.summaryType as
+      | 'daily'
+      | 'weekly'
+      | 'ad-hoc'
+      | undefined;
 
     if (!scopeId) {
       return buildDashboardError(
@@ -169,14 +174,12 @@ export class AdvancedAnalyticsHandler implements IDashboardHandler {
     const scopeId = params?.scopeId as string | undefined;
 
     if (!scopeId) {
-      return buildDashboardError(
-        'MISSING_SCOPE_ID',
-        'Scope ID is required',
-      );
+      return buildDashboardError('MISSING_SCOPE_ID', 'Scope ID is required');
     }
 
     try {
-      const summary = await this.executiveSummaryService.getLatestSummary(scopeId);
+      const summary =
+        await this.executiveSummaryService.getLatestSummary(scopeId);
 
       if (!summary) {
         return buildDashboardSuccess(null, { found: false });
@@ -215,10 +218,7 @@ export class AdvancedAnalyticsHandler implements IDashboardHandler {
     const summaryType = params?.summaryType as string | undefined;
 
     if (!scopeId) {
-      return buildDashboardError(
-        'MISSING_SCOPE_ID',
-        'Scope ID is required',
-      );
+      return buildDashboardError('MISSING_SCOPE_ID', 'Scope ID is required');
     }
 
     try {
@@ -264,10 +264,12 @@ export class AdvancedAnalyticsHandler implements IDashboardHandler {
     const params = payload.params as Record<string, unknown> | undefined;
     const scopeId = params?.scopeId as string | undefined;
     const name = params?.name as string | undefined;
-    const adjustments = params?.adjustments as Array<{
-      dimensionSlug: string;
-      adjustment: number;
-    }> | undefined;
+    const adjustments = params?.adjustments as
+      | Array<{
+          dimensionSlug: string;
+          adjustment: number;
+        }>
+      | undefined;
 
     if (!scopeId || !name || !adjustments || adjustments.length === 0) {
       return buildDashboardError(
@@ -307,11 +309,13 @@ export class AdvancedAnalyticsHandler implements IDashboardHandler {
     const scopeId = params?.scopeId as string | undefined;
     const name = params?.name as string | undefined;
     const description = params?.description as string | undefined;
-    const adjustments = params?.adjustments as Array<{
-      dimensionSlug: string;
-      adjustment: number;
-    }> | undefined;
-    const results = params?.results as any | undefined;
+    const adjustments = params?.adjustments as
+      | Array<{
+          dimensionSlug: string;
+          adjustment: number;
+        }>
+      | undefined;
+    const results = params?.results as ScenarioResult | undefined;
     const isTemplate = params?.isTemplate as boolean | undefined;
 
     if (!scopeId || !name || !adjustments || adjustments.length === 0) {
@@ -364,10 +368,7 @@ export class AdvancedAnalyticsHandler implements IDashboardHandler {
     const includeTemplates = params?.includeTemplates as boolean | undefined;
 
     if (!scopeId) {
-      return buildDashboardError(
-        'MISSING_SCOPE_ID',
-        'Scope ID is required',
-      );
+      return buildDashboardError('MISSING_SCOPE_ID', 'Scope ID is required');
     }
 
     try {
@@ -515,7 +516,11 @@ export class AdvancedAnalyticsHandler implements IDashboardHandler {
     const params = payload.params as Record<string, unknown> | undefined;
     const scopeId = params?.scopeId as string | undefined;
     const title = params?.title as string | undefined;
-    const reportType = params?.reportType as 'comprehensive' | 'executive' | 'detailed' | undefined;
+    const reportType = params?.reportType as
+      | 'comprehensive'
+      | 'executive'
+      | 'detailed'
+      | undefined;
     const config = params?.config as Record<string, unknown> | undefined;
 
     if (!scopeId || !title) {
@@ -614,17 +619,14 @@ export class AdvancedAnalyticsHandler implements IDashboardHandler {
     const status = params?.status as string | undefined;
 
     if (!scopeId) {
-      return buildDashboardError(
-        'MISSING_SCOPE_ID',
-        'Scope ID is required',
-      );
+      return buildDashboardError('MISSING_SCOPE_ID', 'Scope ID is required');
     }
 
     try {
-      const reports = await this.reportGeneratorService.listReports(
-        scopeId,
-        { limit, status },
-      );
+      const reports = await this.reportGeneratorService.listReports(scopeId, {
+        limit,
+        status,
+      });
 
       return buildDashboardSuccess(
         reports.map((r) => ({
@@ -696,7 +698,8 @@ export class AdvancedAnalyticsHandler implements IDashboardHandler {
     }
 
     try {
-      const downloadUrl = await this.reportGeneratorService.refreshDownloadUrl(id);
+      const downloadUrl =
+        await this.reportGeneratorService.refreshDownloadUrl(id);
 
       if (!downloadUrl) {
         return buildDashboardError(
@@ -715,7 +718,9 @@ export class AdvancedAnalyticsHandler implements IDashboardHandler {
       );
       return buildDashboardError(
         'REFRESH_FAILED',
-        error instanceof Error ? error.message : 'Failed to refresh download URL',
+        error instanceof Error
+          ? error.message
+          : 'Failed to refresh download URL',
       );
     }
   }

@@ -10,6 +10,15 @@ import { Injectable, Logger } from '@nestjs/common';
 import { LLMService } from '@/llms/llm.service';
 import { SupabaseService } from '@/supabase/supabase.service';
 import { ExecutionContext } from '@orchestrator-ai/transport-types';
+import {
+  asArray,
+  asNumber,
+  asPostgrestResult,
+  asRecord,
+  asString,
+  isRecord,
+  type UnknownRecord,
+} from '../utils/safe-access';
 
 export interface ExecutiveSummaryContent {
   headline: string;
@@ -18,7 +27,11 @@ export interface ExecutiveSummaryContent {
   recommendations: string[];
   riskHighlights: {
     topRisks: Array<{ subject: string; score: number; dimension: string }>;
-    recentChanges: Array<{ subject: string; change: number; direction: 'up' | 'down' }>;
+    recentChanges: Array<{
+      subject: string;
+      change: number;
+      direction: 'up' | 'down';
+    }>;
   };
 }
 
@@ -46,6 +59,22 @@ export interface GenerateSummaryResult {
   cached: boolean;
 }
 
+type TopRisk = {
+  subjectId: string;
+  subjectName: string;
+  overallScore: number;
+  dimensionScores: UnknownRecord;
+};
+
+type RecentChange = {
+  subjectId: string;
+  currentScore: number;
+  previousScore: number | null;
+  change: number;
+  direction: 'up' | 'down';
+  changedAt: string;
+};
+
 @Injectable()
 export class ExecutiveSummaryService {
   private readonly logger = new Logger(ExecutiveSummaryService.name);
@@ -66,10 +95,14 @@ export class ExecutiveSummaryService {
    * If a recent summary exists (less than 1 hour old), returns cached version.
    * Otherwise generates a new summary using LLM.
    */
-  async generateSummary(input: GenerateSummaryInput): Promise<GenerateSummaryResult> {
+  async generateSummary(
+    input: GenerateSummaryInput,
+  ): Promise<GenerateSummaryResult> {
     const { scopeId, summaryType = 'ad-hoc', context } = input;
 
-    this.logger.log(`Generating executive summary for scope ${scopeId}, type: ${summaryType}`);
+    this.logger.log(
+      `Generating executive summary for scope ${scopeId}, type: ${summaryType}`,
+    );
 
     // Check for cached summary (less than 1 hour old for ad-hoc, or matching type for scheduled)
     const cached = await this.findCachedSummary(scopeId, summaryType);
@@ -100,21 +133,25 @@ export class ExecutiveSummaryService {
    * Get the latest summary for a scope
    */
   async getLatestSummary(scopeId: string): Promise<ExecutiveSummary | null> {
-    const { data, error } = await this.getClient()
-      .schema(this.schema)
-      .from('executive_summaries')
-      .select('*')
-      .eq('scope_id', scopeId)
-      .order('generated_at', { ascending: false })
-      .limit(1)
-      .single();
+    const result = asPostgrestResult(
+      await this.getClient()
+        .schema(this.schema)
+        .from('executive_summaries')
+        .select('*')
+        .eq('scope_id', scopeId)
+        .order('generated_at', { ascending: false })
+        .limit(1)
+        .single(),
+    );
 
-    if (error && error.code !== 'PGRST116') {
-      this.logger.error(`Failed to get latest summary: ${error.message}`);
-      throw error;
+    if (result.error?.message && result.error.code !== 'PGRST116') {
+      this.logger.error(
+        `Failed to get latest summary: ${result.error.message}`,
+      );
+      throw new Error(result.error.message);
     }
 
-    return data as ExecutiveSummary | null;
+    return (asRecord(result.data) as ExecutiveSummary | null) ?? null;
   }
 
   /**
@@ -139,14 +176,16 @@ export class ExecutiveSummaryService {
       query = query.limit(options.limit);
     }
 
-    const { data, error } = await query;
+    const result = asPostgrestResult(await query);
 
-    if (error) {
-      this.logger.error(`Failed to list summaries: ${error.message}`);
-      throw error;
+    if (result.error?.message) {
+      this.logger.error(`Failed to list summaries: ${result.error.message}`);
+      throw new Error(result.error.message);
     }
 
-    return (data || []) as ExecutiveSummary[];
+    return (asArray(result.data) ?? []).filter(
+      isRecord,
+    ) as unknown as ExecutiveSummary[];
   }
 
   /**
@@ -158,38 +197,46 @@ export class ExecutiveSummaryService {
   ): Promise<ExecutiveSummary | null> {
     // For ad-hoc summaries, check if there's one less than 1 hour old
     // For scheduled summaries, check for the same type from today
-    const cacheWindow = summaryType === 'ad-hoc'
-      ? new Date(Date.now() - 60 * 60 * 1000).toISOString() // 1 hour
-      : new Date(new Date().setHours(0, 0, 0, 0)).toISOString(); // Today
+    const cacheWindow =
+      summaryType === 'ad-hoc'
+        ? new Date(Date.now() - 60 * 60 * 1000).toISOString() // 1 hour
+        : new Date(new Date().setHours(0, 0, 0, 0)).toISOString(); // Today
 
-    const { data, error } = await this.getClient()
-      .schema(this.schema)
-      .from('executive_summaries')
-      .select('*')
-      .eq('scope_id', scopeId)
-      .eq('summary_type', summaryType)
-      .gte('generated_at', cacheWindow)
-      .order('generated_at', { ascending: false })
-      .limit(1)
-      .single();
+    const result = asPostgrestResult(
+      await this.getClient()
+        .schema(this.schema)
+        .from('executive_summaries')
+        .select('*')
+        .eq('scope_id', scopeId)
+        .eq('summary_type', summaryType)
+        .gte('generated_at', cacheWindow)
+        .order('generated_at', { ascending: false })
+        .limit(1)
+        .single(),
+    );
 
-    if (error && error.code !== 'PGRST116') {
-      this.logger.error(`Failed to find cached summary: ${error.message}`);
+    if (result.error?.message && result.error.code !== 'PGRST116') {
+      this.logger.error(
+        `Failed to find cached summary: ${result.error.message}`,
+      );
     }
 
-    return data as ExecutiveSummary | null;
+    return (asRecord(result.data) as ExecutiveSummary | null) ?? null;
   }
 
   /**
    * Gather all risk data needed for summary generation
    */
-  private async gatherRiskData(scopeId: string): Promise<Record<string, unknown>> {
-    const [portfolioAggregate, topRisks, recentChanges, riskDistribution] = await Promise.all([
-      this.getPortfolioAggregate(scopeId),
-      this.getTopRisks(scopeId),
-      this.getRecentChanges(scopeId),
-      this.getRiskDistribution(scopeId),
-    ]);
+  private async gatherRiskData(
+    scopeId: string,
+  ): Promise<Record<string, unknown>> {
+    const [portfolioAggregate, topRisks, recentChanges, riskDistribution] =
+      await Promise.all([
+        this.getPortfolioAggregate(scopeId),
+        this.getTopRisks(scopeId),
+        this.getRecentChanges(scopeId),
+        this.getRiskDistribution(scopeId),
+      ]);
 
     return {
       portfolioAggregate,
@@ -203,35 +250,43 @@ export class ExecutiveSummaryService {
   /**
    * Get portfolio aggregate stats
    */
-  private async getPortfolioAggregate(scopeId: string): Promise<Record<string, unknown>> {
-    const { data, error } = await this.getClient()
-      .schema(this.schema)
-      .from('portfolio_aggregate')
-      .select('*')
-      .eq('scope_id', scopeId)
-      .single();
+  private async getPortfolioAggregate(
+    scopeId: string,
+  ): Promise<Record<string, unknown>> {
+    const result = asPostgrestResult(
+      await this.getClient()
+        .schema(this.schema)
+        .from('portfolio_aggregate')
+        .select('*')
+        .eq('scope_id', scopeId)
+        .single(),
+    );
 
-    if (error && error.code !== 'PGRST116') {
-      this.logger.warn(`Failed to get portfolio aggregate: ${error.message}`);
+    if (result.error?.message && result.error.code !== 'PGRST116') {
+      this.logger.warn(
+        `Failed to get portfolio aggregate: ${result.error.message}`,
+      );
     }
 
-    return data || {};
+    return asRecord(result.data) ?? {};
   }
 
   /**
    * Get top risk subjects
    */
-  private async getTopRisks(scopeId: string): Promise<Array<Record<string, unknown>>> {
+  private async getTopRisks(scopeId: string): Promise<TopRisk[]> {
     const { data, error } = await this.getClient()
       .schema(this.schema)
       .from('composite_scores')
-      .select(`
+      .select(
+        `
         id,
         subject_id,
         overall_score,
         dimension_scores,
         subjects!inner(id, name, identifier)
-      `)
+      `,
+      )
       .eq('subjects.scope_id', scopeId)
       .eq('status', 'active')
       .eq('is_test', false)
@@ -243,66 +298,88 @@ export class ExecutiveSummaryService {
       return [];
     }
 
-    return (data || []).map((row: any) => ({
-      subjectId: row.subject_id,
-      subjectName: row.subjects?.name || 'Unknown',
-      overallScore: row.overall_score,
-      dimensionScores: row.dimension_scores,
-    }));
+    const rows = (asArray(data) ?? []).filter(isRecord);
+    return rows.map((row) => {
+      const subjects = asRecord(row['subjects']) ?? {};
+      return {
+        subjectId: asString(row['subject_id']) ?? '',
+        subjectName: asString(subjects['name']) ?? 'Unknown',
+        overallScore: asNumber(row['overall_score']) ?? 0,
+        dimensionScores: asRecord(row['dimension_scores']) ?? {},
+      };
+    });
   }
 
   /**
    * Get recent score changes
    */
-  private async getRecentChanges(scopeId: string): Promise<Array<Record<string, unknown>>> {
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  private async getRecentChanges(scopeId: string): Promise<RecentChange[]> {
+    const sevenDaysAgo = new Date(
+      Date.now() - 7 * 24 * 60 * 60 * 1000,
+    ).toISOString();
 
-    const { data, error } = await this.getClient()
-      .schema(this.schema)
-      .from('score_history')
-      .select(`
-        subject_id,
-        overall_score,
-        previous_score,
-        score_change,
-        created_at
-      `)
-      .gte('created_at', sevenDaysAgo)
-      .not('score_change', 'is', null)
-      .order('created_at', { ascending: false })
-      .limit(10);
+    const result = asPostgrestResult(
+      await this.getClient()
+        .schema(this.schema)
+        .from('score_history')
+        .select(
+          `
+          subject_id,
+          overall_score,
+          previous_score,
+          score_change,
+          created_at,
+          subjects!inner(scope_id)
+        `,
+        )
+        .eq('subjects.scope_id', scopeId)
+        .gte('created_at', sevenDaysAgo)
+        .not('score_change', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(10),
+    );
 
-    if (error) {
-      this.logger.warn(`Failed to get recent changes: ${error.message}`);
+    if (result.error?.message) {
+      this.logger.warn(`Failed to get recent changes: ${result.error.message}`);
       return [];
     }
 
-    return (data || []).map((row: any) => ({
-      subjectId: row.subject_id,
-      currentScore: row.overall_score,
-      previousScore: row.previous_score,
-      change: row.score_change,
-      direction: row.score_change > 0 ? 'up' : 'down',
-      changedAt: row.created_at,
-    }));
+    const rows = (asArray(result.data) ?? []).filter(isRecord);
+    return rows.map((row) => {
+      const change = asNumber(row['score_change']) ?? 0;
+      return {
+        subjectId: asString(row['subject_id']) ?? '',
+        currentScore: asNumber(row['overall_score']) ?? 0,
+        previousScore: asNumber(row['previous_score']),
+        change,
+        direction: change > 0 ? 'up' : 'down',
+        changedAt: asString(row['created_at']) ?? '',
+      };
+    });
   }
 
   /**
    * Get risk distribution
    */
-  private async getRiskDistribution(scopeId: string): Promise<Array<Record<string, unknown>>> {
-    const { data, error } = await this.getClient()
-      .schema(this.schema)
-      .from('risk_distribution')
-      .select('*')
-      .eq('scope_id', scopeId);
+  private async getRiskDistribution(
+    scopeId: string,
+  ): Promise<Array<Record<string, unknown>>> {
+    const result = asPostgrestResult(
+      await this.getClient()
+        .schema(this.schema)
+        .from('risk_distribution')
+        .select('*')
+        .eq('scope_id', scopeId),
+    );
 
-    if (error) {
-      this.logger.warn(`Failed to get risk distribution: ${error.message}`);
+    if (result.error?.message) {
+      this.logger.warn(
+        `Failed to get risk distribution: ${result.error.message}`,
+      );
       return [];
     }
 
-    return data || [];
+    return (asArray(result.data) ?? []).filter(isRecord);
   }
 
   /**
@@ -321,15 +398,19 @@ Your summaries should be:
 
 Always respond with valid JSON in the exact format specified.`;
 
-    const aggregate = riskData.portfolioAggregate as any || {};
-    const topRisks = riskData.topRisks as any[] || [];
-    const recentChanges = riskData.recentChanges as any[] || [];
-    const distribution = riskData.riskDistribution as any[] || [];
+    const aggregate = asRecord(riskData['portfolioAggregate']) ?? {};
+    const topRisks = (asArray(riskData['topRisks']) ?? []).filter(isRecord);
+    const recentChanges = (asArray(riskData['recentChanges']) ?? []).filter(
+      isRecord,
+    );
+    const distribution = (asArray(riskData['riskDistribution']) ?? []).filter(
+      isRecord,
+    );
 
-    const avgScore = aggregate.avg_score ?? 0;
-    const criticalCount = aggregate.critical_count ?? 0;
-    const highCount = aggregate.high_count ?? 0;
-    const subjectCount = aggregate.subject_count ?? 0;
+    const avgScore = asNumber(aggregate['avg_score']) ?? 0;
+    const criticalCount = asNumber(aggregate['critical_count']) ?? 0;
+    const highCount = asNumber(aggregate['high_count']) ?? 0;
+    const subjectCount = asNumber(aggregate['subject_count']) ?? 0;
 
     const userPrompt = `Based on the following portfolio risk data, generate an executive summary:
 
@@ -338,16 +419,44 @@ Always respond with valid JSON in the exact format specified.`;
 - Average Risk Score: ${(avgScore * 100).toFixed(1)}%
 - Critical Risk Count: ${criticalCount}
 - High Risk Count: ${highCount}
-- Score Standard Deviation: ${((aggregate.score_stddev ?? 0) * 100).toFixed(1)}%
+- Score Standard Deviation: ${((asNumber(aggregate['score_stddev']) ?? 0) * 100).toFixed(1)}%
 
 ## Risk Distribution
-${distribution.map((d: any) => `- ${d.risk_level}: ${d.count} (${d.percentage?.toFixed(1) || 0}%)`).join('\n') || 'No distribution data available'}
+${
+  distribution
+    .map((d) => {
+      const level = asString(d['risk_level']) ?? 'unknown';
+      const count = asNumber(d['count']) ?? 0;
+      const pct = asNumber(d['percentage']) ?? 0;
+      return `- ${level}: ${count} (${pct.toFixed(1)}%)`;
+    })
+    .join('\n') || 'No distribution data available'
+}
 
 ## Top Risks (Highest Scores)
-${topRisks.slice(0, 5).map((r: any, i: number) => `${i + 1}. ${r.subjectName}: ${(r.overallScore * 100).toFixed(1)}%`).join('\n') || 'No top risk data available'}
+${
+  topRisks
+    .slice(0, 5)
+    .map((r, i) => {
+      const name = asString(r['subjectName']) ?? 'Unknown';
+      const score = asNumber(r['overallScore']) ?? 0;
+      return `${i + 1}. ${name}: ${(score * 100).toFixed(1)}%`;
+    })
+    .join('\n') || 'No top risk data available'
+}
 
 ## Recent Changes (Past 7 Days)
-${recentChanges.slice(0, 5).map((c: any) => `- Subject ${c.subjectId}: ${c.direction === 'up' ? '↑' : '↓'} ${Math.abs(c.change * 100).toFixed(1)}%`).join('\n') || 'No recent changes'}
+${
+  recentChanges
+    .slice(0, 5)
+    .map((c) => {
+      const subjectId = asString(c['subjectId']) ?? '';
+      const direction = asString(c['direction']) === 'up' ? 'up' : 'down';
+      const change = asNumber(c['change']) ?? 0;
+      return `- Subject ${subjectId}: ${direction === 'up' ? '↑' : '↓'} ${Math.abs(change * 100).toFixed(1)}%`;
+    })
+    .join('\n') || 'No recent changes'
+}
 
 Please generate a JSON response with exactly this structure:
 {
@@ -378,8 +487,14 @@ Guidelines:
       },
     );
 
-    const responseText = typeof response === 'string' ? response : response.content;
-    return this.parseSummaryResponse(responseText, avgScore, topRisks, recentChanges);
+    const responseText =
+      typeof response === 'string' ? response : response.content;
+    return this.parseSummaryResponse(
+      responseText,
+      avgScore,
+      topRisks,
+      recentChanges,
+    );
   }
 
   /**
@@ -388,8 +503,8 @@ Guidelines:
   private parseSummaryResponse(
     response: string,
     avgScore: number,
-    topRisks: any[],
-    recentChanges: any[],
+    topRisks: UnknownRecord[],
+    recentChanges: UnknownRecord[],
   ): ExecutiveSummaryContent {
     try {
       // Extract JSON from response (may be wrapped in markdown)
@@ -398,32 +513,56 @@ Guidelines:
         throw new Error('No JSON found in response');
       }
 
-      const parsed = JSON.parse(jsonMatch[0]);
+      const parsed = asRecord(JSON.parse(jsonMatch[0])) ?? {};
+      const parsedHighlights = asRecord(parsed['riskHighlights']) ?? {};
 
       // Validate and fill defaults
       return {
-        headline: parsed.headline?.slice(0, 100) || 'Risk summary unavailable',
-        status: this.validateStatus(parsed.status, avgScore),
-        keyFindings: Array.isArray(parsed.keyFindings)
-          ? parsed.keyFindings.slice(0, 5)
+        headline: (
+          asString(parsed['headline']) ?? 'Risk summary unavailable'
+        ).slice(0, 100),
+        status: this.validateStatus(
+          asString(parsed['status']) ?? undefined,
+          avgScore,
+        ),
+        keyFindings: Array.isArray(parsed['keyFindings'])
+          ? (parsed['keyFindings'] as unknown[])
+              .filter((v): v is string => typeof v === 'string')
+              .slice(0, 5)
           : ['Summary generation encountered issues'],
-        recommendations: Array.isArray(parsed.recommendations)
-          ? parsed.recommendations.slice(0, 3)
+        recommendations: Array.isArray(parsed['recommendations'])
+          ? (parsed['recommendations'] as unknown[])
+              .filter((v): v is string => typeof v === 'string')
+              .slice(0, 3)
           : ['Review risk data manually'],
         riskHighlights: {
-          topRisks: Array.isArray(parsed.riskHighlights?.topRisks)
-            ? parsed.riskHighlights.topRisks.slice(0, 3)
-            : topRisks.slice(0, 3).map((r: any) => ({
-                subject: r.subjectName,
-                score: r.overallScore,
+          topRisks: Array.isArray(parsedHighlights['topRisks'])
+            ? ((parsedHighlights['topRisks'] as unknown[]).slice(
+                0,
+                3,
+              ) as Array<{
+                subject: string;
+                score: number;
+                dimension: string;
+              }>)
+            : topRisks.slice(0, 3).map((r) => ({
+                subject: asString(r['subjectName']) ?? 'Unknown',
+                score: asNumber(r['overallScore']) ?? 0,
                 dimension: 'Overall',
               })),
-          recentChanges: Array.isArray(parsed.riskHighlights?.recentChanges)
-            ? parsed.riskHighlights.recentChanges.slice(0, 3)
-            : recentChanges.slice(0, 3).map((c: any) => ({
-                subject: c.subjectId,
-                change: c.change,
-                direction: c.direction,
+          recentChanges: Array.isArray(parsedHighlights['recentChanges'])
+            ? ((parsedHighlights['recentChanges'] as unknown[]).slice(
+                0,
+                3,
+              ) as Array<{
+                subject: string;
+                change: number;
+                direction: 'up' | 'down';
+              }>)
+            : recentChanges.slice(0, 3).map((c) => ({
+                subject: asString(c['subjectId']) ?? '',
+                change: asNumber(c['change']) ?? 0,
+                direction: asString(c['direction']) === 'up' ? 'up' : 'down',
               })),
         },
       };
@@ -462,8 +601,8 @@ Guidelines:
    */
   private buildFallbackContent(
     avgScore: number,
-    topRisks: any[],
-    recentChanges: any[],
+    topRisks: UnknownRecord[],
+    recentChanges: UnknownRecord[],
   ): ExecutiveSummaryContent {
     const status = this.validateStatus(undefined, avgScore);
 
@@ -473,7 +612,7 @@ Guidelines:
       keyFindings: [
         `Average portfolio risk score: ${(avgScore * 100).toFixed(1)}%`,
         topRisks.length > 0
-          ? `Highest risk: ${topRisks[0]?.subjectName} at ${(topRisks[0]?.overallScore * 100).toFixed(1)}%`
+          ? `Highest risk: ${asString((topRisks[0] as UnknownRecord)?.['subjectName']) ?? 'Unknown'} at ${((asNumber((topRisks[0] as UnknownRecord)?.['overallScore']) ?? 0) * 100).toFixed(1)}%`
           : 'No high-risk subjects identified',
         recentChanges.length > 0
           ? `${recentChanges.length} score changes in the past 7 days`
@@ -484,15 +623,15 @@ Guidelines:
         'Monitor high-risk subjects closely',
       ],
       riskHighlights: {
-        topRisks: topRisks.slice(0, 3).map((r: any) => ({
-          subject: r.subjectName,
-          score: r.overallScore,
+        topRisks: topRisks.slice(0, 3).map((r) => ({
+          subject: asString(r['subjectName']) ?? 'Unknown',
+          score: asNumber(r['overallScore']) ?? 0,
           dimension: 'Overall',
         })),
-        recentChanges: recentChanges.slice(0, 3).map((c: any) => ({
-          subject: c.subjectId,
-          change: c.change,
-          direction: c.direction as 'up' | 'down',
+        recentChanges: recentChanges.slice(0, 3).map((c) => ({
+          subject: asString(c['subjectId']) ?? '',
+          change: asNumber(c['change']) ?? 0,
+          direction: asString(c['direction']) === 'up' ? 'up' : 'down',
         })),
       },
     };
@@ -510,26 +649,28 @@ Guidelines:
   }): Promise<ExecutiveSummary> {
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 hours
 
-    const { data, error } = await this.getClient()
-      .schema(this.schema)
-      .from('executive_summaries')
-      .insert({
-        scope_id: params.scopeId,
-        summary_type: params.summaryType,
-        content: params.content,
-        risk_snapshot: params.riskSnapshot,
-        generated_by: params.generatedBy,
-        generated_at: new Date().toISOString(),
-        expires_at: expiresAt,
-      })
-      .select()
-      .single();
+    const result = asPostgrestResult(
+      await this.getClient()
+        .schema(this.schema)
+        .from('executive_summaries')
+        .insert({
+          scope_id: params.scopeId,
+          summary_type: params.summaryType,
+          content: params.content,
+          risk_snapshot: params.riskSnapshot,
+          generated_by: params.generatedBy,
+          generated_at: new Date().toISOString(),
+          expires_at: expiresAt,
+        })
+        .select()
+        .single(),
+    );
 
-    if (error) {
-      this.logger.error(`Failed to save summary: ${error.message}`);
-      throw error;
+    if (result.error?.message) {
+      this.logger.error(`Failed to save summary: ${result.error.message}`);
+      throw new Error(result.error.message);
     }
 
-    return data as ExecutiveSummary;
+    return asRecord(result.data) as unknown as ExecutiveSummary;
   }
 }

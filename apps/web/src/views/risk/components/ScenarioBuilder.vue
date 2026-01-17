@@ -34,7 +34,7 @@
 
         <div class="dimension-sliders">
           <div
-            v-for="dim in dimensions"
+            v-for="dim in availableDimensions"
             :key="dim.id"
             class="dimension-slider"
           >
@@ -295,7 +295,7 @@ const emit = defineEmits<{
 }>();
 
 // State
-const dimensions = ref<RiskDimension[]>([]);
+const availableDimensions = ref<RiskDimension[]>([]);
 const adjustments = ref<Record<string, number>>({});
 const result = ref<ScenarioResult | null>(null);
 const scenarioName = ref('');
@@ -316,7 +316,7 @@ const hasAdjustments = computed(() => {
 // Methods
 async function loadDimensions() {
   if (props.dimensions?.length) {
-    dimensions.value = props.dimensions;
+    availableDimensions.value = props.dimensions;
     return;
   }
 
@@ -324,7 +324,7 @@ async function loadDimensions() {
   try {
     const response = await riskDashboardService.listDimensions(props.scopeId);
     if (response.success && Array.isArray(response.content)) {
-      dimensions.value = response.content;
+      availableDimensions.value = response.content;
     }
   } catch (e) {
     emit('error', e instanceof Error ? e.message : 'Failed to load dimensions');
@@ -362,24 +362,24 @@ function applyPreset(preset: string) {
 
   switch (preset) {
     case 'optimistic':
-      dimensions.value.forEach(d => {
+        availableDimensions.value.forEach(d => {
         newAdjustments[d.slug] = -0.2;
       });
       break;
     case 'pessimistic':
-      dimensions.value.forEach(d => {
+        availableDimensions.value.forEach(d => {
         newAdjustments[d.slug] = 0.2;
       });
       break;
     case 'market-shock':
-      dimensions.value.forEach(d => {
+        availableDimensions.value.forEach(d => {
         if (d.slug.includes('market') || d.slug.includes('volatility')) {
           newAdjustments[d.slug] = 0.4;
         }
       });
       break;
     case 'regulatory':
-      dimensions.value.forEach(d => {
+        availableDimensions.value.forEach(d => {
         if (d.slug.includes('regulatory') || d.slug.includes('compliance')) {
           newAdjustments[d.slug] = 0.5;
         }

@@ -160,4 +160,12 @@ export class AnalystService {
   async findRunnerLevel(): Promise<Analyst[]> {
     return this.analystRepository.findRunnerLevel();
   }
+
+  /**
+   * Get all enabled analysts regardless of scope level
+   * Used by the Analyst Management dashboard
+   */
+  async findAll(): Promise<Analyst[]> {
+    return this.analystRepository.getActive();
+  }
 }

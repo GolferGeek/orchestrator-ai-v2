@@ -273,8 +273,14 @@ async function loadScopeData(scopeId: string) {
     // Calculate average score from composite scores (handle both 0-1 and 0-100 scales)
     let avgScore = 0;
     if (store.compositeScores.length > 0) {
-      const total = store.compositeScores.reduce((sum, s: any) => {
-        const score = s.overall_score ?? s.score ?? 0;
+      const total = store.compositeScores.reduce((sum, s) => {
+        const sRecord = s as unknown as Record<string, unknown>;
+        const score =
+          (typeof sRecord['overall_score'] === 'number'
+            ? sRecord['overall_score']
+            : undefined) ??
+          (typeof sRecord['score'] === 'number' ? sRecord['score'] : undefined) ??
+          0;
         // Normalize to 0-1 scale
         return sum + (score > 1 ? score / 100 : score);
       }, 0);
@@ -312,21 +318,41 @@ function onScopeChange() {
   }
 }
 
-async function onSelectSubject(subjectId: string, compositeScore?: any) {
+async function onSelectSubject(subjectId: string, compositeScore?: unknown) {
   selectedSubjectId.value = subjectId;
   showDetailPanel.value = true;
   await loadSubjectDetails(subjectId, compositeScore);
 }
 
-async function loadSubjectDetails(subjectId: string, passedCompositeScore?: any) {
+function pickFirstStringField(
+  value: unknown,
+  keys: string[],
+  fallback: string,
+): string {
+  if (!value || typeof value !== 'object') return fallback;
+  const rec = value as Record<string, unknown>;
+  for (const key of keys) {
+    const v = rec[key];
+    if (typeof v === 'string' && v.length > 0) {
+      return v;
+    }
+  }
+  return fallback;
+}
+
+async function loadSubjectDetails(subjectId: string, passedCompositeScore?: unknown) {
   isLoadingDetail.value = true;
   detailError.value = null;
 
   try {
     // Use passed composite score or find in store
-    const existingScore = passedCompositeScore || store.compositeScores.find(
-      (s: any) => s.subjectId === subjectId || s.subject_id === subjectId
-    );
+    const existingScore =
+      passedCompositeScore ||
+      store.compositeScores.find(
+        (s) =>
+          (s as { subjectId?: string }).subjectId === subjectId ||
+          (s as unknown as Record<string, unknown>)['subject_id'] === subjectId,
+      );
 
     // Fetch additional details in parallel
     const [assessmentsRes, debateRes, alertsRes] = await Promise.all([
@@ -339,13 +365,25 @@ async function loadSubjectDetails(subjectId: string, passedCompositeScore?: any)
       // Build subject from composite score data (handles snake_case)
       const subject = {
         id: subjectId,
-        identifier: (existingScore as any).subject_identifier || existingScore.subjectIdentifier || '',
-        name: (existingScore as any).subject_name || existingScore.subjectName || 'Unknown',
-        subjectType: (existingScore as any).subject_type || existingScore.subjectType || '',
-        scopeId: existingScore.scopeId || '',
+        identifier: pickFirstStringField(
+          existingScore,
+          ['subject_identifier', 'subjectIdentifier'],
+          '',
+        ),
+        name: pickFirstStringField(
+          existingScore,
+          ['subject_name', 'subjectName'],
+          'Unknown',
+        ),
+        subjectType: pickFirstStringField(
+          existingScore,
+          ['subject_type', 'subjectType'],
+          '',
+        ),
+        scopeId: pickFirstStringField(existingScore, ['scopeId', 'scope_id'], ''),
         isActive: true,
-        createdAt: existingScore.createdAt || '',
-        updatedAt: existingScore.updatedAt || '',
+        createdAt: pickFirstStringField(existingScore, ['createdAt', 'created_at'], ''),
+        updatedAt: pickFirstStringField(existingScore, ['updatedAt', 'updated_at'], ''),
       };
 
       store.setSelectedSubject({

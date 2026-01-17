@@ -129,31 +129,75 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import type { HeatmapData, HeatmapRow, HeatmapCell, RiskDimension } from '@/types/risk-agent';
+import { riskDashboardService } from '@/services/riskDashboardService';
 
 interface Props {
+  scopeId?: string | null;
   data?: HeatmapData | null;
   title?: string;
   showTitle?: boolean;
   showLegend?: boolean;
-  isLoading?: boolean;
-  error?: string | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  scopeId: null,
   data: null,
   title: 'Risk Heatmap',
   showTitle: true,
   showLegend: true,
-  isLoading: false,
-  error: null,
 });
 
 const emit = defineEmits<{
   'select-subject': [subjectId: string];
   'filter-change': [filter: string];
+  'error': [error: string];
 }>();
+
+// Internal state for data fetching
+const internalData = ref<HeatmapData | null>(null);
+const isLoading = ref(false);
+const error = ref<string | null>(null);
+
+// Use either provided data or internally fetched data
+const heatmapData = computed(() => props.data || internalData.value);
+
+// Fetch data when scopeId changes
+async function fetchHeatmapData() {
+  if (!props.scopeId) return;
+
+  isLoading.value = true;
+  error.value = null;
+
+  try {
+    const response = await riskDashboardService.getHeatmapData(props.scopeId);
+    if (response.success && response.content) {
+      internalData.value = response.content;
+    } else {
+      error.value = response.error || 'Failed to load heatmap data';
+      emit('error', error.value);
+    }
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Failed to load heatmap data';
+    emit('error', error.value);
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+// Watch for scopeId changes
+watch(() => props.scopeId, (newScopeId) => {
+  if (newScopeId) {
+    fetchHeatmapData();
+  }
+}, { immediate: true });
+
+onMounted(() => {
+  if (props.scopeId && !props.data) {
+    fetchHeatmapData();
+  }
+});
 
 const selectedFilter = ref('');
 const sortBy = ref('name');
@@ -161,15 +205,17 @@ const heatmapContainer = ref<HTMLElement | null>(null);
 
 // Get dimensions from data
 const dimensions = computed((): RiskDimension[] => {
-  if (!props.data?.dimensions) return [];
-  return props.data.dimensions.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+  if (!heatmapData.value?.dimensions) return [];
+  return [...heatmapData.value.dimensions].sort(
+    (a, b) => (a.displayOrder || 0) - (b.displayOrder || 0),
+  );
 });
 
 // Filter and sort rows
 const filteredRows = computed((): HeatmapRow[] => {
-  if (!props.data?.rows) return [];
+  if (!heatmapData.value?.rows) return [];
 
-  let rows = [...props.data.rows];
+  let rows = [...heatmapData.value.rows];
 
   // Apply risk level filter
   if (selectedFilter.value) {

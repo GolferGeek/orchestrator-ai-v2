@@ -7,6 +7,14 @@
 
 import { Injectable, Logger } from '@nestjs/common';
 import { SupabaseService } from '@/supabase/supabase.service';
+import {
+  asArray,
+  asNumber,
+  asPostgrestResult,
+  asRecord,
+  asString,
+  isRecord,
+} from '../utils/safe-access';
 
 export interface ReportConfig {
   includeExecutiveSummary: boolean;
@@ -74,31 +82,36 @@ export class ReportGeneratorService {
     const fullConfig = this.buildConfig(reportType, config);
 
     // Create report record in pending state
-    const { data, error } = await this.getClient()
-      .schema(this.schema)
-      .from('reports')
-      .insert({
-        scope_id: scopeId,
-        title,
-        report_type: reportType,
-        config: fullConfig,
-        status: 'pending',
-        created_by: createdBy || null,
-      })
-      .select()
-      .single();
+    const result = asPostgrestResult(
+      await this.getClient()
+        .schema(this.schema)
+        .from('reports')
+        .insert({
+          scope_id: scopeId,
+          title,
+          report_type: reportType,
+          config: fullConfig,
+          status: 'pending',
+          created_by: createdBy || null,
+        })
+        .select()
+        .single(),
+    );
+    const report = asRecord(result.data) as Report | null;
 
-    if (error) {
-      this.logger.error(`Failed to create report: ${error.message}`);
-      throw error;
+    if (result.error?.message || !report) {
+      this.logger.error(
+        `Failed to create report: ${result.error?.message || 'Unknown error'}`,
+      );
+      throw new Error(result.error?.message || 'Failed to create report');
     }
-
-    const report = data as Report;
 
     // Start async report generation
     // In a production system, this would be dispatched to a worker queue
     this.startGeneration(report.id).catch((err) => {
-      this.logger.error(`Report generation failed: ${err.message}`);
+      this.logger.error(
+        `Report generation failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
     });
 
     return report;
@@ -108,19 +121,21 @@ export class ReportGeneratorService {
    * Get report by ID
    */
   async getReport(id: string): Promise<Report | null> {
-    const { data, error } = await this.getClient()
-      .schema(this.schema)
-      .from('reports')
-      .select('*')
-      .eq('id', id)
-      .single();
+    const result = asPostgrestResult(
+      await this.getClient()
+        .schema(this.schema)
+        .from('reports')
+        .select('*')
+        .eq('id', id)
+        .single(),
+    );
 
-    if (error && error.code !== 'PGRST116') {
-      this.logger.error(`Failed to get report: ${error.message}`);
-      throw error;
+    if (result.error?.message && result.error.code !== 'PGRST116') {
+      this.logger.error(`Failed to get report: ${result.error.message}`);
+      throw new Error(result.error.message);
     }
 
-    return data as Report | null;
+    return (asRecord(result.data) as Report | null) ?? null;
   }
 
   /**
@@ -145,14 +160,14 @@ export class ReportGeneratorService {
       query = query.limit(options.limit);
     }
 
-    const { data, error } = await query;
+    const result = asPostgrestResult(await query);
 
-    if (error) {
-      this.logger.error(`Failed to list reports: ${error.message}`);
-      throw error;
+    if (result.error?.message) {
+      this.logger.error(`Failed to list reports: ${result.error.message}`);
+      throw new Error(result.error.message);
     }
 
-    return (data || []) as Report[];
+    return (asArray(result.data) ?? []).filter(isRecord) as unknown as Report[];
   }
 
   /**
@@ -189,7 +204,7 @@ export class ReportGeneratorService {
 
     // Generate presigned URL
     // In production, this would use the actual storage service
-    const downloadUrl = await this.generatePresignedUrl(report.file_path);
+    const downloadUrl = this.generatePresignedUrl(report.file_path);
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
 
     await this.getClient()
@@ -238,16 +253,21 @@ export class ReportGeneratorService {
       },
     };
 
-    const base: ReportConfig = (defaults[reportType] ?? defaults.comprehensive) as ReportConfig;
+    const base: ReportConfig = (defaults[reportType] ??
+      defaults.comprehensive) as ReportConfig;
 
     // Create result with explicit type
     const result: ReportConfig = {
-      includeExecutiveSummary: partialConfig.includeExecutiveSummary ?? base.includeExecutiveSummary,
+      includeExecutiveSummary:
+        partialConfig.includeExecutiveSummary ?? base.includeExecutiveSummary,
       includeHeatmap: partialConfig.includeHeatmap ?? base.includeHeatmap,
-      includeSubjectDetails: partialConfig.includeSubjectDetails ?? base.includeSubjectDetails,
-      includeCorrelations: partialConfig.includeCorrelations ?? base.includeCorrelations,
+      includeSubjectDetails:
+        partialConfig.includeSubjectDetails ?? base.includeSubjectDetails,
+      includeCorrelations:
+        partialConfig.includeCorrelations ?? base.includeCorrelations,
       includeTrends: partialConfig.includeTrends ?? base.includeTrends,
-      includeDimensionAnalysis: partialConfig.includeDimensionAnalysis ?? base.includeDimensionAnalysis,
+      includeDimensionAnalysis:
+        partialConfig.includeDimensionAnalysis ?? base.includeDimensionAnalysis,
       dateRange: partialConfig.dateRange ?? base.dateRange,
       subjectFilter: partialConfig.subjectFilter ?? base.subjectFilter,
     };
@@ -284,7 +304,7 @@ export class ReportGeneratorService {
 
       // For now, we'll simulate completion
       const filePath = `reports/${report.scope_id}/${reportId}.pdf`;
-      const downloadUrl = await this.generatePresignedUrl(filePath);
+      const downloadUrl = this.generatePresignedUrl(filePath);
 
       // Update report as completed
       await this.getClient()
@@ -295,7 +315,9 @@ export class ReportGeneratorService {
           file_path: filePath,
           file_size: htmlContent.length * 2, // Approximate
           download_url: downloadUrl,
-          download_expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+          download_expires_at: new Date(
+            Date.now() + 60 * 60 * 1000,
+          ).toISOString(),
           generated_at: new Date().toISOString(),
         })
         .eq('id', reportId);
@@ -335,80 +357,100 @@ export class ReportGeneratorService {
   /**
    * Gather all data needed for the report
    */
-  private async gatherReportData(report: Report): Promise<Record<string, unknown>> {
+  private async gatherReportData(
+    report: Report,
+  ): Promise<Record<string, unknown>> {
     const data: Record<string, unknown> = {};
 
     // Get scope info
-    const { data: scope } = await this.getClient()
-      .schema(this.schema)
-      .from('scopes')
-      .select('*')
-      .eq('id', report.scope_id)
-      .single();
-    data.scope = scope;
+    const scopeResult = asPostgrestResult(
+      await this.getClient()
+        .schema(this.schema)
+        .from('scopes')
+        .select('*')
+        .eq('id', report.scope_id)
+        .single(),
+    );
+    data.scope = asRecord(scopeResult.data) ?? null;
 
     // Get portfolio aggregate
     if (report.config.includeExecutiveSummary || report.config.includeTrends) {
-      const { data: aggregate } = await this.getClient()
-        .schema(this.schema)
-        .from('portfolio_aggregate')
-        .select('*')
-        .eq('scope_id', report.scope_id)
-        .single();
-      data.portfolioAggregate = aggregate;
+      const aggregateResult = asPostgrestResult(
+        await this.getClient()
+          .schema(this.schema)
+          .from('portfolio_aggregate')
+          .select('*')
+          .eq('scope_id', report.scope_id)
+          .single(),
+      );
+      data.portfolioAggregate = asRecord(aggregateResult.data) ?? null;
     }
 
     // Get heatmap data
     if (report.config.includeHeatmap) {
-      const { data: heatmap } = await this.getClient()
-        .schema(this.schema)
-        .rpc('get_heatmap_data', {
+      const heatmapResult = asPostgrestResult(
+        await this.getClient().schema(this.schema).rpc('get_heatmap_data', {
           p_scope_id: report.scope_id,
           p_risk_level: null,
-        });
-      data.heatmap = heatmap;
+        }),
+      );
+      data.heatmap = asArray(heatmapResult.data) ?? [];
     }
 
     // Get subject details
     if (report.config.includeSubjectDetails) {
-      const { data: subjects } = await this.getClient()
-        .schema(this.schema)
-        .from('subjects')
-        .select(`
-          *,
-          composite_scores(*)
-        `)
-        .eq('scope_id', report.scope_id)
-        .eq('is_active', true);
-      data.subjects = subjects;
+      const subjectsResult = asPostgrestResult(
+        await this.getClient()
+          .schema(this.schema)
+          .from('subjects')
+          .select(
+            `
+            *,
+            composite_scores(*)
+          `,
+          )
+          .eq('scope_id', report.scope_id)
+          .eq('is_active', true),
+      );
+      data.subjects = (asArray(subjectsResult.data) ?? []).filter(isRecord);
     }
 
     // Get correlations
     if (report.config.includeCorrelations) {
-      const { data: correlations } = await this.getClient()
-        .schema(this.schema)
-        .rpc('calculate_correlations', {
-          p_scope_id: report.scope_id,
-        });
-      data.correlations = correlations;
+      const correlationsResult = asPostgrestResult(
+        await this.getClient()
+          .schema(this.schema)
+          .rpc('calculate_correlations', {
+            p_scope_id: report.scope_id,
+          }),
+      );
+      data.correlations = (asArray(correlationsResult.data) ?? []).filter(
+        isRecord,
+      );
     }
 
     // Get dimensions
     if (report.config.includeDimensionAnalysis) {
-      const { data: dimensions } = await this.getClient()
-        .schema(this.schema)
-        .from('dimensions')
-        .select('*')
-        .eq('scope_id', report.scope_id)
-        .order('display_order');
-      data.dimensions = dimensions;
+      const dimensionsResult = asPostgrestResult(
+        await this.getClient()
+          .schema(this.schema)
+          .from('dimensions')
+          .select('*')
+          .eq('scope_id', report.scope_id)
+          .order('display_order'),
+      );
+      data.dimensions = (asArray(dimensionsResult.data) ?? []).filter(isRecord);
 
-      const { data: contributions } = await this.getClient()
-        .schema(this.schema)
-        .from('dimension_contribution')
-        .select('*')
-        .eq('scope_id', report.scope_id);
-      data.dimensionContributions = contributions;
+      const contributionsResult = asPostgrestResult(
+        await this.getClient()
+          .schema(this.schema)
+          .from('dimension_contribution')
+          .select('*')
+          .eq('scope_id', report.scope_id),
+      );
+      data.dimensionContributions = (
+        asArray(contributionsResult.data) ?? []
+      ).filter(isRecord);
     }
 
     return data;
@@ -421,8 +463,45 @@ export class ReportGeneratorService {
     report: Report,
     data: Record<string, unknown>,
   ): string {
-    const scope = data.scope as any;
-    const aggregate = data.portfolioAggregate as any;
+    const scope = asRecord(data['scope']) ?? {};
+    const aggregate = asRecord(data['portfolioAggregate']) ?? {};
+    const subjects = (asArray(data['subjects']) ?? []).filter(isRecord);
+    const dimensionContributions = (
+      asArray(data['dimensionContributions']) ?? []
+    ).filter(isRecord);
+    const subjectRowsHtml = subjects
+      .map((s) => {
+        const scores = asArray(s['composite_scores']) ?? [];
+        const firstScore = scores.find(isRecord) ?? {};
+        const overallScore = asNumber(firstScore['overall_score']) ?? 0;
+        const subjectName = asString(s['name']) ?? '';
+        return `
+        <tr>
+          <td>${subjectName}</td>
+          <td>${(overallScore * 100).toFixed(1)}%</td>
+          <td class="${this.getRiskClass(overallScore)}">
+            ${this.getRiskLevel(overallScore)}
+          </td>
+        </tr>
+      `;
+      })
+      .join('');
+    const dimensionRowsHtml = dimensionContributions
+      .map((d) => {
+        const name = asString(d['dimension_name']) ?? '';
+        const weight = asNumber(d['weight']) ?? 0;
+        const avgScore = asNumber(d['avg_score']) ?? 0;
+        const contrib = asNumber(d['weighted_contribution']) ?? 0;
+        return `
+        <tr>
+          <td>${name}</td>
+          <td>${(weight * 100).toFixed(0)}%</td>
+          <td>${(avgScore * 100).toFixed(1)}%</td>
+          <td>${(contrib * 100).toFixed(1)}%</td>
+        </tr>
+      `;
+      })
+      .join('');
 
     // Generate HTML report structure
     // In production, this would use a proper template engine
@@ -453,37 +532,47 @@ export class ReportGeneratorService {
 <body>
   <div class="header">
     <h1>${report.title}</h1>
-    <p>Scope: ${scope?.name || 'Unknown'} | Generated: ${new Date().toLocaleDateString()}</p>
+    <p>Scope: ${asString(scope['name']) ?? 'Unknown'} | Generated: ${new Date().toLocaleDateString()}</p>
   </div>
 
-  ${report.config.includeExecutiveSummary ? `
+  ${
+    report.config.includeExecutiveSummary
+      ? `
   <h2>Executive Summary</h2>
   <div class="metrics">
     <div class="metric">
-      <div class="metric-value">${((aggregate?.avg_score ?? 0) * 100).toFixed(1)}%</div>
+      <div class="metric-value">${((asNumber(aggregate['avg_score']) ?? 0) * 100).toFixed(1)}%</div>
       <div class="metric-label">Average Risk</div>
     </div>
     <div class="metric">
-      <div class="metric-value">${aggregate?.subject_count ?? 0}</div>
+      <div class="metric-value">${asNumber(aggregate['subject_count']) ?? 0}</div>
       <div class="metric-label">Total Subjects</div>
     </div>
     <div class="metric">
-      <div class="metric-value">${aggregate?.critical_count ?? 0}</div>
+      <div class="metric-value">${asNumber(aggregate['critical_count']) ?? 0}</div>
       <div class="metric-label">Critical Risk</div>
     </div>
     <div class="metric">
-      <div class="metric-value">${aggregate?.high_count ?? 0}</div>
+      <div class="metric-value">${asNumber(aggregate['high_count']) ?? 0}</div>
       <div class="metric-label">High Risk</div>
     </div>
   </div>
-  ` : ''}
+  `
+      : ''
+  }
 
-  ${report.config.includeHeatmap ? `
+  ${
+    report.config.includeHeatmap
+      ? `
   <h2>Risk Heatmap</h2>
   <p>Visual risk matrix showing subjects × dimensions. (Chart would be rendered here)</p>
-  ` : ''}
+  `
+      : ''
+  }
 
-  ${report.config.includeSubjectDetails ? `
+  ${
+    report.config.includeSubjectDetails
+      ? `
   <h2>Subject Details</h2>
   <table>
     <thead>
@@ -494,25 +583,25 @@ export class ReportGeneratorService {
       </tr>
     </thead>
     <tbody>
-      ${(data.subjects as any[] || []).map((s: any) => `
-        <tr>
-          <td>${s.name}</td>
-          <td>${((s.composite_scores?.[0]?.overall_score ?? 0) * 100).toFixed(1)}%</td>
-          <td class="${this.getRiskClass(s.composite_scores?.[0]?.overall_score ?? 0)}">
-            ${this.getRiskLevel(s.composite_scores?.[0]?.overall_score ?? 0)}
-          </td>
-        </tr>
-      `).join('')}
+      ${subjectRowsHtml}
     </tbody>
   </table>
-  ` : ''}
+  `
+      : ''
+  }
 
-  ${report.config.includeCorrelations ? `
+  ${
+    report.config.includeCorrelations
+      ? `
   <h2>Dimension Correlations</h2>
   <p>Correlation analysis would be displayed here.</p>
-  ` : ''}
+  `
+      : ''
+  }
 
-  ${report.config.includeDimensionAnalysis ? `
+  ${
+    report.config.includeDimensionAnalysis
+      ? `
   <h2>Dimension Analysis</h2>
   <table>
     <thead>
@@ -524,17 +613,12 @@ export class ReportGeneratorService {
       </tr>
     </thead>
     <tbody>
-      ${(data.dimensionContributions as any[] || []).map((d: any) => `
-        <tr>
-          <td>${d.dimension_name}</td>
-          <td>${((d.weight ?? 0) * 100).toFixed(0)}%</td>
-          <td>${((d.avg_score ?? 0) * 100).toFixed(1)}%</td>
-          <td>${((d.weighted_contribution ?? 0) * 100).toFixed(1)}%</td>
-        </tr>
-      `).join('')}
+      ${dimensionRowsHtml}
     </tbody>
   </table>
-  ` : ''}
+  `
+      : ''
+  }
 
   <div class="footer">
     <p>Report generated by Risk Analysis Agent | ${new Date().toISOString()}</p>
@@ -568,7 +652,7 @@ export class ReportGeneratorService {
   /**
    * Generate a presigned URL for file download
    */
-  private async generatePresignedUrl(filePath: string): Promise<string> {
+  private generatePresignedUrl(filePath: string): string {
     // In production, this would use the actual storage service
     // For now, return a placeholder URL
     return `https://storage.example.com/${filePath}?token=presigned-${Date.now()}`;
