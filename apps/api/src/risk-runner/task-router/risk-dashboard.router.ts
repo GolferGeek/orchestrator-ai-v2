@@ -26,6 +26,12 @@ import { AlertHandler } from './handlers/alert.handler';
 // Phase 5: Advanced features
 import { CorrelationHandler } from './handlers/correlation.handler';
 import { PortfolioHandler } from './handlers/portfolio.handler';
+// Phase 6: Analytics features
+import { AnalyticsHandler } from './handlers/analytics.handler';
+// Phase 7: AI-Powered features
+import { AdvancedAnalyticsHandler } from './handlers/advanced-analytics.handler';
+// Phase 8: Advanced Simulation
+import { SimulationHandler } from './handlers/simulation.handler';
 
 /**
  * Supported dashboard entities
@@ -41,7 +47,11 @@ export type RiskDashboardEntity =
   | 'evaluations'
   | 'alerts'
   | 'correlations'
-  | 'portfolio';
+  | 'portfolio'
+  | 'analytics'
+  | 'advanced-analytics'
+  | 'simulations'
+  | 'data-sources';
 
 /**
  * Dashboard router response
@@ -74,6 +84,12 @@ export class RiskDashboardRouter {
     // Phase 5: Advanced features
     private readonly correlationHandler: CorrelationHandler,
     private readonly portfolioHandler: PortfolioHandler,
+    // Phase 6: Analytics features
+    private readonly analyticsHandler: AnalyticsHandler,
+    // Phase 7: AI-Powered features
+    private readonly advancedAnalyticsHandler: AdvancedAnalyticsHandler,
+    // Phase 8: Advanced Simulation
+    private readonly simulationHandler: SimulationHandler,
   ) {}
 
   /**
@@ -213,6 +229,25 @@ export class RiskDashboardRouter {
       case 'portfolios':
         return this.portfolioHandler.execute(operation, payload, context);
 
+      // Phase 6: Analytics features
+      case 'analytics':
+        return this.analyticsHandler.execute(operation, payload, context);
+
+      // Phase 7: AI-Powered features
+      case 'advanced-analytics':
+      case 'advancedanalytics':
+        return this.advancedAnalyticsHandler.execute(operation, payload, context);
+
+      // Phase 8: Advanced Simulation
+      case 'simulations':
+      case 'simulation':
+        return this.simulationHandler.execute(operation, payload, context);
+
+      case 'data-sources':
+      case 'datasources':
+      case 'sources':
+        return this.simulationHandler.execute(operation, payload, context);
+
       default:
         return buildDashboardError(
           'UNKNOWN_ENTITY',
@@ -276,6 +311,10 @@ export class RiskDashboardRouter {
       'alerts',
       'correlations',
       'portfolio',
+      'analytics',
+      'advanced-analytics',
+      'simulations',
+      'data-sources',
     ];
   }
 
@@ -306,6 +345,13 @@ export class RiskDashboardRouter {
         return this.correlationHandler.getSupportedActions();
       case 'portfolio':
         return this.portfolioHandler.getSupportedActions();
+      case 'analytics':
+        return this.analyticsHandler.getSupportedActions();
+      case 'advanced-analytics':
+        return this.advancedAnalyticsHandler.getSupportedActions();
+      case 'simulations':
+      case 'data-sources':
+        return this.simulationHandler.getSupportedActions();
       default:
         return [];
     }

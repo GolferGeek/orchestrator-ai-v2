@@ -29,6 +29,13 @@ import {
   RiskAlertService,
   CorrelationAnalysisService,
   PortfolioRiskService,
+  // Phase 6: AI-Powered features
+  ExecutiveSummaryService,
+  ScenarioAnalysisService,
+  ReportGeneratorService,
+  // Phase 7: Advanced Simulation
+  MonteCarloService,
+  LiveDataService,
 } from './services';
 
 // Runners
@@ -53,6 +60,9 @@ import {
   AlertHandler,
   CorrelationHandler,
   PortfolioHandler,
+  AnalyticsHandler,
+  AdvancedAnalyticsHandler,
+  SimulationHandler,
 } from './task-router/handlers';
 
 const repositories = [
@@ -79,6 +89,13 @@ const services = [
   RiskAlertService,
   CorrelationAnalysisService,
   PortfolioRiskService,
+  // Phase 6: AI-Powered features
+  ExecutiveSummaryService,
+  ScenarioAnalysisService,
+  ReportGeneratorService,
+  // Phase 7: Advanced Simulation
+  MonteCarloService,
+  LiveDataService,
 ];
 
 const runners = [
@@ -101,6 +118,11 @@ const dashboardHandlers = [
   AlertHandler,
   CorrelationHandler,
   PortfolioHandler,
+  AnalyticsHandler,
+  // Phase 7: AI-Powered features
+  AdvancedAnalyticsHandler,
+  // Phase 8: Advanced Simulation
+  SimulationHandler,
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════

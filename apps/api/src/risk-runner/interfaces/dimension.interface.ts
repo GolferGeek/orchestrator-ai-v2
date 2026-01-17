@@ -9,6 +9,9 @@ export interface RiskDimension {
   slug: string; // 'market', 'fundamental', 'technical', 'macro', 'correlation'
   name: string;
   description: string | null;
+  display_name: string | null; // Human-friendly display name
+  icon: string | null; // Icon identifier (e.g., 'chart-line', 'shield')
+  color: string | null; // Hex color code (e.g., '#EF4444')
   weight: number; // 0.0 to 2.0
   display_order: number;
   is_active: boolean;
@@ -77,6 +80,9 @@ export interface CreateRiskDimensionData {
   slug: string;
   name: string;
   description?: string;
+  display_name?: string;
+  icon?: string;
+  color?: string;
   weight?: number;
   display_order?: number;
   is_active?: boolean;
@@ -88,6 +94,9 @@ export interface UpdateRiskDimensionData {
   slug?: string;
   name?: string;
   description?: string;
+  display_name?: string;
+  icon?: string;
+  color?: string;
   weight?: number;
   display_order?: number;
   is_active?: boolean;

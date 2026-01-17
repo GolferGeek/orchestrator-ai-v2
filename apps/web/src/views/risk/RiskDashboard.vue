@@ -85,6 +85,17 @@
             @analyze="onAnalyzeSubject"
           />
 
+          <!-- Analytics Tab -->
+          <AnalyticsTab
+            v-if="activeTab === 'analytics'"
+            :scope-id="selectedScopeId"
+            :scope-name="store.currentScope?.name"
+            :subjects="store.subjects"
+            :dimensions="store.dimensions"
+            @select-subject="(id) => onSelectSubject(id)"
+            @error="(err) => store.setError(err)"
+          />
+
           <!-- Alerts Tab -->
           <AlertsTab
             v-if="activeTab === 'alerts'"
@@ -153,6 +164,7 @@ import AlertsTab from './tabs/AlertsTab.vue';
 import DimensionsTab from './tabs/DimensionsTab.vue';
 import LearningsTab from './tabs/LearningsTab.vue';
 import SettingsTab from './tabs/SettingsTab.vue';
+import AnalyticsTab from './tabs/AnalyticsTab.vue';
 import SubjectDetailPanel from './components/SubjectDetailPanel.vue';
 import CreateScopeModal from './components/CreateScopeModal.vue';
 
@@ -166,7 +178,7 @@ const agentSlug = computed(() => (route.query.agentSlug as string) || 'investmen
 const orgSlug = computed(() => (route.query.orgSlug as string) || null);
 
 // Tab state
-const activeTab = ref<'overview' | 'alerts' | 'dimensions' | 'learnings' | 'settings'>('overview');
+const activeTab = ref<'overview' | 'analytics' | 'alerts' | 'dimensions' | 'learnings' | 'settings'>('overview');
 const selectedScopeId = ref<string | null>(null);
 
 // Detail panel state
@@ -182,6 +194,7 @@ const createScopeModalRef = ref<InstanceType<typeof CreateScopeModal> | null>(nu
 // Tabs configuration
 const tabs = computed(() => [
   { id: 'overview' as const, label: 'Overview', icon: '📈', badge: null },
+  { id: 'analytics' as const, label: 'Analytics', icon: '🔬', badge: null },
   { id: 'alerts' as const, label: 'Alerts', icon: '🔔', badge: store.alerts.length || null },
   { id: 'dimensions' as const, label: 'Dimensions', icon: '📊', badge: null },
   { id: 'learnings' as const, label: 'Learnings', icon: '💡', badge: store.pendingLearnings.length || null },

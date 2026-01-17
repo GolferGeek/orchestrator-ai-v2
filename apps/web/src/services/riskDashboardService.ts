@@ -31,6 +31,28 @@ import type {
   AnalyzeSubjectResponse,
   CreateSubjectRequest,
   UpdateSubjectRequest,
+  // Feature 1: Score History
+  ScoreHistoryEntry,
+  ScoreTrend,
+  // Feature 2: Subject Comparison
+  SubjectComparison,
+  ComparisonSet,
+  // Feature 4: Heatmap
+  HeatmapData,
+  // Feature 5: Executive Summary
+  ExecutiveSummary,
+  // Feature 6: Portfolio Aggregate
+  PortfolioAggregate,
+  RiskDistribution,
+  DimensionContribution,
+  // Feature 7: Correlation
+  CorrelationMatrix,
+  // Feature 8: PDF Reports
+  Report,
+  ReportConfig,
+  // Feature 9: Scenario Analysis
+  Scenario,
+  ScenarioResult,
 } from '@/types/risk-agent';
 
 const API_BASE_URL =
@@ -551,6 +573,198 @@ class RiskDashboardService {
     evaluations: RiskEvaluation[];
   }>> {
     return this.executeDashboardRequest('dashboard.subject-detail', { subjectId });
+  }
+
+  // ==========================================================================
+  // SCORE HISTORY OPERATIONS (Feature 1)
+  // ==========================================================================
+
+  async getScoreHistory(
+    subjectId: string,
+    days: number = 30,
+    limit: number = 100
+  ): Promise<DashboardActionResponse<ScoreHistoryEntry[]>> {
+    return this.executeDashboardRequest<ScoreHistoryEntry[]>('analytics.score-history', {
+      subjectId,
+      days,
+      limit,
+    });
+  }
+
+  async getScoreTrends(scopeId: string): Promise<DashboardActionResponse<ScoreTrend[]>> {
+    return this.executeDashboardRequest<ScoreTrend[]>('analytics.score-trends', { scopeId });
+  }
+
+  async getScopeScoreHistory(
+    scopeId: string,
+    days: number = 30
+  ): Promise<DashboardActionResponse<{
+    subjectId: string;
+    subjectName: string;
+    subjectIdentifier: string;
+    scores: { score: number; confidence: number; change: number; createdAt: string }[];
+  }[]>> {
+    return this.executeDashboardRequest('analytics.scope-score-history', { scopeId, days });
+  }
+
+  // ==========================================================================
+  // HEATMAP OPERATIONS (Feature 4)
+  // ==========================================================================
+
+  async getHeatmapData(
+    scopeId: string,
+    riskLevel?: 'critical' | 'high' | 'medium' | 'low'
+  ): Promise<DashboardActionResponse<HeatmapData>> {
+    return this.executeDashboardRequest<HeatmapData>('analytics.heatmap', {
+      scopeId,
+      riskLevel,
+    });
+  }
+
+  // ==========================================================================
+  // PORTFOLIO AGGREGATE OPERATIONS (Feature 6)
+  // ==========================================================================
+
+  async getPortfolioAggregate(scopeId: string): Promise<DashboardActionResponse<PortfolioAggregate>> {
+    return this.executeDashboardRequest<PortfolioAggregate>('analytics.portfolio-aggregate', { scopeId });
+  }
+
+  async getRiskDistribution(scopeId: string): Promise<DashboardActionResponse<RiskDistribution[]>> {
+    return this.executeDashboardRequest<RiskDistribution[]>('analytics.risk-distribution', { scopeId });
+  }
+
+  async getDimensionContributions(scopeId: string): Promise<DashboardActionResponse<DimensionContribution[]>> {
+    return this.executeDashboardRequest<DimensionContribution[]>('analytics.dimension-contributions', { scopeId });
+  }
+
+  // ==========================================================================
+  // CORRELATION OPERATIONS (Feature 7)
+  // ==========================================================================
+
+  async getCorrelationMatrix(scopeId: string): Promise<DashboardActionResponse<CorrelationMatrix>> {
+    return this.executeDashboardRequest<CorrelationMatrix>('analytics.correlations', { scopeId });
+  }
+
+  // ==========================================================================
+  // SUBJECT COMPARISON OPERATIONS (Feature 2)
+  // ==========================================================================
+
+  async compareSubjects(subjectIds: string[]): Promise<DashboardActionResponse<SubjectComparison>> {
+    return this.executeDashboardRequest<SubjectComparison>('analytics.compare-subjects', { subjectIds });
+  }
+
+  async saveComparison(params: {
+    scopeId: string;
+    name: string;
+    subjectIds: string[];
+  }): Promise<DashboardActionResponse<ComparisonSet>> {
+    return this.executeDashboardRequest<ComparisonSet>('analytics.save-comparison', params);
+  }
+
+  async listComparisons(scopeId: string): Promise<DashboardActionResponse<ComparisonSet[]>> {
+    return this.executeDashboardRequest<ComparisonSet[]>('analytics.list-comparisons', { scopeId });
+  }
+
+  async deleteComparison(id: string): Promise<DashboardActionResponse<{ success: boolean }>> {
+    return this.executeDashboardRequest<{ success: boolean }>('analytics.delete-comparison', { id });
+  }
+
+  // ==========================================================================
+  // EXECUTIVE SUMMARY OPERATIONS (Feature 5)
+  // ==========================================================================
+
+  async generateExecutiveSummary(params: {
+    scopeId: string;
+    summaryType?: 'daily' | 'weekly' | 'ad-hoc';
+  }): Promise<DashboardActionResponse<ExecutiveSummary>> {
+    return this.executeDashboardRequest<ExecutiveSummary>('advanced-analytics.generate-summary', params);
+  }
+
+  async getLatestSummary(scopeId: string): Promise<DashboardActionResponse<ExecutiveSummary | null>> {
+    return this.executeDashboardRequest<ExecutiveSummary | null>('advanced-analytics.get-latest-summary', { scopeId });
+  }
+
+  async listSummaries(params: {
+    scopeId: string;
+    limit?: number;
+    summaryType?: string;
+  }): Promise<DashboardActionResponse<ExecutiveSummary[]>> {
+    return this.executeDashboardRequest<ExecutiveSummary[]>('advanced-analytics.list-summaries', params);
+  }
+
+  // ==========================================================================
+  // SCENARIO ANALYSIS OPERATIONS (Feature 9)
+  // ==========================================================================
+
+  async runScenario(params: {
+    scopeId: string;
+    name: string;
+    adjustments: Array<{ dimensionSlug: string; adjustment: number }>;
+  }): Promise<DashboardActionResponse<ScenarioResult>> {
+    return this.executeDashboardRequest<ScenarioResult>('advanced-analytics.run-scenario', params);
+  }
+
+  async saveScenario(params: {
+    scopeId: string;
+    name: string;
+    description?: string;
+    adjustments: Array<{ dimensionSlug: string; adjustment: number }>;
+    results?: ScenarioResult;
+    isTemplate?: boolean;
+  }): Promise<DashboardActionResponse<Scenario>> {
+    return this.executeDashboardRequest<Scenario>('advanced-analytics.save-scenario', params);
+  }
+
+  async listScenarios(params: {
+    scopeId: string;
+    includeTemplates?: boolean;
+  }): Promise<DashboardActionResponse<Scenario[]>> {
+    return this.executeDashboardRequest<Scenario[]>('advanced-analytics.list-scenarios', params);
+  }
+
+  async getScenario(id: string): Promise<DashboardActionResponse<Scenario>> {
+    return this.executeDashboardRequest<Scenario>('advanced-analytics.get-scenario', { id });
+  }
+
+  async deleteScenario(id: string): Promise<DashboardActionResponse<{ success: boolean }>> {
+    return this.executeDashboardRequest<{ success: boolean }>('advanced-analytics.delete-scenario', { id });
+  }
+
+  async getScenarioTemplates(): Promise<DashboardActionResponse<Scenario[]>> {
+    return this.executeDashboardRequest<Scenario[]>('advanced-analytics.get-scenario-templates', {});
+  }
+
+  // ==========================================================================
+  // PDF REPORT OPERATIONS (Feature 8)
+  // ==========================================================================
+
+  async generateReport(params: {
+    scopeId: string;
+    title: string;
+    reportType?: 'comprehensive' | 'executive' | 'detailed';
+    config?: Partial<ReportConfig>;
+  }): Promise<DashboardActionResponse<Report>> {
+    return this.executeDashboardRequest<Report>('advanced-analytics.generate-report', params);
+  }
+
+  async getReport(id: string): Promise<DashboardActionResponse<Report>> {
+    return this.executeDashboardRequest<Report>('advanced-analytics.get-report', { id });
+  }
+
+  async listReports(params: {
+    scopeId: string;
+    limit?: number;
+    status?: string;
+  }): Promise<DashboardActionResponse<Report[]>> {
+    return this.executeDashboardRequest<Report[]>('advanced-analytics.list-reports', params);
+  }
+
+  async deleteReport(id: string): Promise<DashboardActionResponse<{ success: boolean }>> {
+    return this.executeDashboardRequest<{ success: boolean }>('advanced-analytics.delete-report', { id });
+  }
+
+  async refreshDownloadUrl(id: string): Promise<DashboardActionResponse<{ downloadUrl: string; expiresAt: string }>> {
+    return this.executeDashboardRequest<{ downloadUrl: string; expiresAt: string }>('advanced-analytics.refresh-download-url', { id });
   }
 }
 

@@ -3079,11 +3079,10 @@ class PredictionDashboardService {
   async listAgentActivity(
     params?: { analystId?: string; acknowledged?: boolean; limit?: number },
   ): Promise<DashboardResponsePayload<AgentActivityItem[]>> {
-    return this.callDashboard<AgentActivityItem[]>({
-      entity: 'agent_activity',
-      action: 'list',
+    return this.executeDashboardRequest<AgentActivityItem[]>(
+      'agent_activity.list',
       params,
-    });
+    );
   }
 
   /**
@@ -3092,11 +3091,10 @@ class PredictionDashboardService {
   async acknowledgeAgentActivity(
     activityId: string,
   ): Promise<DashboardResponsePayload<{ success: boolean }>> {
-    return this.callDashboard<{ success: boolean }>({
-      entity: 'agent_activity',
-      action: 'acknowledge',
-      params: { id: activityId },
-    });
+    return this.executeDashboardRequest<{ success: boolean }>(
+      'agent_activity.acknowledge',
+      { id: activityId },
+    );
   }
 
   /**
@@ -3105,10 +3103,9 @@ class PredictionDashboardService {
   async acknowledgeAllAgentActivity(): Promise<
     DashboardResponsePayload<{ success: boolean; count: number }>
   > {
-    return this.callDashboard<{ success: boolean; count: number }>({
-      entity: 'agent_activity',
-      action: 'acknowledge_all',
-    });
+    return this.executeDashboardRequest<{ success: boolean; count: number }>(
+      'agent_activity.acknowledge_all',
+    );
   }
 
   // ============================================================================
@@ -3121,11 +3118,10 @@ class PredictionDashboardService {
   async startLearningSession(
     analystId: string,
   ): Promise<DashboardResponsePayload<LearningSessionResponse>> {
-    return this.callDashboard<LearningSessionResponse>({
-      entity: 'learning_session',
-      action: 'start',
-      params: { analystId },
-    });
+    return this.executeDashboardRequest<LearningSessionResponse>(
+      'learning_session.start',
+      { analystId },
+    );
   }
 
   /**
@@ -3135,11 +3131,10 @@ class PredictionDashboardService {
     analystId: string,
     period?: string,
   ): Promise<DashboardResponsePayload<ForkComparisonReport>> {
-    return this.callDashboard<ForkComparisonReport>({
-      entity: 'learning_session',
-      action: 'compare',
-      params: { analystId, period },
-    });
+    return this.executeDashboardRequest<ForkComparisonReport>(
+      'learning_session.compare',
+      { analystId, period },
+    );
   }
 
   /**
@@ -3151,11 +3146,10 @@ class PredictionDashboardService {
     question: string;
     contextDiff?: Record<string, unknown>;
   }): Promise<DashboardResponsePayload<LearningExchange>> {
-    return this.callDashboard<LearningExchange>({
-      entity: 'learning_session',
-      action: 'ask',
+    return this.executeDashboardRequest<LearningExchange>(
+      'learning_session.ask',
       params,
-    });
+    );
   }
 
   /**
@@ -3165,11 +3159,10 @@ class PredictionDashboardService {
     exchangeId: string;
     response: string;
   }): Promise<DashboardResponsePayload<LearningExchange>> {
-    return this.callDashboard<LearningExchange>({
-      entity: 'learning_session',
-      action: 'respond',
+    return this.executeDashboardRequest<LearningExchange>(
+      'learning_session.respond',
       params,
-    });
+    );
   }
 
   /**
@@ -3180,11 +3173,10 @@ class PredictionDashboardService {
     outcome: 'adopted' | 'rejected' | 'noted';
     adoptionDetails?: Record<string, unknown>;
   }): Promise<DashboardResponsePayload<LearningExchange>> {
-    return this.callDashboard<LearningExchange>({
-      entity: 'learning_session',
-      action: 'outcome',
+    return this.executeDashboardRequest<LearningExchange>(
+      'learning_session.outcome',
       params,
-    });
+    );
   }
 
   /**
@@ -3193,11 +3185,10 @@ class PredictionDashboardService {
   async endLearningSession(
     analystId: string,
   ): Promise<DashboardResponsePayload<{ success: boolean }>> {
-    return this.callDashboard<{ success: boolean }>({
-      entity: 'learning_session',
-      action: 'end',
-      params: { analystId },
-    });
+    return this.executeDashboardRequest<{ success: boolean }>(
+      'learning_session.end',
+      { analystId },
+    );
   }
 
   // ============================================================================
@@ -3211,11 +3202,10 @@ class PredictionDashboardService {
     analystId: string,
     forkType?: 'user' | 'agent',
   ): Promise<DashboardResponsePayload<AnalystContextVersion[]>> {
-    return this.callDashboard<AnalystContextVersion[]>({
-      entity: 'analyst',
-      action: 'version_history',
-      params: { analystId, forkType },
-    });
+    return this.executeDashboardRequest<AnalystContextVersion[]>(
+      'analyst.version_history',
+      { analystId, forkType },
+    );
   }
 
   /**
@@ -3227,11 +3217,10 @@ class PredictionDashboardService {
     forkType: 'user' | 'agent';
     reason: string;
   }): Promise<DashboardResponsePayload<{ success: boolean; newVersion: AnalystContextVersion }>> {
-    return this.callDashboard<{ success: boolean; newVersion: AnalystContextVersion }>({
-      entity: 'analyst',
-      action: 'rollback',
+    return this.executeDashboardRequest<{ success: boolean; newVersion: AnalystContextVersion }>(
+      'analyst.rollback',
       params,
-    });
+    );
   }
 }
 

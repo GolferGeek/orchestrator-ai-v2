@@ -126,7 +126,11 @@ export interface RiskDimension {
   slug: string;
   name: string;
   description?: string;
+  displayName?: string; // Human-friendly display name
+  icon?: string; // Icon identifier (e.g., 'chart-line', 'shield')
+  color?: string; // Hex color code (e.g., '#EF4444')
   weight: number;
+  displayOrder?: number;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -639,4 +643,348 @@ export interface ReviewLearningRequest {
   learningId: string;
   action: 'approve' | 'reject';
   notes?: string;
+}
+
+// =============================================================================
+// SCORE HISTORY TYPES (Feature 1)
+// =============================================================================
+
+/**
+ * Score history entry with change calculations
+ */
+export interface ScoreHistoryEntry {
+  id: string;
+  overallScore: number;
+  dimensionScores: DimensionScoreMap;
+  confidence: number;
+  previousScore: number | null;
+  scoreChange: number;
+  scoreChangePercent: number;
+  debateAdjustment?: number;
+  createdAt: string;
+}
+
+/**
+ * Score trend data for a subject
+ */
+export interface ScoreTrend {
+  subjectId: string;
+  currentScore: number;
+  change7d: number;
+  change30d: number;
+  totalAssessments: number;
+  avgScore: number;
+  maxScore: number;
+  minScore: number;
+  scoreStddev: number;
+  firstAssessment: string;
+  latestAssessment: string;
+}
+
+// =============================================================================
+// HEATMAP TYPES (Feature 4)
+// =============================================================================
+
+/**
+ * Risk level classification
+ */
+export type RiskLevel = 'critical' | 'high' | 'medium' | 'low';
+
+/**
+ * Heatmap cell data
+ */
+export interface HeatmapCell {
+  dimensionId: string;
+  dimensionSlug: string;
+  dimensionName: string;
+  icon?: string;
+  color?: string;
+  score: number | null;
+  confidence: number | null;
+  riskLevel: RiskLevel;
+  riskColor: string;
+}
+
+/**
+ * Heatmap row (subject with all dimension scores)
+ */
+export interface HeatmapRow {
+  subjectId: string;
+  subjectName: string;
+  subjectIdentifier: string;
+  subjectType: string;
+  dimensions: HeatmapCell[];
+}
+
+/**
+ * Complete heatmap data
+ */
+export interface HeatmapData {
+  rows: HeatmapRow[];
+  dimensions: RiskDimension[];
+  scopeId: string;
+  scopeName: string;
+}
+
+// =============================================================================
+// PORTFOLIO AGGREGATE TYPES (Feature 6)
+// =============================================================================
+
+/**
+ * Portfolio aggregate statistics
+ */
+export interface PortfolioAggregate {
+  scopeId: string;
+  scopeName: string;
+  domain: string;
+  subjectCount: number;
+  avgScore: number;
+  maxScore: number;
+  minScore: number;
+  scoreStddev: number;
+  avgConfidence: number;
+  criticalCount: number;
+  highCount: number;
+  mediumCount: number;
+  lowCount: number;
+  latestAssessment: string;
+  oldestAssessment: string;
+}
+
+/**
+ * Risk distribution entry
+ */
+export interface RiskDistribution {
+  riskLevel: RiskLevel;
+  color: string;
+  count: number;
+  percentage: number;
+}
+
+/**
+ * Dimension contribution to overall risk
+ */
+export interface DimensionContribution {
+  dimensionId: string;
+  dimensionSlug: string;
+  dimensionName: string;
+  icon?: string;
+  color?: string;
+  weight: number;
+  assessmentCount: number;
+  avgScore: number;
+  avgConfidence: number;
+  maxScore: number;
+  minScore: number;
+  weightedContribution: number;
+}
+
+// =============================================================================
+// CORRELATION TYPES (Feature 7)
+// =============================================================================
+
+/**
+ * Correlation between two dimensions
+ */
+export interface DimensionCorrelation {
+  dimension1Id: string;
+  dimension1Slug: string;
+  dimension1Name: string;
+  dimension2Id: string;
+  dimension2Slug: string;
+  dimension2Name: string;
+  correlation: number;
+  sampleSize: number;
+}
+
+/**
+ * Full correlation matrix
+ */
+export interface CorrelationMatrix {
+  dimensions: RiskDimension[];
+  correlations: DimensionCorrelation[];
+  matrix: number[][]; // 2D matrix for visualization
+}
+
+// =============================================================================
+// SUBJECT COMPARISON TYPES (Feature 2)
+// =============================================================================
+
+/**
+ * Comparison set (saved comparison configuration)
+ */
+export interface ComparisonSet {
+  id: string;
+  scopeId: string;
+  name: string;
+  subjectIds: string[];
+  createdAt: string;
+}
+
+/**
+ * Subject comparison data
+ */
+export interface SubjectComparison {
+  subjects: RiskSubject[];
+  compositeScores: RiskCompositeScore[];
+  dimensionComparisons: {
+    dimensionSlug: string;
+    dimensionName: string;
+    icon?: string;
+    color?: string;
+    scores: { subjectId: string; score: number; rank: number }[];
+  }[];
+  rankings: {
+    subjectId: string;
+    subjectName: string;
+    overallRank: number;
+    dimensionRanks: Record<string, number>;
+  }[];
+}
+
+// =============================================================================
+// EXECUTIVE SUMMARY TYPES (Feature 5)
+// =============================================================================
+
+/**
+ * Executive summary status based on risk level
+ */
+export type ExecutiveSummaryStatus = 'critical' | 'high' | 'medium' | 'low' | 'stable';
+
+/**
+ * Risk highlights for the summary
+ */
+export interface RiskHighlights {
+  topRisks: Array<{ subject: string; score: number; dimension: string }>;
+  recentChanges: Array<{ subject: string; change: number; direction: 'up' | 'down' }>;
+}
+
+/**
+ * Executive summary content structure
+ */
+export interface ExecutiveSummaryContent {
+  headline: string;
+  status: ExecutiveSummaryStatus;
+  keyFindings: string[];
+  recommendations: string[];
+  riskHighlights: RiskHighlights;
+}
+
+/**
+ * Complete executive summary
+ */
+export interface ExecutiveSummary {
+  id: string;
+  scopeId: string;
+  summaryType: 'daily' | 'weekly' | 'ad-hoc';
+  content: ExecutiveSummaryContent;
+  generatedAt: string;
+  expiresAt: string | null;
+}
+
+// =============================================================================
+// SCENARIO ANALYSIS TYPES (Feature 9)
+// =============================================================================
+
+/**
+ * Dimension adjustment for a scenario
+ */
+export interface ScenarioAdjustment {
+  dimensionSlug: string;
+  adjustment: number; // -1.0 to +1.0
+}
+
+/**
+ * Subject result from scenario analysis
+ */
+export interface ScenarioSubjectResult {
+  subjectId: string;
+  subjectName: string;
+  baselineScore: number;
+  adjustedScore: number;
+  change: number;
+  changePercent: number;
+  dimensionDetails: Array<{
+    dimensionSlug: string;
+    baselineScore: number;
+    adjustedScore: number;
+    adjustment: number;
+  }>;
+}
+
+/**
+ * Complete scenario analysis result
+ */
+export interface ScenarioResult {
+  scenarioName: string;
+  adjustments: Record<string, number>;
+  portfolioBaseline: number;
+  portfolioAdjusted: number;
+  portfolioChange: number;
+  portfolioChangePercent: number;
+  subjectResults: ScenarioSubjectResult[];
+  riskDistributionBefore: Record<string, number>;
+  riskDistributionAfter: Record<string, number>;
+}
+
+/**
+ * Saved scenario
+ */
+export interface Scenario {
+  id: string;
+  scopeId: string;
+  name: string;
+  description: string | null;
+  adjustments: Record<string, number>;
+  baselineSnapshot?: Record<string, unknown>;
+  results?: ScenarioResult;
+  isTemplate: boolean;
+  createdAt: string;
+}
+
+// =============================================================================
+// PDF REPORT TYPES (Feature 8)
+// =============================================================================
+
+/**
+ * Report configuration options
+ */
+export interface ReportConfig {
+  includeExecutiveSummary: boolean;
+  includeHeatmap: boolean;
+  includeSubjectDetails: boolean;
+  includeCorrelations: boolean;
+  includeTrends: boolean;
+  includeDimensionAnalysis: boolean;
+  dateRange?: { start: string; end: string };
+  subjectFilter?: string[];
+}
+
+/**
+ * Report status
+ */
+export type ReportStatus = 'pending' | 'generating' | 'completed' | 'failed';
+
+/**
+ * Report type
+ */
+export type ReportType = 'comprehensive' | 'executive' | 'detailed';
+
+/**
+ * Complete report
+ */
+export interface Report {
+  id: string;
+  scopeId: string;
+  title: string;
+  reportType: ReportType;
+  config: ReportConfig;
+  status: ReportStatus;
+  filePath: string | null;
+  fileSize: number | null;
+  downloadUrl: string | null;
+  downloadExpiresAt: string | null;
+  errorMessage: string | null;
+  generatedAt: string | null;
+  createdAt: string;
 }
