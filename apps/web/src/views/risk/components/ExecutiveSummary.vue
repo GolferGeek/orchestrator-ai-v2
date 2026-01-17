@@ -198,10 +198,10 @@ async function onGenerate() {
   error.value = null;
 
   try {
-    const response = await riskDashboardService.generateExecutiveSummary(
-      props.scopeId,
-      'ad-hoc'
-    );
+    const response = await riskDashboardService.generateExecutiveSummary({
+      scopeId: props.scopeId,
+      summaryType: 'ad-hoc',
+    });
     if (response.success && response.content) {
       summary.value = response.content;
       emit('summary-generated', response.content);
