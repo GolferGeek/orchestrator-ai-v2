@@ -988,3 +988,249 @@ export interface Report {
   generatedAt: string | null;
   createdAt: string;
 }
+
+// =============================================================================
+// PHASE 4: MONTE CARLO SIMULATION TYPES (Feature 10)
+// =============================================================================
+
+/**
+ * Distribution types supported by Monte Carlo
+ */
+export type DistributionType = 'normal' | 'uniform' | 'beta' | 'triangular';
+
+/**
+ * Dimension distribution configuration
+ */
+export interface DimensionDistribution {
+  distribution: DistributionType;
+  mean?: number;
+  stdDev?: number;
+  min?: number;
+  max?: number;
+  alpha?: number; // For beta distribution
+  beta?: number; // For beta distribution
+}
+
+/**
+ * Simulation parameters
+ */
+export interface SimulationParameters {
+  dimensionDistributions: Record<string, DimensionDistribution>;
+  confidenceLevel?: number; // Default 0.95
+  seed?: number; // Optional seed for reproducibility
+}
+
+/**
+ * Histogram bin
+ */
+export interface HistogramBin {
+  bin: number;
+  count: number;
+}
+
+/**
+ * Simulation results
+ */
+export interface SimulationResults {
+  mean: number;
+  median: number;
+  stdDev: number;
+  variance: number;
+  percentile5: number;
+  percentile25: number;
+  percentile75: number;
+  percentile95: number;
+  percentile99: number;
+  var95: number; // Value at Risk at 95%
+  var99: number; // Value at Risk at 99%
+  cvar95: number; // Conditional VaR at 95%
+  cvar99: number; // Conditional VaR at 99%
+  skewness: number;
+  kurtosis: number;
+  distribution: HistogramBin[];
+  executionTimeMs: number;
+}
+
+/**
+ * Simulation status
+ */
+export type SimulationStatus = 'pending' | 'running' | 'completed' | 'failed';
+
+/**
+ * Full simulation record
+ */
+export interface Simulation {
+  id: string;
+  scopeId: string;
+  subjectId: string | null;
+  name: string;
+  description: string | null;
+  iterations: number;
+  parameters: SimulationParameters;
+  results: SimulationResults | null;
+  status: SimulationStatus;
+  errorMessage: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+}
+
+// =============================================================================
+// PHASE 4: LIVE DATA INTEGRATION TYPES (Feature 11)
+// =============================================================================
+
+/**
+ * Data source types
+ */
+export type DataSourceType = 'firecrawl' | 'api' | 'rss' | 'webhook' | 'manual';
+
+/**
+ * Data source status
+ */
+export type DataSourceStatus = 'active' | 'paused' | 'error' | 'disabled';
+
+/**
+ * Fetch status
+ */
+export type FetchStatus = 'success' | 'failed' | 'timeout' | 'rate_limited';
+
+/**
+ * Schedule presets
+ */
+export type SchedulePreset = 'hourly' | 'daily' | 'weekly' | 'realtime';
+
+/**
+ * Dimension mapping configuration
+ */
+export interface DimensionMapping {
+  sourceField: string;
+  transform?: 'normalize' | 'inverse_normalize' | 'scale' | 'none';
+  threshold?: number;
+  weight?: number;
+}
+
+/**
+ * Subject filter configuration for data sources
+ */
+export interface DataSourceSubjectFilter {
+  subjectIds?: string[];
+  subjectTypes?: string[];
+  identifierPattern?: string;
+}
+
+/**
+ * Firecrawl configuration
+ */
+export interface FirecrawlConfig {
+  url: string;
+  selector?: string;
+  extractFields?: string[];
+  authentication?: {
+    type: 'bearer' | 'basic' | 'api_key';
+    credentials: string;
+  };
+}
+
+/**
+ * API configuration
+ */
+export interface ApiConfig {
+  endpoint: string;
+  method: 'GET' | 'POST';
+  headers?: Record<string, string>;
+  params?: Record<string, string>;
+  body?: Record<string, unknown>;
+  responseMapping?: Record<string, string>;
+}
+
+/**
+ * RSS configuration
+ */
+export interface RssConfig {
+  feedUrl: string;
+  relevantCategories?: string[];
+  sentimentAnalysis?: boolean;
+}
+
+/**
+ * Webhook configuration
+ */
+export interface WebhookConfig {
+  webhookId: string;
+  secretKey: string;
+  expectedPayloadSchema?: Record<string, unknown>;
+}
+
+/**
+ * Source configuration (union type)
+ */
+export type SourceConfig = FirecrawlConfig | ApiConfig | RssConfig | WebhookConfig | Record<string, unknown>;
+
+/**
+ * Data source record
+ */
+export interface DataSource {
+  id: string;
+  scopeId: string;
+  name: string;
+  description: string | null;
+  sourceType: DataSourceType;
+  config: SourceConfig;
+  schedule: string | null;
+  dimensionMapping: Record<string, DimensionMapping>;
+  subjectFilter: DataSourceSubjectFilter | null;
+  status: DataSourceStatus;
+  errorMessage: string | null;
+  errorCount: number;
+  lastFetchAt: string | null;
+  lastFetchStatus: FetchStatus | null;
+  lastFetchData: unknown;
+  nextFetchAt: string | null;
+  autoReanalyze: boolean;
+  reanalyzeThreshold: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Fetch history record
+ */
+export interface FetchHistoryRecord {
+  id: string;
+  dataSourceId: string;
+  status: FetchStatus;
+  fetchDurationMs: number | null;
+  rawResponse: unknown;
+  parsedData: unknown;
+  errorMessage: string | null;
+  dimensionsUpdated: string[];
+  subjectsAffected: string[];
+  reanalysisTriggered: boolean;
+  reanalysisTaskIds: string[];
+  fetchedAt: string;
+}
+
+/**
+ * Fetch result
+ */
+export interface FetchResult {
+  success: boolean;
+  data?: unknown;
+  error?: string;
+  durationMs: number;
+  dimensionsUpdated: string[];
+  reanalysisTriggered: boolean;
+}
+
+/**
+ * Data source health summary
+ */
+export interface DataSourceHealthSummary {
+  total: number;
+  active: number;
+  paused: number;
+  error: number;
+  disabled: number;
+  lastFetchSuccess: number;
+  lastFetchFailed: number;
+}

@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SubjectHandler } from '../subject.handler';
 import { SubjectRepository } from '../../../repositories/subject.repository';
+import { ScopeRepository } from '../../../repositories/scope.repository';
+import { RiskAnalysisService } from '../../../services/risk-analysis.service';
 import { ExecutionContext } from '@orchestrator-ai/transport-types';
 import { DashboardRequestPayload } from '@orchestrator-ai/transport-types';
 import { RiskSubject } from '../../../interfaces/subject.interface';
@@ -86,6 +88,19 @@ describe('SubjectHandler', () => {
             create: jest.fn(),
             update: jest.fn(),
             delete: jest.fn(),
+          },
+        },
+        {
+          provide: ScopeRepository,
+          useValue: {
+            findById: jest.fn(),
+            findBySlug: jest.fn(),
+          },
+        },
+        {
+          provide: RiskAnalysisService,
+          useValue: {
+            analyzeSubject: jest.fn(),
           },
         },
       ],

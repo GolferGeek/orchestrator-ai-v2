@@ -53,6 +53,20 @@ import type {
   // Feature 9: Scenario Analysis
   Scenario,
   ScenarioResult,
+  // Feature 10: Monte Carlo Simulation
+  Simulation,
+  SimulationParameters,
+  DimensionDistribution,
+  // Feature 11: Live Data Integration
+  DataSource,
+  DataSourceType,
+  DataSourceStatus,
+  FetchHistoryRecord,
+  FetchResult,
+  DataSourceHealthSummary,
+  DimensionMapping,
+  DataSourceSubjectFilter,
+  SourceConfig,
 } from '@/types/risk-agent';
 
 const API_BASE_URL =
@@ -765,6 +779,114 @@ class RiskDashboardService {
 
   async refreshDownloadUrl(id: string): Promise<DashboardActionResponse<{ downloadUrl: string; expiresAt: string }>> {
     return this.executeDashboardRequest<{ downloadUrl: string; expiresAt: string }>('advanced-analytics.refresh-download-url', { id });
+  }
+
+  // ==========================================================================
+  // MONTE CARLO SIMULATION OPERATIONS (Feature 10)
+  // ==========================================================================
+
+  async runSimulation(params: {
+    scopeId: string;
+    name: string;
+    parameters: SimulationParameters;
+    iterations?: number;
+    subjectId?: string;
+    description?: string;
+  }): Promise<DashboardActionResponse<Simulation>> {
+    return this.executeDashboardRequest<Simulation>('simulations.run-simulation', params);
+  }
+
+  async getSimulation(simulationId: string): Promise<DashboardActionResponse<Simulation>> {
+    return this.executeDashboardRequest<Simulation>('simulations.get-simulation', { simulationId });
+  }
+
+  async listSimulations(params: {
+    scopeId: string;
+    subjectId?: string;
+    status?: 'pending' | 'running' | 'completed' | 'failed';
+    limit?: number;
+    offset?: number;
+  }): Promise<DashboardActionResponse<Simulation[]>> {
+    return this.executeDashboardRequest<Simulation[]>('simulations.list-simulations', params);
+  }
+
+  async deleteSimulation(simulationId: string): Promise<DashboardActionResponse<{ deleted: boolean }>> {
+    return this.executeDashboardRequest<{ deleted: boolean }>('simulations.delete-simulation', { simulationId });
+  }
+
+  async getDistributionTemplates(): Promise<DashboardActionResponse<Record<string, DimensionDistribution>>> {
+    return this.executeDashboardRequest<Record<string, DimensionDistribution>>('simulations.get-distribution-templates', {});
+  }
+
+  // ==========================================================================
+  // DATA SOURCE OPERATIONS (Feature 11)
+  // ==========================================================================
+
+  async createDataSource(params: {
+    scopeId: string;
+    name: string;
+    description?: string;
+    sourceType: DataSourceType;
+    config: SourceConfig;
+    schedule?: string;
+    dimensionMapping?: Record<string, DimensionMapping>;
+    subjectFilter?: DataSourceSubjectFilter;
+    autoReanalyze?: boolean;
+    reanalyzeThreshold?: number;
+  }): Promise<DashboardActionResponse<DataSource>> {
+    return this.executeDashboardRequest<DataSource>('data-sources.create-source', params);
+  }
+
+  async getDataSource(dataSourceId: string): Promise<DashboardActionResponse<DataSource>> {
+    return this.executeDashboardRequest<DataSource>('data-sources.get-source', { dataSourceId });
+  }
+
+  async listDataSources(params: {
+    scopeId: string;
+    status?: DataSourceStatus;
+    sourceType?: DataSourceType;
+    limit?: number;
+    offset?: number;
+  }): Promise<DashboardActionResponse<DataSource[]>> {
+    return this.executeDashboardRequest<DataSource[]>('data-sources.list-sources', params);
+  }
+
+  async updateDataSource(params: {
+    dataSourceId: string;
+    name?: string;
+    description?: string;
+    config?: SourceConfig;
+    schedule?: string;
+    dimensionMapping?: Record<string, DimensionMapping>;
+    subjectFilter?: DataSourceSubjectFilter;
+    autoReanalyze?: boolean;
+    reanalyzeThreshold?: number;
+    status?: 'active' | 'paused' | 'disabled';
+  }): Promise<DashboardActionResponse<DataSource>> {
+    return this.executeDashboardRequest<DataSource>('data-sources.update-source', params);
+  }
+
+  async deleteDataSource(dataSourceId: string): Promise<DashboardActionResponse<{ deleted: boolean }>> {
+    return this.executeDashboardRequest<{ deleted: boolean }>('data-sources.delete-source', { dataSourceId });
+  }
+
+  async fetchDataSource(dataSourceId: string): Promise<DashboardActionResponse<FetchResult>> {
+    return this.executeDashboardRequest<FetchResult>('data-sources.fetch-source', { dataSourceId });
+  }
+
+  async getFetchHistory(params: {
+    dataSourceId: string;
+    limit?: number;
+  }): Promise<DashboardActionResponse<FetchHistoryRecord[]>> {
+    return this.executeDashboardRequest<FetchHistoryRecord[]>('data-sources.get-fetch-history', params);
+  }
+
+  async getDataSourceHealthSummary(scopeId: string): Promise<DashboardActionResponse<DataSourceHealthSummary>> {
+    return this.executeDashboardRequest<DataSourceHealthSummary>('data-sources.get-health-summary', { scopeId });
+  }
+
+  async getSourcesDueForFetch(): Promise<DashboardActionResponse<DataSource[]>> {
+    return this.executeDashboardRequest<DataSource[]>('data-sources.get-due-sources', {});
   }
 }
 

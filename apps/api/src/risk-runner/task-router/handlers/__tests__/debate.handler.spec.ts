@@ -247,7 +247,7 @@ describe('DebateHandler', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('MISSING_SUBJECT_ID');
+      expect(result.error?.code).toBe('MISSING_FILTER');
     });
 
     it('should apply pagination', async () => {

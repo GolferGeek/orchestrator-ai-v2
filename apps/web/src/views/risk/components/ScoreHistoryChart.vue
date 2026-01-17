@@ -4,6 +4,13 @@
     <div class="chart-header">
       <h3 v-if="showTitle">{{ title }}</h3>
       <div class="chart-controls">
+        <!-- Subject selector for scope mode -->
+        <select v-if="scopeId && subjects.length > 0" v-model="selectedSubjectId" class="subject-selector">
+          <option value="">All Subjects</option>
+          <option v-for="subject in subjects" :key="subject.id" :value="subject.id">
+            {{ subject.name || subject.identifier }}
+          </option>
+        </select>
         <div class="date-range-selector">
           <button
             v-for="range in dateRanges"
@@ -54,14 +61,20 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { Chart, registerables } from 'chart.js';
-import type { ScoreHistoryEntry } from '@/types/risk-agent';
+import type { ScoreHistoryEntry, RiskSubject } from '@/types/risk-agent';
+import { riskDashboardService } from '@/services/riskDashboardService';
 
 // Register Chart.js components
 Chart.register(...registerables);
 
 interface Props {
+  // For scope-level fetching (from AnalyticsTab)
+  scopeId?: string;
+  subjects?: RiskSubject[];
+  // For direct data passing
   subjectId?: string;
   history?: ScoreHistoryEntry[];
+  // Display options
   title?: string;
   showTitle?: boolean;
   height?: number;
@@ -72,6 +85,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  subjects: () => [],
   title: 'Score History',
   showTitle: true,
   height: 200,
@@ -84,6 +98,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   'range-change': [days: number];
   'point-click': [entry: ScoreHistoryEntry];
+  'error': [message: string];
 }>();
 
 const chartContainer = ref<HTMLElement | null>(null);
@@ -93,6 +108,8 @@ let chartInstance: Chart | null = null;
 const isLoading = ref(false);
 const error = ref<string | null>(null);
 const selectedRange = ref(30);
+const selectedSubjectId = ref<string>('');
+const fetchedHistory = ref<ScoreHistoryEntry[]>([]);
 
 const dateRanges = [
   { label: '7D', value: 7 },
@@ -100,14 +117,118 @@ const dateRanges = [
   { label: '90D', value: 90 },
 ];
 
+// Fetch score history from API
+async function fetchScoreHistory() {
+  if (!props.scopeId) return;
+
+  isLoading.value = true;
+  error.value = null;
+
+  try {
+    if (selectedSubjectId.value) {
+      // Fetch for specific subject
+      const response = await riskDashboardService.getScoreHistory(
+        selectedSubjectId.value,
+        selectedRange.value,
+        100
+      );
+      if (response.success && response.content) {
+        fetchedHistory.value = response.content;
+      } else {
+        fetchedHistory.value = [];
+      }
+    } else {
+      // Fetch for all subjects in scope
+      const response = await riskDashboardService.getScopeScoreHistory(
+        props.scopeId,
+        selectedRange.value
+      );
+      if (response.success && response.content) {
+        // Flatten all subject histories into a single array with subject info
+        const allHistory: ScoreHistoryEntry[] = [];
+        for (const subjectData of response.content) {
+          if (subjectData.scores) {
+            for (const score of subjectData.scores) {
+              // Handle both camelCase (createdAt) and snake_case (created_at) from API
+              const timestamp = score.createdAt || score.created_at;
+              allHistory.push({
+                id: `${subjectData.subjectId}-${timestamp}`,
+                overallScore: score.score,
+                confidence: score.confidence,
+                scoreChange: score.change,
+                createdAt: timestamp,
+                dimensionScores: {},
+              });
+            }
+          }
+        }
+        // Sort by date and take most recent per day for aggregate view
+        fetchedHistory.value = aggregateByDay(allHistory);
+      } else {
+        fetchedHistory.value = [];
+      }
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to fetch score history';
+    error.value = message;
+    emit('error', message);
+    fetchedHistory.value = [];
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+// Aggregate scores by day for multi-subject view
+function aggregateByDay(entries: ScoreHistoryEntry[]): ScoreHistoryEntry[] {
+  const byDay = new Map<string, ScoreHistoryEntry[]>();
+
+  for (const entry of entries) {
+    // Skip entries without valid timestamps
+    if (!entry.createdAt) continue;
+
+    const day = entry.createdAt.split('T')[0];
+    if (!day) continue;
+
+    if (!byDay.has(day)) {
+      byDay.set(day, []);
+    }
+    byDay.get(day)!.push(entry);
+  }
+
+  // Calculate average for each day
+  const aggregated: ScoreHistoryEntry[] = [];
+  for (const [day, dayEntries] of byDay) {
+    const avgScore = Math.round(
+      dayEntries.reduce((sum, e) => sum + e.overallScore, 0) / dayEntries.length
+    );
+    const avgConfidence = dayEntries.reduce((sum, e) => sum + (e.confidence || 0), 0) / dayEntries.length;
+
+    aggregated.push({
+      id: day,
+      overallScore: avgScore,
+      confidence: avgConfidence,
+      scoreChange: 0,
+      createdAt: `${day}T12:00:00Z`,
+      dimensionScores: {},
+    });
+  }
+
+  return aggregated.sort((a, b) =>
+    new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
+}
+
 // Filter data based on selected range
 const chartData = computed(() => {
-  if (!props.history || props.history.length === 0) return [];
+  // Use fetched data if available, otherwise fall back to passed history
+  const sourceData = fetchedHistory.value.length > 0 ? fetchedHistory.value : props.history || [];
+
+  if (sourceData.length === 0) return [];
 
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - selectedRange.value);
 
-  return props.history
+  return sourceData
     .filter(entry => new Date(entry.createdAt) >= cutoffDate)
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 });
@@ -272,9 +393,20 @@ function formatDateFull(dateStr: string): string {
   });
 }
 
-// Watch for data changes
+// Watch for data changes and refetch when needed
 watch(
-  () => [props.history, selectedRange.value],
+  () => [props.scopeId, selectedSubjectId.value, selectedRange.value],
+  () => {
+    if (props.scopeId) {
+      fetchScoreHistory();
+    }
+  },
+  { immediate: false }
+);
+
+// Watch for history prop changes (direct data mode)
+watch(
+  () => props.history,
   () => {
     nextTick(() => {
       createChart();
@@ -283,6 +415,13 @@ watch(
   { deep: true }
 );
 
+// Watch for fetched data changes
+watch(fetchedHistory, () => {
+  nextTick(() => {
+    createChart();
+  });
+});
+
 // Watch for range changes and emit
 watch(selectedRange, (newRange) => {
   emit('range-change', newRange);
@@ -290,9 +429,15 @@ watch(selectedRange, (newRange) => {
 
 // Lifecycle
 onMounted(() => {
-  nextTick(() => {
-    createChart();
-  });
+  if (props.scopeId) {
+    // Fetch from API if scopeId provided
+    fetchScoreHistory();
+  } else {
+    // Use passed history data
+    nextTick(() => {
+      createChart();
+    });
+  }
 });
 
 onUnmounted(() => {
@@ -335,7 +480,24 @@ defineExpose({
 .chart-controls {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
+}
+
+.subject-selector {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 6px;
+  background: var(--bg-primary, #ffffff);
+  color: var(--text-primary, #111827);
+  cursor: pointer;
+  min-width: 140px;
+}
+
+.subject-selector:focus {
+  outline: none;
+  border-color: var(--primary-color, #a87c4f);
+  box-shadow: 0 0 0 2px rgba(168, 124, 79, 0.1);
 }
 
 .date-range-selector {

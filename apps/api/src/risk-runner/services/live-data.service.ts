@@ -6,8 +6,7 @@
  */
 
 import { Injectable, Logger } from '@nestjs/common';
-import { SupabaseClient } from '@supabase/supabase-js';
-import { createClient } from '../utils/supabase-client';
+import { SupabaseService } from '@/supabase/supabase.service';
 
 // Data source types
 export type DataSourceType = 'firecrawl' | 'api' | 'rss' | 'webhook' | 'manual';
@@ -29,8 +28,8 @@ export interface DimensionMapping {
   weight?: number;
 }
 
-// Subject filter configuration
-export interface SubjectFilter {
+// Subject filter configuration for data sources
+export interface DataSourceSubjectFilter {
   subjectIds?: string[];
   subjectTypes?: string[];
   identifierPattern?: string;
@@ -84,7 +83,7 @@ export interface DataSource {
   config: SourceConfig;
   schedule: string | null;
   dimensionMapping: Record<string, DimensionMapping>;
-  subjectFilter: SubjectFilter | null;
+  subjectFilter: DataSourceSubjectFilter | null;
   status: DataSourceStatus;
   errorMessage: string | null;
   errorCount: number;
@@ -123,7 +122,7 @@ export interface CreateDataSourceParams {
   config: SourceConfig;
   schedule?: string;
   dimensionMapping?: Record<string, DimensionMapping>;
-  subjectFilter?: SubjectFilter;
+  subjectFilter?: DataSourceSubjectFilter;
   autoReanalyze?: boolean;
   reanalyzeThreshold?: number;
 }
@@ -141,11 +140,8 @@ export interface FetchResult {
 @Injectable()
 export class LiveDataService {
   private readonly logger = new Logger(LiveDataService.name);
-  private supabase: SupabaseClient;
 
-  constructor() {
-    this.supabase = createClient();
-  }
+  constructor(private readonly supabaseService: SupabaseService) {}
 
   /**
    * Create a new data source
@@ -159,8 +155,9 @@ export class LiveDataService {
       ? this.calculateNextFetch(params.schedule)
       : null;
 
-    const { data, error } = await this.supabase
-      .from('risk.data_sources')
+    const { data, error } = await this.supabaseService.getServiceClient()
+      .schema('risk')
+      .from('data_sources')
       .insert({
         scope_id: params.scopeId,
         name: params.name,
@@ -190,8 +187,9 @@ export class LiveDataService {
    * Get a data source by ID
    */
   async getDataSource(dataSourceId: string): Promise<DataSource | null> {
-    const { data, error } = await this.supabase
-      .from('risk.data_sources')
+    const { data, error } = await this.supabaseService.getServiceClient()
+      .schema('risk')
+      .from('data_sources')
       .select('*')
       .eq('id', dataSourceId)
       .single();
@@ -215,8 +213,9 @@ export class LiveDataService {
       offset?: number;
     },
   ): Promise<DataSource[]> {
-    let query = this.supabase
-      .from('risk.data_sources')
+    let query = this.supabaseService.getServiceClient()
+      .schema('risk')
+      .from('data_sources')
       .select('*')
       .eq('scope_id', scopeId)
       .order('created_at', { ascending: false });
@@ -294,8 +293,9 @@ export class LiveDataService {
       }
     }
 
-    const { data, error } = await this.supabase
-      .from('risk.data_sources')
+    const { data, error } = await this.supabaseService.getServiceClient()
+      .schema('risk')
+      .from('data_sources')
       .update(dbUpdates)
       .eq('id', dataSourceId)
       .select()
@@ -314,8 +314,9 @@ export class LiveDataService {
    * Delete a data source
    */
   async deleteDataSource(dataSourceId: string): Promise<void> {
-    const { error } = await this.supabase
-      .from('risk.data_sources')
+    const { error } = await this.supabaseService.getServiceClient()
+      .schema('risk')
+      .from('data_sources')
       .delete()
       .eq('id', dataSourceId);
 
@@ -524,21 +525,27 @@ export class LiveDataService {
    */
   private async recordFetchHistory(
     dataSourceId: string,
-    record: Omit<FetchHistoryRecord, 'id' | 'dataSourceId' | 'fetchedAt'> & {
+    record: {
+      status: FetchStatus;
+      fetchDurationMs?: number | null;
       rawResponse?: unknown;
       parsedData?: unknown;
+      errorMessage?: string | null;
+      dimensionsUpdated?: string[];
+      subjectsAffected?: string[];
+      reanalysisTriggered?: boolean;
     },
   ): Promise<void> {
-    await this.supabase.from('risk.data_source_fetch_history').insert({
+    await this.supabaseService.getServiceClient().schema('risk').from('data_source_fetch_history').insert({
       data_source_id: dataSourceId,
       status: record.status,
-      fetch_duration_ms: record.fetchDurationMs,
-      raw_response: record.rawResponse,
-      parsed_data: record.parsedData,
-      error_message: record.errorMessage,
-      dimensions_updated: record.dimensionsUpdated,
-      subjects_affected: record.subjectsAffected,
-      reanalysis_triggered: record.reanalysisTriggered,
+      fetch_duration_ms: record.fetchDurationMs ?? null,
+      raw_response: record.rawResponse ?? null,
+      parsed_data: record.parsedData ?? null,
+      error_message: record.errorMessage ?? null,
+      dimensions_updated: record.dimensionsUpdated ?? [],
+      subjects_affected: record.subjectsAffected ?? [],
+      reanalysis_triggered: record.reanalysisTriggered ?? false,
     });
   }
 
@@ -578,8 +585,9 @@ export class LiveDataService {
       }
     }
 
-    await this.supabase
-      .from('risk.data_sources')
+    await this.supabaseService.getServiceClient()
+      .schema('risk')
+      .from('data_sources')
       .update(updates)
       .eq('id', dataSourceId);
   }
@@ -591,8 +599,9 @@ export class LiveDataService {
     dataSourceId: string,
     limit: number = 20,
   ): Promise<FetchHistoryRecord[]> {
-    const { data, error } = await this.supabase
-      .from('risk.data_source_fetch_history')
+    const { data, error } = await this.supabaseService.getServiceClient()
+      .schema('risk')
+      .from('data_source_fetch_history')
       .select('*')
       .eq('data_source_id', dataSourceId)
       .order('fetched_at', { ascending: false })
@@ -663,8 +672,9 @@ export class LiveDataService {
    * Get sources that are due for fetching
    */
   async getSourcesDueForFetch(): Promise<DataSource[]> {
-    const { data, error } = await this.supabase
-      .from('risk.data_sources')
+    const { data, error } = await this.supabaseService.getServiceClient()
+      .schema('risk')
+      .from('data_sources')
       .select('*')
       .eq('status', 'active')
       .lte('next_fetch_at', new Date().toISOString())
@@ -717,7 +727,7 @@ export class LiveDataService {
       config: row.config as SourceConfig,
       schedule: row.schedule as string | null,
       dimensionMapping: row.dimension_mapping as Record<string, DimensionMapping>,
-      subjectFilter: row.subject_filter as SubjectFilter | null,
+      subjectFilter: row.subject_filter as DataSourceSubjectFilter | null,
       status: row.status as DataSourceStatus,
       errorMessage: row.error_message as string | null,
       errorCount: row.error_count as number,

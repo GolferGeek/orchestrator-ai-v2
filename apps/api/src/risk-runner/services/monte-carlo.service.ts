@@ -6,8 +6,7 @@
  */
 
 import { Injectable, Logger } from '@nestjs/common';
-import { SupabaseClient } from '@supabase/supabase-js';
-import { createClient } from '../utils/supabase-client';
+import { SupabaseService } from '@/supabase/supabase.service';
 
 // Distribution types supported
 export type DistributionType = 'normal' | 'uniform' | 'beta' | 'triangular';
@@ -77,11 +76,8 @@ export interface Simulation {
 @Injectable()
 export class MonteCarloService {
   private readonly logger = new Logger(MonteCarloService.name);
-  private supabase: SupabaseClient;
 
-  constructor() {
-    this.supabase = createClient();
-  }
+  constructor(private readonly supabaseService: SupabaseService) {}
 
   /**
    * Run a Monte Carlo simulation
@@ -99,8 +95,9 @@ export class MonteCarloService {
     );
 
     // Create simulation record
-    const { data: simulation, error: createError } = await this.supabase
-      .from('risk.simulations')
+    const { data: simulation, error: createError } = await this.supabaseService.getServiceClient()
+      .schema('risk')
+      .from('simulations')
       .insert({
         scope_id: scopeId,
         subject_id: subjectId || null,
@@ -130,8 +127,9 @@ export class MonteCarloService {
       results.executionTimeMs = executionTimeMs;
 
       // Update simulation with results
-      const { data: updated, error: updateError } = await this.supabase
-        .from('risk.simulations')
+      const { data: updated, error: updateError } = await this.supabaseService.getServiceClient()
+        .schema('risk')
+        .from('simulations')
         .update({
           results,
           status: 'completed',
@@ -152,8 +150,9 @@ export class MonteCarloService {
       return this.mapSimulationFromDb(updated);
     } catch (error) {
       // Update simulation with error
-      await this.supabase
-        .from('risk.simulations')
+      await this.supabaseService.getServiceClient()
+        .schema('risk')
+        .from('simulations')
         .update({
           status: 'failed',
           error_message:
@@ -461,8 +460,9 @@ export class MonteCarloService {
    * Get a simulation by ID
    */
   async getSimulation(simulationId: string): Promise<Simulation | null> {
-    const { data, error } = await this.supabase
-      .from('risk.simulations')
+    const { data, error } = await this.supabaseService.getServiceClient()
+      .schema('risk')
+      .from('simulations')
       .select('*')
       .eq('id', simulationId)
       .single();
@@ -486,8 +486,9 @@ export class MonteCarloService {
       offset?: number;
     },
   ): Promise<Simulation[]> {
-    let query = this.supabase
-      .from('risk.simulations')
+    let query = this.supabaseService.getServiceClient()
+      .schema('risk')
+      .from('simulations')
       .select('*')
       .eq('scope_id', scopeId)
       .order('created_at', { ascending: false });
@@ -521,8 +522,9 @@ export class MonteCarloService {
    * Delete a simulation
    */
   async deleteSimulation(simulationId: string): Promise<void> {
-    const { error } = await this.supabase
-      .from('risk.simulations')
+    const { error } = await this.supabaseService.getServiceClient()
+      .schema('risk')
+      .from('simulations')
       .delete()
       .eq('id', simulationId);
 

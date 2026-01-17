@@ -106,7 +106,8 @@
 <script lang="ts" setup>
 import { computed, ref, onMounted, nextTick } from 'vue';
 import {
-  IonPage, IonContent, IonIcon, IonItem, IonLabel, IonList, IonMenu, IonNote, IonRouterOutlet, IonSplitPane, IonHeader, IonToolbar, IonTitle, IonAccordion, IonAccordionGroup
+  IonPage, IonContent, IonIcon, IonItem, IonLabel, IonList, IonMenu, IonNote, IonRouterOutlet, IonSplitPane, IonHeader, IonToolbar, IonTitle, IonAccordion, IonAccordionGroup,
+  menuController
 } from '@ionic/vue';
 import { logOutOutline, starOutline, chatbubblesOutline, documentTextOutline, sunnyOutline, moonOutline } from 'ionicons/icons';
 import { useAuthStore } from '@/stores/rbacStore';
@@ -175,6 +176,8 @@ const navigateToLanding = () => {
 };
 const handleConversationSelected = async (conversation: Record<string, unknown>) => {
   try {
+    // Close the sidebar menu when a conversation is selected
+    await menuController.close();
 
     // Set the active conversation in the store
     chatUiStore.setActiveConversation(conversation.id);
@@ -190,6 +193,9 @@ const handleConversationSelected = async (conversation: Record<string, unknown>)
 };
 const handleAgentSelected = async (agent: Record<string, unknown>) => {
   try {
+    // Close the sidebar menu when an agent is selected
+    await menuController.close();
+
     // Always create a conversation first - this shows up in the sidebar under the agent
     const conversationId = await conversation.createConversation(agent);
 
@@ -209,6 +215,9 @@ const handleAgentSelected = async (agent: Record<string, unknown>) => {
 
 const handleOpenDashboard = async (agent: Record<string, unknown>, _componentName: string) => {
   try {
+    // Close the sidebar menu when a dashboard is opened
+    await menuController.close();
+
     const interactionMode = getInteractionMode(agent as InteractionAgent);
     const agentSlug = (agent.slug || agent.name) as string;
 

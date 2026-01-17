@@ -97,13 +97,31 @@
           @error="onError"
         />
       </div>
+
+      <!-- Monte Carlo Simulation Section (Phase 4) -->
+      <div v-if="activeSection === 'simulation'" class="section">
+        <MonteCarloSimulator
+          v-if="scopeId"
+          :scope-id="scopeId"
+          @simulation-complete="onSimulationComplete"
+        />
+      </div>
+
+      <!-- Data Sources Section (Phase 4) -->
+      <div v-if="activeSection === 'datasources'" class="section">
+        <DataSourceManager
+          v-if="scopeId"
+          :scope-id="scopeId"
+          @source-updated="onSourceUpdated"
+        />
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import type { RiskSubject, RiskDimension, ExecutiveSummary as ExecutiveSummaryType, ScenarioResult, Scenario, Report } from '@/types/risk-agent';
+import type { RiskSubject, RiskDimension, ExecutiveSummary as ExecutiveSummaryType, ScenarioResult, Scenario, Report, Simulation } from '@/types/risk-agent';
 
 // Import Phase 1 & 2 components
 import ScoreHistoryChart from '../components/ScoreHistoryChart.vue';
@@ -116,6 +134,10 @@ import CorrelationMatrix from '../components/CorrelationMatrix.vue';
 import ExecutiveSummary from '../components/ExecutiveSummary.vue';
 import ScenarioBuilder from '../components/ScenarioBuilder.vue';
 import ReportGenerator from '../components/ReportGenerator.vue';
+
+// Import Phase 4 components
+import MonteCarloSimulator from '../components/MonteCarloSimulator.vue';
+import DataSourceManager from '../components/DataSourceManager.vue';
 
 const props = defineProps<{
   scopeId: string | null;
@@ -131,6 +153,8 @@ const emit = defineEmits<{
   'scenario-run': [result: ScenarioResult];
   'scenario-saved': [scenario: Scenario];
   'report-generated': [report: Report];
+  'simulation-complete': [simulation: Simulation];
+  'source-updated': [];
 }>();
 
 // Analytics sections configuration
@@ -143,6 +167,9 @@ const sections = [
   { id: 'summary', label: 'AI Summary', icon: '🤖' },
   { id: 'scenario', label: 'Scenarios', icon: '🎯' },
   { id: 'reports', label: 'Reports', icon: '📄' },
+  // Phase 4: Advanced Simulation
+  { id: 'simulation', label: 'Monte Carlo', icon: '🎲' },
+  { id: 'datasources', label: 'Data Sources', icon: '📡' },
 ];
 
 // State
@@ -171,6 +198,15 @@ function onScenarioSaved(scenario: Scenario) {
 
 function onReportGenerated(report: Report) {
   emit('report-generated', report);
+}
+
+// Phase 4 event handlers
+function onSimulationComplete(simulation: Simulation) {
+  emit('simulation-complete', simulation);
+}
+
+function onSourceUpdated() {
+  emit('source-updated');
 }
 </script>
 

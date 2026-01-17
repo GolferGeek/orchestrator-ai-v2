@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ScopeHandler } from '../scope.handler';
 import { ScopeRepository } from '../../../repositories/scope.repository';
+import { RiskAnalysisService } from '../../../services/risk-analysis.service';
 import { ExecutionContext } from '@orchestrator-ai/transport-types';
 import { DashboardRequestPayload } from '@orchestrator-ai/transport-types';
 import { RiskScope } from '../../../interfaces/scope.interface';
@@ -77,6 +78,13 @@ describe('ScopeHandler', () => {
             create: jest.fn(),
             update: jest.fn(),
             delete: jest.fn(),
+          },
+        },
+        {
+          provide: RiskAnalysisService,
+          useValue: {
+            analyzeSubject: jest.fn(),
+            reanalyzeScope: jest.fn(),
           },
         },
       ],

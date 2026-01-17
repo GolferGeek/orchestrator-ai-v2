@@ -10,7 +10,7 @@ import type { ExecutionContext } from '@orchestrator-ai/transport-types';
 import type { DashboardRequestPayload } from '@orchestrator-ai/transport-types';
 import {
   DashboardActionResult,
-  DashboardHandler,
+  IDashboardHandler,
   buildDashboardSuccess,
   buildDashboardError,
 } from '../dashboard-handler.interface';
@@ -25,7 +25,7 @@ import {
 } from '../../services/live-data.service';
 
 @Injectable()
-export class SimulationHandler implements DashboardHandler {
+export class SimulationHandler implements IDashboardHandler {
   private readonly logger = new Logger(SimulationHandler.name);
 
   constructor(
@@ -73,35 +73,35 @@ export class SimulationHandler implements DashboardHandler {
       switch (action) {
         // Monte Carlo Simulation actions
         case 'run-simulation':
-          return this.runSimulation(payload, context);
+          return await this.runSimulation(payload, context);
         case 'get-simulation':
-          return this.getSimulation(payload);
+          return await this.getSimulation(payload);
         case 'list-simulations':
-          return this.listSimulations(payload);
+          return await this.listSimulations(payload);
         case 'delete-simulation':
-          return this.deleteSimulation(payload);
+          return await this.deleteSimulation(payload);
         case 'get-distribution-templates':
           return this.getDistributionTemplates();
 
         // Data Source actions
         case 'create-source':
-          return this.createDataSource(payload, context);
+          return await this.createDataSource(payload, context);
         case 'get-source':
-          return this.getDataSource(payload);
+          return await this.getDataSource(payload);
         case 'list-sources':
-          return this.listDataSources(payload);
+          return await this.listDataSources(payload);
         case 'update-source':
-          return this.updateDataSource(payload);
+          return await this.updateDataSource(payload);
         case 'delete-source':
-          return this.deleteDataSource(payload);
+          return await this.deleteDataSource(payload);
         case 'fetch-source':
-          return this.fetchDataSource(payload);
+          return await this.fetchDataSource(payload);
         case 'get-fetch-history':
-          return this.getFetchHistory(payload);
+          return await this.getFetchHistory(payload);
         case 'get-health-summary':
-          return this.getHealthSummary(payload);
+          return await this.getHealthSummary(payload);
         case 'get-due-sources':
-          return this.getDueSources();
+          return await this.getDueSources();
 
         default:
           return buildDashboardError(
@@ -134,7 +134,7 @@ export class SimulationHandler implements DashboardHandler {
     _context: ExecutionContext,
   ): Promise<DashboardActionResult> {
     const { scopeId, name, parameters, iterations, subjectId, description } =
-      payload.params as {
+      (payload.params ?? {}) as unknown as {
         scopeId: string;
         name: string;
         parameters: SimulationParameters;
@@ -263,7 +263,7 @@ export class SimulationHandler implements DashboardHandler {
     payload: DashboardRequestPayload,
     _context: ExecutionContext,
   ): Promise<DashboardActionResult> {
-    const params = payload.params as CreateDataSourceParams;
+    const params = (payload.params ?? {}) as unknown as CreateDataSourceParams;
 
     if (!params.scopeId) {
       return buildDashboardError('MISSING_PARAM', 'scopeId is required');

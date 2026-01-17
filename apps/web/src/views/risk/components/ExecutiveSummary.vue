@@ -43,14 +43,24 @@
       </button>
     </div>
 
+    <!-- Summary without content fallback -->
+    <div v-else-if="summary && !summary.content" class="empty-state">
+      <span class="empty-icon">📋</span>
+      <h4>Summary Data Missing</h4>
+      <p>The summary was retrieved but contains no content. Try generating a new one.</p>
+      <button class="btn btn-primary" @click="onGenerate" :disabled="isGenerating">
+        {{ isGenerating ? 'Generating...' : 'Generate Summary' }}
+      </button>
+    </div>
+
     <!-- Summary Content -->
-    <div v-else class="summary-content">
+    <div v-else-if="summary?.content" class="summary-content">
       <!-- Status Banner -->
-      <div :class="['status-banner', `status-${summary.content.status}`]">
+      <div :class="['status-banner', `status-${summary.content.status || 'stable'}`]">
         <div class="status-icon">{{ getStatusIcon(summary.content.status) }}</div>
         <div class="status-content">
           <span class="status-label">Portfolio Status</span>
-          <span class="status-text">{{ capitalizeFirst(summary.content.status) }}</span>
+          <span class="status-text">{{ capitalizeFirst(summary.content.status || 'stable') }}</span>
         </div>
       </div>
 
