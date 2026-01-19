@@ -4,36 +4,11 @@
 # Creates a timestamped backup directory with database dump, scripts, and metadata
 # This backup is portable and can be used on any machine after pulling the code
 #
-# IMPORTANT: By default, only backs up APPLICATION schemas, not Supabase-managed schemas.
-# Use --include-auth and/or --include-storage to include those schemas.
-#
-# Usage:
-#   ./backup-db.sh                    # Application schemas only (default)
-#   ./backup-db.sh --include-auth     # Include auth schema
-#   ./backup-db.sh --include-storage  # Include storage schema
-#   ./backup-db.sh --include-auth --include-storage  # Include both
+# IMPORTANT: Only backs up APPLICATION schemas, not Supabase-managed schemas.
+# Supabase manages: auth, storage, realtime, _realtime, extensions, graphql,
+# graphql_public, pgbouncer, supabase_functions, supabase_migrations, vault
 
 set -e
-
-# Parse command line arguments
-INCLUDE_AUTH=false
-INCLUDE_STORAGE=false
-
-for arg in "$@"; do
-  case $arg in
-    --include-auth)
-      INCLUDE_AUTH=true
-      shift
-      ;;
-    --include-storage)
-      INCLUDE_STORAGE=true
-      shift
-      ;;
-    *)
-      # Unknown option
-      ;;
-  esac
-done
 
 # Configuration
 DB_CONTAINER="supabase_db_api-dev"
@@ -43,7 +18,7 @@ BACKUP_BASE_DIR="storage/backups"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 BACKUP_DIR="${BACKUP_BASE_DIR}/${TIMESTAMP}"
 
-# Application schemas to backup (always included)
+# Application schemas to backup (exclude Supabase-managed schemas)
 APP_SCHEMAS=(
   "public"
   "code_ops"
@@ -57,15 +32,6 @@ APP_SCHEMAS=(
   "marketing"
   "n8n_data"
 )
-
-# Conditionally add auth and storage schemas
-if [ "$INCLUDE_AUTH" = true ]; then
-  APP_SCHEMAS+=("auth")
-fi
-
-if [ "$INCLUDE_STORAGE" = true ]; then
-  APP_SCHEMAS+=("storage")
-fi
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -180,9 +146,8 @@ DURATION=$((END_TIME - START_TIME))
 
 # Count actual errors (excluding expected "already exists" type errors)
 CRITICAL_ERRORS=$(grep -c "^ERROR:" "$ERROR_LOG" 2>/dev/null || echo "0")
-EXPECTED_ERRORS=$(grep -c "already exists\|does not exist\|must be owner\|cannot drop.*because other objects depend" "$ERROR_LOG" 2>/dev/null || echo "0")
+EXPECTED_ERRORS=$(grep -c "already exists\|does not exist\|must be owner" "$ERROR_LOG" 2>/dev/null || echo "0")
 REAL_ERRORS=$((CRITICAL_ERRORS - EXPECTED_ERRORS))
-if [ "$REAL_ERRORS" -lt 0 ]; then REAL_ERRORS=0; fi
 
 # Verify restoration by checking key tables
 echo -e "${BLUE}✅ Verifying restoration...${NC}"
@@ -220,19 +185,6 @@ DURATION=$((END_TIME - START_TIME))
 # Convert schemas array to JSON array
 SCHEMAS_JSON=$(printf '%s\n' "${APP_SCHEMAS[@]}" | jq -R . | jq -s .)
 
-# Build notes based on what was included
-NOTES="Application schemas backed up."
-if [ "$INCLUDE_AUTH" = true ]; then
-  NOTES="$NOTES Auth schema INCLUDED."
-else
-  NOTES="$NOTES Auth schema excluded (use --include-auth to include)."
-fi
-if [ "$INCLUDE_STORAGE" = true ]; then
-  NOTES="$NOTES Storage schema INCLUDED."
-else
-  NOTES="$NOTES Storage schema excluded (use --include-storage to include)."
-fi
-
 cat > "${BACKUP_DIR}/metadata.json" << EOF
 {
   "timestamp": "${TIMESTAMP}",
@@ -246,15 +198,13 @@ cat > "${BACKUP_DIR}/metadata.json" << EOF
     "file": "backup.sql.gz",
     "size": "${BACKUP_SIZE}",
     "duration_seconds": ${DURATION},
-    "schemas": ${SCHEMAS_JSON},
-    "include_auth": ${INCLUDE_AUTH},
-    "include_storage": ${INCLUDE_STORAGE}
+    "schemas": ${SCHEMAS_JSON}
   },
   "scripts": {
     "backup": "backup.sh",
     "restore": "restore.sh"
   },
-  "notes": "${NOTES}"
+  "notes": "Only application schemas are backed up. Supabase-managed schemas (auth, storage, realtime, etc.) are excluded."
 }
 EOF
 
@@ -278,14 +228,8 @@ echo -e "   Size: ${BACKUP_SIZE}"
 echo -e "   Duration: ${DURATION} seconds"
 echo -e "   Schemas: ${APP_SCHEMAS[*]}"
 echo ""
-if [ "$INCLUDE_AUTH" = true ] || [ "$INCLUDE_STORAGE" = true ]; then
-  echo -e "${YELLOW}ℹ️  Included optional schemas:${NC}"
-  [ "$INCLUDE_AUTH" = true ] && echo -e "${YELLOW}   - auth (user authentication data)${NC}"
-  [ "$INCLUDE_STORAGE" = true ] && echo -e "${YELLOW}   - storage (file storage metadata)${NC}"
-else
-  echo -e "${YELLOW}ℹ️  Note: Supabase-managed schemas (auth, storage) are excluded by default.${NC}"
-  echo -e "${YELLOW}   Use --include-auth and/or --include-storage to include them.${NC}"
-fi
+echo -e "${YELLOW}ℹ️  Note: Supabase-managed schemas (auth, storage, etc.) are excluded.${NC}"
+echo -e "${YELLOW}   These are managed by Supabase and don't need to be synced.${NC}"
 echo ""
 echo -e "${BLUE}🕐 Created: $(date)${NC}"
 echo ""
