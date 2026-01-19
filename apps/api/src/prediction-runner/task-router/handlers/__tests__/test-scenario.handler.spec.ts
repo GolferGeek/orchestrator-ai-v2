@@ -194,9 +194,11 @@ describe('TestScenarioHandler', () => {
     };
 
     mockSourceRepository = {
-      findAll: jest.fn().mockResolvedValue([
-        { id: 'source-123', name: 'Mock Source' } as unknown as never,
-      ]),
+      findAll: jest
+        .fn()
+        .mockResolvedValue([
+          { id: 'source-123', name: 'Mock Source' } as unknown as never,
+        ]),
     };
 
     const module: TestingModule = await Test.createTestingModule({

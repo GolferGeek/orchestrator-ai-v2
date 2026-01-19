@@ -419,7 +419,7 @@ BEGIN
         WHERE cs.status = 'active'
         ORDER BY cs.overall_score DESC
     LOOP
-        RAISE NOTICE '  %: %% (confidence: %)',
+        RAISE NOTICE '  %: %%% (confidence: %)',
             rec.name, rec.overall_score, rec.confidence;
     END LOOP;
 

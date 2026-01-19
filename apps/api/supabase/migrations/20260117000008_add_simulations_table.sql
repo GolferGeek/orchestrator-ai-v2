@@ -89,7 +89,7 @@ CREATE POLICY simulations_select_policy ON risk.simulations
       SELECT 1 FROM risk.scopes s
       WHERE s.id = risk.simulations.scope_id
       AND s.organization_slug IN (
-        SELECT organization_slug FROM public.user_organizations WHERE user_id = auth.uid()
+        SELECT organization_slug FROM public.rbac_user_org_roles WHERE user_id = auth.uid()
       )
     )
   );
@@ -102,7 +102,7 @@ CREATE POLICY simulations_insert_policy ON risk.simulations
       SELECT 1 FROM risk.scopes s
       WHERE s.id = scope_id
       AND s.organization_slug IN (
-        SELECT organization_slug FROM public.user_organizations WHERE user_id = auth.uid()
+        SELECT organization_slug FROM public.rbac_user_org_roles WHERE user_id = auth.uid()
       )
     )
   );
@@ -115,7 +115,7 @@ CREATE POLICY simulations_update_policy ON risk.simulations
       SELECT 1 FROM risk.scopes s
       WHERE s.id = risk.simulations.scope_id
       AND s.organization_slug IN (
-        SELECT organization_slug FROM public.user_organizations WHERE user_id = auth.uid()
+        SELECT organization_slug FROM public.rbac_user_org_roles WHERE user_id = auth.uid()
       )
     )
   );
@@ -128,7 +128,7 @@ CREATE POLICY simulations_delete_policy ON risk.simulations
       SELECT 1 FROM risk.scopes s
       WHERE s.id = risk.simulations.scope_id
       AND s.organization_slug IN (
-        SELECT organization_slug FROM public.user_organizations WHERE user_id = auth.uid()
+        SELECT organization_slug FROM public.rbac_user_org_roles WHERE user_id = auth.uid()
       )
     )
   );
@@ -137,6 +137,4 @@ CREATE POLICY simulations_delete_policy ON risk.simulations
 COMMENT ON TABLE risk.simulations IS 'Monte Carlo simulation runs for probabilistic risk analysis';
 COMMENT ON COLUMN risk.simulations.iterations IS 'Number of Monte Carlo iterations (typically 1000-100000)';
 COMMENT ON COLUMN risk.simulations.parameters IS 'Simulation configuration including dimension distributions';
-COMMENT ON COLUMN risk.simulations.results IS 'Computed statistics and distribution histogram';
-COMMENT ON COLUMN risk.simulations.var95 IS 'Value at Risk at 95% confidence - score at which 95% of simulations are below';
-COMMENT ON COLUMN risk.simulations.cvar95 IS 'Conditional VaR - average score in the worst 5% of scenarios';
+COMMENT ON COLUMN risk.simulations.results IS 'Computed statistics including var95 (Value at Risk at 95%), cvar95 (Conditional VaR), and distribution histogram';

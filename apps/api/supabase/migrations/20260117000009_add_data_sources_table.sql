@@ -151,7 +151,7 @@ CREATE POLICY data_sources_select_policy ON risk.data_sources
       SELECT 1 FROM risk.scopes s
       WHERE s.id = risk.data_sources.scope_id
       AND s.organization_slug IN (
-        SELECT organization_slug FROM public.user_organizations WHERE user_id = auth.uid()
+        SELECT organization_slug FROM public.rbac_user_org_roles WHERE user_id = auth.uid()
       )
     )
   );
@@ -163,7 +163,7 @@ CREATE POLICY data_sources_insert_policy ON risk.data_sources
       SELECT 1 FROM risk.scopes s
       WHERE s.id = scope_id
       AND s.organization_slug IN (
-        SELECT organization_slug FROM public.user_organizations WHERE user_id = auth.uid()
+        SELECT organization_slug FROM public.rbac_user_org_roles WHERE user_id = auth.uid()
       )
     )
   );
@@ -175,7 +175,7 @@ CREATE POLICY data_sources_update_policy ON risk.data_sources
       SELECT 1 FROM risk.scopes s
       WHERE s.id = risk.data_sources.scope_id
       AND s.organization_slug IN (
-        SELECT organization_slug FROM public.user_organizations WHERE user_id = auth.uid()
+        SELECT organization_slug FROM public.rbac_user_org_roles WHERE user_id = auth.uid()
       )
     )
   );
@@ -187,7 +187,7 @@ CREATE POLICY data_sources_delete_policy ON risk.data_sources
       SELECT 1 FROM risk.scopes s
       WHERE s.id = risk.data_sources.scope_id
       AND s.organization_slug IN (
-        SELECT organization_slug FROM public.user_organizations WHERE user_id = auth.uid()
+        SELECT organization_slug FROM public.rbac_user_org_roles WHERE user_id = auth.uid()
       )
     )
   );
@@ -201,7 +201,7 @@ CREATE POLICY fetch_history_select_policy ON risk.data_source_fetch_history
       JOIN risk.scopes s ON s.id = ds.scope_id
       WHERE ds.id = risk.data_source_fetch_history.data_source_id
       AND s.organization_slug IN (
-        SELECT organization_slug FROM public.user_organizations WHERE user_id = auth.uid()
+        SELECT organization_slug FROM public.rbac_user_org_roles WHERE user_id = auth.uid()
       )
     )
   );
@@ -214,7 +214,7 @@ CREATE POLICY fetch_history_insert_policy ON risk.data_source_fetch_history
       JOIN risk.scopes s ON s.id = ds.scope_id
       WHERE ds.id = data_source_id
       AND s.organization_slug IN (
-        SELECT organization_slug FROM public.user_organizations WHERE user_id = auth.uid()
+        SELECT organization_slug FROM public.rbac_user_org_roles WHERE user_id = auth.uid()
       )
     )
   );
