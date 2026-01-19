@@ -21,6 +21,7 @@ const TEST_EMAIL = process.env.SUPABASE_TEST_USER || 'demo.user@orchestratorai.i
 const TEST_PASSWORD = process.env.SUPABASE_TEST_PASSWORD || 'DemoUser123!';
 const ORG_SLUG = 'demo-org';
 const AGENT_SLUG = 'legal-department';
+const AGENT_TYPE = 'api'; // legal-department is registered as API agent with LangGraph forwarding
 
 // NIL_UUID for unset context fields
 const NIL_UUID = '00000000-0000-0000-0000-000000000000';
@@ -126,7 +127,7 @@ describe('Legal Department AI - Full Flow Integration', () => {
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,
@@ -180,7 +181,7 @@ describe('Legal Department AI - Full Flow Integration', () => {
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,
@@ -240,7 +241,7 @@ describe('Legal Department AI - Full Flow Integration', () => {
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,
@@ -304,7 +305,7 @@ describe('Legal Department AI - Full Flow Integration', () => {
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,
@@ -358,7 +359,7 @@ describe('Legal Department AI - Full Flow Integration', () => {
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,
@@ -396,7 +397,7 @@ describe('Legal Department AI - Full Flow Integration', () => {
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,
@@ -433,7 +434,7 @@ describe('Legal Department AI - Full Flow Integration', () => {
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,
@@ -476,7 +477,7 @@ describe('Legal Department AI - Full Flow Integration', () => {
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,
@@ -522,7 +523,7 @@ describe('Legal Department AI - Full Flow Integration', () => {
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,
@@ -561,7 +562,7 @@ describe('Legal Department AI - Full Flow Integration', () => {
           context: {
             orgSlug: ORG_SLUG,
             agentSlug: AGENT_SLUG,
-            agentType: 'langgraph',
+            agentType: AGENT_TYPE,
             userId,
             conversationId, // Use existing conversationId
             taskId: NIL_UUID,
@@ -605,7 +606,7 @@ describe('Legal Department AI - Full Flow Integration', () => {
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: 'non-existent-agent',
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,
@@ -637,7 +638,7 @@ describe('Legal Department AI - Full Flow Integration', () => {
         context: {
           orgSlug: 'non-existent-org',
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,
@@ -672,7 +673,7 @@ describe('Legal Department AI - Full Flow Integration', () => {
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,

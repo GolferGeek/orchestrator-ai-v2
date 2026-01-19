@@ -24,19 +24,40 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:6100
 
 class LegalDepartmentService {
   /**
-   * Upload a document for analysis
+   * Upload document and start analysis through A2A tasks endpoint
    *
-   * This is a non-A2A endpoint for file upload.
-   * Returns the document ID which is then used in the A2A analysis request.
+   * Sends file directly to the A2A tasks endpoint with multipart form data.
+   * The backend processes the file, extracts text, stores it, and returns
+   * the processed document info in the response.
    *
-   * @param file - The file to upload
-   * @param orgSlug - Organization slug
-   * @returns UploadedDocument with ID
+   * @param file - The file to upload and analyze
+   * @param options - Analysis options
+   * @returns AnalysisTaskResponse with document info and initial status
    */
-  async uploadDocument(file: File, orgSlug: string): Promise<UploadedDocument> {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('orgSlug', orgSlug);
+  async uploadAndAnalyze(
+    file: File,
+    options?: {
+      extractKeyTerms?: boolean;
+      identifyRisks?: boolean;
+      generateRecommendations?: boolean;
+    }
+  ): Promise<AnalysisTaskResponse & { documents?: Array<{ documentId: string; url: string; filename: string }> }> {
+    // Verify ExecutionContext is initialized
+    const executionContextStore = useExecutionContextStore();
+    if (!executionContextStore.isInitialized) {
+      throw new Error('ExecutionContext not initialized. Create conversation first.');
+    }
+
+    // Generate a new taskId for this execution
+    const taskId = executionContextStore.newTaskId();
+    const ctx = executionContextStore.current;
+
+    console.log('[LegalDepartment] Uploading document via A2A framework', {
+      conversationId: ctx.conversationId,
+      taskId,
+      agentSlug: ctx.agentSlug,
+      filename: file.name,
+    });
 
     const token = localStorage.getItem('authToken');
     if (!token) {
@@ -44,24 +65,69 @@ class LegalDepartmentService {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/legal/documents/upload`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
+      // Build FormData with file and A2A request fields
+      const formData = new FormData();
+      formData.append('files', file);
+
+      // Add A2A request fields as JSON
+      formData.append('context', JSON.stringify(ctx));
+      formData.append('mode', 'converse');
+      formData.append('userMessage', `Analyze legal document: ${file.name}`);
+      formData.append('payload', JSON.stringify({
+        analysisType: 'legal-document-analysis',
+        documentName: file.name,
+        options: options || {
+          extractKeyTerms: true,
+          identifyRisks: true,
+          generateRecommendations: true,
         },
-        body: formData,
-      });
+      }));
+
+      // POST to A2A tasks endpoint with multipart form data
+      const response = await fetch(
+        `${API_BASE_URL}/agent-to-agent/${ctx.orgSlug}/${ctx.agentSlug}/tasks`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            // Don't set Content-Type - browser will set it with boundary for multipart/form-data
+          },
+          body: formData,
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to upload document');
+        throw new Error(errorData.message || 'Upload and analysis failed');
       }
 
       const result = await response.json();
-      return result.data as UploadedDocument;
+      console.log('[LegalDepartment] A2A execution result:', result);
+
+      // Handle A2A result
+      if (result.error) {
+        throw new Error(result.error.message || 'Analysis execution failed');
+      }
+
+      // Extract processed documents from response
+      const documents = result.payload?.content?.documents || [];
+
+      const taskResponse: AnalysisTaskResponse & { documents?: Array<{ documentId: string; url: string; filename: string }> } = {
+        taskId,
+        status: 'running',
+        documents,
+      };
+
+      // Update ExecutionContext if backend returned updated context
+      if (result.context) {
+        executionContextStore.update(result.context);
+      }
+
+      return taskResponse;
     } catch (error) {
-      console.error('Failed to upload document:', error);
-      throw error;
+      const message = error instanceof Error ? error.message : 'Upload and analysis failed';
+      console.error('[LegalDepartment] Upload failed:', error);
+      throw new Error(message);
     }
   }
 

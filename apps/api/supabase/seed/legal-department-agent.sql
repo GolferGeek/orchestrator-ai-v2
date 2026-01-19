@@ -30,7 +30,7 @@ VALUES (
     'Legal Department AI',
     'Multi-agent legal document analysis system. Processes contracts, NDAs, MSAs, and legal documents using CLO routing, specialist agents (contract, compliance, IP), and synthesis. Supports multimodal input for scanned/PDF documents.',
     '1.0.0',
-    'langgraph',
+    'api',
     'legal',
     ARRAY['legal-analysis', 'contract-review', 'compliance', 'ip-law', 'multimodal', 'langgraph', 'multi-agent']::TEXT[],
 
@@ -235,20 +235,20 @@ VALUES (
     ]::TEXT[],
 
     -- Context (documentation and system overview)
-    '{"markdown": "# Legal Department AI\n\nA sophisticated multi-agent legal document analysis system powered by LangGraph.\n\n## Architecture\n\n### Chief Legal Officer (CLO) Agent\n- **Role**: Intake, routing, and synthesis\n- **Responsibilities**:\n  - Initial document assessment\n  - Route to appropriate specialist agents\n  - Synthesize specialist findings\n  - Generate executive summary and recommendations\n\n### Specialist Agents\n\n#### Contract Specialist Agent\n- **Focus**: Contract law, terms, obligations\n- **Analyzes**: Payment terms, termination clauses, liability, warranties\n- **Expertise**: Commercial contracts, NDAs, MSAs\n\n#### Compliance Specialist Agent\n- **Focus**: Regulatory compliance, legal standards\n- **Analyzes**: GDPR, CCPA, industry regulations, compliance gaps\n- **Expertise**: Data protection, industry-specific regulations\n\n#### IP Specialist Agent\n- **Focus**: Intellectual property law\n- **Analyzes**: IP ownership, licensing, patents, trademarks, copyrights\n- **Expertise**: IP rights, infringement risks, licensing terms\n\n## Workflow\n\n1. **Intake** (CLO)\n   - Receive task and documents\n   - Perform initial assessment\n   - Extract document text (multimodal support)\n   - Determine routing strategy\n\n2. **Routing** (CLO)\n   - Assign to one or more specialist agents based on:\n     - Document type\n     - Focus areas\n     - Analysis depth\n   - Parallel execution of specialist analyses\n\n3. **Specialist Analysis**\n   - Each assigned specialist performs deep analysis\n   - Specialist findings include:\n     - Area-specific findings\n     - Risk assessment\n     - Recommendations\n     - Confidence levels\n\n4. **Synthesis** (CLO)\n   - Aggregate specialist findings\n   - Resolve conflicts/contradictions\n   - Generate executive summary\n   - Prioritize action items\n   - Assess overall risk\n\n5. **Deliverable**\n   - Comprehensive legal analysis report\n   - Risk assessment matrix\n   - Prioritized action items\n   - Specialist appendices\n\n## Multimodal Support\n\n- **PDF Documents**: Extract text from native PDFs\n- **Scanned Documents**: OCR processing for images/scanned PDFs\n- **Image Documents**: PNG/JPEG analysis (contracts, forms)\n- **Text Documents**: Direct text analysis\n\n## Analysis Depths\n\n- **Quick**: High-level review, key risk flags (5-10 min)\n- **Standard**: Comprehensive analysis with recommendations (15-30 min)\n- **Comprehensive**: Deep dive with all specialists, detailed action plan (30-60 min)\n\n## Focus Areas\n\n- **Liability**: Liability clauses, indemnification, limitations\n- **Termination**: Termination rights, notice periods, post-termination\n- **Payment**: Payment terms, pricing, invoicing, late fees\n- **IP Rights**: Ownership, licensing, usage rights\n- **Confidentiality**: NDA terms, confidentiality obligations\n- **Compliance**: Regulatory compliance, legal standards\n- **Warranties**: Warranties, representations, disclaimers\n- **Indemnification**: Indemnification clauses, hold harmless\n\n## Use Cases\n\n- **Contract Review**: Pre-signature contract analysis\n- **NDA Assessment**: Evaluate confidentiality agreements\n- **MSA Evaluation**: Master service agreement review\n- **Policy Compliance**: Check policies against regulations\n- **IP Due Diligence**: Assess IP ownership and licensing\n- **Risk Assessment**: Evaluate legal risks in documents\n\n## Integration\n\n- **LangGraph Service**: http://localhost:3002/legal-department\n- **SSE Streaming**: Real-time progress updates\n- **Document Storage**: Supabase storage bucket (legal-documents)\n- **Observability**: Full event tracking and audit trail"}'::JSONB,
+    '{"markdown": "# Legal Department AI\n\nA sophisticated multi-agent legal document analysis system powered by LangGraph.\n\n## Architecture\n\n### Chief Legal Officer (CLO) Agent\n- **Role**: Intake, routing, and synthesis\n- **Responsibilities**:\n  - Initial document assessment\n  - Route to appropriate specialist agents\n  - Synthesize specialist findings\n  - Generate executive summary and recommendations\n\n### Specialist Agents\n\n#### Contract Specialist Agent\n- **Focus**: Contract law, terms, obligations\n- **Analyzes**: Payment terms, termination clauses, liability, warranties\n- **Expertise**: Commercial contracts, NDAs, MSAs\n\n#### Compliance Specialist Agent\n- **Focus**: Regulatory compliance, legal standards\n- **Analyzes**: GDPR, CCPA, industry regulations, compliance gaps\n- **Expertise**: Data protection, industry-specific regulations\n\n#### IP Specialist Agent\n- **Focus**: Intellectual property law\n- **Analyzes**: IP ownership, licensing, patents, trademarks, copyrights\n- **Expertise**: IP rights, infringement risks, licensing terms\n\n## Workflow\n\n1. **Intake** (CLO)\n   - Receive task and documents\n   - Perform initial assessment\n   - Extract document text (multimodal support)\n   - Determine routing strategy\n\n2. **Routing** (CLO)\n   - Assign to one or more specialist agents based on:\n     - Document type\n     - Focus areas\n     - Analysis depth\n   - Parallel execution of specialist analyses\n\n3. **Specialist Analysis**\n   - Each assigned specialist performs deep analysis\n   - Specialist findings include:\n     - Area-specific findings\n     - Risk assessment\n     - Recommendations\n     - Confidence levels\n\n4. **Synthesis** (CLO)\n   - Aggregate specialist findings\n   - Resolve conflicts/contradictions\n   - Generate executive summary\n   - Prioritize action items\n   - Assess overall risk\n\n5. **Deliverable**\n   - Comprehensive legal analysis report\n   - Risk assessment matrix\n   - Prioritized action items\n   - Specialist appendices\n\n## Multimodal Support\n\n- **PDF Documents**: Extract text from native PDFs\n- **Scanned Documents**: OCR processing for images/scanned PDFs\n- **Image Documents**: PNG/JPEG analysis (contracts, forms)\n- **Text Documents**: Direct text analysis\n\n## Analysis Depths\n\n- **Quick**: High-level review, key risk flags (5-10 min)\n- **Standard**: Comprehensive analysis with recommendations (15-30 min)\n- **Comprehensive**: Deep dive with all specialists, detailed action plan (30-60 min)\n\n## Focus Areas\n\n- **Liability**: Liability clauses, indemnification, limitations\n- **Termination**: Termination rights, notice periods, post-termination\n- **Payment**: Payment terms, pricing, invoicing, late fees\n- **IP Rights**: Ownership, licensing, usage rights\n- **Confidentiality**: NDA terms, confidentiality obligations\n- **Compliance**: Regulatory compliance, legal standards\n- **Warranties**: Warranties, representations, disclaimers\n- **Indemnification**: Indemnification clauses, hold harmless\n\n## Use Cases\n\n- **Contract Review**: Pre-signature contract analysis\n- **NDA Assessment**: Evaluate confidentiality agreements\n- **MSA Evaluation**: Master service agreement review\n- **Policy Compliance**: Check policies against regulations\n- **IP Due Diligence**: Assess IP ownership and licensing\n- **Risk Assessment**: Evaluate legal risks in documents\n\n## Integration\n\n- **LangGraph Service**: http://localhost:6200/legal-department\n- **SSE Streaming**: Real-time progress updates\n- **Document Storage**: Supabase storage bucket (legal-documents)\n- **Observability**: Full event tracking and audit trail"}'::JSONB,
 
-    -- Endpoint (null for LangGraph agents - internal workflow)
+    -- Endpoint (required for API agents)
+    '{"url": "http://localhost:6200/legal-department", "method": "POST"}'::JSONB,
+
+    -- LLM config (null for API agents - LangGraph manages internally)
     NULL,
 
-    -- LLM config (null for LangGraph agents - manages internally)
-    NULL,
-
-    -- Metadata with LangGraph configuration
+    -- Metadata with LangGraph configuration and forwardConverse flag
     '{
         "provider": "langgraph",
         "framework": "langgraph",
         "langgraphWorkflow": "legal-department",
-        "langgraphEndpoint": "http://localhost:3002/legal-department",
+        "forwardConverse": true,
         "hasCustomUI": false,
         "features": [
             "multi-agent-routing",
@@ -366,19 +366,26 @@ ON CONFLICT (slug) DO UPDATE SET
 DO $$
 DECLARE
     agent_exists BOOLEAN;
-    is_langgraph BOOLEAN;
+    is_api BOOLEAN;
+    has_endpoint BOOLEAN;
     has_routing BOOLEAN;
 BEGIN
     -- Check if agent exists
     SELECT EXISTS(
         SELECT 1 FROM public.agents
         WHERE slug = 'legal-department'
-        AND agent_type = 'langgraph'
+        AND agent_type = 'api'
     ) INTO agent_exists;
 
-    -- Check if it's langgraph type
-    SELECT agent_type = 'langgraph'
-    INTO is_langgraph
+    -- Check if it's api type
+    SELECT agent_type = 'api'
+    INTO is_api
+    FROM public.agents
+    WHERE slug = 'legal-department';
+
+    -- Check if it has endpoint
+    SELECT endpoint IS NOT NULL
+    INTO has_endpoint
     FROM public.agents
     WHERE slug = 'legal-department';
 
@@ -392,8 +399,12 @@ BEGIN
         RAISE EXCEPTION 'Legal Department AI agent was not created successfully';
     END IF;
 
-    IF NOT is_langgraph THEN
-        RAISE EXCEPTION 'Legal Department AI agent type is not langgraph';
+    IF NOT is_api THEN
+        RAISE EXCEPTION 'Legal Department AI agent type is not api';
+    END IF;
+
+    IF NOT has_endpoint THEN
+        RAISE EXCEPTION 'Legal Department AI agent missing endpoint';
     END IF;
 
     IF NOT has_routing THEN
@@ -404,10 +415,11 @@ BEGIN
     RAISE NOTICE 'Legal Department AI Agent Registered Successfully';
     RAISE NOTICE '================================================';
     RAISE NOTICE 'Slug: legal-department';
-    RAISE NOTICE 'Type: langgraph (multi-agent workflow)';
+    RAISE NOTICE 'Type: api (LangGraph multi-agent workflow)';
     RAISE NOTICE 'Department: legal';
     RAISE NOTICE 'Organizations: demo-org, global';
-    RAISE NOTICE 'Endpoint: http://localhost:3002/legal-department';
+    RAISE NOTICE 'Endpoint: http://localhost:6200/legal-department';
+    RAISE NOTICE 'Forward CONVERSE: true';
     RAISE NOTICE '================================================';
     RAISE NOTICE 'Multi-Agent Architecture:';
     RAISE NOTICE '  - CLO Agent (routing & synthesis)';

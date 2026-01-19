@@ -18,8 +18,8 @@
     "format": "prettier --write \"src/**/*.ts\""
   },
   "dependencies": {
-    "@langchain/core": "^1.1.0",
-    "@langchain/langgraph": "^1.0.2",
+    "@langchain/core": "^1.1.11",
+    "@langchain/langgraph": "^1.0.7",
     "@langchain/langgraph-checkpoint-postgres": "^1.0.0",
     "@nestjs/axios": "^3.0.0",
     "@nestjs/common": "^10.0.0",

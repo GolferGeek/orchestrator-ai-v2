@@ -5,11 +5,11 @@
  * - Frontend NEVER calls LangGraph directly
  * - Frontend calls API's A2A endpoint (POST /api/v1/tasks)
  * - API calls LangGraph via HTTP (not direct imports)
- * - Agent type 'langgraph' routes correctly
+ * - Agent type 'api' with forwardConverse routes to LangGraph when configured
  *
  * Prerequisites:
  * - API server running on localhost:6100
- * - LangGraph server running on localhost:6200
+ * - LangGraph server running on localhost:6200 (for forwarding tests)
  * - Supabase running with legal-department agent seeded
  *
  * Run with: npx jest --config apps/api/testing/test/jest-e2e.json legal-department/transport-types.e2e-spec
@@ -21,6 +21,7 @@ const TEST_EMAIL = process.env.SUPABASE_TEST_USER || 'demo.user@orchestratorai.i
 const TEST_PASSWORD = process.env.SUPABASE_TEST_PASSWORD || 'DemoUser123!';
 const ORG_SLUG = 'demo-org';
 const AGENT_SLUG = 'legal-department';
+const AGENT_TYPE = 'api'; // legal-department is registered as API agent with LangGraph forwarding
 
 // NIL_UUID for unset context fields
 const NIL_UUID = '00000000-0000-0000-0000-000000000000';
@@ -103,7 +104,7 @@ describe('Legal Department AI - Transport Types Verification', () => {
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,
@@ -175,7 +176,7 @@ describe('Legal Department AI - Transport Types Verification', () => {
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,
@@ -201,14 +202,14 @@ describe('Legal Department AI - Transport Types Verification', () => {
   });
 
   describe('API → LangGraph Routing', () => {
-    it('should route agentType "langgraph" to LangGraph server via HTTP', async () => {
+    it('should route API agent with forwardConverse to LangGraph server via HTTP', async () => {
       const request: A2ARequest = {
         userMessage: 'Test API to LangGraph routing',
         mode: 'converse',
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,
@@ -238,7 +239,7 @@ describe('Legal Department AI - Transport Types Verification', () => {
       expect(data.payload).toBeDefined();
     }, TIMEOUT);
 
-    it('should verify legal-department agent is registered with agentType "langgraph"', async () => {
+    it('should verify legal-department agent is registered with agentType "api"', async () => {
       // Query the agents table to verify registration
       const response = await fetch(
         `${API_URL}/api/rbac/organizations/${ORG_SLUG}/agents`,
@@ -257,7 +258,7 @@ describe('Legal Department AI - Transport Types Verification', () => {
       );
 
       expect(legalAgent).toBeDefined();
-      expect(legalAgent.agentType).toBe('langgraph');
+      expect(legalAgent.agentType).toBe(AGENT_TYPE);
     }, TIMEOUT);
 
     it('should NOT import LangGraph code directly in API', async () => {
@@ -271,7 +272,7 @@ describe('Legal Department AI - Transport Types Verification', () => {
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,
@@ -315,7 +316,7 @@ describe('Legal Department AI - Transport Types Verification', () => {
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,
@@ -376,7 +377,7 @@ describe('Legal Department AI - Transport Types Verification', () => {
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,
@@ -404,7 +405,7 @@ describe('Legal Department AI - Transport Types Verification', () => {
     }, TIMEOUT);
 
     it('should verify agentType affects routing behavior', async () => {
-      // Test that agentType 'langgraph' routes to LangGraph server
+      // Test that agentType 'api' with forwardConverse routes to LangGraph server
       // This is verified by the successful response from LangGraph
       const request: A2ARequest = {
         userMessage: 'Verify LangGraph routing',
@@ -412,7 +413,7 @@ describe('Legal Department AI - Transport Types Verification', () => {
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,

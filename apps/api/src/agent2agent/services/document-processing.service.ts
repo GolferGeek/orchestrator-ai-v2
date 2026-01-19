@@ -4,6 +4,7 @@ import { ExecutionContext } from '@orchestrator-ai/transport-types';
 import { randomUUID } from 'crypto';
 import { VisionExtractionService } from './vision-extraction.service';
 import { OCRExtractionService } from './ocr-extraction.service';
+import { LegalIntelligenceService, LegalMetadata } from './legal-intelligence.service';
 
 /**
  * Document metadata from file upload
@@ -45,6 +46,8 @@ export interface ProcessedDocumentResult {
   extractedText?: string;
   /** Extraction method used */
   extractionMethod?: 'vision' | 'ocr' | 'none';
+  /** Legal metadata extracted from document (if applicable) */
+  legalMetadata?: LegalMetadata;
 }
 
 /**
@@ -103,6 +106,7 @@ export class DocumentProcessingService {
     private readonly supabaseService: SupabaseService,
     private readonly visionExtraction: VisionExtractionService,
     private readonly ocrExtraction: OCRExtractionService,
+    private readonly legalIntelligence: LegalIntelligenceService,
   ) {}
 
   /**
@@ -128,7 +132,13 @@ export class DocumentProcessingService {
     let extractedText: string | undefined;
     let extractionMethod: 'vision' | 'ocr' | 'none' = 'none';
 
-    if (needsExtraction) {
+    // For text files, read directly from buffer
+    if (metadata.mimeType === 'text/plain' || metadata.mimeType === 'text/markdown') {
+      this.logger.log(`📄 [DOC-PROCESSING] Text file detected, reading content directly`);
+      extractedText = buffer.toString('utf-8');
+      extractionMethod = 'none'; // Native text, no extraction needed
+      this.logger.log(`📄 [DOC-PROCESSING] Text content read (${extractedText.length} chars)`);
+    } else if (needsExtraction) {
       // Use vision extraction for images and scanned PDFs
       if (this.isImageFile(metadata.mimeType)) {
         this.logger.log(
@@ -196,13 +206,15 @@ export class DocumentProcessingService {
 
     // Upload to storage
     const documentId = randomUUID();
-    const storagePath = this.buildStoragePath(context, documentId, metadata.filename);
+    const storagePath = this.buildStoragePath(
+      context,
+      documentId,
+      metadata.filename,
+    );
 
     const client = this.supabaseService.getServiceClient();
 
-    this.logger.log(
-      `📄 [DOC-PROCESSING] Uploading to storage: ${storagePath}`,
-    );
+    this.logger.log(`📄 [DOC-PROCESSING] Uploading to storage: ${storagePath}`);
 
     const { error: uploadError } = await client.storage
       .from(this.bucketName)
@@ -229,6 +241,48 @@ export class DocumentProcessingService {
       `📄 [DOC-PROCESSING] Document uploaded successfully: ${publicUrl}`,
     );
 
+    // Extract legal metadata if text was extracted
+    let legalMetadata: LegalMetadata | undefined;
+    if (extractedText && extractedText.trim().length > 0) {
+      this.logger.log(
+        `📄 [DOC-PROCESSING] Extracting legal metadata from ${extractedText.length} chars of text`,
+      );
+      try {
+        legalMetadata = await this.legalIntelligence.extractMetadata(
+          extractedText,
+          context,
+        );
+        this.logger.log(
+          `📄 [DOC-PROCESSING] Legal metadata extracted: ${this.legalIntelligence.getSummary(legalMetadata)}`,
+        );
+
+        // Store document extraction in database
+        if (legalMetadata) {
+          await this.storeDocumentExtraction({
+            documentId,
+            storagePath,
+            filename: metadata.filename,
+            mimeType: metadata.mimeType,
+            sizeBytes: metadata.size,
+            extractedText,
+            extractionMethod,
+            legalMetadata,
+            context,
+          });
+        }
+      } catch (error) {
+        // Log error but don't fail the entire document processing
+        this.logger.error(
+          `📄 [DOC-PROCESSING] Legal metadata extraction failed (non-fatal): ${error instanceof Error ? error.message : String(error)}`,
+        );
+        // Continue without legal metadata
+      }
+    } else {
+      this.logger.log(
+        `📄 [DOC-PROCESSING] Skipping legal metadata extraction (no text extracted)`,
+      );
+    }
+
     return {
       documentId,
       url: publicUrl,
@@ -237,6 +291,7 @@ export class DocumentProcessingService {
       sizeBytes: metadata.size,
       extractedText,
       extractionMethod,
+      legalMetadata,
     };
   }
 
@@ -249,6 +304,10 @@ export class DocumentProcessingService {
     const base64 = base64Data.includes(',')
       ? base64Data.split(',')[1]
       : base64Data;
+
+    if (!base64) {
+      throw new Error('Invalid base64 data: empty after processing');
+    }
 
     return Buffer.from(base64, 'base64');
   }
@@ -289,9 +348,236 @@ export class DocumentProcessingService {
     const conversationId = context.conversationId || 'unknown';
     const taskId = context.taskId || 'unknown';
 
-    // Sanitize filename (remove path traversal attempts)
-    const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+    // Sanitize filename (remove path traversal attempts and dangerous characters)
+    // 1. Remove path components (only keep basename)
+    const basename = filename.split('/').pop()?.split('\\').pop() || 'file';
+
+    // 2. Replace path traversal sequences and other dangerous patterns
+    let sanitizedFilename = basename
+      .replace(/\.\./g, '') // Remove all .. sequences
+      .replace(/[/\\]/g, '_') // Replace slashes with underscores
+      .replace(/[^a-zA-Z0-9._-]/g, '_'); // Replace other special chars with underscores
+
+    // 3. Ensure filename doesn't start with a dot (hidden files)
+    if (sanitizedFilename.startsWith('.')) {
+      sanitizedFilename = '_' + sanitizedFilename.slice(1);
+    }
+
+    // 4. Ensure we have a valid filename
+    if (!sanitizedFilename || sanitizedFilename === '_') {
+      sanitizedFilename = 'file';
+    }
 
     return `${orgSlug}/${conversationId}/${taskId}/${documentId}_${sanitizedFilename}`;
+  }
+
+  /**
+   * Store document extraction and legal metadata in database
+   * Maps LegalMetadataService output to law.document_extractions table
+   *
+   * @param params - Document and legal metadata to store
+   */
+  private async storeDocumentExtraction(params: {
+    documentId: string;
+    storagePath: string;
+    filename: string;
+    mimeType: string;
+    sizeBytes: number;
+    extractedText: string;
+    extractionMethod: 'vision' | 'ocr' | 'none';
+    legalMetadata: LegalMetadata;
+    context: ExecutionContext;
+  }): Promise<void> {
+    const {
+      documentId,
+      storagePath,
+      filename,
+      mimeType,
+      sizeBytes,
+      extractedText,
+      extractionMethod,
+      legalMetadata,
+      context,
+    } = params;
+
+    this.logger.log(
+      `📄 [DOC-PROCESSING] Storing document extraction in database: ${documentId}`,
+    );
+
+    const client = this.supabaseService.getServiceClient();
+
+    // First, we need to get or create an analysis_task_id
+    // For now, we'll use taskId from context if available
+    // TODO: In future phases, create analysis_task record first
+    if (!context.taskId) {
+      this.logger.warn(
+        `📄 [DOC-PROCESSING] No taskId in context, skipping database storage`,
+      );
+      return;
+    }
+
+    // Check if analysis_task exists
+    const { data: analysisTaskData, error: analysisTaskError } = await client
+      .from('law.analysis_tasks')
+      .select('id')
+      .eq('task_id', context.taskId)
+      .maybeSingle();
+
+    if (analysisTaskError) {
+      this.logger.error(
+        `📄 [DOC-PROCESSING] Error checking analysis_task: ${analysisTaskError.message}`,
+      );
+      throw new Error(
+        `Failed to check analysis_task: ${analysisTaskError.message}`,
+      );
+    }
+
+    let analysisTaskId: string;
+
+    if (!analysisTaskData) {
+      // Create analysis_task record
+      this.logger.log(
+        `📄 [DOC-PROCESSING] Creating analysis_task record for task ${context.taskId}`,
+      );
+
+      const { data: newAnalysisTask, error: createError } = await client
+        .from('law.analysis_tasks')
+        .insert({
+          task_id: context.taskId,
+          conversation_id: context.conversationId,
+          organization_slug: context.orgSlug,
+          user_id: context.userId,
+          status: 'extracting',
+          started_at: new Date().toISOString(),
+        })
+        .select('id')
+        .single();
+
+      if (createError) {
+        this.logger.error(
+          `📄 [DOC-PROCESSING] Error creating analysis_task: ${createError.message}`,
+        );
+        throw new Error(
+          `Failed to create analysis_task: ${createError.message}`,
+        );
+      }
+
+      analysisTaskId = newAnalysisTask.id as string;
+    } else {
+      analysisTaskId = analysisTaskData.id as string;
+    }
+
+    // Map extraction method to database enum
+    const dbExtractionMethod = this.mapExtractionMethod(
+      extractionMethod,
+      mimeType,
+    );
+
+    // Map file type to database enum
+    const fileType = this.mapFileType(mimeType);
+
+    // Build document extraction record
+    const documentExtraction = {
+      id: documentId,
+      analysis_task_id: analysisTaskId,
+      original_filename: filename,
+      storage_path: storagePath,
+      file_type: fileType,
+      file_size_bytes: sizeBytes,
+      mime_type: mimeType,
+      extraction_method: dbExtractionMethod,
+      extracted_text: extractedText,
+
+      // Legal metadata fields
+      document_type: legalMetadata.documentType.type,
+      document_type_confidence: legalMetadata.documentType.confidence,
+      detected_sections:
+        legalMetadata.sections.sections.length > 0
+          ? legalMetadata.sections.sections
+          : null,
+      has_signatures: legalMetadata.signatures.signatures.length > 0,
+      signature_blocks:
+        legalMetadata.signatures.signatures.length > 0
+          ? legalMetadata.signatures.signatures
+          : null,
+      extracted_dates:
+        legalMetadata.dates.dates.length > 0 ? legalMetadata.dates.dates : null,
+      extracted_parties:
+        legalMetadata.parties.parties.length > 0
+          ? legalMetadata.parties.parties
+          : null,
+      extraction_confidence: legalMetadata.confidence.overall,
+
+      // Additional metadata in metadata column
+      metadata: {
+        extractedAt: legalMetadata.extractedAt,
+        confidenceBreakdown: legalMetadata.confidence.breakdown,
+        structureType: legalMetadata.sections.structureType,
+      },
+    };
+
+    const { error: insertError } = await client
+      .from('law.document_extractions')
+      .insert(documentExtraction);
+
+    if (insertError) {
+      this.logger.error(
+        `📄 [DOC-PROCESSING] Error storing document extraction: ${insertError.message}`,
+      );
+      throw new Error(
+        `Failed to store document extraction: ${insertError.message}`,
+      );
+    }
+
+    this.logger.log(
+      `📄 [DOC-PROCESSING] Document extraction stored successfully: ${documentId}`,
+    );
+  }
+
+  /**
+   * Map extraction method to database enum
+   */
+  private mapExtractionMethod(
+    method: 'vision' | 'ocr' | 'none',
+    mimeType: string,
+  ): string {
+    if (method === 'vision') {
+      return 'vision_model';
+    } else if (method === 'ocr') {
+      return 'ocr';
+    } else if (mimeType === 'application/pdf') {
+      return 'pdf_text';
+    } else if (
+      mimeType.includes('wordprocessingml') ||
+      mimeType.includes('docx')
+    ) {
+      return 'docx_parse';
+    } else {
+      return 'direct_read';
+    }
+  }
+
+  /**
+   * Map MIME type to database file_type enum
+   */
+  private mapFileType(mimeType: string): string {
+    if (mimeType === 'application/pdf') {
+      return 'pdf'; // Vision extraction will determine if scanned
+    } else if (
+      mimeType.includes('wordprocessingml') ||
+      mimeType.includes('docx')
+    ) {
+      return 'docx';
+    } else if (mimeType.includes('msword')) {
+      return 'doc';
+    } else if (mimeType.startsWith('image/')) {
+      return 'image';
+    } else if (mimeType === 'text/plain') {
+      return 'txt';
+    } else if (mimeType === 'text/markdown') {
+      return 'md';
+    } else {
+      return 'pdf'; // Default fallback
+    }
   }
 }

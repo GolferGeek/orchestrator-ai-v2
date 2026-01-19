@@ -1,5 +1,142 @@
 import { Annotation, MessagesAnnotation } from "@langchain/langgraph";
 import { ExecutionContext } from "@orchestrator-ai/transport-types";
+import { ContractAnalysisOutput } from "./nodes/contract-agent.node";
+import { ComplianceAnalysisOutput } from "./nodes/compliance-agent.node";
+import { IpAnalysisOutput } from "./nodes/ip-agent.node";
+import { PrivacyAnalysisOutput } from "./nodes/privacy-agent.node";
+import { EmploymentAnalysisOutput } from "./nodes/employment-agent.node";
+import { CorporateAnalysisOutput } from "./nodes/corporate-agent.node";
+import { LitigationAnalysisOutput } from "./nodes/litigation-agent.node";
+import { RealEstateAnalysisOutput } from "./nodes/real-estate-agent.node";
+import { RoutingDecision } from "./nodes/clo-routing.node";
+
+/**
+ * Legal document metadata from API's document processing
+ * Matches the structure from DocumentProcessingService
+ */
+export interface LegalDocumentMetadata {
+  /** Document classification */
+  documentType: {
+    type: string;
+    confidence: number;
+    alternatives?: Array<{
+      type: string;
+      confidence: number;
+    }>;
+    reasoning?: string;
+  };
+  /** Detected sections and clauses */
+  sections: {
+    sections: Array<{
+      title: string;
+      type: string;
+      startIndex: number;
+      endIndex: number;
+      content: string;
+      confidence: number;
+      clauses?: Array<{
+        identifier?: string;
+        title?: string;
+        startIndex: number;
+        endIndex: number;
+        content: string;
+        confidence: number;
+      }>;
+    }>;
+    confidence: number;
+    structureType: "formal" | "informal" | "mixed" | "unstructured";
+  };
+  /** Signature blocks and signatories */
+  signatures: {
+    signatures: Array<{
+      partyName?: string;
+      signerName?: string;
+      signerTitle?: string;
+      signatureDate?: string;
+      startIndex: number;
+      endIndex: number;
+      content: string;
+      confidence: number;
+      detectionMethod: "keyword" | "pattern" | "position";
+    }>;
+    confidence: number;
+    partyCount: number;
+  };
+  /** Extracted dates */
+  dates: {
+    dates: Array<{
+      originalText: string;
+      normalizedDate: string;
+      dateType: string;
+      confidence: number;
+      position: number;
+      context?: string;
+    }>;
+    primaryDate?: {
+      originalText: string;
+      normalizedDate: string;
+      dateType: string;
+      confidence: number;
+      position: number;
+      context?: string;
+    };
+    confidence: number;
+  };
+  /** Extracted parties */
+  parties: {
+    parties: Array<{
+      name: string;
+      type: string;
+      role?: string;
+      position: number;
+      context?: string;
+      confidence: number;
+      identifiers?: {
+        address?: string;
+        registrationNumber?: string;
+        jurisdiction?: string;
+      };
+    }>;
+    contractingParties?: [
+      {
+        name: string;
+        type: string;
+        role?: string;
+        position: number;
+        context?: string;
+        confidence: number;
+      },
+      {
+        name: string;
+        type: string;
+        role?: string;
+        position: number;
+        context?: string;
+        confidence: number;
+      },
+    ];
+    confidence: number;
+  };
+  /** Overall confidence scoring */
+  confidence: {
+    overall: number;
+    breakdown: {
+      documentType?: number;
+      sections?: number;
+      signatures?: number;
+      dates?: number;
+      parties?: number;
+    };
+    factors: {
+      textQuality: number;
+      extractionMethod: "vision" | "ocr" | "native" | "none";
+      completeness: number;
+      patternMatchCount: number;
+    };
+  };
+  /** Metadata extraction timestamp */
+  extractedAt: string;
+}
 
 /**
  * Legal Department input interface
@@ -97,10 +234,43 @@ export const LegalDepartmentStateAnnotation = Annotation.Root({
     default: () => [],
   }),
 
-  // Legal metadata placeholder (M0: not used, for future phases)
-  legalMetadata: Annotation<Record<string, unknown> | undefined>({
+  // Legal metadata from document processing (M1: populated by API document processing)
+  legalMetadata: Annotation<LegalDocumentMetadata | undefined>({
     reducer: (_, next) => next,
     default: () => undefined,
+  }),
+
+  // CLO Routing decision (M3-M10: single specialist, M11+: multiple specialists)
+  routingDecision: Annotation<RoutingDecision | undefined>({
+    reducer: (_, next) => next,
+    default: () => undefined,
+  }),
+
+  // Multi-agent orchestration (M11+)
+  // Track which specialists need to be invoked and which have completed
+  orchestration: Annotation<{
+    specialists?: string[]; // List of specialists to invoke
+    completed?: string[]; // List of specialists that have completed
+    synthesis?: any; // Combined synthesis of all specialist outputs
+  }>({
+    reducer: (prev, next) => ({ ...prev, ...next }),
+    default: () => ({}),
+  }),
+
+  // Specialist outputs from M2-M10 agents
+  // Each specialist adds their analysis to this object
+  specialistOutputs: Annotation<{
+    contract?: ContractAnalysisOutput;
+    compliance?: ComplianceAnalysisOutput;
+    ip?: IpAnalysisOutput;
+    privacy?: PrivacyAnalysisOutput;
+    employment?: EmploymentAnalysisOutput;
+    corporate?: CorporateAnalysisOutput;
+    litigation?: LitigationAnalysisOutput;
+    realEstate?: RealEstateAnalysisOutput;
+  }>({
+    reducer: (prev, next) => ({ ...prev, ...next }),
+    default: () => ({}),
   }),
 
   // Final response

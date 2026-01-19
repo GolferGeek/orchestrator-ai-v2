@@ -194,12 +194,47 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
     );
   }
 
-  // CONVERSE mode - uses base class implementation from BaseAgentRunner
-  // This delegates to ConverseHandlers.executeConverse() which:
-  // - Maintains conversation history in the database
-  // - Calls the LLM directly with the agent's system prompt
-  // - Returns conversational responses
-  // API agents don't need to call their external endpoint for conversation
+  /**
+   * CONVERSE mode - can forward to API endpoint if configured
+   *
+   * By default, API agents use the base class LLM-based conversation.
+   * However, if the agent has metadata.forwardConverse = true,
+   * we forward CONVERSE requests to the API endpoint instead.
+   */
+  protected async handleConverse(
+    definition: AgentRuntimeDefinition,
+    request: TaskRequestDto,
+    organizationSlug: string | null,
+  ): Promise<TaskResponseDto> {
+    this.logger.log(
+      `🔍 [API-AGENT-RUNNER] handleConverse called for agent: ${definition.slug}`,
+    );
+
+    // Check if this agent should forward CONVERSE to the API endpoint
+    // The flag is in the raw database metadata (definition.record.metadata)
+    const rawMetadata = definition.record?.metadata as Record<string, unknown>;
+    const forwardConverse = rawMetadata?.forwardConverse === true;
+
+    this.logger.log(
+      `🔍 [API-AGENT-RUNNER] Raw metadata keys: ${Object.keys(rawMetadata || {}).join(', ')}`,
+    );
+    this.logger.log(
+      `🔍 [API-AGENT-RUNNER] forwardConverse flag: ${forwardConverse}, rawMetadata.forwardConverse: ${rawMetadata?.forwardConverse}`,
+    );
+
+    if (forwardConverse) {
+      this.logger.log(
+        `📤 Forwarding CONVERSE request to API endpoint for agent: ${definition.slug}`,
+      );
+      return await this.executeBuild(definition, request, organizationSlug);
+    }
+
+    // Default: use base class LLM-based conversation
+    this.logger.log(
+      `🔍 [API-AGENT-RUNNER] Using default LLM-based conversation for agent: ${definition.slug}`,
+    );
+    return await super.handleConverse(definition, request, organizationSlug);
+  }
 
   // PLAN mode - uses base class implementation from BaseAgentRunner
   // This delegates to PlanHandlers which:
@@ -2706,8 +2741,23 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         },
       );
 
+      // Extract legalMetadata from LangGraph response if present
+      // LangGraph returns: { success: true, data: { response: "...", legalMetadata: {...} } }
+      let legalMetadata: unknown = undefined;
+      if (responseData && typeof responseData === 'object') {
+        const dataObj = responseData as Record<string, unknown>;
+        const nestedData =
+          dataObj.data && typeof dataObj.data === 'object'
+            ? (dataObj.data as Record<string, unknown>)
+            : null;
+        legalMetadata = nestedData?.legalMetadata || dataObj.legalMetadata;
+      }
+
       return TaskResponseDto.success(mode, {
-        content: { message: formattedContent },
+        content: {
+          message: formattedContent,
+          ...(legalMetadata ? { legalMetadata } : {}),
+        },
         metadata: {
           ...metadata,
           provider,

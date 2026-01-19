@@ -22,6 +22,7 @@ const TEST_EMAIL = process.env.SUPABASE_TEST_USER || 'demo.user@orchestratorai.i
 const TEST_PASSWORD = process.env.SUPABASE_TEST_PASSWORD || 'DemoUser123!';
 const ORG_SLUG = 'demo-org';
 const AGENT_SLUG = 'legal-department';
+const AGENT_TYPE = 'api'; // legal-department is registered as API agent with LangGraph forwarding
 
 // NIL_UUID for unset context fields
 const NIL_UUID = '00000000-0000-0000-0000-000000000000';
@@ -134,7 +135,7 @@ describe('Legal Department AI - Observability', () => {
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: testTaskId,
@@ -186,7 +187,7 @@ describe('Legal Department AI - Observability', () => {
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,
@@ -219,7 +220,7 @@ describe('Legal Department AI - Observability', () => {
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: testTaskId,
@@ -260,7 +261,7 @@ describe('Legal Department AI - Observability', () => {
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: testTaskId,
@@ -291,7 +292,7 @@ describe('Legal Department AI - Observability', () => {
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: testTaskId,
@@ -325,7 +326,7 @@ describe('Legal Department AI - Observability', () => {
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,
@@ -407,14 +408,15 @@ describe('Legal Department AI - Observability', () => {
       ];
 
       for (let i = 0; i < steps.length; i++) {
+        const step = steps[i]!;
         const statusUpdate: WorkflowStatusUpdate = {
           taskId: testTaskId,
-          status: steps[i].status,
+          status: step.status,
           timestamp: new Date().toISOString(),
           context,
-          message: steps[i].message,
-          step: steps[i].step,
-          percent: steps[i].percent,
+          message: step.message,
+          step: step.step,
+          percent: step.percent,
           sequence: i + 1,
           totalSteps: steps.length,
         };
@@ -444,7 +446,7 @@ describe('Legal Department AI - Observability', () => {
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: testTaskId,
@@ -481,7 +483,7 @@ describe('Legal Department AI - Observability', () => {
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: testTaskId,
@@ -520,7 +522,7 @@ describe('Legal Department AI - Observability', () => {
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: testConversationId,
           taskId: testTaskId,
@@ -555,7 +557,7 @@ describe('Legal Department AI - Observability', () => {
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: testTaskId,
@@ -595,7 +597,7 @@ describe('Legal Department AI - Observability', () => {
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: testTaskId,
@@ -637,7 +639,7 @@ describe('Legal Department AI - Observability', () => {
           context: {
             orgSlug: ORG_SLUG,
             agentSlug: AGENT_SLUG,
-            agentType: 'langgraph',
+            agentType: AGENT_TYPE,
             userId,
             conversationId: NIL_UUID,
             taskId,
@@ -786,7 +788,7 @@ describe('Legal Department AI - Observability', () => {
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,

@@ -21,6 +21,7 @@ const TEST_EMAIL = process.env.SUPABASE_TEST_USER || 'demo.user@orchestratorai.i
 const TEST_PASSWORD = process.env.SUPABASE_TEST_PASSWORD || 'DemoUser123!';
 const ORG_SLUG = 'demo-org';
 const AGENT_SLUG = 'legal-department';
+const AGENT_TYPE = 'api'; // legal-department is registered as API agent with LangGraph forwarding
 
 // NIL_UUID for unset context fields
 const NIL_UUID = '00000000-0000-0000-0000-000000000000';
@@ -159,7 +160,7 @@ startxref
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,
@@ -197,7 +198,7 @@ startxref
 
       const documents = data.payload?.content?.documents;
       if (documents && documents.length > 0) {
-        const doc = documents[0];
+        const doc = documents[0]!;
         expect(doc.mimeType).toBe('application/pdf');
 
         // Check if extraction was attempted
@@ -240,7 +241,7 @@ startxref
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,
@@ -279,7 +280,7 @@ startxref
       // Should attempt vision or OCR extraction
       const documents = data.payload?.content?.documents;
       if (documents && documents.length > 0) {
-        const doc = documents[0];
+        const doc = documents[0]!;
         if (doc.extractionMethod) {
           expect(['vision', 'ocr', 'none']).toContain(doc.extractionMethod);
         }
@@ -300,7 +301,7 @@ startxref
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,
@@ -338,7 +339,7 @@ startxref
 
       const documents = data.payload?.content?.documents;
       if (documents && documents.length > 0) {
-        const doc = documents[0];
+        const doc = documents[0]!;
         expect(doc.mimeType).toBe('application/vnd.openxmlformats-officedocument.wordprocessingml.document');
       }
     }, TIMEOUT);
@@ -362,7 +363,7 @@ startxref
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,
@@ -400,7 +401,7 @@ startxref
 
       const documents = data.payload?.content?.documents;
       if (documents && documents.length > 0) {
-        const doc = documents[0];
+        const doc = documents[0]!;
         expect(doc.mimeType).toBe('image/png');
 
         // Check extraction method
@@ -428,7 +429,7 @@ startxref
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,
@@ -466,7 +467,7 @@ startxref
 
       const documents = data.payload?.content?.documents;
       if (documents && documents.length > 0) {
-        const doc = documents[0];
+        const doc = documents[0]!;
         expect(doc.mimeType).toBe('image/jpeg');
       }
     }, TIMEOUT);
@@ -489,7 +490,7 @@ startxref
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,
@@ -527,7 +528,7 @@ startxref
 
       const documents = data.payload?.content?.documents;
       if (documents && documents.length > 0) {
-        const doc = documents[0];
+        const doc = documents[0]!;
 
         // Should have attempted extraction (vision or OCR)
         if (doc.extractionMethod) {
@@ -550,7 +551,7 @@ startxref
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,
@@ -599,7 +600,7 @@ startxref
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,
@@ -637,7 +638,7 @@ startxref
 
       const documents = data.payload?.content?.documents;
       if (documents && documents.length > 0) {
-        const doc = documents[0];
+        const doc = documents[0]!;
         expect(doc.documentId).toBeDefined();
         expect(doc.url).toBeDefined();
         expect(doc.storagePath).toBeDefined();
@@ -657,7 +658,7 @@ startxref
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,
@@ -695,7 +696,7 @@ startxref
 
       const documents = data.payload?.content?.documents;
       if (documents && documents.length > 0) {
-        const doc = documents[0];
+        const doc = documents[0]!;
         // extractionMethod should be present if extraction was attempted
         if (doc.extractionMethod) {
           expect(['vision', 'ocr', 'none']).toContain(doc.extractionMethod);
@@ -714,7 +715,7 @@ startxref
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,
@@ -765,7 +766,7 @@ startxref
         context: {
           orgSlug: ORG_SLUG,
           agentSlug: AGENT_SLUG,
-          agentType: 'langgraph',
+          agentType: AGENT_TYPE,
           userId,
           conversationId: NIL_UUID,
           taskId: NIL_UUID,

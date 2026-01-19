@@ -343,7 +343,7 @@ export class Agent2AgentController {
               context,
             );
 
-            // Add processed document to metadata
+            // Add processed document to metadata (including legal metadata)
             (dto.metadata.documents as Array<unknown>).push({
               documentId: processedDoc.documentId,
               filename: file.originalname,
@@ -353,6 +353,7 @@ export class Agent2AgentController {
               storagePath: processedDoc.storagePath,
               extractedText: processedDoc.extractedText,
               extractionMethod: processedDoc.extractionMethod,
+              legalMetadata: processedDoc.legalMetadata,
               uploadedAt: new Date().toISOString(),
             });
 
@@ -369,6 +370,86 @@ export class Agent2AgentController {
 
         this.logger.log(
           `📎 [A2A-CTRL] Finished processing ${files.length} file(s)`,
+        );
+      }
+
+      // =========================================================================
+      // DOCUMENT PROCESSING FROM PAYLOAD (JSON-based document upload)
+      // Process documents sent as base64 in payload.documents array
+      // This supports both multipart file upload AND JSON-based document transfer
+      // =========================================================================
+      const payloadDocuments = (dto.payload as Record<string, unknown>)
+        ?.documents;
+      if (Array.isArray(payloadDocuments) && payloadDocuments.length > 0) {
+        this.logger.log(
+          `📄 [A2A-CTRL] Processing ${payloadDocuments.length} document(s) from payload`,
+        );
+
+        // Initialize documents array in metadata if not present
+        if (!dto.metadata) {
+          dto.metadata = {};
+        }
+        if (!dto.metadata.documents) {
+          dto.metadata.documents = [];
+        }
+
+        // Process each document
+        for (const doc of payloadDocuments) {
+          try {
+            if (
+              typeof doc === 'object' &&
+              doc !== null &&
+              'filename' in doc &&
+              'mimeType' in doc &&
+              'base64Data' in doc
+            ) {
+              const docMetadata = doc as {
+                filename: string;
+                mimeType: string;
+                size?: number;
+                base64Data: string;
+              };
+
+              // Process document (extract text if applicable, upload to storage)
+              const processedDoc =
+                await this.documentProcessing.processDocument(
+                  {
+                    filename: docMetadata.filename,
+                    mimeType: docMetadata.mimeType,
+                    size: docMetadata.size || 0,
+                    base64Data: docMetadata.base64Data,
+                  },
+                  context,
+                );
+
+              // Add processed document to metadata (including legal metadata)
+              (dto.metadata.documents as Array<unknown>).push({
+                documentId: processedDoc.documentId,
+                filename: docMetadata.filename,
+                mimeType: docMetadata.mimeType,
+                size: processedDoc.sizeBytes,
+                url: processedDoc.url,
+                storagePath: processedDoc.storagePath,
+                extractedText: processedDoc.extractedText,
+                extractionMethod: processedDoc.extractionMethod,
+                legalMetadata: processedDoc.legalMetadata,
+                uploadedAt: new Date().toISOString(),
+              });
+
+              this.logger.log(
+                `📄 [A2A-CTRL] Processed document: ${docMetadata.filename} (${processedDoc.extractionMethod || 'no extraction'})`,
+              );
+            }
+          } catch (error) {
+            this.logger.error(
+              `📄 [A2A-CTRL] Failed to process document: ${error instanceof Error ? error.message : String(error)}`,
+            );
+            // Continue processing other documents even if one fails
+          }
+        }
+
+        this.logger.log(
+          `📄 [A2A-CTRL] Finished processing ${payloadDocuments.length} document(s) from payload`,
         );
       }
 
@@ -465,6 +546,34 @@ export class Agent2AgentController {
 
       // Always complete the task (even if deliverable was already created by handler)
       await this.agentTaskStatusService.completeTask(context, result);
+
+      // Attach processed documents to result payload for client visibility
+      if (
+        dto.metadata?.documents &&
+        Array.isArray(dto.metadata.documents) &&
+        dto.metadata.documents.length > 0
+      ) {
+        const typedResult = result as unknown as TaskExecutionResult;
+        if (!typedResult.payload) {
+          typedResult.payload = {};
+        }
+        if (
+          typeof typedResult.payload === 'object' &&
+          typedResult.payload !== null
+        ) {
+          const payload = typedResult.payload as Record<string, unknown>;
+          if (!payload.content) {
+            payload.content = {};
+          }
+          if (typeof payload.content === 'object' && payload.content !== null) {
+            (payload.content as Record<string, unknown>).documents =
+              dto.metadata.documents;
+          }
+        }
+        this.logger.log(
+          `📄 [A2A-CTRL] Attached ${dto.metadata.documents.length} processed document(s) to response`,
+        );
+      }
 
       this.logRequest({
         org: context.orgSlug,

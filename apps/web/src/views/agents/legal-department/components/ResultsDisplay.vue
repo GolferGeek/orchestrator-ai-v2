@@ -44,6 +44,51 @@
       </div>
     </div>
 
+    <!-- Legal Metadata Section (if available) -->
+    <div v-if="results.legalMetadata" class="metadata-section">
+      <DocumentMetadataDisplay :metadata="results.legalMetadata" />
+    </div>
+
+    <!-- Contract Analysis Section (M2 Specialist Output) -->
+    <div v-if="results.specialistOutputs?.contract" class="specialist-section">
+      <ContractAnalysisDisplay :analysis="results.specialistOutputs.contract" />
+    </div>
+
+    <!-- Compliance Analysis Section (M4 Specialist Output) -->
+    <div v-if="results.specialistOutputs?.compliance" class="specialist-section">
+      <ComplianceAnalysisDisplay :analysis="results.specialistOutputs.compliance" />
+    </div>
+
+    <!-- IP Analysis Section (M5 Specialist Output) -->
+    <div v-if="results.specialistOutputs?.ip" class="specialist-section">
+      <IpAnalysisDisplay :analysis="results.specialistOutputs.ip" />
+    </div>
+
+    <!-- Privacy Analysis Section (M6 Specialist Output) -->
+    <div v-if="results.specialistOutputs?.privacy" class="specialist-section">
+      <PrivacyAnalysisDisplay :analysis="results.specialistOutputs.privacy" />
+    </div>
+
+    <!-- Employment Analysis Section (M7 Specialist Output) -->
+    <div v-if="results.specialistOutputs?.employment" class="specialist-section">
+      <EmploymentAnalysisDisplay :analysis="results.specialistOutputs.employment" />
+    </div>
+
+    <!-- Corporate Analysis Section (M8 Specialist Output) -->
+    <div v-if="results.specialistOutputs?.corporate" class="specialist-section">
+      <CorporateAnalysisDisplay :analysis="results.specialistOutputs.corporate" />
+    </div>
+
+    <!-- Litigation Analysis Section (M9 Specialist Output) -->
+    <div v-if="results.specialistOutputs?.litigation" class="specialist-section">
+      <LitigationAnalysisDisplay :analysis="results.specialistOutputs.litigation" />
+    </div>
+
+    <!-- Real Estate Analysis Section (M10 Specialist Output) -->
+    <div v-if="results.specialistOutputs?.realEstate" class="specialist-section">
+      <RealEstateAnalysisDisplay :analysis="results.specialistOutputs.realEstate" />
+    </div>
+
     <!-- Tabs for different sections -->
     <div class="results-tabs">
       <ion-segment v-model="activeTab">
@@ -250,6 +295,15 @@ import {
   analyticsOutline,
 } from 'ionicons/icons';
 import type { AnalysisResults } from '../legalDepartmentTypes';
+import DocumentMetadataDisplay from './DocumentMetadataDisplay.vue';
+import ContractAnalysisDisplay from './ContractAnalysisDisplay.vue';
+import ComplianceAnalysisDisplay from './ComplianceAnalysisDisplay.vue';
+import IpAnalysisDisplay from './IpAnalysisDisplay.vue';
+import PrivacyAnalysisDisplay from './PrivacyAnalysisDisplay.vue';
+import EmploymentAnalysisDisplay from './EmploymentAnalysisDisplay.vue';
+import CorporateAnalysisDisplay from './CorporateAnalysisDisplay.vue';
+import LitigationAnalysisDisplay from './LitigationAnalysisDisplay.vue';
+import RealEstateAnalysisDisplay from './RealEstateAnalysisDisplay.vue';
 
 // Props
 const props = defineProps<{
@@ -419,6 +473,47 @@ function handleExport() {
 .summary-card > p {
   margin: 0 0 24px 0;
   line-height: 1.6;
+}
+
+.metadata-section {
+  margin-bottom: 32px;
+}
+
+.specialist-section {
+  margin-bottom: 32px;
+}
+
+.specialist-placeholder {
+  background: var(--ion-color-light);
+  padding: 24px;
+  border-radius: 8px;
+  border-left: 4px solid var(--ion-color-primary);
+}
+
+.specialist-placeholder h3 {
+  margin: 0 0 12px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ion-color-primary);
+}
+
+.specialist-placeholder h3 i {
+  margin-right: 8px;
+}
+
+.specialist-placeholder p {
+  margin: 0 0 16px 0;
+  color: var(--ion-color-medium);
+}
+
+.specialist-placeholder pre {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  overflow-x: auto;
+  max-height: 400px;
+  overflow-y: auto;
 }
 
 .summary-stats {

@@ -35,6 +35,15 @@ import { RagModule } from '../rag/rag.module';
 import { DocumentProcessingService } from './services/document-processing.service';
 import { VisionExtractionService } from './services/vision-extraction.service';
 import { OCRExtractionService } from './services/ocr-extraction.service';
+import { LegalIntelligenceService } from './services/legal-intelligence.service';
+// Legacy M1 services (deprecated - use LegalIntelligenceService instead)
+import { LegalMetadataService } from './services/legal-metadata.service';
+import { DocumentTypeClassificationService } from './services/document-type-classification.service';
+import { SectionDetectionService } from './services/section-detection.service';
+import { SignatureDetectionService } from './services/signature-detection.service';
+import { DateExtractionService } from './services/date-extraction.service';
+import { PartyExtractionService } from './services/party-extraction.service';
+import { ConfidenceScoringService } from './services/confidence-scoring.service';
 
 @Module({
   imports: [
@@ -76,6 +85,16 @@ import { OCRExtractionService } from './services/ocr-extraction.service';
     DocumentProcessingService,
     VisionExtractionService,
     OCRExtractionService,
+    // New simplified M1 service (replaces 7 legacy services)
+    LegalIntelligenceService,
+    // Legacy M1 services (kept for backward compatibility, but deprecated)
+    LegalMetadataService,
+    DocumentTypeClassificationService,
+    SectionDetectionService,
+    SignatureDetectionService,
+    DateExtractionService,
+    PartyExtractionService,
+    ConfidenceScoringService,
   ],
   exports: [
     AgentExecutionGateway,

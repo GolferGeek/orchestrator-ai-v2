@@ -5,21 +5,24 @@ import { ObservabilityService } from "../../../services/observability.service";
 const AGENT_SLUG = "legal-department";
 
 /**
- * Echo Node - M0 Testing Node
+ * Echo Node - M1 Document Analysis Node
  *
- * Purpose: Proves LLM integration works by echoing the user's message
- * through the LLM service with legal department context.
+ * Purpose: Display legal document metadata and user message through LLM.
  *
- * This is a simple test node for Phase 3 (M0) that:
- * 1. Receives user message from state
- * 2. Calls LLM service via API's /llm/generate endpoint
- * 3. Returns LLM response
- * 4. Emits observability events
+ * This node (Phase 5, M1):
+ * 1. Checks if legal metadata exists in state
+ * 2. Formats legal metadata nicely for display
+ * 3. Calls LLM service with user message and metadata context
+ * 4. Returns formatted response with metadata summary
+ * 5. Emits observability events
  *
- * Future phases will replace this with:
- * - Document analysis nodes
- * - Legal metadata extraction nodes
- * - Compliance checking nodes
+ * Legal metadata includes:
+ * - Document type and confidence
+ * - Detected sections and structure
+ * - Signature blocks and parties
+ * - Extracted dates
+ * - Contracting parties
+ * - Overall confidence scores
  */
 export function createEchoNode(
   llmClient: LLMHttpClientService,
@@ -33,24 +36,43 @@ export function createEchoNode(
     await observability.emitProgress(
       ctx,
       ctx.taskId,
-      "Processing legal department request (M0 echo mode)",
+      "Processing legal department request with metadata analysis",
       { step: "echo", progress: 50 },
     );
 
     try {
-      // M0: Simple echo through LLM with legal context
-      const systemMessage = `You are a Legal Department AI assistant.
-This is a test message (M0 phase). Please acknowledge the user's message
-and confirm that the Legal Department AI system is operational.
+      // Check if we have legal metadata
+      const hasMetadata = !!state.legalMetadata;
 
-In future phases, you will be able to:
-- Analyze legal documents
-- Extract key terms and clauses
-- Assess compliance requirements
-- Compare multiple documents
-- Flag potential risks
+      // Build system message with metadata context
+      let systemMessage = `You are a Legal Department AI assistant.`;
 
-For now, simply acknowledge the user's message in a professional legal assistant tone.`;
+      if (hasMetadata && state.legalMetadata) {
+        const metadata = state.legalMetadata;
+
+        // Format metadata summary
+        const metadataSummary = formatLegalMetadata(metadata);
+
+        systemMessage = `You are a Legal Department AI assistant.
+
+I have analyzed the uploaded legal document and extracted the following metadata:
+
+${metadataSummary}
+
+Please respond to the user's message with this context in mind. If they ask about the document, reference the extracted metadata. Be professional and helpful.`;
+      } else {
+        systemMessage = `You are a Legal Department AI assistant.
+
+No document metadata is available for this request. Please respond to the user's message in a professional legal assistant tone.
+
+In future requests with documents, you will have access to:
+- Document type classification
+- Detected sections and clauses
+- Signature blocks and parties
+- Extracted dates
+- Contracting parties
+- Confidence scores`;
+      }
 
       // Call LLM service via API endpoint
       // Pass full ExecutionContext capsule - never cherry-pick fields
@@ -60,7 +82,7 @@ For now, simply acknowledge the user's message in a professional legal assistant
         userMessage: state.userMessage,
         callerName: AGENT_SLUG,
         temperature: 0.7,
-        maxTokens: 1000,
+        maxTokens: 2000,
       });
 
       await observability.emitProgress(
@@ -70,9 +92,18 @@ For now, simply acknowledge the user's message in a professional legal assistant
         { step: "echo_complete", progress: 90 },
       );
 
+      // Format final response with metadata summary
+      let finalResponse = response.text;
+
+      if (hasMetadata && state.legalMetadata) {
+        const quickSummary = formatQuickSummary(state.legalMetadata);
+        finalResponse = `${response.text}\n\n---\n\n${quickSummary}`;
+      }
+
       return {
-        response: response.text,
+        response: finalResponse,
         status: "completed",
+        legalMetadata: state.legalMetadata, // Include raw metadata in response
       };
     } catch (error) {
       const errorMessage =
@@ -91,4 +122,154 @@ For now, simply acknowledge the user's message in a professional legal assistant
       };
     }
   };
+}
+
+/**
+ * Format legal metadata for LLM context
+ */
+function formatLegalMetadata(
+  metadata: LegalDepartmentState["legalMetadata"],
+): string {
+  if (!metadata) return "No metadata available";
+
+  const parts: string[] = [];
+
+  // Document Type
+  parts.push(
+    `**Document Type**: ${metadata.documentType.type} (${(metadata.documentType.confidence * 100).toFixed(0)}% confidence)`,
+  );
+
+  if (
+    metadata.documentType.alternatives &&
+    metadata.documentType.alternatives.length > 0
+  ) {
+    const alternatives = metadata.documentType.alternatives
+      .map((alt) => `${alt.type} (${(alt.confidence * 100).toFixed(0)}%)`)
+      .join(", ");
+    parts.push(`  - Alternative types: ${alternatives}`);
+  }
+
+  // Sections
+  if (metadata.sections.sections.length > 0) {
+    parts.push(
+      `\n**Sections Detected**: ${metadata.sections.sections.length} sections (${metadata.sections.structureType} structure)`,
+    );
+    metadata.sections.sections.slice(0, 5).forEach((section) => {
+      parts.push(
+        `  - ${section.title} (${section.type}, ${(section.confidence * 100).toFixed(0)}% confidence)`,
+      );
+    });
+    if (metadata.sections.sections.length > 5) {
+      parts.push(
+        `  - ... and ${metadata.sections.sections.length - 5} more sections`,
+      );
+    }
+  }
+
+  // Parties
+  if (metadata.parties.parties.length > 0) {
+    parts.push(
+      `\n**Parties Identified**: ${metadata.parties.parties.length} parties`,
+    );
+
+    if (metadata.parties.contractingParties) {
+      const [party1, party2] = metadata.parties.contractingParties;
+      parts.push(`  - Primary contracting parties:`);
+      parts.push(
+        `    - ${party1.name} (${party1.type}${party1.role ? `, ${party1.role}` : ""})`,
+      );
+      parts.push(
+        `    - ${party2.name} (${party2.type}${party2.role ? `, ${party2.role}` : ""})`,
+      );
+    } else {
+      metadata.parties.parties.slice(0, 3).forEach((party) => {
+        parts.push(
+          `  - ${party.name} (${party.type}${party.role ? `, ${party.role}` : ""}, ${(party.confidence * 100).toFixed(0)}% confidence)`,
+        );
+      });
+    }
+  }
+
+  // Signatures
+  if (metadata.signatures.signatures.length > 0) {
+    parts.push(
+      `\n**Signatures Detected**: ${metadata.signatures.signatures.length} signature blocks`,
+    );
+    metadata.signatures.signatures.forEach((sig) => {
+      const sigParts: string[] = [];
+      if (sig.partyName) sigParts.push(sig.partyName);
+      if (sig.signerName) sigParts.push(`signed by ${sig.signerName}`);
+      if (sig.signerTitle) sigParts.push(`(${sig.signerTitle})`);
+      if (sig.signatureDate) sigParts.push(`on ${sig.signatureDate}`);
+      parts.push(`  - ${sigParts.join(" ")}`);
+    });
+  }
+
+  // Dates
+  if (metadata.dates.dates.length > 0) {
+    parts.push(`\n**Dates Extracted**: ${metadata.dates.dates.length} dates`);
+
+    if (metadata.dates.primaryDate) {
+      parts.push(
+        `  - Primary date: ${metadata.dates.primaryDate.normalizedDate} (${metadata.dates.primaryDate.dateType})`,
+      );
+    }
+
+    metadata.dates.dates.slice(0, 3).forEach((date) => {
+      if (
+        metadata.dates.primaryDate &&
+        date.normalizedDate === metadata.dates.primaryDate.normalizedDate
+      ) {
+        return; // Skip primary date since we already showed it
+      }
+      parts.push(
+        `  - ${date.normalizedDate} (${date.dateType}, ${(date.confidence * 100).toFixed(0)}% confidence)`,
+      );
+    });
+
+    if (metadata.dates.dates.length > 4) {
+      parts.push(`  - ... and ${metadata.dates.dates.length - 4} more dates`);
+    }
+  }
+
+  // Overall Confidence
+  parts.push(
+    `\n**Overall Extraction Confidence**: ${(metadata.confidence.overall * 100).toFixed(0)}%`,
+  );
+  parts.push(
+    `  - Extraction method: ${metadata.confidence.factors.extractionMethod}`,
+  );
+  parts.push(
+    `  - Text quality: ${(metadata.confidence.factors.textQuality * 100).toFixed(0)}%`,
+  );
+  parts.push(
+    `  - Completeness: ${(metadata.confidence.factors.completeness * 100).toFixed(0)}%`,
+  );
+
+  return parts.join("\n");
+}
+
+/**
+ * Format quick metadata summary for final response
+ */
+function formatQuickSummary(
+  metadata: LegalDepartmentState["legalMetadata"],
+): string {
+  if (!metadata) return "";
+
+  const parts: string[] = [];
+
+  parts.push("📊 **Document Analysis Summary**");
+  parts.push(
+    `- Type: ${metadata.documentType.type} (${(metadata.documentType.confidence * 100).toFixed(0)}% confidence)`,
+  );
+  parts.push(`- Sections: ${metadata.sections.sections.length}`);
+  parts.push(`- Parties: ${metadata.parties.parties.length}`);
+  parts.push(`- Signatures: ${metadata.signatures.signatures.length}`);
+  parts.push(`- Dates: ${metadata.dates.dates.length}`);
+  parts.push(
+    `- Overall Confidence: ${(metadata.confidence.overall * 100).toFixed(0)}%`,
+  );
+
+  return parts.join("\n");
 }
