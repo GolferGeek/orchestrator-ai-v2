@@ -1,0 +1,32 @@
+{
+  "timestamp": "20260119_090053",
+  "created_at": "2026-01-19 15:00:54 UTC",
+  "database": {
+    "name": "postgres",
+    "user": "postgres",
+    "container": "supabase_db_api-dev"
+  },
+  "backup": {
+    "file": "backup.sql.gz",
+    "size": "268K",
+    "duration_seconds": 1,
+    "schemas": [
+  "public",
+  "code_ops",
+  "orch_flow",
+  "rag_data",
+  "risk",
+  "prediction",
+  "orchestrator_ai",
+  "company_data",
+  "engineering",
+  "marketing",
+  "n8n_data"
+]
+  },
+  "scripts": {
+    "backup": "backup.sh",
+    "restore": "restore.sh"
+  },
+  "notes": "Only application schemas are backed up. Supabase-managed schemas (auth, storage, realtime, etc.) are excluded."
+}

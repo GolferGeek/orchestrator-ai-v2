@@ -86,7 +86,8 @@ export const useRbacStore = defineStore('rbac', () => {
   });
 
   // ==================== RBAC STATE ====================
-  const currentOrganization = ref<string | null>(null);
+  // Load persisted organization from localStorage
+  const currentOrganization = ref<string | null>(localStorage.getItem('currentOrganization'));
   const userRoles = ref<Map<string, UserRole[]>>(new Map());
   const userPermissions = ref<Map<string, string[]>>(new Map());
   const userOrganizations = ref<UserOrganization[]>([]);
@@ -245,9 +246,23 @@ export const useRbacStore = defineStore('rbac', () => {
       userOrganizations.value = orgs;
       isSuperAdmin.value = await rbacService.checkSuperAdmin();
 
-      if (orgs.length > 0 && !currentOrganization.value) {
-        const defaultOrg = orgs.find((o) => !o.isGlobal) || orgs[0];
-        await setOrganization(defaultOrg.organizationSlug);
+      if (orgs.length > 0) {
+        // Check if persisted org is still valid (user has access to it)
+        const persistedOrg = currentOrganization.value;
+        const persistedOrgValid = persistedOrg &&
+          persistedOrg !== '*' &&
+          orgs.some((o) => o.organizationSlug === persistedOrg);
+
+        if (persistedOrgValid) {
+          // Load permissions for the persisted org
+          await setOrganization(persistedOrg);
+        } else {
+          // Prefer non-global orgs, explicitly exclude '*' slug
+          const defaultOrg = orgs.find((o) => !o.isGlobal && o.organizationSlug !== '*')
+            || orgs.find((o) => o.organizationSlug !== '*')
+            || orgs[0];
+          await setOrganization(defaultOrg.organizationSlug);
+        }
       }
 
       await loadRolesAndPermissions();
@@ -261,10 +276,16 @@ export const useRbacStore = defineStore('rbac', () => {
 
   async function setOrganization(orgSlug: string): Promise<void> {
     currentOrganization.value = orgSlug;
-    await Promise.all([
-      loadUserPermissions(orgSlug),
-      loadOrganizationUsers(orgSlug),
-    ]);
+    // Persist to localStorage so it survives page reloads
+    localStorage.setItem('currentOrganization', orgSlug);
+    // Load user permissions first (required for all users)
+    await loadUserPermissions(orgSlug);
+    // Only load organization users if user has admin:users permission (or is super-admin)
+    // This endpoint requires admin:users permission, skip for non-admin users to avoid 403 errors
+    const canViewUsers = isSuperAdmin.value || hasPermission('admin:users');
+    if (canViewUsers) {
+      await loadOrganizationUsers(orgSlug);
+    }
   }
 
   async function loadUserPermissions(orgSlug: string): Promise<void> {
@@ -347,6 +368,7 @@ export const useRbacStore = defineStore('rbac', () => {
 
   function reset(): void {
     currentOrganization.value = null;
+    localStorage.removeItem('currentOrganization');
     userRoles.value.clear();
     userPermissions.value.clear();
     userOrganizations.value = [];

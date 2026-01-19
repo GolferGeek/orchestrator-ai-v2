@@ -18,7 +18,7 @@ const API_URL = process.env.API_URL || 'http://localhost:6100';
 const TEST_EMAIL =
   process.env.SUPABASE_TEST_USER || 'admin@orchestratorai.io';
 const TEST_PASSWORD = process.env.SUPABASE_TEST_PASSWORD || 'Admin123!';
-const ORG_SLUG = 'demo-org';
+const ORG_SLUG = 'finance';
 const NIL_UUID = '00000000-0000-0000-0000-000000000000';
 
 // Timeout for LLM operations

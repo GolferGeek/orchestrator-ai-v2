@@ -1,7 +1,7 @@
 import { DatabaseService } from '../database/database.service';
 import { ObservabilityGateway } from './observability.gateway';
 import { ObservabilityService } from './observability.service';
-import type { HookEvent, HumanInTheLoopResponse } from '../types';
+import type { HookEvent, HookDataInput, HumanInTheLoopResponse } from '../types';
 export declare class ObservabilityController {
     private readonly databaseService;
     private readonly gateway;
@@ -9,7 +9,7 @@ export declare class ObservabilityController {
     private readonly logger;
     constructor(databaseService: DatabaseService, gateway: ObservabilityGateway, observabilityService: ObservabilityService);
     getRoot(): string;
-    handleHook(hookData: any): Promise<{
+    handleHook(hookData: HookDataInput): Promise<{
         success: boolean;
         id: number;
         error?: undefined;

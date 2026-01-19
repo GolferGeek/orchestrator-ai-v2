@@ -447,8 +447,13 @@ export const useConversationsStore = defineStore('conversations', () => {
    */
   function addAssistantMessage(
     conversationId: string,
-    result: { message: string; metadata?: MessageMetadata }
+    result: { message: string; sources?: MessageMetadata['sources']; metadata?: MessageMetadata }
   ): Message {
+    // Include sources in metadata if present
+    const metadata: MessageMetadata = {
+      ...result.metadata,
+      ...(result.sources && { sources: result.sources }),
+    };
     return addMessage(conversationId, {
       conversationId,
       role: 'assistant',
@@ -456,7 +461,7 @@ export const useConversationsStore = defineStore('conversations', () => {
       timestamp: result.metadata?.generation?.duration
         ? new Date().toISOString()
         : new Date().toISOString(),
-      metadata: result.metadata,
+      metadata,
     });
   }
 

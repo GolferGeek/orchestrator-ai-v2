@@ -20,7 +20,7 @@ let ObservabilityGateway = ObservabilityGateway_1 = class ObservabilityGateway {
         this.databaseService = databaseService;
         this.logger = new common_1.Logger(ObservabilityGateway_1.name);
     }
-    afterInit(server) {
+    afterInit(_server) {
         this.logger.log('WebSocket Gateway initialized');
     }
     async handleConnection(client) {

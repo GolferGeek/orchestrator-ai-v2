@@ -27,6 +27,11 @@ Manage git worktrees for parallel development. Worktrees allow you to work on mu
 
 Creates: `worktrees/<slot>/` with branch `golfergeek-<slot>/<feature-name>`
 
+**Auto-setup on create:**
+1. Creates the git worktree
+2. **Copies `.env` from main worktree** (for API keys/secrets)
+3. Runs `npm install`
+
 **Example:**
 ```
 /worktree create wt-1 video-generation

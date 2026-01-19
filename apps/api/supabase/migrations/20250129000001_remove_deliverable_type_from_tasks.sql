@@ -3,6 +3,9 @@
 --         This removes the redundant column from tasks.
 -- Date: 2025-01-29
 
+-- First drop the view that depends on this column
+DROP VIEW IF EXISTS shared_tasks CASCADE;
+
 -- Remove the deliverable_type column from tasks table
 -- The type is now tracked in the deliverables table's type column
 ALTER TABLE tasks DROP COLUMN IF EXISTS deliverable_type;

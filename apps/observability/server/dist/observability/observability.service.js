@@ -24,7 +24,7 @@ let ObservabilityService = ObservabilityService_1 = class ObservabilityService {
                     try {
                         ws.close();
                     }
-                    catch (e) {
+                    catch (_e) {
                     }
                 }
             };

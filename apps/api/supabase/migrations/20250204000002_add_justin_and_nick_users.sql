@@ -5,6 +5,9 @@
 -- Both get super-admin RBAC roles for all organizations
 -- =============================================================================
 
+-- Enable pgcrypto extension for password hashing
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
+
 -- Generate UUIDs for the new users
 DO $$
 DECLARE
@@ -54,7 +57,7 @@ BEGIN
       'authenticated',
       'authenticated',
       'justin@orchestratorai.io',
-      crypt('Justin123!', gen_salt('bf')),
+      extensions.crypt('Justin123!', extensions.gen_salt('bf')),
       NOW(),
       NOW(),
       NOW(),
@@ -110,7 +113,7 @@ BEGIN
       'authenticated',
       'authenticated',
       'nick@orchestratorai.io',
-      crypt('Nick123!', gen_salt('bf')),
+      extensions.crypt('Nick123!', extensions.gen_salt('bf')),
       NOW(),
       NOW(),
       NOW(),

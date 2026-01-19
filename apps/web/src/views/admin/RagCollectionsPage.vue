@@ -136,6 +136,9 @@
                 <ion-chip :color="getStatusColor(collection.status)" size="small">
                   <ion-label>{{ collection.status }}</ion-label>
                 </ion-chip>
+                <ion-chip :color="getComplexityColor(collection.complexityType)" size="small">
+                  <ion-label>{{ collection.complexityType || 'basic' }}</ion-label>
+                </ion-chip>
                 <!-- Access indicator -->
                 <ion-chip v-if="collection.allowedUsers !== null" color="warning" size="small">
                   <ion-icon :icon="lockClosedOutline" />
@@ -211,6 +214,18 @@
                 min="0"
                 max="500"
               />
+            </ion-item>
+            <ion-item>
+              <ion-label position="stacked">RAG Complexity Type</ion-label>
+              <ion-select v-model="newCollection.complexityType" interface="popover">
+                <ion-select-option
+                  v-for="option in complexityTypeOptions"
+                  :key="option.value"
+                  :value="option.value"
+                >
+                  {{ option.label }} - {{ option.description }}
+                </ion-select-option>
+              </ion-select>
             </ion-item>
           </ion-list>
 
@@ -330,7 +345,7 @@ import {
 } from 'ionicons/icons';
 import { useRagStore } from '@/stores/ragStore';
 import { useAuthStore } from '@/stores/rbacStore';
-import ragService, { type RagCollection, type CreateCollectionDto } from '@/services/ragService';
+import ragService, { type RagCollection, type CreateCollectionDto, type RagComplexityType } from '@/services/ragService';
 import rbacService, { type RbacRole } from '@/services/rbacService';
 import AccessControlModal from '@/components/rag/AccessControlModal.vue';
 
@@ -353,7 +368,17 @@ const newCollection = ref<CreateCollectionDto>({
   privateToCreator: false,
   requiredRole: null,
   allowedUsers: null,
+  complexityType: 'basic',
 });
+
+// Complexity type options with descriptions
+const complexityTypeOptions: { value: RagComplexityType; label: string; description: string }[] = [
+  { value: 'basic', label: 'Basic', description: 'Standard semantic search' },
+  { value: 'attributed', label: 'Attributed', description: 'Semantic search with document citations' },
+  { value: 'hybrid', label: 'Hybrid', description: 'Keyword + semantic search combined' },
+  { value: 'cross-reference', label: 'Cross-Reference', description: 'Linked documents with related content' },
+  { value: 'temporal', label: 'Temporal', description: 'Version-aware document tracking' },
+];
 
 // Computed
 const accessSummary = computed(() => {
@@ -432,6 +457,7 @@ const openCreateModal = async () => {
     privateToCreator: false,
     requiredRole: null,
     allowedUsers: null,
+    complexityType: 'basic',
   };
   // Load roles if not already loaded
   if (availableRoles.value.length === 0) {
@@ -472,6 +498,23 @@ const getStatusColor = (status: string) => {
       return 'warning';
     case 'error':
       return 'danger';
+    default:
+      return 'medium';
+  }
+};
+
+const getComplexityColor = (complexityType: string | undefined) => {
+  switch (complexityType) {
+    case 'basic':
+      return 'medium';
+    case 'attributed':
+      return 'primary';
+    case 'hybrid':
+      return 'tertiary';
+    case 'cross-reference':
+      return 'secondary';
+    case 'temporal':
+      return 'warning';
     default:
       return 'medium';
   }

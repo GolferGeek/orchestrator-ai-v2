@@ -1,0 +1,1938 @@
+{
+  "metadata": {
+    "version": "2.1",
+    "created_at": "2026-01-08T23:45:00Z",
+    "prd_sources": ["docs/prd/2026-01-08-prediction-system-detailed.md"],
+    "title": "Prediction System Redesign",
+    "summary": "Multi-domain prediction system with signals-predictors-predictions pipeline, multi-analyst AI evaluation, multi-LLM tiers, continuous learning, and full explainability",
+    "goals": [
+      "Improve prediction accuracy through analyst ensemble evaluation",
+      "Full transparency - users understand exactly why predictions were made",
+      "System learns from outcomes and user feedback",
+      "Support multiple domains (stocks, crypto, elections, polymarket)",
+      "Handle many targets and sources efficiently with cost tracking"
+    ],
+    "scope": {
+      "in_scope": [
+        "Multi-domain predictions (stocks, crypto, elections, polymarket)",
+        "Multi-perspective AI evaluation (analysts/personalities)",
+        "Multi-LLM comparison (Gold/Silver/Bronze tiers using existing llm_models table)",
+        "Continuous learning with human oversight",
+        "Full prediction transparency and explainability",
+        "User-configurable investment strategies",
+        "Firecrawl integration for URL-based source monitoring",
+        "A2A protocol compliance for analysts",
+        "A2A dashboard mode for all UI data access (NO REST controllers)"
+      ],
+      "out_of_scope": [
+        "Real-time trading execution",
+        "Portfolio management",
+        "Tax reporting",
+        "Direct brokerage integration",
+        "REST dashboard endpoints (MUST use A2A dashboard mode)"
+      ]
+    },
+    "risks": [
+      "LLM API costs could escalate with multi-LLM evaluation",
+      "Complex schema migration from existing prediction tables",
+      "Firecrawl integration reliability for unstructured sources"
+    ],
+    "architecture_decisions": [
+      "Use 'prediction' schema (singular) for all tables, not table prefixes",
+      "Use VIEW on existing public.llm_models table for tier mapping, not new table",
+      "All LLM calls MUST use ExecutionContext for cost tracking and observability",
+      "Analysts MUST be registered as A2A agents in public.agents table",
+      "Use ObservabilityEventsService.emit() for all progress updates",
+      "Direction values differ: signals/predictors use sentiment (bullish/bearish), predictions use outcome (up/down)",
+      "NO REST dashboard endpoints - ALL UI data access via A2A dashboard mode task routing",
+      "Add AgentTaskMode.DASHBOARD to transport-types for dashboard operations",
+      "Cost tracking uses public.llm_usage as source of truth (not duplicated in prediction tables)"
+    ]
+  },
+  "summary": "Redesign prediction system with multi-domain support, AI analysts ensemble, multi-LLM evaluation, learning system, and full explainability - using A2A dashboard mode for all UI data access",
+  "phases": [
+    {
+      "id": "phase-1",
+      "label": "Core Database Schema",
+      "description": "Create prediction schema and all core tables with proper constraints, triggers, and RLS policies",
+      "status": "pending",
+      "progress": 0,
+      "started_at": null,
+      "completed_at": null,
+      "steps": [
+        {
+          "id": "step-1-1",
+          "action": "Create prediction schema and core tables: universes, targets, sources",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": [],
+          "deliverables": [
+            "apps/api/supabase/migrations/XXXXXX_create_prediction_schema.sql",
+            "apps/api/supabase/migrations/XXXXXX_prediction_universes.sql",
+            "apps/api/supabase/migrations/XXXXXX_prediction_targets.sql",
+            "apps/api/supabase/migrations/XXXXXX_prediction_sources.sql"
+          ],
+          "validation_checkpoint": "checkpoint-db-migration",
+          "human_checkpoint_id": null,
+          "details": {
+            "schema": "prediction",
+            "tables": ["universes", "targets", "sources"],
+            "key_features": [
+              "universes: organization_slug FK, agent_slug FK, domain check constraint, strategy_id FK",
+              "targets: context field for LLM injection, target_type with domain validation trigger",
+              "sources: scope_level hierarchy, crawl_config JSONB, auth_config for paywalled sources"
+            ],
+            "triggers": [
+              "enforce_target_domain_type: validates target_type matches universe.domain"
+            ]
+          }
+        },
+        {
+          "id": "step-1-2",
+          "action": "Create signal and predictor tables with direction validation",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-1-1"],
+          "deliverables": [
+            "apps/api/supabase/migrations/XXXXXX_prediction_signals.sql",
+            "apps/api/supabase/migrations/XXXXXX_prediction_predictors.sql",
+            "apps/api/supabase/migrations/XXXXXX_prediction_direction_validation.sql"
+          ],
+          "validation_checkpoint": "checkpoint-db-migration",
+          "human_checkpoint_id": null,
+          "details": {
+            "tables": ["signals", "predictors"],
+            "key_features": [
+              "signals: disposition enum, urgency levels, processing_worker for race condition handling",
+              "predictors: status lifecycle (active/consumed/expired/invalidated), strength 1-10"
+            ],
+            "triggers": [
+              "trg_enforce_signal_direction: validates direction by domain (bullish/bearish/neutral for stocks/crypto)",
+              "trg_enforce_predictor_direction: validates direction by domain"
+            ],
+            "functions": [
+              "validate_direction(entity, domain, direction): returns boolean",
+              "enforce_direction_by_target_domain(entity, target_id, direction): raises exception on invalid"
+            ]
+          }
+        },
+        {
+          "id": "step-1-3",
+          "action": "Create prediction and snapshot tables with status transitions",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-1-2"],
+          "deliverables": [
+            "apps/api/supabase/migrations/XXXXXX_prediction_predictions.sql",
+            "apps/api/supabase/migrations/XXXXXX_prediction_snapshots.sql",
+            "apps/api/supabase/migrations/XXXXXX_prediction_status_transitions.sql"
+          ],
+          "validation_checkpoint": "checkpoint-db-migration",
+          "human_checkpoint_id": null,
+          "details": {
+            "tables": ["predictions", "snapshots"],
+            "key_features": [
+              "predictions: task_id for ExecutionContext correlation, status enum with transition rules",
+              "snapshots: full state capture (predictors, analyst_predictions, llm_ensemble, learnings_applied)"
+            ],
+            "triggers": [
+              "trg_enforce_prediction_direction: validates outcome direction (up/down/flat for stocks/crypto)",
+              "trg_prediction_status_transition: enforces valid status transitions"
+            ]
+          }
+        },
+        {
+          "id": "step-1-4",
+          "action": "Create evaluation and missed opportunity tables",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-1-3"],
+          "deliverables": [
+            "apps/api/supabase/migrations/XXXXXX_prediction_evaluations.sql",
+            "apps/api/supabase/migrations/XXXXXX_prediction_missed_opportunities.sql",
+            "apps/api/supabase/migrations/XXXXXX_prediction_target_snapshots.sql",
+            "apps/api/supabase/migrations/XXXXXX_prediction_tool_requests.sql"
+          ],
+          "validation_checkpoint": "checkpoint-db-migration",
+          "human_checkpoint_id": null,
+          "details": {
+            "tables": ["evaluations", "missed_opportunities", "target_snapshots", "tool_requests"],
+            "key_features": [
+              "evaluations: direction_correct, magnitude_accuracy, analyst_scores JSONB",
+              "missed_opportunities: move details, discovered_drivers, source_gaps, suggested_learnings",
+              "target_snapshots: price history for miss detection",
+              "tool_requests: source wishlist from missed opportunity analysis"
+            ]
+          }
+        },
+        {
+          "id": "step-1-5",
+          "action": "Create LLM tier mapping VIEW (uses existing llm_models table)",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-1-1"],
+          "deliverables": [
+            "apps/api/supabase/migrations/XXXXXX_prediction_llm_tier_mapping.sql"
+          ],
+          "validation_checkpoint": "checkpoint-db-migration",
+          "human_checkpoint_id": null,
+          "details": {
+            "view": "prediction.llm_tier_mapping",
+            "mapping": {
+              "gold": "model_tier = 'flagship' (claude-opus-4-5)",
+              "silver": "model_tier = 'standard' (claude-sonnet-4)",
+              "bronze": "model_tier IN ('economy', 'local') (llama3.3 via Ollama)"
+            },
+            "note": "DO NOT create prediction_llm_tiers table - use VIEW on public.llm_models"
+          }
+        },
+        {
+          "id": "step-1-6",
+          "action": "Create RLS policies for all prediction tables",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-1-4"],
+          "deliverables": [
+            "apps/api/supabase/migrations/XXXXXX_prediction_rls_policies.sql"
+          ],
+          "validation_checkpoint": "checkpoint-db-migration",
+          "human_checkpoint_id": null,
+          "details": {
+            "policies": [
+              "universes: org access via rbac_get_user_organizations",
+              "targets: inherit from universe access",
+              "signals/predictors/predictions: follow target access",
+              "sources: scope hierarchy (runner/domain visible to all, universe/target scoped)",
+              "analysts: system/domain visible to all, universe/target scoped",
+              "tool_requests: scoped to universe via org access",
+              "learning_queue: scoped via suggested/final universe/target FKs"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "phase-2",
+      "label": "Analysts & Configuration Tables",
+      "description": "Create analyst system tables, strategies, learnings, and queue tables",
+      "status": "pending",
+      "progress": 0,
+      "started_at": null,
+      "completed_at": null,
+      "steps": [
+        {
+          "id": "step-2-1",
+          "action": "Create analyst tables: analysts, analyst_overrides, analyst_assessments",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-1-3"],
+          "deliverables": [
+            "apps/api/supabase/migrations/XXXXXX_prediction_analysts.sql",
+            "apps/api/supabase/migrations/XXXXXX_prediction_analyst_overrides.sql",
+            "apps/api/supabase/migrations/XXXXXX_prediction_analyst_assessments.sql"
+          ],
+          "validation_checkpoint": "checkpoint-db-migration",
+          "human_checkpoint_id": null,
+          "details": {
+            "tables": ["analysts", "analyst_overrides", "analyst_assessments"],
+            "key_features": [
+              "analysts: scope_level hierarchy, perspective TEXT, tier_instructions JSONB, learned_patterns JSONB",
+              "analyst_overrides: per-universe/target weight and tier overrides",
+              "analyst_assessments: llm_usage_id FK for cost tracking (source of truth is public.llm_usage)"
+            ],
+            "constraints": [
+              "valid_analyst_scope: ensures scope_level matches FK hierarchy"
+            ]
+          }
+        },
+        {
+          "id": "step-2-2",
+          "action": "Create strategies table and seed system strategies",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-1-1"],
+          "deliverables": [
+            "apps/api/supabase/migrations/XXXXXX_prediction_strategies.sql",
+            "apps/api/supabase/seeds/prediction_strategies.sql"
+          ],
+          "validation_checkpoint": "checkpoint-db-migration",
+          "human_checkpoint_id": null,
+          "details": {
+            "strategies": [
+              {"slug": "aggressive", "risk": "high", "description": "Lower thresholds, more predictions"},
+              {"slug": "balanced", "risk": "medium", "description": "Default settings"},
+              {"slug": "conservative", "risk": "low", "description": "Higher thresholds, fewer stronger predictions"},
+              {"slug": "contrarian", "risk": "medium", "description": "Fades consensus, looks for overreactions"},
+              {"slug": "technical", "risk": "medium", "description": "Weights technical analysts higher"}
+            ]
+          }
+        },
+        {
+          "id": "step-2-3",
+          "action": "Create learning tables: learnings, learning_queue",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-2-1"],
+          "deliverables": [
+            "apps/api/supabase/migrations/XXXXXX_prediction_learnings.sql",
+            "apps/api/supabase/migrations/XXXXXX_prediction_learning_queue.sql"
+          ],
+          "validation_checkpoint": "checkpoint-db-migration",
+          "human_checkpoint_id": null,
+          "details": {
+            "tables": ["learnings", "learning_queue"],
+            "learning_types": ["rule", "pattern", "weight_adjustment", "threshold", "avoid"],
+            "key_features": [
+              "learnings: scope_level hierarchy, source_type (human/ai_suggested/ai_approved), superseded_by for versioning",
+              "learning_queue: AI suggestions pending human review with suggested/final scope fields"
+            ],
+            "constraints": [
+              "valid_learning_scope: ensures scope matches FK hierarchy",
+              "valid_learning_supersession: superseded_by required only when status='superseded'",
+              "valid_learning_queue_status_fields: ensures approved items have learning_id"
+            ]
+          }
+        },
+        {
+          "id": "step-2-4",
+          "action": "Create review queue and source tracking tables",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-1-2"],
+          "deliverables": [
+            "apps/api/supabase/migrations/XXXXXX_prediction_review_queue.sql",
+            "apps/api/supabase/migrations/XXXXXX_prediction_source_crawls.sql",
+            "apps/api/supabase/migrations/XXXXXX_prediction_source_seen_items.sql"
+          ],
+          "validation_checkpoint": "checkpoint-db-migration",
+          "human_checkpoint_id": null,
+          "details": {
+            "tables": ["review_queue", "source_crawls", "source_seen_items"],
+            "key_features": [
+              "review_queue: HITL for signals with confidence 0.4-0.7",
+              "source_crawls: crawl history with status, items_found, signals_created",
+              "source_seen_items: content_hash for deduplication"
+            ]
+          }
+        },
+        {
+          "id": "step-2-5",
+          "action": "Create database functions: get_active_analysts, get_active_learnings",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-2-3"],
+          "deliverables": [
+            "apps/api/supabase/migrations/XXXXXX_fn_get_active_analysts.sql",
+            "apps/api/supabase/migrations/XXXXXX_fn_get_active_learnings.sql"
+          ],
+          "validation_checkpoint": "checkpoint-db-migration",
+          "human_checkpoint_id": null,
+          "details": {
+            "functions": [
+              "get_active_analysts(target_id, tier): returns analysts with effective weights/tiers from hierarchy",
+              "get_active_learnings(target_id, tier, analyst_id): returns learnings from all scope levels"
+            ]
+          }
+        },
+        {
+          "id": "step-2-6",
+          "action": "Seed system and domain analysts with A2A registration",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-2-1"],
+          "deliverables": [
+            "apps/api/supabase/seeds/prediction_system_analysts.sql",
+            "apps/api/supabase/seeds/prediction_domain_analysts.sql",
+            "apps/api/supabase/seeds/prediction_analysts_a2a_registration.sql"
+          ],
+          "validation_checkpoint": "checkpoint-db-migration",
+          "human_checkpoint_id": null,
+          "details": {
+            "system_analysts": [
+              {"slug": "base-analyst", "scope": "runner", "perspective": "Balanced, objective evaluation"}
+            ],
+            "domain_analysts_stocks": [
+              {"slug": "technical-tina", "perspective": "Focus on technical analysis"},
+              {"slug": "fundamental-fred", "perspective": "Focus on fundamentals"},
+              {"slug": "sentiment-sally", "perspective": "Focus on market sentiment"}
+            ],
+            "domain_analysts_crypto": [
+              {"slug": "on-chain-otto", "perspective": "Focus on on-chain metrics"},
+              {"slug": "defi-diana", "perspective": "Focus on DeFi metrics"},
+              {"slug": "crypto-sentiment-sam", "perspective": "Focus on crypto sentiment"},
+              {"slug": "regulatory-rachel", "perspective": "Focus on regulatory developments"}
+            ],
+            "domain_analysts_elections": [
+              {"slug": "polling-paul", "perspective": "Focus on polling data"},
+              {"slug": "modeling-mike", "perspective": "Focus on election models"},
+              {"slug": "ground-game-gina", "perspective": "Focus on campaign dynamics"}
+            ],
+            "domain_analysts_polymarket": [
+              {"slug": "probability-pete", "perspective": "Focus on market efficiency"},
+              {"slug": "news-nancy-poly", "perspective": "Focus on news events"},
+              {"slug": "contrarian-carl", "perspective": "Focus on contrarian opportunities"},
+              {"slug": "resolution-rick", "perspective": "Focus on resolution mechanics"}
+            ],
+            "a2a_registration": "All analysts must be registered in public.agents with agent_type='context'"
+          }
+        }
+      ]
+    },
+    {
+      "id": "phase-3",
+      "label": "Transport Types - Dashboard Mode",
+      "description": "Add AgentTaskMode.DASHBOARD and dashboard-specific types to transport-types package",
+      "status": "pending",
+      "progress": 0,
+      "started_at": null,
+      "completed_at": null,
+      "steps": [
+        {
+          "id": "step-3-1",
+          "action": "Add AgentTaskMode.DASHBOARD to shared enums",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": [],
+          "deliverables": [
+            "apps/transport-types/shared/enums.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "changes": [
+              "Add DASHBOARD = 'dashboard' to AgentTaskMode enum",
+              "Add dashboard method variants to JsonRpcMethod type: 'dashboard', 'agent.dashboard', 'tasks.dashboard'"
+            ]
+          }
+        },
+        {
+          "id": "step-3-2",
+          "action": "Create dashboard mode types for prediction entities",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-3-1"],
+          "deliverables": [
+            "apps/transport-types/modes/dashboard.types.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "types": [
+              "DashboardAction: 'list' | 'get' | 'create' | 'update' | 'delete' | action-specific",
+              "DashboardRequestPayload<T>: { action: DashboardAction, entity: string, params: T }",
+              "DashboardResponsePayload<T>: { content: T, metadata: { totalCount?, page?, pageSize? } }",
+              "Prediction-specific payloads: UniversePayload, TargetPayload, PredictionPayload, SourcePayload, etc."
+            ],
+            "entities": [
+              "universe", "target", "prediction", "source", "analyst",
+              "learning", "learning_queue", "review_queue", "strategy",
+              "missed_opportunity", "tool_request"
+            ]
+          }
+        },
+        {
+          "id": "step-3-3",
+          "action": "Export dashboard types from transport-types index",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-3-2"],
+          "deliverables": [
+            "apps/transport-types/index.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "exports": [
+              "export * from './modes/dashboard.types'",
+              "Ensure AgentTaskMode.DASHBOARD is exported"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "phase-4",
+      "label": "Core API Services",
+      "description": "Create NestJS module and core services for prediction runner",
+      "status": "completed",
+      "progress": 100,
+      "started_at": "2026-01-08T21:00:00Z",
+      "completed_at": "2026-01-08T21:35:00Z",
+      "steps": [
+        {
+          "id": "step-4-1",
+          "action": "Create prediction-runner NestJS module with repository services",
+          "agent": "api-architecture-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-08T21:00:00Z",
+          "completed_at": "2026-01-08T21:16:00Z",
+          "depends_on": ["step-1-6"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/prediction-runner.module.ts",
+            "apps/api/src/prediction-runner/repositories/universe.repository.ts",
+            "apps/api/src/prediction-runner/repositories/target.repository.ts",
+            "apps/api/src/prediction-runner/repositories/signal.repository.ts",
+            "apps/api/src/prediction-runner/repositories/predictor.repository.ts",
+            "apps/api/src/prediction-runner/repositories/prediction.repository.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "pattern": "Repository pattern for database access",
+            "repositories": ["UniverseRepository", "TargetRepository", "SignalRepository", "PredictorRepository", "PredictionRepository"]
+          }
+        },
+        {
+          "id": "step-4-2",
+          "action": "Create universe and target services with DTOs",
+          "agent": "api-architecture-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-08T21:06:00Z",
+          "completed_at": "2026-01-08T21:07:00Z",
+          "depends_on": ["step-4-1"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/services/universe.service.ts",
+            "apps/api/src/prediction-runner/services/target.service.ts",
+            "apps/api/src/prediction-runner/dto/universe.dto.ts",
+            "apps/api/src/prediction-runner/dto/target.dto.ts",
+            "apps/api/src/prediction-runner/interfaces/universe.interface.ts",
+            "apps/api/src/prediction-runner/interfaces/target.interface.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-4-3",
+          "action": "Create analyst service with scope resolution and prompt builder",
+          "agent": "api-architecture-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-08T21:07:00Z",
+          "completed_at": "2026-01-08T21:12:00Z",
+          "depends_on": ["step-2-5", "step-4-1"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/services/analyst.service.ts",
+            "apps/api/src/prediction-runner/services/analyst-prompt-builder.service.ts",
+            "apps/api/src/prediction-runner/dto/analyst.dto.ts",
+            "apps/api/src/prediction-runner/interfaces/analyst.interface.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "key_methods": [
+              "getActiveAnalysts(targetId, tier): uses get_active_analysts DB function",
+              "buildAnalystPrompt(analyst, tier, target, learnings, input): injects target.context"
+            ]
+          }
+        },
+        {
+          "id": "step-4-4",
+          "action": "Create LLM tier resolver service",
+          "agent": "api-architecture-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-08T21:12:00Z",
+          "completed_at": "2026-01-08T21:14:00Z",
+          "depends_on": ["step-1-5", "step-4-1"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/services/llm-tier-resolver.service.ts",
+            "apps/api/src/prediction-runner/interfaces/llm-tier.interface.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "key_methods": [
+              "resolveTier(tier, provider?, universeId?): returns { provider, model, pricing }",
+              "createTierContext(baseContext, tier, analystSlug, options): returns ExecutionContext for tier"
+            ],
+            "resolution_priority": [
+              "1. Target-level llm_config_override",
+              "2. Universe-level llm_config",
+              "3. Agent metadata runnerConfig.llmTiers",
+              "4. Default from llm_models table (MUST throw if not explicitly enabled)"
+            ]
+          }
+        },
+        {
+          "id": "step-4-5",
+          "action": "Create analyst ensemble service for multi-analyst, multi-LLM evaluation",
+          "agent": "api-architecture-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-08T21:14:00Z",
+          "completed_at": "2026-01-08T21:16:00Z",
+          "depends_on": ["step-4-3", "step-4-4"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/services/analyst-ensemble.service.ts",
+            "apps/api/src/prediction-runner/interfaces/ensemble.interface.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "key_methods": [
+              "runAnalystEnsemble(context, analysts, llmConfig, tier, input): runs all analysts on all enabled LLM tiers",
+              "aggregateAssessments(assessments, strategy): weighted_majority, weighted_average, weighted_ensemble"
+            ],
+            "execution_context": "MUST use ExecutionContext for all LLM calls"
+          }
+        },
+        {
+          "id": "step-4-6",
+          "action": "Create learning service with scope resolution",
+          "agent": "api-architecture-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-08T21:16:00Z",
+          "completed_at": "2026-01-08T21:21:00Z",
+          "depends_on": ["step-2-5", "step-4-1"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/services/learning.service.ts",
+            "apps/api/src/prediction-runner/services/learning-queue.service.ts",
+            "apps/api/src/prediction-runner/dto/learning.dto.ts",
+            "apps/api/src/prediction-runner/interfaces/learning.interface.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "key_methods": [
+              "getActiveLearnings(targetId, tier, analystId): uses get_active_learnings DB function",
+              "applyLearningsToPrompt(learnings, promptContext): injects rules, patterns, avoids"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "phase-5",
+      "label": "Processing Pipeline Services",
+      "description": "Implement Tier 1-6 processing pipeline with ExecutionContext integration",
+      "status": "completed",
+      "progress": 100,
+      "started_at": "2026-01-09T03:30:00Z",
+      "completed_at": "2026-01-09T04:05:00Z",
+      "steps": [
+        {
+          "id": "step-5-1",
+          "action": "Implement Tier 1: Signal Detection service",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-4-5", "step-4-6"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/services/signal-detection.service.ts",
+            "apps/api/src/prediction-runner/interfaces/signal-detection.interface.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "tier": 1,
+            "description": "Evaluate signals for urgency and determine if predictor",
+            "key_methods": [
+              "detectSignal(input: SignalDetectionInput): uses analyst ensemble",
+              "determineUrgency(signal, assessment): urgent (>=0.90), notable (>=0.70), routine (<0.70)"
+            ],
+            "observability": "Emits agent.stream.chunk events via ObservabilityEventsService"
+          }
+        },
+        {
+          "id": "step-5-2",
+          "action": "Implement Tier 2: Predictor Management service with threshold evaluation",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-5-1"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/services/predictor-management.service.ts",
+            "apps/api/src/prediction-runner/interfaces/threshold-evaluation.interface.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "tier": 2,
+            "key_methods": [
+              "expireOldPredictors(targetId): expires predictors past TTL",
+              "getActivePredictors(targetId): returns non-expired predictors",
+              "evaluateThreshold(targetId): checks min_predictors, min_combined_strength, min_direction_consensus"
+            ]
+          }
+        },
+        {
+          "id": "step-5-3",
+          "action": "Implement Tier 3: Prediction Generation service",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-5-2"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/services/prediction-generation.service.ts",
+            "apps/api/src/prediction-runner/interfaces/prediction.interface.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "tier": 3,
+            "key_methods": [
+              "generatePrediction(input: PredictionInput): uses analyst ensemble for multi-LLM evaluation",
+              "createPredictionSafely(context, targetId, data): atomic with advisory lock to prevent duplicates"
+            ],
+            "direction_mapping": "Maps sentiment (bullish/bearish) to outcome (up/down)"
+          }
+        },
+        {
+          "id": "step-5-4",
+          "action": "Implement Tier 4: Outcome Tracking service",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-5-3"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/services/outcome-tracking.service.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "tier": 4,
+            "key_methods": [
+              "captureOutcome(predictionId, value, capturedAt)",
+              "resolvePrediction(predictionId): sets status to resolved",
+              "checkPredictionExpiration(): expires predictions past timeframe"
+            ]
+          }
+        },
+        {
+          "id": "step-5-5",
+          "action": "Implement Tier 5: Evaluation service with learning generation",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-5-4", "step-4-6"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/services/evaluation.service.ts",
+            "apps/api/src/prediction-runner/interfaces/evaluation.interface.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "tier": 5,
+            "key_methods": [
+              "evaluatePrediction(predictionId): scores direction, magnitude, timing accuracy",
+              "generateLearningsFromEvaluation(evaluation): AI suggests learnings from outcomes",
+              "scoreAnalystPerformance(evaluation): tracks per-analyst accuracy"
+            ]
+          }
+        },
+        {
+          "id": "step-5-6",
+          "action": "Implement Tier 6: Missed Opportunity Detection and Analysis service",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-5-5"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/services/missed-opportunity-detection.service.ts",
+            "apps/api/src/prediction-runner/services/missed-opportunity-analysis.service.ts",
+            "apps/api/src/prediction-runner/interfaces/missed-opportunity.interface.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "tier": 6,
+            "key_methods": [
+              "detectMissedOpportunities(targetId): finds significant moves without predictions",
+              "analyzeMissedOpportunity(missId): AI researches drivers, reviews signals we had, suggests learnings",
+              "generateToolSuggestions(analysis): recommends new sources based on gaps"
+            ]
+          }
+        },
+        {
+          "id": "step-5-7",
+          "action": "Implement Fast Path processing for urgent signals",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-5-3"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/services/fast-path.service.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "description": "Bypass batch processing for urgent signals (confidence >= 0.90)",
+            "flow": "Signal -> Predictor -> Prediction -> Snapshot -> Notify (immediate)"
+          }
+        },
+        {
+          "id": "step-5-8",
+          "action": "Implement Snapshot service for explainability",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-5-3"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/services/snapshot.service.ts",
+            "apps/api/src/prediction-runner/interfaces/snapshot.interface.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "captures": [
+              "predictors with analyst assessments",
+              "rejected signals (and why)",
+              "each analyst's individual assessment",
+              "each LLM tier's assessment",
+              "learnings that were applied",
+              "threshold evaluation details",
+              "complete timeline"
+            ]
+          }
+        },
+        {
+          "id": "step-5-9",
+          "action": "Implement Review Queue service for HITL",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-5-1"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/services/review-queue.service.ts",
+            "apps/api/src/prediction-runner/dto/review-queue.dto.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "flow": "Signals with confidence 0.4-0.7 go to queue, human approves/rejects/modifies async",
+            "key_methods": [
+              "queueForReview(signal, assessment)",
+              "handleReviewResponse(reviewId, response): creates predictor if approved, optional learning"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "phase-6",
+      "label": "Source Management & Firecrawl",
+      "description": "Implement Firecrawl integration and source crawler services",
+      "status": "completed",
+      "progress": 100,
+      "started_at": "2026-01-09T06:30:00Z",
+      "completed_at": "2026-01-09T06:50:00Z",
+      "steps": [
+        {
+          "id": "step-6-1",
+          "action": "Implement Firecrawl integration service",
+          "agent": "api-architecture-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-09T06:30:00Z",
+          "completed_at": "2026-01-09T06:35:00Z",
+          "depends_on": ["step-4-1"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/services/firecrawl.service.ts",
+            "apps/api/src/prediction-runner/interfaces/crawl-config.interface.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "source_types": ["web", "rss", "twitter_search", "api"],
+            "features": [
+              "URL validation",
+              "CSS selector support",
+              "Wait for element (JS pages)",
+              "Auth config for paywalled sources"
+            ]
+          }
+        },
+        {
+          "id": "step-6-2",
+          "action": "Implement Source Crawler service with deduplication",
+          "agent": "api-architecture-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-09T06:35:00Z",
+          "completed_at": "2026-01-09T06:40:00Z",
+          "depends_on": ["step-6-1"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/services/source-crawler.service.ts",
+            "apps/api/src/prediction-runner/services/content-hash.service.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "key_methods": [
+              "crawlSource(source): fetch, extract, dedupe, create signals",
+              "calculateContentHash(item): SHA-256 hash of normalized content",
+              "checkCrossSourceDuplicate(item, targetId): prevents duplicate signals from multiple sources"
+            ],
+            "deduplication": "Uses source_seen_items table with content_hash"
+          }
+        },
+        {
+          "id": "step-6-3",
+          "action": "Implement Target Snapshot service for price history",
+          "agent": "api-architecture-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-09T06:40:00Z",
+          "completed_at": "2026-01-09T06:43:00Z",
+          "depends_on": ["step-4-1"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/services/target-snapshot.service.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "description": "Captures target values for miss detection and outcome tracking",
+            "integrations": ["Polygon for stocks", "CoinGecko for crypto"]
+          }
+        },
+        {
+          "id": "step-6-4",
+          "action": "Implement Strategy service with application logic",
+          "agent": "api-architecture-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-09T06:43:00Z",
+          "completed_at": "2026-01-09T06:46:00Z",
+          "depends_on": ["step-2-2", "step-4-1"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/services/strategy.service.ts",
+            "apps/api/src/prediction-runner/interfaces/strategy.interface.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "key_methods": [
+              "getStrategy(strategyId): returns strategy with parameters",
+              "applyStrategy(universe, strategy): adjusts thresholds and analyst weights"
+            ]
+          }
+        },
+        {
+          "id": "step-6-5",
+          "action": "Implement Tool Request service for source wishlist",
+          "agent": "api-architecture-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-09T06:46:00Z",
+          "completed_at": "2026-01-09T06:50:00Z",
+          "depends_on": ["step-5-6"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/services/tool-request.service.ts",
+            "apps/api/src/prediction-runner/dto/tool-request.dto.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "description": "Manages tool/source wishlist from missed opportunity analysis",
+            "statuses": ["wishlist", "planned", "in_progress", "done", "rejected"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "phase-7",
+      "label": "Batch Processing Runners",
+      "description": "Implement cron job runners for batch processing",
+      "status": "completed",
+      "progress": 100,
+      "started_at": "2026-01-09T06:50:00Z",
+      "completed_at": "2026-01-09T07:15:00Z",
+      "steps": [
+        {
+          "id": "step-7-1",
+          "action": "Implement Source Crawler runner with frequency-based scheduling",
+          "agent": "api-architecture-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-09T06:50:00Z",
+          "completed_at": "2026-01-09T06:55:00Z",
+          "depends_on": ["step-6-2"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/runners/source-crawler.runner.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "frequencies": [
+              "*/5 * * * *: 5-minute sources (breaking news)",
+              "*/10 * * * *: 10-minute sources",
+              "*/15 * * * *: 15-minute sources (default)",
+              "*/30 * * * *: 30-minute sources",
+              "0 * * * *: hourly sources"
+            ],
+            "failure_handling": "Exponential backoff with max 5 retries"
+          }
+        },
+        {
+          "id": "step-7-2",
+          "action": "Implement Batch Signal Processor runner",
+          "agent": "api-architecture-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-09T06:55:00Z",
+          "completed_at": "2026-01-09T06:58:00Z",
+          "depends_on": ["step-5-1"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/runners/batch-signal-processor.runner.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "schedule": "*/15 * * * * (every 15 minutes)",
+            "function": "Signal -> Predictor batch processing",
+            "concurrency": "Atomic signal claiming with FOR UPDATE SKIP LOCKED"
+          }
+        },
+        {
+          "id": "step-7-3",
+          "action": "Implement Batch Prediction Generator runner",
+          "agent": "api-architecture-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-09T06:58:00Z",
+          "completed_at": "2026-01-09T07:01:00Z",
+          "depends_on": ["step-5-3"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/runners/batch-prediction-generator.runner.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "schedule": "*/30 * * * * (every 30 minutes)",
+            "function": "Predictor -> Prediction when thresholds met"
+          }
+        },
+        {
+          "id": "step-7-4",
+          "action": "Implement Outcome Tracking runner",
+          "agent": "api-architecture-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-09T07:01:00Z",
+          "completed_at": "2026-01-09T07:04:00Z",
+          "depends_on": ["step-5-4", "step-6-3"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/runners/outcome-tracking.runner.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "schedule": "*/15 * * * * (every 15 minutes)",
+            "function": "Capture outcomes, resolve predictions, check expirations"
+          }
+        },
+        {
+          "id": "step-7-5",
+          "action": "Implement Evaluation runner",
+          "agent": "api-architecture-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-09T07:04:00Z",
+          "completed_at": "2026-01-09T07:07:00Z",
+          "depends_on": ["step-5-5"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/runners/evaluation.runner.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "schedule": "0 * * * * (every hour)",
+            "function": "Evaluate resolved predictions, generate learning suggestions"
+          }
+        },
+        {
+          "id": "step-7-6",
+          "action": "Implement Missed Opportunity Scanner runner",
+          "agent": "api-architecture-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-09T07:07:00Z",
+          "completed_at": "2026-01-09T07:10:00Z",
+          "depends_on": ["step-5-6"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/runners/missed-opportunity-scanner.runner.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "schedule": "0 */4 * * * (every 4 hours)",
+            "function": "Detect significant moves without predictions, trigger analysis"
+          }
+        },
+        {
+          "id": "step-7-7",
+          "action": "Implement Predictor/Signal Expiration runner",
+          "agent": "api-architecture-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-09T07:10:00Z",
+          "completed_at": "2026-01-09T07:15:00Z",
+          "depends_on": ["step-5-2"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/runners/expiration.runner.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "schedule": "0 * * * * (every hour)",
+            "function": "Expire stale predictors and signals based on TTL"
+          }
+        }
+      ]
+    },
+    {
+      "id": "phase-8",
+      "label": "A2A Dashboard Mode Task Routing",
+      "description": "Create A2A dashboard mode task router and handlers for all prediction entities (NO REST controllers)",
+      "status": "pending",
+      "progress": 0,
+      "started_at": null,
+      "completed_at": null,
+      "steps": [
+        {
+          "id": "step-8-1",
+          "action": "Create dashboard mode task router for prediction agent",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-3-3", "step-4-2"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/task-router/prediction-dashboard.router.ts",
+            "apps/api/src/prediction-runner/task-router/dashboard-handler.interface.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "description": "Routes dashboard mode requests to appropriate handlers based on entity and action",
+            "route_pattern": "method: 'dashboard.<resource>.<operation>', params.mode: 'dashboard', payload.action: '<resource>.<operation>' (NO payload.entity). Example: method='dashboard.universes.list', payload.action='universes.list'",
+            "transport_types": "Uses DashboardRequestPayload and DashboardResponsePayload from transport-types"
+          }
+        },
+        {
+          "id": "step-8-2",
+          "action": "Implement universe dashboard handlers",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-8-1"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/task-router/handlers/universe.handler.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "actions": ["list", "get", "create", "update", "delete"],
+            "a2a_route": "POST /agent-to-agent/:orgSlug/prediction-runner/tasks",
+            "request_example": {
+              "method": "dashboard.universes.list",
+              "params": {
+                "mode": "dashboard",
+                "payload": {"action": "universes.list", "filters": {}},
+                "context": "ExecutionContext"
+              }
+            }
+          }
+        },
+        {
+          "id": "step-8-3",
+          "action": "Implement target dashboard handlers",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-8-1"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/task-router/handlers/target.handler.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "actions": ["list", "get", "create", "update", "delete"],
+            "note": "list supports filtering by universeId"
+          }
+        },
+        {
+          "id": "step-8-4",
+          "action": "Implement prediction dashboard handlers with snapshot",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-8-1", "step-5-8"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/task-router/handlers/prediction.handler.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "actions": ["list", "get", "getSnapshot"],
+            "note": "getSnapshot returns full explainability data from snapshots table"
+          }
+        },
+        {
+          "id": "step-8-5",
+          "action": "Implement source dashboard handlers with test-crawl",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-8-1", "step-6-2"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/task-router/handlers/source.handler.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "actions": ["list", "get", "create", "update", "delete", "testCrawl"],
+            "note": "testCrawl runs single crawl and returns results without persisting signals"
+          }
+        },
+        {
+          "id": "step-8-6",
+          "action": "Implement analyst dashboard handlers",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-8-1", "step-4-3"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/task-router/handlers/analyst.handler.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "actions": ["list", "get", "create", "update", "delete"],
+            "note": "list supports filtering by scope_level, domain, universe_id"
+          }
+        },
+        {
+          "id": "step-8-7",
+          "action": "Implement learning and learning queue dashboard handlers",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-8-1", "step-4-6"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/task-router/handlers/learning.handler.ts",
+            "apps/api/src/prediction-runner/task-router/handlers/learning-queue.handler.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "learning_actions": ["list", "get", "create", "update", "delete"],
+            "queue_actions": ["list", "get", "respond"],
+            "note": "respond action approves/rejects AI-suggested learnings"
+          }
+        },
+        {
+          "id": "step-8-8",
+          "action": "Implement review queue dashboard handlers",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-8-1", "step-5-9"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/task-router/handlers/review-queue.handler.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "actions": ["list", "get", "respond"],
+            "note": "respond action handles HITL approval/rejection/modification"
+          }
+        },
+        {
+          "id": "step-8-9",
+          "action": "Implement strategy dashboard handlers",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-8-1", "step-6-4"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/task-router/handlers/strategy.handler.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "actions": ["list"],
+            "note": "Read-only for system strategies"
+          }
+        },
+        {
+          "id": "step-8-10",
+          "action": "Implement missed opportunity and tool request dashboard handlers",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-8-1", "step-5-6", "step-6-5"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/task-router/handlers/missed-opportunity.handler.ts",
+            "apps/api/src/prediction-runner/task-router/handlers/tool-request.handler.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "missed_opp_actions": ["list", "get"],
+            "tool_request_actions": ["list", "create", "updateStatus"]
+          }
+        },
+        {
+          "id": "step-8-11",
+          "action": "Register prediction-runner agent for dashboard mode in public.agents",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-8-1"],
+          "deliverables": [
+            "apps/api/supabase/seeds/prediction_runner_agent.sql"
+          ],
+          "validation_checkpoint": "checkpoint-db-migration",
+          "human_checkpoint_id": null,
+          "details": {
+            "agent_record": {
+              "slug": "prediction-runner",
+              "agent_type": "context",
+              "metadata": {
+                "supportedModes": ["dashboard", "converse"],
+                "dashboardEntities": ["universe", "target", "prediction", "source", "analyst", "learning", "learning_queue", "review_queue", "strategy", "missed_opportunity", "tool_request"]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "phase-9",
+      "label": "Notifications & Streaming",
+      "description": "Implement notification service and SSE streaming",
+      "status": "completed",
+      "progress": 100,
+      "started_at": "2026-01-09T13:45:00Z",
+      "completed_at": "2026-01-09T14:20:00Z",
+      "steps": [
+        {
+          "id": "step-9-1",
+          "action": "Implement Notification service with configurable channels",
+          "agent": "api-architecture-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-09T13:45:00Z",
+          "completed_at": "2026-01-09T14:00:00Z",
+          "depends_on": ["step-5-3"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/services/notification.service.ts",
+            "apps/api/src/prediction-runner/interfaces/notification.interface.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "notification_types": [
+              "urgent_prediction",
+              "new_prediction",
+              "prediction_resolved",
+              "review_pending",
+              "learning_suggested",
+              "missed_opportunity"
+            ],
+            "channels": ["push", "sms", "email", "sse"]
+          }
+        },
+        {
+          "id": "step-9-2",
+          "action": "Implement SSE streaming using existing ObservabilityEventsService",
+          "agent": "api-architecture-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-09T14:00:00Z",
+          "completed_at": "2026-01-09T14:20:00Z",
+          "depends_on": ["step-9-1"],
+          "deliverables": [
+            "apps/api/src/prediction-runner/services/prediction-streaming.service.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "endpoint": "GET /agent-to-agent/:orgSlug/:agentSlug/tasks/:taskId/stream (existing)",
+            "events": [
+              "agent.stream.chunk: Signal processing, predictor creation, prediction generation",
+              "agent.stream.complete: Prediction finalized",
+              "agent.stream.error: Processing failures"
+            ],
+            "metadata_schema": "PredictionProgressMetadata"
+          }
+        }
+      ]
+    },
+    {
+      "id": "phase-10",
+      "label": "Web UI - Core Views",
+      "description": "Create Vue.js views and components for prediction dashboard",
+      "status": "pending",
+      "progress": 0,
+      "started_at": null,
+      "completed_at": null,
+      "steps": [
+        {
+          "id": "step-10-1",
+          "action": "Create prediction A2A service using dashboard mode",
+          "agent": "web-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-8-4"],
+          "deliverables": [
+            "apps/web/src/services/prediction-a2a.service.ts",
+            "apps/web/src/stores/prediction.store.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "description": "Service calls A2A dashboard mode endpoint, NOT REST endpoints",
+            "endpoint": "POST /agent-to-agent/:orgSlug/prediction-runner/tasks",
+            "transport_types": "Uses DashboardRequestPayload/DashboardResponsePayload from @orchestrator-ai/transport-types"
+          }
+        },
+        {
+          "id": "step-10-2",
+          "action": "Create Prediction Dashboard view with active predictions list",
+          "agent": "web-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-10-1"],
+          "deliverables": [
+            "apps/web/src/views/prediction/PredictionDashboard.vue",
+            "apps/web/src/components/prediction/PredictionCard.vue",
+            "apps/web/src/components/prediction/LLMComparisonBadge.vue"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "features": [
+              "Active predictions list",
+              "Color-coded LLM agreement badges (Gold/Silver/Bronze)",
+              "Filter by universe, domain, status"
+            ]
+          }
+        },
+        {
+          "id": "step-10-3",
+          "action": "Create Prediction Detail view with full explainability",
+          "agent": "web-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-10-2"],
+          "deliverables": [
+            "apps/web/src/views/prediction/PredictionDetail.vue",
+            "apps/web/src/components/prediction/PredictorList.vue",
+            "apps/web/src/components/prediction/AnalystBreakdown.vue",
+            "apps/web/src/components/prediction/LLMEnsembleView.vue",
+            "apps/web/src/components/prediction/LearningsApplied.vue",
+            "apps/web/src/components/prediction/ThresholdEvaluation.vue",
+            "apps/web/src/components/prediction/PredictionTimeline.vue"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "sections": [
+              "All predictors that contributed",
+              "Signals considered but rejected (and why)",
+              "Each analyst's individual assessment",
+              "Each LLM tier's assessment",
+              "Learnings that were applied",
+              "Threshold evaluation details",
+              "Complete timeline"
+            ]
+          }
+        },
+        {
+          "id": "step-10-4",
+          "action": "Create Target Detail view with signals and predictors",
+          "agent": "web-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-10-1"],
+          "deliverables": [
+            "apps/web/src/views/prediction/TargetDetail.vue",
+            "apps/web/src/components/prediction/SignalList.vue"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-10-5",
+          "action": "Create Universe Management view",
+          "agent": "web-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-10-1"],
+          "deliverables": [
+            "apps/web/src/views/prediction/UniverseManagement.vue",
+            "apps/web/src/components/prediction/UniverseCard.vue",
+            "apps/web/src/components/prediction/UniverseForm.vue",
+            "apps/web/src/components/prediction/StrategySelector.vue",
+            "apps/web/src/stores/universe.store.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null
+        }
+      ]
+    },
+    {
+      "id": "phase-11",
+      "label": "Web UI - Configuration",
+      "description": "Create views for analysts, sources, learnings, and review queues",
+      "status": "pending",
+      "progress": 0,
+      "started_at": null,
+      "completed_at": null,
+      "steps": [
+        {
+          "id": "step-11-1",
+          "action": "Create Analyst Management view with templates",
+          "agent": "web-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-8-6"],
+          "deliverables": [
+            "apps/web/src/views/prediction/AnalystManagement.vue",
+            "apps/web/src/components/prediction/AnalystCard.vue",
+            "apps/web/src/components/prediction/AnalystForm.vue",
+            "apps/web/src/components/prediction/AnalystTemplates.vue",
+            "apps/web/src/stores/analyst.store.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "templates": [
+              "Technical Analyst",
+              "Fundamental Analyst",
+              "Supply Chain Specialist",
+              "Sector Analyst",
+              "News Sentiment Analyst"
+            ]
+          }
+        },
+        {
+          "id": "step-11-2",
+          "action": "Create Source Management view with wizard",
+          "agent": "web-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-8-5"],
+          "deliverables": [
+            "apps/web/src/views/prediction/SourceManagement.vue",
+            "apps/web/src/components/prediction/SourceCard.vue",
+            "apps/web/src/components/prediction/SourceWizard.vue",
+            "apps/web/src/components/prediction/SourceTestCrawl.vue",
+            "apps/web/src/stores/source.store.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "wizard_flow": [
+              "Enter URL",
+              "Test crawl",
+              "Configure frequency and filters",
+              "Save source"
+            ]
+          }
+        },
+        {
+          "id": "step-11-3",
+          "action": "Create Learnings Management view with scope guide",
+          "agent": "web-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-8-7"],
+          "deliverables": [
+            "apps/web/src/views/prediction/LearningsManagement.vue",
+            "apps/web/src/components/prediction/LearningCard.vue",
+            "apps/web/src/components/prediction/LearningForm.vue",
+            "apps/web/src/components/prediction/LearningScopeGuide.vue",
+            "apps/web/src/stores/learning.store.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "scope_guide": "Helps users understand where to apply learnings (target vs universe vs domain)"
+          }
+        },
+        {
+          "id": "step-11-4",
+          "action": "Create Review Queue view for HITL",
+          "agent": "web-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-8-8"],
+          "deliverables": [
+            "apps/web/src/views/prediction/ReviewQueue.vue",
+            "apps/web/src/components/prediction/ReviewQueueItem.vue",
+            "apps/web/src/stores/review-queue.store.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "actions": ["Approve", "Reject", "Modify with strength override", "Add learning note"]
+          }
+        },
+        {
+          "id": "step-11-5",
+          "action": "Create Learning Queue view for AI suggestions",
+          "agent": "web-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-8-7"],
+          "deliverables": [
+            "apps/web/src/views/prediction/LearningQueue.vue",
+            "apps/web/src/components/prediction/LearningQueueItem.vue"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-11-6",
+          "action": "Create Missed Opportunities view",
+          "agent": "web-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-8-10"],
+          "deliverables": [
+            "apps/web/src/views/prediction/MissedOpportunities.vue",
+            "apps/web/src/components/prediction/MissedOpportunityCard.vue",
+            "apps/web/src/components/prediction/MissedOpportunityAnalysis.vue",
+            "apps/web/src/stores/missed-opportunity.store.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-11-7",
+          "action": "Create Tool Wishlist view",
+          "agent": "web-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-8-10"],
+          "deliverables": [
+            "apps/web/src/views/prediction/ToolWishlist.vue",
+            "apps/web/src/components/prediction/ToolRequestCard.vue",
+            "apps/web/src/stores/tool-request.store.ts"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-11-8",
+          "action": "Create LLM Cost Dashboard widget",
+          "agent": "web-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-10-2"],
+          "deliverables": [
+            "apps/web/src/components/prediction/LLMCostWidget.vue"
+          ],
+          "validation_checkpoint": "checkpoint-quality-gates",
+          "human_checkpoint_id": null,
+          "details": {
+            "displays": [
+              "Cost by tier (Gold/Silver/Bronze)",
+              "Cost by universe",
+              "Cost trend chart",
+              "Cost optimization suggestions"
+            ],
+            "data_source": "Queries public.llm_usage via A2A dashboard mode"
+          }
+        }
+      ]
+    }
+  ],
+  "checkpoints": [
+    {
+      "id": "checkpoint-db-migration",
+      "label": "Database Migration",
+      "description": "Run database migration and verify schema changes",
+      "status": "pending",
+      "validation": {
+        "commands": [
+          "cd apps/api && npm run db:migrate",
+          "cd apps/api && npm run db:types"
+        ],
+        "success_criteria": [
+          "Migration applied successfully",
+          "Types generated without errors"
+        ]
+      },
+      "triggered_after": []
+    },
+    {
+      "id": "checkpoint-quality-gates",
+      "label": "Quality Gates",
+      "description": "Run lint, build, and tests",
+      "status": "pending",
+      "validation": {
+        "commands": [
+          "npm run lint",
+          "npm run build",
+          "npm run test"
+        ],
+        "success_criteria": [
+          "No lint errors",
+          "Build succeeds",
+          "All tests pass"
+        ]
+      },
+      "triggered_after": []
+    },
+    {
+      "id": "checkpoint-phase-1-complete",
+      "label": "Phase 1 Complete",
+      "description": "Core database schema created with all constraints",
+      "status": "pending",
+      "validation": {
+        "manual_checks": [
+          "prediction schema exists",
+          "All core tables created with proper constraints",
+          "RLS policies applied",
+          "Direction validation triggers working"
+        ]
+      },
+      "triggered_after": ["step-1-6"]
+    },
+    {
+      "id": "checkpoint-transport-types-complete",
+      "label": "Transport Types Complete",
+      "description": "Dashboard mode types added to transport-types package",
+      "status": "pending",
+      "validation": {
+        "manual_checks": [
+          "AgentTaskMode.DASHBOARD exists in enums",
+          "DashboardRequestPayload and DashboardResponsePayload exported",
+          "npm run build passes for transport-types"
+        ]
+      },
+      "triggered_after": ["step-3-3"]
+    },
+    {
+      "id": "checkpoint-phase-5-complete",
+      "label": "Phase 5 Complete",
+      "description": "Processing pipeline operational",
+      "status": "pending",
+      "validation": {
+        "manual_checks": [
+          "Tier 1-6 services working",
+          "Fast path processing working",
+          "Snapshot creation working",
+          "Review queue functional"
+        ]
+      },
+      "triggered_after": ["step-5-9"]
+    },
+    {
+      "id": "checkpoint-a2a-dashboard-complete",
+      "label": "A2A Dashboard Mode Complete",
+      "description": "All dashboard mode handlers operational via A2A endpoint",
+      "status": "pending",
+      "validation": {
+        "manual_checks": [
+          "prediction-runner agent registered in public.agents",
+          "All entity handlers responding to dashboard mode requests",
+          "POST /agent-to-agent/:orgSlug/prediction-runner/tasks accepts dashboard mode"
+        ]
+      },
+      "triggered_after": ["step-8-11"]
+    },
+    {
+      "id": "checkpoint-phase-10-complete",
+      "label": "Phase 10 Complete",
+      "description": "Core web UI operational using A2A dashboard mode",
+      "status": "pending",
+      "validation": {
+        "manual_checks": [
+          "Dashboard shows predictions with LLM badges",
+          "Prediction detail shows full explainability",
+          "Universe management functional",
+          "Web uses A2A endpoint, NOT REST endpoints"
+        ]
+      },
+      "triggered_after": ["step-10-5"]
+    },
+    {
+      "id": "checkpoint-full-system",
+      "label": "Full System Complete",
+      "description": "End-to-end prediction system operational",
+      "status": "pending",
+      "validation": {
+        "manual_checks": [
+          "Source -> Signal -> Predictor -> Prediction -> Outcome -> Learning flow works",
+          "Multi-analyst, multi-LLM evaluation working",
+          "Missed opportunity detection working",
+          "All UI views functional via A2A dashboard mode"
+        ]
+      },
+      "triggered_after": ["step-11-8"]
+    }
+  ],
+  "dependencies": {
+    "phase-2": ["phase-1"],
+    "phase-3": [],
+    "phase-4": ["phase-1", "phase-2"],
+    "phase-5": ["phase-4"],
+    "phase-6": ["phase-4"],
+    "phase-7": ["phase-5", "phase-6"],
+    "phase-8": ["phase-3", "phase-4", "phase-5", "phase-6"],
+    "phase-9": ["phase-5"],
+    "phase-10": ["phase-8"],
+    "phase-11": ["phase-8", "phase-10"]
+  },
+  "execution_strategy": {
+    "mode": "mixed",
+    "parallel_phases": [
+      ["phase-1", "phase-3"],
+      ["phase-5", "phase-6"],
+      ["phase-10", "phase-11"]
+    ],
+    "notes": [
+      "Phase 1 (DB schema) and Phase 3 (transport-types) can run in parallel (no dependency)",
+      "Phase 2 depends on Phase 1",
+      "Phase 4 (core services) depends on Phases 1 and 2",
+      "Phases 5 (pipeline) and 6 (sources) can run in parallel after Phase 4",
+      "Phase 7 (runners) depends on both 5 and 6",
+      "Phase 8 (A2A dashboard) depends on transport-types (3), services (4), pipeline (5), sources (6)",
+      "Phase 9 (notifications) depends on pipeline (5)",
+      "Phases 10 and 11 (web UI) depend on Phase 8 (A2A dashboard mode)",
+      "NO REST CONTROLLERS - all web UI uses A2A dashboard mode"
+    ]
+  },
+  "agent_summary": {
+    "api-architecture-agent": {
+      "step_count": 58,
+      "description": "Database migrations, transport-types, services, runners, A2A dashboard handlers"
+    },
+    "web-architecture-agent": {
+      "step_count": 18,
+      "description": "Vue components, views, stores, services (all using A2A dashboard mode)"
+    }
+  },
+  "estimated_deliverables": {
+    "database_tables": 18,
+    "database_views": 1,
+    "database_functions": 4,
+    "database_triggers": 6,
+    "transport_types_files": 2,
+    "api_services": 22,
+    "api_dashboard_handlers": 11,
+    "api_runners": 7,
+    "api_repositories": 5,
+    "web_views": 12,
+    "web_components": 35,
+    "web_stores": 8
+  }
+}

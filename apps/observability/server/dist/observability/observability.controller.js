@@ -30,17 +30,20 @@ let ObservabilityController = ObservabilityController_1 = class ObservabilityCon
     }
     async handleHook(hookData) {
         try {
+            const sessionIdFromPayload = hookData.payload?.session_id;
+            const sessionId = hookData.session_id ||
+                hookData.sessionId ||
+                (typeof sessionIdFromPayload === 'string' ? sessionIdFromPayload : null) ||
+                'unknown';
+            const payload = hookData.payload || {};
             const event = {
                 source_app: hookData.source_app || hookData.sourceApp || 'unknown',
-                session_id: hookData.session_id ||
-                    hookData.sessionId ||
-                    hookData.payload?.session_id ||
-                    'unknown',
+                session_id: sessionId,
                 hook_event_type: hookData.event_type ||
                     hookData.hook_event_type ||
                     hookData.eventType ||
                     'Unknown',
-                payload: hookData.payload || hookData,
+                payload,
                 timestamp: hookData.timestamp || Date.now(),
                 summary: hookData.summary,
                 chat: hookData.chat,

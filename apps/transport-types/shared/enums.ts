@@ -14,6 +14,9 @@ export enum AgentTaskMode {
 
   /** Human-in-the-Loop operations */
   HITL = 'hitl',
+
+  /** Dashboard data access operations */
+  DASHBOARD = 'dashboard',
 }
 
 /**
@@ -34,6 +37,9 @@ export type JsonRpcMethod =
   | 'hitl.resume'
   | 'hitl.status'
   | 'hitl.history'
+  | 'dashboard'
+  | 'agent.dashboard'
+  | 'tasks.dashboard'
   | string; // Allow extension
 
 /**

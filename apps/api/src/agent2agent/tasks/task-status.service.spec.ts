@@ -1,14 +1,13 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
 import { Test, TestingModule } from '@nestjs/testing';
-import { TaskStatusService, TaskStatusState } from './task-status.service';
+import { TaskStatusService } from './task-status.service';
+import type { TaskStatusState as _TaskStatusState } from './task-status.service';
 import { SupabaseService } from '@/supabase/supabase.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { TaskMessageService } from './task-message.service';
 
 describe('TaskStatusService', () => {
   let service: TaskStatusService;
-  let supabaseService: jest.Mocked<SupabaseService>;
+  let _supabaseService: jest.Mocked<SupabaseService>;
   let eventEmitter: jest.Mocked<EventEmitter2>;
   let taskMessageService: jest.Mocked<TaskMessageService>;
 
@@ -47,7 +46,7 @@ describe('TaskStatusService', () => {
     }).compile();
 
     service = module.get<TaskStatusService>(TaskStatusService);
-    supabaseService = module.get(SupabaseService);
+    _supabaseService = module.get(SupabaseService);
     eventEmitter = module.get(EventEmitter2);
     taskMessageService = module.get(TaskMessageService);
 

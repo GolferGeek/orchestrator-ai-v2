@@ -627,11 +627,11 @@ async def create_source(
 
 
 @router.post("/sources/json", response_model=SourceResponse)
-async def create_source_json(source_data: SourceCreate):
+async def create_source_json(request: Request, source_data: SourceCreate):
     """Create a new source using JSON payload (legacy endpoint for backward compatibility)."""
     # Convert to form data format and call main endpoint
     form_data = (source_data, None)
-    return await create_source(form_data)
+    return await create_source(request, form_data)
 
 
 async def _resolve_source_file(source_id: str) -> tuple[str, str]:

@@ -124,17 +124,18 @@ function isValidColor(color) {
     return namedColors.includes(color.toLowerCase());
 }
 function sanitizeTheme(theme) {
+    const themeObj = theme;
     return {
-        name: theme.name?.toString().toLowerCase().replace(/[^a-z0-9-_]/g, '') || '',
-        displayName: theme.displayName?.toString().trim() || '',
-        description: theme.description?.toString().trim() || '',
-        colors: theme.colors || {},
-        isPublic: Boolean(theme.isPublic),
-        tags: Array.isArray(theme.tags)
-            ? theme.tags.filter((tag) => typeof tag === 'string' && tag.trim())
+        name: themeObj.name?.toString().toLowerCase().replace(/[^a-z0-9-_]/g, '') || '',
+        displayName: themeObj.displayName?.toString().trim() || '',
+        description: themeObj.description?.toString().trim() || '',
+        colors: themeObj.colors || {},
+        isPublic: Boolean(themeObj.isPublic),
+        tags: Array.isArray(themeObj.tags)
+            ? themeObj.tags.filter((tag) => typeof tag === 'string' && tag.trim())
             : [],
-        authorId: theme.authorId?.toString() || undefined,
-        authorName: theme.authorName?.toString() || undefined,
+        authorId: themeObj.authorId?.toString() || undefined,
+        authorName: themeObj.authorName?.toString() || undefined,
     };
 }
 async function createTheme(themeData) {
@@ -357,16 +358,17 @@ async function exportThemeById(id) {
 }
 async function importTheme(importData, authorId) {
     try {
-        if (!importData.theme) {
+        const data = importData;
+        if (!data.theme) {
             return {
                 success: false,
                 error: 'Invalid import data - missing theme',
             };
         }
         const themeData = {
-            ...importData.theme,
+            ...data.theme,
             authorId,
-            authorName: importData.theme.authorName || 'Imported',
+            authorName: data.theme.authorName || 'Imported',
             isPublic: false,
         };
         return await createTheme(themeData);

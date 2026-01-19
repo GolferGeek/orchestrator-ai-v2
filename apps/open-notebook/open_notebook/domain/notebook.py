@@ -27,6 +27,8 @@ class Notebook(ObjectModel):
         return v
 
     async def get_sources(self) -> List["Source"]:
+        if self.id is None:
+            raise InvalidInputError("Cannot get sources for notebook without ID")
         try:
             srcs = await repo_query(
                 """
@@ -44,6 +46,8 @@ class Notebook(ObjectModel):
             raise DatabaseOperationError(e)
 
     async def get_notes(self) -> List["Note"]:
+        if self.id is None:
+            raise InvalidInputError("Cannot get notes for notebook without ID")
         try:
             srcs = await repo_query(
                 """
@@ -61,6 +65,8 @@ class Notebook(ObjectModel):
             raise DatabaseOperationError(e)
 
     async def get_chat_sessions(self) -> List["ChatSession"]:
+        if self.id is None:
+            raise InvalidInputError("Cannot get chat sessions for notebook without ID")
         try:
             srcs = await repo_query(
                 """
@@ -96,6 +102,8 @@ class SourceEmbedding(ObjectModel):
     content: str
 
     async def get_source(self) -> "Source":
+        if self.id is None:
+            raise InvalidInputError("Cannot get source for embedding without ID")
         try:
             src = await repo_query(
                 """
@@ -116,6 +124,8 @@ class SourceInsight(ObjectModel):
     content: str
 
     async def get_source(self) -> "Source":
+        if self.id is None:
+            raise InvalidInputError("Cannot get source for insight without ID")
         try:
             src = await repo_query(
                 """
@@ -229,6 +239,8 @@ class Source(ObjectModel):
             return dict(id=self.id, title=self.title, insights=insights)
 
     async def get_embedded_chunks(self) -> int:
+        if self.id is None:
+            raise InvalidInputError("Cannot get embedded chunks for source without ID")
         try:
             result = await repo_query(
                 """
@@ -245,6 +257,8 @@ class Source(ObjectModel):
             raise DatabaseOperationError(f"Failed to count chunks for source: {str(e)}")
 
     async def get_insights(self) -> List[SourceInsight]:
+        if self.id is None:
+            raise InvalidInputError("Cannot get insights for source without ID")
         try:
             result = await repo_query(
                 """
@@ -310,6 +324,8 @@ class Source(ObjectModel):
             raise DatabaseOperationError(e)
 
     async def add_insight(self, insight_type: str, content: str) -> Any:
+        if self.id is None:
+            raise InvalidInputError("Cannot add insight to source without ID")
         EMBEDDING_MODEL = await model_manager.get_embedding_model()
         if not EMBEDDING_MODEL:
             logger.warning("No embedding model found. Insight will not be searchable.")

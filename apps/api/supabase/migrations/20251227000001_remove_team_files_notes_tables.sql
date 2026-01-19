@@ -7,11 +7,31 @@
 -- ============================================
 -- Step 1: Remove from Realtime publication
 -- ============================================
--- Remove team_files from realtime publication
-ALTER PUBLICATION supabase_realtime DROP TABLE IF EXISTS orch_flow.team_files;
+-- Remove team_files from realtime publication (if exists)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+    AND schemaname = 'orch_flow'
+    AND tablename = 'team_files'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime DROP TABLE orch_flow.team_files;
+  END IF;
+END $$;
 
--- Remove team_notes from realtime publication
-ALTER PUBLICATION supabase_realtime DROP TABLE IF EXISTS orch_flow.team_notes;
+-- Remove team_notes from realtime publication (if exists)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+    AND schemaname = 'orch_flow'
+    AND tablename = 'team_notes'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime DROP TABLE orch_flow.team_notes;
+  END IF;
+END $$;
 
 
 -- ============================================

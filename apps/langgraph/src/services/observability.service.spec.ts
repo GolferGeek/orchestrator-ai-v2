@@ -29,7 +29,7 @@ const describeIntegration = shouldRunIntegration ? describe : describe.skip;
 describe("ObservabilityService - Unit Tests", () => {
   let service: ObservabilityService;
   let httpService: jest.Mocked<HttpService>;
-  let configService: jest.Mocked<ConfigService>;
+  let _configService: jest.Mocked<ConfigService>;
 
   // Helper to create mock Axios response
   const createMockAxiosResponse = <T = unknown>(
@@ -71,7 +71,7 @@ describe("ObservabilityService - Unit Tests", () => {
 
     service = module.get<ObservabilityService>(ObservabilityService);
     httpService = module.get(HttpService);
-    configService = module.get(ConfigService);
+    _configService = module.get(ConfigService);
   });
 
   afterEach(() => {

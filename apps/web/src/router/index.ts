@@ -314,6 +314,239 @@ const routes: Array<RouteRecordRaw> = [
           title: 'Legal Department AI',
           description: 'Legal document analysis and risk assessment'
         }
+      },
+      // Prediction Runner Dashboard Routes
+      {
+        path: 'prediction/dashboard',
+        name: 'PredictionDashboard',
+        component: () => import('../views/prediction/PredictionDashboard.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Prediction Dashboard',
+          description: 'View and manage predictions'
+        }
+      },
+      {
+        path: 'prediction/test-lab',
+        name: 'TestLab',
+        component: () => import('../views/prediction/TestLabView.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Test Lab',
+          description: 'Build and manage test scenarios for the prediction system'
+        }
+      },
+      {
+        path: 'prediction/portfolios',
+        name: 'PortfolioManagement',
+        component: () => import('../views/prediction/UniverseManagement.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Portfolio Management',
+          description: 'Manage prediction portfolios and targets'
+        }
+      },
+      {
+        path: 'prediction/portfolio/:id',
+        name: 'PortfolioDetail',
+        component: () => import('../views/prediction/PortfolioDetail.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Portfolio Detail',
+          description: 'View and manage portfolio instruments'
+        }
+      },
+      {
+        path: 'prediction/review-queue',
+        name: 'ReviewQueue',
+        component: () => import('../views/prediction/ReviewQueue.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Review Queue',
+          description: 'Review and approve predictions'
+        }
+      },
+      {
+        path: 'prediction/learning-queue',
+        name: 'LearningQueue',
+        component: () => import('../views/prediction/LearningQueue.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Learning Queue',
+          description: 'Review and approve learnings'
+        }
+      },
+      {
+        path: 'prediction/learnings',
+        name: 'LearningsManagement',
+        component: () => import('../views/prediction/LearningsManagement.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Learnings Management',
+          description: 'Manage system learnings'
+        }
+      },
+      {
+        path: 'prediction/analysts',
+        name: 'AnalystManagement',
+        component: () => import('../views/prediction/AnalystManagement.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Analyst Management',
+          description: 'Manage prediction analysts'
+        }
+      },
+      {
+        path: 'prediction/tool-wishlist',
+        name: 'ToolWishlist',
+        component: () => import('../views/prediction/ToolWishlist.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Tool Wishlist',
+          description: 'View requested tools and capabilities'
+        }
+      },
+      {
+        path: 'prediction/missed-opportunities',
+        name: 'MissedOpportunities',
+        component: () => import('../views/prediction/MissedOpportunities.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Missed Opportunities',
+          description: 'Analyze missed prediction opportunities'
+        }
+      },
+      {
+        path: 'prediction/alerts',
+        name: 'PredictionAlerts',
+        component: () => import('../views/prediction/AlertsView.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Prediction Alerts',
+          description: 'View active alerts and alert history'
+        }
+      },
+      {
+        path: 'prediction/crawl-status',
+        name: 'SourceCrawlStatus',
+        component: () => import('../views/prediction/SourceCrawlStatus.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Source Crawl Status',
+          description: 'Monitor source crawl status and errors'
+        }
+      },
+      {
+        path: 'prediction/:id',
+        name: 'PredictionDetail',
+        component: () => import('../views/prediction/PredictionDetail.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Prediction Detail',
+          description: 'View prediction details'
+        }
+      },
+      {
+        path: 'prediction/target/:id',
+        name: 'TargetDetail',
+        component: () => import('../views/prediction/TargetDetail.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Target Detail',
+          description: 'View target details and predictions'
+        }
+      },
+      // Phase 3: Test Data Management UI Routes
+      {
+        path: 'test',
+        name: 'TestControlCenter',
+        component: () => import('../views/test/TestControlCenter.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Test Control Center',
+          description: 'Main hub for test data management'
+        }
+      },
+      {
+        path: 'test/targets',
+        name: 'TargetMirrors',
+        component: () => import('../views/test/TargetMirrorsView.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Targets & Mirrors',
+          description: 'Map production targets to test symbols'
+        }
+      },
+      {
+        path: 'test/articles',
+        name: 'TestArticles',
+        component: () => import('../views/test/TestArticlesView.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Synthetic Articles',
+          description: 'Manage synthetic test articles'
+        }
+      },
+      {
+        path: 'test/prices',
+        name: 'TestPrices',
+        component: () => import('../views/test/TestPriceTimelineView.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Price Timeline',
+          description: 'Manage test price data'
+        }
+      },
+      {
+        path: 'test/scenarios/new',
+        name: 'ScenarioBuilder',
+        component: () => import('../views/test/ScenarioBuilderView.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Scenario Builder',
+          description: 'Create new test scenarios'
+        }
+      },
+      {
+        path: 'test/learnings/promotion',
+        name: 'LearningPromotion',
+        component: () => import('../views/prediction/test/LearningPromotionView.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Learning Promotion Queue',
+          description: 'Review and promote test learnings to production'
+        }
+      },
+      {
+        path: 'test/backtests',
+        name: 'Backtests',
+        component: () => import('../views/prediction/test/BacktestView.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Backtests',
+          description: 'Run and review backtests for test learnings'
+        }
+      },
+      {
+        path: 'test/analytics',
+        name: 'TestAnalytics',
+        component: () => import('../views/prediction/test/AnalyticsDashboardView.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Test Analytics',
+          description: 'Test vs production analytics for the learning loop'
+        }
+      },
+      // Risk Dashboard Routes
+      {
+        path: 'risk/dashboard',
+        name: 'RiskDashboard',
+        component: () => import('../views/risk/RiskDashboard.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Risk Dashboard',
+          description: 'Investment risk analysis dashboard'
+        }
       }
     ]
   },

@@ -16,9 +16,9 @@ export class ConversationCrudService {
    * Create a new conversation in the backend
    */
   async createConversation(agent: Agent): Promise<string> {
-    // Get organization slug from authStore - the canonical source of truth
+    // Use agent's organization if available, otherwise fall back to user's current org
     const authStore = useAuthStore();
-    const orgSlug = authStore.currentOrganization || 'demo-org';
+    const orgSlug = agent.organizationSlug || authStore.currentOrganization || 'demo-org';
 
     // All agents now use the Agent2Agent conversation service
     // Use dedicated Agent2Agent conversation service for all agents
