@@ -70,7 +70,7 @@ The platform provides:
 │                                                               │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
 │  │   Web UI     │  │   API Layer  │  │ Observability│      │
-│  │  (Vue/Ionic) │  │   (NestJS)   │  │   (Helicone) │      │
+│  │  (Vue/Ionic) │  │   (NestJS)   │  │  (Built-in)  │      │
 │  └──────┬───────┘  └──────┬───────┘  └──────────────┘      │
 │         │                 │                                  │
 │         └────────┬────────┘                                  │
