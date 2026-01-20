@@ -2,9 +2,6 @@
 
 # Restore Script for Supabase Database Backup
 # This script restores the database from the backup.sql.gz file in this directory
-#
-# NOTE: This backup only contains APPLICATION schemas (public, code_ops, orch_flow, etc.)
-# Supabase-managed schemas (auth, storage, realtime, etc.) are NOT included.
 
 # Don't use set -e since we want to continue past expected errors
 # set -e
@@ -46,7 +43,7 @@ START_TIME=$(date +%s)
 
 # Extract and restore with ON_ERROR_ROLLBACK to continue past errors
 # Capture stderr for analysis but don't fail on expected errors
-echo -e "${BLUE}📦 Restoring backup...${NC}"
+echo -e "${BLUE}📦 Restoring backup (application schemas)...${NC}"
 gunzip -c "$BACKUP_FILE" 2>/dev/null | docker exec -i "$DB_CONTAINER" psql \
   -U "$DB_USER" \
   -d "$DB_NAME" \
@@ -83,6 +80,92 @@ else
   echo -e "${RED}❌ Error: Database restoration verification failed${NC}"
   echo -e "${RED}   Check $ERROR_LOG for details${NC}"
   exit 1
+fi
+
+# Step 2: Fix permissions for Supabase roles
+echo -e "${BLUE}🔐 Fixing schema permissions...${NC}"
+docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" --quiet -c "
+DO \$perm\$
+DECLARE
+    schema_name TEXT;
+    schemas TEXT[] := ARRAY['public', 'code_ops', 'orch_flow', 'rag_data', 'risk', 'prediction', 'orchestrator_ai', 'company_data', 'engineering', 'marketing', 'n8n_data'];
+BEGIN
+    FOREACH schema_name IN ARRAY schemas
+    LOOP
+        IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = schema_name) THEN
+            -- Grant schema usage
+            EXECUTE format('GRANT USAGE ON SCHEMA %I TO anon, authenticated, service_role', schema_name);
+            -- Grant table permissions
+            EXECUTE format('GRANT ALL ON ALL TABLES IN SCHEMA %I TO authenticated, service_role', schema_name);
+            EXECUTE format('GRANT SELECT ON ALL TABLES IN SCHEMA %I TO anon', schema_name);
+            -- Grant function permissions
+            EXECUTE format('GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA %I TO anon, authenticated, service_role', schema_name);
+            -- Grant sequence permissions
+            EXECUTE format('GRANT ALL ON ALL SEQUENCES IN SCHEMA %I TO authenticated, service_role', schema_name);
+            EXECUTE format('GRANT USAGE ON ALL SEQUENCES IN SCHEMA %I TO anon', schema_name);
+            -- Set default privileges for future objects
+            EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA %I GRANT ALL ON TABLES TO authenticated, service_role', schema_name);
+            EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA %I GRANT SELECT ON TABLES TO anon', schema_name);
+            EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA %I GRANT ALL ON SEQUENCES TO authenticated, service_role', schema_name);
+            EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA %I GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role', schema_name);
+        END IF;
+    END LOOP;
+END \$perm\$;
+"
+echo -e "${GREEN}✅ Permissions fixed${NC}"
+
+# Restore auth data separately (pg_dump CREATE TABLE statements fail for Supabase-managed tables)
+echo -e "${BLUE}🔐 Restoring auth data...${NC}"
+
+# Clear existing auth data first
+docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" --quiet -c "
+SET session_replication_role = replica;
+TRUNCATE auth.identities CASCADE;
+TRUNCATE auth.sessions CASCADE;
+TRUNCATE auth.refresh_tokens CASCADE;
+TRUNCATE auth.mfa_factors CASCADE;
+TRUNCATE auth.users CASCADE;
+SET session_replication_role = DEFAULT;
+" 2>/dev/null || echo -e "${YELLOW}ℹ️  Some auth tables may not exist yet${NC}"
+
+# Extract and restore auth.users COPY data
+echo -e "${BLUE}   Restoring auth.users...${NC}"
+gunzip -c "$BACKUP_FILE" | sed -n '/^COPY auth\.users /,/^\\\.$/p' | docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" --quiet 2>/dev/null || true
+
+# Extract and restore auth.identities COPY data
+echo -e "${BLUE}   Restoring auth.identities...${NC}"
+gunzip -c "$BACKUP_FILE" | sed -n '/^COPY auth\.identities /,/^\\\.$/p' | docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" --quiet 2>/dev/null || true
+
+# Verify auth restoration
+echo -e "${BLUE}🔐 Verifying auth data restoration...${NC}"
+AUTH_USERS=$(docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT count(*) FROM auth.users;" 2>/dev/null | tr -d ' ')
+AUTH_IDENTITIES=$(docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT count(*) FROM auth.identities;" 2>/dev/null | tr -d ' ')
+echo -e "${GREEN}   Auth users: ${AUTH_USERS}${NC}"
+echo -e "${GREEN}   Auth identities: ${AUTH_IDENTITIES}${NC}"
+
+# Auto-create missing identities for any users without them
+if [ "$AUTH_USERS" != "$AUTH_IDENTITIES" ]; then
+  echo -e "${YELLOW}⚠️  Some users missing identities, auto-creating...${NC}"
+  docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" --quiet -c "
+  INSERT INTO auth.identities (provider_id, user_id, identity_data, provider, created_at, updated_at)
+  SELECT
+    u.id::text,
+    u.id,
+    jsonb_build_object('sub', u.id::text, 'email', u.email, 'email_verified', true),
+    'email',
+    u.created_at,
+    u.updated_at
+  FROM auth.users u
+  LEFT JOIN auth.identities i ON i.user_id = u.id
+  WHERE i.id IS NULL
+  ON CONFLICT (provider_id, provider) DO NOTHING;
+  " 2>/dev/null
+  AUTH_IDENTITIES=$(docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT count(*) FROM auth.identities;" 2>/dev/null | tr -d ' ')
+  echo -e "${GREEN}   Auth identities after fix: ${AUTH_IDENTITIES}${NC}"
+fi
+
+if [ "$AUTH_USERS" = "0" ]; then
+  echo -e "${YELLOW}⚠️  Warning: No auth users were restored${NC}"
 fi
 
 # Cleanup
