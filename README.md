@@ -1,5 +1,11 @@
 # Orchestrator AI
 
+[![License: Polyform Noncommercial](https://img.shields.io/badge/License-Polyform%20Noncommercial-blue.svg)](https://polyformproject.org/licenses/noncommercial/1.0.0)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
+[![Vue.js](https://img.shields.io/badge/Vue.js-3.0+-4FC08D.svg)](https://vuejs.org/)
+[![NestJS](https://img.shields.io/badge/NestJS-Latest-E0234E.svg)](https://nestjs.com/)
+
 **A self-hostable, inside-the-firewall AI agent orchestration platform designed for enterprise security and governance.**
 
 Orchestrator AI provides a comprehensive framework for building, deploying, and managing autonomous AI agents with enterprise-grade security, governance, and observability. The platform is designed for **inside-the-firewall deployment** with strong emphasis on **local LLM execution**, **PII protection**, and **framework-agnostic agent development**.
@@ -364,12 +370,23 @@ The development environment uses:
 
 ## 📖 Documentation
 
+### Getting Started
+- **[Getting Started Guide](GETTING_STARTED.md)** - Step-by-step setup tutorial
+- **[Architecture Overview](ARCHITECTURE.md)** - System architecture and design
+- **[Examples & Tutorials](docs/EXAMPLES.md)** - Example agents and workflows
+
+### Technical Documentation
 - **[API Documentation](docs/api/README.md)** - API endpoints and usage
 - **[Agent Development Guide](docs/agents/README.md)** - Building and deploying agents
 - **[A2A Protocol Specification](docs/a2a/README.md)** - Agent-to-Agent communication
 - **[RAG Documentation](specs/prd-phase-6-rag-infrastructure.md)** - RAG infrastructure and advanced strategies
 - **[RBAC Documentation](specs/prd-rbac-permissions.md)** - Role-based access control
 - **[Production Deployment](deployment/PRODUCTION_DEPLOYMENT.md)** - Production deployment guide
+
+### Security & Governance
+- **[Security Policy](SECURITY.md)** - Security reporting and best practices
+- **[Enterprise Hardening](docs/ENTERPRISE_HARDENING_ASSESSMENT.md)** - Hardening assessment
+- **[Security Checklist](docs/security/SECURITY-CHECKLIST.md)** - Security checklist
 
 ---
 
@@ -476,9 +493,18 @@ For commercial use, please contact: **golfergeek@orchestratorai.io**
 
 ## 🤝 Contributing
 
-We welcome contributions! Please read our [Contributing Guide](CONTRIBUTING.md) first.
+We welcome contributions! Please read our [Contributing Guide](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md) first.
 
 **Important:** All contributors must agree to our [Contributor License Agreement](CLA.md) before their contributions can be accepted.
+
+### Areas Where We Need Help
+
+- **Security Hardening**: Security review, threat modeling, vulnerability remediation
+- **Documentation**: Setup guides, API documentation, architecture diagrams
+- **Testing**: Unit tests, integration tests, end-to-end tests
+- **Deployment Automation**: Docker Compose, Kubernetes, deployment scripts
+- **Framework Integrations**: Additional agent framework adapters
+- **Examples**: More example agents and workflows
 
 ### Areas Where We Need Help
 
@@ -490,11 +516,30 @@ We welcome contributions! Please read our [Contributing Guide](CONTRIBUTING.md) 
 
 ---
 
-## 💬 Support
+## 💬 Support & Community
 
-- **Issues**: [GitHub Issues](https://github.com/golfergeek/orchestrator-ai-v2/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/golfergeek/orchestrator-ai-v2/discussions)
+- **GitHub Issues**: [Report bugs or request features](https://github.com/golfergeek/orchestrator-ai-v2/issues)
+- **GitHub Discussions**: [Ask questions and share ideas](https://github.com/golfergeek/orchestrator-ai-v2/discussions)
 - **Email**: golfergeek@orchestratorai.io
+- **Security Issues**: See [SECURITY.md](SECURITY.md) for reporting vulnerabilities
+
+## 📚 Learning Resources
+
+### For Students & Educators
+- **[Getting Started Guide](GETTING_STARTED.md)** - Learn how to set up and run the platform
+- **[Architecture Documentation](ARCHITECTURE.md)** - Understand the system design
+- **[Examples](docs/EXAMPLES.md)** - Explore example agents and workflows
+- **[Demo Agents](demo-agents/)** - Study real agent implementations
+
+### For Developers
+- **[Agent Development Guide](docs/agents/README.md)** - Build your own agents
+- **[A2A Protocol](docs/a2a/README.md)** - Understand agent-to-agent communication
+- **[API Documentation](docs/api/README.md)** - API reference and usage
+
+### For Enterprise Evaluators
+- **[Enterprise Hardening Assessment](docs/ENTERPRISE_HARDENING_ASSESSMENT.md)** - Security and hardening status
+- **[Partner Opportunity Brief](docs/partner-opportunity-brief.md)** - Business and technical overview
+- **[Production Deployment Guide](deployment/PRODUCTION_DEPLOYMENT.md)** - Production deployment instructions
 
 ---
 

@@ -78,8 +78,11 @@ playwright/.cache/
 # Obsidian history files
 obsidian/efforts/matt/history/
 
-# Storage - include backups and scripts, exclude images
+# Storage - include backup scripts, exclude images and backup files
 storage/images/
+storage/backups/*.sql.gz
+storage/backups/*/
+!storage/backups/.gitkeep
 
 # Task files
 # tasks.json
