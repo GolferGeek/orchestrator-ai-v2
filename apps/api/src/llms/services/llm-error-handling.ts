@@ -273,9 +273,9 @@ export class LLMError extends Error {
       [LLMErrorType.AUTHORIZATION]:
         'You are not authorized to use this service.',
       [LLMErrorType.API_KEY_INVALID]:
-        'The API key is invalid. Please check your configuration.',
+        'The API key is invalid. Please check your configuration. See docs/TROUBLESHOOTING.md for help.',
       [LLMErrorType.API_KEY_MISSING]:
-        'API key is missing. Please configure your credentials.',
+        'API key is missing. Please configure your credentials in .env file. See GETTING_STARTED.md for setup instructions.',
 
       [LLMErrorType.RATE_LIMIT]:
         'The service is currently busy. Please try again in a moment.',
@@ -295,9 +295,9 @@ export class LLMError extends Error {
       [LLMErrorType.MALFORMED_REQUEST]: 'The request format is incorrect.',
 
       [LLMErrorType.MODEL_NOT_FOUND]:
-        'The requested model was not found. Please select a different model.',
+        'The requested model was not found. Please select a different model. For Ollama, ensure the model is pulled: `ollama pull <model-name>`. See docs/TROUBLESHOOTING.md',
       [LLMErrorType.MODEL_UNAVAILABLE]:
-        'The model is temporarily unavailable. Please try again later.',
+        'The model is temporarily unavailable. Please try again later. For Ollama, check if the service is running: `curl http://localhost:11434/api/tags`. See docs/TROUBLESHOOTING.md',
       [LLMErrorType.UNSUPPORTED_MODEL]:
         'This model is not supported by the selected provider.',
       [LLMErrorType.PROVIDER_UNAVAILABLE]:
@@ -322,22 +322,22 @@ export class LLMError extends Error {
         'The response was too long and was truncated.',
 
       [LLMErrorType.NETWORK_ERROR]:
-        'Network connection failed. Please check your internet connection.',
+        "Network connection failed. Please check your internet connection. For Ollama, verify it's running: `curl http://localhost:11434/api/tags`. See docs/TROUBLESHOOTING.md",
       [LLMErrorType.CONNECTION_TIMEOUT]:
-        'The request timed out. Please try again.',
+        'The request timed out. Please try again. For Ollama, the model may be loading - wait a moment and retry. See docs/TROUBLESHOOTING.md',
       [LLMErrorType.SERVICE_UNAVAILABLE]:
-        'The AI service is temporarily unavailable. Please try again later.',
+        'The AI service is temporarily unavailable. Please try again later. Run `npm run diagnostics` to check service status. See docs/TROUBLESHOOTING.md',
       [LLMErrorType.SERVER_ERROR]:
         'A server error occurred. Please try again later.',
       [LLMErrorType.GATEWAY_TIMEOUT]:
         'The request timed out at the gateway. Please try again.',
 
       [LLMErrorType.CONFIGURATION_ERROR]:
-        'There is a configuration error. Please contact support.',
+        'There is a configuration error. Run `npm run diagnostics` to identify issues. See docs/TROUBLESHOOTING.md for help.',
       [LLMErrorType.INVALID_CONFIGURATION]:
-        'The service configuration is invalid.',
+        'The service configuration is invalid. Check your .env file and verify all required variables are set. See GETTING_STARTED.md',
       [LLMErrorType.MISSING_CONFIGURATION]:
-        'Required configuration is missing.',
+        'Required configuration is missing. Check your .env file matches dev.env.example. See GETTING_STARTED.md for setup instructions.',
 
       [LLMErrorType.PROCESSING_ERROR]:
         'An error occurred while processing your request.',

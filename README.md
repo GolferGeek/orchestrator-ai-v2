@@ -6,7 +6,7 @@
 [![Vue.js](https://img.shields.io/badge/Vue.js-3.0+-4FC08D.svg)](https://vuejs.org/)
 [![NestJS](https://img.shields.io/badge/NestJS-Latest-E0234E.svg)](https://nestjs.com/)
 
-**A self-hostable, inside-the-firewall AI agent orchestration platform designed for enterprise security and governance.**
+**A production-ready framework for secure, local-first AI orchestration and agentic workflows.**
 
 Orchestrator AI provides a comprehensive framework for building, deploying, and managing autonomous AI agents with enterprise-grade security, governance, and observability. The platform is designed for **inside-the-firewall deployment** with strong emphasis on **local LLM execution**, **PII protection**, and **framework-agnostic agent development**.
 
@@ -36,6 +36,16 @@ We're working on improving onboarding, but as a newly open-sourced project, comp
 ---
 
 ## 🎯 Core Philosophy
+
+### The Architecture of Restraint
+
+Orchestrator AI is built to solve the "Black Box" problem of LLMs. We provide the **leverage** of agentic intelligence while maintaining the **restraint** of deterministic software engineering.
+
+**Leverage**: The power of autonomous agents, multi-step reasoning, and LLM-driven decision-making.
+
+**Restraint**: Explicit configuration, deterministic guardrails, comprehensive audit logs, and complete observability.
+
+This philosophy ensures that AI agents enhance human capabilities without introducing unpredictable behavior or hidden failures. Every agent execution is traceable, every decision is auditable, and every configuration is explicit.
 
 ### Security-First Architecture
 
@@ -114,6 +124,22 @@ apps/
 packages/
   transport-types/  # Shared TypeScript types (A2A protocol)
 ```
+
+---
+
+## 💼 Use Cases
+
+### Enterprise RAG
+Deploying high-accuracy knowledge retrieval inside the firewall. Build RAG systems that query internal documents, policies, and knowledge bases without exposing sensitive data to external APIs.
+
+### Agentic Workflows
+Orchestrating complex tasks between local LLMs and frontier APIs. Create multi-agent systems that coordinate research, content creation, data analysis, and decision-making workflows.
+
+### AI Governance
+Implementing deterministic guardrails, PII pseudonymization, and comprehensive audit logs. Ensure compliance with regulatory requirements while enabling AI-powered automation.
+
+### Educational & Research
+Teaching students and researchers how to build production-grade AI systems. Learn enterprise patterns, security best practices, and framework-agnostic agent development.
 
 ---
 
@@ -464,6 +490,50 @@ The **API is the governed execution layer**:
 
 ---
 
+## 🚀 Quick Start
+
+### For Students & Quick Exploration
+
+**5-minute setup with Docker Compose:**
+
+```bash
+git clone https://github.com/golfergeek/orchestrator-ai-v2.git
+cd orchestrator-ai-v2
+./scripts/setup-student.sh
+```
+
+Then open http://localhost:7101 and log in with:
+- Email: `demo.user@orchestratorai.io`
+- Password: `DemoUser123!`
+
+See [Quick Start Guide for Students](docs/QUICK_START_STUDENTS.md) for details.
+
+### For Developers
+
+**Full development setup:**
+
+```bash
+git clone https://github.com/golfergeek/orchestrator-ai-v2.git
+cd orchestrator-ai-v2
+npm install
+./scripts/setup.sh --with-seed
+npm run dev
+```
+
+See [Getting Started Guide](GETTING_STARTED.md) for complete instructions.
+
+### Run Diagnostics
+
+Having issues? Run diagnostics:
+
+```bash
+npm run diagnostics
+```
+
+See [Troubleshooting Guide](docs/TROUBLESHOOTING.md) for common issues.
+
+---
+
 ## 📄 License
 
 This project is licensed under the **Polyform Noncommercial License 1.0.0**.
@@ -506,35 +576,39 @@ We welcome contributions! Please read our [Contributing Guide](CONTRIBUTING.md) 
 - **Framework Integrations**: Additional agent framework adapters
 - **Examples**: More example agents and workflows
 
-### Areas Where We Need Help
-
-- **Security Hardening**: Security review, threat modeling, vulnerability remediation
-- **Documentation**: Setup guides, API documentation, architecture diagrams
-- **Testing**: Unit tests, integration tests, end-to-end tests
-- **Deployment Automation**: Docker Compose, Kubernetes, deployment scripts
-- **Framework Integrations**: Additional agent framework adapters
-
 ---
 
 ## 💬 Support & Community
 
-- **GitHub Issues**: [Report bugs or request features](https://github.com/golfergeek/orchestrator-ai-v2/issues)
+- **GitHub Issues**: [Report bugs or request features](https://github.com/golfergeek/orchestrator-ai-v2/issues) - Use issue templates for better responses
 - **GitHub Discussions**: [Ask questions and share ideas](https://github.com/golfergeek/orchestrator-ai-v2/discussions)
 - **Email**: golfergeek@orchestratorai.io
 - **Security Issues**: See [SECURITY.md](SECURITY.md) for reporting vulnerabilities
+- **Troubleshooting**: Run `npm run diagnostics` or see [Troubleshooting Guide](docs/TROUBLESHOOTING.md)
 
 ## 📚 Learning Resources
 
-### For Students & Educators
-- **[Getting Started Guide](GETTING_STARTED.md)** - Learn how to set up and run the platform
-- **[Architecture Documentation](ARCHITECTURE.md)** - Understand the system design
-- **[Examples](docs/EXAMPLES.md)** - Explore example agents and workflows
-- **[Demo Agents](demo-agents/)** - Study real agent implementations
+### Quick Start & Setup
+- **[Quick Start for Students](docs/QUICK_START_STUDENTS.md)** - Get running in 5 minutes with Docker
+- **[Getting Started Guide](GETTING_STARTED.md)** - Complete setup instructions
+- **[Prerequisites Guide](docs/PREREQUISITES.md)** - What you need before starting
+- **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+- **[Beginner's Guide](docs/BEGINNER_GUIDE.md)** - Non-technical introduction
 
-### For Developers
-- **[Agent Development Guide](docs/agents/README.md)** - Build your own agents
-- **[A2A Protocol](docs/a2a/README.md)** - Understand agent-to-agent communication
-- **[API Documentation](docs/api/README.md)** - API reference and usage
+### Tutorials & Examples
+- **[Build Your First Agent](docs/tutorials/BUILD_FIRST_AGENT.md)** - Step-by-step agent creation tutorial
+- **[Examples Guide](docs/EXAMPLES.md)** - Example agents and code samples
+- **[Hello World Agent](demo-agents/hello-world/)** - Simplest agent example
+
+### Learning Paths
+- **[Learning Path](docs/LEARNING_PATH.md)** - Progressive tracks from beginner to advanced
+- **[Architecture Documentation](ARCHITECTURE.md)** - Understand the system design
+- **[Code Tour](docs/CODE_TOUR.md)** - Navigate the codebase
+
+### For Educators
+- **[Workshop Guide](docs/education/WORKSHOP_GUIDE.md)** - 2-hour workshop outline
+- **[Assignments](docs/education/ASSIGNMENTS.md)** - Progressive difficulty assignments
+- **[Classroom Setup](docs/education/CLASSROOM_SETUP.md)** - Multi-student setup guide
 
 ### For Enterprise Evaluators
 - **[Enterprise Hardening Assessment](docs/ENTERPRISE_HARDENING_ASSESSMENT.md)** - Security and hardening status

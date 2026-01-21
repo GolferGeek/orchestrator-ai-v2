@@ -1,0 +1,57 @@
+# Dockerfile for API Server (Production)
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY apps/transport-types/package*.json ./apps/transport-types/
+COPY apps/api/package*.json ./apps/api/
+
+# Install dependencies
+RUN npm ci --workspace=apps/transport-types
+RUN npm ci --workspace=apps/api
+
+# Copy source code
+COPY apps/transport-types ./apps/transport-types
+COPY apps/api ./apps/api
+
+# Build transport types
+WORKDIR /app/apps/transport-types
+RUN npm run build
+
+# Build API
+WORKDIR /app/apps/api
+RUN npm run build
+
+# Production stage
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY apps/transport-types/package*.json ./apps/transport-types/
+COPY apps/api/package*.json ./apps/api/
+
+# Install production dependencies only
+RUN npm ci --workspace=apps/transport-types --omit=dev
+RUN npm ci --workspace=apps/api --omit=dev
+
+# Copy built files
+COPY --from=builder /app/apps/transport-types/dist ./apps/transport-types/dist
+COPY --from=builder /app/apps/transport-types/package.json ./apps/transport-types/
+COPY --from=builder /app/apps/api/dist ./apps/api/dist
+COPY --from=builder /app/apps/api/package.json ./apps/api/
+COPY apps/api/supabase ./apps/api/supabase
+
+# Expose port
+EXPOSE 6100
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:6100/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+
+# Start API
+WORKDIR /app/apps/api
+CMD ["node", "dist/main.js"]

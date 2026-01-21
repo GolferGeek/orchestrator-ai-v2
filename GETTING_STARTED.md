@@ -183,8 +183,13 @@ Should return a healthy status.
 
 ### Test Web UI
 
-1. Open http://localhost:6101
+1. Open http://localhost:7101 (or port configured in WEB_PORT)
 2. Log in with your user credentials
+
+**Demo Credentials** (if using seeded database):
+- Email: `demo.user@orchestratorai.io`
+- Password: `DemoUser123!`
+
 3. Navigate to the agent catalog
 4. Try creating a simple agent or workflow
 
@@ -242,7 +247,7 @@ ollama serve
 
 ## Next Steps
 
-- **Explore Demo Agents**: Check out `demo-agents/` directory for example agents
+- **Explore Example Agent**: Check out `demo-agents/hello-world/` for a simple example
 - **Read Documentation**: See `docs/` directory for detailed documentation
 - **Review Architecture**: See `ARCHITECTURE.md` for system architecture
 - **Check Examples**: See `docs/EXAMPLES.md` for usage examples

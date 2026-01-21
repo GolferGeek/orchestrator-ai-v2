@@ -68,7 +68,18 @@
     "db:import-n8n": "bash apps/api/supabase/scripts/import-n8n-workflow.sh",
     "db:export-all-n8n": "bash apps/api/supabase/scripts/export-all-n8n-workflows.sh",
     "db:import-all-n8n": "bash apps/api/supabase/scripts/import-all-n8n-workflows.sh",
-    "db:sync-n8n": "bash apps/api/supabase/scripts/sync-n8n-to-db.sh"
+    "db:sync-n8n": "bash apps/api/supabase/scripts/sync-n8n-to-db.sh",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "docker:dev": "docker-compose -f docker-compose.dev.yml up -d",
+    "docker:dev:down": "docker-compose -f docker-compose.dev.yml down",
+    "docker:student": "docker-compose -f docker-compose.student.yml up -d",
+    "docker:student:down": "docker-compose -f docker-compose.student.yml down",
+    "docker:student:logs": "docker-compose -f docker-compose.student.yml logs -f",
+    "setup": "./scripts/setup.sh",
+    "setup:student": "./scripts/setup-student.sh",
+    "diagnostics": "./scripts/diagnostics.sh"
   },
   "devDependencies": {
     "@babel/plugin-proposal-class-properties": "^7.18.6",
