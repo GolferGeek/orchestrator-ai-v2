@@ -1,0 +1,31 @@
+# Dockerfile for API Server (Development with hot-reload)
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install dependencies for hot-reload
+RUN npm install -g nodemon
+
+# Copy package files
+COPY package*.json ./
+COPY apps/transport-types/package*.json ./apps/transport-types/
+COPY apps/api/package*.json ./apps/api/
+
+# Install all dependencies (including dev)
+RUN npm ci --workspace=apps/transport-types
+RUN npm ci --workspace=apps/api
+
+# Copy source code (will be mounted as volume)
+COPY apps/transport-types ./apps/transport-types
+COPY apps/api ./apps/api
+
+# Build transport types
+WORKDIR /app/apps/transport-types
+RUN npm run build
+
+# Expose port
+EXPOSE 6100
+
+# Start with hot-reload
+WORKDIR /app/apps/api
+CMD ["npm", "run", "start:dev"]

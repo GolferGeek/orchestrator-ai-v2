@@ -1,0 +1,28 @@
+# Dockerfile for Web Application (Development with hot-reload)
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY apps/transport-types/package*.json ./apps/transport-types/
+COPY apps/web/package*.json ./apps/web/
+
+# Install all dependencies (including dev)
+RUN npm ci --workspace=apps/transport-types
+RUN npm ci --workspace=apps/web
+
+# Copy source code (will be mounted as volume)
+COPY apps/transport-types ./apps/transport-types
+COPY apps/web ./apps/web
+
+# Build transport types
+WORKDIR /app/apps/transport-types
+RUN npm run build
+
+# Expose port
+EXPOSE 7101
+
+# Start with hot-reload
+WORKDIR /app/apps/web
+CMD ["npm", "run", "dev:http"]

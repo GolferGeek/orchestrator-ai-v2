@@ -1,0 +1,44 @@
+# Dockerfile for Web Application (Production)
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY apps/transport-types/package*.json ./apps/transport-types/
+COPY apps/web/package*.json ./apps/web/
+
+# Install dependencies
+RUN npm ci --workspace=apps/transport-types
+RUN npm ci --workspace=apps/web
+
+# Copy source code
+COPY apps/transport-types ./apps/transport-types
+COPY apps/web ./apps/web
+
+# Build transport types
+WORKDIR /app/apps/transport-types
+RUN npm run build
+
+# Build web app
+WORKDIR /app/apps/web
+RUN npm run build
+
+# Production stage with nginx
+FROM nginx:alpine
+
+# Copy built files
+COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
+
+# Copy nginx config (if custom config needed)
+# COPY nginx.conf /etc/nginx/nginx.conf
+
+# Expose port
+EXPOSE 7101
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://localhost:7101 || exit 1
+
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]

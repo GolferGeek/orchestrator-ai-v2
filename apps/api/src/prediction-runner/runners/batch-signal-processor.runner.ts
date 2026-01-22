@@ -7,6 +7,7 @@ import { TargetRepository } from '../repositories/target.repository';
 import { UniverseRepository } from '../repositories/universe.repository';
 import { SignalDetectionService } from '../services/signal-detection.service';
 import { FastPathService } from '../services/fast-path.service';
+import { LlmTierResolverService } from '../services/llm-tier-resolver.service';
 import { Signal } from '../interfaces/signal.interface';
 
 /**
@@ -36,6 +37,7 @@ export class BatchSignalProcessorRunner {
     private readonly universeRepository: UniverseRepository,
     private readonly signalDetectionService: SignalDetectionService,
     private readonly fastPathService: FastPathService,
+    private readonly llmTierResolver: LlmTierResolverService,
   ) {}
 
   /**
@@ -216,6 +218,9 @@ export class BatchSignalProcessorRunner {
     signal: Signal,
     targetId: string,
   ): Promise<{ shouldCreatePredictor: boolean; urgency: string }> {
+    // Resolve LLM provider/model from tier resolver (respects DEFAULT_LLM env vars)
+    const resolved = await this.llmTierResolver.resolveTier('silver');
+
     // Create execution context for this processing
     const ctx: ExecutionContext = {
       orgSlug: 'system',
@@ -226,8 +231,8 @@ export class BatchSignalProcessorRunner {
       deliverableId: NIL_UUID,
       agentSlug: 'batch-signal-processor',
       agentType: 'context',
-      provider: 'anthropic',
-      model: 'claude-haiku-4-20250514',
+      provider: resolved.provider,
+      model: resolved.model,
     };
 
     const result = await this.signalDetectionService.processSignal(ctx, {
@@ -246,6 +251,9 @@ export class BatchSignalProcessorRunner {
    */
   private async triggerFastPath(signal: Signal): Promise<void> {
     try {
+      // Resolve LLM provider/model from tier resolver (respects DEFAULT_LLM env vars)
+      const resolved = await this.llmTierResolver.resolveTier('silver');
+
       const ctx: ExecutionContext = {
         orgSlug: 'system',
         userId: 'system',
@@ -255,8 +263,8 @@ export class BatchSignalProcessorRunner {
         deliverableId: NIL_UUID,
         agentSlug: 'fast-path-processor',
         agentType: 'context',
-        provider: 'anthropic',
-        model: 'claude-haiku-4-20250514',
+        provider: resolved.provider,
+        model: resolved.model,
       };
 
       await this.fastPathService.processFastPath(ctx, signal);

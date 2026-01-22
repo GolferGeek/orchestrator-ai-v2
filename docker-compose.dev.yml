@@ -1,0 +1,109 @@
+version: '3.8'
+
+# Development Docker Compose Configuration
+# Uses hot-reload and development settings
+
+services:
+  # Supabase Local Instance
+  supabase:
+    image: supabase/cli:latest
+    container_name: orchestrator-supabase-dev
+    volumes:
+      - ./apps/api/supabase:/workspace/supabase
+      - supabase-db-data-dev:/var/lib/postgresql/data
+    working_dir: /workspace/supabase
+    command: sh -c "supabase start && tail -f /dev/null"
+    ports:
+      - "6010:6010"  # API
+      - "6012:6012"  # Database
+      - "6015:6015"  # Studio
+      - "6016:6016"  # Inbucket (Email)
+    environment:
+      - SUPABASE_DB_PASSWORD=postgres
+    networks:
+      - orchestrator-network-dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6010/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Ollama LLM Service
+  ollama:
+    image: ollama/ollama:latest
+    container_name: orchestrator-ollama-dev
+    volumes:
+      - ollama-data-dev:/root/.ollama
+    ports:
+      - "11434:11434"
+    networks:
+      - orchestrator-network-dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # API Server (Development with hot-reload)
+  # Note: For development, you may prefer running locally with `npm run dev:api`
+  # This Docker service is provided for consistency, but local dev is faster
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api.dev
+    container_name: orchestrator-api-dev
+    ports:
+      - "${API_PORT:-6100}:6100"
+    environment:
+      - NODE_ENV=development
+      - API_PORT=6100
+      - SUPABASE_URL=http://supabase:6010
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU}
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - LOG_LEVEL=debug
+    volumes:
+      - ./apps/api:/app/apps/api
+      - ./apps/transport-types:/app/apps/transport-types
+      - /app/node_modules
+    depends_on:
+      supabase:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    networks:
+      - orchestrator-network-dev
+    command: npm run start:dev
+
+  # Web Application (Development with hot-reload)
+  # Note: For development, you may prefer running locally with `npm run dev:web`
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web.dev
+    container_name: orchestrator-web-dev
+    ports:
+      - "${WEB_PORT:-7101}:7101"
+    environment:
+      - NODE_ENV=development
+      - VITE_API_BASE_URL=http://localhost:6100
+      - VITE_SUPABASE_URL=http://localhost:6010
+      - VITE_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0}
+    volumes:
+      - ./apps/web:/app/apps/web
+      - /app/node_modules
+    depends_on:
+      - api
+    networks:
+      - orchestrator-network-dev
+    command: npm run dev:http
+
+volumes:
+  supabase-db-data-dev:
+  ollama-data-dev:
+
+networks:
+  orchestrator-network-dev:
+    driver: bridge
