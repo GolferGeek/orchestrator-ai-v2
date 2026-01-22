@@ -46,9 +46,9 @@ export class ConversationFactoryService {
         supportedModes.includes(mode),
       ) ?? supportedModes[0];
 
-    // Get organization from authStore
+    // Use agent's organization if available, otherwise fall back to current user org
     const authStore = useAuthStore();
-    const organizationSlug = authStore.currentOrganization || null;
+    const organizationSlug = agent.organizationSlug || authStore.currentOrganization || null;
 
     return {
       id: generateUUID(),

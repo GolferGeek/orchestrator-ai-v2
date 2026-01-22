@@ -94,7 +94,7 @@ __decorate([
     __param(5, (0, common_1.Query)('limit')),
     __param(6, (0, common_1.Query)('offset')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, Object, Object, String, String]),
+    __metadata("design:paramtypes", [String, String, String, String, String, String, String]),
     __metadata("design:returntype", Promise)
 ], ThemesController.prototype, "searchThemes", null);
 __decorate([

@@ -519,17 +519,17 @@ function formatJSON(obj: unknown): string {
 }
 
 .chip-agent {
-  background: #3880ff;
+  background: #8b5a3c; /* Primary brown */
   color: white;
 }
 
 .chip-user {
-  background: #3dc2ff;
-  color: #000;
+  background: #15803d; /* Secondary forest green */
+  color: white;
 }
 
 .chip-conv {
-  background: #5260ff;
+  background: #ca8a04; /* Tertiary golden amber */
   color: white;
 }
 

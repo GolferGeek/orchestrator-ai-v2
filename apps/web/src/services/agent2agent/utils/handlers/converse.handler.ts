@@ -13,13 +13,30 @@ import {
 import { useConversationsStore } from '@/stores/conversationsStore';
 
 /**
+ * RAG Source type for attributed responses
+ */
+export interface RagSource {
+  document: string;
+  documentId: string;
+  score: number;
+  excerpt: string;
+  charOffset?: number;
+  documentIdRef?: string;
+  sectionPath?: string;
+  matchType?: string;
+  version?: string;
+}
+
+/**
  * Converse response types
  */
 export interface ConverseResult {
   message: string;
+  sources?: RagSource[];
   metadata?: {
     timestamp?: string;
     model?: string;
+    sources?: RagSource[];
     [key: string]: unknown;
   };
 }

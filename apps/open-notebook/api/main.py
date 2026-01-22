@@ -1,5 +1,6 @@
 # Load environment variables from root .env file (monorepo setup)
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Load from root .env file - apps/open-notebook/api/main.py -> root

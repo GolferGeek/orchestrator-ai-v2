@@ -94,8 +94,30 @@ class TeamsApiService {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.message || `API error: ${response.status}`);
+      let errorMessage = `API error: ${response.status}`;
+      let errorDetails: Record<string, unknown> = {};
+
+      try {
+        const error = await response.json();
+        errorMessage = error.message || error.error || errorMessage;
+        errorDetails = error;
+      } catch {
+        // If response is not JSON, try to get text
+        try {
+          const text = await response.text();
+          if (text) {
+            errorMessage = text;
+          }
+        } catch {
+          // Ignore text parsing errors
+        }
+      }
+
+      const error = new Error(errorMessage) as Error & { status?: number; details?: Record<string, unknown> };
+      // Attach status and details for better error handling
+      error.status = response.status;
+      error.details = errorDetails;
+      throw error;
     }
 
     return response.json();

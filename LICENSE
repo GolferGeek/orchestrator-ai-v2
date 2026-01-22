@@ -1,179 +1,154 @@
-PROPRIETARY SOFTWARE LICENSE AGREEMENT
+# Polyform Noncommercial License 1.0.0
 
-Copyright (c) 2024-2025 GolferGeek. All Rights Reserved.
+<https://polyformproject.org/licenses/noncommercial/1.0.0>
 
-SPDX-License-Identifier: LicenseRef-Proprietary
+## Acceptance
 
-================================================================================
-                           IMPORTANT - READ CAREFULLY
-================================================================================
+In order to get any license under these terms, you must agree
+to them as both strict obligations and conditions to all
+your licenses.
 
-This Proprietary Software License Agreement ("Agreement") is a legal agreement
-between you (either an individual or a single entity, "Licensee") and GolferGeek
-("Licensor") for the use of Orchestrator AI software, including all associated
-documentation, source code, and related materials ("Software").
+## Copyright License
 
-BY ACCESSING, INSTALLING, COPYING, OR OTHERWISE USING THE SOFTWARE, YOU AGREE
-TO BE BOUND BY THE TERMS OF THIS AGREEMENT. IF YOU DO NOT AGREE TO THESE TERMS,
-DO NOT USE THE SOFTWARE.
+The licensor grants you a copyright license for the
+software to do everything you might do with the software
+that would otherwise infringe the licensor's copyright
+in it for any permitted purpose. However, you may
+only distribute the software according to [Distribution
+License](#distribution-license) and make changes or new works
+based on the software according to [Changes and New Works
+License](#changes-and-new-works-license).
 
-================================================================================
-                              1. GRANT OF LICENSE
-================================================================================
+## Distribution License
 
-Subject to the terms of this Agreement and the separate Master Services Agreement
-(MSA) or Software License Agreement (SLA) executed between Licensor and Licensee,
-Licensor grants Licensee a limited, non-exclusive, non-transferable,
-non-sublicensable license to:
+The licensor grants you an additional copyright license
+to distribute copies of the software. Your license
+to distribute covers distributing the software with
+changes and new works permitted by [Changes and New Works
+License](#changes-and-new-works-license).
 
-   a) Use the Software solely for Licensee's internal business operations;
-   b) Access and modify the source code solely for customization purposes
-      within Licensee's organization;
-   c) Deploy the Software within Licensee's own infrastructure or approved
-      cloud environments.
+## Notices
 
-================================================================================
-                              2. RESTRICTIONS
-================================================================================
+You must ensure that anyone who gets a copy of any part of
+the software from you also gets a copy of these terms or the
+URL for them above, as well as copies of any plain-text lines
+beginning with `Required Notice:` that the licensor provided
+with the software. For example:
 
-Licensee expressly agrees NOT to:
+> Required Notice: Copyright Justin Vos (https://orchestratorai.io)
 
-   a) REDISTRIBUTE: Copy, distribute, publish, or otherwise make the Software
-      available to any third party, including but not limited to affiliates,
-      subsidiaries, contractors, consultants, or partners, except as
-      specifically authorized in writing by Licensor;
+## Changes and New Works License
 
-   b) SUBLICENSE: Grant any rights to the Software to any third party,
-      including sublicenses, assignments, or transfers of any kind;
+The licensor grants you an additional copyright license to
+make changes and new works based on the software for any
+permitted purpose.
 
-   c) COMMERCIALIZE: Use the Software to provide services to third parties,
-      including but not limited to:
-      - Software-as-a-Service (SaaS) offerings
-      - Consulting or professional services
-      - Resale or licensing to others
-      - Integration into products or services sold to third parties
-      - Any activity that generates direct or indirect revenue from the
-        Software itself;
+## Patent License
 
-   d) PERSONAL USE: Use the Software for personal projects, education,
-      training, or any purpose outside of Licensee's authorized business
-      operations under the executed MSA/SLA;
+The licensor grants you a patent license for the software that
+covers patent claims the licensor can license, or becomes able
+to license, that you would infringe by using the software.
 
-   e) REVERSE ENGINEER: Reverse engineer, decompile, or disassemble the
-      Software, except to the extent expressly permitted by applicable law;
+## Noncommercial Purposes
 
-   f) REMOVE NOTICES: Remove, alter, or obscure any proprietary notices,
-      labels, or marks on the Software;
+Any noncommercial purpose is a permitted purpose.
 
-   g) COMPETITIVE USE: Use the Software to develop a competing product or
-      service, or assist any third party in doing so;
+## Personal Uses
 
-   h) SHARE KNOWLEDGE: Share, publish, or otherwise disseminate proprietary
-      knowledge, algorithms, architecture, or implementation details derived
-      from the Software.
+Personal use for research, experiment, and testing for
+the benefit of public knowledge, personal study, private
+entertainment, hobby projects, amateur pursuits, or religious
+observance, without any anticipated commercial application,
+is use for a permitted purpose.
 
-================================================================================
-                            3. OWNERSHIP & TITLE
-================================================================================
+## Noncommercial Organizations
 
-The Software is licensed, not sold. Licensor retains all right, title, and
-interest in and to the Software, including all intellectual property rights.
-This Agreement does not grant Licensee any ownership rights to the Software.
+Use by any charitable organization, educational institution,
+public research organization, public safety or health
+organization, environmental protection organization,
+or government institution is use for a permitted purpose
+regardless of the source of funding or obligations resulting
+from the funding.
 
-Any modifications, enhancements, or derivative works created by Licensee remain
-the property of Licensor, and Licensee hereby assigns all rights in such works
-to Licensor.
+## Fair Use
 
-================================================================================
-                          4. CONFIDENTIALITY
-================================================================================
+You may have "fair use" rights for the software under the
+law. These terms do not limit them.
 
-Licensee acknowledges that the Software contains trade secrets and confidential
-information of Licensor. Licensee agrees to:
+## No Other Rights
 
-   a) Maintain the confidentiality of the Software using at least the same
-      degree of care used to protect its own confidential information;
-   b) Limit access to the Software to employees and authorized personnel who
-      have a need to know and are bound by confidentiality obligations;
-   c) Not disclose any part of the Software to any third party without prior
-      written consent from Licensor.
+These terms do not allow you to sublicense or transfer any of
+your licenses to anyone else, or prevent the licensor from
+granting licenses to anyone else. These terms do not imply
+any other licenses.
 
-================================================================================
-                              5. TERM & TERMINATION
-================================================================================
+## Patent Defense
 
-   a) TERM: This license is effective until terminated as specified in the
-      governing MSA/SLA.
+If you make any written claim that the software infringes or
+contributes to infringement of any patent, your patent license
+for the software granted under these terms ends immediately. If
+your company makes such a claim, your patent license ends
+immediately for work on behalf of your company.
 
-   b) TERMINATION FOR BREACH: Licensor may terminate this license immediately
-      upon written notice if Licensee breaches any term of this Agreement.
+## Violations
 
-   c) EFFECT OF TERMINATION: Upon termination:
-      - All rights granted under this Agreement immediately cease;
-      - Licensee must destroy all copies of the Software in its possession;
-      - Licensee must certify in writing that all copies have been destroyed;
-      - Sections 2, 3, 4, 6, 7, and 8 survive termination.
+The first time you are notified in writing that you have
+violated any of these terms, or done anything with the software
+not covered by your licenses, your licenses can nonetheless
+continue if you come into full compliance with these terms,
+and take practical steps to correct past violations, within
+32 days of receiving notice. Otherwise, all your licenses
+end immediately.
 
-================================================================================
-                            6. DISCLAIMER OF WARRANTIES
-================================================================================
+## No Liability
 
-THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. LICENSOR DOES NOT
-WARRANT THAT THE SOFTWARE WILL BE ERROR-FREE OR UNINTERRUPTED.
+***As far as the law allows, the software comes as is, without
+any warranty or condition, and the licensor will not be liable
+to you for any damages arising out of these terms or the use
+or nature of the software, under any kind of legal claim.***
 
-================================================================================
-                          7. LIMITATION OF LIABILITY
-================================================================================
+## Definitions
 
-IN NO EVENT SHALL LICENSOR BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL,
-CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR ANY LOSS OF PROFITS, REVENUE, DATA, OR
-DATA USE, ARISING OUT OF OR RELATED TO THIS AGREEMENT OR THE USE OF THE
-SOFTWARE, EVEN IF LICENSOR HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+The **licensor** is the individual or entity offering these
+terms, and the **software** is the software the licensor makes
+available under these terms.
 
-LICENSOR'S TOTAL LIABILITY UNDER THIS AGREEMENT SHALL NOT EXCEED THE FEES PAID
-BY LICENSEE FOR THE SOFTWARE IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM.
+**You** refers to the individual or entity agreeing to these
+terms.
 
-================================================================================
-                              8. GENERAL PROVISIONS
-================================================================================
+**Your company** is any legal entity, sole proprietorship,
+or other kind of organization that you work for, plus all
+organizations that have control over, are under the control of,
+or are under common control with that organization. **Control**
+means ownership of substantially all the assets of an entity,
+or the power to direct its management and policies by vote,
+contract, or otherwise. Control can be direct or indirect.
 
-   a) ENTIRE AGREEMENT: This Agreement, together with the governing MSA/SLA,
-      constitutes the entire agreement between the parties concerning the
-      subject matter hereof.
+**Your licenses** are all the licenses granted to you for the
+software under these terms.
 
-   b) GOVERNING LAW: This Agreement shall be governed by and construed in
-      accordance with the laws of the State of Florida, without regard
-      to its conflict of laws principles.
+**Use** means anything you do with the software requiring one
+of your licenses.
 
-   c) SEVERABILITY: If any provision of this Agreement is held invalid or
-      unenforceable, the remaining provisions shall continue in full force
-      and effect.
+---
 
-   d) NO WAIVER: Failure to enforce any provision of this Agreement shall not
-      constitute a waiver of that provision or any other provision.
+## Additional Terms
 
-   e) ASSIGNMENT: Licensee may not assign or transfer this Agreement or any
-      rights hereunder without prior written consent from Licensor.
+Required Notice: Copyright 2024-2025 Justin Vos (https://orchestratorai.io)
 
-   f) AUDIT RIGHTS: Licensor reserves the right to audit Licensee's use of
-      the Software to ensure compliance with this Agreement, upon reasonable
-      notice.
+### Commercial Licensing
 
-================================================================================
-                              9. CONTACT INFORMATION
-================================================================================
+For commercial use, including but not limited to:
+- Offering consulting or implementation services
+- Operating as a managed service or SaaS
+- Building commercial products that incorporate this software
+- Any use that generates revenue directly or indirectly
 
-For questions regarding this license, please contact:
+Please contact: golfergeek@orchestratorai.io
 
-   GolferGeek / Orchestrator AI
-   golfergeek@orchestratorai.io
-   16221 50th Ave N, Plymouth, MN 55446
+### Future License Changes
 
-================================================================================
-
-BY USING THIS SOFTWARE, YOU ACKNOWLEDGE THAT YOU HAVE READ THIS AGREEMENT,
-UNDERSTAND IT, AND AGREE TO BE BOUND BY ITS TERMS AND CONDITIONS.
-
-Last Updated: December 2024
+The licensor reserves the right to release future versions of
+this software under different license terms. Any such changes
+will apply only to new versions and will not retroactively
+affect versions already released under this license.

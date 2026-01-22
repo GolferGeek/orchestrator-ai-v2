@@ -613,7 +613,7 @@ export function useThemes() {
   const importTheme = (importData: ThemeImportExport): boolean => {
     try {
       const theme = importData.theme;
-      
+
       // Validate theme structure
       const validation = validateTheme(theme.colors);
       if (!validation.isValid) {
@@ -635,7 +635,7 @@ export function useThemes() {
       state.value.customThemes.push(newTheme);
       saveCustomThemes();
       return true;
-    } catch (_error) {
+    } catch {
       state.value.error = 'Failed to import theme';
       return false;
     }

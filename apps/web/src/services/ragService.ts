@@ -8,6 +8,13 @@
 import { apiService } from './apiService';
 
 // Types
+export type RagComplexityType =
+  | 'basic'
+  | 'attributed'
+  | 'hybrid'
+  | 'cross-reference'
+  | 'temporal';
+
 export interface RagCollection {
   id: string;
   organizationSlug: string;
@@ -21,6 +28,7 @@ export interface RagCollection {
   status: 'active' | 'processing' | 'error';
   requiredRole: string | null;
   allowedUsers: string[] | null;
+  complexityType: RagComplexityType;
   createdBy: string | null;
   documentCount: number;
   chunkCount: number;
@@ -54,6 +62,26 @@ export interface RagChunk {
   metadata: Record<string, unknown>;
 }
 
+export interface RagDocumentContent {
+  id: string;
+  filename: string;
+  fileType: string;
+  content: string | null;
+  chunkCount: number;
+}
+
+export interface RagSource {
+  document: string;
+  documentId: string;
+  score: number;
+  excerpt: string;
+  charOffset?: number;
+  documentIdRef?: string;
+  sectionPath?: string;
+  matchType?: string;
+  version?: string;
+}
+
 export interface SearchResult {
   chunkId: string;
   documentId: string;
@@ -82,6 +110,7 @@ export interface CreateCollectionDto {
   requiredRole?: string | null;
   allowedUsers?: string[] | null;
   privateToCreator?: boolean;
+  complexityType?: RagComplexityType;
 }
 
 export interface UpdateCollectionDto {
@@ -90,6 +119,7 @@ export interface UpdateCollectionDto {
   requiredRole?: string | null;
   allowedUsers?: string[] | null;
   clearAllowedUsers?: boolean;
+  complexityType?: RagComplexityType;
 }
 
 export interface QueryCollectionDto {
@@ -291,6 +321,22 @@ class RagService {
   ): Promise<RagChunk[]> {
     const response = await apiService.get<RagChunk[]>(
       `/api/rag/collections/${collectionId}/documents/${documentId}/chunks`,
+      { headers: this.getOrgHeader(organizationSlug) },
+    );
+    return response;
+  }
+
+  /**
+   * Get document content for document viewer
+   * Used to display full document with highlighted sections from RAG sources
+   */
+  async getDocumentContent(
+    collectionId: string,
+    documentId: string,
+    organizationSlug: string,
+  ): Promise<RagDocumentContent> {
+    const response = await apiService.get<RagDocumentContent>(
+      `/api/rag/collections/${collectionId}/documents/${documentId}/content`,
       { headers: this.getOrgHeader(organizationSlug) },
     );
     return response;

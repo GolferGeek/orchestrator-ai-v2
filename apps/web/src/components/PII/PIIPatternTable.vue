@@ -5,7 +5,7 @@
       <ion-grid>
         <ion-row>
           <!-- Search Input -->
-          <ion-col size="12" size-md="4">
+          <ion-col size="12" size-md="3">
             <ion-searchbar
               v-model="searchQuery"
               placeholder="Search patterns..."
@@ -63,7 +63,7 @@
           </ion-col>
           
           <!-- Bulk Actions -->
-          <ion-col size="6" size-md="2">
+          <ion-col size="6" size-md="1">
             <ion-button
               v-if="selectedPatterns.length > 0"
               fill="outline"
@@ -76,7 +76,7 @@
           </ion-col>
           
           <!-- Add New Pattern Button -->
-          <ion-col size="12" size-md="2">
+          <ion-col size="6" size-md="2">
             <ion-button
               fill="solid"
               size="small"
@@ -552,6 +552,23 @@ watch(searchQuery, (newValue) => {
   background: var(--ion-color-light);
   padding: 1rem;
   border-radius: 8px;
+}
+
+.table-controls ion-row {
+  align-items: center;
+}
+
+.table-controls ion-col {
+  display: flex;
+  align-items: center;
+}
+
+.table-controls ion-searchbar {
+  width: 100%;
+}
+
+.table-controls ion-button {
+  width: 100%;
 }
 
 .loading-container {

@@ -101,37 +101,40 @@
 
         <!-- Detail Panel: User Details -->
         <div class="detail-panel" v-if="selectedUser">
-          <ion-card>
+          <!-- User Header Card -->
+          <ion-card class="user-header-card">
             <ion-card-header>
-              <div class="user-header">
-                <div>
-                  <ion-card-title>{{ selectedUser.displayName || selectedUser.email }}</ion-card-title>
-                  <ion-card-subtitle>{{ selectedUser.email }}</ion-card-subtitle>
-                </div>
-                <div class="user-actions">
-                  <ion-button
-                    color="warning"
-                    fill="outline"
-                    @click="confirmRemoveFromOrg"
-                  >
-                    <ion-icon :icon="removeCircleOutline" slot="start"></ion-icon>
-                    Remove from Org
-                  </ion-button>
-                  <ion-button
-                    color="danger"
-                    fill="outline"
-                    @click="confirmDeleteUser"
-                  >
-                    <ion-icon :icon="trashOutline" slot="start"></ion-icon>
-                    Delete User
-                  </ion-button>
-                </div>
+              <div class="user-header-info">
+                <ion-card-title>{{ selectedUser.displayName || selectedUser.email }}</ion-card-title>
+                <ion-card-subtitle>{{ selectedUser.email }}</ion-card-subtitle>
               </div>
             </ion-card-header>
+            <ion-card-content>
+              <div class="user-actions">
+                <ion-button
+                  color="warning"
+                  fill="outline"
+                  size="small"
+                  @click="confirmRemoveFromOrg"
+                >
+                  <ion-icon :icon="removeCircleOutline" slot="start"></ion-icon>
+                  Remove from Org
+                </ion-button>
+                <ion-button
+                  color="danger"
+                  fill="outline"
+                  size="small"
+                  @click="confirmDeleteUser"
+                >
+                  <ion-icon :icon="trashOutline" slot="start"></ion-icon>
+                  Delete User
+                </ion-button>
+              </div>
+            </ion-card-content>
           </ion-card>
 
-          <!-- Current Roles -->
-          <ion-card v-if="selectedUser">
+          <!-- Current Roles Card -->
+          <ion-card class="roles-card">
             <ion-card-header>
               <ion-card-title>Current Roles</ion-card-title>
             </ion-card-header>
@@ -153,13 +156,13 @@
             </ion-card-content>
           </ion-card>
 
-          <!-- Effective Permissions -->
-          <ion-card v-if="selectedUser">
+          <!-- Effective Permissions Card -->
+          <ion-card class="permissions-card">
             <ion-card-header>
               <ion-card-title>Effective Permissions</ion-card-title>
               <ion-card-subtitle>Permissions granted through assigned roles</ion-card-subtitle>
             </ion-card-header>
-            <ion-card-content>
+            <ion-card-content class="permissions-content">
               <div v-if="userPermissions.length > 0" class="permissions-grid">
                 <ion-chip
                   v-for="permission in userPermissions"
@@ -176,13 +179,13 @@
             </ion-card-content>
           </ion-card>
 
-          <!-- Add Role -->
-          <ion-card v-if="selectedUser">
+          <!-- Add Role Card -->
+          <ion-card class="add-role-card">
             <ion-card-header>
               <ion-card-title>Add Role</ion-card-title>
             </ion-card-header>
-            <ion-card-content>
-              <ion-list>
+            <ion-card-content class="add-role-content">
+              <ion-list v-if="availableRolesToAdd.length > 0" class="add-role-list">
                 <ion-item
                   v-for="role in availableRolesToAdd"
                   :key="role.name"
@@ -196,26 +199,28 @@
                   <ion-icon :icon="addCircleOutline" slot="end" color="primary"></ion-icon>
                 </ion-item>
               </ion-list>
-              <p v-if="availableRolesToAdd.length === 0" class="empty-message">
+              <p v-else class="empty-message">
                 User has all available roles
               </p>
             </ion-card-content>
           </ion-card>
 
-          <!-- Password Management -->
-          <ion-card v-if="selectedUser">
+          <!-- Password Management Card -->
+          <ion-card class="password-card">
             <ion-card-header>
               <ion-card-title>Password Management</ion-card-title>
             </ion-card-header>
             <ion-card-content>
-              <ion-button expand="block" @click="showPasswordChangeForm = true">
-                <ion-icon :icon="keyOutline" slot="start"></ion-icon>
-                Change Password
-              </ion-button>
-              <ion-button expand="block" fill="outline" @click="sendPasswordReset">
-                <ion-icon :icon="mailOutline" slot="start"></ion-icon>
-                Send Password Reset Email
-              </ion-button>
+              <div class="password-actions">
+                <ion-button expand="block" @click="showPasswordChangeForm = true">
+                  <ion-icon :icon="keyOutline" slot="start"></ion-icon>
+                  Change Password
+                </ion-button>
+                <ion-button expand="block" fill="outline" @click="sendPasswordReset">
+                  <ion-icon :icon="mailOutline" slot="start"></ion-icon>
+                  Send Password Reset Email
+                </ion-button>
+              </div>
             </ion-card-content>
           </ion-card>
         </div>
@@ -1145,25 +1150,108 @@ function getRoleBadgeColor(roleName: string): string {
   align-items: center;
 }
 
-.user-header {
+/* User Header Card */
+.user-header-card {
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.user-header-card ion-card-header {
+  padding-bottom: 0;
+}
+
+.user-header-info {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
 .user-actions {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+  padding-top: 0.5rem;
 }
 
-.roles-grid,
+/* Current Roles Card */
+.roles-card {
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.roles-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Effective Permissions Card */
+.permissions-card {
+  margin: 0;
+  flex-shrink: 0;
+  max-height: 200px;
+  display: flex;
+  flex-direction: column;
+}
+
+.permissions-card ion-card-header {
+  flex-shrink: 0;
+}
+
+.permissions-content {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
 .permissions-grid {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: flex-start;
+}
+
+/* Add Role Card */
+.add-role-card {
+  margin: 0;
+  flex-shrink: 0;
+  max-height: 200px;
+  display: flex;
+  flex-direction: column;
+}
+
+.add-role-card ion-card-header {
+  flex-shrink: 0;
+}
+
+.add-role-content {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+}
+
+.add-role-list {
+  background: transparent;
+  padding: 0;
+}
+
+.add-role-list ion-item {
+  --padding-start: 16px;
+  --padding-end: 16px;
+}
+
+/* Password Management Card */
+.password-card {
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.password-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 ion-chip {
@@ -1175,6 +1263,7 @@ ion-chip {
   text-align: center;
   color: var(--ion-color-medium);
   margin: 1rem 0;
+  padding: 0 16px;
 }
 
 .create-button,

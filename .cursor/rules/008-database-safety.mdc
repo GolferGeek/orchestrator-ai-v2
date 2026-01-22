@@ -1,0 +1,57 @@
+---
+description: "Critical database safety guidelines - never reset database without explicit user permission"
+globs: ["**/*.sql", "**/*.ts", "**/*.js", "**/migrations/**/*", "**/seed/**/*"]
+alwaysApply: true
+---
+
+# Database Safety Guidelines
+
+## 🚨 CRITICAL RULE: Database Reset Protection
+
+**NEVER reset, drop, or truncate the database unless the user EXPLICITLY requests it.**
+
+### **Forbidden Actions Without Explicit Permission:**
+- ❌ Running database reset scripts
+- ❌ Dropping databases or schemas
+- ❌ Truncating tables
+- ❌ Running destructive migrations
+- ❌ Executing `supabase db reset`
+- ❌ Executing `npm run db:reset` or similar commands
+- ❌ Clearing production or development data
+
+### **What "Explicit Permission" Means:**
+- ✅ User says: "Reset the database"
+- ✅ User says: "Drop and recreate the database"
+- ✅ User says: "I want to start fresh with the database"
+- ❌ User says: "Fix the database" (NOT explicit permission to reset)
+- ❌ User says: "Something is wrong with the data" (NOT explicit permission to reset)
+
+### **Before ANY Destructive Database Operation:**
+1. **Ask for confirmation** if the intent is unclear
+2. **Explain what will be lost** (data, configurations, etc.)
+3. **Wait for explicit approval** before proceeding
+4. **Suggest non-destructive alternatives** when appropriate
+
+### **Safe Alternatives to Suggest:**
+- Running specific migrations
+- Adding/modifying individual tables or columns
+- Fixing data through targeted UPDATE queries
+- Creating backups before changes
+- Using database transactions for testing
+
+### **When Database Issues Arise:**
+- **First**: Diagnose the actual problem
+- **Second**: Suggest targeted fixes
+- **Third**: Offer backup/restore options
+- **Last Resort**: Only suggest reset if explicitly necessary and approved
+
+## Why This Rule Exists
+
+Database resets are destructive operations that can:
+- Lose valuable development data
+- Break active testing workflows
+- Require time-consuming re-seeding
+- Disrupt collaborative work
+- Eliminate important debugging information
+
+**Default to preservation, not destruction.**

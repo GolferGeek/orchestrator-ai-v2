@@ -1,3 +1,37 @@
+// Chat message types for transcript display
+export interface ContentBlock {
+  type?: string;
+  text?: string;
+  name?: string;
+  input?: unknown;
+  content?: unknown;
+  source?: { media_type?: string };
+}
+
+export interface Message {
+  role?: string;
+  content?: string | ContentBlock[];
+  usage?: {
+    input_tokens?: number;
+    output_tokens?: number;
+  };
+}
+
+export interface ChatMessage {
+  role?: string;
+  type?: string;
+  content?: string | ContentBlock[];
+  message?: Message;
+  timestamp?: string;
+  toolUseID?: string;
+  tool_use?: { name?: string };
+  tool_result?: { content?: unknown };
+  uuid?: string;
+  sessionId?: string;
+  toolUseResult?: unknown;
+  isMeta?: boolean;
+}
+
 // New interface for human-in-the-loop requests
 export interface HumanInTheLoop {
   question: string;
@@ -32,7 +66,7 @@ export interface HookEvent {
   session_id: string;
   hook_event_type: string;
   payload: Record<string, unknown>;
-  chat?: unknown[];
+  chat?: ChatMessage[];
   summary?: string;
   timestamp?: number;
   model_name?: string;

@@ -368,28 +368,29 @@ const formattedPayload = computed(() => {
 });
 
 const toolInfo = computed(() => {
-  const payload = props.event.payload;
-  
+  const payload = props.event.payload as Record<string, unknown>;
+
   // Handle UserPromptSubmit events
-  if (props.event.hook_event_type === 'UserPromptSubmit' && payload.prompt) {
+  if (props.event.hook_event_type === 'UserPromptSubmit' && typeof payload.prompt === 'string') {
+    const prompt = payload.prompt;
     return {
       tool: 'Prompt:',
-      detail: `"${payload.prompt.slice(0, 100)}${payload.prompt.length > 100 ? '...' : ''}"`
+      detail: `"${prompt.slice(0, 100)}${prompt.length > 100 ? '...' : ''}"`
     };
   }
-  
+
   // Handle PreCompact events
   if (props.event.hook_event_type === 'PreCompact') {
-    const trigger = payload.trigger || 'unknown';
+    const trigger = (payload.trigger as string) || 'unknown';
     return {
       tool: 'Compaction:',
       detail: trigger === 'manual' ? 'Manual compaction' : 'Auto-compaction (full context)'
     };
   }
-  
+
   // Handle SessionStart events
   if (props.event.hook_event_type === 'SessionStart') {
-    const source = payload.source || 'unknown';
+    const source = (payload.source as string) || 'unknown';
     const sourceLabels: Record<string, string> = {
       'startup': 'New session',
       'resume': 'Resuming session',
@@ -400,24 +401,26 @@ const toolInfo = computed(() => {
       detail: sourceLabels[source] || source
     };
   }
-  
+
   // Handle tool-based events
-  if (payload.tool_name) {
+  if (typeof payload.tool_name === 'string') {
     const info: { tool: string; detail?: string } = { tool: payload.tool_name };
-    
-    if (payload.tool_input) {
-      if (payload.tool_input.command) {
-        info.detail = payload.tool_input.command.slice(0, 50) + (payload.tool_input.command.length > 50 ? '...' : '');
-      } else if (payload.tool_input.file_path) {
-        info.detail = payload.tool_input.file_path.split('/').pop();
-      } else if (payload.tool_input.pattern) {
-        info.detail = payload.tool_input.pattern;
+
+    const toolInput = payload.tool_input as Record<string, unknown> | undefined;
+    if (toolInput) {
+      if (typeof toolInput.command === 'string') {
+        const command = toolInput.command;
+        info.detail = command.slice(0, 50) + (command.length > 50 ? '...' : '');
+      } else if (typeof toolInput.file_path === 'string') {
+        info.detail = toolInput.file_path.split('/').pop();
+      } else if (typeof toolInput.pattern === 'string') {
+        info.detail = toolInput.pattern;
       }
     }
-    
+
     return info;
   }
-  
+
   return null;
 });
 

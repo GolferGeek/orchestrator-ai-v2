@@ -26,7 +26,7 @@ async function sendResponseToAgent(wsUrl, response) {
                 try {
                     ws.close();
                 }
-                catch (e) {
+                catch (_e) {
                 }
             }
         };

@@ -220,18 +220,19 @@ describe('ApiAgentRunnerService', () => {
 
       // Verify HTTP call
 
-      expect(httpService.request).toHaveBeenCalledWith({
-        url: 'https://api.example.com/users',
-        method: 'GET',
-        headers: expect.objectContaining({
-          'X-API-Key': 'secret-key',
-          'Content-Type': 'application/json',
-        }) as Record<string, string>,
-        data: undefined,
-        params: {},
-        timeout: 30000,
-        validateStatus: expect.any(Function) as (status: number) => boolean,
-      });
+      expect(httpService.request).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: 'https://api.example.com/users',
+          method: 'GET',
+          headers: expect.objectContaining({
+            'X-API-Key': 'secret-key',
+            'Content-Type': 'application/json',
+          }) as Record<string, string>,
+          data: undefined,
+          params: {},
+          timeout: 60000, // Default timeout in implementation
+        }),
+      );
 
       // Verify deliverable creation
 

@@ -45,7 +45,7 @@ Build a structured, machine-readable execution plan from one or more Product Req
 
 ### Build Plan and Save to File
 ```
-/build-plan docs/prd/active/landing-page-prd.md --output plans/landing-page.plan.json
+/build-plan docs/prd/active/landing-page-prd.md --output docs/plans/landing-page.plan.json
 ```
 
 ### Build Plan and Output to Stdout
@@ -241,35 +241,36 @@ Saves plan to specified file path. Creates directory if needed.
 ```
 Outputs JSON to stdout for piping or inspection.
 
-### Auto-Generated Filename
+### Auto-Generated Filename (Default: `docs/plans/`)
 ```
 /build-plan docs/prd/active/landing-page-prd.md
 ```
-If no `--output` specified, generates filename from PRD:
-- `docs/prd/active/landing-page-prd.md` → `plans/landing-page.plan.json`
+If no `--output` specified, generates filename from PRD and saves to `docs/plans/`:
+- `docs/prd/active/landing-page-prd.md` → `docs/plans/landing-page.plan.json`
+- `docs/prd/market-prediction-runner.prd.md` → `docs/plans/market-prediction-runner.plan.json`
 
 ## Example: Complete Workflow
 
 ### Step 1: Build Plan
 ```
-/build-plan docs/prd/active/landing-page-prd.md --output plans/landing-page.plan.json
+/build-plan docs/prd/active/landing-page-prd.md --output docs/plans/landing-page.plan.json
 ```
 
 **Output:**
 ```
-✅ Plan created: plans/landing-page.plan.json
+✅ Plan created: docs/plans/landing-page.plan.json
 📋 3 phases, 8 steps, 4 checkpoints
 🎯 Agents: web-architecture-agent, api-architecture-agent
 ```
 
 ### Step 2: Review Plan (Optional)
 ```bash
-cat plans/landing-page.plan.json | jq '.phases[] | {id, label, steps: [.steps[] | {id, action, agent}]}'
+cat docs/plans/landing-page.plan.json | jq '.phases[] | {id, label, steps: [.steps[] | {id, action, agent}]}'
 ```
 
 ### Step 3: Execute Plan
 ```
-/work-plan --plan plans/landing-page.plan.json
+/work-plan --plan docs/plans/landing-page.plan.json
 ```
 
 The `/work-plan` command will:
@@ -285,7 +286,7 @@ Since the plan is JSON, it can be used in Cursor:
 
 1. **Read Plan:**
    ```typescript
-   import plan from './plans/landing-page.plan.json';
+   import plan from './docs/plans/landing-page.plan.json';
    // Access plan.phases, plan.steps, etc.
    ```
 

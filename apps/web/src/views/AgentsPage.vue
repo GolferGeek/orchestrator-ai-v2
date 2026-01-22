@@ -72,9 +72,10 @@
                   </ion-item>
                   <div slot="content" class="agents-content">
                     <!-- Agent Tree -->
-                    <AgentTreeView 
+                    <AgentTreeView
                       @conversation-selected="handleConversationSelected"
                       @agent-selected="handleAgentSelected"
+                      @open-dashboard="handleOpenDashboard"
                       :compact-mode="true"
                     />
                   </div>
@@ -103,9 +104,10 @@
   </ion-page>
 </template>
 <script lang="ts" setup>
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, onMounted, nextTick } from 'vue';
 import {
-  IonPage, IonContent, IonIcon, IonItem, IonLabel, IonList, IonMenu, IonNote, IonRouterOutlet, IonSplitPane, IonHeader, IonToolbar, IonTitle, IonAccordion, IonAccordionGroup
+  IonPage, IonContent, IonIcon, IonItem, IonLabel, IonList, IonMenu, IonNote, IonRouterOutlet, IonSplitPane, IonHeader, IonToolbar, IonTitle, IonAccordion, IonAccordionGroup,
+  menuController
 } from '@ionic/vue';
 import { logOutOutline, starOutline, chatbubblesOutline, documentTextOutline, sunnyOutline, moonOutline } from 'ionicons/icons';
 import { useAuthStore } from '@/stores/rbacStore';
@@ -114,6 +116,7 @@ import { conversationsService } from '@/services/conversationsService';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
 import { useUserPreferencesStore } from '@/stores/userPreferencesStore';
 import { useRouter } from 'vue-router';
+import { getInteractionMode, isPredictionAgent, type Agent as InteractionAgent } from '@/utils/agent-interaction-mode';
 import AgentTreeView from '@/components/AgentTreeView.vue';
 import OrganizationSwitcherApp from '@/components/common/OrganizationSwitcherApp.vue';
 import SuperAdminCommandButton from '@/components/super-admin/SuperAdminCommandButton.vue';
@@ -173,6 +176,8 @@ const navigateToLanding = () => {
 };
 const handleConversationSelected = async (conversation: Record<string, unknown>) => {
   try {
+    // Close the sidebar menu when a conversation is selected
+    await menuController.close();
 
     // Set the active conversation in the store
     chatUiStore.setActiveConversation(conversation.id);
@@ -180,14 +185,46 @@ const handleConversationSelected = async (conversation: Record<string, unknown>)
     // Set flag in sessionStorage to indicate active conversation
     sessionStorage.setItem('activeConversation', 'true');
 
-    // Navigate to home page to show the conversation
-    await router.push({ path: '/app/home', query: { forceHome: 'true', conversationId: conversation.id } });
+    // Check if this conversation belongs to an agent with a dedicated route
+    const agentName = (conversation.agentName || conversation.agent_name) as string;
+    const agentsWithDedicatedRoutes = ['legal-department'];
+
+    if (agentName && agentsWithDedicatedRoutes.includes(agentName)) {
+      // Route to the dedicated agent view with the existing conversation
+      await router.push({
+        path: `/app/agents/${agentName}`,
+        query: { conversationId: conversation.id as string }
+      });
+    } else {
+      // Navigate to home page to show the conversation in generic view
+      await router.push({ path: '/app/home', query: { forceHome: 'true', conversationId: conversation.id } });
+    }
   } catch (error) {
     console.error('Error selecting conversation:', error);
   }
 };
 const handleAgentSelected = async (agent: Record<string, unknown>) => {
   try {
+    // Close the sidebar menu when an agent is selected
+    await menuController.close();
+
+    const agentSlug = (agent.slug || agent.name) as string;
+
+    // Check if this agent has a dedicated route (e.g., legal-department)
+    // These agents have custom views that are better than the generic ConversationView
+    const agentsWithDedicatedRoutes = ['legal-department'];
+    if (agentsWithDedicatedRoutes.includes(agentSlug)) {
+      // Create a new conversation for dedicated route agents too
+      const newConversationId = await conversation.createConversation(agent);
+
+      // Refresh conversations list to show the new conversation in sidebar
+      await conversationsService.fetchConversations(true);
+
+      sessionStorage.setItem('activeConversation', 'true');
+      router.push({ path: `/app/agents/${agentSlug}`, query: { conversationId: newConversationId } });
+      return;
+    }
+
     // Always create a conversation first - this shows up in the sidebar under the agent
     const conversationId = await conversation.createConversation(agent);
 
@@ -202,6 +239,43 @@ const handleAgentSelected = async (agent: Record<string, unknown>) => {
     router.push({ path: '/app/home', query: { forceHome: 'true', conversationId } });
   } catch (error) {
     console.error('Failed to handle agent selection:', error);
+  }
+};
+
+const handleOpenDashboard = async (agent: Record<string, unknown>, _componentName: string) => {
+  try {
+    // Close the sidebar menu when a dashboard is opened
+    await menuController.close();
+
+    const interactionMode = getInteractionMode(agent as InteractionAgent);
+    const agentSlug = (agent.slug || agent.name) as string;
+
+    // Set flag in sessionStorage to indicate active session
+    sessionStorage.setItem('activeConversation', 'true');
+
+    // Use nextTick to ensure Vue's reactivity system has completed any pending updates
+    // before triggering navigation - this prevents Ionic Vue page transition race conditions
+    await nextTick();
+
+    // Prediction agents route to the new prediction dashboard routes
+    if (isPredictionAgent(agent as unknown as InteractionAgent)) {
+      await router.push({ path: '/app/prediction/dashboard', query: { agentSlug } });
+      return;
+    }
+
+    // Dashboard agents navigate with agentSlug - the dashboard pane handles its own
+    // ExecutionContext creation (conversationId, taskId) when making API calls
+    if (!interactionMode.canStartConversation) {
+      await router.push({ path: '/app/home', query: { forceHome: 'true', agentSlug } });
+      return;
+    }
+
+    // For agents that support both dashboard and conversation UI, create conversation
+    const conversationId = await conversation.createConversation(agent);
+    await conversationsService.fetchConversations(true);
+    await router.push({ path: '/app/home', query: { forceHome: 'true', conversationId } });
+  } catch (error) {
+    console.error('Failed to open dashboard:', error);
   }
 };
 </script>

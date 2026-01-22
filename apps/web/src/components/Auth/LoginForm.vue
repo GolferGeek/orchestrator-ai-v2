@@ -19,8 +19,10 @@
 <script lang="ts" setup>
 import { ref } from 'vue';
 import { IonList, IonItem, IonLabel, IonInput, IonButton, IonText } from '@ionic/vue';
-const email = ref(import.meta.env.VITE_TEST_USER || 'golfergeek@orchestratorai.io');
-const password = ref(import.meta.env.VITE_TEST_PASSWORD || 'GolferGeek123!');
+// Use demo.user as fallback to match LoginPage.vue
+// golfergeek user also exists with password GolferGeek123! for legacy support
+const email = ref(import.meta.env.VITE_TEST_USER || 'demo.user@orchestratorai.io');
+const password = ref(import.meta.env.VITE_TEST_PASSWORD || 'DemoUser123!');
 const error = ref<string | null>(null);
 const loading = ref(false);
 // Define emits for when login is successful or fails

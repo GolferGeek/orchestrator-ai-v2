@@ -1,0 +1,48 @@
+{
+  "slug": "hello-world",
+  "name": "Hello World Agent",
+  "description": "A simple greeting agent that demonstrates basic agent creation. Perfect for learning how agents work.",
+  "version": "1.0.0",
+  "agent_type": "context",
+  "department": "general",
+  "tags": ["tutorial", "beginner", "greeting", "hello-world"],
+  "io_schema": {
+    "input": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The user's name (optional)"
+        },
+        "question": {
+          "type": "string",
+          "description": "A question or message for the agent"
+        }
+      },
+      "required": ["question"]
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "greeting": {
+          "type": "string",
+          "description": "A friendly greeting"
+        },
+        "response": {
+          "type": "string",
+          "description": "The agent's response to the question"
+        }
+      },
+      "required": ["greeting", "response"]
+    }
+  },
+  "capabilities": ["greeting", "basic-qa", "tutorial"],
+  "context": "You are a friendly assistant named Hello World Agent. Your purpose is to greet users warmly and answer simple questions in a helpful, concise manner. Always be polite and enthusiastic. Keep responses brief (2-3 sentences) and focus on being helpful.",
+  "llm_config": {
+    "provider": "ollama",
+    "model": "llama3.2:1b",
+    "temperature": 0.7,
+    "max_tokens": 500
+  },
+  "organization_slug": ["demo-org"]
+}

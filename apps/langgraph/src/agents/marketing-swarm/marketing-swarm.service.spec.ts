@@ -34,7 +34,7 @@ describe("MarketingSwarmService", () => {
   let service: MarketingSwarmService;
   let processor: jest.Mocked<DualTrackProcessorService>;
   let db: jest.Mocked<MarketingDbService>;
-  let observability: jest.Mocked<ObservabilityService>;
+  let _observability: jest.Mocked<ObservabilityService>;
 
   const mockContext = createMockExecutionContext({
     taskId: "task-123",
@@ -126,7 +126,7 @@ describe("MarketingSwarmService", () => {
     service = module.get<MarketingSwarmService>(MarketingSwarmService);
     processor = module.get(DualTrackProcessorService);
     db = module.get(MarketingDbService);
-    observability = module.get(ObservabilityService);
+    _observability = module.get(ObservabilityService);
   });
 
   afterEach(() => {

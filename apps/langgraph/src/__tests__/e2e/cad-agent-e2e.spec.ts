@@ -20,7 +20,7 @@ import { v4 as uuidv4 } from "uuid";
 let supabase: SupabaseClient<any, "engineering">;
 
 // Test constants
-const TEST_ORG_SLUG = "demo-org";
+const TEST_ORG_SLUG = "engineering";
 const TEST_USER_ID = "00000000-0000-0000-0000-000000000001"; // engineering-test user
 const LANGGRAPH_URL = process.env.LANGGRAPH_URL || "http://127.0.0.1:6200";
 
@@ -346,7 +346,7 @@ describe("CAD Agent E2E Tests", () => {
 
       const context = createTestContext();
 
-      const { status, data } = await callCadAgentGenerate({
+      const { status, data: _data } = await callCadAgentGenerate({
         context,
         userMessage: "Create a bracket",
         projectId,
@@ -390,7 +390,7 @@ describe("CAD Agent E2E Tests", () => {
       createdDrawingIds.push(drawingId);
 
       // Try to get status (will return 404 if no checkpointer state exists)
-      const { status, data } = await getCadAgentStatus(drawingId);
+      const { status, data: _data } = await getCadAgentStatus(drawingId);
 
       // This should return 404 since we didn't actually run through the graph
       // The checkpointer won't have state for this taskId

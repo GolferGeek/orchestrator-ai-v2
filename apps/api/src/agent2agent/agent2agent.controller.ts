@@ -15,7 +15,10 @@ import {
   Req,
   NotFoundException,
   UnauthorizedException,
+  UseInterceptors,
+  UploadedFiles,
 } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { AgentCardBuilderService } from './services/agent-card-builder.service';
 import { AgentExecutionGateway } from './services/agent-execution-gateway.service';
 import { TaskRequestDto } from './dto/task-request.dto';
@@ -71,6 +74,7 @@ import {
   ObservabilityEventRecord,
 } from '../observability/observability-events.service';
 import { Subscription } from 'rxjs';
+import { DocumentProcessingService } from './services/document-processing.service';
 
 interface NormalizedTaskRequest {
   dto: NormalizedTaskRequestDto;
@@ -136,6 +140,7 @@ export class Agent2AgentController {
     private readonly deliverablesService: DeliverablesService,
     private readonly taskUpdateService: TasksService,
     private readonly observabilityEvents: ObservabilityEventsService,
+    private readonly documentProcessing: DocumentProcessingService,
   ) {}
 
   private readonly logger = new Logger(Agent2AgentController.name);
@@ -244,10 +249,12 @@ export class Agent2AgentController {
 
   @Post('agent-to-agent/:orgSlug/:agentSlug/tasks')
   @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FilesInterceptor('files', 10)) // Support up to 10 files
   async executeTask(
     @Param('orgSlug') orgSlug: string,
     @Param('agentSlug') agentSlug: string,
     @Body() body: FrontendTaskRequest,
+    @UploadedFiles() files: Array<Express.Multer.File>,
     @CurrentUser() currentUser: SupabaseAuthUserDto,
     @Req() request: RequestWithStreamData,
   ): Promise<TaskResponseDto | JsonRpcSuccessEnvelope | JsonRpcErrorEnvelope> {
@@ -257,8 +264,17 @@ export class Agent2AgentController {
     );
 
     // ADAPTER: Transform frontend CreateTaskDto format to Agent2Agent TaskRequestDto format
+    this.logger.log(
+      `🔍 [A2A-CTRL] DEBUG BEFORE adapt - body.mode: ${String((body as Record<string, unknown>)?.mode)}, body.method: ${String((body as Record<string, unknown>)?.method)}`,
+    );
     const adaptedBody = this.adaptFrontendRequest(body);
+    this.logger.log(
+      `🔍 [A2A-CTRL] DEBUG AFTER adapt - adaptedBody.mode: ${String((adaptedBody as Record<string, unknown>)?.mode)}`,
+    );
     const { dto, jsonrpc } = await this.normalizeTaskRequest(adaptedBody);
+    this.logger.log(
+      `🔍 [A2A-CTRL] DEBUG AFTER normalize - dto.mode: ${dto.mode}`,
+    );
 
     const payloadMethod = (dto.payload as Record<string, unknown>)?.method;
     this.logger.log(
@@ -301,6 +317,151 @@ export class Agent2AgentController {
     const context = dto.context;
 
     try {
+      // =========================================================================
+      // FILE UPLOAD PROCESSING (Phase 2: Multimodal A2A Transport)
+      // Process uploaded files and convert to base64 for metadata storage
+      // Upload original files to legal-documents storage bucket
+      // =========================================================================
+      if (files && files.length > 0) {
+        this.logger.log(
+          `📎 [A2A-CTRL] Processing ${files.length} uploaded file(s)`,
+        );
+
+        // Initialize documents array in metadata if not present
+        if (!dto.metadata) {
+          dto.metadata = {};
+        }
+        if (!dto.metadata.documents) {
+          dto.metadata.documents = [];
+        }
+
+        // Process each file
+        for (const file of files) {
+          try {
+            // Convert file buffer to base64
+            const base64Data = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+
+            // Process document (extract text if applicable, upload to storage)
+            const processedDoc = await this.documentProcessing.processDocument(
+              {
+                filename: file.originalname,
+                mimeType: file.mimetype,
+                size: file.size,
+                base64Data,
+              },
+              context,
+            );
+
+            // Add processed document to metadata (including legal metadata)
+            (dto.metadata.documents as Array<unknown>).push({
+              documentId: processedDoc.documentId,
+              filename: file.originalname,
+              mimeType: file.mimetype,
+              size: file.size,
+              url: processedDoc.url,
+              storagePath: processedDoc.storagePath,
+              extractedText: processedDoc.extractedText,
+              extractionMethod: processedDoc.extractionMethod,
+              legalMetadata: processedDoc.legalMetadata,
+              uploadedAt: new Date().toISOString(),
+            });
+
+            this.logger.log(
+              `📎 [A2A-CTRL] Processed file: ${file.originalname} (${processedDoc.extractionMethod || 'no extraction'})`,
+            );
+          } catch (error) {
+            this.logger.error(
+              `📎 [A2A-CTRL] Failed to process file ${file.originalname}: ${error instanceof Error ? error.message : String(error)}`,
+            );
+            // Continue processing other files even if one fails
+          }
+        }
+
+        this.logger.log(
+          `📎 [A2A-CTRL] Finished processing ${files.length} file(s)`,
+        );
+      }
+
+      // =========================================================================
+      // DOCUMENT PROCESSING FROM PAYLOAD (JSON-based document upload)
+      // Process documents sent as base64 in payload.documents array
+      // This supports both multipart file upload AND JSON-based document transfer
+      // =========================================================================
+      const payloadDocuments = (dto.payload as Record<string, unknown>)
+        ?.documents;
+      if (Array.isArray(payloadDocuments) && payloadDocuments.length > 0) {
+        this.logger.log(
+          `📄 [A2A-CTRL] Processing ${payloadDocuments.length} document(s) from payload`,
+        );
+
+        // Initialize documents array in metadata if not present
+        if (!dto.metadata) {
+          dto.metadata = {};
+        }
+        if (!dto.metadata.documents) {
+          dto.metadata.documents = [];
+        }
+
+        // Process each document
+        for (const doc of payloadDocuments) {
+          try {
+            if (
+              typeof doc === 'object' &&
+              doc !== null &&
+              'filename' in doc &&
+              'mimeType' in doc &&
+              'base64Data' in doc
+            ) {
+              const docMetadata = doc as {
+                filename: string;
+                mimeType: string;
+                size?: number;
+                base64Data: string;
+              };
+
+              // Process document (extract text if applicable, upload to storage)
+              const processedDoc =
+                await this.documentProcessing.processDocument(
+                  {
+                    filename: docMetadata.filename,
+                    mimeType: docMetadata.mimeType,
+                    size: docMetadata.size || 0,
+                    base64Data: docMetadata.base64Data,
+                  },
+                  context,
+                );
+
+              // Add processed document to metadata (including legal metadata)
+              (dto.metadata.documents as Array<unknown>).push({
+                documentId: processedDoc.documentId,
+                filename: docMetadata.filename,
+                mimeType: docMetadata.mimeType,
+                size: processedDoc.sizeBytes,
+                url: processedDoc.url,
+                storagePath: processedDoc.storagePath,
+                extractedText: processedDoc.extractedText,
+                extractionMethod: processedDoc.extractionMethod,
+                legalMetadata: processedDoc.legalMetadata,
+                uploadedAt: new Date().toISOString(),
+              });
+
+              this.logger.log(
+                `📄 [A2A-CTRL] Processed document: ${docMetadata.filename} (${processedDoc.extractionMethod || 'no extraction'})`,
+              );
+            }
+          } catch (error) {
+            this.logger.error(
+              `📄 [A2A-CTRL] Failed to process document: ${error instanceof Error ? error.message : String(error)}`,
+            );
+            // Continue processing other documents even if one fails
+          }
+        }
+
+        this.logger.log(
+          `📄 [A2A-CTRL] Finished processing ${payloadDocuments.length} document(s) from payload`,
+        );
+      }
+
       // Build conversation history from messages
       const conversationHistoryFromMessages: ConversationMessage[] =
         dto.messages?.map((msg) => {
@@ -394,6 +555,34 @@ export class Agent2AgentController {
 
       // Always complete the task (even if deliverable was already created by handler)
       await this.agentTaskStatusService.completeTask(context, result);
+
+      // Attach processed documents to result payload for client visibility
+      if (
+        dto.metadata?.documents &&
+        Array.isArray(dto.metadata.documents) &&
+        dto.metadata.documents.length > 0
+      ) {
+        const typedResult = result as unknown as TaskExecutionResult;
+        if (!typedResult.payload) {
+          typedResult.payload = {};
+        }
+        if (
+          typeof typedResult.payload === 'object' &&
+          typedResult.payload !== null
+        ) {
+          const payload = typedResult.payload as Record<string, unknown>;
+          if (!payload.content) {
+            payload.content = {};
+          }
+          if (typeof payload.content === 'object' && payload.content !== null) {
+            (payload.content as Record<string, unknown>).documents =
+              dto.metadata.documents;
+          }
+        }
+        this.logger.log(
+          `📄 [A2A-CTRL] Attached ${dto.metadata.documents.length} processed document(s) to response`,
+        );
+      }
 
       this.logRequest({
         org: context.orgSlug,
@@ -1181,8 +1370,8 @@ export class Agent2AgentController {
       // Map 'method' to 'mode' enum
       mode: body.method || 'converse',
 
-      // Map 'prompt' to 'userMessage'
-      userMessage: body.prompt,
+      // Map 'prompt' to 'userMessage' (also pass through userMessage if already set)
+      userMessage: body.prompt || body.userMessage,
 
       // Map 'conversationHistory' to 'messages'
       messages: body.conversationHistory?.map((msg) => ({
@@ -1193,9 +1382,14 @@ export class Agent2AgentController {
       // Pass through standard fields
       conversationId: body.conversationId,
 
+      // CRITICAL: Pass through ExecutionContext (required for all A2A requests)
+      context: body.context,
+
       // Pack additional data into payload
+      // CRITICAL: Preserve body.payload (contains documents for JSON-based upload)
       payload: {
         ...(body.params || {}),
+        ...(body.payload || {}),
         llmSelection: body.llmSelection,
         executionMode: body.executionMode,
         taskId: body.taskId,

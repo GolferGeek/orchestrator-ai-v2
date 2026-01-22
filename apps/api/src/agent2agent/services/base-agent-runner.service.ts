@@ -27,9 +27,26 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
  * - Mode routing (CONVERSE, PLAN, BUILD)
  * - Capability validation
  * - Utility methods for request handling
+ * - Error handling and logging
+ * - Organization context management
  *
  * All concrete agent runners (Context, Tool, API, External, Function, Orchestrator)
  * should extend this class and implement the abstract mode handlers.
+ *
+ * Execution Flow:
+ * 1. execute() receives task request
+ * 2. Validates agent supports requested mode
+ * 3. Routes to appropriate handler (handleConverse/Plan/Build)
+ * 4. Handlers process request with LLM/service calls
+ * 5. Returns structured response
+ *
+ * Error Handling:
+ * - Errors are caught and wrapped in standardized format
+ * - User-friendly messages provided
+ * - Technical details logged for debugging
+ *
+ * @see docs/CODE_TOUR.md for architecture overview
+ * @see docs/tutorials/BUILD_FIRST_AGENT.md for creating agents
  *
  * @example
  * ```typescript

@@ -2,6 +2,7 @@
   "moduleFileExtensions": ["js", "json", "ts"],
   "rootDir": "../..",
   "testEnvironment": "node",
+  "setupFiles": ["<rootDir>/testing/test/setup-env.ts"],
   "testRegex": ".e2e-spec.ts$",
   "transform": {
     "^.+\\.(t|j)s$": ["ts-jest", {
@@ -19,7 +20,7 @@
     "^@common/(.*)$": "<rootDir>/src/common/$1"
   },
   "transformIgnorePatterns": [
-    "node_modules/(?!quick-lru)"
+    "node_modules/(?!(quick-lru|@anthropic-ai/claude-agent-sdk)/)"
   ],
   "extensionsToTreatAsEsm": [".ts"]
 }

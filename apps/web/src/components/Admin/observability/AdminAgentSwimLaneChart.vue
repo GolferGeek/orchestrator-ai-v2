@@ -317,18 +317,18 @@ const getThemeColor = (property: string): string => {
   const ionColor = getComputedStyle(document.documentElement).getPropertyValue(`--ion-color-${property}`).trim();
   if (ionColor) return ionColor;
   
-  // Fallback colors
+  // Fallback colors (brown/green brand palette)
   const fallbacks: Record<string, string> = {
-    'primary': '#3880ff',
-    'secondary': '#3dc2ff',
-    'tertiary': '#5260ff',
-    'success': '#2dd36f',
+    'primary': '#8b5a3c',
+    'secondary': '#15803d',
+    'tertiary': '#ca8a04',
+    'success': '#22c55e',
     'warning': '#ffc409',
     'danger': '#eb445a',
-    'medium': '#92949c',
-    'light': '#f4f5f8'
+    'medium': '#78716c',
+    'light': '#fdf8f6'
   };
-  return fallbacks[property] || '#3880ff';
+  return fallbacks[property] || '#8b5a3c';
 };
 
 const getActiveConfig = (): ChartConfig => {

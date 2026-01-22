@@ -78,6 +78,8 @@ import { QueryController } from './query.controller';
     DocumentsService,
     QueryService,
     EmbeddingService,
+    // Extractors (used by DocumentProcessingService in Agent2Agent)
+    PdfExtractorService,
   ],
 })
 export class RagModule {}

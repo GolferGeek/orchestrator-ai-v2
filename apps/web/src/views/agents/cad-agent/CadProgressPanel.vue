@@ -85,7 +85,7 @@
         <div v-if="validationErrors.length > 0" class="validation-errors">
           <h4>Validation Errors:</h4>
           <ul>
-            <li v-for="(validationError, index) in validationErrors" :key="index">{{ validationError }}</li>
+            <li v-for="(validationErr, index) in validationErrors" :key="index">{{ validationErr }}</li>
           </ul>
         </div>
 

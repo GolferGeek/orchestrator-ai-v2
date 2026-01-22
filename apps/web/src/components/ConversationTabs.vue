@@ -55,6 +55,7 @@ import { closeOutline, chatbubblesOutline } from 'ionicons/icons';
 import { useConversationsStore } from '@/stores/conversationsStore';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
 import { useAgentsStore } from '@/stores/agentsStore';
+import { agentsService } from '@/services/agentsService';
 import { sendMessage as sendMessageAction, createPlan, createDeliverable } from '@/services/agent2agent/actions';
 import { conversation as conversationHelpers } from '@/services/conversationHelpers';
 import AgentChatView from './AgentChatView.vue';
@@ -103,9 +104,10 @@ const switchToConversation = async (conversationId: string) => {
     const messages = await conversationHelpers.loadConversationMessages(conversationId);
 
 
-    // Ensure agents are loaded
+    // Ensure agents are loaded using agentsService
     if (!agentsStore.availableAgents || agentsStore.availableAgents.length === 0) {
-      await agentsStore.ensureAgentsLoaded();
+      const agents = await agentsService.getAvailableAgents();
+      agentsStore.setAvailableAgents(agents);
     }
 
     const agent = agentsStore.availableAgents?.find(a => a.name === backendConversation.agentName);

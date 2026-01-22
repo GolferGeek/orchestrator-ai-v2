@@ -7,9 +7,9 @@ export declare class ObservabilityGateway implements OnGatewayInit, OnGatewayCon
     server: Server;
     private readonly logger;
     constructor(databaseService: DatabaseService);
-    afterInit(server: Server): void;
+    afterInit(_server: Server): void;
     handleConnection(client: Socket): Promise<void>;
     handleDisconnect(client: Socket): void;
-    handleMessage(client: Socket, payload: any): void;
+    handleMessage(client: Socket, payload: unknown): void;
     broadcastEvent(event: HookEvent): void;
 }

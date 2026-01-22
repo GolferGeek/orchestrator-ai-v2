@@ -32,6 +32,8 @@
     "test": "turbo run test",
     "lint": "turbo run lint --filter=nestjs",
     "format": "turbo run format",
+    "restart:6200": "pkill -f 'node.*langgraph/dist/main' || true && cd apps/langgraph && npm run build && npm run start:dev",
+    "kill:6200": "pkill -f 'node.*langgraph/dist/main' || echo 'No LangGraph process found'",
     "kill:6101": "lsof -ti:6101 | xargs kill -9 2>/dev/null || echo 'No process found on port 6101'",
     "kill:6100": "lsof -ti:6100 | xargs kill -9 2>/dev/null || echo 'No process found on port 6100'",
     "kill:4100": "lsof -ti:4100 | xargs kill -9 2>/dev/null || echo 'No process found on port 4100'",
@@ -66,7 +68,18 @@
     "db:import-n8n": "bash apps/api/supabase/scripts/import-n8n-workflow.sh",
     "db:export-all-n8n": "bash apps/api/supabase/scripts/export-all-n8n-workflows.sh",
     "db:import-all-n8n": "bash apps/api/supabase/scripts/import-all-n8n-workflows.sh",
-    "db:sync-n8n": "bash apps/api/supabase/scripts/sync-n8n-to-db.sh"
+    "db:sync-n8n": "bash apps/api/supabase/scripts/sync-n8n-to-db.sh",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "docker:dev": "docker-compose -f docker-compose.dev.yml up -d",
+    "docker:dev:down": "docker-compose -f docker-compose.dev.yml down",
+    "docker:student": "docker-compose -f docker-compose.student.yml up -d",
+    "docker:student:down": "docker-compose -f docker-compose.student.yml down",
+    "docker:student:logs": "docker-compose -f docker-compose.student.yml logs -f",
+    "setup": "./scripts/setup.sh",
+    "setup:student": "./scripts/setup-student.sh",
+    "diagnostics": "./scripts/diagnostics.sh"
   },
   "devDependencies": {
     "@babel/plugin-proposal-class-properties": "^7.18.6",
@@ -99,6 +112,8 @@
     "figlet": "^1.8.2",
     "gradient-string": "^3.0.0",
     "node-fetch": "^3.3.2",
+    "pdf-parse": "^1.1.1",
+    "pdf2json": "^4.0.2",
     "quick-lru": "^7.0.1",
     "supabase": "^2.65.6",
     "uuid": "^11.1.0"

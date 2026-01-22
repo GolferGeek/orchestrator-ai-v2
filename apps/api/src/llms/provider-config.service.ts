@@ -41,6 +41,25 @@ export interface RequestHeaders {
   [key: string]: string | undefined;
 }
 
+/**
+ * Provider Configuration Service
+ *
+ * Manages LLM provider configurations and model settings.
+ *
+ * Responsibilities:
+ * - Validates provider configurations (API keys, base URLs)
+ * - Provides provider-specific settings (timeouts, rate limits, features)
+ * - Manages model configurations and capabilities
+ * - Handles local vs cloud provider detection
+ *
+ * Key Methods:
+ * - getProviderConfig(): Get configuration for a provider
+ * - validateProviderConfig(): Validate provider setup
+ * - getModelConfig(): Get model-specific configuration
+ *
+ * @see docs/TROUBLESHOOTING.md for configuration help
+ * @see GETTING_STARTED.md for initial setup
+ */
 @Injectable()
 export class ProviderConfigService {
   private readonly logger = new Logger(ProviderConfigService.name);
@@ -351,6 +370,24 @@ export class ProviderConfigService {
 
   /**
    * Validate provider configuration
+   *
+   * Checks that all required configuration is present and valid.
+   * Throws clear errors with actionable guidance.
+   *
+   * @param providerName - Name of the provider to validate
+   * @returns Validation result with errors array
+   *
+   * @example
+   * ```typescript
+   * const result = providerConfigService.validateProviderConfig('ollama');
+   * if (!result.valid) {
+   *   console.error('Configuration errors:', result.errors);
+   *   // Errors include actionable guidance
+   * }
+   * ```
+   *
+   * @see docs/TROUBLESHOOTING.md for common configuration issues
+   * @see GETTING_STARTED.md for initial setup
    */
   validateProviderConfig(providerName: string): {
     valid: boolean;
@@ -360,30 +397,53 @@ export class ProviderConfigService {
     const errors: string[] = [];
 
     if (!config) {
-      errors.push(`Provider '${providerName}' not found`);
+      errors.push(
+        `Provider '${providerName}' not found. ` +
+          `Available providers: ${this.getAvailableProviders().join(', ')}. ` +
+          `See GETTING_STARTED.md for configuration help.`,
+      );
       return { valid: false, errors };
     }
 
     // Check required fields
     if (!config.baseUrl) {
-      errors.push('Base URL is required');
+      errors.push(
+        `Base URL is required for provider '${providerName}'. ` +
+          `Set ${providerName.toUpperCase()}_BASE_URL in your .env file. ` +
+          `See GETTING_STARTED.md for setup instructions.`,
+      );
     }
 
     // API key validation: required for external providers and Ollama Cloud
     if (providerName === 'ollama') {
-      // Ollama local: no API key needed
+      // Ollama local: no API key needed, but verify it's accessible
+      // This check happens at runtime, not here
     } else if (providerName === 'ollama-cloud') {
       // Ollama cloud: API key required
       if (!config.apiKey) {
-        errors.push('API key is required for Ollama Cloud mode');
+        errors.push(
+          `API key is required for Ollama Cloud mode. ` +
+            `Set OLLAMA_CLOUD_API_KEY in your .env file. ` +
+            `Get your API key at https://ollama.com`,
+        );
       }
     } else if (!config.apiKey) {
       // Other providers: always require API key
-      errors.push('API key is required for external providers');
+      const envVarName = `${providerName.toUpperCase()}_API_KEY`;
+      errors.push(
+        `API key is required for provider '${providerName}'. ` +
+          `Set ${envVarName} in your .env file. ` +
+          `See GETTING_STARTED.md for API key configuration. ` +
+          `Run 'npm run diagnostics' to check your configuration.`,
+      );
     }
 
     if (config.timeout < 1000) {
-      errors.push('Timeout must be at least 1000ms');
+      errors.push(
+        `Timeout must be at least 1000ms for provider '${providerName}'. ` +
+          `Current: ${config.timeout}ms. ` +
+          `Update ${providerName.toUpperCase()}_TIMEOUT in .env if needed.`,
+      );
     }
 
     return {

@@ -573,7 +573,7 @@ ion-segment {
 }
 
 .tab-panel {
-  min-height: calc(100vh - 120px);
+  /* Removed min-height to prevent excessive white space */
 }
 
 .overview-section {

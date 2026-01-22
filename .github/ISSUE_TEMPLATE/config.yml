@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: GitHub Discussions
+    url: https://github.com/golfergeek/orchestrator-ai-v2/discussions
+    about: Ask questions and discuss ideas with the community
+  - name: Documentation
+    url: https://github.com/golfergeek/orchestrator-ai-v2/tree/main/docs
+    about: Check our documentation for setup guides and tutorials

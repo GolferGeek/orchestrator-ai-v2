@@ -6,9 +6,9 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 # Base mixin for ownership fields
 class OwnershipMixin(BaseModel):
     """Mixin for multi-tenancy ownership fields."""
-    user_id: Optional[str] = Field(None, description="Personal owner (Supabase user ID)")
-    team_id: Optional[str] = Field(None, description="Team owner (from Orch-Flow teams)")
-    created_by: Optional[str] = Field(None, description="User who created this item")
+    user_id: Optional[str] = Field(default=None, description="Personal owner (Supabase user ID)")
+    team_id: Optional[str] = Field(default=None, description="Team owner (from Orch-Flow teams)")
+    created_by: Optional[str] = Field(default=None, description="User who created this item")
 
 
 # Notebook models

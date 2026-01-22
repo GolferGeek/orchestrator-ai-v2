@@ -34,7 +34,7 @@ describe('Blog Post Writer BUILD Mode (e2e)', () => {
   describe('CONVERSE → BUILD Flow', () => {
     it('should execute CONVERSE mode and return conversation context', async () => {
       const response = await fetch(
-        `${API_URL}/agent-to-agent/demo-org/blog-post-writer/tasks`,
+        `${API_URL}/agent-to-agent/finance/blog-post-writer/tasks`,
         {
           method: 'POST',
           headers: {
@@ -69,7 +69,7 @@ describe('Blog Post Writer BUILD Mode (e2e)', () => {
       expect(conversationId).toBeDefined();
 
       const response = await fetch(
-        `${API_URL}/agent-to-agent/demo-org/blog-post-writer/tasks`,
+        `${API_URL}/agent-to-agent/finance/blog-post-writer/tasks`,
         {
           method: 'POST',
           headers: {
@@ -140,7 +140,7 @@ describe('Blog Post Writer BUILD Mode (e2e)', () => {
   describe('BUILD mode validation', () => {
     it('should require conversation context for BUILD mode', async () => {
       const response = await fetch(
-        `${API_URL}/agent-to-agent/demo-org/blog-post-writer/tasks`,
+        `${API_URL}/agent-to-agent/finance/blog-post-writer/tasks`,
         {
           method: 'POST',
           headers: {

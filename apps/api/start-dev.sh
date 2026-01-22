@@ -7,9 +7,6 @@ RED='\033[0;31m'
 YELLOW='\033[0;33m'
 NC='\033[0m' # No Color
 
-N8N_MANAGE_SCRIPT="../n8n/manage.sh"
-N8N_CONTAINER_NAME="orchestrator-n8n"
-N8N_STARTED_BY_SCRIPT=false
 LANGGRAPH_STARTED_BY_SCRIPT=false
 
 echo -e "${BLUE}🚀 Starting OrchAI NestJS API${NC}"
@@ -101,37 +98,6 @@ check_port() {
     fi
 }
 
-is_n8n_running() {
-    if docker ps --filter "name=$N8N_CONTAINER_NAME" --filter "status=running" --format '{{.Names}}' | grep -q "^$N8N_CONTAINER_NAME$"; then
-        return 0
-    else
-        return 1
-    fi
-}
-
-start_n8n() {
-    if [ ! -x "$N8N_MANAGE_SCRIPT" ]; then
-        echo -e "${RED}⚠️  n8n helper script not found at $N8N_MANAGE_SCRIPT${NC}"
-        return 1
-    fi
-
-    if is_n8n_running; then
-        echo -e "${GREEN}✅ n8n container already running${NC}"
-        return 0
-    fi
-
-    echo -e "${BLUE}🤖 Ensuring n8n is running...${NC}"
-    if "$N8N_MANAGE_SCRIPT" up >/dev/null 2>&1; then
-        echo -e "${GREEN}✅ n8n is running at http://localhost:5678${NC}"
-        N8N_STARTED_BY_SCRIPT=true
-        return 0
-    else
-        echo -e "${RED}❌ Failed to start n8n container${NC}"
-        echo -e "${BLUE}💡 Try running: ./apps/n8n/manage.sh up${NC}"
-        return 1
-    fi
-}
-
 is_langgraph_running() {
     if check_port 6200; then
         return 0
@@ -213,22 +179,9 @@ else
     # Start Supabase with development config
     echo -e "${BLUE}🔧 Starting Supabase with development configuration...${NC}"
 
-    # Backup existing config if it exists
-    if [ -f "supabase/config.toml" ]; then
-        cp supabase/config.toml supabase/config.toml.backup
-    fi
-
-    # Use development config
-    cp supabase/config.dev.toml supabase/config.toml
-
-    # Start Supabase
+    # Start Supabase (config.toml is already configured for dev on port 6010)
     supabase start
     SUPABASE_EXIT_CODE=$?
-
-    # Restore original config
-    if [ -f "supabase/config.toml.backup" ]; then
-        mv supabase/config.toml.backup supabase/config.toml
-    fi
     if [ $SUPABASE_EXIT_CODE -eq 0 ]; then
         echo -e "${GREEN}✅ Local Supabase started successfully on port 6010${NC}"
         echo -e "${BLUE}   Studio: http://127.0.0.1:6015${NC}"
@@ -247,10 +200,6 @@ else
         echo -e "${BLUE}💡 Or check Docker Desktop status and restart if needed${NC}"
         exit 1
     fi
-fi
-
-if ! start_n8n; then
-    echo -e "${YELLOW}⚠️  Continuing without local n8n instance${NC}"
 fi
 
 if ! start_langgraph; then
@@ -276,12 +225,6 @@ cleanup() {
         # Also kill any child processes on port 6200
         lsof -ti:6200 | xargs kill -9 2>/dev/null || true
         echo -e "${GREEN}✅ LangGraph server stopped${NC}"
-    fi
-
-    if [ "$N8N_STARTED_BY_SCRIPT" = true ] && [ -x "$N8N_MANAGE_SCRIPT" ]; then
-        echo -e "${RED}🤖 Stopping n8n container...${NC}"
-        "$N8N_MANAGE_SCRIPT" down >/dev/null 2>&1 || true
-        echo -e "${GREEN}✅ n8n container stopped${NC}"
     fi
 
     echo -e "${GREEN}🏁 Cleanup complete${NC}"

@@ -218,14 +218,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-
-interface ChatMessage {
-  role?: string;
-  type?: string;
-  content?: string | { type?: string; text?: string; source?: { media_type?: string } }[];
-  tool_use?: { name?: string };
-  tool_result?: { content?: unknown };
-}
+import type { ChatMessage, ContentBlock } from '../types';
 
 const props = defineProps<{
   chat: ChatMessage[];
@@ -272,9 +265,16 @@ const formatTimestamp = (timestamp: string) => {
 //     .trim();
 // };
 
-const cleanSystemContent = (content: string) => {
-  // Remove ANSI escape codes
-  return content.replace(/\u001b\[[0-9;]*m/g, '');
+const cleanSystemContent = (content: string | ContentBlock[]) => {
+  // Remove ANSI escape codes from string content
+  if (typeof content === 'string') {
+    return content.replace(/\u001b\[[0-9;]*m/g, '');
+  }
+  // For array content, extract text parts
+  return content
+    .filter((c) => c.type === 'text' && c.text)
+    .map((c) => c.text)
+    .join('\n');
 };
 
 const cleanCommandContent = (content: string) => {
