@@ -4,7 +4,10 @@ import { ExecutionContext } from '@orchestrator-ai/transport-types';
 import { randomUUID } from 'crypto';
 import { VisionExtractionService } from './vision-extraction.service';
 import { OCRExtractionService } from './ocr-extraction.service';
-import { LegalIntelligenceService, LegalMetadata } from './legal-intelligence.service';
+import {
+  LegalIntelligenceService,
+  LegalMetadata,
+} from './legal-intelligence.service';
 import { PdfExtractorService } from '@/rag/extractors/pdf-extractor.service';
 
 /**
@@ -135,11 +138,18 @@ export class DocumentProcessingService {
     let extractionMethod: 'vision' | 'ocr' | 'none' = 'none';
 
     // For text files, read directly from buffer
-    if (metadata.mimeType === 'text/plain' || metadata.mimeType === 'text/markdown') {
-      this.logger.log(`📄 [DOC-PROCESSING] Text file detected, reading content directly`);
+    if (
+      metadata.mimeType === 'text/plain' ||
+      metadata.mimeType === 'text/markdown'
+    ) {
+      this.logger.log(
+        `📄 [DOC-PROCESSING] Text file detected, reading content directly`,
+      );
       extractedText = buffer.toString('utf-8');
       extractionMethod = 'none'; // Native text, no extraction needed
-      this.logger.log(`📄 [DOC-PROCESSING] Text content read (${extractedText.length} chars)`);
+      this.logger.log(
+        `📄 [DOC-PROCESSING] Text content read (${extractedText.length} chars)`,
+      );
     } else if (needsExtraction) {
       // Use vision extraction for images and scanned PDFs
       if (this.isImageFile(metadata.mimeType)) {
@@ -206,7 +216,10 @@ export class DocumentProcessingService {
         // Otherwise, fall back to Vision extraction (for scanned PDFs)
         const MIN_TEXT_LENGTH_FOR_NATIVE = 100;
 
-        if (nativeText && nativeText.trim().length > MIN_TEXT_LENGTH_FOR_NATIVE) {
+        if (
+          nativeText &&
+          nativeText.trim().length > MIN_TEXT_LENGTH_FOR_NATIVE
+        ) {
           extractedText = nativeText;
           extractionMethod = 'none'; // Native text extraction, not vision/ocr
           this.logger.log(

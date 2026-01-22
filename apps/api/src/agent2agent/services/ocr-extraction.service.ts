@@ -101,7 +101,11 @@ export class OCRExtractionService {
    * Perform OCR processing
    * TODO: Implement with Tesseract.js
    */
-  private async performOCR(buffer: Buffer, mimeType: string): Promise<string> {
+  // eslint-disable-next-line @typescript-eslint/require-await
+  private async performOCR(
+    _buffer: Buffer,
+    _mimeType: string,
+  ): Promise<string> {
     // Placeholder implementation
     // In production, this would:
     // 1. Initialize Tesseract worker

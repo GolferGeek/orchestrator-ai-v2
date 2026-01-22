@@ -116,7 +116,8 @@ export class DocumentTypeClassificationService {
       );
 
       // Parse LLM response
-      const responseText = typeof response === 'string' ? response : response.content || '';
+      const responseText =
+        typeof response === 'string' ? response : response.content || '';
       const classification = this.parseClassification(responseText);
 
       this.logger.log(
@@ -217,26 +218,26 @@ Analyze the document and return the classification in JSON format.`;
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const parsed = JSON.parse(cleanResponse);
 
+      // Extract alternatives safely
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
+      const rawAlternatives = parsed.alternatives;
+      const alternatives = Array.isArray(rawAlternatives)
+        ? (rawAlternatives as Array<{ type: string; confidence: number }>)
+            .map((alt) => ({
+              type: this.validateDocumentType(alt.type),
+              confidence: Math.max(0, Math.min(1, alt.confidence || 0)),
+            }))
+            .slice(0, 3) // Limit to top 3 alternatives
+        : undefined;
+
       // Validate and normalize
       return {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
         type: this.validateDocumentType(parsed.type),
         // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
         confidence: Math.max(0, Math.min(1, parsed.confidence || 0.5)),
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        alternatives: Array.isArray(parsed.alternatives)
-          ? // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-            parsed.alternatives
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              .map((alt: any) => ({
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
-                type: this.validateDocumentType(alt.type),
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
-                confidence: Math.max(0, Math.min(1, alt.confidence || 0)),
-              }))
-              .slice(0, 3) // Limit to top 3 alternatives
-          : undefined,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        alternatives,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
         reasoning: parsed.reasoning || undefined,
       };
     } catch (error) {
@@ -287,7 +288,11 @@ Analyze the document and return the classification in JSON format.`;
       lower.includes('this agreement') ||
       lower.includes('the parties agree')
     ) {
-      return { type: 'contract', confidence: 0.7, reasoning: 'Heuristic: contract keywords detected' };
+      return {
+        type: 'contract',
+        confidence: 0.7,
+        reasoning: 'Heuristic: contract keywords detected',
+      };
     }
 
     // Pleading indicators
@@ -297,20 +302,39 @@ Analyze the document and return the classification in JSON format.`;
       lower.includes('complaint') ||
       lower.includes('answer')
     ) {
-      return { type: 'pleading', confidence: 0.7, reasoning: 'Heuristic: pleading keywords detected' };
+      return {
+        type: 'pleading',
+        confidence: 0.7,
+        reasoning: 'Heuristic: pleading keywords detected',
+      };
     }
 
     // Motion indicators
     if (lower.includes('motion to') || lower.includes('moves the court')) {
-      return { type: 'motion', confidence: 0.7, reasoning: 'Heuristic: motion keywords detected' };
+      return {
+        type: 'motion',
+        confidence: 0.7,
+        reasoning: 'Heuristic: motion keywords detected',
+      };
     }
 
     // Order indicators
-    if (lower.includes('it is ordered') || lower.includes('it is hereby ordered')) {
-      return { type: 'order', confidence: 0.7, reasoning: 'Heuristic: order keywords detected' };
+    if (
+      lower.includes('it is ordered') ||
+      lower.includes('it is hereby ordered')
+    ) {
+      return {
+        type: 'order',
+        confidence: 0.7,
+        reasoning: 'Heuristic: order keywords detected',
+      };
     }
 
     // Default to 'other' with low confidence
-    return { type: 'other', confidence: 0.3, reasoning: 'Heuristic: no clear indicators found' };
+    return {
+      type: 'other',
+      confidence: 0.3,
+      reasoning: 'Heuristic: no clear indicators found',
+    };
   }
 }

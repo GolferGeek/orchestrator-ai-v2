@@ -219,7 +219,7 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
       `🔍 [API-AGENT-RUNNER] Raw metadata keys: ${Object.keys(rawMetadata || {}).join(', ')}`,
     );
     this.logger.log(
-      `🔍 [API-AGENT-RUNNER] forwardConverse flag: ${forwardConverse}, rawMetadata.forwardConverse: ${rawMetadata?.forwardConverse}`,
+      `🔍 [API-AGENT-RUNNER] forwardConverse flag: ${forwardConverse}, rawMetadata.forwardConverse: ${String(rawMetadata?.forwardConverse)}`,
     );
 
     if (forwardConverse) {
@@ -1440,7 +1440,8 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           // Extract documents and legalMetadata from request.metadata (set by controller's document processing)
           // LangGraph agents need documents in format: { name, content, type }
           // and legalMetadata at the top level for routing decisions
-          const metadataDocuments = (request.metadata?.documents || []) as Array<{
+          const metadataDocuments = (request.metadata?.documents ||
+            []) as Array<{
             filename?: string;
             extractedText?: string;
             mimeType?: string;
@@ -1449,8 +1450,8 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
 
           // Transform to LangGraph document format
           const documents = metadataDocuments
-            .filter(doc => doc.extractedText) // Only include docs with extracted text
-            .map(doc => ({
+            .filter((doc) => doc.extractedText) // Only include docs with extracted text
+            .map((doc) => ({
               name: doc.filename || 'unknown',
               content: doc.extractedText || '',
               type: doc.mimeType || 'application/octet-stream',
@@ -2110,7 +2111,10 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
 
       // Check if this is a LangGraph/forwardConverse agent - skip deliverable creation
       // These agents return structured data that doesn't need deliverable storage
-      const rawMetadata = definition.record?.metadata as Record<string, unknown>;
+      const rawMetadata = definition.record?.metadata as Record<
+        string,
+        unknown
+      >;
       const isLangGraphAgent = rawMetadata?.forwardConverse === true;
 
       if (isLangGraphAgent) {
@@ -2454,7 +2458,8 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           // Extract documents and legalMetadata from request.metadata (set by controller's document processing)
           // LangGraph agents need documents in format: { name, content, type }
           // and legalMetadata at the top level for routing decisions
-          const metadataDocuments = (request.metadata?.documents || []) as Array<{
+          const metadataDocuments = (request.metadata?.documents ||
+            []) as Array<{
             filename?: string;
             extractedText?: string;
             mimeType?: string;
@@ -2463,8 +2468,8 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
 
           // Transform to LangGraph document format
           const documents = metadataDocuments
-            .filter(doc => doc.extractedText) // Only include docs with extracted text
-            .map(doc => ({
+            .filter((doc) => doc.extractedText) // Only include docs with extracted text
+            .map((doc) => ({
               name: doc.filename || 'unknown',
               content: doc.extractedText || '',
               type: doc.mimeType || 'application/octet-stream',

@@ -217,7 +217,8 @@ export class PartyExtractionService {
    */
   private extractEntityNames(text: string, parties: ExtractedParty[]): void {
     // Pattern: Entity name with suffix (e.g., "Acme Corporation")
-    const entityPattern = /\b([A-Z][A-Za-z\s&,'.-]+?\s+(?:Inc\.?|Corp\.?|LLC|LLP|Ltd\.?|LP|Limited|Corporation|Company))\b/g;
+    const entityPattern =
+      /\b([A-Z][A-Za-z\s&,'.-]+?\s+(?:Inc\.?|Corp\.?|LLC|LLP|Ltd\.?|LP|Limited|Corporation|Company))\b/g;
     let match;
 
     while ((match = entityPattern.exec(text)) !== null) {
@@ -245,7 +246,8 @@ export class PartyExtractionService {
     const signatureRegion = text.substring(signatureStart);
 
     // Pattern: Company name in all caps followed by signature lines
-    const signaturePattern = /^([A-Z][A-Z\s&,.']+(?:INC\.?|CORP\.?|LLC|LLP|LTD\.?)?)\s*$/gm;
+    const signaturePattern =
+      /^([A-Z][A-Z\s&,.']+(?:INC\.?|CORP\.?|LLC|LLP|LTD\.?)?)\s*$/gm;
     let match;
 
     while ((match = signaturePattern.exec(signatureRegion)) !== null) {
@@ -310,19 +312,22 @@ Return ONLY valid JSON array, no markdown formatting.`;
       const cleanResponse = responseText
         .replace(/```json?\n?/g, '')
         .replace(/```\n?$/g, '');
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const parsed = JSON.parse(cleanResponse);
 
       return Array.isArray(parsed)
-        ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          parsed.map((p: any) => ({
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+        ? (
+            parsed as Array<{
+              name: string;
+              type: string;
+              role: string;
+              confidence?: number;
+            }>
+          ).map((p) => ({
             name: p.name,
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
             type: this.validatePartyType(p.type),
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
             role: this.validatePartyRole(p.role),
             position: 0, // LLM doesn't provide position
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
             confidence: p.confidence || 0.7,
           }))
         : [];

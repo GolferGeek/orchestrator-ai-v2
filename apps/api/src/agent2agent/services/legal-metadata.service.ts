@@ -221,8 +221,9 @@ export class LegalMetadataService {
       ),
 
       // Party extraction (hybrid: patterns + LLM)
-      this.partyExtraction.extractParties(extractedText, context).catch(
-        (error) => {
+      this.partyExtraction
+        .extractParties(extractedText, context)
+        .catch((error) => {
           this.logger.error(
             `🔍 [LEGAL-METADATA] Party extraction failed: ${error instanceof Error ? error.message : String(error)}`,
           );
@@ -230,8 +231,7 @@ export class LegalMetadataService {
             parties: [],
             confidence: 0.1,
           };
-        },
-      ),
+        }),
     ]);
 
     this.logger.log(
@@ -239,7 +239,9 @@ export class LegalMetadataService {
     );
 
     // Phase 3: Confidence Scoring (sequential - depends on all results)
-    this.logger.log(`🔍 [LEGAL-METADATA] Phase 3: Calculating confidence scores`);
+    this.logger.log(
+      `🔍 [LEGAL-METADATA] Phase 3: Calculating confidence scores`,
+    );
     const confidence = this.confidenceScoring.calculateConfidence({
       extractedText,
       extractionMethod,
@@ -273,7 +275,9 @@ export class LegalMetadataService {
     );
 
     // Log confidence level
-    const confidenceLevel = this.confidenceScoring.getConfidenceLevel(confidence.overall);
+    const confidenceLevel = this.confidenceScoring.getConfidenceLevel(
+      confidence.overall,
+    );
     this.logger.log(
       `🔍 [LEGAL-METADATA] Confidence level: ${confidenceLevel.level} - ${confidenceLevel.description}`,
     );
@@ -319,10 +323,7 @@ export class LegalMetadataService {
     const missing: string[] = [];
 
     // Contract-specific checks
-    if (
-      documentType.type === 'contract' ||
-      documentType.type === 'agreement'
-    ) {
+    if (documentType.type === 'contract' || documentType.type === 'agreement') {
       if (parties.parties.length < 2) {
         missing.push('parties');
       }

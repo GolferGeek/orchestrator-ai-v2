@@ -175,7 +175,7 @@ export class DateExtractionService {
    * Extract numeric dates (MM/DD/YYYY, MM-DD-YYYY, etc.)
    */
   private extractNumericDates(text: string, dates: ExtractedDate[]): void {
-    const pattern = /\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})\b/g;
+    const pattern = /\b(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})\b/g;
     let match;
 
     while ((match = pattern.exec(text)) !== null) {
@@ -363,7 +363,11 @@ export class DateExtractionService {
       }
       return 'document_date';
     }
-    if (context.includes('due') || context.includes('deadline') || context.includes('no later than')) {
+    if (
+      context.includes('due') ||
+      context.includes('deadline') ||
+      context.includes('no later than')
+    ) {
       return 'deadline';
     }
 

@@ -186,9 +186,10 @@ export class LegalIntelligenceService {
     );
 
     // Truncate very long documents to first 15000 chars for analysis
-    const analysisText = documentText.length > 15000
-      ? documentText.substring(0, 15000) + '\n\n[... document continues ...]'
-      : documentText;
+    const analysisText =
+      documentText.length > 15000
+        ? documentText.substring(0, 15000) + '\n\n[... document continues ...]'
+        : documentText;
 
     const prompt = `You are a legal document analysis AI. Analyze the following legal document and extract comprehensive metadata in JSON format.
 
@@ -299,7 +300,8 @@ ${analysisText}`;
 
     try {
       // Make single LLM call with structured JSON output
-      const systemPrompt = 'You are a legal document analysis AI. Return only valid JSON.';
+      const systemPrompt =
+        'You are a legal document analysis AI. Return only valid JSON.';
 
       const response = await this.llmService.generateResponse(
         systemPrompt,
@@ -314,11 +316,13 @@ ${analysisText}`;
       let metadata: LegalMetadata;
       try {
         // Extract content from response (handle both string and LLMResponse)
-        const content = typeof response === 'string' ? response : response.content || '';
+        const content =
+          typeof response === 'string' ? response : response.content || '';
 
         // Try to extract JSON from response
         const jsonMatch = content.match(/\{[\s\S]*\}/);
         const jsonStr = jsonMatch ? jsonMatch[0] : content;
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         metadata = JSON.parse(jsonStr);
       } catch (parseError) {
         this.logger.error(

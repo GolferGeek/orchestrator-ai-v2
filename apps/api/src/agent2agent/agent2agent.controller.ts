@@ -265,11 +265,11 @@ export class Agent2AgentController {
 
     // ADAPTER: Transform frontend CreateTaskDto format to Agent2Agent TaskRequestDto format
     this.logger.log(
-      `🔍 [A2A-CTRL] DEBUG BEFORE adapt - body.mode: ${(body as Record<string, unknown>)?.mode}, body.method: ${(body as Record<string, unknown>)?.method}`,
+      `🔍 [A2A-CTRL] DEBUG BEFORE adapt - body.mode: ${String((body as Record<string, unknown>)?.mode)}, body.method: ${String((body as Record<string, unknown>)?.method)}`,
     );
     const adaptedBody = this.adaptFrontendRequest(body);
     this.logger.log(
-      `🔍 [A2A-CTRL] DEBUG AFTER adapt - adaptedBody.mode: ${(adaptedBody as Record<string, unknown>)?.mode}`,
+      `🔍 [A2A-CTRL] DEBUG AFTER adapt - adaptedBody.mode: ${String((adaptedBody as Record<string, unknown>)?.mode)}`,
     );
     const { dto, jsonrpc } = await this.normalizeTaskRequest(adaptedBody);
     this.logger.log(

@@ -178,7 +178,8 @@ export class SectionDetectionService {
     const sections: DocumentSection[] = [];
 
     // Pattern 1: Numbered sections (e.g., "1. Definitions", "Article I")
-    const numberedPattern = /^(\d+\.?|\b(?:Article|Section)\s+[IVX\d]+\.?)\s+([A-Z][^\n]{0,80})\n/gim;
+    const numberedPattern =
+      /^(\d+\.?|\b(?:Article|Section)\s+[IVX\d]+\.?)\s+([A-Z][^\n]{0,80})\n/gim;
     let match;
 
     while ((match = numberedPattern.exec(text)) !== null) {
@@ -317,8 +318,10 @@ Return ONLY valid JSON array, no markdown formatting.`;
       const cleanResponse = responseText
         .replace(/```json?\n?/g, '')
         .replace(/```\n?$/g, '');
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const parsed = JSON.parse(cleanResponse);
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return Array.isArray(parsed) ? parsed : [];
     } catch (error) {
       this.logger.warn(
@@ -393,19 +396,28 @@ Return ONLY valid JSON array, no markdown formatting.`;
     const lower = title.toLowerCase();
 
     if (lower.includes('definition')) return 'definitions';
-    if (lower.includes('recital') || lower.includes('whereas')) return 'recitals';
-    if (lower.includes('preamble') || lower.includes('introduction')) return 'preamble';
-    if (lower.includes('term') && !lower.includes('termination')) return 'terms';
+    if (lower.includes('recital') || lower.includes('whereas'))
+      return 'recitals';
+    if (lower.includes('preamble') || lower.includes('introduction'))
+      return 'preamble';
+    if (lower.includes('term') && !lower.includes('termination'))
+      return 'terms';
     if (lower.includes('condition')) return 'conditions';
-    if (lower.includes('obligation') || lower.includes('duties')) return 'obligations';
+    if (lower.includes('obligation') || lower.includes('duties'))
+      return 'obligations';
     if (lower.includes('representation')) return 'representations';
     if (lower.includes('warrant')) return 'warranties';
     if (lower.includes('indemnif')) return 'indemnification';
-    if (lower.includes('termination') || lower.includes('expiration')) return 'termination';
-    if (lower.includes('dispute') || lower.includes('arbitration')) return 'dispute_resolution';
-    if (lower.includes('miscellaneous') || lower.includes('general')) return 'miscellaneous';
-    if (lower.includes('signature') || lower.includes('execution')) return 'signature_block';
-    if (lower.includes('exhibit') || lower.includes('attachment')) return 'exhibits';
+    if (lower.includes('termination') || lower.includes('expiration'))
+      return 'termination';
+    if (lower.includes('dispute') || lower.includes('arbitration'))
+      return 'dispute_resolution';
+    if (lower.includes('miscellaneous') || lower.includes('general'))
+      return 'miscellaneous';
+    if (lower.includes('signature') || lower.includes('execution'))
+      return 'signature_block';
+    if (lower.includes('exhibit') || lower.includes('attachment'))
+      return 'exhibits';
     if (lower.includes('schedule')) return 'schedules';
 
     return 'other';
@@ -414,14 +426,21 @@ Return ONLY valid JSON array, no markdown formatting.`;
   /**
    * Calculate overall confidence based on sections detected
    */
-  private calculateConfidence(sections: DocumentSection[], textLength: number): number {
+  private calculateConfidence(
+    sections: DocumentSection[],
+    textLength: number,
+  ): number {
     if (sections.length === 0) return 0;
 
     // Average section confidence
-    const avgConfidence = sections.reduce((sum, s) => sum + s.confidence, 0) / sections.length;
+    const avgConfidence =
+      sections.reduce((sum, s) => sum + s.confidence, 0) / sections.length;
 
     // Coverage factor (how much of document is covered by sections)
-    const coveredLength = sections.reduce((sum, s) => sum + (s.endIndex - s.startIndex), 0);
+    const coveredLength = sections.reduce(
+      (sum, s) => sum + (s.endIndex - s.startIndex),
+      0,
+    );
     const coverage = coveredLength / textLength;
 
     // Combined score
@@ -433,7 +452,7 @@ Return ONLY valid JSON array, no markdown formatting.`;
    */
   private determineStructureType(
     sections: DocumentSection[],
-    text: string,
+    _text: string,
   ): 'formal' | 'informal' | 'mixed' | 'unstructured' {
     if (sections.length === 0) return 'unstructured';
     if (sections.length >= 5) return 'formal';

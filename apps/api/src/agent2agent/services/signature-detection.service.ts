@@ -178,7 +178,8 @@ export class SignatureDetectionService {
     // Title: CEO
     // Date: 01/15/2024
 
-    const partyBlockPattern = /([A-Z][A-Z\s&,.']+(?:LLC|INC|CORP|LTD|LP)?)\s*\n\s*\n(?:\s*By:\s*[_\s]*\n)?/g;
+    const partyBlockPattern =
+      /([A-Z][A-Z\s&,.']+(?:LLC|INC|CORP|LTD|LP)?)\s*\n\s*\n(?:\s*By:\s*[_\s]*\n)?/g;
     let match;
 
     while ((match = partyBlockPattern.exec(region.content)) !== null) {
@@ -285,7 +286,7 @@ export class SignatureDetectionService {
 
     // Extract date
     const datePatterns = [
-      /Date:\s*(\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4})/,
+      /Date:\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})/,
       /Date:\s*([A-Z][a-z]+\s+\d{1,2},?\s+\d{4})/,
       /this\s+(\d{1,2})(?:st|nd|rd|th)?\s+day\s+of\s+([A-Z][a-z]+),?\s+(\d{4})/,
     ];
@@ -317,14 +318,13 @@ export class SignatureDetectionService {
    */
   private calculateConfidence(
     signatures: SignatureBlock[],
-    textLength: number,
+    _textLength: number,
   ): number {
     if (signatures.length === 0) return 0;
 
     // Average signature confidence
     const avgConfidence =
-      signatures.reduce((sum, s) => sum + s.confidence, 0) /
-      signatures.length;
+      signatures.reduce((sum, s) => sum + s.confidence, 0) / signatures.length;
 
     // Completeness factor (do signatures have required fields?)
     const completeSignatures = signatures.filter(
@@ -341,7 +341,8 @@ export class SignatureDetectionService {
    * (e.g., "Buyer:", "Seller:", "Lessor:", "Lessee:")
    */
   private extractPartyLabel(content: string): string | undefined {
-    const labelPattern = /^(Buyer|Seller|Lessor|Lessee|Landlord|Tenant|Licensor|Licensee|Party|Provider|Client|Customer):\s*/i;
+    const labelPattern =
+      /^(Buyer|Seller|Lessor|Lessee|Landlord|Tenant|Licensor|Licensee|Party|Provider|Client|Customer):\s*/i;
     const match = content.match(labelPattern);
     return match ? match[1] : undefined;
   }

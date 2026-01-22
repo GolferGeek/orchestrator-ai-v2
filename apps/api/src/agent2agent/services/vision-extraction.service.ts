@@ -57,7 +57,8 @@ export class VisionExtractionService {
     // Read vision model configuration from ENV
     this.visionModel = process.env.VISION_MODEL || 'gpt-4-vision-preview';
     this.visionProvider = process.env.VISION_PROVIDER || 'openai';
-    this.ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+    this.ollamaBaseUrl =
+      process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
 
     this.logger.log(
       `👁️ [VISION-EXTRACTION] Initialized with provider=${this.visionProvider}, model=${this.visionModel}`,
@@ -83,9 +84,7 @@ export class VisionExtractionService {
 
     // Validate supported formats
     if (!this.isSupportedFormat(mimeType)) {
-      throw new Error(
-        `Unsupported format for vision extraction: ${mimeType}`,
-      );
+      throw new Error(`Unsupported format for vision extraction: ${mimeType}`);
     }
 
     // Convert buffer to base64
@@ -121,14 +120,19 @@ If the image is unclear or text is unreadable, indicate which parts are unclear.
           executionContext: context,
           callerType: 'api',
           callerName: 'vision-extraction',
-          provider: this.visionProvider as 'openai' | 'anthropic' | 'ollama' | 'google',
+          provider: this.visionProvider as
+            | 'openai'
+            | 'anthropic'
+            | 'ollama'
+            | 'google',
           model: this.visionModel,
           // Vision-specific options
           images: [dataUrl], // Pass image as data URL
         },
       );
 
-      const text = typeof response === 'string' ? response : response.content || '';
+      const text =
+        typeof response === 'string' ? response : response.content || '';
 
       this.logger.log(
         `👁️ [VISION-EXTRACTION] Extraction successful (${text.length} chars)`,

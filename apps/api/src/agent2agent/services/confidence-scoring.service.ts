@@ -165,7 +165,8 @@ export class ConfidenceScoringService {
     }
 
     // Check for garbled text (high rate of special characters)
-    const specialCharRate = (text.match(/[^\w\s.,;:!?-]/g) || []).length / text.length;
+    const specialCharRate =
+      (text.match(/[^\w\s.,;:!?-]/g) || []).length / text.length;
     if (specialCharRate > 0.1) {
       score *= 0.7; // High special char rate suggests poor extraction
     }
