@@ -59,46 +59,6 @@
       <p>{{ error }}</p>
     </div>
 
-    <!-- Analysis Options -->
-    <div v-if="uploadedFile && !isUploading" class="analysis-options">
-      <h3>Analysis Options</h3>
-
-      <ion-list>
-        <ion-item>
-          <ion-checkbox
-            v-model="options.extractKeyTerms"
-            slot="start"
-          />
-          <ion-label>
-            <h4>Extract Key Terms</h4>
-            <p>Identify important legal terms and definitions</p>
-          </ion-label>
-        </ion-item>
-
-        <ion-item>
-          <ion-checkbox
-            v-model="options.identifyRisks"
-            slot="start"
-          />
-          <ion-label>
-            <h4>Identify Risks</h4>
-            <p>Analyze potential legal risks and liabilities</p>
-          </ion-label>
-        </ion-item>
-
-        <ion-item>
-          <ion-checkbox
-            v-model="options.generateRecommendations"
-            slot="start"
-          />
-          <ion-label>
-            <h4>Generate Recommendations</h4>
-            <p>Provide actionable recommendations</p>
-          </ion-label>
-        </ion-item>
-      </ion-list>
-    </div>
-
     <!-- Action Buttons -->
     <div v-if="uploadedFile && !isUploading" class="action-buttons">
       <ion-button
@@ -119,10 +79,6 @@ import {
   IonButton,
   IonIcon,
   IonProgressBar,
-  IonList,
-  IonItem,
-  IonCheckbox,
-  IonLabel,
 } from '@ionic/vue';
 import {
   cloudUploadOutline,
@@ -161,8 +117,8 @@ const options = ref({
   generateRecommendations: true,
 });
 
-// RBAC store for org slug
-const rbacStore = useRbacStore();
+// RBAC store for org slug (kept for future use)
+const _rbacStore = useRbacStore();
 
 // Methods
 function triggerFileInput() {
@@ -171,7 +127,7 @@ function triggerFileInput() {
   }
 }
 
-function handleDragOver(e: DragEvent) {
+function handleDragOver(_e: DragEvent) {
   isDragging.value = true;
 }
 
@@ -441,16 +397,6 @@ function formatFileSize(bytes: number): string {
 .error-message p {
   margin: 0;
   color: var(--ion-color-danger-shade);
-}
-
-.analysis-options {
-  margin-top: 32px;
-}
-
-.analysis-options h3 {
-  margin: 0 0 16px 0;
-  font-size: 18px;
-  font-weight: 600;
 }
 
 .action-buttons {

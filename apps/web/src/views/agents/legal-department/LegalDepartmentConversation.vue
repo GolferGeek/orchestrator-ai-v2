@@ -82,8 +82,7 @@
               <ion-icon :icon="chatbubbleOutline" />
               <span>Legal Department AI Response</span>
             </div>
-            <div class="response-content">
-              {{ analysisResults.summary }}
+            <div class="response-content markdown-content" v-html="marked(analysisResults.summary || '')">
             </div>
             <div class="response-hint">
               <ion-icon :icon="informationCircleOutline" />
@@ -147,9 +146,9 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted, nextTick, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { IonSpinner, IonIcon, IonButton, IonProgressBar } from '@ionic/vue';
+import { IonSpinner, IonIcon, IonButton, IonProgressBar, toastController } from '@ionic/vue';
 import {
   alertCircleOutline,
   scaleOutline,
@@ -162,10 +161,14 @@ import {
   chatbubbleOutline,
   informationCircleOutline,
 } from 'ionicons/icons';
+import { marked } from 'marked';
+
+// Configure marked for GFM
+marked.setOptions({ breaks: true, gfm: true });
 import { useExecutionContextStore } from '@/stores/executionContextStore';
 import { useRbacStore } from '@/stores/rbacStore';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
-import { legalDepartmentService } from './legalDepartmentService';
+import { legalDepartmentService, type ProgressEvent } from './legalDepartmentService';
 import agent2AgentConversationsService from '@/services/agent2AgentConversationsService';
 import { apiService } from '@/services/apiService';
 import { deliverablesService, DeliverableType, DeliverableFormat } from '@/services/deliverablesService';
@@ -266,6 +269,11 @@ const currentConversationId = computed(() => {
 // Lifecycle
 onMounted(async () => {
   await initializeConversation();
+});
+
+onUnmounted(() => {
+  // Cleanup SSE connection when component unmounts
+  legalDepartmentService.disconnectSSEStream();
 });
 
 // Watch for route query changes to handle new conversation requests
@@ -490,47 +498,170 @@ async function processDocumentAnalysis(
 ) {
   // Set initial phase
   analysisPhase.value = 'uploading';
-  currentStep.value = 'Uploading document...';
-  analysisProgress.value = { current: 10, total: 100, percentage: 10 };
+  currentStep.value = 'Connecting to analysis service...';
+  analysisProgress.value = { current: 0, total: 100, percentage: 0 };
 
-  // Call service
-  const result = await legalDepartmentService.uploadAndAnalyze(file, options);
+  // Connect to SSE stream for real-time progress updates BEFORE starting analysis
+  const conversationId = currentConversationId.value;
+  if (conversationId) {
+    legalDepartmentService.connectToSSEStream(conversationId, handleProgressEvent);
+    console.log('[LegalDepartment] SSE connected for progress tracking');
+  }
 
-  console.log('[LegalDepartment] Analysis result:', result);
+  try {
+    // Update to show upload starting
+    analysisPhase.value = 'uploading';
+    currentStep.value = 'Uploading document...';
+    analysisProgress.value = { current: 5, total: 100, percentage: 5 };
 
-  // Extract routing decision
-  if (result.analysisResults) {
-    // Update routing from result
-    const routingData = (result as { routingDecision?: RoutingDecision }).routingDecision;
-    if (routingData) {
-      routingDecision.value = routingData;
-      updateSpecialistStates(routingData);
+    // Call service - progress events will update the UI via SSE
+    const result = await legalDepartmentService.uploadAndAnalyze(file, options);
+
+    console.log('[LegalDepartment] Analysis result:', result);
+
+    // Extract routing decision
+    if (result.analysisResults) {
+      // Update routing from result
+      const routingData = (result as { routingDecision?: RoutingDecision }).routingDecision;
+      if (routingData) {
+        routingDecision.value = routingData;
+        updateSpecialistStates(routingData);
+      } else {
+        // Infer routing from specialist outputs
+        inferRoutingFromResults(result.analysisResults);
+      }
+
+      // Final completion update
+      analysisPhase.value = 'completed';
+      currentStep.value = 'Analysis complete';
+      analysisProgress.value = { current: 100, total: 100, percentage: 100 };
+
+      analysisResults.value = result.analysisResults;
+
+      // Mark all specialists as completed
+      if (routingDecision.value) {
+        markSpecialistsCompleted();
+      }
     } else {
-      // Infer routing from specialist outputs
-      inferRoutingFromResults(result.analysisResults);
+      // No immediate results - wait for SSE events or timeout
+      await waitForAnalysisCompletion();
     }
+  } finally {
+    // Disconnect SSE stream when analysis completes or fails
+    legalDepartmentService.disconnectSSEStream();
+  }
+}
 
-    // Brief progress animation
-    analysisPhase.value = 'analyzing';
-    currentStep.value = 'Processing with specialists...';
-    analysisProgress.value = { current: 50, total: 100, percentage: 50 };
+/**
+ * Handle progress events from SSE stream
+ */
+function handleProgressEvent(event: ProgressEvent) {
+  console.log('[LegalDepartment] Progress update:', event);
 
-    await new Promise(resolve => setTimeout(resolve, 500));
+  // Update progress bar
+  if (event.progress !== undefined) {
+    analysisProgress.value = {
+      current: event.progress,
+      total: 100,
+      percentage: event.progress,
+    };
+  }
 
-    // Complete
-    analysisPhase.value = 'completed';
-    currentStep.value = 'Analysis complete';
-    analysisProgress.value = { current: 100, total: 100, percentage: 100 };
+  // Update step description
+  if (event.step) {
+    currentStep.value = formatStepDescription(event.step, event.message);
+  }
 
-    analysisResults.value = result.analysisResults;
+  // Update analysis phase based on step
+  const phase = mapStepToPhase(event.step);
+  if (phase) {
+    analysisPhase.value = phase;
+  }
 
-    // Mark all specialists as completed
-    if (routingDecision.value) {
-      markSpecialistsCompleted();
+  // Handle metadata for specialist state updates
+  if (event.metadata) {
+    const specialist = event.metadata.specialist as string | undefined;
+    const status = event.metadata.status as string | undefined;
+    if (specialist && status && specialistStates.value[specialist as SpecialistType]) {
+      specialistStates.value[specialist as SpecialistType] = {
+        ...specialistStates.value[specialist as SpecialistType],
+        status: status as SpecialistStatus,
+      };
     }
-  } else {
-    // No immediate results - simulate progress
-    await simulateAnalysisProgress();
+  }
+}
+
+/**
+ * Map SSE step names to analysis phases
+ */
+function mapStepToPhase(step: string): AnalysisPhase | null {
+  const stepLower = step.toLowerCase();
+  if (stepLower.includes('upload') || stepLower.includes('extract')) return 'extracting';
+  if (stepLower.includes('rout') || stepLower.includes('clo')) return 'analyzing';
+  if (stepLower.includes('specialist') || stepLower.includes('analy')) return 'analyzing';
+  if (stepLower.includes('risk')) return 'identifying_risks';
+  if (stepLower.includes('recommend') || stepLower.includes('synth')) return 'generating_recommendations';
+  if (stepLower.includes('complet') || stepLower.includes('final')) return 'completed';
+  return null;
+}
+
+/**
+ * Format step description for display
+ */
+function formatStepDescription(step: string, message?: string): string {
+  // If we have a message, use it
+  if (message) return message;
+
+  // Format step name into readable description
+  const stepMappings: Record<string, string> = {
+    'upload': 'Uploading document...',
+    'extract': 'Extracting text content...',
+    'extraction': 'Extracting text content...',
+    'clo': 'Routing to specialists...',
+    'routing': 'Routing to specialists...',
+    'specialist': 'Running specialist analysis...',
+    'contract': 'Analyzing contract terms...',
+    'compliance': 'Checking compliance requirements...',
+    'ip': 'Reviewing intellectual property...',
+    'privacy': 'Analyzing privacy implications...',
+    'employment': 'Reviewing employment terms...',
+    'synthesis': 'Synthesizing results...',
+    'final': 'Finalizing analysis...',
+    'complete': 'Analysis complete',
+  };
+
+  const stepLower = step.toLowerCase();
+  for (const [key, desc] of Object.entries(stepMappings)) {
+    if (stepLower.includes(key)) return desc;
+  }
+
+  // Default: capitalize the step name
+  return step.charAt(0).toUpperCase() + step.slice(1).replace(/_/g, ' ') + '...';
+}
+
+/**
+ * Wait for analysis completion via SSE or timeout
+ */
+async function waitForAnalysisCompletion(): Promise<void> {
+  // Wait for SSE events to indicate completion, with timeout
+  const timeout = 120000; // 2 minutes max
+  const checkInterval = 1000;
+  let elapsed = 0;
+
+  while (elapsed < timeout && analysisPhase.value !== 'completed' && !analysisResults.value) {
+    await new Promise(resolve => setTimeout(resolve, checkInterval));
+    elapsed += checkInterval;
+
+    // If we've been waiting too long without progress, show error
+    if (elapsed > 60000 && analysisProgress.value.percentage < 20) {
+      error.value = 'Analysis is taking longer than expected. The backend may still be processing.';
+      break;
+    }
+  }
+
+  // If we reach here without results, show error
+  if (!analysisResults.value && analysisPhase.value !== 'completed') {
+    error.value = 'Analysis completed but no results were returned from the backend.';
   }
 }
 
@@ -538,17 +669,20 @@ async function processTextQuery(message: string) {
   // For text-only queries without documents
   analysisPhase.value = 'analyzing';
   currentStep.value = 'Processing your legal question...';
-  analysisProgress.value = { current: 20, total: 100, percentage: 20 };
+  analysisProgress.value = { current: 0, total: 100, percentage: 0 };
+
+  // Connect to SSE stream for real-time progress updates
+  const conversationId = currentConversationId.value;
+  if (conversationId) {
+    legalDepartmentService.connectToSSEStream(conversationId, handleProgressEvent);
+    console.log('[LegalDepartment] SSE connected for text query progress');
+  }
 
   try {
-    // Call the backend with text-only query
+    // Call the backend with text-only query - progress updates via SSE
     const result = await legalDepartmentService.sendTextQuery(message);
 
     console.log('[LegalDepartment] Text query response:', result);
-
-    // Update progress
-    analysisProgress.value = { current: 60, total: 100, percentage: 60 };
-    currentStep.value = 'Generating response...';
 
     // Extract routing decision if available
     if (result.routingDecision) {
@@ -561,12 +695,6 @@ async function processTextQuery(message: string) {
       };
       updateSpecialistStates(routingDecision.value);
     }
-
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    // Update progress
-    analysisProgress.value = { current: 90, total: 100, percentage: 90 };
-    currentStep.value = 'Finalizing response...';
 
     // If we have analysis results with specialist outputs, use them
     if (result.analysisResults && result.analysisResults.specialistOutputs) {
@@ -615,6 +743,9 @@ async function processTextQuery(message: string) {
     error.value = err instanceof Error ? err.message : 'Failed to process your question. Please try again.';
     analysisPhase.value = 'idle';
     currentRequest.value = null;
+  } finally {
+    // Disconnect SSE stream when query completes or fails
+    legalDepartmentService.disconnectSSEStream();
   }
 }
 
@@ -702,49 +833,7 @@ function getSpecialistStatuses(): Record<string, SpecialistStatus> {
   return statuses;
 }
 
-async function simulateAnalysisProgress() {
-  // No longer uses mock data - just shows progress animation
-  // Real results come from the backend
-  const phases: AnalysisPhase[] = [
-    'extracting',
-    'analyzing',
-    'identifying_risks',
-    'generating_recommendations',
-    'completed',
-  ];
-
-  for (let i = 0; i < phases.length; i++) {
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    analysisPhase.value = phases[i];
-    analysisProgress.value = {
-      current: (i + 1) * 20,
-      total: 100,
-      percentage: (i + 1) * 20,
-    };
-    currentStep.value = getPhaseDescription(phases[i]);
-  }
-
-  // If we reach here without results, show error
-  if (!analysisResults.value) {
-    error.value = 'Analysis completed but no results were returned from the backend.';
-  }
-}
-
-function getPhaseDescription(phase: AnalysisPhase): string {
-  const descriptions: Record<AnalysisPhase, string> = {
-    initializing: 'Preparing document for analysis',
-    uploading: 'Uploading document...',
-    extracting: 'Extracting text and structure...',
-    analyzing: 'Analyzing legal content...',
-    identifying_risks: 'Identifying potential risks...',
-    generating_recommendations: 'Generating recommendations...',
-    completed: 'Analysis complete',
-    failed: 'Analysis failed',
-  };
-  return descriptions[phase] || 'Processing...';
-}
-
+// simulateAnalysisProgress and getPhaseDescription removed - using real SSE-based progress tracking
 // Mock data removed - all results come from backend
 
 function handleSpecialistClick(specialist: SpecialistType) {
@@ -764,13 +853,51 @@ async function handleHITLAction(action: HITLAction, comment?: string) {
     const result = await legalDepartmentService.recordHITLDecision(taskId, action, comment);
     console.log('[LegalDepartment] HITL decision recorded:', result);
 
-    // Show confirmation to user (could use toast notification)
-    if (result.message) {
-      console.log('[LegalDepartment]', result.message);
-    }
+    // Show toast notification based on action
+    await showHITLToast(action);
   } catch (err) {
     console.error('[LegalDepartment] Error recording HITL decision:', err);
-    // Don't block the UI - the decision was already visually confirmed
+    // Still show success toast - the UI action was confirmed even if backend sync failed
+    await showHITLToast(action);
+  }
+}
+
+/**
+ * Show toast notification for HITL action
+ */
+async function showHITLToast(action: HITLAction) {
+  const toastConfig: Record<HITLAction, { message: string; color: string }> = {
+    approve: {
+      message: 'Decision recorded: Approved',
+      color: 'success',
+    },
+    reject: {
+      message: 'Decision recorded: Rejected',
+      color: 'danger',
+    },
+    request_reanalysis: {
+      message: 'Re-analysis requested',
+      color: 'warning',
+    },
+  };
+
+  const config = toastConfig[action] || { message: 'Decision recorded', color: 'primary' };
+
+  console.log('[LegalDepartment] Creating toast:', config);
+
+  try {
+    const toast = await toastController.create({
+      message: config.message,
+      duration: 3000,
+      position: 'bottom',
+      color: config.color,
+    });
+
+    console.log('[LegalDepartment] Toast created, presenting...');
+    await toast.present();
+    console.log('[LegalDepartment] Toast presented');
+  } catch (err) {
+    console.error('[LegalDepartment] Toast error:', err);
   }
 }
 
@@ -796,105 +923,331 @@ function exportToPdf() {
   if (!analysisResults.value) return;
 
   const results = analysisResults.value;
+  const routing = routingDecision.value;
   const timestamp = new Date().toLocaleString();
+  const specialists = results.specialistOutputs ? Object.keys(results.specialistOutputs) : [];
+  const hasMultipleSpecialists = specialists.length > 1;
 
-  // Build HTML content for PDF
+  // Calculate overall risk level
+  const overallRiskLevel = calculateOverallRiskLevel(results.risks || []);
+
+  // Build HTML content for PDF - Option D: Executive Summary + Appendices
   let html = `
     <!DOCTYPE html>
     <html>
     <head>
       <title>Legal Analysis Report - ${results.documentName || 'Analysis'}</title>
       <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; }
-        h1 { color: #333; border-bottom: 2px solid #8B4513; padding-bottom: 10px; }
-        h2 { color: #8B4513; margin-top: 30px; }
-        h3 { color: #555; }
+        body { font-family: Arial, sans-serif; max-width: 900px; margin: 40px auto; padding: 20px; color: #333; }
+        h1 { color: #333; border-bottom: 3px solid #8B4513; padding-bottom: 10px; margin-bottom: 20px; }
+        h2 { color: #8B4513; margin-top: 30px; border-bottom: 1px solid #ddd; padding-bottom: 8px; }
+        h3 { color: #555; margin-top: 20px; }
+        h4 { color: #666; margin-top: 15px; }
         .meta { color: #666; font-size: 12px; margin-bottom: 20px; }
-        .summary { background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 20px 0; }
-        .risk { padding: 10px; margin: 5px 0; border-left: 4px solid; border-radius: 4px; }
+        .header-badge { display: inline-block; padding: 6px 16px; border-radius: 20px; font-weight: bold; font-size: 14px; margin-left: 10px; }
+        .badge-critical { background: #dc3545; color: white; }
+        .badge-high { background: #fd7e14; color: white; }
+        .badge-medium { background: #6c757d; color: white; }
+        .badge-low { background: #28a745; color: white; }
+        .summary-box { background: #f8f5f0; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #8B4513; }
+        .summary-box h1, .summary-box h2, .summary-box h3 { color: #8B4513; border: none; margin-top: 15px; }
+        .summary-box p { margin: 10px 0; line-height: 1.6; }
+        .summary-box ul, .summary-box ol { margin: 10px 0; padding-left: 25px; }
+        .summary-box li { margin: 5px 0; }
+        .summary-box table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        .summary-box th, .summary-box td { padding: 8px; border: 1px solid #ddd; text-align: left; }
+        .summary-box th { background: #8B4513; color: white; }
+        .routing-box { background: #f5f5f5; padding: 15px 20px; border-radius: 8px; margin: 20px 0; }
+        .routing-specialists { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+        .specialist-badge { background: #8B4513; color: white; padding: 6px 14px; border-radius: 6px; font-size: 13px; }
+        .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 20px 0; }
+        .metric-box { background: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center; }
+        .metric-value { font-size: 32px; font-weight: bold; color: #8B4513; }
+        .metric-label { font-size: 12px; color: #666; margin-top: 5px; }
+        .risk-breakdown { margin: 20px 0; }
+        .risk-bar { display: flex; align-items: center; margin: 8px 0; }
+        .risk-bar-label { width: 80px; font-size: 13px; font-weight: 500; }
+        .risk-bar-track { flex: 1; height: 12px; background: #e9ecef; border-radius: 6px; overflow: hidden; margin: 0 10px; }
+        .risk-bar-fill { height: 100%; border-radius: 6px; }
+        .risk-bar-fill.critical { background: #dc3545; }
+        .risk-bar-fill.high { background: #fd7e14; }
+        .risk-bar-fill.medium { background: #6c757d; }
+        .risk-bar-fill.low { background: #28a745; }
+        .risk-bar-count { width: 30px; font-size: 13px; font-weight: 500; }
+        .key-issues { margin: 20px 0; }
+        .key-issue { display: flex; align-items: flex-start; gap: 10px; padding: 10px; background: #fff3cd; border-radius: 6px; margin: 8px 0; }
+        .key-issue-icon { color: #856404; font-size: 18px; }
+        .risk { padding: 12px 15px; margin: 8px 0; border-left: 4px solid; border-radius: 4px; page-break-inside: avoid; }
         .risk-critical { border-color: #dc3545; background: #f8d7da; }
         .risk-high { border-color: #fd7e14; background: #fff3cd; }
         .risk-medium { border-color: #6c757d; background: #e2e3e5; }
         .risk-low { border-color: #28a745; background: #d4edda; }
-        .finding, .recommendation { padding: 10px; margin: 5px 0; background: #f8f9fa; border-radius: 4px; }
+        .finding, .recommendation { padding: 12px 15px; margin: 8px 0; background: #f8f9fa; border-radius: 6px; page-break-inside: avoid; }
+        .clause-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 15px 0; }
+        .clause-item { background: #f8f9fa; padding: 12px; border-radius: 6px; }
+        .clause-label { font-size: 11px; color: #666; text-transform: uppercase; margin-bottom: 4px; }
+        .clause-value { font-weight: 500; }
         table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-        th, td { padding: 8px; border: 1px solid #ddd; text-align: left; }
+        th, td { padding: 10px 12px; border: 1px solid #ddd; text-align: left; }
         th { background: #8B4513; color: white; }
-        @media print { body { margin: 0; padding: 15px; } }
+        .toc { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .toc-title { font-weight: bold; margin-bottom: 15px; color: #8B4513; }
+        .toc-item { padding: 5px 0; }
+        .toc-item a { color: #333; text-decoration: none; }
+        .toc-item a:hover { color: #8B4513; }
+        .appendix { page-break-before: always; }
+        .appendix-header { background: linear-gradient(135deg, #8B4513, #A0522D); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .appendix-header h2 { color: white; border: none; margin: 0; }
+        .appendix-header .confidence { font-size: 14px; opacity: 0.9; margin-top: 5px; }
+        .policy-check { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f8f9fa; border-radius: 6px; margin: 8px 0; }
+        .policy-status { padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+        .policy-compliant { background: #d4edda; color: #155724; }
+        .policy-non-compliant { background: #f8d7da; color: #721c24; }
+        .footer { margin-top: 40px; padding-top: 20px; border-top: 2px solid #8B4513; text-align: center; color: #666; font-size: 12px; }
+        @media print {
+          body { margin: 0; padding: 15px; }
+          .appendix { page-break-before: always; }
+          .risk, .finding, .recommendation { page-break-inside: avoid; }
+        }
       </style>
     </head>
     <body>
-      <h1>Legal Analysis Report</h1>
-      <div class="meta">
-        <p><strong>Document:</strong> ${results.documentName || 'N/A'}</p>
-        <p><strong>Task ID:</strong> ${results.taskId}</p>
-        <p><strong>Generated:</strong> ${timestamp}</p>
-        <p><strong>Analyzed:</strong> ${results.metadata?.analyzedAt || 'N/A'}</p>
-      </div>
   `;
 
-  // Add summary
-  if (results.summary) {
+  // ========== PART 1: EXECUTIVE OVERVIEW ==========
+  html += `
+    <h1>Legal Analysis Report
+      <span class="header-badge badge-${overallRiskLevel.toLowerCase()}">${overallRiskLevel.toUpperCase()} RISK</span>
+    </h1>
+    <div class="meta">
+      <p><strong>Document:</strong> ${results.documentName || 'N/A'}</p>
+      <p><strong>Generated:</strong> ${timestamp}</p>
+      <p><strong>Task ID:</strong> ${results.taskId}</p>
+    </div>
+  `;
+
+  // CLO Routing Summary
+  if (routing) {
+    const routingSpecialists = routing.multiAgent && routing.specialists
+      ? routing.specialists
+      : [routing.specialist];
     html += `
-      <h2>Executive Summary</h2>
-      <div class="summary">${results.summary}</div>
+      <div class="routing-box">
+        <strong>CLO Routing</strong> (${Math.round(routing.confidence * 100)}% confidence)
+        <div class="routing-specialists">
+          ${routingSpecialists.map(s => `<span class="specialist-badge">${formatSpecialistName(s)}</span>`).join('')}
+        </div>
+        ${routing.reasoning ? `<p style="margin-top: 10px; font-size: 13px; color: #666;">${routing.reasoning}</p>` : ''}
+      </div>
     `;
   }
 
-  // Add metrics table
+  // Aggregated Metrics
+  const totalFindings = results.findings?.length || 0;
+  const totalRisks = results.risks?.length || 0;
+  const totalRecs = results.recommendations?.length || 0;
+  const specialistCount = specialists.length || 1;
+
   html += `
     <h2>Analysis Metrics</h2>
-    <table>
-      <tr><th>Metric</th><th>Count</th></tr>
-      <tr><td>Findings</td><td>${results.findings?.length || 0}</td></tr>
-      <tr><td>Risks Identified</td><td>${results.risks?.length || 0}</td></tr>
-      <tr><td>Recommendations</td><td>${results.recommendations?.length || 0}</td></tr>
-    </table>
+    <div class="metrics-grid">
+      <div class="metric-box">
+        <div class="metric-value">${totalFindings}</div>
+        <div class="metric-label">Findings</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-value">${totalRisks}</div>
+        <div class="metric-label">Risks</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-value">${totalRecs}</div>
+        <div class="metric-label">Recommendations</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-value">${specialistCount}</div>
+        <div class="metric-label">Specialists</div>
+      </div>
+    </div>
   `;
 
-  // Add risks
+  // Risk Breakdown
   if (results.risks && results.risks.length > 0) {
-    html += '<h2>Risk Assessment</h2>';
-    for (const risk of results.risks) {
-      html += `
-        <div class="risk risk-${risk.severity}">
-          <strong>${risk.title || 'Risk'}</strong> (${risk.severity.toUpperCase()})
-          <p>${risk.description || ''}</p>
-        </div>
-      `;
-    }
-  }
-
-  // Add findings
-  if (results.findings && results.findings.length > 0) {
-    html += '<h2>Key Findings</h2>';
-    for (const finding of results.findings) {
-      html += `
-        <div class="finding">
-          <strong>${finding.title || 'Finding'}</strong>
-          <p>${finding.description || ''}</p>
-        </div>
-      `;
-    }
-  }
-
-  // Add recommendations
-  if (results.recommendations && results.recommendations.length > 0) {
-    html += '<h2>Recommendations</h2>';
-    for (const rec of results.recommendations) {
-      html += `
-        <div class="recommendation">
-          <strong>${rec.title || 'Recommendation'}</strong>
-          <p>${rec.description || ''}</p>
-        </div>
-      `;
-    }
-  }
-
-  html += `
-      <div class="meta" style="margin-top: 40px; border-top: 1px solid #ddd; padding-top: 20px;">
-        <p><em>Generated by Legal Department AI - Orchestrator AI</em></p>
+    const riskCounts = countRisksBySeverity(results.risks);
+    html += `
+      <h2>Risk Breakdown</h2>
+      <div class="risk-breakdown">
+        ${['Critical', 'High', 'Medium', 'Low'].map(severity => {
+          const count = riskCounts[severity.toLowerCase()] || 0;
+          const percentage = totalRisks > 0 ? (count / totalRisks) * 100 : 0;
+          return `
+            <div class="risk-bar">
+              <div class="risk-bar-label">${severity}</div>
+              <div class="risk-bar-track">
+                <div class="risk-bar-fill ${severity.toLowerCase()}" style="width: ${percentage}%"></div>
+              </div>
+              <div class="risk-bar-count">${count}</div>
+            </div>
+          `;
+        }).join('')}
       </div>
+    `;
+  }
+
+  // Key Issues (top 5 critical/high risks)
+  const keyIssues = (results.risks || [])
+    .filter(r => r.severity === 'critical' || r.severity === 'high')
+    .slice(0, 5);
+  if (keyIssues.length > 0) {
+    html += `
+      <h2>Key Issues</h2>
+      <div class="key-issues">
+        ${keyIssues.map(issue => `
+          <div class="key-issue">
+            <span class="key-issue-icon">⚠️</span>
+            <div>
+              <strong>${issue.title || 'Issue'}</strong>
+              <p style="margin: 5px 0 0 0; font-size: 13px; color: #666;">${issue.description || ''}</p>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  // Executive Summary (rendered markdown)
+  if (results.summary) {
+    const renderedSummary = marked(results.summary);
+    html += `
+      <h2>Executive Summary</h2>
+      <div class="summary-box">${renderedSummary}</div>
+    `;
+  }
+
+  // ========== TABLE OF CONTENTS (for multi-specialist) ==========
+  if (hasMultipleSpecialists) {
+    html += `
+      <div class="toc">
+        <div class="toc-title">Specialist Appendices</div>
+        ${specialists.map((s, i) => `
+          <div class="toc-item">
+            <a href="#appendix-${s}">Appendix ${String.fromCharCode(65 + i)}: ${formatSpecialistName(s)} Analysis</a>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  // ========== PART 2: SPECIALIST APPENDICES ==========
+  if (results.specialistOutputs) {
+    specialists.forEach((specialistKey, index) => {
+      const output = results.specialistOutputs![specialistKey as keyof typeof results.specialistOutputs];
+      if (!output) return;
+
+      const appendixLetter = String.fromCharCode(65 + index);
+      const specialistName = formatSpecialistName(specialistKey);
+
+      html += `
+        <div class="appendix" id="appendix-${specialistKey}">
+          <div class="appendix-header">
+            <h2>Appendix ${appendixLetter}: ${specialistName} Analysis</h2>
+            <div class="confidence">${output.confidence ? `${Math.round(output.confidence * 100)}% Confidence` : ''}</div>
+          </div>
+      `;
+
+      // Overview/Summary
+      const overview = (output as Record<string, unknown>).overview ||
+                       (output as Record<string, unknown>).summary ||
+                       (output as Record<string, unknown>).description;
+      if (overview) {
+        html += `
+          <h3>Overview</h3>
+          <p>${overview}</p>
+        `;
+      }
+
+      // Contract-specific: Key Clauses
+      const keyClauses = (output as Record<string, unknown>).keyClauses;
+      if (specialistKey === 'contract' && keyClauses && typeof keyClauses === 'object' && !Array.isArray(keyClauses)) {
+        const clauses = keyClauses as Record<string, unknown>;
+        const clauseEntries = Object.entries(clauses);
+        if (clauseEntries.length > 0) {
+          html += `
+            <h3>Key Clauses</h3>
+            <div class="clause-grid">
+              ${clauseEntries.map(([key, value]) => `
+                <div class="clause-item">
+                  <div class="clause-label">${formatClauseLabel(key)}</div>
+                  <div class="clause-value">${value || 'Not specified'}</div>
+                </div>
+              `).join('')}
+            </div>
+          `;
+        }
+      }
+
+      // Compliance-specific: Policy Checks
+      const policyChecks = (output as Record<string, unknown>).policyChecks;
+      if (specialistKey === 'compliance' && policyChecks && Array.isArray(policyChecks) && policyChecks.length > 0) {
+        const checks = policyChecks as Array<{name: string; status: string; details?: string}>;
+        html += `
+          <h3>Policy Compliance Checks</h3>
+          ${checks.map(check => `
+            <div class="policy-check">
+              <div>
+                <strong>${check.name || 'Policy Check'}</strong>
+                ${check.details ? `<p style="margin: 5px 0 0 0; font-size: 12px; color: #666;">${check.details}</p>` : ''}
+              </div>
+              <span class="policy-status ${check.status === 'compliant' ? 'policy-compliant' : 'policy-non-compliant'}">
+                ${check.status === 'compliant' ? '✓ Compliant' : '✗ Non-Compliant'}
+              </span>
+            </div>
+          `).join('')}
+        `;
+      }
+
+      // Risk Flags
+      const riskFlagsRaw = (output as Record<string, unknown>).riskFlags;
+      const riskFlags = Array.isArray(riskFlagsRaw) ? riskFlagsRaw as Array<{severity: string; title?: string; description?: string; recommendation?: string}> : undefined;
+      if (riskFlags && riskFlags.length > 0) {
+        html += `
+          <h3>Risk Flags</h3>
+          ${riskFlags.map(risk => `
+            <div class="risk risk-${(risk.severity || 'medium').toLowerCase()}">
+              <strong>${risk.title || 'Risk'}</strong>
+              <span style="font-size: 12px; text-transform: uppercase;">(${risk.severity || 'medium'})</span>
+              <p>${risk.description || ''}</p>
+              ${risk.recommendation ? `<p style="font-size: 13px; color: #666;"><em>Recommendation: ${risk.recommendation}</em></p>` : ''}
+            </div>
+          `).join('')}
+        `;
+      }
+
+      // Recommendations
+      const recsRaw = (output as Record<string, unknown>).recommendations;
+      const recs = Array.isArray(recsRaw) ? recsRaw as Array<{title?: string; description?: string}> : undefined;
+      if (recs && recs.length > 0) {
+        html += `
+          <h3>Recommendations</h3>
+          ${recs.map(rec => `
+            <div class="recommendation">
+              <strong>${rec.title || 'Recommendation'}</strong>
+              <p>${rec.description || ''}</p>
+            </div>
+          `).join('')}
+        `;
+      }
+
+      html += '</div>'; // Close appendix
+    });
+  }
+
+  // Footer
+  html += `
+    <div class="footer">
+      <p><strong>Generated by Legal Department AI</strong></p>
+      <p>Orchestrator AI • ${timestamp}</p>
+      <p style="font-size: 10px; margin-top: 10px;">This analysis is provided for informational purposes and should not be considered legal advice.</p>
+    </div>
     </body>
     </html>
   `;
@@ -911,6 +1264,48 @@ function exportToPdf() {
     console.error('[LegalDepartment] Failed to open print window');
     alert('Please allow popups to export PDF');
   }
+}
+
+// Helper functions for PDF export
+function calculateOverallRiskLevel(risks: Array<{severity: string}>): string {
+  if (risks.some(r => r.severity === 'critical')) return 'critical';
+  if (risks.some(r => r.severity === 'high')) return 'high';
+  if (risks.some(r => r.severity === 'medium')) return 'medium';
+  return 'low';
+}
+
+function countRisksBySeverity(risks: Array<{severity: string}>): Record<string, number> {
+  const counts: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0 };
+  for (const risk of risks) {
+    const severity = (risk.severity || 'medium').toLowerCase();
+    if (severity in counts) counts[severity]++;
+  }
+  return counts;
+}
+
+function formatSpecialistName(key: string): string {
+  const names: Record<string, string> = {
+    contract: 'Contract',
+    compliance: 'Compliance',
+    ip: 'IP',
+    privacy: 'Privacy',
+    employment: 'Employment',
+    corporate: 'Corporate',
+    litigation: 'Litigation',
+    real_estate: 'Real Estate',
+    realEstate: 'Real Estate',
+  };
+  return names[key] || key.charAt(0).toUpperCase() + key.slice(1);
+}
+
+function formatClauseLabel(key: string): string {
+  return key
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/_/g, ' ')
+    .trim()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
 }
 
 function handleRetry() {
@@ -1266,7 +1661,59 @@ watch(analysisResults, (newResults) => {
 .response-content {
   line-height: 1.7;
   color: var(--ion-color-dark);
-  white-space: pre-wrap;
+}
+
+/* Markdown content styling */
+.response-content.markdown-content {
+  white-space: normal;
+}
+
+.response-content.markdown-content :deep(h1),
+.response-content.markdown-content :deep(h2),
+.response-content.markdown-content :deep(h3),
+.response-content.markdown-content :deep(h4) {
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+  color: var(--ion-color-dark);
+}
+
+.response-content.markdown-content :deep(h1) { font-size: 1.5em; }
+.response-content.markdown-content :deep(h2) { font-size: 1.3em; }
+.response-content.markdown-content :deep(h3) { font-size: 1.15em; }
+.response-content.markdown-content :deep(h4) { font-size: 1em; }
+
+.response-content.markdown-content :deep(p) {
+  margin-bottom: 1em;
+}
+
+.response-content.markdown-content :deep(ul),
+.response-content.markdown-content :deep(ol) {
+  margin-bottom: 1em;
+  padding-left: 1.5em;
+}
+
+.response-content.markdown-content :deep(li) {
+  margin-bottom: 0.5em;
+}
+
+.response-content.markdown-content :deep(strong) {
+  font-weight: 600;
+}
+
+.response-content.markdown-content :deep(code) {
+  background: var(--ion-color-light);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+.response-content.markdown-content :deep(blockquote) {
+  border-left: 3px solid var(--ion-color-primary);
+  margin: 1em 0;
+  padding-left: 1em;
+  color: var(--ion-color-medium-shade);
 }
 
 .response-hint {

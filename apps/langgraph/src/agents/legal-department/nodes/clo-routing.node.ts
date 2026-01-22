@@ -399,14 +399,14 @@ function determineRouting(
     availableSpecialists.includes(s),
   );
 
-  // M11: Multi-agent mode DISABLED for now to reduce LLM calls
-  // Single-specialist mode is sufficient for most documents
-  // Re-enable when parallel execution is implemented
-  const multiAgent = false;
+  // M11: Multi-agent mode ENABLED
+  // Documents touching multiple legal domains will invoke multiple specialists
+  // Parallel execution implemented in orchestrator node
+  const multiAgent = true;
 
   if (multiAgentSpecialists.length > 1) {
     reasons.push(
-      `Note: Document touches ${multiAgentSpecialists.length} domains (${multiAgentSpecialists.join(", ")}), but using single-specialist mode for efficiency.`,
+      `Multi-agent mode: Document touches ${multiAgentSpecialists.length} domains (${multiAgentSpecialists.join(", ")}). Invoking all specialists in parallel.`,
     );
   }
 

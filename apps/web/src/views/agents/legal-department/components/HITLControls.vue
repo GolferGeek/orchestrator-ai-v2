@@ -21,23 +21,23 @@
       </ion-button>
 
       <ion-button
-        color="warning"
-        fill="outline"
-        :disabled="disabled"
-        @click="showChangesModal = true"
-      >
-        <ion-icon :icon="createOutline" slot="start" />
-        Request Changes
-      </ion-button>
-
-      <ion-button
         color="danger"
         fill="outline"
         :disabled="disabled"
-        @click="showEscalateModal = true"
+        @click="showRejectModal = true"
       >
-        <ion-icon :icon="arrowUpCircleOutline" slot="start" />
-        Escalate
+        <ion-icon :icon="closeCircle" slot="start" />
+        Reject
+      </ion-button>
+
+      <ion-button
+        color="warning"
+        fill="outline"
+        :disabled="disabled"
+        @click="showReanalysisModal = true"
+      >
+        <ion-icon :icon="refreshCircle" slot="start" />
+        Request Re-analysis
       </ion-button>
     </div>
 
@@ -61,60 +61,60 @@
       </ion-button>
     </div>
 
-    <!-- Request Changes Modal -->
-    <ion-modal :is-open="showChangesModal" @did-dismiss="showChangesModal = false">
+    <!-- Reject Modal -->
+    <ion-modal :is-open="showRejectModal" @did-dismiss="showRejectModal = false">
       <ion-header>
         <ion-toolbar>
-          <ion-title>Request Changes</ion-title>
+          <ion-title>Reject Analysis</ion-title>
           <ion-buttons slot="end">
-            <ion-button @click="showChangesModal = false">Close</ion-button>
+            <ion-button @click="showRejectModal = false">Close</ion-button>
           </ion-buttons>
         </ion-toolbar>
       </ion-header>
       <ion-content class="ion-padding">
-        <p>Describe the changes needed:</p>
+        <p>Please provide a reason for rejection:</p>
         <ion-textarea
-          v-model="changesComment"
-          placeholder="Enter your feedback..."
-          :rows="5"
-          fill="outline"
-        />
-        <ion-button
-          expand="block"
-          color="warning"
-          :disabled="!changesComment.trim()"
-          @click="submitChanges"
-        >
-          Submit Request
-        </ion-button>
-      </ion-content>
-    </ion-modal>
-
-    <!-- Escalate Modal -->
-    <ion-modal :is-open="showEscalateModal" @did-dismiss="showEscalateModal = false">
-      <ion-header>
-        <ion-toolbar>
-          <ion-title>Escalate to Senior Attorney</ion-title>
-          <ion-buttons slot="end">
-            <ion-button @click="showEscalateModal = false">Close</ion-button>
-          </ion-buttons>
-        </ion-toolbar>
-      </ion-header>
-      <ion-content class="ion-padding">
-        <p>Explain why this needs escalation:</p>
-        <ion-textarea
-          v-model="escalateComment"
-          placeholder="Reason for escalation..."
+          v-model="rejectComment"
+          placeholder="Reason for rejection..."
           :rows="5"
           fill="outline"
         />
         <ion-button
           expand="block"
           color="danger"
-          :disabled="!escalateComment.trim()"
-          @click="submitEscalate"
+          :disabled="!rejectComment.trim()"
+          @click="submitReject"
         >
-          Escalate Now
+          Reject Analysis
+        </ion-button>
+      </ion-content>
+    </ion-modal>
+
+    <!-- Request Re-analysis Modal -->
+    <ion-modal :is-open="showReanalysisModal" @did-dismiss="showReanalysisModal = false">
+      <ion-header>
+        <ion-toolbar>
+          <ion-title>Request Re-analysis</ion-title>
+          <ion-buttons slot="end">
+            <ion-button @click="showReanalysisModal = false">Close</ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+      <ion-content class="ion-padding">
+        <p>Provide additional guidance for re-analysis:</p>
+        <ion-textarea
+          v-model="reanalysisComment"
+          placeholder="What should be reconsidered or analyzed differently..."
+          :rows="5"
+          fill="outline"
+        />
+        <ion-button
+          expand="block"
+          color="warning"
+          :disabled="!reanalysisComment.trim()"
+          @click="submitReanalysis"
+        >
+          Request Re-analysis
         </ion-button>
       </ion-content>
     </ion-modal>
@@ -137,8 +137,8 @@ import {
 import {
   personCircleOutline,
   checkmarkCircle,
-  createOutline,
-  arrowUpCircleOutline,
+  closeCircle,
+  refreshCircle,
   downloadOutline,
   documentOutline,
 } from 'ionicons/icons';
@@ -157,26 +157,26 @@ const emit = defineEmits<{
 }>();
 
 // State
-const showChangesModal = ref(false);
-const showEscalateModal = ref(false);
-const changesComment = ref('');
-const escalateComment = ref('');
+const showRejectModal = ref(false);
+const showReanalysisModal = ref(false);
+const rejectComment = ref('');
+const reanalysisComment = ref('');
 
 // Methods
 function handleAction(action: HITLAction) {
   emit('action', action);
 }
 
-function submitChanges() {
-  emit('action', 'request_changes', changesComment.value);
-  showChangesModal.value = false;
-  changesComment.value = '';
+function submitReject() {
+  emit('action', 'reject', rejectComment.value);
+  showRejectModal.value = false;
+  rejectComment.value = '';
 }
 
-function submitEscalate() {
-  emit('action', 'escalate', escalateComment.value);
-  showEscalateModal.value = false;
-  escalateComment.value = '';
+function submitReanalysis() {
+  emit('action', 'request_reanalysis', reanalysisComment.value);
+  showReanalysisModal.value = false;
+  reanalysisComment.value = '';
 }
 </script>
 

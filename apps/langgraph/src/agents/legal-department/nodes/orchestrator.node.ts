@@ -15,18 +15,18 @@ import { createRealEstateAgentNode } from "./real-estate-agent.node";
 /**
  * Multi-Agent Orchestrator Node - M11
  *
- * Purpose: Invoke multiple specialists sequentially for complex documents.
+ * Purpose: Invoke multiple specialists in parallel for complex documents.
  *
  * This node:
  * 1. Checks if multi-agent mode is enabled
- * 2. Sequentially invokes each required specialist
- * 3. Collects all outputs in specialistOutputs
+ * 2. Invokes all required specialists in parallel using Promise.all()
+ * 3. Merges all outputs into specialistOutputs
  * 4. Returns control to graph for synthesis
  *
- * M11 Demo Approach:
- * - Sequential execution (simpler than parallel for demo)
+ * Performance:
+ * - Parallel execution: max(30s, 30s, 30s) = 30s instead of 30s + 30s + 30s = 90s
  * - Each specialist runs independently
- * - Outputs are collected and will be synthesized later
+ * - Results are merged after all specialists complete
  */
 export function createOrchestratorNode(
   llmClient: LLMHttpClientService,
@@ -66,67 +66,71 @@ export function createOrchestratorNode(
     );
 
     try {
-      // Sequentially invoke each specialist
-      let currentState = { ...state };
-      const completed: string[] = [];
-
-      for (const specialistName of specialistsList) {
-        const specialist = specialists[specialistName as keyof typeof specialists];
-
+      // Filter to valid specialists
+      const validSpecialists = specialistsList.filter((name) => {
+        const specialist = specialists[name as keyof typeof specialists];
         if (!specialist) {
-          console.warn(`Specialist ${specialistName} not found, skipping`);
-          continue;
+          console.warn(`Specialist ${name} not found, skipping`);
+          return false;
         }
+        return true;
+      });
 
-        await observability.emitProgress(
-          ctx,
-          ctx.taskId,
-          `Orchestrator: Invoking ${specialistName} specialist`,
-          { step: `orchestrator_${specialistName}`, progress: 55 + (completed.length * 30 / specialistsList.length) },
-        );
+      await observability.emitProgress(
+        ctx,
+        ctx.taskId,
+        `Orchestrator: Invoking ${validSpecialists.length} specialists in parallel`,
+        { step: "orchestrator_parallel_start", progress: 55, specialists: validSpecialists },
+      );
 
-        // Invoke specialist
-        const result = await specialist(currentState);
+      // Invoke all specialists in parallel
+      const results = await Promise.all(
+        validSpecialists.map(async (specialistName) => {
+          const specialist = specialists[specialistName as keyof typeof specialists];
+          try {
+            const result = await specialist(state);
+            return { specialistName, result, success: !(result.error || result.status === "failed") };
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error(`Specialist ${specialistName} failed:`, errorMessage);
+            return { specialistName, result: { error: errorMessage }, success: false };
+          }
+        }),
+      );
 
-        // Check for errors
-        if (result.error || result.status === "failed") {
-          // Log error but continue with other specialists
-          console.error(`Specialist ${specialistName} failed:`, result.error);
-          await observability.emitProgress(
-            ctx,
-            ctx.taskId,
-            `Orchestrator: ${specialistName} specialist failed, continuing`,
-            { step: `orchestrator_${specialistName}_failed`, error: result.error },
-          );
-          continue;
-        }
+      // Process results - merge successful specialist outputs
+      const completed: string[] = [];
+      const failed: string[] = [];
+      let mergedSpecialistOutputs: typeof state.specialistOutputs = {};
 
-        // Update state with specialist output
-        currentState = {
-          ...currentState,
-          ...result,
-          specialistOutputs: {
-            ...currentState.specialistOutputs,
+      for (const { specialistName, result, success } of results) {
+        if (success) {
+          completed.push(specialistName);
+          // Merge specialist outputs
+          mergedSpecialistOutputs = {
+            ...mergedSpecialistOutputs,
             ...result.specialistOutputs,
-          },
-        };
-
-        completed.push(specialistName);
+          };
+        } else {
+          failed.push(specialistName);
+          console.error(`Specialist ${specialistName} failed:`, result.error);
+        }
       }
 
       await observability.emitProgress(
         ctx,
         ctx.taskId,
-        `Orchestrator: All specialists completed (${completed.length}/${specialistsList.length})`,
-        { step: "orchestrator_complete", progress: 85, completed },
+        `Orchestrator: All specialists completed (${completed.length}/${validSpecialists.length} successful)`,
+        { step: "orchestrator_complete", progress: 85, completed, failed },
       );
 
-      // Return updated state with all specialist outputs
+      // Return merged state with all specialist outputs
       return {
-        specialistOutputs: currentState.specialistOutputs,
+        specialistOutputs: mergedSpecialistOutputs,
         orchestration: {
-          specialists: specialistsList,
+          specialists: validSpecialists,
           completed,
+          failed: failed.length > 0 ? failed : undefined,
         },
       };
     } catch (error) {

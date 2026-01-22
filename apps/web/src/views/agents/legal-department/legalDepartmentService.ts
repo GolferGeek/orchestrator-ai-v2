@@ -11,6 +11,7 @@
  */
 
 import { useExecutionContextStore } from '@/stores/executionContextStore';
+import { SSEClient } from '@/services/agent2agent/sse/sseClient';
 import type {
   DocumentType,
   UploadedDocument,
@@ -24,10 +25,27 @@ import type {
   LegalRecommendation,
 } from './legalDepartmentTypes';
 
+/**
+ * Progress event callback for real-time updates
+ */
+export interface ProgressEvent {
+  step: string;
+  progress: number;
+  message?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export type ProgressCallback = (event: ProgressEvent) => void;
+
 // API Base URL for main API
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:6100';
 
 class LegalDepartmentService {
+  // SSE client for real-time progress updates
+  private sseClient: SSEClient | null = null;
+  private sseCleanup: Array<() => void> = [];
+  private progressCallback: ProgressCallback | null = null;
+
   /**
    * Upload document and start analysis through A2A tasks endpoint
    *
@@ -920,7 +938,7 @@ class LegalDepartmentService {
   /**
    * Record an HITL (Human-in-the-Loop) decision from attorney review
    *
-   * Records the attorney's decision (approve, reject, escalate, request_changes)
+   * Records the attorney's decision (approve, reject, request_reanalysis)
    * for the analysis results. This creates an audit trail and may trigger
    * follow-up actions depending on the decision.
    *
@@ -931,7 +949,7 @@ class LegalDepartmentService {
    */
   async recordHITLDecision(
     taskId: string,
-    action: 'approve' | 'reject' | 'escalate' | 'request_changes',
+    action: 'approve' | 'reject' | 'request_reanalysis',
     comment?: string
   ): Promise<{ success: boolean; message?: string }> {
     const executionContextStore = useExecutionContextStore();
@@ -997,6 +1015,144 @@ class LegalDepartmentService {
       console.warn('[LegalDepartment] Error recording HITL decision:', error);
       return { success: true, message: 'Decision recorded locally' };
     }
+  }
+
+  /**
+   * Connect to SSE stream for real-time progress updates
+   *
+   * Uses the observability stream endpoint to receive progress events
+   * emitted by LangGraph nodes during document analysis.
+   *
+   * @param conversationId - The conversation ID to filter events
+   * @param onProgress - Callback for progress updates
+   */
+  connectToSSEStream(conversationId: string, onProgress: ProgressCallback): void {
+    // Disconnect any existing connection
+    this.disconnectSSEStream();
+
+    this.progressCallback = onProgress;
+
+    // Create SSE client with reconnection config
+    this.sseClient = new SSEClient({
+      maxReconnectAttempts: 5,
+      reconnectDelay: 2000,
+      debug: false, // Set to true for debugging
+    });
+
+    // Get auth token for SSE
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      console.warn('[LegalDepartment] No auth token for SSE connection');
+      return;
+    }
+
+    // Build SSE URL with conversationId filter
+    const sseUrl = `${API_BASE_URL}/observability/stream?conversationId=${conversationId}&token=${encodeURIComponent(token)}`;
+
+    console.log('[LegalDepartment] Connecting to SSE stream for conversation:', conversationId);
+
+    // Listen for connection state changes
+    const stateCleanup = this.sseClient.onStateChange((sseState) => {
+      console.log('[LegalDepartment] SSE state:', sseState);
+    });
+    this.sseCleanup.push(stateCleanup);
+
+    // Listen for errors
+    const errorCleanup = this.sseClient.onError((error) => {
+      console.error('[LegalDepartment] SSE error:', error);
+    });
+    this.sseCleanup.push(errorCleanup);
+
+    // Listen for data events
+    const messageCleanup = this.sseClient.addEventListener('message', (event) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        // Skip connection confirmation events
+        if (data.event_type === 'connected') {
+          console.log('[LegalDepartment] SSE connection confirmed');
+          return;
+        }
+
+        // Handle observability event
+        this.handleObservabilityEvent(data);
+      } catch (err) {
+        console.error('[LegalDepartment] Failed to parse SSE event:', err);
+      }
+    });
+    this.sseCleanup.push(messageCleanup);
+
+    // Connect to stream
+    this.sseClient.connect(sseUrl);
+  }
+
+  /**
+   * Handle observability events from SSE stream
+   *
+   * Parses progress events emitted by LangGraph nodes and calls
+   * the progress callback with normalized event data.
+   *
+   * Event structure from ObservabilityEventsService:
+   * - hook_event_type: 'langgraph.processing', 'langgraph.started', etc.
+   * - status: 'processing', 'started', 'completed', etc.
+   * - progress: number (0-100) at top level
+   * - step: string at top level
+   * - message: string at top level
+   * - context: { conversationId, taskId, userId, etc. }
+   */
+  private handleObservabilityEvent(event: Record<string, unknown>): void {
+    // Check event type - LangGraph sends 'langgraph.processing', 'langgraph.started', etc.
+    const hookEventType = event?.hook_event_type as string;
+    const status = event?.status as string;
+
+    // Filter for progress-related events
+    const isProgressEvent =
+      hookEventType?.startsWith('langgraph.') ||
+      status === 'processing' ||
+      status === 'started' ||
+      typeof event?.progress === 'number';
+
+    if (!isProgressEvent) {
+      return;
+    }
+
+    // Extract progress information directly from top-level fields
+    const step = (event?.step as string) || status || 'processing';
+    const progress = (event?.progress as number) || 0;
+    const message = (event?.message as string) || '';
+
+    console.log('[LegalDepartment] Progress event:', { hookEventType, step, progress, message });
+
+    // Call progress callback
+    if (this.progressCallback) {
+      this.progressCallback({
+        step,
+        progress,
+        message,
+        metadata: event as Record<string, unknown>,
+      });
+    }
+  }
+
+  /**
+   * Disconnect from SSE stream
+   *
+   * Cleans up event listeners and closes the connection.
+   * Safe to call multiple times.
+   */
+  disconnectSSEStream(): void {
+    // Clean up all event listeners
+    this.sseCleanup.forEach((cleanup) => cleanup());
+    this.sseCleanup = [];
+
+    // Disconnect SSE client
+    if (this.sseClient) {
+      this.sseClient.disconnect();
+      this.sseClient = null;
+    }
+
+    this.progressCallback = null;
+    console.log('[LegalDepartment] SSE stream disconnected');
   }
 }
 

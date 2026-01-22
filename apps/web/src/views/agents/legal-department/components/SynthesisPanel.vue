@@ -13,10 +13,8 @@
       </ion-badge>
     </div>
 
-    <!-- Summary Text -->
-    <div v-if="summary" class="summary-text">
-      {{ summary }}
-    </div>
+    <!-- Summary Text (Rendered Markdown) -->
+    <div v-if="summary" class="summary-text markdown-content" v-html="renderedSummary"></div>
 
     <!-- Key Metrics -->
     <div class="key-metrics">
@@ -77,7 +75,14 @@
 import { computed } from 'vue';
 import { IonIcon, IonBadge } from '@ionic/vue';
 import { documentTextOutline, warningOutline } from 'ionicons/icons';
+import { marked } from 'marked';
 import type { AnalysisResults, SpecialistOutputs } from '../legalDepartmentTypes';
+
+// Configure marked for GFM (GitHub Flavored Markdown)
+marked.setOptions({
+  breaks: true,
+  gfm: true,
+});
 
 // Props
 const props = defineProps<{
@@ -88,6 +93,13 @@ const props = defineProps<{
 // Computed
 const summary = computed(() => {
   return props.results?.summary || generateSummary();
+});
+
+const renderedSummary = computed(() => {
+  if (!summary.value) return '';
+  // marked() returns a Promise in newer versions, but with sync parsing it returns string
+  const result = marked(summary.value);
+  return typeof result === 'string' ? result : '';
 });
 
 const totalFindings = computed(() => {
@@ -226,6 +238,100 @@ function getRiskColor(level: string): string {
   line-height: 1.6;
   margin-bottom: 20px;
   color: var(--ion-color-dark);
+}
+
+/* Markdown content styling */
+.markdown-content :deep(h1),
+.markdown-content :deep(h2),
+.markdown-content :deep(h3),
+.markdown-content :deep(h4) {
+  margin: 16px 0 8px 0;
+  font-weight: 600;
+  color: var(--ion-color-dark);
+}
+
+.markdown-content :deep(h1) { font-size: 1.5em; }
+.markdown-content :deep(h2) { font-size: 1.3em; }
+.markdown-content :deep(h3) { font-size: 1.1em; }
+.markdown-content :deep(h4) { font-size: 1em; }
+
+.markdown-content :deep(p) {
+  margin: 8px 0;
+}
+
+.markdown-content :deep(ul),
+.markdown-content :deep(ol) {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+.markdown-content :deep(li) {
+  margin: 4px 0;
+}
+
+.markdown-content :deep(strong) {
+  font-weight: 600;
+}
+
+.markdown-content :deep(em) {
+  font-style: italic;
+}
+
+.markdown-content :deep(code) {
+  background: var(--ion-color-light);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+.markdown-content :deep(pre) {
+  background: var(--ion-color-light);
+  padding: 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 12px 0;
+}
+
+.markdown-content :deep(pre code) {
+  background: none;
+  padding: 0;
+}
+
+.markdown-content :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+}
+
+.markdown-content :deep(th),
+.markdown-content :deep(td) {
+  border: 1px solid var(--ion-color-light-shade);
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.markdown-content :deep(th) {
+  background: var(--ion-color-light);
+  font-weight: 600;
+}
+
+.markdown-content :deep(blockquote) {
+  border-left: 4px solid var(--ion-color-primary);
+  padding-left: 16px;
+  margin: 12px 0;
+  color: var(--ion-color-medium-shade);
+}
+
+.markdown-content :deep(hr) {
+  border: none;
+  border-top: 1px solid var(--ion-color-light-shade);
+  margin: 16px 0;
+}
+
+/* Checklist styling */
+.markdown-content :deep(input[type="checkbox"]) {
+  margin-right: 8px;
 }
 
 .key-metrics {

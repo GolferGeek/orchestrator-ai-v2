@@ -839,7 +839,7 @@ export interface SpecialistState {
 // HITL Types
 // =============================================================================
 
-export type HITLAction = 'approve' | 'reject' | 'escalate' | 'request_changes';
+export type HITLAction = 'approve' | 'reject' | 'request_reanalysis';
 
 export interface HITLDecision {
   action: HITLAction;

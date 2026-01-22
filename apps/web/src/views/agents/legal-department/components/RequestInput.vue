@@ -65,39 +65,6 @@
       </div>
     </div>
 
-    <!-- Analysis Options (shown when file attached) -->
-    <div v-if="attachedFile && showOptions" class="analysis-options">
-      <div class="options-header">
-        <span>Analysis Options</span>
-        <ion-button fill="clear" size="small" @click="showOptions = false">
-          <ion-icon :icon="chevronUpOutline" slot="icon-only" />
-        </ion-button>
-      </div>
-      <div class="options-grid">
-        <ion-chip
-          :color="options.extractKeyTerms ? 'primary' : 'medium'"
-          @click="options.extractKeyTerms = !options.extractKeyTerms"
-        >
-          <ion-icon :icon="keyOutline" />
-          <ion-label>Key Terms</ion-label>
-        </ion-chip>
-        <ion-chip
-          :color="options.identifyRisks ? 'primary' : 'medium'"
-          @click="options.identifyRisks = !options.identifyRisks"
-        >
-          <ion-icon :icon="warningOutline" />
-          <ion-label>Risks</ion-label>
-        </ion-chip>
-        <ion-chip
-          :color="options.generateRecommendations ? 'primary' : 'medium'"
-          @click="options.generateRecommendations = !options.generateRecommendations"
-        >
-          <ion-icon :icon="bulbOutline" />
-          <ion-label>Recommendations</ion-label>
-        </ion-chip>
-      </div>
-    </div>
-
     <!-- Error Display -->
     <div v-if="error" class="error-message">
       <ion-icon :icon="alertCircleOutline" color="danger" />
@@ -108,16 +75,12 @@
 
 <script lang="ts" setup>
 import { ref, computed, nextTick } from 'vue';
-import { IonButton, IonIcon, IonChip, IonLabel } from '@ionic/vue';
+import { IonButton, IonIcon } from '@ionic/vue';
 import {
   documentTextOutline,
   closeOutline,
   attachOutline,
   sendOutline,
-  chevronUpOutline,
-  keyOutline,
-  warningOutline,
-  bulbOutline,
   alertCircleOutline,
 } from 'ionicons/icons';
 import ConversationalSpeechButton from '@/components/ConversationalSpeechButton.vue';
@@ -153,7 +116,6 @@ const fileInputRef = ref<HTMLInputElement | null>(null);
 // State
 const message = ref('');
 const attachedFile = ref<File | null>(null);
-const showOptions = ref(true);
 const error = ref<string | null>(null);
 
 const options = ref({
@@ -206,7 +168,6 @@ function processFile(file: File) {
   }
 
   attachedFile.value = file;
-  showOptions.value = true;
 
   // Auto-fill message if empty
   if (!message.value.trim()) {
@@ -343,33 +304,6 @@ function handleSpeechError(errorMessage: string) {
   display: flex;
   gap: 4px;
   align-items: center;
-}
-
-.analysis-options {
-  margin-top: 12px;
-  padding: 12px;
-  background: var(--ion-color-light);
-  border-radius: 8px;
-}
-
-.options-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-  font-weight: 500;
-  font-size: 13px;
-  color: var(--ion-color-medium-shade);
-}
-
-.options-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.options-grid ion-chip {
-  cursor: pointer;
 }
 
 .error-message {

@@ -266,6 +266,7 @@ export const LegalDepartmentStateAnnotation = Annotation.Root({
   orchestration: Annotation<{
     specialists?: string[]; // List of specialists to invoke
     completed?: string[]; // List of specialists that have completed
+    failed?: string[]; // List of specialists that failed
     synthesis?: any; // Combined synthesis of all specialist outputs
   }>({
     reducer: (prev, next) => ({ ...prev, ...next }),
