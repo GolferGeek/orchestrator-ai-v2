@@ -294,6 +294,27 @@ const routes: Array<RouteRecordRaw> = [
           description: 'View marketing swarm task details'
         }
       },
+      // Legal Department AI custom UI
+      {
+        path: 'agents/legal-department',
+        name: 'LegalDepartment',
+        component: () => import('../views/agents/legal-department/LegalDepartmentView.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Legal Department AI',
+          description: 'Legal document analysis and risk assessment'
+        }
+      },
+      {
+        path: 'agents/:orgSlug/legal-department',
+        name: 'LegalDepartmentOrg',
+        component: () => import('../views/agents/legal-department/LegalDepartmentView.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Legal Department AI',
+          description: 'Legal document analysis and risk assessment'
+        }
+      },
       // Prediction Runner Dashboard Routes
       {
         path: 'prediction/dashboard',

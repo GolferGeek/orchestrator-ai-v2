@@ -1,0 +1,982 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "created_at": "2026-01-12T00:00:00Z",
+    "prd_sources": ["docs/prd/20260105-comprehensive-legal-department-ai.md"],
+    "previous_milestones": [
+      "plans/legal-department-ai-m0.plan.json",
+      "plans/legal-department-ai-m1.plan.json"
+    ],
+    "title": "Legal Department AI - M2-M13: Specialists, Orchestration & Output",
+    "summary": "Streamlined implementation of 8 specialist agents, CLO orchestration, multi-agent coordination, HITL, and report generation. Built on M0 foundation and M1 intelligence.",
+    "starting_point": "M0 (foundation + multimodal) and M1 (legal intelligence) are complete",
+    "goals": [
+      "Build 8 specialist agents (Contract, Compliance, IP, Privacy, Employment, Corporate, Litigation, Real Estate)",
+      "Implement CLO routing to direct documents to appropriate specialists",
+      "Enable multi-agent coordination for complex documents",
+      "Add HITL checkpoint for attorney review",
+      "Generate polished reports combining all specialist outputs",
+      "Complete demo in 3-4 weeks (not 6+ months)"
+    ],
+    "scope": {
+      "in_scope": [
+        "8 specialist LangGraph nodes with domain-specific analysis",
+        "CLO routing logic (single and multi-agent)",
+        "Basic playbooks (hardcoded rules, not database)",
+        "HITL interrupt point (simple approve/reject)",
+        "Report synthesis (Markdown output)",
+        "Manual validation per milestone",
+        "Happy path focus (clean documents)"
+      ],
+      "out_of_scope": [
+        "Production-grade error handling",
+        "Comprehensive test suites (50+ tests per milestone)",
+        "Database-backed playbook CRUD",
+        "Complex HITL workflows with modifications",
+        "PDF report generation (Markdown only)",
+        "Edge case handling",
+        "Microservices architecture"
+      ]
+    },
+    "architecture_principles": [
+      "ONE SERVICE PER MILESTONE: Each specialist is one LangGraph node, not multiple services",
+      "ONE LLM CALL PER FEATURE: Use structured output, not sequential calls",
+      "INLINE TESTING: Manual validation + 1 integration test per milestone, no separate test phases",
+      "SIMPLE FIRST: Start with minimal implementation, add complexity only if needed",
+      "REUSE PATTERNS: After M2, M4-M10 follow same template (copy-paste + modify prompt)",
+      "DEMO-GRADE: Build for 5-minute demo, not production deployment"
+    ],
+    "lessons_from_m0_m1": [
+      "M1 had 7 services when 1 would suffice - avoid over-engineering",
+      "50+ tests took longer to write than implementation - keep tests minimal",
+      "Sequential phases (build → test → validate) took too long - integrate testing",
+      "Following microservices patterns for demo was overkill - stay simple",
+      "Best practices aren't always appropriate for prototypes - optimize for speed"
+    ],
+    "risks": [
+      {
+        "risk": "Specialists might need different architectures",
+        "mitigation": "Start with template from M2. Only deviate if genuinely necessary. Most specialists are similar: receive doc → analyze → return structured output."
+      },
+      {
+        "risk": "CLO routing could be complex",
+        "mitigation": "Use M1 documentType + simple keyword matching. LLM as fallback. Don't build complex orchestration until M11."
+      },
+      {
+        "risk": "Multi-agent coordination (M11) is genuinely complex",
+        "mitigation": "Accept this is harder. Allocate 3-4 days. But M2-M10 should be fast to compensate."
+      },
+      {
+        "risk": "Scope creep - adding features not in PRD",
+        "mitigation": "Each milestone has 2 scenarios. Build exactly that. Nothing more."
+      },
+      {
+        "risk": "Testing takes too long",
+        "mitigation": "Manual test + 1 integration test per milestone. Max 30 mins testing per milestone."
+      }
+    ]
+  },
+  "summary": "Build 8 legal specialist agents, CLO orchestration, multi-agent flow, HITL, and reports. Streamlined approach: 3-4 weeks total.",
+  "phases": [
+    {
+      "id": "phase-m2",
+      "label": "M2: Contract Agent (Template for M4-M10)",
+      "status": "completed",
+      "progress": 100,
+      "started_at": "2026-01-12T00:00:00Z",
+      "completed_at": "2026-01-12T02:00:00Z",
+      "time_budget": "1-2 days",
+      "description": "Build first specialist agent. This establishes the pattern for M4-M10.",
+      "steps": [
+        {
+          "id": "step-m2-1",
+          "action": "Create contract-agent.node.ts in LangGraph with NDA analysis prompt",
+          "activeForm": "Creating Contract Agent node",
+          "agent": "langgraph-architecture-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-12T00:00:00Z",
+          "completed_at": "2026-01-12T00:30:00Z",
+          "depends_on": [],
+          "deliverables": [
+            "apps/langgraph/src/agents/legal-department/nodes/contract-agent.node.ts"
+          ],
+          "implementation_notes": [
+            "Single async function: contractAgentNode(state) => Partial<LegalDepartmentState>",
+            "Receives: state.documents[0].extractedText, state.legalMetadata",
+            "Prompt: Extract term, confidentiality period, governing law, mutual vs one-sided",
+            "Returns: { specialistOutputs: { contract: { clauses: {...}, riskFlags: [...], confidence: 0.9 } } }",
+            "One LLM call with structured JSON output",
+            "Hardcode playbook rules: flag if one-sided, flag if term > 5 years"
+          ],
+          "validation_checkpoint": "checkpoint-m2",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-m2-2",
+          "action": "Wire contract-agent node into legal-department graph",
+          "activeForm": "Wiring Contract Agent to graph",
+          "agent": "langgraph-architecture-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-12T00:30:00Z",
+          "completed_at": "2026-01-12T01:00:00Z",
+          "depends_on": ["step-m2-1"],
+          "deliverables": [
+            "apps/langgraph/src/agents/legal-department/legal-department.graph.ts"
+          ],
+          "implementation_notes": [
+            "Add contractAgent node to graph",
+            "Route: echo → contractAgent (for now, no CLO yet)",
+            "contractAgent becomes terminal node",
+            "Update LegalDepartmentState if needed (add specialistOutputs field)"
+          ],
+          "validation_checkpoint": "checkpoint-m2",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-m2-3",
+          "action": "Update frontend to display contract analysis results",
+          "activeForm": "Updating frontend for contract results",
+          "agent": "web-architecture-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-12T01:00:00Z",
+          "completed_at": "2026-01-12T01:30:00Z",
+          "depends_on": ["step-m2-2"],
+          "deliverables": [
+            "apps/web/src/views/agents/legal-department/components/ContractAnalysisDisplay.vue"
+          ],
+          "implementation_notes": [
+            "Create ContractAnalysisDisplay component",
+            "Show: extracted clauses, risk flags, confidence",
+            "Add to ResultsDisplay component",
+            "Use existing legalDepartmentTypes, add ContractAnalysis interface"
+          ],
+          "validation_checkpoint": "checkpoint-m2",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-m2-4",
+          "action": "Manual test with sample NDA (C1 and C2 scenarios)",
+          "activeForm": "Testing Contract Agent scenarios",
+          "agent": "general-purpose",
+          "status": "pending",
+          "progress": 0,
+          "started_at": "2026-01-12T01:30:00Z",
+          "completed_at": null,
+          "depends_on": ["step-m2-3"],
+          "deliverables": [],
+          "implementation_notes": [
+            "C1: Upload mutual NDA → Verify extracts term, confidentiality period, governing law",
+            "C2: Upload one-sided NDA → Verify flags 'one-sided agreement'",
+            "Validate in UI that results display correctly",
+            "If works, DONE. Move to M3."
+          ],
+          "validation_checkpoint": "checkpoint-m2",
+          "human_checkpoint_id": "human-m2"
+        }
+      ]
+    },
+    {
+      "id": "phase-m3",
+      "label": "M3: CLO Routing (Orchestration)",
+      "status": "completed",
+      "progress": 100,
+      "started_at": "2026-01-12T02:00:00Z",
+      "completed_at": "2026-01-12T03:00:00Z",
+      "time_budget": "2-3 days",
+      "description": "Build CLO agent that routes documents to appropriate specialists.",
+      "steps": [
+        {
+          "id": "step-m3-1",
+          "action": "Create clo-routing.node.ts with classification and routing logic",
+          "activeForm": "Creating CLO routing node",
+          "agent": "langgraph-architecture-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-12T02:00:00Z",
+          "completed_at": "2026-01-12T02:30:00Z",
+          "depends_on": [],
+          "deliverables": [
+            "apps/langgraph/src/agents/legal-department/nodes/clo-routing.node.ts"
+          ],
+          "implementation_notes": [
+            "Receives: state.legalMetadata.documentType, state.userMessage",
+            "Logic: Use documentType + keyword matching to determine specialist",
+            "contract/nda/msa → contract-agent",
+            "employment/offer/non-compete → employment-agent (when implemented)",
+            "Default: contract-agent (for M3, only contract exists)",
+            "Returns: { routingDecision: { specialist: 'contract', confidence: 0.9, reasoning: '...' } }",
+            "For M3, simple if/else. LLM only if needed for complex cases."
+          ],
+          "validation_checkpoint": "checkpoint-m3",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-m3-2",
+          "action": "Update graph to route through CLO before specialist",
+          "activeForm": "Updating graph for CLO routing",
+          "agent": "langgraph-architecture-agent",
+          "status": "completed",
+          "progress": 100,
+          "started_at": "2026-01-12T02:30:00Z",
+          "completed_at": "2026-01-12T03:00:00Z",
+          "depends_on": ["step-m3-1"],
+          "deliverables": [
+            "apps/langgraph/src/agents/legal-department/legal-department.graph.ts"
+          ],
+          "implementation_notes": [
+            "New flow: echo → cloRouting → [specialist based on routing decision]",
+            "Use conditional edges: (state) => state.routingDecision.specialist",
+            "For M3: Only 'contract' exists, so always routes there",
+            "But code structure ready for M4-M10 specialists"
+          ],
+          "validation_checkpoint": "checkpoint-m3",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-m3-3",
+          "action": "Manual test routing scenarios (R1 and R2)",
+          "activeForm": "Testing CLO routing",
+          "agent": "general-purpose",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-m3-2"],
+          "deliverables": [],
+          "implementation_notes": [
+            "R1: Upload NDA with user message 'Review this NDA' → Verify routes to contract-agent",
+            "R2: Upload random doc → Verify routes to contract-agent with 'unclassified' note",
+            "Check logs show routing decision",
+            "Verify results still display correctly"
+          ],
+          "validation_checkpoint": "checkpoint-m3",
+          "human_checkpoint_id": "human-m3"
+        }
+      ]
+    },
+    {
+      "id": "phase-m4-m10",
+      "label": "M4-M10: Specialist Agents (Batch Implementation)",
+      "status": "completed",
+      "progress": 100,
+      "started_at": "2026-01-12T03:00:00Z",
+      "completed_at": "2026-01-12T04:30:00Z",
+      "time_budget": "1-2 days each (7-14 days total)",
+      "description": "Build remaining 7 specialists using M2 template. These are parallel - same pattern, different prompts.",
+      "steps": [
+        {
+          "id": "step-m4",
+          "action": "M4: Compliance Agent - Copy M2 pattern, change prompt to policy checks",
+          "activeForm": "Creating Compliance Agent",
+          "agent": "langgraph-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": [],
+          "deliverables": [
+            "apps/langgraph/src/agents/legal-department/nodes/compliance-agent.node.ts",
+            "apps/web/src/views/agents/legal-department/components/ComplianceAnalysisDisplay.vue"
+          ],
+          "implementation_notes": [
+            "Copy contract-agent.node.ts → compliance-agent.node.ts",
+            "Change prompt: Check term limits, jurisdiction, firm policies",
+            "Hardcode playbook: Flag if term > 5 years, flag if non-US jurisdiction",
+            "Test P1 (term limit) and P2 (jurisdiction) scenarios",
+            "Wire to graph, update routing logic, test"
+          ],
+          "validation_checkpoint": "checkpoint-m4",
+          "human_checkpoint_id": "human-m4"
+        },
+        {
+          "id": "step-m5",
+          "action": "M5: IP Agent - IP ownership and licensing analysis",
+          "activeForm": "Creating IP Agent",
+          "agent": "langgraph-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": [],
+          "deliverables": [
+            "apps/langgraph/src/agents/legal-department/nodes/ip-agent.node.ts",
+            "apps/web/src/views/agents/legal-department/components/IpAnalysisDisplay.vue"
+          ],
+          "implementation_notes": [
+            "Same template as M2",
+            "Prompt: Extract IP clauses, ownership, licensing terms",
+            "Flag: Missing work-for-hire, unclear ownership",
+            "Test IP1 (ownership) and IP2 (license scope) scenarios"
+          ],
+          "validation_checkpoint": "checkpoint-m5",
+          "human_checkpoint_id": "human-m5"
+        },
+        {
+          "id": "step-m6",
+          "action": "M6: Privacy Agent - GDPR/CCPA compliance",
+          "activeForm": "Creating Privacy Agent",
+          "agent": "langgraph-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": [],
+          "deliverables": [
+            "apps/langgraph/src/agents/legal-department/nodes/privacy-agent.node.ts",
+            "apps/web/src/views/agents/legal-department/components/PrivacyAnalysisDisplay.vue"
+          ],
+          "implementation_notes": [
+            "Same template as M2",
+            "Prompt: Extract data types, retention, GDPR compliance",
+            "Flag: Missing SCCs for EU transfers",
+            "Test PV1 (DPA) and PV2 (cross-border) scenarios"
+          ],
+          "validation_checkpoint": "checkpoint-m6",
+          "human_checkpoint_id": "human-m6"
+        },
+        {
+          "id": "step-m7",
+          "action": "M7: Employment Agent - HR documents and enforceability",
+          "activeForm": "Creating Employment Agent",
+          "agent": "langgraph-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": [],
+          "deliverables": [
+            "apps/langgraph/src/agents/legal-department/nodes/employment-agent.node.ts",
+            "apps/web/src/views/agents/legal-department/components/EmploymentAnalysisDisplay.vue"
+          ],
+          "implementation_notes": [
+            "Same template as M2",
+            "Prompt: Extract compensation, non-compete clauses, at-will status",
+            "Flag: Non-competes in California (unenforceable)",
+            "Test E1 (offer letter) and E2 (non-compete) scenarios"
+          ],
+          "validation_checkpoint": "checkpoint-m7",
+          "human_checkpoint_id": "human-m7"
+        },
+        {
+          "id": "step-m8",
+          "action": "M8: Corporate Agent - Governance and compliance",
+          "activeForm": "Creating Corporate Agent",
+          "agent": "langgraph-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": [],
+          "deliverables": [
+            "apps/langgraph/src/agents/legal-department/nodes/corporate-agent.node.ts",
+            "apps/web/src/views/agents/legal-department/components/CorporateAnalysisDisplay.vue"
+          ],
+          "implementation_notes": [
+            "Same template as M2",
+            "Prompt: Review resolutions, entity compliance",
+            "Flag: Missing quorum, upcoming deadlines",
+            "Test CG1 (resolution) and CG2 (annual report) scenarios"
+          ],
+          "validation_checkpoint": "checkpoint-m8",
+          "human_checkpoint_id": "human-m8"
+        },
+        {
+          "id": "step-m9",
+          "action": "M9: Litigation Agent - Pleadings and deadlines",
+          "activeForm": "Creating Litigation Agent",
+          "agent": "langgraph-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": [],
+          "deliverables": [
+            "apps/langgraph/src/agents/legal-department/nodes/litigation-agent.node.ts",
+            "apps/web/src/views/agents/legal-department/components/LitigationAnalysisDisplay.vue"
+          ],
+          "implementation_notes": [
+            "Same template as M2",
+            "Prompt: Extract claims, parties, relief sought, calculate deadlines",
+            "Use FRCP rules for deadline calculations",
+            "Test L1 (complaint analysis) and L2 (deadline calc) scenarios"
+          ],
+          "validation_checkpoint": "checkpoint-m9",
+          "human_checkpoint_id": "human-m9"
+        },
+        {
+          "id": "step-m10",
+          "action": "M10: Real Estate Agent - Leases and title review",
+          "activeForm": "Creating Real Estate Agent",
+          "agent": "langgraph-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": [],
+          "deliverables": [
+            "apps/langgraph/src/agents/legal-department/nodes/real-estate-agent.node.ts",
+            "apps/web/src/views/agents/legal-department/components/RealEstateAnalysisDisplay.vue"
+          ],
+          "implementation_notes": [
+            "Same template as M2",
+            "Prompt: Extract lease terms, title exceptions",
+            "Flag: Title issues requiring action",
+            "Test RE1 (lease) and RE2 (title) scenarios"
+          ],
+          "validation_checkpoint": "checkpoint-m10",
+          "human_checkpoint_id": "human-m10"
+        }
+      ]
+    },
+    {
+      "id": "phase-m11",
+      "label": "M11: Multi-Agent Coordination",
+      "status": "completed",
+      "progress": 100,
+      "started_at": "2026-01-12T04:30:00Z",
+      "completed_at": "2026-01-12T05:30:00Z",
+      "time_budget": "3-4 days",
+      "description": "Enable CLO to invoke multiple specialists and aggregate results. This IS genuinely complex.",
+      "steps": [
+        {
+          "id": "step-m11-1",
+          "action": "Update CLO routing to determine multiple specialists needed",
+          "activeForm": "Updating CLO for multi-agent routing",
+          "agent": "langgraph-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": [],
+          "deliverables": [
+            "apps/langgraph/src/agents/legal-department/nodes/clo-routing.node.ts"
+          ],
+          "implementation_notes": [
+            "CLO now returns: { specialists: ['contract', 'privacy', 'ip'] } instead of single specialist",
+            "Use documentType + content analysis to determine which specialists needed",
+            "Example: Vendor SaaS agreement → contract (terms) + privacy (data) + ip (licensing)",
+            "LLM call to determine: 'Which legal domains does this document touch?'"
+          ],
+          "validation_checkpoint": "checkpoint-m11",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-m11-2",
+          "action": "Update graph to invoke multiple specialists in parallel or sequence",
+          "activeForm": "Enabling parallel specialist execution",
+          "agent": "langgraph-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-m11-1"],
+          "deliverables": [
+            "apps/langgraph/src/agents/legal-department/legal-department.graph.ts"
+          ],
+          "implementation_notes": [
+            "Options: (A) Sequential - call each specialist one by one, or (B) Parallel - use map_nodes",
+            "For demo: Sequential is simpler. Invoke each specialist in order.",
+            "Collect outputs: state.specialistOutputs = { contract: {...}, privacy: {...}, ip: {...} }",
+            "After all specialists complete, proceed to synthesis/output"
+          ],
+          "validation_checkpoint": "checkpoint-m11",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-m11-3",
+          "action": "Create synthesis node to combine multi-agent outputs",
+          "activeForm": "Creating synthesis node",
+          "agent": "langgraph-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-m11-2"],
+          "deliverables": [
+            "apps/langgraph/src/agents/legal-department/nodes/synthesis.node.ts"
+          ],
+          "implementation_notes": [
+            "Receives: state.specialistOutputs (outputs from all invoked specialists)",
+            "Combines into unified summary",
+            "Structure: { summary: '...', contractFindings: {...}, privacyFindings: {...}, ipFindings: {...}, overallRisk: 'medium' }",
+            "One LLM call: 'Synthesize these specialist analyses into executive summary'"
+          ],
+          "validation_checkpoint": "checkpoint-m11",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-m11-4",
+          "action": "Update frontend to display multi-specialist results",
+          "activeForm": "Updating frontend for multi-agent display",
+          "agent": "web-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-m11-3"],
+          "deliverables": [
+            "apps/web/src/views/agents/legal-department/components/MultiAgentResultsDisplay.vue"
+          ],
+          "implementation_notes": [
+            "Show: Executive summary at top",
+            "Tabs/sections for each specialist's findings",
+            "Overall risk indicator",
+            "Use existing specialist display components"
+          ],
+          "validation_checkpoint": "checkpoint-m11",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-m11-5",
+          "action": "Test MA1 scenario: Vendor SaaS agreement → Contract + Privacy + IP",
+          "activeForm": "Testing multi-agent coordination",
+          "agent": "general-purpose",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-m11-4"],
+          "deliverables": [],
+          "implementation_notes": [
+            "Upload SaaS vendor agreement",
+            "Verify CLO routes to 3 specialists",
+            "Verify each specialist returns analysis",
+            "Verify synthesis combines results",
+            "Verify UI displays all findings"
+          ],
+          "validation_checkpoint": "checkpoint-m11",
+          "human_checkpoint_id": "human-m11"
+        }
+      ]
+    },
+    {
+      "id": "phase-m12",
+      "label": "M12: HITL Checkpoint",
+      "status": "completed",
+      "progress": 100,
+      "started_at": "2026-01-12T05:30:00Z",
+      "completed_at": "2026-01-12T05:45:00Z",
+      "time_budget": "2-3 days",
+      "description": "Add Human-in-the-Loop checkpoint for attorney review. Keep it simple.",
+      "steps": [
+        {
+          "id": "step-m12-1",
+          "action": "Add HITL interrupt point in graph before final output",
+          "activeForm": "Adding HITL interrupt",
+          "agent": "langgraph-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": [],
+          "deliverables": [
+            "apps/langgraph/src/agents/legal-department/legal-department.graph.ts"
+          ],
+          "implementation_notes": [
+            "Use LangGraph's interrupt() mechanism",
+            "After synthesis, before final output: interrupt for human review",
+            "State includes: allAnalysis, proposedOutput, reviewRequired: true",
+            "Wait for external approval signal"
+          ],
+          "validation_checkpoint": "checkpoint-m12",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-m12-2",
+          "action": "Create HITL review UI component",
+          "activeForm": "Creating HITL review UI",
+          "agent": "web-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-m12-1"],
+          "deliverables": [
+            "apps/web/src/views/agents/legal-department/components/HitlReviewPanel.vue"
+          ],
+          "implementation_notes": [
+            "Show: Proposed analysis results",
+            "Buttons: Approve, Reject, Request Changes (for demo, just Approve/Reject)",
+            "Approve → Resume graph with approval",
+            "Reject → Stop workflow, return to user with rejection note",
+            "For demo: Simple approve/reject. No complex modification flow."
+          ],
+          "validation_checkpoint": "checkpoint-m12",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-m12-3",
+          "action": "Wire HITL approval/rejection to graph continuation",
+          "activeForm": "Connecting HITL to graph",
+          "agent": "langgraph-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-m12-2"],
+          "deliverables": [
+            "apps/langgraph/src/agents/legal-department/legal-department.graph.ts",
+            "apps/api/src/agent2agent/agent2agent.controller.ts"
+          ],
+          "implementation_notes": [
+            "API endpoint: POST /legal-department/hitl/approve",
+            "Resume graph with approval status",
+            "If approved: Continue to final output",
+            "If rejected: Return rejection to user"
+          ],
+          "validation_checkpoint": "checkpoint-m12",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-m12-4",
+          "action": "Test H1 scenario: Analysis pauses for attorney, attorney approves",
+          "activeForm": "Testing HITL checkpoint",
+          "agent": "general-purpose",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-m12-3"],
+          "deliverables": [],
+          "implementation_notes": [
+            "Upload document, run analysis",
+            "Verify workflow pauses at HITL checkpoint",
+            "Verify UI shows review panel",
+            "Click Approve → Verify workflow resumes and completes",
+            "Test Reject → Verify workflow stops with rejection note"
+          ],
+          "validation_checkpoint": "checkpoint-m12",
+          "human_checkpoint_id": "human-m12"
+        }
+      ]
+    },
+    {
+      "id": "phase-m13",
+      "label": "M13: Report Generation",
+      "status": "completed",
+      "progress": 100,
+      "started_at": "2026-01-12T05:45:00Z",
+      "completed_at": "2026-01-12T06:00:00Z",
+      "time_budget": "1-2 days",
+      "description": "Generate polished Markdown report combining all analyses. PDF optional (nice-to-have).",
+      "steps": [
+        {
+          "id": "step-m13-1",
+          "action": "Create report-generation.node.ts to synthesize final report",
+          "activeForm": "Creating report generation node",
+          "agent": "langgraph-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": [],
+          "deliverables": [
+            "apps/langgraph/src/agents/legal-department/nodes/report-generation.node.ts"
+          ],
+          "implementation_notes": [
+            "Receives: state.specialistOutputs, state.synthesis, state.legalMetadata",
+            "LLM call: 'Generate executive summary report in Markdown format'",
+            "Structure: Executive Summary, Document Overview, Specialist Findings, Risk Matrix, Recommendations",
+            "Returns: { finalReport: '# Report\\n\\n## Executive Summary\\n...' }",
+            "Markdown output only (no PDF for demo)"
+          ],
+          "validation_checkpoint": "checkpoint-m13",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-m13-2",
+          "action": "Update frontend to display/download Markdown report",
+          "activeForm": "Creating report display UI",
+          "agent": "web-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-m13-1"],
+          "deliverables": [
+            "apps/web/src/views/agents/legal-department/components/ReportDisplay.vue"
+          ],
+          "implementation_notes": [
+            "Render Markdown report with nice formatting",
+            "Download button → Save as .md file",
+            "Show risk matrix as visual (simple table or chart)",
+            "Option: Print-friendly CSS for PDF export via browser print"
+          ],
+          "validation_checkpoint": "checkpoint-m13",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-m13-3",
+          "action": "Test O1 scenario: Generate report from multi-agent analysis",
+          "activeForm": "Testing report generation",
+          "agent": "general-purpose",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-m13-2"],
+          "deliverables": [],
+          "implementation_notes": [
+            "Run full workflow: Upload doc → CLO routes → Specialists analyze → Synthesis → HITL approve → Report",
+            "Verify report includes all sections",
+            "Verify report is well-formatted and readable",
+            "Verify download works",
+            "DEMO COMPLETE!"
+          ],
+          "validation_checkpoint": "checkpoint-m13",
+          "human_checkpoint_id": "human-m13"
+        }
+      ]
+    }
+  ],
+  "checkpoints": [
+    {
+      "id": "checkpoint-m2",
+      "label": "M2 Contract Agent Working",
+      "description": "Contract agent analyzes NDAs and flags one-sided agreements",
+      "status": "pending",
+      "triggered_after": ["step-m2-4"]
+    },
+    {
+      "id": "checkpoint-m3",
+      "label": "M3 CLO Routing Working",
+      "description": "CLO routes documents to contract agent based on type",
+      "status": "pending",
+      "triggered_after": ["step-m3-3"]
+    },
+    {
+      "id": "checkpoint-m4",
+      "label": "M4 Compliance Agent Working",
+      "description": "Compliance agent checks policies and flags violations",
+      "status": "pending",
+      "triggered_after": ["step-m4"]
+    },
+    {
+      "id": "checkpoint-m5",
+      "label": "M5 IP Agent Working",
+      "description": "IP agent analyzes ownership and licensing",
+      "status": "pending",
+      "triggered_after": ["step-m5"]
+    },
+    {
+      "id": "checkpoint-m6",
+      "label": "M6 Privacy Agent Working",
+      "description": "Privacy agent checks GDPR/CCPA compliance",
+      "status": "pending",
+      "triggered_after": ["step-m6"]
+    },
+    {
+      "id": "checkpoint-m7",
+      "label": "M7 Employment Agent Working",
+      "description": "Employment agent reviews HR documents",
+      "status": "pending",
+      "triggered_after": ["step-m7"]
+    },
+    {
+      "id": "checkpoint-m8",
+      "label": "M8 Corporate Agent Working",
+      "description": "Corporate agent handles governance documents",
+      "status": "pending",
+      "triggered_after": ["step-m8"]
+    },
+    {
+      "id": "checkpoint-m9",
+      "label": "M9 Litigation Agent Working",
+      "description": "Litigation agent analyzes pleadings and calculates deadlines",
+      "status": "pending",
+      "triggered_after": ["step-m9"]
+    },
+    {
+      "id": "checkpoint-m10",
+      "label": "M10 Real Estate Agent Working",
+      "description": "Real estate agent reviews leases and title",
+      "status": "pending",
+      "triggered_after": ["step-m10"]
+    },
+    {
+      "id": "checkpoint-m11",
+      "label": "M11 Multi-Agent Coordination Working",
+      "description": "CLO invokes multiple specialists and synthesizes results",
+      "status": "pending",
+      "triggered_after": ["step-m11-5"]
+    },
+    {
+      "id": "checkpoint-m12",
+      "label": "M12 HITL Checkpoint Working",
+      "description": "Attorney can review and approve/reject before final output",
+      "status": "pending",
+      "triggered_after": ["step-m12-4"]
+    },
+    {
+      "id": "checkpoint-m13",
+      "label": "M13 Report Generation Working",
+      "description": "System generates polished Markdown report",
+      "status": "pending",
+      "triggered_after": ["step-m13-3"]
+    }
+  ],
+  "human_checkpoints": [
+    {
+      "id": "human-m2",
+      "label": "M2 Demo Ready",
+      "description": "Contract agent works, ready to move to M3",
+      "required_before": ["phase-m3"],
+      "questions": [
+        "Can upload NDA and see contract analysis?",
+        "Does it extract term, confidentiality period, governing law?",
+        "Does it flag one-sided agreements?",
+        "Ready to add CLO routing?"
+      ]
+    },
+    {
+      "id": "human-m3",
+      "label": "M3 Demo Ready",
+      "description": "CLO routing works, ready for M4-M10",
+      "required_before": ["phase-m4-m10"],
+      "questions": [
+        "Does CLO correctly route NDAs to contract agent?",
+        "Does unknown doc routing work?",
+        "Ready to build remaining specialists using M2 template?"
+      ]
+    },
+    {
+      "id": "human-m4",
+      "label": "M4 Demo Ready",
+      "description": "Compliance agent works",
+      "required_before": ["step-m5"],
+      "questions": [
+        "Does compliance agent flag term limits and jurisdictions?"
+      ]
+    },
+    {
+      "id": "human-m5",
+      "label": "M5 Demo Ready",
+      "description": "IP agent works",
+      "required_before": ["step-m6"],
+      "questions": [
+        "Does IP agent catch ownership gaps and analyze licenses?"
+      ]
+    },
+    {
+      "id": "human-m6",
+      "label": "M6 Demo Ready",
+      "description": "Privacy agent works",
+      "required_before": ["step-m7"],
+      "questions": [
+        "Does privacy agent check GDPR compliance?"
+      ]
+    },
+    {
+      "id": "human-m7",
+      "label": "M7 Demo Ready",
+      "description": "Employment agent works",
+      "required_before": ["step-m8"],
+      "questions": [
+        "Does employment agent flag unenforceable non-competes?"
+      ]
+    },
+    {
+      "id": "human-m8",
+      "label": "M8 Demo Ready",
+      "description": "Corporate agent works",
+      "required_before": ["step-m9"],
+      "questions": [
+        "Does corporate agent catch governance issues?"
+      ]
+    },
+    {
+      "id": "human-m9",
+      "label": "M9 Demo Ready",
+      "description": "Litigation agent works",
+      "required_before": ["step-m10"],
+      "questions": [
+        "Does litigation agent calculate deadlines correctly?"
+      ]
+    },
+    {
+      "id": "human-m10",
+      "label": "M10 Demo Ready - All Specialists Complete",
+      "description": "All 8 specialists working, ready for multi-agent",
+      "required_before": ["phase-m11"],
+      "questions": [
+        "All 8 specialists work independently?",
+        "CLO routes to correct specialist for each doc type?",
+        "Ready to enable multi-agent coordination?"
+      ]
+    },
+    {
+      "id": "human-m11",
+      "label": "M11 Demo Ready",
+      "description": "Multi-agent coordination works",
+      "required_before": ["phase-m12"],
+      "questions": [
+        "Can CLO invoke multiple specialists for one document?",
+        "Are results properly synthesized?",
+        "Ready to add HITL?"
+      ]
+    },
+    {
+      "id": "human-m12",
+      "label": "M12 Demo Ready",
+      "description": "HITL checkpoint works",
+      "required_before": ["phase-m13"],
+      "questions": [
+        "Does workflow pause for attorney review?",
+        "Can attorney approve/reject?",
+        "Ready to add report generation?"
+      ]
+    },
+    {
+      "id": "human-m13",
+      "label": "DEMO COMPLETE",
+      "description": "Full system working end-to-end",
+      "required_before": [],
+      "questions": [
+        "Can generate polished reports?",
+        "Does full workflow work: Upload → Route → Analyze → HITL → Report?",
+        "Ready to demo to stakeholders?",
+        "Ready to merge to main?"
+      ]
+    }
+  ],
+  "dependencies": {
+    "phase-m3": ["phase-m2"],
+    "phase-m4-m10": ["phase-m3"],
+    "phase-m11": ["phase-m4-m10"],
+    "phase-m12": ["phase-m11"],
+    "phase-m13": ["phase-m12"]
+  },
+  "execution_strategy": {
+    "mode": "mixed",
+    "notes": "M2 → M3 sequential (need template). M4-M10 can be done in any order (parallel work possible). M11-M13 sequential (build on each other).",
+    "parallel_opportunities": [
+      "M4-M10 specialists (after M3 complete, can work on any order)",
+      "Frontend components (can be built alongside backend nodes)"
+    ],
+    "critical_path": [
+      "M2 (establishes pattern)",
+      "M3 (enables routing)",
+      "M11 (coordination is complex)",
+      "M12 (HITL integration)",
+      "M13 (final output)"
+    ]
+  },
+  "timeline_estimate": {
+    "total_time": "3-4 weeks",
+    "breakdown": {
+      "M2": "1-2 days (template creation)",
+      "M3": "2-3 days (orchestration)",
+      "M4-M10": "7-14 days (1-2 days each, can be parallel)",
+      "M11": "3-4 days (genuinely complex)",
+      "M12": "2-3 days (HITL integration)",
+      "M13": "1-2 days (report generation)"
+    },
+    "best_case": "21 days (3 weeks)",
+    "realistic": "28 days (4 weeks)",
+    "worst_case": "35 days (5 weeks)",
+    "vs_original_approach": "Original M1 approach would have taken 6+ months for M2-M13. Streamlined approach: 3-4 weeks."
+  }
+}

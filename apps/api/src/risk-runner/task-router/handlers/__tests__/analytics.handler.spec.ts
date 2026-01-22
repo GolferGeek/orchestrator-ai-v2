@@ -7,7 +7,6 @@ import { SubjectRepository } from '../../../repositories/subject.repository';
 import { ExecutionContext } from '@orchestrator-ai/transport-types';
 import { DashboardRequestPayload } from '@orchestrator-ai/transport-types';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyData = any;
 
 describe('AnalyticsHandler', () => {

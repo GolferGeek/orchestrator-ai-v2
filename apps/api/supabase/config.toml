@@ -34,7 +34,7 @@ schema_paths = []
 
 [db.seed]
 enabled = true
-sql_paths = ["./seed.sql"]
+sql_paths = ["./seed/test-user.sql", "./seed/golfergeek-user.sql", "./seed/legal-department-agent.sql"]
 
 [db.network_restrictions]
 enabled = false

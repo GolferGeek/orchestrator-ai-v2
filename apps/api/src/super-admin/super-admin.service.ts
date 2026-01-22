@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Response } from 'express';
-import { query } from '@anthropic-ai/claude-agent-sdk';
 import { readdir, readFile } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
@@ -210,6 +209,9 @@ If the user asks you to modify source code, politely explain that code changes r
     let capturedSessionId: string | undefined;
 
     try {
+      // Dynamically import the ESM SDK
+      const { query } = await import('@anthropic-ai/claude-agent-sdk');
+
       // Load source context if provided
       const systemPrompt = await this.loadSourceContext(sourceContext);
 

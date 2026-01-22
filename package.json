@@ -112,6 +112,8 @@
     "figlet": "^1.8.2",
     "gradient-string": "^3.0.0",
     "node-fetch": "^3.3.2",
+    "pdf-parse": "^1.1.1",
+    "pdf2json": "^4.0.2",
     "quick-lru": "^7.0.1",
     "supabase": "^2.65.6",
     "uuid": "^11.1.0"

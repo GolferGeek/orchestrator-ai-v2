@@ -194,12 +194,47 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
     );
   }
 
-  // CONVERSE mode - uses base class implementation from BaseAgentRunner
-  // This delegates to ConverseHandlers.executeConverse() which:
-  // - Maintains conversation history in the database
-  // - Calls the LLM directly with the agent's system prompt
-  // - Returns conversational responses
-  // API agents don't need to call their external endpoint for conversation
+  /**
+   * CONVERSE mode - can forward to API endpoint if configured
+   *
+   * By default, API agents use the base class LLM-based conversation.
+   * However, if the agent has metadata.forwardConverse = true,
+   * we forward CONVERSE requests to the API endpoint instead.
+   */
+  protected async handleConverse(
+    definition: AgentRuntimeDefinition,
+    request: TaskRequestDto,
+    organizationSlug: string | null,
+  ): Promise<TaskResponseDto> {
+    this.logger.log(
+      `🔍 [API-AGENT-RUNNER] handleConverse called for agent: ${definition.slug}`,
+    );
+
+    // Check if this agent should forward CONVERSE to the API endpoint
+    // The flag is in the raw database metadata (definition.record.metadata)
+    const rawMetadata = definition.record?.metadata as Record<string, unknown>;
+    const forwardConverse = rawMetadata?.forwardConverse === true;
+
+    this.logger.log(
+      `🔍 [API-AGENT-RUNNER] Raw metadata keys: ${Object.keys(rawMetadata || {}).join(', ')}`,
+    );
+    this.logger.log(
+      `🔍 [API-AGENT-RUNNER] forwardConverse flag: ${forwardConverse}, rawMetadata.forwardConverse: ${String(rawMetadata?.forwardConverse)}`,
+    );
+
+    if (forwardConverse) {
+      this.logger.log(
+        `📤 Forwarding CONVERSE request to API endpoint for agent: ${definition.slug}`,
+      );
+      return await this.executeBuild(definition, request, organizationSlug);
+    }
+
+    // Default: use base class LLM-based conversation
+    this.logger.log(
+      `🔍 [API-AGENT-RUNNER] Using default LLM-based conversation for agent: ${definition.slug}`,
+    );
+    return await super.handleConverse(definition, request, organizationSlug);
+  }
 
   // PLAN mode - uses base class implementation from BaseAgentRunner
   // This delegates to PlanHandlers which:
@@ -1401,9 +1436,43 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
             provider: provider || NIL_UUID,
             model: model || NIL_UUID,
           };
+
+          // Extract documents and legalMetadata from request.metadata (set by controller's document processing)
+          // LangGraph agents need documents in format: { name, content, type }
+          // and legalMetadata at the top level for routing decisions
+          const metadataDocuments = (request.metadata?.documents ||
+            []) as Array<{
+            filename?: string;
+            extractedText?: string;
+            mimeType?: string;
+            legalMetadata?: unknown;
+          }>;
+
+          // Transform to LangGraph document format
+          const documents = metadataDocuments
+            .filter((doc) => doc.extractedText) // Only include docs with extracted text
+            .map((doc) => ({
+              name: doc.filename || 'unknown',
+              content: doc.extractedText || '',
+              type: doc.mimeType || 'application/octet-stream',
+            }));
+
+          // Extract legalMetadata from first document (for single document analysis)
+          // For multi-document, we could merge metadata but most legal analysis is single-doc
+          const firstDoc = metadataDocuments[0];
+          const legalMetadata = firstDoc?.legalMetadata;
+
+          if (documents.length > 0) {
+            this.logger.log(
+              `📄 [API-RUNNER] Including ${documents.length} document(s) with legalMetadata in LangGraph request`,
+            );
+          }
+
           body = {
             context,
             userMessage,
+            ...(documents.length > 0 ? { documents } : {}),
+            ...(legalMetadata ? { legalMetadata } : {}),
           };
         }
       }
@@ -2040,6 +2109,53 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         }
       }
 
+      // Check if this is a LangGraph/forwardConverse agent - skip deliverable creation
+      // These agents return structured data that doesn't need deliverable storage
+      const rawMetadata = definition.record?.metadata as Record<
+        string,
+        unknown
+      >;
+      const isLangGraphAgent = rawMetadata?.forwardConverse === true;
+
+      if (isLangGraphAgent) {
+        this.logger.log(
+          `LangGraph agent ${definition.slug} - skipping deliverable creation, returning data directly`,
+        );
+
+        // Extract nested data from LangGraph response: { success: true, data: { ... } }
+        const langGraphData =
+          responseData && typeof responseData === 'object'
+            ? (responseData as Record<string, unknown>).data || responseData
+            : null;
+
+        const langGraphContent = langGraphData
+          ? {
+              // Include LangGraph-specific data for frontend extraction
+              specialistOutputs: (langGraphData as Record<string, unknown>)
+                .specialistOutputs,
+              legalMetadata: (langGraphData as Record<string, unknown>)
+                .legalMetadata,
+              routingDecision: (langGraphData as Record<string, unknown>)
+                .routingDecision,
+              response: (langGraphData as Record<string, unknown>).response,
+              status: (langGraphData as Record<string, unknown>).status,
+              threadId: (langGraphData as Record<string, unknown>).threadId,
+            }
+          : { response: formattedContent };
+
+        return TaskResponseDto.success(AgentTaskMode.BUILD, {
+          content: langGraphContent,
+          metadata: this.buildMetadata(request, {
+            apiUrl: url,
+            method,
+            statusCode,
+            duration,
+            success: isSuccess,
+            isLangGraph: true,
+          }),
+        });
+      }
+
       const targetDeliverableId = this.resolveDeliverableIdFromRequest(request);
 
       // Debug: Verify deliverablesService is available
@@ -2338,9 +2454,42 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           // Default: Use ExecutionContext capsule as the single source of truth
           // All identity fields (taskId, userId, conversationId, agentSlug, orgSlug) are in context
           // Context is the capsule that flows through the entire system - no duplication
+
+          // Extract documents and legalMetadata from request.metadata (set by controller's document processing)
+          // LangGraph agents need documents in format: { name, content, type }
+          // and legalMetadata at the top level for routing decisions
+          const metadataDocuments = (request.metadata?.documents ||
+            []) as Array<{
+            filename?: string;
+            extractedText?: string;
+            mimeType?: string;
+            legalMetadata?: unknown;
+          }>;
+
+          // Transform to LangGraph document format
+          const documents = metadataDocuments
+            .filter((doc) => doc.extractedText) // Only include docs with extracted text
+            .map((doc) => ({
+              name: doc.filename || 'unknown',
+              content: doc.extractedText || '',
+              type: doc.mimeType || 'application/octet-stream',
+            }));
+
+          // Extract legalMetadata from first document (for single document analysis)
+          const firstDoc = metadataDocuments[0];
+          const legalMetadata = firstDoc?.legalMetadata;
+
+          if (documents.length > 0) {
+            this.logger.log(
+              `📄 [API-RUNNER] Including ${documents.length} document(s) with legalMetadata in LangGraph request (CONVERSE mode)`,
+            );
+          }
+
           body = {
             context: request.context,
             userMessage: request.userMessage || '',
+            ...(documents.length > 0 ? { documents } : {}),
+            ...(legalMetadata ? { legalMetadata } : {}),
           };
         }
       }
@@ -2706,8 +2855,23 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         },
       );
 
+      // Extract legalMetadata from LangGraph response if present
+      // LangGraph returns: { success: true, data: { response: "...", legalMetadata: {...} } }
+      let legalMetadata: unknown = undefined;
+      if (responseData && typeof responseData === 'object') {
+        const dataObj = responseData as Record<string, unknown>;
+        const nestedData =
+          dataObj.data && typeof dataObj.data === 'object'
+            ? (dataObj.data as Record<string, unknown>)
+            : null;
+        legalMetadata = nestedData?.legalMetadata || dataObj.legalMetadata;
+      }
+
       return TaskResponseDto.success(mode, {
-        content: { message: formattedContent },
+        content: {
+          message: formattedContent,
+          ...(legalMetadata ? { legalMetadata } : {}),
+        },
         metadata: {
           ...metadata,
           provider,

@@ -179,22 +179,9 @@ else
     # Start Supabase with development config
     echo -e "${BLUE}🔧 Starting Supabase with development configuration...${NC}"
 
-    # Backup existing config if it exists
-    if [ -f "supabase/config.toml" ]; then
-        cp supabase/config.toml supabase/config.toml.backup
-    fi
-
-    # Use development config
-    cp supabase/config.dev.toml supabase/config.toml
-
-    # Start Supabase
+    # Start Supabase (config.toml is already configured for dev on port 6010)
     supabase start
     SUPABASE_EXIT_CODE=$?
-
-    # Restore original config
-    if [ -f "supabase/config.toml.backup" ]; then
-        mv supabase/config.toml.backup supabase/config.toml
-    fi
     if [ $SUPABASE_EXIT_CODE -eq 0 ]; then
         echo -e "${GREEN}✅ Local Supabase started successfully on port 6010${NC}"
         echo -e "${BLUE}   Studio: http://127.0.0.1:6015${NC}"

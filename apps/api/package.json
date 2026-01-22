@@ -30,7 +30,7 @@
     "db:fix-all": "cd supabase/scripts && ./post-restore-fix.sh && ./verify-data.sh"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.1.14",
+    "@anthropic-ai/claude-agent-sdk": "^0.1.76",
     "@anthropic-ai/claude-code": "^0.2.57",
     "@langchain/anthropic": "^0.3.21",
     "@langchain/core": "^0.3.66",

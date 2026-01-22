@@ -74,7 +74,55 @@ export class CadStorageService implements OnModuleInit {
         await this.supabase.storage.listBuckets();
 
       if (listError) {
-        this.logger.error(`Failed to list buckets: ${listError.message}`);
+        // Known issue: Supabase JS client may have SQL type mismatch in UNION query
+        // This is non-critical - we'll try to create the bucket anyway
+        this.logger.warn(
+          `Failed to list buckets (known Supabase issue): ${listError.message}`,
+        );
+        this.logger.warn(
+          "Attempting to create bucket anyway (will fail silently if it exists)",
+        );
+
+        // Try to create the bucket - if it exists, this will fail but that's OK
+        const { error: createError } = await this.supabase.storage.createBucket(
+          this.bucketName,
+          {
+            public: true, // CAD outputs should be publicly accessible
+            fileSizeLimit: 52428800, // 50MB limit for CAD files
+            allowedMimeTypes: [
+              "application/step",
+              "application/sla", // STL
+              "model/stl",
+              "model/gltf+json", // JSON-based GLTF
+              "model/gltf-binary", // Binary GLB (for future use)
+              "application/json", // Also allow generic JSON for GLTF
+              "application/octet-stream", // Generic binary (for STEP/STL)
+              "image/dxf",
+              "application/dxf",
+              "image/png",
+              "image/jpeg",
+            ],
+          },
+        );
+
+        if (createError) {
+          // If error contains "already exists", that's fine
+          if (
+            createError.message.toLowerCase().includes("already exists") ||
+            createError.message.toLowerCase().includes("duplicate")
+          ) {
+            this.logger.log(`Storage bucket ${this.bucketName} already exists`);
+          } else {
+            this.logger.warn(
+              `Could not verify or create bucket ${this.bucketName}: ${createError.message}`,
+            );
+            this.logger.warn(
+              "Storage operations may fail if bucket doesn't exist",
+            );
+          }
+        } else {
+          this.logger.log(`Created storage bucket: ${this.bucketName}`);
+        }
         return;
       }
 
@@ -114,9 +162,10 @@ export class CadStorageService implements OnModuleInit {
         this.logger.log(`Storage bucket ${this.bucketName} already exists`);
       }
     } catch (error) {
-      this.logger.error(
+      this.logger.warn(
         `Error ensuring bucket exists: ${error instanceof Error ? error.message : String(error)}`,
       );
+      this.logger.warn("CAD storage may not work correctly");
     }
   }
 

@@ -1,0 +1,883 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "created_at": "2026-01-07T00:00:00Z",
+    "prd_sources": ["docs/prd/20260105-comprehensive-legal-department-ai.md"],
+    "previous_milestone": "plans/legal-department-ai-m0.plan.json",
+    "title": "Legal Department AI - Milestone 1: Legal Document Intelligence",
+    "summary": "Add legal-specific document processing on top of M0's multimodal foundation. Detect document types, extract sections/clauses, identify signatures, extract dates and parties. Prepare documents for specialist analysis.",
+    "goals": [
+      "Legal document type detection (contract, pleading, correspondence, etc.)",
+      "Section and clause boundary detection",
+      "Signature block detection and extraction",
+      "Date extraction and normalization (document date, effective date, expiration date)",
+      "Party name extraction (preliminary)",
+      "Confidence scoring for extraction quality",
+      "Multi-page document handling with context continuity",
+      "Store legal metadata in law.document_extractions table"
+    ],
+    "scope": {
+      "in_scope": [
+        "Document type classification using LLM",
+        "Section/clause boundary detection",
+        "Signature block detection",
+        "Date extraction and normalization",
+        "Preliminary party name extraction",
+        "Confidence scoring for all extractions",
+        "Legal metadata storage in database",
+        "Multi-page context preservation",
+        "Integration with existing M0 document processing",
+        "E2E tests for legal intelligence features"
+      ],
+      "out_of_scope": [
+        "Specialist agent analysis (M2-M10)",
+        "CLO routing logic (M3)",
+        "Multi-agent coordination (M11)",
+        "HITL workflows (M12)",
+        "Report generation (M13)",
+        "Advanced clause extraction (that's specialist-specific)",
+        "Risk analysis (that's specialist-specific)",
+        "Playbook comparison (that's specialist-specific)"
+      ]
+    },
+    "risks": [
+      {
+        "risk": "Document type classification accuracy varies",
+        "mitigation": "Use confidence thresholds, allow 'unknown' classification"
+      },
+      {
+        "risk": "Signature detection fails on non-standard formats",
+        "mitigation": "Multiple detection strategies (visual patterns, keywords, positioning)"
+      },
+      {
+        "risk": "Date extraction gets wrong dates",
+        "mitigation": "Context-aware extraction, date type labeling (effective vs execution)"
+      },
+      {
+        "risk": "Party extraction too naive",
+        "mitigation": "Preliminary only - specialists will refine in M2+"
+      },
+      {
+        "risk": "Multi-page context loss",
+        "mitigation": "Pass full document text with page markers to LLM"
+      }
+    ]
+  },
+  "summary": "Add legal-specific document intelligence on top of M0's multimodal foundation. Detect document types, extract legal metadata, prepare for specialist analysis.",
+  "phases": [
+    {
+      "id": "phase-1",
+      "label": "Legal Metadata Extraction Service",
+      "status": "pending",
+      "progress": 0,
+      "started_at": null,
+      "completed_at": null,
+      "steps": [
+        {
+          "id": "step-1-1",
+          "action": "Create LegalMetadataService in API to orchestrate all legal extraction tasks",
+          "activeForm": "Creating LegalMetadataService",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": [],
+          "deliverables": [
+            "apps/api/src/agent2agent/services/legal-metadata.service.ts"
+          ],
+          "validation_checkpoint": "checkpoint-1",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-1-2",
+          "action": "Create DocumentTypeClassificationService using LLM to classify legal documents",
+          "activeForm": "Creating DocumentTypeClassificationService",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": [],
+          "deliverables": [
+            "apps/api/src/agent2agent/services/document-type-classification.service.ts"
+          ],
+          "validation_checkpoint": "checkpoint-1",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-1-3",
+          "action": "Create SectionDetectionService to identify document sections and clause boundaries",
+          "activeForm": "Creating SectionDetectionService",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": [],
+          "deliverables": [
+            "apps/api/src/agent2agent/services/section-detection.service.ts"
+          ],
+          "validation_checkpoint": "checkpoint-1",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-1-4",
+          "action": "Create SignatureDetectionService to identify signature blocks and signing parties",
+          "activeForm": "Creating SignatureDetectionService",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": [],
+          "deliverables": [
+            "apps/api/src/agent2agent/services/signature-detection.service.ts"
+          ],
+          "validation_checkpoint": "checkpoint-1",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-1-5",
+          "action": "Create DateExtractionService to extract and normalize legal dates",
+          "activeForm": "Creating DateExtractionService",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": [],
+          "deliverables": [
+            "apps/api/src/agent2agent/services/date-extraction.service.ts"
+          ],
+          "validation_checkpoint": "checkpoint-1",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-1-6",
+          "action": "Create PartyExtractionService to identify party names from document",
+          "activeForm": "Creating PartyExtractionService",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": [],
+          "deliverables": [
+            "apps/api/src/agent2agent/services/party-extraction.service.ts"
+          ],
+          "validation_checkpoint": "checkpoint-1",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-1-7",
+          "action": "Create ConfidenceScoringService to score extraction quality",
+          "activeForm": "Creating ConfidenceScoringService",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": [],
+          "deliverables": [
+            "apps/api/src/agent2agent/services/confidence-scoring.service.ts"
+          ],
+          "validation_checkpoint": "checkpoint-1",
+          "human_checkpoint_id": null
+        }
+      ]
+    },
+    {
+      "id": "phase-2",
+      "label": "LLM Prompts for Legal Extraction",
+      "status": "pending",
+      "progress": 0,
+      "started_at": null,
+      "completed_at": null,
+      "steps": [
+        {
+          "id": "step-2-1",
+          "action": "Create document type classification prompt with structured output",
+          "activeForm": "Creating classification prompt",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-1-2"],
+          "deliverables": [
+            "apps/api/src/agent2agent/prompts/document-type-classification.prompt.ts"
+          ],
+          "validation_checkpoint": "checkpoint-2",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-2-2",
+          "action": "Create section detection prompt to identify legal document structure",
+          "activeForm": "Creating section detection prompt",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-1-3"],
+          "deliverables": [
+            "apps/api/src/agent2agent/prompts/section-detection.prompt.ts"
+          ],
+          "validation_checkpoint": "checkpoint-2",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-2-3",
+          "action": "Create signature detection prompt to find signature blocks",
+          "activeForm": "Creating signature detection prompt",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-1-4"],
+          "deliverables": [
+            "apps/api/src/agent2agent/prompts/signature-detection.prompt.ts"
+          ],
+          "validation_checkpoint": "checkpoint-2",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-2-4",
+          "action": "Create date extraction prompt with date type classification",
+          "activeForm": "Creating date extraction prompt",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-1-5"],
+          "deliverables": [
+            "apps/api/src/agent2agent/prompts/date-extraction.prompt.ts"
+          ],
+          "validation_checkpoint": "checkpoint-2",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-2-5",
+          "action": "Create party extraction prompt to identify contracting parties",
+          "activeForm": "Creating party extraction prompt",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-1-6"],
+          "deliverables": [
+            "apps/api/src/agent2agent/prompts/party-extraction.prompt.ts"
+          ],
+          "validation_checkpoint": "checkpoint-2",
+          "human_checkpoint_id": null
+        }
+      ]
+    },
+    {
+      "id": "phase-3",
+      "label": "Database Schema Updates",
+      "status": "pending",
+      "progress": 0,
+      "started_at": null,
+      "completed_at": null,
+      "steps": [
+        {
+          "id": "step-3-1",
+          "action": "Update law.document_extractions table to include legal metadata fields",
+          "activeForm": "Updating document_extractions schema",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": [],
+          "deliverables": [
+            "apps/api/supabase/migrations/YYYYMMDD_add_legal_metadata_to_document_extractions.sql"
+          ],
+          "validation_checkpoint": "checkpoint-3",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-3-2",
+          "action": "Apply migration to add legal metadata columns",
+          "activeForm": "Applying legal metadata migration",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-3-1"],
+          "deliverables": [],
+          "validation_checkpoint": "checkpoint-3",
+          "human_checkpoint_id": null
+        }
+      ]
+    },
+    {
+      "id": "phase-4",
+      "label": "Integration with Document Processing Pipeline",
+      "status": "pending",
+      "progress": 0,
+      "started_at": null,
+      "completed_at": null,
+      "steps": [
+        {
+          "id": "step-4-1",
+          "action": "Update DocumentProcessingService to call LegalMetadataService after text extraction",
+          "activeForm": "Integrating legal metadata extraction",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-1-1", "step-3-2"],
+          "deliverables": [
+            "apps/api/src/agent2agent/services/document-processing.service.ts"
+          ],
+          "validation_checkpoint": "checkpoint-4",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-4-2",
+          "action": "Update law.document_extractions insert logic to store legal metadata",
+          "activeForm": "Updating document storage logic",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-4-1"],
+          "deliverables": [
+            "apps/api/src/agent2agent/services/document-processing.service.ts"
+          ],
+          "validation_checkpoint": "checkpoint-4",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-4-3",
+          "action": "Pass legal metadata to LangGraph state in addition to raw text",
+          "activeForm": "Passing metadata to LangGraph",
+          "agent": "api-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-4-2"],
+          "deliverables": [
+            "apps/api/src/agent2agent/services/api-agent-runner.service.ts"
+          ],
+          "validation_checkpoint": "checkpoint-4",
+          "human_checkpoint_id": null
+        }
+      ]
+    },
+    {
+      "id": "phase-5",
+      "label": "LangGraph State Updates",
+      "status": "pending",
+      "progress": 0,
+      "started_at": null,
+      "completed_at": null,
+      "steps": [
+        {
+          "id": "step-5-1",
+          "action": "Update LegalDepartmentState to include LegalDocumentMetadata field",
+          "activeForm": "Updating LangGraph state interface",
+          "agent": "langgraph-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": [],
+          "deliverables": [
+            "apps/langgraph/src/agents/legal-department/legal-department.state.ts"
+          ],
+          "validation_checkpoint": "checkpoint-5",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-5-2",
+          "action": "Update echo node to display legal metadata in response",
+          "activeForm": "Updating echo node",
+          "agent": "langgraph-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-5-1"],
+          "deliverables": [
+            "apps/langgraph/src/agents/legal-department/nodes/echo.node.ts"
+          ],
+          "validation_checkpoint": "checkpoint-5",
+          "human_checkpoint_id": null
+        }
+      ]
+    },
+    {
+      "id": "phase-6",
+      "label": "Frontend Display Updates",
+      "status": "pending",
+      "progress": 0,
+      "started_at": null,
+      "completed_at": null,
+      "steps": [
+        {
+          "id": "step-6-1",
+          "action": "Create DocumentMetadataDisplay component to show extracted legal metadata",
+          "activeForm": "Creating metadata display component",
+          "agent": "web-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": [],
+          "deliverables": [
+            "apps/web/src/views/agents/legal-department/components/DocumentMetadataDisplay.vue"
+          ],
+          "validation_checkpoint": "checkpoint-6",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-6-2",
+          "action": "Update ResultsDisplay to show legal metadata section",
+          "activeForm": "Updating ResultsDisplay component",
+          "agent": "web-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-6-1"],
+          "deliverables": [
+            "apps/web/src/views/agents/legal-department/components/ResultsDisplay.vue"
+          ],
+          "validation_checkpoint": "checkpoint-6",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-6-3",
+          "action": "Update legalDepartmentTypes to include LegalDocumentMetadata interface",
+          "activeForm": "Updating frontend types",
+          "agent": "web-architecture-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": [],
+          "deliverables": [
+            "apps/web/src/views/agents/legal-department/legalDepartmentTypes.ts"
+          ],
+          "validation_checkpoint": "checkpoint-6",
+          "human_checkpoint_id": null
+        }
+      ]
+    },
+    {
+      "id": "phase-7",
+      "label": "Testing & Validation",
+      "status": "pending",
+      "progress": 0,
+      "started_at": null,
+      "completed_at": null,
+      "steps": [
+        {
+          "id": "step-7-1",
+          "action": "Create unit tests for DocumentTypeClassificationService",
+          "activeForm": "Creating classification tests",
+          "agent": "testing-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-1-2"],
+          "deliverables": [
+            "apps/api/testing/test/legal-department/document-type-classification.e2e-spec.ts"
+          ],
+          "validation_checkpoint": "checkpoint-7",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-7-2",
+          "action": "Create unit tests for SectionDetectionService",
+          "activeForm": "Creating section detection tests",
+          "agent": "testing-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-1-3"],
+          "deliverables": [
+            "apps/api/testing/test/legal-department/section-detection.e2e-spec.ts"
+          ],
+          "validation_checkpoint": "checkpoint-7",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-7-3",
+          "action": "Create unit tests for SignatureDetectionService",
+          "activeForm": "Creating signature detection tests",
+          "agent": "testing-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-1-4"],
+          "deliverables": [
+            "apps/api/testing/test/legal-department/signature-detection.e2e-spec.ts"
+          ],
+          "validation_checkpoint": "checkpoint-7",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-7-4",
+          "action": "Create unit tests for DateExtractionService",
+          "activeForm": "Creating date extraction tests",
+          "agent": "testing-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-1-5"],
+          "deliverables": [
+            "apps/api/testing/test/legal-department/date-extraction.e2e-spec.ts"
+          ],
+          "validation_checkpoint": "checkpoint-7",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-7-5",
+          "action": "Create unit tests for PartyExtractionService",
+          "activeForm": "Creating party extraction tests",
+          "agent": "testing-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-1-6"],
+          "deliverables": [
+            "apps/api/testing/test/legal-department/party-extraction.e2e-spec.ts"
+          ],
+          "validation_checkpoint": "checkpoint-7",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-7-6",
+          "action": "Create integration test for full legal metadata extraction pipeline",
+          "activeForm": "Creating full pipeline integration test",
+          "agent": "testing-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-4-3", "step-5-2"],
+          "deliverables": [
+            "apps/api/testing/test/legal-department/legal-metadata-pipeline.e2e-spec.ts"
+          ],
+          "validation_checkpoint": "checkpoint-7",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-7-7",
+          "action": "Create test fixtures with sample legal documents (NDA, MSA, pleading)",
+          "activeForm": "Creating test fixtures",
+          "agent": "testing-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": [],
+          "deliverables": [
+            "apps/api/testing/test/legal-department/fixtures/sample-nda.pdf",
+            "apps/api/testing/test/legal-department/fixtures/sample-msa.pdf",
+            "apps/api/testing/test/legal-department/fixtures/sample-pleading.pdf"
+          ],
+          "validation_checkpoint": "checkpoint-7",
+          "human_checkpoint_id": null
+        },
+        {
+          "id": "step-7-8",
+          "action": "Run all M1 tests and verify acceptance criteria",
+          "activeForm": "Running all M1 tests",
+          "agent": "testing-agent",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-7-1", "step-7-2", "step-7-3", "step-7-4", "step-7-5", "step-7-6", "step-7-7"],
+          "deliverables": [],
+          "validation_checkpoint": "checkpoint-7",
+          "human_checkpoint_id": null
+        }
+      ]
+    },
+    {
+      "id": "phase-8",
+      "label": "Final Validation & Demo",
+      "status": "pending",
+      "progress": 0,
+      "started_at": null,
+      "completed_at": null,
+      "steps": [
+        {
+          "id": "step-8-1",
+          "action": "Run demo script with sample NDA to verify legal intelligence",
+          "activeForm": "Running M1 demo script",
+          "agent": "general-purpose",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-7-8"],
+          "deliverables": [],
+          "validation_checkpoint": "checkpoint-8",
+          "human_checkpoint_id": "human-checkpoint-1"
+        },
+        {
+          "id": "step-8-2",
+          "action": "Verify M1 acceptance criteria: document type detection, section detection, signature detection, date extraction, party extraction, confidence scoring",
+          "activeForm": "Verifying M1 acceptance criteria",
+          "agent": "general-purpose",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-8-1"],
+          "deliverables": [],
+          "validation_checkpoint": "checkpoint-8",
+          "human_checkpoint_id": "human-checkpoint-1"
+        },
+        {
+          "id": "step-8-3",
+          "action": "Update documentation with M1 features and usage examples",
+          "activeForm": "Updating M1 documentation",
+          "agent": "general-purpose",
+          "status": "pending",
+          "progress": 0,
+          "started_at": null,
+          "completed_at": null,
+          "depends_on": ["step-8-2"],
+          "deliverables": [
+            "docs/legal-department-ai/m1-legal-intelligence.md"
+          ],
+          "validation_checkpoint": "checkpoint-8",
+          "human_checkpoint_id": null
+        }
+      ]
+    }
+  ],
+  "checkpoints": [
+    {
+      "id": "checkpoint-1",
+      "label": "Legal Metadata Services Created",
+      "description": "All legal extraction services implemented and ready for integration",
+      "status": "pending",
+      "triggered_after": ["step-1-7"]
+    },
+    {
+      "id": "checkpoint-2",
+      "label": "LLM Prompts Completed",
+      "description": "All prompts for legal extraction are written and structured",
+      "status": "pending",
+      "triggered_after": ["step-2-5"]
+    },
+    {
+      "id": "checkpoint-3",
+      "label": "Database Schema Updated",
+      "description": "law.document_extractions table includes legal metadata fields",
+      "status": "pending",
+      "triggered_after": ["step-3-2"]
+    },
+    {
+      "id": "checkpoint-4",
+      "label": "Legal Metadata Integrated into Pipeline",
+      "description": "Document processing pipeline extracts and stores legal metadata",
+      "status": "pending",
+      "triggered_after": ["step-4-3"]
+    },
+    {
+      "id": "checkpoint-5",
+      "label": "LangGraph State Includes Legal Metadata",
+      "description": "LangGraph receives and can display legal document intelligence",
+      "status": "pending",
+      "triggered_after": ["step-5-2"]
+    },
+    {
+      "id": "checkpoint-6",
+      "label": "Frontend Displays Legal Metadata",
+      "description": "UI shows extracted legal metadata to users",
+      "status": "pending",
+      "triggered_after": ["step-6-2"]
+    },
+    {
+      "id": "checkpoint-7",
+      "label": "All M1 Tests Pass",
+      "description": "Unit and integration tests verify legal intelligence extraction",
+      "status": "pending",
+      "triggered_after": ["step-7-8"]
+    },
+    {
+      "id": "checkpoint-8",
+      "label": "M1 Acceptance Criteria Met",
+      "description": "Demo proves legal document intelligence works end-to-end",
+      "status": "pending",
+      "triggered_after": ["step-8-2"]
+    }
+  ],
+  "human_checkpoints": [
+    {
+      "id": "human-checkpoint-1",
+      "label": "M1 Complete - Ready for M2",
+      "description": "Human verification that M1 legal intelligence is working before starting M2 (Contract Agent)",
+      "required_before": [],
+      "questions": [
+        "Does document type classification work accurately?",
+        "Are sections and clauses detected correctly?",
+        "Does signature detection find signature blocks?",
+        "Are dates extracted and classified properly?",
+        "Is party extraction preliminary but usable?",
+        "Are confidence scores reasonable?",
+        "Is the UI showing legal metadata clearly?",
+        "Is M1 ready to support specialist analysis in M2?"
+      ]
+    }
+  ],
+  "dependencies": {
+    "phase-2": ["phase-1"],
+    "phase-3": [],
+    "phase-4": ["phase-1", "phase-3"],
+    "phase-5": ["phase-4"],
+    "phase-6": ["phase-5"],
+    "phase-7": ["phase-1", "phase-2", "phase-3", "phase-4", "phase-5", "phase-6"],
+    "phase-8": ["phase-7"]
+  },
+  "execution_strategy": {
+    "mode": "mixed",
+    "parallel_phases": [
+      ["phase-1", "phase-3"],
+      ["phase-5", "phase-6"]
+    ],
+    "notes": "Phase 1 (services) and Phase 3 (schema) can run in parallel. Phase 2 depends on Phase 1. Phase 4 integrates everything. Phase 5 (LangGraph) and Phase 6 (frontend) can run in parallel after Phase 4. Phase 7 tests all components. Phase 8 is final validation."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "ac-1",
+      "description": "Upload NDA → System correctly identifies it as 'contract' type",
+      "test_scenario": "Upload sample-nda.pdf, verify documentType === 'contract'"
+    },
+    {
+      "id": "ac-2",
+      "description": "System detects major document sections (preamble, definitions, terms, signatures)",
+      "test_scenario": "Upload sample NDA, verify detectedSections includes expected sections"
+    },
+    {
+      "id": "ac-3",
+      "description": "System finds signature blocks and extracts signing party names",
+      "test_scenario": "Upload signed NDA, verify hasSignatures === true and signature parties extracted"
+    },
+    {
+      "id": "ac-4",
+      "description": "System extracts document date, effective date, and expiration date",
+      "test_scenario": "Upload NDA with dates, verify dates object populated with correct values"
+    },
+    {
+      "id": "ac-5",
+      "description": "System extracts preliminary party names (contracting parties)",
+      "test_scenario": "Upload NDA, verify parties array contains both party names"
+    },
+    {
+      "id": "ac-6",
+      "description": "System provides confidence scores for all extractions",
+      "test_scenario": "Verify extractionConfidence between 0.0 and 1.0 for all documents"
+    },
+    {
+      "id": "ac-7",
+      "description": "Multi-page documents preserve context and extract metadata correctly",
+      "test_scenario": "Upload 10-page MSA, verify all metadata extracted across pages"
+    },
+    {
+      "id": "ac-8",
+      "description": "Legal metadata stored in law.document_extractions table",
+      "test_scenario": "Query database after upload, verify legal metadata fields populated"
+    },
+    {
+      "id": "ac-9",
+      "description": "Legal metadata passed to LangGraph state",
+      "test_scenario": "Verify LangGraph receives documentMetadata in state"
+    },
+    {
+      "id": "ac-10",
+      "description": "Frontend displays legal metadata in DocumentMetadataDisplay component",
+      "test_scenario": "Upload document, verify UI shows document type, sections, dates, parties, signatures"
+    },
+    {
+      "id": "ac-11",
+      "description": "Unknown document types handled gracefully with 'unknown' classification",
+      "test_scenario": "Upload random PDF, verify documentType === 'unknown' with low confidence"
+    },
+    {
+      "id": "ac-12",
+      "description": "All M1 tests pass (unit + integration)",
+      "test_scenario": "npm run test:e2e -- legal-department passes all tests"
+    }
+  ],
+  "demo_script": {
+    "title": "M1 Demo: Legal Document Intelligence",
+    "scenario": "Upload NDA and see legal intelligence extracted",
+    "steps": [
+      {
+        "step": 1,
+        "action": "Open Legal Department AI conversation pane",
+        "expected": "Document upload interface visible"
+      },
+      {
+        "step": 2,
+        "action": "Upload sample NDA (PDF or DOCX)",
+        "expected": "File uploads successfully"
+      },
+      {
+        "step": 3,
+        "action": "Submit for analysis",
+        "expected": "Processing begins"
+      },
+      {
+        "step": 4,
+        "action": "Wait for analysis to complete",
+        "expected": "Results display with legal metadata"
+      },
+      {
+        "step": 5,
+        "action": "Verify document type shows 'contract'",
+        "expected": "Document Type: contract"
+      },
+      {
+        "step": 6,
+        "action": "Verify sections detected (preamble, definitions, terms, signatures)",
+        "expected": "Sections list shows detected structure"
+      },
+      {
+        "step": 7,
+        "action": "Verify signatures found",
+        "expected": "Has Signatures: Yes, with party names"
+      },
+      {
+        "step": 8,
+        "action": "Verify dates extracted (document date, effective date)",
+        "expected": "Dates section shows extracted dates"
+      },
+      {
+        "step": 9,
+        "action": "Verify parties identified",
+        "expected": "Parties: [Company A, Company B]"
+      },
+      {
+        "step": 10,
+        "action": "Verify confidence score displayed",
+        "expected": "Extraction Confidence: 0.85 (or similar)"
+      }
+    ],
+    "success_message": "System identifies NDA, finds signatures, extracts dates, and prepares for specialist analysis"
+  }
+}
