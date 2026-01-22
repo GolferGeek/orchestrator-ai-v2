@@ -333,7 +333,7 @@ function getSeverityColor(severity: string): string {
 
 /* Contract Type Card */
 .contract-type-card {
-  background: white;
+  background: var(--ion-background-color);
   padding: 16px;
   border-radius: 6px;
   border-left: 4px solid var(--ion-color-primary);
@@ -360,7 +360,7 @@ function getSeverityColor(severity: string): string {
 }
 
 .risk-flag-item {
-  background: white;
+  background: var(--ion-background-color);
   padding: 16px;
   border-radius: 6px;
   border-left: 4px solid var(--ion-color-medium);
@@ -402,7 +402,7 @@ function getSeverityColor(severity: string): string {
 }
 
 .flag-recommendation {
-  background: rgba(255, 255, 255, 0.5);
+  background: var(--ion-color-light);
   padding: 12px;
   border-radius: 6px;
 }
@@ -427,7 +427,7 @@ function getSeverityColor(severity: string): string {
 }
 
 .clause-card {
-  background: white;
+  background: var(--ion-background-color);
   border-radius: 6px;
   overflow: hidden;
   border: 1px solid var(--ion-color-light-shade);

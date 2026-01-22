@@ -55,14 +55,18 @@ export class LegalDepartmentService implements OnModuleInit {
     const { context } = input;
     const taskId = context.taskId;
 
-    this.logger.log(`Starting legal department workflow: taskId=${taskId}`);
+    this.logger.log(
+      `Starting legal department workflow: taskId=${taskId}, documents=${input.documents?.length || 0}, hasLegalMetadata=${!!input.legalMetadata}`,
+    );
 
     try {
       // Initial state - pass ExecutionContext directly
+      // Include legalMetadata from API document processing for CLO routing
       const initialState: Partial<LegalDepartmentState> = {
         executionContext: context,
         userMessage: input.userMessage,
         documents: input.documents || [],
+        legalMetadata: input.legalMetadata,
         status: "started",
         startedAt: startTime,
       };
@@ -88,6 +92,10 @@ export class LegalDepartmentService implements OnModuleInit {
         response: finalState.response,
         error: finalState.error,
         duration,
+        // Include specialist analysis data for frontend consumption
+        specialistOutputs: finalState.specialistOutputs,
+        legalMetadata: finalState.legalMetadata,
+        routingDecision: finalState.routingDecision,
       };
     } catch (error) {
       const duration = Date.now() - startTime;

@@ -220,7 +220,14 @@ OUTPUT FORMAT (JSON only):
     "severance": "severance provisions",
     "details": "termination analysis"
   },
-  "riskFlags": [...],
+  "riskFlags": [
+    {
+      "flag": "risk-identifier-slug",
+      "severity": "low|medium|high|critical",
+      "description": "What this risk means",
+      "recommendation": "How to address it"
+    }
+  ],
   "confidence": 0.0-1.0,
   "summary": "2-3 sentence summary"
 }`;
@@ -251,6 +258,9 @@ function parseEmploymentAnalysis(
 
   const parsed = JSON.parse(jsonStr);
 
+  // Normalize riskFlags to ensure consistent structure
+  const normalizedRiskFlags = normalizeRiskFlags(parsed.riskFlags || []);
+
   return {
     employmentTerms: parsed.employmentTerms || {
       type: "other",
@@ -258,10 +268,80 @@ function parseEmploymentAnalysis(
     },
     restrictiveCovenants: parsed.restrictiveCovenants,
     termination: parsed.termination,
-    riskFlags: parsed.riskFlags || [],
+    riskFlags: normalizedRiskFlags,
     confidence: parsed.confidence || 0.7,
     summary: parsed.summary || "Employment analysis completed",
   };
+}
+
+/**
+ * Normalize risk flags to ensure consistent structure
+ * Handles various LLM output formats
+ */
+function normalizeRiskFlags(
+  flags: unknown[],
+): Array<{
+  flag: string;
+  severity: "low" | "medium" | "high" | "critical";
+  description: string;
+  recommendation?: string;
+}> {
+  if (!Array.isArray(flags)) return [];
+
+  return flags.map((item, index) => {
+    // If it's a string, convert to proper structure
+    if (typeof item === "string") {
+      return {
+        flag: item.toLowerCase().replace(/\s+/g, "-"),
+        severity: "medium" as const,
+        description: item,
+      };
+    }
+
+    // If it's an object, normalize the properties
+    if (typeof item === "object" && item !== null) {
+      const obj = item as Record<string, unknown>;
+
+      // Get flag name from various possible property names
+      const flagName =
+        (obj.flag as string) ||
+        (obj.name as string) ||
+        (obj.title as string) ||
+        (obj.issue as string) ||
+        (obj.risk as string) ||
+        `risk-${index + 1}`;
+
+      // Get severity with fallback
+      let severity: "low" | "medium" | "high" | "critical" = "medium";
+      if (obj.severity && typeof obj.severity === "string") {
+        const sev = obj.severity.toLowerCase();
+        if (["low", "medium", "high", "critical"].includes(sev)) {
+          severity = sev as "low" | "medium" | "high" | "critical";
+        }
+      }
+
+      // Get description from various possible property names
+      const description =
+        (obj.description as string) ||
+        (obj.details as string) ||
+        (obj.message as string) ||
+        flagName;
+
+      return {
+        flag: flagName.toLowerCase().replace(/\s+/g, "-"),
+        severity,
+        description,
+        recommendation: obj.recommendation as string | undefined,
+      };
+    }
+
+    // Fallback for unknown types
+    return {
+      flag: `unknown-risk-${index + 1}`,
+      severity: "medium" as const,
+      description: String(item),
+    };
+  });
 }
 
 function createFallbackAnalysis(

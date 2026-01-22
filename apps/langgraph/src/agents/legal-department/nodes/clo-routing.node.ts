@@ -399,12 +399,14 @@ function determineRouting(
     availableSpecialists.includes(s),
   );
 
-  // M11: Enable multi-agent mode if multiple specialists detected
-  const multiAgent = multiAgentSpecialists.length > 1;
+  // M11: Multi-agent mode DISABLED for now to reduce LLM calls
+  // Single-specialist mode is sufficient for most documents
+  // Re-enable when parallel execution is implemented
+  const multiAgent = false;
 
-  if (multiAgent) {
+  if (multiAgentSpecialists.length > 1) {
     reasons.push(
-      `Multi-agent mode: Document requires analysis from ${multiAgentSpecialists.length} specialists: ${multiAgentSpecialists.join(", ")}.`,
+      `Note: Document touches ${multiAgentSpecialists.length} domains (${multiAgentSpecialists.join(", ")}), but using single-specialist mode for efficiency.`,
     );
   }
 

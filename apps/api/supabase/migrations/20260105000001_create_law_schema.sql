@@ -408,8 +408,9 @@ CREATE POLICY "analysis_tasks_update" ON law.analysis_tasks
     FOR UPDATE USING (
         user_id = auth.uid() OR
         organization_slug IN (
-            SELECT organization_slug FROM public.rbac_user_org_roles
-            WHERE user_id = auth.uid() AND role IN ('admin', 'owner')
+            SELECT r.organization_slug FROM public.rbac_user_org_roles r
+            JOIN public.rbac_roles roles ON r.role_id = roles.id
+            WHERE r.user_id = auth.uid() AND roles.name IN ('admin', 'owner')
         )
     );
 
@@ -450,8 +451,9 @@ CREATE POLICY "playbooks_org_read" ON law.playbooks
 CREATE POLICY "playbooks_org_admin" ON law.playbooks
     FOR ALL USING (
         organization_slug IN (
-            SELECT organization_slug FROM public.rbac_user_org_roles
-            WHERE user_id = auth.uid() AND role IN ('admin', 'owner')
+            SELECT r.organization_slug FROM public.rbac_user_org_roles r
+            JOIN public.rbac_roles roles ON r.role_id = roles.id
+            WHERE r.user_id = auth.uid() AND roles.name IN ('admin', 'owner')
         )
     );
 

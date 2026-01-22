@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import {
   IPagedDocumentExtractor,
   ExtractionResult,
@@ -25,40 +25,53 @@ export interface PdfExtractionResult {
 /**
  * PDF Text Extraction Service
  *
- * Uses pdf-parse library to extract text from PDF documents.
+ * Uses pdf2json library to extract text from PDF documents.
+ * pdf2json is a pure JavaScript library that works in Node.js without browser APIs.
  * Returns text organized by page for better chunk metadata.
  */
-type PdfParseFunction = (
-  buffer: Buffer,
-  options?: Record<string, unknown>,
-) => Promise<{
-  text: string;
-  numpages: number;
-  info?: {
-    Title?: string;
-    Author?: string;
-    CreationDate?: string;
-  };
-}>;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type PDFParserClass = any;
 
 @Injectable()
-export class PdfExtractorService implements IPagedDocumentExtractor {
+export class PdfExtractorService implements IPagedDocumentExtractor, OnModuleInit {
   private readonly logger = new Logger(PdfExtractorService.name);
-  private pdfParse: PdfParseFunction | null = null;
+  private PDFParser: PDFParserClass | null = null;
+  private initPromise: Promise<void> | null = null;
 
   constructor() {
-    void this.initPdfParse();
+    // Start initialization immediately but track the promise
+    this.initPromise = this.initPdf2Json();
   }
 
-  private async initPdfParse() {
+  /**
+   * NestJS lifecycle hook - ensures initialization completes before service is used
+   */
+  async onModuleInit() {
+    await this.initPromise;
+    this.logger.log(`PdfExtractorService initialized, available: ${this.isAvailable()}`);
+  }
+
+  private async initPdf2Json() {
     try {
-      // Dynamic import to handle optional dependency
-      const module = await import('pdf-parse');
-      this.pdfParse = (module.default || module) as unknown as PdfParseFunction;
-    } catch {
+      // pdf2json exports a class that we need to instantiate per document
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const pdf2json = require('pdf2json');
+      this.PDFParser = pdf2json.default || pdf2json;
+      this.logger.log('pdf2json loaded successfully');
+    } catch (error) {
       this.logger.warn(
-        'pdf-parse not installed. PDF extraction disabled. Run: npm install pdf-parse',
+        `pdf2json initialization failed: ${error instanceof Error ? error.message : String(error)}. PDF extraction disabled.`,
       );
+    }
+  }
+
+  /**
+   * Ensure initialization is complete before checking availability
+   */
+  async ensureInitialized(): Promise<void> {
+    if (this.initPromise) {
+      await this.initPromise;
     }
   }
 
@@ -66,78 +79,98 @@ export class PdfExtractorService implements IPagedDocumentExtractor {
    * Check if PDF extraction is available
    */
   isAvailable(): boolean {
-    return this.pdfParse !== null;
+    return this.PDFParser !== null;
   }
 
   /**
    * Extract text from a PDF buffer (internal method)
    */
   private async extractPdf(buffer: Buffer): Promise<PdfExtractionResult> {
-    if (!this.pdfParse) {
+    if (!this.PDFParser) {
       throw new Error(
-        'PDF extraction not available. Install pdf-parse: npm install pdf-parse',
+        'PDF extraction not available. pdf2json not loaded.',
       );
     }
 
-    try {
-      // Track pages during parsing
-      const pages: PdfPage[] = [];
-      let currentPage = 1;
+    return new Promise((resolve, reject) => {
+      try {
+        const pdfParser = new this.PDFParser(null, true); // true = suppress logging
 
-      // Custom page render function to capture per-page content
-      const customRender = async (pageData: {
-        getTextContent: () => Promise<{ items: Array<{ str: string }> }>;
-      }) => {
-        const textContent = await pageData.getTextContent();
-        const pageText = textContent.items.map((item) => item.str).join(' ');
-
-        pages.push({
-          content: pageText.trim(),
-          pageNumber: currentPage,
+        pdfParser.on('pdfParser_dataError', (errData: { parserError: Error }) => {
+          reject(new Error(`PDF parsing failed: ${errData.parserError.message}`));
         });
-        currentPage++;
 
-        return pageText;
-      };
+        pdfParser.on('pdfParser_dataReady', (pdfData: {
+          Pages?: Array<{
+            Texts?: Array<{
+              R?: Array<{ T?: string }>;
+            }>;
+          }>;
+          Meta?: {
+            Title?: string;
+            Author?: string;
+            CreationDate?: string;
+          };
+        }) => {
+          try {
+            const pages: PdfPage[] = [];
 
-      const result = await this.pdfParse(buffer, {
-        pagerender: customRender,
-      });
+            if (pdfData.Pages) {
+              pdfData.Pages.forEach((page, index) => {
+                const pageTexts: string[] = [];
 
-      // If custom render didn't work, fall back to full text
-      if (pages.length === 0) {
-        // Split by common page break patterns or treat as single page
-        const pageTexts = result.text.split(/\f/); // Form feed character
-        pages.push(
-          ...pageTexts.map((text, idx) => ({
-            content: text.trim(),
-            pageNumber: idx + 1,
-          })),
-        );
+                if (page.Texts) {
+                  page.Texts.forEach((textBlock) => {
+                    if (textBlock.R) {
+                      textBlock.R.forEach((run) => {
+                        if (run.T) {
+                          // Decode URI-encoded text
+                          try {
+                            const decodedText = decodeURIComponent(run.T);
+                            pageTexts.push(decodedText);
+                          } catch {
+                            pageTexts.push(run.T);
+                          }
+                        }
+                      });
+                    }
+                  });
+                }
+
+                const pageText = pageTexts.join(' ').replace(/\s+/g, ' ').trim();
+                if (pageText.length > 0) {
+                  pages.push({
+                    content: pageText,
+                    pageNumber: index + 1,
+                  });
+                }
+              });
+            }
+
+            const metadata = {
+              title: pdfData.Meta?.Title,
+              author: pdfData.Meta?.Author,
+              pageCount: pdfData.Pages?.length || 0,
+              creationDate: pdfData.Meta?.CreationDate,
+            };
+
+            this.logger.debug(`Extracted ${pages.length} pages from PDF (${metadata.pageCount} total)`);
+
+            resolve({
+              pages,
+              metadata,
+            });
+          } catch (processError) {
+            reject(new Error(`Failed to process PDF data: ${processError instanceof Error ? processError.message : String(processError)}`));
+          }
+        });
+
+        // Parse the buffer
+        pdfParser.parseBuffer(buffer);
+      } catch (error) {
+        reject(new Error(`PDF extraction failed: ${error instanceof Error ? error.message : String(error)}`));
       }
-
-      // Filter out empty pages
-      const nonEmptyPages = pages.filter((p) => p.content.length > 0);
-
-      this.logger.debug(`Extracted ${nonEmptyPages.length} pages from PDF`);
-
-      return {
-        pages: nonEmptyPages,
-        metadata: {
-          title: result.info?.Title,
-          author: result.info?.Author,
-          pageCount: result.numpages,
-          creationDate: result.info?.CreationDate,
-        },
-      };
-    } catch (error) {
-      this.logger.error(
-        `PDF extraction failed: ${error instanceof Error ? error.message : String(error)}`,
-      );
-      throw new Error(
-        `Failed to extract text from PDF: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
-    }
+    });
   }
 
   /**

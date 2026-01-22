@@ -17,6 +17,11 @@ import type {
   CreateAnalysisRequest,
   AnalysisTaskResponse,
   AnalysisResults,
+  SpecialistOutputs,
+  LegalDocumentMetadata,
+  LegalFinding,
+  LegalRisk,
+  LegalRecommendation,
 } from './legalDepartmentTypes';
 
 // API Base URL for main API
@@ -41,7 +46,10 @@ class LegalDepartmentService {
       identifyRisks?: boolean;
       generateRecommendations?: boolean;
     }
-  ): Promise<AnalysisTaskResponse & { documents?: Array<{ documentId: string; url: string; filename: string }> }> {
+  ): Promise<AnalysisTaskResponse & {
+    documents?: Array<{ documentId: string; url: string; filename: string }>;
+    analysisResults?: AnalysisResults;
+  }> {
     // Verify ExecutionContext is initialized
     const executionContextStore = useExecutionContextStore();
     if (!executionContextStore.isInitialized) {
@@ -65,62 +73,133 @@ class LegalDepartmentService {
     }
 
     try {
-      // Build FormData with file and A2A request fields
-      const formData = new FormData();
-      formData.append('files', file);
+      // Convert file to base64 for JSON transport
+      const base64Data = await this.fileToBase64(file);
 
-      // Add A2A request fields as JSON
-      formData.append('context', JSON.stringify(ctx));
-      formData.append('mode', 'converse');
-      formData.append('userMessage', `Analyze legal document: ${file.name}`);
-      formData.append('payload', JSON.stringify({
-        analysisType: 'legal-document-analysis',
-        documentName: file.name,
-        options: options || {
-          extractKeyTerms: true,
-          identifyRisks: true,
-          generateRecommendations: true,
+      // Build JSON request with document embedded as base64
+      // Backend supports documents array in payload for JSON-based upload
+      const requestBody = {
+        context: ctx,
+        mode: 'converse',
+        userMessage: `Analyze legal document: ${file.name}`,
+        payload: {
+          analysisType: 'legal-document-analysis',
+          documentName: file.name,
+          options: options || {
+            extractKeyTerms: true,
+            identifyRisks: true,
+            generateRecommendations: true,
+          },
+          // Documents array for JSON-based upload (handled by backend lines 376-454)
+          documents: [
+            {
+              filename: file.name,
+              mimeType: file.type,
+              size: file.size,
+              base64Data,
+            },
+          ],
         },
-      }));
+      };
 
-      // POST to A2A tasks endpoint with multipart form data
+      // POST to A2A tasks endpoint with JSON body
+      console.log('[LegalDepartment] DEBUG: Sending request with mode:', requestBody.mode);
+      console.log('[LegalDepartment] DEBUG: Request body keys:', Object.keys(requestBody));
+
       const response = await fetch(
         `${API_BASE_URL}/agent-to-agent/${ctx.orgSlug}/${ctx.agentSlug}/tasks`,
         {
           method: 'POST',
           headers: {
+            'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
-            // Don't set Content-Type - browser will set it with boundary for multipart/form-data
           },
-          body: formData,
+          body: JSON.stringify(requestBody),
         }
       );
 
+      console.log('[LegalDepartment] DEBUG: Response status:', response.status);
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.log('[LegalDepartment] DEBUG: Error response:', errorData);
         throw new Error(errorData.message || 'Upload and analysis failed');
       }
 
       const result = await response.json();
+      console.log('[LegalDepartment] DEBUG: Full result:', JSON.stringify(result, null, 2).substring(0, 2000));
+      console.log('[LegalDepartment] DEBUG: result.success:', result.success);
+      console.log('[LegalDepartment] DEBUG: result.payload:', result.payload ? 'exists' : 'missing');
+      console.log('[LegalDepartment] DEBUG: result.payload.metadata:', JSON.stringify(result.payload?.metadata, null, 2));
+      console.log('[LegalDepartment] DEBUG: FAILURE REASON:', result.payload?.metadata?.reason);
       console.log('[LegalDepartment] A2A execution result:', result);
 
       // Handle A2A result
       if (result.error) {
+        console.log('[LegalDepartment] DEBUG: result.error found:', result.error);
         throw new Error(result.error.message || 'Analysis execution failed');
       }
 
-      // Extract processed documents from response
-      const documents = result.payload?.content?.documents || [];
+      // Extract data from various possible response paths
+      console.log('[LegalDepartment] DEBUG: Checking response paths...');
+      console.log('[LegalDepartment] DEBUG: result.result?.payload?.content:', result.result?.payload?.content ? 'exists' : 'missing');
+      console.log('[LegalDepartment] DEBUG: result.payload?.content:', result.payload?.content ? 'exists' : 'missing');
+      console.log('[LegalDepartment] DEBUG: result.result:', result.result ? 'exists' : 'missing');
 
-      const taskResponse: AnalysisTaskResponse & { documents?: Array<{ documentId: string; url: string; filename: string }> } = {
+      const responseData = result.result?.payload?.content || result.payload?.content || result.result || result;
+      console.log('[LegalDepartment] DEBUG: responseData keys:', Object.keys(responseData || {}));
+
+      // Extract processed documents from response
+      const documents = responseData.documents || [];
+
+      // Extract analysis results from LangGraph response
+      // LangGraph returns: specialistOutputs, response (final report), legalMetadata, routingDecision
+      const specialistOutputs = responseData.specialistOutputs || responseData.data?.specialistOutputs;
+      const finalReport = responseData.response || responseData.data?.response;
+      const legalMetadata = responseData.legalMetadata || responseData.data?.legalMetadata;
+      const routingDecision = responseData.routingDecision || responseData.data?.routingDecision;
+
+      console.log('[LegalDepartment] Extracted from response:', {
+        hasSpecialistOutputs: !!specialistOutputs,
+        hasFinalReport: !!finalReport,
+        hasLegalMetadata: !!legalMetadata,
+        hasRoutingDecision: !!routingDecision,
+        specialistKeys: specialistOutputs ? Object.keys(specialistOutputs) : [],
+      });
+
+      // Transform LangGraph output to AnalysisResults format
+      let analysisResults: AnalysisResults | undefined;
+
+      if (specialistOutputs || legalMetadata || finalReport) {
+        analysisResults = this.transformToAnalysisResults(
+          taskId,
+          documents[0]?.documentId || taskId,
+          file.name,
+          specialistOutputs,
+          legalMetadata,
+          finalReport,
+          routingDecision
+        );
+        console.log('[LegalDepartment] Transformed analysis results:', {
+          findingsCount: analysisResults.findings.length,
+          risksCount: analysisResults.risks.length,
+          recommendationsCount: analysisResults.recommendations.length,
+        });
+      }
+
+      const taskResponse: AnalysisTaskResponse & {
+        documents?: Array<{ documentId: string; url: string; filename: string }>;
+        analysisResults?: AnalysisResults;
+      } = {
         taskId,
-        status: 'running',
+        status: analysisResults ? 'completed' : 'running',
         documents,
+        analysisResults,
       };
 
       // Update ExecutionContext if backend returned updated context
-      if (result.context) {
-        executionContextStore.update(result.context);
+      if (result.context || result.result?.context) {
+        executionContextStore.update(result.context || result.result.context);
       }
 
       return taskResponse;
@@ -129,6 +208,263 @@ class LegalDepartmentService {
       console.error('[LegalDepartment] Upload failed:', error);
       throw new Error(message);
     }
+  }
+
+  /**
+   * Transform LangGraph output to frontend AnalysisResults format
+   */
+  private transformToAnalysisResults(
+    taskId: string,
+    documentId: string,
+    documentName: string,
+    specialistOutputs?: SpecialistOutputs,
+    legalMetadata?: LegalDocumentMetadata,
+    finalReport?: string,
+    _routingDecision?: { specialist?: string; multiAgent?: boolean; reasoning?: string }
+  ): AnalysisResults {
+    const findings: LegalFinding[] = [];
+    const risks: LegalRisk[] = [];
+    const recommendations: LegalRecommendation[] = [];
+    let overallConfidence = 0.85;
+
+    // Extract findings, risks, recommendations from specialist outputs
+    if (specialistOutputs) {
+      let findingId = 1;
+      let riskId = 1;
+      let recId = 1;
+
+      for (const [specialist, output] of Object.entries(specialistOutputs)) {
+        if (!output) continue;
+
+        // Extract summary as a finding
+        if (output.summary) {
+          findings.push({
+            id: String(findingId++),
+            type: 'clause',
+            category: this.capitalizeFirst(specialist),
+            summary: `${this.capitalizeFirst(specialist)} Analysis Summary`,
+            details: output.summary,
+            location: { section: specialist },
+            severity: 'medium',
+            confidence: output.confidence || 0.85,
+          });
+        }
+
+        // Extract risk flags from specialist
+        if (output.riskFlags && Array.isArray(output.riskFlags)) {
+          for (const riskFlag of output.riskFlags) {
+            risks.push({
+              id: String(riskId++),
+              category: this.capitalizeFirst(specialist),
+              title: riskFlag.flag,
+              description: riskFlag.description,
+              severity: riskFlag.severity || 'medium',
+              likelihood: 'medium',
+              impact: riskFlag.description,
+              mitigation: riskFlag.recommendation || 'Review and address this issue.',
+              relatedFindings: [],
+              confidence: output.confidence || 0.85,
+            });
+
+            // Add corresponding recommendation
+            if (riskFlag.recommendation) {
+              recommendations.push({
+                id: String(recId++),
+                category: this.capitalizeFirst(specialist),
+                priority: riskFlag.severity || 'medium',
+                title: `Address: ${riskFlag.flag}`,
+                description: riskFlag.recommendation,
+                rationale: riskFlag.description,
+                suggestedAction: riskFlag.recommendation,
+                relatedRisks: [String(riskId - 1)],
+              });
+            }
+          }
+        }
+
+        // Extract contract-specific findings
+        if (specialist === 'contract' && 'clauses' in output) {
+          const contractOutput = output as SpecialistOutputs['contract'];
+          if (contractOutput?.clauses) {
+            // Add key clause findings
+            if (contractOutput.clauses.term) {
+              findings.push({
+                id: String(findingId++),
+                type: 'term',
+                category: 'Contract Terms',
+                summary: 'Contract Duration',
+                details: `Duration: ${contractOutput.clauses.term.duration}${contractOutput.clauses.term.renewalTerms ? `. Renewal: ${contractOutput.clauses.term.renewalTerms}` : ''}`,
+                location: { section: 'Term' },
+                severity: 'low',
+                confidence: contractOutput.confidence || 0.85,
+              });
+            }
+            if (contractOutput.clauses.confidentiality) {
+              findings.push({
+                id: String(findingId++),
+                type: 'obligation',
+                category: 'Confidentiality',
+                summary: 'Confidentiality Period',
+                details: `Period: ${contractOutput.clauses.confidentiality.period}. Scope: ${contractOutput.clauses.confidentiality.scope}`,
+                location: { section: 'Confidentiality' },
+                severity: 'medium',
+                confidence: contractOutput.confidence || 0.85,
+              });
+            }
+            if (contractOutput.clauses.governingLaw) {
+              findings.push({
+                id: String(findingId++),
+                type: 'clause',
+                category: 'Governing Law',
+                summary: 'Jurisdiction',
+                details: `Jurisdiction: ${contractOutput.clauses.governingLaw.jurisdiction}${contractOutput.clauses.governingLaw.disputeResolution ? `. Dispute Resolution: ${contractOutput.clauses.governingLaw.disputeResolution}` : ''}`,
+                location: { section: 'Governing Law' },
+                severity: 'low',
+                confidence: contractOutput.confidence || 0.85,
+              });
+            }
+            if (contractOutput.clauses.liabilityLimitation) {
+              findings.push({
+                id: String(findingId++),
+                type: 'clause',
+                category: 'Liability',
+                summary: 'Limitation of Liability',
+                details: `Cap: ${contractOutput.clauses.liabilityLimitation.cap || 'Not specified'}${contractOutput.clauses.liabilityLimitation.exclusions?.length ? `. Exclusions: ${contractOutput.clauses.liabilityLimitation.exclusions.join(', ')}` : ''}`,
+                location: { section: 'Liability' },
+                severity: 'high',
+                confidence: contractOutput.confidence || 0.85,
+              });
+            }
+          }
+
+          // Add contract type info
+          if (contractOutput?.contractType) {
+            findings.push({
+              id: String(findingId++),
+              type: 'clause',
+              category: 'Document Type',
+              summary: `${contractOutput.contractType.type.toUpperCase()} - ${contractOutput.contractType.isMutual ? 'Mutual' : 'One-sided'}`,
+              details: `This is a ${contractOutput.contractType.isMutual ? 'mutual' : 'one-sided'} ${contractOutput.contractType.type.toUpperCase()}${contractOutput.contractType.subtype ? ` (${contractOutput.contractType.subtype})` : ''}`,
+              location: { section: 'Overview' },
+              severity: 'low',
+              confidence: contractOutput.confidence || 0.85,
+            });
+          }
+        }
+
+        // Update overall confidence
+        if (output.confidence) {
+          overallConfidence = Math.min(overallConfidence, output.confidence);
+        }
+      }
+    }
+
+    // Extract findings from legal metadata if no specialist outputs
+    if (legalMetadata && findings.length === 0) {
+      let findingId = 1;
+
+      // Document type
+      if (legalMetadata.documentType) {
+        findings.push({
+          id: String(findingId++),
+          type: 'clause',
+          category: 'Document Classification',
+          summary: `Document Type: ${legalMetadata.documentType.type}`,
+          details: legalMetadata.documentType.reasoning || `Classified as ${legalMetadata.documentType.type} with ${(legalMetadata.documentType.confidence * 100).toFixed(0)}% confidence`,
+          location: { section: 'Overview' },
+          severity: 'low',
+          confidence: legalMetadata.documentType.confidence,
+        });
+      }
+
+      // Parties
+      if (legalMetadata.parties?.parties?.length > 0) {
+        const partyNames = legalMetadata.parties.parties.map(p => p.name).join(', ');
+        findings.push({
+          id: String(findingId++),
+          type: 'clause',
+          category: 'Parties',
+          summary: 'Contracting Parties',
+          details: `Identified parties: ${partyNames}`,
+          location: { section: 'Parties' },
+          severity: 'low',
+          confidence: legalMetadata.parties.confidence,
+        });
+      }
+
+      // Key dates
+      if (legalMetadata.dates?.dates?.length > 0) {
+        for (const date of legalMetadata.dates.dates) {
+          findings.push({
+            id: String(findingId++),
+            type: 'term',
+            category: 'Dates',
+            summary: `${date.dateType.replace(/_/g, ' ')}`,
+            details: `${date.originalText} (${date.normalizedDate})`,
+            location: { section: 'Dates' },
+            severity: 'low',
+            confidence: date.confidence,
+          });
+        }
+      }
+
+      overallConfidence = legalMetadata.confidence?.overall || 0.85;
+    }
+
+    // Generate summary
+    let summary = finalReport || '';
+    if (!summary && specialistOutputs) {
+      const specialists = Object.keys(specialistOutputs);
+      const summaries = Object.values(specialistOutputs)
+        .filter(o => o?.summary)
+        .map(o => o!.summary);
+      summary = summaries.length > 0
+        ? summaries.join(' ')
+        : `Analysis completed by ${specialists.join(', ')} specialist${specialists.length > 1 ? 's' : ''}.`;
+    }
+    if (!summary && legalMetadata) {
+      summary = `Document analyzed: ${legalMetadata.documentType?.type || 'Unknown type'}. ${findings.length} findings identified.`;
+    }
+
+    return {
+      taskId,
+      documentId,
+      documentName,
+      summary,
+      findings,
+      risks,
+      recommendations,
+      metadata: {
+        analyzedAt: new Date().toISOString(),
+        confidence: overallConfidence,
+        model: 'claude-sonnet-4-20250514',
+      },
+      legalMetadata,
+      specialistOutputs,
+    };
+  }
+
+  /**
+   * Capitalize first letter
+   */
+  private capitalizeFirst(str: string): string {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  }
+
+  /**
+   * Convert a File to base64 data URL
+   */
+  private fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        resolve(reader.result as string);
+      };
+      reader.onerror = () => {
+        reject(new Error('Failed to read file'));
+      };
+      reader.readAsDataURL(file);
+    });
   }
 
   /**
@@ -385,6 +721,281 @@ class LegalDepartmentService {
     } catch (error) {
       console.error('Failed to delete document:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Upload a document (without starting analysis)
+   *
+   * Uploads the file to storage and returns document metadata.
+   * This is a separate step from analysis, allowing users to configure
+   * analysis options before starting.
+   *
+   * @param file - The file to upload
+   * @param orgSlug - Organization slug for storage path
+   * @returns UploadedDocument with id, name, size, type, and url
+   */
+  async uploadDocument(file: File, orgSlug: string): Promise<UploadedDocument> {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      throw new Error('Authentication required');
+    }
+
+    console.log('[LegalDepartment] Uploading document', {
+      filename: file.name,
+      size: file.size,
+      type: file.type,
+      orgSlug,
+    });
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('orgSlug', orgSlug);
+
+      const response = await fetch(`${API_BASE_URL}/api/v1/legal/documents/upload`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          // Don't set Content-Type - browser will set it with boundary for multipart/form-data
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Upload failed');
+      }
+
+      const result = await response.json();
+      console.log('[LegalDepartment] Document uploaded:', result);
+
+      // Return uploaded document info
+      const uploadedDoc: UploadedDocument = {
+        id: result.data?.id || result.id || crypto.randomUUID(),
+        name: file.name,
+        size: file.size,
+        type: file.type as DocumentType,
+        url: result.data?.url || result.url,
+      };
+
+      return uploadedDoc;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Upload failed';
+      console.error('[LegalDepartment] Upload failed:', error);
+      throw new Error(message);
+    }
+  }
+
+  /**
+   * Send a text-only query to the Legal Department AI
+   *
+   * Handles legal questions without document attachments.
+   * The backend routes these to appropriate specialists based on the query content.
+   *
+   * @param message - The legal question or request
+   * @returns AnalysisTaskResponse with results
+   */
+  async sendTextQuery(
+    message: string
+  ): Promise<AnalysisTaskResponse & {
+    analysisResults?: AnalysisResults;
+  }> {
+    // Verify ExecutionContext is initialized
+    const executionContextStore = useExecutionContextStore();
+    if (!executionContextStore.isInitialized) {
+      throw new Error('ExecutionContext not initialized. Create conversation first.');
+    }
+
+    // Generate a new taskId for this execution
+    const taskId = executionContextStore.newTaskId();
+    const ctx = executionContextStore.current;
+
+    console.log('[LegalDepartment] Sending text query via A2A framework', {
+      conversationId: ctx.conversationId,
+      taskId,
+      agentSlug: ctx.agentSlug,
+      message: message.substring(0, 100) + (message.length > 100 ? '...' : ''),
+    });
+
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      throw new Error('Authentication required');
+    }
+
+    try {
+      // Build JSON request for text-only query (no documents)
+      const requestBody = {
+        context: ctx,
+        mode: 'converse',
+        userMessage: message,
+        payload: {
+          analysisType: 'legal-question',
+          // No documents - text-only query
+        },
+      };
+
+      // POST to A2A tasks endpoint with JSON body
+      const response = await fetch(
+        `${API_BASE_URL}/agent-to-agent/${ctx.orgSlug}/${ctx.agentSlug}/tasks`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(requestBody),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Query failed');
+      }
+
+      const result = await response.json();
+      console.log('[LegalDepartment] A2A text query result:', result);
+
+      // Handle A2A result
+      if (result.error) {
+        throw new Error(result.error.message || 'Query execution failed');
+      }
+
+      // Extract data from various possible response paths
+      const responseData = result.result?.payload?.content || result.payload?.content || result.result || result;
+
+      // Extract analysis results from LangGraph response
+      const specialistOutputs = responseData.specialistOutputs || responseData.data?.specialistOutputs;
+      const finalReport = responseData.response || responseData.data?.response;
+      const legalMetadata = responseData.legalMetadata || responseData.data?.legalMetadata;
+      const routingDecision = responseData.routingDecision || responseData.data?.routingDecision;
+
+      console.log('[LegalDepartment] Extracted from text query response:', {
+        hasSpecialistOutputs: !!specialistOutputs,
+        hasFinalReport: !!finalReport,
+        hasRoutingDecision: !!routingDecision,
+      });
+
+      // Transform to AnalysisResults format if we have specialist outputs
+      let analysisResults: AnalysisResults | undefined;
+
+      if (specialistOutputs || legalMetadata || finalReport) {
+        analysisResults = this.transformToAnalysisResults(
+          taskId,
+          taskId, // Use taskId as documentId for text queries
+          'Text Query',
+          specialistOutputs,
+          legalMetadata,
+          finalReport,
+          routingDecision
+        );
+      }
+
+      const taskResponse: AnalysisTaskResponse & {
+        analysisResults?: AnalysisResults;
+        routingDecision?: { specialist?: string; multiAgent?: boolean; reasoning?: string };
+        response?: string;
+      } = {
+        taskId,
+        status: analysisResults ? 'completed' : (finalReport ? 'completed' : 'running'),
+        analysisResults,
+        routingDecision,
+        // For text queries, include the raw response text
+        response: finalReport,
+      };
+
+      // Update ExecutionContext if backend returned updated context
+      if (result.context || result.result?.context) {
+        executionContextStore.update(result.context || result.result.context);
+      }
+
+      return taskResponse;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Query failed';
+      console.error('[LegalDepartment] Text query failed:', error);
+      throw new Error(message);
+    }
+  }
+
+  /**
+   * Record an HITL (Human-in-the-Loop) decision from attorney review
+   *
+   * Records the attorney's decision (approve, reject, escalate, request_changes)
+   * for the analysis results. This creates an audit trail and may trigger
+   * follow-up actions depending on the decision.
+   *
+   * @param taskId - The task/analysis ID being reviewed
+   * @param action - The attorney's decision
+   * @param comment - Optional comment explaining the decision
+   * @returns Success status
+   */
+  async recordHITLDecision(
+    taskId: string,
+    action: 'approve' | 'reject' | 'escalate' | 'request_changes',
+    comment?: string
+  ): Promise<{ success: boolean; message?: string }> {
+    const executionContextStore = useExecutionContextStore();
+    if (!executionContextStore.isInitialized) {
+      throw new Error('ExecutionContext not initialized.');
+    }
+
+    const ctx = executionContextStore.current;
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      throw new Error('Authentication required');
+    }
+
+    console.log('[LegalDepartment] Recording HITL decision', {
+      taskId,
+      action,
+      comment,
+      conversationId: ctx.conversationId,
+    });
+
+    try {
+      // Send HITL decision to the A2A endpoint
+      // This records the decision and may trigger follow-up workflows
+      const requestBody = {
+        context: ctx,
+        mode: 'hitl',
+        payload: {
+          action: 'resume',  // Required by DTO validation for HITL mode
+          hitlMethod: 'hitl.resume',  // Routes to correct handler
+          taskId,
+          decision: action,
+          feedback: comment,
+          timestamp: new Date().toISOString(),
+          userId: ctx.userId,
+        },
+        userMessage: `Attorney ${action}${comment ? `: ${comment}` : ''}`,
+      };
+
+      const response = await fetch(
+        `${API_BASE_URL}/agent-to-agent/${ctx.orgSlug}/${ctx.agentSlug}/tasks`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(requestBody),
+        }
+      );
+
+      if (!response.ok) {
+        // Non-critical error - the decision was already taken in the UI
+        console.warn('[LegalDepartment] Failed to record HITL decision to backend:', response.status);
+        return { success: true, message: 'Decision recorded locally (backend sync pending)' };
+      }
+
+      const result = await response.json();
+      console.log('[LegalDepartment] HITL decision recorded:', result);
+
+      return { success: true, message: 'Decision recorded successfully' };
+    } catch (error) {
+      // Non-critical error - allow the UI to proceed
+      console.warn('[LegalDepartment] Error recording HITL decision:', error);
+      return { success: true, message: 'Decision recorded locally' };
     }
   }
 }

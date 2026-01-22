@@ -17,7 +17,6 @@
       <input
         ref="fileInput"
         type="file"
-        accept=".pdf,.docx,.doc,image/*"
         @change="handleFileSelect"
         hidden
       />
@@ -28,7 +27,7 @@
         <p class="or-text">or</p>
         <ion-button>Browse Files</ion-button>
         <p class="supported-formats">
-          Supported formats: PDF, DOCX, Images (PNG, JPG)
+          Supported formats: PDF, DOCX, TXT, MD, Images (PNG, JPG)
         </p>
       </div>
 
@@ -138,13 +137,19 @@ import type { DocumentType, UploadedDocument } from '../legalDepartmentTypes';
 
 // Emits
 const emit = defineEmits<{
-  (e: 'analysis-started', data: { documentId: string; documentName: string; options: Record<string, boolean> }): void;
+  (e: 'analysis-started', data: {
+    documentId: string;
+    documentName: string;
+    options: Record<string, boolean>;
+    analysisResults?: import('../legalDepartmentTypes').AnalysisResults;
+  }): void;
 }>();
 
 // State
 const fileInput = ref<HTMLInputElement | null>(null);
 const isDragging = ref(false);
 const uploadedFile = ref<UploadedDocument | null>(null);
+const pendingFile = ref<File | null>(null); // Store file locally before upload
 const isUploading = ref(false);
 const isStarting = ref(false);
 const error = ref<string | null>(null);
@@ -202,10 +207,16 @@ async function processFile(file: File) {
     'image/png',
     'image/jpeg',
     'image/jpg',
+    'text/plain',
+    'text/markdown',
   ];
 
-  if (!validTypes.includes(file.type)) {
-    error.value = 'Invalid file type. Please upload a PDF, DOCX, or image file.';
+  // Also check file extension for markdown files (browsers may not set correct MIME type)
+  const validExtensions = ['.pdf', '.docx', '.doc', '.png', '.jpg', '.jpeg', '.txt', '.md'];
+  const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
+
+  if (!validTypes.includes(file.type) && !validExtensions.includes(fileExt)) {
+    error.value = 'Invalid file type. Please upload a PDF, DOCX, TXT, MD, or image file.';
     return;
   }
 
@@ -216,23 +227,23 @@ async function processFile(file: File) {
     return;
   }
 
-  // Upload file
-  isUploading.value = true;
-  try {
-    const orgSlug = rbacStore.currentOrganization || 'demo-org';
-    const uploaded = await legalDepartmentService.uploadDocument(file, orgSlug);
-    uploadedFile.value = uploaded;
-    console.log('[DocumentUpload] File uploaded successfully:', uploaded);
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to upload file';
-    console.error('[DocumentUpload] Upload failed:', err);
-  } finally {
-    isUploading.value = false;
-  }
+  // Store file locally (defer upload until analysis starts)
+  pendingFile.value = file;
+
+  // Create local representation for UI display
+  const localDoc: UploadedDocument = {
+    id: 'pending-' + Date.now(),
+    name: file.name,
+    size: file.size,
+    type: file.type as DocumentType,
+  };
+  uploadedFile.value = localDoc;
+  console.log('[DocumentUpload] File selected (pending upload):', localDoc);
 }
 
 function removeFile() {
   uploadedFile.value = null;
+  pendingFile.value = null;
   error.value = null;
   if (fileInput.value) {
     fileInput.value.value = '';
@@ -240,30 +251,52 @@ function removeFile() {
 }
 
 async function handleStartAnalysis() {
-  if (!uploadedFile.value) return;
+  if (!pendingFile.value) {
+    error.value = 'No file selected';
+    return;
+  }
 
   isStarting.value = true;
+  isUploading.value = true;
   error.value = null;
 
   try {
-    // Determine document type
-    const documentType: DocumentType = uploadedFile.value.name.endsWith('.pdf')
-      ? 'pdf'
-      : uploadedFile.value.name.match(/\.(docx?|doc)$/i)
-      ? 'docx'
-      : 'image';
+    // Upload file and start analysis together via A2A framework
+    const result = await legalDepartmentService.uploadAndAnalyze(
+      pendingFile.value,
+      options.value
+    );
 
-    // Emit to parent with document info and options
+    console.log('[DocumentUpload] Upload and analysis started:', result);
+
+    // Update uploadedFile with actual document info if available
+    if (result.documents && result.documents.length > 0) {
+      const doc = result.documents[0];
+      uploadedFile.value = {
+        id: doc.documentId,
+        name: doc.filename || pendingFile.value.name,
+        size: pendingFile.value.size,
+        type: pendingFile.value.type as DocumentType,
+        url: doc.url,
+      };
+    }
+
+    // Emit to parent with document info, options, and analysis results
     emit('analysis-started', {
-      documentId: uploadedFile.value.id,
-      documentName: uploadedFile.value.name,
+      documentId: result.documents?.[0]?.documentId || result.taskId,
+      documentName: pendingFile.value.name,
       options: options.value,
+      analysisResults: result.analysisResults,
     });
+
+    // Clear pending file after successful upload
+    pendingFile.value = null;
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to start analysis';
     console.error('[DocumentUpload] Failed to start analysis:', err);
   } finally {
     isStarting.value = false;
+    isUploading.value = false;
   }
 }
 

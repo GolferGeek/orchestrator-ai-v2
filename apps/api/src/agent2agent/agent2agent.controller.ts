@@ -264,8 +264,17 @@ export class Agent2AgentController {
     );
 
     // ADAPTER: Transform frontend CreateTaskDto format to Agent2Agent TaskRequestDto format
+    this.logger.log(
+      `🔍 [A2A-CTRL] DEBUG BEFORE adapt - body.mode: ${(body as Record<string, unknown>)?.mode}, body.method: ${(body as Record<string, unknown>)?.method}`,
+    );
     const adaptedBody = this.adaptFrontendRequest(body);
+    this.logger.log(
+      `🔍 [A2A-CTRL] DEBUG AFTER adapt - adaptedBody.mode: ${(adaptedBody as Record<string, unknown>)?.mode}`,
+    );
     const { dto, jsonrpc } = await this.normalizeTaskRequest(adaptedBody);
+    this.logger.log(
+      `🔍 [A2A-CTRL] DEBUG AFTER normalize - dto.mode: ${dto.mode}`,
+    );
 
     const payloadMethod = (dto.payload as Record<string, unknown>)?.method;
     this.logger.log(
@@ -1361,8 +1370,8 @@ export class Agent2AgentController {
       // Map 'method' to 'mode' enum
       mode: body.method || 'converse',
 
-      // Map 'prompt' to 'userMessage'
-      userMessage: body.prompt,
+      // Map 'prompt' to 'userMessage' (also pass through userMessage if already set)
+      userMessage: body.prompt || body.userMessage,
 
       // Map 'conversationHistory' to 'messages'
       messages: body.conversationHistory?.map((msg) => ({
@@ -1373,9 +1382,14 @@ export class Agent2AgentController {
       // Pass through standard fields
       conversationId: body.conversationId,
 
+      // CRITICAL: Pass through ExecutionContext (required for all A2A requests)
+      context: body.context,
+
       // Pack additional data into payload
+      // CRITICAL: Preserve body.payload (contains documents for JSON-based upload)
       payload: {
         ...(body.params || {}),
+        ...(body.payload || {}),
         llmSelection: body.llmSelection,
         executionMode: body.executionMode,
         taskId: body.taskId,

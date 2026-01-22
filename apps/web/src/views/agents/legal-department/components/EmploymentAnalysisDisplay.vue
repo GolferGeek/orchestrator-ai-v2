@@ -247,7 +247,8 @@ defineProps<{
   analysis: EmploymentAnalysisOutput;
 }>();
 
-function formatFlagName(flag: string): string {
+function formatFlagName(flag: string | undefined): string {
+  if (!flag) return 'Unknown Flag';
   return flag
     .split('-')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -353,7 +354,7 @@ function getSeverityColor(severity: string): string {
 
 .summary-card,
 .info-card {
-  background: white;
+  background: var(--ion-background-color);
   padding: 16px;
   border-radius: 6px;
   border-left: 4px solid var(--ion-color-success);
@@ -454,7 +455,7 @@ function getSeverityColor(severity: string): string {
 }
 
 .covenant-card {
-  background: white;
+  background: var(--ion-background-color);
   border-radius: 6px;
   border: 1px solid var(--ion-color-light-shade);
   overflow: hidden;
@@ -544,7 +545,7 @@ function getSeverityColor(severity: string): string {
 }
 
 .risk-flag-item {
-  background: white;
+  background: var(--ion-background-color);
   padding: 16px;
   border-radius: 6px;
   border-left: 4px solid var(--ion-color-medium);
@@ -585,7 +586,7 @@ function getSeverityColor(severity: string): string {
 }
 
 .flag-recommendation {
-  background: rgba(255, 255, 255, 0.5);
+  background: var(--ion-color-light);
   padding: 12px;
   border-radius: 6px;
 }

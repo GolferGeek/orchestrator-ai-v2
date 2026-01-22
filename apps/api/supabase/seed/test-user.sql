@@ -72,7 +72,7 @@ BEGIN
         'authenticated',
         'authenticated',
         test_user_email,
-        crypt('DemoUser123!', gen_salt('bf', 10)), -- Generate hash on the fly
+        extensions.crypt('DemoUser123!', extensions.gen_salt('bf')), -- Generate hash on the fly
         NOW(),
         NULL,
         NOW(),

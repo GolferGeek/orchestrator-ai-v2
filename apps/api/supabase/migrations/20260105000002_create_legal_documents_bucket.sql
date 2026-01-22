@@ -83,8 +83,9 @@ ON storage.objects FOR DELETE
 USING (
     bucket_id = 'legal-documents' AND
     (storage.foldername(name))[1] IN (
-        SELECT organization_slug FROM public.rbac_user_org_roles
-        WHERE user_id = auth.uid() AND role IN ('admin', 'owner')
+        SELECT r.organization_slug FROM public.rbac_user_org_roles r
+        JOIN public.rbac_roles roles ON r.role_id = roles.id
+        WHERE r.user_id = auth.uid() AND roles.name IN ('admin', 'owner')
     )
 );
 

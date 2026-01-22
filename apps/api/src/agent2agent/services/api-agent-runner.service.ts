@@ -1436,9 +1436,42 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
             provider: provider || NIL_UUID,
             model: model || NIL_UUID,
           };
+
+          // Extract documents and legalMetadata from request.metadata (set by controller's document processing)
+          // LangGraph agents need documents in format: { name, content, type }
+          // and legalMetadata at the top level for routing decisions
+          const metadataDocuments = (request.metadata?.documents || []) as Array<{
+            filename?: string;
+            extractedText?: string;
+            mimeType?: string;
+            legalMetadata?: unknown;
+          }>;
+
+          // Transform to LangGraph document format
+          const documents = metadataDocuments
+            .filter(doc => doc.extractedText) // Only include docs with extracted text
+            .map(doc => ({
+              name: doc.filename || 'unknown',
+              content: doc.extractedText || '',
+              type: doc.mimeType || 'application/octet-stream',
+            }));
+
+          // Extract legalMetadata from first document (for single document analysis)
+          // For multi-document, we could merge metadata but most legal analysis is single-doc
+          const firstDoc = metadataDocuments[0];
+          const legalMetadata = firstDoc?.legalMetadata;
+
+          if (documents.length > 0) {
+            this.logger.log(
+              `📄 [API-RUNNER] Including ${documents.length} document(s) with legalMetadata in LangGraph request`,
+            );
+          }
+
           body = {
             context,
             userMessage,
+            ...(documents.length > 0 ? { documents } : {}),
+            ...(legalMetadata ? { legalMetadata } : {}),
           };
         }
       }
@@ -2075,6 +2108,50 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
         }
       }
 
+      // Check if this is a LangGraph/forwardConverse agent - skip deliverable creation
+      // These agents return structured data that doesn't need deliverable storage
+      const rawMetadata = definition.record?.metadata as Record<string, unknown>;
+      const isLangGraphAgent = rawMetadata?.forwardConverse === true;
+
+      if (isLangGraphAgent) {
+        this.logger.log(
+          `LangGraph agent ${definition.slug} - skipping deliverable creation, returning data directly`,
+        );
+
+        // Extract nested data from LangGraph response: { success: true, data: { ... } }
+        const langGraphData =
+          responseData && typeof responseData === 'object'
+            ? (responseData as Record<string, unknown>).data || responseData
+            : null;
+
+        const langGraphContent = langGraphData
+          ? {
+              // Include LangGraph-specific data for frontend extraction
+              specialistOutputs: (langGraphData as Record<string, unknown>)
+                .specialistOutputs,
+              legalMetadata: (langGraphData as Record<string, unknown>)
+                .legalMetadata,
+              routingDecision: (langGraphData as Record<string, unknown>)
+                .routingDecision,
+              response: (langGraphData as Record<string, unknown>).response,
+              status: (langGraphData as Record<string, unknown>).status,
+              threadId: (langGraphData as Record<string, unknown>).threadId,
+            }
+          : { response: formattedContent };
+
+        return TaskResponseDto.success(AgentTaskMode.BUILD, {
+          content: langGraphContent,
+          metadata: this.buildMetadata(request, {
+            apiUrl: url,
+            method,
+            statusCode,
+            duration,
+            success: isSuccess,
+            isLangGraph: true,
+          }),
+        });
+      }
+
       const targetDeliverableId = this.resolveDeliverableIdFromRequest(request);
 
       // Debug: Verify deliverablesService is available
@@ -2373,9 +2450,41 @@ export class ApiAgentRunnerService extends BaseAgentRunner {
           // Default: Use ExecutionContext capsule as the single source of truth
           // All identity fields (taskId, userId, conversationId, agentSlug, orgSlug) are in context
           // Context is the capsule that flows through the entire system - no duplication
+
+          // Extract documents and legalMetadata from request.metadata (set by controller's document processing)
+          // LangGraph agents need documents in format: { name, content, type }
+          // and legalMetadata at the top level for routing decisions
+          const metadataDocuments = (request.metadata?.documents || []) as Array<{
+            filename?: string;
+            extractedText?: string;
+            mimeType?: string;
+            legalMetadata?: unknown;
+          }>;
+
+          // Transform to LangGraph document format
+          const documents = metadataDocuments
+            .filter(doc => doc.extractedText) // Only include docs with extracted text
+            .map(doc => ({
+              name: doc.filename || 'unknown',
+              content: doc.extractedText || '',
+              type: doc.mimeType || 'application/octet-stream',
+            }));
+
+          // Extract legalMetadata from first document (for single document analysis)
+          const firstDoc = metadataDocuments[0];
+          const legalMetadata = firstDoc?.legalMetadata;
+
+          if (documents.length > 0) {
+            this.logger.log(
+              `📄 [API-RUNNER] Including ${documents.length} document(s) with legalMetadata in LangGraph request (CONVERSE mode)`,
+            );
+          }
+
           body = {
             context: request.context,
             userMessage: request.userMessage || '',
+            ...(documents.length > 0 ? { documents } : {}),
+            ...(legalMetadata ? { legalMetadata } : {}),
           };
         }
       }

@@ -185,8 +185,20 @@ const handleConversationSelected = async (conversation: Record<string, unknown>)
     // Set flag in sessionStorage to indicate active conversation
     sessionStorage.setItem('activeConversation', 'true');
 
-    // Navigate to home page to show the conversation
-    await router.push({ path: '/app/home', query: { forceHome: 'true', conversationId: conversation.id } });
+    // Check if this conversation belongs to an agent with a dedicated route
+    const agentName = (conversation.agentName || conversation.agent_name) as string;
+    const agentsWithDedicatedRoutes = ['legal-department'];
+
+    if (agentName && agentsWithDedicatedRoutes.includes(agentName)) {
+      // Route to the dedicated agent view with the existing conversation
+      await router.push({
+        path: `/app/agents/${agentName}`,
+        query: { conversationId: conversation.id as string }
+      });
+    } else {
+      // Navigate to home page to show the conversation in generic view
+      await router.push({ path: '/app/home', query: { forceHome: 'true', conversationId: conversation.id } });
+    }
   } catch (error) {
     console.error('Error selecting conversation:', error);
   }
@@ -195,6 +207,23 @@ const handleAgentSelected = async (agent: Record<string, unknown>) => {
   try {
     // Close the sidebar menu when an agent is selected
     await menuController.close();
+
+    const agentSlug = (agent.slug || agent.name) as string;
+
+    // Check if this agent has a dedicated route (e.g., legal-department)
+    // These agents have custom views that are better than the generic ConversationView
+    const agentsWithDedicatedRoutes = ['legal-department'];
+    if (agentsWithDedicatedRoutes.includes(agentSlug)) {
+      // Create a new conversation for dedicated route agents too
+      const newConversationId = await conversation.createConversation(agent);
+
+      // Refresh conversations list to show the new conversation in sidebar
+      await conversationsService.fetchConversations(true);
+
+      sessionStorage.setItem('activeConversation', 'true');
+      router.push({ path: `/app/agents/${agentSlug}`, query: { conversationId: newConversationId } });
+      return;
+    }
 
     // Always create a conversation first - this shows up in the sidebar under the agent
     const conversationId = await conversation.createConversation(agent);

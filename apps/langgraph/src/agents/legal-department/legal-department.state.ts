@@ -155,6 +155,8 @@ export interface LegalDepartmentInput {
     content: string;
     type?: string;
   }>;
+  /** Optional: Legal metadata extracted from document processing */
+  legalMetadata?: LegalDocumentMetadata;
 }
 
 /**
@@ -167,6 +169,19 @@ export interface LegalDepartmentResult {
   response?: string;
   error?: string;
   duration: number;
+  // Specialist analysis data for frontend consumption
+  specialistOutputs?: {
+    contract?: ContractAnalysisOutput;
+    compliance?: ComplianceAnalysisOutput;
+    ip?: IpAnalysisOutput;
+    privacy?: PrivacyAnalysisOutput;
+    employment?: EmploymentAnalysisOutput;
+    corporate?: CorporateAnalysisOutput;
+    litigation?: LitigationAnalysisOutput;
+    realEstate?: RealEstateAnalysisOutput;
+  };
+  legalMetadata?: LegalDocumentMetadata;
+  routingDecision?: RoutingDecision;
 }
 
 /**

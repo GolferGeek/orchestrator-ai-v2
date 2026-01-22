@@ -794,6 +794,93 @@ export type SSEMessage =
   | SSEErrorMessage;
 
 // =============================================================================
+// Routing Types (from CLO Agent)
+// =============================================================================
+
+export type SpecialistType =
+  | 'contract'
+  | 'compliance'
+  | 'ip'
+  | 'privacy'
+  | 'employment'
+  | 'corporate'
+  | 'litigation'
+  | 'real_estate'
+  | 'unknown';
+
+export interface RoutingDecision {
+  /** Primary specialist to route to */
+  specialist: SpecialistType;
+  /** List of specialists for multi-agent mode */
+  specialists?: SpecialistType[];
+  /** Confidence in routing decision (0-1) */
+  confidence: number;
+  /** Reasoning for the routing decision */
+  reasoning: string;
+  /** Alternative specialists */
+  alternatives?: SpecialistType[];
+  /** Document categories identified */
+  categories: string[];
+  /** Multi-agent mode enabled */
+  multiAgent?: boolean;
+}
+
+export type SpecialistStatus = 'pending' | 'running' | 'completed' | 'failed';
+
+export interface SpecialistState {
+  slug: SpecialistType;
+  name: string;
+  status: SpecialistStatus;
+  progress?: number;
+  error?: string;
+}
+
+// =============================================================================
+// HITL Types
+// =============================================================================
+
+export type HITLAction = 'approve' | 'reject' | 'escalate' | 'request_changes';
+
+export interface HITLDecision {
+  action: HITLAction;
+  comments?: string;
+  specialist?: SpecialistType;
+  timestamp: string;
+  userId: string;
+}
+
+// =============================================================================
+// Conversation State Types
+// =============================================================================
+
+export interface ConversationRequest {
+  id: string;
+  message: string;
+  attachedDocument?: {
+    file: File;
+    name: string;
+    size: number;
+    type: string;
+  };
+  timestamp: string;
+}
+
+export interface ConversationState {
+  /** Current request being processed */
+  currentRequest?: ConversationRequest;
+  /** Routing decision from CLO */
+  routingDecision?: RoutingDecision;
+  /** Status of each specialist */
+  specialistStates: Map<SpecialistType, SpecialistState>;
+  /** Analysis results */
+  results?: AnalysisResults;
+  /** Is analysis in progress */
+  isProcessing: boolean;
+  /** Error if any */
+  error?: string;
+}
+
+// =============================================================================
 // UI State Types
 // =============================================================================
 

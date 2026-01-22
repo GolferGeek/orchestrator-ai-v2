@@ -5,6 +5,7 @@ import { randomUUID } from 'crypto';
 import { VisionExtractionService } from './vision-extraction.service';
 import { OCRExtractionService } from './ocr-extraction.service';
 import { LegalIntelligenceService, LegalMetadata } from './legal-intelligence.service';
+import { PdfExtractorService } from '@/rag/extractors/pdf-extractor.service';
 
 /**
  * Document metadata from file upload
@@ -107,6 +108,7 @@ export class DocumentProcessingService {
     private readonly visionExtraction: VisionExtractionService,
     private readonly ocrExtraction: OCRExtractionService,
     private readonly legalIntelligence: LegalIntelligenceService,
+    private readonly pdfExtractor: PdfExtractorService,
   ) {}
 
   /**
@@ -171,35 +173,79 @@ export class DocumentProcessingService {
           );
         }
       } else if (metadata.mimeType === 'application/pdf') {
-        // For PDFs, try vision first (handles scanned PDFs)
+        // For PDFs, try native text extraction first (faster, works for native PDFs)
+        // Only fall back to Vision for scanned PDFs with minimal/no text
         this.logger.log(
-          `📄 [DOC-PROCESSING] PDF file detected, attempting vision extraction`,
+          `📄 [DOC-PROCESSING] PDF file detected, attempting native text extraction first`,
         );
-        try {
-          const visionResult = await this.visionExtraction.extractText(
-            buffer,
-            metadata.mimeType,
-            context,
-          );
-          extractedText = visionResult.text;
-          extractionMethod = 'vision';
-          this.logger.log(
-            `📄 [DOC-PROCESSING] Vision extraction successful (${extractedText.length} chars)`,
-          );
-        } catch (error) {
+
+        let nativeText: string | undefined;
+
+        // Ensure PDF extractor is initialized before checking availability
+        await this.pdfExtractor.ensureInitialized();
+
+        // Try native PDF text extraction first
+        if (this.pdfExtractor.isAvailable()) {
+          try {
+            nativeText = await this.pdfExtractor.extractText(buffer);
+            this.logger.log(
+              `📄 [DOC-PROCESSING] Native PDF extraction returned ${nativeText?.length || 0} chars`,
+            );
+          } catch (nativeError) {
+            this.logger.warn(
+              `📄 [DOC-PROCESSING] Native PDF extraction failed: ${nativeError instanceof Error ? nativeError.message : String(nativeError)}`,
+            );
+          }
+        } else {
           this.logger.warn(
-            `📄 [DOC-PROCESSING] Vision extraction failed for PDF, falling back to OCR: ${error instanceof Error ? error.message : String(error)}`,
+            `📄 [DOC-PROCESSING] Native PDF extractor not available`,
           );
-          // Fallback to OCR
-          const ocrResult = await this.ocrExtraction.extractText(
-            buffer,
-            metadata.mimeType,
-          );
-          extractedText = ocrResult.text;
-          extractionMethod = 'ocr';
+        }
+
+        // If native extraction got meaningful text (> 100 chars), use it
+        // Otherwise, fall back to Vision extraction (for scanned PDFs)
+        const MIN_TEXT_LENGTH_FOR_NATIVE = 100;
+
+        if (nativeText && nativeText.trim().length > MIN_TEXT_LENGTH_FOR_NATIVE) {
+          extractedText = nativeText;
+          extractionMethod = 'none'; // Native text extraction, not vision/ocr
           this.logger.log(
-            `📄 [DOC-PROCESSING] OCR extraction successful (${extractedText.length} chars)`,
+            `📄 [DOC-PROCESSING] Using native PDF text extraction (${extractedText.length} chars)`,
           );
+        } else {
+          // Native extraction got little/no text - likely a scanned PDF
+          // Try Vision extraction
+          this.logger.log(
+            `📄 [DOC-PROCESSING] Native extraction insufficient (${nativeText?.trim().length || 0} chars), trying vision extraction for scanned PDF`,
+          );
+          try {
+            const visionResult = await this.visionExtraction.extractText(
+              buffer,
+              metadata.mimeType,
+              context,
+            );
+            extractedText = visionResult.text;
+            extractionMethod = 'vision';
+            this.logger.log(
+              `📄 [DOC-PROCESSING] Vision extraction successful (${extractedText.length} chars)`,
+            );
+          } catch (visionError) {
+            // Vision failed - if we have any native text, use it as last resort
+            if (nativeText && nativeText.trim().length > 0) {
+              this.logger.warn(
+                `📄 [DOC-PROCESSING] Vision extraction failed, using limited native text: ${visionError instanceof Error ? visionError.message : String(visionError)}`,
+              );
+              extractedText = nativeText;
+              extractionMethod = 'none';
+            } else {
+              this.logger.error(
+                `📄 [DOC-PROCESSING] All PDF extraction methods failed: ${visionError instanceof Error ? visionError.message : String(visionError)}`,
+              );
+              // Set empty text to indicate extraction failure
+              extractedText = '';
+              extractionMethod = 'none';
+            }
+          }
         }
       }
     }

@@ -1,6 +1,7 @@
-import { IsString, IsNotEmpty, IsOptional, IsArray } from "class-validator";
+import { IsString, IsNotEmpty, IsOptional, IsArray, IsObject } from "class-validator";
 import { ExecutionContext } from "@orchestrator-ai/transport-types";
 import { IsValidExecutionContext } from "../../../common/validators/execution-context.validator";
+import { LegalDocumentMetadata } from "../legal-department.state";
 
 /**
  * Document DTO for legal analysis
@@ -39,4 +40,8 @@ export class LegalDepartmentRequestDto {
   @IsArray()
   @IsOptional()
   documents?: LegalDocumentDto[];
+
+  @IsObject()
+  @IsOptional()
+  legalMetadata?: LegalDocumentMetadata;
 }

@@ -514,7 +514,7 @@ h4 {
 .flag-recommendation {
   margin: 0.75rem 0 0 0;
   padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.6);
+  background: var(--ion-color-light);
   border-radius: 4px;
   font-size: 0.875rem;
   color: var(--color-text-secondary);

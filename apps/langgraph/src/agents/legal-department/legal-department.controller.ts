@@ -33,6 +33,16 @@ export class LegalDepartmentController {
   ) {}
 
   /**
+   * Start a new legal department workflow (root endpoint)
+   * This handles POST /legal-department requests from the API agent configuration
+   */
+  @Post()
+  @HttpCode(HttpStatus.OK)
+  async processRoot(@Body() request: LegalDepartmentRequestDto) {
+    return this.process(request);
+  }
+
+  /**
    * Start a new legal department workflow
    */
   @Post("process")
@@ -45,7 +55,7 @@ export class LegalDepartmentController {
 
     const context = request.context;
     this.logger.log(
-      `Received legal department request: taskId=${context.taskId}, userId=${context.userId}`,
+      `Received legal department request: taskId=${context.taskId}, userId=${context.userId}, documents=${request.documents?.length || 0}, hasLegalMetadata=${!!request.legalMetadata}`,
     );
 
     try {
@@ -53,6 +63,7 @@ export class LegalDepartmentController {
         context,
         userMessage: request.userMessage,
         documents: request.documents,
+        legalMetadata: request.legalMetadata,
       });
 
       return {

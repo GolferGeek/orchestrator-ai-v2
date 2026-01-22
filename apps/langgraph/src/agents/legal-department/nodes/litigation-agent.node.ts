@@ -215,7 +215,14 @@ OUTPUT FORMAT (JSON only):
     "overallRisk": "low|medium|high|critical",
     "details": "risk analysis"
   },
-  "riskFlags": [...],
+  "riskFlags": [
+    {
+      "flag": "risk-identifier-slug",
+      "severity": "low|medium|high|critical",
+      "description": "What this risk means",
+      "recommendation": "How to address it"
+    }
+  ],
   "confidence": 0.0-1.0,
   "summary": "2-3 sentence summary"
 }`;
