@@ -2,8 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PredictionRepository } from '../repositories/prediction.repository';
 import { TargetSnapshotRepository } from '../repositories/target-snapshot.repository';
+import { TargetRepository } from '../repositories/target.repository';
 import { OutcomeTrackingService } from '../services/outcome-tracking.service';
 import { TargetSnapshotService } from '../services/target-snapshot.service';
+import { PositionResolutionService } from '../services/position-resolution.service';
 import { Prediction } from '../interfaces/prediction.interface';
 import { ObservabilityEventsService } from '@/observability/observability-events.service';
 import { NIL_UUID } from '@orchestrator-ai/transport-types';
@@ -49,8 +51,10 @@ export class OutcomeTrackingRunner {
   constructor(
     private readonly predictionRepository: PredictionRepository,
     private readonly targetSnapshotRepository: TargetSnapshotRepository,
+    private readonly targetRepository: TargetRepository,
     private readonly outcomeTrackingService: OutcomeTrackingService,
     private readonly targetSnapshotService: TargetSnapshotService,
+    private readonly positionResolutionService: PositionResolutionService,
     private readonly observabilityEvents: ObservabilityEventsService,
   ) {}
 
@@ -235,13 +239,18 @@ export class OutcomeTrackingRunner {
 
   /**
    * Resolve predictions that have reached their timeframe end
+   * Also closes any positions linked to the predictions
    */
   private async resolvePendingPredictions(): Promise<{
     resolved: number;
     errors: number;
+    positionsClosed: number;
+    totalPnl: number;
   }> {
     let resolved = 0;
     let errors = 0;
+    let positionsClosed = 0;
+    let totalPnl = 0;
 
     try {
       // Get predictions pending resolution
@@ -254,10 +263,12 @@ export class OutcomeTrackingRunner {
 
       for (const prediction of pendingPredictions) {
         try {
-          // Get the outcome value from latest snapshot
-          const outcomeValue = await this.calculateOutcomeValue(prediction);
+          // Get the outcome value and exit price from latest snapshot
+          const { outcomeValue, exitPrice } =
+            await this.calculateOutcomeAndExitPrice(prediction);
 
-          if (outcomeValue !== null) {
+          if (outcomeValue !== null && exitPrice !== null) {
+            // Resolve the prediction
             await this.outcomeTrackingService.resolvePrediction(
               prediction.id,
               outcomeValue,
@@ -266,6 +277,26 @@ export class OutcomeTrackingRunner {
             this.logger.debug(
               `Resolved prediction ${prediction.id} with outcome ${outcomeValue}%`,
             );
+
+            // Close any positions linked to this prediction
+            try {
+              const resolutionResult =
+                await this.positionResolutionService.closePositionsForPrediction(
+                  prediction.id,
+                  exitPrice,
+                );
+              positionsClosed +=
+                resolutionResult.analystPositionsClosed +
+                resolutionResult.userPositionsClosed;
+              totalPnl +=
+                resolutionResult.totalAnalystPnl + resolutionResult.totalUserPnl;
+            } catch (posError) {
+              // Log but don't fail the resolution - positions can be closed later
+              this.logger.error(
+                `Failed to close positions for prediction ${prediction.id}: ` +
+                  `${posError instanceof Error ? posError.message : 'Unknown error'}`,
+              );
+            }
           }
         } catch (error) {
           errors++;
@@ -283,7 +314,13 @@ export class OutcomeTrackingRunner {
       );
     }
 
-    return { resolved, errors };
+    if (positionsClosed > 0) {
+      this.logger.log(
+        `Closed ${positionsClosed} positions with total P&L: $${totalPnl.toFixed(2)}`,
+      );
+    }
+
+    return { resolved, errors, positionsClosed, totalPnl };
   }
 
   /**
@@ -312,50 +349,70 @@ export class OutcomeTrackingRunner {
   }
 
   /**
-   * Calculate the outcome value for a prediction
-   * Returns percentage change from prediction time to current
+   * Calculate the outcome value and exit price for a prediction
+   * Returns percentage change from prediction time to current, and the exit price
+   * Uses target.current_price for exit price (updated when snapshots are captured)
    */
-  private async calculateOutcomeValue(
+  private async calculateOutcomeAndExitPrice(
     prediction: Prediction,
-  ): Promise<number | null> {
+  ): Promise<{ outcomeValue: number | null; exitPrice: number | null }> {
     try {
-      // Get snapshot at prediction time
+      // Get snapshot at prediction time (for start value)
       const predictionSnapshot =
         await this.targetSnapshotRepository.findClosestToTime(
           prediction.target_id,
           new Date(prediction.predicted_at),
         );
 
-      // Get latest snapshot
-      const latestSnapshot = await this.targetSnapshotRepository.findLatest(
-        prediction.target_id,
-      );
+      // Get current price from target (cached, no snapshot query needed)
+      const target = await this.targetRepository.findById(prediction.target_id);
+      const currentPrice = target?.current_price;
 
-      if (!predictionSnapshot || !latestSnapshot) {
-        this.logger.debug(
-          `Missing snapshots for prediction ${prediction.id} - cannot calculate outcome`,
+      // Fall back to snapshot query if target.current_price not set
+      let endValue: number | null = currentPrice ?? null;
+      if (endValue === null) {
+        const latestSnapshot = await this.targetSnapshotRepository.findLatest(
+          prediction.target_id,
         );
-        return null;
+        endValue = latestSnapshot?.value ?? null;
+      }
+
+      if (!predictionSnapshot || endValue === null) {
+        this.logger.debug(
+          `Missing price data for prediction ${prediction.id} - cannot calculate outcome`,
+        );
+        return { outcomeValue: null, exitPrice: null };
       }
 
       // Calculate percentage change
       const startValue = predictionSnapshot.value;
-      const endValue = latestSnapshot.value;
 
       if (startValue === 0) {
-        return null;
+        return { outcomeValue: null, exitPrice: null };
       }
 
       const percentageChange = ((endValue - startValue) / startValue) * 100;
+      const outcomeValue = Math.round(percentageChange * 100) / 100; // Round to 2 decimals
 
-      return Math.round(percentageChange * 100) / 100; // Round to 2 decimals
+      return { outcomeValue, exitPrice: endValue };
     } catch (error) {
       this.logger.error(
         `Failed to calculate outcome for prediction ${prediction.id}: ` +
           `${error instanceof Error ? error.message : 'Unknown error'}`,
       );
-      return null;
+      return { outcomeValue: null, exitPrice: null };
     }
+  }
+
+  /**
+   * Calculate the outcome value for a prediction (legacy method)
+   * Returns percentage change from prediction time to current
+   */
+  private async calculateOutcomeValue(
+    prediction: Prediction,
+  ): Promise<number | null> {
+    const { outcomeValue } = await this.calculateOutcomeAndExitPrice(prediction);
+    return outcomeValue;
   }
 
   /**

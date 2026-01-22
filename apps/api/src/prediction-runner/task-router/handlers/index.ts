@@ -35,3 +35,5 @@ export { AuditLogHandler } from './audit-log.handler';
 export { AgentActivityHandler } from './agent-activity.handler';
 // Phase 5 - Learning Session (Bidirectional Learning)
 export { LearningSessionHandler } from './learning-session.handler';
+// Manual Runner Triggers
+export { RunnerHandler } from './runner.handler';

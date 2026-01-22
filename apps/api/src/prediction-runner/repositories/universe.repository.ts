@@ -170,4 +170,31 @@ export class UniverseRepository {
 
     return data ?? [];
   }
+
+  /**
+   * Find all active universes for a specific domain
+   * Used by batch runners for domain-specific operations
+   */
+  async findByDomain(
+    domain: 'stocks' | 'crypto' | 'polymarket' | 'elections',
+  ): Promise<Universe[]> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .select('*')
+      .eq('domain', domain)
+      .eq('is_active', true)
+      .order('created_at', {
+        ascending: false,
+      })) as SupabaseSelectListResponse<Universe>;
+
+    if (error) {
+      this.logger.error(
+        `Failed to fetch universes by domain: ${error.message}`,
+      );
+      throw new Error(`Failed to fetch universes by domain: ${error.message}`);
+    }
+
+    return data ?? [];
+  }
 }

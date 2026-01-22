@@ -102,6 +102,12 @@ import {
   DegradedModeService,
   // Phase 4 - User Portfolios
   UserPositionService,
+  // Miss Investigation & Learning
+  MissInvestigationService,
+  SourceResearchService,
+  BaselinePredictionService,
+  // Position Resolution (closes positions when predictions resolve)
+  PositionResolutionService,
 } from './services';
 
 // Phase 7 Runners
@@ -113,6 +119,10 @@ import {
   EvaluationRunner,
   MissedOpportunityScannerRunner,
   ExpirationRunner,
+  // Miss Investigation Runner
+  DailyMissInvestigationRunner,
+  // Baseline Prediction Runner
+  BaselinePredictionRunner,
 } from './runners';
 
 // Phase 8 Dashboard Task Router and Handlers
@@ -150,6 +160,8 @@ import {
   AgentActivityHandler,
   // Phase 5 - Learning Session (Bidirectional Learning)
   LearningSessionHandler,
+  // Manual Runner Triggers
+  RunnerHandler,
 } from './task-router/handlers';
 
 const repositories = [
@@ -249,6 +261,12 @@ const services = [
   DegradedModeService,
   // Phase 4 - User Portfolios
   UserPositionService,
+  // Miss Investigation & Learning
+  MissInvestigationService,
+  SourceResearchService,
+  BaselinePredictionService,
+  // Position Resolution (closes positions when predictions resolve)
+  PositionResolutionService,
 ];
 
 // Phase 7 Runners
@@ -260,6 +278,10 @@ const runners = [
   EvaluationRunner,
   MissedOpportunityScannerRunner,
   ExpirationRunner,
+  // Miss Investigation Runner
+  DailyMissInvestigationRunner,
+  // Baseline Prediction Runner
+  BaselinePredictionRunner,
 ];
 
 // Phase 8 Dashboard Handlers
@@ -297,6 +319,8 @@ const dashboardHandlers = [
   AgentActivityHandler,
   // Phase 5 - Learning Session (Bidirectional Learning)
   LearningSessionHandler,
+  // Manual Runner Triggers
+  RunnerHandler,
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════

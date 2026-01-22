@@ -306,6 +306,16 @@ const routes: Array<RouteRecordRaw> = [
         }
       },
       {
+        path: 'prediction/trading',
+        name: 'TradingDashboard',
+        component: () => import('../views/prediction/TradingDashboard.vue'),
+        meta: {
+          requiresAuth: true,
+          title: 'Trading Dashboard',
+          description: 'View your portfolio and analyst performance'
+        }
+      },
+      {
         path: 'prediction/test-lab',
         name: 'TestLab',
         component: () => import('../views/prediction/TestLabView.vue'),

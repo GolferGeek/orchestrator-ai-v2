@@ -6,6 +6,23 @@ import {
   DEFAULT_MISS_CONFIG,
 } from '../interfaces/missed-opportunity.interface';
 
+/**
+ * @deprecated Use BaselinePredictionService + MissInvestigationService instead.
+ *
+ * This service scans price snapshots for significant moves without predictions.
+ * The new approach uses baseline predictions to ensure every instrument has a
+ * prediction, then evaluates outcomes through the standard prediction pipeline.
+ *
+ * Migration path:
+ * 1. BaselinePredictionService creates "flat" predictions for instruments without explicit predictions
+ * 2. Outcome tracking resolves these predictions
+ * 3. MissInvestigationService identifies misses (baseline was flat but moved)
+ * 4. SourceResearchService researches what caused the move
+ *
+ * This service is kept for backward compatibility and ad-hoc detection of
+ * significant moves in historical data where baselines weren't created.
+ */
+
 type SupabaseError = { message: string; code?: string } | null;
 
 type SupabaseSelectResponse<T> = {

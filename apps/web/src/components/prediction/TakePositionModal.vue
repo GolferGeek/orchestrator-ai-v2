@@ -1,0 +1,433 @@
+<template>
+  <ion-modal :is-open="isOpen" @didDismiss="closeModal">
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>Take Position</ion-title>
+        <ion-buttons slot="end">
+          <ion-button @click="closeModal">Close</ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content class="ion-padding">
+      <div class="take-position-form">
+        <!-- Prediction Summary -->
+        <div v-if="prediction" class="prediction-summary">
+          <div class="symbol-header">
+            <span class="symbol">{{ prediction.symbol }}</span>
+            <span class="direction-badge" :class="prediction.direction">
+              {{ prediction.direction.toUpperCase() }}
+            </span>
+          </div>
+          <p class="prediction-rationale">{{ prediction.rationale || 'No rationale provided' }}</p>
+          <div class="prediction-meta">
+            <span>Confidence: {{ (prediction.confidence * 100).toFixed(0) }}%</span>
+            <span>Magnitude: {{ prediction.magnitudePercent?.toFixed(1) || '?' }}%</span>
+          </div>
+        </div>
+
+        <!-- Position Size Recommendation -->
+        <div v-if="sizeRecommendation" class="size-recommendation">
+          <h3>Recommended Position</h3>
+          <div class="recommendation-grid">
+            <div class="rec-item">
+              <span class="label">Quantity</span>
+              <span class="value">{{ sizeRecommendation.recommendedQuantity }}</span>
+            </div>
+            <div class="rec-item">
+              <span class="label">Entry Price</span>
+              <span class="value">${{ sizeRecommendation.currentPrice.toFixed(2) }}</span>
+            </div>
+            <div class="rec-item">
+              <span class="label">Risk Amount</span>
+              <span class="value">${{ sizeRecommendation.riskAmount.toFixed(2) }}</span>
+            </div>
+            <div class="rec-item">
+              <span class="label">Risk/Reward</span>
+              <span class="value">{{ sizeRecommendation.riskRewardRatio.toFixed(2) }}</span>
+            </div>
+          </div>
+          <p class="reasoning">{{ sizeRecommendation.reasoning }}</p>
+        </div>
+
+        <div v-else-if="loadingSize" class="loading-size">
+          <div class="spinner"></div>
+          <span>Calculating recommended size...</span>
+        </div>
+
+        <!-- Manual Override -->
+        <div class="manual-inputs">
+          <h3>Position Details</h3>
+
+          <div class="input-group">
+            <label for="quantity">Quantity</label>
+            <input
+              id="quantity"
+              v-model.number="quantity"
+              type="number"
+              min="1"
+              placeholder="Enter quantity"
+            />
+          </div>
+
+          <div class="input-group">
+            <label for="entryPrice">Entry Price (optional)</label>
+            <input
+              id="entryPrice"
+              v-model.number="entryPrice"
+              type="number"
+              step="0.01"
+              :placeholder="sizeRecommendation ? `Current: $${sizeRecommendation.currentPrice.toFixed(2)}` : 'Market price'"
+            />
+          </div>
+        </div>
+
+        <!-- Error Message -->
+        <div v-if="error" class="error-message">
+          {{ error }}
+        </div>
+
+        <!-- Success Message -->
+        <div v-if="success" class="success-message">
+          Position created successfully!
+        </div>
+
+        <!-- Actions -->
+        <div class="modal-actions">
+          <button class="btn btn-secondary" @click="closeModal" :disabled="submitting">
+            Cancel
+          </button>
+          <button
+            class="btn btn-primary"
+            @click="submitPosition"
+            :disabled="!canSubmit || submitting"
+          >
+            {{ submitting ? 'Creating...' : 'Create Position' }}
+          </button>
+        </div>
+      </div>
+    </ion-content>
+  </ion-modal>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, watch } from 'vue';
+import {
+  IonModal,
+  IonHeader,
+  IonToolbar,
+  IonTitle,
+  IonButtons,
+  IonButton,
+  IonContent,
+} from '@ionic/vue';
+import {
+  predictionDashboardService,
+  type PositionSizeRecommendation,
+} from '@/services/predictionDashboardService';
+
+interface PredictionInfo {
+  id: string;
+  symbol: string;
+  direction: 'bullish' | 'bearish';
+  confidence: number;
+  magnitudePercent?: number;
+  rationale?: string;
+}
+
+const props = defineProps<{
+  isOpen: boolean;
+  prediction: PredictionInfo | null;
+}>();
+
+const emit = defineEmits<{
+  (e: 'close'): void;
+  (e: 'positionCreated', result: { positionId: string; symbol: string }): void;
+}>();
+
+// Form state
+const quantity = ref<number | null>(null);
+const entryPrice = ref<number | null>(null);
+const sizeRecommendation = ref<PositionSizeRecommendation | null>(null);
+const loadingSize = ref(false);
+const submitting = ref(false);
+const error = ref<string | null>(null);
+const success = ref(false);
+
+// Computed
+const canSubmit = computed(() => {
+  return quantity.value && quantity.value > 0 && !submitting.value && !success.value;
+});
+
+// Watch for prediction changes to load size recommendation
+watch(
+  () => props.prediction,
+  async (newPrediction) => {
+    if (newPrediction) {
+      await loadSizeRecommendation(newPrediction.id);
+    } else {
+      resetForm();
+    }
+  },
+  { immediate: true }
+);
+
+async function loadSizeRecommendation(predictionId: string) {
+  loadingSize.value = true;
+  sizeRecommendation.value = null;
+  error.value = null;
+
+  try {
+    const response = await predictionDashboardService.calculatePositionSize(predictionId);
+    if (response.success && response.data) {
+      sizeRecommendation.value = response.data;
+      // Pre-fill recommended quantity
+      quantity.value = response.data.recommendedQuantity;
+    }
+  } catch (err) {
+    console.error('Failed to load size recommendation:', err);
+  } finally {
+    loadingSize.value = false;
+  }
+}
+
+async function submitPosition() {
+  if (!props.prediction || !quantity.value) return;
+
+  submitting.value = true;
+  error.value = null;
+  success.value = false;
+
+  try {
+    const response = await predictionDashboardService.usePrediction({
+      id: props.prediction.id,
+      quantity: quantity.value,
+      entryPrice: entryPrice.value || undefined,
+    });
+
+    if (response.success && response.data) {
+      success.value = true;
+      emit('positionCreated', {
+        positionId: response.data.position.id,
+        symbol: response.data.position.symbol,
+      });
+
+      // Close modal after short delay
+      setTimeout(() => {
+        closeModal();
+      }, 1500);
+    } else {
+      error.value = response.error?.message || 'Failed to create position';
+    }
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Failed to create position';
+  } finally {
+    submitting.value = false;
+  }
+}
+
+function closeModal() {
+  resetForm();
+  emit('close');
+}
+
+function resetForm() {
+  quantity.value = null;
+  entryPrice.value = null;
+  sizeRecommendation.value = null;
+  error.value = null;
+  success.value = false;
+}
+</script>
+
+<style scoped>
+.take-position-form {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.prediction-summary {
+  background: var(--ion-background-color);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.symbol-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.symbol {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.direction-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.direction-badge.bullish { background: #22c55e20; color: #22c55e; }
+.direction-badge.bearish { background: #ef444420; color: #ef4444; }
+
+.prediction-rationale {
+  color: var(--ion-color-medium);
+  font-size: 0.9rem;
+  margin: 0.5rem 0;
+}
+
+.prediction-meta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.85rem;
+  color: var(--ion-color-medium);
+}
+
+/* Size Recommendation */
+.size-recommendation {
+  background: var(--ion-color-primary-tint);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.size-recommendation h3 {
+  margin: 0 0 0.75rem 0;
+  font-size: 1rem;
+}
+
+.recommendation-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.rec-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.rec-item .label {
+  font-size: 0.75rem;
+  color: var(--ion-color-medium);
+}
+
+.rec-item .value {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.reasoning {
+  font-size: 0.85rem;
+  color: var(--ion-color-medium);
+  margin-top: 0.75rem;
+  font-style: italic;
+}
+
+/* Loading Size */
+.loading-size {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  color: var(--ion-color-medium);
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--ion-color-light);
+  border-top-color: var(--ion-color-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Manual Inputs */
+.manual-inputs h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+}
+
+.input-group {
+  margin-bottom: 1rem;
+}
+
+.input-group label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--ion-border-color);
+  border-radius: 6px;
+  font-size: 1rem;
+  background: var(--ion-background-color);
+}
+
+.input-group input:focus {
+  outline: none;
+  border-color: var(--ion-color-primary);
+}
+
+/* Messages */
+.error-message {
+  background: #ef444420;
+  color: #ef4444;
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+.success-message {
+  background: #22c55e20;
+  color: #22c55e;
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+/* Actions */
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  padding-top: 1rem;
+}
+
+.btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--ion-color-primary);
+  color: white;
+}
+
+.btn-secondary {
+  background: var(--ion-color-light);
+  color: var(--ion-text-color);
+}
+</style>

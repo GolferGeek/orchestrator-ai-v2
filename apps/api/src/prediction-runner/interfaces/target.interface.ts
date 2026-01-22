@@ -16,6 +16,10 @@ export interface Target {
   llm_config_override: LlmConfig | null;
   is_active: boolean;
   is_archived: boolean;
+  /** Current price - updated when snapshots are captured */
+  current_price: number | null;
+  /** When current_price was last updated */
+  price_updated_at: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -67,3 +67,9 @@ export * from './llm-usage-limiter.service';
 export * from './degraded-mode.service';
 // Phase 4 - User Portfolios
 export * from './user-position.service';
+// Miss Investigation & Learning
+export * from './miss-investigation.service';
+export * from './source-research.service';
+export * from './baseline-prediction.service';
+// Position Resolution
+export * from './position-resolution.service';

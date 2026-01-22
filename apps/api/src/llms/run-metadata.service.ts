@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { v4 as uuidv4, validate as isValidUUID } from 'uuid';
+import { isNilUuid } from '@orchestrator-ai/transport-types';
 import { SupabaseService } from '@/supabase/supabase.service';
 import { getTableName } from '@/supabase/supabase.config';
 import { LLMUsageMetrics } from '@/llms/types/llm-evaluation';
@@ -303,8 +304,11 @@ export class RunMetadataService {
 
       // Validate conversation_id is a valid UUID (or null)
       // Invalid UUIDs like 'unknown' or 'test-conversation-id' should be set to null
+      // Also treat NIL_UUID as null since it won't exist in the conversations table
       const conversationId =
-        params.conversationId && isValidUUID(params.conversationId)
+        params.conversationId &&
+        isValidUUID(params.conversationId) &&
+        !isNilUuid(params.conversationId)
           ? params.conversationId
           : null;
 

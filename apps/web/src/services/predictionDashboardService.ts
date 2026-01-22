@@ -3291,6 +3291,177 @@ class PredictionDashboardService {
       params,
     );
   }
+
+  // ============================================================================
+  // USER PORTFOLIO & TRADING (Phase 4)
+  // ============================================================================
+
+  /**
+   * Get user's portfolio with open positions and P&L
+   */
+  async getUserPortfolio(): Promise<DashboardResponsePayload<UserPortfolioSummary>> {
+    return this.executeDashboardRequest<UserPortfolioSummary>('prediction.portfolio', {});
+  }
+
+  /**
+   * Create a position from a prediction (take the trade)
+   */
+  async usePrediction(params: {
+    id: string;
+    quantity: number;
+    entryPrice?: number;
+  }): Promise<DashboardResponsePayload<PositionCreationResult>> {
+    return this.executeDashboardRequest<PositionCreationResult>('prediction.use', params);
+  }
+
+  /**
+   * Calculate recommended position size for a prediction
+   */
+  async calculatePositionSize(
+    predictionId: string,
+  ): Promise<DashboardResponsePayload<PositionSizeRecommendation>> {
+    return this.executeDashboardRequest<PositionSizeRecommendation>(
+      'prediction.calculateSize',
+      { id: predictionId },
+    );
+  }
+
+  // ============================================================================
+  // ANALYST LEADERBOARD (Fork Comparison)
+  // ============================================================================
+
+  /**
+   * Get all analysts with user vs agent fork comparison
+   * Returns portfolio performance for both forks
+   */
+  async getAnalystForksSummary(): Promise<DashboardResponsePayload<AnalystForksSummary>> {
+    return this.executeDashboardRequest<AnalystForksSummary>('analyst.forksSummary', {});
+  }
+
+  /**
+   * Compare user vs agent fork for a specific analyst
+   */
+  async compareAnalystForks(
+    analystId: string,
+  ): Promise<DashboardResponsePayload<AnalystForkComparison>> {
+    return this.executeDashboardRequest<AnalystForkComparison>('analyst.compareForks', {
+      id: analystId,
+    });
+  }
+}
+
+// ============================================================================
+// TYPE DEFINITIONS
+// ============================================================================
+
+export interface UserPortfolioSummary {
+  portfolio: {
+    id: string;
+    initialBalance: number;
+    currentBalance: number;
+    totalRealizedPnl: number;
+    totalUnrealizedPnl: number;
+  };
+  openPositions: UserPosition[];
+  summary: {
+    totalUnrealizedPnl: number;
+    totalRealizedPnl: number;
+    winRate: number;
+    openPositionCount: number;
+  };
+}
+
+export interface UserPosition {
+  id: string;
+  symbol: string;
+  direction: 'long' | 'short';
+  quantity: number;
+  entryPrice: number;
+  currentPrice: number;
+  unrealizedPnl: number;
+}
+
+export interface PositionCreationResult {
+  position: {
+    id: string;
+    symbol: string;
+    direction: 'long' | 'short';
+    quantity: number;
+    entryPrice: number;
+    portfolioId: string;
+  };
+  portfolioUpdate: {
+    previousBalance: number;
+    newBalance: number;
+  };
+}
+
+export interface PositionSizeRecommendation {
+  predictionId: string;
+  symbol: string;
+  direction: 'bullish' | 'bearish';
+  currentPrice: number;
+  recommendedQuantity: number;
+  riskAmount: number;
+  riskRewardRatio: number;
+  reasoning: string;
+}
+
+export interface AnalystForksSummary {
+  comparisons: AnalystForkComparisonRow[];
+  summary: {
+    totalAnalysts: number;
+    agentOutperforming: number;
+    userOutperforming: number;
+    statusBreakdown: Record<string, number>;
+  };
+}
+
+export interface AnalystForkComparisonRow {
+  analyst_id: string;
+  slug: string;
+  name: string;
+  perspective: string;
+  user_pnl: number;
+  user_win_count: number;
+  user_loss_count: number;
+  agent_pnl: number;
+  agent_win_count: number;
+  agent_loss_count: number;
+  pnl_difference: number;
+  comparison_status: 'agent_winning' | 'user_winning' | 'tied' | 'warning';
+}
+
+export interface AnalystForkComparison {
+  analyst: {
+    id: string;
+    slug: string;
+    name: string;
+    perspective: string;
+  };
+  userFork: {
+    balance: number;
+    pnl: number;
+    winRate: number;
+    winCount: number;
+    lossCount: number;
+  };
+  agentFork: {
+    balance: number;
+    pnl: number;
+    winRate: number;
+    winCount: number;
+    lossCount: number;
+  };
+  comparison: {
+    pnlDiff: { absolute: number; percent: number };
+    contextDiff: {
+      perspectiveChanged: boolean;
+      signalPreferencesChanged: boolean;
+      riskToleranceChanged: boolean;
+    };
+    suggestion: string;
+  };
 }
 
 export const predictionDashboardService = new PredictionDashboardService();

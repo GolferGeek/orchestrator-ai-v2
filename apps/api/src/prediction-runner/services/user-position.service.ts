@@ -286,6 +286,58 @@ export class UserPositionService {
   }
 
   /**
+   * Close a user position at the given price
+   * Returns the realized P&L
+   */
+  async closePosition(
+    positionId: string,
+    exitPrice: number,
+  ): Promise<{ realizedPnl: number; isWin: boolean }> {
+    // Get the position first to calculate P&L
+    const { data: position, error: fetchError } = await this.portfolioRepository
+      ['getClient']()
+      .schema('prediction')
+      .from('user_positions')
+      .select('*')
+      .eq('id', positionId)
+      .eq('status', 'open')
+      .single();
+
+    if (fetchError || !position) {
+      throw new Error(`Position ${positionId} not found or already closed`);
+    }
+
+    // Calculate P&L
+    const realizedPnl = this.portfolioRepository.calculatePnL(
+      position.direction,
+      position.entry_price,
+      exitPrice,
+      position.quantity,
+    );
+
+    const isWin = realizedPnl > 0;
+
+    // Close the position with calculated P&L
+    await this.portfolioRepository.closeUserPosition(
+      positionId,
+      exitPrice,
+      realizedPnl,
+    );
+
+    // Record the trade result in the portfolio
+    await this.portfolioRepository.recordUserTradeResult(
+      position.portfolio_id,
+      realizedPnl,
+    );
+
+    this.logger.log(
+      `Closed user position ${positionId}: ${position.direction} ${position.symbol}, P&L: $${realizedPnl.toFixed(2)} (${isWin ? 'WIN' : 'LOSS'})`,
+    );
+
+    return { realizedPnl, isWin };
+  }
+
+  /**
    * Generate human-readable reasoning for position sizing
    */
   private generateSizingReasoning(

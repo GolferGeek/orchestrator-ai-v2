@@ -66,6 +66,8 @@ describe('SignalDetectionService', () => {
     is_archived: false,
     llm_config_override: null,
     metadata: {},
+    current_price: null,
+    price_updated_at: null,
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
   };

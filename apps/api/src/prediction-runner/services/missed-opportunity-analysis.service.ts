@@ -13,6 +13,45 @@ import {
 } from '../interfaces/learning.interface';
 import { CreateLearningQueueDto } from '../dto/learning.dto';
 
+/**
+ * MissedOpportunityAnalysisService - On-Demand Deep Analysis
+ *
+ * PURPOSE:
+ * Provides deep, interactive analysis of a SINGLE missed opportunity when
+ * triggered by a user from the dashboard. Uses a frontier LLM model for
+ * thorough investigation with high-quality reasoning.
+ *
+ * RELATIONSHIP TO OTHER SERVICES:
+ *
+ * - MissedOpportunityDetectionService (DEPRECATED):
+ *   Old detection approach. Use BaselinePredictionService + MissInvestigationService instead.
+ *
+ * - MissInvestigationService (NEW - Hierarchical):
+ *   Automated hierarchical investigation (predictors → signals) run by
+ *   DailyMissInvestigationRunner. Identifies misses and investigates internal
+ *   data before external research.
+ *
+ * - SourceResearchService (NEW - Batch):
+ *   Cost-effective batch research using Gemini Flash for automated end-of-day
+ *   analysis of multiple misses. Uses cheap LLM for bulk operations.
+ *
+ * - THIS SERVICE (On-Demand Deep):
+ *   User-triggered deep analysis of a single miss using frontier LLM.
+ *   Provides detailed reasoning, tool suggestions, and high-quality learnings.
+ *   Use when user wants thorough investigation of a specific missed opportunity.
+ *
+ * WHEN TO USE:
+ * - User clicks "Analyze" on a specific missed opportunity in the dashboard
+ * - Deep investigation needed with detailed reasoning
+ * - Tool/source suggestions with rationale needed
+ * - Single-miss analysis where cost is not the primary concern
+ *
+ * WHEN NOT TO USE:
+ * - Batch analysis of many misses (use SourceResearchService)
+ * - Automated end-of-day processing (use DailyMissInvestigationRunner)
+ * - Just checking what predictors/signals exist (use MissInvestigationService)
+ */
+
 type SupabaseError = { message: string; code?: string } | null;
 
 type SupabaseSelectResponse<T> = {

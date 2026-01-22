@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { v4 as uuidv4 } from 'uuid';
 import { ExecutionContext, NIL_UUID } from '@orchestrator-ai/transport-types';
 import { ScopeRepository } from '../repositories/scope.repository';
 import { SubjectRepository } from '../repositories/subject.repository';
@@ -162,7 +163,8 @@ export class RiskAnalysisRunner {
    * Generate a unique task ID for this runner execution
    */
   private generateTaskId(): string {
-    return `risk-runner-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+    // Must return a valid UUID since task_id column is uuid type
+    return uuidv4();
   }
 
   /**

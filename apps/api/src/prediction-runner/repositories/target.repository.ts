@@ -133,6 +133,38 @@ export class TargetRepository {
     return data;
   }
 
+  /**
+   * Update the current price for a target
+   * Called when capturing price snapshots
+   */
+  async updateCurrentPrice(id: string, price: number): Promise<Target> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .update({
+        current_price: price,
+        price_updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select()
+      .single()) as SupabaseSelectResponse<Target>;
+
+    if (error) {
+      this.logger.error(
+        `Failed to update target current price: ${error.message}`,
+      );
+      throw new Error(
+        `Failed to update target current price: ${error.message}`,
+      );
+    }
+
+    if (!data) {
+      throw new Error('Update succeeded but no target returned');
+    }
+
+    return data;
+  }
+
   async delete(id: string): Promise<void> {
     const { error } = await this.getClient()
       .schema(this.schema)
@@ -161,6 +193,29 @@ export class TargetRepository {
     if (error) {
       this.logger.error(`Failed to fetch active targets: ${error.message}`);
       throw new Error(`Failed to fetch active targets: ${error.message}`);
+    }
+
+    return data ?? [];
+  }
+
+  /**
+   * Find all active targets across all universes
+   * Used by batch runners for system-wide operations
+   */
+  async findAllActive(): Promise<Target[]> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .select('*')
+      .eq('is_active', true)
+      .eq('is_archived', false)
+      .order('created_at', {
+        ascending: false,
+      })) as SupabaseSelectListResponse<Target>;
+
+    if (error) {
+      this.logger.error(`Failed to fetch all active targets: ${error.message}`);
+      throw new Error(`Failed to fetch all active targets: ${error.message}`);
     }
 
     return data ?? [];

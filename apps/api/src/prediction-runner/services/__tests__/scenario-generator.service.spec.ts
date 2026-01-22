@@ -50,6 +50,8 @@ describe('ScenarioGeneratorService', () => {
     llm_config_override: null,
     is_active: true,
     is_archived: false,
+    current_price: null,
+    price_updated_at: null,
     created_at: '2024-01-01T00:00:00Z',
     updated_at: '2024-01-01T00:00:00Z',
   };
@@ -65,6 +67,8 @@ describe('ScenarioGeneratorService', () => {
     llm_config_override: null,
     is_active: true,
     is_archived: false,
+    current_price: null,
+    price_updated_at: null,
     created_at: '2024-01-01T00:00:00Z',
     updated_at: '2024-01-01T00:00:00Z',
   };

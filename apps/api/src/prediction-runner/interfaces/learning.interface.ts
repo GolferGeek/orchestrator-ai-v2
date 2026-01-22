@@ -9,8 +9,14 @@
  * - domain: Domain-specific learnings (stocks, crypto, etc.)
  * - universe: Universe-specific learnings
  * - target: Target-specific learnings
+ * - analyst: Analyst-specific learnings
  */
-export type LearningScopeLevel = 'runner' | 'domain' | 'universe' | 'target';
+export type LearningScopeLevel =
+  | 'runner'
+  | 'domain'
+  | 'universe'
+  | 'target'
+  | 'analyst';
 
 /**
  * Learning type

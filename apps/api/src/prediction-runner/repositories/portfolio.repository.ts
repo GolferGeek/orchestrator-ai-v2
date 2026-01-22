@@ -474,6 +474,128 @@ export class PortfolioRepository {
     return data ?? [];
   }
 
+  /**
+   * Get open analyst positions by prediction ID
+   * Used to find positions to close when a prediction resolves
+   */
+  async getOpenAnalystPositionsByPrediction(
+    predictionId: string,
+  ): Promise<AnalystPosition[]> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from('analyst_positions')
+      .select('*')
+      .eq('prediction_id', predictionId)
+      .eq('status', 'open')) as SupabaseSelectListResponse<AnalystPosition>;
+
+    if (error) {
+      this.logger.error(
+        `Failed to get analyst positions by prediction: ${error.message}`,
+      );
+      throw new Error(
+        `Failed to get analyst positions by prediction: ${error.message}`,
+      );
+    }
+
+    return data ?? [];
+  }
+
+  /**
+   * Get open user positions by prediction ID
+   * Used to find positions to close when a prediction resolves
+   */
+  async getOpenUserPositionsByPrediction(
+    predictionId: string,
+  ): Promise<UserPosition[]> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from('user_positions')
+      .select('*')
+      .eq('prediction_id', predictionId)
+      .eq('status', 'open')) as SupabaseSelectListResponse<UserPosition>;
+
+    if (error) {
+      this.logger.error(
+        `Failed to get user positions by prediction: ${error.message}`,
+      );
+      throw new Error(
+        `Failed to get user positions by prediction: ${error.message}`,
+      );
+    }
+
+    return data ?? [];
+  }
+
+  /**
+   * Close a user position
+   */
+  async closeUserPosition(
+    positionId: string,
+    exitPrice: number,
+    realizedPnl: number,
+  ): Promise<UserPosition> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from('user_positions')
+      .update({
+        exit_price: exitPrice,
+        current_price: exitPrice,
+        realized_pnl: realizedPnl,
+        unrealized_pnl: 0,
+        status: 'closed',
+        closed_at: new Date().toISOString(),
+      })
+      .eq('id', positionId)
+      .select()
+      .single()) as SupabaseSelectResponse<UserPosition>;
+
+    if (error) {
+      this.logger.error(`Failed to close user position: ${error.message}`);
+      throw new Error(`Failed to close user position: ${error.message}`);
+    }
+
+    return data!;
+  }
+
+  /**
+   * Update user portfolio with realized P&L
+   */
+  async recordUserTradeResult(
+    portfolioId: string,
+    realizedPnl: number,
+  ): Promise<UserPortfolio> {
+    // First get current values
+    const { data: current, error: fetchError } = (await this.getClient()
+      .schema(this.schema)
+      .from('user_portfolios')
+      .select('*')
+      .eq('id', portfolioId)
+      .single()) as SupabaseSelectResponse<UserPortfolio>;
+
+    if (fetchError) {
+      throw new Error(`Failed to fetch user portfolio: ${fetchError.message}`);
+    }
+
+    // Update with new values
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from('user_portfolios')
+      .update({
+        current_balance: current!.current_balance + realizedPnl,
+        total_realized_pnl: current!.total_realized_pnl + realizedPnl,
+      })
+      .eq('id', portfolioId)
+      .select()
+      .single()) as SupabaseSelectResponse<UserPortfolio>;
+
+    if (error) {
+      this.logger.error(`Failed to record user trade result: ${error.message}`);
+      throw new Error(`Failed to record user trade result: ${error.message}`);
+    }
+
+    return data!;
+  }
+
   // =============================================================================
   // ANALYST CONTEXT VERSIONS
   // =============================================================================

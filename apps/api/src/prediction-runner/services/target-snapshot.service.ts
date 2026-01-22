@@ -32,6 +32,7 @@ export class TargetSnapshotService {
 
   /**
    * Capture current value for a target
+   * Also updates target.current_price for quick access
    */
   async captureSnapshot(
     targetId: string,
@@ -49,7 +50,13 @@ export class TargetSnapshotService {
       metadata,
     };
 
-    return this.snapshotRepository.create(snapshotData);
+    // Create the snapshot in history table
+    const snapshot = await this.snapshotRepository.create(snapshotData);
+
+    // Also update the target's current_price for quick access
+    await this.targetRepository.updateCurrentPrice(targetId, value);
+
+    return snapshot;
   }
 
   /**
@@ -83,8 +90,16 @@ export class TargetSnapshotService {
 
   /**
    * Get the latest value for a target
+   * First checks target.current_price (cached), falls back to snapshot query
    */
   async getLatestValue(targetId: string): Promise<number | null> {
+    // Try cached current_price first
+    const target = await this.targetRepository.findById(targetId);
+    if (target?.current_price !== null && target?.current_price !== undefined) {
+      return target.current_price;
+    }
+
+    // Fall back to snapshot query
     const snapshot = await this.snapshotRepository.findLatest(targetId);
     return snapshot?.value ?? null;
   }

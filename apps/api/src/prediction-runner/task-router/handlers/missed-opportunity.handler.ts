@@ -3,6 +3,19 @@
  *
  * Handles dashboard mode requests for missed opportunity analysis.
  * Missed opportunities are significant price moves that were not predicted.
+ *
+ * ACTIONS:
+ * - list/detect: Legacy detection (deprecated - use baseline predictions instead)
+ * - analyze: Deep on-demand analysis of a single miss (uses frontier LLM)
+ * - investigate: NEW - Hierarchical investigation (predictors → signals → sources)
+ *
+ * RECOMMENDED FLOW (New System):
+ * 1. BaselinePredictionRunner creates "flat" predictions for uncovered instruments (4:30 PM)
+ * 2. OutcomeTrackingRunner resolves all predictions
+ * 3. DailyMissInvestigationRunner identifies and investigates misses (5:00 PM)
+ * 4. User can then:
+ *    - Call 'investigate' to see hierarchical breakdown
+ *    - Call 'analyze' for deep LLM analysis of a specific miss
  */
 
 import { Injectable, Logger } from '@nestjs/common';
@@ -10,6 +23,7 @@ import type { ExecutionContext } from '@orchestrator-ai/transport-types';
 import type { DashboardRequestPayload } from '@orchestrator-ai/transport-types';
 import { MissedOpportunityDetectionService } from '../../services/missed-opportunity-detection.service';
 import { MissedOpportunityAnalysisService } from '../../services/missed-opportunity-analysis.service';
+import { MissInvestigationService } from '../../services/miss-investigation.service';
 import {
   IDashboardHandler,
   DashboardActionResult,
@@ -33,6 +47,9 @@ interface MissedOpportunityFilters {
 interface MissedOpportunityParams {
   id?: string;
   targetId?: string;
+  predictionId?: string;
+  universeId?: string;
+  date?: string;
   filters?: MissedOpportunityFilters;
   page?: number;
   pageSize?: number;
@@ -43,11 +60,18 @@ interface MissedOpportunityParams {
 @Injectable()
 export class MissedOpportunityHandler implements IDashboardHandler {
   private readonly logger = new Logger(MissedOpportunityHandler.name);
-  private readonly supportedActions = ['list', 'detect', 'analyze'];
+  private readonly supportedActions = [
+    'list',
+    'detect',
+    'analyze',
+    'investigate',
+    'identify',
+  ];
 
   constructor(
     private readonly detectionService: MissedOpportunityDetectionService,
     private readonly analysisService: MissedOpportunityAnalysisService,
+    private readonly missInvestigationService: MissInvestigationService,
   ) {}
 
   async execute(
@@ -67,6 +91,10 @@ export class MissedOpportunityHandler implements IDashboardHandler {
         return this.handleDetect(params);
       case 'analyze':
         return this.handleAnalyze(params, context);
+      case 'identify':
+        return this.handleIdentify(params);
+      case 'investigate':
+        return this.handleInvestigate(params);
       default:
         return buildDashboardError(
           'UNSUPPORTED_ACTION',
@@ -81,12 +109,22 @@ export class MissedOpportunityHandler implements IDashboardHandler {
   }
 
   /**
-   * Detect missed opportunities for a target
-   * Runs detection to find unpredicted significant moves
+   * @deprecated Use 'identify' action instead for the new baseline-based approach.
+   *
+   * Detect missed opportunities for a target (Legacy)
+   * Runs detection to find unpredicted significant moves by scanning price snapshots.
+   *
+   * MIGRATION: The new approach uses:
+   * 1. BaselinePredictionService to create "flat" predictions for all instruments
+   * 2. OutcomeTrackingService to resolve predictions
+   * 3. MissInvestigationService.identifyMisses() to find misses based on outcomes
    */
   private async handleDetect(
     params?: MissedOpportunityParams,
   ): Promise<DashboardActionResult> {
+    this.logger.warn(
+      'DEPRECATED: "detect" action uses legacy detection. Use "identify" for baseline-based miss identification.',
+    );
     const targetId = params?.targetId || params?.filters?.targetId;
 
     if (!targetId) {
@@ -192,6 +230,94 @@ export class MissedOpportunityHandler implements IDashboardHandler {
         error instanceof Error
           ? error.message
           : 'Failed to analyze missed opportunity',
+      );
+    }
+  }
+
+  /**
+   * Identify misses using the NEW baseline-based approach
+   *
+   * This uses MissInvestigationService.identifyMisses() which works with
+   * predictions that have outcomes (including baseline "flat" predictions).
+   *
+   * Prerequisites:
+   * - BaselinePredictionRunner has created flat predictions for uncovered instruments
+   * - OutcomeTrackingRunner has resolved predictions
+   */
+  private async handleIdentify(
+    params?: MissedOpportunityParams,
+  ): Promise<DashboardActionResult> {
+    const datePart = new Date().toISOString().split('T')[0];
+    const date =
+      params?.date || datePart || new Date().toISOString().slice(0, 10);
+
+    try {
+      const misses = await this.missInvestigationService.identifyMisses(
+        date,
+        params?.universeId,
+      );
+
+      // Apply pagination
+      const page = params?.page ?? 1;
+      const pageSize = params?.pageSize ?? 20;
+      const startIndex = (page - 1) * pageSize;
+      const paginatedMisses = misses.slice(startIndex, startIndex + pageSize);
+
+      return buildDashboardSuccess(
+        paginatedMisses,
+        buildPaginationMetadata(misses.length, page, pageSize),
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to identify misses: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return buildDashboardError(
+        'IDENTIFY_FAILED',
+        error instanceof Error ? error.message : 'Failed to identify misses',
+      );
+    }
+  }
+
+  /**
+   * Investigate a specific prediction miss hierarchically
+   *
+   * Uses MissInvestigationService.investigateMissById() to navigate:
+   * - Level 1: Find unused predictors that could have predicted the move
+   * - Level 2: Find signals that were misread or ignored
+   *
+   * Requires predictionId to investigate.
+   */
+  private async handleInvestigate(
+    params?: MissedOpportunityParams,
+  ): Promise<DashboardActionResult> {
+    if (!params?.predictionId) {
+      return buildDashboardError(
+        'MISSING_PREDICTION_ID',
+        'Prediction ID is required for investigation',
+      );
+    }
+
+    try {
+      const investigation =
+        await this.missInvestigationService.investigateMissById(
+          params.predictionId,
+        );
+
+      if (!investigation) {
+        return buildDashboardError(
+          'NOT_A_MISS',
+          'Prediction not found, has no outcome, or was correct (not a miss)',
+        );
+      }
+
+      return buildDashboardSuccess(investigation);
+    } catch (error) {
+      this.logger.error(
+        `Failed to investigate miss: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return buildDashboardError(
+        'INVESTIGATE_FAILED',
+        error instanceof Error ? error.message : 'Failed to investigate miss',
       );
     }
   }
