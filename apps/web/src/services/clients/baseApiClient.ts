@@ -34,9 +34,13 @@ export abstract class BaseApiClient implements ApiClient {
       }
     );
   }
-  // Get the current auth token from localStorage
+  /**
+   * Get the current auth token from storage
+   * TokenStorageService migrates tokens from localStorage to sessionStorage,
+   * so we check sessionStorage first, then fall back to localStorage
+   */
   private getAuthToken(): string | null {
-    return localStorage.getItem('authToken');
+    return sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
   }
   // Update the authorization header for this client instance
   setAuthToken(token: string | null): void {

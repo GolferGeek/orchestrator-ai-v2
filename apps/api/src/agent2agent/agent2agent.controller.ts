@@ -389,6 +389,12 @@ export class Agent2AgentController {
       // =========================================================================
       const payloadDocuments = (dto.payload as Record<string, unknown>)
         ?.documents;
+
+      // DEBUG: Log payload structure to diagnose document processing issues
+      this.logger.warn(
+        `📄 [A2A-CTRL] DEBUG PAYLOAD - keys: ${Object.keys(dto.payload || {}).join(', ')}, hasDocuments: ${!!payloadDocuments}, isArray: ${Array.isArray(payloadDocuments)}, length: ${Array.isArray(payloadDocuments) ? payloadDocuments.length : 'N/A'}`,
+      );
+
       if (Array.isArray(payloadDocuments) && payloadDocuments.length > 0) {
         this.logger.log(
           `📄 [A2A-CTRL] Processing ${payloadDocuments.length} document(s) from payload`,

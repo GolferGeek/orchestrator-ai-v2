@@ -11,6 +11,7 @@ import type { DashboardRequestPayload } from '@orchestrator-ai/transport-types';
 import {
   DashboardActionResult,
   buildDashboardError,
+  buildDashboardSuccess,
 } from './dashboard-handler.interface';
 
 // Import entity handlers
@@ -252,6 +253,10 @@ export class RiskDashboardRouter {
       case 'sources':
         return this.simulationHandler.execute(operation, payload, context);
 
+      // Dashboard-level aggregate operations
+      case 'dashboard':
+        return this.handleDashboardOperation(operation, payload, context);
+
       default:
         return buildDashboardError(
           'UNKNOWN_ENTITY',
@@ -297,6 +302,140 @@ export class RiskDashboardRouter {
         details,
       },
     };
+  }
+
+  /**
+   * Handle dashboard-level aggregate operations (stats, subject-detail)
+   */
+  private async handleDashboardOperation(
+    operation: string,
+    payload: DashboardRequestPayload,
+    context: ExecutionContext,
+  ): Promise<DashboardActionResult> {
+    const params = payload.params as Record<string, unknown> | undefined;
+
+    switch (operation.toLowerCase()) {
+      case 'stats': {
+        // Return aggregate stats for the scope
+        const scopeId = params?.scopeId as string | undefined;
+        const scoresResult = await this.compositeScoreHandler.execute(
+          'list-active',
+          { ...payload, params: { scopeId } },
+          context,
+        );
+
+        if (!scoresResult.success) {
+          return scoresResult;
+        }
+
+        const scores = scoresResult.data as Array<{
+          score?: number;
+          overall_score?: number;
+        }>;
+        const total = scores.length;
+        const avgScore =
+          total > 0
+            ? scores.reduce(
+                (sum, s) =>
+                  sum +
+                  (s.score ?? s.overall_score ?? 0) /
+                    (s.overall_score !== undefined ? 100 : 1),
+                0,
+              ) / total
+            : 0;
+
+        return buildDashboardSuccess({
+          totalSubjects: total,
+          averageScore: avgScore,
+          highRisk: scores.filter(
+            (s) => (s.score ?? (s.overall_score ?? 0) / 100) >= 0.7,
+          ).length,
+          mediumRisk: scores.filter((s) => {
+            const score = s.score ?? (s.overall_score ?? 0) / 100;
+            return score >= 0.4 && score < 0.7;
+          }).length,
+          lowRisk: scores.filter(
+            (s) => (s.score ?? (s.overall_score ?? 0) / 100) < 0.4,
+          ).length,
+        });
+      }
+
+      case 'subject-detail': {
+        const subjectId = params?.subjectId as string | undefined;
+        if (!subjectId) {
+          return buildDashboardError(
+            'MISSING_SUBJECT_ID',
+            'Subject ID is required',
+          );
+        }
+
+        // Fetch all data in parallel
+        const [subjectResult, assessmentsResult, alertsResult] =
+          await Promise.all([
+            this.subjectHandler.execute(
+              'get',
+              { ...payload, params: { id: subjectId } },
+              context,
+            ),
+            this.assessmentHandler.execute(
+              'list',
+              { ...payload, params: { subjectId } },
+              context,
+            ),
+            this.alertHandler.execute(
+              'list',
+              { ...payload, params: { subjectId } },
+              context,
+            ),
+          ]);
+
+        // Get composite score for the subject
+        const compositeResult = await this.compositeScoreHandler.execute(
+          'list-active',
+          payload,
+          context,
+        );
+        const scores =
+          (compositeResult.data as Array<{
+            subject_id?: string;
+            subjectId?: string;
+          }>) || [];
+        const compositeScore = scores.find(
+          (s) => s.subject_id === subjectId || s.subjectId === subjectId,
+        );
+
+        // Try to get latest debate
+        let debate = null;
+        try {
+          const debateResult = await this.debateHandler.execute(
+            'latest',
+            { ...payload, params: { subjectId } },
+            context,
+          );
+          if (debateResult.success) {
+            debate = debateResult.data;
+          }
+        } catch {
+          // Debate may not exist
+        }
+
+        return buildDashboardSuccess({
+          subject: subjectResult.success ? subjectResult.data : null,
+          compositeScore: compositeScore || null,
+          assessments: assessmentsResult.success ? assessmentsResult.data : [],
+          debate,
+          alerts: alertsResult.success ? alertsResult.data : [],
+          evaluations: [],
+        });
+      }
+
+      default:
+        return buildDashboardError(
+          'UNSUPPORTED_DASHBOARD_ACTION',
+          `Unsupported dashboard operation: ${operation}`,
+          { supportedOperations: ['stats', 'subject-detail'] },
+        );
+    }
   }
 
   /**

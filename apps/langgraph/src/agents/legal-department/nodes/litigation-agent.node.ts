@@ -344,8 +344,7 @@ function applyPlaybookRules(
     existingFlags.push({
       flag: "missing-answer-deadline",
       severity: "high",
-      description:
-        "Complaint received but answer deadline not calculated.",
+      description: "Complaint received but answer deadline not calculated.",
       recommendation:
         "Determine service date and calculate answer deadline (typically 21 days from service).",
     });

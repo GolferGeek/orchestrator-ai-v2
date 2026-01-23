@@ -294,14 +294,14 @@ export class UserPositionService {
     exitPrice: number,
   ): Promise<{ realizedPnl: number; isWin: boolean }> {
     // Get the position first to calculate P&L
-    const { data: position, error: fetchError } = await this.portfolioRepository
-      ['getClient']()
-      .schema('prediction')
-      .from('user_positions')
-      .select('*')
-      .eq('id', positionId)
-      .eq('status', 'open')
-      .single();
+    const { data: position, error: fetchError } =
+      await this.portfolioRepository['getClient']()
+        .schema('prediction')
+        .from('user_positions')
+        .select('*')
+        .eq('id', positionId)
+        .eq('status', 'open')
+        .single();
 
     if (fetchError || !position) {
       throw new Error(`Position ${positionId} not found or already closed`);

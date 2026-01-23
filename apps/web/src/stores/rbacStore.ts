@@ -50,8 +50,9 @@ const getResponseStatus = (error: unknown): number | undefined => {
 
 export const useRbacStore = defineStore('rbac', () => {
   // ==================== AUTH STATE ====================
-  const token = ref<string | null>(localStorage.getItem('authToken'));
-  const refreshToken = ref<string | null>(localStorage.getItem('refreshToken'));
+  // TokenStorageService migrates tokens to sessionStorage, so check there first
+  const token = ref<string | null>(sessionStorage.getItem('authToken') || localStorage.getItem('authToken'));
+  const refreshToken = ref<string | null>(sessionStorage.getItem('refreshToken') || localStorage.getItem('refreshToken'));
   const user = ref<UserProfile | null>(null);
   const authLoading = ref(false);
   const authError = ref<string | null>(null);
@@ -125,10 +126,14 @@ export const useRbacStore = defineStore('rbac', () => {
 
   function setTokenData(tokenData: TokenData) {
     token.value = tokenData.accessToken;
+    // Store in both localStorage and sessionStorage for compatibility
+    // tokenStorageService migrates to sessionStorage, but some services read from localStorage
     localStorage.setItem('authToken', tokenData.accessToken);
+    sessionStorage.setItem('authToken', tokenData.accessToken);
     if (tokenData.refreshToken) {
       refreshToken.value = tokenData.refreshToken;
       localStorage.setItem('refreshToken', tokenData.refreshToken);
+      sessionStorage.setItem('refreshToken', tokenData.refreshToken);
     }
     apiService.setAuthToken(tokenData.accessToken);
     authError.value = null;
@@ -138,9 +143,12 @@ export const useRbacStore = defineStore('rbac', () => {
     token.value = null;
     refreshToken.value = null;
     user.value = null;
+    // Clear from both localStorage and sessionStorage
     localStorage.removeItem('authToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('userData');
+    sessionStorage.removeItem('authToken');
+    sessionStorage.removeItem('refreshToken');
     apiService.clearAuth();
     reset();
   }

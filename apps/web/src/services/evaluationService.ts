@@ -7,12 +7,21 @@ import type {
 } from '../types/evaluation';
 import { getSecureApiBaseUrl } from '../utils/securityConfig';
 
+/**
+ * Get auth token from storage
+ * TokenStorageService migrates tokens from localStorage to sessionStorage,
+ * so we check sessionStorage first, then fall back to localStorage
+ */
+function getAuthToken(): string | null {
+  return sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
+}
+
 class EvaluationService {
   /**
    * Rate a message
    */
   async rateMessage(messageId: string, evaluation: EvaluationRequest): Promise<EvaluationResponse> {
-    const authToken = localStorage.getItem('authToken');
+    const authToken = getAuthToken();
     const response = await fetch(`${this.getBaseUrl()}/evaluation/messages/${messageId}`, {
       method: 'POST',
       headers: {
@@ -30,7 +39,7 @@ class EvaluationService {
    * Get evaluation for a message
    */
   async getMessageRating(messageId: string): Promise<EvaluationResponse | null> {
-    const authToken = localStorage.getItem('authToken');
+    const authToken = getAuthToken();
     const response = await fetch(`${this.getBaseUrl()}/evaluation/messages/${messageId}`, {
       method: 'GET',
       headers: {
@@ -50,7 +59,7 @@ class EvaluationService {
    * Update an existing evaluation
    */
   async updateRating(messageId: string, evaluation: EvaluationRequest): Promise<EvaluationResponse> {
-    const authToken = localStorage.getItem('authToken');
+    const authToken = getAuthToken();
     const response = await fetch(`${this.getBaseUrl()}/evaluation/messages/${messageId}`, {
       method: 'PUT',
       headers: {
@@ -73,7 +82,7 @@ class EvaluationService {
     dateTo?: string;
     sessionId?: string;
   }): Promise<unknown> {
-    const authToken = localStorage.getItem('authToken');
+    const authToken = getAuthToken();
     const queryParams = new URLSearchParams();
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {
@@ -96,7 +105,7 @@ class EvaluationService {
    * Get all evaluations for the current user
    */
   async getAllUserEvaluations(filters?: AllEvaluationsFilters): Promise<AllEvaluationsResponse> {
-    const authToken = localStorage.getItem('authToken');
+    const authToken = getAuthToken();
     const queryParams = new URLSearchParams();
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {
@@ -126,7 +135,7 @@ class EvaluationService {
       return [];
     }
 
-    const authToken = localStorage.getItem('authToken');
+    const authToken = getAuthToken();
     const queryParams = new URLSearchParams();
     if (minRating !== undefined) {
       queryParams.append('minRating', minRating.toString());

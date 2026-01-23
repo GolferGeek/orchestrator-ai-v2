@@ -1,4 +1,10 @@
-import { IsString, IsNotEmpty, IsOptional, IsArray, IsObject } from "class-validator";
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsArray,
+  IsObject,
+} from "class-validator";
 import { ExecutionContext } from "@orchestrator-ai/transport-types";
 import { IsValidExecutionContext } from "../../../common/validators/execution-context.validator";
 import { LegalDocumentMetadata } from "../legal-department.state";

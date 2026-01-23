@@ -18,9 +18,7 @@ import { ObservabilityService } from "../../../services/observability.service";
  * - Event emitted for UI to show "Review Required" state
  * - Can be enhanced with LangGraph interrupt() in production
  */
-export function createHitlCheckpointNode(
-  observability: ObservabilityService,
-) {
+export function createHitlCheckpointNode(observability: ObservabilityService) {
   return async function hitlCheckpointNode(
     state: LegalDepartmentState,
   ): Promise<Partial<LegalDepartmentState>> {
@@ -28,7 +26,7 @@ export function createHitlCheckpointNode(
 
     // For M12 demo: Simple pass-through with logging
     // Production version would use LangGraph's interrupt() mechanism
-    
+
     await observability.emitProgress(
       ctx,
       ctx.taskId,
@@ -76,12 +74,12 @@ export async function resumeAfterHitlApproval(
 ): Promise<void> {
   // This function would be called from an API endpoint
   // to resume the graph after attorney review
-  
+
   // For now, just a placeholder
   console.log(
     `HITL Resume: threadId=${threadId}, taskId=${taskId}, approved=${approved}`,
   );
-  
+
   // In production:
   // 1. Update state with approval decision
   // 2. Resume graph execution from checkpoint

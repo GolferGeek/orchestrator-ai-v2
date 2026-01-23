@@ -41,7 +41,7 @@
           v-for="score in compositeScores"
           :key="score.id"
           class="subject-card"
-          @click="$emit('select-subject', getSubjectId(score), score)"
+          @click="handleSubjectClick(score)"
         >
           <div class="subject-header">
             <h4>{{ getSubjectDisplayName(score) }}</h4>
@@ -87,7 +87,7 @@ const props = defineProps<{
   stats: DashboardStats;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   'select-subject': [subjectId: string, compositeScore: ActiveCompositeScoreView];
   'analyze': [subjectId: string];
 }>();
@@ -109,7 +109,52 @@ type ApiScore = ActiveCompositeScoreView & {
 
 // Helper to get subject ID (handles both camelCase and snake_case)
 function getSubjectId(score: ApiScore): string {
-  return score.subjectId || score.subject_id || '';
+  // Try camelCase first (transformed), then snake_case (raw API), then check the record
+  const s = score as unknown as Record<string, unknown>;
+  
+  // Try all possible field names
+  const subjectId = 
+    (s.subjectId as string) ||           // camelCase (transformed)
+    (s.subject_id as string) ||          // snake_case (raw API)
+    (score.subjectId as string) ||       // Direct property access
+    (score.subject_id as string) ||      // Direct property access snake_case
+    '';
+  
+  // Debug logging - always log to see what we're working with
+  console.log('getSubjectId - score.id:', s.id);
+  console.log('getSubjectId - s.subjectId:', s.subjectId);
+  console.log('getSubjectId - s.subject_id:', s.subject_id);
+  console.log('getSubjectId - extracted subjectId:', subjectId);
+  
+  if (!subjectId) {
+    console.error('getSubjectId: No subjectId found!');
+    console.error('All score keys:', Object.keys(s));
+    console.error('Full score object:', JSON.stringify(score, null, 2));
+  }
+  
+  return subjectId;
+}
+
+// Click handler with explicit logging
+function handleSubjectClick(score: ApiScore) {
+  console.log('=== CLICK HANDLER FIRED ===');
+  console.log('Full score object:', JSON.stringify(score, null, 2));
+  console.log('Score keys:', Object.keys(score));
+  console.log('score.subjectId:', (score as unknown as Record<string, unknown>).subjectId);
+  console.log('score.subject_id:', (score as unknown as Record<string, unknown>).subject_id);
+  
+  const subjectId = getSubjectId(score);
+  console.log('Extracted subjectId:', subjectId);
+  
+  if (!subjectId || subjectId.trim() === '') {
+    console.error('ERROR: getSubjectId returned empty string!');
+    console.error('Score object:', score);
+    alert('ERROR: Could not extract subjectId from score. Check console for details.');
+    return;
+  }
+  
+  console.log('Emitting select-subject event with subjectId:', subjectId);
+  emit('select-subject', subjectId, score);
 }
 
 // Helper to get display name

@@ -216,34 +216,90 @@ function determineRouting(
     category: string;
   }> = [
     // Contract keywords
-    { pattern: /\b(nda|non-disclosure)\b/i, specialist: "contract", category: "nda" },
-    { pattern: /\b(contract|agreement)\b/i, specialist: "contract", category: "contract" },
-    { pattern: /\b(msa|master service)\b/i, specialist: "contract", category: "msa" },
-    { pattern: /\bterms\s+(and|&)\s+conditions\b/i, specialist: "contract", category: "terms" },
+    {
+      pattern: /\b(nda|non-disclosure)\b/i,
+      specialist: "contract",
+      category: "nda",
+    },
+    {
+      pattern: /\b(contract|agreement)\b/i,
+      specialist: "contract",
+      category: "contract",
+    },
+    {
+      pattern: /\b(msa|master service)\b/i,
+      specialist: "contract",
+      category: "msa",
+    },
+    {
+      pattern: /\bterms\s+(and|&)\s+conditions\b/i,
+      specialist: "contract",
+      category: "terms",
+    },
 
     // Employment keywords
-    { pattern: /\b(employment|offer\s+letter|hire)\b/i, specialist: "employment", category: "employment" },
-    { pattern: /\b(non-compete|non-solicitation)\b/i, specialist: "employment", category: "restrictive-covenant" },
+    {
+      pattern: /\b(employment|offer\s+letter|hire)\b/i,
+      specialist: "employment",
+      category: "employment",
+    },
+    {
+      pattern: /\b(non-compete|non-solicitation)\b/i,
+      specialist: "employment",
+      category: "restrictive-covenant",
+    },
 
     // IP keywords
-    { pattern: /\b(ip|intellectual\s+property)\b/i, specialist: "ip", category: "ip" },
-    { pattern: /\b(patent|trademark|copyright)\b/i, specialist: "ip", category: "ip-rights" },
+    {
+      pattern: /\b(ip|intellectual\s+property)\b/i,
+      specialist: "ip",
+      category: "ip",
+    },
+    {
+      pattern: /\b(patent|trademark|copyright)\b/i,
+      specialist: "ip",
+      category: "ip-rights",
+    },
 
     // Privacy keywords
-    { pattern: /\b(privacy|gdpr|ccpa|data\s+protection)\b/i, specialist: "privacy", category: "privacy" },
-    { pattern: /\b(dpa|data\s+processing)\b/i, specialist: "privacy", category: "dpa" },
+    {
+      pattern: /\b(privacy|gdpr|ccpa|data\s+protection)\b/i,
+      specialist: "privacy",
+      category: "privacy",
+    },
+    {
+      pattern: /\b(dpa|data\s+processing)\b/i,
+      specialist: "privacy",
+      category: "dpa",
+    },
 
     // Compliance keywords
-    { pattern: /\b(compliance|policy|regulation)\b/i, specialist: "compliance", category: "compliance" },
+    {
+      pattern: /\b(compliance|policy|regulation)\b/i,
+      specialist: "compliance",
+      category: "compliance",
+    },
 
     // Corporate keywords
-    { pattern: /\b(corporate|governance|board|resolution)\b/i, specialist: "corporate", category: "corporate" },
+    {
+      pattern: /\b(corporate|governance|board|resolution)\b/i,
+      specialist: "corporate",
+      category: "corporate",
+    },
 
     // Litigation keywords
-    { pattern: /\b(litigation|lawsuit|court|pleading|motion)\b/i, specialist: "litigation", category: "litigation" },
+    {
+      pattern: /\b(litigation|lawsuit|court|pleading|motion)\b/i,
+      specialist: "litigation",
+      category: "litigation",
+    },
 
     // Real estate keywords
-    { pattern: /\b(lease|real\s+estate|property|title)\b/i, specialist: "real_estate", category: "real-estate" },
+    {
+      pattern: /\b(lease|real\s+estate|property|title)\b/i,
+      specialist: "real_estate",
+      category: "real-estate",
+    },
   ];
 
   // Track categories found
@@ -261,7 +317,9 @@ function determineRouting(
       specialist = matchedSpecialist;
       confidence = 0.9;
       categories.push(`document-type:${normalizedType}`);
-      reasons.push(`Document type "${documentType}" maps to ${specialist} specialist.`);
+      reasons.push(
+        `Document type "${documentType}" maps to ${specialist} specialist.`,
+      );
     } else {
       // Check for partial matches
       for (const [key, value] of Object.entries(documentTypeMapping)) {
@@ -269,7 +327,9 @@ function determineRouting(
           specialist = value;
           confidence = 0.7;
           categories.push(`document-type:${key}`);
-          reasons.push(`Document type "${documentType}" partially matches ${key}, routing to ${specialist}.`);
+          reasons.push(
+            `Document type "${documentType}" partially matches ${key}, routing to ${specialist}.`,
+          );
           break;
         }
       }
@@ -277,7 +337,11 @@ function determineRouting(
   }
 
   // 2. Check keywords in user message
-  for (const { pattern, specialist: keywordSpecialist, category } of keywordPatterns) {
+  for (const {
+    pattern,
+    specialist: keywordSpecialist,
+    category,
+  } of keywordPatterns) {
     if (pattern.test(userMessage)) {
       categories.push(`keyword:${category}`);
 
@@ -296,7 +360,9 @@ function determineRouting(
   // 3. If no routing determined, default to contract
   if (categories.length === 0) {
     categories.push("default");
-    reasons.push("No specific document type or keywords detected. Defaulting to contract specialist.");
+    reasons.push(
+      "No specific document type or keywords detected. Defaulting to contract specialist.",
+    );
   }
 
   // M4-M10: All specialists are now available
@@ -320,12 +386,14 @@ function determineRouting(
   }
 
   // Determine alternatives for multi-agent (M11)
-  const alternativeSpecialists = [...new Set(
-    keywordPatterns
-      .filter(({ pattern }) => pattern.test(userMessage))
-      .map(({ specialist: s }) => s)
-      .filter((s) => s !== specialist && availableSpecialists.includes(s)),
-  )];
+  const alternativeSpecialists = [
+    ...new Set(
+      keywordPatterns
+        .filter(({ pattern }) => pattern.test(userMessage))
+        .map(({ specialist: s }) => s)
+        .filter((s) => s !== specialist && availableSpecialists.includes(s)),
+    ),
+  ];
 
   // M11: Detect if document requires multiple specialists
   // Check document content for multiple legal domains
@@ -334,7 +402,7 @@ function determineRouting(
 
   // Analyze document text for multiple legal domains
   const docLower = documentText.toLowerCase();
-  
+
   // Contract patterns (almost always present, but check for others too)
   if (docLower.includes("contract") || docLower.includes("agreement")) {
     detectedSpecialists.add("contract");
@@ -415,7 +483,8 @@ function determineRouting(
     specialists: multiAgent ? multiAgentSpecialists : undefined,
     confidence,
     reasoning: reasons.join(" "),
-    alternatives: alternativeSpecialists.length > 0 ? alternativeSpecialists : undefined,
+    alternatives:
+      alternativeSpecialists.length > 0 ? alternativeSpecialists : undefined,
     categories,
     multiAgent,
   };

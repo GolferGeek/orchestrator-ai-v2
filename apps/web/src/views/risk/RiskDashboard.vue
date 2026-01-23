@@ -159,6 +159,7 @@ import { IonPage, IonContent } from '@ionic/vue';
 import { useRiskDashboardStore } from '@/stores/riskDashboardStore';
 import { useAuthStore } from '@/stores/rbacStore';
 import { riskDashboardService } from '@/services/riskDashboardService';
+import type { RiskAssessment, RiskSubject, ActiveCompositeScoreView } from '@/types/risk-agent';
 import OverviewTab from './tabs/OverviewTab.vue';
 import AlertsTab from './tabs/AlertsTab.vue';
 import DimensionsTab from './tabs/DimensionsTab.vue';
@@ -270,19 +271,13 @@ async function loadScopeData(scopeId: string) {
       store.setPendingLearnings(learningsRes.content);
     }
 
-    // Calculate average score from composite scores (handle both 0-1 and 0-100 scales)
+    // Calculate average score from composite scores
+    // Note: setCompositeScores already transforms overall_score (0-100) to score (0-1)
     let avgScore = 0;
     if (store.compositeScores.length > 0) {
       const total = store.compositeScores.reduce((sum, s) => {
-        const sRecord = s as unknown as Record<string, unknown>;
-        const score =
-          (typeof sRecord['overall_score'] === 'number'
-            ? sRecord['overall_score']
-            : undefined) ??
-          (typeof sRecord['score'] === 'number' ? sRecord['score'] : undefined) ??
-          0;
-        // Normalize to 0-1 scale
-        return sum + (score > 1 ? score / 100 : score);
+        // After transformation, score is already 0-1 scale
+        return sum + (s.score || 0);
       }, 0);
       avgScore = total / store.compositeScores.length;
     }
@@ -319,6 +314,14 @@ function onScopeChange() {
 }
 
 async function onSelectSubject(subjectId: string, compositeScore?: unknown) {
+  // Validate subjectId is not empty
+  if (!subjectId || subjectId.trim() === '') {
+    console.error('Invalid subjectId passed to onSelectSubject:', subjectId);
+    detailError.value = 'Invalid subject ID';
+    return;
+  }
+  
+  console.log('Selecting subject:', subjectId, 'with compositeScore:', compositeScore);
   selectedSubjectId.value = subjectId;
   showDetailPanel.value = true;
   await loadSubjectDetails(subjectId, compositeScore);
@@ -340,30 +343,78 @@ function pickFirstStringField(
   return fallback;
 }
 
+// Transform assessment from snake_case to camelCase
+function transformAssessment(assessment: unknown): RiskAssessment {
+  const a = assessment as unknown as Record<string, unknown>;
+  return {
+    id: (a.id as string) || '',
+    subjectId: (a.subject_id as string) || (a.subjectId as string) || '',
+    dimensionId: (a.dimension_id as string) || (a.dimensionId as string) || '',
+    dimensionContextId: (a.dimension_context_id as string) || (a.dimensionContextId as string) || '',
+    taskId: (a.task_id as string) || (a.taskId as string) || '',
+    score: typeof a.score === 'number' ? (a.score > 1 ? a.score / 100 : a.score) : 0,
+    confidence: typeof a.confidence === 'number' ? a.confidence : 0,
+    signals: (a.signals as RiskAssessment['signals']) || [],
+    analystResponse: (a.analyst_response as RiskAssessment['analystResponse']) || (a.analystResponse as RiskAssessment['analystResponse']) || {},
+    createdAt: (a.created_at as string) || (a.createdAt as string) || '',
+    dimensionSlug: (a.dimension_slug as string) || (a.dimensionSlug as string) || undefined,
+    dimensionName: (a.dimension_name as string) || (a.dimensionName as string) || undefined,
+    dimensionWeight: typeof a.dimension_weight === 'number' ? a.dimension_weight : (typeof a.dimensionWeight === 'number' ? a.dimensionWeight : undefined),
+  };
+}
+
 async function loadSubjectDetails(subjectId: string, passedCompositeScore?: unknown) {
   isLoadingDetail.value = true;
   detailError.value = null;
 
-  try {
-    // Use passed composite score or find in store
-    const existingScore =
-      passedCompositeScore ||
-      store.compositeScores.find(
-        (s) =>
-          (s as { subjectId?: string }).subjectId === subjectId ||
-          (s as unknown as Record<string, unknown>)['subject_id'] === subjectId,
-      );
+  console.log('Loading subject details for:', subjectId);
+  console.log('Available composite scores:', store.compositeScores.map(s => ({ id: s.id, subjectId: (s as unknown as Record<string, unknown>).subjectId || (s as unknown as Record<string, unknown>).subject_id })));
 
-    // Fetch additional details in parallel
-    const [assessmentsRes, debateRes, alertsRes] = await Promise.all([
+  try {
+    // Fetch subject details and additional data in parallel
+    const [subjectRes, existingScore, assessmentsRes, debateRes, alertsRes] = await Promise.all([
+      riskDashboardService.getSubject(subjectId).catch((err) => {
+        console.error('Error fetching subject:', err);
+        return { success: false, content: null };
+      }),
+      Promise.resolve(
+        passedCompositeScore ||
+        store.compositeScores.find(
+          (s) => {
+            const sRecord = s as unknown as Record<string, unknown>;
+            const sSubjectId = sRecord.subjectId as string || sRecord.subject_id as string || '';
+            const match = sSubjectId === subjectId;
+            console.log('Checking score:', s.id, 'subjectId:', sSubjectId, 'matches:', match);
+            return match;
+          },
+        ),
+      ),
       riskDashboardService.getAssessmentsBySubject(subjectId).catch(() => ({ success: false, content: [] })),
       riskDashboardService.getLatestDebate(subjectId).catch(() => ({ success: true, content: null })),
       riskDashboardService.listAlerts({ subjectId }).catch(() => ({ success: false, content: [] })),
     ]);
 
-    if (existingScore) {
+    console.log('Subject fetch result:', subjectRes.success, subjectRes.content);
+    console.log('Existing score found:', !!existingScore);
+
+    // Use subject from API if available, otherwise build from composite score
+    let subject: RiskSubject;
+    if (subjectRes.success && subjectRes.content) {
+      // Subject from API - transform snake_case to camelCase
+      const s = subjectRes.content as unknown as Record<string, unknown>;
+      subject = {
+        ...subjectRes.content,
+        scopeId: (s.scope_id as string) || (s.scopeId as string) || '',
+        subjectType: ((s.subject_type as string) || (s.subjectType as string) || 'custom') as RiskSubject['subjectType'],
+        isActive: s.is_active === true || s.isActive === true,
+        createdAt: (s.created_at as string) || (s.createdAt as string) || '',
+        updatedAt: (s.updated_at as string) || (s.updatedAt as string) || '',
+        name: (s.name as string) || '',
+      } as RiskSubject;
+    } else if (existingScore) {
       // Build subject from composite score data (handles snake_case)
-      const subject = {
+      const _s = existingScore as unknown as Record<string, unknown>;
+      subject = {
         id: subjectId,
         identifier: pickFirstStringField(
           existingScore,
@@ -375,34 +426,66 @@ async function loadSubjectDetails(subjectId: string, passedCompositeScore?: unkn
           ['subject_name', 'subjectName'],
           'Unknown',
         ),
-        subjectType: pickFirstStringField(
+        subjectType: (pickFirstStringField(
           existingScore,
           ['subject_type', 'subjectType'],
-          '',
-        ),
+          'custom',
+        ) as RiskSubject['subjectType']) || 'custom',
         scopeId: pickFirstStringField(existingScore, ['scopeId', 'scope_id'], ''),
         isActive: true,
         createdAt: pickFirstStringField(existingScore, ['createdAt', 'created_at'], ''),
         updatedAt: pickFirstStringField(existingScore, ['updatedAt', 'updated_at'], ''),
       };
-
-      store.setSelectedSubject({
-        subject,
-        compositeScore: existingScore,
-        assessments: assessmentsRes.success && Array.isArray(assessmentsRes.content) ? assessmentsRes.content : [],
-        debate: debateRes.success && debateRes.content ? debateRes.content : null,
-        alerts: alertsRes.success && Array.isArray(alertsRes.content) ? alertsRes.content : [],
-        evaluations: [],
-      });
     } else {
-      console.error('No composite score found for subject:', subjectId);
-      detailError.value = 'Failed to load subject details';
+      console.error('No subject or composite score found for subject:', subjectId);
+      console.error('Available composite scores:', store.compositeScores.map(s => {
+        const sRecord = s as unknown as Record<string, unknown>;
+        return {
+          id: s.id,
+          subjectId: sRecord.subjectId || sRecord.subject_id,
+          subjectIdentifier: sRecord.subjectIdentifier || sRecord.subject_identifier
+        };
+      }));
+      detailError.value = 'Failed to load subject details - no matching composite score found';
+      isLoadingDetail.value = false;
+      return;
     }
+
+    // Transform assessments
+    const assessments = assessmentsRes.success && Array.isArray(assessmentsRes.content)
+      ? assessmentsRes.content.map(transformAssessment)
+      : [];
+
+    console.log('Setting selected subject:', { 
+      subject: { id: subject.id, name: subject.name, identifier: subject.identifier },
+      existingScore: existingScore ? { id: (existingScore as unknown as Record<string, unknown>).id } : null,
+      assessmentsCount: assessments.length 
+    });
+    
+    if (!subject || !subject.id) {
+      console.error('Invalid subject object:', subject);
+      detailError.value = 'Invalid subject data';
+      isLoadingDetail.value = false;
+      return;
+    }
+    
+    store.setSelectedSubject({
+      subject,
+      compositeScore: existingScore as ActiveCompositeScoreView | undefined,
+      assessments,
+      debate: debateRes.success && debateRes.content ? debateRes.content : null,
+      alerts: alertsRes.success && Array.isArray(alertsRes.content) ? alertsRes.content : [],
+      evaluations: [],
+    });
+    console.log('Selected subject set in store:', store.selectedSubject);
+    console.log('showDetailPanel:', showDetailPanel.value);
+    console.log('Panel should show:', showDetailPanel.value && !!store.selectedSubject?.subject);
   } catch (error) {
     console.error('Error loading subject details:', error);
     detailError.value = error instanceof Error ? error.message : 'Failed to load subject details';
   } finally {
     isLoadingDetail.value = false;
+    console.log('Loading complete. showDetailPanel:', showDetailPanel.value, 'selectedSubject:', !!store.selectedSubject);
   }
 }
 

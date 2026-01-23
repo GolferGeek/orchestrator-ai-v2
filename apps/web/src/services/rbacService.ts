@@ -64,8 +64,17 @@ export interface AuditLogEntry {
 }
 
 class RbacService {
+  /**
+   * Get auth token from storage
+   * TokenStorageService migrates tokens from localStorage to sessionStorage,
+   * so we check sessionStorage first, then fall back to localStorage
+   */
+  private getAuthToken(): string | null {
+    return sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
+  }
+
   private getAuthHeaders(): Record<string, string> {
-    const token = localStorage.getItem('authToken');
+    const token = this.getAuthToken();
     return {
       ...getSecureHeaders(),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),

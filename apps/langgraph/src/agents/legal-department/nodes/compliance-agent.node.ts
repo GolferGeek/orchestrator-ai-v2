@@ -45,7 +45,11 @@ export interface ComplianceAnalysisOutput {
     /** Applicable regulations */
     regulations: string[];
     /** Compliance status */
-    status: "compliant" | "non-compliant" | "review-required" | "not-applicable";
+    status:
+      | "compliant"
+      | "non-compliant"
+      | "review-required"
+      | "not-applicable";
     /** Details */
     details: string;
   };
@@ -388,7 +392,11 @@ function applyPlaybookRules(
     ];
     const isUS = usStates.some((state) => jurisdiction.includes(state));
 
-    if (!isUS && !jurisdiction.includes("usa") && !jurisdiction.includes("united states")) {
+    if (
+      !isUS &&
+      !jurisdiction.includes("usa") &&
+      !jurisdiction.includes("united states")
+    ) {
       existingFlags.push({
         flag: "non-us-jurisdiction",
         severity: "medium",

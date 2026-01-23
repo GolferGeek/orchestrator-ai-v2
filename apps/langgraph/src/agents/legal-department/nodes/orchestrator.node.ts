@@ -62,7 +62,11 @@ export function createOrchestratorNode(
       ctx,
       ctx.taskId,
       `Orchestrator: Invoking ${specialistsList.length} specialists`,
-      { step: "orchestrator_start", progress: 55, specialists: specialistsList },
+      {
+        step: "orchestrator_start",
+        progress: 55,
+        specialists: specialistsList,
+      },
     );
 
     try {
@@ -80,20 +84,34 @@ export function createOrchestratorNode(
         ctx,
         ctx.taskId,
         `Orchestrator: Invoking ${validSpecialists.length} specialists in parallel`,
-        { step: "orchestrator_parallel_start", progress: 55, specialists: validSpecialists },
+        {
+          step: "orchestrator_parallel_start",
+          progress: 55,
+          specialists: validSpecialists,
+        },
       );
 
       // Invoke all specialists in parallel
       const results = await Promise.all(
         validSpecialists.map(async (specialistName) => {
-          const specialist = specialists[specialistName as keyof typeof specialists];
+          const specialist =
+            specialists[specialistName as keyof typeof specialists];
           try {
             const result = await specialist(state);
-            return { specialistName, result, success: !(result.error || result.status === "failed") };
+            return {
+              specialistName,
+              result,
+              success: !(result.error || result.status === "failed"),
+            };
           } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
+            const errorMessage =
+              error instanceof Error ? error.message : String(error);
             console.error(`Specialist ${specialistName} failed:`, errorMessage);
-            return { specialistName, result: { error: errorMessage }, success: false };
+            return {
+              specialistName,
+              result: { error: errorMessage },
+              success: false,
+            };
           }
         }),
       );

@@ -5,7 +5,7 @@ import { ObservabilityService } from "../../../services/observability.service";
 const AGENT_SLUG = "legal-department";
 
 /**
- * Privacy Analysis Output Interface  
+ * Privacy Analysis Output Interface
  *
  * Structured output from the privacy specialist agent.
  * Used for GDPR/CCPA compliance and data protection analysis.
@@ -79,7 +79,7 @@ export interface PrivacyAnalysisOutput {
  *
  * M6 Playbook Rules:
  * - Flag missing SCCs for EU data transfers
- * - Flag unclear data retention periods  
+ * - Flag unclear data retention periods
  * - Flag missing data subject rights provisions
  */
 export function createPrivacyAgentNode(

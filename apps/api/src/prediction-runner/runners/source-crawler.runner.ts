@@ -238,6 +238,7 @@ export class SourceCrawlerRunner {
   /**
    * Crawl a single source and create signals
    * Applies backpressure controls before crawling
+   * For universe-scoped sources, crawls for ALL targets in the universe
    */
   private async crawlSource(
     source: Source,
@@ -255,26 +256,41 @@ export class SourceCrawlerRunner {
     this.backpressureService.recordCrawlStart(source.id);
 
     try {
-      // Get target ID for the source
+      // Get target ID(s) for the source
       // Sources can be scoped at runner/domain/universe/target level
-      // We need to find the appropriate target(s) to create signals for
-      const targetId = await this.resolveTargetForSource(source);
+      const targetIds = await this.resolveTargetsForSource(source);
 
-      if (!targetId) {
+      if (targetIds.length === 0) {
         this.logger.warn(
-          `Could not resolve target for source ${source.id} (scope: ${source.scope_level})`,
+          `Could not resolve targets for source ${source.id} (scope: ${source.scope_level})`,
         );
         return { success: false, signalsCreated: 0 };
       }
 
-      const result = await this.sourceCrawlerService.crawlSource(
-        source,
-        targetId,
-      );
+      // For universe-scoped sources, crawl for each target
+      let totalSignalsCreated = 0;
+      let anySuccess = false;
+
+      for (const targetId of targetIds) {
+        try {
+          const result = await this.sourceCrawlerService.crawlSource(
+            source,
+            targetId,
+          );
+          if (result.result.success) {
+            anySuccess = true;
+          }
+          totalSignalsCreated += result.signalsCreated;
+        } catch (error) {
+          this.logger.error(
+            `Error crawling source ${source.id} for target ${targetId}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          );
+        }
+      }
 
       return {
-        success: result.result.success,
-        signalsCreated: result.signalsCreated,
+        success: anySuccess,
+        signalsCreated: totalSignalsCreated,
       };
     } finally {
       // Always record crawl completion for backpressure tracking
@@ -283,24 +299,31 @@ export class SourceCrawlerRunner {
   }
 
   /**
-   * Resolve the target ID for a source based on its scope
+   * Resolve the target ID(s) for a source based on its scope
+   * Returns array of target IDs - single for target-scoped, multiple for universe-scoped
    */
-  private async resolveTargetForSource(source: Source): Promise<string | null> {
+  private async resolveTargetsForSource(source: Source): Promise<string[]> {
     switch (source.scope_level) {
       case 'target':
         // Target-scoped sources have direct target_id
-        return source.target_id || null;
+        return source.target_id ? [source.target_id] : [];
 
       case 'universe':
-        // Universe-scoped sources - return first active target in universe
-        // In practice, universe sources would be crawled for each target
+        // Universe-scoped sources - crawl for ALL active targets in universe
         if (source.universe_id) {
           const targets = await this.targetRepository.findActiveByUniverse(
             source.universe_id,
           );
-          return targets[0]?.id || null;
+          // Filter out test targets (T_* prefix) for production crawls
+          const productionTargets = targets.filter(
+            (t) => !t.symbol?.startsWith('T_'),
+          );
+          this.logger.debug(
+            `Universe source ${source.id}: found ${productionTargets.length} production targets`,
+          );
+          return productionTargets.map((t) => t.id);
         }
-        return null;
+        return [];
 
       case 'domain':
       case 'runner':
@@ -309,10 +332,10 @@ export class SourceCrawlerRunner {
         this.logger.debug(
           `Source ${source.id} has ${source.scope_level} scope - skipping direct crawl`,
         );
-        return null;
+        return [];
 
       default:
-        return null;
+        return [];
     }
   }
 

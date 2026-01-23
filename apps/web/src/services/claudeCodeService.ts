@@ -192,7 +192,8 @@ class ClaudeCodeService {
     sourceContext?: 'web-app' | 'orch-flow' | 'default',
   ): Promise<AbortController> {
     const abortController = new AbortController();
-    const token = localStorage.getItem('authToken');
+    // TokenStorageService migrates tokens to sessionStorage, so check there first
+    const token = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
 
     // Track session ID from the response
     let currentSessionId: string | undefined = sessionId;

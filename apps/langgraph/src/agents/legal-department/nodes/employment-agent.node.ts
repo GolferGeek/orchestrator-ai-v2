@@ -278,9 +278,7 @@ function parseEmploymentAnalysis(
  * Normalize risk flags to ensure consistent structure
  * Handles various LLM output formats
  */
-function normalizeRiskFlags(
-  flags: unknown[],
-): Array<{
+function normalizeRiskFlags(flags: unknown[]): Array<{
   flag: string;
   severity: "low" | "medium" | "high" | "critical";
   description: string;
@@ -416,8 +414,7 @@ function applyPlaybookRules(
       existingFlags.push({
         flag: "missing-at-will-language",
         severity: "high",
-        description:
-          "At-will employment language is not clearly stated.",
+        description: "At-will employment language is not clearly stated.",
         recommendation:
           "Add clear at-will employment clause to avoid implied contract claims.",
       });

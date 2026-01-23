@@ -80,10 +80,7 @@ export function createSynthesisNode(
 
       // Build synthesis prompt
       const systemMessage = buildSynthesisPrompt();
-      const userMessage = buildSynthesisUserMessage(
-        specialistOutputs,
-        state,
-      );
+      const userMessage = buildSynthesisUserMessage(specialistOutputs, state);
 
       // Single LLM call to synthesize all outputs
       const response = await llmClient.callLLM({
@@ -100,10 +97,7 @@ export function createSynthesisNode(
       try {
         synthesis = parseSynthesis(response.text);
       } catch (parseError) {
-        synthesis = createFallbackSynthesis(
-          response.text,
-          specialists,
-        );
+        synthesis = createFallbackSynthesis(response.text, specialists);
       }
 
       await observability.emitProgress(

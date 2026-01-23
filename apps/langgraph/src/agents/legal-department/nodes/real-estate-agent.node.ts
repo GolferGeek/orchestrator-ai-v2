@@ -12,7 +12,13 @@ export interface RealEstateAnalysisOutput {
     /** Property description */
     description?: string;
     /** Property type */
-    propertyType?: "commercial" | "residential" | "industrial" | "land" | "mixed-use" | "other";
+    propertyType?:
+      | "commercial"
+      | "residential"
+      | "industrial"
+      | "land"
+      | "mixed-use"
+      | "other";
     /** Legal description */
     legalDescription?: string;
     details: string;
@@ -325,14 +331,12 @@ function applyPlaybookRules(
   }
 
   // Rule 2: Flag unclear title
-  if (
-    analysis.titleIssues &&
-    analysis.titleIssues.clearTitle === false
-  ) {
+  if (analysis.titleIssues && analysis.titleIssues.clearTitle === false) {
     existingFlags.push({
       flag: "unclear-title",
       severity: "critical",
-      description: "Title is not clear. Multiple exceptions or encumbrances identified.",
+      description:
+        "Title is not clear. Multiple exceptions or encumbrances identified.",
       recommendation:
         "Obtain title insurance. Review all exceptions with title company. May require cure before closing.",
     });

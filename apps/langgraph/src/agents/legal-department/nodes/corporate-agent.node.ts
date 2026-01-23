@@ -238,9 +238,7 @@ function buildUserMessage(
   return message;
 }
 
-function parseCorporateAnalysis(
-  responseText: string,
-): CorporateAnalysisOutput {
+function parseCorporateAnalysis(responseText: string): CorporateAnalysisOutput {
   let jsonStr = responseText.trim();
   if (jsonStr.startsWith("```json")) jsonStr = jsonStr.slice(7);
   else if (jsonStr.startsWith("```")) jsonStr = jsonStr.slice(3);
@@ -264,9 +262,7 @@ function parseCorporateAnalysis(
   };
 }
 
-function createFallbackAnalysis(
-  responseText: string,
-): CorporateAnalysisOutput {
+function createFallbackAnalysis(responseText: string): CorporateAnalysisOutput {
   return {
     documentType: {
       type: "other",
@@ -292,10 +288,7 @@ function applyPlaybookRules(
   const existingFlags = [...analysis.riskFlags];
 
   // Rule 1: Flag missing quorum
-  if (
-    analysis.governance?.quorum &&
-    analysis.governance.quorum.met === false
-  ) {
+  if (analysis.governance?.quorum && analysis.governance.quorum.met === false) {
     existingFlags.push({
       flag: "quorum-not-met",
       severity: "critical",

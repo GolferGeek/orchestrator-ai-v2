@@ -18,6 +18,15 @@
 
 import { apiService } from './apiService';
 import { useCadAgentStore } from '@/stores/cadAgentStore';
+
+/**
+ * Get auth token from storage
+ * TokenStorageService migrates tokens from localStorage to sessionStorage,
+ * so we check sessionStorage first, then fall back to localStorage
+ */
+function getAuthToken(): string | null {
+  return sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
+}
 import type {
   CadConstraints,
   CadOutputs,
@@ -289,7 +298,7 @@ class CadAgentService {
     try {
       const response = await fetch(`${LANGGRAPH_BASE_URL}/cad-agent/status/${taskId}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('authToken')}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
       });
 
@@ -333,7 +342,7 @@ class CadAgentService {
     try {
       const response = await fetch(`${LANGGRAPH_BASE_URL}/cad-agent/outputs/${drawingId}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('authToken')}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
       });
 
@@ -383,7 +392,7 @@ class CadAgentService {
     this.disconnectSSEStream();
 
     // Get auth token for SSE connection
-    const token = localStorage.getItem('authToken');
+    const token = getAuthToken();
     if (!token) {
       console.error('[CAD Agent] No auth token available for SSE connection');
       store.setError('Authentication required for real-time updates');

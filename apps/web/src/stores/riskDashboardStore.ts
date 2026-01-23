@@ -288,7 +288,19 @@ export const useRiskDashboardStore = defineStore('riskDashboard', () => {
   }
 
   function setSubjects(subjects: RiskSubject[]) {
-    state.value.subjects = subjects;
+    // Transform snake_case API response to camelCase expected by frontend
+    state.value.subjects = subjects.map((subject) => {
+      const s = subject as unknown as Record<string, unknown>;
+      return {
+        ...subject,
+        scopeId: (s.scope_id as string) || (s.scopeId as string) || '',
+        subjectType: (s.subject_type as string) || (s.subjectType as string) || 'custom',
+        isActive: s.is_active === true || s.isActive === true,
+        createdAt: (s.created_at as string) || (s.createdAt as string) || '',
+        updatedAt: (s.updated_at as string) || (s.updatedAt as string) || '',
+        name: (s.name as string) || '',
+      } as RiskSubject;
+    });
   }
 
   function addSubject(subject: RiskSubject) {
@@ -315,7 +327,19 @@ export const useRiskDashboardStore = defineStore('riskDashboard', () => {
   }
 
   function setDimensions(dimensions: RiskDimension[]) {
-    state.value.dimensions = dimensions;
+    // Transform snake_case API response to camelCase expected by frontend
+    state.value.dimensions = dimensions.map((dimension) => {
+      const d = dimension as unknown as Record<string, unknown>;
+      return {
+        ...dimension,
+        scopeId: (d.scope_id as string) || (d.scopeId as string) || '',
+        displayName: (d.display_name as string) || (d.displayName as string) || undefined,
+        displayOrder: typeof d.display_order === 'number' ? d.display_order : (typeof d.displayOrder === 'number' ? d.displayOrder : undefined),
+        isActive: d.is_active === true || d.isActive === true,
+        createdAt: (d.created_at as string) || (d.createdAt as string) || '',
+        updatedAt: (d.updated_at as string) || (d.updatedAt as string) || '',
+      } as RiskDimension;
+    });
   }
 
   function addDimension(dimension: RiskDimension) {
@@ -341,8 +365,65 @@ export const useRiskDashboardStore = defineStore('riskDashboard', () => {
     state.value.dimensions = state.value.dimensions.filter((d) => d.id !== id);
   }
 
+  // Helper to transform dimension scores from 0-100 to 0-1 scale
+  function transformDimensionScores(dimensionScores: Record<string, unknown>): Record<string, { score: number; confidence: number; weight: number; assessmentId: string }> {
+    const result: Record<string, { score: number; confidence: number; weight: number; assessmentId: string }> = {};
+    for (const [slug, data] of Object.entries(dimensionScores)) {
+      if (data && typeof data === 'object' && !Array.isArray(data)) {
+        const d = data as Record<string, unknown>;
+        const rawScore = typeof d.score === 'number' ? d.score : 0;
+        const rawConfidence = typeof d.confidence === 'number' ? d.confidence : 0;
+        result[slug] = {
+          // Normalize score: if > 1 assume 0-100 scale, convert to 0-1
+          score: rawScore > 1 ? rawScore / 100 : rawScore,
+          confidence: rawConfidence > 1 ? rawConfidence / 100 : rawConfidence,
+          weight: typeof d.weight === 'number' ? d.weight : 1,
+          assessmentId: (d.assessmentId as string) || (d.assessment_id as string) || '',
+        };
+      }
+    }
+    return result;
+  }
+
   function setCompositeScores(scores: ActiveCompositeScoreView[]) {
-    state.value.compositeScores = scores;
+    // Transform snake_case API response to camelCase expected by frontend
+    state.value.compositeScores = scores.map((score) => {
+      const s = score as unknown as Record<string, unknown>;
+      const createdAt = s.created_at as string || s.createdAt as string || '';
+      // Calculate ageHours from created_at timestamp
+      const ageHours = createdAt 
+        ? Math.floor((Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60))
+        : (typeof s.age_hours === 'number' ? s.age_hours : (typeof s.ageHours === 'number' ? s.ageHours : 0));
+      
+      // Extract subjectId - this is critical for subject selection
+      // Must extract BEFORE spreading to avoid overwriting
+      const subjectId = (s.subject_id as string) || (s.subjectId as string) || '';
+      
+      if (!subjectId) {
+        console.warn('setCompositeScores: No subjectId found in score:', score.id, 'keys:', Object.keys(s));
+      }
+      
+      // Create transformed object - subjectId MUST come after spread to override any undefined value
+      return {
+        ...score,
+        // Map overall_score (0-100) to score (0-1) for frontend
+        score: typeof s.overall_score === 'number' 
+          ? s.overall_score / 100 
+          : (typeof s.score === 'number' ? s.score : 0),
+        // CRITICAL: Ensure subjectId is set (used for subject selection) - must come after spread
+        subjectId: subjectId || (s.id as string) || '', // Fallback to score.id if subjectId missing
+        subjectIdentifier: (s.subject_identifier as string) || (s.subjectIdentifier as string) || '',
+        subjectName: (s.subject_name as string) || (s.subjectName as string) || '',
+        subjectType: (s.subject_type as string) || (s.subjectType as string) || '',
+        taskId: (s.task_id as string) || (s.taskId as string) || '',
+        dimensionScores: transformDimensionScores((s.dimension_scores as Record<string, unknown>) || s.dimensionScores || {}),
+        debateId: (s.debate_id as string) || (s.debateId as string) || undefined,
+        debateAdjustment: (s.debate_adjustment as number) || (s.debateAdjustment as number) || undefined,
+        createdAt,
+        isSuperseded: s.status === 'superseded' || s.isSuperseded === true,
+        ageHours,
+      } as ActiveCompositeScoreView;
+    });
   }
 
   function addCompositeScore(score: ActiveCompositeScoreView) {
@@ -365,7 +446,20 @@ export const useRiskDashboardStore = defineStore('riskDashboard', () => {
   }
 
   function setAlerts(alerts: UnacknowledgedAlertView[]) {
-    state.value.alerts = alerts;
+    // Transform snake_case API response to camelCase expected by frontend
+    state.value.alerts = alerts.map((alert) => {
+      const a = alert as unknown as Record<string, unknown>;
+      return {
+        ...alert,
+        subjectId: (a.subject_id as string) || (a.subjectId as string) || '',
+        compositeScoreId: (a.composite_score_id as string) || (a.compositeScoreId as string) || '',
+        subjectName: (a.subject_name as string) || (a.subjectName as string) || '',
+        subjectIdentifier: (a.subject_identifier as string) || (a.subjectIdentifier as string) || '',
+        acknowledgedAt: (a.acknowledged_at as string) || (a.acknowledgedAt as string) || undefined,
+        acknowledgedBy: (a.acknowledged_by as string) || (a.acknowledgedBy as string) || undefined,
+        createdAt: (a.created_at as string) || (a.createdAt as string) || '',
+      } as UnacknowledgedAlertView;
+    });
   }
 
   function addAlert(alert: UnacknowledgedAlertView) {
@@ -382,7 +476,21 @@ export const useRiskDashboardStore = defineStore('riskDashboard', () => {
   }
 
   function setPendingLearnings(learnings: PendingLearningView[]) {
-    state.value.pendingLearnings = learnings;
+    // Transform snake_case API response to camelCase expected by frontend
+    state.value.pendingLearnings = learnings.map((learning) => {
+      const l = learning as unknown as Record<string, unknown>;
+      return {
+        ...learning,
+        scopeId: (l.scope_id as string) || (l.scopeId as string) || '',
+        subjectId: (l.subject_id as string) || (l.subjectId as string) || undefined,
+        dimensionId: (l.dimension_id as string) || (l.dimensionId as string) || undefined,
+        subjectName: (l.subject_name as string) || (l.subjectName as string) || '',
+        subjectIdentifier: (l.subject_identifier as string) || (l.subjectIdentifier as string) || '',
+        scopeName: (l.scope_name as string) || (l.scopeName as string) || '',
+        createdAt: (l.created_at as string) || (l.createdAt as string) || '',
+        updatedAt: (l.updated_at as string) || (l.updatedAt as string) || '',
+      } as PendingLearningView;
+    });
   }
 
   function addPendingLearning(learning: PendingLearningView) {

@@ -38,9 +38,11 @@ export class AssessmentHandler implements IDashboardHandler {
         return this.handleGet(payload);
       case 'getbysubject':
       case 'by-subject':
+      case 'get-by-subject':
         return this.handleGetBySubject(payload);
       case 'getbytask':
       case 'by-task':
+      case 'get-by-task':
         return this.handleGetByTask(payload);
       default:
         return buildDashboardError(

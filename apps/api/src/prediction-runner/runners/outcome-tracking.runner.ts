@@ -289,7 +289,8 @@ export class OutcomeTrackingRunner {
                 resolutionResult.analystPositionsClosed +
                 resolutionResult.userPositionsClosed;
               totalPnl +=
-                resolutionResult.totalAnalystPnl + resolutionResult.totalUserPnl;
+                resolutionResult.totalAnalystPnl +
+                resolutionResult.totalUserPnl;
             } catch (posError) {
               // Log but don't fail the resolution - positions can be closed later
               this.logger.error(
@@ -411,7 +412,8 @@ export class OutcomeTrackingRunner {
   private async calculateOutcomeValue(
     prediction: Prediction,
   ): Promise<number | null> {
-    const { outcomeValue } = await this.calculateOutcomeAndExitPrice(prediction);
+    const { outcomeValue } =
+      await this.calculateOutcomeAndExitPrice(prediction);
     return outcomeValue;
   }
 

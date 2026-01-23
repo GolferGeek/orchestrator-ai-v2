@@ -73,10 +73,11 @@ export class PositionResolutionService {
 
       for (const position of analystPositions) {
         try {
-          const { realizedPnl } = await this.analystPositionService.closePosition(
-            position.id,
-            exitPrice,
-          );
+          const { realizedPnl } =
+            await this.analystPositionService.closePosition(
+              position.id,
+              exitPrice,
+            );
           result.analystPositionsClosed++;
           result.totalAnalystPnl += realizedPnl;
         } catch (error) {

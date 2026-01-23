@@ -40,6 +40,15 @@ export type ProgressCallback = (event: ProgressEvent) => void;
 // API Base URL for main API
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:6100';
 
+/**
+ * Get auth token from storage
+ * TokenStorageService migrates tokens from localStorage to sessionStorage,
+ * so we check sessionStorage first, then fall back to localStorage
+ */
+function getAuthToken(): string | null {
+  return sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
+}
+
 class LegalDepartmentService {
   // SSE client for real-time progress updates
   private sseClient: SSEClient | null = null;
@@ -85,7 +94,7 @@ class LegalDepartmentService {
       filename: file.name,
     });
 
-    const token = localStorage.getItem('authToken');
+    const token = getAuthToken();
     if (!token) {
       throw new Error('Authentication required');
     }
@@ -123,6 +132,9 @@ class LegalDepartmentService {
       // POST to A2A tasks endpoint with JSON body
       console.log('[LegalDepartment] DEBUG: Sending request with mode:', requestBody.mode);
       console.log('[LegalDepartment] DEBUG: Request body keys:', Object.keys(requestBody));
+      console.log('[LegalDepartment] DEBUG: payload.documents count:', requestBody.payload.documents?.length);
+      console.log('[LegalDepartment] DEBUG: First doc filename:', requestBody.payload.documents?.[0]?.filename);
+      console.log('[LegalDepartment] DEBUG: First doc base64 length:', requestBody.payload.documents?.[0]?.base64Data?.length);
 
       const response = await fetch(
         `${API_BASE_URL}/agent-to-agent/${ctx.orgSlug}/${ctx.agentSlug}/tasks`,
@@ -517,7 +529,7 @@ class LegalDepartmentService {
         documentId: request.documentId,
       });
 
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       if (!token) {
         throw new Error('Authentication required');
       }
@@ -619,7 +631,7 @@ class LegalDepartmentService {
    * @returns AnalysisTaskResponse with current status
    */
   async getAnalysisStatus(taskId: string): Promise<AnalysisTaskResponse> {
-    const token = localStorage.getItem('authToken');
+    const token = getAuthToken();
     if (!token) {
       throw new Error('Authentication required');
     }
@@ -653,7 +665,7 @@ class LegalDepartmentService {
    * @returns AnalysisResults
    */
   async getAnalysisResults(taskId: string): Promise<AnalysisResults> {
-    const token = localStorage.getItem('authToken');
+    const token = getAuthToken();
     if (!token) {
       throw new Error('Authentication required');
     }
@@ -687,7 +699,7 @@ class LegalDepartmentService {
    * @returns UploadedDocument
    */
   async getDocument(documentId: string): Promise<UploadedDocument> {
-    const token = localStorage.getItem('authToken');
+    const token = getAuthToken();
     if (!token) {
       throw new Error('Authentication required');
     }
@@ -720,7 +732,7 @@ class LegalDepartmentService {
    * @param documentId - The document ID
    */
   async deleteDocument(documentId: string): Promise<void> {
-    const token = localStorage.getItem('authToken');
+    const token = getAuthToken();
     if (!token) {
       throw new Error('Authentication required');
     }
@@ -754,7 +766,7 @@ class LegalDepartmentService {
    * @returns UploadedDocument with id, name, size, type, and url
    */
   async uploadDocument(file: File, orgSlug: string): Promise<UploadedDocument> {
-    const token = localStorage.getItem('authToken');
+    const token = getAuthToken();
     if (!token) {
       throw new Error('Authentication required');
     }
@@ -836,7 +848,7 @@ class LegalDepartmentService {
       message: message.substring(0, 100) + (message.length > 100 ? '...' : ''),
     });
 
-    const token = localStorage.getItem('authToken');
+    const token = getAuthToken();
     if (!token) {
       throw new Error('Authentication required');
     }
@@ -958,7 +970,7 @@ class LegalDepartmentService {
     }
 
     const ctx = executionContextStore.current;
-    const token = localStorage.getItem('authToken');
+    const token = getAuthToken();
     if (!token) {
       throw new Error('Authentication required');
     }
@@ -1040,7 +1052,7 @@ class LegalDepartmentService {
     });
 
     // Get auth token for SSE
-    const token = localStorage.getItem('authToken');
+    const token = getAuthToken();
     if (!token) {
       console.warn('[LegalDepartment] No auth token for SSE connection');
       return;

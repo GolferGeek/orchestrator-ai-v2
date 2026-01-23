@@ -60,8 +60,9 @@ export class ApiClient extends BaseApiClient {
     sessionId?: string | null,
     conversationHistory?: ConversationHistoryItem[] 
   ): Promise<TaskResponse> {
-    // Get the current auth token from localStorage to pass to orchestrator
-    const authToken = localStorage.getItem('authToken');
+    // Get the current auth token from storage to pass to orchestrator
+    // TokenStorageService migrates tokens to sessionStorage, so check there first
+    const authToken = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
     // Get current user information for proper database RLS
     let currentUser = null;
     if (authToken) {

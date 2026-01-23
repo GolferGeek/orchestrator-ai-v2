@@ -67,6 +67,7 @@ export class DebateHandler implements IDashboardHandler {
         return this.handleGetBySubject(payload);
       case 'getlatest':
       case 'latest':
+      case 'get-latest':
         return this.handleGetLatest(payload);
       case 'contexts.list':
         return this.handleListContexts(payload);

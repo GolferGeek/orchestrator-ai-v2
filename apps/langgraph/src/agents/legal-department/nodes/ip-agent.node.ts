@@ -331,8 +331,7 @@ function applyPlaybookRules(analysis: IpAnalysisOutput): IpAnalysisOutput {
     existingFlags.push({
       flag: "unclear-ip-ownership",
       severity: "high",
-      description:
-        "IP ownership is unclear or ambiguous in the agreement.",
+      description: "IP ownership is unclear or ambiguous in the agreement.",
       recommendation:
         "Add clear IP ownership or assignment clause to avoid future disputes.",
     });
@@ -361,10 +360,7 @@ function applyPlaybookRules(analysis: IpAnalysisOutput): IpAnalysisOutput {
   }
 
   // Rule 3: Flag missing non-infringement warranty
-  if (
-    analysis.warranties &&
-    analysis.warranties.nonInfringement === false
-  ) {
+  if (analysis.warranties && analysis.warranties.nonInfringement === false) {
     existingFlags.push({
       flag: "no-non-infringement-warranty",
       severity: "medium",

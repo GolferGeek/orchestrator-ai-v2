@@ -13,6 +13,15 @@
 
 import { apiService } from './apiService';
 import { useMarketingSwarmStore } from '@/stores/marketingSwarmStore';
+
+/**
+ * Get auth token from storage
+ * TokenStorageService migrates tokens from localStorage to sessionStorage,
+ * so we check sessionStorage first, then fall back to localStorage
+ */
+function getAuthToken(): string | null {
+  return sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
+}
 import { a2aOrchestrator } from './agent2agent/orchestrator/a2a-orchestrator';
 import agent2AgentConversationsService from './agent2AgentConversationsService';
 import { useExecutionContextStore } from '@/stores/executionContextStore';
@@ -399,7 +408,7 @@ class MarketingSwarmService {
     try {
       const response = await fetch(`${LANGGRAPH_BASE_URL}/marketing-swarm/status/${taskId}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('authToken')}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
       });
 
@@ -423,7 +432,7 @@ class MarketingSwarmService {
     try {
       const response = await fetch(`${LANGGRAPH_BASE_URL}/marketing-swarm/by-conversation/${conversationId}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('authToken')}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
       });
 
@@ -452,7 +461,7 @@ class MarketingSwarmService {
     try {
       const response = await fetch(`${LANGGRAPH_BASE_URL}/marketing-swarm/state/${taskId}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('authToken')}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
       });
 
@@ -551,7 +560,7 @@ class MarketingSwarmService {
     this.disconnectSSEStream();
 
     // Get auth token for SSE connection
-    const token = localStorage.getItem('authToken');
+    const token = getAuthToken();
     if (!token) {
       console.error('[MarketingSwarm] No auth token available for SSE connection');
       store.setError('Authentication required for real-time updates');
@@ -808,7 +817,7 @@ class MarketingSwarmService {
     try {
       const response = await fetch(`${LANGGRAPH_BASE_URL}/marketing-swarm/output/${outputId}/versions`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('authToken')}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
       });
 

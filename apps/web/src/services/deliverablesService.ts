@@ -128,8 +128,9 @@ class DeliverablesService {
       timeout: parseInt(import.meta.env.VITE_API_TIMEOUT_MS || '120000', 10),
     });
     // Add auth token to requests
+    // TokenStorageService migrates tokens to sessionStorage, so check there first
     this.axiosInstance.interceptors.request.use((config) => {
-      const token = localStorage.getItem('authToken');
+      const token = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
