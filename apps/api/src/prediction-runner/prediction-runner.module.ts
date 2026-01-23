@@ -2,6 +2,7 @@ import { Module, OnModuleInit, Logger } from '@nestjs/common';
 import { SupabaseModule } from '@/supabase/supabase.module';
 import { LLMModule } from '@/llms/llm.module';
 import { ObservabilityModule } from '@/observability/observability.module';
+import { CrawlerModule } from '@/crawler/crawler.module';
 
 // Repositories
 import {
@@ -15,14 +16,14 @@ import {
   LearningQueueRepository,
   LearningLineageRepository,
   SnapshotRepository,
-  // Phase 6 Repositories
+  // Phase 6 Repositories (legacy - kept for backward compatibility during transition)
   SourceRepository,
   SourceCrawlRepository,
   SourceSeenItemRepository,
   StrategyRepository,
   ToolRequestRepository,
   TargetSnapshotRepository,
-  // Phase 2 Story Deduplication
+  // Phase 2 Story Deduplication (legacy - dedup now in crawler schema)
   SignalFingerprintRepository,
   // Phase 3 Test Data Injection Framework
   TestScenarioRepository,
@@ -33,6 +34,8 @@ import {
   ScenarioRunRepository,
   // Portfolio & Context Versioning
   PortfolioRepository,
+  // Central Crawler Integration
+  SourceSubscriptionRepository,
 } from './repositories';
 
 // Services
@@ -108,6 +111,8 @@ import {
   BaselinePredictionService,
   // Position Resolution (closes positions when predictions resolve)
   PositionResolutionService,
+  // Central Crawler Integration
+  ArticleProcessorService,
 } from './services';
 
 // Phase 7 Runners
@@ -175,14 +180,14 @@ const repositories = [
   LearningQueueRepository,
   LearningLineageRepository,
   SnapshotRepository,
-  // Phase 6 Repositories
+  // Phase 6 Repositories (legacy - kept for backward compatibility)
   SourceRepository,
   SourceCrawlRepository,
   SourceSeenItemRepository,
   StrategyRepository,
   ToolRequestRepository,
   TargetSnapshotRepository,
-  // Phase 2 Story Deduplication
+  // Phase 2 Story Deduplication (legacy)
   SignalFingerprintRepository,
   // Phase 3 Test Data Injection Framework
   TestScenarioRepository,
@@ -193,6 +198,8 @@ const repositories = [
   ScenarioRunRepository,
   // Portfolio & Context Versioning
   PortfolioRepository,
+  // Central Crawler Integration
+  SourceSubscriptionRepository,
 ];
 
 const services = [
@@ -267,6 +274,8 @@ const services = [
   BaselinePredictionService,
   // Position Resolution (closes positions when predictions resolve)
   PositionResolutionService,
+  // Central Crawler Integration
+  ArticleProcessorService,
 ];
 
 // Phase 7 Runners
@@ -381,7 +390,7 @@ function validatePredictionRunnerConfig(): ConfigValidationResult {
 }
 
 @Module({
-  imports: [SupabaseModule, LLMModule, ObservabilityModule],
+  imports: [SupabaseModule, LLMModule, ObservabilityModule, CrawlerModule],
   providers: [...repositories, ...services, ...runners, ...dashboardHandlers],
   exports: [...services, ...runners, ...dashboardHandlers],
 })

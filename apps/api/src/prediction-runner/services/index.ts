@@ -73,3 +73,5 @@ export * from './source-research.service';
 export * from './baseline-prediction.service';
 // Position Resolution
 export * from './position-resolution.service';
+// Central Crawler Integration
+export * from './article-processor.service';
