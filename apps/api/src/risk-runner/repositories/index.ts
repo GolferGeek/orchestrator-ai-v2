@@ -10,3 +10,6 @@ export * from './debate.repository';
 export * from './alert.repository';
 export * from './learning.repository';
 export * from './evaluation.repository';
+
+// Central Crawler Integration
+export * from './source-subscription.repository';

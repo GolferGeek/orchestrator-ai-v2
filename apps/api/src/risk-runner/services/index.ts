@@ -21,3 +21,6 @@ export * from './report-generator.service';
 // Phase 7: Advanced Simulation
 export * from './monte-carlo.service';
 export * from './live-data.service';
+
+// Central Crawler Integration
+export * from './article-processor.service';

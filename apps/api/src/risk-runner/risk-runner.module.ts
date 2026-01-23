@@ -2,6 +2,7 @@ import { Module, OnModuleInit, Logger } from '@nestjs/common';
 import { SupabaseModule } from '@/supabase/supabase.module';
 import { LLMModule } from '@/llms/llm.module';
 import { ObservabilityModule } from '@/observability/observability.module';
+import { CrawlerModule } from '@/crawler/crawler.module';
 
 // Repositories
 import {
@@ -15,6 +16,8 @@ import {
   AlertRepository,
   LearningRepository,
   EvaluationRepository,
+  // Central Crawler Integration
+  RiskSourceSubscriptionRepository,
 } from './repositories';
 
 // Services
@@ -36,6 +39,8 @@ import {
   // Phase 7: Advanced Simulation
   MonteCarloService,
   LiveDataService,
+  // Central Crawler Integration
+  RiskArticleProcessorService,
 } from './services';
 
 // Runners
@@ -76,6 +81,8 @@ const repositories = [
   AlertRepository,
   LearningRepository,
   EvaluationRepository,
+  // Central Crawler Integration
+  RiskSourceSubscriptionRepository,
 ];
 
 const services = [
@@ -96,6 +103,8 @@ const services = [
   // Phase 7: Advanced Simulation
   MonteCarloService,
   LiveDataService,
+  // Central Crawler Integration
+  RiskArticleProcessorService,
 ];
 
 const runners = [
@@ -172,7 +181,7 @@ function validateRiskRunnerConfig(): ConfigValidationResult {
 }
 
 @Module({
-  imports: [SupabaseModule, LLMModule, ObservabilityModule],
+  imports: [SupabaseModule, LLMModule, ObservabilityModule, CrawlerModule],
   providers: [...repositories, ...services, ...runners, ...dashboardHandlers],
   exports: [...services, ...runners, ...dashboardHandlers],
 })
