@@ -2123,13 +2123,16 @@ class PredictionDashboardService {
   // CONVENIENCE METHODS
   // ==========================================================================
 
-  async loadDashboardData(universeId?: string, agentSlug?: string): Promise<{
+  async loadDashboardData(universeId?: string, agentSlug?: string, includeTestData = true): Promise<{
     universes: PredictionUniverse[];
     predictions: Prediction[];
     strategies: PredictionStrategy[];
   }> {
     const universeFilters = agentSlug ? { agentSlug } : undefined;
-    const predictionFilters = universeId ? { universeId } : undefined;
+    // Include test data by default since seed data uses is_test_data=true
+    const predictionFilters = universeId
+      ? { universeId, includeTestData }
+      : { includeTestData };
 
     const [universesRes, predictionsRes, strategiesRes] = await Promise.all([
       this.listUniverses(universeFilters),

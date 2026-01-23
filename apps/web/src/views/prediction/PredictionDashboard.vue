@@ -1,9 +1,16 @@
 <template>
   <ion-page>
+    <ion-header :translucent="true">
+      <ion-toolbar>
+        <ion-buttons slot="start">
+          <ion-menu-button :auto-hide="false"></ion-menu-button>
+        </ion-buttons>
+        <ion-title>Prediction Dashboard</ion-title>
+      </ion-toolbar>
+    </ion-header>
     <ion-content ref="contentRef" :fullscreen="true">
       <div class="prediction-dashboard">
         <header class="dashboard-header">
-      <h1>Prediction Dashboard</h1>
       <div class="header-actions">
         <button class="btn btn-secondary" @click="goToPortfolios">
           <span class="icon">&#128193;</span>
@@ -202,7 +209,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { IonPage, IonContent } from '@ionic/vue';
+import { IonPage, IonContent, IonHeader, IonToolbar, IonButtons, IonMenuButton, IonTitle } from '@ionic/vue';
 import { usePredictionStore } from '@/stores/predictionStore';
 import { useAuthStore } from '@/stores/rbacStore';
 import { predictionDashboardService } from '@/services/predictionDashboardService';

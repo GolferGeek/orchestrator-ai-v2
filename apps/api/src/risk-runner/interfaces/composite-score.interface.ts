@@ -31,6 +31,7 @@ export interface DimensionScoreMap {
  * Active composite score view - includes subject and scope info
  */
 export interface ActiveCompositeScoreView extends RiskCompositeScore {
+  scope_id: string;
   subject_identifier: string;
   subject_name: string | null;
   subject_type: string;

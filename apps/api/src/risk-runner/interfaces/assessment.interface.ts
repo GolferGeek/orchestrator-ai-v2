@@ -20,6 +20,10 @@ export interface RiskAssessment {
   is_test: boolean;
   test_scenario_id: string | null;
   created_at: string;
+  // Joined from dimensions table
+  dimension_slug?: string;
+  dimension_name?: string;
+  dimension_weight?: number;
 }
 
 /**

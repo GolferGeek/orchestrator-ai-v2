@@ -3,7 +3,13 @@
     <ion-content :fullscreen="true">
       <div class="alerts-view">
     <header class="dashboard-header">
-      <h1>System Alerts</h1>
+      <div class="header-left">
+        <button class="back-button" @click="goBackToDashboard">
+          <span class="back-icon">&larr;</span>
+          Back to Dashboard
+        </button>
+        <h1>System Alerts</h1>
+      </div>
       <div class="header-actions">
         <button class="btn btn-secondary" @click="runAnomalyDetection" :disabled="isDetecting">
           <span class="icon">&#128270;</span>
@@ -365,6 +371,10 @@ async function refreshData() {
   await loadAlerts();
 }
 
+function goBackToDashboard() {
+  router.push({ name: 'PredictionDashboard' });
+}
+
 onMounted(async () => {
   await loadAlerts();
 });
@@ -382,6 +392,33 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.5rem;
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  background: none;
+  border: none;
+  font-size: 0.875rem;
+  color: var(--text-secondary, #6b7280);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.back-button:hover {
+  color: var(--primary-color, #3b82f6);
+}
+
+.back-icon {
+  font-size: 1rem;
 }
 
 .dashboard-header h1 {

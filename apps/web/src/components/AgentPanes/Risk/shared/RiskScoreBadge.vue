@@ -17,23 +17,30 @@ const props = withDefaults(defineProps<Props>(), {
   showLabel: true,
 });
 
+// Normalize score to 0-1 range (handles both 0-1 and 0-100 scales)
+const normalizedScore = computed(() => {
+  return props.score > 1 ? props.score / 100 : props.score;
+});
+
 const formattedScore = computed(() => {
-  return (props.score * 100).toFixed(0) + '%';
+  return (normalizedScore.value * 100).toFixed(0) + '%';
 });
 
 const riskLevel = computed(() => {
-  if (props.score >= 0.8) return 'critical';
-  if (props.score >= 0.6) return 'high';
-  if (props.score >= 0.4) return 'medium';
-  if (props.score >= 0.2) return 'low';
+  const score = normalizedScore.value;
+  if (score >= 0.8) return 'critical';
+  if (score >= 0.6) return 'high';
+  if (score >= 0.4) return 'medium';
+  if (score >= 0.2) return 'low';
   return 'minimal';
 });
 
 const riskLabel = computed(() => {
-  if (props.score >= 0.8) return 'Critical';
-  if (props.score >= 0.6) return 'High';
-  if (props.score >= 0.4) return 'Medium';
-  if (props.score >= 0.2) return 'Low';
+  const score = normalizedScore.value;
+  if (score >= 0.8) return 'Critical';
+  if (score >= 0.6) return 'High';
+  if (score >= 0.4) return 'Medium';
+  if (score >= 0.2) return 'Low';
   return 'Minimal';
 });
 </script>

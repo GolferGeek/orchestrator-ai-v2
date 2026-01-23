@@ -3,7 +3,13 @@
     <ion-content :fullscreen="true">
       <div class="universe-management">
     <header class="management-header">
-      <h1>Portfolio Management</h1>
+      <div class="header-left">
+        <button class="back-button" @click="goBackToDashboard">
+          <span class="back-icon">&larr;</span>
+          Back to Dashboard
+        </button>
+        <h1>Portfolio Management</h1>
+      </div>
       <button class="btn btn-primary" @click="openCreateModal">
         <span class="icon">+</span>
         New Portfolio
@@ -409,6 +415,10 @@ async function executeDelete() {
   }
 }
 
+function goBackToDashboard() {
+  router.push({ name: 'PredictionDashboard' });
+}
+
 onMounted(() => {
   loadUniverses();
 });
@@ -426,6 +436,33 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.5rem;
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  background: none;
+  border: none;
+  font-size: 0.875rem;
+  color: var(--text-secondary, #6b7280);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.back-button:hover {
+  color: var(--primary-color, #3b82f6);
+}
+
+.back-icon {
+  font-size: 1rem;
 }
 
 .management-header h1 {

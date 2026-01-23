@@ -59,49 +59,109 @@
     </div>
 
     <!-- Analysis Configuration -->
-    <div v-if="scope?.analysisConfig" class="settings-section">
+    <div class="settings-section">
       <h4>Analysis Configuration</h4>
 
-      <div class="config-row">
+      <div class="config-row toggle-row">
         <label>Risk Radar</label>
-        <span :class="scope.analysisConfig.riskRadar?.enabled ? 'enabled' : 'disabled'">
-          {{ scope.analysisConfig.riskRadar?.enabled ? 'Enabled' : 'Disabled' }}
-        </span>
+        <div class="toggle-wrapper">
+          <label class="toggle">
+            <input
+              type="checkbox"
+              :checked="getRiskRadarEnabled()"
+              @change="handleToggleRiskRadar"
+            />
+            <span class="toggle-slider"></span>
+          </label>
+          <span :class="getRiskRadarEnabled() ? 'enabled' : 'disabled'">
+            {{ getRiskRadarEnabled() ? 'Enabled' : 'Disabled' }}
+          </span>
+        </div>
       </div>
 
-      <div class="config-row">
+      <div class="config-row toggle-row">
         <label>Debate System</label>
-        <span :class="scope.analysisConfig.debate?.enabled ? 'enabled' : 'disabled'">
-          {{ scope.analysisConfig.debate?.enabled ? 'Enabled' : 'Disabled' }}
-        </span>
+        <div class="toggle-wrapper">
+          <label class="toggle">
+            <input
+              type="checkbox"
+              :checked="getDebateEnabled()"
+              @change="handleToggleDebate"
+            />
+            <span class="toggle-slider"></span>
+          </label>
+          <span :class="getDebateEnabled() ? 'enabled' : 'disabled'">
+            {{ getDebateEnabled() ? 'Enabled' : 'Disabled' }}
+          </span>
+        </div>
       </div>
 
-      <div class="config-row">
+      <div class="config-row toggle-row">
         <label>Learning Loop</label>
-        <span :class="scope.analysisConfig.learning?.enabled ? 'enabled' : 'disabled'">
-          {{ scope.analysisConfig.learning?.enabled ? 'Enabled' : 'Disabled' }}
-        </span>
+        <div class="toggle-wrapper">
+          <label class="toggle">
+            <input
+              type="checkbox"
+              :checked="getLearningEnabled()"
+              @change="handleToggleLearning"
+            />
+            <span class="toggle-slider"></span>
+          </label>
+          <span :class="getLearningEnabled() ? 'enabled' : 'disabled'">
+            {{ getLearningEnabled() ? 'Enabled' : 'Disabled' }}
+          </span>
+        </div>
       </div>
+
+      <p class="config-hint">
+        Note: Risk Radar can also be enabled globally via the RISK_RADAR_ENABLED environment variable.
+      </p>
     </div>
 
     <!-- LLM Configuration -->
-    <div v-if="scope?.llmConfig" class="settings-section">
+    <div class="settings-section">
       <h4>LLM Configuration</h4>
 
-      <div class="config-row">
+      <div class="config-group">
         <label>Provider</label>
-        <span>{{ scope.llmConfig.provider }}</span>
+        <select
+          :value="getLlmProvider()"
+          @change="handleLlmProviderChange"
+          class="config-select"
+        >
+          <option value="ollama">Ollama (Local)</option>
+          <option value="openai">OpenAI</option>
+          <option value="anthropic">Anthropic</option>
+          <option value="google">Google</option>
+        </select>
       </div>
 
-      <div class="config-row">
+      <div class="config-group">
         <label>Model</label>
-        <span>{{ scope.llmConfig.model }}</span>
+        <input
+          type="text"
+          :value="getLlmModel()"
+          @change="handleLlmModelChange"
+          placeholder="e.g., GPT-OSS:20B, gpt-4, claude-3-opus"
+        />
       </div>
 
-      <div v-if="scope.llmConfig.temperature" class="config-row">
+      <div class="config-group">
         <label>Temperature</label>
-        <span>{{ scope.llmConfig.temperature }}</span>
+        <input
+          type="number"
+          :value="getLlmTemperature()"
+          @change="handleLlmTemperatureChange"
+          min="0"
+          max="2"
+          step="0.1"
+          placeholder="0.7"
+        />
       </div>
+
+      <p class="config-hint">
+        Defaults: Provider = ollama, Model = GPT-OSS:20B. Override with DEFAULT_LLM_PROVIDER and DEFAULT_LLM_MODEL env vars.
+      </p>
     </div>
   </div>
 </template>
@@ -141,7 +201,104 @@ function handleUpdate(field: string, value: unknown) {
 }
 
 function formatPercent(value: number): string {
-  return (value * 100).toFixed(0) + '%';
+  // Handle both 0-1 and 0-100 scales
+  const normalized = value > 1 ? value / 100 : value;
+  return (normalized * 100).toFixed(0) + '%';
+}
+
+// Analysis config helpers
+function getRiskRadarEnabled(): boolean {
+  return props.scope?.analysisConfig?.riskRadar?.enabled ?? false;
+}
+
+function getDebateEnabled(): boolean {
+  return props.scope?.analysisConfig?.debate?.enabled ?? false;
+}
+
+function getLearningEnabled(): boolean {
+  return props.scope?.analysisConfig?.learning?.enabled ?? false;
+}
+
+function handleToggleRiskRadar(event: Event) {
+  const checked = (event.target as HTMLInputElement).checked;
+  emit('update-scope', {
+    analysisConfig: {
+      ...props.scope?.analysisConfig,
+      riskRadar: {
+        ...props.scope?.analysisConfig?.riskRadar,
+        enabled: checked,
+      },
+    },
+  });
+}
+
+function handleToggleDebate(event: Event) {
+  const checked = (event.target as HTMLInputElement).checked;
+  emit('update-scope', {
+    analysisConfig: {
+      ...props.scope?.analysisConfig,
+      debate: {
+        ...props.scope?.analysisConfig?.debate,
+        enabled: checked,
+      },
+    },
+  });
+}
+
+function handleToggleLearning(event: Event) {
+  const checked = (event.target as HTMLInputElement).checked;
+  emit('update-scope', {
+    analysisConfig: {
+      ...props.scope?.analysisConfig,
+      learning: {
+        ...props.scope?.analysisConfig?.learning,
+        enabled: checked,
+      },
+    },
+  });
+}
+
+// LLM config helpers
+function getLlmProvider(): string {
+  return props.scope?.llmConfig?.provider ?? 'ollama';
+}
+
+function getLlmModel(): string {
+  return props.scope?.llmConfig?.model ?? 'GPT-OSS:20B';
+}
+
+function getLlmTemperature(): number {
+  return props.scope?.llmConfig?.temperature ?? 0.7;
+}
+
+function handleLlmProviderChange(event: Event) {
+  const value = (event.target as HTMLSelectElement).value;
+  emit('update-scope', {
+    llmConfig: {
+      ...props.scope?.llmConfig,
+      provider: value,
+    },
+  });
+}
+
+function handleLlmModelChange(event: Event) {
+  const value = (event.target as HTMLInputElement).value;
+  emit('update-scope', {
+    llmConfig: {
+      ...props.scope?.llmConfig,
+      model: value,
+    },
+  });
+}
+
+function handleLlmTemperatureChange(event: Event) {
+  const value = parseFloat((event.target as HTMLInputElement).value) || 0.7;
+  emit('update-scope', {
+    llmConfig: {
+      ...props.scope?.llmConfig,
+      temperature: value,
+    },
+  });
 }
 </script>
 
@@ -225,5 +382,80 @@ function formatPercent(value: number): string {
 
 .config-row span.disabled {
   color: var(--ion-color-medium, #666);
+}
+
+.toggle-row {
+  flex-wrap: wrap;
+}
+
+.toggle-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Toggle switch styles */
+.toggle {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 26px;
+}
+
+.toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--ion-color-medium, #92949c);
+  transition: 0.3s;
+  border-radius: 26px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+}
+
+.toggle input:checked + .toggle-slider {
+  background-color: var(--ion-color-primary, #3880ff);
+}
+
+.toggle input:checked + .toggle-slider:before {
+  transform: translateX(22px);
+}
+
+.config-select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--ion-border-color, #e0e0e0);
+  border-radius: 4px;
+  font-size: 0.875rem;
+  background: var(--ion-card-background, #fff);
+}
+
+.config-hint {
+  margin: 0.75rem 0 0;
+  padding: 0.5rem;
+  background: var(--ion-color-light, #f4f5f8);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: var(--ion-color-medium, #666);
+  line-height: 1.4;
 }
 </style>

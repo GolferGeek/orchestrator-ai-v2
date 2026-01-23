@@ -481,6 +481,28 @@ class RiskDashboardService {
     return this.executeDashboardRequest<{ critical: number; warning: number; info: number }>('alerts.counts');
   }
 
+  async getAlertWithContext(alertId: string): Promise<DashboardActionResponse<{
+    alert: RiskAlert;
+    context: {
+      assessment?: {
+        dimension_slug: string;
+        dimension_name: string;
+        score: number;
+        confidence: number;
+        reasoning?: string;
+        signals?: Array<{ description: string; impact: string }>;
+        evidence?: string;
+      };
+      previousAssessment?: {
+        score: number;
+        reasoning?: string;
+        signals?: Array<{ description: string; impact: string }>;
+      };
+    };
+  }>> {
+    return this.executeDashboardRequest('alerts.getWithContext', { alertId });
+  }
+
   // ==========================================================================
   // LEARNING OPERATIONS
   // ==========================================================================

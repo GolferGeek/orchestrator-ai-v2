@@ -155,12 +155,12 @@ function validateRiskRunnerConfig(): ConfigValidationResult {
 
   // Optional but recommended configuration
   if (!process.env.DEFAULT_LLM_PROVIDER) {
-    warnings.push('DEFAULT_LLM_PROVIDER not set - will default to anthropic');
+    warnings.push('DEFAULT_LLM_PROVIDER not set - will default to ollama');
   }
 
   if (!process.env.DEFAULT_LLM_MODEL) {
     warnings.push(
-      'DEFAULT_LLM_MODEL not set - will default to claude-3-5-sonnet-latest',
+      'DEFAULT_LLM_MODEL not set - will default to GPT-OSS:20B',
     );
   }
 

@@ -53,21 +53,48 @@ export class AssessmentRepository {
     let query = this.getClient()
       .schema(this.schema)
       .from(this.table)
-      .select('*')
+      .select(
+        `
+        *,
+        dimensions:dimension_id (
+          slug,
+          name,
+          display_name,
+          weight
+        )
+      `,
+      )
       .eq('subject_id', subjectId);
 
     query = this.applyTestFilter(query, filter);
 
     const { data, error } = (await query.order('created_at', {
       ascending: false,
-    })) as SupabaseSelectListResponse<RiskAssessment>;
+    })) as SupabaseSelectListResponse<
+      RiskAssessment & {
+        dimensions: {
+          slug: string;
+          name: string;
+          display_name: string | null;
+          weight: number;
+        } | null;
+      }
+    >;
 
     if (error) {
       this.logger.error(`Failed to fetch assessments: ${error.message}`);
       throw new Error(`Failed to fetch assessments: ${error.message}`);
     }
 
-    return data ?? [];
+    // Map dimension data to flat assessment structure
+    return (data ?? []).map((assessment) => ({
+      ...assessment,
+      dimension_slug: assessment.dimensions?.slug,
+      dimension_name:
+        assessment.dimensions?.display_name || assessment.dimensions?.name,
+      dimension_weight: assessment.dimensions?.weight,
+      dimensions: undefined, // Remove nested object
+    }));
   }
 
   /**
@@ -218,20 +245,47 @@ export class AssessmentRepository {
     let query = this.getClient()
       .schema(this.schema)
       .from(this.table)
-      .select('*')
+      .select(
+        `
+        *,
+        dimensions:dimension_id (
+          slug,
+          name,
+          display_name,
+          weight
+        )
+      `,
+      )
       .eq('subject_id', subjectId);
 
     query = this.applyTestFilter(query, filter);
 
     const { data, error } = (await query
       .order('created_at', { ascending: false })
-      .limit(limit)) as SupabaseSelectListResponse<RiskAssessment>;
+      .limit(limit)) as SupabaseSelectListResponse<
+      RiskAssessment & {
+        dimensions: {
+          slug: string;
+          name: string;
+          display_name: string | null;
+          weight: number;
+        } | null;
+      }
+    >;
 
     if (error) {
       this.logger.error(`Failed to fetch recent assessments: ${error.message}`);
       throw new Error(`Failed to fetch recent assessments: ${error.message}`);
     }
 
-    return data ?? [];
+    // Map dimension data to flat assessment structure
+    return (data ?? []).map((assessment) => ({
+      ...assessment,
+      dimension_slug: assessment.dimensions?.slug,
+      dimension_name:
+        assessment.dimensions?.display_name || assessment.dimensions?.name,
+      dimension_weight: assessment.dimensions?.weight,
+      dimensions: undefined, // Remove nested object
+    }));
   }
 }

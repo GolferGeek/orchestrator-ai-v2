@@ -232,10 +232,20 @@ const eventTypes = [
 const activeFilters = ref<string[]>(['all']);
 
 const filteredEvents = computed(() => {
+  // Always sort by descending timestamp (newest first)
+  // Use id as secondary sort key for stable ordering when timestamps match
+  const sorted = [...events.value].sort((a, b) => {
+    const timeDiff = b.timestamp - a.timestamp;
+    if (timeDiff !== 0) return timeDiff;
+    // Secondary sort by id (if available) for stable ordering
+    const aId = a.id ?? 0;
+    const bId = b.id ?? 0;
+    return bId - aId;
+  });
   if (activeFilters.value.includes('all')) {
-    return events.value;
+    return sorted;
   }
-  return events.value.filter(e => activeFilters.value.includes(e.hook_event_type));
+  return sorted.filter(e => activeFilters.value.includes(e.hook_event_type));
 });
 
 const isLoadingHistory = ref(false);
@@ -311,15 +321,16 @@ async function connect() {
 
         // Only include prediction-related events
         if (isPredictionEvent(data.hook_event_type)) {
-          events.value.push(data);
-          // Keep last 200 events
+          // Add new events at the top (newest first)
+          events.value.unshift(data);
+          // Keep most recent 200 events
           if (events.value.length > 200) {
-            events.value = events.value.slice(-200);
+            events.value = events.value.slice(0, 200);
           }
-          // Auto-scroll to bottom
+          // Auto-scroll to top to show newest events
           nextTick(() => {
             if (eventsContainer.value) {
-              eventsContainer.value.scrollTop = eventsContainer.value.scrollHeight;
+              eventsContainer.value.scrollTop = 0;
             }
           });
         }
@@ -449,13 +460,13 @@ async function loadHistoricalEvents() {
 
     if (response.ok) {
       const data = await response.json();
-      // Filter for prediction-related events and add to events list
+      // Filter for prediction-related events and sort by descending date-time (newest first)
       const historicalEvents = (data.events || [])
         .filter((e: ObservabilityEvent) => isPredictionEvent(e.hook_event_type))
-        .sort((a: ObservabilityEvent, b: ObservabilityEvent) => a.timestamp - b.timestamp);
+        .sort((a: ObservabilityEvent, b: ObservabilityEvent) => b.timestamp - a.timestamp);
 
-      // Prepend historical events (they're older than any live events)
-      events.value = [...historicalEvents, ...events.value];
+      // Set historical events (sorted newest first), any live events will be added at the top
+      events.value = [...historicalEvents];
     }
   } catch (err) {
     console.error('Failed to load historical events:', err);

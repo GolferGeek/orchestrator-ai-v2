@@ -21,12 +21,22 @@ export interface RunnerResult {
 export class RiskAnalysisRunner {
   private readonly logger = new Logger(RiskAnalysisRunner.name);
   private isRunning = false;
+  private readonly globalRiskRadarEnabled: boolean;
 
   constructor(
     private readonly scopeRepo: ScopeRepository,
     private readonly subjectRepo: SubjectRepository,
     private readonly riskAnalysisService: RiskAnalysisService,
-  ) {}
+  ) {
+    // Check for global RISK_RADAR_ENABLED env var (fallback if scope config not set)
+    this.globalRiskRadarEnabled =
+      process.env.RISK_RADAR_ENABLED?.toLowerCase() === 'true';
+    if (this.globalRiskRadarEnabled) {
+      this.logger.log(
+        'Global RISK_RADAR_ENABLED=true - will process all active scopes',
+      );
+    }
+  }
 
   /**
    * Scheduled runner - runs every 30 minutes
@@ -68,10 +78,13 @@ export class RiskAnalysisRunner {
       this.logger.log(`Found ${scopes.length} active scopes to process`);
 
       for (const scope of scopes) {
-        // Check if Risk Radar is enabled for this scope
-        if (!scope.analysis_config?.riskRadar?.enabled) {
+        // Check if Risk Radar is enabled for this scope OR globally via env var
+        const scopeEnabled = scope.analysis_config?.riskRadar?.enabled === true;
+        const isEnabled = scopeEnabled || this.globalRiskRadarEnabled;
+
+        if (!isEnabled) {
           this.logger.debug(
-            `Skipping scope ${scope.name} - Risk Radar disabled`,
+            `Skipping scope ${scope.name} - Risk Radar disabled (set scope.analysis_config.riskRadar.enabled=true or RISK_RADAR_ENABLED=true)`,
           );
           continue;
         }
@@ -154,8 +167,8 @@ export class RiskAnalysisRunner {
       deliverableId: NIL_UUID,
       agentSlug,
       agentType: 'api',
-      provider: process.env.DEFAULT_LLM_PROVIDER || 'anthropic',
-      model: process.env.DEFAULT_LLM_MODEL || 'claude-sonnet-4-20250514',
+      provider: process.env.DEFAULT_LLM_PROVIDER || 'ollama',
+      model: process.env.DEFAULT_LLM_MODEL || 'GPT-OSS:20B',
     };
   }
 

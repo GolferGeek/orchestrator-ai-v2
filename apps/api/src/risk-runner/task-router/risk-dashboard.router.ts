@@ -318,11 +318,31 @@ export class RiskDashboardRouter {
       case 'stats': {
         // Return aggregate stats for the scope
         const scopeId = params?.scopeId as string | undefined;
-        const scoresResult = await this.compositeScoreHandler.execute(
-          'list-active',
-          { ...payload, params: { scopeId } },
-          context,
-        );
+
+        // Fetch all data in parallel for stats computation
+        const [scoresResult, subjectsResult, alertsResult, learningsResult] =
+          await Promise.all([
+            this.compositeScoreHandler.execute(
+              'list-active',
+              { ...payload, params: { scopeId } },
+              context,
+            ),
+            this.subjectHandler.execute(
+              'list',
+              { ...payload, params: { scopeId, isActive: true } },
+              context,
+            ),
+            this.alertHandler.execute(
+              'list',
+              { ...payload, params: { scopeId, unacknowledgedOnly: true } },
+              context,
+            ),
+            this.learningQueueHandler.execute(
+              'list',
+              { ...payload, params: { scopeId, status: 'pending' } },
+              context,
+            ),
+          ]);
 
         if (!scoresResult.success) {
           return scoresResult;
@@ -331,22 +351,50 @@ export class RiskDashboardRouter {
         const scores = scoresResult.data as Array<{
           score?: number;
           overall_score?: number;
+          created_at?: string;
         }>;
-        const total = scores.length;
+        const subjects =
+          (subjectsResult.success ? subjectsResult.data : []) as unknown[];
+        const alerts = (alertsResult.success ? alertsResult.data : []) as Array<{
+          severity?: string;
+        }>;
+        const learnings =
+          (learningsResult.success ? learningsResult.data : []) as unknown[];
+
+        const totalSubjects = (subjects as unknown[]).length;
+        const analyzedSubjects = scores.length;
         const avgScore =
-          total > 0
-            ? scores.reduce(
-                (sum, s) =>
-                  sum +
-                  (s.score ?? s.overall_score ?? 0) /
-                    (s.overall_score !== undefined ? 100 : 1),
-                0,
-              ) / total
+          analyzedSubjects > 0
+            ? scores.reduce((sum, s) => {
+                const scoreVal = s.score ?? (s.overall_score ?? 0) / 100;
+                return sum + scoreVal;
+              }, 0) / analyzedSubjects
             : 0;
 
+        // Count critical and warning alerts
+        const criticalAlerts = alerts.filter(
+          (a) => a.severity === 'critical',
+        ).length;
+        const warningAlerts = alerts.filter(
+          (a) => a.severity === 'warning',
+        ).length;
+
+        // Count stale assessments (older than 7 days = 168 hours)
+        const staleThreshold = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        const staleAssessments = scores.filter((s) => {
+          if (!s.created_at) return false;
+          return new Date(s.created_at).getTime() < staleThreshold;
+        }).length;
+
         return buildDashboardSuccess({
-          totalSubjects: total,
+          totalSubjects,
+          analyzedSubjects,
           averageScore: avgScore,
+          criticalAlerts,
+          warningAlerts,
+          pendingLearnings: learnings.length,
+          staleAssessments,
+          // Keep legacy fields for backwards compatibility
           highRisk: scores.filter(
             (s) => (s.score ?? (s.overall_score ?? 0) / 100) >= 0.7,
           ).length,

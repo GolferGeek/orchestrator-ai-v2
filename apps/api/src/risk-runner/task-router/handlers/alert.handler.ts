@@ -25,6 +25,8 @@ import {
   AlertRepository,
   AlertFilter,
 } from '../../repositories/alert.repository';
+import { AssessmentRepository } from '../../repositories/assessment.repository';
+import { DimensionRepository } from '../../repositories/dimension.repository';
 
 @Injectable()
 export class AlertHandler implements IDashboardHandler {
@@ -36,11 +38,14 @@ export class AlertHandler implements IDashboardHandler {
     'getUnacknowledged',
     'acknowledge',
     'countBySeverity',
+    'getWithContext',
   ];
 
   constructor(
     private readonly alertService: RiskAlertService,
     private readonly alertRepo: AlertRepository,
+    private readonly assessmentRepo: AssessmentRepository,
+    private readonly dimensionRepo: DimensionRepository,
   ) {}
 
   async execute(
@@ -63,6 +68,9 @@ export class AlertHandler implements IDashboardHandler {
         return this.handleAcknowledge(payload, context);
       case 'countbyseverity':
         return this.handleCountBySeverity(payload);
+      case 'getwithcontext':
+      case 'get-with-context':
+        return this.handleGetWithContext(payload);
       default:
         return buildDashboardError(
           'UNSUPPORTED_ACTION',
@@ -254,6 +262,118 @@ export class AlertHandler implements IDashboardHandler {
 
     return buildDashboardSuccess(counts, {
       totalCount: counts.critical + counts.warning + counts.info,
+    });
+  }
+
+  /**
+   * Get an alert with related assessment context (reasoning, signals)
+   * This provides the "why" behind an alert by fetching the assessment data
+   */
+  private async handleGetWithContext(
+    payload: DashboardRequestPayload,
+  ): Promise<DashboardActionResult> {
+    const params = payload.params as Record<string, unknown> | undefined;
+    const alertId = params?.alertId as string | undefined;
+
+    if (!alertId) {
+      return buildDashboardError('MISSING_ID', 'Alert ID is required');
+    }
+
+    // Get the alert
+    const alert = await this.alertService.getAlertById(alertId);
+    if (!alert) {
+      return buildDashboardError('NOT_FOUND', `Alert not found: ${alertId}`);
+    }
+
+    // Build context based on alert type
+    const context: {
+      assessment?: {
+        dimension_slug: string;
+        dimension_name: string;
+        score: number;
+        confidence: number;
+        reasoning: string | null;
+        signals: unknown[];
+        evidence: string[];
+      };
+      previousAssessment?: {
+        score: number;
+        reasoning: string | null;
+        signals: unknown[];
+      };
+    } = {};
+
+    // For dimension_spike alerts, get the specific dimension's assessment
+    if (alert.alert_type === 'dimension_spike' && alert.details?.dimension_slug) {
+      const dimensionSlug = alert.details.dimension_slug as string;
+
+      // Get dimensions for this subject's scope to find the dimension ID
+      const assessments = await this.assessmentRepo.findBySubject(alert.subject_id);
+
+      // Find the assessment for this dimension (most recent)
+      const dimensionAssessment = assessments.find(
+        (a) => a.dimension_slug === dimensionSlug,
+      );
+
+      if (dimensionAssessment) {
+        context.assessment = {
+          dimension_slug: dimensionAssessment.dimension_slug || dimensionSlug,
+          dimension_name: dimensionAssessment.dimension_name || dimensionSlug,
+          score: dimensionAssessment.score,
+          confidence: dimensionAssessment.confidence,
+          reasoning: dimensionAssessment.reasoning,
+          signals: dimensionAssessment.signals || [],
+          evidence: dimensionAssessment.evidence || [],
+        };
+
+        // Try to find the previous assessment for comparison
+        const previousAssessments = assessments.filter(
+          (a) =>
+            a.dimension_slug === dimensionSlug &&
+            a.id !== dimensionAssessment.id,
+        );
+        const prev = previousAssessments[0];
+        if (prev) {
+          context.previousAssessment = {
+            score: prev.score,
+            reasoning: prev.reasoning,
+            signals: prev.signals || [],
+          };
+        }
+      }
+    }
+
+    // For rapid_change and threshold_breach, get all recent dimension assessments
+    if (
+      alert.alert_type === 'rapid_change' ||
+      alert.alert_type === 'threshold_breach'
+    ) {
+      // Get the most recent assessments to provide context on what's driving the score
+      const assessments = await this.assessmentRepo.findRecentBySubject(
+        alert.subject_id,
+        6, // Get top 6 (one per dimension typically)
+      );
+
+      // Find the highest scoring dimension as the primary driver
+      const sortedByScore = [...assessments].sort((a, b) => b.score - a.score);
+      const topRiskDimension = sortedByScore[0];
+
+      if (topRiskDimension) {
+        context.assessment = {
+          dimension_slug: topRiskDimension.dimension_slug || 'unknown',
+          dimension_name: topRiskDimension.dimension_name || 'Top Risk Driver',
+          score: topRiskDimension.score,
+          confidence: topRiskDimension.confidence,
+          reasoning: topRiskDimension.reasoning,
+          signals: topRiskDimension.signals || [],
+          evidence: topRiskDimension.evidence || [],
+        };
+      }
+    }
+
+    return buildDashboardSuccess({
+      alert,
+      context,
     });
   }
 }

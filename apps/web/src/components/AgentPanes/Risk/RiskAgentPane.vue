@@ -208,8 +208,15 @@ const tabs = computed(() => [
 ]);
 
 // Formatting helpers
+function normalizeScore(score: number): number {
+  if (isNaN(score) || score === null || score === undefined) return 0;
+  return score > 1 ? score / 100 : score;
+}
+
 function formatScore(score: number): string {
-  return (score * 100).toFixed(0) + '%';
+  if (isNaN(score) || score === null || score === undefined) return '0%';
+  const normalized = normalizeScore(score);
+  return (normalized * 100).toFixed(0) + '%';
 }
 
 // Event handlers
@@ -230,12 +237,6 @@ async function handleRefresh() {
         await loadScopeData(currentScope.value.id);
       }
     }
-
-    // Load dashboard stats
-    const statsResponse = await riskDashboardService.getDashboardStats(currentScope.value?.id);
-    if (statsResponse.content) {
-      store.setStats(statsResponse.content);
-    }
   } catch (err) {
     store.setError(err instanceof Error ? err.message : 'Failed to refresh data');
   } finally {
@@ -244,34 +245,39 @@ async function handleRefresh() {
 }
 
 async function loadScopeData(scopeId: string) {
-  // Load subjects for scope
-  const subjectsResponse = await riskDashboardService.listSubjects({ scopeId, isActive: true });
+  // Load all scope data in parallel for better performance
+  const [subjectsResponse, scoresResponse, dimensionsResponse, alertsResponse, learningsResponse, statsResponse] = await Promise.all([
+    riskDashboardService.listSubjects({ scopeId, isActive: true }),
+    riskDashboardService.listCompositeScores({ scopeId }),
+    riskDashboardService.listDimensions(scopeId),
+    riskDashboardService.listAlerts({ scopeId, unacknowledgedOnly: true }),
+    riskDashboardService.listLearnings({ scopeId, status: 'pending' }),
+    riskDashboardService.getDashboardStats(scopeId),
+  ]);
+
   if (subjectsResponse.content) {
     store.setSubjects(subjectsResponse.content);
   }
 
-  // Load composite scores
-  const scoresResponse = await riskDashboardService.listCompositeScores({ scopeId });
   if (scoresResponse.content) {
     store.setCompositeScores(scoresResponse.content);
   }
 
-  // Load dimensions
-  const dimensionsResponse = await riskDashboardService.listDimensions(scopeId);
   if (dimensionsResponse.content) {
     store.setDimensions(dimensionsResponse.content);
   }
 
-  // Load alerts
-  const alertsResponse = await riskDashboardService.listAlerts({ scopeId, unacknowledgedOnly: true });
   if (alertsResponse.content) {
     store.setAlerts(alertsResponse.content);
   }
 
-  // Load pending learnings
-  const learningsResponse = await riskDashboardService.listLearnings({ scopeId, status: 'pending' });
   if (learningsResponse.content) {
     store.setPendingLearnings(learningsResponse.content);
+  }
+
+  // Set stats from API response
+  if (statsResponse.content) {
+    store.setStats(statsResponse.content);
   }
 }
 

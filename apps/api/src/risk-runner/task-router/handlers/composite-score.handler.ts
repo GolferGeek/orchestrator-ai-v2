@@ -15,6 +15,7 @@ export class CompositeScoreHandler implements IDashboardHandler {
   private readonly logger = new Logger(CompositeScoreHandler.name);
   private readonly supportedActions = [
     'list',
+    'list-active',
     'get',
     'getBySubject',
     'history',
@@ -31,6 +32,7 @@ export class CompositeScoreHandler implements IDashboardHandler {
 
     switch (action.toLowerCase()) {
       case 'list':
+      case 'list-active':
         return this.handleList(payload);
       case 'get':
         return this.handleGet(payload);
@@ -54,8 +56,16 @@ export class CompositeScoreHandler implements IDashboardHandler {
   private async handleList(
     payload: DashboardRequestPayload,
   ): Promise<DashboardActionResult> {
+    const params = payload.params as Record<string, unknown> | undefined;
+    const scopeId = params?.scopeId as string | undefined;
+
     // Get all active composite scores
-    const scores = await this.compositeScoreRepo.findAllActiveView();
+    let scores = await this.compositeScoreRepo.findAllActiveView();
+
+    // Filter by scopeId if provided
+    if (scopeId) {
+      scores = scores.filter((s) => s.scope_id === scopeId);
+    }
 
     // Apply pagination
     const page = payload.pagination?.page ?? 1;

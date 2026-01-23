@@ -1,7 +1,7 @@
 <template>
   <div class="risk-dimension-card" :class="riskLevel">
     <div class="card-header">
-      <span class="dimension-name">{{ assessment.dimensionName || assessment.dimensionSlug }}</span>
+      <span class="dimension-name">{{ dimensionDisplayName }}</span>
       <RiskScoreBadge :score="assessment.score" />
     </div>
 
@@ -11,9 +11,9 @@
         <span class="value">{{ formatPercent(assessment.confidence) }}</span>
       </div>
 
-      <div v-if="assessment.dimensionWeight" class="weight-row">
+      <div v-if="dimensionWeight" class="weight-row">
         <span class="label">Weight:</span>
-        <span class="value">{{ formatPercent(assessment.dimensionWeight) }}</span>
+        <span class="value">{{ formatPercent(dimensionWeight) }}</span>
       </div>
 
       <!-- Signals -->
@@ -32,12 +32,12 @@
     </div>
 
     <!-- Expandable reasoning -->
-    <div v-if="assessment.analystResponse?.reasoning" class="card-footer">
+    <div v-if="reasoningText" class="card-footer">
       <button class="expand-btn" @click="showReasoning = !showReasoning">
         {{ showReasoning ? 'Hide Reasoning' : 'Show Reasoning' }}
       </button>
       <div v-if="showReasoning" class="reasoning">
-        {{ assessment.analystResponse.reasoning }}
+        {{ reasoningText }}
       </div>
     </div>
   </div>
@@ -56,8 +56,43 @@ const props = defineProps<Props>();
 
 const showReasoning = ref(false);
 
+// Get dimension name handling both snake_case and camelCase API responses
+const dimensionDisplayName = computed(() => {
+  const a = props.assessment as unknown as Record<string, unknown>;
+  const name = a.dimensionName || a.dimension_name || '';
+  const slug = a.dimensionSlug || a.dimension_slug || '';
+
+  if (name) return String(name);
+  if (slug) {
+    // Convert slug to display name (e.g., "credit-risk" -> "Credit Risk")
+    return String(slug).replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  }
+  return 'Unknown Dimension';
+});
+
+// Get dimension weight handling both snake_case and camelCase
+const dimensionWeight = computed(() => {
+  const a = props.assessment as unknown as Record<string, unknown>;
+  return (a.dimensionWeight || a.dimension_weight || 0) as number;
+});
+
+// Get reasoning text handling both snake_case and camelCase
+const reasoningText = computed(() => {
+  const a = props.assessment as unknown as Record<string, unknown>;
+  // Check for top-level reasoning first
+  if (a.reasoning) return String(a.reasoning);
+  // Check for analyst_response or analystResponse
+  const analystResponse = (a.analystResponse || a.analyst_response) as Record<string, unknown> | undefined;
+  if (analystResponse?.reasoning) return String(analystResponse.reasoning);
+  return '';
+});
+
+function normalizeValue(value: number): number {
+  return value > 1 ? value / 100 : value;
+}
+
 const riskLevel = computed(() => {
-  const score = props.assessment.score;
+  const score = normalizeValue(props.assessment.score);
   if (score >= 0.8) return 'critical';
   if (score >= 0.6) return 'high';
   if (score >= 0.4) return 'medium';
@@ -65,7 +100,8 @@ const riskLevel = computed(() => {
 });
 
 function formatPercent(value: number): string {
-  return (value * 100).toFixed(0) + '%';
+  const normalized = normalizeValue(value);
+  return (normalized * 100).toFixed(0) + '%';
 }
 </script>
 

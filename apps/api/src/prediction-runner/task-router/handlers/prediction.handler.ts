@@ -104,7 +104,7 @@ export class PredictionHandler implements IDashboardHandler {
 
     switch (action.toLowerCase()) {
       case 'list':
-        return this.handleList(params, filters);
+        return this.handleList(params, filters, context);
       case 'get':
         return this.handleGet(params);
       case 'getsnapshot':
@@ -143,6 +143,7 @@ export class PredictionHandler implements IDashboardHandler {
   private async handleList(
     params?: PredictionParams,
     filters?: PredictionFilters,
+    context?: ExecutionContext,
   ): Promise<DashboardActionResult> {
     // Merge filters from both sources (params.filters and payload.filters)
     const mergedFilters = { ...params?.filters, ...filters };
@@ -150,7 +151,7 @@ export class PredictionHandler implements IDashboardHandler {
     const universeId = mergedFilters?.universeId;
 
     this.logger.debug(
-      `[PREDICTION-HANDLER] handleList - targetId: ${targetId}, universeId: ${universeId}, filters: ${JSON.stringify(mergedFilters)}`,
+      `[PREDICTION-HANDLER] handleList - targetId: ${targetId}, universeId: ${universeId}, agentSlug: ${context?.agentSlug}, filters: ${JSON.stringify(mergedFilters)}`,
     );
 
     try {
@@ -161,6 +162,33 @@ export class PredictionHandler implements IDashboardHandler {
       const testDataFilter = {
         includeTestData: mergedFilters?.includeTestData ?? false,
       };
+
+      // Get valid universe IDs for this agent (for filtering)
+      let validUniverseIds: Set<string> | undefined;
+      if (context?.agentSlug && context?.orgSlug) {
+        // Get universes that belong to this agent
+        const { data: universes } = await this.targetRepository['supabaseService']
+          .getServiceClient()
+          .schema('prediction')
+          .from('universes')
+          .select('id')
+          .eq('agent_slug', context.agentSlug)
+          .eq('organization_slug', context.orgSlug)
+          .eq('is_active', true);
+
+        if (universes && universes.length > 0) {
+          validUniverseIds = new Set(universes.map((u: { id: string }) => u.id));
+          this.logger.debug(
+            `[PREDICTION-HANDLER] Agent ${context.agentSlug} has ${validUniverseIds.size} valid universes`,
+          );
+        } else {
+          this.logger.debug(
+            `[PREDICTION-HANDLER] Agent ${context.agentSlug} has no universes - returning empty results`,
+          );
+          // No universes for this agent means no predictions
+          return buildDashboardSuccess([], buildPaginationMetadata(0, 1, 20));
+        }
+      }
 
       if (targetId) {
         // Filter by target
@@ -192,11 +220,43 @@ export class PredictionHandler implements IDashboardHandler {
       }
 
       this.logger.debug(
-        `[PREDICTION-HANDLER] Found ${predictions.length} predictions`,
+        `[PREDICTION-HANDLER] Found ${predictions.length} predictions (before agent filtering)`,
       );
 
       // Apply additional filters
       let filtered = predictions;
+
+      // Filter predictions by valid universe IDs (agent-based filtering)
+      if (validUniverseIds) {
+        // We need to look up target -> universe relationship for each prediction
+        // Get all unique target IDs
+        const predictionTargetIds = [...new Set(predictions.map((p) => p.target_id))];
+
+        // Fetch target -> universe mappings
+        const { data: targets } = await this.targetRepository['supabaseService']
+          .getServiceClient()
+          .schema('prediction')
+          .from('targets')
+          .select('id, universe_id')
+          .in('id', predictionTargetIds);
+
+        const targetToUniverse = new Map<string, string>();
+        if (targets) {
+          targets.forEach((t: { id: string; universe_id: string }) => {
+            targetToUniverse.set(t.id, t.universe_id);
+          });
+        }
+
+        // Filter predictions to only those whose target belongs to a valid universe
+        filtered = filtered.filter((p) => {
+          const targetUniverseId = targetToUniverse.get(p.target_id);
+          return targetUniverseId && validUniverseIds!.has(targetUniverseId);
+        });
+
+        this.logger.debug(
+          `[PREDICTION-HANDLER] After agent filtering: ${filtered.length} predictions`,
+        );
+      }
 
       if (mergedFilters?.direction) {
         filtered = filtered.filter(

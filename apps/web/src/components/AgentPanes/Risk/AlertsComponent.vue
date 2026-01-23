@@ -8,35 +8,139 @@
       <div
         v-for="alert in alerts"
         :key="alert.id"
-        class="alert-card"
-        :class="alert.severity"
+        class="alert-card clickable"
+        :class="getAlertSeverity(alert)"
+        @click="selectAlert(alert)"
       >
         <div class="alert-header">
-          <span class="severity-badge">{{ alert.severity }}</span>
-          <span class="alert-subject">{{ alert.subjectName || alert.subjectIdentifier }}</span>
-          <span class="alert-time">{{ formatDate(alert.createdAt) }}</span>
+          <span class="severity-badge">{{ getAlertSeverity(alert) }}</span>
+          <span class="alert-subject">{{ getAlertSubjectName(alert) }}</span>
+          <span class="alert-time">{{ formatDate(getAlertCreatedAt(alert)) }}</span>
         </div>
-        <div class="alert-message">{{ alert.message }}</div>
-        <div v-if="alert.details" class="alert-details">
-          <span v-if="alert.details.triggerScore">
-            Trigger Score: {{ formatPercent(alert.details.triggerScore) }}
+        <div class="alert-message">{{ getAlertMessage(alert) }}</div>
+        <div v-if="getAlertDetails(alert)" class="alert-details">
+          <span v-if="getAlertDetails(alert).triggerScore">
+            Trigger Score: {{ formatPercent(getAlertDetails(alert).triggerScore) }}
           </span>
-          <span v-if="alert.details.threshold">
-            Threshold: {{ formatPercent(alert.details.threshold) }}
+          <span v-if="getAlertDetails(alert).threshold">
+            Threshold: {{ formatPercent(getAlertDetails(alert).threshold) }}
           </span>
         </div>
         <div class="alert-actions">
-          <button class="ack-btn" @click="$emit('acknowledge', alert.id)">
+          <button class="ack-btn" @click.stop="$emit('acknowledge', alert.id)">
             Acknowledge
           </button>
         </div>
       </div>
     </div>
+
+    <!-- Alert Detail Modal -->
+    <Teleport to="body">
+      <Transition name="modal-fade">
+        <div v-if="selectedAlert" class="modal-overlay" @click.self="closeModal">
+          <div class="modal-content">
+            <div class="modal-header" :class="`severity-${getAlertSeverity(selectedAlert)}`">
+              <h3>{{ getSeverityLabel(getAlertSeverity(selectedAlert)) }} Alert</h3>
+              <button class="modal-close" @click="closeModal">&times;</button>
+            </div>
+            <div class="modal-body">
+              <div class="alert-message-full">{{ getAlertMessage(selectedAlert) }}</div>
+
+              <div class="detail-row">
+                <span class="detail-label">Subject:</span>
+                <span class="detail-value">{{ getAlertSubjectName(selectedAlert) }}</span>
+              </div>
+
+              <div class="detail-row">
+                <span class="detail-label">Created:</span>
+                <span class="detail-value">{{ formatDate(getAlertCreatedAt(selectedAlert)) }}</span>
+              </div>
+
+              <div v-if="getAlertDetails(selectedAlert).triggerScore !== undefined" class="detail-row">
+                <span class="detail-label">Trigger Score:</span>
+                <span class="detail-value" :class="getScoreClass(getAlertDetails(selectedAlert).triggerScore)">
+                  {{ formatPercent(getAlertDetails(selectedAlert).triggerScore) }}
+                </span>
+              </div>
+
+              <div v-if="getAlertDetails(selectedAlert).threshold !== undefined" class="detail-row">
+                <span class="detail-label">Threshold:</span>
+                <span class="detail-value">{{ formatPercent(getAlertDetails(selectedAlert).threshold) }}</span>
+              </div>
+
+              <!-- Alert Context Section -->
+              <div class="context-section">
+                <h4>Why did this happen?</h4>
+
+                <div v-if="alertContextLoading" class="context-loading">
+                  Loading analysis context...
+                </div>
+
+                <div v-else-if="alertContextError" class="context-error">
+                  {{ alertContextError }}
+                </div>
+
+                <div v-else-if="alertContext?.assessment" class="context-content">
+                  <div class="context-dimension">
+                    <span class="context-label">Primary Driver:</span>
+                    <span class="context-value">{{ alertContext.assessment.dimension_name || formatDimensionName(alertContext.assessment.dimension_slug) }}</span>
+                    <span class="context-score" :class="getScoreClass(alertContext.assessment.score)">
+                      {{ formatPercent(alertContext.assessment.score) }}
+                    </span>
+                  </div>
+
+                  <div v-if="alertContext.assessment.reasoning" class="context-reasoning">
+                    <span class="context-label">Analysis Reasoning:</span>
+                    <div class="reasoning-content" v-html="formatReasoning(alertContext.assessment.reasoning)"></div>
+                  </div>
+
+                  <div v-if="alertContext.assessment.signals && alertContext.assessment.signals.length > 0" class="context-signals">
+                    <span class="context-label">Key Signals:</span>
+                    <ul class="signals-list">
+                      <li
+                        v-for="(signal, idx) in alertContext.assessment.signals"
+                        :key="idx"
+                        :class="`signal-${signal.impact}`"
+                      >
+                        {{ signal.description }}
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div v-else class="context-empty">
+                  No additional context available for this alert.
+                </div>
+              </div>
+
+              <div class="modal-actions">
+                <button class="ack-btn primary" @click="acknowledgeAndClose">
+                  Acknowledge
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue';
 import type { UnacknowledgedAlertView } from '@/types/risk-agent';
+import { riskDashboardService } from '@/services/riskDashboardService';
+
+interface AlertContext {
+  assessment?: {
+    dimension_slug: string;
+    dimension_name: string;
+    score: number;
+    confidence: number;
+    reasoning?: string;
+    signals?: Array<{ description: string; impact: string }>;
+  };
+}
 
 interface Props {
   alerts: UnacknowledgedAlertView[];
@@ -44,11 +148,99 @@ interface Props {
 
 defineProps<Props>();
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'acknowledge', alertId: string): void;
 }>();
 
+// Modal state
+const selectedAlert = ref<UnacknowledgedAlertView | null>(null);
+const alertContext = ref<AlertContext | null>(null);
+const alertContextLoading = ref(false);
+const alertContextError = ref<string | null>(null);
+
+// Helper functions to handle snake_case/camelCase
+function getAlertSeverity(alert: UnacknowledgedAlertView): string {
+  const a = alert as unknown as Record<string, unknown>;
+  return String(a.severity || 'info');
+}
+
+function getAlertSubjectName(alert: UnacknowledgedAlertView): string {
+  const a = alert as unknown as Record<string, unknown>;
+  return String(a.subjectName || a.subject_name || a.subjectIdentifier || a.subject_identifier || 'Unknown');
+}
+
+function getAlertMessage(alert: UnacknowledgedAlertView): string {
+  const a = alert as unknown as Record<string, unknown>;
+  return String(a.message || '');
+}
+
+function getAlertCreatedAt(alert: UnacknowledgedAlertView): string {
+  const a = alert as unknown as Record<string, unknown>;
+  return String(a.createdAt || a.created_at || '');
+}
+
+function getAlertDetails(alert: UnacknowledgedAlertView): Record<string, unknown> {
+  const a = alert as unknown as Record<string, unknown>;
+  return (a.details || {}) as Record<string, unknown>;
+}
+
+async function selectAlert(alert: UnacknowledgedAlertView) {
+  selectedAlert.value = alert;
+  alertContext.value = null;
+  alertContextError.value = null;
+  alertContextLoading.value = true;
+
+  try {
+    const response = await riskDashboardService.getAlertWithContext(alert.id);
+    if (response.success && response.content) {
+      alertContext.value = response.content.context;
+    }
+  } catch (err) {
+    console.error('Failed to fetch alert context:', err);
+    alertContextError.value = 'Failed to load additional context';
+  } finally {
+    alertContextLoading.value = false;
+  }
+}
+
+function closeModal() {
+  selectedAlert.value = null;
+  alertContext.value = null;
+  alertContextError.value = null;
+}
+
+function acknowledgeAndClose() {
+  if (selectedAlert.value) {
+    emit('acknowledge', selectedAlert.value.id);
+    closeModal();
+  }
+}
+
+function getSeverityLabel(severity: string): string {
+  const labels: Record<string, string> = {
+    critical: 'Critical',
+    warning: 'Warning',
+    info: 'Info',
+  };
+  return labels[severity] || severity;
+}
+
+function getScoreClass(score: number | undefined): string {
+  if (score === undefined) return '';
+  const normalized = score > 1 ? score / 100 : score;
+  if (normalized >= 0.8) return 'critical';
+  if (normalized >= 0.6) return 'high';
+  if (normalized >= 0.4) return 'medium';
+  return 'low';
+}
+
+function formatDimensionName(slug: string): string {
+  if (!slug) return 'Unknown';
+  return slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
 function formatDate(dateStr: string): string {
+  if (!dateStr) return 'N/A';
   return new Date(dateStr).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -57,8 +249,55 @@ function formatDate(dateStr: string): string {
   });
 }
 
-function formatPercent(value: number): string {
-  return (value * 100).toFixed(0) + '%';
+function formatPercent(value: number | undefined): string {
+  if (value === undefined || value === null || isNaN(value)) return 'N/A';
+  const normalized = value > 1 ? value / 100 : value;
+  return (normalized * 100).toFixed(0) + '%';
+}
+
+function formatReasoning(reasoning: string | unknown): string {
+  if (!reasoning) return '';
+  const text = typeof reasoning === 'string' ? reasoning : JSON.stringify(reasoning, null, 2);
+  try {
+    const parsed = JSON.parse(text);
+    return formatJsonToHtml(parsed);
+  } catch {
+    return formatTextToHtml(text);
+  }
+}
+
+function formatJsonToHtml(obj: unknown): string {
+  if (obj === null || obj === undefined) return '';
+  if (Array.isArray(obj)) {
+    if (obj.length === 0) return '';
+    const items = obj.map(item => `<li>${typeof item === 'object' ? formatJsonToHtml(item) : escapeHtml(String(item))}</li>`).join('');
+    return `<ul class="reasoning-list">${items}</ul>`;
+  }
+  if (typeof obj === 'object') {
+    const entries = Object.entries(obj as Record<string, unknown>);
+    if (entries.length === 0) return '';
+    const items = entries.map(([key, value]) => {
+      const label = key.replace(/_/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/\b\w/g, c => c.toUpperCase());
+      if (typeof value === 'object' && value !== null) {
+        return `<div class="reasoning-item"><strong class="reasoning-key">${label}:</strong>${formatJsonToHtml(value)}</div>`;
+      }
+      return `<div class="reasoning-item"><strong class="reasoning-key">${label}:</strong> <span class="reasoning-value">${escapeHtml(String(value))}</span></div>`;
+    }).join('');
+    return `<div class="reasoning-object">${items}</div>`;
+  }
+  return `<p>${escapeHtml(String(obj))}</p>`;
+}
+
+function formatTextToHtml(text: string): string {
+  let html = escapeHtml(text);
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  return html.split('\n').filter(l => l.trim()).map(l => `<p>${l}</p>`).join('');
+}
+
+function escapeHtml(text: string): string {
+  const map: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+  return text.replace(/[&<>"']/g, m => map[m] || m);
 }
 </script>
 
@@ -151,5 +390,251 @@ function formatPercent(value: number): string {
 
 .ack-btn:hover {
   background: var(--ion-color-light, #f4f5f8);
+}
+
+.alert-card.clickable {
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.alert-card.clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Modal styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: var(--ion-card-background, #fff);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--ion-border-color, #e0e0e0);
+}
+
+.modal-header.severity-critical {
+  background: var(--ion-color-danger-tint, #ffcccc);
+}
+
+.modal-header.severity-warning {
+  background: var(--ion-color-warning-tint, #fff3cd);
+}
+
+.modal-header.severity-info {
+  background: var(--ion-color-light, #f4f5f8);
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--ion-color-medium, #666);
+  padding: 0;
+  line-height: 1;
+}
+
+.modal-body {
+  padding: 1.25rem;
+}
+
+.alert-message-full {
+  font-size: 1rem;
+  line-height: 1.5;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--ion-border-color, #e0e0e0);
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.detail-label {
+  color: var(--ion-color-medium, #666);
+  font-size: 0.875rem;
+}
+
+.detail-value {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.detail-value.critical { color: var(--ion-color-danger, #eb445a); }
+.detail-value.high { color: var(--ion-color-warning, #ffc409); }
+.detail-value.medium { color: #ffd966; }
+.detail-value.low { color: var(--ion-color-success, #2dd36f); }
+
+.context-section {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 2px solid var(--ion-color-primary, #3880ff);
+}
+
+.context-section h4 {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  color: var(--ion-color-primary, #3880ff);
+}
+
+.context-loading, .context-empty {
+  text-align: center;
+  padding: 1rem;
+  color: var(--ion-color-medium, #666);
+  font-style: italic;
+}
+
+.context-error {
+  padding: 0.75rem;
+  background: var(--ion-color-danger-tint, #ffcccc);
+  border-radius: 4px;
+  color: var(--ion-color-danger, #eb445a);
+  font-size: 0.875rem;
+}
+
+.context-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.context-dimension {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.context-label {
+  font-size: 0.875rem;
+  color: var(--ion-color-medium, #666);
+  font-weight: 500;
+}
+
+.context-value {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.context-score {
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+  background: var(--ion-color-light, #f4f5f8);
+}
+
+.context-score.critical { background: var(--ion-color-danger-tint, #ffcccc); color: var(--ion-color-danger, #eb445a); }
+.context-score.high { background: var(--ion-color-warning-tint, #fff3cd); color: var(--ion-color-warning-shade, #e0ac08); }
+.context-score.medium { background: #fff9e6; color: #b38f00; }
+.context-score.low { background: var(--ion-color-success-tint, #d4edda); color: var(--ion-color-success, #2dd36f); }
+
+.context-reasoning {
+  background: var(--ion-color-light, #f4f5f8);
+  padding: 0.75rem;
+  border-radius: 8px;
+}
+
+.context-reasoning .context-label {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.reasoning-content {
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.reasoning-content :deep(.reasoning-object) { display: flex; flex-direction: column; gap: 0.5rem; }
+.reasoning-content :deep(.reasoning-item) { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.reasoning-content :deep(.reasoning-key) { color: var(--ion-color-primary, #3880ff); font-weight: 600; }
+.reasoning-content :deep(.reasoning-list) { margin: 0.25rem 0; padding-left: 1.25rem; }
+.reasoning-content :deep(p) { margin: 0 0 0.5rem; }
+
+.context-signals {
+  background: var(--ion-card-background, #fff);
+  border: 1px solid var(--ion-border-color, #e0e0e0);
+  padding: 0.75rem;
+  border-radius: 8px;
+}
+
+.context-signals .context-label {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.signals-list {
+  margin: 0;
+  padding: 0 0 0 1.25rem;
+  font-size: 0.875rem;
+}
+
+.signals-list li { margin-bottom: 0.375rem; }
+.signals-list li.signal-positive { color: var(--ion-color-success, #2dd36f); }
+.signals-list li.signal-negative { color: var(--ion-color-danger, #eb445a); }
+.signals-list li.signal-neutral { color: var(--ion-color-medium, #666); }
+
+.modal-actions {
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.ack-btn.primary {
+  background: var(--ion-color-primary, #3880ff);
+  color: white;
+  border: none;
+}
+
+.ack-btn.primary:hover {
+  background: var(--ion-color-primary-shade, #3171e0);
+}
+
+/* Modal transition */
+.modal-fade-enter-active, .modal-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.modal-fade-enter-active .modal-content, .modal-fade-leave-active .modal-content {
+  transition: transform 0.2s ease;
+}
+
+.modal-fade-enter-from, .modal-fade-leave-to {
+  opacity: 0;
+}
+
+.modal-fade-enter-from .modal-content, .modal-fade-leave-to .modal-content {
+  transform: scale(0.95);
 }
 </style>

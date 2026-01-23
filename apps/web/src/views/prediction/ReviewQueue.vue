@@ -3,7 +3,13 @@
     <ion-content :fullscreen="true">
       <div class="review-queue">
     <header class="management-header">
-      <h1>Review Queue</h1>
+      <div class="header-left">
+        <button class="back-button" @click="goBackToDashboard">
+          <span class="back-icon">&larr;</span>
+          Back to Dashboard
+        </button>
+        <h1>Review Queue</h1>
+      </div>
     </header>
 
     <!-- Stats Banner -->
@@ -252,6 +258,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { IonPage, IonContent } from '@ionic/vue';
 import { useReviewQueueStore } from '@/stores/reviewQueueStore';
 import {
@@ -261,6 +268,7 @@ import {
 import ReviewQueueCard from '@/components/prediction/ReviewQueueCard.vue';
 import type { ReviewQueueItem, ReviewStatus, SignalDisposition } from '@/stores/reviewQueueStore';
 
+const router = useRouter();
 const store = useReviewQueueStore();
 
 const isLoading = ref(false);
@@ -390,6 +398,10 @@ async function submitReview() {
   }
 }
 
+function goBackToDashboard() {
+  router.push({ name: 'PredictionDashboard' });
+}
+
 onMounted(() => {
   loadReviewQueue();
 });
@@ -407,6 +419,33 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.5rem;
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  background: none;
+  border: none;
+  font-size: 0.875rem;
+  color: var(--text-secondary, #6b7280);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.back-button:hover {
+  color: var(--primary-color, #3b82f6);
+}
+
+.back-icon {
+  font-size: 1rem;
 }
 
 .management-header h1 {

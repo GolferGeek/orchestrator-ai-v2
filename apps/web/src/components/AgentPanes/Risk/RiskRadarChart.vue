@@ -64,17 +64,60 @@
         v-for="assessment in assessments"
         :key="assessment.id"
         class="legend-item"
+        @click="selectAssessment(assessment)"
       >
         <span class="legend-color" :style="{ background: getScoreColor(assessment.score) }"></span>
-        <span class="legend-name">{{ assessment.dimensionName || assessment.dimensionSlug }}</span>
+        <span class="legend-name">{{ getAssessmentName(assessment) }}</span>
         <span class="legend-score">{{ formatPercent(assessment.score) }}</span>
       </div>
     </div>
+
+    <!-- Assessment Detail Modal -->
+    <Teleport to="body">
+      <Transition name="modal-fade">
+        <div v-if="selectedAssessment" class="modal-overlay" @click.self="closeModal">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h3>{{ getAssessmentName(selectedAssessment) }}</h3>
+              <button class="modal-close" @click="closeModal">&times;</button>
+            </div>
+            <div class="modal-body">
+              <div class="detail-row">
+                <span class="detail-label">Risk Score:</span>
+                <span class="detail-value" :class="getScoreClass(selectedAssessment.score)">
+                  {{ formatPercent(selectedAssessment.score) }}
+                </span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Confidence:</span>
+                <span class="detail-value">{{ formatPercent(selectedAssessment.confidence) }}</span>
+              </div>
+              <div v-if="selectedAssessment.weight || selectedAssessment.dimensionWeight || selectedAssessment.dimension_weight" class="detail-row">
+                <span class="detail-label">Weight:</span>
+                <span class="detail-value">{{ formatPercent(selectedAssessment.weight || selectedAssessment.dimensionWeight || selectedAssessment.dimension_weight) }}</span>
+              </div>
+              <div v-if="getReasoning(selectedAssessment)" class="detail-section">
+                <span class="detail-label">Reasoning:</span>
+                <p class="reasoning-text">{{ getReasoning(selectedAssessment) }}</p>
+              </div>
+              <div v-if="getSignals(selectedAssessment).length > 0" class="detail-section">
+                <span class="detail-label">Signals:</span>
+                <ul class="signals-list">
+                  <li v-for="(signal, idx) in getSignals(selectedAssessment)" :key="idx" :class="`signal-${signal.impact}`">
+                    {{ signal.description || signal.name }}
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import type { RiskAssessment } from '@/types/risk-agent';
 
 interface Props {
@@ -85,6 +128,51 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   size: 300,
 });
+
+// Modal state
+const selectedAssessment = ref<RiskAssessment | null>(null);
+
+function selectAssessment(assessment: RiskAssessment) {
+  selectedAssessment.value = assessment;
+}
+
+function closeModal() {
+  selectedAssessment.value = null;
+}
+
+// Helper to get assessment name handling both snake_case and camelCase
+function getAssessmentName(assessment: RiskAssessment): string {
+  const a = assessment as unknown as Record<string, unknown>;
+  return String(a.dimensionName || a.dimension_name || a.dimensionSlug || a.dimension_slug || 'Unknown');
+}
+
+// Helper to get reasoning from assessment
+function getReasoning(assessment: RiskAssessment): string {
+  const a = assessment as unknown as Record<string, unknown>;
+  const analystResponse = (a.analystResponse || a.analyst_response) as Record<string, unknown> | undefined;
+  return String(a.reasoning || analystResponse?.reasoning || '');
+}
+
+// Helper to get signals from assessment
+function getSignals(assessment: RiskAssessment): Array<{ description?: string; name?: string; impact?: string }> {
+  const a = assessment as unknown as Record<string, unknown>;
+  const signals = a.signals as Array<Record<string, unknown>> | undefined;
+  if (!signals || !Array.isArray(signals)) return [];
+  return signals.map(s => ({
+    description: String(s.description || ''),
+    name: String(s.name || ''),
+    impact: String(s.impact || 'neutral'),
+  }));
+}
+
+// Helper to get score class
+function getScoreClass(score: number): string {
+  const normalized = normalizeScore(score);
+  if (normalized >= 0.8) return 'critical';
+  if (normalized >= 0.6) return 'high';
+  if (normalized >= 0.4) return 'medium';
+  return 'low';
+}
 
 const center = computed(() => props.size / 2);
 const radius = computed(() => (props.size / 2) - 40);
@@ -103,6 +191,11 @@ const axisPoints = computed(() => {
   });
 });
 
+// Normalize score to 0-1 range (handles both 0-1 and 0-100 scales)
+function normalizeScore(score: number): number {
+  return score > 1 ? score / 100 : score;
+}
+
 // Calculate data point positions based on scores
 const dataPoints = computed(() => {
   const count = props.assessments.length;
@@ -110,7 +203,8 @@ const dataPoints = computed(() => {
 
   return props.assessments.map((assessment, i) => {
     const angle = (Math.PI * 2 * i) / count - Math.PI / 2;
-    const r = radius.value * assessment.score;
+    const normalizedScore = normalizeScore(assessment.score);
+    const r = radius.value * normalizedScore;
     return {
       x: center.value + Math.cos(angle) * r,
       y: center.value + Math.sin(angle) * r,
@@ -123,6 +217,45 @@ const dataPolygon = computed(() => {
   return dataPoints.value.map((p) => `${p.x},${p.y}`).join(' ');
 });
 
+// Get short label for dimension
+function getDimensionLabel(assessment: RiskAssessment, index: number): string {
+  // Handle both camelCase and snake_case from API
+  const assessmentRecord = assessment as unknown as Record<string, unknown>;
+  const name = String(
+    assessmentRecord.dimensionName ||
+    assessmentRecord.dimension_name ||
+    assessmentRecord.dimensionSlug ||
+    assessmentRecord.dimension_slug ||
+    ''
+  );
+
+  if (!name) return `D${index + 1}`;
+
+  // Map common dimension slugs to short labels
+  const shortLabels: Record<string, string> = {
+    'credit-risk': 'Credit',
+    'market-risk': 'Market',
+    'liquidity-risk': 'Liquidity',
+    'regulatory-risk': 'Regulatory',
+    'operational-risk': 'Ops',
+    'concentration-risk': 'Conc',
+  };
+
+  // Check if it's a known slug
+  const slug = String(
+    assessmentRecord.dimensionSlug ||
+    assessmentRecord.dimension_slug ||
+    ''
+  ).toLowerCase();
+  if (shortLabels[slug]) {
+    return shortLabels[slug];
+  }
+
+  // Otherwise, use first word of name or first 8 chars
+  const words = name.split(/[\s-]+/);
+  return words[0]?.substring(0, 8) || `D${index + 1}`;
+}
+
 // Calculate label positions (slightly outside the chart)
 const labelPoints = computed(() => {
   const count = props.assessments.length;
@@ -134,19 +267,21 @@ const labelPoints = computed(() => {
     return {
       x: center.value + Math.cos(angle) * r,
       y: center.value + Math.sin(angle) * r,
-      text: assessment.dimensionSlug?.substring(0, 8) || `D${i + 1}`,
+      text: getDimensionLabel(assessment, i),
     };
   });
 });
 
 function formatPercent(value: number): string {
-  return (value * 100).toFixed(0) + '%';
+  const normalized = normalizeScore(value);
+  return (normalized * 100).toFixed(0) + '%';
 }
 
 function getScoreColor(score: number): string {
-  if (score >= 0.8) return 'var(--ion-color-danger, #eb445a)';
-  if (score >= 0.6) return 'var(--ion-color-warning, #ffc409)';
-  if (score >= 0.4) return '#ffd966';
+  const normalized = normalizeScore(score);
+  if (normalized >= 0.8) return 'var(--ion-color-danger, #eb445a)';
+  if (normalized >= 0.6) return 'var(--ion-color-warning, #ffc409)';
+  if (normalized >= 0.4) return '#ffd966';
   return 'var(--ion-color-success, #2dd36f)';
 }
 </script>
@@ -176,6 +311,14 @@ function getScoreColor(score: number): string {
   align-items: center;
   gap: 0.375rem;
   font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.legend-item:hover {
+  background: var(--ion-color-light, #f4f5f8);
 }
 
 .legend-color {
@@ -190,5 +333,156 @@ function getScoreColor(score: number): string {
 
 .legend-score {
   font-weight: 600;
+}
+
+/* Modal styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: var(--ion-card-background, #fff);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 400px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--ion-border-color, #e0e0e0);
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--ion-color-medium, #666);
+  padding: 0;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  color: var(--ion-text-color, #333);
+}
+
+.modal-body {
+  padding: 1.25rem;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.detail-label {
+  color: var(--ion-color-medium, #666);
+  font-size: 0.875rem;
+}
+
+.detail-value {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.detail-value.critical {
+  color: var(--ion-color-danger, #eb445a);
+}
+
+.detail-value.high {
+  color: var(--ion-color-warning, #ffc409);
+}
+
+.detail-value.medium {
+  color: #ffd966;
+}
+
+.detail-value.low {
+  color: var(--ion-color-success, #2dd36f);
+}
+
+.detail-section {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--ion-border-color, #e0e0e0);
+}
+
+.detail-section .detail-label {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.reasoning-text {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--ion-text-color, #333);
+}
+
+.signals-list {
+  margin: 0;
+  padding: 0 0 0 1.25rem;
+  font-size: 0.875rem;
+}
+
+.signals-list li {
+  margin-bottom: 0.375rem;
+  line-height: 1.4;
+}
+
+.signals-list li.signal-positive {
+  color: var(--ion-color-success, #2dd36f);
+}
+
+.signals-list li.signal-negative {
+  color: var(--ion-color-danger, #eb445a);
+}
+
+.signals-list li.signal-neutral {
+  color: var(--ion-color-medium, #666);
+}
+
+/* Modal transition */
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.modal-fade-enter-active .modal-content,
+.modal-fade-leave-active .modal-content {
+  transition: transform 0.2s ease;
+}
+
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
+}
+
+.modal-fade-enter-from .modal-content,
+.modal-fade-leave-to .modal-content {
+  transform: scale(0.95);
 }
 </style>

@@ -38,7 +38,9 @@ interface Props {
 defineProps<Props>();
 
 function formatPercent(value: number): string {
-  return (value * 100).toFixed(0) + '%';
+  // Handle both 0-1 and 0-100 scales
+  const normalized = value > 1 ? value / 100 : value;
+  return (normalized * 100).toFixed(0) + '%';
 }
 </script>
 

@@ -4,8 +4,14 @@
       <div class="trading-dashboard">
         <!-- Header -->
         <header class="dashboard-header">
-          <h1>Trading Dashboard</h1>
-          <p class="subtitle">Your portfolio and analyst performance</p>
+          <div class="header-left">
+            <button class="back-button" @click="goBackToDashboard">
+              <span class="back-icon">&larr;</span>
+              Back to Dashboard
+            </button>
+            <h1>Trading Dashboard</h1>
+            <p class="subtitle">Your portfolio and analyst performance</p>
+          </div>
         </header>
 
         <!-- My Portfolio Section -->
@@ -236,6 +242,10 @@ function goToPredictions() {
   router.push({ name: 'PredictionDashboard' });
 }
 
+function goBackToDashboard() {
+  router.push({ name: 'PredictionDashboard' });
+}
+
 function viewAnalyst(analystId: string) {
   router.push({ name: 'AnalystDetail', params: { id: analystId } });
 }
@@ -276,6 +286,33 @@ function formatStatus(status: string): string {
 
 .dashboard-header {
   margin-bottom: 2rem;
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  background: none;
+  border: none;
+  font-size: 0.875rem;
+  color: var(--text-secondary, #6b7280);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.back-button:hover {
+  color: var(--primary-color, #3b82f6);
+}
+
+.back-icon {
+  font-size: 1rem;
 }
 
 .dashboard-header h1 {

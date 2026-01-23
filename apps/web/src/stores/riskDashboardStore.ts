@@ -565,8 +565,18 @@ export const useRiskDashboardStore = defineStore('riskDashboard', () => {
     state.value.filters = {};
   }
 
-  function setStats(stats: DashboardStats) {
-    state.value.stats = stats;
+  function setStats(stats: DashboardStats | Record<string, unknown>) {
+    // Transform API response (may have snake_case or camelCase) to expected format
+    const s = stats as Record<string, unknown>;
+    state.value.stats = {
+      totalSubjects: Number(s.totalSubjects ?? s.total_subjects ?? 0) || 0,
+      analyzedSubjects: Number(s.analyzedSubjects ?? s.analyzed_subjects ?? 0) || 0,
+      averageScore: Number(s.averageScore ?? s.average_score ?? 0) || 0,
+      criticalAlerts: Number(s.criticalAlerts ?? s.critical_alerts ?? 0) || 0,
+      warningAlerts: Number(s.warningAlerts ?? s.warning_alerts ?? 0) || 0,
+      pendingLearnings: Number(s.pendingLearnings ?? s.pending_learnings ?? 0) || 0,
+      staleAssessments: Number(s.staleAssessments ?? s.stale_assessments ?? 0) || 0,
+    };
   }
 
   function updateStats(updates: Partial<DashboardStats>) {

@@ -165,7 +165,7 @@
                 >
                   <span class="alert-severity">{{ alert.severity }}</span>
                   <span class="alert-message">{{ alert.message }}</span>
-                  <span class="alert-time">{{ formatTime(alert.createdAt) }}</span>
+                  <span class="alert-time">{{ formatTime(alert.createdAt || alert.created_at) }}</span>
                 </div>
               </div>
             </section>
@@ -286,10 +286,27 @@ const dimensionScoresFromComposite = computed(() => {
   });
 });
 
+// Helper to format dimension name from slug
+function formatDimensionName(slug: string): string {
+  return slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
 // Use assessments if available, otherwise use dimension scores from composite
 const displayAssessments = computed(() => {
   if (props.subject?.assessments && props.subject.assessments.length > 0) {
-    return props.subject.assessments;
+    // Normalize API response (snake_case) to expected format (camelCase)
+    return props.subject.assessments.map((a: Record<string, unknown>) => ({
+      id: a.id || a.dimension_id,
+      dimensionSlug: a.dimensionSlug || a.dimension_slug || '',
+      dimensionName: a.dimensionName || a.dimension_name ||
+        formatDimensionName(String(a.dimensionSlug || a.dimension_slug || '')),
+      score: a.score,
+      confidence: a.confidence,
+      weight: a.dimensionWeight || a.dimension_weight,
+      analystResponse: a.analystResponse || a.analyst_response,
+      signals: a.signals,
+      reasoning: a.reasoning,
+    }));
   }
   return dimensionScoresFromComposite.value;
 });
