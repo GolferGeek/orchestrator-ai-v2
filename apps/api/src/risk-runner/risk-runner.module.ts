@@ -41,6 +41,7 @@ import {
   LiveDataService,
   // Central Crawler Integration
   RiskArticleProcessorService,
+  ArticleClassifierService,
 } from './services';
 
 // Runners
@@ -49,6 +50,8 @@ import {
   RiskEvaluationRunner,
   RiskLearningRunner,
   RiskAlertRunner,
+  // Central Crawler Integration
+  ArticleClassificationRunner,
 } from './runners';
 
 // Dashboard Handlers
@@ -105,6 +108,7 @@ const services = [
   LiveDataService,
   // Central Crawler Integration
   RiskArticleProcessorService,
+  ArticleClassifierService,
 ];
 
 const runners = [
@@ -112,6 +116,8 @@ const runners = [
   RiskEvaluationRunner,
   RiskLearningRunner,
   RiskAlertRunner,
+  // Central Crawler Integration
+  ArticleClassificationRunner,
 ];
 
 const dashboardHandlers = [

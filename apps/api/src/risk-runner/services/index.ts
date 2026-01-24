@@ -24,3 +24,4 @@ export * from './live-data.service';
 
 // Central Crawler Integration
 export * from './article-processor.service';
+export * from './article-classifier.service';
