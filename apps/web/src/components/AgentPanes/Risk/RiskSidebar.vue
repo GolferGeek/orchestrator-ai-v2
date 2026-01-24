@@ -2,7 +2,10 @@
   <div class="risk-sidebar">
     <div class="sidebar-header">
       <h3>Subjects</h3>
-      <span class="subject-count">{{ subjects.length }}</span>
+      <div class="header-actions">
+        <span class="subject-count">{{ subjects.length }}</span>
+        <button class="add-btn" @click="$emit('add-subject')" title="Add new subject">+</button>
+      </div>
     </div>
 
     <div class="search-box">
@@ -37,7 +40,10 @@
 
       <div v-if="filteredSubjects.length === 0" class="no-subjects">
         <p v-if="searchQuery">No subjects match "{{ searchQuery }}"</p>
-        <p v-else>No subjects configured</p>
+        <template v-else>
+          <p>No subjects configured</p>
+          <button class="add-first-btn" @click="$emit('add-subject')">+ Add Subject</button>
+        </template>
       </div>
     </div>
   </div>
@@ -58,6 +64,7 @@ const props = defineProps<Props>();
 
 defineEmits<{
   (e: 'select', subjectId: string): void;
+  (e: 'add-subject'): void;
 }>();
 
 const searchQuery = ref('');
@@ -204,5 +211,48 @@ function isStale(subjectId: string): boolean {
   padding: 2rem 1rem;
   text-align: center;
   color: var(--ion-color-medium, #666);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.add-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: none;
+  background: var(--ion-color-primary, #a87c4f);
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.add-btn:hover {
+  background: var(--ion-color-primary-shade, #8f693f);
+}
+
+.add-first-btn {
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: none;
+  background: var(--ion-color-primary, #a87c4f);
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.add-first-btn:hover {
+  background: var(--ion-color-primary-shade, #8f693f);
 }
 </style>

@@ -83,6 +83,7 @@
             :stats="store.stats"
             @select-subject="(id, score) => onSelectSubject(id, score)"
             @analyze="onAnalyzeSubject"
+            @add-subject="showCreateSubjectModal = true"
           />
 
           <!-- Analytics Tab -->
@@ -148,6 +149,15 @@
         @close="showCreateScopeModal = false"
         @create="onCreateScope"
       />
+
+      <!-- Create Subject Modal -->
+      <CreateSubjectModal
+        ref="createSubjectModalRef"
+        :is-open="showCreateSubjectModal"
+        :scope-id="selectedScopeId"
+        @close="showCreateSubjectModal = false"
+        @create="onCreateSubject"
+      />
     </ion-content>
   </ion-page>
 </template>
@@ -168,6 +178,8 @@ import SettingsTab from './tabs/SettingsTab.vue';
 import AnalyticsTab from './tabs/AnalyticsTab.vue';
 import SubjectDetailPanel from './components/SubjectDetailPanel.vue';
 import CreateScopeModal from './components/CreateScopeModal.vue';
+import CreateSubjectModal from './components/CreateSubjectModal.vue';
+import type { CreateSubjectRequest } from '@/types/risk-agent';
 
 const route = useRoute();
 const store = useRiskDashboardStore();
@@ -191,6 +203,10 @@ const detailError = ref<string | null>(null);
 // Create scope modal state
 const showCreateScopeModal = ref(false);
 const createScopeModalRef = ref<InstanceType<typeof CreateScopeModal> | null>(null);
+
+// Create subject modal state
+const showCreateSubjectModal = ref(false);
+const createSubjectModalRef = ref<InstanceType<typeof CreateSubjectModal> | null>(null);
 
 // Tabs configuration
 const tabs = computed(() => [
@@ -518,6 +534,27 @@ async function onCreateScope(params: {
     }
   } catch (error) {
     createScopeModalRef.value?.setError(error instanceof Error ? error.message : 'Failed to create scope');
+  }
+}
+
+async function onCreateSubject(params: CreateSubjectRequest) {
+  createSubjectModalRef.value?.setSubmitting(true);
+
+  try {
+    const response = await riskDashboardService.createSubject(params);
+
+    if (response.success && response.content) {
+      store.addSubject(response.content);
+      showCreateSubjectModal.value = false;
+      // Reload scope data to get updated stats
+      if (selectedScopeId.value) {
+        await loadScopeData(selectedScopeId.value);
+      }
+    } else {
+      createSubjectModalRef.value?.setError('Failed to create subject');
+    }
+  } catch (error) {
+    createSubjectModalRef.value?.setError(error instanceof Error ? error.message : 'Failed to create subject');
   }
 }
 

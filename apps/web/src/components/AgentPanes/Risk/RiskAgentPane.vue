@@ -93,6 +93,7 @@
             :composite-scores="compositeScores"
             :selected-subject-id="selectedSubject?.subject?.id"
             @select="handleSelectSubject"
+            @add-subject="showCreateSubjectModal = true"
           />
 
           <!-- Main content - Radar or Detail -->
@@ -130,6 +131,7 @@
         <DimensionsComponent
           :dimensions="dimensions"
           :scope-id="currentScope?.id"
+          @dimension-updated="handleDimensionUpdated"
         />
       </div>
 
@@ -158,6 +160,15 @@
       <div class="spinner"></div>
       <span>Loading...</span>
     </div>
+
+    <!-- Create Subject Modal -->
+    <CreateSubjectModal
+      ref="createSubjectModalRef"
+      :is-open="showCreateSubjectModal"
+      :scope-id="currentScope?.id || null"
+      @close="showCreateSubjectModal = false"
+      @create="handleCreateSubject"
+    />
   </div>
 </template>
 
@@ -171,6 +182,8 @@ import AlertsComponent from './AlertsComponent.vue';
 import DimensionsComponent from './DimensionsComponent.vue';
 import LearningsComponent from './LearningsComponent.vue';
 import SettingsComponent from './SettingsComponent.vue';
+import CreateSubjectModal from '@/views/risk/components/CreateSubjectModal.vue';
+import type { CreateSubjectRequest, RiskDimension } from '@/types/risk-agent';
 
 interface Props {
   conversation?: { id: string; agentName?: string; organizationSlug?: string } | null;
@@ -183,6 +196,8 @@ const store = useRiskDashboardStore();
 
 // UI State
 const activeTab = ref('overview');
+const showCreateSubjectModal = ref(false);
+const createSubjectModalRef = ref<InstanceType<typeof CreateSubjectModal> | null>(null);
 
 // Computed from store
 const currentScope = computed(() => store.currentScope);
@@ -394,6 +409,32 @@ async function handleUpdateScope(updates: Record<string, unknown>) {
   } catch (err) {
     store.setError(err instanceof Error ? err.message : 'Failed to update scope');
   }
+}
+
+async function handleCreateSubject(params: CreateSubjectRequest) {
+  createSubjectModalRef.value?.setSubmitting(true);
+
+  try {
+    const response = await riskDashboardService.createSubject(params);
+
+    if (response.success && response.content) {
+      store.addSubject(response.content);
+      showCreateSubjectModal.value = false;
+      // Reload scope data to get updated stats
+      if (currentScope.value) {
+        await loadScopeData(currentScope.value.id);
+      }
+    } else {
+      createSubjectModalRef.value?.setError('Failed to create subject');
+    }
+  } catch (err) {
+    createSubjectModalRef.value?.setError(err instanceof Error ? err.message : 'Failed to create subject');
+  }
+}
+
+function handleDimensionUpdated(dimension: RiskDimension) {
+  // Update the dimension in the store
+  store.updateDimension(dimension.id, dimension);
 }
 
 function clearError() {

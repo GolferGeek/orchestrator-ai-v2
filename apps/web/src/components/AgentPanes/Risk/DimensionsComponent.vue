@@ -1,52 +1,155 @@
 <template>
   <div class="dimensions-component">
+    <div class="dimensions-header">
+      <h3>Risk Dimensions</h3>
+      <span class="dimension-count">{{ dimensions.length }} dimensions</span>
+    </div>
+
     <div v-if="dimensions.length === 0" class="empty-state">
       <p>No dimensions configured for this scope</p>
     </div>
 
     <div v-else class="dimensions-grid">
       <div
-        v-for="dimension in dimensions"
+        v-for="dimension in sortedDimensions"
         :key="dimension.id"
         class="dimension-config-card"
         :class="{ inactive: !dimension.isActive }"
+        @click="openEditModal(dimension)"
       >
         <div class="card-header">
           <span class="dimension-slug">{{ dimension.slug }}</span>
-          <span class="dimension-weight">Weight: {{ formatPercent(dimension.weight) }}</span>
+          <span class="dimension-weight">{{ formatPercent(dimension.weight) }}</span>
         </div>
-        <h4>{{ dimension.name }}</h4>
-        <p v-if="dimension.description">{{ dimension.description }}</p>
-        <div class="card-meta">
-          <span :class="dimension.isActive ? 'active' : 'inactive'">
+        <div class="card-title-row">
+          <span v-if="dimension.icon" class="material-icons dimension-icon" :style="{ color: dimension.color || '#3b82f6' }">
+            {{ dimension.icon }}
+          </span>
+          <h4>{{ dimension.displayName || dimension.name }}</h4>
+        </div>
+        <p v-if="dimension.description" class="dimension-description">{{ dimension.description }}</p>
+        <div class="card-footer">
+          <span :class="['status-badge', dimension.isActive ? 'active' : 'inactive']">
             {{ dimension.isActive ? 'Active' : 'Inactive' }}
           </span>
+          <span class="edit-hint">Click to edit</span>
         </div>
       </div>
     </div>
+
+    <!-- Edit Modal -->
+    <EditDimensionModal
+      ref="editModalRef"
+      :is-open="showEditModal"
+      :dimension="selectedDimension"
+      @close="closeEditModal"
+      @save="handleSave"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref, computed } from 'vue';
 import type { RiskDimension } from '@/types/risk-agent';
+import { riskDashboardService } from '@/services/riskDashboardService';
+import EditDimensionModal from './EditDimensionModal.vue';
 
 interface Props {
   dimensions: RiskDimension[];
   scopeId?: string;
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
+
+const emit = defineEmits<{
+  'dimension-updated': [dimension: RiskDimension];
+}>();
+
+// Modal state
+const showEditModal = ref(false);
+const selectedDimension = ref<RiskDimension | null>(null);
+const editModalRef = ref<InstanceType<typeof EditDimensionModal> | null>(null);
+
+// Sort dimensions by display order
+const sortedDimensions = computed(() => {
+  return [...props.dimensions].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+});
 
 function formatPercent(value: number): string {
   // Handle both 0-1 and 0-100 scales
   const normalized = value > 1 ? value / 100 : value;
   return (normalized * 100).toFixed(0) + '%';
 }
+
+function openEditModal(dimension: RiskDimension) {
+  selectedDimension.value = dimension;
+  showEditModal.value = true;
+}
+
+function closeEditModal() {
+  showEditModal.value = false;
+  selectedDimension.value = null;
+}
+
+async function handleSave(params: {
+  id: string;
+  name: string;
+  displayName?: string;
+  description?: string;
+  weight: number;
+  displayOrder: number;
+  icon?: string;
+  color?: string;
+  isActive: boolean;
+}) {
+  editModalRef.value?.setSubmitting(true);
+
+  try {
+    const response = await riskDashboardService.updateDimension(params.id, {
+      name: params.name,
+      displayName: params.displayName,
+      description: params.description,
+      weight: params.weight,
+      displayOrder: params.displayOrder,
+      icon: params.icon,
+      color: params.color,
+      isActive: params.isActive,
+    });
+
+    if (response.success && response.content) {
+      emit('dimension-updated', response.content);
+      closeEditModal();
+    } else {
+      editModalRef.value?.setError(response.message || 'Failed to update dimension');
+    }
+  } catch (err) {
+    editModalRef.value?.setError(err instanceof Error ? err.message : 'Failed to update dimension');
+  }
+}
 </script>
 
 <style scoped>
 .dimensions-component {
   max-width: 1000px;
+}
+
+.dimensions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.dimensions-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary, #111827);
+}
+
+.dimension-count {
+  font-size: 0.875rem;
+  color: var(--ion-color-medium, #666);
 }
 
 .empty-state {
@@ -66,10 +169,23 @@ function formatPercent(value: number): string {
   border-radius: 8px;
   padding: 1rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 2px solid transparent;
+}
+
+.dimension-config-card:hover {
+  border-color: var(--primary-color, #a87c4f);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 .dimension-config-card.inactive {
   opacity: 0.6;
+}
+
+.dimension-config-card.inactive:hover {
+  opacity: 0.8;
 }
 
 .card-header {
@@ -88,31 +204,88 @@ function formatPercent(value: number): string {
 }
 
 .dimension-weight {
-  font-size: 0.75rem;
-  color: var(--ion-color-medium, #666);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--primary-color, #a87c4f);
+  background: rgba(168, 124, 79, 0.1);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.dimension-icon {
+  font-size: 1.25rem;
 }
 
 .dimension-config-card h4 {
-  margin: 0 0 0.5rem;
+  margin: 0;
   font-size: 1rem;
+  color: var(--text-primary, #111827);
 }
 
-.dimension-config-card p {
+.dimension-description {
   margin: 0 0 0.75rem;
   font-size: 0.8125rem;
   color: var(--ion-color-medium, #666);
   line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.card-meta {
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.status-badge {
   font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 500;
 }
 
-.card-meta .active {
-  color: var(--ion-color-success, #2dd36f);
+.status-badge.active {
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.1);
 }
 
-.card-meta .inactive {
+.status-badge.inactive {
   color: var(--ion-color-medium, #666);
+  background: var(--ion-color-light, #f4f5f8);
+}
+
+.edit-hint {
+  font-size: 0.75rem;
+  color: var(--ion-color-medium, #999);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.dimension-config-card:hover .edit-hint {
+  opacity: 1;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .dimensions-component {
+    --text-primary: #f9fafb;
+  }
+
+  .dimension-config-card {
+    background: var(--ion-card-background, #2a2a2a);
+  }
+
+  .dimension-slug {
+    background: #374151;
+  }
 }
 </style>

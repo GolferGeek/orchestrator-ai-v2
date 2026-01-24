@@ -333,8 +333,12 @@ class RiskDashboardService {
     id: string,
     params: Partial<{
       name: string;
+      displayName: string;
       description: string;
       weight: number;
+      displayOrder: number;
+      icon: string;
+      color: string;
       isActive: boolean;
     }>
   ): Promise<DashboardActionResponse<RiskDimension>> {

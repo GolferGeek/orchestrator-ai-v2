@@ -29,11 +29,19 @@
 
     <!-- Subjects with Scores -->
     <section class="subjects-section">
-      <h3>Risk Analysis Results</h3>
+      <div class="section-header">
+        <h3>Risk Analysis Results</h3>
+        <button class="btn btn-primary" @click="$emit('add-subject')">
+          + New Subject
+        </button>
+      </div>
 
       <div v-if="compositeScores.length === 0" class="empty-state">
         <span class="empty-icon">📊</span>
         <p>No risk analysis results yet. Add subjects and run analysis.</p>
+        <button class="btn btn-primary" @click="$emit('add-subject')">
+          + Add Your First Subject
+        </button>
       </div>
 
       <div v-else class="subjects-grid">
@@ -90,6 +98,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'select-subject': [subjectId: string, compositeScore: ActiveCompositeScoreView];
   'analyze': [subjectId: string];
+  'add-subject': [];
 }>();
 
 const averageScoreFormatted = computed(() => {
@@ -309,6 +318,42 @@ function formatAge(hours: number): string {
 }
 
 /* Subjects */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.section-header h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary, #111827);
+  margin: 0;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.btn-primary {
+  background: var(--primary-color, #a87c4f);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: var(--primary-color-dark, #8f693f);
+}
+
 .subjects-section h3 {
   font-size: 1rem;
   font-weight: 600;

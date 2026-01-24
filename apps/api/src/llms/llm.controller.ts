@@ -241,4 +241,82 @@ export class LLMController {
   > {
     return this.llmPricingService.getModelsWithPricing(provider);
   }
+
+  /**
+   * Simple LLM endpoint for quick prompts without ExecutionContext.
+   * Uses local Ollama provider by default for lightweight utility tasks.
+   *
+   * Use cases:
+   * - Auto-generating form field content
+   * - Simple text transformations
+   * - Quick AI assistance features
+   *
+   * For conversation-based or tracked LLM calls, use the main /generate endpoint.
+   */
+  @Post('quick')
+  @HttpCode(HttpStatus.OK)
+  async quickGenerate(
+    @Body()
+    request: {
+      systemPrompt: string;
+      userPrompt: string;
+      options?: {
+        temperature?: number;
+        maxTokens?: number;
+        provider?: 'openai' | 'anthropic' | 'ollama' | 'google';
+        model?: string;
+      };
+    },
+  ): Promise<{ response: string }> {
+    try {
+      const provider = request.options?.provider || 'ollama';
+      const model =
+        request.options?.model ||
+        (provider === 'ollama'
+          ? process.env.DEFAULT_LLM_MODEL || 'llama3.2:3b'
+          : 'gpt-4o-mini');
+
+      // Create a minimal execution context for the LLM service
+      // This is a lightweight context for utility operations
+      const minimalContext: ExecutionContext = {
+        orgSlug: 'utility',
+        userId: 'system',
+        conversationId: '00000000-0000-0000-0000-000000000000',
+        taskId: '00000000-0000-0000-0000-000000000000',
+        planId: '00000000-0000-0000-0000-000000000000',
+        deliverableId: '00000000-0000-0000-0000-000000000000',
+        agentSlug: 'quick-generate',
+        agentType: 'utility',
+        provider,
+        model,
+      };
+
+      const result = await this.llmService.generateResponse(
+        request.systemPrompt,
+        request.userPrompt,
+        {
+          temperature: request.options?.temperature ?? 0.7,
+          maxTokens: request.options?.maxTokens ?? 1000,
+          callerType: 'utility',
+          callerName: 'llm-quick-generate',
+          executionContext: minimalContext,
+        },
+      );
+
+      // Extract response content
+      if (typeof result === 'string') {
+        return { response: result };
+      }
+
+      // Handle LLMResponse object
+      if (result && typeof result === 'object' && 'content' in result) {
+        return { response: result.content };
+      }
+
+      return { response: String(result) };
+    } catch (error) {
+      this.logger.error('Quick generate failed', error);
+      throw error;
+    }
+  }
 }
