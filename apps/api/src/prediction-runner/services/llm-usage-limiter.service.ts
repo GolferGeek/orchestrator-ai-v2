@@ -21,6 +21,11 @@ import { ObservabilityEventsService } from '@/observability/observability-events
 export type UsageTier = 'free' | 'pro' | 'enterprise';
 
 /**
+ * Local providers that should bypass usage tracking (they're free/unlimited)
+ */
+export const LOCAL_PROVIDERS = ['ollama'] as const;
+
+/**
  * Usage limits configuration per tier
  */
 export interface UsageLimits {
@@ -118,13 +123,34 @@ export class LlmUsageLimiterService {
   // ═══════════════════════════════════════════════════════════════════════════
 
   /**
+   * Check if a provider is local (and thus unlimited/free)
+   */
+  isLocalProvider(provider: string): boolean {
+    return LOCAL_PROVIDERS.includes(
+      provider.toLowerCase() as (typeof LOCAL_PROVIDERS)[number],
+    );
+  }
+
+  /**
    * Check if a universe can use the specified number of tokens
    *
    * @param universeId - Universe ID to check
    * @param estimatedTokens - Estimated tokens to be used
+   * @param provider - Optional provider name; if local, always allowed
    * @returns Check result with allowed status
    */
-  canUseTokens(universeId: string, estimatedTokens: number): UsageCheckResult {
+  canUseTokens(
+    universeId: string,
+    estimatedTokens: number,
+    provider?: string,
+  ): UsageCheckResult {
+    // Local providers are unlimited - no tracking needed
+    if (provider && this.isLocalProvider(provider)) {
+      this.logger.debug(
+        `Skipping usage check for local provider: ${provider}`,
+      );
+      return { allowed: true };
+    }
     const usage = this.getOrCreateUsageTracking(universeId);
     const limits = TIER_LIMITS[usage.tier];
 
@@ -211,8 +237,21 @@ export class LlmUsageLimiterService {
    * @param universeId - Universe ID
    * @param tokens - Number of tokens used
    * @param requestType - Type of request (for logging)
+   * @param provider - Optional provider name; if local, skip recording
    */
-  recordUsage(universeId: string, tokens: number, requestType: string): void {
+  recordUsage(
+    universeId: string,
+    tokens: number,
+    requestType: string,
+    provider?: string,
+  ): void {
+    // Local providers are unlimited - no tracking needed
+    if (provider && this.isLocalProvider(provider)) {
+      this.logger.debug(
+        `Skipping usage recording for local provider: ${provider}`,
+      );
+      return;
+    }
     const usage = this.getOrCreateUsageTracking(universeId);
 
     // Check and reset counters if needed

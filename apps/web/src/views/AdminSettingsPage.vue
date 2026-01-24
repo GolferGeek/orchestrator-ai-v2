@@ -204,6 +204,14 @@
                   <ion-icon :icon="pulseOutline" />
                   <span>Observability</span>
                 </div>
+                <div
+                  class="nav-item"
+                  :class="{ active: activeSection === 'crawler' }"
+                  @click="selectSection('crawler')"
+                >
+                  <ion-icon :icon="cloudDownloadOutline" />
+                  <span>Crawler</span>
+                </div>
               </div>
             </div>
           </div>
@@ -280,6 +288,7 @@ import {
   keyOutline,
   peopleCircleOutline,
   trendingUpOutline,
+  cloudDownloadOutline,
 } from 'ionicons/icons';
 import { useAuthStore } from '@/stores/rbacStore';
 import { usePrivacyStore } from '@/stores/privacyStore';
@@ -324,6 +333,7 @@ const detailComponents: Record<string, ReturnType<typeof defineAsyncComponent>> 
   agents: defineAsyncComponent(() => import('@/views/admin/AgentsAdminPage.vue')),
   mcp: defineAsyncComponent(() => import('@/views/admin/MCPAdminPage.vue')),
   observability: defineAsyncComponent(() => import('@/views/admin/AdminObservabilityView.vue')),
+  crawler: defineAsyncComponent(() => import('@/views/admin/CrawlerAdminPage.vue')),
   // Sub-detail components
   'rag-collection': defineAsyncComponent(() => import('@/views/admin/RagCollectionDetailPage.vue')),
   'llm-usage-run': defineAsyncComponent(() => import('@/views/admin/LLMUsageDetailsPage.vue')),

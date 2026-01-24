@@ -368,43 +368,61 @@ export class AnalystEnsembleService {
       resolutionContext,
     );
 
-    // Check LLM usage limits before calling
+    // Check LLM usage limits before calling (skip for local providers)
     const estimatedTokens = this.estimateTokens(
       prompt.systemPrompt,
       prompt.userPrompt,
     );
-    const usageCheck = this.llmUsageLimiterService.canUseTokens(
-      target.universe_id,
-      estimatedTokens,
+
+    let effectiveContext = context;
+    const isLocalProvider = this.llmUsageLimiterService.isLocalProvider(
+      context.provider || '',
     );
 
-    if (!usageCheck.allowed) {
-      this.logger.warn(
-        `LLM usage limit reached for universe ${target.universe_id}: ${usageCheck.reason}`,
+    if (!isLocalProvider) {
+      const usageCheck = this.llmUsageLimiterService.canUseTokens(
+        target.universe_id,
+        estimatedTokens,
+        context.provider,
       );
-      throw new Error(`LLM usage limit exceeded: ${usageCheck.reason}`);
+
+      if (!usageCheck.allowed) {
+        // Fallback to local provider (ollama) instead of throwing error
+        this.logger.warn(
+          `LLM usage limit reached for universe ${target.universe_id}: ${usageCheck.reason}. Falling back to local provider.`,
+        );
+        effectiveContext = {
+          ...context,
+          provider: 'ollama',
+          model: process.env.DEFAULT_LLM_MODEL || 'llama3.2:1b',
+        };
+      }
     }
 
     // Call LLM
     const response = await this.llmService.generateResponse(
       prompt.systemPrompt,
       prompt.userPrompt,
-      { executionContext: context },
+      { executionContext: effectiveContext },
     );
 
     // Record actual usage (estimate output tokens as ~50% of input)
+    // Skip recording for local providers
     const actualTokens = estimatedTokens + Math.floor(estimatedTokens * 0.5);
     this.llmUsageLimiterService.recordUsage(
       target.universe_id,
       actualTokens,
       `analyst_assessment:${analyst.slug}:${forkType}`,
+      effectiveContext.provider,
     );
 
-    // Check and emit usage warnings
-    await this.llmUsageLimiterService.checkAndEmitWarnings(
-      context,
-      target.universe_id,
-    );
+    // Check and emit usage warnings (only for non-local providers)
+    if (!this.llmUsageLimiterService.isLocalProvider(effectiveContext.provider || '')) {
+      await this.llmUsageLimiterService.checkAndEmitWarnings(
+        effectiveContext,
+        target.universe_id,
+      );
+    }
 
     // Parse response
     const responseText =

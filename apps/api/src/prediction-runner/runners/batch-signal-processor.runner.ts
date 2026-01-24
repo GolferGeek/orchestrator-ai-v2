@@ -28,7 +28,7 @@ import { Signal } from '../interfaces/signal.interface';
 export class BatchSignalProcessorRunner {
   private readonly logger = new Logger(BatchSignalProcessorRunner.name);
   private readonly workerId = uuidv4(); // UUID required by processing_worker column
-  private readonly batchSize = 50;
+  private readonly batchSize = 200;
   private isRunning = false;
 
   constructor(

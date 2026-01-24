@@ -11,6 +11,9 @@ import {
 // Services
 import { CrawlerService, DeduplicationService } from './services';
 
+// Controllers
+import { CrawlerAdminController } from './crawler-admin.controller';
+
 /**
  * CrawlerModule - Central crawling infrastructure
  *
@@ -29,6 +32,7 @@ import { CrawlerService, DeduplicationService } from './services';
  */
 @Module({
   imports: [SupabaseModule],
+  controllers: [CrawlerAdminController],
   providers: [
     // Repositories
     CrawlerSourceRepository,
