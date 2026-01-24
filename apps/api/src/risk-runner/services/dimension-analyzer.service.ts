@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { LLMService } from '@/llms/llm.service';
 import { ExecutionContext } from '@orchestrator-ai/transport-types';
 import { RiskSubject } from '../interfaces/subject.interface';
@@ -11,12 +11,30 @@ import {
   AssessmentSignal,
 } from '../interfaces/assessment.interface';
 import { DimensionContextRepository } from '../repositories/dimension-context.repository';
+import { ArticleClassifierService } from './article-classifier.service';
+
+/**
+ * Article data for dimension analysis
+ */
+export interface RelevantArticle {
+  articleId: string;
+  title: string;
+  content: string;
+  url: string;
+  publishedAt: string;
+  sentiment: number;
+  sentimentLabel: string;
+  confidence: number;
+  riskIndicators: Array<{ type: string; keywords: string[] }>;
+}
 
 export interface DimensionAnalysisInput {
   subject: RiskSubject;
   dimension: RiskDimension;
   context: ExecutionContext;
   marketData?: Record<string, unknown>;
+  /** Relevant articles for this subject/dimension (from article classifier) */
+  articles?: RelevantArticle[];
 }
 
 export interface DimensionAnalysisOutput {
@@ -34,16 +52,19 @@ export class DimensionAnalyzerService {
   constructor(
     private readonly llmService: LLMService,
     private readonly dimensionContextRepo: DimensionContextRepository,
+    @Optional() private readonly articleClassifier?: ArticleClassifierService,
   ) {}
 
   /**
    * Analyze a single dimension for a subject
    * Uses the versioned prompt from dimension_contexts table
+   * Incorporates relevant articles from the article classifier
    */
   async analyzeDimension(
     input: DimensionAnalysisInput,
   ): Promise<CreateRiskAssessmentData> {
     const { subject, dimension, context, marketData } = input;
+    let { articles } = input;
 
     this.logger.debug(
       `Analyzing dimension ${dimension.slug} for subject ${subject.identifier}`,
@@ -59,13 +80,37 @@ export class DimensionAnalyzerService {
       return this.createDefaultAssessment(subject, dimension, context);
     }
 
+    // Fetch relevant articles if not provided and classifier is available
+    if (!articles && this.articleClassifier && subject.scope_id) {
+      try {
+        const fetchedArticles = await this.articleClassifier.getArticlesForSubjectDimension(
+          subject.scope_id,
+          subject.identifier,
+          dimension.slug,
+          new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Last 7 days
+          20, // Limit to 20 most recent articles
+        );
+        articles = fetchedArticles;
+        this.logger.debug(
+          `Found ${articles.length} relevant articles for ${subject.identifier}/${dimension.slug}`,
+        );
+      } catch (error) {
+        this.logger.warn(
+          `Failed to fetch articles for ${subject.identifier}/${dimension.slug}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        // Continue without articles
+        articles = [];
+      }
+    }
+
     try {
-      // Build the analysis prompt
+      // Build the analysis prompt (now includes articles)
       const prompt = this.buildAnalysisPrompt(
         subject,
         dimension,
         dimensionContext,
         marketData,
+        articles,
       );
 
       // Call LLM for analysis
@@ -119,12 +164,14 @@ export class DimensionAnalyzerService {
 
   /**
    * Build the analysis prompt for the LLM
+   * Now includes relevant articles for evidence-based analysis
    */
   private buildAnalysisPrompt(
     subject: RiskSubject,
     dimension: RiskDimension,
     dimensionContext: RiskDimensionContext,
     marketData?: Record<string, unknown>,
+    articles?: RelevantArticle[],
   ): string {
     let prompt = `Analyze the ${dimension.name} risk for ${subject.identifier}`;
 
@@ -140,6 +187,32 @@ export class DimensionAnalyzerService {
 
     if (marketData && Object.keys(marketData).length > 0) {
       prompt += `\n\nMarket Data:\n${JSON.stringify(marketData, null, 2)}`;
+    }
+
+    // Include relevant news articles if available
+    if (articles && articles.length > 0) {
+      prompt += `\n\n=== RELEVANT NEWS ARTICLES (${articles.length} articles) ===`;
+      prompt += `\nThese articles were classified as relevant to ${dimension.name} risk for ${subject.identifier}.\n`;
+
+      for (const article of articles.slice(0, 10)) {
+        prompt += `\n--- Article ---`;
+        prompt += `\nTitle: ${article.title}`;
+        prompt += `\nPublished: ${article.publishedAt}`;
+        prompt += `\nSentiment: ${article.sentimentLabel} (${article.sentiment.toFixed(2)})`;
+        if (article.riskIndicators && article.riskIndicators.length > 0) {
+          const indicators = article.riskIndicators
+            .map((r) => `${r.type}: ${r.keywords.join(', ')}`)
+            .join('; ');
+          prompt += `\nRisk Indicators: ${indicators}`;
+        }
+        // Include truncated content for context
+        const contentPreview = article.content?.slice(0, 500) || 'No content';
+        prompt += `\nContent Preview: ${contentPreview}${article.content && article.content.length > 500 ? '...' : ''}`;
+        prompt += `\nSource: ${article.url}`;
+      }
+
+      prompt += `\n\n=== END OF ARTICLES ===\n`;
+      prompt += `\nUse these articles as evidence for your risk assessment. Reference specific articles in your reasoning and evidence.`;
     }
 
     prompt += `\n\nProvide your analysis in the following JSON format:

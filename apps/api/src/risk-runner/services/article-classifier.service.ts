@@ -452,4 +452,145 @@ Return JSON classification:`;
       riskIndicators: row.risk_indicators as Array<{ type: string; keywords: string[] }>,
     }));
   }
+
+  /**
+   * Get articles for a specific subject AND dimension
+   * This is the key method for subject-aware dimension analysis
+   */
+  async getArticlesForSubjectDimension(
+    scopeId: string,
+    subjectIdentifier: string,
+    dimensionSlug: string,
+    since: Date = new Date(Date.now() - 24 * 60 * 60 * 1000),
+    limit: number = 100,
+  ): Promise<
+    Array<{
+      articleId: string;
+      title: string;
+      content: string;
+      url: string;
+      publishedAt: string;
+      sentiment: number;
+      sentimentLabel: string;
+      confidence: number;
+      riskIndicators: Array<{ type: string; keywords: string[] }>;
+      subjectIdentifiers: string[];
+    }>
+  > {
+    const { data, error } = await this.supabase
+      .getServiceClient()
+      .schema(RISK_SCHEMA)
+      .rpc('get_articles_for_subject_dimension', {
+        p_scope_id: scopeId,
+        p_subject_identifier: subjectIdentifier,
+        p_dimension_slug: dimensionSlug,
+        p_since: since.toISOString(),
+        p_limit: limit,
+      });
+
+    if (error) {
+      throw new Error(`Failed to get articles for subject dimension: ${error.message}`);
+    }
+
+    return (data || []).map((row: Record<string, unknown>) => ({
+      articleId: row.article_id as string,
+      title: row.title as string,
+      content: row.content as string,
+      url: row.url as string,
+      publishedAt: row.published_at as string,
+      sentiment: row.sentiment as number,
+      sentimentLabel: row.sentiment_label as string,
+      confidence: row.confidence as number,
+      riskIndicators: row.risk_indicators as Array<{ type: string; keywords: string[] }>,
+      subjectIdentifiers: row.subject_identifiers as string[],
+    }));
+  }
+
+  /**
+   * Get all articles mentioning a specific subject (across all dimensions)
+   */
+  async getArticlesForSubject(
+    scopeId: string,
+    subjectIdentifier: string,
+    since: Date = new Date(Date.now() - 24 * 60 * 60 * 1000),
+    limit: number = 100,
+  ): Promise<
+    Array<{
+      articleId: string;
+      title: string;
+      content: string;
+      url: string;
+      publishedAt: string;
+      dimensionSlugs: string[];
+      sentiment: number;
+      sentimentLabel: string;
+      confidence: number;
+      riskIndicators: Array<{ type: string; keywords: string[] }>;
+      subjectIdentifiers: string[];
+    }>
+  > {
+    const { data, error } = await this.supabase
+      .getServiceClient()
+      .schema(RISK_SCHEMA)
+      .rpc('get_articles_for_subject', {
+        p_scope_id: scopeId,
+        p_subject_identifier: subjectIdentifier,
+        p_since: since.toISOString(),
+        p_limit: limit,
+      });
+
+    if (error) {
+      throw new Error(`Failed to get articles for subject: ${error.message}`);
+    }
+
+    return (data || []).map((row: Record<string, unknown>) => ({
+      articleId: row.article_id as string,
+      title: row.title as string,
+      content: row.content as string,
+      url: row.url as string,
+      publishedAt: row.published_at as string,
+      dimensionSlugs: row.dimension_slugs as string[],
+      sentiment: row.sentiment as number,
+      sentimentLabel: row.sentiment_label as string,
+      confidence: row.confidence as number,
+      riskIndicators: row.risk_indicators as Array<{ type: string; keywords: string[] }>,
+      subjectIdentifiers: row.subject_identifiers as string[],
+    }));
+  }
+
+  /**
+   * Get subject coverage summary (which subjects have classified articles)
+   */
+  async getSubjectCoverage(
+    scopeId: string,
+    since: Date = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+  ): Promise<
+    Array<{
+      subjectIdentifier: string;
+      articleCount: number;
+      avgSentiment: number;
+      dimensionCoverage: string[];
+      latestArticle: string;
+    }>
+  > {
+    const { data, error } = await this.supabase
+      .getServiceClient()
+      .schema(RISK_SCHEMA)
+      .rpc('get_subject_coverage', {
+        p_scope_id: scopeId,
+        p_since: since.toISOString(),
+      });
+
+    if (error) {
+      throw new Error(`Failed to get subject coverage: ${error.message}`);
+    }
+
+    return (data || []).map((row: Record<string, unknown>) => ({
+      subjectIdentifier: row.subject_identifier as string,
+      articleCount: row.article_count as number,
+      avgSentiment: row.avg_sentiment as number,
+      dimensionCoverage: row.dimension_coverage as string[],
+      latestArticle: row.latest_article as string,
+    }));
+  }
 }
