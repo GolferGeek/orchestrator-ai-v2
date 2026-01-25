@@ -23,15 +23,15 @@
     <!-- Composite Score Card -->
     <div v-if="compositeScore" class="score-card">
       <div class="score-main">
-        <RiskScoreBadge :score="compositeScore.score" />
+        <RiskScoreBadge :score="getCompositeScoreValue(compositeScore)" />
         <span class="confidence">
-          Confidence: {{ formatPercent(compositeScore.confidence) }}
+          Confidence: {{ formatPercent(getConfidenceValue(compositeScore)) }}
         </span>
       </div>
       <div class="score-meta">
-        <span>Last analyzed: {{ formatDate(compositeScore.createdAt) }}</span>
-        <span v-if="compositeScore.debateAdjustment">
-          Debate adjustment: {{ formatAdjustment(compositeScore.debateAdjustment) }}
+        <span>Last analyzed: {{ formatDate(getCreatedAt(compositeScore)) }}</span>
+        <span v-if="getDebateAdjustment(compositeScore)">
+          Debate adjustment: {{ formatAdjustment(getDebateAdjustment(compositeScore)) }}
         </span>
       </div>
     </div>
@@ -323,6 +323,34 @@ function formatDimensionName(slug: string): string {
 
 function normalizeValue(value: number): number {
   return value > 1 ? value / 100 : value;
+}
+
+// Helper to get composite score value (handles both snake_case and camelCase)
+function getCompositeScoreValue(cs: RiskCompositeScore): number {
+  const c = cs as unknown as Record<string, unknown>;
+  // Check for overall_score (0-100 from API) first
+  if (typeof c.overall_score === 'number') return c.overall_score;
+  // Fallback to score (may be 0-1 or 0-100)
+  if (typeof c.score === 'number') return c.score;
+  return 0;
+}
+
+// Helper to get confidence value
+function getConfidenceValue(cs: RiskCompositeScore): number {
+  const c = cs as unknown as Record<string, unknown>;
+  return (c.confidence as number) ?? 0;
+}
+
+// Helper to get created_at/createdAt
+function getCreatedAt(cs: RiskCompositeScore): string {
+  const c = cs as unknown as Record<string, unknown>;
+  return String(c.created_at || c.createdAt || '');
+}
+
+// Helper to get debate adjustment
+function getDebateAdjustment(cs: RiskCompositeScore): number {
+  const c = cs as unknown as Record<string, unknown>;
+  return (c.debate_adjustment as number) ?? (c.debateAdjustment as number) ?? 0;
 }
 
 function formatPercent(value: number): string {
