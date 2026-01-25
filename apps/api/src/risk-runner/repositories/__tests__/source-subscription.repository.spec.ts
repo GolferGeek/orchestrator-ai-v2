@@ -44,7 +44,8 @@ describe('RiskSourceSubscriptionRepository', () => {
       order: jest.fn().mockReturnThis(),
       limit: jest.fn().mockReturnThis(),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      then: (resolve: any, reject?: any) => Promise.resolve(result).then(resolve, reject),
+      then: (resolve: any, reject?: any) =>
+        Promise.resolve(result).then(resolve, reject),
     };
 
     return mock;
@@ -68,7 +69,9 @@ describe('RiskSourceSubscriptionRepository', () => {
       ],
     }).compile();
 
-    repository = module.get<RiskSourceSubscriptionRepository>(RiskSourceSubscriptionRepository);
+    repository = module.get<RiskSourceSubscriptionRepository>(
+      RiskSourceSubscriptionRepository,
+    );
   });
 
   it('should be defined', () => {
@@ -82,7 +85,9 @@ describe('RiskSourceSubscriptionRepository', () => {
   describe('findById', () => {
     it('should find subscription by ID', async () => {
       const mockClient = createThenableMock(mockSubscription, null);
-      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('sub-123');
 
@@ -93,8 +98,13 @@ describe('RiskSourceSubscriptionRepository', () => {
     });
 
     it('should return null when not found', async () => {
-      const mockClient = createThenableMock(null, { code: 'PGRST116', message: 'Not found' });
-      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      const mockClient = createThenableMock(null, {
+        code: 'PGRST116',
+        message: 'Not found',
+      });
+      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findById('nonexistent');
 
@@ -109,7 +119,9 @@ describe('RiskSourceSubscriptionRepository', () => {
   describe('findByScope', () => {
     it('should find subscriptions by scope ID', async () => {
       const mockClient = createThenableMock([mockSubscription], null);
-      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByScope('scope-123');
 
@@ -120,7 +132,9 @@ describe('RiskSourceSubscriptionRepository', () => {
 
     it('should return empty array on error', async () => {
       const mockClient = createThenableMock(null, { message: 'Query failed' });
-      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findByScope('scope-123');
 
@@ -135,7 +149,9 @@ describe('RiskSourceSubscriptionRepository', () => {
   describe('findBySource', () => {
     it('should find subscriptions by source ID', async () => {
       const mockClient = createThenableMock([mockSubscription], null);
-      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.findBySource('source-123');
 
@@ -151,7 +167,9 @@ describe('RiskSourceSubscriptionRepository', () => {
   describe('create', () => {
     it('should create a new subscription with defaults', async () => {
       const mockClient = createThenableMock(mockSubscription, null);
-      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.create({
         source_id: 'source-123',
@@ -181,7 +199,9 @@ describe('RiskSourceSubscriptionRepository', () => {
 
     it('should create subscription with custom dimension mapping', async () => {
       const mockClient = createThenableMock(mockSubscription, null);
-      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await repository.create({
         source_id: 'source-123',
@@ -206,7 +226,9 @@ describe('RiskSourceSubscriptionRepository', () => {
 
     it('should throw error when creation fails', async () => {
       const mockClient = createThenableMock(null, { message: 'Insert failed' });
-      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.create({
@@ -223,10 +245,17 @@ describe('RiskSourceSubscriptionRepository', () => {
 
   describe('update', () => {
     it('should update subscription', async () => {
-      const mockClient = createThenableMock({ ...mockSubscription, auto_reanalyze: false }, null);
-      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      const mockClient = createThenableMock(
+        { ...mockSubscription, auto_reanalyze: false },
+        null,
+      );
+      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
-      const result = await repository.update('sub-123', { auto_reanalyze: false });
+      const result = await repository.update('sub-123', {
+        auto_reanalyze: false,
+      });
 
       expect(result.auto_reanalyze).toBe(false);
       expect(mockClient.update).toHaveBeenCalledWith({ auto_reanalyze: false });
@@ -234,7 +263,9 @@ describe('RiskSourceSubscriptionRepository', () => {
 
     it('should throw error when update fails', async () => {
       const mockClient = createThenableMock(null, { message: 'Update failed' });
-      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await expect(
         repository.update('sub-123', { is_active: false }),
@@ -261,33 +292,45 @@ describe('RiskSourceSubscriptionRepository', () => {
       ];
 
       const mockClient = createThenableMock(mockArticles, null);
-      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getNewArticles('sub-123', 50);
 
-      expect(mockClient.rpc).toHaveBeenCalledWith('get_new_articles_for_subscription', {
-        p_subscription_id: 'sub-123',
-        p_limit: 50,
-      });
+      expect(mockClient.rpc).toHaveBeenCalledWith(
+        'get_new_articles_for_subscription',
+        {
+          p_subscription_id: 'sub-123',
+          p_limit: 50,
+        },
+      );
       expect(result).toHaveLength(1);
       expect(result[0]!.id).toBe('article-123');
     });
 
     it('should use default limit of 100', async () => {
       const mockClient = createThenableMock([], null);
-      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       await repository.getNewArticles('sub-123');
 
-      expect(mockClient.rpc).toHaveBeenCalledWith('get_new_articles_for_subscription', {
-        p_subscription_id: 'sub-123',
-        p_limit: 100,
-      });
+      expect(mockClient.rpc).toHaveBeenCalledWith(
+        'get_new_articles_for_subscription',
+        {
+          p_subscription_id: 'sub-123',
+          p_limit: 100,
+        },
+      );
     });
 
     it('should return empty array on error', async () => {
       const mockClient = createThenableMock(null, { message: 'RPC failed' });
-      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getNewArticles('sub-123');
 
@@ -310,20 +353,34 @@ describe('RiskSourceSubscriptionRepository', () => {
           title: 'Scope News',
           content_hash: 'hash123',
           first_seen_at: '2024-01-15T12:00:00Z',
-          dimension_mapping: { dimensions: ['financial'], weight: 1.0, auto_apply: true },
-          subject_filter: { subject_ids: [], subject_types: [], identifier_pattern: null, apply_to_all: false },
+          dimension_mapping: {
+            dimensions: ['financial'],
+            weight: 1.0,
+            auto_apply: true,
+          },
+          subject_filter: {
+            subject_ids: [],
+            subject_types: [],
+            identifier_pattern: null,
+            apply_to_all: false,
+          },
         },
       ];
 
       const mockClient = createThenableMock(mockArticles, null);
-      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getNewArticlesForScope('scope-123', 100);
 
-      expect(mockClient.rpc).toHaveBeenCalledWith('get_new_articles_for_scope', {
-        p_scope_id: 'scope-123',
-        p_limit: 100,
-      });
+      expect(mockClient.rpc).toHaveBeenCalledWith(
+        'get_new_articles_for_scope',
+        {
+          p_scope_id: 'scope-123',
+          p_limit: 100,
+        },
+      );
       expect(result).toHaveLength(1);
       expect(result[0]!.subscription_id).toBe('sub-123');
       expect(result[0]!.dimension_mapping).toBeDefined();
@@ -337,15 +394,20 @@ describe('RiskSourceSubscriptionRepository', () => {
   describe('updateWatermark', () => {
     it('should call RPC function to update watermark', async () => {
       const mockClient = createThenableMock(null, null);
-      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const timestamp = new Date('2024-01-15T12:00:00Z');
       await repository.updateWatermark('sub-123', timestamp);
 
-      expect(mockClient.rpc).toHaveBeenCalledWith('update_subscription_watermark', {
-        p_subscription_id: 'sub-123',
-        p_last_processed_at: timestamp.toISOString(),
-      });
+      expect(mockClient.rpc).toHaveBeenCalledWith(
+        'update_subscription_watermark',
+        {
+          p_subscription_id: 'sub-123',
+          p_last_processed_at: timestamp.toISOString(),
+        },
+      );
     });
   });
 
@@ -372,7 +434,9 @@ describe('RiskSourceSubscriptionRepository', () => {
       ];
 
       const mockClient = createThenableMock(mockStats, null);
-      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getSubscriptionStats('scope-123');
 
@@ -385,7 +449,9 @@ describe('RiskSourceSubscriptionRepository', () => {
 
     it('should return empty array on error', async () => {
       const mockClient = createThenableMock(null, { message: 'Query failed' });
-      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(mockClient);
+      (mockSupabaseService.getServiceClient as jest.Mock).mockReturnValue(
+        mockClient,
+      );
 
       const result = await repository.getSubscriptionStats('scope-123');
 

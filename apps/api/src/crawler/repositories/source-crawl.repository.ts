@@ -213,7 +213,10 @@ export class SourceCrawlRepository {
       .from(this.table)
       .select('*')
       .eq('source_id', sourceId)
-      .gte('started_at', since.toISOString())) as SupabaseSelectListResponse<SourceCrawl>;
+      .gte(
+        'started_at',
+        since.toISOString(),
+      )) as SupabaseSelectListResponse<SourceCrawl>;
 
     if (error) {
       this.logger.error(`Failed to fetch crawl stats: ${error.message}`);

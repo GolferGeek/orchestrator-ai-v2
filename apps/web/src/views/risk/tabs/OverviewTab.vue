@@ -180,11 +180,11 @@ function getSubjectType(score: ApiScore): string {
 // Helper to get overall score (API returns 0-100, frontend expects 0-1)
 function getOverallScore(score: ApiScore): number {
   // Check for overall_score (0-100 from API) first
-  if (typeof score.overall_score === 'number') {
+  if (typeof score.overall_score === 'number' && !Number.isNaN(score.overall_score)) {
     return score.overall_score / 100;
   }
   // Fallback to score (already 0-1)
-  if (typeof score.score === 'number') {
+  if (typeof score.score === 'number' && !Number.isNaN(score.score)) {
     return score.score;
   }
   return 0;
@@ -236,6 +236,8 @@ function getAgeHours(score: ApiScore): number {
 }
 
 function formatScore(score: number): string {
+  // Guard against undefined, null, or NaN
+  if (score === undefined || score === null || Number.isNaN(score)) return '-';
   return (score * 100).toFixed(0) + '%';
 }
 

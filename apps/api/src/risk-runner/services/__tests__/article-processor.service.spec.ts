@@ -39,7 +39,9 @@ describe('RiskArticleProcessorService', () => {
     updated_at: '2024-01-01T00:00:00Z',
   };
 
-  const createMockArticle = (overrides: Partial<CrawlerArticle> = {}): CrawlerArticle => ({
+  const createMockArticle = (
+    overrides: Partial<CrawlerArticle> = {},
+  ): CrawlerArticle => ({
     id: 'article-123',
     organization_slug: 'test-org',
     source_id: 'source-123',
@@ -60,7 +62,9 @@ describe('RiskArticleProcessorService', () => {
     ...overrides,
   });
 
-  const createMockRiskArticle = (overrides: Partial<RiskCrawlerArticle> = {}): RiskCrawlerArticle => ({
+  const createMockRiskArticle = (
+    overrides: Partial<RiskCrawlerArticle> = {},
+  ): RiskCrawlerArticle => ({
     ...createMockArticle(),
     subscription_id: 'sub-123',
     dimension_mapping: mockDimensionMapping,
@@ -80,11 +84,16 @@ describe('RiskArticleProcessorService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RiskArticleProcessorService,
-        { provide: RiskSourceSubscriptionRepository, useValue: mockSubscriptionRepository },
+        {
+          provide: RiskSourceSubscriptionRepository,
+          useValue: mockSubscriptionRepository,
+        },
       ],
     }).compile();
 
-    service = module.get<RiskArticleProcessorService>(RiskArticleProcessorService);
+    service = module.get<RiskArticleProcessorService>(
+      RiskArticleProcessorService,
+    );
   });
 
   it('should be defined', () => {
@@ -99,9 +108,15 @@ describe('RiskArticleProcessorService', () => {
     it('should process articles for a subscription and trigger dimension updates', async () => {
       const articles = [createMockArticle()];
 
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(mockSubscription);
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue(articles);
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        mockSubscription,
+      );
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue(articles);
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       const result = await service.processSubscription('sub-123');
 
@@ -115,7 +130,9 @@ describe('RiskArticleProcessorService', () => {
     });
 
     it('should throw error when subscription not found', async () => {
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(null);
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        null,
+      );
 
       await expect(service.processSubscription('nonexistent')).rejects.toThrow(
         'Subscription not found: nonexistent',
@@ -129,8 +146,12 @@ describe('RiskArticleProcessorService', () => {
         ...mockSubscription,
         dimension_mapping: { dimensions: [], weight: 1.0, auto_apply: true },
       });
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue(articles);
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue(articles);
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       const result = await service.processSubscription('sub-123');
 
@@ -144,9 +165,15 @@ describe('RiskArticleProcessorService', () => {
       const articleTime = '2024-01-15T12:00:00Z';
       const articles = [createMockArticle({ first_seen_at: articleTime })];
 
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(mockSubscription);
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue(articles);
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        mockSubscription,
+      );
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue(articles);
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       await service.processSubscription('sub-123');
 
@@ -157,8 +184,12 @@ describe('RiskArticleProcessorService', () => {
     });
 
     it('should not update watermark when no articles processed', async () => {
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(mockSubscription);
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue([]);
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        mockSubscription,
+      );
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue([]);
 
       await service.processSubscription('sub-123');
 
@@ -172,8 +203,12 @@ describe('RiskArticleProcessorService', () => {
         ...mockSubscription,
         auto_reanalyze: false,
       });
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue(articles);
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue(articles);
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       const result = await service.processSubscription('sub-123');
 
@@ -181,12 +216,19 @@ describe('RiskArticleProcessorService', () => {
     });
 
     it('should respect limit parameter', async () => {
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(mockSubscription);
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue([]);
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        mockSubscription,
+      );
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue([]);
 
       await service.processSubscription('sub-123', 50);
 
-      expect(mockSubscriptionRepository.getNewArticles).toHaveBeenCalledWith('sub-123', 50);
+      expect(mockSubscriptionRepository.getNewArticles).toHaveBeenCalledWith(
+        'sub-123',
+        50,
+      );
     });
   });
 
@@ -201,8 +243,12 @@ describe('RiskArticleProcessorService', () => {
         createMockRiskArticle({ id: 'article-456', subscription_id: 'sub-2' }),
       ];
 
-      (mockSubscriptionRepository.getNewArticlesForScope as jest.Mock).mockResolvedValue(articlesWithContext);
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (
+        mockSubscriptionRepository.getNewArticlesForScope as jest.Mock
+      ).mockResolvedValue(articlesWithContext);
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       const result = await service.processScope('scope-123');
 
@@ -210,18 +256,35 @@ describe('RiskArticleProcessorService', () => {
       expect(result.subscription_id).toBeNull();
       expect(result.articles_processed).toBe(2);
       expect(result.reanalysis_triggered).toBe(true);
-      expect(mockSubscriptionRepository.updateWatermark).toHaveBeenCalledTimes(2);
+      expect(mockSubscriptionRepository.updateWatermark).toHaveBeenCalledTimes(
+        2,
+      );
     });
 
     it('should group articles by subscription for watermark updates', async () => {
       const articlesWithContext = [
-        createMockRiskArticle({ first_seen_at: '2024-01-15T12:00:00Z', subscription_id: 'sub-1' }),
-        createMockRiskArticle({ id: 'article-2', first_seen_at: '2024-01-15T14:00:00Z', subscription_id: 'sub-1' }),
-        createMockRiskArticle({ id: 'article-3', first_seen_at: '2024-01-15T13:00:00Z', subscription_id: 'sub-2' }),
+        createMockRiskArticle({
+          first_seen_at: '2024-01-15T12:00:00Z',
+          subscription_id: 'sub-1',
+        }),
+        createMockRiskArticle({
+          id: 'article-2',
+          first_seen_at: '2024-01-15T14:00:00Z',
+          subscription_id: 'sub-1',
+        }),
+        createMockRiskArticle({
+          id: 'article-3',
+          first_seen_at: '2024-01-15T13:00:00Z',
+          subscription_id: 'sub-2',
+        }),
       ];
 
-      (mockSubscriptionRepository.getNewArticlesForScope as jest.Mock).mockResolvedValue(articlesWithContext);
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (
+        mockSubscriptionRepository.getNewArticlesForScope as jest.Mock
+      ).mockResolvedValue(articlesWithContext);
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       await service.processScope('scope-123');
 
@@ -238,7 +301,9 @@ describe('RiskArticleProcessorService', () => {
     });
 
     it('should not trigger reanalysis when no articles processed', async () => {
-      (mockSubscriptionRepository.getNewArticlesForScope as jest.Mock).mockResolvedValue([]);
+      (
+        mockSubscriptionRepository.getNewArticlesForScope as jest.Mock
+      ).mockResolvedValue([]);
 
       const result = await service.processScope('scope-123');
 
@@ -247,9 +312,9 @@ describe('RiskArticleProcessorService', () => {
     });
 
     it('should handle errors gracefully', async () => {
-      (mockSubscriptionRepository.getNewArticlesForScope as jest.Mock).mockRejectedValue(
-        new Error('Database error'),
-      );
+      (
+        mockSubscriptionRepository.getNewArticlesForScope as jest.Mock
+      ).mockRejectedValue(new Error('Database error'));
 
       const result = await service.processScope('scope-123');
 
@@ -269,9 +334,15 @@ describe('RiskArticleProcessorService', () => {
         content: 'The company announced losses and a lawsuit investigation',
       });
 
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(mockSubscription);
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue([article]);
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        mockSubscription,
+      );
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue([article]);
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       const result = await service.processSubscription('sub-123');
 
@@ -285,9 +356,15 @@ describe('RiskArticleProcessorService', () => {
         content: 'Positive earnings with success in new markets',
       });
 
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(mockSubscription);
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue([article]);
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        mockSubscription,
+      );
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue([article]);
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       const result = await service.processSubscription('sub-123');
 
@@ -300,9 +377,15 @@ describe('RiskArticleProcessorService', () => {
         content: 'Litigation expected to go to court this year',
       });
 
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(mockSubscription);
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue([article]);
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        mockSubscription,
+      );
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue([article]);
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       const result = await service.processSubscription('sub-123');
 
@@ -315,9 +398,15 @@ describe('RiskArticleProcessorService', () => {
         content: 'Company faces compliance violation and potential fine',
       });
 
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(mockSubscription);
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue([article]);
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        mockSubscription,
+      );
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue([article]);
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       const result = await service.processSubscription('sub-123');
 
@@ -330,9 +419,15 @@ describe('RiskArticleProcessorService', () => {
         content: 'Customers affected by system disruption and breach concerns',
       });
 
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(mockSubscription);
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue([article]);
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        mockSubscription,
+      );
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue([article]);
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       const result = await service.processSubscription('sub-123');
 
@@ -345,9 +440,15 @@ describe('RiskArticleProcessorService', () => {
         content: 'Fears of recession and market crash grow',
       });
 
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(mockSubscription);
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue([article]);
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        mockSubscription,
+      );
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue([article]);
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       const result = await service.processSubscription('sub-123');
 
@@ -371,8 +472,12 @@ describe('RiskArticleProcessorService', () => {
           auto_apply: true,
         },
       });
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue([article]);
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue([article]);
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       const result = await service.processSubscription('sub-123');
 
@@ -403,12 +508,16 @@ describe('RiskArticleProcessorService', () => {
         },
       ];
 
-      (mockSubscriptionRepository.getSubscriptionStats as jest.Mock).mockResolvedValue(mockStats);
+      (
+        mockSubscriptionRepository.getSubscriptionStats as jest.Mock
+      ).mockResolvedValue(mockStats);
 
       const result = await service.getSubscriptionStats('scope-123');
 
       expect(result).toEqual(mockStats);
-      expect(mockSubscriptionRepository.getSubscriptionStats).toHaveBeenCalledWith('scope-123');
+      expect(
+        mockSubscriptionRepository.getSubscriptionStats,
+      ).toHaveBeenCalledWith('scope-123');
     });
   });
 
@@ -423,9 +532,15 @@ describe('RiskArticleProcessorService', () => {
         createMockArticle({ id: 'article-456', title: null, content: null }),
       ];
 
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(mockSubscription);
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue(articles);
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        mockSubscription,
+      );
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue(articles);
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       const result = await service.processSubscription('sub-123');
 
@@ -434,10 +549,12 @@ describe('RiskArticleProcessorService', () => {
     });
 
     it('should return errors in result when subscription processing fails', async () => {
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(mockSubscription);
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockRejectedValue(
-        new Error('Database connection failed'),
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        mockSubscription,
       );
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockRejectedValue(new Error('Database connection failed'));
 
       const result = await service.processSubscription('sub-123');
 

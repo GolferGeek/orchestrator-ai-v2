@@ -365,7 +365,17 @@ export const useRiskDashboardStore = defineStore('riskDashboard', () => {
     state.value.dimensions = state.value.dimensions.filter((d) => d.id !== id);
   }
 
-  // Helper to transform dimension scores from 0-100 to 0-1 scale
+  // Helper to normalize scores to 0-1 scale
+  // Handles multiple scales: 0-1 (already normalized), 1-10 (dimension scores), 0-100 (percentages)
+  function normalizeScore(score: number): number {
+    // Guard against undefined, null, or NaN
+    if (score === undefined || score === null || Number.isNaN(score)) return 0;
+    if (score <= 1) return score; // Already 0-1 scale
+    if (score <= 10) return score / 10; // 1-10 scale (dimension assessments)
+    return score / 100; // 0-100 scale (percentages)
+  }
+
+  // Helper to transform dimension scores to 0-1 scale
   function transformDimensionScores(dimensionScores: Record<string, unknown>): Record<string, { score: number; confidence: number; weight: number; assessmentId: string }> {
     const result: Record<string, { score: number; confidence: number; weight: number; assessmentId: string }> = {};
     for (const [slug, data] of Object.entries(dimensionScores)) {
@@ -374,9 +384,9 @@ export const useRiskDashboardStore = defineStore('riskDashboard', () => {
         const rawScore = typeof d.score === 'number' ? d.score : 0;
         const rawConfidence = typeof d.confidence === 'number' ? d.confidence : 0;
         result[slug] = {
-          // Normalize score: if > 1 assume 0-100 scale, convert to 0-1
-          score: rawScore > 1 ? rawScore / 100 : rawScore,
-          confidence: rawConfidence > 1 ? rawConfidence / 100 : rawConfidence,
+          // Normalize score using proper scale detection
+          score: normalizeScore(rawScore),
+          confidence: normalizeScore(rawConfidence),
           weight: typeof d.weight === 'number' ? d.weight : 1,
           assessmentId: (d.assessmentId as string) || (d.assessment_id as string) || '',
         };
@@ -386,6 +396,10 @@ export const useRiskDashboardStore = defineStore('riskDashboard', () => {
   }
 
   function setCompositeScores(scores: ActiveCompositeScoreView[]) {
+    console.log('[STORE] setCompositeScores called with', scores.length, 'scores');
+    if (scores.length > 0) {
+      console.log('[STORE] First raw score:', JSON.stringify(scores[0], null, 2));
+    }
     // Transform snake_case API response to camelCase expected by frontend
     state.value.compositeScores = scores.map((score) => {
       const s = score as unknown as Record<string, unknown>;
@@ -424,6 +438,9 @@ export const useRiskDashboardStore = defineStore('riskDashboard', () => {
         ageHours,
       } as ActiveCompositeScoreView;
     });
+    if (state.value.compositeScores.length > 0) {
+      console.log('[STORE] First transformed score:', JSON.stringify(state.value.compositeScores[0], null, 2));
+    }
   }
 
   function addCompositeScore(score: ActiveCompositeScoreView) {

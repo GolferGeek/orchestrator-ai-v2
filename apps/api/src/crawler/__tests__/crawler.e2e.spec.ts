@@ -41,7 +41,8 @@ describeWithDb('CrawlerModule E2E', () => {
     await app.init();
 
     crawlerService = moduleFixture.get<CrawlerService>(CrawlerService);
-    deduplicationService = moduleFixture.get<DeduplicationService>(DeduplicationService);
+    deduplicationService =
+      moduleFixture.get<DeduplicationService>(DeduplicationService);
     supabaseService = moduleFixture.get<SupabaseService>(SupabaseService);
   });
 
@@ -137,7 +138,9 @@ describeWithDb('CrawlerModule E2E', () => {
     });
 
     it('should return null for non-existent source', async () => {
-      const found = await crawlerService.findSourceById('00000000-0000-0000-0000-000000000000');
+      const found = await crawlerService.findSourceById(
+        '00000000-0000-0000-0000-000000000000',
+      );
 
       expect(found).toBeNull();
     });
@@ -175,7 +178,9 @@ describeWithDb('CrawlerModule E2E', () => {
   // =============================================================================
 
   describe('Article Storage & Deduplication', () => {
-    let testSource: Awaited<ReturnType<typeof crawlerService.findOrCreateSource>>;
+    let testSource: Awaited<
+      ReturnType<typeof crawlerService.findOrCreateSource>
+    >;
 
     beforeAll(async () => {
       testSource = await crawlerService.findOrCreateSource({
@@ -283,7 +288,9 @@ describeWithDb('CrawlerModule E2E', () => {
   // =============================================================================
 
   describe('Crawl Lifecycle', () => {
-    let testSource: Awaited<ReturnType<typeof crawlerService.findOrCreateSource>>;
+    let testSource: Awaited<
+      ReturnType<typeof crawlerService.findOrCreateSource>
+    >;
 
     beforeAll(async () => {
       testSource = await crawlerService.findOrCreateSource({
@@ -352,7 +359,9 @@ describeWithDb('CrawlerModule E2E', () => {
   // =============================================================================
 
   describe('Batch Processing', () => {
-    let testSource: Awaited<ReturnType<typeof crawlerService.findOrCreateSource>>;
+    let testSource: Awaited<
+      ReturnType<typeof crawlerService.findOrCreateSource>
+    >;
 
     beforeAll(async () => {
       testSource = await crawlerService.findOrCreateSource({
@@ -434,7 +443,9 @@ describeWithDb('CrawlerModule E2E', () => {
   // =============================================================================
 
   describe('Article Retrieval', () => {
-    let testSource: Awaited<ReturnType<typeof crawlerService.findOrCreateSource>>;
+    let testSource: Awaited<
+      ReturnType<typeof crawlerService.findOrCreateSource>
+    >;
     let storedArticles: { id: string; first_seen_at: string }[] = [];
 
     beforeAll(async () => {
@@ -454,7 +465,9 @@ describeWithDb('CrawlerModule E2E', () => {
           url: `https://example.com/retrieval-${Date.now()}-${i}`,
           title: `Retrieval Test Article ${i}`,
           content: `Content for retrieval test ${i}`,
-          content_hash: deduplicationService.generateContentHash(`retrieval-${Date.now()}-${i}`),
+          content_hash: deduplicationService.generateContentHash(
+            `retrieval-${Date.now()}-${i}`,
+          ),
         });
         if (result.isNew) {
           storedArticles.push({

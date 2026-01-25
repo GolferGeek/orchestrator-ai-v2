@@ -170,16 +170,82 @@
               </div>
             </section>
 
-            <!-- Actions -->
+            <!-- Analysis Actions -->
             <section class="section actions-section">
-              <button
-                class="btn btn-primary"
-                :disabled="isAnalyzing"
-                @click="$emit('analyze', subject.subject?.id)"
-              >
-                <span v-if="isAnalyzing" class="spinner-small"></span>
-                <span>{{ isAnalyzing ? 'Analyzing...' : 'Re-analyze' }}</span>
-              </button>
+              <h3>Analysis Actions</h3>
+              <div class="action-grid">
+                <!-- Re-analyze (Risk Radar) -->
+                <button
+                  class="action-btn action-primary"
+                  :disabled="isAnalyzing"
+                  @click="$emit('analyze', subject.subject?.id)"
+                >
+                  <span class="action-icon">📊</span>
+                  <span class="action-label">
+                    <span v-if="isAnalyzing" class="spinner-small"></span>
+                    {{ isAnalyzing ? 'Analyzing...' : 'Re-analyze' }}
+                  </span>
+                  <span class="action-desc">Run Risk Radar on all dimensions</span>
+                </button>
+
+                <!-- Trigger Debate -->
+                <button
+                  class="action-btn action-debate"
+                  :disabled="isDebating || !hasCompositeScore"
+                  @click="$emit('trigger-debate', subject.subject?.id)"
+                >
+                  <span class="action-icon">⚔️</span>
+                  <span class="action-label">
+                    <span v-if="isDebating" class="spinner-small"></span>
+                    {{ isDebating ? 'Debating...' : 'Red vs Blue' }}
+                  </span>
+                  <span class="action-desc">Adversarial debate analysis</span>
+                </button>
+
+                <!-- Executive Summary -->
+                <button
+                  class="action-btn action-summary"
+                  :disabled="isGeneratingSummary"
+                  @click="$emit('generate-summary', subject.subject?.id)"
+                >
+                  <span class="action-icon">📝</span>
+                  <span class="action-label">
+                    <span v-if="isGeneratingSummary" class="spinner-small"></span>
+                    {{ isGeneratingSummary ? 'Generating...' : 'Summary' }}
+                  </span>
+                  <span class="action-desc">AI executive summary</span>
+                </button>
+
+                <!-- Scenario Analysis -->
+                <button
+                  class="action-btn action-scenario"
+                  @click="$emit('open-scenario', subject.subject?.id)"
+                >
+                  <span class="action-icon">🎯</span>
+                  <span class="action-label">What-If</span>
+                  <span class="action-desc">Scenario analysis</span>
+                </button>
+
+                <!-- Score History -->
+                <button
+                  class="action-btn action-history"
+                  @click="$emit('view-history', subject.subject?.id)"
+                >
+                  <span class="action-icon">📈</span>
+                  <span class="action-label">History</span>
+                  <span class="action-desc">Score trends over time</span>
+                </button>
+
+                <!-- Compare -->
+                <button
+                  class="action-btn action-compare"
+                  @click="$emit('add-to-compare', subject.subject?.id)"
+                >
+                  <span class="action-icon">⚖️</span>
+                  <span class="action-label">Compare</span>
+                  <span class="action-desc">Add to comparison</span>
+                </button>
+              </div>
             </section>
           </template>
 
@@ -204,19 +270,33 @@ interface Props {
   subject: SelectedSubjectState | null;
   isLoading?: boolean;
   isAnalyzing?: boolean;
+  isDebating?: boolean;
+  isGeneratingSummary?: boolean;
   error?: string | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   isLoading: false,
   isAnalyzing: false,
+  isDebating: false,
+  isGeneratingSummary: false,
   error: null,
 });
 
 defineEmits<{
   close: [];
   analyze: [subjectId: string];
+  'trigger-debate': [subjectId: string];
+  'generate-summary': [subjectId: string];
+  'open-scenario': [subjectId: string];
+  'view-history': [subjectId: string];
+  'add-to-compare': [subjectId: string];
 }>();
+
+// Check if subject has a composite score (required for debate)
+const hasCompositeScore = computed(() => {
+  return !!props.subject?.compositeScore;
+});
 
 // Track expanded assessment cards
 const expandedAssessments = ref<Set<string>>(new Set());
@@ -224,8 +304,8 @@ const expandedAssessments = ref<Set<string>>(new Set());
 const overallScore = computed(() => {
   const cs = props.subject?.compositeScore;
   if (!cs) return 0;
-  // Handle both snake_case and camelCase, and both 0-1 and 0-100 scales
-  // API returns overall_score in 0-100 scale
+  // Handle both snake_case and camelCase
+  // API returns overall_score in 0-100 scale (e.g., 55 means 55%)
   const csRecord = cs as unknown as Record<string, unknown>;
   const raw =
     (typeof csRecord['overall_score'] === 'number'
@@ -233,7 +313,10 @@ const overallScore = computed(() => {
       : undefined) ??
     (typeof csRecord['score'] === 'number' ? csRecord['score'] : undefined) ??
     0;
-  return raw > 1 ? raw / 100 : raw;
+  // Normalize: 0-1 stays as-is, 1-10 divide by 10, 11-100 divide by 100
+  if (raw <= 1) return raw;
+  if (raw <= 10) return raw / 10;
+  return raw / 100;
 });
 
 const overallConfidence = computed(() => {
@@ -241,7 +324,10 @@ const overallConfidence = computed(() => {
   if (!cs) return 0;
   const csRecord = cs as unknown as Record<string, unknown>;
   const raw = typeof csRecord['confidence'] === 'number' ? csRecord['confidence'] : 0;
-  return raw > 1 ? raw / 100 : raw;
+  // Confidence is typically 0-1, but handle other scales
+  if (raw <= 1) return raw;
+  if (raw <= 10) return raw / 10;
+  return raw / 100;
 });
 
 // Get dimension scores from composite score as fallback when assessments aren't loaded
@@ -274,13 +360,16 @@ const dimensionScoresFromComposite = computed(() => {
         : 0.8;
     const weight =
       dataRecord && typeof dataRecord['weight'] === 'number' ? dataRecord['weight'] : 1;
+    // Normalize scores to 0-1 scale for display
+    // Scores are on 1-10 scale from database
+    const normalizedScore = rawScore <= 1 ? rawScore : rawScore <= 10 ? rawScore / 10 : rawScore / 100;
+    const normalizedConfidence = rawConfidence <= 1 ? rawConfidence : rawConfidence <= 10 ? rawConfidence / 10 : rawConfidence / 100;
     return {
       id: slug,
       dimensionSlug: slug,
       dimensionName: slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-      // Normalize to 0-1 scale for display functions
-      score: rawScore > 1 ? rawScore / 100 : rawScore,
-      confidence: rawConfidence > 1 ? rawConfidence / 100 : rawConfidence,
+      score: normalizedScore,
+      confidence: normalizedConfidence,
       weight,
     };
   });
@@ -319,9 +408,14 @@ function toggleAssessment(id: string) {
   }
 }
 
-// Normalize score to 0-1 range if needed
+// Normalize score to 0-1 range
+// Handles multiple scales: 0-1 (already normalized), 1-10 (dimension scores), 0-100 (percentages)
 function normalizeScore(score: number): number {
-  return score > 1 ? score / 100 : score;
+  // Guard against undefined, null, or NaN
+  if (score === undefined || score === null || Number.isNaN(score)) return 0;
+  if (score <= 1) return score; // Already 0-1 scale
+  if (score <= 10) return score / 10; // 1-10 scale (dimension assessments)
+  return score / 100; // 0-100 scale (percentages)
 }
 
 function formatScore(score: number): string {
@@ -708,6 +802,116 @@ function formatTime(timestamp: string): string {
 .actions-section {
   padding-top: 1rem;
   border-top: 1px solid var(--border-color, #e5e7eb);
+}
+
+.actions-section h3 {
+  margin-bottom: 0.75rem;
+}
+
+.action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.75rem 0.5rem;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 8px;
+  background: var(--card-bg, #f9fafb);
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.action-btn:hover:not(:disabled) {
+  border-color: var(--primary-color, #a87c4f);
+  background: var(--hover-bg, #f3f4f6);
+  transform: translateY(-1px);
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-icon {
+  font-size: 1.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.action-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary, #111827);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.action-desc {
+  font-size: 0.6875rem;
+  color: var(--text-secondary, #6b7280);
+  margin-top: 0.125rem;
+}
+
+/* Action button variants */
+.action-primary {
+  border-color: var(--primary-color, #a87c4f);
+  background: rgba(168, 124, 79, 0.1);
+}
+
+.action-debate {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.action-debate:hover:not(:disabled) {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.action-summary {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.action-summary:hover:not(:disabled) {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.action-scenario {
+  border-color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.05);
+}
+
+.action-scenario:hover:not(:disabled) {
+  border-color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.action-history {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.action-history:hover:not(:disabled) {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.action-compare {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.05);
+}
+
+.action-compare:hover:not(:disabled) {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
 }
 
 .btn {

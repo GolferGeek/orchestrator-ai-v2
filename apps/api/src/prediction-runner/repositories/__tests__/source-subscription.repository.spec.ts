@@ -61,7 +61,9 @@ describe('SourceSubscriptionRepository', () => {
       ],
     }).compile();
 
-    repository = module.get<SourceSubscriptionRepository>(SourceSubscriptionRepository);
+    repository = module.get<SourceSubscriptionRepository>(
+      SourceSubscriptionRepository,
+    );
   });
 
   it('should be defined', () => {
@@ -219,9 +221,9 @@ describe('SourceSubscriptionRepository', () => {
         error: { message: 'Update failed' },
       });
 
-      await expect(repository.update('sub-123', { is_active: false })).rejects.toThrow(
-        'Failed to update subscription',
-      );
+      await expect(
+        repository.update('sub-123', { is_active: false }),
+      ).rejects.toThrow('Failed to update subscription');
     });
   });
 
@@ -251,10 +253,13 @@ describe('SourceSubscriptionRepository', () => {
 
       const result = await repository.getNewArticles('sub-123', 50);
 
-      expect(mockClient.rpc).toHaveBeenCalledWith('get_new_articles_for_subscription', {
-        p_subscription_id: 'sub-123',
-        p_limit: 50,
-      });
+      expect(mockClient.rpc).toHaveBeenCalledWith(
+        'get_new_articles_for_subscription',
+        {
+          p_subscription_id: 'sub-123',
+          p_limit: 50,
+        },
+      );
       expect(result).toHaveLength(1);
       expect(result[0]!.id).toBe('article-123');
     });
@@ -294,12 +299,18 @@ describe('SourceSubscriptionRepository', () => {
         error: null,
       });
 
-      const result = await repository.getNewArticlesForTarget('target-123', 100);
+      const result = await repository.getNewArticlesForTarget(
+        'target-123',
+        100,
+      );
 
-      expect(mockClient.rpc).toHaveBeenCalledWith('get_new_articles_for_target', {
-        p_target_id: 'target-123',
-        p_limit: 100,
-      });
+      expect(mockClient.rpc).toHaveBeenCalledWith(
+        'get_new_articles_for_target',
+        {
+          p_target_id: 'target-123',
+          p_limit: 100,
+        },
+      );
       expect(result).toHaveLength(1);
     });
   });
@@ -311,7 +322,10 @@ describe('SourceSubscriptionRepository', () => {
   describe('updateWatermark', () => {
     it('should update last_processed_at via update method', async () => {
       mockClient.single.mockResolvedValue({
-        data: { ...mockSubscription, last_processed_at: '2024-01-15T12:00:00.000Z' },
+        data: {
+          ...mockSubscription,
+          last_processed_at: '2024-01-15T12:00:00.000Z',
+        },
         error: null,
       });
 

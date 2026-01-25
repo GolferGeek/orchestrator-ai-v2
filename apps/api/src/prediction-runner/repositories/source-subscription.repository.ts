@@ -430,7 +430,10 @@ export class SourceSubscriptionRepository {
       .schema(this.schema)
       .from('subscription_stats')
       .select('*')
-      .eq('target_id', targetId)) as SupabaseSelectListResponse<SubscriptionStats>;
+      .eq(
+        'target_id',
+        targetId,
+      )) as SupabaseSelectListResponse<SubscriptionStats>;
 
     if (error) {
       this.logger.error(

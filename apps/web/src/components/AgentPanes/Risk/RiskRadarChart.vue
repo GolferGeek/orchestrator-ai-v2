@@ -191,9 +191,14 @@ const axisPoints = computed(() => {
   });
 });
 
-// Normalize score to 0-1 range (handles both 0-1 and 0-100 scales)
+// Normalize score to 0-1 range
+// Handles multiple scales: 0-1 (already normalized), 1-10 (dimension scores), 0-100 (percentages)
 function normalizeScore(score: number): number {
-  return score > 1 ? score / 100 : score;
+  // Guard against undefined, null, or NaN
+  if (score === undefined || score === null || Number.isNaN(score)) return 0;
+  if (score <= 1) return score; // Already 0-1 scale
+  if (score <= 10) return score / 10; // 1-10 scale (dimension assessments)
+  return score / 100; // 0-100 scale (percentages)
 }
 
 // Calculate data point positions based on scores
@@ -217,43 +222,61 @@ const dataPolygon = computed(() => {
   return dataPoints.value.map((p) => `${p.x},${p.y}`).join(' ');
 });
 
-// Get short label for dimension
+// Get full label for dimension
 function getDimensionLabel(assessment: RiskAssessment, index: number): string {
   // Handle both camelCase and snake_case from API
   const assessmentRecord = assessment as unknown as Record<string, unknown>;
+
+  // Try to get the display name or slug
   const name = String(
     assessmentRecord.dimensionName ||
     assessmentRecord.dimension_name ||
+    ''
+  );
+
+  const slug = String(
     assessmentRecord.dimensionSlug ||
     assessmentRecord.dimension_slug ||
     ''
   );
 
-  if (!name) return `D${index + 1}`;
+  if (!name && !slug) return `D${index + 1}`;
 
-  // Map common dimension slugs to short labels
-  const shortLabels: Record<string, string> = {
-    'credit-risk': 'Credit',
-    'market-risk': 'Market',
+  // Map dimension slugs to full readable names
+  const fullLabels: Record<string, string> = {
+    'credit': 'Credit',
+    'credit-risk': 'Credit Risk',
+    'market-risk': 'Market Risk',
+    'market-volatility': 'Volatility',
+    'liquidity': 'Liquidity',
     'liquidity-risk': 'Liquidity',
+    'regulatory': 'Regulatory',
     'regulatory-risk': 'Regulatory',
-    'operational-risk': 'Ops',
-    'concentration-risk': 'Conc',
+    'operational-risk': 'Operational',
+    'concentration-risk': 'Concentration',
+    'sector-concentration': 'Sector',
+    'geopolitical': 'Geopolitical',
+    'financial-health': 'Financial',
+    'growth-sustainability': 'Growth',
+    'valuation': 'Valuation',
+    'sentiment': 'Sentiment',
+    'correlation': 'Correlation',
+    'momentum': 'Momentum',
   };
 
-  // Check if it's a known slug
-  const slug = String(
-    assessmentRecord.dimensionSlug ||
-    assessmentRecord.dimension_slug ||
-    ''
-  ).toLowerCase();
-  if (shortLabels[slug]) {
-    return shortLabels[slug];
+  // Check if we have a mapped label
+  const slugLower = slug.toLowerCase();
+  if (fullLabels[slugLower]) {
+    return fullLabels[slugLower];
   }
 
-  // Otherwise, use first word of name or first 8 chars
-  const words = name.split(/[\s-]+/);
-  return words[0]?.substring(0, 8) || `D${index + 1}`;
+  // If name exists, format it nicely (capitalize first letters, remove dashes)
+  if (name) {
+    return name.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  // Format slug as fallback
+  return slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
 // Calculate label positions (slightly outside the chart)

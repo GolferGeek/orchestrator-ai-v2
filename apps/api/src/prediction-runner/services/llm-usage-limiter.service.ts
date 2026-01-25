@@ -146,9 +146,7 @@ export class LlmUsageLimiterService {
   ): UsageCheckResult {
     // Local providers are unlimited - no tracking needed
     if (provider && this.isLocalProvider(provider)) {
-      this.logger.debug(
-        `Skipping usage check for local provider: ${provider}`,
-      );
+      this.logger.debug(`Skipping usage check for local provider: ${provider}`);
       return { allowed: true };
     }
     const usage = this.getOrCreateUsageTracking(universeId);

@@ -114,7 +114,9 @@ export class RiskSourceSubscriptionRepository {
       .eq('is_active', true);
 
     if (error) {
-      this.logger.error(`Failed to find subscriptions for scope ${scopeId}: ${error.message}`);
+      this.logger.error(
+        `Failed to find subscriptions for scope ${scopeId}: ${error.message}`,
+      );
       return [];
     }
 
@@ -134,7 +136,9 @@ export class RiskSourceSubscriptionRepository {
       .eq('is_active', true);
 
     if (error) {
-      this.logger.error(`Failed to find subscriptions for source ${sourceId}: ${error.message}`);
+      this.logger.error(
+        `Failed to find subscriptions for source ${sourceId}: ${error.message}`,
+      );
       return [];
     }
 
@@ -179,7 +183,9 @@ export class RiskSourceSubscriptionRepository {
       .single();
 
     if (error || !created) {
-      throw new Error(`Failed to create subscription: ${error?.message ?? 'Unknown error'}`);
+      throw new Error(
+        `Failed to create subscription: ${error?.message ?? 'Unknown error'}`,
+      );
     }
 
     return this.mapFromDb(created);
@@ -208,7 +214,9 @@ export class RiskSourceSubscriptionRepository {
       .single();
 
     if (error || !data) {
-      throw new Error(`Failed to update subscription: ${error?.message ?? 'Unknown error'}`);
+      throw new Error(
+        `Failed to update subscription: ${error?.message ?? 'Unknown error'}`,
+      );
     }
 
     return this.mapFromDb(data);
@@ -218,7 +226,10 @@ export class RiskSourceSubscriptionRepository {
    * Get new articles for a subscription (pull model)
    * Uses the risk.get_new_articles_for_subscription function
    */
-  async getNewArticles(subscriptionId: string, limit: number = 100): Promise<CrawlerArticle[]> {
+  async getNewArticles(
+    subscriptionId: string,
+    limit: number = 100,
+  ): Promise<CrawlerArticle[]> {
     const { data, error } = await this.supabaseService
       .getServiceClient()
       .rpc('get_new_articles_for_subscription', {
@@ -227,7 +238,9 @@ export class RiskSourceSubscriptionRepository {
       });
 
     if (error) {
-      this.logger.error(`Failed to get new articles for subscription ${subscriptionId}: ${error.message}`);
+      this.logger.error(
+        `Failed to get new articles for subscription ${subscriptionId}: ${error.message}`,
+      );
       return [];
     }
 
@@ -256,7 +269,10 @@ export class RiskSourceSubscriptionRepository {
    * Get new articles for a scope across all subscriptions
    * Uses the risk.get_new_articles_for_scope function
    */
-  async getNewArticlesForScope(scopeId: string, limit: number = 100): Promise<RiskCrawlerArticle[]> {
+  async getNewArticlesForScope(
+    scopeId: string,
+    limit: number = 100,
+  ): Promise<RiskCrawlerArticle[]> {
     const { data, error } = await this.supabaseService
       .getServiceClient()
       .rpc('get_new_articles_for_scope', {
@@ -265,7 +281,9 @@ export class RiskSourceSubscriptionRepository {
       });
 
     if (error) {
-      this.logger.error(`Failed to get new articles for scope ${scopeId}: ${error.message}`);
+      this.logger.error(
+        `Failed to get new articles for scope ${scopeId}: ${error.message}`,
+      );
       return [];
     }
 
@@ -297,7 +315,10 @@ export class RiskSourceSubscriptionRepository {
   /**
    * Update watermark after processing articles
    */
-  async updateWatermark(subscriptionId: string, lastProcessedAt: Date): Promise<void> {
+  async updateWatermark(
+    subscriptionId: string,
+    lastProcessedAt: Date,
+  ): Promise<void> {
     const { error } = await this.supabaseService
       .getServiceClient()
       .rpc('update_subscription_watermark', {
@@ -306,7 +327,9 @@ export class RiskSourceSubscriptionRepository {
       });
 
     if (error) {
-      this.logger.error(`Failed to update watermark for subscription ${subscriptionId}: ${error.message}`);
+      this.logger.error(
+        `Failed to update watermark for subscription ${subscriptionId}: ${error.message}`,
+      );
     }
   }
 

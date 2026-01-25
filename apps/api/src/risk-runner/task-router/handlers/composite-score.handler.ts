@@ -57,14 +57,32 @@ export class CompositeScoreHandler implements IDashboardHandler {
     payload: DashboardRequestPayload,
   ): Promise<DashboardActionResult> {
     const params = payload.params as Record<string, unknown> | undefined;
-    const scopeId = params?.scopeId as string | undefined;
+    const filters = payload.filters as Record<string, unknown> | undefined;
+    // Check both params and filters for scopeId (frontend sends via filters)
+    const scopeId =
+      (params?.scopeId as string) || (filters?.scopeId as string) || undefined;
+
+    this.logger.debug(
+      `[handleList] scopeId from params: ${params?.scopeId}, from filters: ${filters?.scopeId}, final: ${scopeId}`,
+    );
 
     // Get all active composite scores
     let scores = await this.compositeScoreRepo.findAllActiveView();
 
+    this.logger.debug(`[handleList] Total scores from view: ${scores.length}`);
+    if (scores.length > 0 && scores[0]) {
+      const first = scores[0];
+      this.logger.debug(
+        `[handleList] First score: id=${first.id}, overall_score=${first.overall_score}, scope_id=${first.scope_id}`,
+      );
+    }
+
     // Filter by scopeId if provided
     if (scopeId) {
       scores = scores.filter((s) => s.scope_id === scopeId);
+      this.logger.debug(
+        `[handleList] After filter by scopeId ${scopeId}: ${scores.length} scores`,
+      );
     }
 
     // Apply pagination

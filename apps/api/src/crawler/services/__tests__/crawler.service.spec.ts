@@ -3,7 +3,10 @@ import { CrawlerService } from '../crawler.service';
 import { CrawlerSourceRepository } from '../../repositories/source.repository';
 import { ArticleRepository } from '../../repositories/article.repository';
 import { SourceCrawlRepository } from '../../repositories/source-crawl.repository';
-import { DeduplicationService, DEFAULT_DEDUP_CONFIG } from '../deduplication.service';
+import {
+  DeduplicationService,
+  DEFAULT_DEDUP_CONFIG,
+} from '../deduplication.service';
 
 describe('CrawlerService', () => {
   let service: CrawlerService;
@@ -104,7 +107,9 @@ describe('CrawlerService', () => {
 
   describe('findOrCreateSource', () => {
     it('should find or create a source', async () => {
-      (mockSourceRepository.findOrCreate as jest.Mock).mockResolvedValue(mockSource);
+      (mockSourceRepository.findOrCreate as jest.Mock).mockResolvedValue(
+        mockSource,
+      );
 
       const sourceData = {
         organization_slug: 'test-org',
@@ -116,13 +121,17 @@ describe('CrawlerService', () => {
       const result = await service.findOrCreateSource(sourceData);
 
       expect(result).toEqual(mockSource);
-      expect(mockSourceRepository.findOrCreate).toHaveBeenCalledWith(sourceData);
+      expect(mockSourceRepository.findOrCreate).toHaveBeenCalledWith(
+        sourceData,
+      );
     });
   });
 
   describe('findSourceById', () => {
     it('should find source by ID', async () => {
-      (mockSourceRepository.findById as jest.Mock).mockResolvedValue(mockSource);
+      (mockSourceRepository.findById as jest.Mock).mockResolvedValue(
+        mockSource,
+      );
 
       const result = await service.findSourceById('source-123');
 
@@ -141,7 +150,9 @@ describe('CrawlerService', () => {
 
   describe('findAllSources', () => {
     it('should find all sources for an organization', async () => {
-      (mockSourceRepository.findAll as jest.Mock).mockResolvedValue([mockSource]);
+      (mockSourceRepository.findAll as jest.Mock).mockResolvedValue([
+        mockSource,
+      ]);
 
       const result = await service.findAllSources('test-org');
 
@@ -158,12 +169,16 @@ describe('CrawlerService', () => {
           minutes_overdue: 30,
         },
       ];
-      (mockSourceRepository.findDueForCrawl as jest.Mock).mockResolvedValue(dueSources);
+      (mockSourceRepository.findDueForCrawl as jest.Mock).mockResolvedValue(
+        dueSources,
+      );
 
       const result = await service.findSourcesDueForCrawl();
 
       expect(result).toEqual(dueSources);
-      expect(mockSourceRepository.findDueForCrawl).toHaveBeenCalledWith(undefined);
+      expect(mockSourceRepository.findDueForCrawl).toHaveBeenCalledWith(
+        undefined,
+      );
     });
 
     it('should filter by frequency when provided', async () => {
@@ -177,17 +192,23 @@ describe('CrawlerService', () => {
 
   describe('markSourceCrawlSuccess', () => {
     it('should mark source crawl as successful', async () => {
-      (mockSourceRepository.markCrawlSuccess as jest.Mock).mockResolvedValue(undefined);
+      (mockSourceRepository.markCrawlSuccess as jest.Mock).mockResolvedValue(
+        undefined,
+      );
 
       await service.markSourceCrawlSuccess('source-123');
 
-      expect(mockSourceRepository.markCrawlSuccess).toHaveBeenCalledWith('source-123');
+      expect(mockSourceRepository.markCrawlSuccess).toHaveBeenCalledWith(
+        'source-123',
+      );
     });
   });
 
   describe('markSourceCrawlError', () => {
     it('should mark source crawl as failed', async () => {
-      (mockSourceRepository.markCrawlError as jest.Mock).mockResolvedValue(undefined);
+      (mockSourceRepository.markCrawlError as jest.Mock).mockResolvedValue(
+        undefined,
+      );
 
       await service.markSourceCrawlError('source-123', 'Connection timeout');
 
@@ -216,10 +237,18 @@ describe('CrawlerService', () => {
       (mockDeduplicationService.checkDuplicate as jest.Mock).mockResolvedValue({
         is_duplicate: false,
       });
-      (mockDeduplicationService.normalizeTitle as jest.Mock).mockReturnValue('test article');
-      (mockDeduplicationService.extractKeyPhrases as jest.Mock).mockReturnValue(['test article']);
-      (mockDeduplicationService.generateFingerprintHash as jest.Mock).mockReturnValue('fingerprint');
-      (mockArticleRepository.create as jest.Mock).mockResolvedValue(mockArticle);
+      (mockDeduplicationService.normalizeTitle as jest.Mock).mockReturnValue(
+        'test article',
+      );
+      (mockDeduplicationService.extractKeyPhrases as jest.Mock).mockReturnValue(
+        ['test article'],
+      );
+      (
+        mockDeduplicationService.generateFingerprintHash as jest.Mock
+      ).mockReturnValue('fingerprint');
+      (mockArticleRepository.create as jest.Mock).mockResolvedValue(
+        mockArticle,
+      );
 
       const result = await service.storeArticle(articleData);
 
@@ -235,7 +264,9 @@ describe('CrawlerService', () => {
         duplicate_type: 'exact',
         existing_article_id: 'existing-article',
       });
-      (mockArticleRepository.findById as jest.Mock).mockResolvedValue(mockArticle);
+      (mockArticleRepository.findById as jest.Mock).mockResolvedValue(
+        mockArticle,
+      );
 
       const result = await service.storeArticle(articleData);
 
@@ -251,7 +282,9 @@ describe('CrawlerService', () => {
         duplicate_type: 'cross_source',
         existing_article_id: 'existing-article',
       });
-      (mockArticleRepository.findById as jest.Mock).mockResolvedValue(mockArticle);
+      (mockArticleRepository.findById as jest.Mock).mockResolvedValue(
+        mockArticle,
+      );
 
       const result = await service.storeArticle(articleData);
 
@@ -265,7 +298,9 @@ describe('CrawlerService', () => {
         duplicate_type: 'fuzzy_title',
         existing_article_id: 'existing-article',
       });
-      (mockArticleRepository.findById as jest.Mock).mockResolvedValue(mockArticle);
+      (mockArticleRepository.findById as jest.Mock).mockResolvedValue(
+        mockArticle,
+      );
 
       const result = await service.storeArticle(articleData);
 
@@ -274,13 +309,22 @@ describe('CrawlerService', () => {
     });
 
     it('should use custom dedup config when provided', async () => {
-      const customConfig = { ...DEFAULT_DEDUP_CONFIG, fuzzy_dedup_enabled: false };
+      const customConfig = {
+        ...DEFAULT_DEDUP_CONFIG,
+        fuzzy_dedup_enabled: false,
+      };
       (mockDeduplicationService.checkDuplicate as jest.Mock).mockResolvedValue({
         is_duplicate: false,
       });
-      (mockDeduplicationService.normalizeTitle as jest.Mock).mockReturnValue('test');
-      (mockDeduplicationService.extractKeyPhrases as jest.Mock).mockReturnValue([]);
-      (mockArticleRepository.create as jest.Mock).mockResolvedValue(mockArticle);
+      (mockDeduplicationService.normalizeTitle as jest.Mock).mockReturnValue(
+        'test',
+      );
+      (mockDeduplicationService.extractKeyPhrases as jest.Mock).mockReturnValue(
+        [],
+      );
+      (mockArticleRepository.create as jest.Mock).mockResolvedValue(
+        mockArticle,
+      );
 
       await service.storeArticle(articleData, customConfig);
 
@@ -297,10 +341,16 @@ describe('CrawlerService', () => {
 
   describe('findNewArticlesForSource', () => {
     it('should find new articles since given timestamp', async () => {
-      (mockArticleRepository.findNewForSource as jest.Mock).mockResolvedValue([mockArticle]);
+      (mockArticleRepository.findNewForSource as jest.Mock).mockResolvedValue([
+        mockArticle,
+      ]);
       const since = new Date('2024-01-01');
 
-      const result = await service.findNewArticlesForSource('source-123', since, 50);
+      const result = await service.findNewArticlesForSource(
+        'source-123',
+        since,
+        50,
+      );
 
       expect(result).toEqual([mockArticle]);
       expect(mockArticleRepository.findNewForSource).toHaveBeenCalledWith(
@@ -311,7 +361,9 @@ describe('CrawlerService', () => {
     });
 
     it('should use default limit of 100', async () => {
-      (mockArticleRepository.findNewForSource as jest.Mock).mockResolvedValue([]);
+      (mockArticleRepository.findNewForSource as jest.Mock).mockResolvedValue(
+        [],
+      );
       const since = new Date();
 
       await service.findNewArticlesForSource('source-123', since);
@@ -326,7 +378,9 @@ describe('CrawlerService', () => {
 
   describe('findNewArticlesForSources', () => {
     it('should find new articles for multiple sources', async () => {
-      (mockArticleRepository.findNewForSources as jest.Mock).mockResolvedValue([mockArticle]);
+      (mockArticleRepository.findNewForSources as jest.Mock).mockResolvedValue([
+        mockArticle,
+      ]);
       const sourceIds = ['source-1', 'source-2'];
       const since = new Date();
 
@@ -353,7 +407,9 @@ describe('CrawlerService', () => {
         started_at: new Date().toISOString(),
         status: 'running',
       };
-      (mockSourceCrawlRepository.create as jest.Mock).mockResolvedValue(mockCrawl);
+      (mockSourceCrawlRepository.create as jest.Mock).mockResolvedValue(
+        mockCrawl,
+      );
 
       const result = await service.startCrawl('source-123');
 
@@ -379,12 +435,17 @@ describe('CrawlerService', () => {
         duplicates_phrase_overlap: 1,
         crawl_duration_ms: 5000,
       };
-      (mockSourceCrawlRepository.markSuccess as jest.Mock).mockResolvedValue(mockCrawl);
+      (mockSourceCrawlRepository.markSuccess as jest.Mock).mockResolvedValue(
+        mockCrawl,
+      );
 
       const result = await service.completeCrawlSuccess('crawl-123', metrics);
 
       expect(result).toEqual(mockCrawl);
-      expect(mockSourceCrawlRepository.markSuccess).toHaveBeenCalledWith('crawl-123', metrics);
+      expect(mockSourceCrawlRepository.markSuccess).toHaveBeenCalledWith(
+        'crawl-123',
+        metrics,
+      );
     });
   });
 
@@ -395,9 +456,15 @@ describe('CrawlerService', () => {
         status: 'error',
         error_message: 'Connection failed',
       };
-      (mockSourceCrawlRepository.markError as jest.Mock).mockResolvedValue(mockCrawl);
+      (mockSourceCrawlRepository.markError as jest.Mock).mockResolvedValue(
+        mockCrawl,
+      );
 
-      const result = await service.completeCrawlError('crawl-123', 'Connection failed', 1000);
+      const result = await service.completeCrawlError(
+        'crawl-123',
+        'Connection failed',
+        1000,
+      );
 
       expect(result).toEqual(mockCrawl);
       expect(mockSourceCrawlRepository.markError).toHaveBeenCalledWith(
@@ -432,9 +499,9 @@ describe('CrawlerService', () => {
     ];
 
     beforeEach(() => {
-      (mockDeduplicationService.generateContentHash as jest.Mock).mockImplementation(
-        (content) => `hash-${content}`,
-      );
+      (
+        mockDeduplicationService.generateContentHash as jest.Mock
+      ).mockImplementation((content) => `hash-${content}`);
     });
 
     it('should process all items and return results', async () => {
@@ -442,14 +509,29 @@ describe('CrawlerService', () => {
       (mockDeduplicationService.checkDuplicate as jest.Mock)
         .mockResolvedValueOnce({ is_duplicate: false })
         .mockResolvedValueOnce({ is_duplicate: true, duplicate_type: 'exact' })
-        .mockResolvedValueOnce({ is_duplicate: true, duplicate_type: 'cross_source' });
+        .mockResolvedValueOnce({
+          is_duplicate: true,
+          duplicate_type: 'cross_source',
+        });
 
-      (mockDeduplicationService.normalizeTitle as jest.Mock).mockReturnValue('normalized');
-      (mockDeduplicationService.extractKeyPhrases as jest.Mock).mockReturnValue([]);
-      (mockArticleRepository.create as jest.Mock).mockResolvedValue(mockArticle);
-      (mockArticleRepository.findById as jest.Mock).mockResolvedValue(mockArticle);
+      (mockDeduplicationService.normalizeTitle as jest.Mock).mockReturnValue(
+        'normalized',
+      );
+      (mockDeduplicationService.extractKeyPhrases as jest.Mock).mockReturnValue(
+        [],
+      );
+      (mockArticleRepository.create as jest.Mock).mockResolvedValue(
+        mockArticle,
+      );
+      (mockArticleRepository.findById as jest.Mock).mockResolvedValue(
+        mockArticle,
+      );
 
-      const result = await service.processCrawledItems('source-123', 'test-org', items);
+      const result = await service.processCrawledItems(
+        'source-123',
+        'test-org',
+        items,
+      );
 
       expect(result.source_id).toBe('source-123');
       expect(result.articles_found).toBe(3);
@@ -465,11 +547,21 @@ describe('CrawlerService', () => {
         .mockResolvedValueOnce({ is_duplicate: false })
         .mockRejectedValueOnce(new Error('Processing failed'));
 
-      (mockDeduplicationService.normalizeTitle as jest.Mock).mockReturnValue('normalized');
-      (mockDeduplicationService.extractKeyPhrases as jest.Mock).mockReturnValue([]);
-      (mockArticleRepository.create as jest.Mock).mockResolvedValue(mockArticle);
+      (mockDeduplicationService.normalizeTitle as jest.Mock).mockReturnValue(
+        'normalized',
+      );
+      (mockDeduplicationService.extractKeyPhrases as jest.Mock).mockReturnValue(
+        [],
+      );
+      (mockArticleRepository.create as jest.Mock).mockResolvedValue(
+        mockArticle,
+      );
 
-      const result = await service.processCrawledItems('source-123', 'test-org', items.slice(0, 2));
+      const result = await service.processCrawledItems(
+        'source-123',
+        'test-org',
+        items.slice(0, 2),
+      );
 
       expect(result.articles_new).toBe(1);
       expect(result.errors).toHaveLength(1);
@@ -480,9 +572,15 @@ describe('CrawlerService', () => {
       (mockDeduplicationService.checkDuplicate as jest.Mock).mockResolvedValue({
         is_duplicate: false,
       });
-      (mockDeduplicationService.normalizeTitle as jest.Mock).mockReturnValue('normalized');
-      (mockDeduplicationService.extractKeyPhrases as jest.Mock).mockReturnValue([]);
-      (mockArticleRepository.create as jest.Mock).mockResolvedValue(mockArticle);
+      (mockDeduplicationService.normalizeTitle as jest.Mock).mockReturnValue(
+        'normalized',
+      );
+      (mockDeduplicationService.extractKeyPhrases as jest.Mock).mockReturnValue(
+        [],
+      );
+      (mockArticleRepository.create as jest.Mock).mockResolvedValue(
+        mockArticle,
+      );
 
       await service.processCrawledItems('source-123', 'test-org', [items[0]!]);
 

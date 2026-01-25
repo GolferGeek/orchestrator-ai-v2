@@ -137,9 +137,16 @@
         :subject="store.selectedSubject"
         :is-loading="isLoadingDetail"
         :is-analyzing="store.isAnalyzing"
+        :is-debating="isDebating"
+        :is-generating-summary="isGeneratingSummary"
         :error="detailError"
         @close="onCloseDetailPanel"
         @analyze="onAnalyzeSubject"
+        @trigger-debate="onTriggerDebate"
+        @generate-summary="onGenerateSummary"
+        @open-scenario="onOpenScenario"
+        @view-history="onViewHistory"
+        @add-to-compare="onAddToCompare"
       />
 
       <!-- Create Scope Modal -->
@@ -207,6 +214,10 @@ const createScopeModalRef = ref<InstanceType<typeof CreateScopeModal> | null>(nu
 // Create subject modal state
 const showCreateSubjectModal = ref(false);
 const createSubjectModalRef = ref<InstanceType<typeof CreateSubjectModal> | null>(null);
+
+// Analysis action states
+const isDebating = ref(false);
+const isGeneratingSummary = ref(false);
 
 // Tabs configuration
 const tabs = computed(() => [
@@ -650,6 +661,73 @@ async function onUpdateScope(params: Record<string, unknown>) {
   } catch (error) {
     store.setError(error instanceof Error ? error.message : 'Failed to update scope');
   }
+}
+
+// ============================================================================
+// ANALYSIS ACTION HANDLERS
+// ============================================================================
+
+async function onTriggerDebate(subjectId: string) {
+  if (!store.selectedSubject?.compositeScore?.id) {
+    store.setError('No composite score available for debate. Run Risk Radar analysis first.');
+    return;
+  }
+
+  isDebating.value = true;
+  try {
+    const response = await riskDashboardService.triggerDebate(store.selectedSubject.compositeScore.id);
+    if (response.success) {
+      // Reload subject details to show the debate
+      await loadSubjectDetails(subjectId);
+      // Also reload scope data to update any score changes
+      if (selectedScopeId.value) {
+        await loadScopeData(selectedScopeId.value);
+      }
+    } else {
+      store.setError('Failed to trigger debate');
+    }
+  } catch (error) {
+    store.setError(error instanceof Error ? error.message : 'Debate failed');
+  } finally {
+    isDebating.value = false;
+  }
+}
+
+async function onGenerateSummary(subjectId: string) {
+  if (!selectedScopeId.value) return;
+
+  isGeneratingSummary.value = true;
+  try {
+    const response = await riskDashboardService.generateExecutiveSummary({
+      scopeId: selectedScopeId.value,
+      summaryType: 'ad-hoc',
+    });
+    if (response.success && response.content) {
+      // Switch to analytics tab to show the summary
+      activeTab.value = 'analytics';
+    }
+  } catch (error) {
+    store.setError(error instanceof Error ? error.message : 'Failed to generate summary');
+  } finally {
+    isGeneratingSummary.value = false;
+  }
+}
+
+function onOpenScenario(subjectId: string) {
+  // Switch to analytics tab where scenario builder is available
+  activeTab.value = 'analytics';
+  // Could also open a scenario modal directly
+}
+
+function onViewHistory(subjectId: string) {
+  // Switch to analytics tab where history chart is available
+  activeTab.value = 'analytics';
+}
+
+function onAddToCompare(subjectId: string) {
+  // Switch to analytics tab where comparison is available
+  activeTab.value = 'analytics';
+  // Could also add to a comparison set state
 }
 
 // Watch for organization context changes (from auth store or query params)

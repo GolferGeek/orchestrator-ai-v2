@@ -69,7 +69,8 @@ export class RiskArticleProcessorService {
     subscriptionId: string,
     limit: number = 100,
   ): Promise<RiskArticleProcessResult> {
-    const subscription = await this.subscriptionRepository.findById(subscriptionId);
+    const subscription =
+      await this.subscriptionRepository.findById(subscriptionId);
     if (!subscription) {
       throw new Error(`Subscription not found: ${subscriptionId}`);
     }
@@ -189,7 +190,10 @@ export class RiskArticleProcessorService {
     try {
       // Pull new articles across all subscriptions for this scope
       const articlesWithContext =
-        await this.subscriptionRepository.getNewArticlesForScope(scopeId, limit);
+        await this.subscriptionRepository.getNewArticlesForScope(
+          scopeId,
+          limit,
+        );
 
       this.logger.debug(
         `Found ${articlesWithContext.length} new articles for scope ${scopeId}`,
@@ -273,9 +277,7 @@ export class RiskArticleProcessorService {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
       result.errors.push(`Scope processing failed: ${errorMessage}`);
-      this.logger.error(
-        `Failed to process scope ${scopeId}: ${errorMessage}`,
-      );
+      this.logger.error(`Failed to process scope ${scopeId}: ${errorMessage}`);
       return result;
     }
   }
@@ -290,7 +292,10 @@ export class RiskArticleProcessorService {
     subjectFilter: RiskSubjectFilter,
   ): Promise<ProcessedRiskArticle | null> {
     // Skip if no dimensions are mapped
-    if (!dimensionMapping.dimensions || dimensionMapping.dimensions.length === 0) {
+    if (
+      !dimensionMapping.dimensions ||
+      dimensionMapping.dimensions.length === 0
+    ) {
       this.logger.debug(`Article ${article.id} skipped - no dimensions mapped`);
       return null;
     }
@@ -300,7 +305,9 @@ export class RiskArticleProcessorService {
 
     // If no relevant data extracted, skip
     if (Object.keys(extractedData).length === 0) {
-      this.logger.debug(`Article ${article.id} skipped - no relevant data extracted`);
+      this.logger.debug(
+        `Article ${article.id} skipped - no relevant data extracted`,
+      );
       return null;
     }
 
@@ -327,7 +334,8 @@ export class RiskArticleProcessorService {
     article: CrawlerArticle,
     dimensionMapping: RiskDimensionMapping,
   ): Record<string, unknown> {
-    const text = `${article.title ?? ''} ${article.content ?? ''}`.toLowerCase();
+    const text =
+      `${article.title ?? ''} ${article.content ?? ''}`.toLowerCase();
     const extracted: Record<string, unknown> = {};
 
     // Basic sentiment analysis (placeholder - could use LLM)
@@ -404,7 +412,14 @@ export class RiskArticleProcessorService {
 
     const riskPatterns: Record<string, string[]> = {
       legal: ['lawsuit', 'litigation', 'legal action', 'court', 'settlement'],
-      regulatory: ['sec', 'investigation', 'violation', 'compliance', 'fine', 'penalty'],
+      regulatory: [
+        'sec',
+        'investigation',
+        'violation',
+        'compliance',
+        'fine',
+        'penalty',
+      ],
       financial: ['debt', 'bankruptcy', 'default', 'downgrade', 'credit'],
       operational: ['outage', 'breach', 'hack', 'failure', 'disruption'],
       reputational: ['scandal', 'controversy', 'criticism', 'backlash'],

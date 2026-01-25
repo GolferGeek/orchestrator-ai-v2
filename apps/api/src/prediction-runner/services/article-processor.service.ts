@@ -5,7 +5,10 @@ import {
 } from '../repositories/source-subscription.repository';
 import { SignalRepository } from '../repositories/signal.repository';
 import { TargetRepository } from '../repositories/target.repository';
-import { CreateSignalData, SignalDirection } from '../interfaces/signal.interface';
+import {
+  CreateSignalData,
+  SignalDirection,
+} from '../interfaces/signal.interface';
 import { ObservabilityEventsService } from '@/observability/observability-events.service';
 import { ExecutionContext, NIL_UUID } from '@orchestrator-ai/transport-types';
 import { Article as CrawlerServiceArticle } from '@/crawler/interfaces';
@@ -71,7 +74,8 @@ export class ArticleProcessorService {
     subscriptionId: string,
     limit: number = 100,
   ): Promise<ArticleProcessResult> {
-    const subscription = await this.subscriptionRepository.findById(subscriptionId);
+    const subscription =
+      await this.subscriptionRepository.findById(subscriptionId);
     if (!subscription) {
       throw new Error(`Subscription not found: ${subscriptionId}`);
     }
@@ -97,7 +101,9 @@ export class ArticleProcessorService {
       );
 
       // Get target for signal creation
-      const target = await this.targetRepository.findById(subscription.target_id);
+      const target = await this.targetRepository.findById(
+        subscription.target_id,
+      );
       if (!target) {
         throw new Error(`Target not found: ${subscription.target_id}`);
       }
@@ -190,7 +196,10 @@ export class ArticleProcessorService {
 
       // Pull new articles across all subscriptions for this target
       const articlesWithSub =
-        await this.subscriptionRepository.getNewArticlesForTarget(targetId, limit);
+        await this.subscriptionRepository.getNewArticlesForTarget(
+          targetId,
+          limit,
+        );
 
       this.logger.debug(
         `Found ${articlesWithSub.length} new articles for target ${targetId}`,
@@ -199,7 +208,10 @@ export class ArticleProcessorService {
       // Group by subscription to update watermarks efficiently
       const articlesBySubscription = new Map<
         string,
-        { articles: (CrawlerArticle & { subscription_id: string })[]; latestTime: Date | null }
+        {
+          articles: (CrawlerArticle & { subscription_id: string })[];
+          latestTime: Date | null;
+        }
       >();
 
       for (const article of articlesWithSub) {
@@ -333,7 +345,8 @@ export class ArticleProcessorService {
       keywords_exclude?: string[];
     },
   ): boolean {
-    const text = `${article.title ?? ''} ${article.content ?? ''}`.toLowerCase();
+    const text =
+      `${article.title ?? ''} ${article.content ?? ''}`.toLowerCase();
 
     // Check exclude keywords first
     const excludeKeywords = filterConfig.keywords_exclude ?? [];
@@ -393,7 +406,9 @@ export class ArticleProcessorService {
     };
 
     // Find all active subscriptions for this source
-    const subscriptions = await this.subscriptionRepository.findBySourceId(source.id);
+    const subscriptions = await this.subscriptionRepository.findBySourceId(
+      source.id,
+    );
 
     if (subscriptions.length === 0) {
       this.logger.debug(`No subscriptions found for source ${source.id}`);
@@ -407,9 +422,13 @@ export class ArticleProcessorService {
 
       try {
         // Get target to check if it's a test target
-        const target = await this.targetRepository.findById(subscription.target_id);
+        const target = await this.targetRepository.findById(
+          subscription.target_id,
+        );
         if (!target) {
-          this.logger.warn(`Target not found for subscription: ${subscription.id}`);
+          this.logger.warn(
+            `Target not found for subscription: ${subscription.id}`,
+          );
           continue;
         }
 
@@ -428,7 +447,8 @@ export class ArticleProcessorService {
           signalsCreated++;
         }
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error';
         this.logger.error(
           `Failed to process article ${crawlerArticle.id} for subscription ${subscription.id}: ${errorMessage}`,
         );
@@ -443,7 +463,8 @@ export class ArticleProcessorService {
    * This is a simple heuristic - could be enhanced with LLM analysis
    */
   private inferDirection(article: CrawlerArticle): SignalDirection {
-    const text = `${article.title ?? ''} ${article.content ?? ''}`.toLowerCase();
+    const text =
+      `${article.title ?? ''} ${article.content ?? ''}`.toLowerCase();
 
     const bullishKeywords = [
       'surge',

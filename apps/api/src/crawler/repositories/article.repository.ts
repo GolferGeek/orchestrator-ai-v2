@@ -262,7 +262,9 @@ export class ArticleRepository {
       throw new Error('Create succeeded but no article returned');
     }
 
-    this.logger.debug(`Created article: ${data.title ?? data.url} (${data.id})`);
+    this.logger.debug(
+      `Created article: ${data.title ?? data.url} (${data.id})`,
+    );
     return data;
   }
 
@@ -307,7 +309,9 @@ export class ArticleRepository {
       .eq('id', id);
 
     if (error) {
-      this.logger.error(`Failed to update article fingerprint: ${error.message}`);
+      this.logger.error(
+        `Failed to update article fingerprint: ${error.message}`,
+      );
       throw new Error(`Failed to update article fingerprint: ${error.message}`);
     }
   }

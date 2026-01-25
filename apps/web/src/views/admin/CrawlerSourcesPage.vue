@@ -108,7 +108,12 @@
                 {{ source.description }}
               </p>
               <div class="source-stats">
-                <ion-chip color="primary" size="small">
+                <ion-chip
+                  color="primary"
+                  size="small"
+                  class="clickable-chip"
+                  @click="openArticlesModal(source)"
+                >
                   <ion-icon :icon="documentOutline" />
                   <ion-label>{{ source.article_count }} articles</ion-label>
                 </ion-chip>
@@ -137,6 +142,90 @@
           </ion-card>
         </div>
       </div>
+
+      <!-- Articles Modal -->
+      <ion-modal :is-open="showArticlesModal" @didDismiss="closeArticlesModal" class="articles-modal">
+        <ion-header>
+          <ion-toolbar>
+            <ion-title>{{ articlesSource?.name }} - Articles</ion-title>
+            <ion-buttons slot="end">
+              <ion-button @click="closeArticlesModal">Close</ion-button>
+            </ion-buttons>
+          </ion-toolbar>
+        </ion-header>
+        <ion-content class="ion-padding">
+          <!-- Time Filter Buttons -->
+          <div class="time-filter-section">
+            <ion-segment v-model="articleTimeFilter" @ionChange="loadArticles">
+              <ion-segment-button value="today">
+                <ion-label>Today</ion-label>
+              </ion-segment-button>
+              <ion-segment-button value="3days">
+                <ion-label>3 Days</ion-label>
+              </ion-segment-button>
+              <ion-segment-button value="week">
+                <ion-label>Week</ion-label>
+              </ion-segment-button>
+              <ion-segment-button value="month">
+                <ion-label>Month</ion-label>
+              </ion-segment-button>
+              <ion-segment-button value="all">
+                <ion-label>All</ion-label>
+              </ion-segment-button>
+            </ion-segment>
+          </div>
+
+          <!-- Articles Count -->
+          <div class="articles-count">
+            <span v-if="!loadingArticles">{{ filteredArticles.length }} articles</span>
+            <ion-spinner v-else name="dots" />
+          </div>
+
+          <!-- Loading State -->
+          <div v-if="loadingArticles" class="loading-state">
+            <ion-spinner name="crescent" />
+            <p>Loading articles...</p>
+          </div>
+
+          <!-- Empty State -->
+          <div v-else-if="filteredArticles.length === 0" class="empty-state">
+            <ion-icon :icon="documentOutline" />
+            <p>No articles found for this time period</p>
+          </div>
+
+          <!-- Articles List -->
+          <div v-else class="articles-list">
+            <div
+              v-for="article in filteredArticles"
+              :key="article.id"
+              class="article-card"
+            >
+              <div class="article-header-row">
+                <div class="article-title-section">
+                  <h3 class="article-title">{{ article.title || 'Untitled' }}</h3>
+                  <p class="article-meta">
+                    {{ formatArticleDate(article.first_seen_at) }}
+                    <span v-if="article.author"> • {{ article.author }}</span>
+                  </p>
+                </div>
+                <a
+                  :href="article.url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="view-link"
+                >
+                  <ion-icon :icon="openOutline" />
+                  View
+                </a>
+              </div>
+              <p v-if="article.summary" class="article-summary">
+                {{ article.summary }}
+              </p>
+              <p v-else class="no-summary">No summary available</p>
+            </div>
+          </div>
+        </ion-content>
+      </ion-modal>
 
       <!-- Create/Edit Source Modal -->
       <ion-modal :is-open="showSourceModal" @didDismiss="closeSourceModal">
@@ -244,6 +333,8 @@ import {
   IonSelect,
   IonSelectOption,
   IonCheckbox,
+  IonSegment,
+  IonSegmentButton,
   alertController,
 } from '@ionic/vue';
 import {
@@ -257,6 +348,7 @@ import {
   timerOutline,
   timeOutline,
   warningOutline,
+  openOutline,
 } from 'ionicons/icons';
 import {
   crawlerService,
@@ -266,6 +358,7 @@ import {
   type UpdateSourceData,
   type SourceType,
   type CrawlFrequency,
+  type Article,
 } from '@/services/crawlerService';
 import { useAuthStore } from '@/stores/rbacStore';
 
@@ -282,6 +375,13 @@ const saving = ref(false);
 const showInactive = ref(false);
 const showSourceModal = ref(false);
 const editingSource = ref<SourceWithStats | null>(null);
+
+// Articles modal state
+const showArticlesModal = ref(false);
+const articlesSource = ref<SourceWithStats | null>(null);
+const articles = ref<Article[]>([]);
+const loadingArticles = ref(false);
+const articleTimeFilter = ref<'today' | '3days' | 'week' | 'month' | 'all'>('3days');
 
 const stats = ref<DashboardStats>({
   total_sources: 0,
@@ -323,6 +423,38 @@ const sourceForm = ref<{
 // Computed
 const isFormValid = computed(() => {
   return sourceForm.value.name.trim() !== '' && sourceForm.value.url.trim() !== '';
+});
+
+// Filter articles based on time selection
+const filteredArticles = computed(() => {
+  if (articleTimeFilter.value === 'all') {
+    return articles.value;
+  }
+
+  const now = new Date();
+  let cutoffDate: Date;
+
+  switch (articleTimeFilter.value) {
+    case 'today':
+      cutoffDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      break;
+    case '3days':
+      cutoffDate = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+      break;
+    case 'week':
+      cutoffDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      break;
+    case 'month':
+      cutoffDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      break;
+    default:
+      return articles.value;
+  }
+
+  return articles.value.filter((article) => {
+    const articleDate = new Date(article.first_seen_at);
+    return articleDate >= cutoffDate;
+  });
 });
 
 // Methods
@@ -485,6 +617,80 @@ function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return 'Never';
   const date = new Date(dateStr);
   return date.toLocaleString();
+}
+
+// Articles modal methods
+async function openArticlesModal(source: SourceWithStats) {
+  articlesSource.value = source;
+  showArticlesModal.value = true;
+  await loadArticles();
+}
+
+function closeArticlesModal() {
+  showArticlesModal.value = false;
+  articlesSource.value = null;
+  articles.value = [];
+}
+
+async function loadArticles() {
+  if (!articlesSource.value) return;
+
+  loadingArticles.value = true;
+  try {
+    const orgSlug = getOrgSlug();
+    // Calculate since date based on filter (fetch more than needed, filter client-side)
+    let since: string | undefined;
+    if (articleTimeFilter.value !== 'all') {
+      const now = new Date();
+      let cutoffDate: Date;
+      switch (articleTimeFilter.value) {
+        case 'today':
+          cutoffDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          break;
+        case '3days':
+          cutoffDate = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+          break;
+        case 'week':
+          cutoffDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case 'month':
+          cutoffDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+      }
+      since = cutoffDate!.toISOString();
+    }
+
+    const result = await crawlerService.getSourceArticles(
+      orgSlug,
+      articlesSource.value.id,
+      { limit: 500, since },
+    );
+    articles.value = result;
+  } catch (e) {
+    console.error('Failed to load articles:', e);
+    articles.value = [];
+  } finally {
+    loadingArticles.value = false;
+  }
+}
+
+function formatArticleDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffHours < 1) {
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    return `${diffMins}m ago`;
+  } else if (diffHours < 24) {
+    return `${diffHours}h ago`;
+  } else if (diffDays < 7) {
+    return `${diffDays}d ago`;
+  } else {
+    return date.toLocaleDateString();
+  }
 }
 
 onMounted(() => {
@@ -650,5 +856,112 @@ onMounted(() => {
 
 .modal-actions {
   padding: 1rem;
+}
+
+/* Clickable chip */
+.clickable-chip {
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.clickable-chip:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(var(--ion-color-primary-rgb), 0.3);
+}
+
+/* Articles modal styles */
+.time-filter-section {
+  margin-bottom: 1rem;
+}
+
+.articles-count {
+  text-align: center;
+  color: var(--ion-color-medium);
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+/* Articles list styles */
+.articles-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.article-card {
+  background: var(--ion-card-background);
+  border: 1px solid var(--ion-border-color);
+  border-radius: 8px;
+  padding: 0.875rem;
+}
+
+.article-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.article-title-section {
+  flex: 1;
+  min-width: 0;
+}
+
+.article-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 0.25rem 0;
+  line-height: 1.3;
+  color: var(--ion-text-color);
+}
+
+.article-meta {
+  font-size: 0.75rem;
+  color: var(--ion-color-medium);
+  margin: 0;
+}
+
+.view-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: white;
+  text-decoration: none;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  background: var(--ion-color-primary);
+}
+
+.view-link:hover {
+  background: var(--ion-color-primary-shade);
+  color: white;
+}
+
+.article-summary {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--ion-color-medium-shade);
+}
+
+.no-summary {
+  margin: 0;
+  color: var(--ion-color-medium);
+  font-style: italic;
+  font-size: 0.85rem;
+}
+
+/* Make the modal larger */
+.articles-modal {
+  --width: 90%;
+  --max-width: 800px;
+  --height: 85%;
 }
 </style>

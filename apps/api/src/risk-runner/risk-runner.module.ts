@@ -168,9 +168,7 @@ function validateRiskRunnerConfig(): ConfigValidationResult {
   }
 
   if (!process.env.DEFAULT_LLM_MODEL) {
-    warnings.push(
-      'DEFAULT_LLM_MODEL not set - will default to GPT-OSS:20B',
-    );
+    warnings.push('DEFAULT_LLM_MODEL not set - will default to GPT-OSS:20B');
   }
 
   return {

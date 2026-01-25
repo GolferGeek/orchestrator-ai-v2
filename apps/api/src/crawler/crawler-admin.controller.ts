@@ -138,7 +138,8 @@ export class CrawlerAdminController {
 
     try {
       // Get all sources for org
-      const allSources = await this.sourceRepository.findAllForDashboard(orgSlug);
+      const allSources =
+        await this.sourceRepository.findAllForDashboard(orgSlug);
       const activeSources = allSources.filter((s) => s.is_active);
 
       // Get article counts
@@ -167,10 +168,8 @@ export class CrawlerAdminController {
 
       // Get recent crawls for dedup stats
       for (const source of allSources) {
-        const recentCrawls = await this.sourceCrawlRepository.findRecentForSource(
-          source.id,
-          20,
-        );
+        const recentCrawls =
+          await this.sourceCrawlRepository.findRecentForSource(source.id, 20);
         for (const crawl of recentCrawls) {
           dedupExact += crawl.duplicates_exact;
           dedupCrossSource += crawl.duplicates_cross_source;
@@ -510,9 +509,7 @@ export class CrawlerAdminController {
    */
   @Post('trigger/:frequency')
   @Public()
-  async triggerCrawl(
-    @Param('frequency') frequency: string,
-  ): Promise<{
+  async triggerCrawl(@Param('frequency') frequency: string): Promise<{
     total: number;
     successful: number;
     failed: number;

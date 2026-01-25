@@ -32,7 +32,7 @@
         :class="{ active: selectedDomain === domain }"
         @click="selectedDomain = domain"
       >
-        {{ domain }}
+        {{ domain.charAt(0).toUpperCase() + domain.slice(1) }}
       </button>
     </div>
 
@@ -99,8 +99,6 @@
               <option value="">Select domain</option>
               <option value="stocks">Stocks</option>
               <option value="crypto">Crypto</option>
-              <option value="elections">Elections</option>
-              <option value="polymarket">Polymarket</option>
             </select>
           </div>
 
@@ -243,13 +241,13 @@ const isDeleting = ref(false);
 const editingUniverse = ref<PredictionUniverse | null>(null);
 const universeToDelete = ref<PredictionUniverse | null>(null);
 
-const domains = ['stocks', 'crypto', 'elections', 'polymarket'];
+const domains = ['stocks', 'crypto'];
 
 const strategies = computed(() => store.strategies);
 
 const formData = reactive({
   name: '',
-  domain: '' as 'stocks' | 'crypto' | 'elections' | 'polymarket' | '',
+  domain: '' as 'stocks' | 'crypto' | '',
   description: '',
   strategyId: '',
   llmConfig: {

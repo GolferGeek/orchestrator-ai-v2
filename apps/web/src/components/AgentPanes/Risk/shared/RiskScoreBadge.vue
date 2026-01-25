@@ -17,9 +17,15 @@ const props = withDefaults(defineProps<Props>(), {
   showLabel: true,
 });
 
-// Normalize score to 0-1 range (handles both 0-1 and 0-100 scales)
+// Normalize score to 0-1 range
+// Handles multiple scales: 0-1 (already normalized), 1-10 (dimension scores), 0-100 (percentages)
 const normalizedScore = computed(() => {
-  return props.score > 1 ? props.score / 100 : props.score;
+  const score = props.score;
+  // Guard against undefined, null, or NaN
+  if (score === undefined || score === null || Number.isNaN(score)) return 0;
+  if (score <= 1) return score; // Already 0-1 scale
+  if (score <= 10) return score / 10; // 1-10 scale (dimension assessments)
+  return score / 100; // 0-100 scale (percentages)
 });
 
 const formattedScore = computed(() => {

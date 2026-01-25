@@ -4,7 +4,10 @@ import {
   ArticleRepository,
   SourceCrawlRepository,
 } from '../repositories';
-import { DeduplicationService, DEFAULT_DEDUP_CONFIG } from './deduplication.service';
+import {
+  DeduplicationService,
+  DEFAULT_DEDUP_CONFIG,
+} from './deduplication.service';
 import {
   Source,
   CreateSourceData,
@@ -216,7 +219,11 @@ export class CrawlerService {
     errorMessage: string,
     durationMs?: number,
   ): Promise<SourceCrawl> {
-    return this.sourceCrawlRepository.markError(crawlId, errorMessage, durationMs);
+    return this.sourceCrawlRepository.markError(
+      crawlId,
+      errorMessage,
+      durationMs,
+    );
   }
 
   /**
@@ -282,10 +289,15 @@ export class CrawlerService {
         new_articles: processResult.new_articles,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
 
       // Complete crawl with error
-      await this.completeCrawlError(crawl.id, errorMessage, Date.now() - startTime);
+      await this.completeCrawlError(
+        crawl.id,
+        errorMessage,
+        Date.now() - startTime,
+      );
 
       return {
         result: { success: false, error: errorMessage },
@@ -361,7 +373,9 @@ export class CrawlerService {
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : 'Unknown error';
-        result.errors.push(`Failed to process item ${item.url}: ${errorMessage}`);
+        result.errors.push(
+          `Failed to process item ${item.url}: ${errorMessage}`,
+        );
         this.logger.error(`Failed to process crawled item: ${errorMessage}`);
       }
     }

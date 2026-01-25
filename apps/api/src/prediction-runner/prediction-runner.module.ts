@@ -280,7 +280,7 @@ const services = [
 
 // Phase 7 Runners
 const runners = [
-  SignalGeneratorRunner,  // Pulls articles from crawler.articles and creates signals
+  SignalGeneratorRunner, // Pulls articles from crawler.articles and creates signals
   BatchSignalProcessorRunner,
   BatchPredictionGeneratorRunner,
   OutcomeTrackingRunner,

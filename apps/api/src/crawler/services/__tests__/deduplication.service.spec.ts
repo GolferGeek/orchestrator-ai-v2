@@ -1,5 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { DeduplicationService, DEFAULT_DEDUP_CONFIG } from '../deduplication.service';
+import {
+  DeduplicationService,
+  DEFAULT_DEDUP_CONFIG,
+} from '../deduplication.service';
 import { ArticleRepository } from '../../repositories/article.repository';
 
 describe('DeduplicationService', () => {
@@ -115,10 +118,7 @@ describe('DeduplicationService', () => {
     });
 
     it('should filter out short words (length <= 3)', () => {
-      const phrases = service.extractKeyPhrases(
-        'The big dog ran',
-        '',
-      );
+      const phrases = service.extractKeyPhrases('The big dog ran', '');
 
       // 'the' and 'big' and 'dog' and 'ran' are all short
       // Only words > 3 chars are kept - if any phrases exist
@@ -272,7 +272,9 @@ describe('DeduplicationService', () => {
 
     describe('Layer 1: Exact hash match', () => {
       it('should detect exact duplicate within same source', async () => {
-        (mockArticleRepository.findByContentHash as jest.Mock).mockResolvedValue({
+        (
+          mockArticleRepository.findByContentHash as jest.Mock
+        ).mockResolvedValue({
           id: 'existing-article',
           source_id: 'source-123', // Same source
         });
@@ -291,7 +293,9 @@ describe('DeduplicationService', () => {
       });
 
       it('should detect cross-source duplicate via hash match', async () => {
-        (mockArticleRepository.findByContentHash as jest.Mock).mockResolvedValue({
+        (
+          mockArticleRepository.findByContentHash as jest.Mock
+        ).mockResolvedValue({
           id: 'existing-article',
           source_id: 'different-source', // Different source
         });
@@ -311,8 +315,12 @@ describe('DeduplicationService', () => {
 
     describe('Layer 2: Cross-source hash check', () => {
       it('should detect cross-source duplicate via explicit check', async () => {
-        (mockArticleRepository.findByContentHash as jest.Mock).mockResolvedValue(null);
-        (mockArticleRepository.checkContentHashExists as jest.Mock).mockResolvedValue(true);
+        (
+          mockArticleRepository.findByContentHash as jest.Mock
+        ).mockResolvedValue(null);
+        (
+          mockArticleRepository.checkContentHashExists as jest.Mock
+        ).mockResolvedValue(true);
 
         const result = await service.checkDuplicate(
           testParams.organizationSlug,
@@ -327,9 +335,15 @@ describe('DeduplicationService', () => {
       });
 
       it('should skip cross-source check when disabled', async () => {
-        (mockArticleRepository.findByContentHash as jest.Mock).mockResolvedValue(null);
-        (mockArticleRepository.findRecentFingerprints as jest.Mock).mockResolvedValue([]);
-        (mockArticleRepository.findByPhraseOverlap as jest.Mock).mockResolvedValue([]);
+        (
+          mockArticleRepository.findByContentHash as jest.Mock
+        ).mockResolvedValue(null);
+        (
+          mockArticleRepository.findRecentFingerprints as jest.Mock
+        ).mockResolvedValue([]);
+        (
+          mockArticleRepository.findByPhraseOverlap as jest.Mock
+        ).mockResolvedValue([]);
 
         const result = await service.checkDuplicate(
           testParams.organizationSlug,
@@ -340,16 +354,24 @@ describe('DeduplicationService', () => {
           { ...DEFAULT_DEDUP_CONFIG, cross_source_dedup: false },
         );
 
-        expect(mockArticleRepository.checkContentHashExists).not.toHaveBeenCalled();
+        expect(
+          mockArticleRepository.checkContentHashExists,
+        ).not.toHaveBeenCalled();
         expect(result.is_duplicate).toBe(false);
       });
     });
 
     describe('Layer 3: Fuzzy title matching', () => {
       it('should detect fuzzy title duplicate', async () => {
-        (mockArticleRepository.findByContentHash as jest.Mock).mockResolvedValue(null);
-        (mockArticleRepository.checkContentHashExists as jest.Mock).mockResolvedValue(false);
-        (mockArticleRepository.findRecentFingerprints as jest.Mock).mockResolvedValue([
+        (
+          mockArticleRepository.findByContentHash as jest.Mock
+        ).mockResolvedValue(null);
+        (
+          mockArticleRepository.checkContentHashExists as jest.Mock
+        ).mockResolvedValue(false);
+        (
+          mockArticleRepository.findRecentFingerprints as jest.Mock
+        ).mockResolvedValue([
           {
             article_id: 'similar-article',
             title_normalized: 'test article title', // Very similar
@@ -371,15 +393,23 @@ describe('DeduplicationService', () => {
       });
 
       it('should not match dissimilar titles', async () => {
-        (mockArticleRepository.findByContentHash as jest.Mock).mockResolvedValue(null);
-        (mockArticleRepository.checkContentHashExists as jest.Mock).mockResolvedValue(false);
-        (mockArticleRepository.findRecentFingerprints as jest.Mock).mockResolvedValue([
+        (
+          mockArticleRepository.findByContentHash as jest.Mock
+        ).mockResolvedValue(null);
+        (
+          mockArticleRepository.checkContentHashExists as jest.Mock
+        ).mockResolvedValue(false);
+        (
+          mockArticleRepository.findRecentFingerprints as jest.Mock
+        ).mockResolvedValue([
           {
             article_id: 'different-article',
             title_normalized: 'completely different content here',
           },
         ]);
-        (mockArticleRepository.findByPhraseOverlap as jest.Mock).mockResolvedValue([]);
+        (
+          mockArticleRepository.findByPhraseOverlap as jest.Mock
+        ).mockResolvedValue([]);
 
         const result = await service.checkDuplicate(
           testParams.organizationSlug,
@@ -400,12 +430,20 @@ describe('DeduplicationService', () => {
         const testContent = 'The financial market shows strong analysis today.';
         const keyPhrases = service.extractKeyPhrases(testTitle, testContent);
 
-        (mockArticleRepository.findByContentHash as jest.Mock).mockResolvedValue(null);
-        (mockArticleRepository.checkContentHashExists as jest.Mock).mockResolvedValue(false);
-        (mockArticleRepository.findRecentFingerprints as jest.Mock).mockResolvedValue([]);
+        (
+          mockArticleRepository.findByContentHash as jest.Mock
+        ).mockResolvedValue(null);
+        (
+          mockArticleRepository.checkContentHashExists as jest.Mock
+        ).mockResolvedValue(false);
+        (
+          mockArticleRepository.findRecentFingerprints as jest.Mock
+        ).mockResolvedValue([]);
 
         // Use the same phrases in the mock to ensure overlap
-        (mockArticleRepository.findByPhraseOverlap as jest.Mock).mockResolvedValue([
+        (
+          mockArticleRepository.findByPhraseOverlap as jest.Mock
+        ).mockResolvedValue([
           {
             article_id: 'overlapping-article',
             key_phrases: keyPhrases, // Return the same phrases to guarantee 100% overlap
@@ -434,10 +472,18 @@ describe('DeduplicationService', () => {
 
     describe('No duplicate found', () => {
       it('should return is_duplicate false when no matches', async () => {
-        (mockArticleRepository.findByContentHash as jest.Mock).mockResolvedValue(null);
-        (mockArticleRepository.checkContentHashExists as jest.Mock).mockResolvedValue(false);
-        (mockArticleRepository.findRecentFingerprints as jest.Mock).mockResolvedValue([]);
-        (mockArticleRepository.findByPhraseOverlap as jest.Mock).mockResolvedValue([]);
+        (
+          mockArticleRepository.findByContentHash as jest.Mock
+        ).mockResolvedValue(null);
+        (
+          mockArticleRepository.checkContentHashExists as jest.Mock
+        ).mockResolvedValue(false);
+        (
+          mockArticleRepository.findRecentFingerprints as jest.Mock
+        ).mockResolvedValue([]);
+        (
+          mockArticleRepository.findByPhraseOverlap as jest.Mock
+        ).mockResolvedValue([]);
 
         const result = await service.checkDuplicate(
           testParams.organizationSlug,
@@ -455,8 +501,12 @@ describe('DeduplicationService', () => {
 
     describe('Configuration options', () => {
       it('should skip fuzzy matching when disabled', async () => {
-        (mockArticleRepository.findByContentHash as jest.Mock).mockResolvedValue(null);
-        (mockArticleRepository.checkContentHashExists as jest.Mock).mockResolvedValue(false);
+        (
+          mockArticleRepository.findByContentHash as jest.Mock
+        ).mockResolvedValue(null);
+        (
+          mockArticleRepository.checkContentHashExists as jest.Mock
+        ).mockResolvedValue(false);
 
         const result = await service.checkDuplicate(
           testParams.organizationSlug,
@@ -467,13 +517,19 @@ describe('DeduplicationService', () => {
           { ...DEFAULT_DEDUP_CONFIG, fuzzy_dedup_enabled: false },
         );
 
-        expect(mockArticleRepository.findRecentFingerprints).not.toHaveBeenCalled();
+        expect(
+          mockArticleRepository.findRecentFingerprints,
+        ).not.toHaveBeenCalled();
         expect(result.is_duplicate).toBe(false);
       });
 
       it('should skip fuzzy matching when no title', async () => {
-        (mockArticleRepository.findByContentHash as jest.Mock).mockResolvedValue(null);
-        (mockArticleRepository.checkContentHashExists as jest.Mock).mockResolvedValue(false);
+        (
+          mockArticleRepository.findByContentHash as jest.Mock
+        ).mockResolvedValue(null);
+        (
+          mockArticleRepository.checkContentHashExists as jest.Mock
+        ).mockResolvedValue(false);
 
         const result = await service.checkDuplicate(
           testParams.organizationSlug,
@@ -483,7 +539,9 @@ describe('DeduplicationService', () => {
           testParams.content,
         );
 
-        expect(mockArticleRepository.findRecentFingerprints).not.toHaveBeenCalled();
+        expect(
+          mockArticleRepository.findRecentFingerprints,
+        ).not.toHaveBeenCalled();
         expect(result.is_duplicate).toBe(false);
       });
     });

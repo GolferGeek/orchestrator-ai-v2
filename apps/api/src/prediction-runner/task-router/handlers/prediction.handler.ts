@@ -167,7 +167,9 @@ export class PredictionHandler implements IDashboardHandler {
       let validUniverseIds: Set<string> | undefined;
       if (context?.agentSlug && context?.orgSlug) {
         // Get universes that belong to this agent
-        const { data: universes } = await this.targetRepository['supabaseService']
+        const { data: universes } = await this.targetRepository[
+          'supabaseService'
+        ]
           .getServiceClient()
           .schema('prediction')
           .from('universes')
@@ -177,7 +179,9 @@ export class PredictionHandler implements IDashboardHandler {
           .eq('is_active', true);
 
         if (universes && universes.length > 0) {
-          validUniverseIds = new Set(universes.map((u: { id: string }) => u.id));
+          validUniverseIds = new Set(
+            universes.map((u: { id: string }) => u.id),
+          );
           this.logger.debug(
             `[PREDICTION-HANDLER] Agent ${context.agentSlug} has ${validUniverseIds.size} valid universes`,
           );
@@ -230,7 +234,9 @@ export class PredictionHandler implements IDashboardHandler {
       if (validUniverseIds) {
         // We need to look up target -> universe relationship for each prediction
         // Get all unique target IDs
-        const predictionTargetIds = [...new Set(predictions.map((p) => p.target_id))];
+        const predictionTargetIds = [
+          ...new Set(predictions.map((p) => p.target_id)),
+        ];
 
         // Fetch target -> universe mappings
         const { data: targets } = await this.targetRepository['supabaseService']

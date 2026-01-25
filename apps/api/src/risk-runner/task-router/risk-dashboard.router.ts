@@ -353,13 +353,17 @@ export class RiskDashboardRouter {
           overall_score?: number;
           created_at?: string;
         }>;
-        const subjects =
-          (subjectsResult.success ? subjectsResult.data : []) as unknown[];
-        const alerts = (alertsResult.success ? alertsResult.data : []) as Array<{
+        const subjects = (
+          subjectsResult.success ? subjectsResult.data : []
+        ) as unknown[];
+        const alerts = (
+          alertsResult.success ? alertsResult.data : []
+        ) as Array<{
           severity?: string;
         }>;
-        const learnings =
-          (learningsResult.success ? learningsResult.data : []) as unknown[];
+        const learnings = (
+          learningsResult.success ? learningsResult.data : []
+        ) as unknown[];
 
         const totalSubjects = (subjects as unknown[]).length;
         const analyzedSubjects = scores.length;

@@ -1,6 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ArticleProcessorService } from '../article-processor.service';
-import { SourceSubscriptionRepository, CrawlerArticle } from '../../repositories/source-subscription.repository';
+import {
+  SourceSubscriptionRepository,
+  CrawlerArticle,
+} from '../../repositories/source-subscription.repository';
 import { SignalRepository } from '../../repositories/signal.repository';
 import { TargetRepository } from '../../repositories/target.repository';
 import { ObservabilityEventsService } from '@/observability/observability-events.service';
@@ -45,13 +48,16 @@ describe('ArticleProcessorService', () => {
     symbol: 'T_AAPL', // Test target prefix
   };
 
-  const createMockArticle = (overrides: Partial<CrawlerArticle> = {}): CrawlerArticle => ({
+  const createMockArticle = (
+    overrides: Partial<CrawlerArticle> = {},
+  ): CrawlerArticle => ({
     id: 'article-123',
     organization_slug: 'test-org',
     source_id: 'source-123',
     url: 'https://example.com/article/1',
     title: 'Stock Market Surges on Positive News',
-    content: 'The stock market showed strong gains today with tech stocks leading.',
+    content:
+      'The stock market showed strong gains today with tech stocks leading.',
     summary: 'Market gains overview',
     author: 'Test Author',
     published_at: '2024-01-15T00:00:00Z',
@@ -87,10 +93,16 @@ describe('ArticleProcessorService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ArticleProcessorService,
-        { provide: SourceSubscriptionRepository, useValue: mockSubscriptionRepository },
+        {
+          provide: SourceSubscriptionRepository,
+          useValue: mockSubscriptionRepository,
+        },
         { provide: SignalRepository, useValue: mockSignalRepository },
         { provide: TargetRepository, useValue: mockTargetRepository },
-        { provide: ObservabilityEventsService, useValue: mockObservabilityService },
+        {
+          provide: ObservabilityEventsService,
+          useValue: mockObservabilityService,
+        },
       ],
     }).compile();
 
@@ -109,11 +121,21 @@ describe('ArticleProcessorService', () => {
     it('should process articles for a subscription and create signals', async () => {
       const articles = [createMockArticle()];
 
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(mockSubscription);
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue(articles);
-      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(mockTarget);
-      (mockSignalRepository.create as jest.Mock).mockResolvedValue({ id: 'signal-123' });
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        mockSubscription,
+      );
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue(articles);
+      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
+        mockTarget,
+      );
+      (mockSignalRepository.create as jest.Mock).mockResolvedValue({
+        id: 'signal-123',
+      });
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       const result = await service.processSubscription('sub-123');
 
@@ -127,7 +149,9 @@ describe('ArticleProcessorService', () => {
     });
 
     it('should throw error when subscription not found', async () => {
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(null);
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        null,
+      );
 
       await expect(service.processSubscription('nonexistent')).rejects.toThrow(
         'Subscription not found: nonexistent',
@@ -135,8 +159,12 @@ describe('ArticleProcessorService', () => {
     });
 
     it('should return error when target not found', async () => {
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(mockSubscription);
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue([createMockArticle()]);
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        mockSubscription,
+      );
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue([createMockArticle()]);
       (mockTargetRepository.findById as jest.Mock).mockResolvedValue(null);
 
       const result = await service.processSubscription('sub-123');
@@ -151,10 +179,18 @@ describe('ArticleProcessorService', () => {
         content: 'This is spam article that should be filtered',
       });
 
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(mockSubscription);
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue([spamArticle]);
-      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(mockTarget);
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        mockSubscription,
+      );
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue([spamArticle]);
+      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
+        mockTarget,
+      );
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       const result = await service.processSubscription('sub-123');
 
@@ -170,10 +206,18 @@ describe('ArticleProcessorService', () => {
         ...mockSubscription,
         target_id: 'test-target-123',
       });
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue(articles);
-      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(mockTestTarget);
-      (mockSignalRepository.create as jest.Mock).mockResolvedValue({ id: 'signal-123' });
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue(articles);
+      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
+        mockTestTarget,
+      );
+      (mockSignalRepository.create as jest.Mock).mockResolvedValue({
+        id: 'signal-123',
+      });
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       await service.processSubscription('sub-123');
 
@@ -188,11 +232,21 @@ describe('ArticleProcessorService', () => {
       const articleTime = '2024-01-15T12:00:00Z';
       const articles = [createMockArticle({ first_seen_at: articleTime })];
 
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(mockSubscription);
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue(articles);
-      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(mockTarget);
-      (mockSignalRepository.create as jest.Mock).mockResolvedValue({ id: 'signal-123' });
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        mockSubscription,
+      );
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue(articles);
+      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
+        mockTarget,
+      );
+      (mockSignalRepository.create as jest.Mock).mockResolvedValue({
+        id: 'signal-123',
+      });
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       await service.processSubscription('sub-123');
 
@@ -203,9 +257,15 @@ describe('ArticleProcessorService', () => {
     });
 
     it('should not update watermark when no articles processed', async () => {
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(mockSubscription);
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue([]);
-      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(mockTarget);
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        mockSubscription,
+      );
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue([]);
+      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
+        mockTarget,
+      );
 
       await service.processSubscription('sub-123');
 
@@ -213,15 +273,26 @@ describe('ArticleProcessorService', () => {
     });
 
     it('should handle individual article processing errors', async () => {
-      const articles = [createMockArticle(), createMockArticle({ id: 'article-456' })];
+      const articles = [
+        createMockArticle(),
+        createMockArticle({ id: 'article-456' }),
+      ];
 
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(mockSubscription);
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue(articles);
-      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(mockTarget);
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        mockSubscription,
+      );
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue(articles);
+      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
+        mockTarget,
+      );
       (mockSignalRepository.create as jest.Mock)
         .mockResolvedValueOnce({ id: 'signal-123' })
         .mockRejectedValueOnce(new Error('Database error'));
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       const result = await service.processSubscription('sub-123');
 
@@ -231,13 +302,22 @@ describe('ArticleProcessorService', () => {
     });
 
     it('should respect limit parameter', async () => {
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(mockSubscription);
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue([]);
-      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(mockTarget);
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        mockSubscription,
+      );
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue([]);
+      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
+        mockTarget,
+      );
 
       await service.processSubscription('sub-123', 50);
 
-      expect(mockSubscriptionRepository.getNewArticles).toHaveBeenCalledWith('sub-123', 50);
+      expect(mockSubscriptionRepository.getNewArticles).toHaveBeenCalledWith(
+        'sub-123',
+        50,
+      );
     });
   });
 
@@ -249,21 +329,36 @@ describe('ArticleProcessorService', () => {
     it('should process articles for a target across all subscriptions', async () => {
       const articlesWithSub = [
         { ...createMockArticle(), subscription_id: 'sub-1' },
-        { ...createMockArticle({ id: 'article-456' }), subscription_id: 'sub-2' },
+        {
+          ...createMockArticle({ id: 'article-456' }),
+          subscription_id: 'sub-2',
+        },
       ];
 
-      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(mockTarget);
-      (mockSubscriptionRepository.getNewArticlesForTarget as jest.Mock).mockResolvedValue(articlesWithSub);
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(mockSubscription);
-      (mockSignalRepository.create as jest.Mock).mockResolvedValue({ id: 'signal-123' });
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
+        mockTarget,
+      );
+      (
+        mockSubscriptionRepository.getNewArticlesForTarget as jest.Mock
+      ).mockResolvedValue(articlesWithSub);
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        mockSubscription,
+      );
+      (mockSignalRepository.create as jest.Mock).mockResolvedValue({
+        id: 'signal-123',
+      });
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       const result = await service.processTarget('target-123');
 
       expect(result.target_id).toBe('target-123');
       expect(result.subscription_id).toBe('all');
       expect(result.articles_processed).toBe(2);
-      expect(mockSubscriptionRepository.updateWatermark).toHaveBeenCalledTimes(2);
+      expect(mockSubscriptionRepository.updateWatermark).toHaveBeenCalledTimes(
+        2,
+      );
     });
 
     it('should return error when target not found', async () => {
@@ -277,16 +372,41 @@ describe('ArticleProcessorService', () => {
 
     it('should group articles by subscription for watermark updates', async () => {
       const articlesWithSub = [
-        { ...createMockArticle({ first_seen_at: '2024-01-15T12:00:00Z' }), subscription_id: 'sub-1' },
-        { ...createMockArticle({ id: 'article-2', first_seen_at: '2024-01-15T14:00:00Z' }), subscription_id: 'sub-1' },
-        { ...createMockArticle({ id: 'article-3', first_seen_at: '2024-01-15T13:00:00Z' }), subscription_id: 'sub-2' },
+        {
+          ...createMockArticle({ first_seen_at: '2024-01-15T12:00:00Z' }),
+          subscription_id: 'sub-1',
+        },
+        {
+          ...createMockArticle({
+            id: 'article-2',
+            first_seen_at: '2024-01-15T14:00:00Z',
+          }),
+          subscription_id: 'sub-1',
+        },
+        {
+          ...createMockArticle({
+            id: 'article-3',
+            first_seen_at: '2024-01-15T13:00:00Z',
+          }),
+          subscription_id: 'sub-2',
+        },
       ];
 
-      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(mockTarget);
-      (mockSubscriptionRepository.getNewArticlesForTarget as jest.Mock).mockResolvedValue(articlesWithSub);
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(mockSubscription);
-      (mockSignalRepository.create as jest.Mock).mockResolvedValue({ id: 'signal-123' });
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
+        mockTarget,
+      );
+      (
+        mockSubscriptionRepository.getNewArticlesForTarget as jest.Mock
+      ).mockResolvedValue(articlesWithSub);
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        mockSubscription,
+      );
+      (mockSignalRepository.create as jest.Mock).mockResolvedValue({
+        id: 'signal-123',
+      });
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       await service.processTarget('target-123');
 
@@ -314,11 +434,21 @@ describe('ArticleProcessorService', () => {
         content: 'Stock prices are up',
       });
 
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(mockSubscription);
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue([article]);
-      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(mockTarget);
-      (mockSignalRepository.create as jest.Mock).mockResolvedValue({ id: 'signal-123' });
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        mockSubscription,
+      );
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue([article]);
+      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
+        mockTarget,
+      );
+      (mockSignalRepository.create as jest.Mock).mockResolvedValue({
+        id: 'signal-123',
+      });
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       const result = await service.processSubscription('sub-123');
 
@@ -331,10 +461,18 @@ describe('ArticleProcessorService', () => {
         content: 'This article contains spam',
       });
 
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(mockSubscription);
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue([article]);
-      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(mockTarget);
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        mockSubscription,
+      );
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue([article]);
+      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
+        mockTarget,
+      );
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       const result = await service.processSubscription('sub-123');
 
@@ -348,10 +486,18 @@ describe('ArticleProcessorService', () => {
         content: 'Sunny with no clouds',
       });
 
-      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(mockSubscription);
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue([article]);
-      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(mockTarget);
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (mockSubscriptionRepository.findById as jest.Mock).mockResolvedValue(
+        mockSubscription,
+      );
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue([article]);
+      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
+        mockTarget,
+      );
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       const result = await service.processSubscription('sub-123');
 
@@ -368,10 +514,18 @@ describe('ArticleProcessorService', () => {
         ...mockSubscription,
         filter_config: { keywords_include: [], keywords_exclude: [] },
       });
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue([article]);
-      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(mockTarget);
-      (mockSignalRepository.create as jest.Mock).mockResolvedValue({ id: 'signal-123' });
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue([article]);
+      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
+        mockTarget,
+      );
+      (mockSignalRepository.create as jest.Mock).mockResolvedValue({
+        id: 'signal-123',
+      });
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       const result = await service.processSubscription('sub-123');
 
@@ -394,10 +548,18 @@ describe('ArticleProcessorService', () => {
         ...mockSubscription,
         filter_config: {},
       });
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue([article]);
-      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(mockTarget);
-      (mockSignalRepository.create as jest.Mock).mockResolvedValue({ id: 'signal-123' });
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue([article]);
+      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
+        mockTarget,
+      );
+      (mockSignalRepository.create as jest.Mock).mockResolvedValue({
+        id: 'signal-123',
+      });
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       await service.processSubscription('sub-123');
 
@@ -418,10 +580,18 @@ describe('ArticleProcessorService', () => {
         ...mockSubscription,
         filter_config: {},
       });
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue([article]);
-      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(mockTarget);
-      (mockSignalRepository.create as jest.Mock).mockResolvedValue({ id: 'signal-123' });
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue([article]);
+      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
+        mockTarget,
+      );
+      (mockSignalRepository.create as jest.Mock).mockResolvedValue({
+        id: 'signal-123',
+      });
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       await service.processSubscription('sub-123');
 
@@ -442,10 +612,18 @@ describe('ArticleProcessorService', () => {
         ...mockSubscription,
         filter_config: {},
       });
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue([article]);
-      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(mockTarget);
-      (mockSignalRepository.create as jest.Mock).mockResolvedValue({ id: 'signal-123' });
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue([article]);
+      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
+        mockTarget,
+      );
+      (mockSignalRepository.create as jest.Mock).mockResolvedValue({
+        id: 'signal-123',
+      });
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       await service.processSubscription('sub-123');
 
@@ -469,10 +647,18 @@ describe('ArticleProcessorService', () => {
         ...mockSubscription,
         filter_config: {},
       });
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue([article]);
-      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(mockTarget);
-      (mockSignalRepository.create as jest.Mock).mockResolvedValue({ id: 'signal-123' });
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue([article]);
+      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
+        mockTarget,
+      );
+      (mockSignalRepository.create as jest.Mock).mockResolvedValue({
+        id: 'signal-123',
+      });
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       await service.processSubscription('sub-123');
 
@@ -502,10 +688,18 @@ describe('ArticleProcessorService', () => {
         ...mockSubscription,
         filter_config: {},
       });
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue([article]);
-      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(mockTarget);
-      (mockSignalRepository.create as jest.Mock).mockResolvedValue({ id: 'signal-123' });
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue([article]);
+      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
+        mockTarget,
+      );
+      (mockSignalRepository.create as jest.Mock).mockResolvedValue({
+        id: 'signal-123',
+      });
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       await service.processSubscription('sub-123');
 
@@ -526,10 +720,18 @@ describe('ArticleProcessorService', () => {
         ...mockSubscription,
         filter_config: {},
       });
-      (mockSubscriptionRepository.getNewArticles as jest.Mock).mockResolvedValue([article]);
-      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(mockTarget);
-      (mockSignalRepository.create as jest.Mock).mockResolvedValue({ id: 'signal-123' });
-      (mockSubscriptionRepository.updateWatermark as jest.Mock).mockResolvedValue(undefined);
+      (
+        mockSubscriptionRepository.getNewArticles as jest.Mock
+      ).mockResolvedValue([article]);
+      (mockTargetRepository.findById as jest.Mock).mockResolvedValue(
+        mockTarget,
+      );
+      (mockSignalRepository.create as jest.Mock).mockResolvedValue({
+        id: 'signal-123',
+      });
+      (
+        mockSubscriptionRepository.updateWatermark as jest.Mock
+      ).mockResolvedValue(undefined);
 
       await service.processSubscription('sub-123');
 

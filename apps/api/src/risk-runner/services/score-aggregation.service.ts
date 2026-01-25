@@ -14,8 +14,28 @@ export class ScoreAggregationService {
   private readonly logger = new Logger(ScoreAggregationService.name);
 
   /**
+   * Validate that dimension weights sum to 100% (1.0)
+   * Throws error if weights are invalid
+   */
+  validateDimensionWeights(dimensions: RiskDimension[]): void {
+    const activeDimensions = dimensions.filter((d) => d.is_active !== false);
+    const totalWeight = activeDimensions.reduce(
+      (sum, d) => sum + (d.weight ?? 0),
+      0,
+    );
+
+    // Allow small floating point tolerance (0.99 to 1.01)
+    if (totalWeight < 0.99 || totalWeight > 1.01) {
+      throw new Error(
+        `Dimension weights must sum to 100% (1.0). Current sum: ${(totalWeight * 100).toFixed(1)}%`,
+      );
+    }
+  }
+
+  /**
    * Aggregate dimension assessments into a composite risk score
    * Uses weighted average based on dimension weights
+   * Requires weights to sum to 100% for accurate scoring
    */
   aggregateAssessments(
     assessments: RiskAssessment[],
@@ -29,6 +49,9 @@ export class ScoreAggregationService {
         confidence: 0,
       };
     }
+
+    // Validate weights sum to 100%
+    this.validateDimensionWeights(dimensions);
 
     // Create a map of dimension ID to dimension for quick lookup
     const dimensionMap = new Map(dimensions.map((d) => [d.id, d]));
@@ -53,7 +76,7 @@ export class ScoreAggregationService {
       dimensionScores[dimension.slug] = assessment.score;
 
       // Add to weighted calculation
-      const weight = dimension.weight ?? 1.0;
+      const weight = dimension.weight ?? 0;
       weightedSum += assessment.score * weight;
       totalWeight += weight;
 
@@ -67,9 +90,17 @@ export class ScoreAggregationService {
       }
     }
 
-    // Calculate overall score
+    // Warn if not all dimensions have assessments (weights won't sum correctly)
+    if (Math.abs(totalWeight - 1.0) > 0.01) {
+      this.logger.warn(
+        `Only ${(totalWeight * 100).toFixed(1)}% of dimensions have assessments. ` +
+          `Missing dimensions will skew the composite score.`,
+      );
+    }
+
+    // Calculate overall score (multiply by 10 to convert 1-10 scale to 0-100)
     const overallScore =
-      totalWeight > 0 ? Math.round(weightedSum / totalWeight) : 0;
+      totalWeight > 0 ? Math.round((weightedSum / totalWeight) * 10) : 0;
 
     // Calculate average confidence
     const confidence =

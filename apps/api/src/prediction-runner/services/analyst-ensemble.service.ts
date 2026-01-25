@@ -417,7 +417,11 @@ export class AnalystEnsembleService {
     );
 
     // Check and emit usage warnings (only for non-local providers)
-    if (!this.llmUsageLimiterService.isLocalProvider(effectiveContext.provider || '')) {
+    if (
+      !this.llmUsageLimiterService.isLocalProvider(
+        effectiveContext.provider || '',
+      )
+    ) {
       await this.llmUsageLimiterService.checkAndEmitWarnings(
         effectiveContext,
         target.universe_id,
