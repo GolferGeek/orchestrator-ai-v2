@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { SupabaseModule } from '@/supabase/supabase.module';
+import { ObservabilityModule } from '@/observability/observability.module';
 
 // Repositories
 import {
@@ -11,6 +12,9 @@ import {
 // Services
 import { CrawlerService, DeduplicationService } from './services';
 
+// Runners
+import { CrawlerRunner } from './runners';
+
 // Controllers
 import { CrawlerAdminController } from './crawler-admin.controller';
 
@@ -21,17 +25,17 @@ import { CrawlerAdminController } from './crawler-admin.controller';
  * - Source management (findOrCreate prevents duplicates)
  * - Article storage with 4-layer deduplication
  * - Crawl tracking and metrics
+ * - Scheduled crawling via CrawlerRunner
  *
  * Agents use this module to:
  * 1. Register sources via CrawlerService.findOrCreateSource()
  * 2. Pull new articles via CrawlerService.findNewArticlesForSource()
- * 3. Store crawled content via CrawlerService.storeArticle()
  *
- * The actual crawling (Firecrawl, RSS, etc.) is handled by agent-specific
- * services or a central crawler runner.
+ * The CrawlerRunner handles scheduled crawling and stores articles
+ * in crawler.articles. Agents pull articles on their own schedule.
  */
 @Module({
-  imports: [SupabaseModule],
+  imports: [SupabaseModule, ObservabilityModule],
   controllers: [CrawlerAdminController],
   providers: [
     // Repositories
@@ -41,6 +45,8 @@ import { CrawlerAdminController } from './crawler-admin.controller';
     // Services
     DeduplicationService,
     CrawlerService,
+    // Runners
+    CrawlerRunner,
   ],
   exports: [
     // Export repositories for advanced use cases

@@ -181,6 +181,32 @@ export class SourceSubscriptionRepository {
   }
 
   /**
+   * Find subscriptions by source
+   * Used when processing a newly crawled article to find all targets subscribed to that source
+   */
+  async findBySourceId(sourceId: string): Promise<SourceSubscription[]> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .select('*')
+      .eq('source_id', sourceId)
+      .order('created_at', {
+        ascending: false,
+      })) as SupabaseSelectListResponse<SourceSubscription>;
+
+    if (error) {
+      this.logger.error(
+        `Failed to fetch subscriptions by source: ${error.message}`,
+      );
+      throw new Error(
+        `Failed to fetch subscriptions by source: ${error.message}`,
+      );
+    }
+
+    return data ?? [];
+  }
+
+  /**
    * Find subscription by source and target (unique constraint)
    */
   async findBySourceAndTarget(
@@ -300,13 +326,12 @@ export class SourceSubscriptionRepository {
     subscriptionId: string,
     limit: number = 100,
   ): Promise<CrawlerArticle[]> {
-    const { data, error } = await this.getClient().rpc(
-      'get_new_articles_for_subscription',
-      {
+    const { data, error } = await this.getClient()
+      .schema(this.schema)
+      .rpc('get_new_articles_for_subscription', {
         p_subscription_id: subscriptionId,
         p_limit: limit,
-      },
-    );
+      });
 
     if (error) {
       this.logger.error(`Failed to get new articles: ${error.message}`);
@@ -341,16 +366,13 @@ export class SourceSubscriptionRepository {
   async getNewArticlesForTarget(
     targetId: string,
     limit: number = 100,
-  ): Promise<
-    Array<CrawlerArticle & { subscription_id: string }>
-  > {
-    const { data, error } = await this.getClient().rpc(
-      'get_new_articles_for_target',
-      {
+  ): Promise<Array<CrawlerArticle & { subscription_id: string }>> {
+    const { data, error } = await this.getClient()
+      .schema(this.schema)
+      .rpc('get_new_articles_for_target', {
         p_target_id: targetId,
         p_limit: limit,
-      },
-    );
+      });
 
     if (error) {
       this.logger.error(

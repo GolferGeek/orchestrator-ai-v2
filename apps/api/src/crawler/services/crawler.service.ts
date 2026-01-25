@@ -220,6 +220,83 @@ export class CrawlerService {
   }
 
   /**
+   * Crawl a source and store articles
+   *
+   * This is a high-level method that:
+   * 1. Creates a crawl record
+   * 2. Processes items and stores articles with deduplication
+   * 3. Updates crawl metrics
+   *
+   * NOTE: The actual HTTP fetching (Firecrawl, RSS) is done by the caller.
+   * This method handles storage and deduplication.
+   *
+   * @param source - Source being crawled
+   * @param items - Items fetched from the source
+   * @returns Crawl result with new articles
+   */
+  async crawlSource(
+    source: Source,
+    items: Array<{
+      url: string;
+      title?: string;
+      content?: string;
+      summary?: string;
+      author?: string;
+      published_at?: string;
+      raw_data?: Record<string, unknown>;
+    }> = [],
+  ): Promise<{
+    result: { success: boolean; error?: string };
+    articles_found: number;
+    articles_new: number;
+    new_articles: Article[];
+  }> {
+    const startTime = Date.now();
+
+    // Create crawl record
+    const crawl = await this.startCrawl(source.id);
+
+    try {
+      // Process items and store articles
+      const processResult = await this.processCrawledItems(
+        source.id,
+        source.organization_slug,
+        items,
+      );
+
+      // Complete crawl with success
+      await this.completeCrawlSuccess(crawl.id, {
+        articles_found: processResult.articles_found,
+        articles_new: processResult.articles_new,
+        duplicates_exact: processResult.duplicates.exact,
+        duplicates_cross_source: processResult.duplicates.cross_source,
+        duplicates_fuzzy_title: processResult.duplicates.fuzzy_title,
+        duplicates_phrase_overlap: processResult.duplicates.phrase_overlap,
+        crawl_duration_ms: Date.now() - startTime,
+      });
+
+      return {
+        result: { success: true },
+        articles_found: processResult.articles_found,
+        articles_new: processResult.articles_new,
+        new_articles: processResult.new_articles,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      // Complete crawl with error
+      await this.completeCrawlError(crawl.id, errorMessage, Date.now() - startTime);
+
+      return {
+        result: { success: false, error: errorMessage },
+        articles_found: 0,
+        articles_new: 0,
+        new_articles: [],
+      };
+    }
+  }
+
+  /**
    * Process crawled items and store as articles
    *
    * @param sourceId - Source that was crawled

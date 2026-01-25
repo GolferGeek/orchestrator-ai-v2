@@ -1,4 +1,4 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { LLMService } from '@/llms/llm.service';
 import { ExecutionContext } from '@orchestrator-ai/transport-types';
 import { RiskSubject } from '../interfaces/subject.interface';
@@ -11,7 +11,6 @@ import {
   AssessmentSignal,
 } from '../interfaces/assessment.interface';
 import { DimensionContextRepository } from '../repositories/dimension-context.repository';
-import { ArticleClassifierService } from './article-classifier.service';
 
 /**
  * Article data for dimension analysis
@@ -52,7 +51,6 @@ export class DimensionAnalyzerService {
   constructor(
     private readonly llmService: LLMService,
     private readonly dimensionContextRepo: DimensionContextRepository,
-    @Optional() private readonly articleClassifier?: ArticleClassifierService,
   ) {}
 
   /**
@@ -78,29 +76,6 @@ export class DimensionAnalyzerService {
       this.logger.warn(`No active context for dimension ${dimension.slug}`);
       // Return a default assessment when no context is configured
       return this.createDefaultAssessment(subject, dimension, context);
-    }
-
-    // Fetch relevant articles if not provided and classifier is available
-    if (!articles && this.articleClassifier && subject.scope_id) {
-      try {
-        const fetchedArticles = await this.articleClassifier.getArticlesForSubjectDimension(
-          subject.scope_id,
-          subject.identifier,
-          dimension.slug,
-          new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Last 7 days
-          20, // Limit to 20 most recent articles
-        );
-        articles = fetchedArticles;
-        this.logger.debug(
-          `Found ${articles.length} relevant articles for ${subject.identifier}/${dimension.slug}`,
-        );
-      } catch (error) {
-        this.logger.warn(
-          `Failed to fetch articles for ${subject.identifier}/${dimension.slug}: ${error instanceof Error ? error.message : String(error)}`,
-        );
-        // Continue without articles
-        articles = [];
-      }
     }
 
     try {

@@ -8,6 +8,7 @@ import { TargetRepository } from '../repositories/target.repository';
 import { CreateSignalData, SignalDirection } from '../interfaces/signal.interface';
 import { ObservabilityEventsService } from '@/observability/observability-events.service';
 import { ExecutionContext, NIL_UUID } from '@orchestrator-ai/transport-types';
+import { Article as CrawlerServiceArticle } from '@/crawler/interfaces';
 
 /**
  * Result of processing articles for a subscription
@@ -354,6 +355,87 @@ export class ArticleProcessorService {
     }
 
     return true;
+  }
+
+  /**
+   * Process a freshly crawled article for all subscriptions that use its source
+   *
+   * Called by the SourceCrawlerRunner when new articles are discovered.
+   * Creates signals for each subscription (target) that is linked to the source.
+   *
+   * @param article - The newly crawled article from crawler.articles
+   * @param source - The source that was crawled
+   * @returns Number of signals created
+   */
+  async processArticleForSubscriptions(
+    article: CrawlerServiceArticle,
+    source: { id: string; organization_slug: string },
+  ): Promise<number> {
+    // Convert CrawlerServiceArticle to CrawlerArticle format for processing
+    const crawlerArticle: CrawlerArticle = {
+      id: article.id,
+      organization_slug: article.organization_slug,
+      source_id: article.source_id,
+      url: article.url,
+      title: article.title ?? null,
+      content: article.content ?? null,
+      summary: article.summary ?? null,
+      author: article.author ?? null,
+      published_at: article.published_at ?? null,
+      content_hash: article.content_hash,
+      title_normalized: article.title_normalized ?? null,
+      key_phrases: article.key_phrases ?? null,
+      fingerprint_hash: article.fingerprint_hash ?? null,
+      raw_data: article.raw_data ?? null,
+      is_test: article.is_test,
+      first_seen_at: article.first_seen_at,
+      metadata: article.metadata,
+    };
+
+    // Find all active subscriptions for this source
+    const subscriptions = await this.subscriptionRepository.findBySourceId(source.id);
+
+    if (subscriptions.length === 0) {
+      this.logger.debug(`No subscriptions found for source ${source.id}`);
+      return 0;
+    }
+
+    let signalsCreated = 0;
+
+    for (const subscription of subscriptions) {
+      if (!subscription.is_active) continue;
+
+      try {
+        // Get target to check if it's a test target
+        const target = await this.targetRepository.findById(subscription.target_id);
+        if (!target) {
+          this.logger.warn(`Target not found for subscription: ${subscription.id}`);
+          continue;
+        }
+
+        // Test targets have T_ prefix per INV-04
+        const isTestTarget = target.symbol.startsWith('T_');
+
+        // Process the article with this subscription's filter config
+        const signalCreated = await this.processArticle(
+          crawlerArticle,
+          subscription.target_id,
+          subscription.filter_config ?? {},
+          isTestTarget || crawlerArticle.is_test,
+        );
+
+        if (signalCreated) {
+          signalsCreated++;
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        this.logger.error(
+          `Failed to process article ${crawlerArticle.id} for subscription ${subscription.id}: ${errorMessage}`,
+        );
+      }
+    }
+
+    return signalsCreated;
   }
 
   /**

@@ -1,6 +1,9 @@
 // Phase 7: Batch Processing Runners
 
-export { SourceCrawlerRunner } from './source-crawler.runner';
+// Signal generation from crawler articles
+export { SignalGeneratorRunner } from './signal-generator.runner';
+
+// Other runners
 export { BatchSignalProcessorRunner } from './batch-signal-processor.runner';
 export { BatchPredictionGeneratorRunner } from './batch-prediction-generator.runner';
 export { OutcomeTrackingRunner } from './outcome-tracking.runner';

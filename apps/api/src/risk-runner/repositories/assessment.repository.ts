@@ -235,6 +235,86 @@ export class AssessmentRepository {
   }
 
   /**
+   * UPSERT with merge - creates or updates assessment for subject-dimension pair.
+   * If existing, merges evidence arrays and updates score/reasoning.
+   *
+   * Merge logic:
+   * - score: uses new score (caller should compute weighted avg if needed)
+   * - confidence: uses new confidence
+   * - reasoning: concatenates with separator showing source
+   * - evidence: merges arrays (deduped)
+   * - signals: merges arrays
+   * - llm_provider/model: updates to new values
+   */
+  async upsertWithMerge(
+    assessmentData: CreateRiskAssessmentData,
+  ): Promise<RiskAssessment> {
+    const { subject_id, dimension_id } = assessmentData;
+
+    // Check if assessment exists for this subject-dimension pair
+    const existing = await this.findLatestBySubjectAndDimension(
+      subject_id,
+      dimension_id,
+      { includeTest: assessmentData.is_test },
+    );
+
+    if (existing) {
+      // Merge evidence arrays (dedupe)
+      const existingEvidence = existing.evidence || [];
+      const newEvidence = assessmentData.evidence || [];
+      const mergedEvidence = [
+        ...new Set([...existingEvidence, ...newEvidence]),
+      ];
+
+      // Merge signals arrays
+      const existingSignals = existing.signals || [];
+      const newSignals = assessmentData.signals || [];
+      const mergedSignals = [...existingSignals, ...newSignals];
+
+      // Merge reasoning with source attribution
+      let mergedReasoning = assessmentData.reasoning || '';
+      if (existing.reasoning && assessmentData.reasoning) {
+        const existingSource = existing.llm_model || 'previous';
+        const newSource = assessmentData.llm_model || 'new';
+        mergedReasoning = `[${newSource}] ${assessmentData.reasoning}\n\n---\n\n[${existingSource}] ${existing.reasoning}`;
+      } else if (existing.reasoning) {
+        mergedReasoning = existing.reasoning;
+      }
+
+      // Update existing assessment
+      const { data, error } = (await this.getClient()
+        .schema(this.schema)
+        .from(this.table)
+        .update({
+          score: assessmentData.score,
+          confidence: assessmentData.confidence,
+          reasoning: mergedReasoning,
+          evidence: mergedEvidence,
+          signals: mergedSignals,
+          analyst_response: assessmentData.analyst_response,
+          llm_provider: assessmentData.llm_provider,
+          llm_model: assessmentData.llm_model,
+        })
+        .eq('id', existing.id)
+        .select()
+        .single()) as SupabaseSelectResponse<RiskAssessment>;
+
+      if (error) {
+        this.logger.error(`Failed to update assessment: ${error.message}`);
+        throw new Error(`Failed to update assessment: ${error.message}`);
+      }
+
+      this.logger.log(
+        `Updated assessment ${existing.id} for ${subject_id}/${dimension_id}`,
+      );
+      return data!;
+    }
+
+    // No existing assessment, create new
+    return this.create(assessmentData);
+  }
+
+  /**
    * Find recent assessments for a subject (for history/timeline)
    */
   async findRecentBySubject(

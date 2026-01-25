@@ -114,12 +114,11 @@
                 </div>
                 <div
                   class="nav-item"
-                  :class="{ active: activeSection === 'finance-universes' }"
-                  @click="selectSection('finance-universes')"
-                  v-permission="'finance:admin'"
+                  :class="{ active: activeSection === 'crawler-sources' }"
+                  @click="selectSection('crawler-sources')"
                 >
-                  <ion-icon :icon="trendingUpOutline" />
-                  <span>Finance Portfolios</span>
+                  <ion-icon :icon="cloudDownloadOutline" />
+                  <span>Crawler Sources</span>
                 </div>
                 <div
                   class="nav-item"
@@ -287,7 +286,6 @@ import {
   sparklesOutline,
   keyOutline,
   peopleCircleOutline,
-  trendingUpOutline,
   cloudDownloadOutline,
 } from 'ionicons/icons';
 import { useAuthStore } from '@/stores/rbacStore';
@@ -324,7 +322,7 @@ const detailComponents: Record<string, ReturnType<typeof defineAsyncComponent>> 
   llms: defineAsyncComponent(() => import('@/views/admin/ProvidersModelsPage.vue')),
   pii: defineAsyncComponent(() => import('@/views/PIIManagementPage.vue')),
   rag: defineAsyncComponent(() => import('@/views/admin/RagCollectionsPage.vue')),
-  'finance-universes': defineAsyncComponent(() => import('@/views/admin/FinanceUniversesPage.vue')),
+  'crawler-sources': defineAsyncComponent(() => import('@/views/admin/CrawlerSourcesPage.vue')),
   users: defineAsyncComponent(() => import('@/views/admin/UserManagementPage.vue')),
   roles: defineAsyncComponent(() => import('@/views/admin/RoleManagementPage.vue')),
   organizations: defineAsyncComponent(() => import('@/views/admin/OrganizationsAdminPage.vue')),

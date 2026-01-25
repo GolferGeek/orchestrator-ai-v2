@@ -13,8 +13,10 @@ import {
   HttpStatus,
   Headers,
   BadRequestException,
+  Optional,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
+import { Public } from '@/auth/decorators/public.decorator';
 import { CrawlerSourceRepository } from './repositories/source.repository';
 import { ArticleRepository } from './repositories/article.repository';
 import { SourceCrawlRepository } from './repositories/source-crawl.repository';
@@ -24,7 +26,9 @@ import {
   UpdateSourceData,
   Article,
   SourceCrawl,
+  CrawlFrequency,
 } from './interfaces';
+import { CrawlerRunner } from './runners/crawler.runner';
 
 /**
  * Helper to validate org slug from header
@@ -120,6 +124,7 @@ export class CrawlerAdminController {
     private readonly sourceRepository: CrawlerSourceRepository,
     private readonly articleRepository: ArticleRepository,
     private readonly sourceCrawlRepository: SourceCrawlRepository,
+    @Optional() private readonly crawlerRunner?: CrawlerRunner,
   ) {}
 
   /**
@@ -494,6 +499,99 @@ export class CrawlerAdminController {
       this.logger.error(`Failed to get source articles: ${error}`);
       throw new HttpException(
         'Failed to get source articles',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Trigger a crawl for all sources at a given frequency (no auth for dev)
+   * POST /api/crawler/admin/trigger/:frequency
+   */
+  @Post('trigger/:frequency')
+  @Public()
+  async triggerCrawl(
+    @Param('frequency') frequency: string,
+  ): Promise<{
+    total: number;
+    successful: number;
+    failed: number;
+    articlesNew: number;
+  }> {
+    if (!this.crawlerRunner) {
+      throw new HttpException(
+        'Crawler runner not available',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+
+    const freq = parseInt(frequency, 10) as CrawlFrequency;
+    if (![5, 10, 15, 30, 60].includes(freq)) {
+      throw new BadRequestException(
+        'Frequency must be one of: 5, 10, 15, 30, 60',
+      );
+    }
+
+    this.logger.log(`Triggering manual crawl for ${freq}-minute sources`);
+
+    try {
+      const result = await this.crawlerRunner.crawlByFrequency(freq);
+      return {
+        total: result.total,
+        successful: result.successful,
+        failed: result.failed,
+        articlesNew: result.articlesNew,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to trigger crawl: ${error}`);
+      throw new HttpException(
+        'Failed to trigger crawl',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Trigger crawl for a single source
+   * POST /api/crawler/admin/sources/:id/crawl
+   */
+  @Post('sources/:id/crawl')
+  async triggerSourceCrawl(
+    @Headers('x-organization-slug') orgHeader: string | undefined,
+    @Param('id') id: string,
+  ): Promise<{
+    success: boolean;
+    articlesNew: number;
+    error?: string;
+  }> {
+    const orgSlug = getOrgSlug(orgHeader);
+
+    if (!this.crawlerRunner) {
+      throw new HttpException(
+        'Crawler runner not available',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+
+    // Verify ownership
+    const source = await this.sourceRepository.findById(id);
+    if (!source || source.organization_slug !== orgSlug) {
+      throw new HttpException('Source not found', HttpStatus.NOT_FOUND);
+    }
+
+    this.logger.log(`Triggering manual crawl for source: ${source.name}`);
+
+    try {
+      const result = await this.crawlerRunner.crawlSingleSource(id);
+      return {
+        success: result.success,
+        articlesNew: result.articlesNew,
+        error: result.error,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to crawl source: ${error}`);
+      throw new HttpException(
+        'Failed to crawl source',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

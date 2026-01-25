@@ -120,6 +120,7 @@
     <div class="tab-content">
       <CurrentStateComponent v-if="activeTab === 'current-state'" />
       <InstrumentsComponent v-if="activeTab === 'instruments'" />
+      <PortfoliosComponent v-if="activeTab === 'portfolios'" />
       <HistoryComponent v-if="activeTab === 'history'" />
       <ToolsComponent v-if="activeTab === 'tools'" />
       <ConfigComponent v-if="activeTab === 'config'" />
@@ -133,6 +134,7 @@ import { usePredictionAgentStore } from '@/stores/predictionAgentStore';
 import { predictionAgentService } from '@/services/predictionAgentService';
 import CurrentStateComponent from './CurrentStateComponent.vue';
 import InstrumentsComponent from './InstrumentsComponent.vue';
+import PortfoliosComponent from './PortfoliosComponent.vue';
 import HistoryComponent from './HistoryComponent.vue';
 import ToolsComponent from './ToolsComponent.vue';
 import ConfigComponent from './ConfigComponent.vue';
@@ -152,13 +154,14 @@ const agentId = computed(() => {
 
 const store = usePredictionAgentStore();
 
-const activeTab = ref<'current-state' | 'instruments' | 'history' | 'tools' | 'config'>(
+const activeTab = ref<'current-state' | 'instruments' | 'portfolios' | 'history' | 'tools' | 'config'>(
   'current-state'
 );
 
 const tabs = [
   { id: 'current-state' as const, label: 'Current State' },
   { id: 'instruments' as const, label: 'Instruments' },
+  { id: 'portfolios' as const, label: 'Portfolios' },
   { id: 'history' as const, label: 'History' },
   { id: 'tools' as const, label: 'Tools' },
   { id: 'config' as const, label: 'Config' },

@@ -117,7 +117,7 @@ import {
 
 // Phase 7 Runners
 import {
-  SourceCrawlerRunner,
+  SignalGeneratorRunner,
   BatchSignalProcessorRunner,
   BatchPredictionGeneratorRunner,
   OutcomeTrackingRunner,
@@ -280,7 +280,7 @@ const services = [
 
 // Phase 7 Runners
 const runners = [
-  SourceCrawlerRunner,
+  SignalGeneratorRunner,  // Pulls articles from crawler.articles and creates signals
   BatchSignalProcessorRunner,
   BatchPredictionGeneratorRunner,
   OutcomeTrackingRunner,
