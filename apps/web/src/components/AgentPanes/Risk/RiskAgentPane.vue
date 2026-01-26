@@ -105,8 +105,15 @@
                 :assessments="selectedSubject.assessments"
                 :debate="selectedSubject.debate"
                 :alerts="selectedSubject.alerts"
+                :is-analyzing="isAnalyzing"
+                :is-debating="isDebating"
+                :is-generating-summary="isGeneratingSummary"
                 @analyze="handleAnalyzeSubject"
-                @trigger-debate="handleTriggerDebate"
+                @trigger-debate="handleTriggerDebateForSubject"
+                @generate-summary="handleGenerateSummary"
+                @open-scenario="handleOpenScenario"
+                @view-history="handleViewHistory"
+                @add-to-compare="handleAddToCompare"
               />
             </template>
             <template v-else>
@@ -169,6 +176,17 @@
       @close="showCreateSubjectModal = false"
       @create="handleCreateSubject"
     />
+
+    <!-- Analysis Progress Modal -->
+    <AnalysisProgressModal
+      ref="analysisProgressRef"
+      :is-visible="showAnalysisProgress"
+      :subject-identifier="analysisSubjectIdentifier"
+      :task-id="analysisTaskId"
+      @close="handleAnalysisProgressClose"
+      @cancel="handleAnalysisProgressCancel"
+      @complete="handleAnalysisProgressClose"
+    />
   </div>
 </template>
 
@@ -183,6 +201,7 @@ import DimensionsComponent from './DimensionsComponent.vue';
 import LearningsComponent from './LearningsComponent.vue';
 import SettingsComponent from './SettingsComponent.vue';
 import CreateSubjectModal from '@/views/risk/components/CreateSubjectModal.vue';
+import AnalysisProgressModal from './AnalysisProgressModal.vue';
 import type { CreateSubjectRequest, RiskDimension } from '@/types/risk-agent';
 
 interface Props {
@@ -198,6 +217,14 @@ const store = useRiskDashboardStore();
 const activeTab = ref('overview');
 const showCreateSubjectModal = ref(false);
 const createSubjectModalRef = ref<InstanceType<typeof CreateSubjectModal> | null>(null);
+const isDebating = ref(false);
+const isGeneratingSummary = ref(false);
+
+// Analysis Progress Modal State
+const showAnalysisProgress = ref(false);
+const analysisSubjectIdentifier = ref('');
+const analysisTaskId = ref<string | undefined>(undefined);
+const analysisProgressRef = ref<InstanceType<typeof AnalysisProgressModal> | null>(null);
 
 // Computed from store
 const currentScope = computed(() => store.currentScope);
@@ -320,25 +347,158 @@ async function handleSelectSubject(subjectId: string) {
 }
 
 async function handleAnalyzeSubject(subjectId: string) {
+  console.log('[RiskAgentPane] Starting analysis for subject:', subjectId);
+
+  // Find the subject to get identifier
+  const subject = subjects.value.find(s => s.id === subjectId);
+  analysisSubjectIdentifier.value = subject?.identifier || subject?.name || subjectId;
+
+  // Show progress modal
+  showAnalysisProgress.value = true;
   store.setAnalyzing(true);
+  store.clearError();
+
+  // Simulate progress updates since API is synchronous
+  // In production with SSE, this would be replaced by real events
+  const progressSteps = [
+    { step: 'initializing', message: `Starting analysis for ${analysisSubjectIdentifier.value}`, progress: 5 },
+    { step: 'loading-dimensions', message: 'Loading risk dimensions...', progress: 10 },
+    { step: 'dimensions-loaded', message: 'Found dimensions to analyze', progress: 15 },
+    { step: 'analyzing-dimensions', message: 'Analyzing dimensions with AI...', progress: 20 },
+  ];
+
+  // Add dimension-specific steps based on store dimensions
+  const dimList = dimensions.value.length > 0 ? dimensions.value : [
+    { slug: 'geopolitical', name: 'Geopolitical' },
+    { slug: 'regulatory', name: 'Regulatory' },
+    { slug: 'financial-health', name: 'Financial Health' },
+    { slug: 'growth-sustainability', name: 'Growth' },
+    { slug: 'valuation', name: 'Valuation' },
+  ];
+
+  dimList.forEach((dim, i) => {
+    const dimProgress = 20 + Math.floor((i / dimList.length) * 40);
+    progressSteps.push({
+      step: `analyzing-${dim.slug}`,
+      message: `Analyzing ${dim.name}...`,
+      progress: dimProgress,
+      dimensionSlug: dim.slug,
+      currentDimension: dim.name,
+    } as typeof progressSteps[0]);
+  });
+
+  progressSteps.push(
+    { step: 'dimensions-analyzed', message: `Analyzed ${dimList.length} dimensions`, progress: 60 },
+    { step: 'saving-assessments', message: 'Saving assessment results...', progress: 65 },
+    { step: 'aggregating-score', message: 'Calculating composite risk score...', progress: 70 },
+    { step: 'creating-score', message: 'Saving composite score...', progress: 75 },
+  );
+
+  // Emit simulated progress in background
+  let stepIndex = 0;
+  const progressInterval = setInterval(() => {
+    if (stepIndex < progressSteps.length && analysisProgressRef.value) {
+      analysisProgressRef.value.handleProgressEvent(progressSteps[stepIndex]);
+      stepIndex++;
+    }
+  }, 800);
+
   try {
+    console.log('[RiskAgentPane] Calling analyzeSubject API for:', subjectId);
     const response = await riskDashboardService.analyzeSubject(subjectId, { forceRefresh: true });
+    console.log('[RiskAgentPane] Full API response:', JSON.stringify(response, null, 2));
+
+    // Clear progress simulation
+    clearInterval(progressInterval);
+
+    if (!response.success) {
+      // Error message can be in multiple places depending on how the error was generated
+      const responseAny = response as { error?: { message?: string }; metadata?: { reason?: string } };
+      const errorMsg = responseAny.error?.message || responseAny.metadata?.reason || 'Analysis failed';
+      console.error('[RiskAgentPane] API returned success=false:', errorMsg);
+      console.error('[RiskAgentPane] Full error response:', JSON.stringify(response, null, 2));
+      if (analysisProgressRef.value) {
+        analysisProgressRef.value.setError(errorMsg);
+      }
+      store.setError(errorMsg);
+      return;
+    }
+
     if (response.content) {
-      // Refresh subject detail
+      console.log('[RiskAgentPane] Analysis completed successfully, content:', JSON.stringify(response.content, null, 2));
+      const content = response.content as Record<string, unknown>;
+
+      // Check if content is empty (could indicate a silent failure)
+      if (!content || Object.keys(content).length === 0) {
+        console.error('[RiskAgentPane] API returned empty content - analysis may have failed silently');
+        if (analysisProgressRef.value) {
+          analysisProgressRef.value.setError('Analysis returned empty result - check server logs');
+        }
+        store.setError('Analysis returned empty result');
+        return;
+      }
+
+      // Handle both camelCase and snake_case field names from API
+      const overallScore = (content.overallScore ?? content.overall_score ?? 0) as number;
+      const confidence = (content.confidence ?? 0) as number;
+      const assessmentCount = (content.assessmentCount ?? content.assessment_count ?? 0) as number;
+      const debateTriggered = (content.debateTriggered ?? content.debate_triggered ?? false) as boolean;
+
+      console.log('[RiskAgentPane] Parsed values:', { overallScore, confidence, assessmentCount, debateTriggered });
+
+      // Additional validation - if all values are 0, something likely went wrong
+      if (overallScore === 0 && confidence === 0 && assessmentCount === 0) {
+        console.warn('[RiskAgentPane] All analysis values are 0 - this is suspicious');
+      }
+
+      // Emit completion to modal
+      if (analysisProgressRef.value) {
+        analysisProgressRef.value.setComplete({
+          overallScore,
+          confidence,
+          assessmentCount,
+          debateTriggered,
+        });
+      }
+
+      // Refresh subject detail and scores
       await handleSelectSubject(subjectId);
-      // Refresh composite scores
       if (currentScope.value) {
         const scoresResponse = await riskDashboardService.listCompositeScores({ scopeId: currentScope.value.id });
         if (scoresResponse.content) {
           store.setCompositeScores(scoresResponse.content);
         }
       }
+    } else {
+      console.error('[RiskAgentPane] API returned null content. Full response:', JSON.stringify(response, null, 2));
+      if (analysisProgressRef.value) {
+        analysisProgressRef.value.setError('Analysis returned no content - check console for details');
+      }
+      store.setError('Analysis returned no content');
     }
   } catch (err) {
-    store.setError(err instanceof Error ? err.message : 'Analysis failed');
+    clearInterval(progressInterval);
+    console.error('[RiskAgentPane] Analysis error:', err);
+    const errorMsg = err instanceof Error ? err.message : 'Analysis failed';
+    if (analysisProgressRef.value) {
+      analysisProgressRef.value.setError(errorMsg);
+    }
+    store.setError(errorMsg);
   } finally {
     store.setAnalyzing(false);
   }
+}
+
+function handleAnalysisProgressClose() {
+  showAnalysisProgress.value = false;
+  analysisSubjectIdentifier.value = '';
+  analysisTaskId.value = undefined;
+}
+
+function handleAnalysisProgressCancel() {
+  showAnalysisProgress.value = false;
+  store.setAnalyzing(false);
+  // Note: In production, this would also cancel the backend task
 }
 
 async function handleAnalyzeAll() {
@@ -369,6 +529,150 @@ async function handleTriggerDebate(compositeScoreId: string) {
   } finally {
     store.setAnalyzing(false);
   }
+}
+
+async function handleTriggerDebateForSubject(subjectId: string) {
+  // Get the composite score for this subject
+  const compositeScore = selectedSubject.value?.compositeScore;
+  if (!compositeScore) {
+    store.setError('No composite score available for debate. Please run analysis first.');
+    return;
+  }
+
+  // Handle both camelCase and snake_case property names
+  const scoreId = (compositeScore as unknown as Record<string, unknown>).id as string;
+  if (!scoreId) {
+    store.setError('Composite score ID not found');
+    return;
+  }
+
+  console.log('[RiskAgentPane] Triggering debate for composite score:', scoreId);
+  isDebating.value = true;
+  try {
+    const result = await riskDashboardService.triggerDebate(scoreId);
+    console.log('[RiskAgentPane] Debate result:', result);
+    if (!result.success) {
+      store.setError(result.error?.message || 'Failed to trigger debate');
+      return;
+    }
+    // Refresh selected subject to show the new debate
+    await handleSelectSubject(subjectId);
+  } catch (err) {
+    console.error('[RiskAgentPane] Debate error:', err);
+    store.setError(err instanceof Error ? err.message : 'Failed to trigger debate');
+  } finally {
+    isDebating.value = false;
+  }
+}
+
+async function handleGenerateSummary(subjectId: string) {
+  if (!currentScope.value) {
+    store.setError('No scope selected');
+    return;
+  }
+
+  isGeneratingSummary.value = true;
+  try {
+    console.log('[RiskAgentPane] Generating summary for scope:', currentScope.value.id);
+    const result = await riskDashboardService.generateExecutiveSummary({
+      scopeId: currentScope.value.id,
+      summaryType: 'ad-hoc',
+    });
+
+    if (result.success && result.content) {
+      // Show success and store the summary
+      console.log('[RiskAgentPane] Summary generated:', result.content);
+      const content = result.content.content;
+      const status = content?.status || 'N/A';
+      const keyFindingsCount = content?.keyFindings?.length || 0;
+      alert(`Summary generated successfully!\n\nStatus: ${status}\nKey Findings: ${keyFindingsCount} findings`);
+    } else {
+      store.setError(result.error?.message || 'Failed to generate summary');
+    }
+  } catch (err) {
+    console.error('[RiskAgentPane] Summary error:', err);
+    store.setError(err instanceof Error ? err.message : 'Failed to generate summary');
+  } finally {
+    isGeneratingSummary.value = false;
+  }
+}
+
+async function handleOpenScenario(subjectId: string) {
+  if (!currentScope.value) {
+    store.setError('No scope selected');
+    return;
+  }
+
+  // For now, run a simple scenario with a 10% increase in all dimensions
+  try {
+    console.log('[RiskAgentPane] Running scenario for subject:', subjectId);
+    const result = await riskDashboardService.runScenario({
+      scopeId: currentScope.value.id,
+      name: 'What-If Analysis',
+      adjustments: [
+        { dimensionSlug: 'geopolitical', adjustment: 0.1 },
+        { dimensionSlug: 'regulatory', adjustment: 0.1 },
+        { dimensionSlug: 'financial-health', adjustment: 0.1 },
+      ],
+    });
+
+    if (result.success && result.content) {
+      console.log('[RiskAgentPane] Scenario result:', result.content);
+      const impact = result.content.portfolioImpact || { originalAvgScore: 0, newAvgScore: 0, change: 0 };
+      alert(`Scenario Analysis Complete!\n\nOriginal Avg Score: ${((impact.originalAvgScore || 0) * 100).toFixed(1)}%\nNew Avg Score: ${((impact.newAvgScore || 0) * 100).toFixed(1)}%\nChange: ${((impact.change || 0) * 100).toFixed(1)}%`);
+    } else {
+      store.setError(result.error?.message || 'Failed to run scenario');
+    }
+  } catch (err) {
+    console.error('[RiskAgentPane] Scenario error:', err);
+    store.setError(err instanceof Error ? err.message : 'Failed to run scenario');
+  }
+}
+
+async function handleViewHistory(subjectId: string) {
+  try {
+    console.log('[RiskAgentPane] Fetching history for subject:', subjectId);
+    const result = await riskDashboardService.getScoreHistory(subjectId, 30, 10);
+
+    if (result.success && result.content) {
+      const history = result.content;
+      console.log('[RiskAgentPane] Score history:', history);
+
+      if (history.length === 0) {
+        alert('No score history available for this subject.');
+        return;
+      }
+
+      // Format history for display
+      const historyText = history.map((h, i) => {
+        const score = typeof h.score === 'number' ? (h.score * 100).toFixed(1) : 'N/A';
+        const change = typeof h.change === 'number' ? (h.change >= 0 ? '+' : '') + (h.change * 100).toFixed(1) : 'N/A';
+        const date = h.createdAt ? new Date(h.createdAt).toLocaleDateString() : 'N/A';
+        return `${i + 1}. ${date}: ${score}% (${change}%)`;
+      }).join('\n');
+
+      alert(`Score History (Last 30 Days)\n\n${historyText}`);
+    } else {
+      store.setError(result.error?.message || 'Failed to fetch history');
+    }
+  } catch (err) {
+    console.error('[RiskAgentPane] History error:', err);
+    store.setError(err instanceof Error ? err.message : 'Failed to fetch history');
+  }
+}
+
+function handleAddToCompare(subjectId: string) {
+  // Add to comparison set (store in local state for now)
+  const comparisonSet = store.comparisonSubjectIds || [];
+  if (comparisonSet.includes(subjectId)) {
+    alert('Subject already added to comparison set.');
+    return;
+  }
+
+  store.addToComparison(subjectId);
+  const subject = subjects.value.find(s => s.id === subjectId);
+  const subjectName = subject?.name || subject?.identifier || subjectId;
+  alert(`"${subjectName}" added to comparison.\n\nTo view comparison, select multiple subjects and use the Compare tab.`);
 }
 
 async function handleAcknowledgeAlert(alertId: string) {

@@ -569,8 +569,10 @@ class RiskDashboardService {
     subjectId: string,
     options?: { forceRefresh?: boolean; includeDebate?: boolean }
   ): Promise<DashboardActionResponse<AnalyzeSubjectResponse>> {
-    return this.executeDashboardRequest<AnalyzeSubjectResponse>('analysis.analyze-subject', {
-      subjectId,
+    // Route to subjects.analyze (subject handler's analyze action)
+    // Backend expects 'id' parameter, not 'subjectId'
+    return this.executeDashboardRequest<AnalyzeSubjectResponse>('subjects.analyze', {
+      id: subjectId,
       ...options,
     });
   }
@@ -579,9 +581,11 @@ class RiskDashboardService {
     scopeId: string,
     options?: { forceRefresh?: boolean }
   ): Promise<DashboardActionResponse<{ analyzed: number; successful: number; failed: number }>> {
+    // Route to scopes.analyze (scope handler's analyze action)
+    // Backend expects 'id' parameter, not 'scopeId'
     return this.executeDashboardRequest<{ analyzed: number; successful: number; failed: number }>(
-      'analysis.analyze-scope',
-      { scopeId, ...options }
+      'scopes.analyze',
+      { id: scopeId, ...options }
     );
   }
 

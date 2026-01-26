@@ -21,13 +21,19 @@ import { Signal } from '../interfaces/signal.interface';
  * Features:
  * - Atomic signal claiming with FOR UPDATE SKIP LOCKED pattern
  * - Fast path for urgent signals (confidence >= 0.90)
- * - Batch processing with configurable batch size
+ * - Article-centric processing: process all targets for each article before moving on
  * - Worker ID tracking for debugging
+ *
+ * Fair Processing:
+ * For each article/signal, we process ALL targets that have pending signals
+ * for that article before moving to the next article. This ensures all
+ * instruments (targets) are evaluated for each piece of news.
  */
 @Injectable()
 export class BatchSignalProcessorRunner {
   private readonly logger = new Logger(BatchSignalProcessorRunner.name);
   private readonly workerId = uuidv4(); // UUID required by processing_worker column
+  // Total signals to process per batch run
   private readonly batchSize = 200;
   private isRunning = false;
 
@@ -49,7 +55,8 @@ export class BatchSignalProcessorRunner {
   }
 
   /**
-   * Run batch signal processing
+   * Run batch signal processing using article-centric approach.
+   * For each article (URL), process all target signals before moving to next article.
    */
   async runBatchProcessing(): Promise<{
     processed: number;
@@ -83,27 +90,48 @@ export class BatchSignalProcessorRunner {
     let errors = 0;
 
     try {
-      // Get all universes to process their targets
-      const universes = await this.universeRepository.findAllActive();
+      // Get pending signals grouped by URL (article)
+      // This ensures we process all targets for each article before moving on
+      const signalGroups = await this.signalRepository.findPendingSignalsGroupedByUrl(
+        this.batchSize,
+      );
 
-      for (const universe of universes) {
-        // Get active targets in this universe
-        const targets = await this.targetRepository.findActiveByUniverse(
-          universe.id,
-        );
+      this.logger.log(`Processing ${signalGroups.length} article groups`);
 
-        for (const target of targets) {
+      for (const group of signalGroups) {
+        // Process all signals for this article (one per target)
+        for (const signal of group.signals) {
           try {
-            const result = await this.processTargetSignals(target.id);
-            processed += result.processed;
-            predictorsCreated += result.predictorsCreated;
-            rejected += result.rejected;
-            fastPathTriggered += result.fastPathTriggered;
-            errors += result.errors;
+            // Claim the signal atomically
+            const claimed = await this.signalRepository.claimSignal(
+              signal.id,
+              this.workerId,
+            );
+
+            if (!claimed) {
+              // Signal was claimed by another worker
+              continue;
+            }
+
+            // Process the signal
+            const result = await this.processSignal(claimed, signal.target_id);
+            processed++;
+
+            if (result.shouldCreatePredictor) {
+              predictorsCreated++;
+
+              // Check for fast path
+              if (result.urgency === 'urgent') {
+                fastPathTriggered++;
+                await this.triggerFastPath(claimed);
+              }
+            } else {
+              rejected++;
+            }
           } catch (error) {
             errors++;
             this.logger.error(
-              `Error processing signals for target ${target.id}: ` +
+              `Error processing signal ${signal.id}: ` +
                 `${error instanceof Error ? error.message : 'Unknown error'}`,
             );
           }

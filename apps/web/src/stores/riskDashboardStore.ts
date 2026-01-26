@@ -51,6 +51,9 @@ interface RiskDashboardState {
   filters: DashboardFilters;
   stats: DashboardStats;
 
+  // Comparison feature
+  comparisonSubjectIds: string[];
+
   // Loading states
   isLoading: boolean;
   isAnalyzing: boolean;
@@ -84,6 +87,7 @@ export const useRiskDashboardStore = defineStore('riskDashboard', () => {
     viewMode: 'radar',
     filters: {},
     stats: { ...initialStats },
+    comparisonSubjectIds: [],
     isLoading: false,
     isAnalyzing: false,
     error: null,
@@ -108,6 +112,7 @@ export const useRiskDashboardStore = defineStore('riskDashboard', () => {
   const isLoading = computed(() => state.value.isLoading);
   const isAnalyzing = computed(() => state.value.isAnalyzing);
   const error = computed(() => state.value.error);
+  const comparisonSubjectIds = computed(() => state.value.comparisonSubjectIds);
 
   // Derived state
   const activeSubjects = computed(() =>
@@ -615,9 +620,25 @@ export const useRiskDashboardStore = defineStore('riskDashboard', () => {
     state.value.viewMode = 'radar';
     state.value.filters = {};
     state.value.stats = { ...initialStats };
+    state.value.comparisonSubjectIds = [];
     state.value.isLoading = false;
     state.value.isAnalyzing = false;
     state.value.error = null;
+  }
+
+  // Comparison mutations
+  function addToComparison(subjectId: string) {
+    if (!state.value.comparisonSubjectIds.includes(subjectId)) {
+      state.value.comparisonSubjectIds.push(subjectId);
+    }
+  }
+
+  function removeFromComparison(subjectId: string) {
+    state.value.comparisonSubjectIds = state.value.comparisonSubjectIds.filter(id => id !== subjectId);
+  }
+
+  function clearComparison() {
+    state.value.comparisonSubjectIds = [];
   }
 
   // ============================================================================
@@ -640,6 +661,7 @@ export const useRiskDashboardStore = defineStore('riskDashboard', () => {
     isLoading,
     isAnalyzing,
     error,
+    comparisonSubjectIds,
 
     // Derived state
     activeSubjects,
@@ -702,5 +724,8 @@ export const useRiskDashboardStore = defineStore('riskDashboard', () => {
     setStats,
     updateStats,
     resetState,
+    addToComparison,
+    removeFromComparison,
+    clearComparison,
   };
 });

@@ -204,10 +204,15 @@ export class AssessmentRepository {
       return [];
     }
 
+    // Use upsert to handle existing assessments (update on conflict)
+    // The unique constraint is on (subject_id, dimension_id)
     const { data, error } = (await this.getClient()
       .schema(this.schema)
       .from(this.table)
-      .insert(assessments)
+      .upsert(assessments, {
+        onConflict: 'subject_id,dimension_id',
+        ignoreDuplicates: false, // Update existing rows
+      })
       .select()) as SupabaseSelectListResponse<RiskAssessment>;
 
     if (error) {
@@ -215,7 +220,7 @@ export class AssessmentRepository {
       throw new Error(`Failed to create assessments batch: ${error.message}`);
     }
 
-    this.logger.log(`Created ${data?.length ?? 0} assessments in batch`);
+    this.logger.log(`Upserted ${data?.length ?? 0} assessments in batch`);
     return data ?? [];
   }
 

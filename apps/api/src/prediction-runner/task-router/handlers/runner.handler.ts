@@ -17,6 +17,7 @@ import type { ExecutionContext } from '@orchestrator-ai/transport-types';
 import type { DashboardRequestPayload } from '@orchestrator-ai/transport-types';
 import { OutcomeTrackingRunner } from '../../runners/outcome-tracking.runner';
 import { BaselinePredictionRunner } from '../../runners/baseline-prediction.runner';
+import { BatchSignalProcessorRunner } from '../../runners/batch-signal-processor.runner';
 import { TargetSnapshotService } from '../../services/target-snapshot.service';
 import { TargetRepository } from '../../repositories/target.repository';
 import { UniverseRepository } from '../../repositories/universe.repository';
@@ -31,6 +32,7 @@ interface RunnerParams {
   date?: string; // YYYY-MM-DD format
   universeId?: string;
   domain?: 'stocks' | 'crypto' | 'polymarket' | 'elections';
+  targetId?: string; // For processing specific target's signals
 }
 
 @Injectable()
@@ -40,6 +42,7 @@ export class RunnerHandler implements IDashboardHandler {
     'fetchPrices',
     'createBaselines',
     'resolveOutcomes',
+    'processSignals',
     'status',
     'runAll',
   ];
@@ -47,6 +50,7 @@ export class RunnerHandler implements IDashboardHandler {
   constructor(
     private readonly outcomeTrackingRunner: OutcomeTrackingRunner,
     private readonly baselinePredictionRunner: BaselinePredictionRunner,
+    private readonly batchSignalProcessorRunner: BatchSignalProcessorRunner,
     private readonly targetSnapshotService: TargetSnapshotService,
     private readonly targetRepository: TargetRepository,
     private readonly universeRepository: UniverseRepository,
@@ -70,6 +74,8 @@ export class RunnerHandler implements IDashboardHandler {
         return this.handleCreateBaselines(params);
       case 'resolveoutcomes':
         return this.handleResolveOutcomes();
+      case 'processsignals':
+        return this.handleProcessSignals(params);
       case 'status':
         return this.handleStatus();
       case 'runall':
@@ -207,6 +213,47 @@ export class RunnerHandler implements IDashboardHandler {
         error instanceof Error
           ? error.message
           : 'Failed to create baseline predictions',
+      );
+    }
+  }
+
+  /**
+   * Process pending signals through Tier 1 (Signal Detection)
+   * Can process all targets or a specific target
+   */
+  private async handleProcessSignals(
+    params?: RunnerParams,
+  ): Promise<DashboardActionResult> {
+    this.logger.log('Manual signal processing triggered');
+
+    try {
+      if (params?.targetId) {
+        // Process specific target
+        const result =
+          await this.batchSignalProcessorRunner.processTargetManually(
+            params.targetId,
+          );
+        return buildDashboardSuccess({
+          action: 'processSignals',
+          targetId: params.targetId,
+          ...result,
+        });
+      } else {
+        // Process all targets
+        const result =
+          await this.batchSignalProcessorRunner.runBatchProcessing();
+        return buildDashboardSuccess({
+          action: 'processSignals',
+          ...result,
+        });
+      }
+    } catch (error) {
+      this.logger.error(
+        `Signal processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+      return buildDashboardError(
+        'PROCESS_SIGNALS_FAILED',
+        error instanceof Error ? error.message : 'Failed to process signals',
       );
     }
   }

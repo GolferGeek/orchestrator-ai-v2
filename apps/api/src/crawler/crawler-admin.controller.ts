@@ -20,6 +20,7 @@ import { Public } from '@/auth/decorators/public.decorator';
 import { CrawlerSourceRepository } from './repositories/source.repository';
 import { ArticleRepository } from './repositories/article.repository';
 import { SourceCrawlRepository } from './repositories/source-crawl.repository';
+import { SupabaseService } from '@/supabase/supabase.service';
 import {
   Source,
   CreateSourceData,
@@ -29,6 +30,25 @@ import {
   CrawlFrequency,
 } from './interfaces';
 import { CrawlerRunner } from './runners/crawler.runner';
+
+/**
+ * Signal summary for article display
+ */
+interface SignalSummary {
+  symbol: string;
+  target_id: string;
+  disposition: string;
+  direction: string | null;
+  urgency: string | null;
+  confidence: number | null;
+}
+
+/**
+ * Article with associated signals
+ */
+interface ArticleWithSignals extends Article {
+  signals: SignalSummary[];
+}
 
 /**
  * Helper to validate org slug from header
@@ -124,8 +144,69 @@ export class CrawlerAdminController {
     private readonly sourceRepository: CrawlerSourceRepository,
     private readonly articleRepository: ArticleRepository,
     private readonly sourceCrawlRepository: SourceCrawlRepository,
+    private readonly supabaseService: SupabaseService,
     @Optional() private readonly crawlerRunner?: CrawlerRunner,
   ) {}
+
+  /**
+   * Get signals for a list of article URLs
+   */
+  private async getSignalsForArticles(
+    urls: string[],
+  ): Promise<Map<string, SignalSummary[]>> {
+    if (urls.length === 0) return new Map();
+
+    const { data, error } = await this.supabaseService
+      .getServiceClient()
+      .schema('prediction')
+      .from('signals')
+      .select(
+        `
+        url,
+        target_id,
+        disposition,
+        direction,
+        urgency,
+        evaluation_result,
+        targets:target_id (symbol)
+      `,
+      )
+      .in('url', urls);
+
+    if (error) {
+      this.logger.error(`Failed to fetch signals: ${error.message}`);
+      return new Map();
+    }
+
+    const signalMap = new Map<string, SignalSummary[]>();
+    for (const signal of data || []) {
+      const url = signal.url as string;
+      if (!signalMap.has(url)) {
+        signalMap.set(url, []);
+      }
+      // Supabase join returns single object for singular FK relationship
+      const target = signal.targets as unknown as { symbol: string } | null;
+      const evalResult = signal.evaluation_result as {
+        confidence?: number;
+      } | null;
+
+      signalMap.get(url)!.push({
+        symbol: target?.symbol || 'Unknown',
+        target_id: signal.target_id as string,
+        disposition: signal.disposition as string,
+        direction: signal.direction as string | null,
+        urgency: signal.urgency as string | null,
+        confidence: evalResult?.confidence || null,
+      });
+    }
+
+    // Sort signals by symbol within each URL group
+    for (const signals of signalMap.values()) {
+      signals.sort((a, b) => a.symbol.localeCompare(b.symbol));
+    }
+
+    return signalMap;
+  }
 
   /**
    * Get dashboard statistics
@@ -464,7 +545,7 @@ export class CrawlerAdminController {
   }
 
   /**
-   * Get recent articles for a source
+   * Get recent articles for a source (basic, without signals)
    */
   @Get('sources/:id/articles')
   async getSourceArticles(
@@ -472,7 +553,8 @@ export class CrawlerAdminController {
     @Param('id') id?: string,
     @Query('limit') limit?: string,
     @Query('since') since?: string,
-  ): Promise<Article[]> {
+    @Query('includeSignals') includeSignals?: string,
+  ): Promise<Article[] | ArticleWithSignals[]> {
     const orgSlug = getOrgSlug(orgHeader);
 
     if (!id) {
@@ -492,6 +574,18 @@ export class CrawlerAdminController {
         sinceDate,
         limit ? parseInt(limit, 10) : 50,
       );
+
+      // If signals requested, enrich articles with signal data
+      if (includeSignals === 'true') {
+        const urls = articles.map((a) => a.url).filter((u): u is string => !!u);
+        const signalMap = await this.getSignalsForArticles(urls);
+
+        return articles.map((article) => ({
+          ...article,
+          signals: signalMap.get(article.url) || [],
+        }));
+      }
+
       return articles;
     } catch (error) {
       if (error instanceof HttpException) throw error;

@@ -98,9 +98,11 @@ export class ScoreAggregationService {
       );
     }
 
-    // Calculate overall score (multiply by 10 to convert 1-10 scale to 0-100)
-    const overallScore =
-      totalWeight > 0 ? Math.round((weightedSum / totalWeight) * 10) : 0;
+    // Calculate overall score (weighted average of 0-100 scores)
+    // Individual dimension scores are already on 0-100 scale from LLM
+    const rawScore = totalWeight > 0 ? weightedSum / totalWeight : 0;
+    // Clamp to valid range and round
+    const overallScore = Math.max(0, Math.min(100, Math.round(rawScore)));
 
     // Calculate average confidence
     const confidence =

@@ -38,6 +38,15 @@ export interface Source {
   updated_at: string;
 }
 
+export interface SignalSummary {
+  symbol: string;
+  target_id: string;
+  disposition: string;
+  direction: string | null;
+  urgency: string | null;
+  confidence: number | null;
+}
+
 export interface Article {
   id: string;
   organization_slug: string;
@@ -55,6 +64,7 @@ export interface Article {
   is_test: boolean;
   first_seen_at: string;
   metadata: Record<string, unknown>;
+  signals?: SignalSummary[];
 }
 
 export interface SourceCrawl {
@@ -233,11 +243,12 @@ class CrawlerService {
   async getSourceArticles(
     organizationSlug: string,
     sourceId: string,
-    options: { limit?: number; since?: string } = {},
+    options: { limit?: number; since?: string; includeSignals?: boolean } = {},
   ): Promise<Article[]> {
     const params = new URLSearchParams();
     if (options.limit) params.append('limit', String(options.limit));
     if (options.since) params.append('since', options.since);
+    if (options.includeSignals) params.append('includeSignals', 'true');
     const query = params.toString() ? `?${params.toString()}` : '';
     return apiService.get<Article[]>(
       `${API_BASE}/sources/${sourceId}/articles${query}`,

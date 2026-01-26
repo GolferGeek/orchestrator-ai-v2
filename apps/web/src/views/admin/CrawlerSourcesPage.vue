@@ -37,6 +37,46 @@
           </div>
         </div>
 
+        <!-- Activity Feed Section -->
+        <div class="activity-feed-section">
+          <div class="section-header">
+            <h3>Recent Activity</h3>
+            <ion-button fill="clear" size="small" @click="loadRecentActivity">
+              <ion-icon :icon="refreshOutline" slot="icon-only" />
+            </ion-button>
+          </div>
+          <div v-if="loadingActivity" class="loading-state small">
+            <ion-spinner name="dots" />
+          </div>
+          <div v-else-if="recentActivity.length === 0" class="empty-activity">
+            No recent articles with signals
+          </div>
+          <div v-else class="activity-list">
+            <div
+              v-for="article in recentActivity"
+              :key="article.id"
+              class="activity-item"
+            >
+              <div class="activity-content">
+                <div class="activity-title">{{ article.title || 'Untitled' }}</div>
+                <div class="activity-meta">
+                  {{ formatArticleDate(article.first_seen_at) }}
+                </div>
+              </div>
+              <div class="activity-signals">
+                <ion-chip
+                  v-for="signal in article.signals"
+                  :key="signal.target_id"
+                  :color="getSignalColor(signal.disposition)"
+                  size="small"
+                >
+                  <span class="signal-symbol">{{ signal.symbol }}</span>
+                </ion-chip>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Filter Toggle -->
         <div class="filter-section">
           <ion-item lines="none">
@@ -222,6 +262,28 @@
                 {{ article.summary }}
               </p>
               <p v-else class="no-summary">No summary available</p>
+
+              <!-- Signals for this article -->
+              <div v-if="article.signals && article.signals.length > 0" class="article-signals">
+                <div class="signals-header">Signals:</div>
+                <div class="signals-list">
+                  <ion-chip
+                    v-for="signal in article.signals"
+                    :key="signal.target_id"
+                    :color="getSignalColor(signal.disposition)"
+                    size="small"
+                  >
+                    <span class="signal-symbol">{{ signal.symbol }}</span>
+                    <span class="signal-disposition">{{ formatDisposition(signal.disposition) }}</span>
+                    <span v-if="signal.confidence" class="signal-confidence">
+                      {{ (signal.confidence * 100).toFixed(0) }}%
+                    </span>
+                  </ion-chip>
+                </div>
+              </div>
+              <div v-else-if="article.signals" class="no-signals">
+                No signals generated
+              </div>
             </div>
           </div>
         </ion-content>
@@ -382,6 +444,10 @@ const articlesSource = ref<SourceWithStats | null>(null);
 const articles = ref<Article[]>([]);
 const loadingArticles = ref(false);
 const articleTimeFilter = ref<'today' | '3days' | 'week' | 'month' | 'all'>('3days');
+
+// Activity feed state
+const recentActivity = ref<Article[]>([]);
+const loadingActivity = ref(false);
 
 const stats = ref<DashboardStats>({
   total_sources: 0,
@@ -663,7 +729,7 @@ async function loadArticles() {
     const result = await crawlerService.getSourceArticles(
       orgSlug,
       articlesSource.value.id,
-      { limit: 500, since },
+      { limit: 500, since, includeSignals: true },
     );
     articles.value = result;
   } catch (e) {
@@ -693,8 +759,81 @@ function formatArticleDate(dateStr: string): string {
   }
 }
 
-onMounted(() => {
-  loadSources();
+// Signal display helpers
+function getSignalColor(disposition: string): string {
+  switch (disposition) {
+    case 'predictor_created':
+      return 'success';
+    case 'processing':
+      return 'primary';
+    case 'pending':
+      return 'warning';
+    case 'rejected':
+      return 'medium';
+    case 'expired':
+      return 'dark';
+    case 'error':
+      return 'danger';
+    default:
+      return 'medium';
+  }
+}
+
+function formatDisposition(disposition: string): string {
+  switch (disposition) {
+    case 'predictor_created':
+      return 'Predictor';
+    case 'processing':
+      return 'Processing';
+    case 'pending':
+      return 'Pending';
+    case 'rejected':
+      return 'Rejected';
+    case 'expired':
+      return 'Expired';
+    case 'error':
+      return 'Error';
+    default:
+      return disposition;
+  }
+}
+
+async function loadRecentActivity() {
+  loadingActivity.value = true;
+  try {
+    const orgSlug = getOrgSlug();
+    // Get recent articles with signals from all sources
+    const allArticles: Article[] = [];
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(); // Last 24 hours
+
+    for (const source of sources.value.slice(0, 5)) { // Limit to first 5 sources for performance
+      const sourceArticles = await crawlerService.getSourceArticles(
+        orgSlug,
+        source.id,
+        { limit: 10, since, includeSignals: true },
+      );
+      allArticles.push(...sourceArticles);
+    }
+
+    // Filter to only articles with signals, sort by date, take top 10
+    recentActivity.value = allArticles
+      .filter((a) => a.signals && a.signals.length > 0)
+      .sort((a, b) => new Date(b.first_seen_at).getTime() - new Date(a.first_seen_at).getTime())
+      .slice(0, 10);
+  } catch (e) {
+    console.error('Failed to load recent activity:', e);
+    recentActivity.value = [];
+  } finally {
+    loadingActivity.value = false;
+  }
+}
+
+onMounted(async () => {
+  await loadSources();
+  // Load activity after sources are loaded
+  if (sources.value.length > 0) {
+    loadRecentActivity();
+  }
 });
 </script>
 
@@ -963,5 +1102,143 @@ onMounted(() => {
   --width: 90%;
   --max-width: 800px;
   --height: 85%;
+}
+
+/* Signal display styles */
+.article-signals {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--ion-border-color);
+}
+
+.signals-header {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ion-color-medium);
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.signals-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.signals-list ion-chip {
+  margin: 0;
+  height: auto;
+  padding: 0.25rem 0.5rem;
+}
+
+.signal-symbol {
+  font-weight: 600;
+  margin-right: 0.25rem;
+}
+
+.signal-disposition {
+  font-size: 0.7rem;
+  opacity: 0.9;
+}
+
+.signal-confidence {
+  font-size: 0.65rem;
+  margin-left: 0.25rem;
+  opacity: 0.8;
+}
+
+.no-signals {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--ion-color-medium);
+  font-style: italic;
+}
+
+/* Activity Feed Section */
+.activity-feed-section {
+  background: var(--ion-card-background);
+  border: 1px solid var(--ion-border-color);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.section-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.loading-state.small {
+  padding: 1rem;
+}
+
+.empty-activity {
+  text-align: center;
+  color: var(--ion-color-medium);
+  font-size: 0.875rem;
+  padding: 1rem;
+}
+
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.activity-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  background: var(--ion-background-color);
+  border-radius: 6px;
+  border: 1px solid var(--ion-border-color);
+}
+
+.activity-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.activity-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.activity-meta {
+  font-size: 0.75rem;
+  color: var(--ion-color-medium);
+}
+
+.activity-signals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-left: 0.5rem;
+}
+
+.activity-signals ion-chip {
+  margin: 0;
+  height: auto;
+  padding: 0.125rem 0.375rem;
+}
+
+.activity-signals .signal-symbol {
+  font-weight: 600;
+  font-size: 0.7rem;
 }
 </style>

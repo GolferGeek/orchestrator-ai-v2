@@ -6,18 +6,6 @@
         <h3>{{ subject.identifier }}</h3>
         <p>{{ subject.name }}</p>
       </div>
-      <div class="header-actions">
-        <button class="action-btn" @click="$emit('analyze', subject.id)">
-          Re-analyze
-        </button>
-        <button
-          v-if="compositeScore && normalizeValue(compositeScore.score) >= 0.7"
-          class="action-btn debate-btn"
-          @click="$emit('trigger-debate', compositeScore.id)"
-        >
-          Trigger Debate
-        </button>
-      </div>
     </div>
 
     <!-- Composite Score Card -->
@@ -75,6 +63,84 @@
           <span class="alert-message">{{ alert.message }}</span>
           <span class="alert-time">{{ formatDate(getAlertCreatedAt(alert)) }}</span>
         </div>
+      </div>
+    </div>
+
+    <!-- Analysis Actions -->
+    <div class="actions-section">
+      <h4>Analysis Actions</h4>
+      <div class="action-grid">
+        <!-- Re-analyze (Risk Radar) -->
+        <button
+          class="action-btn action-primary"
+          :disabled="isAnalyzing"
+          @click="$emit('analyze', subject.id)"
+        >
+          <span class="action-icon">📊</span>
+          <span class="action-label">
+            <span v-if="isAnalyzing" class="spinner-small"></span>
+            {{ isAnalyzing ? 'Analyzing...' : 'Re-analyze' }}
+          </span>
+          <span class="action-desc">Run Risk Radar on all dimensions</span>
+        </button>
+
+        <!-- Trigger Debate -->
+        <button
+          class="action-btn action-debate"
+          :disabled="isDebating || !hasCompositeScore"
+          @click="$emit('trigger-debate', subject.id)"
+        >
+          <span class="action-icon">⚔️</span>
+          <span class="action-label">
+            <span v-if="isDebating" class="spinner-small"></span>
+            {{ isDebating ? 'Debating...' : 'Red vs Blue' }}
+          </span>
+          <span class="action-desc">Adversarial debate analysis</span>
+        </button>
+
+        <!-- Executive Summary -->
+        <button
+          class="action-btn action-summary"
+          :disabled="isGeneratingSummary"
+          @click="$emit('generate-summary', subject.id)"
+        >
+          <span class="action-icon">📝</span>
+          <span class="action-label">
+            <span v-if="isGeneratingSummary" class="spinner-small"></span>
+            {{ isGeneratingSummary ? 'Generating...' : 'Summary' }}
+          </span>
+          <span class="action-desc">AI executive summary</span>
+        </button>
+
+        <!-- Scenario Analysis -->
+        <button
+          class="action-btn action-scenario"
+          @click="$emit('open-scenario', subject.id)"
+        >
+          <span class="action-icon">🎯</span>
+          <span class="action-label">What-If</span>
+          <span class="action-desc">Scenario analysis</span>
+        </button>
+
+        <!-- Score History -->
+        <button
+          class="action-btn action-history"
+          @click="$emit('view-history', subject.id)"
+        >
+          <span class="action-icon">📈</span>
+          <span class="action-label">History</span>
+          <span class="action-desc">Score trends over time</span>
+        </button>
+
+        <!-- Compare -->
+        <button
+          class="action-btn action-compare"
+          @click="$emit('add-to-compare', subject.id)"
+        >
+          <span class="action-icon">⚖️</span>
+          <span class="action-label">Compare</span>
+          <span class="action-desc">Add to comparison</span>
+        </button>
       </div>
     </div>
 
@@ -202,7 +268,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import type { RiskSubject, RiskCompositeScore, RiskAssessment, RiskDebate, RiskAlert, AlertDetails } from '@/types/risk-agent';
 import RiskScoreBadge from './shared/RiskScoreBadge.vue';
 import RiskRadarChart from './RiskRadarChart.vue';
@@ -234,14 +300,28 @@ interface Props {
   assessments: RiskAssessment[];
   debate: RiskDebate | null;
   alerts: RiskAlert[];
+  isAnalyzing?: boolean;
+  isDebating?: boolean;
+  isGeneratingSummary?: boolean;
 }
 
-defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  isAnalyzing: false,
+  isDebating: false,
+  isGeneratingSummary: false,
+});
 
 defineEmits<{
   (e: 'analyze', subjectId: string): void;
-  (e: 'trigger-debate', compositeScoreId: string): void;
+  (e: 'trigger-debate', subjectId: string): void;
+  (e: 'generate-summary', subjectId: string): void;
+  (e: 'open-scenario', subjectId: string): void;
+  (e: 'view-history', subjectId: string): void;
+  (e: 'add-to-compare', subjectId: string): void;
 }>();
+
+// Computed to check if we have a composite score
+const hasCompositeScore = computed(() => !!props.compositeScore);
 
 // Alert modal state
 const selectedAlert = ref<RiskAlert | null>(null);
@@ -584,7 +664,8 @@ function escapeHtml(text: string): string {
 .radar-section,
 .assessments-section,
 .debate-section,
-.alerts-section {
+.alerts-section,
+.actions-section {
   background: var(--ion-card-background, #fff);
   border-radius: 8px;
   padding: 1rem;
@@ -594,7 +675,8 @@ function escapeHtml(text: string): string {
 .radar-section h4,
 .assessments-section h4,
 .debate-section h4,
-.alerts-section h4 {
+.alerts-section h4,
+.actions-section h4 {
   margin: 0 0 1rem;
   font-size: 1rem;
 }
@@ -1064,5 +1146,133 @@ function escapeHtml(text: string): string {
   padding: 1rem;
   color: var(--ion-color-medium, #666);
   font-size: 0.875rem;
+}
+
+/* Actions Section */
+.action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.actions-section .action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.75rem 0.5rem;
+  border: 1px solid var(--ion-border-color, #e0e0e0);
+  border-radius: 8px;
+  background: var(--ion-color-light, #f4f5f8);
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.actions-section .action-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.actions-section .action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-icon {
+  font-size: 1.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.actions-section .action-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ion-text-color, #333);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.action-desc {
+  font-size: 0.6875rem;
+  color: var(--ion-color-medium, #666);
+  margin-top: 0.125rem;
+}
+
+/* Action button variants */
+.action-primary {
+  border-color: var(--ion-color-primary, #3880ff);
+  background: rgba(56, 128, 255, 0.1);
+}
+
+.action-primary:hover:not(:disabled) {
+  border-color: var(--ion-color-primary, #3880ff);
+  background: rgba(56, 128, 255, 0.15);
+}
+
+.action-debate {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.action-debate:hover:not(:disabled) {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.action-summary {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.action-summary:hover:not(:disabled) {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.action-scenario {
+  border-color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.05);
+}
+
+.action-scenario:hover:not(:disabled) {
+  border-color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.action-history {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.action-history:hover:not(:disabled) {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.action-compare {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.05);
+}
+
+.action-compare:hover:not(:disabled) {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+/* Spinner for loading states */
+.spinner-small {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

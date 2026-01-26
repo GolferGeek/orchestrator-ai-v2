@@ -1,4 +1,4 @@
-import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef, Optional } from '@nestjs/common';
 import { ExecutionContext } from '@orchestrator-ai/transport-types';
 import { RiskScope } from '../interfaces/scope.interface';
 import { RiskSubject } from '../interfaces/subject.interface';
@@ -12,6 +12,7 @@ import { CompositeScoreRepository } from '../repositories/composite-score.reposi
 import { DimensionAnalyzerService } from './dimension-analyzer.service';
 import { ScoreAggregationService } from './score-aggregation.service';
 import { DebateService } from './debate.service';
+import { ObservabilityEventsService } from '@/observability/observability-events.service';
 
 export interface AnalysisResult {
   subject: RiskSubject;
@@ -35,7 +36,37 @@ export class RiskAnalysisService {
     private readonly scoreAggregation: ScoreAggregationService,
     @Inject(forwardRef(() => DebateService))
     private readonly debateService: DebateService,
+    @Optional()
+    private readonly observabilityEvents?: ObservabilityEventsService,
   ) {}
+
+  /**
+   * Emit a progress event for real-time UI updates
+   */
+  private emitProgress(
+    context: ExecutionContext,
+    step: string,
+    message: string,
+    progress: number,
+    metadata?: Record<string, unknown>,
+  ): void {
+    if (!this.observabilityEvents) return;
+
+    void this.observabilityEvents.push({
+      context,
+      source_app: 'risk-analysis',
+      hook_event_type: 'risk.analysis.progress',
+      status: 'in_progress',
+      message,
+      progress,
+      step,
+      payload: {
+        mode: 'analysis',
+        ...metadata,
+      },
+      timestamp: Date.now(),
+    });
+  }
 
   /**
    * Run full risk analysis for a single subject
@@ -50,15 +81,31 @@ export class RiskAnalysisService {
       `Starting risk analysis for ${subject.identifier} in scope ${scope.name}`,
     );
 
+    // Emit: Analysis starting
+    this.emitProgress(context, 'initializing', `Starting analysis for ${subject.identifier}`, 0, {
+      subjectId: subject.id,
+      subjectIdentifier: subject.identifier,
+      totalSteps: 8,
+      sequence: 1,
+    });
+
     const analysisConfig = scope.analysis_config ?? {};
 
-    // Check if Risk Radar is enabled
-    if (!analysisConfig.riskRadar?.enabled) {
-      this.logger.debug(`Risk Radar disabled for scope ${scope.name}`);
-      throw new Error('Risk Radar is not enabled for this scope');
+    // Check if Risk Radar is enabled (via scope config OR global env var)
+    const scopeEnabled = analysisConfig.riskRadar?.enabled === true;
+    const globalEnabled = process.env.RISK_RADAR_ENABLED?.toLowerCase() === 'true';
+
+    if (!scopeEnabled && !globalEnabled) {
+      this.logger.debug(`Risk Radar disabled for scope ${scope.name} (set scope.analysis_config.riskRadar.enabled=true or RISK_RADAR_ENABLED=true)`);
+      throw new Error('Risk Radar is not enabled for this scope. Set scope.analysis_config.riskRadar.enabled=true or RISK_RADAR_ENABLED=true environment variable.');
     }
 
     // 1. Get all active dimensions for this scope
+    this.emitProgress(context, 'loading-dimensions', 'Loading risk dimensions...', 10, {
+      subjectIdentifier: subject.identifier,
+      sequence: 2,
+    });
+
     const dimensions = await this.dimensionRepo.findByScope(scope.id);
     if (dimensions.length === 0) {
       throw new Error(`No dimensions configured for scope ${scope.name}`);
@@ -68,35 +115,82 @@ export class RiskAnalysisService {
       `Found ${dimensions.length} dimensions to analyze: ${dimensions.map((d) => d.slug).join(', ')}`,
     );
 
-    // 2. Run dimension analysis in parallel (Risk Radar)
-    const assessmentPromises = dimensions.map((dimension) =>
-      this.dimensionAnalyzer.analyzeDimension({
-        subject,
-        dimension,
-        context,
-        // TODO: Add market data fetching service
-        marketData: {},
-      }),
-    );
+    // Emit: Dimensions loaded
+    this.emitProgress(context, 'dimensions-loaded', `Found ${dimensions.length} dimensions to analyze`, 15, {
+      subjectIdentifier: subject.identifier,
+      dimensionCount: dimensions.length,
+      dimensions: dimensions.map((d) => d.name),
+      sequence: 3,
+    });
 
-    const assessmentResults = await Promise.allSettled(assessmentPromises);
+    // 2. Run dimension analysis with individual progress updates
+    this.emitProgress(context, 'analyzing-dimensions', 'Analyzing dimensions with AI...', 20, {
+      subjectIdentifier: subject.identifier,
+      dimensionCount: dimensions.length,
+      sequence: 4,
+    });
 
-    // 3. Filter successful assessments and create in database
+    // Run dimension analysis sequentially to show progress for each
     type AssessmentData = Awaited<
       ReturnType<typeof this.dimensionAnalyzer.analyzeDimension>
     >;
-    const successfulAssessments = assessmentResults
-      .filter(
-        (r): r is PromiseFulfilledResult<AssessmentData> =>
-          r.status === 'fulfilled',
-      )
-      .map((r) => r.value);
+    const successfulAssessments: AssessmentData[] = [];
+    const failedDimensions: string[] = [];
+
+    for (let i = 0; i < dimensions.length; i++) {
+      const dimension = dimensions[i]!;
+      const dimensionProgress = 20 + Math.floor((i / dimensions.length) * 40);
+
+      // Emit progress for each dimension
+      this.emitProgress(
+        context,
+        `analyzing-${dimension.slug}`,
+        `Analyzing ${dimension.name}...`,
+        dimensionProgress,
+        {
+          subjectIdentifier: subject.identifier,
+          currentDimension: dimension.name,
+          dimensionSlug: dimension.slug,
+          dimensionIndex: i + 1,
+          totalDimensions: dimensions.length,
+          sequence: 5 + i,
+        },
+      );
+
+      try {
+        const assessment = await this.dimensionAnalyzer.analyzeDimension({
+          subject,
+          dimension,
+          context,
+          marketData: {},
+        });
+        successfulAssessments.push(assessment);
+      } catch (error) {
+        this.logger.warn(
+          `Dimension ${dimension.slug} analysis failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        failedDimensions.push(dimension.slug);
+      }
+    }
 
     if (successfulAssessments.length === 0) {
       throw new Error('All dimension analyses failed');
     }
 
+    // Emit: Dimensions analyzed
+    this.emitProgress(context, 'dimensions-analyzed', `Analyzed ${successfulAssessments.length}/${dimensions.length} dimensions`, 60, {
+      subjectIdentifier: subject.identifier,
+      successCount: successfulAssessments.length,
+      failedCount: failedDimensions.length,
+      sequence: 5 + dimensions.length,
+    });
+
     // Save assessments to database
+    this.emitProgress(context, 'saving-assessments', 'Saving assessment results...', 65, {
+      subjectIdentifier: subject.identifier,
+      sequence: 6 + dimensions.length,
+    });
+
     const createdAssessments = await this.assessmentRepo.createBatch(
       successfulAssessments,
     );
@@ -106,6 +200,11 @@ export class RiskAnalysisService {
     );
 
     // 4. Aggregate into composite score
+    this.emitProgress(context, 'aggregating-score', 'Calculating composite risk score...', 70, {
+      subjectIdentifier: subject.identifier,
+      sequence: 7 + dimensions.length,
+    });
+
     const aggregation = this.scoreAggregation.aggregateAssessments(
       createdAssessments,
       dimensions,
@@ -122,6 +221,13 @@ export class RiskAnalysisService {
     );
 
     // 7. Create the composite score
+    this.emitProgress(context, 'creating-score', 'Saving composite score...', 75, {
+      subjectIdentifier: subject.identifier,
+      overallScore: aggregation.overallScore,
+      confidence: aggregation.confidence,
+      sequence: 8 + dimensions.length,
+    });
+
     const compositeScore = await this.compositeScoreRepo.create({
       subject_id: subject.id,
       task_id: context.taskId,
@@ -143,6 +249,12 @@ export class RiskAnalysisService {
     if (
       this.debateService.shouldTriggerDebate(compositeScore, analysisConfig)
     ) {
+      this.emitProgress(context, 'running-debate', 'Running Red vs Blue debate...', 80, {
+        subjectIdentifier: subject.identifier,
+        overallScore: compositeScore.overall_score,
+        sequence: 9 + dimensions.length,
+      });
+
       this.logger.log(
         `Triggering Red Team debate for ${subject.identifier} (score: ${compositeScore.overall_score})`,
       );
@@ -159,6 +271,14 @@ export class RiskAnalysisService {
         debate = debateResult.debate;
         debateTriggered = true;
 
+        this.emitProgress(context, 'debate-complete', `Debate complete: score adjusted by ${debateResult.adjustment >= 0 ? '+' : ''}${debateResult.adjustment}`, 95, {
+          subjectIdentifier: subject.identifier,
+          originalScore: compositeScore.overall_score,
+          adjustedScore: debateResult.adjustedScore,
+          adjustment: debateResult.adjustment,
+          sequence: 10 + dimensions.length,
+        });
+
         this.logger.log(
           `Debate completed for ${subject.identifier}: score adjusted ${compositeScore.overall_score} → ${debateResult.adjustedScore} (${debateResult.adjustment >= 0 ? '+' : ''}${debateResult.adjustment})`,
         );
@@ -169,6 +289,17 @@ export class RiskAnalysisService {
         // Continue without debate - don't fail the entire analysis
       }
     }
+
+    // Emit: Analysis complete
+    this.emitProgress(context, 'complete', `Analysis complete for ${subject.identifier}: ${(compositeScore.overall_score * 100).toFixed(0)}% risk score`, 100, {
+      subjectId: subject.id,
+      subjectIdentifier: subject.identifier,
+      overallScore: compositeScore.overall_score,
+      confidence: compositeScore.confidence,
+      assessmentCount: createdAssessments.length,
+      debateTriggered,
+      sequence: 11 + dimensions.length,
+    });
 
     return {
       subject,

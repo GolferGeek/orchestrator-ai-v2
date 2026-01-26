@@ -98,6 +98,71 @@ export class SignalRepository {
     return data ?? [];
   }
 
+  /**
+   * Find pending signals grouped by URL (article)
+   * Returns signals grouped so that all targets for the same article are together.
+   * This enables article-centric processing: process all instruments for one article
+   * before moving to the next.
+   *
+   * @param limit - Maximum total number of signals to return
+   * @param filter - Test data filter (defaults to excluding test data)
+   */
+  async findPendingSignalsGroupedByUrl(
+    limit: number = 200,
+    filter: TestDataFilter = DEFAULT_FILTER,
+  ): Promise<{ url: string; signals: Signal[] }[]> {
+    // Get all pending signals ordered by detected_at (oldest first), then by target_id
+    // This ensures we process articles in chronological order
+    let query = this.getClient()
+      .schema(this.schema)
+      .from(this.table)
+      .select('*')
+      .eq('disposition', 'pending')
+      .is('processing_worker', null)
+      .not('url', 'is', null); // Only signals with URLs
+
+    query = this.applyTestDataFilter(query, filter);
+
+    const { data, error } = (await query
+      .order('detected_at', { ascending: true })
+      .order('target_id', { ascending: true })
+      .limit(limit)) as SupabaseSelectListResponse<Signal>;
+
+    if (error) {
+      this.logger.error(`Failed to fetch pending signals grouped: ${error.message}`);
+      throw new Error(`Failed to fetch pending signals grouped: ${error.message}`);
+    }
+
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    // Group signals by URL
+    const groupMap = new Map<string, Signal[]>();
+    for (const signal of data) {
+      const url = signal.url || 'no-url';
+      if (!groupMap.has(url)) {
+        groupMap.set(url, []);
+      }
+      groupMap.get(url)!.push(signal);
+    }
+
+    // Convert to array of groups, preserving chronological order
+    // (first signal's detected_at determines group order)
+    const groups = Array.from(groupMap.entries())
+      .map(([url, signals]) => ({ url, signals }))
+      .sort((a, b) => {
+        const aFirst = a.signals[0];
+        const bFirst = b.signals[0];
+        if (!aFirst || !bFirst) return 0;
+        const aTime = new Date(aFirst.detected_at).getTime();
+        const bTime = new Date(bFirst.detected_at).getTime();
+        return aTime - bTime;
+      });
+
+    return groups;
+  }
+
   async findById(id: string): Promise<Signal | null> {
     const { data, error } = (await this.getClient()
       .schema(this.schema)
