@@ -10,6 +10,7 @@ import { ExtendedPostWriterModule } from "./agents/extended-post-writer/extended
 import { MarketingSwarmModule } from "./agents/marketing-swarm/marketing-swarm.module";
 import { CadAgentModule } from "./agents/engineering/cad-agent/cad-agent.module";
 import { LegalDepartmentModule } from "./agents/legal-department/legal-department.module";
+import { BusinessAutomationAdvisorModule } from "./agents/business-automation-advisor/business-automation-advisor.module";
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { LegalDepartmentModule } from "./agents/legal-department/legal-departmen
     MarketingSwarmModule,
     CadAgentModule,
     LegalDepartmentModule,
+    BusinessAutomationAdvisorModule,
     // Health check
     HealthModule,
   ],

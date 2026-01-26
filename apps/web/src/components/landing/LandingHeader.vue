@@ -5,21 +5,30 @@
         <h1>Orchestrator AI</h1>
         <span class="tagline">AI for Small Business</span>
       </div>
-      
-      
-      
+
+
+
       <!-- Main Navigation -->
       <nav class="header-nav">
         <OrganizationSwitcher v-if="authStore.isAuthenticated" />
         <!-- View Toggle - only show in demo organization -->
         <ViewToggle v-if="isDemoOrg" />
+        <ion-button
+          fill="clear"
+          size="small"
+          class="agent-ideas-button"
+          @click="openAgentIdeasModal"
+        >
+          <ion-icon slot="start" :icon="sparklesOutline"></ion-icon>
+          <span class="button-text">How can agents help you?</span>
+        </ion-button>
         <a href="/videos" class="nav-link">
           <ion-icon :icon="playCircleOutline"></ion-icon>
           All Videos
         </a>
-        <ion-button 
-          fill="outline" 
-          size="small" 
+        <ion-button
+          fill="outline"
+          size="small"
           class="login-button"
           @click="navigateToApp"
         >
@@ -28,23 +37,30 @@
         </ion-button>
       </nav>
     </div>
+
+    <!-- Agent Ideas Modal -->
+    <AgentIdeasModal />
   </header>
 </template>
 <script setup lang="ts">
 import { computed } from 'vue';
 import { IonButton, IonIcon } from '@ionic/vue';
-import { 
-  playCircleOutline, 
-  appsOutline
+import {
+  playCircleOutline,
+  appsOutline,
+  sparklesOutline,
 } from 'ionicons/icons';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/rbacStore';
+import { useAgentIdeasStore } from '@/stores/agentIdeasStore';
 import { storeToRefs } from 'pinia';
 import OrganizationSwitcher from '@/components/common/OrganizationSwitcher.vue';
 import ViewToggle from '@/components/landing/ViewToggle.vue';
+import AgentIdeasModal from '@/components/landing/AgentIdeasModal.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();
+const agentIdeasStore = useAgentIdeasStore();
 const { currentOrganization } = storeToRefs(authStore);
 
 // Check if we're in the demo organization
@@ -58,6 +74,10 @@ function navigateToApp() {
   } else {
     router.push('/login?redirect=/app');
   }
+}
+
+function openAgentIdeasModal() {
+  agentIdeasStore.openModal();
 }
 </script>
 <style scoped>
@@ -139,6 +159,23 @@ function navigateToApp() {
   position: relative;
   z-index: 1;
 }
+.agent-ideas-button {
+  --color: var(--landing-primary);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-sm);
+  --border-radius: var(--radius-lg);
+  transition: var(--transition-smooth);
+}
+
+.agent-ideas-button:hover {
+  --background: var(--landing-primary-50);
+  transform: translateY(-1px);
+}
+
+.agent-ideas-button ion-icon {
+  font-size: 1.1rem;
+}
+
 .login-button {
   --border-color: var(--landing-primary);
   --color: var(--landing-primary);
@@ -167,6 +204,9 @@ function navigateToApp() {
     min-height: 2.75rem; /* 44px minimum touch target */
   }
   .nav-link span {
+    display: none;
+  }
+  .agent-ideas-button .button-text {
     display: none;
   }
   .login-button {
