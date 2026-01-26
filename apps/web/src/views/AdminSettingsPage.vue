@@ -55,13 +55,14 @@
         <div class="nav-panel" :class="{ 'nav-open': navOpen }">
           <div class="nav-overlay" v-if="isMobile && navOpen" @click="closeNav"></div>
           <div class="nav-content">
-            <!-- LLM Management Group -->
-            <div class="nav-group">
-              <div class="nav-group-header">
+            <!-- AI Operations Group -->
+            <div class="nav-group" :class="{ collapsed: collapsedGroups.ai }">
+              <div class="nav-group-header" @click="toggleGroup('ai')">
                 <ion-icon :icon="sparklesOutline" />
-                <span>LLM Management</span>
+                <span>AI Operations</span>
+                <ion-icon :icon="collapsedGroups.ai ? chevronForwardOutline : chevronDownOutline" class="collapse-icon" />
               </div>
-              <div class="nav-items">
+              <div class="nav-items" v-show="!collapsedGroups.ai">
                 <div
                   class="nav-item"
                   :class="{ active: activeSection === 'evaluations' }"
@@ -76,7 +77,7 @@
                   @click="selectSection('llm-usage')"
                 >
                   <ion-icon :icon="barChartOutline" />
-                  <span>LLM Usage</span>
+                  <span>LLM Usage Analytics</span>
                 </div>
                 <div
                   class="nav-item"
@@ -84,32 +85,131 @@
                   @click="selectSection('llms')"
                 >
                   <ion-icon :icon="cubeOutline" />
-                  <span>LLMs</span>
+                  <span>Providers & Models</span>
                 </div>
                 <div
                   class="nav-item"
-                  :class="{ active: activeSection === 'pii' }"
-                  @click="selectSection('pii')"
+                  :class="{ active: activeSection === 'observability' }"
+                  @click="selectSection('observability')"
                 >
-                  <ion-icon :icon="shieldCheckmarkOutline" />
-                  <span>PII Management</span>
+                  <ion-icon :icon="pulseOutline" />
+                  <span>Observability</span>
                 </div>
               </div>
             </div>
 
-            <!-- Data & Access Group -->
-            <div class="nav-group">
-              <div class="nav-group-header">
-                <ion-icon :icon="keyOutline" />
-                <span>Data & Access</span>
+            <!-- Privacy & Compliance Group -->
+            <div class="nav-group" :class="{ collapsed: collapsedGroups.privacy }">
+              <div class="nav-group-header" @click="toggleGroup('privacy')">
+                <ion-icon :icon="lockClosedOutline" />
+                <span>Privacy & Compliance</span>
+                <ion-icon :icon="collapsedGroups.privacy ? chevronForwardOutline : chevronDownOutline" class="collapse-icon" />
               </div>
-              <div class="nav-items">
+              <div class="nav-items" v-show="!collapsedGroups.privacy">
+                <div
+                  class="nav-item"
+                  :class="{ active: activeSection === 'pii-patterns' }"
+                  @click="selectSection('pii-patterns')"
+                >
+                  <ion-icon :icon="shieldCheckmarkOutline" />
+                  <span>PII Patterns</span>
+                </div>
+                <div
+                  class="nav-item"
+                  :class="{ active: activeSection === 'pii-testing' }"
+                  @click="selectSection('pii-testing')"
+                >
+                  <ion-icon :icon="flaskOutline" />
+                  <span>Testing Sandbox</span>
+                </div>
+                <div
+                  class="nav-item"
+                  :class="{ active: activeSection === 'pseudonym-dictionary' }"
+                  @click="selectSection('pseudonym-dictionary')"
+                >
+                  <ion-icon :icon="bookOutline" />
+                  <span>Pseudonym Dictionary</span>
+                </div>
+                <div
+                  class="nav-item"
+                  :class="{ active: activeSection === 'pseudonym-mappings' }"
+                  @click="selectSection('pseudonym-mappings')"
+                >
+                  <ion-icon :icon="gitNetworkOutline" />
+                  <span>Active Mappings</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Access Management Group -->
+            <div class="nav-group" :class="{ collapsed: collapsedGroups.access }">
+              <div class="nav-group-header" @click="toggleGroup('access')">
+                <ion-icon :icon="peopleOutline" />
+                <span>Access Management</span>
+                <ion-icon :icon="collapsedGroups.access ? chevronForwardOutline : chevronDownOutline" class="collapse-icon" />
+              </div>
+              <div class="nav-items" v-show="!collapsedGroups.access">
+                <div
+                  class="nav-item"
+                  :class="{ active: activeSection === 'users' }"
+                  @click="selectSection('users')"
+                  v-permission="'admin:users'"
+                >
+                  <ion-icon :icon="personOutline" />
+                  <span>Users</span>
+                </div>
+                <div
+                  class="nav-item"
+                  :class="{ active: activeSection === 'roles' }"
+                  @click="selectSection('roles')"
+                  v-permission="'admin:roles'"
+                >
+                  <ion-icon :icon="keyOutline" />
+                  <span>Roles & Permissions</span>
+                </div>
+                <div
+                  class="nav-item"
+                  :class="{ active: activeSection === 'teams' }"
+                  @click="selectSection('teams')"
+                  v-permission="'admin:users'"
+                >
+                  <ion-icon :icon="peopleCircleOutline" />
+                  <span>Teams</span>
+                </div>
+                <div
+                  class="nav-item"
+                  :class="{ active: activeSection === 'organizations' }"
+                  @click="selectSection('organizations')"
+                >
+                  <ion-icon :icon="businessOutline" />
+                  <span>Organizations</span>
+                </div>
+                <div
+                  class="nav-item"
+                  :class="{ active: activeSection === 'approvals' }"
+                  @click="selectSection('approvals')"
+                  v-permission="'admin:users'"
+                >
+                  <ion-icon :icon="checkmarkDoneOutline" />
+                  <span>Pending Approvals</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Data & Knowledge Group -->
+            <div class="nav-group" :class="{ collapsed: collapsedGroups.data }">
+              <div class="nav-group-header" @click="toggleGroup('data')">
+                <ion-icon :icon="libraryOutline" />
+                <span>Data & Knowledge</span>
+                <ion-icon :icon="collapsedGroups.data ? chevronForwardOutline : chevronDownOutline" class="collapse-icon" />
+              </div>
+              <div class="nav-items" v-show="!collapsedGroups.data">
                 <div
                   class="nav-item"
                   :class="{ active: activeSection === 'rag' }"
                   @click="selectSection('rag')"
                 >
-                  <ion-icon :icon="serverOutline" />
+                  <ion-icon :icon="documentsOutline" />
                   <span>RAG Collections</span>
                 </div>
                 <div
@@ -122,49 +222,26 @@
                 </div>
                 <div
                   class="nav-item"
-                  :class="{ active: activeSection === 'users' }"
-                  @click="selectSection('users')"
-                  v-permission="'admin:users'"
+                  :class="{ active: activeSection === 'agents' }"
+                  @click="selectSection('agents')"
                 >
-                  <ion-icon :icon="peopleOutline" />
-                  <span>Users</span>
-                </div>
-                <div
-                  class="nav-item"
-                  :class="{ active: activeSection === 'roles' }"
-                  @click="selectSection('roles')"
-                  v-permission="'admin:roles'"
-                >
-                  <ion-icon :icon="shieldOutline" />
-                  <span>Roles</span>
-                </div>
-                <div
-                  class="nav-item"
-                  :class="{ active: activeSection === 'organizations' }"
-                  @click="selectSection('organizations')"
-                >
-                  <ion-icon :icon="businessOutline" />
-                  <span>Organizations</span>
-                </div>
-                <div
-                  class="nav-item"
-                  :class="{ active: activeSection === 'teams' }"
-                  @click="selectSection('teams')"
-                  v-permission="'admin:users'"
-                >
-                  <ion-icon :icon="peopleCircleOutline" />
-                  <span>Teams</span>
+                  <ion-icon :icon="chatbubblesOutline" />
+                  <span>Agents Registry</span>
+                  <ion-chip :color="agentsHealthData.discoveredAgents > 0 ? 'success' : 'warning'" size="small">
+                    <ion-label>{{ agentsHealthData.discoveredAgents }}</ion-label>
+                  </ion-chip>
                 </div>
               </div>
             </div>
 
-            <!-- Infrastructure Group -->
-            <div class="nav-group">
-              <div class="nav-group-header">
-                <ion-icon :icon="hardwareChipOutline" />
-                <span>Infrastructure</span>
+            <!-- System Configuration Group -->
+            <div class="nav-group" :class="{ collapsed: collapsedGroups.system }">
+              <div class="nav-group-header" @click="toggleGroup('system')">
+                <ion-icon :icon="settingsOutline" />
+                <span>System Configuration</span>
+                <ion-icon :icon="collapsedGroups.system ? chevronForwardOutline : chevronDownOutline" class="collapse-icon" />
               </div>
-              <div class="nav-items">
+              <div class="nav-items" v-show="!collapsedGroups.system">
                 <div
                   class="nav-item"
                   :class="{ active: activeSection === 'database' }"
@@ -178,38 +255,19 @@
                 </div>
                 <div
                   class="nav-item"
-                  :class="{ active: activeSection === 'agents' }"
-                  @click="selectSection('agents')"
-                >
-                  <ion-icon :icon="peopleOutline" />
-                  <span>Agents</span>
-                  <ion-chip :color="agentsHealthData.discoveredAgents > 0 ? 'success' : 'warning'" size="small">
-                    <ion-label>{{ agentsHealthData.discoveredAgents }}</ion-label>
-                  </ion-chip>
-                </div>
-                <div
-                  class="nav-item"
                   :class="{ active: activeSection === 'mcp' }"
                   @click="selectSection('mcp')"
                 >
                   <ion-icon :icon="extensionPuzzleOutline" />
-                  <span>MCP & Tools</span>
-                </div>
-                <div
-                  class="nav-item"
-                  :class="{ active: activeSection === 'observability' }"
-                  @click="selectSection('observability')"
-                >
-                  <ion-icon :icon="pulseOutline" />
-                  <span>Observability</span>
+                  <span>MCP Servers & Tools</span>
                 </div>
                 <div
                   class="nav-item"
                   :class="{ active: activeSection === 'crawler' }"
                   @click="selectSection('crawler')"
                 >
-                  <ion-icon :icon="cloudDownloadOutline" />
-                  <span>Crawler</span>
+                  <ion-icon :icon="syncOutline" />
+                  <span>Crawler Service</span>
                 </div>
               </div>
             </div>
@@ -269,10 +327,8 @@ import {
   analyticsOutline,
   barChartOutline,
   shieldCheckmarkOutline,
-  shieldOutline,
   checkmarkCircleOutline,
   alertCircleOutline,
-  hardwareChipOutline,
   peopleOutline,
   settingsOutline,
   serverOutline,
@@ -287,6 +343,18 @@ import {
   keyOutline,
   peopleCircleOutline,
   cloudDownloadOutline,
+  lockClosedOutline,
+  flaskOutline,
+  bookOutline,
+  gitNetworkOutline,
+  personOutline,
+  checkmarkDoneOutline,
+  libraryOutline,
+  documentsOutline,
+  chatbubblesOutline,
+  syncOutline,
+  chevronDownOutline,
+  chevronForwardOutline,
 } from 'ionicons/icons';
 import { useAuthStore } from '@/stores/rbacStore';
 import { usePrivacyStore } from '@/stores/privacyStore';
@@ -315,23 +383,66 @@ const subDetail = ref<{ type: string; id: string } | null>(null);
 const navOpen = ref(false);
 const isMobile = ref(window.innerWidth < 992);
 
-// Async component definitions
+// Collapsible navigation groups state
+const collapsedGroups = ref<Record<string, boolean>>({
+  ai: false,
+  privacy: false,
+  access: false,
+  data: false,
+  system: false,
+});
+
+// Toggle group collapse state
+const toggleGroup = (group: string) => {
+  collapsedGroups.value[group] = !collapsedGroups.value[group];
+  // Persist to localStorage for user preference
+  localStorage.setItem('admin-nav-collapsed', JSON.stringify(collapsedGroups.value));
+};
+
+// Load collapsed state from localStorage on init
+const loadCollapsedState = () => {
+  const saved = localStorage.getItem('admin-nav-collapsed');
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      collapsedGroups.value = { ...collapsedGroups.value, ...parsed };
+    } catch (e) {
+      console.warn('Failed to parse saved nav state:', e);
+    }
+  }
+};
+
+// Async component definitions - reorganized for improved IA
 const detailComponents: Record<string, ReturnType<typeof defineAsyncComponent>> = {
+  // AI Operations
   evaluations: defineAsyncComponent(() => import('@/views/AdminEvaluationsPage.vue')),
   'llm-usage': defineAsyncComponent(() => import('@/views/admin/LlmUsageView.vue')),
   llms: defineAsyncComponent(() => import('@/views/admin/ProvidersModelsPage.vue')),
-  pii: defineAsyncComponent(() => import('@/views/PIIManagementPage.vue')),
-  rag: defineAsyncComponent(() => import('@/views/admin/RagCollectionsPage.vue')),
-  'crawler-sources': defineAsyncComponent(() => import('@/views/admin/CrawlerSourcesPage.vue')),
+  observability: defineAsyncComponent(() => import('@/views/admin/AdminObservabilityView.vue')),
+  
+  // Privacy & Compliance
+  'pii-patterns': defineAsyncComponent(() => import('@/views/PIIManagementPage.vue')),
+  'pii-testing': defineAsyncComponent(() => import('@/views/PIITestingPage.vue')),
+  'pseudonym-dictionary': defineAsyncComponent(() => import('@/views/PseudonymDictionaryPage.vue')),
+  'pseudonym-mappings': defineAsyncComponent(() => import('@/views/PseudonymMappingPage.vue')),
+  
+  // Access Management
   users: defineAsyncComponent(() => import('@/views/admin/UserManagementPage.vue')),
   roles: defineAsyncComponent(() => import('@/views/admin/RoleManagementPage.vue')),
-  organizations: defineAsyncComponent(() => import('@/views/admin/OrganizationsAdminPage.vue')),
   teams: defineAsyncComponent(() => import('@/views/admin/TeamsAdminPage.vue')),
-  database: defineAsyncComponent(() => import('@/views/admin/DatabaseAdminPage.vue')),
+  organizations: defineAsyncComponent(() => import('@/views/admin/OrganizationsAdminPage.vue')),
+  approvals: defineAsyncComponent(() => import('@/views/admin/AdminApprovalsView.vue')),
+  
+  // Data & Knowledge
+  rag: defineAsyncComponent(() => import('@/views/admin/RagCollectionsPage.vue')),
+  'crawler-sources': defineAsyncComponent(() => import('@/views/admin/CrawlerSourcesPage.vue')),
   agents: defineAsyncComponent(() => import('@/views/admin/AgentsAdminPage.vue')),
+  
+  // System Configuration
+  database: defineAsyncComponent(() => import('@/views/admin/DatabaseAdminPage.vue')),
   mcp: defineAsyncComponent(() => import('@/views/admin/MCPAdminPage.vue')),
-  observability: defineAsyncComponent(() => import('@/views/admin/AdminObservabilityView.vue')),
   crawler: defineAsyncComponent(() => import('@/views/admin/CrawlerAdminPage.vue')),
+  
   // Sub-detail components
   'rag-collection': defineAsyncComponent(() => import('@/views/admin/RagCollectionDetailPage.vue')),
   'llm-usage-run': defineAsyncComponent(() => import('@/views/admin/LLMUsageDetailsPage.vue')),
@@ -545,6 +656,7 @@ watch(() => route.query.section, (newSection) => {
 // Lifecycle
 onMounted(async () => {
   window.addEventListener('resize', handleResize);
+  loadCollapsedState();
   initializeSection();
 
   try {
@@ -706,11 +818,40 @@ onMounted(async () => {
   letter-spacing: 0.5px;
   border-bottom: 1px solid var(--ion-color-light-shade);
   margin-bottom: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease;
+  border-radius: 4px 4px 0 0;
+}
+
+.nav-group-header:hover {
+  background: var(--ion-color-light-tint);
 }
 
 .nav-group-header ion-icon {
   font-size: 1rem;
   color: var(--ion-color-primary);
+}
+
+.nav-group-header span {
+  flex: 1;
+}
+
+.nav-group-header .collapse-icon {
+  font-size: 0.85rem;
+  color: var(--ion-color-medium);
+  transition: transform 0.2s ease;
+}
+
+/* Collapsed group styles */
+.nav-group.collapsed {
+  padding-bottom: 0;
+}
+
+.nav-group.collapsed .nav-group-header {
+  border-bottom: none;
+  margin-bottom: 0;
+  border-radius: 4px;
 }
 
 .nav-items {
