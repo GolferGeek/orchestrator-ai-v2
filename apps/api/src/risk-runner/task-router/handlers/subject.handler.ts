@@ -175,8 +175,9 @@ export class SubjectHandler implements IDashboardHandler {
   }
 
   /**
-   * Analyze a subject - runs full risk analysis in background
-   * Returns immediately with task info, analysis runs asynchronously
+   * Analyze a subject - runs full risk analysis synchronously
+   * Progress events are emitted via SSE during analysis
+   * Returns final results when complete
    */
   private async handleAnalyze(
     payload: DashboardRequestPayload,
@@ -204,41 +205,49 @@ export class SubjectHandler implements IDashboardHandler {
       );
     }
 
-    // Fire-and-forget: start analysis in background, return immediately
-    // The frontend will poll for results via composite-scores endpoint
     const taskId = context.taskId;
-
     this.logger.log(
-      `Starting background analysis for ${subject.identifier} (task: ${taskId})`,
+      `Starting synchronous analysis for ${subject.identifier} (task: ${taskId})`,
     );
 
-    // Run analysis in background - don't await
-    this.riskAnalysisService
-      .analyzeSubject(subject, scope, context)
-      .then((result) => {
-        this.logger.log(
-          `Background analysis complete for ${subject.identifier}: score=${result.compositeScore.overall_score}`,
-        );
-      })
-      .catch((error) => {
-        this.logger.error(
-          `Background analysis failed for ${subject.identifier}: ${error instanceof Error ? error.message : String(error)}`,
-        );
-      });
+    try {
+      // Run analysis synchronously - SSE progress events are emitted during analysis
+      const result = await this.riskAnalysisService.analyzeSubject(
+        subject,
+        scope,
+        context,
+      );
 
-    // Return immediately with "started" status
-    return buildDashboardSuccess(
-      {
-        subjectId: subject.id,
-        identifier: subject.identifier,
-        status: 'started',
-        taskId,
-        message: `Analysis started for ${subject.identifier}. Poll composite-scores endpoint for results.`,
-      },
-      {
-        async: true,
-        message: `Analysis started in background for ${subject.identifier}`,
-      },
-    );
+      this.logger.log(
+        `Analysis complete for ${subject.identifier}: score=${result.compositeScore.overall_score}`,
+      );
+
+      // Return the actual analysis results
+      return buildDashboardSuccess(
+        {
+          subjectId: subject.id,
+          identifier: subject.identifier,
+          status: 'complete',
+          taskId,
+          overallScore: result.compositeScore.overall_score,
+          confidence: result.compositeScore.confidence,
+          assessmentCount: result.assessmentCount,
+          debateTriggered: result.debateTriggered,
+          compositeScoreId: result.compositeScore.id,
+        },
+        {
+          message: `Analysis complete for ${subject.identifier}: ${result.compositeScore.overall_score}% risk score`,
+        },
+      );
+    } catch (error) {
+      this.logger.error(
+        `Analysis failed for ${subject.identifier}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return buildDashboardError(
+        'ANALYSIS_FAILED',
+        error instanceof Error ? error.message : 'Analysis failed',
+        { subjectId: subject.id, identifier: subject.identifier },
+      );
+    }
   }
 }

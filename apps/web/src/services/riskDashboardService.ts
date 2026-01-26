@@ -148,13 +148,13 @@ class RiskDashboardService {
     };
   }
 
-  private getContext(): ExecutionContext {
+  private getContext(taskIdOverride?: string): ExecutionContext {
     const contextStore = useExecutionContextStore();
     const authStore = this.getAuthStore();
 
     // For dashboard mode, we don't require a conversation context
     // Create a minimal context with required fields
-    if (contextStore.isInitialized) {
+    if (contextStore.isInitialized && !taskIdOverride) {
       return contextStore.current;
     }
 
@@ -162,17 +162,19 @@ class RiskDashboardService {
     const orgSlug = this.getOrgSlug();
     const userId = authStore.user?.id || '';
 
+    // Note: provider/model here are defaults - the backend should use the scope's llm_config
+    // for actual LLM calls during risk analysis
     return {
       orgSlug,
       userId,
       conversationId: '00000000-0000-0000-0000-000000000000', // NIL UUID for dashboard mode
-      taskId: crypto.randomUUID(),
+      taskId: taskIdOverride || crypto.randomUUID(),
       planId: '00000000-0000-0000-0000-000000000000',
       deliverableId: '00000000-0000-0000-0000-000000000000',
       agentSlug: this.getAgentSlug(),
       agentType: 'risk',
       provider: 'ollama',
-      model: 'gemma2:2b',
+      model: 'qwen3:8b',
     };
   }
 
@@ -203,9 +205,9 @@ class RiskDashboardService {
       },
     };
 
-    // Use AbortController with 10 minute timeout for long-running analysis
+    // Use AbortController with 30 minute timeout for long-running analysis (12 dimensions @ ~2min each)
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000); // 10 minutes
+    const timeoutId = setTimeout(() => controller.abort(), 30 * 60 * 1000); // 30 minutes
 
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -448,8 +450,8 @@ class RiskDashboardService {
     return this.executeDashboardRequest<RiskDebate>('debates.get-latest', { subjectId });
   }
 
-  async triggerDebate(compositeScoreId: string): Promise<DashboardActionResponse<RiskDebate>> {
-    return this.executeDashboardRequest<RiskDebate>('debates.trigger', { compositeScoreId });
+  async triggerDebate(subjectId: string): Promise<DashboardActionResponse<RiskDebate>> {
+    return this.executeDashboardRequest<RiskDebate>('debates.trigger', { subjectId });
   }
 
   // ==========================================================================
@@ -574,14 +576,76 @@ class RiskDashboardService {
 
   async analyzeSubject(
     subjectId: string,
-    options?: { forceRefresh?: boolean; includeDebate?: boolean }
+    options?: { forceRefresh?: boolean; includeDebate?: boolean; taskId?: string }
   ): Promise<DashboardActionResponse<AnalyzeSubjectResponse>> {
     // Route to subjects.analyze (subject handler's analyze action)
     // Backend expects 'id' parameter, not 'subjectId'
-    return this.executeDashboardRequest<AnalyzeSubjectResponse>('subjects.analyze', {
-      id: subjectId,
-      ...options,
+    // If taskId is provided, use it for the context so SSE can track progress
+    return this.executeDashboardRequestWithContext<AnalyzeSubjectResponse>(
+      'subjects.analyze',
+      { id: subjectId, forceRefresh: options?.forceRefresh, includeDebate: options?.includeDebate },
+      options?.taskId,
+    );
+  }
+
+  /**
+   * Execute a dashboard request with a specific taskId for tracking
+   */
+  private async executeDashboardRequestWithContext<T>(
+    action: string,
+    params?: Record<string, unknown>,
+    taskIdOverride?: string,
+  ): Promise<DashboardActionResponse<T>> {
+    const org = this.getOrgSlug();
+    const endpoint = `${API_BASE_URL}/agent-to-agent/${encodeURIComponent(org)}/${encodeURIComponent(this.getAgentSlug())}/tasks`;
+
+    const payload: DashboardRequestPayload = {
+      action,
+      params,
+    };
+
+    const request = {
+      jsonrpc: '2.0',
+      id: crypto.randomUUID(),
+      method: `dashboard.${action}`,
+      params: {
+        mode: 'dashboard',
+        payload,
+        context: this.getContext(taskIdOverride),
+      },
+    };
+
+    // Use AbortController with 30 minute timeout for long-running analysis (12 dimensions @ ~2min each)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30 * 60 * 1000); // 30 minutes
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(request),
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const message = errorData?.error?.message || errorData?.message || response.statusText;
+      throw new Error(message);
+    }
+
+    const data = await response.json();
+
+    if (data.error) {
+      throw new Error(data.error.message || 'Dashboard request failed');
+    }
+
+    const responsePayload = data.payload || data.result?.payload || data.result || {};
+    return {
+      success: data.success ?? true,
+      content: responsePayload.content ?? null,
+      metadata: responsePayload.metadata ?? null,
+    };
   }
 
   async analyzeScope(

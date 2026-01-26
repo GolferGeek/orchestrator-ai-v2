@@ -353,63 +353,30 @@ async function handleAnalyzeSubject(subjectId: string) {
   const subject = subjects.value.find(s => s.id === subjectId);
   analysisSubjectIdentifier.value = subject?.identifier || subject?.name || subjectId;
 
-  // Show progress modal
+  // Generate a taskId BEFORE showing the modal so SSE can connect
+  const taskId = crypto.randomUUID();
+  analysisTaskId.value = taskId;
+  console.log('[RiskAgentPane] Generated taskId for SSE:', taskId);
+
+  // Show progress modal - it will connect to SSE with this taskId
   showAnalysisProgress.value = true;
   store.setAnalyzing(true);
   store.clearError();
 
-  // Simulate progress updates since API is synchronous
-  // In production with SSE, this would be replaced by real events
-  const progressSteps = [
-    { step: 'initializing', message: `Starting analysis for ${analysisSubjectIdentifier.value}`, progress: 5 },
-    { step: 'loading-dimensions', message: 'Loading risk dimensions...', progress: 10 },
-    { step: 'dimensions-loaded', message: 'Found dimensions to analyze', progress: 15 },
-    { step: 'analyzing-dimensions', message: 'Analyzing dimensions with AI...', progress: 20 },
-  ];
-
-  // Add dimension-specific steps based on store dimensions
-  const dimList = dimensions.value.length > 0 ? dimensions.value : [
-    { slug: 'geopolitical', name: 'Geopolitical' },
-    { slug: 'regulatory', name: 'Regulatory' },
-    { slug: 'financial-health', name: 'Financial Health' },
-    { slug: 'growth-sustainability', name: 'Growth' },
-    { slug: 'valuation', name: 'Valuation' },
-  ];
-
-  dimList.forEach((dim, i) => {
-    const dimProgress = 20 + Math.floor((i / dimList.length) * 40);
-    progressSteps.push({
-      step: `analyzing-${dim.slug}`,
-      message: `Analyzing ${dim.name}...`,
-      progress: dimProgress,
-      dimensionSlug: dim.slug,
-      currentDimension: dim.name,
-    } as typeof progressSteps[0]);
-  });
-
-  progressSteps.push(
-    { step: 'dimensions-analyzed', message: `Analyzed ${dimList.length} dimensions`, progress: 60 },
-    { step: 'saving-assessments', message: 'Saving assessment results...', progress: 65 },
-    { step: 'aggregating-score', message: 'Calculating composite risk score...', progress: 70 },
-    { step: 'creating-score', message: 'Saving composite score...', progress: 75 },
-  );
-
-  // Emit simulated progress in background
-  let stepIndex = 0;
-  const progressInterval = setInterval(() => {
-    if (stepIndex < progressSteps.length && analysisProgressRef.value) {
-      analysisProgressRef.value.handleProgressEvent(progressSteps[stepIndex]);
-      stepIndex++;
-    }
-  }, 800);
+  // Show initial progress while waiting for SSE events from backend
+  if (analysisProgressRef.value) {
+    analysisProgressRef.value.handleProgressEvent({
+      step: 'initializing',
+      message: `Starting analysis for ${analysisSubjectIdentifier.value}`,
+      progress: 5,
+    });
+  }
 
   try {
-    console.log('[RiskAgentPane] Calling analyzeSubject API for:', subjectId);
-    const response = await riskDashboardService.analyzeSubject(subjectId, { forceRefresh: true });
+    console.log('[RiskAgentPane] Calling analyzeSubject API for:', subjectId, 'with taskId:', taskId);
+    // Pass the taskId to the service so backend uses it for progress events
+    const response = await riskDashboardService.analyzeSubject(subjectId, { forceRefresh: true, taskId });
     console.log('[RiskAgentPane] Full API response:', JSON.stringify(response, null, 2));
-
-    // Clear progress simulation
-    clearInterval(progressInterval);
 
     if (!response.success) {
       // Error message can be in multiple places depending on how the error was generated
@@ -452,6 +419,8 @@ async function handleAnalyzeSubject(subjectId: string) {
       }
 
       // Emit completion to modal
+      console.log('[RiskAgentPane] About to call setComplete with:', { overallScore, confidence, assessmentCount, debateTriggered });
+      console.log('[RiskAgentPane] analysisProgressRef.value exists:', !!analysisProgressRef.value);
       if (analysisProgressRef.value) {
         analysisProgressRef.value.setComplete({
           overallScore,
@@ -459,6 +428,9 @@ async function handleAnalyzeSubject(subjectId: string) {
           assessmentCount,
           debateTriggered,
         });
+        console.log('[RiskAgentPane] setComplete called successfully');
+      } else {
+        console.error('[RiskAgentPane] analysisProgressRef.value is null - modal may have closed');
       }
 
       // Refresh subject detail and scores
@@ -477,7 +449,6 @@ async function handleAnalyzeSubject(subjectId: string) {
       store.setError('Analysis returned no content');
     }
   } catch (err) {
-    clearInterval(progressInterval);
     console.error('[RiskAgentPane] Analysis error:', err);
     const errorMsg = err instanceof Error ? err.message : 'Analysis failed';
     if (analysisProgressRef.value) {
@@ -516,10 +487,10 @@ async function handleAnalyzeAll() {
   }
 }
 
-async function handleTriggerDebate(compositeScoreId: string) {
+async function handleTriggerDebate(subjectId: string) {
   store.setAnalyzing(true);
   try {
-    await riskDashboardService.triggerDebate(compositeScoreId);
+    await riskDashboardService.triggerDebate(subjectId);
     // Refresh selected subject
     if (selectedSubject.value?.subject) {
       await handleSelectSubject(selectedSubject.value.subject.id);
@@ -532,24 +503,17 @@ async function handleTriggerDebate(compositeScoreId: string) {
 }
 
 async function handleTriggerDebateForSubject(subjectId: string) {
-  // Get the composite score for this subject
+  // Verify we have a composite score (debate requires one)
   const compositeScore = selectedSubject.value?.compositeScore;
   if (!compositeScore) {
     store.setError('No composite score available for debate. Please run analysis first.');
     return;
   }
 
-  // Handle both camelCase and snake_case property names
-  const scoreId = (compositeScore as unknown as Record<string, unknown>).id as string;
-  if (!scoreId) {
-    store.setError('Composite score ID not found');
-    return;
-  }
-
-  console.log('[RiskAgentPane] Triggering debate for composite score:', scoreId);
+  console.log('[RiskAgentPane] Triggering debate for subject:', subjectId);
   isDebating.value = true;
   try {
-    const result = await riskDashboardService.triggerDebate(scoreId);
+    const result = await riskDashboardService.triggerDebate(subjectId);
     console.log('[RiskAgentPane] Debate result:', result);
     if (!result.success) {
       store.setError(result.error?.message || 'Failed to trigger debate');

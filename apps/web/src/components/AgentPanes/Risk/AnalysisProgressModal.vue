@@ -104,6 +104,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue';
+import { tokenStorage } from '@/services/tokenStorageService';
 
 interface DimensionProgress {
   slug: string;
@@ -254,55 +255,90 @@ function handleProgressEvent(event: ProgressEvent) {
   }
 }
 
-function connectToSSE() {
-  if (!props.taskId) return;
+async function connectToSSE() {
+  if (!props.taskId) {
+    console.log('[AnalysisProgressModal] No taskId provided, skipping SSE connection');
+    return;
+  }
 
   const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:6100';
-  const orgSlug = 'default'; // TODO: Get from store
-  const agentSlug = 'investment-risk-agent';
 
-  const url = `${baseUrl}/agent-to-agent/${orgSlug}/${agentSlug}/tasks/${props.taskId}/stream`;
+  // Use /observability/stream endpoint like prediction does
+  // Filter client-side by taskId since the endpoint doesn't have that filter
+  try {
+    const jwtToken = await tokenStorage.getAccessToken();
+    console.log('[AnalysisProgressModal] Got JWT token:', jwtToken ? 'yes' : 'no');
 
-  eventSource = new EventSource(url, { withCredentials: true });
+    if (!jwtToken) {
+      console.error('[AnalysisProgressModal] No JWT token available');
+      return;
+    }
 
-  eventSource.addEventListener('agent.stream.chunk', (event) => {
+    const queryParams = new URLSearchParams();
+    queryParams.append('token', jwtToken);
+    // No server-side taskId filter, but we can filter by source app
+    // Events will be filtered client-side by taskId
+
+    const url = `${baseUrl}/observability/stream?${queryParams.toString()}`;
+    console.log('[AnalysisProgressModal] Connecting to observability stream for taskId:', props.taskId);
+    eventSource = new EventSource(url);
+  } catch (err) {
+    console.error('[AnalysisProgressModal] Error connecting to SSE:', err);
+    return;
+  }
+
+  // Handle observability stream messages (same format as prediction activity feed)
+  eventSource.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data);
-      if (data.chunk?.metadata?.mode === 'analysis' ||
-          data.source_app === 'risk-analysis' ||
-          data.hook_event_type === 'risk.analysis.progress') {
+
+      // Skip connection events
+      if (data.event_type === 'connected') {
+        console.log('[AnalysisProgressModal] Connected to observability stream');
+        return;
+      }
+
+      // Filter by taskId - only process events for our specific task
+      const eventTaskId = data.context?.taskId;
+      if (eventTaskId !== props.taskId) {
+        // Not our task, ignore
+        return;
+      }
+
+      // Check if this is a risk analysis progress event
+      if (data.source_app === 'risk-analysis' || data.hook_event_type === 'risk.analysis.progress') {
+        console.log('[AnalysisProgressModal] Risk progress event:', data.step, data.message);
+
+        // Extract progress data from observability event format
+        const payload = data.payload || {};
         handleProgressEvent({
-          step: data.chunk?.metadata?.step || data.step || 'unknown',
-          message: data.chunk?.content || data.message || '',
-          progress: data.chunk?.metadata?.progress || data.progress || 0,
-          dimensionSlug: data.chunk?.metadata?.dimensionSlug,
-          currentDimension: data.chunk?.metadata?.currentDimension,
-          totalDimensions: data.chunk?.metadata?.totalDimensions,
-          overallScore: data.chunk?.metadata?.overallScore,
-          confidence: data.chunk?.metadata?.confidence,
-          assessmentCount: data.chunk?.metadata?.assessmentCount,
-          debateTriggered: data.chunk?.metadata?.debateTriggered,
+          step: data.step || payload.step || 'unknown',
+          message: data.message || '',
+          progress: data.progress || payload.progress || 0,
+          dimensionSlug: payload.dimensionSlug,
+          currentDimension: payload.currentDimension,
+          totalDimensions: payload.totalDimensions,
+          overallScore: payload.overallScore,
+          confidence: payload.confidence,
+          assessmentCount: payload.assessmentCount,
+          debateTriggered: payload.debateTriggered,
         });
       }
     } catch (e) {
-      console.warn('Failed to parse SSE event:', e);
+      console.warn('[AnalysisProgressModal] Failed to parse SSE message:', e);
     }
-  });
+  };
 
-  eventSource.addEventListener('agent.stream.error', (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      error.value = data.error || 'Analysis failed';
-    } catch (e) {
-      error.value = 'Analysis failed';
-    }
-  });
+  eventSource.onopen = () => {
+    console.log('[AnalysisProgressModal] SSE connection opened');
+  };
 
-  eventSource.onerror = () => {
+  eventSource.onerror = (e) => {
+    console.warn('[AnalysisProgressModal] SSE error:', e);
     // SSE connection lost - may happen if task completes
     if (!isComplete.value && progress.value < 100) {
       // Only show error if we weren't done
-      console.warn('SSE connection lost');
+      console.warn('[AnalysisProgressModal] SSE connection lost while in progress');
     }
   };
 }
@@ -324,9 +360,10 @@ function handleClose() {
   emit('close');
 }
 
-// Watch for visibility to connect/disconnect SSE
-watch(() => props.isVisible, (visible) => {
-  if (visible && props.taskId) {
+// Watch for visibility and taskId to connect/disconnect SSE
+watch([() => props.isVisible, () => props.taskId], ([visible, taskId]) => {
+  console.log('[AnalysisProgressModal] Watch triggered: visible=', visible, 'taskId=', taskId);
+  if (visible && taskId) {
     // Reset state
     progress.value = 0;
     currentStep.value = 'initializing';
@@ -336,11 +373,12 @@ watch(() => props.isVisible, (visible) => {
     isComplete.value = false;
     result.value = null;
 
-    connectToSSE();
-  } else {
+    // connectToSSE is async but we don't need to await it
+    void connectToSSE();
+  } else if (!visible) {
     disconnectSSE();
   }
-});
+}, { immediate: true });
 
 // Cleanup on unmount
 onUnmounted(() => {
@@ -352,6 +390,7 @@ defineExpose({
   handleProgressEvent,
   setError: (msg: string) => { error.value = msg; },
   setComplete: (res: AnalysisResult) => {
+    console.log('[AnalysisProgressModal] setComplete called with:', res);
     isComplete.value = true;
     progress.value = 100;
     result.value = res;
@@ -363,6 +402,7 @@ defineExpose({
       ...d,
       status: 'complete' as const,
     }));
+    console.log('[AnalysisProgressModal] State updated - isComplete:', isComplete.value, 'progress:', progress.value, 'result:', result.value);
   },
 });
 </script>
