@@ -8,13 +8,14 @@ import {
   Logger,
 } from "@nestjs/common";
 import { BusinessAutomationAdvisorService } from "./business-automation-advisor.service";
-import { BusinessAutomationAdvisorRequestDto } from "./dto";
+import { BusinessAutomationAdvisorRequestDto, SubmitInterestDto } from "./dto";
 
 /**
  * BusinessAutomationAdvisorController
  *
  * REST API endpoint for the Business Automation Advisor agent:
  * - POST /business-automation-advisor/generate - Get agent recommendations for an industry
+ * - POST /business-automation-advisor/submit - Submit interest in selected agents
  */
 @Controller("business-automation-advisor")
 export class BusinessAutomationAdvisorController {
@@ -60,6 +61,39 @@ export class BusinessAutomationAdvisorController {
       this.logger.error("Generation failed:", error);
       throw new BadRequestException(
         error instanceof Error ? error.message : "Generation failed",
+      );
+    }
+  }
+
+  /**
+   * Submit interest in selected agents
+   *
+   * Stores lead submission in the database for follow-up.
+   */
+  @Post("submit")
+  @HttpCode(HttpStatus.CREATED)
+  async submit(@Body() request: SubmitInterestDto) {
+    // Email is required
+    if (!request.email) {
+      throw new BadRequestException("Email is required");
+    }
+
+    // Selected agents are required
+    if (!request.selectedAgents || request.selectedAgents.length === 0) {
+      throw new BadRequestException("At least one agent must be selected");
+    }
+
+    this.logger.log(
+      `Received submit request: email=${request.email}, selectedAgents=${request.selectedAgents.length}`,
+    );
+
+    try {
+      const result = await this.businessAutomationAdvisorService.submitInterest(request);
+      return result;
+    } catch (error) {
+      this.logger.error("Submission failed:", error);
+      throw new BadRequestException(
+        error instanceof Error ? error.message : "Submission failed",
       );
     }
   }

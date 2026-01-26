@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { BusinessAutomationAdvisorController } from "./business-automation-advisor.controller";
 import { BusinessAutomationAdvisorService } from "./business-automation-advisor.service";
+import { BusinessAutomationAdvisorDbService } from "./business-automation-advisor-db.service";
 
 /**
  * BusinessAutomationAdvisorModule
@@ -13,7 +14,7 @@ import { BusinessAutomationAdvisorService } from "./business-automation-advisor.
  */
 @Module({
   controllers: [BusinessAutomationAdvisorController],
-  providers: [BusinessAutomationAdvisorService],
+  providers: [BusinessAutomationAdvisorService, BusinessAutomationAdvisorDbService],
   exports: [BusinessAutomationAdvisorService],
 })
 export class BusinessAutomationAdvisorModule {}

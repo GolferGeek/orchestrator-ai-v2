@@ -11,6 +11,11 @@ import {
 import { LLMHttpClientService } from "../../services/llm-http-client.service";
 import { ObservabilityService } from "../../services/observability.service";
 import { PostgresCheckpointerService } from "../../persistence/postgres-checkpointer.service";
+import {
+  BusinessAutomationAdvisorDbService,
+  SubmitInterestRequest,
+  SubmissionResponse,
+} from "./business-automation-advisor-db.service";
 
 /**
  * BusinessAutomationAdvisorService
@@ -29,6 +34,7 @@ export class BusinessAutomationAdvisorService implements OnModuleInit {
     private readonly llmClient: LLMHttpClientService,
     private readonly observability: ObservabilityService,
     private readonly checkpointer: PostgresCheckpointerService,
+    private readonly dbService: BusinessAutomationAdvisorDbService,
   ) {}
 
   async onModuleInit() {
@@ -121,5 +127,14 @@ export class BusinessAutomationAdvisorService implements OnModuleInit {
         error: errorMessage,
       };
     }
+  }
+
+  /**
+   * Submit interest in selected agents
+   *
+   * Stores lead submission in the database for follow-up.
+   */
+  async submitInterest(request: SubmitInterestRequest): Promise<SubmissionResponse> {
+    return this.dbService.submitInterest(request);
   }
 }
