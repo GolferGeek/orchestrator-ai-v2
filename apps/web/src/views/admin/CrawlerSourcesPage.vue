@@ -65,8 +65,8 @@
               </div>
               <div class="activity-signals">
                 <ion-chip
-                  v-for="signal in article.signals"
-                  :key="signal.target_id"
+                  v-for="signal in getUniqueSignals(article.signals)"
+                  :key="`${article.id}-${signal.target_id}`"
                   :color="getSignalColor(signal.disposition)"
                   size="small"
                 >
@@ -421,6 +421,7 @@ import {
   type SourceType,
   type CrawlFrequency,
   type Article,
+  type SignalSummary,
 } from '@/services/crawlerService';
 import { useAuthStore } from '@/stores/rbacStore';
 
@@ -760,6 +761,17 @@ function formatArticleDate(dateStr: string): string {
 }
 
 // Signal display helpers
+function getUniqueSignals(signals: SignalSummary[] | undefined): SignalSummary[] {
+  if (!signals || signals.length === 0) return [];
+  // Deduplicate by target_id, keeping the first occurrence
+  const seen = new Set<string>();
+  return signals.filter((signal) => {
+    if (seen.has(signal.target_id)) return false;
+    seen.add(signal.target_id);
+    return true;
+  });
+}
+
 function getSignalColor(disposition: string): string {
   switch (disposition) {
     case 'predictor_created':

@@ -223,7 +223,16 @@ export class DimensionAnalyzerService {
    */
   private parseAnalysisResponse(content: string): DimensionAnalysisOutput {
     try {
-      const parsed = JSON.parse(content) as Record<string, unknown>;
+      // Strip markdown code blocks if present (LLM often wraps JSON in ```json ... ```)
+      let cleanContent = content.trim();
+      if (cleanContent.startsWith('```')) {
+        // Remove opening code fence (```json or ```)
+        cleanContent = cleanContent.replace(/^```(?:json)?\s*\n?/, '');
+        // Remove closing code fence
+        cleanContent = cleanContent.replace(/\n?```\s*$/, '');
+      }
+
+      const parsed = JSON.parse(cleanContent) as Record<string, unknown>;
       const parsedScore = typeof parsed.score === 'number' ? parsed.score : 50;
       const parsedConfidence =
         typeof parsed.confidence === 'number' ? parsed.confidence : 0.5;

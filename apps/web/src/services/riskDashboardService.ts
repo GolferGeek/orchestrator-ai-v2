@@ -171,8 +171,8 @@ class RiskDashboardService {
       deliverableId: '00000000-0000-0000-0000-000000000000',
       agentSlug: this.getAgentSlug(),
       agentType: 'risk',
-      provider: 'anthropic',
-      model: 'claude-sonnet-4-20250514',
+      provider: 'ollama',
+      model: 'gemma2:2b',
     };
   }
 
@@ -203,11 +203,18 @@ class RiskDashboardService {
       },
     };
 
+    // Use AbortController with 10 minute timeout for long-running analysis
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000); // 10 minutes
+
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify(request),
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));

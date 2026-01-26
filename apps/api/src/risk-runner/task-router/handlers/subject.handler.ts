@@ -175,7 +175,8 @@ export class SubjectHandler implements IDashboardHandler {
   }
 
   /**
-   * Analyze a subject - runs full risk analysis
+   * Analyze a subject - runs full risk analysis in background
+   * Returns immediately with task info, analysis runs asynchronously
    */
   private async handleAnalyze(
     payload: DashboardRequestPayload,
@@ -203,35 +204,41 @@ export class SubjectHandler implements IDashboardHandler {
       );
     }
 
-    try {
-      const result = await this.riskAnalysisService.analyzeSubject(
-        subject,
-        scope,
-        context,
-      );
+    // Fire-and-forget: start analysis in background, return immediately
+    // The frontend will poll for results via composite-scores endpoint
+    const taskId = context.taskId;
 
-      return buildDashboardSuccess(
-        {
-          subjectId: result.subject.id,
-          identifier: result.subject.identifier,
-          overallScore: result.compositeScore.overall_score,
-          confidence: result.compositeScore.confidence,
-          assessmentCount: result.assessmentCount,
-          debateTriggered: result.debateTriggered,
-          debateId: result.debate?.id,
-        },
-        {
-          message: `Analysis complete for ${result.subject.identifier}: score=${result.compositeScore.overall_score}`,
-        },
-      );
-    } catch (error) {
-      this.logger.error(
-        `Failed to analyze subject ${id}: ${error instanceof Error ? error.message : String(error)}`,
-      );
-      return buildDashboardError(
-        'ANALYSIS_FAILED',
-        error instanceof Error ? error.message : 'Analysis failed',
-      );
-    }
+    this.logger.log(
+      `Starting background analysis for ${subject.identifier} (task: ${taskId})`,
+    );
+
+    // Run analysis in background - don't await
+    this.riskAnalysisService
+      .analyzeSubject(subject, scope, context)
+      .then((result) => {
+        this.logger.log(
+          `Background analysis complete for ${subject.identifier}: score=${result.compositeScore.overall_score}`,
+        );
+      })
+      .catch((error) => {
+        this.logger.error(
+          `Background analysis failed for ${subject.identifier}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      });
+
+    // Return immediately with "started" status
+    return buildDashboardSuccess(
+      {
+        subjectId: subject.id,
+        identifier: subject.identifier,
+        status: 'started',
+        taskId,
+        message: `Analysis started for ${subject.identifier}. Poll composite-scores endpoint for results.`,
+      },
+      {
+        async: true,
+        message: `Analysis started in background for ${subject.identifier}`,
+      },
+    );
   }
 }
