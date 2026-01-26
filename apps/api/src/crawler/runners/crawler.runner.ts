@@ -7,6 +7,13 @@ import { ObservabilityEventsService } from '@/observability/observability-events
 import { ExecutionContext, NIL_UUID } from '@orchestrator-ai/transport-types';
 import * as Parser from 'rss-parser';
 
+// Extended RSS item type with common fields not in the base Parser.Item
+interface RssItem extends Parser.Item {
+  description?: string;
+  author?: string;
+  'content:encoded'?: string;
+}
+
 /**
  * CrawlerRunner - Central Source Crawler
  *
@@ -326,7 +333,7 @@ export class CrawlerRunner {
   > {
     const feed = await this.rssParser.parseURL(source.url);
 
-    return (feed.items || []).map((item) => ({
+    return (feed.items || []).map((item: RssItem) => ({
       url: item.link || item.guid || '',
       title: item.title || undefined,
       content:
