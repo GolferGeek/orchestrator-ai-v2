@@ -12,6 +12,14 @@ interface RssItem extends Parser.Item {
   description?: string;
   author?: string;
   'content:encoded'?: string;
+  guid?: string;
+  title?: string;
+  link?: string;
+  content?: string;
+  contentSnippet?: string;
+  creator?: string;
+  pubDate?: string;
+  isoDate?: string;
 }
 
 /**
