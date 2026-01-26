@@ -58,8 +58,8 @@ SELECT
   false as is_test,
   ds.last_fetch_at as last_crawl_at,
   ds.last_fetch_status as last_crawl_status,
-  ds.last_error_message as last_error,
-  ds.consecutive_errors,
+  ds.error_message as last_error,
+  ds.error_count as consecutive_errors,
   ds.created_at,
   ds.updated_at
 FROM risk.data_sources ds

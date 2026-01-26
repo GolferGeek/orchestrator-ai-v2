@@ -65,7 +65,7 @@ LEFT JOIN risk.article_classifications c ON c.article_id = a.id AND c.scope_id =
 WHERE c.id IS NULL
   AND a.is_duplicate = false
   AND ss.is_active = true
-ORDER BY a.published_at DESC NULLS LAST, a.created_at DESC;
+ORDER BY a.published_at DESC NULLS LAST, a.first_seen_at DESC;
 
 -- View: Classified articles by dimension (for risk analysis)
 CREATE OR REPLACE VIEW risk.classified_articles_by_dimension AS
@@ -101,7 +101,7 @@ RETURNS TABLE (
   content TEXT,
   url TEXT,
   published_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ
+  first_seen_at TIMESTAMPTZ
 ) AS $$
 BEGIN
   RETURN QUERY
@@ -112,7 +112,7 @@ BEGIN
     a.content,
     a.url,
     a.published_at,
-    a.created_at
+    a.first_seen_at
   FROM crawler.articles a
   JOIN risk.source_subscriptions ss ON ss.source_id = a.source_id
   LEFT JOIN risk.article_classifications c ON c.article_id = a.id AND c.scope_id = p_scope_id
@@ -120,7 +120,7 @@ BEGIN
     AND ss.scope_id = p_scope_id
     AND ss.is_active = true
     AND a.is_duplicate = false
-  ORDER BY a.published_at DESC NULLS LAST, a.created_at DESC
+  ORDER BY a.published_at DESC NULLS LAST, a.first_seen_at DESC
   LIMIT p_limit;
 END;
 $$ LANGUAGE plpgsql;
