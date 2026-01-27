@@ -52,12 +52,16 @@ export class BusinessAutomationAdvisorService implements OnModuleInit {
    *
    * @param input - Input containing ExecutionContext and industry string
    */
-  async generate(input: BusinessAutomationAdvisorInput): Promise<BusinessAutomationAdvisorResult> {
+  async generate(
+    input: BusinessAutomationAdvisorInput,
+  ): Promise<BusinessAutomationAdvisorResult> {
     const startTime = Date.now();
     const { context, industry } = input;
     const taskId = context.taskId;
 
-    this.logger.log(`Starting Business Automation Advisor: taskId=${taskId}, industry=${industry}`);
+    this.logger.log(
+      `Starting Business Automation Advisor: taskId=${taskId}, industry=${industry}`,
+    );
 
     try {
       // Validate input
@@ -115,7 +119,8 @@ export class BusinessAutomationAdvisorService implements OnModuleInit {
       };
     } catch (error) {
       const duration = Date.now() - startTime;
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
 
       this.logger.error(
         `Business Automation Advisor failed: taskId=${taskId}, error=${errorMessage}`,
@@ -134,7 +139,9 @@ export class BusinessAutomationAdvisorService implements OnModuleInit {
    *
    * Stores lead submission in the database for follow-up.
    */
-  async submitInterest(request: SubmitInterestRequest): Promise<SubmissionResponse> {
+  async submitInterest(
+    request: SubmitInterestRequest,
+  ): Promise<SubmissionResponse> {
     return this.dbService.submitInterest(request);
   }
 }

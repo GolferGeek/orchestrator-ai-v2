@@ -129,8 +129,12 @@ export class SignalRepository {
       .limit(limit)) as SupabaseSelectListResponse<Signal>;
 
     if (error) {
-      this.logger.error(`Failed to fetch pending signals grouped: ${error.message}`);
-      throw new Error(`Failed to fetch pending signals grouped: ${error.message}`);
+      this.logger.error(
+        `Failed to fetch pending signals grouped: ${error.message}`,
+      );
+      throw new Error(
+        `Failed to fetch pending signals grouped: ${error.message}`,
+      );
     }
 
     if (!data || data.length === 0) {

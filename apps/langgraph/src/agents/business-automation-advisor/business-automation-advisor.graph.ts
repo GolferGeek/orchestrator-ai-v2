@@ -24,7 +24,8 @@ const FALLBACK_RECOMMENDATIONS: AgentRecommendation[] = [
     use_case_example:
       "When a client requests an appointment via email or web form, this agent checks availability, books the slot, sends confirmation, and sets up automated reminders.",
     time_saved: "3-5 hours per week",
-    wow_factor: "Learns optimal scheduling patterns based on your historical booking data",
+    wow_factor:
+      "Learns optimal scheduling patterns based on your historical booking data",
     category: "Admin",
   },
   {
@@ -35,7 +36,8 @@ const FALLBACK_RECOMMENDATIONS: AgentRecommendation[] = [
     use_case_example:
       "When an invoice is 7 days overdue, sends a friendly reminder. At 14 days, escalates tone. At 30 days, alerts you for personal intervention.",
     time_saved: "4-6 hours per week",
-    wow_factor: "Adjusts communication style based on client payment history and relationship",
+    wow_factor:
+      "Adjusts communication style based on client payment history and relationship",
     category: "Finance",
   },
   {
@@ -46,7 +48,8 @@ const FALLBACK_RECOMMENDATIONS: AgentRecommendation[] = [
     use_case_example:
       "When someone fills out your contact form, instantly sends a personalized email, asks qualifying questions, and alerts your team if they're a high-value prospect.",
     time_saved: "10+ hours per week",
-    wow_factor: "Increases conversion rates by 30-40% through instant response times",
+    wow_factor:
+      "Increases conversion rates by 30-40% through instant response times",
     category: "Sales",
   },
   {
@@ -57,7 +60,8 @@ const FALLBACK_RECOMMENDATIONS: AgentRecommendation[] = [
     use_case_example:
       "After each client call, automatically sends a summary email with key points discussed, action items with owners and due dates, and schedules follow-up reminders.",
     time_saved: "2-3 hours per week",
-    wow_factor: "Integrates with your project management tools to create tasks automatically",
+    wow_factor:
+      "Integrates with your project management tools to create tasks automatically",
     category: "Operations",
   },
   {
@@ -68,7 +72,8 @@ const FALLBACK_RECOMMENDATIONS: AgentRecommendation[] = [
     use_case_example:
       "When you publish a blog post, creates 10 social media variations optimized for LinkedIn, Twitter, and Instagram, and schedules them over the next month.",
     time_saved: "5-8 hours per week",
-    wow_factor: "Learns which content types perform best and optimizes posting times",
+    wow_factor:
+      "Learns which content types perform best and optimizes posting times",
     category: "Marketing",
   },
   {
@@ -79,7 +84,8 @@ const FALLBACK_RECOMMENDATIONS: AgentRecommendation[] = [
     use_case_example:
       "When someone signs up, sends welcome email immediately, setup guide after 1 day, tips after 3 days, and checks in after 1 week with personalized help.",
     time_saved: "6-10 hours per week",
-    wow_factor: "Personalizes the journey based on customer type and engagement level",
+    wow_factor:
+      "Personalizes the journey based on customer type and engagement level",
     category: "Customer Service",
   },
   {
@@ -90,12 +96,14 @@ const FALLBACK_RECOMMENDATIONS: AgentRecommendation[] = [
     use_case_example:
       "When you snap a photo of a receipt, agent extracts amount, vendor, date, categorizes it (meals, travel, etc.), and adds it to your monthly expense report.",
     time_saved: "2-4 hours per week",
-    wow_factor: "Flags policy violations before submission to prevent approval delays",
+    wow_factor:
+      "Flags policy violations before submission to prevent approval delays",
     category: "Finance",
   },
   {
     name: "Email Newsletter Auto-Curator",
-    tagline: "Generate engaging newsletters from your content library automatically",
+    tagline:
+      "Generate engaging newsletters from your content library automatically",
     description:
       "Analyzes your blog posts, social media, and industry news, curates the most relevant content, writes compelling copy, and schedules newsletter distribution.",
     use_case_example:
@@ -131,10 +139,15 @@ export function createBusinessAutomationAdvisorGraph(
       `Analyzing industry: ${state.industryInput}`,
     );
 
-    await observability.emitProgress(ctx, ctx.taskId, "Normalizing industry name", {
-      step: "normalize_industry",
-      progress: 20,
-    });
+    await observability.emitProgress(
+      ctx,
+      ctx.taskId,
+      "Normalizing industry name",
+      {
+        step: "normalize_industry",
+        progress: 20,
+      },
+    );
 
     // Prompt from N8N workflow (normalize industry)
     const prompt = `You are a business industry classifier. Return ONLY valid JSON (no markdown, no code blocks):
@@ -208,10 +221,15 @@ Now process: ${state.industryInput}`;
   ): Promise<Partial<BusinessAutomationAdvisorState>> {
     const ctx = state.executionContext;
 
-    await observability.emitProgress(ctx, ctx.taskId, "Generating agent recommendations", {
-      step: "generate_ideas",
-      progress: 60,
-    });
+    await observability.emitProgress(
+      ctx,
+      ctx.taskId,
+      "Generating agent recommendations",
+      {
+        step: "generate_ideas",
+        progress: 60,
+      },
+    );
 
     // Prompt from N8N workflow (generate ideas)
     const prompt = `You are an elite automation consultant and expert in ${state.normalizedIndustry}. You understand their daily workflows, bottlenecks, and automation opportunities.
@@ -314,15 +332,23 @@ Make 70%+ highly industry-specific. Return the raw JSON array only, starting wit
         };
       } catch (parseError) {
         // Use fallback recommendations
-        await observability.emitProgress(ctx, ctx.taskId, "Using fallback recommendations", {
-          step: "fallback",
-          progress: 80,
-        });
+        await observability.emitProgress(
+          ctx,
+          ctx.taskId,
+          "Using fallback recommendations",
+          {
+            step: "fallback",
+            progress: 80,
+          },
+        );
 
         await observability.emitCompleted(
           ctx,
           ctx.taskId,
-          { recommendationCount: FALLBACK_RECOMMENDATIONS.length, isFallback: true },
+          {
+            recommendationCount: FALLBACK_RECOMMENDATIONS.length,
+            isFallback: true,
+          },
           Date.now() - state.startedAt,
         );
 
@@ -338,7 +364,10 @@ Make 70%+ highly industry-specific. Return the raw JSON array only, starting wit
       await observability.emitCompleted(
         ctx,
         ctx.taskId,
-        { recommendationCount: FALLBACK_RECOMMENDATIONS.length, isFallback: true },
+        {
+          recommendationCount: FALLBACK_RECOMMENDATIONS.length,
+          isFallback: true,
+        },
         Date.now() - state.startedAt,
       );
 

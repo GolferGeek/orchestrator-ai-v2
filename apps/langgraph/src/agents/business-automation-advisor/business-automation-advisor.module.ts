@@ -14,7 +14,10 @@ import { BusinessAutomationAdvisorDbService } from "./business-automation-adviso
  */
 @Module({
   controllers: [BusinessAutomationAdvisorController],
-  providers: [BusinessAutomationAdvisorService, BusinessAutomationAdvisorDbService],
+  providers: [
+    BusinessAutomationAdvisorService,
+    BusinessAutomationAdvisorDbService,
+  ],
   exports: [BusinessAutomationAdvisorService],
 })
 export class BusinessAutomationAdvisorModule {}

@@ -64,10 +64,10 @@ export class BusinessAutomationAdvisorDbService {
    * Stores the lead submission in the database.
    */
   async submitInterest(
-    request: SubmitInterestRequest
+    request: SubmitInterestRequest,
   ): Promise<SubmissionResponse> {
     this.logger.log(
-      `Storing lead submission: email=${request.email}, selectedAgents=${request.selectedAgents.length}`
+      `Storing lead submission: email=${request.email}, selectedAgents=${request.selectedAgents.length}`,
     );
 
     const { data, error } = await this.supabase

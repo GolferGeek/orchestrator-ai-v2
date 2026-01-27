@@ -92,9 +92,10 @@ export class BatchSignalProcessorRunner {
     try {
       // Get pending signals grouped by URL (article)
       // This ensures we process all targets for each article before moving on
-      const signalGroups = await this.signalRepository.findPendingSignalsGroupedByUrl(
-        this.batchSize,
-      );
+      const signalGroups =
+        await this.signalRepository.findPendingSignalsGroupedByUrl(
+          this.batchSize,
+        );
 
       this.logger.log(`Processing ${signalGroups.length} article groups`);
 

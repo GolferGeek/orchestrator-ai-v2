@@ -19,7 +19,9 @@ import { BusinessAutomationAdvisorRequestDto, SubmitInterestDto } from "./dto";
  */
 @Controller("business-automation-advisor")
 export class BusinessAutomationAdvisorController {
-  private readonly logger = new Logger(BusinessAutomationAdvisorController.name);
+  private readonly logger = new Logger(
+    BusinessAutomationAdvisorController.name,
+  );
 
   constructor(
     private readonly businessAutomationAdvisorService: BusinessAutomationAdvisorService,
@@ -88,7 +90,8 @@ export class BusinessAutomationAdvisorController {
     );
 
     try {
-      const result = await this.businessAutomationAdvisorService.submitInterest(request);
+      const result =
+        await this.businessAutomationAdvisorService.submitInterest(request);
       return result;
     } catch (error) {
       this.logger.error("Submission failed:", error);

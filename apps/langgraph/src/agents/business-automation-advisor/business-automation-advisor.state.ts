@@ -103,7 +103,9 @@ export const BusinessAutomationAdvisorStateAnnotation = Annotation.Root({
   }),
 
   // Status tracking
-  status: Annotation<"started" | "normalizing" | "generating" | "completed" | "failed">({
+  status: Annotation<
+    "started" | "normalizing" | "generating" | "completed" | "failed"
+  >({
     reducer: (_, next) => next,
     default: () => "started",
   }),
