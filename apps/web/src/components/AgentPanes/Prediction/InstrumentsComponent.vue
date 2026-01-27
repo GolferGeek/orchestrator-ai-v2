@@ -1,60 +1,71 @@
 <template>
   <div class="instruments-component">
     <div class="instruments-header">
-      <h3>Tracked Instruments</h3>
-      <div class="instruments-count">{{ instruments.length }} instruments</div>
+      <h3>Tracked Targets</h3>
+      <div class="instruments-count">{{ targets.length }} targets</div>
     </div>
 
-    <!-- Add Instrument -->
-    <div class="add-instrument-section">
-      <input
-        v-model="newInstrument"
-        type="text"
-        placeholder="Add instrument (e.g., AAPL, BTC-USD)"
-        class="instrument-input"
-        @keyup.enter="handleAddInstrument"
-      />
-      <button
-        class="add-btn"
-        :disabled="!canAddInstrument"
-        @click="handleAddInstrument"
-      >
-        Add
-      </button>
+    <!-- Universe Filter -->
+    <div v-if="universes.length > 0" class="filter-section">
+      <label for="universe-filter">Filter by Universe:</label>
+      <select id="universe-filter" v-model="selectedUniverseId" class="filter-select">
+        <option :value="null">All Universes</option>
+        <option v-for="universe in universes" :key="universe.id" :value="universe.id">
+          {{ universe.name }}
+        </option>
+      </select>
     </div>
 
-    <div v-if="addError" class="add-error">
-      {{ addError }}
+    <!-- Targets List -->
+    <div v-if="isLoading" class="loading-state">
+      <div class="spinner"></div>
+      <span>Loading targets...</span>
     </div>
 
-    <!-- Instruments List -->
-    <div v-if="instruments.length === 0" class="empty-state">
-      No instruments tracked yet. Add one above to get started.
+    <div v-else-if="filteredTargets.length === 0" class="empty-state">
+      No targets tracked yet. Configure universes and targets to get started.
     </div>
 
-    <div v-else class="instruments-list">
+    <div v-else class="targets-list">
       <div
-        v-for="instrument in instruments"
-        :key="instrument"
-        class="instrument-card"
+        v-for="target in filteredTargets"
+        :key="target.id"
+        class="target-card"
+        :class="{ inactive: !target.active }"
       >
-        <div class="instrument-info">
-          <div class="instrument-symbol">{{ instrument }}</div>
-          <div v-if="getLastPollTime(instrument)" class="last-poll">
-            Last polled: {{ formatPollTime(getLastPollTime(instrument)!) }}
-          </div>
-          <div v-else class="last-poll">
-            Not polled yet
+        <div class="target-info">
+          <div class="target-symbol">{{ target.symbol }}</div>
+          <div class="target-name">{{ target.name }}</div>
+          <div class="target-meta">
+            <span class="target-type">{{ target.targetType }}</span>
+            <span v-if="!target.active" class="inactive-badge">Inactive</span>
           </div>
         </div>
-        <div class="instrument-actions">
-          <button
-            class="remove-btn"
-            :disabled="isRemoving"
-            @click="handleRemoveInstrument(instrument)"
-          >
-            Remove
-          </button>
+        <div class="target-stats">
+          <div class="stat">
+            <span class="stat-value">{{ getPredictionCount(target.id) }}</span>
+            <span class="stat-label">Predictions</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value">{{ getActivePredictionCount(target.id) }}</span>
+            <span class="stat-label">Active</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Universe Grouping -->
+    <div v-if="!selectedUniverseId && Object.keys(targetsByUniverse).length > 1" class="universe-breakdown">
+      <h4>By Universe</h4>
+      <div class="universe-cards">
+        <div
+          v-for="(universTargets, universeId) in targetsByUniverse"
+          :key="universeId"
+          class="universe-card"
+          @click="selectedUniverseId = universeId"
+        >
+          <div class="universe-name">{{ getUniverseName(universeId) }}</div>
+          <div class="universe-count">{{ universTargets.length }} targets</div>
         </div>
       </div>
     </div>
@@ -63,106 +74,36 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { usePredictionAgentStore } from '@/stores/predictionAgentStore';
+import { usePredictionStore } from '@/stores/predictionStore';
 
-const store = usePredictionAgentStore();
+const store = usePredictionStore();
 
-const newInstrument = ref('');
-const addError = ref<string | null>(null);
-const isRemoving = ref(false);
+const selectedUniverseId = ref<string | null>(null);
 
-const instruments = computed(() => store.instruments);
-const latestDatapoint = computed(() => store.latestDatapoint);
+const targets = computed(() => store.targets);
+const universes = computed(() => store.universes);
+const predictions = computed(() => store.predictions);
+const targetsByUniverse = computed(() => store.targetsByUniverse);
+const isLoading = computed(() => store.isLoading);
 
-const canAddInstrument = computed(() => {
-  return newInstrument.value.trim().length > 0 && !isValidating.value;
+const filteredTargets = computed(() => {
+  if (!selectedUniverseId.value) {
+    return targets.value;
+  }
+  return targets.value.filter(t => t.universeId === selectedUniverseId.value);
 });
 
-const isValidating = ref(false);
-
-function validateInstrument(symbol: string): boolean {
-  // Basic validation: alphanumeric, hyphens, underscores
-  const pattern = /^[A-Z0-9_-]+$/i;
-  if (!pattern.test(symbol)) {
-    addError.value = 'Invalid instrument symbol. Use letters, numbers, hyphens, or underscores.';
-    return false;
-  }
-
-  if (instruments.value.includes(symbol.toUpperCase())) {
-    addError.value = 'This instrument is already being tracked.';
-    return false;
-  }
-
-  return true;
+function getUniverseName(universeId: string): string {
+  const universe = universes.value.find(u => u.id === universeId);
+  return universe?.name || 'Unknown';
 }
 
-async function handleAddInstrument() {
-  const symbol = newInstrument.value.trim().toUpperCase();
-  if (!symbol) return;
-
-  addError.value = null;
-
-  if (!validateInstrument(symbol)) {
-    return;
-  }
-
-  isValidating.value = true;
-
-  try {
-    // Add to store (service layer will handle API call)
-    store.addInstrument(symbol);
-    newInstrument.value = '';
-    addError.value = null;
-  } catch (err) {
-    addError.value = err instanceof Error ? err.message : 'Failed to add instrument';
-  } finally {
-    isValidating.value = false;
-  }
+function getPredictionCount(targetId: string): number {
+  return predictions.value.filter(p => p.targetId === targetId).length;
 }
 
-async function handleRemoveInstrument(instrument: string) {
-  if (isRemoving.value) return;
-
-  const confirmed = confirm(`Remove ${instrument} from tracked instruments?`);
-  if (!confirmed) return;
-
-  isRemoving.value = true;
-
-  try {
-    // Remove from store (service layer will handle API call)
-    store.removeInstrument(instrument);
-  } catch (err) {
-    console.error('Failed to remove instrument:', err);
-  } finally {
-    isRemoving.value = false;
-  }
-}
-
-function getLastPollTime(instrument: string): string | null {
-  if (!latestDatapoint.value) return null;
-
-  // Check if this instrument was in the latest datapoint
-  if (latestDatapoint.value.instruments.includes(instrument)) {
-    return latestDatapoint.value.timestamp;
-  }
-
-  return null;
-}
-
-function formatPollTime(timestamp: string): string {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
-
-  const seconds = Math.floor(diff / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-
-  if (seconds < 60) return `${seconds}s ago`;
-  if (minutes < 60) return `${minutes}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  return `${days}d ago`;
+function getActivePredictionCount(targetId: string): number {
+  return predictions.value.filter(p => p.targetId === targetId && p.status === 'active').length;
 }
 </script>
 
@@ -194,71 +135,67 @@ function formatPollTime(timestamp: string): string {
   font-weight: 600;
 }
 
-.add-instrument-section {
+.filter-section {
   display: flex;
+  align-items: center;
   gap: 0.75rem;
 }
 
-.instrument-input {
-  flex: 1;
-  padding: 0.75rem 1rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.375rem;
-  font-size: 1rem;
-  transition: border-color 0.2s;
+.filter-section label {
+  font-size: 0.875rem;
+  color: #374151;
+  font-weight: 500;
 }
 
-.instrument-input:focus {
+.filter-select {
+  padding: 0.5rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  background-color: white;
+}
+
+.filter-select:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-.add-btn {
-  padding: 0.75rem 1.5rem;
-  background-color: #10b981;
-  color: white;
-  border: none;
-  border-radius: 0.375rem;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.add-btn:hover:not(:disabled) {
-  background-color: #059669;
-}
-
-.add-btn:disabled {
-  background-color: #d1d5db;
-  cursor: not-allowed;
-}
-
-.add-error {
-  padding: 0.75rem;
-  background-color: #fef2f2;
-  border: 1px solid #fecaca;
-  border-radius: 0.375rem;
-  color: #991b1b;
-  font-size: 0.875rem;
-}
-
+.loading-state,
 .empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
   padding: 3rem;
-  text-align: center;
   background-color: #f9fafb;
   border-radius: 0.5rem;
+  font-size: 1rem;
   color: #6b7280;
 }
 
-.instruments-list {
+.spinner {
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 3px solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.targets-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1rem;
 }
 
-.instrument-card {
+.target-card {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -269,45 +206,114 @@ function formatPollTime(timestamp: string): string {
   transition: box-shadow 0.2s;
 }
 
-.instrument-card:hover {
+.target-card:hover {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
-.instrument-info {
+.target-card.inactive {
+  opacity: 0.6;
+  background-color: #f9fafb;
+}
+
+.target-info {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
 }
 
-.instrument-symbol {
+.target-symbol {
   font-size: 1.125rem;
   font-weight: 700;
   color: #111827;
 }
 
-.last-poll {
-  font-size: 0.75rem;
+.target-name {
+  font-size: 0.875rem;
   color: #6b7280;
 }
 
-.remove-btn {
-  padding: 0.5rem 1rem;
-  background-color: #ef4444;
-  color: white;
-  border: none;
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
+.target-meta {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.target-type {
+  font-size: 0.75rem;
+  padding: 0.125rem 0.5rem;
+  background-color: #e5e7eb;
+  border-radius: 0.25rem;
+  color: #374151;
+}
+
+.inactive-badge {
+  font-size: 0.75rem;
+  padding: 0.125rem 0.5rem;
+  background-color: #fef3c7;
+  border-radius: 0.25rem;
+  color: #92400e;
+}
+
+.target-stats {
+  display: flex;
+  gap: 1rem;
+}
+
+.stat {
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.stat-label {
+  font-size: 0.625rem;
+  color: #6b7280;
+  text-transform: uppercase;
+}
+
+.universe-breakdown {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.universe-breakdown h4 {
+  margin: 0 0 1rem 0;
+  font-size: 1.125rem;
   font-weight: 600;
+  color: #374151;
+}
+
+.universe-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.universe-card {
+  padding: 0.75rem 1rem;
+  background-color: #f3f4f6;
+  border-radius: 0.375rem;
   cursor: pointer;
   transition: background-color 0.2s;
 }
 
-.remove-btn:hover:not(:disabled) {
-  background-color: #dc2626;
+.universe-card:hover {
+  background-color: #e5e7eb;
 }
 
-.remove-btn:disabled {
-  background-color: #d1d5db;
-  cursor: not-allowed;
+.universe-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.universe-count {
+  font-size: 0.75rem;
+  color: #6b7280;
 }
 </style>

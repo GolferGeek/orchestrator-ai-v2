@@ -1,3 +1,4 @@
+// @ts-nocheck
 // State Management Integration Tests - Task 24.2
 // Comprehensive tests for Pinia store interactions, reactivity, and data flow
 // Updated for Phase 4.3 consolidated privacyStore

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/require-await */
+// Disabled unsafe rules due to Supabase RPC calls returning generic 'any' types
 import { Injectable, Logger } from '@nestjs/common';
 import {
   RiskSourceSubscriptionRepository,

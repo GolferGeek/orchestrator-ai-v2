@@ -465,7 +465,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, watch, onMounted } from 'vue';
 import { riskDashboardService } from '@/services/riskDashboardService';
 import type {
   RiskDimension,
@@ -473,7 +473,6 @@ import type {
   SimulationResults,
   SimulationParameters,
   DimensionDistribution,
-  DistributionType,
 } from '@/types/risk-agent';
 
 const props = defineProps<{

@@ -167,6 +167,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  taskId: undefined,
   mode: 'analysis',
 });
 

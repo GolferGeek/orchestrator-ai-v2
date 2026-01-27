@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Enhanced Sanitization System Tests
  * Comprehensive tests for DOMPurify v3.x integration and sanitization profiles

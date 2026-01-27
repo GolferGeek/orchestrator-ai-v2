@@ -9,6 +9,7 @@ import { CorporateAnalysisOutput } from "./nodes/corporate-agent.node";
 import { LitigationAnalysisOutput } from "./nodes/litigation-agent.node";
 import { RealEstateAnalysisOutput } from "./nodes/real-estate-agent.node";
 import { RoutingDecision } from "./nodes/clo-routing.node";
+import { SynthesisOutput } from "./nodes/synthesis.node";
 
 /**
  * Legal document metadata from API's document processing
@@ -267,7 +268,9 @@ export const LegalDepartmentStateAnnotation = Annotation.Root({
     specialists?: string[]; // List of specialists to invoke
     completed?: string[]; // List of specialists that have completed
     failed?: string[]; // List of specialists that failed
-    synthesis?: any; // Combined synthesis of all specialist outputs
+    synthesis?: SynthesisOutput; // Combined synthesis of all specialist outputs
+    hitlApproved?: boolean; // Whether HITL checkpoint was approved
+    hitlApprovedAt?: string; // Timestamp of HITL approval
   }>({
     reducer: (prev, next) => ({ ...prev, ...next }),
     default: () => ({}),

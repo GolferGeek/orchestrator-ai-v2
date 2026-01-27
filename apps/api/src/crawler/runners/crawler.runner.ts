@@ -360,7 +360,7 @@ export class CrawlerRunner {
    * Fetch items from a web page
    * NOTE: Firecrawl integration would be added here
    */
-  private async fetchWebItems(source: Source): Promise<
+  private fetchWebItems(source: Source): Promise<
     Array<{
       url: string;
       title?: string;
@@ -375,7 +375,7 @@ export class CrawlerRunner {
     this.logger.debug(
       `Web crawling not yet implemented in central crawler for: ${source.url}`,
     );
-    return [
+    return Promise.resolve([
       {
         url: source.url,
         title: undefined,
@@ -383,7 +383,7 @@ export class CrawlerRunner {
         summary: undefined,
         raw_data: {},
       },
-    ];
+    ]);
   }
 
   /**
@@ -405,14 +405,18 @@ export class CrawlerRunner {
       );
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as Record<string, unknown>;
 
     // Try to extract items from common API response patterns
-    const items = Array.isArray(data)
-      ? data
-      : data.items || data.articles || data.results || [data];
+    const items = (
+      Array.isArray(data)
+        ? data
+        : (data.items as unknown[]) ||
+          (data.articles as unknown[]) ||
+          (data.results as unknown[]) || [data]
+    ) as Record<string, unknown>[];
 
-    return items.map((item: Record<string, unknown>) => ({
+    return items.map((item) => ({
       url: (item.url || item.link || source.url) as string,
       title: (item.title || item.headline) as string | undefined,
       content: (item.content || item.body || item.text) as string | undefined,

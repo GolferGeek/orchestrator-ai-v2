@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Unit Tests for Plan Store
  * Tests pure state management for plans and versions

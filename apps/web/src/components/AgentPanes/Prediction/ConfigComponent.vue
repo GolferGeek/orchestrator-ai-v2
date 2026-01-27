@@ -2,269 +2,110 @@
   <div class="config-component">
     <div class="config-header">
       <h3>Configuration</h3>
-      <button
-        v-if="hasChanges"
-        class="save-btn"
-        :disabled="isSaving"
-        @click="handleSaveConfig"
-      >
-        {{ isSaving ? 'Saving...' : 'Save Changes' }}
-      </button>
     </div>
 
-    <div v-if="!config" class="empty-state">
-      No configuration available.
+    <div v-if="isLoading" class="loading-state">
+      <div class="spinner"></div>
+      <span>Loading configuration...</span>
     </div>
 
     <div v-else class="config-content">
-      <!-- Risk Profile -->
+      <!-- Strategies Section -->
       <div class="config-section">
-        <h4>Risk Profile</h4>
-        <div class="form-group">
-          <label for="risk-profile">Profile:</label>
-          <select
-            id="risk-profile"
-            v-model="localConfig.riskProfile"
-            class="form-select"
+        <h4>Available Strategies</h4>
+        <div v-if="strategies.length === 0" class="empty-message">
+          No strategies configured.
+        </div>
+        <div v-else class="strategies-list">
+          <div
+            v-for="strategy in strategies"
+            :key="strategy.id"
+            class="strategy-card"
+            :class="{ 'is-system': strategy.isSystem }"
           >
-            <optgroup label="Stock Profiles">
-              <option value="conservative">Conservative</option>
-              <option value="moderate">Moderate</option>
-              <option value="aggressive">Aggressive</option>
-            </optgroup>
-            <optgroup label="Crypto Profiles">
-              <option value="hodler">Hodler</option>
-              <option value="trader">Trader</option>
-              <option value="degen">Degen</option>
-            </optgroup>
-            <optgroup label="Polymarket Profiles">
-              <option value="researcher">Researcher</option>
-              <option value="speculator">Speculator</option>
-            </optgroup>
-          </select>
+            <div class="strategy-header">
+              <div class="strategy-name">{{ strategy.name }}</div>
+              <div class="strategy-badges">
+                <span class="risk-badge" :class="`risk-${strategy.riskLevel}`">
+                  {{ strategy.riskLevel }}
+                </span>
+                <span v-if="strategy.isSystem" class="system-badge">System</span>
+              </div>
+            </div>
+            <div class="strategy-description">{{ strategy.description }}</div>
+            <div class="strategy-params">
+              <div v-if="strategy.parameters.minPredictors" class="param">
+                <span class="param-label">Min Predictors:</span>
+                <span class="param-value">{{ strategy.parameters.minPredictors }}</span>
+              </div>
+              <div v-if="strategy.parameters.minCombinedStrength" class="param">
+                <span class="param-label">Min Strength:</span>
+                <span class="param-value">{{ strategy.parameters.minCombinedStrength }}</span>
+              </div>
+              <div v-if="strategy.parameters.minDirectionConsensus" class="param">
+                <span class="param-label">Min Consensus:</span>
+                <span class="param-value">{{ (strategy.parameters.minDirectionConsensus * 100).toFixed(0) }}%</span>
+              </div>
+            </div>
+          </div>
         </div>
-        <p class="help-text">
-          Risk profile determines position sizing and recommendation aggressiveness.
-        </p>
       </div>
 
-      <!-- Pre-Filter Thresholds -->
+      <!-- Universes Configuration Summary -->
       <div class="config-section">
-        <h4>Pre-Filter Thresholds</h4>
-        <div class="form-group">
-          <label for="price-change">Min Price Change (%):</label>
-          <input
-            id="price-change"
-            v-model.number="localConfig.preFilterThresholds.minPriceChangePercent"
-            type="number"
-            step="0.1"
-            min="0"
-            class="form-input"
-          />
-          <div class="slider-container">
-            <input
-              v-model.number="localConfig.preFilterThresholds.minPriceChangePercent"
-              type="range"
-              min="0"
-              max="20"
-              step="0.5"
-              class="slider"
-            />
-            <span class="slider-value">
-              {{ localConfig.preFilterThresholds.minPriceChangePercent.toFixed(1) }}%
-            </span>
+        <h4>Universes Summary</h4>
+        <div v-if="universes.length === 0" class="empty-message">
+          No universes configured.
+        </div>
+        <div v-else class="universes-summary">
+          <div
+            v-for="universe in universes"
+            :key="universe.id"
+            class="universe-item"
+          >
+            <div class="universe-name">{{ universe.name }}</div>
+            <div class="universe-meta">
+              <span class="universe-domain">{{ universe.domain }}</span>
+              <span class="universe-targets">{{ getTargetCount(universe.id) }} targets</span>
+            </div>
+            <div v-if="universe.llmConfig?.tiers" class="universe-tiers">
+              <span v-if="universe.llmConfig.tiers.gold" class="tier gold">
+                Gold: {{ universe.llmConfig.tiers.gold.model }}
+              </span>
+              <span v-if="universe.llmConfig.tiers.silver" class="tier silver">
+                Silver: {{ universe.llmConfig.tiers.silver.model }}
+              </span>
+              <span v-if="universe.llmConfig.tiers.bronze" class="tier bronze">
+                Bronze: {{ universe.llmConfig.tiers.bronze.model }}
+              </span>
+            </div>
           </div>
         </div>
-
-        <div class="form-group">
-          <label for="sentiment-shift">Min Sentiment Shift:</label>
-          <input
-            id="sentiment-shift"
-            v-model.number="localConfig.preFilterThresholds.minSentimentShift"
-            type="number"
-            step="0.01"
-            min="0"
-            max="1"
-            class="form-input"
-          />
-          <div class="slider-container">
-            <input
-              v-model.number="localConfig.preFilterThresholds.minSentimentShift"
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              class="slider"
-            />
-            <span class="slider-value">
-              {{ localConfig.preFilterThresholds.minSentimentShift.toFixed(2) }}
-            </span>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="significance">Min Significance Score:</label>
-          <input
-            id="significance"
-            v-model.number="localConfig.preFilterThresholds.minSignificanceScore"
-            type="number"
-            step="0.01"
-            min="0"
-            max="1"
-            class="form-input"
-          />
-          <div class="slider-container">
-            <input
-              v-model.number="localConfig.preFilterThresholds.minSignificanceScore"
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              class="slider"
-            />
-            <span class="slider-value">
-              {{ localConfig.preFilterThresholds.minSignificanceScore.toFixed(2) }}
-            </span>
-          </div>
-        </div>
-
-        <p class="help-text">
-          Thresholds determine when claims are significant enough to warrant specialist analysis.
-        </p>
       </div>
 
-      <!-- Poll Interval -->
-      <div class="config-section">
-        <h4>Poll Interval</h4>
-        <div class="form-group">
-          <label for="poll-interval">Interval (minutes):</label>
-          <input
-            id="poll-interval"
-            v-model.number="pollIntervalMinutes"
-            type="number"
-            step="1"
-            min="1"
-            class="form-input"
-          />
-          <div class="slider-container">
-            <input
-              v-model.number="pollIntervalMinutes"
-              type="range"
-              min="1"
-              max="60"
-              step="1"
-              class="slider"
-            />
-            <span class="slider-value">{{ pollIntervalMinutes }} min</span>
-          </div>
-        </div>
+      <!-- Info Section -->
+      <div class="config-section info-section">
+        <h4>Pipeline Configuration</h4>
         <p class="help-text">
-          How often the agent polls data sources for new information.
+          The prediction pipeline uses A2A (Agent-to-Agent) protocol for all operations.
+          Configuration is managed through universes, strategies, and sources.
         </p>
-      </div>
-
-      <!-- Model Configuration (Admin Only) -->
-      <div v-if="isAdmin" class="config-section admin-section">
-        <h4>Model Configuration (Admin)</h4>
-        <div class="admin-notice">
-          Advanced settings. Changes affect LLM model usage and costs.
-        </div>
-
-        <div class="model-config-grid">
-          <!-- Triage Model -->
-          <div class="model-config-item">
-            <h5>Triage Model</h5>
-            <div class="form-group compact">
-              <label>Provider:</label>
-              <input
-                v-model="localConfig.modelConfig.triage.provider"
-                type="text"
-                class="form-input"
-              />
-            </div>
-            <div class="form-group compact">
-              <label>Model:</label>
-              <input
-                v-model="localConfig.modelConfig.triage.model"
-                type="text"
-                class="form-input"
-              />
-            </div>
-            <div class="form-group compact">
-              <label>Temperature:</label>
-              <input
-                v-model.number="localConfig.modelConfig.triage.temperature"
-                type="number"
-                step="0.1"
-                min="0"
-                max="2"
-                class="form-input"
-              />
-            </div>
+        <div class="config-links">
+          <div class="link-item">
+            <span class="link-label">Universes:</span>
+            <span class="link-desc">Define prediction domains and LLM tiers</span>
           </div>
-
-          <!-- Specialists Model -->
-          <div class="model-config-item">
-            <h5>Specialists Model</h5>
-            <div class="form-group compact">
-              <label>Provider:</label>
-              <input
-                v-model="localConfig.modelConfig.specialists.provider"
-                type="text"
-                class="form-input"
-              />
-            </div>
-            <div class="form-group compact">
-              <label>Model:</label>
-              <input
-                v-model="localConfig.modelConfig.specialists.model"
-                type="text"
-                class="form-input"
-              />
-            </div>
-            <div class="form-group compact">
-              <label>Temperature:</label>
-              <input
-                v-model.number="localConfig.modelConfig.specialists.temperature"
-                type="number"
-                step="0.1"
-                min="0"
-                max="2"
-                class="form-input"
-              />
-            </div>
+          <div class="link-item">
+            <span class="link-label">Targets:</span>
+            <span class="link-desc">Configure symbols/markets to track</span>
           </div>
-
-          <!-- Evaluators Model -->
-          <div class="model-config-item">
-            <h5>Evaluators Model</h5>
-            <div class="form-group compact">
-              <label>Provider:</label>
-              <input
-                v-model="localConfig.modelConfig.evaluators.provider"
-                type="text"
-                class="form-input"
-              />
-            </div>
-            <div class="form-group compact">
-              <label>Model:</label>
-              <input
-                v-model="localConfig.modelConfig.evaluators.model"
-                type="text"
-                class="form-input"
-              />
-            </div>
-            <div class="form-group compact">
-              <label>Temperature:</label>
-              <input
-                v-model.number="localConfig.modelConfig.evaluators.temperature"
-                type="number"
-                step="0.1"
-                min="0"
-                max="2"
-                class="form-input"
-              />
-            </div>
+          <div class="link-item">
+            <span class="link-label">Sources:</span>
+            <span class="link-desc">Data sources for signal collection</span>
+          </div>
+          <div class="link-item">
+            <span class="link-label">Analysts:</span>
+            <span class="link-desc">AI analysts with different perspectives</span>
           </div>
         </div>
       </div>
@@ -273,97 +114,37 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
-import { usePredictionAgentStore } from '@/stores/predictionAgentStore';
-import { useRbacStore } from '@/stores/rbacStore';
-import type { PredictionRunnerConfig } from '@/types/prediction-agent';
+import { computed, onMounted, ref } from 'vue';
+import { usePredictionStore } from '@/stores/predictionStore';
+import { predictionDashboardService, type PredictionStrategy } from '@/services/predictionDashboardService';
 
-const store = usePredictionAgentStore();
-const rbacStore = useRbacStore();
+const store = usePredictionStore();
 
-const config = computed(() => store.config);
-const isSaving = ref(false);
-const hasChanges = ref(false);
+const strategies = ref<PredictionStrategy[]>([]);
+const isLoading = computed(() => store.isLoading);
+const universes = computed(() => store.universes);
+const targets = computed(() => store.targets);
 
-const isAdmin = computed(() => {
-  const role = rbacStore.currentRole;
-  return role === 'super_admin' || role === 'org_admin';
+onMounted(async () => {
+  await loadStrategies();
 });
 
-const localConfig = ref<PredictionRunnerConfig>({
-  runner: 'stock-predictor',
-  instruments: [],
-  riskProfile: 'moderate',
-  pollIntervalMs: 60000,
-  preFilterThresholds: {
-    minPriceChangePercent: 2,
-    minSentimentShift: 0.2,
-    minSignificanceScore: 0.5,
-  },
-  modelConfig: {
-    triage: {
-      provider: 'anthropic',
-      model: 'claude-3-5-haiku-20241022',
-      temperature: 0.3,
-    },
-    specialists: {
-      provider: 'anthropic',
-      model: 'claude-sonnet-4-20250514',
-      temperature: 0.7,
-    },
-    evaluators: {
-      provider: 'anthropic',
-      model: 'claude-sonnet-4-20250514',
-      temperature: 0.5,
-    },
-  },
-});
-
-const pollIntervalMinutes = computed({
-  get: () => Math.round(localConfig.value.pollIntervalMs / 60000),
-  set: (value: number) => {
-    localConfig.value.pollIntervalMs = value * 60000;
-  },
-});
-
-// Initialize local config from store
-watch(
-  config,
-  (newConfig) => {
-    if (newConfig) {
-      localConfig.value = JSON.parse(JSON.stringify(newConfig));
-      hasChanges.value = false;
-    }
-  },
-  { immediate: true, deep: true }
-);
-
-// Detect changes
-watch(
-  localConfig,
-  () => {
-    if (config.value) {
-      hasChanges.value =
-        JSON.stringify(localConfig.value) !== JSON.stringify(config.value);
-    }
-  },
-  { deep: true }
-);
-
-async function handleSaveConfig() {
-  if (!hasChanges.value || isSaving.value) return;
-
-  isSaving.value = true;
-
+async function loadStrategies() {
+  store.setLoading(true);
   try {
-    // Update store (service layer will handle API call)
-    store.updateConfig(localConfig.value);
-    hasChanges.value = false;
+    const response = await predictionDashboardService.listStrategies();
+    if (response.content) {
+      strategies.value = response.content;
+    }
   } catch (err) {
-    console.error('Failed to save configuration:', err);
+    store.setError(err instanceof Error ? err.message : 'Failed to load strategies');
   } finally {
-    isSaving.value = false;
+    store.setLoading(false);
   }
+}
+
+function getTargetCount(universeId: string): number {
+  return targets.value.filter(t => t.universeId === universeId).length;
 }
 </script>
 
@@ -389,33 +170,31 @@ async function handleSaveConfig() {
   color: #111827;
 }
 
-.save-btn {
-  padding: 0.75rem 1.5rem;
-  background-color: #10b981;
-  color: white;
-  border: none;
-  border-radius: 0.375rem;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.save-btn:hover:not(:disabled) {
-  background-color: #059669;
-}
-
-.save-btn:disabled {
-  background-color: #d1d5db;
-  cursor: not-allowed;
-}
-
-.empty-state {
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
   padding: 3rem;
-  text-align: center;
   background-color: #f9fafb;
   border-radius: 0.5rem;
+  font-size: 1rem;
   color: #6b7280;
+}
+
+.spinner {
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 3px solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .config-content {
@@ -438,125 +217,201 @@ async function handleSaveConfig() {
   color: #111827;
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
-}
-
-.form-group:last-child {
-  margin-bottom: 0;
-}
-
-.form-group.compact {
-  margin-bottom: 0.75rem;
-}
-
-.form-group label {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #374151;
-}
-
-.form-select,
-.form-input {
-  padding: 0.75rem 1rem;
-  border: 1px solid #d1d5db;
+.empty-message {
+  padding: 1rem;
+  text-align: center;
+  color: #6b7280;
+  background-color: #f9fafb;
   border-radius: 0.375rem;
-  font-size: 1rem;
-  transition: border-color 0.2s;
 }
 
-.form-select:focus,
-.form-input:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.slider-container {
-  display: flex;
-  align-items: center;
+.strategies-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1rem;
 }
 
-.slider {
-  flex: 1;
-  height: 0.5rem;
-  background: #e5e7eb;
-  border-radius: 0.25rem;
-  outline: none;
-  appearance: none;
+.strategy-card {
+  padding: 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  background-color: #f9fafb;
 }
 
-.slider::-webkit-slider-thumb {
-  appearance: none;
-  width: 1.25rem;
-  height: 1.25rem;
-  background: #3b82f6;
-  border-radius: 50%;
-  cursor: pointer;
+.strategy-card.is-system {
+  border-color: #3b82f6;
+  background-color: #eff6ff;
 }
 
-.slider::-moz-range-thumb {
-  width: 1.25rem;
-  height: 1.25rem;
-  background: #3b82f6;
-  border-radius: 50%;
-  cursor: pointer;
-  border: none;
+.strategy-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
 }
 
-.slider-value {
-  min-width: 4rem;
-  font-size: 0.875rem;
+.strategy-name {
+  font-size: 1rem;
   font-weight: 600;
+  color: #111827;
+}
+
+.strategy-badges {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.risk-badge {
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.risk-low {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.risk-medium {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.risk-high {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.system-badge {
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.strategy-description {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 0.75rem;
+}
+
+.strategy-params {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.param {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+}
+
+.param-label {
+  color: #6b7280;
+}
+
+.param-value {
+  font-weight: 600;
+  color: #111827;
+}
+
+.universes-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.universe-item {
+  padding: 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+  background-color: #f9fafb;
+}
+
+.universe-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 0.25rem;
+}
+
+.universe-meta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.universe-domain {
+  text-transform: capitalize;
+}
+
+.universe-tiers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.tier {
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.625rem;
+  font-family: monospace;
+}
+
+.tier.gold {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.tier.silver {
+  background-color: #e5e7eb;
   color: #374151;
-  text-align: right;
+}
+
+.tier.bronze {
+  background-color: #fce7f3;
+  color: #9d174d;
+}
+
+.info-section {
+  background-color: #f0f9ff;
+  border-color: #bae6fd;
 }
 
 .help-text {
-  margin: 0.5rem 0 0 0;
-  font-size: 0.875rem;
-  color: #6b7280;
-  font-style: italic;
-}
-
-.admin-section {
-  border: 2px solid #f59e0b;
-  background-color: #fffbeb;
-}
-
-.admin-notice {
-  padding: 0.75rem;
-  margin-bottom: 1.5rem;
-  background-color: #fef3c7;
-  border-left: 3px solid #f59e0b;
-  font-size: 0.875rem;
-  color: #78350f;
-  font-weight: 500;
-}
-
-.model-config-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
-}
-
-.model-config-item {
-  padding: 1rem;
-  background-color: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.375rem;
-}
-
-.model-config-item h5 {
   margin: 0 0 1rem 0;
-  font-size: 1rem;
+  font-size: 0.875rem;
+  color: #0369a1;
+}
+
+.config-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.link-item {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.link-label {
   font-weight: 600;
-  color: #374151;
-  border-bottom: 1px solid #e5e7eb;
-  padding-bottom: 0.5rem;
+  color: #0369a1;
+  min-width: 80px;
+}
+
+.link-desc {
+  color: #6b7280;
 }
 </style>

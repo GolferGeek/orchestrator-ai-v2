@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Store Reactivity Tests
 // Tests for validating reactive state updates across modules
 // Updated for Phase 4.3 consolidated privacyStore

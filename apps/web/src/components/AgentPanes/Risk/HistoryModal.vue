@@ -107,7 +107,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { riskDashboardService } from '@/services/riskDashboardService';
-import { formatScorePercent, formatScoreChange, extractDimensionScore, getChangeClass as getScoreChangeClass } from '@/utils/riskScoreUtils';
+import { formatScorePercent, formatScoreChange, extractDimensionScore } from '@/utils/riskScoreUtils';
 
 interface Props {
   isVisible: boolean;

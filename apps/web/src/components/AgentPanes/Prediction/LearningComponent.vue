@@ -3,13 +3,9 @@
     <div class="learning-header">
       <h3>Learning Loop</h3>
       <div class="header-actions">
-        <button
-          class="apply-learnings-btn"
-          :disabled="unappliedCount === 0 || isApplying"
-          @click="applyAllLearnings"
-        >
-          {{ isApplying ? 'Applying...' : `Apply ${unappliedCount} Learnings` }}
-        </button>
+        <span v-if="pendingQueueCount > 0" class="pending-count">
+          {{ pendingQueueCount }} pending reviews
+        </span>
       </div>
     </div>
 
@@ -19,7 +15,7 @@
     </div>
 
     <div v-else-if="error" class="error-state">
-      <span class="error-icon">⚠</span>
+      <span class="error-icon">&#9888;</span>
       <span>{{ error }}</span>
     </div>
 
@@ -27,30 +23,36 @@
       <!-- Learning Summary Stats -->
       <div class="stats-section">
         <div class="stat-card">
-          <div class="stat-value">{{ summary.overallAccuracyPercent?.toFixed(1) || 'N/A' }}%</div>
-          <div class="stat-label">Overall Accuracy</div>
+          <div class="stat-value">{{ learnings.length }}</div>
+          <div class="stat-label">Total Learnings</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value">{{ summary.totalRecommendations }}</div>
-          <div class="stat-label">Total Recommendations</div>
+          <div class="stat-value">{{ activeLearningsCount }}</div>
+          <div class="stat-label">Active</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value">{{ summary.totalPostmortems }}</div>
-          <div class="stat-label">Postmortems</div>
+          <div class="stat-value">{{ missedOpportunities.length }}</div>
+          <div class="stat-label">Missed Opportunities</div>
         </div>
         <div class="stat-card unapplied">
-          <div class="stat-value">{{ unappliedCount }}</div>
-          <div class="stat-label">Unapplied Learnings</div>
+          <div class="stat-value">{{ pendingQueueCount }}</div>
+          <div class="stat-label">Pending Queue</div>
         </div>
       </div>
 
       <!-- Tabs -->
       <div class="tabs">
         <button
-          :class="['tab', { active: activeTab === 'postmortems' }]"
-          @click="activeTab = 'postmortems'"
+          :class="['tab', { active: activeTab === 'learnings' }]"
+          @click="activeTab = 'learnings'"
         >
-          Postmortems ({{ postmortems.length }})
+          Learnings ({{ learnings.length }})
+        </button>
+        <button
+          :class="['tab', { active: activeTab === 'queue' }]"
+          @click="activeTab = 'queue'"
+        >
+          Review Queue ({{ learningQueue.length }})
         </button>
         <button
           :class="['tab', { active: activeTab === 'missed' }]"
@@ -59,64 +61,76 @@
           Missed Opportunities ({{ missedOpportunities.length }})
         </button>
         <button
-          :class="['tab', { active: activeTab === 'insights' }]"
-          @click="activeTab = 'insights'"
+          :class="['tab', { active: activeTab === 'analysts' }]"
+          @click="activeTab = 'analysts'"
         >
-          User Insights ({{ userInsights.length }})
-        </button>
-        <button
-          :class="['tab', { active: activeTab === 'specialists' }]"
-          @click="activeTab = 'specialists'"
-        >
-          Specialist Stats
-        </button>
-        <button
-          :class="['tab', { active: activeTab === 'chat' }]"
-          @click="activeTab = 'chat'"
-        >
-          Learning Chat
+          Analysts ({{ analysts.length }})
         </button>
       </div>
 
-      <!-- Postmortems Tab -->
-      <div v-if="activeTab === 'postmortems'" class="tab-content">
-        <div v-if="postmortems.length === 0" class="empty-message">
-          No postmortems yet. Postmortems are created when predictions have outcomes.
+      <!-- Learnings Tab -->
+      <div v-if="activeTab === 'learnings'" class="tab-content">
+        <div v-if="learnings.length === 0" class="empty-message">
+          No learnings yet. Learnings are generated from prediction outcomes and user feedback.
         </div>
-        <div v-else class="postmortems-list">
+        <div v-else class="learnings-list">
           <div
-            v-for="pm in postmortems"
-            :key="pm.id"
-            :class="['postmortem-card', { applied: pm.appliedToContext }]"
+            v-for="learning in learnings"
+            :key="learning.id"
+            :class="['learning-card', { inactive: learning.status !== 'active' }]"
           >
-            <div class="pm-header">
-              <span class="pm-instrument">{{ pm.instrument }}</span>
-              <span :class="['pm-outcome', pm.outcome]">{{ pm.outcome }}</span>
-              <span v-if="pm.appliedToContext" class="applied-badge">Applied</span>
+            <div class="learning-header-row">
+              <span class="learning-title">{{ learning.title }}</span>
+              <span :class="['learning-type', `type-${learning.learningType}`]">
+                {{ learning.learningType.replace(/_/g, ' ') }}
+              </span>
+              <span v-if="learning.status !== 'active'" class="status-badge">
+                {{ learning.status }}
+              </span>
             </div>
-            <div class="pm-details">
-              <div v-if="pm.returnPercent !== null" class="pm-return">
-                Return: {{ pm.returnPercent.toFixed(2) }}%
-              </div>
-              <div v-if="pm.rootCause" class="pm-root-cause">
-                <strong>Root Cause:</strong> {{ pm.rootCause }}
-              </div>
+            <div class="learning-content-text">{{ learning.content }}</div>
+            <div class="learning-meta">
+              <span class="scope">{{ learning.scopeLevel }}</span>
+              <span v-if="learning.domain" class="domain">{{ learning.domain }}</span>
+              <span class="source">{{ learning.sourceType.replace(/_/g, ' ') }}</span>
+              <span class="date">{{ formatDate(learning.createdAt) }}</span>
             </div>
-            <div v-if="pm.keyLearnings.length > 0" class="pm-learnings">
-              <strong>Key Learnings:</strong>
-              <ul>
-                <li v-for="(learning, idx) in pm.keyLearnings" :key="idx">
-                  {{ learning }}
-                </li>
-              </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Queue Tab -->
+      <div v-if="activeTab === 'queue'" class="tab-content">
+        <div v-if="learningQueue.length === 0" class="empty-message">
+          No items in the learning queue. AI-suggested learnings will appear here for review.
+        </div>
+        <div v-else class="queue-list">
+          <div
+            v-for="item in learningQueue"
+            :key="item.id"
+            :class="['queue-card', `status-${item.status}`]"
+          >
+            <div class="queue-header">
+              <span class="queue-title">{{ item.suggestedTitle }}</span>
+              <span :class="['queue-status', `status-${item.status}`]">
+                {{ item.status }}
+              </span>
             </div>
-            <div class="pm-actions">
-              <button
-                v-if="!pm.appliedToContext"
-                class="apply-btn"
-                @click="applyPostmortem(pm.id)"
-              >
-                Apply Learning
+            <div class="queue-content">{{ item.suggestedContent }}</div>
+            <div class="queue-meta">
+              <span class="confidence">Confidence: {{ (item.confidence * 100).toFixed(0) }}%</span>
+              <span class="type">{{ item.suggestedLearningType.replace(/_/g, ' ') }}</span>
+              <span class="scope">{{ item.suggestedScopeLevel }}</span>
+            </div>
+            <div v-if="item.reasoning" class="queue-reasoning">
+              <strong>Reasoning:</strong> {{ item.reasoning }}
+            </div>
+            <div v-if="item.status === 'pending'" class="queue-actions">
+              <button class="approve-btn" @click="handleQueueResponse(item.id, 'approve')">
+                Approve
+              </button>
+              <button class="reject-btn" @click="handleQueueResponse(item.id, 'reject')">
+                Reject
               </button>
             </div>
           </div>
@@ -132,175 +146,77 @@
           <div
             v-for="mo in missedOpportunities"
             :key="mo.id"
-            :class="['missed-card', { applied: mo.appliedToContext }]"
+            class="missed-card"
           >
-            <div class="mo-header">
-              <span class="mo-instrument">{{ mo.instrument }}</span>
-              <span :class="['mo-move', mo.movePercent > 0 ? 'positive' : 'negative']">
-                {{ mo.movePercent > 0 ? '+' : '' }}{{ mo.movePercent.toFixed(2) }}%
+            <div class="missed-header">
+              <span class="missed-target">{{ mo.targetSymbol }} ({{ mo.targetName }})</span>
+              <span :class="['missed-move', mo.direction === 'up' ? 'positive' : 'negative']">
+                {{ mo.direction === 'up' ? '+' : '' }}{{ mo.movePercent.toFixed(2) }}%
               </span>
-              <span v-if="mo.appliedToContext" class="applied-badge">Applied</span>
+              <span :class="['missed-status', `status-${mo.analysisStatus}`]">
+                {{ mo.analysisStatus }}
+              </span>
             </div>
-            <div class="mo-details">
-              <div class="mo-description">{{ mo.description }}</div>
-              <div class="mo-reason">
-                <strong>Reason Missed:</strong> {{ mo.failureReason.replace(/_/g, ' ') }}
-              </div>
+            <div class="missed-period">
+              {{ formatDate(mo.moveStartAt) }} - {{ formatDate(mo.moveEndAt) }}
             </div>
-            <div v-if="mo.whatWouldHaveHelped.length > 0" class="mo-suggestions">
-              <strong>What Would Have Helped:</strong>
+            <div v-if="mo.discoveredDrivers?.length" class="missed-drivers">
+              <strong>Drivers:</strong>
               <ul>
-                <li v-for="(help, idx) in mo.whatWouldHaveHelped" :key="idx">
-                  {{ help }}
-                </li>
+                <li v-for="(driver, idx) in mo.discoveredDrivers" :key="idx">{{ driver }}</li>
               </ul>
             </div>
-            <div
-              v-if="Object.keys(mo.suggestedThresholds).length > 0"
-              class="mo-thresholds"
-            >
-              <strong>Suggested Threshold Changes:</strong>
-              <div class="threshold-changes">
-                <span
-                  v-for="(value, key) in mo.suggestedThresholds"
-                  :key="key"
-                  class="threshold-chip"
-                >
-                  {{ key }}: {{ value }}
-                </span>
-              </div>
+            <div v-if="mo.sourceGaps?.length" class="missed-gaps">
+              <strong>Source Gaps:</strong>
+              <ul>
+                <li v-for="(gap, idx) in mo.sourceGaps" :key="idx">{{ gap }}</li>
+              </ul>
             </div>
-            <div class="mo-actions">
-              <button
-                v-if="!mo.appliedToContext"
-                class="apply-btn"
-                @click="applyMissedOpportunity(mo.id)"
-              >
-                Apply Thresholds
+            <div v-if="mo.analysisStatus === 'pending'" class="missed-actions">
+              <button class="analyze-btn" @click="triggerAnalysis(mo.id)">
+                Trigger Analysis
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- User Insights Tab -->
-      <div v-if="activeTab === 'insights'" class="tab-content">
-        <div v-if="userInsights.length === 0" class="empty-message">
-          No user insights yet. Start a learning conversation to add insights.
+      <!-- Analysts Tab -->
+      <div v-if="activeTab === 'analysts'" class="tab-content">
+        <div v-if="analysts.length === 0" class="empty-message">
+          No analysts configured yet.
         </div>
-        <div v-else class="insights-list">
+        <div v-else class="analysts-list">
           <div
-            v-for="insight in userInsights"
-            :key="insight.id"
-            :class="['insight-card', { applied: insight.appliedToContext }]"
+            v-for="analyst in analysts"
+            :key="analyst.id"
+            :class="['analyst-card', { inactive: !analyst.active }]"
           >
-            <div class="insight-header">
-              <span class="insight-type">{{ insight.type.replace(/_/g, ' ') }}</span>
-              <span v-if="insight.instrument" class="insight-instrument">
-                {{ insight.instrument }}
-              </span>
-              <span v-if="insight.appliedToContext" class="applied-badge">Applied</span>
+            <div class="analyst-header">
+              <span class="analyst-name">{{ analyst.name }}</span>
+              <span class="analyst-slug">{{ analyst.slug }}</span>
+              <span v-if="!analyst.active" class="inactive-badge">Inactive</span>
             </div>
-            <div class="insight-content">{{ insight.insight }}</div>
-            <div v-if="insight.effectivenessScore !== null" class="insight-effectiveness">
-              Effectiveness: {{ (insight.effectivenessScore * 100).toFixed(0) }}%
+            <div class="analyst-perspective">{{ analyst.perspective }}</div>
+            <div class="analyst-meta">
+              <span class="scope">{{ analyst.scopeLevel }}</span>
+              <span v-if="analyst.domain" class="domain">{{ analyst.domain }}</span>
+              <span class="weight">Weight: {{ analyst.defaultWeight }}</span>
             </div>
-            <div class="insight-actions">
-              <button
-                v-if="!insight.appliedToContext"
-                class="apply-btn"
-                @click="applyUserInsight(insight.id)"
-              >
-                Apply Insight
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Specialist Stats Tab -->
-      <div v-if="activeTab === 'specialists'" class="tab-content">
-        <div v-if="specialistStats.length === 0" class="empty-message">
-          No specialist statistics available yet.
-        </div>
-        <div v-else class="specialists-table-wrapper">
-          <table class="specialists-table">
-            <thead>
-              <tr>
-                <th>Specialist</th>
-                <th>Instrument</th>
-                <th>Accuracy</th>
-                <th>Analyses</th>
-                <th>Avg Confidence</th>
-                <th>Conf. When Correct</th>
-                <th>Conf. When Incorrect</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="stat in specialistStats" :key="`${stat.specialist}-${stat.instrument}`">
-                <td>{{ stat.specialist }}</td>
-                <td>{{ stat.instrument || 'All' }}</td>
-                <td :class="getAccuracyClass(stat.accuracyPercent)">
-                  {{ stat.accuracyPercent?.toFixed(1) || 'N/A' }}%
-                </td>
-                <td>{{ stat.totalAnalyses }}</td>
-                <td>{{ (stat.avgConfidence * 100)?.toFixed(0) || 'N/A' }}%</td>
-                <td>{{ (stat.confidenceWhenCorrect * 100)?.toFixed(0) || 'N/A' }}%</td>
-                <td>{{ (stat.confidenceWhenIncorrect * 100)?.toFixed(0) || 'N/A' }}%</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Learning Chat Tab -->
-      <div v-if="activeTab === 'chat'" class="tab-content chat-tab">
-        <div class="chat-container">
-          <div class="chat-messages" ref="chatMessagesRef">
-            <div v-if="!activeConversation" class="start-chat-prompt">
-              <p>Start a learning conversation to discuss predictions, provide feedback, or improve the agent.</p>
-              <div class="chat-focus-options">
-                <button class="focus-btn" @click="startConversation('general')">
-                  General Discussion
-                </button>
-                <button class="focus-btn" @click="startConversation('performance_review')">
-                  Performance Review
-                </button>
-                <button class="focus-btn" @click="startConversation('threshold_tuning')">
-                  Tune Thresholds
-                </button>
+            <div v-if="analyst.tierInstructions" class="analyst-tiers">
+              <div v-if="analyst.tierInstructions.gold" class="tier-instruction">
+                <span class="tier-name gold">Gold:</span>
+                <span class="tier-text">{{ truncateText(analyst.tierInstructions.gold, 100) }}</span>
+              </div>
+              <div v-if="analyst.tierInstructions.silver" class="tier-instruction">
+                <span class="tier-name silver">Silver:</span>
+                <span class="tier-text">{{ truncateText(analyst.tierInstructions.silver, 100) }}</span>
+              </div>
+              <div v-if="analyst.tierInstructions.bronze" class="tier-instruction">
+                <span class="tier-name bronze">Bronze:</span>
+                <span class="tier-text">{{ truncateText(analyst.tierInstructions.bronze, 100) }}</span>
               </div>
             </div>
-            <div v-else class="messages-list">
-              <div
-                v-for="(msg, idx) in activeConversation.messages"
-                :key="idx"
-                :class="['message', msg.role]"
-              >
-                <div class="message-content">{{ msg.content }}</div>
-                <div class="message-timestamp">{{ formatTimestamp(msg.timestamp) }}</div>
-              </div>
-            </div>
-          </div>
-          <div v-if="activeConversation" class="chat-input-container">
-            <textarea
-              v-model="chatInput"
-              placeholder="Share insights, ask questions, or provide feedback..."
-              @keydown.enter.exact.prevent="sendMessage"
-              :disabled="isSendingMessage"
-            ></textarea>
-            <button
-              class="send-btn"
-              :disabled="!chatInput.trim() || isSendingMessage"
-              @click="sendMessage"
-            >
-              {{ isSendingMessage ? 'Sending...' : 'Send' }}
-            </button>
-          </div>
-          <div v-if="activeConversation" class="chat-actions">
-            <button class="end-chat-btn" @click="endConversation">
-              End Conversation
-            </button>
           </div>
         </div>
       </div>
@@ -309,110 +225,30 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue';
-import { usePredictionAgentStore } from '@/stores/predictionAgentStore';
-import { predictionLearningService } from '@/services/predictionLearningService';
+import { ref, computed, onMounted } from 'vue';
+import {
+  predictionDashboardService,
+  type PredictionLearning,
+  type LearningQueueItem,
+  type MissedOpportunity,
+  type PredictionAnalyst,
+} from '@/services/predictionDashboardService';
 
-interface PostmortemSummary {
-  id: string;
-  instrument: string;
-  action: string;
-  outcome: string;
-  returnPercent: number | null;
-  rootCause: string | null;
-  keyLearnings: string[];
-  appliedToContext: boolean;
-}
-
-interface MissedOpportunitySummary {
-  id: string;
-  instrument: string;
-  movePercent: number;
-  description: string;
-  failureReason: string;
-  whatWouldHaveHelped: string[];
-  suggestedThresholds: Record<string, number>;
-  appliedToContext: boolean;
-}
-
-interface UserInsightSummary {
-  id: string;
-  type: string;
-  instrument: string | null;
-  insight: string;
-  effectivenessScore: number | null;
-  appliedToContext: boolean;
-}
-
-interface SpecialistStat {
-  specialist: string;
-  instrument: string | null;
-  accuracyPercent: number | null;
-  avgConfidence: number;
-  totalAnalyses: number;
-  confidenceWhenCorrect: number | null;
-  confidenceWhenIncorrect: number | null;
-}
-
-interface LearningSummary {
-  totalRecommendations: number;
-  totalOutcomes: number;
-  overallAccuracyPercent: number | null;
-  totalPostmortems: number;
-  unappliedPostmortems: number;
-  totalMissedOpportunities: number;
-  unappliedMissedOpportunities: number;
-  totalUserInsights: number;
-  validatedInsights: number;
-  unappliedInsights: number;
-}
-
-interface ConversationMessage {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  timestamp: string;
-}
-
-interface LearningConversation {
-  id: string;
-  status: 'active' | 'completed' | 'abandoned';
-  focusType: string;
-  messages: ConversationMessage[];
-}
-
-const store = usePredictionAgentStore();
-
-const activeTab = ref<'postmortems' | 'missed' | 'insights' | 'specialists' | 'chat'>('postmortems');
+const activeTab = ref<'learnings' | 'queue' | 'missed' | 'analysts'>('learnings');
 const isLoading = ref(false);
-const isApplying = ref(false);
-const isSendingMessage = ref(false);
 const error = ref<string | null>(null);
 
-const summary = ref<LearningSummary>({
-  totalRecommendations: 0,
-  totalOutcomes: 0,
-  overallAccuracyPercent: null,
-  totalPostmortems: 0,
-  unappliedPostmortems: 0,
-  totalMissedOpportunities: 0,
-  unappliedMissedOpportunities: 0,
-  totalUserInsights: 0,
-  validatedInsights: 0,
-  unappliedInsights: 0,
-});
+const learnings = ref<PredictionLearning[]>([]);
+const learningQueue = ref<LearningQueueItem[]>([]);
+const missedOpportunities = ref<MissedOpportunity[]>([]);
+const analysts = ref<PredictionAnalyst[]>([]);
 
-const postmortems = ref<PostmortemSummary[]>([]);
-const missedOpportunities = ref<MissedOpportunitySummary[]>([]);
-const userInsights = ref<UserInsightSummary[]>([]);
-const specialistStats = ref<SpecialistStat[]>([]);
-const activeConversation = ref<LearningConversation | null>(null);
-const chatInput = ref('');
-const chatMessagesRef = ref<HTMLElement | null>(null);
+const activeLearningsCount = computed(() =>
+  learnings.value.filter((l) => l.status === 'active').length
+);
 
-const unappliedCount = computed(() =>
-  summary.value.unappliedPostmortems +
-  summary.value.unappliedMissedOpportunities +
-  summary.value.unappliedInsights
+const pendingQueueCount = computed(() =>
+  learningQueue.value.filter((q) => q.status === 'pending').length
 );
 
 onMounted(async () => {
@@ -420,26 +256,21 @@ onMounted(async () => {
 });
 
 async function loadLearningData() {
-  if (!store.agentId) return;
-
   isLoading.value = true;
   error.value = null;
 
   try {
-    const [summaryData, postmortemData, missedData, insightData, statsData] =
-      await Promise.all([
-        predictionLearningService.getLearningSummary(store.agentId),
-        predictionLearningService.getPostmortems(store.agentId),
-        predictionLearningService.getMissedOpportunities(store.agentId),
-        predictionLearningService.getUserInsights(store.agentId),
-        predictionLearningService.getSpecialistStats(store.agentId),
-      ]);
+    const [learningsRes, queueRes, missedRes, analystsRes] = await Promise.all([
+      predictionDashboardService.listLearnings(),
+      predictionDashboardService.listLearningQueue(),
+      predictionDashboardService.listMissedOpportunities(),
+      predictionDashboardService.listAnalysts(),
+    ]);
 
-    summary.value = summaryData;
-    postmortems.value = postmortemData;
-    missedOpportunities.value = missedData;
-    userInsights.value = insightData;
-    specialistStats.value = statsData;
+    learnings.value = learningsRes.content || [];
+    learningQueue.value = queueRes.content || [];
+    missedOpportunities.value = missedRes.content || [];
+    analysts.value = analystsRes.content || [];
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load learning data';
   } finally {
@@ -447,131 +278,36 @@ async function loadLearningData() {
   }
 }
 
-async function applyAllLearnings() {
-  if (!store.agentId) return;
-
-  isApplying.value = true;
+async function handleQueueResponse(itemId: string, decision: 'approve' | 'reject') {
   try {
-    await predictionLearningService.applyAllLearnings(store.agentId);
-    await loadLearningData();
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to apply learnings';
-  } finally {
-    isApplying.value = false;
-  }
-}
-
-async function applyPostmortem(postmortemId: string) {
-  if (!store.agentId) return;
-
-  try {
-    await predictionLearningService.applyPostmortem(store.agentId, postmortemId);
-    await loadLearningData();
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to apply postmortem';
-  }
-}
-
-async function applyMissedOpportunity(opportunityId: string) {
-  if (!store.agentId) return;
-
-  try {
-    await predictionLearningService.applyMissedOpportunity(store.agentId, opportunityId);
-    await loadLearningData();
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to apply threshold changes';
-  }
-}
-
-async function applyUserInsight(insightId: string) {
-  if (!store.agentId) return;
-
-  try {
-    await predictionLearningService.applyUserInsight(store.agentId, insightId);
-    await loadLearningData();
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to apply insight';
-  }
-}
-
-async function startConversation(focusType: string) {
-  if (!store.agentId) return;
-
-  try {
-    const conversation = await predictionLearningService.startConversation(
-      store.agentId,
-      focusType
-    );
-    activeConversation.value = conversation;
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to start conversation';
-  }
-}
-
-async function sendMessage() {
-  if (!activeConversation.value || !chatInput.value.trim()) return;
-
-  const message = chatInput.value.trim();
-  chatInput.value = '';
-  isSendingMessage.value = true;
-
-  try {
-    const response = await predictionLearningService.sendMessage(
-      activeConversation.value.id,
-      message
-    );
-
-    // Add user message
-    activeConversation.value.messages.push({
-      role: 'user',
-      content: message,
-      timestamp: new Date().toISOString(),
+    await predictionDashboardService.respondToLearningQueue({
+      id: itemId,
+      decision,
     });
-
-    // Add assistant response
-    activeConversation.value.messages.push({
-      role: 'assistant',
-      content: response.response,
-      timestamp: new Date().toISOString(),
-    });
-
-    // Scroll to bottom
-    await nextTick();
-    if (chatMessagesRef.value) {
-      chatMessagesRef.value.scrollTop = chatMessagesRef.value.scrollHeight;
-    }
-
-    // If there was a context update suggestion, refresh data
-    if (response.shouldApplyUpdate) {
-      await loadLearningData();
-    }
+    await loadLearningData();
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to send message';
-  } finally {
-    isSendingMessage.value = false;
+    error.value = err instanceof Error ? err.message : 'Failed to process queue item';
   }
 }
 
-async function endConversation() {
-  if (!activeConversation.value) return;
-
+async function triggerAnalysis(opportunityId: string) {
   try {
-    await predictionLearningService.endConversation(activeConversation.value.id);
-    activeConversation.value = null;
+    await predictionDashboardService.triggerMissedOpportunityAnalysis({
+      id: opportunityId,
+    });
+    await loadLearningData();
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to end conversation';
+    error.value = err instanceof Error ? err.message : 'Failed to trigger analysis';
   }
 }
 
-function formatTimestamp(timestamp: string): string {
-  return new Date(timestamp).toLocaleTimeString();
+function formatDate(timestamp: string): string {
+  return new Date(timestamp).toLocaleDateString();
 }
 
-function getAccuracyClass(accuracy: number | null): string {
-  if (accuracy === null) return '';
-  if (accuracy >= 70) return 'accuracy-high';
-  if (accuracy >= 50) return 'accuracy-medium';
-  return 'accuracy-low';
+function truncateText(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength - 3) + '...';
 }
 </script>
 
@@ -597,24 +333,13 @@ function getAccuracyClass(accuracy: number | null): string {
   color: #111827;
 }
 
-.apply-learnings-btn {
-  padding: 0.5rem 1rem;
-  background-color: #10b981;
-  color: white;
-  border: none;
-  border-radius: 0.375rem;
+.pending-count {
+  padding: 0.25rem 0.75rem;
+  background-color: #fef3c7;
+  color: #92400e;
+  border-radius: 9999px;
   font-size: 0.875rem;
   font-weight: 600;
-  cursor: pointer;
-}
-
-.apply-learnings-btn:disabled {
-  background-color: #9ca3af;
-  cursor: not-allowed;
-}
-
-.apply-learnings-btn:hover:not(:disabled) {
-  background-color: #059669;
 }
 
 .loading-state,
@@ -712,143 +437,148 @@ function getAccuracyClass(accuracy: number | null): string {
   min-height: 300px;
 }
 
-.postmortems-list,
+.learnings-list,
+.queue-list,
 .missed-list,
-.insights-list {
+.analysts-list {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
-.postmortem-card,
+.learning-card,
+.queue-card,
 .missed-card,
-.insight-card {
+.analyst-card {
   padding: 1rem;
   background-color: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 0.5rem;
 }
 
-.postmortem-card.applied,
-.missed-card.applied,
-.insight-card.applied {
+.learning-card.inactive,
+.analyst-card.inactive {
   opacity: 0.7;
-  background-color: #f0fdf4;
+  background-color: #f9fafb;
 }
 
-.pm-header,
-.mo-header,
-.insight-header {
+.learning-header-row,
+.queue-header,
+.missed-header,
+.analyst-header {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.5rem;
+  flex-wrap: wrap;
 }
 
-.pm-instrument,
-.mo-instrument,
-.insight-instrument {
+.learning-title,
+.queue-title,
+.missed-target,
+.analyst-name {
   font-weight: 600;
   color: #111827;
 }
 
-.pm-outcome {
-  padding: 0.125rem 0.5rem;
-  border-radius: 9999px;
+.analyst-slug {
   font-size: 0.75rem;
-  font-weight: 500;
-}
-
-.pm-outcome.correct {
-  background-color: #d1fae5;
-  color: #065f46;
-}
-
-.pm-outcome.incorrect {
-  background-color: #fee2e2;
-  color: #991b1b;
-}
-
-.pm-outcome.partial {
-  background-color: #fef3c7;
-  color: #92400e;
-}
-
-.mo-move {
-  font-weight: 600;
-}
-
-.mo-move.positive {
-  color: #059669;
-}
-
-.mo-move.negative {
-  color: #dc2626;
-}
-
-.applied-badge {
-  padding: 0.125rem 0.5rem;
-  background-color: #d1fae5;
-  color: #065f46;
-  border-radius: 9999px;
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-
-.insight-type {
-  padding: 0.125rem 0.5rem;
-  background-color: #e0e7ff;
-  color: #3730a3;
-  border-radius: 9999px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  text-transform: capitalize;
-}
-
-.pm-details,
-.mo-details {
-  margin-bottom: 0.5rem;
-  font-size: 0.875rem;
-  color: #374151;
-}
-
-.pm-learnings ul,
-.mo-suggestions ul {
-  margin: 0.5rem 0 0 1.5rem;
-  padding: 0;
-}
-
-.pm-learnings li,
-.mo-suggestions li {
-  margin-bottom: 0.25rem;
-  font-size: 0.875rem;
-  color: #374151;
-}
-
-.threshold-changes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-}
-
-.threshold-chip {
-  padding: 0.25rem 0.5rem;
-  background-color: #fef3c7;
-  border-radius: 0.25rem;
-  font-size: 0.75rem;
+  color: #6b7280;
   font-family: monospace;
 }
 
-.pm-actions,
-.mo-actions,
-.insight-actions {
+.learning-type {
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.type-rule { background-color: #dbeafe; color: #1e40af; }
+.type-pattern { background-color: #dcfce7; color: #166534; }
+.type-weight_adjustment { background-color: #fef3c7; color: #92400e; }
+.type-threshold { background-color: #fce7f3; color: #9d174d; }
+.type-avoid { background-color: #fee2e2; color: #991b1b; }
+
+.status-badge,
+.inactive-badge {
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  background-color: #e5e7eb;
+  color: #374151;
+}
+
+.queue-status,
+.missed-status {
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.queue-status.status-pending,
+.missed-status.status-pending { background-color: #fef3c7; color: #92400e; }
+.queue-status.status-approved,
+.missed-status.status-analyzed { background-color: #d1fae5; color: #065f46; }
+.queue-status.status-rejected { background-color: #fee2e2; color: #991b1b; }
+.missed-status.status-actioned { background-color: #dbeafe; color: #1e40af; }
+
+.learning-content-text,
+.queue-content,
+.analyst-perspective {
+  font-size: 0.875rem;
+  color: #374151;
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+}
+
+.learning-meta,
+.queue-meta,
+.analyst-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.scope,
+.domain,
+.source,
+.date,
+.confidence,
+.type,
+.weight {
+  padding: 0.125rem 0.375rem;
+  background-color: #f3f4f6;
+  border-radius: 0.25rem;
+}
+
+.queue-reasoning {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background-color: #f9fafb;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.queue-actions,
+.missed-actions {
+  display: flex;
+  gap: 0.5rem;
   margin-top: 0.75rem;
 }
 
-.apply-btn {
+.approve-btn,
+.analyze-btn {
   padding: 0.375rem 0.75rem;
-  background-color: #3b82f6;
+  background-color: #10b981;
   color: white;
   border: none;
   border-radius: 0.25rem;
@@ -857,200 +587,87 @@ function getAccuracyClass(accuracy: number | null): string {
   cursor: pointer;
 }
 
-.apply-btn:hover {
-  background-color: #2563eb;
+.approve-btn:hover,
+.analyze-btn:hover {
+  background-color: #059669;
 }
 
-.insight-content {
-  padding: 0.5rem;
-  background-color: #f9fafb;
-  border-radius: 0.25rem;
-  font-size: 0.875rem;
-  color: #374151;
-}
-
-.insight-effectiveness {
-  margin-top: 0.5rem;
-  font-size: 0.75rem;
-  color: #6b7280;
-}
-
-.specialists-table-wrapper {
-  overflow-x: auto;
-}
-
-.specialists-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.875rem;
-}
-
-.specialists-table th,
-.specialists-table td {
-  padding: 0.75rem;
-  text-align: left;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.specialists-table th {
-  font-weight: 600;
-  color: #374151;
-  background-color: #f9fafb;
-}
-
-.accuracy-high {
-  color: #059669;
-  font-weight: 600;
-}
-
-.accuracy-medium {
-  color: #d97706;
-  font-weight: 600;
-}
-
-.accuracy-low {
-  color: #dc2626;
-  font-weight: 600;
-}
-
-.chat-tab {
-  display: flex;
-  flex-direction: column;
-  height: 400px;
-}
-
-.chat-container {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  background-color: #f9fafb;
-  border-radius: 0.5rem;
-  overflow: hidden;
-}
-
-.chat-messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 1rem;
-}
-
-.start-chat-prompt {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  text-align: center;
-  color: #6b7280;
-}
-
-.chat-focus-options {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 1rem;
-}
-
-.focus-btn {
-  padding: 0.5rem 1rem;
-  background-color: #3b82f6;
-  color: white;
-  border: none;
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  cursor: pointer;
-}
-
-.focus-btn:hover {
-  background-color: #2563eb;
-}
-
-.messages-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.message {
-  max-width: 80%;
-  padding: 0.75rem;
-  border-radius: 0.5rem;
-}
-
-.message.user {
-  align-self: flex-end;
-  background-color: #3b82f6;
-  color: white;
-}
-
-.message.assistant {
-  align-self: flex-start;
-  background-color: white;
-  border: 1px solid #e5e7eb;
-}
-
-.message-content {
-  font-size: 0.875rem;
-  line-height: 1.5;
-}
-
-.message-timestamp {
-  font-size: 0.625rem;
-  opacity: 0.7;
-  margin-top: 0.25rem;
-}
-
-.chat-input-container {
-  display: flex;
-  gap: 0.5rem;
-  padding: 1rem;
-  background-color: white;
-  border-top: 1px solid #e5e7eb;
-}
-
-.chat-input-container textarea {
-  flex: 1;
-  padding: 0.5rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  resize: none;
-  min-height: 2.5rem;
-  max-height: 6rem;
-}
-
-.send-btn {
-  padding: 0.5rem 1rem;
-  background-color: #3b82f6;
-  color: white;
-  border: none;
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.send-btn:disabled {
-  background-color: #9ca3af;
-  cursor: not-allowed;
-}
-
-.chat-actions {
-  padding: 0.5rem 1rem;
-  background-color: white;
-  border-top: 1px solid #e5e7eb;
-}
-
-.end-chat-btn {
+.reject-btn {
   padding: 0.375rem 0.75rem;
-  background-color: #6b7280;
+  background-color: #ef4444;
   color: white;
   border: none;
   border-radius: 0.25rem;
   font-size: 0.75rem;
+  font-weight: 500;
   cursor: pointer;
 }
 
-.end-chat-btn:hover {
-  background-color: #4b5563;
+.reject-btn:hover {
+  background-color: #dc2626;
+}
+
+.missed-move {
+  font-weight: 700;
+}
+
+.missed-move.positive {
+  color: #059669;
+}
+
+.missed-move.negative {
+  color: #dc2626;
+}
+
+.missed-period {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-bottom: 0.5rem;
+}
+
+.missed-drivers ul,
+.missed-gaps ul {
+  margin: 0.25rem 0 0 1rem;
+  padding: 0;
+}
+
+.missed-drivers li,
+.missed-gaps li {
+  font-size: 0.75rem;
+  color: #374151;
+}
+
+.missed-drivers,
+.missed-gaps {
+  font-size: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.analyst-tiers {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.tier-instruction {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.tier-name {
+  font-weight: 600;
+  min-width: 50px;
+}
+
+.tier-name.gold { color: #92400e; }
+.tier-name.silver { color: #6b7280; }
+.tier-name.bronze { color: #9d174d; }
+
+.tier-text {
+  color: #6b7280;
 }
 </style>

@@ -446,7 +446,7 @@ describeWithDb('CrawlerModule E2E', () => {
     let testSource: Awaited<
       ReturnType<typeof crawlerService.findOrCreateSource>
     >;
-    let storedArticles: { id: string; first_seen_at: string }[] = [];
+    const storedArticles: { id: string; first_seen_at: string }[] = [];
 
     beforeAll(async () => {
       testSource = await crawlerService.findOrCreateSource({

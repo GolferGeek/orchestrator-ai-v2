@@ -183,7 +183,7 @@ OUTPUT FORMAT (JSON only):
  * Build user message with all specialist outputs
  */
 function buildSynthesisUserMessage(
-  specialistOutputs: Record<string, any>,
+  specialistOutputs: Record<string, unknown>,
   state: LegalDepartmentState,
 ): string {
   let message = `Synthesize the following legal specialist analyses:\n\n`;

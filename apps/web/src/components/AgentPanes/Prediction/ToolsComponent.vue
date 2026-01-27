@@ -1,65 +1,70 @@
 <template>
   <div class="tools-component">
     <div class="tools-header">
-      <h3>Data Sources & Tools</h3>
+      <h3>Data Sources</h3>
       <div class="tools-stats">
-        <span class="stat active">Active: {{ activeToolsCount }}</span>
-        <span class="stat error">Errors: {{ errorToolsCount }}</span>
-        <span class="stat">Total Claims: {{ totalClaimsCount }}</span>
+        <span class="stat active">Active: {{ activeSourcesCount }}</span>
+        <span class="stat">Total: {{ sources.length }}</span>
       </div>
     </div>
 
     <div v-if="isLoading" class="loading-state">
       <div class="spinner"></div>
-      <span>Loading tools status...</span>
+      <span>Loading sources...</span>
     </div>
 
-    <div v-else-if="toolsStatus.length === 0" class="empty-state">
+    <div v-else-if="sources.length === 0" class="empty-state">
       No data sources configured yet.
     </div>
 
     <div v-else class="tools-list">
       <div
-        v-for="tool in toolsStatus"
-        :key="tool.name"
+        v-for="source in sources"
+        :key="source.id"
         class="tool-card"
-        :class="`tool-${tool.status}`"
+        :class="[`tool-${source.active ? 'active' : 'disabled'}`]"
       >
         <div class="tool-header">
           <div class="tool-name-section">
-            <div class="tool-name">{{ tool.displayName }}</div>
-            <div class="tool-identifier">{{ tool.name }}</div>
+            <div class="tool-name">{{ source.name }}</div>
+            <div class="tool-identifier">{{ source.sourceType }} - {{ source.scopeLevel }}</div>
           </div>
-          <div class="tool-status-badge" :class="`status-${tool.status}`">
-            {{ getStatusLabel(tool.status) }}
+          <div class="tool-status-badge" :class="[`status-${source.active ? 'active' : 'disabled'}`]">
+            {{ source.active ? 'Active' : 'Disabled' }}
           </div>
         </div>
 
         <div class="tool-metrics">
           <div class="metric">
-            <span class="metric-label">Claims Collected:</span>
-            <span class="metric-value">{{ tool.claimsCount }}</span>
+            <span class="metric-label">Scope Level:</span>
+            <span class="metric-value">{{ source.scopeLevel }}</span>
           </div>
 
-          <div v-if="tool.lastSuccessfulPollAt" class="metric">
-            <span class="metric-label">Last Success:</span>
-            <span class="metric-value">{{ formatTime(tool.lastSuccessfulPollAt) }}</span>
+          <div v-if="source.domain" class="metric">
+            <span class="metric-label">Domain:</span>
+            <span class="metric-value">{{ source.domain }}</span>
+          </div>
+
+          <div v-if="source.lastCrawledAt" class="metric">
+            <span class="metric-label">Last Crawled:</span>
+            <span class="metric-value">{{ formatTime(source.lastCrawledAt) }}</span>
           </div>
           <div v-else class="metric">
-            <span class="metric-label">Last Success:</span>
+            <span class="metric-label">Last Crawled:</span>
             <span class="metric-value empty">Never</span>
           </div>
         </div>
 
-        <div v-if="tool.status === 'error' && tool.lastError" class="tool-error">
-          <div class="error-header">
-            <span class="error-icon">⚠</span>
-            <span class="error-title">Error</span>
-            <span v-if="tool.lastErrorAt" class="error-time">
-              {{ formatTime(tool.lastErrorAt) }}
+        <div v-if="source.crawlConfig" class="tool-config">
+          <div class="config-header">Configuration</div>
+          <div class="config-details">
+            <span v-if="source.crawlConfig.url" class="config-item">
+              URL: {{ truncateUrl(source.crawlConfig.url as string) }}
+            </span>
+            <span v-if="source.crawlConfig.frequency" class="config-item">
+              Frequency: {{ source.crawlConfig.frequency }}
             </span>
           </div>
-          <div class="error-message">{{ tool.lastError }}</div>
         </div>
       </div>
     </div>
@@ -67,36 +72,34 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { usePredictionAgentStore } from '@/stores/predictionAgentStore';
+import { ref, computed, onMounted } from 'vue';
+import { usePredictionStore } from '@/stores/predictionStore';
+import { predictionDashboardService, type PredictionSource } from '@/services/predictionDashboardService';
 
-const store = usePredictionAgentStore();
+const store = usePredictionStore();
 
-const toolsStatus = computed(() => store.toolsStatus);
+const sources = ref<PredictionSource[]>([]);
 const isLoading = computed(() => store.isLoading);
 
-const activeToolsCount = computed(() =>
-  toolsStatus.value.filter((t) => t.status === 'active').length
+const activeSourcesCount = computed(() =>
+  sources.value.filter((s) => s.active).length
 );
 
-const errorToolsCount = computed(() =>
-  toolsStatus.value.filter((t) => t.status === 'error').length
-);
+onMounted(async () => {
+  await loadSources();
+});
 
-const totalClaimsCount = computed(() =>
-  toolsStatus.value.reduce((sum, t) => sum + t.claimsCount, 0)
-);
-
-function getStatusLabel(status: string): string {
-  switch (status) {
-    case 'active':
-      return 'Active';
-    case 'error':
-      return 'Error';
-    case 'disabled':
-      return 'Disabled';
-    default:
-      return 'Unknown';
+async function loadSources() {
+  store.setLoading(true);
+  try {
+    const response = await predictionDashboardService.listSources();
+    if (response.content) {
+      sources.value = response.content;
+    }
+  } catch (err) {
+    store.setError(err instanceof Error ? err.message : 'Failed to load sources');
+  } finally {
+    store.setLoading(false);
   }
 }
 
@@ -115,6 +118,11 @@ function formatTime(timestamp: string): string {
   if (hours < 24) return `${hours}h ago`;
   if (days < 7) return `${days}d ago`;
   return date.toLocaleDateString();
+}
+
+function truncateUrl(url: string): string {
+  if (url.length <= 50) return url;
+  return url.substring(0, 47) + '...';
 }
 </script>
 
@@ -153,10 +161,6 @@ function formatTime(timestamp: string): string {
 
 .stat.active {
   color: #10b981;
-}
-
-.stat.error {
-  color: #ef4444;
 }
 
 .loading-state,
@@ -213,11 +217,6 @@ function formatTime(timestamp: string): string {
   background-color: #f0fdf4;
 }
 
-.tool-card.tool-error {
-  border-color: #ef4444;
-  background-color: #fef2f2;
-}
-
 .tool-card.tool-disabled {
   border-color: #9ca3af;
   background-color: #f3f4f6;
@@ -263,11 +262,6 @@ function formatTime(timestamp: string): string {
   color: #065f46;
 }
 
-.status-error {
-  background-color: #fee2e2;
-  color: #991b1b;
-}
-
 .status-disabled {
   background-color: #e5e7eb;
   color: #374151;
@@ -303,41 +297,29 @@ function formatTime(timestamp: string): string {
   font-style: italic;
 }
 
-.tool-error {
+.tool-config {
   padding: 0.75rem;
-  background-color: rgba(254, 226, 226, 0.5);
-  border-left: 3px solid #ef4444;
+  background-color: #f3f4f6;
   border-radius: 0.375rem;
 }
 
-.error-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #991b1b;
-}
-
-.error-icon {
-  font-size: 1rem;
-}
-
-.error-title {
-  flex: 1;
-}
-
-.error-time {
+.config-header {
   font-size: 0.75rem;
-  font-weight: 400;
-  color: #7f1d1d;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
 }
 
-.error-message {
-  font-size: 0.875rem;
-  color: #7f1d1d;
+.config-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.config-item {
+  font-size: 0.75rem;
+  color: #374151;
   font-family: monospace;
-  line-height: 1.5;
 }
 </style>

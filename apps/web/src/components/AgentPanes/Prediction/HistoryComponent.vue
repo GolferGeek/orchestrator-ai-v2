@@ -13,19 +13,26 @@
     <!-- Filters -->
     <div class="filters-section">
       <div class="filter-row">
-        <select v-model="localFilters.instrument" class="filter-select">
-          <option :value="null">All Instruments</option>
-          <option v-for="inst in instruments" :key="inst" :value="inst">
-            {{ inst }}
+        <select v-model="localFilters.targetId" class="filter-select">
+          <option :value="null">All Targets</option>
+          <option v-for="target in targets" :key="target.id" :value="target.id">
+            {{ target.symbol }}
           </option>
         </select>
 
         <select v-model="localFilters.outcome" class="filter-select">
-          <option value="all">All Outcomes</option>
+          <option :value="null">All Outcomes</option>
           <option value="pending">Pending</option>
           <option value="correct">Correct</option>
           <option value="incorrect">Incorrect</option>
+        </select>
+
+        <select v-model="localFilters.status" class="filter-select">
+          <option value="all">All Status</option>
+          <option value="active">Active</option>
+          <option value="resolved">Resolved</option>
           <option value="expired">Expired</option>
+          <option value="cancelled">Cancelled</option>
         </select>
 
         <input
@@ -72,54 +79,54 @@
       >
         <div class="history-item-header">
           <div class="item-title">
-            <span class="instrument">{{ prediction.instrument }}</span>
-            <span class="action-badge" :class="getActionClass(prediction.recommendation.action)">
-              {{ prediction.recommendation.action.toUpperCase() }}
+            <span class="instrument">{{ getTargetSymbol(prediction.targetId) }}</span>
+            <span class="action-badge" :class="getDirectionClass(prediction.direction)">
+              {{ prediction.direction.toUpperCase() }}
             </span>
             <OutcomeBadge
-              v-if="prediction.outcome"
-              :status="prediction.outcome.status"
+              v-if="getOutcomeStatus(prediction)"
+              :status="getOutcomeStatus(prediction)!"
             />
           </div>
           <div class="item-date">
-            {{ formatDate(prediction.timestamp) }}
+            {{ formatDate(prediction.generatedAt) }}
           </div>
         </div>
 
         <div class="history-item-content">
-          <div class="item-rationale">
-            {{ prediction.recommendation.rationale }}
+          <div v-if="prediction.rationale" class="item-rationale">
+            {{ prediction.rationale }}
           </div>
 
           <div class="item-details">
             <div class="detail">
               <span class="detail-label">Confidence:</span>
-              <ConfidenceBar :confidence="prediction.recommendation.confidence * 100" />
+              <ConfidenceBar :confidence="prediction.confidence * 100" />
             </div>
 
-            <div v-if="prediction.recommendation.targetPrice" class="detail">
-              <span class="detail-label">Target:</span>
-              <span class="detail-value">${{ prediction.recommendation.targetPrice.toFixed(2) }}</span>
+            <div v-if="prediction.magnitude" class="detail">
+              <span class="detail-label">Magnitude:</span>
+              <span class="detail-value">{{ prediction.magnitude.toFixed(1) }}%</span>
             </div>
 
-            <div v-if="prediction.outcome?.actualPrice" class="detail">
+            <div v-if="prediction.timeframe" class="detail">
+              <span class="detail-label">Timeframe:</span>
+              <span class="detail-value">{{ prediction.timeframe }}</span>
+            </div>
+
+            <div v-if="prediction.outcomeValue !== null && prediction.outcomeValue !== undefined" class="detail">
               <span class="detail-label">Actual:</span>
-              <span class="detail-value">${{ prediction.outcome.actualPrice.toFixed(2) }}</span>
-            </div>
-
-            <div v-if="prediction.outcome?.actualChange !== undefined" class="detail">
-              <span class="detail-label">Change:</span>
               <span
                 class="detail-value"
-                :class="prediction.outcome.actualChange >= 0 ? 'positive' : 'negative'"
+                :class="prediction.outcomeValue >= 0 ? 'positive' : 'negative'"
               >
-                {{ prediction.outcome.actualChange >= 0 ? '+' : '' }}{{ prediction.outcome.actualChange.toFixed(2) }}%
+                {{ prediction.outcomeValue >= 0 ? '+' : '' }}{{ prediction.outcomeValue.toFixed(2) }}%
               </span>
             </div>
           </div>
 
-          <div v-if="prediction.outcome?.notes" class="item-notes">
-            <strong>Notes:</strong> {{ prediction.outcome.notes }}
+          <div v-if="prediction.notes" class="item-notes">
+            <strong>Notes:</strong> {{ prediction.notes }}
           </div>
         </div>
       </div>
@@ -160,31 +167,81 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { usePredictionAgentStore } from '@/stores/predictionAgentStore';
+import { usePredictionStore } from '@/stores/predictionStore';
 import OutcomeBadge from './shared/OutcomeBadge.vue';
 import ConfidenceBar from './shared/ConfidenceBar.vue';
+import type { Prediction } from '@/services/predictionDashboardService';
 
-const store = usePredictionAgentStore();
+type OutcomeStatus = 'correct' | 'incorrect' | 'pending' | 'expired';
+
+const store = usePredictionStore();
 
 const localFilters = ref({
-  instrument: null as string | null,
-  outcome: 'all' as 'all' | 'pending' | 'correct' | 'incorrect' | 'expired',
+  targetId: null as string | null,
+  outcome: null as 'pending' | 'correct' | 'incorrect' | null,
+  status: 'all' as 'all' | 'active' | 'resolved' | 'expired' | 'cancelled',
   startDate: null as string | null,
   endDate: null as string | null,
 });
 
 const currentPage = ref(1);
 
-const instruments = computed(() => store.instruments);
-const filteredHistory = computed(() => store.filteredHistory);
-const historyTotal = computed(() => store.historyTotal);
-const historyPages = computed(() => store.historyPages);
+const targets = computed(() => store.targets);
 const isLoading = computed(() => store.isLoading);
-const accuracyRate = computed(() => store.accuracyRate);
-const correctCount = computed(() => store.correctPredictions.length);
-const incorrectCount = computed(() => store.incorrectPredictions.length);
+
+// Filter predictions based on local filters including date range
+const filteredHistory = computed(() => {
+  let result = store.filteredPredictions;
+
+  // Apply date filters locally
+  if (localFilters.value.startDate) {
+    const startDate = new Date(localFilters.value.startDate);
+    result = result.filter(p => new Date(p.generatedAt) >= startDate);
+  }
+
+  if (localFilters.value.endDate) {
+    const endDate = new Date(localFilters.value.endDate);
+    endDate.setHours(23, 59, 59, 999); // Include full day
+    result = result.filter(p => new Date(p.generatedAt) <= endDate);
+  }
+
+  // Sort by date descending (most recent first)
+  return [...result].sort((a, b) =>
+    new Date(b.generatedAt).getTime() - new Date(a.generatedAt).getTime()
+  );
+});
+
+const historyTotal = computed(() => filteredHistory.value.length);
+
+// Calculate accuracy stats
+const correctPredictions = computed(() =>
+  filteredHistory.value.filter(p => {
+    if (p.outcomeValue === null || p.outcomeValue === undefined) return false;
+    const actualDirection = p.outcomeValue > 0 ? 'up' : p.outcomeValue < 0 ? 'down' : 'flat';
+    return p.direction === actualDirection;
+  })
+);
+
+const incorrectPredictions = computed(() =>
+  filteredHistory.value.filter(p => {
+    if (p.outcomeValue === null || p.outcomeValue === undefined) return false;
+    const actualDirection = p.outcomeValue > 0 ? 'up' : p.outcomeValue < 0 ? 'down' : 'flat';
+    return p.direction !== actualDirection;
+  })
+);
+
+const correctCount = computed(() => correctPredictions.value.length);
+const incorrectCount = computed(() => incorrectPredictions.value.length);
+
+const accuracyRate = computed(() => {
+  const resolved = correctCount.value + incorrectCount.value;
+  if (resolved === 0) return 0;
+  return (correctCount.value / resolved) * 100;
+});
 
 const pageSize = 10;
+
+const historyPages = computed(() => Math.ceil(historyTotal.value / pageSize));
 
 const paginatedHistory = computed(() => {
   const start = (currentPage.value - 1) * pageSize;
@@ -227,17 +284,22 @@ watch(localFilters, () => {
 }, { deep: true });
 
 function applyFilters() {
-  store.setHistoryFilters(localFilters.value);
+  store.setFilters({
+    targetId: localFilters.value.targetId,
+    status: localFilters.value.status,
+    outcome: localFilters.value.outcome,
+  });
 }
 
 function clearFilters() {
   localFilters.value = {
-    instrument: null,
-    outcome: 'all',
+    targetId: null,
+    outcome: null,
+    status: 'all',
     startDate: null,
     endDate: null,
   };
-  store.clearHistoryFilters();
+  store.clearFilters();
 }
 
 function goToPage(page: number) {
@@ -245,15 +307,34 @@ function goToPage(page: number) {
   currentPage.value = page;
 }
 
+function getTargetSymbol(targetId: string): string {
+  const target = targets.value.find(t => t.id === targetId);
+  return target?.symbol || 'Unknown';
+}
+
+function getOutcomeStatus(prediction: Prediction): OutcomeStatus | null {
+  // Check if expired
+  if (prediction.status === 'expired') return 'expired';
+
+  // If no outcome value, it's pending
+  if (prediction.outcomeValue === null || prediction.outcomeValue === undefined) {
+    return prediction.status === 'active' ? 'pending' : null;
+  }
+
+  // Determine correctness
+  const actualDirection = prediction.outcomeValue > 0 ? 'up' : prediction.outcomeValue < 0 ? 'down' : 'flat';
+  return prediction.direction === actualDirection ? 'correct' : 'incorrect';
+}
+
 function formatDate(timestamp: string): string {
   const date = new Date(timestamp);
   return date.toLocaleString();
 }
 
-function getActionClass(action: string): string {
-  const a = action.toLowerCase();
-  if (a === 'buy' || a === 'accumulate' || a === 'bet_yes') return 'action-buy';
-  if (a === 'sell' || a === 'reduce' || a === 'bet_no') return 'action-sell';
+function getDirectionClass(direction: string): string {
+  const d = direction.toLowerCase();
+  if (d === 'up') return 'action-buy';
+  if (d === 'down') return 'action-sell';
   return 'action-hold';
 }
 </script>

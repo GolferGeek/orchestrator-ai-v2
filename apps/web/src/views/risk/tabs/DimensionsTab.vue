@@ -148,7 +148,7 @@
 import { ref, reactive } from 'vue';
 import type { RiskDimension } from '@/types/risk-agent';
 
-const props = defineProps<{
+defineProps<{
   dimensions: RiskDimension[];
   scopeId: string | null;
 }>();

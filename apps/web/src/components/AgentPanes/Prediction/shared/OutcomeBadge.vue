@@ -6,7 +6,8 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { OutcomeStatus } from '@/types/prediction-agent';
+
+type OutcomeStatus = 'pending' | 'correct' | 'incorrect' | 'expired';
 
 interface Props {
   status: OutcomeStatus;

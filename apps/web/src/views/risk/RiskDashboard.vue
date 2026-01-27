@@ -693,7 +693,7 @@ async function onTriggerDebate(subjectId: string) {
   }
 }
 
-async function onGenerateSummary(subjectId: string) {
+async function onGenerateSummary(_subjectId: string) {
   if (!selectedScopeId.value) return;
 
   isGeneratingSummary.value = true;
@@ -713,18 +713,18 @@ async function onGenerateSummary(subjectId: string) {
   }
 }
 
-function onOpenScenario(subjectId: string) {
+function onOpenScenario(_subjectId: string) {
   // Switch to analytics tab where scenario builder is available
   activeTab.value = 'analytics';
   // Could also open a scenario modal directly
 }
 
-function onViewHistory(subjectId: string) {
+function onViewHistory(_subjectId: string) {
   // Switch to analytics tab where history chart is available
   activeTab.value = 'analytics';
 }
 
-function onAddToCompare(subjectId: string) {
+function onAddToCompare(_subjectId: string) {
   // Switch to analytics tab where comparison is available
   activeTab.value = 'analytics';
   // Could also add to a comparison set state

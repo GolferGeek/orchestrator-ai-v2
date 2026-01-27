@@ -41,7 +41,8 @@ export function createHitlCheckpointNode(observability: ObservabilityService) {
 
     // Check if there's an explicit approval/rejection in state
     // (Future enhancement: wait for external signal)
-    const hitlDecision = (state as any).hitlDecision || "approved";
+    const hitlDecision =
+      (state as { hitlDecision?: string }).hitlDecision || "approved";
 
     if (hitlDecision === "rejected") {
       return {
@@ -70,7 +71,7 @@ export async function resumeAfterHitlApproval(
   threadId: string,
   taskId: string,
   approved: boolean,
-  observability: ObservabilityService,
+  _observability: ObservabilityService,
 ): Promise<void> {
   // This function would be called from an API endpoint
   // to resume the graph after attorney review

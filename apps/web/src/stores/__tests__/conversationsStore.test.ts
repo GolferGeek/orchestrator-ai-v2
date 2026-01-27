@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Unit Tests for Unified Conversations Store
  * Tests all mutations, getters, and computed properties

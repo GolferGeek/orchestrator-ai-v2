@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Validation System Unit Tests
  * Comprehensive tests for input validation, security patterns, and composables

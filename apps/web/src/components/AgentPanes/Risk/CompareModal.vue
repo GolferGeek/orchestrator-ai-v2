@@ -151,9 +151,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
+import { ref, watch } from 'vue';
 import { riskDashboardService } from '@/services/riskDashboardService';
-import { formatScorePercent, normalizeScore, getRiskLevel } from '@/utils/riskScoreUtils';
+import { formatScorePercent, getRiskLevel } from '@/utils/riskScoreUtils';
 import type { RiskSubject, RiskCompositeScore, SubjectComparison } from '@/types/risk-agent';
 import { useRiskDashboardStore } from '@/stores/riskDashboardStore';
 

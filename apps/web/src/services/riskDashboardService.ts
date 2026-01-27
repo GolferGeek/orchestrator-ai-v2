@@ -128,16 +128,23 @@ class RiskDashboardService {
   }
 
   private getOrgSlug(): string {
-    // Use explicit org slug if set, otherwise fall back to auth store
-    const org = this.currentOrgSlug || this.getAuthStore().currentOrganization;
-    if (!org) {
-      throw new Error('No organization context available');
+    // Priority: explicit org slug > auth store current org
+    // Explicit org slug is set when viewing an agent from a specific org (e.g., super-user)
+    if (this.currentOrgSlug && this.currentOrgSlug !== '*') {
+      return this.currentOrgSlug;
     }
-    // Reject global org slug '*' - need a specific organization for risk API
-    if (org === '*') {
-      throw new Error('Please select a specific organization to view risk analysis. Global (*) organization is not supported.');
+
+    const authOrg = this.getAuthStore().currentOrganization;
+    if (authOrg && authOrg !== '*') {
+      return authOrg;
     }
-    return org;
+
+    // If we have global org (*), provide helpful error
+    if (authOrg === '*' || this.currentOrgSlug === '*') {
+      throw new Error('Global organization (*) is not supported for risk analysis. The organization should be set from the selected agent.');
+    }
+
+    throw new Error('No organization context available. Please select an agent to view risk analysis.');
   }
 
   private getAuthHeaders(): Record<string, string> {

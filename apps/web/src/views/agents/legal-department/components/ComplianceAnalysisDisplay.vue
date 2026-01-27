@@ -146,7 +146,7 @@ import { computed } from 'vue';
 interface PolicyCheck {
   compliant?: boolean;
   details: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface RegulatoryCompliance {

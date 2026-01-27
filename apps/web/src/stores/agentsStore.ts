@@ -144,10 +144,18 @@ export const useAgentsStore = defineStore('agents', () => {
   function setAvailableAgents(agents: AgentInfo[]) {
     // Transform agents to extract hasCustomUI and customUIComponent from metadata
     // This ensures the custom UI fields are available at the top level of AgentInfo
+    // Also normalize organizationSlug from array to string (API may return array)
     availableAgents.value = agents.map((agent) => {
       const metadata = (agent as Record<string, unknown>).metadata as Record<string, unknown> | undefined;
+      const rawAgent = agent as Record<string, unknown>;
+
+      // Handle organizationSlug - API returns array, normalize to first element
+      const orgSlugRaw = rawAgent.organizationSlug ?? rawAgent.organization_slug;
+      const organizationSlug = Array.isArray(orgSlugRaw) ? orgSlugRaw[0] : orgSlugRaw;
+
       return {
         ...agent,
+        organizationSlug: organizationSlug as string | null,
         hasCustomUI: agent.hasCustomUI ?? metadata?.hasCustomUI ?? false,
         customUIComponent: agent.customUIComponent ?? metadata?.customUIComponent ?? null,
       };

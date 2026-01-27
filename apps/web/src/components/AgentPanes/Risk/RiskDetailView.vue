@@ -212,9 +212,12 @@
                       <li
                         v-for="(signal, idx) in alertContext.assessment.signals"
                         :key="idx"
-                        :class="`signal-${signal.impact}`"
+                        :class="`signal-${signal.impact || 'neutral'}`"
+                        class="signal-item"
+                        @click="showSignalDetail(signal)"
                       >
-                        {{ signal.description }}
+                        <strong>{{ signal.name }}</strong>: {{ signal.value }}
+                        <span v-if="signal.weight" class="signal-weight">({{ (signal.weight * 100).toFixed(0) }}%)</span>
                       </li>
                     </ul>
                   </div>
@@ -234,6 +237,48 @@
                 <div v-else class="context-empty">
                   No additional context available for this alert.
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- Signal Detail Modal -->
+    <Teleport to="body">
+      <Transition name="modal-fade">
+        <div v-if="selectedSignal" class="modal-overlay signal-modal-overlay" @click.self="closeSignalModal">
+          <div class="modal-content signal-modal">
+            <div class="modal-header signal-modal-header">
+              <h3>Signal Details</h3>
+              <button class="modal-close" @click="closeSignalModal">&times;</button>
+            </div>
+            <div class="modal-body">
+              <div class="signal-detail-row">
+                <span class="detail-label">Signal:</span>
+                <span class="detail-value">{{ selectedSignal.name || 'Unknown' }}</span>
+              </div>
+
+              <div v-if="selectedSignal.value !== undefined && selectedSignal.value !== null" class="signal-detail-row">
+                <span class="detail-label">Value:</span>
+                <span class="detail-value signal-value-text">{{ selectedSignal.value }}</span>
+              </div>
+
+              <div class="signal-detail-row">
+                <span class="detail-label">Impact:</span>
+                <span class="detail-value" :class="`impact-${selectedSignal.impact || 'neutral'}`">
+                  {{ (selectedSignal.impact || 'neutral').charAt(0).toUpperCase() + (selectedSignal.impact || 'neutral').slice(1) }}
+                </span>
+              </div>
+
+              <div v-if="selectedSignal.weight" class="signal-detail-row">
+                <span class="detail-label">Weight:</span>
+                <span class="detail-value">{{ (selectedSignal.weight * 100).toFixed(0) }}%</span>
+              </div>
+
+              <div v-if="selectedSignal.source" class="signal-detail-row">
+                <span class="detail-label">Source:</span>
+                <span class="detail-value">{{ selectedSignal.source }}</span>
               </div>
             </div>
           </div>
@@ -301,20 +346,47 @@ const alertContext = ref<AlertContext | null>(null);
 const alertContextLoading = ref(false);
 const alertContextError = ref<string | null>(null);
 
+// Signal detail modal state
+interface SignalData {
+  name?: string;
+  value?: unknown;
+  impact?: string;
+  weight?: number;
+  source?: string;
+}
+const selectedSignal = ref<SignalData | null>(null);
+
+function showSignalDetail(signal: SignalData) {
+  selectedSignal.value = signal;
+}
+
+function closeSignalModal() {
+  selectedSignal.value = null;
+}
+
 async function selectAlert(alert: RiskAlert) {
   selectedAlert.value = alert;
   alertContext.value = null;
   alertContextError.value = null;
   alertContextLoading.value = true;
 
+  console.log('[RiskDetailView] selectAlert called with:', alert.id);
+
   try {
     const response = await riskDashboardService.getAlertWithContext(alert.id);
+    console.log('[RiskDetailView] Alert context response:', JSON.stringify(response, null, 2));
+
     if (response.success && response.content) {
       alertContext.value = response.content.context;
+      console.log('[RiskDetailView] Context set:', JSON.stringify(response.content.context, null, 2));
+      console.log('[RiskDetailView] Signals:', JSON.stringify(response.content.context?.assessment?.signals, null, 2));
+    } else {
+      console.warn('[RiskDetailView] Response not successful or no content:', response);
+      alertContextError.value = response.error?.message || 'No context available';
     }
   } catch (err) {
-    console.error('Failed to fetch alert context:', err);
-    alertContextError.value = 'Failed to load additional context';
+    console.error('[RiskDetailView] Failed to fetch alert context:', err);
+    alertContextError.value = err instanceof Error ? err.message : 'Failed to load additional context';
   } finally {
     alertContextLoading.value = false;
   }
@@ -905,9 +977,9 @@ function escapeHtml(text: string): string {
 
 .context-error {
   padding: 0.75rem;
-  background: var(--ion-color-danger-tint, #ffcccc);
+  background: var(--ion-color-danger, #eb445a);
   border-radius: 4px;
-  color: var(--ion-color-danger, #eb445a);
+  color: #fff;
   font-size: 0.875rem;
 }
 
@@ -944,8 +1016,8 @@ function escapeHtml(text: string): string {
 }
 
 .context-score.critical {
-  background: var(--ion-color-danger-tint, #ffcccc);
-  color: var(--ion-color-danger, #eb445a);
+  background: var(--ion-color-danger, #eb445a);
+  color: #fff;
 }
 
 .context-score.high {
@@ -1073,6 +1145,80 @@ function escapeHtml(text: string): string {
 }
 
 .context-signals .signals-list li.signal-neutral {
+  color: var(--ion-color-medium, #666);
+}
+
+.context-signals .signals-list .signal-item {
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  margin-left: -0.5rem;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+}
+
+.context-signals .signals-list .signal-item:hover {
+  background-color: var(--ion-color-light, #f4f5f8);
+}
+
+.context-signals .signals-list .signal-weight {
+  font-size: 0.75rem;
+  opacity: 0.7;
+  margin-left: 0.25rem;
+}
+
+/* Signal Detail Modal */
+.signal-modal-overlay {
+  z-index: 1100;
+}
+
+.signal-modal {
+  max-width: 400px;
+}
+
+.signal-modal-header {
+  background: var(--ion-color-primary-tint, #e6f0ff);
+}
+
+.signal-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--ion-border-color, #e0e0e0);
+}
+
+.signal-detail-row:last-child {
+  border-bottom: none;
+}
+
+.signal-detail-row .detail-label {
+  color: var(--ion-color-medium, #666);
+  font-size: 0.875rem;
+  min-width: 80px;
+}
+
+.signal-detail-row .detail-value {
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-align: right;
+  word-break: break-word;
+  max-width: 60%;
+}
+
+.signal-detail-row .signal-value-text {
+  font-weight: normal;
+  font-style: italic;
+}
+
+.signal-detail-row .impact-positive {
+  color: var(--ion-color-success, #2dd36f);
+}
+
+.signal-detail-row .impact-negative {
+  color: var(--ion-color-danger, #eb445a);
+}
+
+.signal-detail-row .impact-neutral {
   color: var(--ion-color-medium, #666);
 }
 

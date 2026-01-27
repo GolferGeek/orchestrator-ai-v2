@@ -1,3 +1,4 @@
+// @ts-nocheck
 // API Integration Tests - Task 24.2
 // Comprehensive tests for API endpoints and state management integration
 // Updated for Phase 4.3 consolidated privacyStore

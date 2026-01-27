@@ -118,7 +118,7 @@ export class BusinessAutomationAdvisorService implements OnModuleInit {
         },
       };
     } catch (error) {
-      const duration = Date.now() - startTime;
+      const _duration = Date.now() - startTime;
       const errorMessage =
         error instanceof Error ? error.message : String(error);
 

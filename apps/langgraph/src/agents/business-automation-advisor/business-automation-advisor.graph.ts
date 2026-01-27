@@ -182,7 +182,7 @@ Now process: ${state.industryInput}`;
       });
 
       // Parse the JSON response
-      let cleaned = response.text
+      const cleaned = response.text
         .replace(/```json\n?/g, "")
         .replace(/```/g, "")
         .trim();

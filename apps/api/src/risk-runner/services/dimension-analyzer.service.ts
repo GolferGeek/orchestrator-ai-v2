@@ -62,7 +62,7 @@ export class DimensionAnalyzerService {
     input: DimensionAnalysisInput,
   ): Promise<CreateRiskAssessmentData> {
     const { subject, dimension, context, marketData } = input;
-    let { articles } = input;
+    const { articles } = input;
 
     this.logger.debug(
       `Analyzing dimension ${dimension.slug} for subject ${subject.identifier}`,

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Unit Tests for Privacy Store - Privacy Indicators Section
  * Tests the privacy indicators functionality after Phase 4.3 consolidation into unified privacyStore

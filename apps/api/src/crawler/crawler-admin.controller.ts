@@ -274,7 +274,7 @@ export class CrawlerAdminController {
         },
       };
     } catch (error) {
-      this.logger.error(`Failed to get dashboard stats: ${error}`);
+      this.logger.error(`Failed to get dashboard stats: ${String(error)}`);
       throw new HttpException(
         'Failed to get dashboard stats',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -323,7 +323,7 @@ export class CrawlerAdminController {
 
       return result;
     } catch (error) {
-      this.logger.error(`Failed to get sources: ${error}`);
+      this.logger.error(`Failed to get sources: ${String(error)}`);
       throw new HttpException(
         'Failed to get sources',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -372,7 +372,7 @@ export class CrawlerAdminController {
       };
     } catch (error) {
       if (error instanceof HttpException) throw error;
-      this.logger.error(`Failed to get source: ${error}`);
+      this.logger.error(`Failed to get source: ${String(error)}`);
       throw new HttpException(
         'Failed to get source',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -413,7 +413,7 @@ export class CrawlerAdminController {
 
       return source;
     } catch (error) {
-      this.logger.error(`Failed to create source: ${error}`);
+      this.logger.error(`Failed to create source: ${String(error)}`);
       throw new HttpException(
         'Failed to create source',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -465,7 +465,7 @@ export class CrawlerAdminController {
       return source;
     } catch (error) {
       if (error instanceof HttpException) throw error;
-      this.logger.error(`Failed to update source: ${error}`);
+      this.logger.error(`Failed to update source: ${String(error)}`);
       throw new HttpException(
         'Failed to update source',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -499,7 +499,7 @@ export class CrawlerAdminController {
       return { success: true };
     } catch (error) {
       if (error instanceof HttpException) throw error;
-      this.logger.error(`Failed to delete source: ${error}`);
+      this.logger.error(`Failed to delete source: ${String(error)}`);
       throw new HttpException(
         'Failed to delete source',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -536,7 +536,7 @@ export class CrawlerAdminController {
       return crawls;
     } catch (error) {
       if (error instanceof HttpException) throw error;
-      this.logger.error(`Failed to get source crawls: ${error}`);
+      this.logger.error(`Failed to get source crawls: ${String(error)}`);
       throw new HttpException(
         'Failed to get source crawls',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -589,7 +589,7 @@ export class CrawlerAdminController {
       return articles;
     } catch (error) {
       if (error instanceof HttpException) throw error;
-      this.logger.error(`Failed to get source articles: ${error}`);
+      this.logger.error(`Failed to get source articles: ${String(error)}`);
       throw new HttpException(
         'Failed to get source articles',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -634,7 +634,7 @@ export class CrawlerAdminController {
         articlesNew: result.articlesNew,
       };
     } catch (error) {
-      this.logger.error(`Failed to trigger crawl: ${error}`);
+      this.logger.error(`Failed to trigger crawl: ${String(error)}`);
       throw new HttpException(
         'Failed to trigger crawl',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -680,7 +680,7 @@ export class CrawlerAdminController {
         error: result.error,
       };
     } catch (error) {
-      this.logger.error(`Failed to crawl source: ${error}`);
+      this.logger.error(`Failed to crawl source: ${String(error)}`);
       throw new HttpException(
         'Failed to crawl source',
         HttpStatus.INTERNAL_SERVER_ERROR,

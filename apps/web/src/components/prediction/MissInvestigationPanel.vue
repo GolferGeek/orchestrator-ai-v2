@@ -286,7 +286,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from 'vue';
+import { computed, reactive } from 'vue';
 
 // Types matching the backend interfaces
 interface SourceInfo {

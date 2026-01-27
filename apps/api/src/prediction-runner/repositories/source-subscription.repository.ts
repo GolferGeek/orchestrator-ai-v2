@@ -326,12 +326,15 @@ export class SourceSubscriptionRepository {
     subscriptionId: string,
     limit: number = 100,
   ): Promise<CrawlerArticle[]> {
-    const { data, error } = await this.getClient()
+    const { data, error } = (await this.getClient()
       .schema(this.schema)
       .rpc('get_new_articles_for_subscription', {
         p_subscription_id: subscriptionId,
         p_limit: limit,
-      });
+      })) as {
+      data: Record<string, unknown>[] | null;
+      error: { message: string } | null;
+    };
 
     if (error) {
       this.logger.error(`Failed to get new articles: ${error.message}`);
@@ -339,7 +342,7 @@ export class SourceSubscriptionRepository {
     }
 
     // Map the RPC response to CrawlerArticle interface
-    return (data ?? []).map((row: Record<string, unknown>) => ({
+    return (data ?? []).map((row) => ({
       id: row.article_id as string,
       organization_slug: '', // Not returned by function
       source_id: row.source_id as string,
@@ -367,12 +370,15 @@ export class SourceSubscriptionRepository {
     targetId: string,
     limit: number = 100,
   ): Promise<Array<CrawlerArticle & { subscription_id: string }>> {
-    const { data, error } = await this.getClient()
+    const { data, error } = (await this.getClient()
       .schema(this.schema)
       .rpc('get_new_articles_for_target', {
         p_target_id: targetId,
         p_limit: limit,
-      });
+      })) as {
+      data: Record<string, unknown>[] | null;
+      error: { message: string } | null;
+    };
 
     if (error) {
       this.logger.error(
@@ -383,7 +389,7 @@ export class SourceSubscriptionRepository {
       );
     }
 
-    return (data ?? []).map((row: Record<string, unknown>) => ({
+    return (data ?? []).map((row) => ({
       id: row.article_id as string,
       subscription_id: row.subscription_id as string,
       organization_slug: '',

@@ -85,7 +85,10 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  scopeId: undefined,
   subjects: () => [],
+  subjectId: undefined,
+  history: () => [],
   title: 'Score History',
   showTitle: true,
   height: 200,

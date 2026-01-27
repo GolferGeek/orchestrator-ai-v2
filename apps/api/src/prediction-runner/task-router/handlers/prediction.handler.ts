@@ -256,7 +256,7 @@ export class PredictionHandler implements IDashboardHandler {
         // Filter predictions to only those whose target belongs to a valid universe
         filtered = filtered.filter((p) => {
           const targetUniverseId = targetToUniverse.get(p.target_id);
-          return targetUniverseId && validUniverseIds!.has(targetUniverseId);
+          return targetUniverseId && validUniverseIds.has(targetUniverseId);
         });
 
         this.logger.debug(

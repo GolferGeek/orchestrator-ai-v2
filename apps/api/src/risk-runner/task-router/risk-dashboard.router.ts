@@ -365,7 +365,7 @@ export class RiskDashboardRouter {
           learningsResult.success ? learningsResult.data : []
         ) as unknown[];
 
-        const totalSubjects = (subjects as unknown[]).length;
+        const totalSubjects = subjects.length;
         const analyzedSubjects = scores.length;
         const avgScore =
           analyzedSubjects > 0

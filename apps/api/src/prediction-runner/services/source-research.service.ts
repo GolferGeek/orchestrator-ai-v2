@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call */
+// Disabled unsafe rules due to dynamic data handling in source research
 import { Injectable, Logger } from '@nestjs/common';
 import { ExecutionContext, NIL_UUID } from '@orchestrator-ai/transport-types';
 import { LLMGenerationService } from '@/llms/services/llm-generation.service';

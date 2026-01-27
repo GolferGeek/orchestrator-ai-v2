@@ -307,7 +307,7 @@ import type { CreateSubjectRequest, RiskDimension, ExecutiveSummary } from '@/ty
 
 interface Props {
   conversation?: { id: string; agentName?: string; organizationSlug?: string } | null;
-  agent?: { id?: string; slug?: string; name?: string } | null;
+  agent?: { id?: string; slug?: string; name?: string; organizationSlug?: string | string[] } | null;
 }
 
 const props = defineProps<Props>();
@@ -688,7 +688,7 @@ async function handleAnalyzeAll() {
   }
 }
 
-async function handleTriggerDebate(subjectId: string) {
+async function _handleTriggerDebate(subjectId: string) {
   store.setAnalyzing(true);
   try {
     await riskDashboardService.triggerDebate(subjectId);
@@ -948,18 +948,53 @@ function clearError() {
   store.clearError();
 }
 
+// Helper to extract org from agent (handles array or string)
+function getAgentOrg(): string | null {
+  const agentOrg = props.agent?.organizationSlug;
+  if (Array.isArray(agentOrg)) {
+    return agentOrg[0] || null;
+  }
+  return agentOrg || null;
+}
+
 // Initialize on mount
 onMounted(() => {
+  // Priority: agent's org > conversation's org
+  // The agent knows what org it belongs to
+  const agentOrg = getAgentOrg();
+  const conversationOrg = props.conversation?.organizationSlug;
+  const effectiveOrg = agentOrg || conversationOrg;
+
+  if (effectiveOrg) {
+    console.log('[RiskAgentPane] Setting org:', effectiveOrg, '(agent:', agentOrg, ', conversation:', conversationOrg, ')');
+    riskDashboardService.setOrgSlug(effectiveOrg);
+  }
+  if (props.agent?.slug) {
+    riskDashboardService.setAgentSlug(props.agent.slug);
+  }
   handleRefresh();
 });
 
-// Watch for agent changes
-watch(() => props.agent?.slug, () => {
-  if (props.agent?.slug) {
-    riskDashboardService.setAgentSlug(props.agent.slug);
-    handleRefresh();
+// Watch for agent/conversation changes
+watch(
+  [() => props.agent?.slug, () => props.agent?.organizationSlug, () => props.conversation?.organizationSlug],
+  ([agentSlug, agentOrg, conversationOrg]) => {
+    // Priority: agent's org > conversation's org
+    const effectiveAgentOrg = Array.isArray(agentOrg) ? agentOrg[0] : agentOrg;
+    const effectiveOrg = effectiveAgentOrg || conversationOrg;
+
+    if (effectiveOrg) {
+      console.log('[RiskAgentPane] Setting org:', effectiveOrg, '(agent:', effectiveAgentOrg, ', conversation:', conversationOrg, ')');
+      riskDashboardService.setOrgSlug(effectiveOrg);
+    }
+    if (agentSlug) {
+      riskDashboardService.setAgentSlug(agentSlug);
+    }
+    if (agentSlug || effectiveOrg) {
+      handleRefresh();
+    }
   }
-});
+);
 </script>
 
 <style scoped>

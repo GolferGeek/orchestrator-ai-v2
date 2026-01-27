@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+// Disabled unsafe rules due to Supabase RPC calls returning generic 'any' types
 /**
  * Executive Summary Service
  *
@@ -27,7 +29,12 @@ export interface ExecutiveSummaryContent {
   keyFindings: string[];
   recommendations: string[];
   riskHighlights: {
-    topRisks: Array<{ subject: string; subjectId?: string; score: number; dimension: string }>;
+    topRisks: Array<{
+      subject: string;
+      subjectId?: string;
+      score: number;
+      dimension: string;
+    }>;
     recentChanges: Array<{
       subject: string;
       subjectId?: string;
@@ -705,20 +712,26 @@ Guidelines:
         riskHighlights: {
           // Merge LLM response with source data to include subjectIds
           topRisks: Array.isArray(parsedHighlights['topRisks'])
-            ? (parsedHighlights['topRisks'] as unknown[]).slice(0, 3).map((llmRisk) => {
-                const r = llmRisk as Record<string, unknown>;
-                const subjectName = asString(r['subject']) ?? '';
-                // Find matching subject in source data to get subjectId
-                const sourceRisk = topRisks.find(
-                  (tr) => asString(tr['subjectName'])?.toLowerCase() === subjectName.toLowerCase(),
-                );
-                return {
-                  subject: subjectName,
-                  subjectId: sourceRisk ? (asString(sourceRisk['subjectId']) ?? undefined) : undefined,
-                  score: asNumber(r['score']) ?? 0,
-                  dimension: asString(r['dimension']) ?? 'Overall',
-                };
-              })
+            ? (parsedHighlights['topRisks'] as unknown[])
+                .slice(0, 3)
+                .map((llmRisk) => {
+                  const r = llmRisk as Record<string, unknown>;
+                  const subjectName = asString(r['subject']) ?? '';
+                  // Find matching subject in source data to get subjectId
+                  const sourceRisk = topRisks.find(
+                    (tr) =>
+                      asString(tr['subjectName'])?.toLowerCase() ===
+                      subjectName.toLowerCase(),
+                  );
+                  return {
+                    subject: subjectName,
+                    subjectId: sourceRisk
+                      ? (asString(sourceRisk['subjectId']) ?? undefined)
+                      : undefined,
+                    score: asNumber(r['score']) ?? 0,
+                    dimension: asString(r['dimension']) ?? 'Overall',
+                  };
+                })
             : topRisks.slice(0, 3).map((r) => ({
                 subject: asString(r['subjectName']) ?? 'Unknown',
                 subjectId: asString(r['subjectId']) ?? undefined,
@@ -726,20 +739,29 @@ Guidelines:
                 dimension: 'Overall',
               })),
           recentChanges: Array.isArray(parsedHighlights['recentChanges'])
-            ? (parsedHighlights['recentChanges'] as unknown[]).slice(0, 3).map((llmChange) => {
-                const c = llmChange as Record<string, unknown>;
-                const subjectName = asString(c['subject']) ?? '';
-                // Find matching subject in source data to get subjectId
-                const sourceChange = recentChanges.find(
-                  (rc) => asString(rc['subjectName'])?.toLowerCase() === subjectName.toLowerCase(),
-                );
-                return {
-                  subject: subjectName,
-                  subjectId: sourceChange ? (asString(sourceChange['subjectId']) ?? undefined) : undefined,
-                  change: asNumber(c['change']) ?? 0,
-                  direction: asString(c['direction']) === 'up' ? 'up' : ('down' as const),
-                };
-              })
+            ? (parsedHighlights['recentChanges'] as unknown[])
+                .slice(0, 3)
+                .map((llmChange) => {
+                  const c = llmChange as Record<string, unknown>;
+                  const subjectName = asString(c['subject']) ?? '';
+                  // Find matching subject in source data to get subjectId
+                  const sourceChange = recentChanges.find(
+                    (rc) =>
+                      asString(rc['subjectName'])?.toLowerCase() ===
+                      subjectName.toLowerCase(),
+                  );
+                  return {
+                    subject: subjectName,
+                    subjectId: sourceChange
+                      ? (asString(sourceChange['subjectId']) ?? undefined)
+                      : undefined,
+                    change: asNumber(c['change']) ?? 0,
+                    direction:
+                      asString(c['direction']) === 'up'
+                        ? 'up'
+                        : ('down' as const),
+                  };
+                })
             : recentChanges.slice(0, 3).map((c) => ({
                 subject: asString(c['subjectName']) ?? 'Unknown',
                 subjectId: asString(c['subjectId']) ?? undefined,

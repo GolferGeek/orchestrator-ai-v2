@@ -89,7 +89,7 @@
                       <p>{{ formatConversationTitle(conversation) }}</p>
                     </ion-label>
                     <ion-badge
-                      v-if="conversation.activeTasks > 0"
+                      v-if="conversation.activeTasks && conversation.activeTasks > 0"
                       slot="end"
                       color="warning"
                     >
@@ -123,8 +123,8 @@
                       <h4>{{ formatAgentDisplayName(agent, false) }}</h4>
                     </ion-label>
                     <!-- Conversation count badge - only show for agents that support conversations -->
-                    <ion-badge v-if="agentShowsConversation(agent)" :color="agent.totalConversations > 0 ? 'secondary' : 'light'" class="conversation-count">
-                      {{ agent.totalConversations }}
+                    <ion-badge v-if="agentShowsConversation(agent)" :color="(agent.totalConversations || 0) > 0 ? 'secondary' : 'light'" class="conversation-count">
+                      {{ agent.totalConversations || 0 }}
                     </ion-badge>
                     <div class="header-actions" @click.stop>
                       <!-- Toggle conversations arrow (only show if agent supports conversations and has some) -->
@@ -177,7 +177,7 @@
                         <p>{{ formatConversationTitle(conversation) }}</p>
                       </ion-label>
                       <ion-badge
-                        v-if="conversation.activeTasks > 0"
+                        v-if="conversation.activeTasks && conversation.activeTasks > 0"
                         slot="end"
                         color="warning"
                       >
@@ -262,7 +262,7 @@
                       <p>{{ formatConversationTitle(conversation) }}</p>
                     </ion-label>
                     <ion-badge
-                      v-if="conversation.activeTasks > 0"
+                      v-if="conversation.activeTasks && conversation.activeTasks > 0"
                       slot="end"
                       color="warning"
                     >
@@ -296,8 +296,8 @@
                     <h4>{{ formatAgentDisplayName(agent, false) }}</h4>
                   </ion-label>
                   <!-- Conversation count badge - only show for agents that support conversations -->
-                  <ion-badge v-if="agentShowsConversation(agent)" :color="agent.totalConversations > 0 ? 'secondary' : 'light'" class="conversation-count">
-                    {{ agent.totalConversations }}
+                  <ion-badge v-if="agentShowsConversation(agent)" :color="(agent.totalConversations || 0) > 0 ? 'secondary' : 'light'" class="conversation-count">
+                    {{ agent.totalConversations || 0 }}
                   </ion-badge>
                   <div class="header-actions" @click.stop>
                     <!-- Toggle conversations arrow (only show if agent supports conversations and has some) -->
@@ -350,7 +350,7 @@
                       <p>{{ formatConversationTitle(conversation) }}</p>
                     </ion-label>
                     <ion-badge
-                      v-if="conversation.activeTasks > 0"
+                      v-if="conversation.activeTasks && conversation.activeTasks > 0"
                       slot="end"
                       color="warning"
                     >
@@ -390,8 +390,8 @@
               <h3>{{ formatAgentDisplayName(agent, true) }}</h3>
             </ion-label>
             <!-- Conversation count badge - only show for agents that support conversations -->
-            <ion-badge v-if="agentShowsConversation(agent)" :color="agent.totalConversations > 0 ? 'primary' : 'medium'" class="conversation-count">
-              {{ agent.totalConversations }}
+            <ion-badge v-if="agentShowsConversation(agent)" :color="(agent.totalConversations || 0) > 0 ? 'primary' : 'medium'" class="conversation-count">
+              {{ agent.totalConversations || 0 }}
             </ion-badge>
             <div class="header-actions" @click.stop>
               <!-- Toggle conversations arrow (only show if agent supports conversations and has some) -->
@@ -444,7 +444,7 @@
                 <p>{{ formatConversationTitle(conversation) }}</p>
               </ion-label>
               <ion-badge
-                v-if="conversation.activeTasks > 0"
+                v-if="conversation.activeTasks && conversation.activeTasks > 0"
                 slot="end"
                 color="warning"
               >
@@ -525,6 +525,45 @@ import { agentsService } from '@/services/agentsService';
 import { useAuthStore } from '@/stores/rbacStore';
 import ConversationDeleteModal from './ConversationDeleteModal.vue';
 import type { Agent, AgentConversation } from '@/types/conversation';
+import type { HierarchyNode } from '@/types/agent';
+import type { Conversation } from '@/types/message';
+import type { AgentType } from '@/stores/conversationsStore';
+
+// Extended types for this component
+interface EnhancedAgent extends Agent {
+  displayName?: string;
+  metadata?: {
+    displayName?: string;
+    description?: string;
+    hasCustomUI?: boolean;
+    customUIComponent?: string | null;
+    execution_modes?: string[];
+    execution_profile?: string;
+    execution_capabilities?: Record<string, boolean>;
+  };
+  agentType?: string;
+  children?: HierarchyNode[];
+  conversations?: ExtendedConversation[];
+  activeConversations?: number;
+  totalConversations?: number;
+}
+
+interface ExtendedConversation extends AgentConversation {
+  agentName?: string;
+  activeTasks?: number;
+  hasDeliverables?: boolean;
+  endedAt?: Date | null;
+}
+
+interface HierarchyGroup {
+  type: string;
+  agents: EnhancedAgent[];
+  totalConversations: number;
+  isManager?: boolean;
+  isCEO?: boolean;
+  isCEOAgent?: boolean;
+  isSpecialists?: boolean;
+}
 
 // Props
 const props = defineProps<{
@@ -547,7 +586,7 @@ const expandedConversationLists = ref<Set<string>>(new Set());
 
 // Delete modal state
 const showDeleteModal = ref(false);
-const conversationToDelete = ref<AgentConversation | null>(null);
+const conversationToDelete = ref<ExtendedConversation | null>(null);
 
 // Icons (make them reactive for template access)
 const icons = {
@@ -576,7 +615,7 @@ const authStore = useAuthStore();
 const storeConversations = computed(() => Array.from(conversationsStore.conversations.values()));
 
 // Helper functions (defined before computed properties)
-const formatAgentDisplayName = (agent: Agent, removeOrchestrator = false) => {
+const formatAgentDisplayName = (agent: EnhancedAgent, removeOrchestrator = false) => {
   // If displayName exists and is different from name, use it as-is
   if (agent.displayName && agent.displayName !== agent.name) {
     return agent.displayName;
@@ -590,7 +629,7 @@ const formatAgentDisplayName = (agent: Agent, removeOrchestrator = false) => {
   return formatted;
 };
 
-const formatConversationTitle = (conversation: AgentConversation) => {
+const formatConversationTitle = (conversation: ExtendedConversation) => {
   // Just show relative time, not agent name
   return formatLastActive(conversation.lastActiveAt || conversation.createdAt);
 };
@@ -613,7 +652,7 @@ const formatLastActive = (date: Date | string) => {
   return dateObj.toLocaleDateString();
 };
 
-const selectConversation = (conversation: AgentConversation) => {
+const selectConversation = (conversation: ExtendedConversation) => {
   emit('conversation-selected', conversation);
 };
 
@@ -633,10 +672,10 @@ const isConversationListExpanded = (agentName: string): boolean => {
   return expandedConversationLists.value.has(agentName);
 };
 
-const deleteConversation = async (conversation: AgentConversation, event: Event) => {
+const deleteConversation = async (conversation: ExtendedConversation, event: Event) => {
   // Prevent the conversation selection when clicking delete
   event.stopPropagation();
-  
+
   // Check if conversation has deliverables before showing modal
   let hasDeliverables = false;
   try {
@@ -649,7 +688,7 @@ const deleteConversation = async (conversation: AgentConversation, event: Event)
     // Default to false if we can't check
     hasDeliverables = false;
   }
-  
+
   // Show the delete modal with deliverable information
   conversationToDelete.value = {
     ...conversation,
@@ -700,27 +739,32 @@ const handleDeleteConfirm = async (deleteDeliverables: boolean) => {
 // Simple hierarchy processing - just build the tree as it comes from the backend
 const hierarchyGroups = computed(() => {
   const hierarchy = agentHierarchy.value;
-  if (!hierarchy?.data) return [];
+  if (!hierarchy) return [];
 
   // The store already normalized the data to a flat array
-  const flatAgents = Array.isArray(hierarchy.data) ? hierarchy.data : [];
-  
-  const groups: Agent[] = [];
+  // hierarchy can be either an array or an object with data property
+  const flatAgents = Array.isArray(hierarchy)
+    ? hierarchy
+    : (hierarchy as any).data
+      ? ((hierarchy as any).data as HierarchyNode[])
+      : [];
 
-  const processNode = (node: Agent) => {
+  const groups: HierarchyGroup[] = [];
+
+  const processNode = (node: HierarchyNode) => {
     // Apply search filter to the manager/orchestrator
     const matchesSearch = !searchQuery.value ||
       node.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      node.displayName?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+      node.metadata?.displayName?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
       node.metadata?.description?.toLowerCase().includes(searchQuery.value.toLowerCase());
 
     // Check if any children match the search
     let hasMatchingChildren = false;
     if (node.children) {
-      hasMatchingChildren = node.children.some((child: Agent) =>
+      hasMatchingChildren = node.children.some((child: HierarchyNode) =>
         !searchQuery.value ||
         child.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-        child.displayName?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+        child.metadata?.displayName?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
         child.metadata?.description?.toLowerCase().includes(searchQuery.value.toLowerCase())
       );
     }
@@ -734,35 +778,42 @@ const hierarchyGroups = computed(() => {
     const nodeConversations = conversationsStore.conversationsByAgent(
       node.name,
       node.organizationSlug || null
-    );
+    ) as ExtendedConversation[];
 
     // Create the manager/orchestrator agent
-    const mainAgent = {
+    const mainAgent: EnhancedAgent = {
       name: node.name,
-      displayName: node.displayName || node.metadata?.displayName || node.name,
-      type: node.agentType,
-      description: node.metadata?.description || node.description || '',
-      execution_modes: node.execution_modes || node.metadata?.execution_modes || [],
-      execution_profile: node.metadata?.execution_profile,
-      execution_capabilities: node.metadata?.execution_capabilities,
-      hasCustomUI: node.metadata?.hasCustomUI || false,
-      customUIComponent: node.metadata?.customUIComponent || null,
+      type: node.agentType || 'unknown',
+      displayName: node.metadata?.displayName || node.name,
+      description: node.metadata?.description || '',
+      execution_modes: (node.metadata as any)?.execution_modes || [],
+      execution_profile: (node.metadata as any)?.execution_profile,
+      execution_capabilities: (node.metadata as any)?.execution_capabilities,
+      metadata: {
+        displayName: node.metadata?.displayName,
+        description: node.metadata?.description,
+        hasCustomUI: node.metadata?.custom?.hasCustomUI as boolean || false,
+        customUIComponent: (node.metadata?.custom?.customUIComponent as string) || null,
+        execution_modes: (node.metadata as any)?.execution_modes,
+        execution_profile: (node.metadata as any)?.execution_profile,
+        execution_capabilities: (node.metadata as any)?.execution_capabilities,
+      },
       organizationSlug: node.organizationSlug,
       conversations: nodeConversations,
-      activeConversations: nodeConversations.filter(c => !c.endedAt).length,
+      activeConversations: nodeConversations.filter((c: ExtendedConversation) => !c.endedAt).length,
       totalConversations: nodeConversations.length,
     };
 
     // Build the agents array - manager first, then direct children only
-    const agents = [mainAgent];
+    const agents: EnhancedAgent[] = [mainAgent];
 
     // Add direct child agents (not their sub-children)
     if (node.children && node.children.length > 0) {
-      node.children.forEach((child: Agent) => {
+      node.children.forEach((child: HierarchyNode) => {
         // Check if this direct child matches the search
         const childMatchesSearch = !searchQuery.value ||
           child.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-          child.displayName?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+          child.metadata?.displayName?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
           child.metadata?.description?.toLowerCase().includes(searchQuery.value.toLowerCase());
 
         if (childMatchesSearch) {
@@ -771,21 +822,28 @@ const hierarchyGroups = computed(() => {
           const childConversations = conversationsStore.conversationsByAgent(
             child.name,
             child.organizationSlug || null
-          );
+          ) as ExtendedConversation[];
 
           agents.push({
             name: child.name,
-            displayName: child.displayName || child.metadata?.displayName || child.name,
-            type: child.agentType,
-            description: child.metadata?.description || child.description || '',
-            execution_modes: child.execution_modes || child.metadata?.execution_modes || [],
-            execution_profile: child.metadata?.execution_profile,
-            execution_capabilities: child.metadata?.execution_capabilities,
-            hasCustomUI: child.metadata?.hasCustomUI || false,
-            customUIComponent: child.metadata?.customUIComponent || null,
+            type: child.agentType || 'unknown',
+            displayName: child.metadata?.displayName || child.name,
+            description: child.metadata?.description || '',
+            execution_modes: (child.metadata as any)?.execution_modes || [],
+            execution_profile: (child.metadata as any)?.execution_profile,
+            execution_capabilities: (child.metadata as any)?.execution_capabilities,
+            metadata: {
+              displayName: child.metadata?.displayName,
+              description: child.metadata?.description,
+              hasCustomUI: child.metadata?.custom?.hasCustomUI as boolean || false,
+              customUIComponent: (child.metadata?.custom?.customUIComponent as string) || null,
+              execution_modes: (child.metadata as any)?.execution_modes,
+              execution_profile: (child.metadata as any)?.execution_profile,
+              execution_capabilities: (child.metadata as any)?.execution_capabilities,
+            },
             organizationSlug: child.organizationSlug,
             conversations: childConversations,
-            activeConversations: childConversations.filter(c => !c.endedAt).length,
+            activeConversations: childConversations.filter((c: ExtendedConversation) => !c.endedAt).length,
             totalConversations: childConversations.length,
           });
         }
@@ -801,10 +859,10 @@ const hierarchyGroups = computed(() => {
     if (agents.length > 0) {
       // Update the main agent's (orchestrator's) conversation count to include all child conversations
       if (agents.length > 1) { // Only if there are child agents
-        const totalChildConversations = agents.slice(1).reduce((sum, a) => sum + a.totalConversations, 0);
+        const totalChildConversations = agents.slice(1).reduce((sum, a) => sum + (a.totalConversations || 0), 0);
         mainAgent.totalConversations = nodeConversations.length + totalChildConversations;
-        mainAgent.activeConversations = nodeConversations.filter(c => !c.endedAt).length + 
-          agents.slice(1).reduce((sum, a) => sum + a.activeConversations, 0);
+        mainAgent.activeConversations = nodeConversations.filter((c: ExtendedConversation) => !c.endedAt).length +
+          agents.slice(1).reduce((sum, a) => sum + (a.activeConversations || 0), 0);
       }
 
       // Determine if this is a manager (has children or name indicates it)
@@ -815,7 +873,7 @@ const hierarchyGroups = computed(() => {
       groups.push({
         type: node.name,
         agents: agents,
-        totalConversations: agents.reduce((sum, a) => sum + a.totalConversations, 0),
+        totalConversations: agents.reduce((sum, a) => sum + (a.totalConversations || 0), 0),
         isManager: isManager,
         isCEO: false // Set in the top orchestrator logic instead
       });
@@ -824,59 +882,69 @@ const hierarchyGroups = computed(() => {
   
   // First, find the top-level orchestrator (could be CEO, Hiverarchy, etc.)
   // Take the first root node that has children as the main orchestrator
-  const topOrchestrator = flatAgents.find((agent: Agent) =>
+  const topOrchestrator = flatAgents.find((agent: HierarchyNode) =>
     agent.children && agent.children.length > 0
   ); // Only find orchestrators that actually have children - no fallback
 
   if (topOrchestrator && topOrchestrator.children && topOrchestrator.children.length > 0) {
     // For database orchestrators (with organizationSlug), match by organizationSlug; otherwise match by agentType
-    const orchestratorConversations = topOrchestrator.organizationSlug
+    const orchestratorConversations = (topOrchestrator.organizationSlug
       ? conversationsStore.conversationsByAgent(topOrchestrator.name, topOrchestrator.organizationSlug)
-      : conversationsStore.conversationsByAgentType(topOrchestrator.type)
-          .filter(conv => conv.agentName === topOrchestrator.name);
+      : conversationsStore.conversationsByAgentType((topOrchestrator.agentType || 'orchestrator') as AgentType)
+          .filter(conv => (conv as any).agentName === topOrchestrator.name)) as ExtendedConversation[];
 
     const orchestratorMatchesSearch = !searchQuery.value ||
       topOrchestrator.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      topOrchestrator.displayName?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+      topOrchestrator.metadata?.displayName?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
       topOrchestrator.metadata?.description?.toLowerCase().includes(searchQuery.value.toLowerCase());
-    
+
     if (orchestratorMatchesSearch) {
       // Build the agents array starting with the orchestrator
-      const orchestratorAgents = [{
+      const orchestratorAgents: EnhancedAgent[] = [{
         name: topOrchestrator.name,
-        displayName: topOrchestrator.displayName || topOrchestrator.metadata?.displayName || topOrchestrator.name,
-        type: topOrchestrator.agentType,
-        description: topOrchestrator.metadata?.description || topOrchestrator.description || '',
-        execution_modes: topOrchestrator.execution_modes || topOrchestrator.metadata?.execution_modes || [],
-        hasCustomUI: topOrchestrator.metadata?.hasCustomUI || false,
-        customUIComponent: topOrchestrator.metadata?.customUIComponent || null,
+        type: topOrchestrator.agentType || 'unknown',
+        displayName: topOrchestrator.metadata?.displayName || topOrchestrator.name,
+        description: topOrchestrator.metadata?.description || '',
+        execution_modes: (topOrchestrator.metadata as any)?.execution_modes || [],
+        metadata: {
+          displayName: topOrchestrator.metadata?.displayName,
+          description: topOrchestrator.metadata?.description,
+          hasCustomUI: topOrchestrator.metadata?.custom?.hasCustomUI as boolean || false,
+          customUIComponent: (topOrchestrator.metadata?.custom?.customUIComponent as string) || null,
+          execution_modes: (topOrchestrator.metadata as any)?.execution_modes,
+        },
         organizationSlug: topOrchestrator.organizationSlug,
         conversations: orchestratorConversations,
-        activeConversations: orchestratorConversations.filter(c => !c.endedAt).length,
+        activeConversations: orchestratorConversations.filter((c: ExtendedConversation) => !c.endedAt).length,
         totalConversations: orchestratorConversations.length,
       }];
 
       // Add non-manager children directly to the orchestrator's agents array
       if (topOrchestrator.children) {
-        topOrchestrator.children.forEach((child: Agent) => {
+        topOrchestrator.children.forEach((child: HierarchyNode) => {
           if (!child.children || child.children.length === 0) {
             // This is a non-manager child - add it to the orchestrator's team
             // For database agents (with organizationSlug), match by organizationSlug; otherwise match by agentType
-            const childConversations = child.organizationSlug
+            const childConversations = (child.organizationSlug
               ? conversationsStore.conversationsByAgent(child.name, child.organizationSlug)
-              : conversationsStore.conversationsByAgentType(child.type)
-                  .filter(conv => conv.agentName === child.name);
+              : conversationsStore.conversationsByAgentType((child.agentType || 'custom') as AgentType)
+                  .filter(conv => (conv as any).agentName === child.name)) as ExtendedConversation[];
             orchestratorAgents.push({
               name: child.name,
-              displayName: child.displayName || child.metadata?.displayName || child.name,
-              type: child.agentType,
-              description: child.metadata?.description || child.description || '',
-              execution_modes: child.execution_modes || child.metadata?.execution_modes || [],
-              hasCustomUI: child.metadata?.hasCustomUI || false,
-              customUIComponent: child.metadata?.customUIComponent || null,
+              type: child.agentType || 'unknown',
+              displayName: child.metadata?.displayName || child.name,
+              description: child.metadata?.description || '',
+              execution_modes: (child.metadata as any)?.execution_modes || [],
+              metadata: {
+                displayName: child.metadata?.displayName,
+                description: child.metadata?.description,
+                hasCustomUI: child.metadata?.custom?.hasCustomUI as boolean || false,
+                customUIComponent: (child.metadata?.custom?.customUIComponent as string) || null,
+                execution_modes: (child.metadata as any)?.execution_modes,
+              },
               organizationSlug: child.organizationSlug,
               conversations: childConversations,
-              activeConversations: childConversations.filter(c => !c.endedAt).length,
+              activeConversations: childConversations.filter((c: ExtendedConversation) => !c.endedAt).length,
               totalConversations: childConversations.length,
             });
           }
@@ -885,16 +953,16 @@ const hierarchyGroups = computed(() => {
 
       // Update the orchestrator's conversation count to include all child conversations
       if (orchestratorAgents.length > 1) { // Only if there are child agents
-        const totalChildConversations = orchestratorAgents.slice(1).reduce((sum, a) => sum + a.totalConversations, 0);
+        const totalChildConversations = orchestratorAgents.slice(1).reduce((sum, a) => sum + (a.totalConversations || 0), 0);
         orchestratorAgents[0].totalConversations = orchestratorConversations.length + totalChildConversations;
-        orchestratorAgents[0].activeConversations = orchestratorConversations.filter(c => !c.endedAt).length + 
-          orchestratorAgents.slice(1).reduce((sum, a) => sum + a.activeConversations, 0);
+        orchestratorAgents[0].activeConversations = orchestratorConversations.filter((c: ExtendedConversation) => !c.endedAt).length +
+          orchestratorAgents.slice(1).reduce((sum, a) => sum + (a.activeConversations || 0), 0);
       }
 
       groups.push({
         type: 'top_orchestrator',
         agents: orchestratorAgents,
-        totalConversations: orchestratorAgents.reduce((sum, a) => sum + a.totalConversations, 0),
+        totalConversations: orchestratorAgents.reduce((sum, a) => sum + (a.totalConversations || 0), 0),
         isManager: false,
         isCEO: true, // Keep this for backward compatibility with template
         isCEOAgent: true // Keep this for backward compatibility with template
@@ -903,7 +971,7 @@ const hierarchyGroups = computed(() => {
 
     // Process manager children as separate accordions
     if (topOrchestrator.children) {
-      topOrchestrator.children.forEach((child: Agent) => {
+      topOrchestrator.children.forEach((child: HierarchyNode) => {
         // Only process as separate group if it has its own children (is a manager)
         if (child.children && child.children.length > 0) {
           processNode(child);
@@ -914,7 +982,7 @@ const hierarchyGroups = computed(() => {
   
   // Process any remaining root nodes that aren't the top orchestrator
   // If topOrchestrator exists and has children, filter it out; otherwise process all agents
-  const otherRootNodes = flatAgents.filter((agent: Agent) => {
+  const otherRootNodes = flatAgents.filter((agent: HierarchyNode) => {
     if (topOrchestrator && topOrchestrator.children && topOrchestrator.children.length > 0) {
       // Only filter out if topOrchestrator actually has children
       return agent.name !== topOrchestrator.name;
@@ -923,9 +991,9 @@ const hierarchyGroups = computed(() => {
     return true;
   });
 
-  const specialistAgents: Agent[] = [];
+  const specialistAgents: EnhancedAgent[] = [];
 
-  otherRootNodes.forEach((agent: Agent) => {
+  otherRootNodes.forEach((agent: HierarchyNode) => {
     // If this node has children, it's an orchestrator - process it as a manager group
     if (agent.children && agent.children.length > 0) {
       processNode(agent);
@@ -939,37 +1007,42 @@ const hierarchyGroups = computed(() => {
       const nodeConversations = conversationsStore.conversationsByAgent(
         agent.name,
         agent.organizationSlug !== undefined ? agent.organizationSlug : undefined
-      );
+      ) as ExtendedConversation[];
 
       const matchesSearch = !searchQuery.value ||
         agent.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-        agent.displayName?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+        agent.metadata?.displayName?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
         agent.metadata?.description?.toLowerCase().includes(searchQuery.value.toLowerCase());
 
       if (matchesSearch) {
         specialistAgents.push({
           name: agent.name,
-          displayName: agent.displayName || agent.metadata?.displayName || agent.name,
-          type: agent.agentType,
-          description: agent.metadata?.description || agent.description || '',
-          execution_modes: agent.execution_modes || agent.metadata?.execution_modes || [],
-          hasCustomUI: agent.metadata?.hasCustomUI || false,
-          customUIComponent: agent.metadata?.customUIComponent || null,
+          type: agent.agentType || 'unknown',
+          displayName: agent.metadata?.displayName || agent.name,
+          description: agent.metadata?.description || '',
+          execution_modes: (agent.metadata as any)?.execution_modes || [],
+          metadata: {
+            displayName: agent.metadata?.displayName,
+            description: agent.metadata?.description,
+            hasCustomUI: agent.metadata?.custom?.hasCustomUI as boolean || false,
+            customUIComponent: (agent.metadata?.custom?.customUIComponent as string) || null,
+            execution_modes: (agent.metadata as any)?.execution_modes,
+          },
           organizationSlug: agent.organizationSlug,
           conversations: nodeConversations,
-          activeConversations: nodeConversations.filter(c => !c.endedAt).length,
+          activeConversations: nodeConversations.filter((c: ExtendedConversation) => !c.endedAt).length,
           totalConversations: nodeConversations.length,
         });
       }
     }
   });
-  
+
   // Add "Specialists" group only if there are agents not properly under CEO
   if (specialistAgents.length > 0) {
     groups.push({
       type: 'specialists',
       agents: specialistAgents,
-      totalConversations: specialistAgents.reduce((sum, a) => sum + a.totalConversations, 0),
+      totalConversations: specialistAgents.reduce((sum, a) => sum + (a.totalConversations || 0), 0),
       isManager: false,
       isSpecialists: true
     });
@@ -1011,9 +1084,11 @@ const refreshDataForOrganization = async (organization: string) => {
 
     // Filter hierarchy by organization
     const { filterHierarchyByOrganization } = await import('@/stores/agentsStore');
-    const filteredHierarchy = hierarchy
+    const filteredHierarchyResult = hierarchy
       ? filterHierarchyByOrganization(hierarchy, organization)
       : null;
+    // Extract the hierarchy from the result (filterHierarchyByOrganization returns { data, metadata, ... })
+    const filteredHierarchy = filteredHierarchyResult as any;
 
     // Update store via mutations
     agentsStore.setAvailableAgents(filteredAgents);

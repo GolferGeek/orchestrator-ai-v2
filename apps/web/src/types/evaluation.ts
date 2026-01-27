@@ -46,6 +46,71 @@ export interface AllEvaluationsFilters {
   hasNotes?: boolean;
   agentName?: string;
 }
+export interface WorkflowSteps {
+  completedSteps: number;
+  totalSteps: number;
+  failedSteps: number;
+  progressPercent: number;
+  stepDetails?: Array<{
+    name: string;
+    status: string;
+    duration?: number;
+    error?: string;
+  }>;
+}
+
+export interface LLMConstraints {
+  activeStateModifiers?: string[];
+  responseModifiers?: string[];
+  executedCommands?: string[];
+  constraintEffectiveness?: {
+    modifierCompliance: number;
+    constraintImpact: string;
+    overallEffectiveness?: number;
+  };
+}
+
+export interface LLMInfo {
+  provider: string;
+  model: string;
+  responseTimeMs: number;
+  cost: number;
+  tokenUsage: {
+    input: number;
+    output: number;
+  };
+  temperature?: number;
+  maxTokens?: number;
+}
+
+export interface TaskInfo {
+  id: string;
+  agentName: string;
+  method: string;
+  prompt: string;
+  status: string;
+  createdAt: string;
+  completedAt?: string;
+  progress?: number;
+  response?: string;
+}
+
+export interface UserInfo {
+  id: string;
+  email: string;
+  name?: string;
+  roles: string[];
+}
+
+export interface EvaluationInfo {
+  userRating: UserRatingScale;
+  speedRating?: UserRatingScale;
+  accuracyRating?: UserRatingScale;
+  userNotes?: string;
+  evaluationTimestamp: string;
+  evaluationDetails?: JsonObject;
+}
+
 export interface EvaluationWithMessage {
   id: string;
   content: string;
@@ -54,7 +119,14 @@ export interface EvaluationWithMessage {
   userId: string;
   timestamp: string;
   order: number;
-  // Evaluation fields (direct, not nested)
+  // Nested structures for admin views
+  task: TaskInfo;
+  user: UserInfo;
+  evaluation: EvaluationInfo;
+  llmInfo: LLMInfo;
+  workflowSteps?: WorkflowSteps;
+  llmConstraints?: LLMConstraints;
+  // Evaluation fields (direct, not nested) - for backwards compatibility
   userRating?: UserRatingScale;
   speedRating?: UserRatingScale;
   accuracyRating?: UserRatingScale;

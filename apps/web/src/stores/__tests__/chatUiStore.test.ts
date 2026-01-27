@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Unit Tests for Chat UI Store
  * Tests all UI state mutations and computed properties

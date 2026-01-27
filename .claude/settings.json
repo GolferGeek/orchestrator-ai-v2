@@ -3,5 +3,32 @@
     "allow": [
       "Bash(git -C /Users/golfergeek/projects/orchAI/orchestrator-ai-v2 show --name-status b822141)"
     ]
+  },
+  "hooks": {
+    "Setup": [
+      {
+        "matcher": "init",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/setup_init.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "commands": {
+    "install": {
+      "description": "Agentic Installation",
+      "prompt": "I want you to install and configure the project. Execute the steps below.\n\nOBJECTIVE: Get the developer ready to code with a running dev server and database.\nDONE WHEN: The environment is configured, dependencies are installed, and the dev server is ready to start (or running).\n\n## TODO\n- [ ] **Deterministic Setup**:\n    - Run `./scripts/setup.sh` to handle dependencies, Docker checks, and base .env creation.\n- [ ] **Environment Check**:\n    - Inspect `.env` file.\n    - Ask the user for `ANTHROPIC_API_KEY` if it is missing or has a placeholder value.\n    - Ask the user for `SUPABASE_KEY` if it is missing.\n- [ ] **Database Verification**:\n    - Ensure Supabase is running: `cd apps/api && supabase status`\n    - If not running, start it: `cd apps/api && supabase start`\n- [ ] **Final Verification**:\n    - Run `npm run dev` to confirm the app starts correctly.\n    - If successful, stop it (Ctrl+C) and let the user know they are ready.\n\n## Prerequisites\n- Node.js v20+\n- Docker\n- Supabase CLI\n\nEXECUTE NOW: Complete the above TODO list."
+    },
+    "scan-errors": {
+      "description": "Scan codebase for errors",
+      "prompt": "I want you to scan the project for build and lint errors.\n\nOBJECTIVE: Identify any compilation or linting issues in the codebase.\nDONE WHEN: All checks have run and a summary of errors (if any) is presented.\n\n## TODO\n- [ ] **API Check**:\n    - Run `cd apps/api && npm run lint`\n    - Run `cd apps/api && npm run build` (if applicable)\n- [ ] **Web Check**:\n    - Run `cd apps/web && npm run type-check` (or build)\n    - Run `cd apps/web && npm run lint`\n- [ ] **Report**:\n    - Summarize any failures found.\n    - If errors are found, ask the user if they want to run `/fix-errors`.\n\nEXECUTE NOW: Run the checks and report status."
+    },
+    "update": {
+      "description": "Daily update: Pull, Install, Migrate",
+      "prompt": "I want you to update the environment for daily work.\n\nOBJECTIVE: Pull latest code, update dependencies, and apply database migrations.\nDONE WHEN: The environment is up-to-date and ready for development.\n\n## TODO\n- [ ] **Git Pull**:\n    - Run `git pull` to get the latest changes.\n- [ ] **Dependencies**:\n    - Run `npm install` to ensure packages are in sync.\n- [ ] **Database Migration**:\n    - Run `cd apps/api && supabase start` (ensure it's running).\n    - Run `cd apps/api && supabase db push` (or `migration up` - verify which one applies pending migrations without reset).\n- [ ] **Status Check**:\n    - Report if any migrations failed or if there were conflicts.\n\nEXECUTE NOW: Perform the update."
+    }
   }
 }

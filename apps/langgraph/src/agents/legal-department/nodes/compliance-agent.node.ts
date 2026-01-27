@@ -347,7 +347,7 @@ function createFallbackAnalysis(
  */
 function applyPlaybookRules(
   analysis: ComplianceAnalysisOutput,
-  state: LegalDepartmentState,
+  _state: LegalDepartmentState,
 ): ComplianceAnalysisOutput {
   const existingFlags = [...analysis.riskFlags];
 

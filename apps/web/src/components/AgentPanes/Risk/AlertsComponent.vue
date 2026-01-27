@@ -242,7 +242,7 @@ function getAlertDetails(alert: UnacknowledgedAlertView): Record<string, unknown
 const selectedSignal = ref<SignalData | null>(null);
 
 // Helper functions for signals
-function getSignalDescription(signal: SignalData): string {
+function _getSignalDescription(signal: SignalData): string {
   console.log('[AlertsComponent] getSignalDescription input:', JSON.stringify(signal));
 
   // Handle string signal (shouldn't happen but defensive)
@@ -368,16 +368,23 @@ async function selectAlert(alert: UnacknowledgedAlertView) {
   alertContextError.value = null;
   alertContextLoading.value = true;
 
+  console.log('[AlertsComponent] selectAlert called with:', alert.id);
+
   try {
     const response = await riskDashboardService.getAlertWithContext(alert.id);
-    console.log('[AlertsComponent] Alert context response:', JSON.stringify(response.content, null, 2));
+    console.log('[AlertsComponent] Alert context response:', JSON.stringify(response, null, 2));
+
     if (response.success && response.content) {
       alertContext.value = response.content.context;
+      console.log('[AlertsComponent] Context set:', JSON.stringify(response.content.context, null, 2));
       console.log('[AlertsComponent] Signals:', JSON.stringify(response.content.context?.assessment?.signals, null, 2));
+    } else {
+      console.warn('[AlertsComponent] Response not successful or no content:', response);
+      alertContextError.value = response.error?.message || 'No context available';
     }
   } catch (err) {
-    console.error('Failed to fetch alert context:', err);
-    alertContextError.value = 'Failed to load additional context';
+    console.error('[AlertsComponent] Failed to fetch alert context:', err);
+    alertContextError.value = err instanceof Error ? err.message : 'Failed to load additional context';
   } finally {
     alertContextLoading.value = false;
   }
@@ -697,9 +704,9 @@ function escapeHtml(text: string): string {
 
 .context-error {
   padding: 0.75rem;
-  background: var(--ion-color-danger-tint, #ffcccc);
+  background: var(--ion-color-danger, #eb445a);
   border-radius: 4px;
-  color: var(--ion-color-danger, #eb445a);
+  color: #fff;
   font-size: 0.875rem;
 }
 

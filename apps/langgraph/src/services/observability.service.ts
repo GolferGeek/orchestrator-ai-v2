@@ -164,16 +164,19 @@ export class ObservabilityService {
       step?: string;
       progress?: number;
       metadata?: Record<string, unknown>;
+      [key: string]: unknown; // Allow additional properties for observability
     },
   ): Promise<void> {
+    // Extract known properties, rest goes to metadata
+    const { step, progress, metadata, ...rest } = options || {};
     await this.emit({
       context,
       threadId,
       status: "processing",
       message,
-      step: options?.step,
-      progress: options?.progress,
-      metadata: options?.metadata,
+      step,
+      progress,
+      metadata: { ...metadata, ...rest },
     });
   }
 

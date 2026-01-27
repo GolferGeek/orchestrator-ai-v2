@@ -1,59 +1,46 @@
 <template>
   <div class="prediction-agent-pane">
-    <!-- Header with Lifecycle Controls -->
+    <!-- Header with Runner Controls -->
     <div class="pane-header">
       <div class="agent-info">
         <h2>Prediction Agent Dashboard</h2>
-        <div v-if="agentStatus" class="agent-status">
-          <span class="status-indicator" :class="`status-${agentStatus.state}`"></span>
-          <span class="status-label">{{ formatStatus(agentStatus.state) }}</span>
+        <div v-if="currentUniverse" class="universe-info">
+          <span class="universe-label">Universe:</span>
+          <span class="universe-name">{{ currentUniverse.name }}</span>
         </div>
       </div>
 
-      <div class="lifecycle-controls">
+      <div class="runner-controls">
         <button
-          v-if="isStopped || hasError"
-          class="control-btn start-btn"
-          :disabled="isExecuting"
-          @click="handleStart"
+          class="control-btn pipeline-btn"
+          :disabled="isExecuting || !currentUniverse"
+          @click="handleRunPipeline"
         >
-          Start
+          {{ isExecuting ? 'Running...' : 'Run Pipeline' }}
         </button>
 
         <button
-          v-if="isRunning"
-          class="control-btn pause-btn"
-          :disabled="isExecuting"
-          @click="handlePause"
+          class="control-btn crawl-btn"
+          :disabled="isExecuting || !currentUniverse"
+          @click="handleCrawlSources"
         >
-          Pause
+          Crawl Sources
         </button>
 
         <button
-          v-if="isPaused"
-          class="control-btn resume-btn"
-          :disabled="isExecuting"
-          @click="handleResume"
+          class="control-btn process-btn"
+          :disabled="isExecuting || !currentUniverse"
+          @click="handleProcessSignals"
         >
-          Resume
+          Process Signals
         </button>
 
         <button
-          v-if="isRunning || isPaused"
-          class="control-btn stop-btn"
-          :disabled="isExecuting"
-          @click="handleStop"
+          class="control-btn generate-btn"
+          :disabled="isExecuting || !currentUniverse"
+          @click="handleGeneratePredictions"
         >
-          Stop
-        </button>
-
-        <button
-          v-if="isRunning"
-          class="control-btn poll-btn"
-          :disabled="isExecuting"
-          @click="handlePollNow"
-        >
-          Poll Now
+          Generate Predictions
         </button>
 
         <button
@@ -68,38 +55,50 @@
 
     <!-- Error Display -->
     <div v-if="error" class="error-banner">
-      <span class="error-icon">⚠</span>
+      <span class="error-icon">&#9888;</span>
       <span>{{ error }}</span>
       <button class="close-error-btn" @click="clearError">
-        ×
+        &times;
       </button>
     </div>
 
-    <!-- Agent Status Summary -->
-    <div v-if="agentStatus" class="status-summary">
+    <!-- Pipeline Status Summary -->
+    <div v-if="pipelineResult" class="pipeline-summary">
       <div class="summary-card">
-        <div class="summary-label">Poll Count</div>
-        <div class="summary-value">{{ agentStatus.stats.pollCount }}</div>
+        <div class="summary-label">Signals Created</div>
+        <div class="summary-value">{{ pipelineResult.crawlResult?.signalsCreated || 0 }}</div>
       </div>
       <div class="summary-card">
-        <div class="summary-label">Recommendations</div>
-        <div class="summary-value">{{ agentStatus.stats.recommendationCount }}</div>
+        <div class="summary-label">Predictors Created</div>
+        <div class="summary-value">{{ pipelineResult.processResult?.predictorsCreated || 0 }}</div>
       </div>
       <div class="summary-card">
+        <div class="summary-label">Predictions Generated</div>
+        <div class="summary-value">{{ pipelineResult.generateResult?.predictionsGenerated || 0 }}</div>
+      </div>
+      <div v-if="totalErrors > 0" class="summary-card error">
         <div class="summary-label">Errors</div>
-        <div class="summary-value error">{{ agentStatus.stats.errorCount }}</div>
+        <div class="summary-value">{{ totalErrors }}</div>
+      </div>
+    </div>
+
+    <!-- Stats Summary -->
+    <div class="stats-summary">
+      <div class="summary-card">
+        <div class="summary-label">Universes</div>
+        <div class="summary-value">{{ store.universes.length }}</div>
       </div>
       <div class="summary-card">
-        <div class="summary-label">Avg Poll Duration</div>
-        <div class="summary-value">{{ formatDuration(agentStatus.stats.avgPollDurationMs) }}</div>
+        <div class="summary-label">Targets</div>
+        <div class="summary-value">{{ store.targets.length }}</div>
       </div>
-      <div v-if="agentStatus.lastPollAt" class="summary-card">
-        <div class="summary-label">Last Poll</div>
-        <div class="summary-value">{{ formatTime(agentStatus.lastPollAt) }}</div>
+      <div class="summary-card">
+        <div class="summary-label">Active Predictions</div>
+        <div class="summary-value">{{ store.activePredictions.length }}</div>
       </div>
-      <div v-if="agentStatus.nextPollAt" class="summary-card">
-        <div class="summary-label">Next Poll</div>
-        <div class="summary-value">{{ formatTime(agentStatus.nextPollAt) }}</div>
+      <div class="summary-card">
+        <div class="summary-label">Resolved Predictions</div>
+        <div class="summary-value">{{ store.resolvedPredictions.length }}</div>
       </div>
     </div>
 
@@ -125,13 +124,19 @@
       <ToolsComponent v-if="activeTab === 'tools'" />
       <ConfigComponent v-if="activeTab === 'config'" />
     </div>
+
+    <!-- Loading Overlay -->
+    <div v-if="isLoading" class="loading-overlay">
+      <div class="spinner"></div>
+      <span>Loading...</span>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import { usePredictionAgentStore } from '@/stores/predictionAgentStore';
-import { predictionAgentService } from '@/services/predictionAgentService';
+import { usePredictionStore } from '@/stores/predictionStore';
+import { predictionDashboardService } from '@/services/predictionDashboardService';
 import CurrentStateComponent from './CurrentStateComponent.vue';
 import InstrumentsComponent from './InstrumentsComponent.vue';
 import PortfoliosComponent from './PortfoliosComponent.vue';
@@ -141,18 +146,26 @@ import ConfigComponent from './ConfigComponent.vue';
 
 interface Props {
   conversation?: { id: string; agentName?: string; organizationSlug?: string } | null;
-  agent?: { id?: string; slug?: string; name?: string } | null;
+  agent?: { id?: string; slug?: string; name?: string; organizationSlug?: string | string[] } | null;
 }
 
 const props = defineProps<Props>();
 
+const store = usePredictionStore();
+
 // Derive agentId from agent prop or fall back to conversation.agentName
-const agentId = computed(() => {
-  // Try agent.id first, then agent.slug, then conversation.agentName
-  return props.agent?.id || props.agent?.slug || props.conversation?.agentName || '';
+const agentSlug = computed(() => {
+  return props.agent?.slug || props.conversation?.agentName || '';
 });
 
-const store = usePredictionAgentStore();
+// Helper to extract org from agent (handles array or string)
+function getAgentOrg(): string | null {
+  const agentOrg = props.agent?.organizationSlug;
+  if (Array.isArray(agentOrg)) {
+    return agentOrg[0] || null;
+  }
+  return agentOrg || null;
+}
 
 const activeTab = ref<'current-state' | 'instruments' | 'portfolios' | 'history' | 'tools' | 'config'>(
   'current-state'
@@ -167,31 +180,52 @@ const tabs = [
   { id: 'config' as const, label: 'Config' },
 ];
 
-const agentStatus = computed(() => store.agentStatus);
 const isLoading = computed(() => store.isLoading);
-const isExecuting = computed(() => store.isExecuting);
+const isExecuting = ref(false);
 const error = computed(() => store.error);
 
-const isRunning = computed(() => store.isRunning);
-const isPaused = computed(() => store.isPaused);
-const isStopped = computed(() => store.isStopped);
-const hasError = computed(() => store.hasError);
+// Pipeline result state
+const pipelineResult = ref<{
+  crawlResult?: { signalsCreated: number; errors: number };
+  processResult?: { predictorsCreated: number; errors: number };
+  generateResult?: { predictionsGenerated: number; errors: number };
+} | null>(null);
+
+const totalErrors = computed(() => {
+  if (!pipelineResult.value) return 0;
+  return (pipelineResult.value.crawlResult?.errors || 0) +
+         (pipelineResult.value.processResult?.errors || 0) +
+         (pipelineResult.value.generateResult?.errors || 0);
+});
+
+// Current universe (first one for now)
+const currentUniverse = computed(() => {
+  return store.universes.length > 0 ? store.universes[0] : null;
+});
 
 let refreshInterval: ReturnType<typeof setInterval> | null = null;
 
 onMounted(async () => {
-  // Initialize store with agent ID
-  store.setAgentId(agentId.value);
+  // Priority: agent's org > conversation's org
+  const agentOrg = getAgentOrg();
+  const conversationOrg = props.conversation?.organizationSlug;
+  const effectiveOrg = agentOrg || conversationOrg;
+
+  if (effectiveOrg) {
+    console.log('[PredictionAgentPane] Setting org:', effectiveOrg);
+    predictionDashboardService.setOrgSlug(effectiveOrg);
+  }
+  if (agentSlug.value) {
+    predictionDashboardService.setAgentSlug(agentSlug.value);
+  }
 
   // Load initial data
   await loadData();
 
-  // Set up auto-refresh every 30 seconds
+  // Set up auto-refresh every 60 seconds
   refreshInterval = setInterval(async () => {
-    if (isRunning.value) {
-      await loadData();
-    }
-  }, 30000);
+    await loadData();
+  }, 60000);
 });
 
 onUnmounted(() => {
@@ -201,61 +235,58 @@ onUnmounted(() => {
   store.resetState();
 });
 
-// Watch for agentId changes and reload data
-watch(agentId, async (newAgentId, oldAgentId) => {
-  if (newAgentId && newAgentId !== oldAgentId) {
-    store.setAgentId(newAgentId);
-    await loadData();
+// Watch for agent/org changes and reload data
+watch(
+  [() => props.agent?.slug, () => props.agent?.organizationSlug, () => props.conversation?.organizationSlug],
+  ([newAgentSlug, agentOrg, conversationOrg]) => {
+    // Priority: agent's org > conversation's org
+    const effectiveAgentOrg = Array.isArray(agentOrg) ? agentOrg[0] : agentOrg;
+    const effectiveOrg = effectiveAgentOrg || conversationOrg;
+
+    if (effectiveOrg) {
+      console.log('[PredictionAgentPane] Setting org:', effectiveOrg);
+      predictionDashboardService.setOrgSlug(effectiveOrg);
+    }
+    if (newAgentSlug) {
+      predictionDashboardService.setAgentSlug(newAgentSlug);
+    }
+    if (newAgentSlug || effectiveOrg) {
+      loadData();
+    }
   }
-});
+);
 
 async function loadData() {
-  if (!agentId.value) {
-    console.warn('No agent ID available, skipping data load');
-    return;
-  }
-
   store.setLoading(true);
   store.clearError();
 
   try {
-    // Load all dashboard data in parallel
-    const data = await predictionAgentService.loadDashboardData(agentId.value);
+    // Load all dashboard data in parallel using A2A service
+    const [universesResponse, targetsResponse, predictionsResponse, strategiesResponse] = await Promise.all([
+      predictionDashboardService.listUniverses(),
+      predictionDashboardService.listTargets({}),
+      predictionDashboardService.listPredictions({}),
+      predictionDashboardService.listStrategies({}),
+    ]);
 
     // Update store with fetched data
-    if (data.status) {
-      store.setAgentStatus(data.status.status);
+    if (universesResponse.content) {
+      store.setUniverses(universesResponse.content);
     }
 
-    if (data.instruments) {
-      store.setInstruments(data.instruments.instruments);
+    if (targetsResponse.content) {
+      store.setTargets(targetsResponse.content);
     }
 
-    if (data.config) {
-      store.setConfig(data.config.config);
+    if (predictionsResponse.content) {
+      store.setPredictions(predictionsResponse.content);
     }
 
-    if (data.currentPredictions) {
-      if (data.currentPredictions.datapoint) {
-        store.setLatestDatapoint(data.currentPredictions.datapoint);
-      }
-      store.setActiveRecommendations(data.currentPredictions.recommendations);
+    if (strategiesResponse.content) {
+      store.setStrategies(strategiesResponse.content);
     }
 
-    if (data.tools) {
-      // Map tool status response to expected format
-      const toolsStatus = data.tools.tools.map(tool => ({
-        name: tool.name,
-        status: tool.status === 'success' ? 'active' as const :
-                tool.status === 'failed' ? 'error' as const : 'inactive' as const,
-        lastRun: tool.lastRun,
-        claimsCount: tool.recentClaims,
-        errorMessage: tool.errorMessage,
-      }));
-      store.setToolsStatus(toolsStatus);
-    }
-
-    console.log('Dashboard data loaded for agent:', agentId.value);
+    console.log('[PredictionAgentPane] Dashboard data loaded');
   } catch (err) {
     console.error('Failed to load dashboard data:', err);
     store.setError(err instanceof Error ? err.message : 'Failed to load data');
@@ -264,79 +295,126 @@ async function loadData() {
   }
 }
 
-async function handleStart() {
-  if (!agentId.value) return;
-  store.setExecuting(true);
-  try {
-    const response = await predictionAgentService.startAgent(agentId.value);
-    store.setAgentStatus(response.status);
-    console.log('Agent started:', agentId.value);
-  } catch (err) {
-    console.error('Failed to start agent:', err);
-    store.setError(err instanceof Error ? err.message : 'Failed to start agent');
-  } finally {
-    store.setExecuting(false);
-  }
-}
+async function handleRunPipeline() {
+  if (!currentUniverse.value) return;
 
-async function handleStop() {
-  if (!agentId.value) return;
-  store.setExecuting(true);
-  try {
-    const response = await predictionAgentService.stopAgent(agentId.value);
-    store.setAgentStatus(response.status);
-    console.log('Agent stopped:', agentId.value);
-  } catch (err) {
-    console.error('Failed to stop agent:', err);
-    store.setError(err instanceof Error ? err.message : 'Failed to stop agent');
-  } finally {
-    store.setExecuting(false);
-  }
-}
+  isExecuting.value = true;
+  pipelineResult.value = null;
+  store.clearError();
 
-async function handlePause() {
-  if (!agentId.value) return;
-  store.setExecuting(true);
   try {
-    const response = await predictionAgentService.pauseAgent(agentId.value);
-    store.setAgentStatus(response.status);
-    console.log('Agent paused:', agentId.value);
-  } catch (err) {
-    console.error('Failed to pause agent:', err);
-    store.setError(err instanceof Error ? err.message : 'Failed to pause agent');
-  } finally {
-    store.setExecuting(false);
-  }
-}
+    const result = await predictionDashboardService.runFullPipeline({
+      universeId: currentUniverse.value.id,
+    });
 
-async function handleResume() {
-  if (!agentId.value) return;
-  store.setExecuting(true);
-  try {
-    const response = await predictionAgentService.resumeAgent(agentId.value);
-    store.setAgentStatus(response.status);
-    console.log('Agent resumed:', agentId.value);
-  } catch (err) {
-    console.error('Failed to resume agent:', err);
-    store.setError(err instanceof Error ? err.message : 'Failed to resume agent');
-  } finally {
-    store.setExecuting(false);
-  }
-}
+    pipelineResult.value = {
+      crawlResult: result.crawlResult,
+      processResult: result.processResult,
+      generateResult: result.generateResult,
+    };
 
-async function handlePollNow() {
-  if (!agentId.value) return;
-  store.setExecuting(true);
-  try {
-    await predictionAgentService.pollNow(agentId.value);
-    console.log('Poll triggered for agent:', agentId.value);
-    // Refresh data after poll
+    console.log('[PredictionAgentPane] Pipeline complete:', result.summary);
+
+    // Refresh data after pipeline
     await loadData();
   } catch (err) {
-    console.error('Failed to trigger poll:', err);
-    store.setError(err instanceof Error ? err.message : 'Failed to trigger poll');
+    console.error('Failed to run pipeline:', err);
+    store.setError(err instanceof Error ? err.message : 'Failed to run pipeline');
   } finally {
-    store.setExecuting(false);
+    isExecuting.value = false;
+  }
+}
+
+async function handleCrawlSources() {
+  if (!currentUniverse.value) return;
+
+  isExecuting.value = true;
+  store.clearError();
+
+  try {
+    const result = await predictionDashboardService.crawlSources({
+      universeId: currentUniverse.value.id,
+    });
+
+    if (result.content) {
+      pipelineResult.value = {
+        ...pipelineResult.value,
+        crawlResult: {
+          signalsCreated: result.content.totalSignalsCreated,
+          errors: result.content.errorCount,
+        },
+      };
+    }
+
+    console.log('[PredictionAgentPane] Sources crawled');
+    await loadData();
+  } catch (err) {
+    console.error('Failed to crawl sources:', err);
+    store.setError(err instanceof Error ? err.message : 'Failed to crawl sources');
+  } finally {
+    isExecuting.value = false;
+  }
+}
+
+async function handleProcessSignals() {
+  if (!currentUniverse.value) return;
+
+  isExecuting.value = true;
+  store.clearError();
+
+  try {
+    const result = await predictionDashboardService.processSignals({
+      universeId: currentUniverse.value.id,
+    });
+
+    if (result.content) {
+      pipelineResult.value = {
+        ...pipelineResult.value,
+        processResult: {
+          predictorsCreated: result.content.totalPredictorsCreated || result.content.predictorsCreated || 0,
+          errors: result.content.totalErrors || result.content.errors || 0,
+        },
+      };
+    }
+
+    console.log('[PredictionAgentPane] Signals processed');
+    await loadData();
+  } catch (err) {
+    console.error('Failed to process signals:', err);
+    store.setError(err instanceof Error ? err.message : 'Failed to process signals');
+  } finally {
+    isExecuting.value = false;
+  }
+}
+
+async function handleGeneratePredictions() {
+  if (!currentUniverse.value) return;
+
+  isExecuting.value = true;
+  store.clearError();
+
+  try {
+    const result = await predictionDashboardService.generatePredictions({
+      universeId: currentUniverse.value.id,
+    });
+
+    if (result.content) {
+      pipelineResult.value = {
+        ...pipelineResult.value,
+        generateResult: {
+          predictionsGenerated: result.content.generated,
+          errors: result.content.errors,
+        },
+      };
+    }
+
+    console.log('[PredictionAgentPane] Predictions generated');
+    await loadData();
+  } catch (err) {
+    console.error('Failed to generate predictions:', err);
+    store.setError(err instanceof Error ? err.message : 'Failed to generate predictions');
+  } finally {
+    isExecuting.value = false;
   }
 }
 
@@ -346,31 +424,6 @@ async function handleRefresh() {
 
 function clearError() {
   store.clearError();
-}
-
-function formatStatus(state: string): string {
-  return state.charAt(0).toUpperCase() + state.slice(1).replace('_', ' ');
-}
-
-function formatTime(timestamp: string): string {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
-
-  const seconds = Math.floor(diff / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-
-  if (seconds < 60) return `${seconds}s ago`;
-  if (minutes < 60) return `${minutes}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  return date.toLocaleString();
-}
-
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${Math.round(ms)}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-  return `${(ms / 60000).toFixed(1)}m`;
 }
 </script>
 
@@ -382,6 +435,7 @@ function formatDuration(ms: number): string {
   padding: 1.5rem;
   max-width: 1400px;
   margin: 0 auto;
+  position: relative;
 }
 
 .pane-header {
@@ -402,57 +456,23 @@ function formatDuration(ms: number): string {
   color: #111827;
 }
 
-.agent-status {
+.universe-info {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-.status-indicator {
-  width: 0.75rem;
-  height: 0.75rem;
-  border-radius: 50%;
-}
-
-.status-stopped {
-  background-color: #9ca3af;
-}
-
-.status-starting,
-.status-stopping {
-  background-color: #f59e0b;
-  animation: pulse 2s infinite;
-}
-
-.status-running {
-  background-color: #10b981;
-}
-
-.status-paused {
-  background-color: #3b82f6;
-}
-
-.status-error {
-  background-color: #ef4444;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-.status-label {
   font-size: 0.875rem;
+}
+
+.universe-label {
+  color: #6b7280;
+}
+
+.universe-name {
   font-weight: 600;
   color: #374151;
 }
 
-.lifecycle-controls {
+.runner-controls {
   display: flex;
   gap: 0.75rem;
 }
@@ -472,49 +492,40 @@ function formatDuration(ms: number): string {
   cursor: not-allowed;
 }
 
-.start-btn {
+.pipeline-btn {
   background-color: #10b981;
   color: white;
 }
 
-.start-btn:hover:not(:disabled) {
+.pipeline-btn:hover:not(:disabled) {
   background-color: #059669;
 }
 
-.stop-btn {
-  background-color: #ef4444;
-  color: white;
-}
-
-.stop-btn:hover:not(:disabled) {
-  background-color: #dc2626;
-}
-
-.pause-btn {
-  background-color: #f59e0b;
-  color: white;
-}
-
-.pause-btn:hover:not(:disabled) {
-  background-color: #d97706;
-}
-
-.resume-btn {
-  background-color: #3b82f6;
-  color: white;
-}
-
-.resume-btn:hover:not(:disabled) {
-  background-color: #2563eb;
-}
-
-.poll-btn {
+.crawl-btn {
   background-color: #8b5cf6;
   color: white;
 }
 
-.poll-btn:hover:not(:disabled) {
+.crawl-btn:hover:not(:disabled) {
   background-color: #7c3aed;
+}
+
+.process-btn {
+  background-color: #f59e0b;
+  color: white;
+}
+
+.process-btn:hover:not(:disabled) {
+  background-color: #d97706;
+}
+
+.generate-btn {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.generate-btn:hover:not(:disabled) {
+  background-color: #2563eb;
 }
 
 .refresh-btn {
@@ -556,7 +567,8 @@ function formatDuration(ms: number): string {
   color: #7f1d1d;
 }
 
-.status-summary {
+.pipeline-summary,
+.stats-summary {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 1rem;
@@ -568,6 +580,11 @@ function formatDuration(ms: number): string {
   border: 1px solid #e5e7eb;
   border-radius: 0.375rem;
   text-align: center;
+}
+
+.summary-card.error {
+  background-color: #fef2f2;
+  border-color: #fecaca;
 }
 
 .summary-label {
@@ -584,7 +601,7 @@ function formatDuration(ms: number): string {
   color: #111827;
 }
 
-.summary-value.error {
+.summary-card.error .summary-value {
   color: #ef4444;
 }
 
@@ -621,6 +638,32 @@ function formatDuration(ms: number): string {
   min-height: 400px;
 }
 
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.8);
+  z-index: 100;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (max-width: 768px) {
   .pane-header {
     flex-direction: column;
@@ -628,11 +671,12 @@ function formatDuration(ms: number): string {
     gap: 1rem;
   }
 
-  .lifecycle-controls {
+  .runner-controls {
     flex-wrap: wrap;
   }
 
-  .status-summary {
+  .stats-summary,
+  .pipeline-summary {
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   }
 

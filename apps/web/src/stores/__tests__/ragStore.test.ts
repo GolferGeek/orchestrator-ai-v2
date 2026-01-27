@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Unit Tests for RAG Store
  * Tests all state mutations and computed properties

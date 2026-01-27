@@ -105,7 +105,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import type { CorrelationMatrix, RiskDimension, DimensionCorrelation } from '@/types/risk-agent';
+import type { CorrelationMatrix, RiskDimension } from '@/types/risk-agent';
 
 interface Props {
   data?: CorrelationMatrix | null;

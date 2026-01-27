@@ -308,7 +308,7 @@ export class AlertHandler implements IDashboardHandler {
       alert.alert_type === 'dimension_spike' &&
       alert.details?.dimension_slug
     ) {
-      const dimensionSlug = alert.details.dimension_slug as string;
+      const dimensionSlug = alert.details.dimension_slug;
 
       // Get dimensions for this subject's scope to find the dimension ID
       const assessments = await this.assessmentRepo.findBySubject(

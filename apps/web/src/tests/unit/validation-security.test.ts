@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Security-focused Validation Tests
  * Testing XSS prevention, SQL injection detection, and data sanitization

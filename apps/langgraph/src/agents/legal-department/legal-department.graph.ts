@@ -22,7 +22,7 @@ import { LLMHttpClientService } from "../../services/llm-http-client.service";
 import { ObservabilityService } from "../../services/observability.service";
 import { PostgresCheckpointerService } from "../../persistence/postgres-checkpointer.service";
 
-const AGENT_SLUG = "legal-department";
+const _AGENT_SLUG = "legal-department";
 
 /**
  * Create the Legal Department graph

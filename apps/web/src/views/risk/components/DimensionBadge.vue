@@ -34,6 +34,12 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   dimension: null,
+  slug: undefined,
+  name: undefined,
+  displayName: undefined,
+  icon: undefined,
+  color: undefined,
+  score: null,
   showIcon: true,
   showScore: false,
   size: 'md',

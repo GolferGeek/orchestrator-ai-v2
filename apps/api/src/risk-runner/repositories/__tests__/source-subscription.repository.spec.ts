@@ -43,7 +43,7 @@ describe('RiskSourceSubscriptionRepository', () => {
       rpc: jest.fn().mockResolvedValue(result),
       order: jest.fn().mockReturnThis(),
       limit: jest.fn().mockReturnThis(),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       then: (resolve: any, reject?: any) =>
         Promise.resolve(result).then(resolve, reject),
     };

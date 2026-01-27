@@ -89,21 +89,21 @@ export class ArticleRepository {
     contentHash: string,
     excludeSourceId?: string,
   ): Promise<boolean> {
-    const { data, error } = await this.getClient().rpc(
+    const { data, error } = (await this.getClient().rpc(
       'check_content_hash_exists',
       {
         p_organization_slug: organizationSlug,
         p_content_hash: contentHash,
         p_exclude_source_id: excludeSourceId ?? null,
       },
-    );
+    )) as { data: boolean | null; error: { message: string } | null };
 
     if (error) {
       this.logger.error(`Failed to check content hash: ${error.message}`);
       throw new Error(`Failed to check content hash: ${error.message}`);
     }
 
-    return data as boolean;
+    return data ?? false;
   }
 
   /**
@@ -114,14 +114,17 @@ export class ArticleRepository {
     hoursBack: number = 72,
     limit: number = 100,
   ): Promise<ArticleFingerprint[]> {
-    const { data, error } = await this.getClient().rpc(
+    const { data, error } = (await this.getClient().rpc(
       'find_recent_article_fingerprints',
       {
         p_organization_slug: organizationSlug,
         p_hours_back: hoursBack,
         p_limit: limit,
       },
-    );
+    )) as {
+      data: ArticleFingerprint[] | null;
+      error: { message: string } | null;
+    };
 
     if (error) {
       this.logger.error(
@@ -130,7 +133,7 @@ export class ArticleRepository {
       throw new Error(`Failed to fetch recent fingerprints: ${error.message}`);
     }
 
-    return (data ?? []) as ArticleFingerprint[];
+    return data ?? [];
   }
 
   /**
@@ -142,7 +145,7 @@ export class ArticleRepository {
     hoursBack: number = 72,
     limit: number = 50,
   ): Promise<ArticleWithPhraseOverlap[]> {
-    const { data, error } = await this.getClient().rpc(
+    const { data, error } = (await this.getClient().rpc(
       'find_articles_by_phrase_overlap',
       {
         p_organization_slug: organizationSlug,
@@ -150,7 +153,10 @@ export class ArticleRepository {
         p_hours_back: hoursBack,
         p_limit: limit,
       },
-    );
+    )) as {
+      data: ArticleWithPhraseOverlap[] | null;
+      error: { message: string } | null;
+    };
 
     if (error) {
       this.logger.error(
@@ -161,7 +167,7 @@ export class ArticleRepository {
       );
     }
 
-    return (data ?? []) as ArticleWithPhraseOverlap[];
+    return data ?? [];
   }
 
   /**

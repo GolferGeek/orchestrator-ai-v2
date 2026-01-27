@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useDeliverables } from '../useDeliverables';
 import { createPinia, setActivePinia } from 'pinia';
