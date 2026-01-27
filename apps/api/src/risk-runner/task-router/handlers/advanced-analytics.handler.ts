@@ -112,7 +112,7 @@ export class AdvancedAnalyticsHandler implements IDashboardHandler {
   /**
    * Generate an executive summary
    * Action: advanced-analytics.generate-summary
-   * Params: { scopeId: string, summaryType?: 'daily' | 'weekly' | 'ad-hoc' }
+   * Params: { scopeId: string, summaryType?: 'daily' | 'weekly' | 'ad-hoc', forceRefresh?: boolean }
    */
   private async handleGenerateSummary(
     payload: DashboardRequestPayload,
@@ -125,6 +125,7 @@ export class AdvancedAnalyticsHandler implements IDashboardHandler {
       | 'weekly'
       | 'ad-hoc'
       | undefined;
+    const forceRefresh = params?.forceRefresh as boolean | undefined;
 
     if (!scopeId) {
       return buildDashboardError(
@@ -137,6 +138,7 @@ export class AdvancedAnalyticsHandler implements IDashboardHandler {
       const result = await this.executiveSummaryService.generateSummary({
         scopeId,
         summaryType,
+        forceRefresh,
         context,
       });
 

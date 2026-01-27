@@ -126,7 +126,7 @@ export class ScenarioAnalysisService {
 
       for (const dim of dimensions) {
         const dimData = dimensionScores[dim.slug];
-        const baselineScore =
+        const baselineScoreRaw =
           typeof dimData === 'object' &&
           dimData !== null &&
           !Array.isArray(dimData)
@@ -138,6 +138,10 @@ export class ScenarioAnalysisService {
           !Array.isArray(dimData)
             ? (asNumber((dimData as UnknownRecord)['weight']) ?? dim.weight)
             : dim.weight;
+
+        // Normalize: if score > 1, it's stored as 0-100, convert to 0-1
+        const baselineScore =
+          baselineScoreRaw > 1 ? baselineScoreRaw / 100 : baselineScoreRaw;
 
         const adjustment = adjustmentMap.get(dim.slug) ?? 0;
         // Apply adjustment, clamping between 0 and 1
@@ -157,7 +161,10 @@ export class ScenarioAnalysisService {
         totalAdjustedScore += adjustedScore * weight;
       }
 
-      const baselineScore = score.overall_score ?? 0;
+      // Normalize overall_score: if > 1, it's stored as 0-100, convert to 0-1
+      const overallScoreRaw = score.overall_score ?? 0;
+      const baselineScore =
+        overallScoreRaw > 1 ? overallScoreRaw / 100 : overallScoreRaw;
       const adjustedScore =
         totalAdjustedWeight > 0
           ? totalAdjustedScore / totalAdjustedWeight

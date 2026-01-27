@@ -38,6 +38,51 @@
       </button>
     </div>
 
+    <!-- Executive Summary -->
+    <div v-if="executiveSummary" class="executive-summary-section">
+      <div class="executive-summary-header">
+        <div class="summary-status-badge" :class="executiveSummary.content?.status || 'stable'">
+          {{ executiveSummary.content?.status?.toUpperCase() || 'N/A' }}
+        </div>
+        <h3 class="summary-headline">{{ executiveSummary.content?.headline || 'No summary available' }}</h3>
+        <button
+          class="refresh-summary-btn"
+          @click="handleRefreshSummary"
+          :disabled="isGeneratingSummary"
+          title="Regenerate summary"
+        >
+          {{ isGeneratingSummary ? '...' : '↻' }}
+        </button>
+      </div>
+      <div class="summary-content-grid">
+        <div class="summary-findings">
+          <h4>Key Findings</h4>
+          <ul>
+            <li v-for="(finding, idx) in (executiveSummary.content?.keyFindings || []).slice(0, 4)" :key="idx">
+              {{ finding }}
+            </li>
+          </ul>
+        </div>
+        <div class="summary-recommendations">
+          <h4>Recommendations</h4>
+          <ul>
+            <li v-for="(rec, idx) in (executiveSummary.content?.recommendations || []).slice(0, 3)" :key="idx">
+              {{ rec }}
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div class="summary-meta">
+        Generated {{ formatSummaryDate(executiveSummary.generated_at) }}
+      </div>
+    </div>
+    <div v-else-if="currentScope && !isLoading" class="executive-summary-placeholder">
+      <span>No executive summary available.</span>
+      <button class="generate-summary-btn" @click="handleGenerateSummaryFromPlaceholder" :disabled="isGeneratingSummary">
+        {{ isGeneratingSummary ? 'Generating...' : 'Generate Summary' }}
+      </button>
+    </div>
+
     <!-- Stats Summary -->
     <div class="stats-summary">
       <div class="summary-card">
@@ -183,9 +228,34 @@
       :is-visible="showAnalysisProgress"
       :subject-identifier="analysisSubjectIdentifier"
       :task-id="analysisTaskId"
+      :mode="analysisMode"
       @close="handleAnalysisProgressClose"
       @cancel="handleAnalysisProgressCancel"
       @complete="handleAnalysisProgressClose"
+    />
+
+    <!-- Scenario/What-If Modal -->
+    <ScenarioModal
+      :is-visible="showScenarioModal"
+      :scope-id="currentScope?.id || null"
+      :dimensions="dimensions"
+      @close="showScenarioModal = false"
+    />
+
+    <!-- History Modal -->
+    <HistoryModal
+      :is-visible="showHistoryModal"
+      :subject-id="historySubjectId"
+      :subject-name="historySubjectName"
+      @close="showHistoryModal = false"
+    />
+
+    <!-- Compare Modal -->
+    <CompareModal
+      :is-visible="showCompareModal"
+      :subjects="subjects"
+      :composite-scores="compositeScores"
+      @close="showCompareModal = false"
     />
   </div>
 </template>
@@ -202,6 +272,9 @@ import LearningsComponent from './LearningsComponent.vue';
 import SettingsComponent from './SettingsComponent.vue';
 import CreateSubjectModal from '@/views/risk/components/CreateSubjectModal.vue';
 import AnalysisProgressModal from './AnalysisProgressModal.vue';
+import ScenarioModal from './ScenarioModal.vue';
+import HistoryModal from './HistoryModal.vue';
+import CompareModal from './CompareModal.vue';
 import type { CreateSubjectRequest, RiskDimension } from '@/types/risk-agent';
 
 interface Props {
@@ -216,14 +289,32 @@ const store = useRiskDashboardStore();
 // UI State
 const activeTab = ref('overview');
 const showCreateSubjectModal = ref(false);
+const showScenarioModal = ref(false);
+const showHistoryModal = ref(false);
+const historySubjectId = ref<string | null>(null);
+const historySubjectName = ref('');
+const showCompareModal = ref(false);
 const createSubjectModalRef = ref<InstanceType<typeof CreateSubjectModal> | null>(null);
 const isDebating = ref(false);
 const isGeneratingSummary = ref(false);
+
+// Executive Summary State
+const executiveSummary = ref<{
+  id: string;
+  content?: {
+    headline?: string;
+    status?: string;
+    keyFindings?: string[];
+    recommendations?: string[];
+  };
+  generated_at?: string;
+} | null>(null);
 
 // Analysis Progress Modal State
 const showAnalysisProgress = ref(false);
 const analysisSubjectIdentifier = ref('');
 const analysisTaskId = ref<string | undefined>(undefined);
+const analysisMode = ref<'analysis' | 'debate' | 'summary'>('analysis');
 const analysisProgressRef = ref<InstanceType<typeof AnalysisProgressModal> | null>(null);
 
 // Computed from store
@@ -261,6 +352,33 @@ function formatScore(score: number): string {
   return (normalized * 100).toFixed(0) + '%';
 }
 
+function formatSummaryDate(dateString?: string): string {
+  if (!dateString) return 'Unknown';
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'just now';
+  if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+  return date.toLocaleDateString();
+}
+
+async function handleRefreshSummary() {
+  if (!currentScope.value) return;
+  // Force refresh to bypass cache and get fresh data
+  await handleGenerateSummary('', true);
+}
+
+async function handleGenerateSummaryFromPlaceholder() {
+  if (!currentScope.value) return;
+  await handleGenerateSummary('', false);
+}
+
 // Event handlers
 async function handleRefresh() {
   store.setLoading(true);
@@ -288,13 +406,14 @@ async function handleRefresh() {
 
 async function loadScopeData(scopeId: string) {
   // Load all scope data in parallel for better performance
-  const [subjectsResponse, scoresResponse, dimensionsResponse, alertsResponse, learningsResponse, statsResponse] = await Promise.all([
+  const [subjectsResponse, scoresResponse, dimensionsResponse, alertsResponse, learningsResponse, statsResponse, summaryResponse] = await Promise.all([
     riskDashboardService.listSubjects({ scopeId, isActive: true }),
     riskDashboardService.listCompositeScores({ scopeId }),
     riskDashboardService.listDimensions(scopeId),
     riskDashboardService.listAlerts({ scopeId, unacknowledgedOnly: true }),
     riskDashboardService.listLearnings({ scopeId, status: 'pending' }),
     riskDashboardService.getDashboardStats(scopeId),
+    riskDashboardService.getLatestSummary(scopeId),
   ]);
 
   if (subjectsResponse.content) {
@@ -320,6 +439,13 @@ async function loadScopeData(scopeId: string) {
   // Set stats from API response
   if (statsResponse.content) {
     store.setStats(statsResponse.content);
+  }
+
+  // Set executive summary
+  if (summaryResponse.content) {
+    executiveSummary.value = summaryResponse.content;
+  } else {
+    executiveSummary.value = null;
   }
 }
 
@@ -356,6 +482,7 @@ async function handleAnalyzeSubject(subjectId: string) {
   // Generate a taskId BEFORE showing the modal so SSE can connect
   const taskId = crypto.randomUUID();
   analysisTaskId.value = taskId;
+  analysisMode.value = 'analysis';
   console.log('[RiskAgentPane] Generated taskId for SSE:', taskId);
 
   // Show progress modal - it will connect to SSE with this taskId
@@ -464,6 +591,7 @@ function handleAnalysisProgressClose() {
   showAnalysisProgress.value = false;
   analysisSubjectIdentifier.value = '';
   analysisTaskId.value = undefined;
+  analysisMode.value = 'analysis';
 }
 
 function handleAnalysisProgressCancel() {
@@ -511,132 +639,168 @@ async function handleTriggerDebateForSubject(subjectId: string) {
   }
 
   console.log('[RiskAgentPane] Triggering debate for subject:', subjectId);
+
+  // Find the subject to get identifier
+  const subject = subjects.value.find(s => s.id === subjectId);
+  analysisSubjectIdentifier.value = subject?.identifier || subject?.name || subjectId;
+
+  // Generate a taskId BEFORE showing the modal so SSE can connect
+  const taskId = crypto.randomUUID();
+  analysisTaskId.value = taskId;
+  analysisMode.value = 'debate';
+  console.log('[RiskAgentPane] Generated taskId for debate SSE:', taskId);
+
+  // Show progress modal - it will connect to SSE with this taskId
+  showAnalysisProgress.value = true;
   isDebating.value = true;
+  store.clearError();
+
+  // Show initial progress while waiting for SSE events from backend
+  if (analysisProgressRef.value) {
+    analysisProgressRef.value.handleProgressEvent({
+      step: 'debate-starting',
+      message: `Starting Red vs Blue debate for ${analysisSubjectIdentifier.value}`,
+      progress: 5,
+    });
+  }
+
   try {
-    const result = await riskDashboardService.triggerDebate(subjectId);
+    const result = await riskDashboardService.triggerDebate(subjectId, { taskId });
     console.log('[RiskAgentPane] Debate result:', result);
     if (!result.success) {
-      store.setError(result.error?.message || 'Failed to trigger debate');
+      const errorMsg = result.error?.message || 'Failed to trigger debate';
+      if (analysisProgressRef.value) {
+        analysisProgressRef.value.setError(errorMsg);
+      }
+      store.setError(errorMsg);
       return;
     }
+
+    // Get debate result info
+    const debate = result.content;
+    if (debate && analysisProgressRef.value) {
+      analysisProgressRef.value.setComplete({
+        overallScore: debate.final_score || 0,
+        confidence: 0,
+        assessmentCount: 3, // Blue, Red, Arbiter
+        debateTriggered: true,
+      });
+    }
+
     // Refresh selected subject to show the new debate
     await handleSelectSubject(subjectId);
   } catch (err) {
     console.error('[RiskAgentPane] Debate error:', err);
-    store.setError(err instanceof Error ? err.message : 'Failed to trigger debate');
+    const errorMsg = err instanceof Error ? err.message : 'Failed to trigger debate';
+    if (analysisProgressRef.value) {
+      analysisProgressRef.value.setError(errorMsg);
+    }
+    store.setError(errorMsg);
   } finally {
     isDebating.value = false;
   }
 }
 
-async function handleGenerateSummary(subjectId: string) {
+async function handleGenerateSummary(_subjectId: string, forceRefresh = false) {
   if (!currentScope.value) {
     store.setError('No scope selected');
     return;
   }
 
+  console.log('[RiskAgentPane] Generating summary for scope:', currentScope.value.id, 'forceRefresh:', forceRefresh);
+
+  // Set up for modal display
+  analysisSubjectIdentifier.value = currentScope.value.name || 'Portfolio';
+
+  // Generate a taskId BEFORE showing the modal so SSE can connect
+  const taskId = crypto.randomUUID();
+  analysisTaskId.value = taskId;
+  analysisMode.value = 'summary';
+  console.log('[RiskAgentPane] Generated taskId for summary SSE:', taskId);
+
+  // Show progress modal
+  showAnalysisProgress.value = true;
   isGeneratingSummary.value = true;
+  store.clearError();
+
+  // Show initial progress
+  if (analysisProgressRef.value) {
+    analysisProgressRef.value.handleProgressEvent({
+      step: 'summary-starting',
+      message: `Generating executive summary for ${analysisSubjectIdentifier.value}`,
+      progress: 5,
+    });
+  }
+
   try {
-    console.log('[RiskAgentPane] Generating summary for scope:', currentScope.value.id);
     const result = await riskDashboardService.generateExecutiveSummary({
       scopeId: currentScope.value.id,
       summaryType: 'ad-hoc',
+      forceRefresh,
+      taskId,
     });
 
     if (result.success && result.content) {
-      // Show success and store the summary
       console.log('[RiskAgentPane] Summary generated:', result.content);
       const content = result.content.content;
-      const status = content?.status || 'N/A';
-      const keyFindingsCount = content?.keyFindings?.length || 0;
-      alert(`Summary generated successfully!\n\nStatus: ${status}\nKey Findings: ${keyFindingsCount} findings`);
+
+      // Update the executive summary display
+      executiveSummary.value = result.content;
+
+      if (analysisProgressRef.value) {
+        analysisProgressRef.value.setComplete({
+          overallScore: 0, // Not applicable for summary
+          confidence: 0,
+          assessmentCount: content?.keyFindings?.length || 0,
+          debateTriggered: false,
+        });
+      }
     } else {
-      store.setError(result.error?.message || 'Failed to generate summary');
+      const errorMsg = result.error?.message || 'Failed to generate summary';
+      if (analysisProgressRef.value) {
+        analysisProgressRef.value.setError(errorMsg);
+      }
+      store.setError(errorMsg);
     }
   } catch (err) {
     console.error('[RiskAgentPane] Summary error:', err);
-    store.setError(err instanceof Error ? err.message : 'Failed to generate summary');
+    const errorMsg = err instanceof Error ? err.message : 'Failed to generate summary';
+    if (analysisProgressRef.value) {
+      analysisProgressRef.value.setError(errorMsg);
+    }
+    store.setError(errorMsg);
   } finally {
     isGeneratingSummary.value = false;
   }
 }
 
-async function handleOpenScenario(subjectId: string) {
+function handleOpenScenario(_subjectId: string) {
   if (!currentScope.value) {
     store.setError('No scope selected');
     return;
   }
 
-  // For now, run a simple scenario with a 10% increase in all dimensions
-  try {
-    console.log('[RiskAgentPane] Running scenario for subject:', subjectId);
-    const result = await riskDashboardService.runScenario({
-      scopeId: currentScope.value.id,
-      name: 'What-If Analysis',
-      adjustments: [
-        { dimensionSlug: 'geopolitical', adjustment: 0.1 },
-        { dimensionSlug: 'regulatory', adjustment: 0.1 },
-        { dimensionSlug: 'financial-health', adjustment: 0.1 },
-      ],
-    });
-
-    if (result.success && result.content) {
-      console.log('[RiskAgentPane] Scenario result:', result.content);
-      const impact = result.content.portfolioImpact || { originalAvgScore: 0, newAvgScore: 0, change: 0 };
-      alert(`Scenario Analysis Complete!\n\nOriginal Avg Score: ${((impact.originalAvgScore || 0) * 100).toFixed(1)}%\nNew Avg Score: ${((impact.newAvgScore || 0) * 100).toFixed(1)}%\nChange: ${((impact.change || 0) * 100).toFixed(1)}%`);
-    } else {
-      store.setError(result.error?.message || 'Failed to run scenario');
-    }
-  } catch (err) {
-    console.error('[RiskAgentPane] Scenario error:', err);
-    store.setError(err instanceof Error ? err.message : 'Failed to run scenario');
-  }
+  // Open the scenario modal - it uses the scope's dimensions for configuration
+  showScenarioModal.value = true;
 }
 
-async function handleViewHistory(subjectId: string) {
-  try {
-    console.log('[RiskAgentPane] Fetching history for subject:', subjectId);
-    const result = await riskDashboardService.getScoreHistory(subjectId, 30, 10);
-
-    if (result.success && result.content) {
-      const history = result.content;
-      console.log('[RiskAgentPane] Score history:', history);
-
-      if (history.length === 0) {
-        alert('No score history available for this subject.');
-        return;
-      }
-
-      // Format history for display
-      const historyText = history.map((h, i) => {
-        const score = typeof h.score === 'number' ? (h.score * 100).toFixed(1) : 'N/A';
-        const change = typeof h.change === 'number' ? (h.change >= 0 ? '+' : '') + (h.change * 100).toFixed(1) : 'N/A';
-        const date = h.createdAt ? new Date(h.createdAt).toLocaleDateString() : 'N/A';
-        return `${i + 1}. ${date}: ${score}% (${change}%)`;
-      }).join('\n');
-
-      alert(`Score History (Last 30 Days)\n\n${historyText}`);
-    } else {
-      store.setError(result.error?.message || 'Failed to fetch history');
-    }
-  } catch (err) {
-    console.error('[RiskAgentPane] History error:', err);
-    store.setError(err instanceof Error ? err.message : 'Failed to fetch history');
-  }
+function handleViewHistory(subjectId: string) {
+  // Find the subject to get its name
+  const subject = subjects.value.find(s => s.id === subjectId);
+  historySubjectId.value = subjectId;
+  historySubjectName.value = subject?.name || subject?.identifier || 'Subject';
+  showHistoryModal.value = true;
 }
 
 function handleAddToCompare(subjectId: string) {
-  // Add to comparison set (store in local state for now)
+  // Add to comparison set and open compare modal
   const comparisonSet = store.comparisonSubjectIds || [];
-  if (comparisonSet.includes(subjectId)) {
-    alert('Subject already added to comparison set.');
-    return;
+  if (!comparisonSet.includes(subjectId)) {
+    store.addToComparison(subjectId);
   }
 
-  store.addToComparison(subjectId);
-  const subject = subjects.value.find(s => s.id === subjectId);
-  const subjectName = subject?.name || subject?.identifier || subjectId;
-  alert(`"${subjectName}" added to comparison.\n\nTo view comparison, select multiple subjects and use the Compare tab.`);
+  // Open the compare modal
+  showCompareModal.value = true;
 }
 
 async function handleAcknowledgeAlert(alertId: string) {
@@ -939,6 +1103,145 @@ watch(() => props.agent?.slug, () => {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* Executive Summary Section */
+.executive-summary-section {
+  margin: 1rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, var(--ion-card-background, #fff) 0%, #f8f9fa 100%);
+  border-radius: 12px;
+  border: 1px solid var(--ion-border-color, #e0e0e0);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.executive-summary-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.summary-status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.summary-status-badge.critical { background: #fee2e2; color: #dc2626; }
+.summary-status-badge.high { background: #fef3c7; color: #d97706; }
+.summary-status-badge.medium { background: #fef9c3; color: #ca8a04; }
+.summary-status-badge.low { background: #dcfce7; color: #16a34a; }
+.summary-status-badge.stable { background: #dbeafe; color: #2563eb; }
+
+.summary-headline {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
+  flex: 1;
+  color: var(--ion-text-color, #333);
+}
+
+.refresh-summary-btn {
+  padding: 0.25rem 0.5rem;
+  background: transparent;
+  border: 1px solid var(--ion-border-color, #e0e0e0);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  color: var(--ion-color-medium, #666);
+  transition: all 0.2s;
+}
+
+.refresh-summary-btn:hover:not(:disabled) {
+  background: var(--ion-color-light, #f4f5f8);
+  color: var(--ion-color-primary, #3880ff);
+}
+
+.refresh-summary-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.summary-content-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .summary-content-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.summary-findings h4,
+.summary-recommendations h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ion-color-medium, #666);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.summary-findings ul,
+.summary-recommendations ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.summary-findings li,
+.summary-recommendations li {
+  margin-bottom: 0.25rem;
+  color: var(--ion-text-color, #333);
+}
+
+.summary-meta {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--ion-border-color, #e0e0e0);
+  font-size: 0.75rem;
+  color: var(--ion-color-medium, #666);
+  text-align: right;
+}
+
+.executive-summary-placeholder {
+  margin: 1rem;
+  padding: 1.5rem;
+  background: var(--ion-card-background, #fff);
+  border-radius: 12px;
+  border: 1px dashed var(--ion-border-color, #e0e0e0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  color: var(--ion-color-medium, #666);
+}
+
+.generate-summary-btn {
+  padding: 0.5rem 1rem;
+  background: var(--ion-color-primary, #3880ff);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.generate-summary-btn:hover:not(:disabled) {
+  background: var(--ion-color-primary-shade, #3171e0);
+}
+
+.generate-summary-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Dark mode support */

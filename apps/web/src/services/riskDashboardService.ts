@@ -450,8 +450,16 @@ class RiskDashboardService {
     return this.executeDashboardRequest<RiskDebate>('debates.get-latest', { subjectId });
   }
 
-  async triggerDebate(subjectId: string): Promise<DashboardActionResponse<RiskDebate>> {
-    return this.executeDashboardRequest<RiskDebate>('debates.trigger', { subjectId });
+  async triggerDebate(
+    subjectId: string,
+    options?: { taskId?: string }
+  ): Promise<DashboardActionResponse<RiskDebate>> {
+    // Use the context-aware method to pass taskId for SSE progress tracking
+    return this.executeDashboardRequestWithContext<RiskDebate>(
+      'debates.trigger',
+      { subjectId },
+      options?.taskId,
+    );
   }
 
   // ==========================================================================
@@ -787,6 +795,27 @@ class RiskDashboardService {
     return this.executeDashboardRequest<{ success: boolean }>('analytics.delete-comparison', { id });
   }
 
+  /**
+   * Generate AI insights for a subject comparison
+   * Note: This is a placeholder that returns a not-implemented response
+   * The CompareModal has fallback logic to generate basic insights locally
+   */
+  async generateComparisonInsights(_params: {
+    subjectIds: string[];
+    subjectSummary: string;
+    dimensionSummary: string;
+  }): Promise<DashboardActionResponse<{
+    summary: string;
+    keyDifferences: string[];
+    recommendations: string[];
+  }>> {
+    // Return not-implemented for now - the modal has fallback logic
+    return {
+      success: false,
+      error: { code: 'NOT_IMPLEMENTED', message: 'AI insights not yet implemented' },
+    };
+  }
+
   // ==========================================================================
   // EXECUTIVE SUMMARY OPERATIONS (Feature 5)
   // ==========================================================================
@@ -794,8 +823,15 @@ class RiskDashboardService {
   async generateExecutiveSummary(params: {
     scopeId: string;
     summaryType?: 'daily' | 'weekly' | 'ad-hoc';
+    forceRefresh?: boolean;
+    taskId?: string;
   }): Promise<DashboardActionResponse<ExecutiveSummary>> {
-    return this.executeDashboardRequest<ExecutiveSummary>('advanced-analytics.generate-summary', params);
+    // Use the context-aware method to pass taskId for SSE progress tracking
+    return this.executeDashboardRequestWithContext<ExecutiveSummary>(
+      'advanced-analytics.generate-summary',
+      { scopeId: params.scopeId, summaryType: params.summaryType, forceRefresh: params.forceRefresh },
+      params.taskId,
+    );
   }
 
   async getLatestSummary(scopeId: string): Promise<DashboardActionResponse<ExecutiveSummary | null>> {

@@ -6,7 +6,7 @@
  * and Arbiter Agent synthesizes a final verdict with potential score adjustment.
  */
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { LLMService } from '@/llms/llm.service';
 import { ExecutionContext } from '@orchestrator-ai/transport-types';
 import { RiskSubject } from '../interfaces/subject.interface';
@@ -26,6 +26,7 @@ import {
 import { DebateRepository } from '../repositories/debate.repository';
 import { CompositeScoreRepository } from '../repositories/composite-score.repository';
 import { ScoreAggregationService } from './score-aggregation.service';
+import { ObservabilityEventsService } from '@/observability/observability-events.service';
 
 export interface DebateInput {
   subject: RiskSubject;
@@ -50,7 +51,37 @@ export class DebateService {
     private readonly debateRepo: DebateRepository,
     private readonly compositeScoreRepo: CompositeScoreRepository,
     private readonly scoreAggregation: ScoreAggregationService,
+    @Optional()
+    private readonly observabilityEvents?: ObservabilityEventsService,
   ) {}
+
+  /**
+   * Emit a progress event for real-time UI updates
+   */
+  private emitProgress(
+    context: ExecutionContext,
+    step: string,
+    message: string,
+    progress: number,
+    metadata?: Record<string, unknown>,
+  ): void {
+    if (!this.observabilityEvents) return;
+
+    void this.observabilityEvents.push({
+      context,
+      source_app: 'risk-debate',
+      hook_event_type: 'risk.debate.progress',
+      status: 'in_progress',
+      message,
+      progress,
+      step,
+      payload: {
+        mode: 'debate',
+        ...metadata,
+      },
+      timestamp: Date.now(),
+    });
+  }
 
   /**
    * Run a full debate cycle for a subject's risk assessment
@@ -69,6 +100,19 @@ export class DebateService {
       `Starting debate for subject ${subject.identifier} with score ${compositeScore.overall_score}`,
     );
 
+    // Emit: Debate starting
+    this.emitProgress(
+      context,
+      'debate-starting',
+      `Starting Red vs Blue debate for ${subject.identifier}`,
+      0,
+      {
+        subjectId: subject.id,
+        subjectIdentifier: subject.identifier,
+        originalScore: compositeScore.overall_score,
+      },
+    );
+
     // 1. Create pending debate record
     const debate = await this.debateRepo.create({
       subject_id: subject.id,
@@ -82,6 +126,17 @@ export class DebateService {
     try {
       // Update status to in_progress
       await this.debateRepo.update(debate.id, { status: 'in_progress' });
+
+      // Emit: Loading contexts
+      this.emitProgress(
+        context,
+        'loading-contexts',
+        'Loading debate agent configurations...',
+        10,
+        {
+          subjectIdentifier: subject.identifier,
+        },
+      );
 
       // Get debate contexts for each role
       const [blueContext, redContext, arbiterContext] = await Promise.all([
@@ -99,6 +154,17 @@ export class DebateService {
       const transcript: DebateMessage[] = [];
 
       // 2. Run Blue Agent (Defender)
+      this.emitProgress(
+        context,
+        'running-blue-agent',
+        'Blue Team defending the assessment...',
+        20,
+        {
+          subjectIdentifier: subject.identifier,
+          agentRole: 'blue',
+        },
+      );
+
       this.logger.debug(`Running Blue Agent for ${subject.identifier}`);
       const blueAssessment = await this.runBlueAgent(
         subject,
@@ -113,7 +179,31 @@ export class DebateService {
         content: JSON.stringify(blueAssessment),
       });
 
+      // Emit: Blue complete
+      this.emitProgress(
+        context,
+        'blue-complete',
+        'Blue Team defense complete',
+        40,
+        {
+          subjectIdentifier: subject.identifier,
+          agentRole: 'blue',
+          keyFindings: blueAssessment.key_findings?.length || 0,
+        },
+      );
+
       // 3. Run Red Agent (Challenger)
+      this.emitProgress(
+        context,
+        'running-red-agent',
+        'Red Team challenging the assessment...',
+        45,
+        {
+          subjectIdentifier: subject.identifier,
+          agentRole: 'red',
+        },
+      );
+
       this.logger.debug(`Running Red Agent for ${subject.identifier}`);
       const redChallenges = await this.runRedAgent(
         subject,
@@ -129,7 +219,32 @@ export class DebateService {
         content: JSON.stringify(redChallenges),
       });
 
+      // Emit: Red complete
+      this.emitProgress(
+        context,
+        'red-complete',
+        'Red Team challenges complete',
+        65,
+        {
+          subjectIdentifier: subject.identifier,
+          agentRole: 'red',
+          challengeCount: redChallenges.challenges?.length || 0,
+          blindSpotCount: redChallenges.blind_spots?.length || 0,
+        },
+      );
+
       // 4. Run Arbiter Agent (Synthesizer)
+      this.emitProgress(
+        context,
+        'running-arbiter',
+        'Arbiter synthesizing perspectives...',
+        70,
+        {
+          subjectIdentifier: subject.identifier,
+          agentRole: 'arbiter',
+        },
+      );
+
       this.logger.debug(`Running Arbiter Agent for ${subject.identifier}`);
       const arbiterSynthesis = await this.runArbiterAgent(
         subject,
@@ -144,6 +259,19 @@ export class DebateService {
         timestamp: new Date().toISOString(),
         content: JSON.stringify(arbiterSynthesis),
       });
+
+      // Emit: Arbiter complete
+      this.emitProgress(
+        context,
+        'arbiter-complete',
+        'Arbiter verdict delivered',
+        90,
+        {
+          subjectIdentifier: subject.identifier,
+          agentRole: 'arbiter',
+          recommendedAdjustment: arbiterSynthesis.recommended_adjustment,
+        },
+      );
 
       // 5. Calculate score adjustment
       const adjustment = this.calculateAdjustment(arbiterSynthesis);
@@ -175,6 +303,23 @@ export class DebateService {
         `Debate completed for ${subject.identifier}: ${compositeScore.overall_score} → ${finalScore} (${adjustment >= 0 ? '+' : ''}${adjustment})`,
       );
 
+      // Emit: Debate complete
+      this.emitProgress(
+        context,
+        'debate-complete',
+        `Debate complete: score adjusted ${compositeScore.overall_score} → ${finalScore}`,
+        100,
+        {
+          subjectId: subject.id,
+          subjectIdentifier: subject.identifier,
+          originalScore: compositeScore.overall_score,
+          finalScore,
+          adjustment,
+          acceptedChallenges: arbiterSynthesis.accepted_challenges?.length || 0,
+          rejectedChallenges: arbiterSynthesis.rejected_challenges?.length || 0,
+        },
+      );
+
       return {
         debate: completedDebate,
         adjustedScore: finalScore,
@@ -186,6 +331,18 @@ export class DebateService {
         status: 'failed',
         completed_at: new Date().toISOString(),
       });
+
+      // Emit: Debate failed
+      this.emitProgress(
+        context,
+        'debate-failed',
+        `Debate failed: ${error instanceof Error ? error.message : String(error)}`,
+        0,
+        {
+          subjectIdentifier: subject.identifier,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
 
       this.logger.error(
         `Debate failed for ${subject.identifier}: ${error instanceof Error ? error.message : String(error)}`,

@@ -17,15 +17,39 @@
       </div>
 
       <!-- Signals -->
-      <div v-if="assessment.signals && assessment.signals.length > 0" class="signals-section">
+      <div v-if="hasSignals" class="signals-section">
         <span class="signals-label">Key Signals:</span>
         <ul class="signals-list">
           <li
-            v-for="(signal, index) in assessment.signals.slice(0, 3)"
+            v-for="(signal, index) in displaySignals"
             :key="index"
             :class="signal.impact"
           >
-            {{ signal.description }}
+            <a
+              href="#"
+              class="signal-link"
+              @click.prevent="toggleSignalDetail(index)"
+            >
+              {{ signal.text }}
+            </a>
+            <div v-if="expandedSignal === index" class="signal-detail">
+              <div v-if="signal.value" class="signal-detail-row">
+                <span class="detail-label">Value:</span>
+                <span class="detail-value">{{ signal.value }}</span>
+              </div>
+              <div v-if="signal.weight" class="signal-detail-row">
+                <span class="detail-label">Weight:</span>
+                <span class="detail-value">{{ formatWeight(signal.weight) }}</span>
+              </div>
+              <div v-if="signal.source" class="signal-detail-row">
+                <span class="detail-label">Source:</span>
+                <span class="detail-value">{{ signal.source }}</span>
+              </div>
+              <div class="signal-detail-row">
+                <span class="detail-label">Impact:</span>
+                <span class="detail-value" :class="signal.impact">{{ signal.impact }}</span>
+              </div>
+            </div>
           </li>
         </ul>
       </div>
@@ -55,6 +79,11 @@ interface Props {
 const props = defineProps<Props>();
 
 const showReasoning = ref(false);
+const expandedSignal = ref<number | null>(null);
+
+function toggleSignalDetail(index: number) {
+  expandedSignal.value = expandedSignal.value === index ? null : index;
+}
 
 // Get dimension name handling both snake_case and camelCase API responses
 const dimensionDisplayName = computed(() => {
@@ -86,6 +115,45 @@ const reasoningText = computed(() => {
   if (analystResponse?.reasoning) return String(analystResponse.reasoning);
   return '';
 });
+
+// Check if we have signals to display
+const hasSignals = computed(() => {
+  const signals = props.assessment.signals;
+  if (!signals || !Array.isArray(signals) || signals.length === 0) return false;
+  // Check if at least one signal has displayable text
+  return signals.some(s => {
+    const sig = s as Record<string, unknown>;
+    return sig.description || sig.name || sig.text;
+  });
+});
+
+// Format signals for display - handles both backend formats
+const displaySignals = computed(() => {
+  const signals = props.assessment.signals;
+  if (!signals || !Array.isArray(signals)) return [];
+
+  return signals
+    .slice(0, 3)
+    .map(s => {
+      const sig = s as Record<string, unknown>;
+      // Backend uses 'name', frontend type uses 'description'
+      // Also handle 'text' for flexibility
+      const text = sig.description || sig.name || sig.text || '';
+      return {
+        text: String(text),
+        impact: (sig.impact || 'neutral') as string,
+        value: sig.value,
+        weight: sig.weight as number | undefined,
+        source: sig.source as string | undefined
+      };
+    })
+    .filter(s => s.text); // Only include signals with actual text
+});
+
+function formatWeight(weight: number | undefined): string {
+  if (weight === undefined) return 'N/A';
+  return (weight * 100).toFixed(0) + '%';
+}
 
 function normalizeValue(value: number): number {
   return value > 1 ? value / 100 : value;
@@ -183,12 +251,60 @@ function formatPercent(value: number): string {
   margin-bottom: 0.25rem;
 }
 
-.signals-list li.negative {
+.signals-list li.negative .signal-link {
   color: var(--ion-color-danger, #eb445a);
 }
 
-.signals-list li.positive {
+.signals-list li.positive .signal-link {
   color: var(--ion-color-success, #2dd36f);
+}
+
+.signal-link {
+  color: var(--ion-color-primary, #3880ff);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.signal-link:hover {
+  text-decoration: underline;
+}
+
+.signal-detail {
+  margin-top: 0.375rem;
+  padding: 0.5rem;
+  background: var(--ion-color-light, #f4f5f8);
+  border-radius: 4px;
+  font-size: 0.7rem;
+}
+
+.signal-detail-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.signal-detail-row:last-child {
+  margin-bottom: 0;
+}
+
+.detail-label {
+  color: var(--ion-color-medium, #666);
+}
+
+.detail-value {
+  font-weight: 500;
+}
+
+.detail-value.negative {
+  color: var(--ion-color-danger, #eb445a);
+}
+
+.detail-value.positive {
+  color: var(--ion-color-success, #2dd36f);
+}
+
+.detail-value.neutral {
+  color: var(--ion-color-medium, #666);
 }
 
 .card-footer {

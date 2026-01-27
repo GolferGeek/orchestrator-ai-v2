@@ -4,7 +4,7 @@
       <div v-if="isVisible" class="modal-overlay" @click.self="handleCancel">
         <div class="modal-content analysis-progress-modal">
           <div class="modal-header">
-            <h3>Risk Analysis</h3>
+            <h3>{{ modalTitle }}</h3>
             <div class="header-badge" :class="statusClass">{{ statusLabel }}</div>
           </div>
 
@@ -56,8 +56,8 @@
               <span>{{ error }}</span>
             </div>
 
-            <!-- Result Summary (when complete) -->
-            <div v-if="isComplete && result" class="result-summary">
+            <!-- Result Summary (when complete) - Analysis Mode -->
+            <div v-if="isComplete && result && mode === 'analysis'" class="result-summary">
               <div class="result-row">
                 <span class="result-label">Overall Risk Score:</span>
                 <span class="result-value score-value" :class="getScoreClass(result.overallScore / 100)">
@@ -75,6 +75,32 @@
               <div v-if="result.debateTriggered" class="result-row debate-triggered">
                 <span class="result-label">Red vs Blue Debate:</span>
                 <span class="result-value">Triggered</span>
+              </div>
+            </div>
+
+            <!-- Result Summary (when complete) - Debate Mode -->
+            <div v-if="isComplete && result && mode === 'debate'" class="result-summary">
+              <div class="result-row">
+                <span class="result-label">Final Score:</span>
+                <span class="result-value score-value" :class="getScoreClass(result.overallScore / 100)">
+                  {{ formatScore(result.overallScore) }}
+                </span>
+              </div>
+              <div class="result-row">
+                <span class="result-label">Agents Completed:</span>
+                <span class="result-value">{{ result.assessmentCount }} (Blue, Red, Arbiter)</span>
+              </div>
+            </div>
+
+            <!-- Result Summary (when complete) - Summary Mode -->
+            <div v-if="isComplete && mode === 'summary'" class="result-summary">
+              <div class="result-row">
+                <span class="result-label">Summary Generated:</span>
+                <span class="result-value" style="color: #10b981;">Complete</span>
+              </div>
+              <div class="result-row">
+                <span class="result-label">Key Findings:</span>
+                <span class="result-value">{{ result?.assessmentCount || 0 }} findings</span>
               </div>
             </div>
           </div>
@@ -137,9 +163,12 @@ interface Props {
   isVisible: boolean;
   subjectIdentifier: string;
   taskId?: string;
+  mode?: 'analysis' | 'debate' | 'summary';
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  mode: 'analysis',
+});
 
 const emit = defineEmits<{
   (e: 'close'): void;
@@ -160,6 +189,14 @@ const result = ref<AnalysisResult | null>(null);
 let eventSource: EventSource | null = null;
 
 // Computed
+const modalTitle = computed(() => {
+  switch (props.mode) {
+    case 'debate': return 'Red vs Blue Debate';
+    case 'summary': return 'Executive Summary';
+    default: return 'Risk Analysis';
+  }
+});
+
 const statusClass = computed(() => {
   if (error.value) return 'status-error';
   if (isComplete.value) return 'status-complete';
@@ -176,7 +213,15 @@ const stepIcon = computed(() => {
   if (error.value) return '⚠';
   if (isComplete.value) return '✔';
   if (currentStep.value.startsWith('analyzing-')) return '🔍';
-  if (currentStep.value === 'running-debate') return '⚔';
+  // Debate-specific icons
+  if (currentStep.value === 'running-blue-agent' || currentStep.value === 'blue-complete') return '🛡️';
+  if (currentStep.value === 'running-red-agent' || currentStep.value === 'red-complete') return '⚔️';
+  if (currentStep.value === 'running-arbiter' || currentStep.value === 'arbiter-complete') return '⚖️';
+  if (currentStep.value === 'running-debate' || currentStep.value.startsWith('debate-')) return '⚔';
+  // Summary-specific icons
+  if (currentStep.value === 'gathering-data' || currentStep.value === 'data-gathered') return '📊';
+  if (currentStep.value === 'generating-summary' || currentStep.value === 'summary-generated') return '📝';
+  if (currentStep.value.startsWith('summary-')) return '📋';
   return '⏳';
 });
 
@@ -305,8 +350,12 @@ async function connectToSSE() {
         return;
       }
 
-      // Check if this is a risk analysis progress event
-      if (data.source_app === 'risk-analysis' || data.hook_event_type === 'risk.analysis.progress') {
+      // Check if this is a risk analysis, debate, or summary progress event
+      const isAnalysisEvent = data.source_app === 'risk-analysis' || data.hook_event_type === 'risk.analysis.progress';
+      const isDebateEvent = data.source_app === 'risk-debate' || data.hook_event_type === 'risk.debate.progress';
+      const isSummaryEvent = data.source_app === 'risk-summary' || data.hook_event_type === 'risk.summary.progress';
+
+      if (isAnalysisEvent || isDebateEvent || isSummaryEvent) {
         console.log('[AnalysisProgressModal] Risk progress event:', data.step, data.message);
 
         // Extract progress data from observability event format
@@ -395,8 +444,15 @@ defineExpose({
     progress.value = 100;
     result.value = res;
     currentStep.value = 'complete';
-    // overallScore is already 0-100 from API, no need to multiply
-    currentMessage.value = `Analysis complete: ${res.overallScore.toFixed(0)}% risk score`;
+    // Set appropriate completion message based on mode
+    if (props.mode === 'summary') {
+      currentMessage.value = `Executive summary generated with ${res.assessmentCount} key findings`;
+    } else if (props.mode === 'debate') {
+      currentMessage.value = `Debate complete: final score ${res.overallScore.toFixed(0)}%`;
+    } else {
+      // overallScore is already 0-100 from API, no need to multiply
+      currentMessage.value = `Analysis complete: ${res.overallScore.toFixed(0)}% risk score`;
+    }
     // Mark all dimensions as complete
     dimensionProgress.value = dimensionProgress.value.map(d => ({
       ...d,

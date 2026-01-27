@@ -6,10 +6,11 @@
  * concise, actionable insights for stakeholders.
  */
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { LLMService } from '@/llms/llm.service';
 import { SupabaseService } from '@/supabase/supabase.service';
 import { ExecutionContext } from '@orchestrator-ai/transport-types';
+import { ObservabilityEventsService } from '@/observability/observability-events.service';
 import {
   asArray,
   asNumber,
@@ -51,6 +52,7 @@ export interface ExecutiveSummary {
 export interface GenerateSummaryInput {
   scopeId: string;
   summaryType?: 'daily' | 'weekly' | 'ad-hoc';
+  forceRefresh?: boolean;
   context: ExecutionContext;
 }
 
@@ -83,10 +85,40 @@ export class ExecutiveSummaryService {
   constructor(
     private readonly llmService: LLMService,
     private readonly supabaseService: SupabaseService,
+    @Optional()
+    private readonly observabilityEvents?: ObservabilityEventsService,
   ) {}
 
   private getClient() {
     return this.supabaseService.getServiceClient();
+  }
+
+  /**
+   * Emit a progress event for real-time UI updates
+   */
+  private emitProgress(
+    context: ExecutionContext,
+    step: string,
+    message: string,
+    progress: number,
+    metadata?: Record<string, unknown>,
+  ): void {
+    if (!this.observabilityEvents) return;
+
+    void this.observabilityEvents.push({
+      context,
+      source_app: 'risk-summary',
+      hook_event_type: 'risk.summary.progress',
+      status: 'in_progress',
+      message,
+      progress,
+      step,
+      payload: {
+        mode: 'summary',
+        ...metadata,
+      },
+      timestamp: Date.now(),
+    });
   }
 
   /**
@@ -98,26 +130,104 @@ export class ExecutiveSummaryService {
   async generateSummary(
     input: GenerateSummaryInput,
   ): Promise<GenerateSummaryResult> {
-    const { scopeId, summaryType = 'ad-hoc', context } = input;
+    const {
+      scopeId,
+      summaryType = 'ad-hoc',
+      forceRefresh = false,
+      context,
+    } = input;
 
     this.logger.log(
-      `Generating executive summary for scope ${scopeId}, type: ${summaryType}`,
+      `Generating executive summary for scope ${scopeId}, type: ${summaryType}, forceRefresh: ${forceRefresh}`,
+    );
+
+    // Emit: Summary starting
+    this.emitProgress(
+      context,
+      'summary-starting',
+      'Starting executive summary generation...',
+      0,
+      {
+        scopeId,
+        summaryType,
+      },
     );
 
     // Check for cached summary (less than 1 hour old for ad-hoc, or matching type for scheduled)
-    const cached = await this.findCachedSummary(scopeId, summaryType);
-    if (cached) {
-      this.logger.debug('Returning cached executive summary');
-      return { summary: cached, cached: true };
+    // Skip cache check if forceRefresh is true
+    if (!forceRefresh) {
+      this.emitProgress(
+        context,
+        'checking-cache',
+        'Checking for cached summary...',
+        10,
+        {
+          scopeId,
+        },
+      );
+
+      const cached = await this.findCachedSummary(scopeId, summaryType);
+      if (cached) {
+        this.logger.debug('Returning cached executive summary');
+        this.emitProgress(context, 'cache-hit', 'Found cached summary', 100, {
+          scopeId,
+          cached: true,
+        });
+        return { summary: cached, cached: true };
+      }
+    } else {
+      this.logger.debug('Skipping cache due to forceRefresh');
     }
 
     // Gather risk data for the summary
+    this.emitProgress(
+      context,
+      'gathering-data',
+      'Gathering portfolio risk data...',
+      20,
+      {
+        scopeId,
+      },
+    );
+
     const riskData = await this.gatherRiskData(scopeId);
 
+    this.emitProgress(context, 'data-gathered', 'Risk data collected', 40, {
+      scopeId,
+      hasPortfolioAggregate: !!riskData.portfolioAggregate,
+      topRisksCount: (riskData.topRisks as unknown[])?.length || 0,
+    });
+
     // Generate summary using LLM
+    this.emitProgress(
+      context,
+      'generating-summary',
+      'Generating summary with AI...',
+      50,
+      {
+        scopeId,
+      },
+    );
+
     const content = await this.generateSummaryContent(riskData, context);
 
+    this.emitProgress(
+      context,
+      'summary-generated',
+      'AI summary generated',
+      80,
+      {
+        scopeId,
+        status: content.status,
+        keyFindingsCount: content.keyFindings.length,
+      },
+    );
+
     // Save to database
+    this.emitProgress(context, 'saving-summary', 'Saving summary...', 90, {
+      scopeId,
+    });
+
     const summary = await this.saveSummary({
       scopeId,
       summaryType,
@@ -125,6 +235,21 @@ export class ExecutiveSummaryService {
       riskSnapshot: riskData,
       generatedBy: context.model,
     });
+
+    // Emit: Complete
+    this.emitProgress(
+      context,
+      'summary-complete',
+      `Summary complete: ${content.status.toUpperCase()} status`,
+      100,
+      {
+        scopeId,
+        summaryId: summary.id,
+        status: content.status,
+        keyFindingsCount: content.keyFindings.length,
+        recommendationsCount: content.recommendations.length,
+      },
+    );
 
     return { summary, cached: false };
   }
@@ -407,19 +532,24 @@ Always respond with valid JSON in the exact format specified.`;
       isRecord,
     );
 
-    const avgScore = asNumber(aggregate['avg_score']) ?? 0;
+    const avgScoreRaw = asNumber(aggregate['avg_score']) ?? 0;
+    // Normalize: if > 1, it's stored as 0-100, keep as-is; if <= 1, multiply by 100
+    const avgScore = avgScoreRaw > 1 ? avgScoreRaw : avgScoreRaw * 100;
     const criticalCount = asNumber(aggregate['critical_count']) ?? 0;
     const highCount = asNumber(aggregate['high_count']) ?? 0;
     const subjectCount = asNumber(aggregate['subject_count']) ?? 0;
+    const scoreStddevRaw = asNumber(aggregate['score_stddev']) ?? 0;
+    const scoreStddev =
+      scoreStddevRaw > 1 ? scoreStddevRaw : scoreStddevRaw * 100;
 
     const userPrompt = `Based on the following portfolio risk data, generate an executive summary:
 
 ## Portfolio Overview
 - Total Subjects: ${subjectCount}
-- Average Risk Score: ${(avgScore * 100).toFixed(1)}%
+- Average Risk Score: ${avgScore.toFixed(1)}%
 - Critical Risk Count: ${criticalCount}
 - High Risk Count: ${highCount}
-- Score Standard Deviation: ${((asNumber(aggregate['score_stddev']) ?? 0) * 100).toFixed(1)}%
+- Score Standard Deviation: ${scoreStddev.toFixed(1)}%
 
 ## Risk Distribution
 ${
@@ -439,8 +569,10 @@ ${
     .slice(0, 5)
     .map((r, i) => {
       const name = asString(r['subjectName']) ?? 'Unknown';
-      const score = asNumber(r['overallScore']) ?? 0;
-      return `${i + 1}. ${name}: ${(score * 100).toFixed(1)}%`;
+      const scoreRaw = asNumber(r['overallScore']) ?? 0;
+      // Normalize: if > 1, it's stored as 0-100
+      const score = scoreRaw > 1 ? scoreRaw : scoreRaw * 100;
+      return `${i + 1}. ${name}: ${score.toFixed(1)}%`;
     })
     .join('\n') || 'No top risk data available'
 }
@@ -452,8 +584,10 @@ ${
     .map((c) => {
       const subjectId = asString(c['subjectId']) ?? '';
       const direction = asString(c['direction']) === 'up' ? 'up' : 'down';
-      const change = asNumber(c['change']) ?? 0;
-      return `- Subject ${subjectId}: ${direction === 'up' ? '↑' : '↓'} ${Math.abs(change * 100).toFixed(1)}%`;
+      const changeRaw = asNumber(c['change']) ?? 0;
+      // Normalize: if abs > 1, it's stored as 0-100
+      const change = Math.abs(changeRaw) > 1 ? changeRaw : changeRaw * 100;
+      return `- Subject ${subjectId}: ${direction === 'up' ? '↑' : '↓'} ${Math.abs(change).toFixed(1)}%`;
     })
     .join('\n') || 'No recent changes'
 }
@@ -578,6 +712,7 @@ Guidelines:
 
   /**
    * Validate status or derive from score
+   * @param avgScore - Score as percentage (0-100)
    */
   private validateStatus(
     status: string | undefined,
@@ -588,16 +723,17 @@ Guidelines:
       return status as ExecutiveSummaryContent['status'];
     }
 
-    // Derive from average score
-    if (avgScore >= 0.7) return 'critical';
-    if (avgScore >= 0.5) return 'high';
-    if (avgScore >= 0.3) return 'medium';
-    if (avgScore >= 0.1) return 'low';
+    // Derive from average score (using percentage thresholds)
+    if (avgScore >= 70) return 'critical';
+    if (avgScore >= 50) return 'high';
+    if (avgScore >= 30) return 'medium';
+    if (avgScore >= 10) return 'low';
     return 'stable';
   }
 
   /**
    * Build fallback content when LLM parsing fails
+   * @param avgScore - Score as percentage (0-100)
    */
   private buildFallbackContent(
     avgScore: number,
@@ -606,13 +742,19 @@ Guidelines:
   ): ExecutiveSummaryContent {
     const status = this.validateStatus(undefined, avgScore);
 
+    // Normalize top risk score for display
+    const topRiskScoreRaw =
+      asNumber((topRisks[0] as UnknownRecord)?.['overallScore']) ?? 0;
+    const topRiskScore =
+      topRiskScoreRaw > 1 ? topRiskScoreRaw : topRiskScoreRaw * 100;
+
     return {
-      headline: `Portfolio risk at ${(avgScore * 100).toFixed(0)}% - ${status.toUpperCase()} status`,
+      headline: `Portfolio risk at ${avgScore.toFixed(0)}% - ${status.toUpperCase()} status`,
       status,
       keyFindings: [
-        `Average portfolio risk score: ${(avgScore * 100).toFixed(1)}%`,
+        `Average portfolio risk score: ${avgScore.toFixed(1)}%`,
         topRisks.length > 0
-          ? `Highest risk: ${asString((topRisks[0] as UnknownRecord)?.['subjectName']) ?? 'Unknown'} at ${((asNumber((topRisks[0] as UnknownRecord)?.['overallScore']) ?? 0) * 100).toFixed(1)}%`
+          ? `Highest risk: ${asString((topRisks[0] as UnknownRecord)?.['subjectName']) ?? 'Unknown'} at ${topRiskScore.toFixed(1)}%`
           : 'No high-risk subjects identified',
         recentChanges.length > 0
           ? `${recentChanges.length} score changes in the past 7 days`
