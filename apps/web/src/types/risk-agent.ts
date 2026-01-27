@@ -855,8 +855,8 @@ export type ExecutiveSummaryStatus = 'critical' | 'high' | 'medium' | 'low' | 's
  * Risk highlights for the summary
  */
 export interface RiskHighlights {
-  topRisks: Array<{ subject: string; score: number; dimension: string }>;
-  recentChanges: Array<{ subject: string; change: number; direction: 'up' | 'down' }>;
+  topRisks: Array<{ subject: string; subjectId?: string; score: number; dimension: string }>;
+  recentChanges: Array<{ subject: string; subjectId?: string; change: number; direction: 'up' | 'down' }>;
 }
 
 /**

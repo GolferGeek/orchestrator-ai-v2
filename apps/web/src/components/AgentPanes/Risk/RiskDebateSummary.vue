@@ -32,14 +32,38 @@
         <div v-if="redConfidence !== null" class="strength-score">
           Confidence: {{ formatPercent(redConfidence) }}
         </div>
-        <ul v-if="redChallengesList.length > 0" class="arguments-list">
-          <li v-for="(challenge, i) in redChallengesList" :key="i">
-            <strong v-if="challenge.area">{{ challenge.area }}:</strong> {{ challenge.text }}
-            <span v-if="challenge.severity" :class="['severity-badge', challenge.severity]">
-              {{ challenge.severity }}
-            </span>
-          </li>
-        </ul>
+        <div v-if="redChallengesList.length > 0" class="red-section">
+          <strong>Challenges:</strong>
+          <ul class="arguments-list">
+            <li v-for="(challenge, i) in redChallengesList" :key="i">
+              <strong v-if="challenge.area">{{ challenge.area }}:</strong> {{ challenge.text }}
+              <span v-if="challenge.severity" :class="['severity-badge', challenge.severity]">
+                {{ challenge.severity }}
+              </span>
+            </li>
+          </ul>
+        </div>
+        <div v-if="redBlindSpots.length > 0" class="red-section">
+          <strong>Blind Spots:</strong>
+          <ul class="arguments-list">
+            <li v-for="(spot, i) in redBlindSpots" :key="'bs-' + i">{{ spot }}</li>
+          </ul>
+        </div>
+        <div v-if="redOverstated.length > 0" class="red-section">
+          <strong>Overstated Risks:</strong>
+          <ul class="arguments-list">
+            <li v-for="(risk, i) in redOverstated" :key="'os-' + i">{{ risk }}</li>
+          </ul>
+        </div>
+        <div v-if="redUnderstated.length > 0" class="red-section">
+          <strong>Understated Risks:</strong>
+          <ul class="arguments-list">
+            <li v-for="(risk, i) in redUnderstated" :key="'us-' + i">{{ risk }}</li>
+          </ul>
+        </div>
+        <p v-if="redChallengesList.length === 0 && redBlindSpots.length === 0" class="no-data">
+          No challenges recorded
+        </p>
       </div>
 
       <!-- Arbiter / Synthesis (if available) -->
@@ -132,18 +156,67 @@ const redConfidence = computed(() => {
 
 const redChallengesList = computed(() => {
   const red = redChallenges.value;
+  console.log('[RiskDebateSummary] Red challenges data:', JSON.stringify(red, null, 2));
   const challenges = red.challenges || [];
   if (!Array.isArray(challenges)) return [];
   // Normalize challenge format - could be strings or objects
+  // Backend uses: { dimension, challenge, evidence, suggested_adjustment }
   return challenges.map((c: unknown) => {
     if (typeof c === 'string') return { text: c, area: '', severity: '' };
     const cObj = c as Record<string, unknown>;
+    const adjustment = typeof cObj.suggested_adjustment === 'number' ? cObj.suggested_adjustment : 0;
+    // Map severity from adjustment: high if > 10, medium if > 5, low otherwise
+    const severity = Math.abs(adjustment) > 10 ? 'high' : Math.abs(adjustment) > 5 ? 'medium' : 'low';
     return {
       text: (cObj.challenge || cObj.text || '') as string,
-      area: (cObj.area || '') as string,
-      severity: (cObj.severity || '') as string,
+      area: (cObj.dimension || cObj.area || '') as string,  // Backend uses 'dimension'
+      severity: severity,
     };
   });
+});
+
+// Additional red team findings
+const redBlindSpots = computed(() => {
+  const red = redChallenges.value;
+  const spots = red.blind_spots || red.blindSpots || [];
+  if (!Array.isArray(spots)) return [];
+
+  // Filter and clean up blind spots - some might be raw JSON from failed parsing
+  return spots
+    .filter((s): s is string => typeof s === 'string')
+    .map(spot => {
+      // If it looks like JSON, try to extract meaningful text
+      if (spot.trim().startsWith('{') || spot.trim().startsWith('[')) {
+        try {
+          const parsed = JSON.parse(spot);
+          // If it's the full challenges object, extract challenge texts
+          if (parsed.challenges && Array.isArray(parsed.challenges)) {
+            return parsed.challenges
+              .map((c: Record<string, unknown>) => c.challenge || c.text || '')
+              .filter(Boolean)
+              .join('; ');
+          }
+          return '';
+        } catch {
+          // Not valid JSON, just truncate the raw text
+          return spot.length > 100 ? spot.slice(0, 100) + '...' : spot;
+        }
+      }
+      return spot;
+    })
+    .filter(Boolean);
+});
+
+const redOverstated = computed(() => {
+  const red = redChallenges.value;
+  const risks = red.overstated_risks || red.overstatedRisks || [];
+  return Array.isArray(risks) ? risks.filter((r): r is string => typeof r === 'string') : [];
+});
+
+const redUnderstated = computed(() => {
+  const red = redChallenges.value;
+  const risks = red.understated_risks || red.understatedRisks || [];
+  return Array.isArray(risks) ? risks.filter((r): r is string => typeof r === 'string') : [];
 });
 
 // Arbiter (Synthesis) - may not exist in all debates
@@ -271,6 +344,24 @@ function formatDate(dateStr: string | undefined): string {
 
 .arguments-list li {
   margin-bottom: 0.375rem;
+}
+
+.red-section {
+  margin-bottom: 0.75rem;
+}
+
+.red-section > strong {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--ion-color-medium, #666);
+  margin-bottom: 0.25rem;
+}
+
+.no-data {
+  font-size: 0.8125rem;
+  font-style: italic;
+  color: var(--ion-color-medium, #666);
+  margin: 0;
 }
 
 .factors,

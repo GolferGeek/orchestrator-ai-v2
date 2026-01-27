@@ -584,11 +584,35 @@ Respond in JSON format:
   }
 
   /**
+   * Strip markdown code blocks from LLM response
+   * LLMs often wrap JSON in ```json ... ``` blocks
+   */
+  private stripMarkdownCodeBlocks(content: string): string {
+    // Remove ```json or ``` at start and ``` at end
+    let cleaned = content.trim();
+
+    // Match ```json, ```JSON, or just ``` at the start
+    const startMatch = cleaned.match(/^```(?:json|JSON)?\s*\n?/);
+    if (startMatch) {
+      cleaned = cleaned.slice(startMatch[0].length);
+    }
+
+    // Remove trailing ```
+    const endMatch = cleaned.match(/\n?```\s*$/);
+    if (endMatch) {
+      cleaned = cleaned.slice(0, -endMatch[0].length);
+    }
+
+    return cleaned.trim();
+  }
+
+  /**
    * Parse Blue Agent response
    */
   private parseBlueResponse(content: string): BlueAssessment {
     try {
-      const parsed = JSON.parse(content) as Record<string, unknown>;
+      const cleanedContent = this.stripMarkdownCodeBlocks(content);
+      const parsed = JSON.parse(cleanedContent) as Record<string, unknown>;
       return {
         summary:
           typeof parsed.summary === 'string'
@@ -621,7 +645,8 @@ Respond in JSON format:
    */
   private parseRedResponse(content: string): RedChallenges {
     try {
-      const parsed = JSON.parse(content) as Record<string, unknown>;
+      const cleanedContent = this.stripMarkdownCodeBlocks(content);
+      const parsed = JSON.parse(cleanedContent) as Record<string, unknown>;
       return {
         challenges: this.parseChallenges(parsed.challenges),
         blind_spots: Array.isArray(parsed.blind_spots)
@@ -709,7 +734,8 @@ Respond in JSON format:
    */
   private parseArbiterResponse(content: string): ArbiterSynthesis {
     try {
-      const parsed = JSON.parse(content) as Record<string, unknown>;
+      const cleanedContent = this.stripMarkdownCodeBlocks(content);
+      const parsed = JSON.parse(cleanedContent) as Record<string, unknown>;
       return {
         final_assessment:
           typeof parsed.final_assessment === 'string'

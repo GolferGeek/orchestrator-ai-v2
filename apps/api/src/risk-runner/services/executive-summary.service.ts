@@ -27,9 +27,10 @@ export interface ExecutiveSummaryContent {
   keyFindings: string[];
   recommendations: string[];
   riskHighlights: {
-    topRisks: Array<{ subject: string; score: number; dimension: string }>;
+    topRisks: Array<{ subject: string; subjectId?: string; score: number; dimension: string }>;
     recentChanges: Array<{
       subject: string;
+      subjectId?: string;
       change: number;
       direction: 'up' | 'down';
     }>;
@@ -70,6 +71,7 @@ type TopRisk = {
 
 type RecentChange = {
   subjectId: string;
+  subjectName: string;
   currentScore: number;
   previousScore: number | null;
   change: number;
@@ -454,7 +456,7 @@ export class ExecutiveSummaryService {
           previous_score,
           score_change,
           created_at,
-          subjects!inner(scope_id)
+          subjects!inner(scope_id, name, identifier)
         `,
         )
         .eq('subjects.scope_id', scopeId)
@@ -472,8 +474,13 @@ export class ExecutiveSummaryService {
     const rows = (asArray(result.data) ?? []).filter(isRecord);
     return rows.map((row) => {
       const change = asNumber(row['score_change']) ?? 0;
+      const subjects = asRecord(row['subjects']) ?? {};
       return {
         subjectId: asString(row['subject_id']) ?? '',
+        subjectName:
+          asString(subjects['name']) ||
+          asString(subjects['identifier']) ||
+          'Unknown',
         currentScore: asNumber(row['overall_score']) ?? 0,
         previousScore: asNumber(row['previous_score']),
         change,
@@ -520,6 +527,10 @@ Your summaries should be:
 - Free of jargon (explain technical terms)
 - Focused on key findings and recommendations
 - Balanced between highlighting concerns and providing context
+
+IMPORTANT: All scores in the data are already expressed as percentages (0-100%).
+For example, a score of 62.4% means 62.4%, NOT 0.624 that needs to be multiplied by 100.
+Use the exact percentage values provided - do NOT multiply them again.
 
 Always respond with valid JSON in the exact format specified.`;
 
@@ -582,12 +593,12 @@ ${
   recentChanges
     .slice(0, 5)
     .map((c) => {
-      const subjectId = asString(c['subjectId']) ?? '';
+      const subjectName = asString(c['subjectName']) ?? 'Unknown';
       const direction = asString(c['direction']) === 'up' ? 'up' : 'down';
       const changeRaw = asNumber(c['change']) ?? 0;
       // Normalize: if abs > 1, it's stored as 0-100
       const change = Math.abs(changeRaw) > 1 ? changeRaw : changeRaw * 100;
-      return `- Subject ${subjectId}: ${direction === 'up' ? '↑' : '↓'} ${Math.abs(change).toFixed(1)}%`;
+      return `- ${subjectName}: ${direction === 'up' ? '↑' : '↓'} ${Math.abs(change).toFixed(1)}%`;
     })
     .join('\n') || 'No recent changes'
 }
@@ -632,6 +643,24 @@ Guidelines:
   }
 
   /**
+   * Sanitize text by fixing unreasonably large percentages
+   * LLMs sometimes mistakenly multiply percentages by 100
+   * e.g., 6240% should be 62.4%
+   */
+  private sanitizePercentages(text: string): string {
+    // Match percentages like "6240%" and fix if > 200%
+    return text.replace(/(\d+(?:\.\d+)?)\s*%/g, (match, numStr) => {
+      const num = parseFloat(numStr);
+      // If > 200%, assume LLM multiplied by 100 erroneously
+      if (num > 200) {
+        const fixed = (num / 100).toFixed(1);
+        return `${fixed}%`;
+      }
+      return match;
+    });
+  }
+
+  /**
    * Parse LLM response into structured content
    */
   private parseSummaryResponse(
@@ -652,9 +681,12 @@ Guidelines:
 
       // Validate and fill defaults
       return {
-        headline: (
-          asString(parsed['headline']) ?? 'Risk summary unavailable'
-        ).slice(0, 100),
+        headline: this.sanitizePercentages(
+          (asString(parsed['headline']) ?? 'Risk summary unavailable').slice(
+            0,
+            100,
+          ),
+        ),
         status: this.validateStatus(
           asString(parsed['status']) ?? undefined,
           avgScore,
@@ -663,6 +695,7 @@ Guidelines:
           ? (parsed['keyFindings'] as unknown[])
               .filter((v): v is string => typeof v === 'string')
               .slice(0, 5)
+              .map((finding) => this.sanitizePercentages(finding))
           : ['Summary generation encountered issues'],
         recommendations: Array.isArray(parsed['recommendations'])
           ? (parsed['recommendations'] as unknown[])
@@ -670,31 +703,46 @@ Guidelines:
               .slice(0, 3)
           : ['Review risk data manually'],
         riskHighlights: {
+          // Merge LLM response with source data to include subjectIds
           topRisks: Array.isArray(parsedHighlights['topRisks'])
-            ? ((parsedHighlights['topRisks'] as unknown[]).slice(
-                0,
-                3,
-              ) as Array<{
-                subject: string;
-                score: number;
-                dimension: string;
-              }>)
+            ? (parsedHighlights['topRisks'] as unknown[]).slice(0, 3).map((llmRisk) => {
+                const r = llmRisk as Record<string, unknown>;
+                const subjectName = asString(r['subject']) ?? '';
+                // Find matching subject in source data to get subjectId
+                const sourceRisk = topRisks.find(
+                  (tr) => asString(tr['subjectName'])?.toLowerCase() === subjectName.toLowerCase(),
+                );
+                return {
+                  subject: subjectName,
+                  subjectId: sourceRisk ? (asString(sourceRisk['subjectId']) ?? undefined) : undefined,
+                  score: asNumber(r['score']) ?? 0,
+                  dimension: asString(r['dimension']) ?? 'Overall',
+                };
+              })
             : topRisks.slice(0, 3).map((r) => ({
                 subject: asString(r['subjectName']) ?? 'Unknown',
+                subjectId: asString(r['subjectId']) ?? undefined,
                 score: asNumber(r['overallScore']) ?? 0,
                 dimension: 'Overall',
               })),
           recentChanges: Array.isArray(parsedHighlights['recentChanges'])
-            ? ((parsedHighlights['recentChanges'] as unknown[]).slice(
-                0,
-                3,
-              ) as Array<{
-                subject: string;
-                change: number;
-                direction: 'up' | 'down';
-              }>)
+            ? (parsedHighlights['recentChanges'] as unknown[]).slice(0, 3).map((llmChange) => {
+                const c = llmChange as Record<string, unknown>;
+                const subjectName = asString(c['subject']) ?? '';
+                // Find matching subject in source data to get subjectId
+                const sourceChange = recentChanges.find(
+                  (rc) => asString(rc['subjectName'])?.toLowerCase() === subjectName.toLowerCase(),
+                );
+                return {
+                  subject: subjectName,
+                  subjectId: sourceChange ? (asString(sourceChange['subjectId']) ?? undefined) : undefined,
+                  change: asNumber(c['change']) ?? 0,
+                  direction: asString(c['direction']) === 'up' ? 'up' : ('down' as const),
+                };
+              })
             : recentChanges.slice(0, 3).map((c) => ({
-                subject: asString(c['subjectId']) ?? '',
+                subject: asString(c['subjectName']) ?? 'Unknown',
+                subjectId: asString(c['subjectId']) ?? undefined,
                 change: asNumber(c['change']) ?? 0,
                 direction: asString(c['direction']) === 'up' ? 'up' : 'down',
               })),
@@ -767,11 +815,13 @@ Guidelines:
       riskHighlights: {
         topRisks: topRisks.slice(0, 3).map((r) => ({
           subject: asString(r['subjectName']) ?? 'Unknown',
+          subjectId: asString(r['subjectId']) ?? undefined,
           score: asNumber(r['overallScore']) ?? 0,
           dimension: 'Overall',
         })),
         recentChanges: recentChanges.slice(0, 3).map((c) => ({
-          subject: asString(c['subjectId']) ?? '',
+          subject: asString(c['subjectName']) ?? 'Unknown',
+          subjectId: asString(c['subjectId']) ?? undefined,
           change: asNumber(c['change']) ?? 0,
           direction: asString(c['direction']) === 'up' ? 'up' : 'down',
         })),

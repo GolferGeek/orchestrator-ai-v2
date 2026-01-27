@@ -100,9 +100,11 @@
                       <li
                         v-for="(signal, idx) in alertContext.assessment.signals"
                         :key="idx"
-                        :class="`signal-${signal.impact}`"
+                        :class="`signal-${getSignalImpact(signal)}`"
+                        class="signal-item"
+                        @click="showSignalDetail(signal)"
                       >
-                        {{ signal.description }}
+                        <span class="signal-text">{{ formatSignalDisplay(signal) }}</span>
                       </li>
                     </ul>
                   </div>
@@ -123,6 +125,48 @@
         </div>
       </Transition>
     </Teleport>
+
+    <!-- Signal Detail Modal -->
+    <Teleport to="body">
+      <Transition name="modal-fade">
+        <div v-if="selectedSignal" class="modal-overlay signal-modal-overlay" @click.self="closeSignalModal">
+          <div class="modal-content signal-modal">
+            <div class="modal-header signal-modal-header">
+              <h3>Signal Details</h3>
+              <button class="modal-close" @click="closeSignalModal">&times;</button>
+            </div>
+            <div class="modal-body">
+              <div class="signal-detail-row">
+                <span class="detail-label">Signal:</span>
+                <span class="detail-value">{{ selectedSignal.name || selectedSignal.description || 'Unknown' }}</span>
+              </div>
+
+              <div v-if="selectedSignal.value !== undefined && selectedSignal.value !== null" class="signal-detail-row">
+                <span class="detail-label">Value:</span>
+                <span class="detail-value">{{ formatSignalValue(selectedSignal.value) }}</span>
+              </div>
+
+              <div class="signal-detail-row">
+                <span class="detail-label">Impact:</span>
+                <span class="detail-value" :class="`impact-${getSignalImpact(selectedSignal)}`">
+                  {{ capitalizeImpact(getSignalImpact(selectedSignal)) }}
+                </span>
+              </div>
+
+              <div v-if="selectedSignal.weight" class="signal-detail-row">
+                <span class="detail-label">Weight:</span>
+                <span class="detail-value">{{ (selectedSignal.weight * 100).toFixed(0) }}%</span>
+              </div>
+
+              <div v-if="selectedSignal.source" class="signal-detail-row">
+                <span class="detail-label">Source:</span>
+                <span class="detail-value">{{ selectedSignal.source }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -131,6 +175,16 @@ import { ref } from 'vue';
 import type { UnacknowledgedAlertView } from '@/types/risk-agent';
 import { riskDashboardService } from '@/services/riskDashboardService';
 
+// Signal can come in different formats from API
+interface SignalData {
+  name?: string;
+  description?: string;
+  value?: unknown;
+  impact?: string;
+  weight?: number;
+  source?: string;
+}
+
 interface AlertContext {
   assessment?: {
     dimension_slug: string;
@@ -138,7 +192,7 @@ interface AlertContext {
     score: number;
     confidence: number;
     reasoning?: string;
-    signals?: Array<{ description: string; impact: string }>;
+    signals?: SignalData[];
   };
 }
 
@@ -184,6 +238,130 @@ function getAlertDetails(alert: UnacknowledgedAlertView): Record<string, unknown
   return (a.details || {}) as Record<string, unknown>;
 }
 
+// Signal detail modal state
+const selectedSignal = ref<SignalData | null>(null);
+
+// Helper functions for signals
+function getSignalDescription(signal: SignalData): string {
+  console.log('[AlertsComponent] getSignalDescription input:', JSON.stringify(signal));
+
+  // Handle string signal (shouldn't happen but defensive)
+  if (typeof signal === 'string') return signal || 'Unknown signal';
+
+  // Handle null/undefined
+  if (!signal || typeof signal !== 'object') return 'Unknown signal';
+
+  // Try description first (frontend format)
+  if (signal.description && typeof signal.description === 'string') {
+    return signal.description;
+  }
+
+  // Try text field (compatibility)
+  const sig = signal as Record<string, unknown>;
+  if (sig.text && typeof sig.text === 'string') {
+    return sig.text;
+  }
+
+  // Construct from name + value (API format)
+  if (signal.name && typeof signal.name === 'string' && signal.name.trim()) {
+    const name = signal.name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    if (signal.value !== undefined && signal.value !== null && signal.value !== '') {
+      // Format value based on type
+      const value = typeof signal.value === 'number'
+        ? (signal.value > 1 ? signal.value.toFixed(1) : (signal.value * 100).toFixed(1) + '%')
+        : String(signal.value);
+      return `${name}: ${value}`;
+    }
+    return name;
+  }
+
+  // If we have a value but no name, show just the value
+  if (signal.value !== undefined && signal.value !== null && signal.value !== '') {
+    return String(signal.value);
+  }
+
+  return 'Unknown signal';
+}
+
+function getSignalImpact(signal: SignalData): string {
+  return signal.impact || 'neutral';
+}
+
+// Format signal for display - handles name, value, weight
+function formatSignalDisplay(signal: SignalData): string {
+  if (!signal || typeof signal !== 'object') return 'Unknown signal';
+
+  const s = signal as Record<string, unknown>;
+  const parts: string[] = [];
+
+  // Get the signal name - try multiple fields
+  let name = '';
+  if (s.name && typeof s.name === 'string') name = s.name;
+  else if (s.description && typeof s.description === 'string') name = s.description;
+  else if (s.text && typeof s.text === 'string') name = s.text;
+
+  // Format the name nicely (convert snake_case and capitalize)
+  if (name) {
+    name = name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    parts.push(name);
+  }
+
+  // Add value if present
+  if (s.value !== undefined && s.value !== null && s.value !== '') {
+    const formattedValue = formatSignalValueCompact(s.value);
+    if (formattedValue) {
+      if (parts.length > 0) {
+        parts.push(`: ${formattedValue}`);
+      } else {
+        parts.push(formattedValue);
+      }
+    }
+  }
+
+  // Add weight if significant
+  if (typeof s.weight === 'number' && s.weight > 0) {
+    parts.push(` (${(s.weight * 100).toFixed(0)}%)`);
+  }
+
+  return parts.join('') || 'Unknown signal';
+}
+
+// Compact value formatting
+function formatSignalValueCompact(value: unknown): string {
+  if (value === undefined || value === null) return '';
+  if (typeof value === 'number') {
+    if (value > 1) return value.toFixed(1);
+    return (value * 100).toFixed(0) + '%';
+  }
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (typeof value === 'string') return value;
+  return String(value);
+}
+
+function showSignalDetail(signal: SignalData) {
+  selectedSignal.value = signal;
+}
+
+function closeSignalModal() {
+  selectedSignal.value = null;
+}
+
+function formatSignalValue(value: unknown): string {
+  if (value === undefined || value === null) return 'N/A';
+  if (typeof value === 'number') {
+    // Assume values > 1 are percentages or absolute values, <= 1 are ratios
+    if (value > 1) return value.toFixed(2);
+    return (value * 100).toFixed(1) + '%';
+  }
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (typeof value === 'object') return JSON.stringify(value, null, 2);
+  return String(value);
+}
+
+function capitalizeImpact(impact: string): string {
+  return impact.charAt(0).toUpperCase() + impact.slice(1);
+}
+
 async function selectAlert(alert: UnacknowledgedAlertView) {
   selectedAlert.value = alert;
   alertContext.value = null;
@@ -192,8 +370,10 @@ async function selectAlert(alert: UnacknowledgedAlertView) {
 
   try {
     const response = await riskDashboardService.getAlertWithContext(alert.id);
+    console.log('[AlertsComponent] Alert context response:', JSON.stringify(response.content, null, 2));
     if (response.success && response.content) {
       alertContext.value = response.content.context;
+      console.log('[AlertsComponent] Signals:', JSON.stringify(response.content.context?.assessment?.signals, null, 2));
     }
   } catch (err) {
     console.error('Failed to fetch alert context:', err);
@@ -555,10 +735,10 @@ function escapeHtml(text: string): string {
   background: var(--ion-color-light, #f4f5f8);
 }
 
-.context-score.critical { background: var(--ion-color-danger-tint, #ffcccc); color: var(--ion-color-danger, #eb445a); }
-.context-score.high { background: var(--ion-color-warning-tint, #fff3cd); color: var(--ion-color-warning-shade, #e0ac08); }
-.context-score.medium { background: #fff9e6; color: #b38f00; }
-.context-score.low { background: var(--ion-color-success-tint, #d4edda); color: var(--ion-color-success, #2dd36f); }
+.context-score.critical { background: var(--ion-color-danger, #eb445a); color: white; }
+.context-score.high { background: var(--ion-color-warning, #ffc409); color: #333; }
+.context-score.medium { background: #ffd966; color: #333; }
+.context-score.low { background: var(--ion-color-success, #2dd36f); color: white; }
 
 .context-reasoning {
   background: var(--ion-color-light, #f4f5f8);
@@ -604,6 +784,75 @@ function escapeHtml(text: string): string {
 .signals-list li.signal-positive { color: var(--ion-color-success, #2dd36f); }
 .signals-list li.signal-negative { color: var(--ion-color-danger, #eb445a); }
 .signals-list li.signal-neutral { color: var(--ion-color-medium, #666); }
+
+.signals-list .signal-item {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  transition: background-color 0.15s ease;
+  margin-left: -0.25rem;
+  padding-left: 0.25rem;
+  border-radius: 4px;
+}
+
+.signals-list .signal-item:hover {
+  background-color: var(--ion-color-light, #f4f5f8);
+}
+
+.signals-list .signal-text {
+  flex: 1;
+}
+
+.signals-list .signal-weight {
+  font-size: 0.75rem;
+  color: var(--ion-color-medium, #666);
+  opacity: 0.8;
+}
+
+/* Signal Detail Modal */
+.signal-modal-overlay {
+  z-index: 1100;
+}
+
+.signal-modal {
+  max-width: 400px;
+}
+
+.signal-modal-header {
+  background: var(--ion-color-primary-tint, #e6f0ff);
+}
+
+.signal-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--ion-border-color, #e0e0e0);
+}
+
+.signal-detail-row:last-child {
+  border-bottom: none;
+}
+
+.signal-detail-row .detail-label {
+  color: var(--ion-color-medium, #666);
+  font-size: 0.875rem;
+  min-width: 80px;
+}
+
+.signal-detail-row .detail-value {
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-align: right;
+  word-break: break-word;
+  max-width: 60%;
+}
+
+.signal-detail-row .impact-positive { color: var(--ion-color-success, #2dd36f); }
+.signal-detail-row .impact-negative { color: var(--ion-color-danger, #eb445a); }
+.signal-detail-row .impact-neutral { color: var(--ion-color-medium, #666); }
 
 .modal-actions {
   margin-top: 1.5rem;

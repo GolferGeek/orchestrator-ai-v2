@@ -98,30 +98,6 @@
           <span class="action-desc">Adversarial debate analysis</span>
         </button>
 
-        <!-- Executive Summary -->
-        <button
-          class="action-btn action-summary"
-          :disabled="isGeneratingSummary"
-          @click="$emit('generate-summary', subject.id)"
-        >
-          <span class="action-icon">📝</span>
-          <span class="action-label">
-            <span v-if="isGeneratingSummary" class="spinner-small"></span>
-            {{ isGeneratingSummary ? 'Generating...' : 'Summary' }}
-          </span>
-          <span class="action-desc">AI executive summary</span>
-        </button>
-
-        <!-- Scenario Analysis -->
-        <button
-          class="action-btn action-scenario"
-          @click="$emit('open-scenario', subject.id)"
-        >
-          <span class="action-icon">🎯</span>
-          <span class="action-label">What-If</span>
-          <span class="action-desc">Scenario analysis</span>
-        </button>
-
         <!-- Score History -->
         <button
           class="action-btn action-history"
@@ -302,20 +278,16 @@ interface Props {
   alerts: RiskAlert[];
   isAnalyzing?: boolean;
   isDebating?: boolean;
-  isGeneratingSummary?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   isAnalyzing: false,
   isDebating: false,
-  isGeneratingSummary: false,
 });
 
 defineEmits<{
   (e: 'analyze', subjectId: string): void;
   (e: 'trigger-debate', subjectId: string): void;
-  (e: 'generate-summary', subjectId: string): void;
-  (e: 'open-scenario', subjectId: string): void;
   (e: 'view-history', subjectId: string): void;
   (e: 'add-to-compare', subjectId: string): void;
 }>();

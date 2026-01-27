@@ -41,30 +41,61 @@
     <!-- Executive Summary -->
     <div v-if="executiveSummary" class="executive-summary-section">
       <div class="executive-summary-header">
-        <div class="summary-status-badge" :class="executiveSummary.content?.status || 'stable'">
-          {{ executiveSummary.content?.status?.toUpperCase() || 'N/A' }}
+        <div class="header-left">
+          <div class="summary-status-badge" :class="executiveSummary.content?.status || 'stable'">
+            {{ executiveSummary.content?.status?.toUpperCase() || 'N/A' }}
+          </div>
+          <h3 class="summary-headline">{{ executiveSummary.content?.headline || 'No summary available' }}</h3>
         </div>
-        <h3 class="summary-headline">{{ executiveSummary.content?.headline || 'No summary available' }}</h3>
-        <button
-          class="refresh-summary-btn"
-          @click="handleRefreshSummary"
-          :disabled="isGeneratingSummary"
-          title="Regenerate summary"
-        >
-          {{ isGeneratingSummary ? '...' : '↻' }}
-        </button>
+        <div class="header-actions">
+          <button
+            class="action-btn-small"
+            @click="handleRefreshSummary"
+            :disabled="isGeneratingSummary"
+            title="Regenerate executive summary"
+          >
+            <span v-if="isGeneratingSummary" class="spinner-tiny"></span>
+            <span v-else>📝</span>
+            Generate
+          </button>
+          <button
+            class="action-btn-small"
+            @click="handleOpenScenario('')"
+            title="Run what-if scenario analysis"
+          >
+            🎯 What-If
+          </button>
+        </div>
       </div>
       <div class="summary-content-grid">
         <div class="summary-findings">
-          <h4>Key Findings</h4>
+          <h4>KEY FINDINGS</h4>
           <ul>
             <li v-for="(finding, idx) in (executiveSummary.content?.keyFindings || []).slice(0, 4)" :key="idx">
               {{ finding }}
             </li>
           </ul>
         </div>
+        <div class="summary-changes">
+          <h4>DAILY CHANGES</h4>
+          <ul v-if="executiveSummary.content?.riskHighlights?.recentChanges?.length">
+            <li
+              v-for="(change, idx) in executiveSummary.content.riskHighlights.recentChanges.slice(0, 4)"
+              :key="idx"
+              :class="{ clickable: change.subjectId }"
+              @click="handleDailyChangeClick(change)"
+            >
+              <span class="change-subject">{{ change.subject }}</span>
+              <span :class="['change-indicator', change.direction]">
+                {{ change.direction === 'up' ? '↑' : '↓' }}
+                {{ formatChangeValue(change.change) }}
+              </span>
+            </li>
+          </ul>
+          <p v-else class="no-changes">No recent changes</p>
+        </div>
         <div class="summary-recommendations">
-          <h4>Recommendations</h4>
+          <h4>RECOMMENDATIONS</h4>
           <ul>
             <li v-for="(rec, idx) in (executiveSummary.content?.recommendations || []).slice(0, 3)" :key="idx">
               {{ rec }}
@@ -73,7 +104,7 @@
         </div>
       </div>
       <div class="summary-meta">
-        Generated {{ formatSummaryDate(executiveSummary.generated_at) }}
+        Generated {{ formatSummaryDate(executiveSummary.generatedAt) }}
       </div>
     </div>
     <div v-else-if="currentScope && !isLoading" class="executive-summary-placeholder">
@@ -152,11 +183,8 @@
                 :alerts="selectedSubject.alerts"
                 :is-analyzing="isAnalyzing"
                 :is-debating="isDebating"
-                :is-generating-summary="isGeneratingSummary"
                 @analyze="handleAnalyzeSubject"
                 @trigger-debate="handleTriggerDebateForSubject"
-                @generate-summary="handleGenerateSummary"
-                @open-scenario="handleOpenScenario"
                 @view-history="handleViewHistory"
                 @add-to-compare="handleAddToCompare"
               />
@@ -275,7 +303,7 @@ import AnalysisProgressModal from './AnalysisProgressModal.vue';
 import ScenarioModal from './ScenarioModal.vue';
 import HistoryModal from './HistoryModal.vue';
 import CompareModal from './CompareModal.vue';
-import type { CreateSubjectRequest, RiskDimension } from '@/types/risk-agent';
+import type { CreateSubjectRequest, RiskDimension, ExecutiveSummary } from '@/types/risk-agent';
 
 interface Props {
   conversation?: { id: string; agentName?: string; organizationSlug?: string } | null;
@@ -299,16 +327,19 @@ const isDebating = ref(false);
 const isGeneratingSummary = ref(false);
 
 // Executive Summary State
-const executiveSummary = ref<{
-  id: string;
-  content?: {
-    headline?: string;
-    status?: string;
-    keyFindings?: string[];
-    recommendations?: string[];
+const executiveSummary = ref<ExecutiveSummary | null>(null);
+
+// Transform snake_case API response to camelCase for ExecutiveSummary
+function transformExecutiveSummary(data: Record<string, unknown>): ExecutiveSummary {
+  return {
+    id: data.id as string,
+    scopeId: (data.scopeId ?? data.scope_id) as string,
+    summaryType: (data.summaryType ?? data.summary_type) as 'daily' | 'weekly' | 'ad-hoc',
+    content: data.content as ExecutiveSummary['content'],
+    generatedAt: (data.generatedAt ?? data.generated_at) as string,
+    expiresAt: (data.expiresAt ?? data.expires_at) as string | null,
   };
-  generated_at?: string;
-} | null>(null);
+}
 
 // Analysis Progress Modal State
 const showAnalysisProgress = ref(false);
@@ -366,6 +397,27 @@ function formatSummaryDate(dateString?: string): string {
   if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
   if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
   return date.toLocaleDateString();
+}
+
+function formatChangeValue(change: number): string {
+  // Handle various scales the LLM might return:
+  // - 0.05 = 5% (0-1 scale)
+  // - 5 = 5% (0-100 scale)
+  // - 500 = 5% (LLM mistakenly multiplied by 100)
+  // - 50000 = 5% (LLM multiplied by 10000)
+  let normalized = Math.abs(change);
+
+  // If value is unreasonably large, divide down
+  while (normalized > 200) {
+    normalized = normalized / 100;
+  }
+
+  // If value is in 0-1 range, convert to percentage
+  if (normalized <= 1) {
+    normalized = normalized * 100;
+  }
+
+  return normalized.toFixed(1) + '%';
 }
 
 async function handleRefreshSummary() {
@@ -441,9 +493,9 @@ async function loadScopeData(scopeId: string) {
     store.setStats(statsResponse.content);
   }
 
-  // Set executive summary
+  // Set executive summary (transform snake_case to camelCase)
   if (summaryResponse.content) {
-    executiveSummary.value = summaryResponse.content;
+    executiveSummary.value = transformExecutiveSummary(summaryResponse.content as unknown as Record<string, unknown>);
   } else {
     executiveSummary.value = null;
   }
@@ -458,14 +510,35 @@ async function handleSelectScope(scopeId: string) {
   }
 }
 
+function handleDailyChangeClick(change: { subject: string; subjectId?: string; change: number; direction: string }) {
+  console.log('[RiskAgentPane] Daily change clicked:', change);
+  if (change.subjectId) {
+    handleSelectSubject(change.subjectId);
+  } else {
+    console.warn('[RiskAgentPane] No subjectId for change:', change.subject);
+    store.setError(`Cannot navigate to ${change.subject} - no subject ID available`);
+  }
+}
+
 async function handleSelectSubject(subjectId: string) {
+  console.log('[RiskAgentPane] handleSelectSubject called with:', subjectId);
+  if (!subjectId) {
+    console.warn('[RiskAgentPane] No subjectId provided');
+    return;
+  }
+
+  // Switch to overview tab to show the subject detail
+  activeTab.value = 'overview';
+
   store.setLoading(true);
   try {
     const response = await riskDashboardService.getSubjectDetail(subjectId);
+    console.log('[RiskAgentPane] Subject detail response:', response);
     if (response.content) {
       store.setSelectedSubject(response.content);
     }
   } catch (err) {
+    console.error('[RiskAgentPane] Failed to load subject:', err);
     store.setError(err instanceof Error ? err.message : 'Failed to load subject details');
   } finally {
     store.setLoading(false);
@@ -678,9 +751,10 @@ async function handleTriggerDebateForSubject(subjectId: string) {
 
     // Get debate result info
     const debate = result.content;
+    console.log('[RiskAgentPane] Debate content:', debate);
     if (debate && analysisProgressRef.value) {
       analysisProgressRef.value.setComplete({
-        overallScore: debate.final_score || 0,
+        overallScore: debate.adjustedScore || 0, // API returns adjustedScore, not final_score
         confidence: 0,
         assessmentCount: 3, // Blue, Red, Arbiter
         debateTriggered: true,
@@ -742,10 +816,11 @@ async function handleGenerateSummary(_subjectId: string, forceRefresh = false) {
 
     if (result.success && result.content) {
       console.log('[RiskAgentPane] Summary generated:', result.content);
-      const content = result.content.content;
+      const transformedSummary = transformExecutiveSummary(result.content as unknown as Record<string, unknown>);
+      const content = transformedSummary.content;
 
       // Update the executive summary display
-      executiveSummary.value = result.content;
+      executiveSummary.value = transformedSummary;
 
       if (analysisProgressRef.value) {
         analysisProgressRef.value.setComplete({
@@ -1118,8 +1193,23 @@ watch(() => props.agent?.slug, () => {
 .executive-summary-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 1rem;
   margin-bottom: 1rem;
+}
+
+.executive-summary-header .header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.executive-summary-header .header-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 .summary-status-badge {
@@ -1142,43 +1232,74 @@ watch(() => props.agent?.slug, () => {
   font-size: 1rem;
   font-weight: 500;
   flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--ion-text-color, #333);
 }
 
-.refresh-summary-btn {
-  padding: 0.25rem 0.5rem;
-  background: transparent;
+.action-btn-small {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  background: var(--ion-color-light, #f4f5f8);
   border: 1px solid var(--ion-border-color, #e0e0e0);
   border-radius: 6px;
   cursor: pointer;
-  font-size: 1rem;
-  color: var(--ion-color-medium, #666);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--ion-text-color, #333);
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
-.refresh-summary-btn:hover:not(:disabled) {
-  background: var(--ion-color-light, #f4f5f8);
-  color: var(--ion-color-primary, #3880ff);
+.action-btn-small:hover:not(:disabled) {
+  background: var(--ion-color-medium-tint, #e8e8e8);
+  border-color: var(--ion-color-medium, #999);
 }
 
-.refresh-summary-btn:disabled {
+.action-btn-small:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
+.spinner-tiny {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--ion-border-color, #e0e0e0);
+  border-top-color: var(--ion-color-primary, #3880ff);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
 .summary-content-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 1rem;
+}
+
+@media (max-width: 1024px) {
+  .summary-content-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .summary-changes {
+    grid-column: span 2;
+  }
 }
 
 @media (max-width: 768px) {
   .summary-content-grid {
     grid-template-columns: 1fr;
   }
+  .summary-changes {
+    grid-column: span 1;
+  }
 }
 
 .summary-findings h4,
+.summary-changes h4,
 .summary-recommendations h4 {
   margin: 0 0 0.5rem 0;
   font-size: 0.8125rem;
@@ -1196,10 +1317,71 @@ watch(() => props.agent?.slug, () => {
   line-height: 1.6;
 }
 
+.summary-changes ul {
+  margin: 0;
+  padding-left: 0;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  list-style: none;
+}
+
 .summary-findings li,
+.summary-changes li,
 .summary-recommendations li {
   margin-bottom: 0.25rem;
   color: var(--ion-text-color, #333);
+}
+
+.summary-changes li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-left: 0;
+  list-style: none;
+}
+
+.summary-changes .change-subject {
+  font-weight: 500;
+}
+
+.summary-changes .change-indicator {
+  font-weight: 600;
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+}
+
+.summary-changes .change-indicator.up {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
+}
+
+.summary-changes .change-indicator.down {
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.1);
+}
+
+.summary-changes .no-changes {
+  margin: 0;
+  font-style: italic;
+  color: var(--ion-color-medium, #999);
+}
+
+.summary-changes li.clickable {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  padding: 0.25rem 0.5rem;
+  margin: 0 -0.5rem;
+  border-radius: 4px;
+}
+
+.summary-changes li.clickable:hover {
+  background-color: var(--ion-color-light, #f4f5f8);
+}
+
+.summary-changes li.clickable .change-subject {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
 }
 
 .summary-meta {
