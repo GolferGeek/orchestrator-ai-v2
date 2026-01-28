@@ -172,8 +172,8 @@ onMounted(async () => {
   // Initialize LLM store to get providers/models lists
   await llmStore.initialize();
 
-  // Get providers from store
-  availableProviders.value = llmStore.filteredProviders;
+  // Get providers that have models for the current model type
+  availableProviders.value = llmStore.providersWithAvailableModels;
 
   // DON'T initialize with store selection - user must explicitly choose for rerun
   // This is a rerun operation, not changing the conversation's default LLM

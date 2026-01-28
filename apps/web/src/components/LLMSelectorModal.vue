@@ -28,7 +28,7 @@
             >
               <option value="">Select Provider...</option>
               <option
-                v-for="provider in llmStore.filteredProviders"
+                v-for="provider in llmStore.providersWithAvailableModels"
                 :key="provider.name"
                 :value="provider"
               >
