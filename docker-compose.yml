@@ -1,31 +1,37 @@
-version: '3.8'
+# =============================================================================
+# ORCHESTRATOR AI - FULL DOCKER COMPOSE
+# =============================================================================
+# All services run in the 7xxx port range by default (via .env.docker)
+# This allows Docker and local dev (6xxx) to coexist.
+#
+# PREREQUISITES:
+#   - Supabase must be running locally via CLI: `supabase start`
+#   - Or configure SUPABASE_URL to point to hosted Supabase
+#
+# Usage:
+#   docker-compose up -d              # Start all services
+#   docker-compose up -d api web      # Start specific services
+#   docker-compose logs -f api        # Follow logs for a service
+#   docker-compose down               # Stop all services
+#
+# Port Scheme (with .env.docker):
+#   API:          7100 (local: 6100)
+#   Web:          7101 (local: 6101)
+#   Orch Flow:    7102 (local: 6102)
+#   LangGraph:    7200 (local: 6200)
+#   Open Notebook Frontend: 7201 (local: 6201)
+#   Open Notebook API:      7202 (local: 6202)
+#   Supabase:     6010-6016 (run via CLI, not Docker)
+#   Ollama:       11434 (Docker or local)
+# =============================================================================
 
 services:
-  # Supabase Local Instance
-  # Note: Supabase CLI manages its own Docker containers
-  # This service ensures Supabase CLI is available and starts local instance
-  supabase:
-    image: supabase/cli:latest
-    container_name: orchestrator-supabase
-    volumes:
-      - ./apps/api/supabase:/workspace/supabase
-      - supabase-db-data:/var/lib/postgresql/data
-    working_dir: /workspace/supabase
-    command: sh -c "supabase start && tail -f /dev/null"
-    ports:
-      - "6010:6010"  # API
-      - "6012:6012"  # Database
-      - "6015:6015"  # Studio
-      - "6016:6016"  # Inbucket (Email)
-    environment:
-      - SUPABASE_DB_PASSWORD=postgres
-    networks:
-      - orchestrator-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6010/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+  # ===========================================================================
+  # INFRASTRUCTURE SERVICES
+  # ===========================================================================
+
+  # NOTE: Supabase runs via CLI outside Docker (`supabase start`)
+  # The apps connect to it at host.docker.internal:6010
 
   # Ollama LLM Service
   ollama:
@@ -38,19 +44,31 @@ services:
     networks:
       - orchestrator-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      test: ["CMD-SHELL", "ollama list || exit 0"]
       interval: 10s
       timeout: 5s
       retries: 5
-    # Pull default models on startup (optional - can be done manually)
-    # Uncomment to auto-pull models:
-    # command: >
-    #   sh -c "
-    #   ollama serve &
-    #   sleep 5 &&
-    #   ollama pull llama3.2 &&
-    #   wait
-    #   "
+      start_period: 30s
+
+  # SurrealDB for Open Notebook
+  surrealdb:
+    image: surrealdb/surrealdb:latest
+    container_name: orchestrator-surrealdb
+    command: start --user root --pass root
+    ports:
+      - "${OPEN_NOTEBOOK_SURREALDB_PORT:-7203}:8000"
+    volumes:
+      - surrealdb-data:/data
+    networks:
+      - orchestrator-network
+    # SurrealDB image doesn't have a shell, so we disable health check
+    # and rely on start_period for startup timing
+    healthcheck:
+      disable: true
+
+  # ===========================================================================
+  # APPLICATION SERVICES
+  # ===========================================================================
 
   # API Server (NestJS)
   api:
@@ -58,32 +76,32 @@ services:
       context: .
       dockerfile: Dockerfile.api
     container_name: orchestrator-api
+    env_file:
+      - .env
+      - .env.docker
     ports:
-      - "${API_PORT:-6100}:6100"
+      # Hardcoded Docker port to avoid conflict with local dev (6100)
+      - "7100:6100"
     environment:
       - NODE_ENV=production
       - API_PORT=6100
-      - SUPABASE_URL=http://supabase:6010
-      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU}
+      # Connect to Supabase running on host machine
+      - SUPABASE_URL=http://host.docker.internal:6010
+      - DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:6012/postgres
       - OLLAMA_BASE_URL=http://ollama:11434
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-    volumes:
-      - ./apps/api:/app/apps/api
-      - ./apps/transport-types:/app/apps/transport-types
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
-      supabase:
-        condition: service_healthy
       ollama:
         condition: service_healthy
     networks:
       - orchestrator-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6100/health"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:6100/health"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
 
   # Web Application (Vue)
   web:
@@ -91,27 +109,147 @@ services:
       context: .
       dockerfile: Dockerfile.web
     container_name: orchestrator-web
+    env_file:
+      - .env
+      - .env.docker
     ports:
-      - "${WEB_PORT:-7101}:7101"
+      # Hardcoded Docker port to avoid conflict with local dev (6101)
+      - "7101:7101"
     environment:
       - NODE_ENV=production
-      - VITE_API_BASE_URL=http://localhost:6100
+      # Frontend connects to API via Docker network, Supabase via host
+      - VITE_API_BASE_URL=http://localhost:7100
       - VITE_SUPABASE_URL=http://localhost:6010
-      - VITE_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0}
     depends_on:
       - api
     networks:
       - orchestrator-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:7101"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:7101"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 15s
 
+  # LangGraph Workflow Engine (NestJS)
+  langgraph:
+    build:
+      context: .
+      dockerfile: Dockerfile.langgraph
+    container_name: orchestrator-langgraph
+    env_file:
+      - .env
+      - .env.docker
+    ports:
+      # Hardcoded Docker port to avoid conflict with local dev (6200)
+      - "7200:6200"
+    environment:
+      - NODE_ENV=production
+      - LANGGRAPH_PORT=6200
+      # Connect to Supabase running on host machine
+      - DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:6012/postgres
+      # LangGraph postgres-checkpointer uses these individual vars (not DATABASE_URL)
+      - DB_HOST=host.docker.internal
+      - DB_PORT=6012
+      - DB_NAME=postgres
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - OLLAMA_BASE_URL=http://ollama:11434
+      # LLM Service pointing to API container
+      - LLM_SERVICE_URL=http://api:6100
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      ollama:
+        condition: service_healthy
+    networks:
+      - orchestrator-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:6200/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Open Notebook (Python - FastAPI + Next.js)
+  open-notebook:
+    build:
+      context: ./apps/open-notebook
+      dockerfile: Dockerfile
+    container_name: orchestrator-open-notebook
+    env_file:
+      - .env
+      - .env.docker
+    ports:
+      # Hardcoded Docker ports to avoid conflict with local dev (6xxx)
+      - "7201:8502"
+      - "7202:5055"
+    environment:
+      - API_URL=http://localhost:7202
+      - SURREAL_URL=ws://surrealdb:8000/rpc
+      - SURREAL_USER=root
+      - SURREAL_PASSWORD=root
+      - SURREAL_NAMESPACE=open_notebook
+      - SURREAL_DATABASE=staging
+      # Override port env vars to use container-internal ports (not host ports)
+      - OPEN_NOTEBOOK_FRONTEND_PORT=8502
+      - OPEN_NOTEBOOK_API_PORT=5055
+    volumes:
+      - open-notebook-data:/app/data
+    depends_on:
+      surrealdb:
+        condition: service_started
+      ollama:
+        condition: service_healthy
+    networks:
+      - orchestrator-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:5055/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Orch Flow (React/Vite)
+  orch-flow:
+    build:
+      context: .
+      dockerfile: Dockerfile.orch-flow
+      args:
+        # Build args for Vite (required at build time)
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-http://localhost:6010}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
+    container_name: orchestrator-orch-flow
+    env_file:
+      - .env
+      - .env.docker
+    ports:
+      # Hardcoded Docker port to avoid conflict with local dev (6102)
+      - "7102:6102"
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - api
+    networks:
+      - orchestrator-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:6102"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+# =============================================================================
+# VOLUMES
+# =============================================================================
 volumes:
-  supabase-db-data:
   ollama-data:
+  surrealdb-data:
+  open-notebook-data:
 
+# =============================================================================
+# NETWORKS
+# =============================================================================
 networks:
   orchestrator-network:
     driver: bridge

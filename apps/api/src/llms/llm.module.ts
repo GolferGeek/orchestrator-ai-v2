@@ -36,6 +36,8 @@ import { ObservabilityModule } from '../observability/observability.module';
 import { LLMGenerationService } from './services/llm-generation.service';
 import { LLMImageService } from './services/llm-image.service';
 import { LLMVideoService } from './services/llm-video.service';
+import { OllamaDiscoveryService } from './ollama-discovery.service';
+import { OllamaStartupService } from './ollama-startup.service';
 
 @Module({
   imports: [
@@ -82,6 +84,9 @@ import { LLMVideoService } from './services/llm-video.service';
     LLMGenerationService,
     LLMImageService,
     LLMVideoService,
+    // Ollama Discovery and Startup Services
+    OllamaDiscoveryService,
+    OllamaStartupService,
     // Note: LLM Provider Services (OpenAI, Anthropic, etc.) are NOT registered as providers
     // They are manually instantiated by LLMServiceFactory with specific configurations
   ],
@@ -109,6 +114,9 @@ import { LLMVideoService } from './services/llm-video.service';
     LLMGenerationService,
     LLMImageService,
     LLMVideoService,
+    // Ollama Discovery and Startup Services
+    OllamaDiscoveryService,
+    OllamaStartupService,
     // Note: LLM Provider Services are not exported as they're factory-created
   ],
 })
