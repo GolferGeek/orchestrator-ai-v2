@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 
@@ -17,6 +17,9 @@ interface OllamaVersionResponse {
 /**
  * Service for discovering and connecting to Ollama with retry logic.
  *
+ * This is a pure utility service - it does NOT run discovery on startup.
+ * The OllamaStartupService handles startup discovery and model sync.
+ *
  * Features:
  * - Retry logic: 3 attempts with exponential backoff (1s, 2s, 4s)
  * - Fallback URLs: tries configured URL, then localhost, then Docker network
@@ -24,7 +27,7 @@ interface OllamaVersionResponse {
  * - Clear logging of connection status
  */
 @Injectable()
-export class OllamaDiscoveryService implements OnModuleInit {
+export class OllamaDiscoveryService {
   private readonly logger = new Logger(OllamaDiscoveryService.name);
 
   // Fallback URLs to try in order
@@ -45,20 +48,6 @@ export class OllamaDiscoveryService implements OnModuleInit {
   private cacheExpiryMs = 60000; // 1 minute cache
 
   constructor(private readonly httpService: HttpService) {}
-
-  async onModuleInit(): Promise<void> {
-    // Perform initial discovery on startup
-    const result = await this.discover();
-    if (result.connected) {
-      this.logger.log(
-        `Ollama connected at ${result.url} (v${result.version || 'unknown'})`,
-      );
-    } else {
-      this.logger.warn(
-        `Ollama not available after ${result.attempts} attempts: ${result.error}`,
-      );
-    }
-  }
 
   /**
    * Get the current Ollama URL.
