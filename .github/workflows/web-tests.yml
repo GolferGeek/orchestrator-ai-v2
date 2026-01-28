@@ -5,11 +5,13 @@ on:
     branches: [ main, develop ]
     paths:
       - 'apps/web/**'
+      - 'apps/transport-types/**'
       - '.github/workflows/web-tests.yml'
   pull_request:
     branches: [ main, develop ]
     paths:
       - 'apps/web/**'
+      - 'apps/transport-types/**'
 
 jobs:
   test:
@@ -25,27 +27,23 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: apps/web/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        working-directory: apps/web
         run: npm ci
 
-      - name: Run linter
-        working-directory: apps/web
-        run: npm run lint
+      - name: Run web linter
+        run: npm run lint --workspace=web-v1
 
       - name: Run type check
         working-directory: apps/web
         run: npm run type-check || npx vue-tsc --noEmit
 
-      - name: Build application
-        working-directory: apps/web
-        run: npm run build
+      - name: Build web application
+        run: npm run build --workspace=web-v1
 
-      - name: Run unit tests
-        working-directory: apps/web
-        run: npm test -- --run
+      - name: Run web unit tests
+        run: npm test --workspace=web-v1 -- --run
         env:
           NODE_ENV: test
 
