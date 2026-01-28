@@ -68,7 +68,7 @@
         v-model="searchQuery"
         placeholder="Search users..."
         :disabled="isOrgWide"
-        debounce="300"
+        :debounce="300"
       />
 
       <!-- Selected Users -->

@@ -5,6 +5,7 @@
 
 import { defineStore } from 'pinia';
 import { ref, computed, readonly } from 'vue';
+import type { JsonValue } from '@orchestrator-ai/transport-types';
 import {
   ValidationResult,
   ValidationError,
@@ -100,7 +101,7 @@ export const useValidationStore = defineStore('validation', () => {
       type: fieldErrors.length > 0 ? 'validation:error' : 'validation:complete',
       field,
       timestamp: new Date().toISOString(),
-      data: { errors: fieldErrors }
+      data: { errors: fieldErrors as unknown as JsonValue }
     });
   }
   
@@ -139,7 +140,7 @@ export const useValidationStore = defineStore('validation', () => {
     const historyEntry: ValidationHistoryEntry = {
       timestamp: new Date().toISOString(),
       field,
-      value: result.sanitizedValue,
+      value: result.sanitizedValue as JsonValue,
       result,
       component: component || 'unknown',
       userId: getCurrentUserId(), // Helper function to get current user

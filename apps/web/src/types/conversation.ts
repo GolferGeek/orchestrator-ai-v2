@@ -213,6 +213,12 @@ export interface AgentChatMessageMetadata extends MessageMetadata {
   marketingSwarmTaskId?: string;
   marketingSwarmCompleted?: boolean;
   taskId?: string;
+
+  // Sub-agent attribution (Orchestrator V2)
+  resolvedByDisplayName?: string;
+
+  // HITL processing flag
+  hitlProcessing?: boolean;
 }
 
 export interface AgentChatMessage {
@@ -229,6 +235,8 @@ export interface AgentChatMessage {
 export interface AgentConversation {
   id: string;
   agent: Agent;
+  agentName?: string;
+  agentType?: string;
   organizationSlug?: string | null;
   messages: AgentChatMessage[];
   createdAt: Date;

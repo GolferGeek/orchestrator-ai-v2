@@ -119,7 +119,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { IonButton, IonIcon, IonModal, IonSegment, IonSegmentButton, IonLabel, IonBadge, IonSpinner } from '@ionic/vue';
-import { playCircleOutline, closeOutline, documentTextOutline } from 'ionicons/icons';
+import { playCircleOutline, closeOutline, documentTextOutline, alertCircleOutline } from 'ionicons/icons';
 import { useRouter } from 'vue-router';
 // import { marked } from 'marked';
 import { analyticsService } from '@/services/analyticsService';
@@ -276,7 +276,7 @@ async function trackVideoButtonClick(video: Video) {
       category: 'agent_resources',
       action: 'click',
       label: video.title,
-      metadata: {
+      properties: {
         videoId: video.id,
         agentSlug: props.agentSlug,
         agentName: props.agentName,
@@ -284,7 +284,8 @@ async function trackVideoButtonClick(video: Video) {
         videoOrder: video.order,
         featured: video.featured || false,
         source: 'agent_conversation'
-      }
+      },
+      context: {}
     });
   } catch {
     // Ignore tracking errors
@@ -298,7 +299,7 @@ async function trackVideoModalOpen(video: Video) {
       category: 'agent_resources',
       action: 'modal_open',
       label: video.title,
-      metadata: {
+      properties: {
         videoId: video.id,
         agentSlug: props.agentSlug,
         agentName: props.agentName,
@@ -307,7 +308,8 @@ async function trackVideoModalOpen(video: Video) {
         featured: video.featured || false,
         source: 'agent_conversation',
         modalType: 'video_resources'
-      }
+      },
+      context: {}
     });
   } catch {
     // Ignore tracking errors
@@ -321,13 +323,14 @@ async function trackTranscriptView(video: Video) {
       category: 'agent_resources',
       action: 'transcript_view',
       label: video.title,
-      metadata: {
+      properties: {
         videoId: video.id,
         agentSlug: props.agentSlug,
         agentName: props.agentName,
         transcriptId: video.id, // assuming transcript ID matches video ID
         source: 'agent_conversation'
-      }
+      },
+      context: {}
     });
   } catch {
     // Ignore tracking errors
@@ -341,14 +344,15 @@ async function trackFallbackVideoUsage() {
       category: 'agent_resources',
       action: 'fallback_used',
       label: `Agent: ${props.agentName || props.agentSlug}`,
-      metadata: {
+      properties: {
         agentSlug: props.agentSlug,
         agentName: props.agentName,
         agentVideoIds: props.agentVideoIds,
         fallbackVideoIds: props.fallbackVideoIds,
         source: 'agent_conversation',
         reason: 'no_agent_specific_videos'
-      }
+      },
+      context: {}
     });
   } catch {
     // Ignore tracking errors

@@ -18,15 +18,6 @@
 
 import { apiService } from './apiService';
 import { useCadAgentStore } from '@/stores/cadAgentStore';
-
-/**
- * Get auth token from storage
- * TokenStorageService migrates tokens from localStorage to sessionStorage,
- * so we check sessionStorage first, then fall back to localStorage
- */
-function getAuthToken(): string | null {
-  return sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
-}
 import type {
   CadConstraints,
   CadOutputs,
@@ -37,6 +28,15 @@ import type {
 import { a2aOrchestrator } from './agent2agent/orchestrator/a2a-orchestrator';
 import { useExecutionContextStore } from '@/stores/executionContextStore';
 import { SSEClient } from './agent2agent/sse/sseClient';
+
+/**
+ * Get auth token from storage
+ * TokenStorageService migrates tokens from localStorage to sessionStorage,
+ * so we check sessionStorage first, then fall back to localStorage
+ */
+function getAuthToken(): string | null {
+  return sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
+}
 
 // ============================================================================
 // API CONFIGURATION
@@ -543,7 +543,7 @@ class CadAgentService {
         break;
 
       default:
-        console.log('[CAD Agent] Unknown event type:', (metadata as Record<string, unknown>).type);
+        console.log('[CAD Agent] Unknown event type:', metadata.type);
     }
   }
 

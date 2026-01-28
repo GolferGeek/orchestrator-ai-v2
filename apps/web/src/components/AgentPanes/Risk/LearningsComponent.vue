@@ -26,6 +26,7 @@
 
         <div class="suggested-change" v-if="getSuggestedChange(learning)">
           <strong>Suggested Change:</strong>
+          <!-- eslint-disable-next-line vue/no-v-html -- Intentional: Rendering sanitized markdown/HTML content from trusted source -->
           <div class="change-content" v-html="formatSuggestedChange(getSuggestedChange(learning))"></div>
         </div>
 

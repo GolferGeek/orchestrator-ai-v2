@@ -21,16 +21,16 @@ export const approvalsService = {
     if (params?.conversationId) search.append('conversationId', params.conversationId);
     if (params?.agentSlug) search.append('agentSlug', params.agentSlug);
     const url = search.toString() ? `/agent-approvals?${search.toString()}` : '/agent-approvals';
-    const res = await apiService.get(url);
-    return res?.data ?? res ?? [];
+    const res = await apiService.get<HumanApprovalRecord[]>(url);
+    return res ?? [];
   },
   async approve(id: string) {
-    const res = await apiService.post(`/agent-approvals/${id}/approve`);
-    return res?.data ?? res;
+    const res = await apiService.post<HumanApprovalRecord>(`/agent-approvals/${id}/approve`);
+    return res;
   },
   async reject(id: string) {
-    const res = await apiService.post(`/agent-approvals/${id}/reject`);
-    return res?.data ?? res;
+    const res = await apiService.post<HumanApprovalRecord>(`/agent-approvals/${id}/reject`);
+    return res;
   },
   async approveAndContinue(
     orgSlug: string | null | undefined,

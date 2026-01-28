@@ -86,7 +86,7 @@ export function isDangerousRegex(pattern: string): boolean {
   const dangerousPatterns = [
     /\([^)]*\+\)\+/,  // Nested quantifiers like (a+)+
     /\([^)]*\*\)\*/,  // Nested star quantifiers like (.*)*
-    /\([^)]*\|\1\)\*/,  // Backreference with quantifier like (a|a)*
+    /\(.*\|.*\)\*/,  // Alternation with quantifier like (a|b)*
     /\([^)]+\)\*$/,  // Quantifier at end like ([a-zA-Z]+)*
     /\([^)]+\{[^}]+\}\)\+/,  // Nested counted quantifiers like (a{1,10})+
     /\(\?!.*\)\+/,  // Negative lookahead with quantifiers
@@ -331,15 +331,15 @@ export function createDebouncedValidator<T extends (...args: unknown[]) => unkno
   delay: number
 ): (...args: Parameters<T>) => Promise<ReturnType<T>> {
   let timeoutId: NodeJS.Timeout | null = null;
-  
+
   return (...args: Parameters<T>): Promise<ReturnType<T>> => {
     return new Promise((resolve) => {
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
-      
+
       timeoutId = setTimeout(() => {
-        resolve(validator(...args));
+        resolve(validator(...args) as ReturnType<T>);
       }, delay);
     });
   };
@@ -364,36 +364,41 @@ export function buildValidationChain() {
     },
     
     minLength(min: number, message?: string) {
-      rules.push((value: string) => {
-        return !value || value.length >= min || message || `Must be at least ${min} characters`;
+      rules.push((value: unknown) => {
+        const str = value as string;
+        return !str || str.length >= min || message || `Must be at least ${min} characters`;
       });
       return chain;
     },
     
     maxLength(max: number, message?: string) {
-      rules.push((value: string) => {
-        return !value || value.length <= max || message || `Must not exceed ${max} characters`;
+      rules.push((value: unknown) => {
+        const str = value as string;
+        return !str || str.length <= max || message || `Must not exceed ${max} characters`;
       });
       return chain;
     },
     
     pattern(regex: RegExp, message = 'Invalid format') {
-      rules.push((value: string) => {
-        return !value || regex.test(value) || message;
+      rules.push((value: unknown) => {
+        const str = value as string;
+        return !str || regex.test(str) || message;
       });
       return chain;
     },
     
     email(message = 'Invalid email format') {
-      rules.push((value: string) => {
-        return !value || isValidEmail(value) || message;
+      rules.push((value: unknown) => {
+        const str = value as string;
+        return !str || isValidEmail(str) || message;
       });
       return chain;
     },
     
     secure(message = 'Security violation detected') {
-      rules.push((value: string) => {
-        return !value || (!containsXSS(value) && !containsSQLInjection(value) && !containsPathTraversal(value)) || message;
+      rules.push((value: unknown) => {
+        const str = value as string;
+        return !str || (!containsXSS(str) && !containsSQLInjection(str) && !containsPathTraversal(str)) || message;
       });
       return chain;
     },

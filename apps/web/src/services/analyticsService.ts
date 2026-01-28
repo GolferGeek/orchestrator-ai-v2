@@ -2,6 +2,13 @@ import { apiService } from './apiService';
 import {
   AnalyticsFilters,
   // AnalyticsRequest,
+  EvaluationAnalytics,
+  WorkflowAnalytics,
+  UsageStats,
+  CostSummary,
+  ModelPerformance,
+  TaskAnalytics,
+  SystemAnalytics,
   EvaluationAnalyticsResponse,
   WorkflowAnalyticsResponse,
   UsageStatsResponse,
@@ -37,7 +44,7 @@ class AnalyticsService {
       const response = await apiService.get(`/evaluation/admin/analytics/overview?${params.toString()}`);
       return {
         success: true,
-        data: response,
+        data: response as EvaluationAnalytics,
         metadata: {
           totalRecords: 0,
           filteredRecords: 0,
@@ -64,7 +71,7 @@ class AnalyticsService {
       const response = await apiService.get(`/evaluation/admin/analytics/workflow?${params.toString()}`);
       return {
         success: true,
-        data: response,
+        data: response as WorkflowAnalytics,
         metadata: {
           totalRecords: 0,
           filteredRecords: 0,
@@ -116,7 +123,7 @@ class AnalyticsService {
       const response = await apiService.get(`/usage/stats?${params.toString()}`);
       return {
         success: true,
-        data: response,
+        data: response as UsageStats,
         metadata: {
           totalRecords: 0,
           filteredRecords: 0,
@@ -144,7 +151,7 @@ class AnalyticsService {
       const response = await apiService.get(`/usage/costs/summary?${params.toString()}`);
       return {
         success: true,
-        data: response,
+        data: response as CostSummary,
         metadata: {
           totalRecords: 0,
           filteredRecords: 0,
@@ -173,13 +180,13 @@ class AnalyticsService {
       if (filters.minUsage) params.append('min_usage', filters.minUsage.toString());
       if (filters.sortBy) params.append('sort_by', filters.sortBy);
 
-      const response = await apiService.get(`/usage/performance/models?${params.toString()}`);
+      const response = await apiService.get(`/usage/performance/models?${params.toString()}`) as ModelPerformance[];
       return {
         success: true,
         data: response,
         metadata: {
-          totalRecords: response.length || 0,
-          filteredRecords: response.length || 0,
+          totalRecords: Array.isArray(response) ? response.length : 0,
+          filteredRecords: Array.isArray(response) ? response.length : 0,
           processingTime: 0,
           cacheHit: false,
           generatedAt: new Date().toISOString()
@@ -267,7 +274,7 @@ class AnalyticsService {
       const response = await apiService.get('/tasks/metrics');
       return {
         success: true,
-        data: response,
+        data: response as TaskAnalytics,
         metadata: {
           totalRecords: 0,
           filteredRecords: 0,
@@ -320,7 +327,7 @@ class AnalyticsService {
       const response = await apiService.get('/system/analytics');
       return {
         success: true,
-        data: response,
+        data: response as SystemAnalytics,
         metadata: {
           totalRecords: 0,
           filteredRecords: 0,
@@ -388,7 +395,7 @@ class AnalyticsService {
           totalUsers: 0, // Would need user analytics endpoint
           totalTasks: 0,
           totalCost: 0,
-          systemHealth: 'healthy' as const,
+          systemHealth: 'healthy' as 'healthy' | 'warning' | 'critical',
           activeAlerts: 0
         },
         keyMetrics: [
@@ -420,7 +427,7 @@ class AnalyticsService {
       }
 
       if (systemAnalytics.status === 'fulfilled') {
-        dashboardData.overview.systemHealth = systemAnalytics.value.data.health?.status as 'healthy' | 'warning' | 'critical' || 'warning';
+        dashboardData.overview.systemHealth = systemAnalytics.value.data.systemHealth?.status || 'warning';
       }
 
       return {
@@ -470,7 +477,7 @@ class AnalyticsService {
 
       // Populate from available data
       if (taskMetrics.status === 'fulfilled') {
-        realTimeData.currentStats.runningTasks = taskMetrics.value.data.performanceMetrics?.activeTasks || 0;
+        realTimeData.currentStats.runningTasks = 0; // TaskAnalytics doesn't have activeTasks
         realTimeData.currentStats.averageResponseTime = taskMetrics.value.data.averageTaskDuration || 0;
       }
 
@@ -550,7 +557,7 @@ class AnalyticsService {
    */
   async getReportConfigs(): Promise<ReportConfig[]> {
     try {
-      const response = await apiService.get('/analytics/reports/configs');
+      const response = await apiService.get('/analytics/reports/configs') as { data?: ReportConfig[] };
       return response.data || [];
     } catch (error) {
       console.error('Error fetching report configs:', error);
@@ -563,7 +570,7 @@ class AnalyticsService {
    */
   async createReportConfig(config: Omit<ReportConfig, 'id' | 'createdAt' | 'updatedAt'>): Promise<ReportConfig> {
     try {
-      const response = await apiService.post('/analytics/reports/configs', config);
+      const response = await apiService.post('/analytics/reports/configs', config) as { data: ReportConfig };
       return response.data;
     } catch (error) {
       console.error('Error creating report config:', error);
@@ -576,7 +583,7 @@ class AnalyticsService {
    */
   async generateReport(configId: string, filters?: AnalyticsFilters): Promise<GeneratedReport> {
     try {
-      const response = await apiService.post(`/analytics/reports/generate/${configId}`, { filters });
+      const response = await apiService.post(`/analytics/reports/generate/${configId}`, { filters }) as { data: GeneratedReport };
       return response.data;
     } catch (error) {
       console.error('Error generating report:', error);
@@ -590,7 +597,7 @@ class AnalyticsService {
   async getGeneratedReports(configId?: string): Promise<GeneratedReport[]> {
     try {
       const params = configId ? `?configId=${configId}` : '';
-      const response = await apiService.get(`/analytics/reports/generated${params}`);
+      const response = await apiService.get(`/analytics/reports/generated${params}`) as { data?: GeneratedReport[] };
       return response.data || [];
     } catch (error) {
       console.error('Error fetching generated reports:', error);
@@ -607,7 +614,7 @@ class AnalyticsService {
    */
   async exportData(config: ExportConfig): Promise<{ success: boolean; downloadUrl?: string; error?: string }> {
     try {
-      const response = await apiService.post('/analytics/export', config);
+      const response = await apiService.post('/analytics/export', config) as { data: unknown };
 
       if (config.format === 'json') {
         return {
@@ -617,7 +624,7 @@ class AnalyticsService {
       } else {
         return {
           success: true,
-          downloadUrl: URL.createObjectURL(response.data)
+          downloadUrl: URL.createObjectURL(new Blob([response.data as BlobPart]))
         };
       }
     } catch (error) {

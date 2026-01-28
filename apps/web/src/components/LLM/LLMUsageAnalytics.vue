@@ -173,10 +173,10 @@
                   <ion-note color="danger">{{ error }}</ion-note>
                 </div>
                 <div v-else class="chart-container">
-                  <LineChart 
-                    :data="requestVolumeData"
-                    :options="requestVolumeOptions"
-                    height="300"
+                  <LineChart
+                    :labels="requestVolumeData.labels"
+                    :datasets="requestVolumeData.datasets"
+                    :height="300"
                   />
                 </div>
               </ion-card-content>
@@ -203,10 +203,10 @@
                   <ion-note color="danger">{{ error }}</ion-note>
                 </div>
                 <div v-else class="chart-container">
-                  <DoughnutChart 
-                    :data="providerDistributionData"
-                    :options="providerDistributionOptions"
-                    height="300"
+                  <DoughnutChart
+                    :labels="providerDistributionData.labels"
+                    :data="providerDistributionData.datasets[0]?.data || []"
+                    :height="300"
                   />
                 </div>
               </ion-card-content>
@@ -235,10 +235,11 @@
                   <ion-note color="danger">{{ error }}</ion-note>
                 </div>
                 <div v-else class="chart-container">
-                  <BarChart 
-                    :data="responseTimeData"
-                    :options="responseTimeOptions"
-                    height="300"
+                  <BarChart
+                    :labels="responseTimeData.labels"
+                    :data="responseTimeData.datasets[0]?.data || []"
+                    label="Response Time (ms)"
+                    :height="300"
                   />
                 </div>
               </ion-card-content>
@@ -265,10 +266,10 @@
                   <ion-note color="danger">{{ error }}</ion-note>
                 </div>
                 <div v-else class="chart-container">
-                  <LineChart 
-                    :data="costTrendsData"
-                    :options="costTrendsOptions"
-                    height="300"
+                  <LineChart
+                    :labels="costTrendsData.labels"
+                    :datasets="costTrendsData.datasets"
+                    :height="300"
                   />
                 </div>
               </ion-card-content>
@@ -297,10 +298,12 @@
                   <ion-note color="danger">{{ error }}</ion-note>
                 </div>
                 <div v-else class="chart-container">
-                  <BarChart 
-                    :data="sanitizationOverheadData"
-                    :options="sanitizationOverheadOptions"
-                    height="250"
+                  <BarChart
+                    :labels="sanitizationOverheadData.labels"
+                    :data="sanitizationOverheadData.datasets[0]?.data || []"
+                    label="Processing Time (ms)"
+                    :height="250"
+                    :horizontal="true"
                   />
                 </div>
               </ion-card-content>
@@ -336,8 +339,8 @@
               <div class="insight-content">
                 <div class="insight-title">{{ insight.title }}</div>
                 <div class="insight-description">{{ insight.description }}</div>
-                <div class="insight-recommendation" v-if="insight.recommendation">
-                  <strong>Recommendation:</strong> {{ insight.recommendation }}
+                <div class="insight-value" v-if="insight.value">
+                  <strong>Value:</strong> {{ insight.value }}
                 </div>
               </div>
             </div>
@@ -417,7 +420,8 @@ import {
   calculateSanitizationBreakdown,
   calculateTrend,
   generateAnalyticsInsights,
-  sanitizeUsageRecords
+  sanitizeUsageRecords,
+  type LlmUsageRecord
 } from '@/utils/analyticsTransformations';
 
 // Props
@@ -484,9 +488,9 @@ const costTrend = computed(() => calculateTrend(analytics.value, 'total_cost'));
 
 // Sanitization overhead (computed from usage records)
 const sanitizationOverhead = computed(() => {
-  const recordsWithSanitization = usageRecords.value.filter(r => r.duration_ms && r.duration_ms > 0);
+  const recordsWithSanitization = usageRecords.value.filter((r) => r.duration_ms && r.duration_ms > 0);
   if (recordsWithSanitization.length === 0) return 0;
-  
+
   // Estimate sanitization overhead as percentage of total response time
   const avgDuration = recordsWithSanitization.reduce((sum, r) => sum + (r.duration_ms || 0), 0) / recordsWithSanitization.length;
   return Math.round(avgDuration * 0.1); // Assume 10% overhead for sanitization
@@ -496,7 +500,7 @@ const sanitizationTrend = computed(() => 'down'); // Default to optimized
 
 // Computed insights from store analytics (using utility functions)
 const insights = computed(() => {
-  const cleanUsageRecords = sanitizeUsageRecords(usageRecords.value);
+  const cleanUsageRecords = sanitizeUsageRecords(usageRecords.value as unknown as LlmUsageRecord[]);
   return generateAnalyticsInsights(analytics.value, cleanUsageRecords);
 });
 
@@ -517,7 +521,7 @@ const requestVolumeData = computed(() => {
   };
 });
 
-const requestVolumeOptions = computed(() => ({
+const _requestVolumeOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   animation: {
@@ -594,7 +598,7 @@ const requestVolumeOptions = computed(() => ({
 }));
 
 const providerDistributionData = computed(() => {
-  const cleanUsageRecords = sanitizeUsageRecords(usageRecords.value);
+  const cleanUsageRecords = sanitizeUsageRecords(usageRecords.value as unknown as LlmUsageRecord[]);
   const providerStats = calculateProviderStats(cleanUsageRecords);
   
   if (providerStats.length === 0) {
@@ -638,7 +642,7 @@ const providerDistributionData = computed(() => {
   };
 });
 
-const providerDistributionOptions = computed(() => ({
+const _providerDistributionOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   animation: {
@@ -680,7 +684,7 @@ const providerDistributionOptions = computed(() => ({
 }));
 
 const responseTimeData = computed(() => {
-  const cleanUsageRecords = sanitizeUsageRecords(usageRecords.value);
+  const cleanUsageRecords = sanitizeUsageRecords(usageRecords.value as unknown as LlmUsageRecord[]);
   const { providers, responseTimes } = calculateProviderResponseTimes(cleanUsageRecords);
 
   const colors = [
@@ -713,7 +717,7 @@ const responseTimeData = computed(() => {
   };
 });
 
-const responseTimeOptions = computed(() => ({
+const _responseTimeOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   animation: {
@@ -794,7 +798,7 @@ const costTrendsData = computed(() => {
   };
 });
 
-const costTrendsOptions = computed(() => ({
+const _costTrendsOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   animation: {
@@ -869,7 +873,7 @@ const costTrendsOptions = computed(() => ({
 }));
 
 const sanitizationOverheadData = computed(() => {
-  const cleanUsageRecords = sanitizeUsageRecords(usageRecords.value);
+  const cleanUsageRecords = sanitizeUsageRecords(usageRecords.value as unknown as LlmUsageRecord[]);
   const breakdown = calculateSanitizationBreakdown(cleanUsageRecords);
   
   if (!breakdown) {
@@ -912,7 +916,7 @@ const sanitizationOverheadData = computed(() => {
   };
 });
 
-const sanitizationOverheadOptions = computed(() => ({
+const _sanitizationOverheadOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   indexAxis: 'y' as const,
@@ -1340,7 +1344,7 @@ onUnmounted(() => {
   margin-bottom: 8px;
 }
 
-.insight-recommendation {
+.insight-value {
   font-size: 14px;
   color: var(--ion-color-dark);
 }

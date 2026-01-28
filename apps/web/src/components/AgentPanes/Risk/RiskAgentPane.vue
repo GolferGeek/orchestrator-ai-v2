@@ -593,7 +593,7 @@ async function handleAnalyzeSubject(subjectId: string) {
 
     if (response.content) {
       console.log('[RiskAgentPane] Analysis completed successfully, content:', JSON.stringify(response.content, null, 2));
-      const content = response.content as Record<string, unknown>;
+      const content = response.content as unknown as Record<string, unknown>;
 
       // Check if content is empty (could indicate a silent failure)
       if (!content || Object.keys(content).length === 0) {
@@ -754,7 +754,7 @@ async function handleTriggerDebateForSubject(subjectId: string) {
     console.log('[RiskAgentPane] Debate content:', debate);
     if (debate && analysisProgressRef.value) {
       analysisProgressRef.value.setComplete({
-        overallScore: debate.adjustedScore || 0, // API returns adjustedScore, not final_score
+        overallScore: debate.scoreAdjustment || 0, // RiskDebate has scoreAdjustment property
         confidence: 0,
         assessmentCount: 3, // Blue, Red, Arbiter
         debateTriggered: true,

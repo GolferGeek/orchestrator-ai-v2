@@ -59,14 +59,14 @@
             :key="key"
             class="tier-bar-row"
           >
-            <span class="tier-label" :class="key">{{ tier.label }}</span>
+            <span class="tier-label" :class="key">{{ tier?.label }}</span>
             <div class="tier-bar-container">
               <div
                 class="tier-bar-fill"
                 :class="key"
-                :style="{ width: tier.percentage + '%' }"
+                :style="{ width: (tier?.percentage ?? 0) + '%' }"
               ></div>
-              <span class="tier-value">${{ formatCurrency(tier.cost) }}</span>
+              <span class="tier-value">${{ formatCurrency(tier?.cost ?? 0) }}</span>
             </div>
           </div>
         </div>

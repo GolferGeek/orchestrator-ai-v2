@@ -266,7 +266,7 @@ class ApiService {
           ...context,
           originalErrorType: errorType,
           originalSeverity: severity
-        }
+        } as unknown as import('@/types/index').JsonObject
       });
 
       // Console logging for development
@@ -318,7 +318,7 @@ class ApiService {
     }
     
     // Critical server errors
-    if (status >= 500) {
+    if (status !== undefined && status >= 500) {
       return 'critical';
     }
     
@@ -328,7 +328,7 @@ class ApiService {
     }
     
     // Client errors are medium
-    if (status >= 400 && status < 500) {
+    if (status !== undefined && status >= 400 && status < 500) {
       return 'medium';
     }
     
@@ -372,7 +372,7 @@ class ApiService {
     // Pattern 1: Multiple 5xx errors in short time frame
     const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
     const recentServerErrors = this.errorStore.recentErrors
-      .filter((e: { timestamp: number; context?: ApiErrorContext }) => e.timestamp > fiveMinutesAgo && e.context?.status !== undefined && e.context.status >= 500);
+      .filter((e: { timestamp: number; context?: { status?: number } }) => e.timestamp > fiveMinutesAgo && e.context?.status !== undefined && e.context.status >= 500);
     
     if (recentServerErrors.length >= 3) {
       const outageError = new Error('Critical: Multiple server errors detected - possible system outage');
@@ -442,7 +442,7 @@ class ApiService {
     );
 
     // API now returns camelCase directly
-    return response.data;
+    return response.data as SendMessageResponse;
   }
 
   /**
@@ -519,10 +519,11 @@ class ApiService {
       // Extract agent name from metadata
       let respondingAgentName = 'Agent'; // default for NestJS
       if (result.metadata) {
-        respondingAgentName = result.metadata.delegatedTo ||
-                            result.metadata.originalAgent?.agentName ||
-                            result.metadata.agentName ||
-                            result.metadata.respondingAgentName ||
+        const metadata = result.metadata as Record<string, JsonValue>;
+        respondingAgentName = (metadata.delegatedTo as string) ||
+                            ((metadata.originalAgent as Record<string, JsonValue>)?.agentName as string) ||
+                            (metadata.agentName as string) ||
+                            (metadata.respondingAgentName as string) ||
                             'Agent';
       }
 

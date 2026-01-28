@@ -110,20 +110,20 @@
             <ion-label>
               <h3>Detection Results</h3>
               <p>
-                <ion-badge 
-                  :color="testResults.hasPII ? 'warning' : 'success'"
+                <ion-badge
+                  :color="(testResults.detectionResult?.matches?.length ?? 0) > 0 ? 'warning' : 'success'"
                 >
-                  {{ testResults.hasPII ? `${testResults.matches.length} PII items found` : 'No PII detected' }}
+                  {{ (testResults.detectionResult?.matches?.length ?? 0) > 0 ? `${testResults.detectionResult?.matches?.length} PII items found` : 'No PII detected' }}
                 </ion-badge>
               </p>
             </ion-label>
           </ion-item>
-          
+
           <!-- Detected PII Items -->
-          <div v-if="testResults.hasPII">
+          <div v-if="(testResults.detectionResult?.matches?.length ?? 0) > 0">
             <ion-list>
-              <ion-item 
-                v-for="(match, index) in testResults.matches" 
+              <ion-item
+                v-for="(match, index) in (testResults.detectionResult?.matches as PIIMatch[] | undefined)"
                 :key="index"
               >
                 <ion-label>
@@ -132,11 +132,11 @@
                   <p>Pattern: {{ match.patternName }}</p>
                 </ion-label>
                 <ion-badge :color="getDataTypeColor(match.dataType)" slot="end">
-                  {{ match.confidence }}% confidence
+                  {{ (match.confidence * 100).toFixed(0) }}% confidence
                 </ion-badge>
               </ion-item>
             </ion-list>
-            
+
             <!-- Sanitized text -->
             <ion-item>
               <ion-label>
@@ -199,8 +199,8 @@
           <!-- Replacements -->
           <div v-if="pseudonymResults.hasChanges">
             <ion-list>
-              <ion-item 
-                v-for="(replacement, index) in pseudonymResults.replacements" 
+              <ion-item
+                v-for="(replacement, index) in (pseudonymResults.replacements ?? [])"
                 :key="index"
               >
                 <ion-label>
@@ -209,7 +209,7 @@
                 </ion-label>
               </ion-item>
             </ion-list>
-            
+
             <!-- Final pseudonymized text -->
             <ion-item>
               <ion-label>
@@ -319,6 +319,7 @@ import {
 import { usePrivacyStore } from '@/stores/privacyStore';
 import { privacyService } from '@/services/privacyService';
 import { useStoreAutoRefresh } from '@/composables/useStoreIntegration';
+import type { PIITestResponse, PIIMatch } from '@/types/pii';
 // import RecentLLMCalls from '@/components/PII/RecentLLMCalls.vue';
 
 // Store integration - unified privacy store
@@ -367,9 +368,13 @@ const detectPII = async (text: string) => {
   return await privacyService.testPIIDetection({ text });
 };
 
-const pseudonymizeText = async (text: string) => {
+const pseudonymizeText = async (_text: string, _preserveFormat: boolean): Promise<PseudonymResult> => {
   // This would need to be implemented based on your pseudonymization logic
-  return text; // Placeholder
+  return {
+    hasChanges: false,
+    replacements: [],
+    pseudonymizedText: _text
+  };
 };
 
 // Auto-refresh setup
@@ -382,13 +387,24 @@ const {
 // PII Testing
 const testInput = ref('');
 const isTestingPII = ref(false);
-const testResults = ref<Record<string, unknown> | null>(null);
+const testResults = ref<PIITestResponse | null>(null);
+
+// Define interface for pseudonym results
+interface PseudonymResult {
+  hasChanges: boolean;
+  replacements: Array<{
+    original: string;
+    pseudonym: string;
+    type: string;
+  }>;
+  pseudonymizedText: string;
+}
 
 // Pseudonymization Testing
 const pseudonymInput = ref('');
 const preserveFormat = ref(true);
 const isPseudonymizing = ref(false);
-const pseudonymResults = ref<Record<string, unknown> | null>(null);
+const pseudonymResults = ref<PseudonymResult | null>(null);
 
 // Methods
 const runPIITest = async () => {

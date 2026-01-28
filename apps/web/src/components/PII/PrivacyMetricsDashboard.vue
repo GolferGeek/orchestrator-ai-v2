@@ -53,7 +53,7 @@
                 <div class="metric-content">
                   <ion-icon :icon="eyeOutline" color="primary" size="large"></ion-icon>
                   <div class="metric-info">
-                    <div class="metric-value">{{ formatNumber(metrics?.totalPIIDetections || 0) }}</div>
+                    <div class="metric-value">{{ formatNumber(adaptedMetrics?.totalPIIDetections || 0) }}</div>
                     <div class="metric-label">PII Detections</div>
                   </div>
                 </div>
@@ -67,7 +67,7 @@
                 <div class="metric-content">
                   <ion-icon :icon="shieldCheckmarkOutline" color="success" size="large"></ion-icon>
                   <div class="metric-info">
-                    <div class="metric-value">{{ formatNumber(metrics?.itemsSanitized || 0) }}</div>
+                    <div class="metric-value">{{ formatNumber(adaptedMetrics?.itemsSanitized || 0) }}</div>
                     <div class="metric-label">Items Sanitized</div>
                   </div>
                 </div>
@@ -81,7 +81,7 @@
                 <div class="metric-content">
                   <ion-icon :icon="swapHorizontalOutline" color="secondary" size="large"></ion-icon>
                   <div class="metric-info">
-                    <div class="metric-value">{{ formatNumber(metrics?.pseudonymsCreated || 0) }}</div>
+                    <div class="metric-value">{{ formatNumber(adaptedMetrics?.pseudonymsCreated || 0) }}</div>
                     <div class="metric-label">Pseudonyms Created</div>
                   </div>
                 </div>
@@ -119,9 +119,9 @@
         <ion-card-content>
           <div class="chart-container">
             <BarChart
-              :labels="detectionStats.map(s => formatTypeLabel(s.type))"
-              :data="detectionStats.map(s => s.count)"
-              :colors="detectionStats.map(s => getTypeColor(s.type))"
+              :labels="detectionStatsLabels"
+              :data="detectionStatsData"
+              :colors="detectionStatsColors"
               label="PII Detections"
               :height="300"
             />
@@ -176,9 +176,9 @@
             <ion-card-content>
               <div class="chart-container">
                 <DoughnutChart
-                  :labels="sanitizationMethods.map(m => m.name)"
-                  :data="sanitizationMethods.map(m => m.percentage)"
-                  :colors="sanitizationMethods.map(m => m.color)"
+                  :labels="sanitizationMethodsLabels"
+                  :data="sanitizationMethodsData"
+                  :colors="sanitizationMethodsColors"
                   :height="300"
                   legend-position="bottom"
                 />
@@ -227,7 +227,7 @@
               <div class="cost-metrics">
                 <div class="cost-item">
                   <div class="cost-label">Processing Cost</div>
-                  <div class="cost-value">{{ formatCurrency(metrics?.costSavings || 0) }}</div>
+                  <div class="cost-value">{{ formatCurrency(adaptedMetrics?.costSavings || 0) }}</div>
                   <div class="cost-trend positive">
                     <ion-icon :icon="arrowUpOutline"></ion-icon>
                     {{ costTrend.processing }}% vs last period
@@ -236,16 +236,16 @@
                 
                 <div class="cost-item">
                   <div class="cost-label">Storage Savings</div>
-                  <div class="cost-value">${{ formatCurrency(storageSavings) }}</div>
+                  <div class="cost-value">${{ formatCurrency(parseFloat(storageSavings)) }}</div>
                   <div class="cost-trend positive">
                     <ion-icon :icon="arrowUpOutline"></ion-icon>
                     {{ costTrend.storage }}% reduction
                   </div>
                 </div>
-                
+
                 <div class="cost-item">
                   <div class="cost-label">Compliance Value</div>
-                  <div class="cost-value">${{ formatCurrency(complianceValue) }}</div>
+                  <div class="cost-value">${{ formatCurrency(parseFloat(complianceValue)) }}</div>
                   <div class="cost-trend neutral">
                     <ion-icon :icon="removeOutline"></ion-icon>
                     Risk mitigation
@@ -285,14 +285,14 @@
                   <ion-row>
                     <ion-col size="12" size-md="6">
                       <div class="health-indicator">
-                    <div class="health-icon" :class="getHealthStatusClass(systemHealth?.apiStatus)">
-                      <ion-icon :icon="serverOutline" :color="getHealthColor(systemHealth?.apiStatus)"></ion-icon>
+                    <div class="health-icon" :class="getHealthStatusClass(systemHealth?.status)">
+                      <ion-icon :icon="serverOutline" :color="getHealthColor(systemHealth?.status)"></ion-icon>
                     </div>
                     <div class="health-info">
-                      <div class="health-label">API Status</div>
+                      <div class="health-label">System Status</div>
                       <div class="health-value">
-                        <ion-badge :color="getHealthColor(systemHealth?.apiStatus)">
-                          {{ formatHealthStatus(systemHealth?.apiStatus) }}
+                        <ion-badge :color="getHealthColor(systemHealth?.status)">
+                          {{ formatHealthStatus(systemHealth?.status) }}
                         </ion-badge>
                       </div>
                     </div>
@@ -300,15 +300,13 @@
                     </ion-col>
                     <ion-col size="12" size-md="6">
                       <div class="health-indicator">
-                        <div class="health-icon" :class="getHealthStatusClass(systemHealth?.dbStatus)">
-                          <ion-icon :icon="serverOutline" :color="getHealthColor(systemHealth?.dbStatus)"></ion-icon>
+                        <div class="health-icon" :class="getHealthStatusClass(systemHealth?.status)">
+                          <ion-icon :icon="serverOutline" :color="getHealthColor(systemHealth?.status)"></ion-icon>
                     </div>
                     <div class="health-info">
-                      <div class="health-label">Database</div>
+                      <div class="health-label">Error Rate</div>
                       <div class="health-value">
-                        <ion-badge :color="getHealthColor(systemHealth?.dbStatus)">
-                          {{ formatHealthStatus(systemHealth?.dbStatus) }}
-                        </ion-badge>
+                        <span>{{ (systemHealth?.errorRate || 0).toFixed(2) }}%</span>
                       </div>
                     </div>
                       </div>
@@ -323,8 +321,7 @@
                     <div class="health-info">
                       <div class="health-label">System Uptime</div>
                       <div class="health-value">
-                        <span class="uptime-value">{{ systemHealth?.uptime || 'N/A' }}</span>
-                        <ion-badge :color="getUptimeColor()">{{ systemHealth?.uptimeStatus || 'unknown' }}</ion-badge>
+                        <span class="uptime-value">{{ formatUptimeValue() }}</span>
                       </div>
                     </div>
                       </div>
@@ -376,10 +373,10 @@
                     </div>
                     <div class="cost-info">
                       <div class="cost-label">Total Savings</div>
-                      <div class="cost-value">{{ formatCurrency(metrics?.totalCostSavings || 0) }}</div>
-                      <div class="cost-trend" :class="{ positive: metrics?.costSavingsTrend === 'up', negative: metrics?.costSavingsTrend === 'down' }">
-                        <ion-icon :icon="metrics?.costSavingsTrend === 'up' ? arrowUpOutline : arrowDownOutline"></ion-icon>
-                        <span>{{ metrics?.costSavingsTrend === 'up' ? 'Increasing' : 'Decreasing' }}</span>
+                      <div class="cost-value">{{ formatCurrency(adaptedMetrics?.totalCostSavings || 0) }}</div>
+                      <div class="cost-trend" :class="{ positive: adaptedMetrics?.costSavingsTrend === 'up', negative: adaptedMetrics?.costSavingsTrend === 'down' }">
+                        <ion-icon :icon="adaptedMetrics?.costSavingsTrend === 'up' ? arrowUpOutline : arrowDownOutline"></ion-icon>
+                        <span>{{ adaptedMetrics?.costSavingsTrend === 'up' ? 'Increasing' : 'Decreasing' }}</span>
                       </div>
                     </div>
                       </div>
@@ -391,10 +388,10 @@
                     </div>
                     <div class="cost-info">
                       <div class="cost-label">Avg Processing Time</div>
-                      <div class="cost-value">{{ metrics?.avgProcessingTimeMs || 0 }}ms</div>
-                      <div class="cost-trend" :class="{ positive: metrics?.processingTimeTrend === 'down', negative: metrics?.processingTimeTrend === 'up' }">
-                        <ion-icon :icon="metrics?.processingTimeTrend === 'down' ? arrowDownOutline : arrowUpOutline"></ion-icon>
-                        <span>{{ metrics?.processingTimeTrend === 'down' ? 'Improving' : 'Degrading' }}</span>
+                      <div class="cost-value">{{ adaptedMetrics?.avgProcessingTimeMs || 0 }}ms</div>
+                      <div class="cost-trend" :class="{ positive: adaptedMetrics?.processingTimeTrend === 'down', negative: adaptedMetrics?.processingTimeTrend === 'up' }">
+                        <ion-icon :icon="adaptedMetrics?.processingTimeTrend === 'down' ? arrowDownOutline : arrowUpOutline"></ion-icon>
+                        <span>{{ adaptedMetrics?.processingTimeTrend === 'down' ? 'Improving' : 'Degrading' }}</span>
                       </div>
                     </div>
                       </div>
@@ -412,7 +409,7 @@
                         {{ formatCurrency(calculateCostPerDetection()) }}
                       </div>
                       <div class="cost-description">
-                        <ion-note>Based on {{ formatNumber(metrics?.totalPIIDetections || 0) }} detections</ion-note>
+                        <ion-note>Based on {{ formatNumber(adaptedMetrics?.totalPIIDetections || 0) }} detections</ion-note>
                       </div>
                     </div>
                       </div>
@@ -457,13 +454,13 @@
                 <ion-icon :icon="getActivityIcon(activity.type)"></ion-icon>
               </div>
               <div class="activity-content">
-                <div class="activity-title">{{ activity.title }}</div>
+                <div class="activity-title">{{ formatActivityTitle(activity.type) }}</div>
                 <div class="activity-description">{{ activity.description }}</div>
                 <div class="activity-time">{{ formatTime(activity.timestamp) }}</div>
               </div>
               <div class="activity-stats">
                 <ion-badge :color="getActivityColor(activity.type)">
-                  {{ activity.count }}
+                  {{ activity.type }}
                 </ion-badge>
               </div>
             </div>
@@ -528,6 +525,26 @@ import DoughnutChart from '@/components/Charts/DoughnutChart.vue';
 // Store
 import { usePrivacyStore } from '@/stores/privacyStore';
 
+// Service
+import {
+  fetchDashboardData,
+  startAutoRefreshDashboard,
+  stopAutoRefreshDashboard
+} from '@/services/privacyService';
+
+// Import types from pii.ts - some are used by consumers of this component
+import type {
+  PatternUsageStats as _PatternUsageStats
+} from '@/types/pii';
+
+// For display purposes - transforming PatternUsageStats
+interface PatternDisplay {
+  id: string;
+  name: string;
+  description: string;
+  usageCount: number;
+}
+
 // Props
 interface Props {
   autoRefresh?: boolean;
@@ -555,17 +572,33 @@ const selectedTimeRange = ref('24h');
 const selectedDataType = ref('all');
 
 // Computed properties from store
-const metrics = computed(() => dashboardStore.metrics);
-const detectionStats = computed(() => dashboardStore.detectionStats);
-const isLoading = computed(() => dashboardStore.isLoading);
-const error = computed(() => dashboardStore.error);
+const metrics = computed(() => dashboardStore.dashboardData?.metrics);
+const detectionStats = computed(() => dashboardStore.dashboardData?.detectionStats || []);
+const isLoading = computed(() => dashboardStore.dashboardLoading);
+const error = computed(() => dashboardStore.dashboardError);
 // const hasData = computed(() => dashboardStore.hasData);
 
-// const patternUsage = computed(() => dashboardStore.patternUsage);
-const sanitizationMethods = computed(() => dashboardStore.sanitizationMethods);
-const performanceData = computed(() => dashboardStore.performanceData);
-const systemHealth = computed(() => dashboardStore.systemHealth);
-const recentActivity = computed(() => dashboardStore.recentActivity);
+const sanitizationMethods = computed(() => dashboardStore.dashboardData?.sanitizationMethods || []);
+const performanceData = computed(() => dashboardStore.dashboardData?.performanceData || []);
+const systemHealth = computed(() => dashboardStore.dashboardData?.systemHealth);
+const recentActivity = computed(() => dashboardStore.dashboardData?.recentActivity || []);
+
+// Adapt metrics to template expectations - create an extended metrics object
+const adaptedMetrics = computed(() => {
+  if (!metrics.value) return null;
+
+  return {
+    ...metrics.value,
+    totalPIIDetections: metrics.value.totalDetections,
+    itemsSanitized: metrics.value.totalSanitizations,
+    pseudonymsCreated: 0, // Not available in current metrics
+    costSavings: 0, // Not available in current metrics
+    totalCostSavings: 0, // Not available in current metrics
+    costSavingsTrend: 'up' as 'up' | 'down' | 'stable',
+    avgProcessingTimeMs: metrics.value.averageProcessingTime,
+    processingTimeTrend: 'down' as 'up' | 'down' | 'stable'
+  };
+});
 
 // Cost analysis computed properties
 const costTrend = computed(() => ({
@@ -574,21 +607,66 @@ const costTrend = computed(() => ({
 }));
 
 const storageSavings = computed(() => {
-  const totalDetections = metrics.value?.totalPIIDetections || 0;
+  const totalDetections = adaptedMetrics.value?.totalPIIDetections || 0;
   // Estimate storage savings based on detections (average 50 bytes per PII item)
   return (totalDetections * 50 * 0.001).toFixed(2); // Convert to KB
 });
 
 const complianceValue = computed(() => {
   // Estimated compliance value based on risk mitigation
-  const detections = metrics.value?.totalPIIDetections || 0;
+  const detections = adaptedMetrics.value?.totalPIIDetections || 0;
   return (detections * 0.05).toFixed(2); // $0.05 per detection compliance value
 });
+
+const costSavings = computed(() => {
+  return adaptedMetrics.value?.costSavings || 0;
+});
+
+const topPatterns = computed((): PatternDisplay[] => {
+  const patternStats = dashboardStore.dashboardData?.patternUsage || [];
+  return patternStats.slice(0, 5).map(p => ({
+    id: p.patternId,
+    name: p.patternName,
+    description: `${p.dataType} - ${p.accuracy}% accuracy`,
+    usageCount: p.matchCount
+  }));
+});
+
+const maxPatternUsage = computed(() => {
+  const patterns = dashboardStore.dashboardData?.patternUsage || [];
+  if (patterns.length === 0) return 1;
+  return Math.max(...patterns.map(p => p.matchCount));
+});
+
+// Computed arrays for template with proper typing
+const detectionStatsLabels = computed(() =>
+  detectionStats.value.map((s) => formatTypeLabel(s.dataType))
+);
+
+const detectionStatsData = computed(() =>
+  detectionStats.value.map((s) => s.count)
+);
+
+const detectionStatsColors = computed(() =>
+  detectionStats.value.map((s) => getTypeColor(s.dataType))
+);
+
+const sanitizationMethodsLabels = computed(() =>
+  sanitizationMethods.value.map((m) => formatMethodLabel(m.method))
+);
+
+const sanitizationMethodsData = computed(() =>
+  sanitizationMethods.value.map((m) => m.usageCount)
+);
+
+const sanitizationMethodsColors = computed(() =>
+  sanitizationMethods.value.map((m) => getMethodColor(m.method))
+);
 
 // Chart data computed properties
 const performanceLabels = computed(() => {
   if (!performanceData.value?.length) return ['No Data'];
-  return performanceData.value.map(point => {
+  return performanceData.value.map((point) => {
     const date = new Date(point.timestamp);
     const now = new Date();
     const diffHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
@@ -600,21 +678,21 @@ const performanceDatasets = computed(() => {
   if (!performanceData.value?.length) {
     return [
       { label: 'Processing Time (ms)', data: [], borderColor: '#3b82f6', backgroundColor: '#3b82f620', fill: true },
-      { label: 'Throughput (req/min)', data: [], borderColor: '#10b981', backgroundColor: '#10b98120', fill: true }
+      { label: 'Detection Count', data: [], borderColor: '#10b981', backgroundColor: '#10b98120', fill: true }
     ];
   }
-  
+
   return [
     {
       label: 'Processing Time (ms)',
-      data: performanceData.value.map(point => point.processingTimeMs),
+      data: performanceData.value.map((point) => point.processingTime),
       borderColor: '#3b82f6',
       backgroundColor: '#3b82f620',
       fill: true
     },
     {
-      label: 'Throughput (req/min)',
-      data: performanceData.value.map(point => point.throughputPerMin),
+      label: 'Detection Count',
+      data: performanceData.value.map((point) => point.detectionCount),
       borderColor: '#10b981',
       backgroundColor: '#10b98120',
       fill: true
@@ -626,15 +704,15 @@ const performanceDatasets = computed(() => {
 const refreshData = async () => {
   try {
     emit('refresh-requested');
-    await dashboardStore.refreshData();
-    
+    await fetchDashboardData(true);
+
     // Emit event to notify parent component
-    if (metrics.value) {
+    if (adaptedMetrics.value) {
       emit('data-loaded', {
-        detections: metrics.value.totalPIIDetections,
-        sanitized: metrics.value.itemsSanitized,
-        pseudonyms: metrics.value.pseudonymsCreated,
-        savings: metrics.value.costSavings
+        detections: adaptedMetrics.value.totalPIIDetections,
+        sanitized: adaptedMetrics.value.itemsSanitized,
+        pseudonyms: adaptedMetrics.value.pseudonymsCreated,
+        savings: adaptedMetrics.value.costSavings
       });
     }
   } catch (err: unknown) {
@@ -646,10 +724,34 @@ const refreshData = async () => {
 //   refreshData();
 // };
 
-// Use store utility methods
-const formatNumber = (num: number): string => dashboardStore.formatNumber(num);
-const formatCurrency = (amount: number): string => dashboardStore.formatCurrency(amount);
-const formatTime = (timestamp: Date | string): string => dashboardStore.formatRelativeTime(timestamp);
+// Format utility methods
+const formatNumber = (num: number): string => {
+  return new Intl.NumberFormat('en-US').format(num);
+};
+
+const formatCurrency = (amount: number): string => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(amount);
+};
+
+const formatTime = (timestamp: Date | string): string => {
+  const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+  return date.toLocaleDateString();
+};
 
 const getTypeColor = (type: string): string => {
   const colors: Record<string, string> = {
@@ -673,91 +775,114 @@ const formatTypeLabel = (type: string): string => {
   return labels[type] || type;
 };
 
+const formatMethodLabel = (method: string): string => {
+  const labels: Record<string, string> = {
+    redaction: 'Redaction',
+    pseudonymization: 'Pseudonymization',
+    masking: 'Masking',
+    encryption: 'Encryption'
+  };
+  return labels[method] || method;
+};
+
+const getMethodColor = (method: string): string => {
+  const colors: Record<string, string> = {
+    redaction: '#ef4444',
+    pseudonymization: '#3b82f6',
+    masking: '#f59e0b',
+    encryption: '#10b981'
+  };
+  return colors[method] || '#6b7280';
+};
+
 // Health status methods
-const getHealthColor = (status: string | undefined): string => {
+const getHealthColor = (status: 'healthy' | 'degraded' | 'critical' | undefined): string => {
   switch (status) {
-    case 'operational': return 'success';
+    case 'healthy': return 'success';
     case 'degraded': return 'warning';
-    case 'down': return 'danger';
+    case 'critical': return 'danger';
     default: return 'medium';
   }
 };
 
-const getHealthStatusClass = (status: string | undefined): string => {
+const getHealthStatusClass = (status: 'healthy' | 'degraded' | 'critical' | undefined): string => {
   switch (status) {
-    case 'operational': return 'healthy';
+    case 'healthy': return 'healthy';
     case 'degraded': return 'warning';
-    case 'down': return 'critical';
+    case 'critical': return 'critical';
     default: return 'unknown';
   }
 };
 
-const formatHealthStatus = (status: string | undefined): string => {
+const formatHealthStatus = (status: 'healthy' | 'degraded' | 'critical' | undefined): string => {
   switch (status) {
-    case 'operational': return 'Operational';
+    case 'healthy': return 'Healthy';
     case 'degraded': return 'Degraded';
-    case 'down': return 'Down';
+    case 'critical': return 'Critical';
     default: return 'Unknown';
   }
 };
 
 const getOverallHealthColor = (): string => {
   if (!systemHealth.value) return 'medium';
-  
-  if (systemHealth.value.apiStatus === 'operational' && systemHealth.value.dbStatus === 'operational') {
-    return 'success';
-  } else if (systemHealth.value.apiStatus === 'down' || systemHealth.value.dbStatus === 'down') {
-    return 'danger';
-  } else {
-    return 'warning';
-  }
+  return getHealthColor(systemHealth.value.status);
 };
 
 const getUptimeColor = (): string => {
-  if (!systemHealth.value?.uptimeStatus) return 'medium';
-  
-  switch (systemHealth.value.uptimeStatus) {
-    case 'healthy': return 'success';
-    case 'warning': return 'warning';
-    case 'critical': return 'danger';
-    default: return 'medium';
-  }
+  if (!systemHealth.value) return 'medium';
+
+  // Calculate uptime percentage
+  const uptimeHours = systemHealth.value.uptime / 3600; // Convert seconds to hours
+  if (uptimeHours > 24 * 30) return 'success'; // > 30 days
+  if (uptimeHours > 24 * 7) return 'warning';  // > 7 days
+  return 'danger'; // < 7 days
 };
 
 const getUptimeStatusClass = (): string => {
-  if (!systemHealth.value?.uptimeStatus) return 'unknown';
-  
-  switch (systemHealth.value.uptimeStatus) {
-    case 'healthy': return 'healthy';
-    case 'warning': return 'warning';
-    case 'critical': return 'critical';
-    default: return 'unknown';
-  }
+  if (!systemHealth.value) return 'unknown';
+
+  const uptimeHours = systemHealth.value.uptime / 3600;
+  if (uptimeHours > 24 * 30) return 'healthy';
+  if (uptimeHours > 24 * 7) return 'warning';
+  return 'critical';
+};
+
+const formatUptimeValue = (): string => {
+  if (!systemHealth.value) return 'N/A';
+
+  const seconds = systemHealth.value.uptime;
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
 };
 
 // Cost analysis methods
 const calculateCostPerDetection = (): number => {
-  if (!metrics.value || !metrics.value.totalPIIDetections || metrics.value.totalPIIDetections === 0) {
+  if (!adaptedMetrics.value || !adaptedMetrics.value.totalPIIDetections || adaptedMetrics.value.totalPIIDetections === 0) {
     return 0;
   }
-  
+
   // Estimate cost per detection based on total cost savings divided by detections
   // This is a simplified calculation - in reality, this would come from actual cost tracking
-  const estimatedTotalCost = metrics.value.totalCostSavings * 0.1; // Assume savings represent 10x the actual cost
-  return estimatedTotalCost / metrics.value.totalPIIDetections;
+  const estimatedTotalCost = (adaptedMetrics.value.totalCostSavings || 0) * 0.1; // Assume savings represent 10x the actual cost
+  return estimatedTotalCost / adaptedMetrics.value.totalPIIDetections;
 };
 
 const calculateROI = (): number => {
-  if (!metrics.value || !metrics.value.totalCostSavings) {
+  if (!adaptedMetrics.value || !adaptedMetrics.value.totalCostSavings) {
     return 0;
   }
-  
+
   // Simplified ROI calculation: (Cost Savings - Investment) / Investment * 100
   // Assume investment is 20% of the total cost savings for this calculation
-  const estimatedInvestment = metrics.value.totalCostSavings * 0.2;
-  const netBenefit = metrics.value.totalCostSavings - estimatedInvestment;
+  const estimatedInvestment = adaptedMetrics.value.totalCostSavings * 0.2;
+  const netBenefit = adaptedMetrics.value.totalCostSavings - estimatedInvestment;
   const roi = (netBenefit / estimatedInvestment) * 100;
-  
+
   return Math.round(roi);
 };
 
@@ -765,7 +890,9 @@ const getActivityIcon = (type: string): string => {
   const icons: Record<string, string> = {
     detection: eyeOutline,
     sanitization: shieldCheckmarkOutline,
-    redaction: removeOutline
+    pattern_update: analyticsOutline,
+    dictionary_update: listOutline,
+    system_event: serverOutline
   };
   return icons[type] || listOutline;
 };
@@ -774,9 +901,22 @@ const getActivityColor = (type: string): string => {
   const colors: Record<string, string> = {
     detection: 'primary',
     sanitization: 'success',
-    redaction: 'warning'
+    pattern_update: 'secondary',
+    dictionary_update: 'tertiary',
+    system_event: 'warning'
   };
   return colors[type] || 'medium';
+};
+
+const formatActivityTitle = (type: string): string => {
+  const titles: Record<string, string> = {
+    detection: 'PII Detection',
+    sanitization: 'Data Sanitization',
+    pattern_update: 'Pattern Updated',
+    dictionary_update: 'Dictionary Updated',
+    system_event: 'System Event'
+  };
+  return titles[type] || type;
 };
 
 // Watchers
@@ -791,17 +931,17 @@ watch([selectedTimeRange, selectedDataType], () => {
 // Lifecycle hooks
 onMounted(async () => {
   // Initialize dashboard data on component mount
-  await dashboardStore.fetchDashboardData();
-  
+  await fetchDashboardData();
+
   // Set up auto-refresh if enabled
   if (props.autoRefresh) {
-    dashboardStore.startAutoRefresh(props.refreshInterval);
+    startAutoRefreshDashboard(props.refreshInterval);
   }
 });
 
 onUnmounted(() => {
   // Clean up auto-refresh interval
-  dashboardStore.stopAutoRefresh();
+  stopAutoRefreshDashboard();
 });
 </script>
 

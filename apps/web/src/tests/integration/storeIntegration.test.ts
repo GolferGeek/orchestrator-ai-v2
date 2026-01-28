@@ -34,6 +34,7 @@ describe('Store Integration Tests - Consolidated Stores', () => {
         name: 'Email Pattern',
         dataType: 'email',
         pattern: '.*@.*',
+        description: 'Test email pattern',
         enabled: true,
         isBuiltIn: false,
         category: 'contact'
@@ -217,6 +218,7 @@ describe('Store Integration Tests - Consolidated Stores', () => {
         name: 'Test',
         dataType: 'email',
         pattern: '.*',
+        description: 'Test pattern',
         enabled: true,
         isBuiltIn: false,
         category: 'test'
@@ -278,6 +280,7 @@ describe('Store Integration Tests - Consolidated Stores', () => {
         name: 'Test',
         dataType: 'email',
         pattern: '.*',
+        description: 'Test pattern',
         enabled: true,
         isBuiltIn: false,
         category: 'test'

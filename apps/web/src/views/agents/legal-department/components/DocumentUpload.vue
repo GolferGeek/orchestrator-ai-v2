@@ -49,7 +49,7 @@
 
     <!-- Upload Progress -->
     <div v-if="isUploading" class="upload-progress">
-      <ion-progress-bar value="indeterminate" />
+      <ion-progress-bar type="indeterminate" />
       <p>Uploading document...</p>
     </div>
 
@@ -192,6 +192,7 @@ async function processFile(file: File) {
     name: file.name,
     size: file.size,
     type: file.type as DocumentType,
+    uploadedAt: new Date().toISOString(),
   };
   uploadedFile.value = localDoc;
   console.log('[DocumentUpload] File selected (pending upload):', localDoc);
@@ -233,6 +234,7 @@ async function handleStartAnalysis() {
         name: doc.filename || pendingFile.value.name,
         size: pendingFile.value.size,
         type: pendingFile.value.type as DocumentType,
+        uploadedAt: new Date().toISOString(),
         url: doc.url,
       };
     }

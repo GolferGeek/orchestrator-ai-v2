@@ -89,12 +89,12 @@
                         <div class="quick-stat">
                           <div class="stat-value">{{ stats?.activeRuns || 0 }}</div>
                           <div class="stat-label">Active Runs</div>
-                          <ion-chip 
-                            :color="stats?.activeRuns > 0 ? 'success' : 'medium'" 
+                          <ion-chip
+                            :color="(stats?.activeRuns ?? 0) > 0 ? 'success' : 'medium'"
                             size="small"
                           >
-                            <ion-icon :icon="stats?.activeRuns > 0 ? playCircleOutline : pauseCircleOutline" style="margin-right: 4px;" />
-                            {{ stats?.activeRuns > 0 ? 'Running' : 'Idle' }}
+                            <ion-icon :icon="(stats?.activeRuns ?? 0) > 0 ? playCircleOutline : pauseCircleOutline" style="margin-right: 4px;" />
+                            {{ (stats?.activeRuns ?? 0) > 0 ? 'Running' : 'Idle' }}
                           </ion-chip>
                         </div>
                       </ion-col>
@@ -198,8 +198,8 @@
                       </div>
           <div class="activity-details">
             {{ record.model_name }} • {{ formatDuration(record.duration_ms) }} • {{ formatCurrency(record.total_cost || 0) }}
-            <ion-badge v-if="record.pii_detected && (record.pseudonyms_used || 0) > 0" color="warning" style="margin-left:8px;">
-              {{ record.pseudonyms_used }} pseudonyms
+            <ion-badge v-if="(record as any).pii_detected && ((record as any).pseudonyms_used || 0) > 0" color="warning" style="margin-left:8px;">
+              {{ (record as any).pseudonyms_used }} pseudonyms
             </ion-badge>
           </div>
                       <div class="activity-time">
@@ -261,7 +261,7 @@
                     <div class="run-info">
                       <div class="run-id">{{ run.runId }}</div>
                       <div class="run-details">
-                        {{ run.model }} • Started {{ formatRelativeTime(run.startTime) }}
+                        {{ run.model }} • Started {{ formatRelativeTime(String(run.startTime)) }}
                       </div>
                     </div>
                     <div class="run-status">
@@ -387,7 +387,7 @@ const { usageRecords, stats, activeRuns, loading: _loading } = storeToRefs(store
 const recentRecords = computed(() => {
   return (usageRecords.value || [])
     .slice()
-    .sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime())
+    .sort((a: { started_at: string }, b: { started_at: string }) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime())
     .slice(0, 5);
 });
 
@@ -424,10 +424,10 @@ const onTabChange = (event: CustomEvent) => {
 const onRouteFilterChange = async () => {
   const route = routeFilter.value === 'all' ? undefined : routeFilter.value;
   // Update store filters for records
-  store.updateFilters({ route: route as string });
+  store.updateFilters({ route: route as 'local' | 'remote' | undefined });
   await store.fetchUsageRecords();
   // Update analytics
-  store.updateAnalyticsFilters({ route: route as string });
+  store.updateAnalyticsFilters({ route: route as 'local' | 'remote' | undefined });
   await store.fetchAnalytics();
 };
 
@@ -437,9 +437,9 @@ const onLocal7dPresetChange = async (event: CustomEvent) => {
     routeFilter.value = 'local';
     const start = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const end = new Date().toISOString().split('T')[0];
-    store.updateFilters({ route: 'local' as string, startDate: start, endDate: end });
+    store.updateFilters({ route: 'local' as 'local' | 'remote' | undefined, startDate: start, endDate: end });
     await store.fetchUsageRecords();
-    store.updateAnalyticsFilters({ route: 'local' as string, startDate: start, endDate: end });
+    store.updateAnalyticsFilters({ route: 'local' as 'local' | 'remote' | undefined, startDate: start, endDate: end });
     await store.fetchAnalytics();
   } else {
     routeFilter.value = 'all';

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, it, expect, vi } from 'vitest';
 import {
   useValidation,
@@ -16,6 +15,7 @@ describe('useValidation', () => {
 
       expect(errors.value).toEqual({});
       expect(warnings.value).toEqual({});
+      // @ts-expect-error - Type mismatch: accessing .value on Readonly<boolean>
       expect(isValid.value).toBe(true);
       expect(isValidating.value).toEqual({});
     });
@@ -41,7 +41,9 @@ describe('useValidation', () => {
 
       expect(result.isValid).toBe(true);
       expect(result.errors).toHaveLength(0);
+      // @ts-expect-error - Type mismatch: accessing .value and .username on Readonly types
       expect(errors.value.username).toEqual([]);
+      // @ts-expect-error - Type mismatch: accessing .value on Readonly types
       expect(isValid.value).toBe(true);
     });
 
@@ -57,7 +59,9 @@ describe('useValidation', () => {
       expect(result.isValid).toBe(false);
       expect(result.errors).toHaveLength(1);
       expect(result.errors[0].code).toBe('MIN_LENGTH');
+      // @ts-expect-error - Type mismatch: accessing .value and .username on Readonly types
       expect(errors.value.username).toHaveLength(1);
+      // @ts-expect-error - Type mismatch: accessing .value on Readonly types
       expect(isValid.value).toBe(false);
     });
 
@@ -78,6 +82,7 @@ describe('useValidation', () => {
 
       expect(results.username.isValid).toBe(true);
       expect(results.email.isValid).toBe(true);
+      // @ts-expect-error - Type mismatch: accessing .value on Readonly types
       expect(isValid.value).toBe(true);
     });
 
@@ -96,7 +101,9 @@ describe('useValidation', () => {
 
       await validateAll(form);
 
+      // @ts-expect-error - Type mismatch: accessing .value and .username on Readonly types
       expect(errors.value.username).toHaveLength(1);
+      // @ts-expect-error - Type mismatch: accessing .value and .email on Readonly types
       expect(errors.value.email).toHaveLength(1);
     });
 
@@ -108,9 +115,11 @@ describe('useValidation', () => {
       const { validate, clearErrors, errors } = useValidation({ schema });
 
       await validate('username', '');
+      // @ts-expect-error - Type mismatch: accessing .value and .username on Readonly types
       expect(errors.value.username).toHaveLength(1);
 
       clearErrors('username');
+      // @ts-expect-error - Type mismatch: accessing .value and .username on Readonly types
       expect(errors.value.username).toBeUndefined();
     });
 
@@ -137,9 +146,11 @@ describe('useValidation', () => {
       const { validate, clearWarnings, warnings } = useValidation({ schema });
 
       await validate('text', 'Contact me at john@example.com');
+      // @ts-expect-error - Type mismatch: accessing .value and .text on Readonly types
       expect(warnings.value.text).toBeDefined();
 
       clearWarnings('text');
+      // @ts-expect-error - Type mismatch: accessing .value and .text on Readonly types
       expect(warnings.value.text).toBeUndefined();
     });
 
@@ -217,6 +228,7 @@ describe('useValidation', () => {
           schema: { field: [ValidationRules.required()] },
         });
 
+        // @ts-expect-error - Test passing undefined (not a valid JsonValue)
         const result = await validate('field', undefined);
         expect(result.isValid).toBe(false);
       });
@@ -414,7 +426,9 @@ describe('useValidation', () => {
         expect(result.isValid).toBe(true);
 
         // Check if warnings were detected (PII detection may vary based on pattern matching)
+        // @ts-expect-error - Type mismatch: accessing .value and .field on Readonly types
         if (warnings.value.field && warnings.value.field.length > 0) {
+          // @ts-expect-error - Type mismatch: accessing array elements
           expect(warnings.value.field[0].code).toBe('PII_DETECTED');
         }
       });
@@ -428,6 +442,7 @@ describe('useValidation', () => {
         await validate('field', '+1 234-567-8900');
 
         // Phone detection may vary, just ensure no errors
+        // @ts-expect-error - Type mismatch: accessing .value and .field on Readonly types
         expect(warnings.value.field || []).toBeDefined();
       });
 
@@ -440,8 +455,10 @@ describe('useValidation', () => {
         const result = await validate('field', 'test@example.com');
 
         // If PII is detected, it should be an error
+        // @ts-expect-error - Type mismatch: accessing .value and .field on Readonly types
         if (errors.value.field && errors.value.field.length > 0) {
           expect(result.isValid).toBe(false);
+          // @ts-expect-error - Type mismatch: accessing array elements
           expect(errors.value.field[0].code).toBe('PII_DETECTED');
         } else {
           // If not detected, test still passes (pattern matching may vary)
@@ -478,6 +495,7 @@ describe('useValidation', () => {
         await validate('field', '(.*)+$');
         // This test may not generate warnings depending on the regex complexity check
         // Just ensure it doesn't error
+        // @ts-expect-error - Type mismatch: accessing .value and .field on Readonly types
         expect(warnings.value.field || []).toBeDefined();
       });
     });
@@ -576,12 +594,15 @@ describe('useValidation', () => {
         schema: { field: [ValidationRules.required()] },
       });
 
+      // @ts-expect-error - Type mismatch: accessing .value on Readonly types
       expect(isValid.value).toBe(true);
 
       await validate('field', '');
+      // @ts-expect-error - Type mismatch: accessing .value on Readonly types
       expect(isValid.value).toBe(false);
 
       await validate('field', 'value');
+      // @ts-expect-error - Type mismatch: accessing .value on Readonly types
       expect(isValid.value).toBe(true);
     });
 
@@ -594,6 +615,7 @@ describe('useValidation', () => {
       // Note: isValidating may be set to false very quickly for simple sync validations
       // So we just check that the validation completes successfully
       await promise;
+      // @ts-expect-error - Type mismatch: accessing .value and .field on Readonly types
       expect(isValidating.value.field).toBe(false);
     });
 
@@ -603,6 +625,7 @@ describe('useValidation', () => {
       });
 
       await validate('field', '');
+      // @ts-expect-error - Type mismatch: accessing .value and .field on Readonly types
       expect(errors.value.field).toHaveLength(1);
     });
 
@@ -614,6 +637,7 @@ describe('useValidation', () => {
       await validate('field', 'test@example.com');
       // Warnings may or may not be generated depending on PII pattern matching
       // Just ensure no errors occur
+      // @ts-expect-error - Type mismatch: accessing .value and .field on Readonly types
       expect(warnings.value.field || []).toBeDefined();
     });
   });

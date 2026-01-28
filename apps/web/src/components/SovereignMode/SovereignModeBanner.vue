@@ -18,11 +18,11 @@
     </div>
     
     <!-- Dismissible banner -->
-    <button 
-      v-if="dismissible" 
+    <button
+      v-if="dismissible"
       @click="$emit('dismiss')"
       class="sovereign-banner__dismiss"
-      :title="$t ? $t('sovereignMode.dismissBanner') : 'Dismiss banner'"
+      title="Dismiss banner"
     >
       ×
     </button>
@@ -55,16 +55,15 @@ defineEmits<{
   dismiss: [];
 }>();
 
-const sovereignPolicyStore = usePrivacyStore();
+const privacyStore = usePrivacyStore();
 
 // Computed properties
 const shouldShow = computed(() => {
   if (props.forceShow) return true;
-  
+
   // Show banner for important policy states
-  return sovereignPolicyStore.policy?.enforced || 
-         sovereignPolicyStore.effectiveSovereignMode ||
-         sovereignPolicyStore.policyWarnings.length > 0;
+  return privacyStore.sovereignPolicy?.enforced ||
+         privacyStore.effectiveSovereignMode;
 });
 
 const icon = computed(() => {
@@ -76,63 +75,59 @@ const icon = computed(() => {
     case 'success':
       return '✅';
     default:
-      return sovereignPolicyStore.effectiveSovereignMode ? '🛡️' : 'ℹ️';
+      return privacyStore.effectiveSovereignMode ? '🛡️' : 'ℹ️';
   }
 });
 
 const title = computed(() => {
   if (props.customTitle) return props.customTitle;
-  
-  if (sovereignPolicyStore.policy?.enforced) {
+
+  if (privacyStore.sovereignPolicy?.enforced) {
     return 'Sovereign Mode Enforced';
   }
-  
-  if (sovereignPolicyStore.effectiveSovereignMode) {
+
+  if (privacyStore.effectiveSovereignMode) {
     return 'Sovereign Mode Active';
   }
-  
+
   return 'Sovereign Mode Available';
 });
 
 const description = computed(() => {
   if (props.customDescription) return props.customDescription;
-  
-  if (sovereignPolicyStore.policy?.enforced) {
+
+  if (privacyStore.sovereignPolicy?.enforced) {
     return 'Your organization requires all AI processing to use local models only. External providers are not available.';
   }
-  
-  if (sovereignPolicyStore.effectiveSovereignMode) {
+
+  if (privacyStore.effectiveSovereignMode) {
     return 'All AI processing is using local models for enhanced privacy and data sovereignty.';
   }
-  
-  if (sovereignPolicyStore.policyWarnings.length > 0) {
-    return sovereignPolicyStore.policyWarnings[0];
-  }
-  
+
   return 'You can enable sovereign mode to use only local models for enhanced privacy.';
 });
 
 const statusText = computed(() => {
-  return sovereignPolicyStore.effectiveSovereignMode ? 'ACTIVE' : 'INACTIVE';
+  return privacyStore.effectiveSovereignMode ? 'ACTIVE' : 'INACTIVE';
 });
 
 const bannerClasses = computed(() => {
   const classes = [`sovereign-banner--${props.variant}`];
-  
-  if (sovereignPolicyStore.effectiveSovereignMode) {
+
+  if (privacyStore.effectiveSovereignMode) {
     classes.push('sovereign-banner--active');
   }
-  
+
   if (props.dismissible) {
     classes.push('sovereign-banner--dismissible');
   }
-  
+
   return classes;
 });
 
 const statusBadgeClasses = computed(() => {
-  return sovereignPolicyStore.effectiveSovereignMode 
-    ? 'sovereign-banner__status-badge--active' 
+  return privacyStore.effectiveSovereignMode
+    ? 'sovereign-banner__status-badge--active'
     : 'sovereign-banner__status-badge--inactive';
 });
 </script>

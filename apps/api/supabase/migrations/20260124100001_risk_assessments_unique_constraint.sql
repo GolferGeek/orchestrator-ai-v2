@@ -13,10 +13,18 @@ WHERE a.id NOT IN (
     created_at DESC
 );
 
--- Add unique constraint to prevent future duplicates
-ALTER TABLE risk.assessments
-ADD CONSTRAINT assessments_subject_dimension_unique
-UNIQUE (subject_id, dimension_id);
+-- Add unique constraint to prevent future duplicates (if not exists)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'assessments_subject_dimension_unique'
+  ) THEN
+    ALTER TABLE risk.assessments
+    ADD CONSTRAINT assessments_subject_dimension_unique
+    UNIQUE (subject_id, dimension_id);
+  END IF;
+END $$;
 
 -- Add comment explaining the constraint
 COMMENT ON CONSTRAINT assessments_subject_dimension_unique ON risk.assessments IS

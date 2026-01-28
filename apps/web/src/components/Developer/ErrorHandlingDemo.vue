@@ -76,7 +76,7 @@
               fill="outline"
               expand="block"
             >
-              <ion-icon :icon="alertTriangleOutline" slot="start" />
+              <ion-icon :icon="triangleOutline" slot="start" />
               Promise Rejection
             </ion-button>
             
@@ -300,7 +300,7 @@ import {
 } from '@ionic/vue';
 import {
   bugOutline,
-  alertTriangleOutline,
+  triangleOutline,
   cloudOfflineOutline,
   serverOutline,
   documentOutline,
@@ -332,8 +332,8 @@ const errorStats = computed(() => errorStore.errorStats);
 const recentErrors = computed(() => errorStore.errors.slice(0, 10));
 
 const loggerStatus = computed(() => ({
-  enabled: errorLoggerService.isLoggingEnabled(),
-  retryQueue: errorLoggerService.getRetryQueueStatus()
+  enabled: errorLoggerService.value?.isLoggingEnabled() ?? false,
+  retryQueue: errorLoggerService.value?.getRetryQueueStatus() ?? { count: 0, isProcessing: false }
 }));
 
 // Error testing methods
@@ -406,11 +406,11 @@ const clearAllErrors = () => {
 // Logger management
 const toggleLogging = (event: CustomEvent) => {
   const enabled = event.detail.checked;
-  errorLoggerService.setEnabled(enabled);
+  errorLoggerService.value?.setEnabled(enabled);
 };
 
 const processRetryQueue = async () => {
-  await errorLoggerService.processRetryQueue();
+  await errorLoggerService.value?.processRetryQueue();
 };
 
 // Error boundary event handlers
@@ -418,7 +418,7 @@ const onBoundaryError = (_error: Error) => {
   hasBoundaryError.value = true;
 };
 
-const onBoundaryRetry = (_attempt: number) => {
+const onBoundaryRetry = (_attempt?: number) => {
   hasBoundaryError.value = false;
 };
 
@@ -429,7 +429,7 @@ const getErrorIcon = (type: string) => {
     case 'network': return cloudOfflineOutline;
     case 'chunk-load': return documentOutline;
     case 'component': return bugOutline;
-    case 'validation': return alertTriangleOutline;
+    case 'validation': return triangleOutline;
     default: return warningOutline;
   }
 };

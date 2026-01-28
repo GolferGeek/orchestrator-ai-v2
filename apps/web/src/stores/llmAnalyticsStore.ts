@@ -20,16 +20,17 @@ import {
   PerformanceMetrics,
   CostAnalysis,
   LLMUsageStatsRequest,
-  LLMUsageRecordsRequest
+  LLMUsageRecordsRequest,
+  LLMUsageRecord as MonitoringUsageRecord
 } from '@/types/llm-monitoring';
 
-// Legacy types from llmUsageService (to be deprecated)
+// Legacy types from llmAnalyticsService
 import type {
   LlmUsageRecord,
   LlmUsageFilters,
   LlmAnalytics,
   LlmStats
-} from '@/services/llmUsageService';
+} from '@/services/llmAnalyticsService';
 
 export const useLLMAnalyticsStore = defineStore('llmAnalytics', () => {
   // =====================================
@@ -80,56 +81,56 @@ export const useLLMAnalyticsStore = defineStore('llmAnalytics', () => {
   });
 
   // Auto-refresh functionality
-  const autoRefreshInterval = ref<number | null>(null);
+  const autoRefreshInterval = ref<ReturnType<typeof setInterval> | null>(null);
 
   // =====================================
   // COMPUTED PROPERTIES
   // =====================================
 
   const totalCost = computed(() => {
-    return usageRecords.value.reduce((sum, record) => {
+    return usageRecords.value.reduce((sum: number, record: LlmUsageRecord) => {
       return sum + (record.total_cost || 0);
     }, 0);
   });
 
   const successRate = computed(() => {
     if (usageRecords.value.length === 0) return 0;
-    const successful = usageRecords.value.filter(r => r.status === 'completed').length;
+    const successful = usageRecords.value.filter((r: LlmUsageRecord) => r.status === 'completed').length;
     return (successful / usageRecords.value.length) * 100;
   });
 
   const avgDuration = computed(() => {
-    const recordsWithDuration = usageRecords.value.filter(r => r.duration_ms !== null);
+    const recordsWithDuration = usageRecords.value.filter((r: LlmUsageRecord) => r.duration_ms !== null);
     if (recordsWithDuration.length === 0) return 0;
 
-    const totalDuration = recordsWithDuration.reduce((sum, r) => sum + (r.duration_ms || 0), 0);
+    const totalDuration = recordsWithDuration.reduce((sum: number, r: LlmUsageRecord) => sum + (r.duration_ms || 0), 0);
     return totalDuration / recordsWithDuration.length;
   });
 
   const callerTypes = computed(() => {
-    const types = new Set(usageRecords.value.map(r => r.caller_type));
+    const types = new Set(usageRecords.value.map((r: LlmUsageRecord) => r.caller_type));
     return Array.from(types).sort();
   });
 
   const callerNames = computed(() => {
-    const names = new Set(usageRecords.value.map(r => r.caller_name));
+    const names = new Set(usageRecords.value.map((r: LlmUsageRecord) => r.caller_name));
     return Array.from(names).sort();
   });
 
   const providers = computed(() => {
-    const providers = new Set(usageRecords.value.map(r => r.provider_name));
+    const providers = new Set(usageRecords.value.map((r: LlmUsageRecord) => r.provider_name));
     return Array.from(providers).sort();
   });
 
   const models = computed(() => {
-    const models = new Set(usageRecords.value.map(r => r.model_name));
+    const models = new Set(usageRecords.value.map((r: LlmUsageRecord) => r.model_name));
     return Array.from(models).sort();
   });
 
   // Additional computed properties from llmMonitoringStore
   const availableProviders = computed(() => {
     const providerSet = new Set<string>();
-    usageRecords.value.forEach(record => {
+    usageRecords.value.forEach((record: LlmUsageRecord) => {
       if (record.provider_name) {
         providerSet.add(record.provider_name);
       }
@@ -139,7 +140,7 @@ export const useLLMAnalyticsStore = defineStore('llmAnalytics', () => {
 
   const availableModels = computed(() => {
     const modelSet = new Set<string>();
-    usageRecords.value.forEach(record => {
+    usageRecords.value.forEach((record: LlmUsageRecord) => {
       if (record.model_name) {
         modelSet.add(record.model_name);
       }
@@ -227,7 +228,7 @@ export const useLLMAnalyticsStore = defineStore('llmAnalytics', () => {
     error.value = null;
 
     try {
-      const response = await llmAnalyticsService.getUsageStatsNew(request);
+      const response = await llmAnalyticsService.getUsageStats(request);
       if (response.success) {
         usageStats.value = response.data;
         lastUpdated.value = new Date();
@@ -248,7 +249,7 @@ export const useLLMAnalyticsStore = defineStore('llmAnalytics', () => {
     error.value = null;
 
     try {
-      const response = await llmAnalyticsService.getUsageRecordsNew({
+      const response = await llmAnalyticsService.getUsageRecordsPaginated({
         ...request,
         limit: usageRecordsLimit.value,
         offset: (usageRecordsPage.value - 1) * usageRecordsLimit.value
@@ -256,7 +257,7 @@ export const useLLMAnalyticsStore = defineStore('llmAnalytics', () => {
 
       if (response.success) {
         // Map new format to legacy format for compatibility
-        usageRecords.value = response.data.records.map((record): LlmUsageRecord => ({
+        usageRecords.value = response.data.records.map((record: MonitoringUsageRecord): LlmUsageRecord => ({
           id: record.id,
           run_id: record.id,
           user_id: record.userId ?? null,
@@ -281,7 +282,7 @@ export const useLLMAnalyticsStore = defineStore('llmAnalytics', () => {
           total_cost: record.metrics.cost ?? null,
           duration_ms: record.metrics.responseTime ?? null,
           started_at: record.createdAt,
-          completed_at: record.completedAt,
+          completed_at: record.completedAt ?? null,
           error_message: record.errorMessage ?? null,
           created_at: record.createdAt,
           updated_at: record.completedAt ?? record.createdAt,

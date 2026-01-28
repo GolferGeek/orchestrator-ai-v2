@@ -66,7 +66,7 @@
                 interface="popover"
                 @ion-change="applyFilters"
               >
-                <ion-select-option value="">All Routes</ion-select-option>
+                <ion-select-option :value="undefined">All Routes</ion-select-option>
                 <ion-select-option value="local">Local</ion-select-option>
                 <ion-select-option value="remote">Remote</ion-select-option>
               </ion-select>
@@ -360,7 +360,7 @@ import {
 } from 'ionicons/icons';
 
 import { useLLMAnalyticsStore } from '@/stores/llmAnalyticsStore';
-import { llmAnalyticsService } from '@/services/llmAnalyticsService';
+import { llmAnalyticsService, type LlmAnalytics } from '@/services/llmAnalyticsService';
 // import { useAnalyticsStore } from '@/stores/analyticsStore';
 // import { useLLMHealthStore } from '@/stores/llmHealthStore';
 import { storeToRefs } from 'pinia';
@@ -370,11 +370,11 @@ const store = useLLMAnalyticsStore();
 // const analyticsStore = useAnalyticsStore();
 
 // Reactive data
-const localFilters = ref<{ startDate: string; endDate: string; callerType: string; route: '' | 'local' | 'remote' }>({
+const localFilters = ref<{ startDate: string; endDate: string; callerType: string; route?: 'local' | 'remote' }>({
   startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
   endDate: new Date().toISOString().split('T')[0],
   callerType: '',
-  route: ''
+  route: undefined
 });
 
 const local7dPresetEnabled = ref(false);
@@ -383,29 +383,29 @@ const local7dPresetEnabled = ref(false);
 const { analytics, loading, callerTypes } = storeToRefs(store);
 
 const totalRequests = computed(() => {
-  return analytics.value?.reduce((sum, item) => sum + item.total_requests, 0) || 0;
+  return analytics.value?.reduce((sum: number, item: LlmAnalytics) => sum + item.total_requests, 0) || 0;
 });
 
 const totalCost = computed(() => {
-  return analytics.value?.reduce((sum, item) => sum + item.total_cost, 0) || 0;
+  return analytics.value?.reduce((sum: number, item: LlmAnalytics) => sum + item.total_cost, 0) || 0;
 });
 
 const overallSuccessRate = computed(() => {
   if (totalRequests.value === 0) return 0;
-  const totalSuccessful = analytics.value?.reduce((sum, item) => sum + item.successful_requests, 0) || 0;
+  const totalSuccessful = analytics.value?.reduce((sum: number, item: LlmAnalytics) => sum + item.successful_requests, 0) || 0;
   return Math.round((totalSuccessful / totalRequests.value) * 100);
 });
 
 const avgDuration = computed(() => {
   if (!analytics.value || analytics.value.length === 0) return NaN;
-  const recordsWithDuration = analytics.value.filter(item => item.avg_duration_ms != null && !isNaN(item.avg_duration_ms));
+  const recordsWithDuration = analytics.value.filter((item: LlmAnalytics) => item.avg_duration_ms != null && !isNaN(item.avg_duration_ms));
   if (recordsWithDuration.length === 0) return NaN;
-  const totalDuration = recordsWithDuration.reduce((sum, item) => sum + (item.avg_duration_ms || 0), 0);
+  const totalDuration = recordsWithDuration.reduce((sum: number, item: LlmAnalytics) => sum + (item.avg_duration_ms || 0), 0);
   return totalDuration / recordsWithDuration.length;
 });
 
 const chartData = computed(() => {
-  return analytics.value?.filter(item => item.date).sort((a, b) => {
+  return analytics.value?.filter((item: LlmAnalytics) => item.date).sort((a: LlmAnalytics, b: LlmAnalytics) => {
     const dateA = a.date || '';
     const dateB = b.date || '';
     return dateA.localeCompare(dateB);
@@ -413,7 +413,7 @@ const chartData = computed(() => {
 });
 
 const maxRequests = computed(() => {
-  return Math.max(...(analytics.value?.map(item => item.total_requests) || []), 1);
+  return Math.max(...(analytics.value?.map((item: LlmAnalytics) => item.total_requests) || []), 1);
 });
 
 interface AnalyticsDataPoint {
@@ -429,7 +429,7 @@ const routeLocalCounts = computed<Record<string, number>>(() => {
   const map: Record<string, number> = {};
   for (const item of localAnalytics.value || []) {
     if (!item?.date) continue;
-    map[item.date] = (map[item.date] || 0) + (item.total_requests || 0);
+    map[item.date] = (map[item.date] || 0) + ((item as AnalyticsDataPoint & { total_requests?: number }).total_requests || 0);
   }
   return map;
 });
@@ -438,7 +438,7 @@ const routeRemoteCounts = computed<Record<string, number>>(() => {
   const map: Record<string, number> = {};
   for (const item of remoteAnalytics.value || []) {
     if (!item?.date) continue;
-    map[item.date] = (map[item.date] || 0) + (item.total_requests || 0);
+    map[item.date] = (map[item.date] || 0) + ((item as AnalyticsDataPoint & { total_requests?: number }).total_requests || 0);
   }
   return map;
 });
@@ -460,9 +460,16 @@ const routeMax = computed(() => {
 });
 
 const callerTypeBreakdown = computed(() => {
-  const breakdown = new Map();
-  
-  analytics.value?.forEach(item => {
+  const breakdown = new Map<string, {
+    callerType: string;
+    totalRequests: number;
+    successfulRequests: number;
+    totalCost: number;
+    totalDuration: number;
+    count: number;
+  }>();
+
+  analytics.value?.forEach((item: LlmAnalytics) => {
     if (!breakdown.has(item.caller_type)) {
       breakdown.set(item.caller_type, {
         callerType: item.caller_type,
@@ -473,15 +480,15 @@ const callerTypeBreakdown = computed(() => {
         count: 0
       });
     }
-    
-    const entry = breakdown.get(item.caller_type);
+
+    const entry = breakdown.get(item.caller_type)!;
     entry.totalRequests += item.total_requests || 0;
     entry.successfulRequests += item.successful_requests || 0;
     entry.totalCost += item.total_cost || 0;
     entry.totalDuration += item.avg_duration_ms || 0;
     entry.count++;
   });
-  
+
   return Array.from(breakdown.values())
     .filter(entry => entry.totalRequests > 0) // Only show entries with actual requests
     .map(entry => ({
@@ -493,11 +500,11 @@ const callerTypeBreakdown = computed(() => {
 });
 
 const localRequests = computed(() => {
-  return analytics.value?.reduce((sum, item) => sum + item.local_requests, 0) || 0;
+  return analytics.value?.reduce((sum: number, item: LlmAnalytics) => sum + item.local_requests, 0) || 0;
 });
 
 const externalRequests = computed(() => {
-  return analytics.value?.reduce((sum, item) => sum + item.external_requests, 0) || 0;
+  return analytics.value?.reduce((sum: number, item: LlmAnalytics) => sum + item.external_requests, 0) || 0;
 });
 
 const localPercentage = computed(() => {
@@ -511,11 +518,11 @@ const externalPercentage = computed(() => {
 });
 
 const totalInputTokens = computed(() => {
-  return analytics.value?.reduce((sum, item) => sum + item.total_input_tokens, 0) || 0;
+  return analytics.value?.reduce((sum: number, item: LlmAnalytics) => sum + item.total_input_tokens, 0) || 0;
 });
 
 const totalOutputTokens = computed(() => {
-  return analytics.value?.reduce((sum, item) => sum + item.total_output_tokens, 0) || 0;
+  return analytics.value?.reduce((sum: number, item: LlmAnalytics) => sum + item.total_output_tokens, 0) || 0;
 });
 
 const avgInputTokens = computed(() => {
@@ -601,12 +608,12 @@ onMounted(() => {
   fetchRouteTrend(localFilters.value);
 });
 
-async function fetchRouteTrend(base: { startDate?: string; endDate?: string; callerType?: string; route?: 'local' | 'remote' | '' }) {
+async function fetchRouteTrend(base: { startDate?: string; endDate?: string; callerType?: string; route?: 'local' | 'remote' }) {
   const { startDate, endDate, callerType } = base || {};
   // Local
-  localAnalytics.value = await llmAnalyticsService.getUsageAnalytics({ startDate, endDate, callerType, route: 'local' });
+  localAnalytics.value = await llmAnalyticsService.getUsageAnalytics({ startDate, endDate, callerType, route: 'local' }) as unknown as AnalyticsDataPoint[];
   // Remote
-  remoteAnalytics.value = await llmAnalyticsService.getUsageAnalytics({ startDate, endDate, callerType, route: 'remote' });
+  remoteAnalytics.value = await llmAnalyticsService.getUsageAnalytics({ startDate, endDate, callerType, route: 'remote' }) as unknown as AnalyticsDataPoint[];
 }
 
 const onLocal7dPresetChange = async (event: CustomEvent) => {
@@ -622,7 +629,7 @@ const onLocal7dPresetChange = async (event: CustomEvent) => {
     // Reset to default filters when unchecked
     localFilters.value.startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     localFilters.value.endDate = new Date().toISOString().split('T')[0];
-    localFilters.value.route = '';
+    localFilters.value.route = undefined;
     applyFilters();
   }
 };

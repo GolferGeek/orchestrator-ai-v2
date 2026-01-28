@@ -98,11 +98,11 @@ export interface FlatHierarchyData {
   id: string;
   name: string;
   type: string;
-  agentType?: string;
+  agentType?: string | null;
   parentId?: string | null;
-  organizationSlug?: string;
-  metadata?: AgentNodeMetadata;
-  [key: string]: JsonValue;
+  organizationSlug?: string | null;
+  metadata?: JsonObject;
+  [key: string]: JsonValue | undefined;
 }
 
 // =====================================

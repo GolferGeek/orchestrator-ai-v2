@@ -52,8 +52,8 @@
           </div>
           <div class="stat-item">
             <span class="stat-label">Memory</span>
-            <span class="stat-value" :class="getMemoryPressureClass(memoryStats.memoryPressure)">
-              {{ memoryStats.usagePercent }}%
+            <span class="stat-value" :class="memoryStats ? getMemoryPressureClass(memoryStats.memoryPressure) : ''">
+              {{ memoryStats?.usagePercent ?? 0 }}%
             </span>
           </div>
         </div>
@@ -68,7 +68,7 @@
           </div>
         </div>
         
-        <div class="connection-details" v-if="ollamaConnected">
+        <div class="connection-details" v-if="ollamaConnected && memoryStats">
           <div class="detail-item">
             <span class="detail-label">Loaded Models</span>
             <span class="detail-value">{{ memoryStats.loadedModels }}</span>
@@ -364,27 +364,29 @@ export default defineComponent({
       }
     },
     
-    processStatusData(data: { system: { ollamaConnected: boolean }; memory: { currentUsageGB: number; totalAllocatedGB: number }; activeAlerts: unknown[]; loadedModels: Array<{ tier?: string; [key: string]: unknown }> }) {
+    processStatusData(data: { system: SystemHealth & { ollamaConnected: boolean }; memory: MemoryStats; activeAlerts: Alert[]; loadedModels: Array<{ tier?: string; name: string; responseTime?: number; size?: string; useCount?: number; isThreeTier?: boolean }> }) {
       this.ollamaConnected = data.system.ollamaConnected
-      this.systemHealth = data.system
-      this.memoryStats = {
-        ...data.memory,
-        currentUsageGB: data.memory.currentUsageGB,
-        totalAllocatedGB: data.memory.totalAllocatedGB
+      this.systemHealth = {
+        healthy: data.system.healthy,
+        modelsTotal: data.system.modelsTotal,
+        modelsHealthy: data.system.modelsHealthy,
+        modelsUnhealthy: data.system.modelsUnhealthy,
+        averageResponseTime: data.system.averageResponseTime
       }
+      this.memoryStats = data.memory
       this.activeAlerts = data.activeAlerts || []
       
       // Group models by tier
       const tierMap = new Map<string, ModelStatus[]>()
-      
-      data.loadedModels?.forEach((model: { tier?: string; [key: string]: unknown }) => {
+
+      data.loadedModels?.forEach((model) => {
         const tierName = model.tier || 'general'
         if (!tierMap.has(tierName)) {
           tierMap.set(tierName, [])
         }
-        
+
         tierMap.get(tierName)!.push({
-          name: model.name,
+          name: model.name as string,
           status: 'loaded',
           responseTime: model.responseTime,
           size: model.size,

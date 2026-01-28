@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createPinia } from 'pinia';
 import { videoService } from '@/services/videoService';
@@ -29,7 +28,7 @@ interface MockVideoService {
 
 describe('Agent Conversation Video Flow Integration', () => {
   let _pinia: ReturnType<typeof createPinia>;
-  const mockVideoService = videoService as MockVideoService;
+  const mockVideoService = videoService as unknown as MockVideoService;
 
   beforeEach(() => {
     _pinia = createPinia();

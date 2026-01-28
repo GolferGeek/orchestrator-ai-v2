@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Store Reactivity Tests
 // Tests for validating reactive state updates across modules
 // Updated for Phase 4.3 consolidated privacyStore
@@ -48,8 +47,8 @@ describe('Store Reactivity Tests', () => {
       expect(wrapper.find('[data-testid="loading-state"]').text()).toBe('true');
 
       // Add patterns
-      store.addPattern({ id: '1', name: 'Email', dataType: 'email', pattern: '.*@.*', enabled: true, isBuiltIn: true, category: 'contact' });
-      store.addPattern({ id: '2', name: 'Phone', dataType: 'phone', pattern: '\\d{10}', enabled: false, isBuiltIn: false, category: 'contact' });
+      store.addPattern({ id: '1', name: 'Email', dataType: 'email', pattern: '.*@.*', enabled: true, isBuiltIn: true, category: 'contact', description: 'Test pattern' });
+      store.addPattern({ id: '2', name: 'Phone', dataType: 'phone', pattern: '\\d{10}', enabled: false, isBuiltIn: false, category: 'contact', description: 'Test pattern' });
       await nextTick();
       expect(wrapper.find('[data-testid="pattern-count"]').text()).toBe('2');
 
@@ -68,9 +67,9 @@ describe('Store Reactivity Tests', () => {
       expect(store.patterns).toEqual([]);
 
       // Add patterns
-      store.addPattern({ id: '1', name: 'Email', dataType: 'email', pattern: '.*@.*', enabled: true, isBuiltIn: true, category: 'contact' });
-      store.addPattern({ id: '2', name: 'Phone', dataType: 'phone', pattern: '\\d{10}', enabled: false, isBuiltIn: false, category: 'contact' });
-      store.addPattern({ id: '3', name: 'Custom Email', dataType: 'email', pattern: '.*@company\\.com', enabled: true, isBuiltIn: false, category: 'contact' });
+      store.addPattern({ id: '1', name: 'Email', dataType: 'email', pattern: '.*@.*', enabled: true, isBuiltIn: true, category: 'contact', description: 'Test pattern' });
+      store.addPattern({ id: '2', name: 'Phone', dataType: 'phone', pattern: '\\d{10}', enabled: false, isBuiltIn: false, category: 'contact', description: 'Test pattern' });
+      store.addPattern({ id: '3', name: 'Custom Email', dataType: 'email', pattern: '.*@company\\.com', enabled: true, isBuiltIn: false, category: 'contact', description: 'Test pattern' });
 
       // Test computed properties
       expect(store.patterns).toHaveLength(3);
@@ -86,9 +85,9 @@ describe('Store Reactivity Tests', () => {
       const store = usePrivacyStore();
 
       // Add patterns
-      store.addPattern({ id: '1', name: 'Email', dataType: 'email', pattern: '.*@.*', enabled: true, category: 'contact', isBuiltIn: false });
-      store.addPattern({ id: '2', name: 'Phone', dataType: 'phone', pattern: '\\d{10}', enabled: true, category: 'contact', isBuiltIn: false });
-      store.addPattern({ id: '3', name: 'SSN', dataType: 'ssn', pattern: '\\d{3}-\\d{2}-\\d{4}', enabled: false, category: 'identity', isBuiltIn: false });
+      store.addPattern({ id: '1', name: 'Email', dataType: 'email', pattern: '.*@.*', enabled: true, category: 'contact', isBuiltIn: false, description: 'Test pattern' });
+      store.addPattern({ id: '2', name: 'Phone', dataType: 'phone', pattern: '\\d{10}', enabled: true, category: 'contact', isBuiltIn: false, description: 'Test pattern' });
+      store.addPattern({ id: '3', name: 'SSN', dataType: 'ssn', pattern: '\\d{3}-\\d{2}-\\d{4}', enabled: false, category: 'identity', isBuiltIn: false, description: 'Test pattern' });
 
       // Test initial count
       expect(store.patterns).toHaveLength(3);
@@ -118,7 +117,7 @@ describe('Store Reactivity Tests', () => {
       const trackEventSpy = vi.spyOn(analyticsStore, 'trackEvent');
 
       // Add a pattern
-      privacyStore.addPattern({ id: '1', name: 'Email', dataType: 'email', pattern: '.*@.*', enabled: true, isBuiltIn: false, category: 'contact' });
+      privacyStore.addPattern({ id: '1', name: 'Email', dataType: 'email', pattern: '.*@.*', enabled: true, isBuiltIn: false, category: 'contact', description: 'Test pattern' });
 
       // Simulate tracking the pattern creation
       analyticsStore.trackEvent('pii_pattern_created', 'privacy', 'create', 'email', 1, {
@@ -137,7 +136,7 @@ describe('Store Reactivity Tests', () => {
       // Simulate concurrent updates
       const updates = Promise.all([
         new Promise<boolean>(resolve => {
-          privacyStore.addPattern({ id: '1', name: 'Test', dataType: 'email', enabled: true, pattern: '.*', isBuiltIn: false, category: 'test' });
+          privacyStore.addPattern({ id: '1', name: 'Test', dataType: 'email', enabled: true, pattern: '.*', isBuiltIn: false, category: 'test', description: 'Test pattern' });
           resolve(true);
         }),
         new Promise<boolean>(resolve => {
@@ -169,7 +168,7 @@ describe('Store Reactivity Tests', () => {
       }
 
       // Update store state
-      store.addPattern({ id: '1', name: 'Test', dataType: 'email', enabled: true, pattern: '.*', isBuiltIn: false, category: 'test' });
+      store.addPattern({ id: '1', name: 'Test', dataType: 'email', enabled: true, pattern: '.*', isBuiltIn: false, category: 'test', description: 'Test pattern' });
 
       // Watchers should have been cleaned up, so no callbacks should be triggered
       expect(watcherCallbacks).toHaveLength(0);
@@ -189,7 +188,8 @@ describe('Store Reactivity Tests', () => {
           enabled: i % 2 === 0,
           pattern: `.*${i}`,
           isBuiltIn: false,
-          category: 'test'
+          category: 'test',
+          description: 'Test pattern'
         });
       }
 
@@ -207,7 +207,7 @@ describe('Store Reactivity Tests', () => {
       const store = usePrivacyStore();
 
       // Add initial state
-      store.addPattern({ id: '1', name: 'Email', dataType: 'email', pattern: '.*@.*', enabled: true, isBuiltIn: false, category: 'test' });
+      store.addPattern({ id: '1', name: 'Email', dataType: 'email', pattern: '.*@.*', enabled: true, isBuiltIn: false, category: 'test', description: 'Test pattern' });
 
       // Verify state
       expect(store.patterns).toHaveLength(1);
@@ -224,8 +224,8 @@ describe('Store Reactivity Tests', () => {
       const store = usePrivacyStore();
 
       // Add patterns
-      store.addPattern({ id: '1', name: 'Email', dataType: 'email', pattern: '.*@.*', enabled: true, isBuiltIn: true, category: 'contact' });
-      store.addPattern({ id: '2', name: 'Phone', dataType: 'phone', pattern: '\\d{10}', enabled: false, isBuiltIn: false, category: 'contact' });
+      store.addPattern({ id: '1', name: 'Email', dataType: 'email', pattern: '.*@.*', enabled: true, isBuiltIn: true, category: 'contact', description: 'Test pattern' });
+      store.addPattern({ id: '2', name: 'Phone', dataType: 'phone', pattern: '\\d{10}', enabled: false, isBuiltIn: false, category: 'contact', description: 'Test pattern' });
 
       // Verify state
       expect(store.patterns).toHaveLength(2);

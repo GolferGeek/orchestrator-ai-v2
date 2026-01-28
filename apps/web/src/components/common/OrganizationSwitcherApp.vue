@@ -30,12 +30,9 @@ import type { SelectCustomEvent } from '@ionic/vue';
 import { useRbacStore } from '@/stores/rbacStore';
 import { useEvaluationsStore } from '@/stores/evaluationsStore';
 import { useAdminEvaluationStore } from '@/stores/adminEvaluationStore';
-import { useDeliverablesStore } from '@/stores/deliverablesStore';
-
 const rbacStore = useRbacStore();
 const evaluationsStore = useEvaluationsStore();
 const adminEvaluationStore = useAdminEvaluationStore();
-const deliverablesStore = useDeliverablesStore();
 
 const availableOrgs = computed(() => rbacStore.userOrganizations || []);
 const currentOrg = computed(() => rbacStore.currentOrganization || 'demo-org');
@@ -67,20 +64,18 @@ async function onOrgChange(event: SelectCustomEvent) {
     try {
       const refreshPromises = [];
 
-      // Evaluations
-      if (evaluationsStore.refresh) {
-        refreshPromises.push(evaluationsStore.refresh());
+      // Evaluations - use refreshEvaluations if available
+      if ('refreshEvaluations' in evaluationsStore && typeof evaluationsStore.refreshEvaluations === 'function') {
+        refreshPromises.push(evaluationsStore.refreshEvaluations());
       }
 
-      // Admin evaluations
-      if (adminEvaluationStore.refresh) {
-        refreshPromises.push(adminEvaluationStore.refresh());
+      // Admin evaluations - use fetchAllEvaluations as refresh
+      if ('fetchAllEvaluations' in adminEvaluationStore && typeof adminEvaluationStore.fetchAllEvaluations === 'function') {
+        refreshPromises.push(adminEvaluationStore.fetchAllEvaluations());
       }
 
-      // Deliverables
-      if (deliverablesStore.refresh) {
-        refreshPromises.push(deliverablesStore.refresh());
-      }
+      // Deliverables - no refresh needed (state-only store)
+      // deliverablesStore is a state-only store without async refresh methods
 
       await Promise.all(refreshPromises);
       console.log('✅ Organization changed and stores refreshed');

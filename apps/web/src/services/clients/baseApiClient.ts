@@ -1,5 +1,7 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import { ApiClient, ApiEndpoint, ApiError, ApiResponse, ApiFeature } from '../../types/api';
+import type { ConversationHistoryEntry } from '../../types/conversation';
+import type { AgentInfo, TaskResponse } from '../../types/chat';
 export abstract class BaseApiClient implements ApiClient {
   protected axiosInstance: AxiosInstance;
   protected endpoint: ApiEndpoint;
@@ -52,11 +54,11 @@ export abstract class BaseApiClient implements ApiClient {
   }
   // Abstract methods that must be implemented by specific API clients
   abstract postTaskToOrchestrator(
-    userInputText: string, 
-    sessionId?: string | null, 
-    conversationHistory?: Array<{role: string, content: string, metadata?: unknown}>
-  ): Promise<unknown>;
-  abstract getAvailableAgents(): Promise<unknown[]>;
+    userInputText: string,
+    sessionId?: string | null,
+    conversationHistory?: ConversationHistoryEntry[]
+  ): Promise<TaskResponse>;
+  abstract getAvailableAgents(): Promise<AgentInfo[]>;
   // Concrete implementations
   getEndpointInfo(): ApiEndpoint {
     return { ...this.endpoint };
@@ -82,7 +84,7 @@ export abstract class BaseApiClient implements ApiClient {
       // Server responded with error status
       apiError.statusCode = error.response.status;
       apiError.message = this.extractErrorMessage(error.response.data);
-      apiError.details = error.response.data;
+      apiError.details = error.response.data as ApiError['details'];
       // Special handling for authentication errors
       if (error.response.status === 401) {
         apiError.message = 'Authentication failed. Please try logging in again.';
@@ -103,10 +105,11 @@ export abstract class BaseApiClient implements ApiClient {
     }
     if (data && typeof data === 'object') {
       // Try common error message fields
-      if (data.detail) return data.detail;
-      if (data.message) return data.message;
-      if (data.error) return data.error;
-      if (data.msg) return data.msg;
+      const errorObj = data as Record<string, unknown>;
+      if (errorObj.detail && typeof errorObj.detail === 'string') return errorObj.detail;
+      if (errorObj.message && typeof errorObj.message === 'string') return errorObj.message;
+      if (errorObj.error && typeof errorObj.error === 'string') return errorObj.error;
+      if (errorObj.msg && typeof errorObj.msg === 'string') return errorObj.msg;
     }
     return 'An unexpected error occurred';
   }

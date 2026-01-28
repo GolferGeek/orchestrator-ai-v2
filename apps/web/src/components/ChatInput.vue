@@ -27,9 +27,9 @@ import { Capacitor } from '@capacitor/core';
 const inputText = ref('');
 const isRecording = ref(false);
 const uiStore = useUiStore();
-// --- Web Speech API --- 
-// @ts-expect-error: SpeechRecognition may not be available in all browsers 
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+// --- Web Speech API ---
+// Note: SpeechRecognition may not be available in all browsers
+const SpeechRecognition = window.SpeechRecognition || (window as unknown as { webkitSpeechRecognition?: typeof window.SpeechRecognition }).webkitSpeechRecognition;
 let recognition: SpeechRecognition | null = null;
 const presentToast = async (message: string, duration: number = 2000, color: string = 'warning') => {
   const toast = await toastController.create({

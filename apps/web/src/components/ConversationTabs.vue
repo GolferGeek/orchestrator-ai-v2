@@ -28,12 +28,12 @@
         <!-- Conversation View (with modal-based deliverables/HITL) -->
         <ConversationView
           v-if="shouldUseTwoPaneView"
-          :conversation="activeConversation"
+          :conversation="activeConversation as AgentConversation"
         />
         <!-- Traditional Single-Pane Chat View -->
-        <AgentChatView 
+        <AgentChatView
           v-else
-          :conversation="activeConversation"
+          :conversation="activeConversation as AgentConversation"
           @send-message="handleSendMessage"
         />
       </div>
@@ -60,6 +60,7 @@ import { sendMessage as sendMessageAction, createPlan, createDeliverable } from 
 import { conversation as conversationHelpers } from '@/services/conversationHelpers';
 import AgentChatView from './AgentChatView.vue';
 import ConversationView from './ConversationView.vue';
+import type { AgentConversation } from '@/types/conversation';
 // const route = useRoute();
 const conversationsStore = useConversationsStore();
 const chatUiStore = useChatUiStore();
@@ -110,31 +111,52 @@ const switchToConversation = async (conversationId: string) => {
       agentsStore.setAvailableAgents(agents);
     }
 
-    const agent = agentsStore.availableAgents?.find(a => a.name === backendConversation.agentName);
+    const agentName = backendConversation.agentName || (backendConversation as unknown as Record<string, unknown>).agent as string | undefined;
+    const foundAgent = agentsStore.availableAgents?.find(a => a.name === agentName);
 
-    if (!agent) {
-      console.error('Agent not found for conversation:', backendConversation.agentName);
+    if (!foundAgent) {
+      console.error('Agent not found for conversation:', agentName);
       return;
     }
+
+    // Ensure agent has required type field for Agent interface
+    const agent = {
+      ...foundAgent,
+      type: foundAgent.type || 'custom'
+    };
 
     // Create the conversation object
     const createdAt = backendConversation.createdAt ? new Date(backendConversation.createdAt) : new Date();
     const loadedConversation = conversationHelpers.createConversationObject(agent, createdAt);
     loadedConversation.id = conversationId;
-    loadedConversation.agentName = backendConversation.agentName;
-    loadedConversation.agentType = backendConversation.agentType;
-    loadedConversation.organizationSlug = backendConversation.organizationSlug;
-    loadedConversation.title = backendConversation.title || loadedConversation.title;
+    loadedConversation.organizationSlug = (backendConversation as unknown as Record<string, unknown>).organizationSlug as string | undefined;
+    loadedConversation.title = ((backendConversation as unknown as Record<string, unknown>).title as string | undefined) || loadedConversation.title;
 
     // Add or update conversation in the store
+    // Convert AgentConversation to Conversation type for the store
+    const storeConversation = {
+      ...loadedConversation,
+      agentName: agent.name,
+      agentType: (agent.type as 'context' | 'function' | 'api' | 'orchestrator' | 'custom') || 'custom'
+    };
+
     if (existingConversation) {
-      conversationsStore.updateConversation(conversationId, loadedConversation);
+      conversationsStore.updateConversation(conversationId, storeConversation);
     } else {
-      conversationsStore.setConversation(loadedConversation);
+      conversationsStore.setConversation(storeConversation);
     }
 
     // Set messages separately (the store manages messages in a separate Map)
-    conversationsStore.setMessages(conversationId, messages);
+    // Convert AgentChatMessage[] to Message[]
+    const storeMessages = messages.map(msg => ({
+      id: msg.id,
+      conversationId: conversationId,
+      role: msg.role as 'user' | 'assistant' | 'system',
+      content: msg.content,
+      timestamp: msg.timestamp instanceof Date ? msg.timestamp.toISOString() : msg.timestamp,
+      metadata: msg.metadata
+    }));
+    conversationsStore.setMessages(conversationId, storeMessages);
 
     // Verify messages were set - accessing to trigger reactivity
     void conversationsStore.messagesByConversation(conversationId);

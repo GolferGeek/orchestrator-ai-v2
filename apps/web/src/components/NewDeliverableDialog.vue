@@ -154,9 +154,11 @@ import { agentsService } from '@/services/agentsService';
 import { useAuthStore } from '@/stores/rbacStore';
 // import { useConversationsStore } from '@/stores/conversationsStore';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
-import { /* migrated */ } from '@/stores/agentChatStore';
+// Migrated from agentChatStore - functionality moved to chatUiStore
 import { useContextStore } from '@/stores/contextStore';
 import { formatAgentDescription } from '@/utils/caseConverter';
+import { sendMessage } from '@/services/agent2agent/actions/converse.actions';
+import type { AgentInfo } from '@/types/chat';
 // Props
 interface Props {
   isOpen: boolean;
@@ -170,22 +172,22 @@ const emit = defineEmits<{
 // Stores
 const agentsStore = useAgentsStore();
 // const conversationsStore = useConversationsStore();
-const chatUiStore = useChatUiStore();
+const _chatUiStore = useChatUiStore();
 const contextStore = useContextStore();
 // Reactive state
-const selectedAgent = ref<Record<string, unknown> | null>(null);
+const selectedAgent = ref<AgentInfo | null>(null);
 const initialPrompt = ref('');
 const deliverableType = ref('');
 const deliverableFormat = ref('');
 // Computed properties
 const availableAgents = computed(() => {
   // Get agents from the store, excluding orchestrator agents for deliverable creation
-  if (!agentsStore.agents || !Array.isArray(agentsStore.agents)) {
+  if (!agentsStore.availableAgents || !Array.isArray(agentsStore.availableAgents)) {
     return [];
   }
-  return agentsStore.agents.filter(agent => 
-    agent.type !== 'orchestrator' && 
-    agent.name && 
+  return agentsStore.availableAgents.filter((agent) =>
+    agent.type !== 'orchestrator' &&
+    agent.name &&
     agent.description
   );
 });
@@ -202,25 +204,24 @@ const cleanAgentName = (name: string): string => {
   return cleanName || name;
 };
 const createDeliverable = async () => {
-  if (!canCreate.value) return;
+  if (!canCreate.value || !selectedAgent.value) return;
   try {
     // Create metadata for new deliverable creation
-    const metadata = contextStore.createNewDeliverableMetadata(
-      selectedAgent.value.type,
+    const baseMetadata = contextStore.createNewDeliverableMetadata(
+      selectedAgent.value.type || 'unknown',
       selectedAgent.value.name
     );
-    // Add optional deliverable options to metadata
-    if (deliverableType.value) {
-      metadata.deliverableType = deliverableType.value;
-    }
-    if (deliverableFormat.value) {
-      metadata.deliverableFormat = deliverableFormat.value;
-    }
-    // Send the creation request through the agent chat store
-    await chatUiStore.sendMessageWithContext(
-      initialPrompt.value.trim(),
-      metadata
-    );
+
+    // Extend metadata with optional deliverable options
+    const _extendedMetadata = {
+      ...baseMetadata,
+      ...(deliverableType.value && { deliverableType: deliverableType.value }),
+      ...(deliverableFormat.value && { deliverableFormat: deliverableFormat.value }),
+    };
+
+    // Send the creation request through the sendMessage action
+    // Note: The metadata will be used by the ExecutionContext to route the task
+    await sendMessage(initialPrompt.value.trim());
     // Reset form
     selectedAgent.value = null;
     initialPrompt.value = '';

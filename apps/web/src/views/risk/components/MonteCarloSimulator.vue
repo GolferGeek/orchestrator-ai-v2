@@ -594,9 +594,9 @@ async function runSimulation() {
       subjectId: props.subjectId,
     });
 
-    if (response.success && response.data) {
-      results.value = response.data.results;
-      emit('simulation-complete', response.data);
+    if (response.success && response.content) {
+      results.value = response.content.results;
+      emit('simulation-complete', response.content);
     } else {
       console.error('Simulation failed:', response.error);
     }
@@ -616,8 +616,8 @@ async function loadPastSimulations() {
       subjectId: props.subjectId,
       limit: 20,
     });
-    if (response.success && response.data) {
-      pastSimulations.value = response.data;
+    if (response.success && response.content) {
+      pastSimulations.value = response.content;
     }
   } catch (error) {
     console.error('Failed to load past simulations:', error);

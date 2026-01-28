@@ -498,7 +498,7 @@ async function loadSubjectDetails(subjectId: string, passedCompositeScore?: unkn
     
     store.setSelectedSubject({
       subject,
-      compositeScore: existingScore as ActiveCompositeScoreView | undefined,
+      compositeScore: existingScore ? (existingScore as ActiveCompositeScoreView) : null,
       assessments,
       debate: debateRes.success && debateRes.content ? debateRes.content : null,
       alerts: alertsRes.success && Array.isArray(alertsRes.content) ? alertsRes.content : [],

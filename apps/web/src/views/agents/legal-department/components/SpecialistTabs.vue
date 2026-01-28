@@ -33,8 +33,11 @@
       </div>
 
       <!-- Compliance Specialist -->
-      <div v-else-if="activeTab === 'compliance' && specialistOutputs?.compliance" class="tab-panel">
-        <ComplianceAnalysisDisplay :analysis="specialistOutputs.compliance" />
+      <div
+        v-else-if="activeTab === 'compliance' && specialistOutputs?.compliance"
+        class="tab-panel"
+      >
+        <ComplianceAnalysisDisplay :analysis="adaptComplianceAnalysis(specialistOutputs.compliance)" />
       </div>
 
       <!-- IP Specialist -->
@@ -101,7 +104,7 @@ import {
   hammerOutline,
   homeOutline,
 } from 'ionicons/icons';
-import type { SpecialistOutputs, SpecialistType, SpecialistStatus, RoutingDecision } from '../legalDepartmentTypes';
+import type { SpecialistOutputs, SpecialistType, SpecialistStatus, RoutingDecision, ComplianceAnalysisOutput } from '../legalDepartmentTypes';
 import ContractAnalysisDisplay from './ContractAnalysisDisplay.vue';
 import ComplianceAnalysisDisplay from './ComplianceAnalysisDisplay.vue';
 import IpAnalysisDisplay from './IpAnalysisDisplay.vue';
@@ -200,6 +203,27 @@ function getSpecialistStatus(slug: string): SpecialistStatus {
   }
 
   return 'pending';
+}
+
+// Adapter to convert ComplianceAnalysisOutput to the format expected by ComplianceAnalysisDisplay
+function adaptComplianceAnalysis(output: ComplianceAnalysisOutput | undefined): ComplianceAnalysisOutput | null {
+  if (!output) return null;
+
+  // Ensure all required fields are present
+  return {
+    policyChecks: output.policyChecks || {},
+    regulatoryCompliance: output.regulatoryCompliance || {
+      regulations: [],
+      status: 'not-applicable',
+      details: ''
+    },
+    riskFlags: output.riskFlags || [],
+    confidence: output.confidence || 0,
+    summary: output.summary || '',
+    ...(output.regulatoryFrameworks && { regulatoryFrameworks: output.regulatoryFrameworks }),
+    ...(output.complianceStatus && { complianceStatus: output.complianceStatus }),
+    ...(output.requirements && { requirements: output.requirements })
+  };
 }
 </script>
 

@@ -86,19 +86,19 @@
             </div>
             <div class="metadata-item" v-if="getLLMMetadata()?.temperature !== undefined">
               <span class="label">Temperature:</span>
-              <span class="value">{{ getLLMMetadata().temperature }}</span>
+              <span class="value">{{ getLLMMetadata()?.temperature }}</span>
             </div>
             <div class="metadata-item" v-if="getLLMMetadata()?.maxTokens">
               <span class="label">Max Tokens:</span>
-              <span class="value">{{ getLLMMetadata().maxTokens }}</span>
+              <span class="value">{{ getLLMMetadata()?.maxTokens }}</span>
             </div>
             <div class="metadata-item" v-if="getLLMMetadata()?.responseTimeMs">
               <span class="label">Response Time:</span>
-              <span class="value">{{ getLLMMetadata().responseTimeMs }}ms</span>
+              <span class="value">{{ getLLMMetadata()?.responseTimeMs }}ms</span>
             </div>
             <div class="metadata-item" v-if="getLLMMetadata()?.operationType">
               <span class="label">Operation Type:</span>
-              <span class="value">{{ getLLMMetadata().operationType }}</span>
+              <span class="value">{{ getLLMMetadata()?.operationType }}</span>
             </div>
           </div>
         </div>
@@ -108,15 +108,15 @@
           <div class="metadata-grid">
             <div class="metadata-item" v-if="getLLMMetadata()?.cidafmOptions?.activeStateModifiers?.length">
               <span class="label">State Modifiers:</span>
-              <span class="value">{{ getLLMMetadata().cidafmOptions.activeStateModifiers.join(', ') }}</span>
+              <span class="value">{{ getLLMMetadata()?.cidafmOptions?.activeStateModifiers?.join(', ') }}</span>
             </div>
             <div class="metadata-item" v-if="getLLMMetadata()?.cidafmOptions?.responseModifiers?.length">
               <span class="label">Response Modifiers:</span>
-              <span class="value">{{ getLLMMetadata().cidafmOptions.responseModifiers.join(', ') }}</span>
+              <span class="value">{{ getLLMMetadata()?.cidafmOptions?.responseModifiers?.join(', ') }}</span>
             </div>
             <div class="metadata-item" v-if="getLLMMetadata()?.cidafmOptions?.executedCommands?.length">
               <span class="label">Executed Commands:</span>
-              <span class="value">{{ getLLMMetadata().cidafmOptions.executedCommands.join(', ') }}</span>
+              <span class="value">{{ getLLMMetadata()?.cidafmOptions?.executedCommands?.join(', ') }}</span>
             </div>
           </div>
         </div>
@@ -265,6 +265,7 @@ import {
 import { closeOutline } from 'ionicons/icons';
 import { tasksService } from '../services/tasksService';
 import { useLLMPreferencesStore } from '../stores/llmPreferencesStore';
+import type { TaskDetail } from '../types/task';
 interface Props {
   isOpen: boolean;
   taskId: string;
@@ -273,7 +274,7 @@ const props = defineProps<Props>();
 const emit = defineEmits<{
   close: [];
 }>();
-const taskData = ref<Record<string, unknown> | null>(null);
+const taskData = ref<TaskDetail | null>(null);
 const isLoading = ref(false);
 const llmStore = useLLMPreferencesStore();
 const handleClose = () => {

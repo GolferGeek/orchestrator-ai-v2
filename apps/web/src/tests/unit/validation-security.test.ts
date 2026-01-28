@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Security-focused Validation Tests
  * Testing XSS prevention, SQL injection detection, and data sanitization
@@ -279,7 +278,8 @@ describe('Security Validation Tests', () => {
       
       // Should detect multiple types of attacks
       const errorCodes = result.errors.map(e => e.code);
-      expect(errorCodes.some(code => 
+      expect(errorCodes.some(code =>
+        // @ts-expect-error - Error codes from validation may be strings
         [ValidationCodes.XSS_DETECTED, ValidationCodes.SQL_INJECTION, ValidationCodes.PATH_TRAVERSAL].includes(code)
       )).toBe(true);
     });

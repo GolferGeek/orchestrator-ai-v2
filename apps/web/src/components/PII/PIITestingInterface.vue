@@ -67,7 +67,7 @@ Examples to try:
                 />
                 
                 <!-- Show highlighting results below instead of overlay -->
-                <div v-if="detectionResult?.matches.length > 0" class="detection-results">
+                <div v-if="detectionResult?.matches && detectionResult.matches.length > 0" class="detection-results">
                   <h4>Detected PII:</h4>
                   <div v-for="match in detectionResult.matches" :key="match.startIndex" class="pii-match">
                     <ion-chip :color="getDataTypeColor(match.dataType)">
@@ -157,21 +157,6 @@ Examples to try:
                             outline
                           >
                             {{ match.dataType }}
-                          </ion-chip>
-                          <ion-chip
-                            v-if="match.severity === 'showstopper'"
-                            color="danger"
-                            size="small"
-                          >
-                            <ion-icon :icon="warningOutline" size="small" />
-                            Showstopper
-                          </ion-chip>
-                          <ion-chip
-                            v-else-if="match.severity === 'flagger'"
-                            color="warning"
-                            size="small"
-                          >
-                            Flagger
                           </ion-chip>
                         </p>
                         <p class="match-details">
@@ -322,18 +307,22 @@ import {
   cardOutline,
   keyOutline,
   fingerPrintOutline,
-  warningOutline,
   informationCircleOutline
 } from 'ionicons/icons';
 
 import { piiService } from '@/services/piiService';
 import type { PIITestRequest, PIITestResponse, PIIDetectionResult, PIIDataType } from '@/types/pii';
 
+// Extended detection result with sanitization info
+interface ExtendedDetectionResult extends PIIDetectionResult {
+  sanitizationApplied?: boolean;
+}
+
 // Reactive state
 const inputText = ref('');
 const isDetecting = ref(false);
 const isInputFocused = ref(false);
-const detectionResult = ref<PIIDetectionResult | null>(null);
+const detectionResult = ref<ExtendedDetectionResult | null>(null);
 const detectionError = ref<string | null>(null);
 const lastDetectionTime = ref<number | null>(null);
 const textareaRef = ref();

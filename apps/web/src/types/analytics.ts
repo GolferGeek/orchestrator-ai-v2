@@ -1,7 +1,10 @@
 // Analytics and Reporting Types
 // Based on backend analytics endpoints and evaluation services
 
-import type { JsonValue, UnknownRecord } from './index';
+import type { JsonValue } from '@orchestrator-ai/transport-types';
+
+// Re-define UnknownRecord locally to avoid circular dependency
+export type UnknownRecord = Record<string, JsonValue>;
 
 // =====================================
 // BASIC ANALYTICS TYPES
@@ -84,7 +87,43 @@ export interface EvaluationAnalytics {
 }
 
 export interface WorkflowAnalytics {
-  workflowPerformance: Array<{
+  totalWorkflowsExecuted?: number;
+  averageCompletionRate?: number;
+  averageExecutionTime?: number;
+  averageStepsCompleted?: number;
+  stepPerformance?: Array<{
+    stepName: string;
+    averageDuration: number;
+    successRate: number;
+    failureRate: number;
+    totalExecutions: number;
+    executionCount: number;
+  }>;
+  commonFailures?: Array<{
+    stepName: string;
+    failureCount: number;
+    totalAttempts: number;
+    failureRate: number;
+    commonError: string;
+  }>;
+  durationDistribution?: Array<{
+    range: string;
+    count: number;
+  }>;
+  agentPerformance?: Array<{
+    agentName: string;
+    workflowCount: number;
+    successRate: number;
+    averageDuration: number;
+  }>;
+  recentActivity?: Array<{
+    workflowId: string;
+    agentName: string;
+    stepName?: string;
+    timestamp: string;
+    status: 'completed' | 'failed' | 'partial';
+  }>;
+  workflowPerformance?: Array<{
     stepName: string;
     averageDuration: number;
     successRate: number;
@@ -95,8 +134,13 @@ export interface WorkflowAnalytics {
     pattern: string;
     occurrences: number;
     impactRating: number;
+    stepName?: string;
+    failureRate?: number;
+    failureCount?: number;
+    totalAttempts?: number;
+    commonError?: string;
   }>;
-  workflowEfficiencyTrends: Array<{
+  workflowEfficiencyTrends?: Array<{
     date: string;
     averageSteps: number;
     averageDuration: number;
@@ -539,8 +583,8 @@ export interface ChartData {
 }
 
 export interface ChartTooltipCallbacks {
-  label?(context: unknown): string | number | undefined;
-  title?(context: unknown[]): string | undefined;
+  label?(context: unknown): unknown;
+  title?(...context: unknown[]): unknown;
   [key: string]: ((...args: unknown[]) => unknown) | undefined;
 }
 

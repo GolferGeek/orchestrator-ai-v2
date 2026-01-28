@@ -76,7 +76,10 @@ function validateAndExtract(response: unknown, action: string): ConverseResult {
     );
   }
 
-  return { ...content, metadata };
+  return {
+    ...content,
+    metadata: metadata as ConverseResult['metadata']
+  };
 }
 
 /**

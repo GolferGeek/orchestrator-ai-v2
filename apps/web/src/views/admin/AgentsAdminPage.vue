@@ -52,7 +52,7 @@
           v-model="searchQuery"
           placeholder="Search agents..."
           @ionInput="applyFilters"
-          debounce="300"
+          :debounce="300"
         />
       </div>
 
@@ -177,9 +177,9 @@
                 <span class="detail-label">Model</span>
                 <span class="detail-value mono">{{ selectedAgent.llm_config.model }}</span>
               </div>
-              <div class="detail-row" v-if="selectedAgent.llm_config.parameters?.temperature">
+              <div class="detail-row" v-if="getTemperature(selectedAgent.llm_config.parameters as Record<string, unknown>) !== undefined">
                 <span class="detail-label">Temperature</span>
-                <span class="detail-value">{{ selectedAgent.llm_config.parameters.temperature }}</span>
+                <span class="detail-value">{{ getTemperature(selectedAgent.llm_config.parameters as Record<string, unknown>) }}</span>
               </div>
             </div>
 
@@ -363,6 +363,12 @@ const truncateText = (text: string, maxLength: number) => {
 const formatDateTime = (dateStr: string) => {
   if (!dateStr) return 'Unknown';
   return new Date(dateStr).toLocaleString();
+};
+
+const getTemperature = (params: Record<string, unknown> | undefined): number | undefined => {
+  if (!params) return undefined;
+  const temp = params.temperature;
+  return typeof temp === 'number' ? temp : undefined;
 };
 
 onMounted(() => {

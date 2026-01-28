@@ -382,8 +382,8 @@
       <div v-if="lastTierResult" class="tier-result" :class="{ success: lastTierResult.success, error: !lastTierResult.success }">
         <strong>{{ lastTierResult.tier }}</strong>:
         {{ lastTierResult.success ? 'Success' : 'Failed' }} -
-        {{ lastTierResult.items_processed }} processed,
-        {{ lastTierResult.items_created }} created
+        {{ lastTierResult.itemsProcessed }} processed,
+        {{ lastTierResult.itemsCreated }} created
         <span v-if="lastTierResult.errors?.length">({{ lastTierResult.errors.length }} errors)</span>
       </div>
     </div>
@@ -484,15 +484,15 @@
           <div v-if="test.status === 'completed' && test.results" class="replay-results-summary">
             <div class="result-item">
               <span class="result-label">Original Accuracy</span>
-              <span class="result-value">{{ formatPercent(test.results.original_accuracy_pct) }}</span>
+              <span class="result-value">{{ formatPercent(test.original_accuracy_pct) }}</span>
             </div>
             <div class="result-item positive">
               <span class="result-label">Replay Accuracy</span>
-              <span class="result-value">{{ formatPercent(test.results.replay_accuracy_pct) }}</span>
+              <span class="result-value">{{ formatPercent(test.replay_accuracy_pct) }}</span>
             </div>
-            <div class="result-item" :class="{ positive: test.results.total_pnl_improvement > 0, negative: test.results.total_pnl_improvement < 0 }">
+            <div class="result-item" :class="{ positive: (test.total_pnl_improvement ?? 0) > 0, negative: (test.total_pnl_improvement ?? 0) < 0 }">
               <span class="result-label">P&L Improvement</span>
-              <span class="result-value">{{ formatCurrency(test.results.total_pnl_improvement) }}</span>
+              <span class="result-value">{{ formatCurrency(test.total_pnl_improvement) }}</span>
             </div>
           </div>
 
@@ -643,27 +643,27 @@
           <div v-if="selectedReplayTest?.results" class="results-summary-grid">
             <div class="summary-card">
               <span class="summary-label">Total Comparisons</span>
-              <span class="summary-value">{{ selectedReplayTest.results.total_comparisons }}</span>
+              <span class="summary-value">{{ selectedReplayTest.total_comparisons }}</span>
             </div>
             <div class="summary-card">
               <span class="summary-label">Direction Matches</span>
-              <span class="summary-value">{{ selectedReplayTest.results.direction_matches }}</span>
+              <span class="summary-value">{{ selectedReplayTest.direction_matches }}</span>
             </div>
             <div class="summary-card">
               <span class="summary-label">Original Accuracy</span>
-              <span class="summary-value">{{ formatPercent(selectedReplayTest.results.original_accuracy_pct) }}</span>
+              <span class="summary-value">{{ formatPercent(selectedReplayTest.original_accuracy_pct) }}</span>
             </div>
             <div class="summary-card highlight">
               <span class="summary-label">Replay Accuracy</span>
-              <span class="summary-value">{{ formatPercent(selectedReplayTest.results.replay_accuracy_pct) }}</span>
+              <span class="summary-value">{{ formatPercent(selectedReplayTest.replay_accuracy_pct) }}</span>
             </div>
-            <div class="summary-card" :class="{ positive: selectedReplayTest.results.improvements > selectedReplayTest.results.total_comparisons / 2 }">
+            <div class="summary-card" :class="{ positive: selectedReplayTest.improvements > selectedReplayTest.total_comparisons / 2 }">
               <span class="summary-label">Improvements</span>
-              <span class="summary-value">{{ selectedReplayTest.results.improvements }}</span>
+              <span class="summary-value">{{ selectedReplayTest.improvements }}</span>
             </div>
-            <div class="summary-card" :class="{ positive: selectedReplayTest.results.total_pnl_improvement > 0, negative: selectedReplayTest.results.total_pnl_improvement < 0 }">
+            <div class="summary-card" :class="{ positive: (selectedReplayTest.total_pnl_improvement ?? 0) > 0, negative: (selectedReplayTest.total_pnl_improvement ?? 0) < 0 }">
               <span class="summary-label">P&L Improvement</span>
-              <span class="summary-value">{{ formatCurrency(selectedReplayTest.results.total_pnl_improvement) }}</span>
+              <span class="summary-value">{{ formatCurrency(selectedReplayTest.total_pnl_improvement) }}</span>
             </div>
           </div>
 
@@ -695,7 +695,7 @@
                       {{ result.replay_direction || '-' }}
                     </span>
                   </td>
-                  <td>{{ result.actual_outcome || '-' }}</td>
+                  <td>-</td>
                   <td>
                     <span v-if="result.original_correct !== null" :class="{ 'correct': result.original_correct, 'incorrect': !result.original_correct }">
                       {{ result.original_correct ? '✓' : '✗' }}
@@ -742,7 +742,8 @@ import {
   type InjectionPoint,
   type TestScenarioStatus,
   type TestScenarioExport,
-  type ReplayTest,
+  type ReplayTest as _ReplayTest,
+  type ReplayTestSummary,
   type RollbackDepth,
   type ReplayTestResult,
   type ReplayAffectedRecords,
@@ -940,7 +941,6 @@ const universes = computed(() => predictionStore.universes);
 const canPreview = computed(() => {
   return (
     newReplayTest.value.rollbackTo !== '' &&
-    newReplayTest.value.rollbackDepth !== '' &&
     newReplayTest.value.universeId !== ''
   );
 });
@@ -1346,7 +1346,22 @@ async function createReplayTest() {
       universeId: newReplayTest.value.universeId,
     });
     if (response.content) {
-      store.addReplayTest(response.content);
+      // Convert ReplayTest to ReplayTestSummary with default values
+      const testSummary: ReplayTestSummary = {
+        ...response.content,
+        total_comparisons: 0,
+        direction_matches: 0,
+        original_correct_count: 0,
+        replay_correct_count: 0,
+        improvements: 0,
+        original_accuracy_pct: null,
+        replay_accuracy_pct: null,
+        total_pnl_original: null,
+        total_pnl_replay: null,
+        total_pnl_improvement: null,
+        avg_confidence_diff: null,
+      };
+      store.addReplayTest(testSummary);
       store.addLiveMonitorEvent({
         type: 'signal',
         message: `Created replay test "${response.content.name}"`,
@@ -1387,7 +1402,7 @@ async function runReplayTest(testId: string) {
   }
 }
 
-async function viewReplayResults(test: ReplayTest) {
+async function viewReplayResults(test: { id: string; name: string }) {
   store.selectReplayTest(test.id);
   showReplayResultsModal.value = true;
 
@@ -1399,7 +1414,7 @@ async function viewReplayResults(test: ReplayTest) {
   }
 }
 
-async function confirmDeleteReplayTest(test: ReplayTest) {
+async function confirmDeleteReplayTest(test: { id: string; name: string }) {
   if (!confirm(`Are you sure you want to delete replay test "${test.name}"?`)) {
     return;
   }

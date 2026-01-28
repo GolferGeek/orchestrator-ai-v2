@@ -7,6 +7,9 @@ import type { Agent, AgentConversation } from '@/types/conversation';
 import { formatAgentName } from '@/utils/caseConverter';
 import { generateUUID } from '@/services/conversation/utils';
 
+// Import backend conversation type with alias to avoid confusion
+type BackendAgentConversation = Awaited<ReturnType<typeof agentConversationsService.getConversation>>;
+
 /**
  * Service for conversation CRUD operations
  * Handles creating, reading, updating, and deleting conversations in the backend
@@ -86,7 +89,7 @@ export class ConversationCrudService {
   /**
    * Get conversation from backend
    */
-  async getBackendConversation(conversationId: string): Promise<AgentConversation> {
+  async getBackendConversation(conversationId: string): Promise<BackendAgentConversation> {
     try {
       return await agentConversationsService.getConversation(conversationId);
     } catch (error) {
@@ -125,7 +128,7 @@ export class ConversationCrudService {
    * Get all conversations for current user
    * @deprecated Use useAgentConversationsStore().fetchConversations() instead for reactive updates
    */
-  async getUserConversations(): Promise<AgentConversation[]> {
+  async getUserConversations(): Promise<BackendAgentConversation[]> {
     try {
       const response = await agentConversationsService.listConversations();
       return response.conversations;

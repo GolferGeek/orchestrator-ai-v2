@@ -25,6 +25,12 @@ import {
   LLMUsageStats,
   ModelHealthMetrics,
   SystemHealthMetrics,
+  Alert,
+  OperationalStatus,
+  ComplianceMetrics,
+  LLMUsageRecord,
+  PerformanceMetrics,
+  LLMDashboardData,
 } from '@/types/llm-monitoring';
 
 const isMemoryStats = (value: unknown): value is SystemHealthMetrics['memoryStats'] => {
@@ -55,7 +61,7 @@ class LLMHealthService {
       const response = await apiService.get('/llm/production/health/system');
       return {
         success: true,
-        data: response,
+        data: response as SystemHealthMetrics,
       };
     } catch (error) {
       console.error('Error fetching system health:', error);
@@ -71,7 +77,7 @@ class LLMHealthService {
       const response = await apiService.get('/llm/production/operations/status');
       return {
         success: true,
-        data: response,
+        data: response as OperationalStatus,
       };
     } catch (error) {
       console.error('Error fetching operational status:', error);
@@ -84,11 +90,11 @@ class LLMHealthService {
    */
   async getModelHealthMetrics(): Promise<ModelHealthMetrics[]> {
     try {
-      const response = await apiService.get('/llm/production/health/models');
+      const response = await apiService.get('/llm/production/health/models') as unknown;
       if (Array.isArray(response)) {
         return response as ModelHealthMetrics[];
       }
-      if (response && Array.isArray(response.data)) {
+      if (response && typeof response === 'object' && 'data' in response && Array.isArray(response.data)) {
         return response.data as ModelHealthMetrics[];
       }
       return [];
@@ -135,11 +141,16 @@ class LLMHealthService {
    */
   async getActiveAlerts(): Promise<AlertsResponse> {
     try {
-      const response = await apiService.get('/llm/production/alerts');
+      const response = await apiService.get('/llm/production/alerts') as {
+        alerts?: unknown[];
+        total?: number;
+        active?: number;
+        resolved?: number;
+      };
       return {
         success: true,
         data: {
-          alerts: response.alerts || [],
+          alerts: (response.alerts || []) as Alert[],
           total: response.total || 0,
           active: response.active || 0,
           resolved: response.resolved || 0,
@@ -160,11 +171,14 @@ class LLMHealthService {
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
 
-      const response = await apiService.get(`/llm/production/alerts/history?${params.toString()}`);
+      const response = await apiService.get(`/llm/production/alerts/history?${params.toString()}`) as {
+        alerts?: unknown[];
+        total?: number;
+      };
       return {
         success: true,
         data: {
-          alerts: response.alerts || [],
+          alerts: (response.alerts || []) as Alert[],
           total: response.total || 0,
           active: 0,
           resolved: response.total || 0,
@@ -218,13 +232,19 @@ class LLMHealthService {
       // This endpoint might not exist yet, so we'll construct compliance data from available sources
       try {
         const [piiStats, usageStatsResponse] = await Promise.all([
-          apiService.getQuiet404('/llm/sanitization/stats').catch(() => ({})),
+          apiService.getQuiet404('/llm/sanitization/stats').catch(() => ({})) as Promise<{
+            totalProcessed?: number;
+            totalDetections?: number;
+            sanitizationRate?: number;
+            detectionsByType?: Record<string, number>;
+            successRate?: number;
+          }>,
           this.getUsageStatsForCompliance({ startDate, endDate }),
         ]);
 
         const usageStats = usageStatsResponse.data;
 
-        const complianceData = {
+        const complianceData: ComplianceMetrics = {
           dataClassificationBreakdown: this.calculateDataClassificationBreakdown(usageStats),
           piiDetectionStats: {
             totalScanned: piiStats.totalProcessed || 0,
@@ -335,22 +355,22 @@ class LLMHealthService {
         this.getActiveAlerts(),
       ]);
 
-      const dashboardData = {
+      const dashboardData: LLMDashboardData = {
         summary: {
           totalRequests: 0, // Should come from analytics service
           totalCost: 0, // Should come from analytics service
           averageResponseTime: 0, // Should come from analytics service
           successRate: 0, // Should come from analytics service
           activeAlerts: activeAlerts.data.active,
-          systemHealth: operationalStatus.data.system.healthy
+          systemHealth: (operationalStatus.data.system.healthy
             ? activeAlerts.data.active > 0
               ? 'warning'
               : 'healthy'
-            : 'critical',
+            : 'critical') as 'healthy' | 'warning' | 'critical',
         },
-        recentActivity: [],
-        costTrends: [],
-        performanceMetrics: [],
+        recentActivity: [] as LLMUsageRecord[],
+        costTrends: [] as { date: string; cost: number; requests: number }[],
+        performanceMetrics: [] as PerformanceMetrics[],
         alerts: activeAlerts.data.alerts.slice(0, 5), // Latest 5 alerts
         complianceStatus: {
           score: 85, // Placeholder
@@ -391,7 +411,7 @@ class LLMHealthService {
         errorRate: 0, // Would need to calculate from recent errors
         systemLoad: systemHealth.data.systemLoad,
         memoryUsage: systemHealth.data.memoryStats.currentUsage,
-        activeModels: systemHealth.data.memoryStats.loadedModels || [],
+        activeModels: [], // Would need to get actual model names from system
         recentErrors: [],
       };
     } catch (error) {
@@ -407,20 +427,20 @@ class LLMHealthService {
   /**
    * Calculate data classification breakdown from usage stats
    */
-  private calculateDataClassificationBreakdown(usageStats: LLMUsageStats): Record<string, { requests: number; cost: number; percentage: number }> {
+  private calculateDataClassificationBreakdown(usageStats: LLMUsageStats): Record<string, { requests: number; percentage: number; averageResponseTime: number; errorRate: number }> {
     // This would analyze the usage data to provide classification breakdown
     // For now, return a placeholder structure
     const breakdown = usageStats.byDataClassification ?? {};
     const totalRequests = usageStats.totalRequests || 1;
 
-    return Object.entries(breakdown).reduce<Record<string, { requests: number; cost: number; percentage: number }>>(
+    return Object.entries(breakdown).reduce<Record<string, { requests: number; percentage: number; averageResponseTime: number; errorRate: number }>>(
       (acc, [classification, stats]) => {
         const requests = stats.requests ?? 0;
-        const cost = stats.cost ?? 0;
         acc[classification] = {
           requests,
-          cost,
           percentage: requests ? Math.round((requests / totalRequests) * 100) : 0,
+          averageResponseTime: 0, // Would need to calculate from actual data
+          errorRate: 0, // Would need to calculate from actual data
         };
         return acc;
       },

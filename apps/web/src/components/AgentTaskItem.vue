@@ -317,7 +317,7 @@ const deliverablesStore = useDeliverablesStore();
 const planStore = usePlanStore();
 const privacyIndicatorsStore = usePrivacyStore();
 const llmStore = useLLMPreferencesStore();
-const conversationsStore = useConversationsStore();
+const _conversationsStore = useConversationsStore();
 const chatUiStore = useChatUiStore();
 
 // Reactive state
@@ -326,7 +326,7 @@ const showThinking = ref(false);
 
 // Extract thinking content from message metadata
 const thinkingContent = computed(() => {
-  return props.message.metadata?.thinking;
+  return (props.message.metadata as Record<string, unknown>)?.thinking as string | undefined;
 });
 
 // Render markdown for assistant messages
@@ -599,11 +599,12 @@ const workflowSteps = computed<WorkflowDisplayStep[]>(() => {
   });
 
   realtimeSteps.forEach((step: AgentChatWorkflowStep) => {
+    const status = step.status as 'pending' | 'in_progress' | 'completed' | 'failed';
     stepMap.set(step.stepIndex, {
       stepName: step.stepName,
       stepIndex: step.stepIndex,
       totalSteps: step.totalSteps,
-      status: step.status,
+      status: status,
       message: step.message,
       timestamp: step.timestamp ? new Date(step.timestamp) : new Date(),
     });
@@ -704,13 +705,13 @@ const currentTrustScore = computed(() => {
 // Sanitization status - read from message metadata (better architecture)
 const pseudonymizedItemsCount = computed(() => {
   // First check for simplified PII metadata
-  const simplifiedPii = props.message.metadata?.simplifiedPii;
+  const simplifiedPii = (props.message.metadata as Record<string, unknown>)?.simplifiedPii as { pseudonymCount?: number } | undefined;
   if (simplifiedPii) {
     return simplifiedPii.pseudonymCount || 0;
   }
-  
+
   // Fall back to legacy PII metadata
-  const piiMetadata = props.message.metadata?.piiMetadata || props.message.piiMetadata;
+  const piiMetadata = ((props.message.metadata as Record<string, unknown>)?.piiMetadata || (props.message as unknown as Record<string, unknown>).piiMetadata) as Record<string, unknown> | undefined;
   
   // Debug logging for PII badges (only when no simplified metadata)
   if (props.message.role === 'assistant' && !simplifiedPii) {
@@ -719,45 +720,52 @@ const pseudonymizedItemsCount = computed(() => {
   }
   
   // Check the correct structure based on PIIProcessingMetadata type
-  if (piiMetadata?.pseudonymResults?.processedMatches?.length) {
-    return piiMetadata.pseudonymResults.processedMatches.length;
+  const pseudonymResults = piiMetadata?.pseudonymResults as Record<string, unknown> | undefined;
+  const processedMatches = pseudonymResults?.processedMatches as unknown[] | undefined;
+  if (processedMatches?.length) {
+    return processedMatches.length;
   }
-  if (piiMetadata?.pseudonymResults?.mappingsCount) {
-    return piiMetadata.pseudonymResults.mappingsCount;
+  if (typeof pseudonymResults?.mappingsCount === 'number') {
+    return pseudonymResults.mappingsCount;
   }
-  if (piiMetadata?.pseudonymInstructions?.targetMatches?.length) {
-    return piiMetadata.pseudonymInstructions.targetMatches.length;
+  const pseudonymInstructions = piiMetadata?.pseudonymInstructions as Record<string, unknown> | undefined;
+  const targetMatches = pseudonymInstructions?.targetMatches as unknown[] | undefined;
+  if (targetMatches?.length) {
+    return targetMatches.length;
   }
   return 0;
 });
 
 const flaggedItemsCount = computed(() => {
   // First check for simplified PII metadata
-  const simplifiedPii = props.message.metadata?.simplifiedPii;
+  const simplifiedPii = (props.message.metadata as Record<string, unknown>)?.simplifiedPii as { flagCount?: number } | undefined;
   if (simplifiedPii) {
     return simplifiedPii.flagCount || 0;
   }
-  
+
   // Fall back to legacy PII metadata
-  const piiMetadata = props.message.metadata?.piiMetadata || props.message.piiMetadata;
-  
+  const piiMetadata = ((props.message.metadata as Record<string, unknown>)?.piiMetadata || (props.message as unknown as Record<string, unknown>).piiMetadata) as Record<string, unknown> | undefined;
+
   // Use the correct structure: detectionResults.flaggedMatches
-  if (piiMetadata?.detectionResults?.flaggedMatches?.length) {
-    const count = piiMetadata.detectionResults.flaggedMatches.length;
+  const detectionResults = piiMetadata?.detectionResults as Record<string, unknown> | undefined;
+  const flaggedMatches = detectionResults?.flaggedMatches as unknown[] | undefined;
+  if (flaggedMatches?.length) {
+    const count = flaggedMatches.length;
     return count;
   }
-  
+
   // Alternative: use totalMatches if available
-  if (piiMetadata?.detectionResults?.totalMatches) {
-    const count = piiMetadata.detectionResults.totalMatches;
+  if (typeof detectionResults?.totalMatches === 'number') {
+    const count = detectionResults.totalMatches;
     return count;
   }
-  
+
   return 0;
 });
 
 const sanitizationStatus = computed(() => {
-  const piiMetadata = props.message.metadata?.piiMetadata || props.message.piiMetadata;
+  const messageAsRecord = props.message as unknown as Record<string, unknown>;
+  const piiMetadata = ((props.message.metadata as Record<string, unknown>)?.piiMetadata || messageAsRecord.piiMetadata) as Record<string, unknown> | undefined;
   if (piiMetadata?.showstopperDetected) {
     return 'blocked';
   }
@@ -795,7 +803,13 @@ async function handlePlanNow() {
   if (!props.conversationId || !props.agent) return;
 
   chatUiStore.setChatMode('plan');
-  chatUiStore.setPendingAction({ mode: 'plan', taskId: props.message.taskId });
+  const taskIdValue = props.message.taskId || '';
+  chatUiStore.setPendingAction({
+    type: 'plan',
+    status: 'pending',
+    conversationId: props.conversationId,
+    metadata: props.message.taskId ? { taskId: taskIdValue } : undefined
+  });
 
   // Execute using actions - orchestrator gets context from store
   try {
@@ -809,7 +823,7 @@ async function handlePlanNow() {
     category: 'cta',
     action: 'plan_clicked',
     label: 'Plan It',
-    properties: { taskId: props.message.taskId, conversationId: props.conversationId },
+    properties: { taskId: props.message.taskId || '', conversationId: props.conversationId || '' },
     context: { url: window.location.pathname, userAgent: navigator.userAgent },
   });
 }
@@ -817,13 +831,17 @@ async function handleBuildNow() {
   if (!props.conversationId || !props.agent) return;
 
   chatUiStore.setChatMode('build');
-  chatUiStore.setPendingAction({ mode: 'build', taskId: props.message.taskId });
+  const taskIdValue = props.message.taskId || '';
+  chatUiStore.setPendingAction({
+    type: 'build',
+    status: 'pending',
+    conversationId: props.conversationId,
+    metadata: props.message.taskId ? { taskId: taskIdValue } : undefined
+  });
 
   // Execute using actions - use latest plan if available
   try {
-    const conversation = conversationsStore.conversationById(props.conversationId);
-    const planId = conversation?.currentPlan?.id;
-    await createDeliverable(props.agent.name, props.conversationId, 'Build a deliverable based on our conversation', planId);
+    await createDeliverable('Build a deliverable based on our conversation');
   } catch (error) {
     console.error('Error creating build:', error);
   }
@@ -833,7 +851,7 @@ async function handleBuildNow() {
     category: 'cta',
     action: 'build_clicked',
     label: 'Build It',
-    properties: { taskId: props.message.taskId, conversationId: props.conversationId },
+    properties: { taskId: props.message.taskId || '', conversationId: props.conversationId || '' },
     context: { url: window.location.pathname, userAgent: navigator.userAgent },
   });
 }
@@ -1013,7 +1031,7 @@ async function playAudio(audioData: string) {
       
       // Auto-start listening for user response by clicking the speech button
       try {
-        const speechButton = document.querySelector('.conversation-button');
+        const speechButton = document.querySelector('.conversation-button') as HTMLElement | null;
         if (speechButton) {
           speechButton.click();
         } else {

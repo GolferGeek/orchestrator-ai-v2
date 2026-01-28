@@ -81,7 +81,7 @@ export interface AgentInfo {
     defaultModel?: string;
     supportedProviders?: string[];
     supportedModels?: Record<string, string[]>;
-    [key: string]: JsonValue;
+    [key: string]: JsonValue | undefined;
   } | null;
   // capabilities?: string[]; // Example
 }
@@ -106,7 +106,7 @@ export interface TaskMessagePart {
   content?: JsonValue; // For generic artifact parts
   encoding?: string;
   // Allow other properties from backend
-  [key: string]: JsonValue; 
+  [key: string]: JsonValue | undefined;
 }
 // Represents a message within a task (request or response)
 export interface TaskMessage {
@@ -116,7 +116,7 @@ export interface TaskMessage {
   timestamp?: string; // ISO 8601
   metadata?: JsonObject | null; // For agent_name or other info
   // Allow other properties from backend
-  [key: string]: JsonValue; 
+  [key: string]: JsonValue | undefined;
 }
 // Updated TaskResponse to closely match backend Pydantic Task model
 export interface TaskResponse {

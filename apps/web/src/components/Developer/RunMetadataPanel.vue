@@ -213,7 +213,7 @@
                 <div class="stat-row">
                   <span class="stat-label">Sanitization Level:</span>
                   <span class="stat-value" :class="`sanitization-${metadata.sanitizationLevel}`">
-                    {{ formatSanitizationLevel(metadata.sanitizationLevel) }}
+                    {{ formatSanitizationLevel(metadata.sanitizationLevel || 'none') }}
                   </span>
                 </div>
                 <div class="stat-row" v-if="metadata.pseudonymsUsed">
@@ -374,23 +374,23 @@
           <h4 class="insights-title">Performance Insights</h4>
           <div class="insights-grid">
             <div class="insight-item" v-if="getSpeedInsight(metadata.duration)">
-              <span class="insight-icon" :class="getSpeedInsight(metadata.duration).type">
+              <span class="insight-icon" :class="getSpeedInsight(metadata.duration)?.type">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <circle cx="12" cy="12" r="10"/>
                   <polyline points="12,6 12,12 16,14"/>
                 </svg>
               </span>
-              <span class="insight-text">{{ getSpeedInsight(metadata.duration).text }}</span>
+              <span class="insight-text">{{ getSpeedInsight(metadata.duration)?.text }}</span>
             </div>
-            
+
             <div class="insight-item" v-if="getCostInsight(metadata.cost)">
-              <span class="insight-icon" :class="getCostInsight(metadata.cost).type">
+              <span class="insight-icon" :class="getCostInsight(metadata.cost)?.type">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <line x1="12" y1="1" x2="12" y2="23"/>
                   <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
                 </svg>
               </span>
-              <span class="insight-text">{{ getCostInsight(metadata.cost).text }}</span>
+              <span class="insight-text">{{ getCostInsight(metadata.cost)?.text }}</span>
             </div>
           </div>
         </div>
@@ -460,16 +460,16 @@ export default defineComponent({
   },
   computed: {
     hasMetadata(): boolean {
-      return this.metadata && this.metadata.runId
+      return !!(this.metadata && this.metadata.runId)
     },
     showPerformanceInsights(): boolean {
       return this.metadata.duration > 0 || this.metadata.cost > 0
     },
     hasPrivacyMetrics(): boolean {
-      return this.metadata.dataSanitizationApplied || 
-             this.metadata.piiDetected || 
+      return !!(this.metadata.dataSanitizationApplied ||
+             this.metadata.piiDetected ||
              this.metadata.sourceBlindingApplied ||
-             (this.metadata.piiTypes && this.metadata.piiTypes.length > 0)
+             (this.metadata.piiTypes && this.metadata.piiTypes.length > 0))
     },
     privacyScore(): number {
       if (!this.hasPrivacyMetrics) return 0

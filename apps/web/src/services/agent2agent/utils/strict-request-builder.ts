@@ -13,13 +13,14 @@ import type {
   PlanAction,
   BuildAction,
   StrictTaskMessage,
+  ExecutionContext,
 } from '@orchestrator-ai/transport-types';
 
 /**
  * Base metadata for all requests
  */
 interface RequestMetadata {
-  conversationId: string;
+  context: ExecutionContext;
   userMessage?: string;
   messages?: StrictTaskMessage[];
   metadata?: Record<string, unknown>;
@@ -49,7 +50,7 @@ export const buildPlanRequest = {
     metadata: RequestMetadata & { userMessage: string },
     planData?: Record<string, unknown>,
   ): StrictPlanRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
+    validateRequired(metadata.context, 'context');
     validateRequired(metadata.userMessage, 'userMessage');
 
     return {
@@ -57,13 +58,14 @@ export const buildPlanRequest = {
       id: crypto.randomUUID(),
       method: 'plan.create',
       params: {
+        context: metadata.context,
         mode: 'plan' as AgentTaskMode,
-        action: 'create' as PlanAction,
-        conversationId: metadata.conversationId,
         userMessage: metadata.userMessage,
         messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: planData || {},
+        payload: {
+          action: 'create' as PlanAction,
+          ...planData,
+        },
       },
     };
   },
@@ -72,20 +74,21 @@ export const buildPlanRequest = {
    * Read current plan
    */
   read: (metadata: RequestMetadata, planId?: string): StrictPlanRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
+    validateRequired(metadata.context, 'context');
 
     return {
       jsonrpc: '2.0',
       id: crypto.randomUUID(),
       method: 'plan.read',
       params: {
+        context: metadata.context,
         mode: 'plan' as AgentTaskMode,
-        action: 'read' as PlanAction,
-        conversationId: metadata.conversationId,
         userMessage: metadata.userMessage || '',
         messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: planId ? { planId } : {},
+        payload: {
+          action: 'read' as PlanAction,
+          ...(planId ? { planId } : {}),
+        },
       },
     };
   },
@@ -97,7 +100,7 @@ export const buildPlanRequest = {
     metadata: RequestMetadata & { userMessage: string },
     editData: { versionId?: string; content?: string },
   ): StrictPlanRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
+    validateRequired(metadata.context, 'context');
     validateRequired(metadata.userMessage, 'userMessage');
 
     return {
@@ -105,13 +108,14 @@ export const buildPlanRequest = {
       id: crypto.randomUUID(),
       method: 'plan.edit',
       params: {
+        context: metadata.context,
         mode: 'plan' as AgentTaskMode,
-        action: 'edit' as PlanAction,
-        conversationId: metadata.conversationId,
         userMessage: metadata.userMessage,
         messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: editData,
+        payload: {
+          action: 'edit' as PlanAction,
+          ...editData,
+        },
       },
     };
   },
@@ -120,20 +124,20 @@ export const buildPlanRequest = {
    * List all plans in conversation
    */
   list: (metadata: RequestMetadata): StrictPlanRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
+    validateRequired(metadata.context, 'context');
 
     return {
       jsonrpc: '2.0',
       id: crypto.randomUUID(),
       method: 'plan.list',
       params: {
+        context: metadata.context,
         mode: 'plan' as AgentTaskMode,
-        action: 'list' as PlanAction,
-        conversationId: metadata.conversationId,
         userMessage: metadata.userMessage || '',
         messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: {},
+        payload: {
+          action: 'list' as PlanAction,
+        },
       },
     };
   },
@@ -142,7 +146,7 @@ export const buildPlanRequest = {
    * Delete plan
    */
   delete: (metadata: RequestMetadata, planId: string): StrictPlanRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
+    validateRequired(metadata.context, 'context');
     validateRequired(planId, 'planId');
 
     return {
@@ -150,13 +154,14 @@ export const buildPlanRequest = {
       id: crypto.randomUUID(),
       method: 'plan.delete',
       params: {
+        context: metadata.context,
         mode: 'plan' as AgentTaskMode,
-        action: 'delete' as PlanAction,
-        conversationId: metadata.conversationId,
         userMessage: metadata.userMessage || '',
         messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: { planId },
+        payload: {
+          action: 'delete' as PlanAction,
+          planId,
+        },
       },
     };
   },
@@ -165,7 +170,7 @@ export const buildPlanRequest = {
    * Set current plan version
    */
   setCurrent: (metadata: RequestMetadata, versionId: string): StrictPlanRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
+    validateRequired(metadata.context, 'context');
     validateRequired(versionId, 'versionId');
 
     return {
@@ -173,13 +178,14 @@ export const buildPlanRequest = {
       id: crypto.randomUUID(),
       method: 'plan.set_current',
       params: {
+        context: metadata.context,
         mode: 'plan' as AgentTaskMode,
-        action: 'set_current' as PlanAction,
-        conversationId: metadata.conversationId,
         userMessage: metadata.userMessage || '',
         messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: { versionId },
+        payload: {
+          action: 'set_current' as PlanAction,
+          versionId,
+        },
       },
     };
   },
@@ -188,7 +194,7 @@ export const buildPlanRequest = {
    * Delete plan version
    */
   deleteVersion: (metadata: RequestMetadata, versionId: string): StrictPlanRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
+    validateRequired(metadata.context, 'context');
     validateRequired(versionId, 'versionId');
 
     return {
@@ -196,13 +202,14 @@ export const buildPlanRequest = {
       id: crypto.randomUUID(),
       method: 'plan.delete_version',
       params: {
+        context: metadata.context,
         mode: 'plan' as AgentTaskMode,
-        action: 'delete_version' as PlanAction,
-        conversationId: metadata.conversationId,
         userMessage: metadata.userMessage || '',
         messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: { versionId },
+        payload: {
+          action: 'delete_version' as PlanAction,
+          versionId,
+        },
       },
     };
   },
@@ -214,7 +221,7 @@ export const buildPlanRequest = {
     metadata: RequestMetadata & { userMessage: string },
     mergeData: { versionIds: string[]; mergePrompt: string },
   ): StrictPlanRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
+    validateRequired(metadata.context, 'context');
     validateRequired(metadata.userMessage, 'userMessage');
     validateRequired(mergeData.versionIds, 'versionIds');
     validateRequired(mergeData.mergePrompt, 'mergePrompt');
@@ -224,13 +231,14 @@ export const buildPlanRequest = {
       id: crypto.randomUUID(),
       method: 'plan.merge_versions',
       params: {
+        context: metadata.context,
         mode: 'plan' as AgentTaskMode,
-        action: 'merge_versions' as PlanAction,
-        conversationId: metadata.conversationId,
         userMessage: metadata.userMessage,
         messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: mergeData,
+        payload: {
+          action: 'merge_versions' as PlanAction,
+          ...mergeData,
+        },
       },
     };
   },
@@ -239,7 +247,7 @@ export const buildPlanRequest = {
    * Copy plan version
    */
   copyVersion: (metadata: RequestMetadata, versionId: string): StrictPlanRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
+    validateRequired(metadata.context, 'context');
     validateRequired(versionId, 'versionId');
 
     return {
@@ -247,13 +255,14 @@ export const buildPlanRequest = {
       id: crypto.randomUUID(),
       method: 'plan.copy_version',
       params: {
+        context: metadata.context,
         mode: 'plan' as AgentTaskMode,
-        action: 'copy_version' as PlanAction,
-        conversationId: metadata.conversationId,
         userMessage: metadata.userMessage || '',
         messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: { versionId },
+        payload: {
+          action: 'copy_version' as PlanAction,
+          versionId,
+        },
       },
     };
   },
@@ -270,7 +279,7 @@ export const buildBuildRequest = {
     metadata: RequestMetadata & { userMessage: string },
     buildData?: { planId?: string; [key: string]: unknown },
   ): StrictBuildRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
+    validateRequired(metadata.context, 'context');
     validateRequired(metadata.userMessage, 'userMessage');
 
     return {
@@ -278,14 +287,15 @@ export const buildBuildRequest = {
       id: crypto.randomUUID(),
       method: 'build.execute',
       params: {
+        context: metadata.context,
         mode: 'build' as AgentTaskMode,
-        action: 'create' as BuildAction,  // Backend expects 'create' for new deliverables
-        conversationId: metadata.conversationId,
         userMessage: metadata.userMessage,
         messages: metadata.messages || [],
         planId: buildData?.planId,
-        metadata: metadata.metadata,
-        payload: buildData || {},
+        payload: {
+          action: 'create' as BuildAction,  // Backend expects 'create' for new deliverables
+          ...buildData,
+        },
       },
     };
   },
@@ -297,20 +307,21 @@ export const buildBuildRequest = {
     metadata: RequestMetadata,
     deliverableId?: string,
   ): StrictBuildRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
+    validateRequired(metadata.context, 'context');
 
     return {
       jsonrpc: '2.0',
       id: crypto.randomUUID(),
       method: 'build.read',
       params: {
+        context: metadata.context,
         mode: 'build' as AgentTaskMode,
-        action: 'read' as BuildAction,
-        conversationId: metadata.conversationId,
         userMessage: metadata.userMessage || '',
         messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: deliverableId ? { deliverableId } : {},
+        payload: {
+          action: 'read' as BuildAction,
+          ...(deliverableId ? { deliverableId } : {}),
+        },
       },
     };
   },
@@ -319,20 +330,20 @@ export const buildBuildRequest = {
    * List all deliverables in conversation
    */
   list: (metadata: RequestMetadata): StrictBuildRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
+    validateRequired(metadata.context, 'context');
 
     return {
       jsonrpc: '2.0',
       id: crypto.randomUUID(),
       method: 'build.list',
       params: {
+        context: metadata.context,
         mode: 'build' as AgentTaskMode,
-        action: 'list' as BuildAction,
-        conversationId: metadata.conversationId,
         userMessage: metadata.userMessage || '',
         messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: {},
+        payload: {
+          action: 'list' as BuildAction,
+        },
       },
     };
   },
@@ -344,7 +355,7 @@ export const buildBuildRequest = {
     metadata: RequestMetadata & { userMessage: string },
     rerunData: { versionId: string; config?: Record<string, unknown> },
   ): StrictBuildRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
+    validateRequired(metadata.context, 'context');
     validateRequired(metadata.userMessage, 'userMessage');
     validateRequired(rerunData.versionId, 'versionId');
 
@@ -353,13 +364,14 @@ export const buildBuildRequest = {
       id: crypto.randomUUID(),
       method: 'build.rerun',
       params: {
+        context: metadata.context,
         mode: 'build' as AgentTaskMode,
-        action: 'rerun' as BuildAction,
-        conversationId: metadata.conversationId,
         userMessage: metadata.userMessage,
         messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: rerunData,
+        payload: {
+          action: 'rerun' as BuildAction,
+          ...rerunData,
+        },
       },
     };
   },
@@ -371,7 +383,7 @@ export const buildBuildRequest = {
     metadata: RequestMetadata & { userMessage: string },
     editData: { versionId?: string; content?: string },
   ): StrictBuildRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
+    validateRequired(metadata.context, 'context');
     validateRequired(metadata.userMessage, 'userMessage');
 
     return {
@@ -379,13 +391,14 @@ export const buildBuildRequest = {
       id: crypto.randomUUID(),
       method: 'build.edit',
       params: {
+        context: metadata.context,
         mode: 'build' as AgentTaskMode,
-        action: 'edit' as BuildAction,
-        conversationId: metadata.conversationId,
         userMessage: metadata.userMessage,
         messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: editData,
+        payload: {
+          action: 'edit' as BuildAction,
+          ...editData,
+        },
       },
     };
   },
@@ -394,7 +407,7 @@ export const buildBuildRequest = {
    * Set current deliverable version
    */
   setCurrent: (metadata: RequestMetadata, versionId: string): StrictBuildRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
+    validateRequired(metadata.context, 'context');
     validateRequired(versionId, 'versionId');
 
     return {
@@ -402,13 +415,14 @@ export const buildBuildRequest = {
       id: crypto.randomUUID(),
       method: 'build.set_current',
       params: {
+        context: metadata.context,
         mode: 'build' as AgentTaskMode,
-        action: 'set_current' as BuildAction,
-        conversationId: metadata.conversationId,
         userMessage: metadata.userMessage || '',
         messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: { versionId },
+        payload: {
+          action: 'set_current' as BuildAction,
+          versionId,
+        },
       },
     };
   },
@@ -417,7 +431,7 @@ export const buildBuildRequest = {
    * Delete deliverable version
    */
   deleteVersion: (metadata: RequestMetadata, versionId: string): StrictBuildRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
+    validateRequired(metadata.context, 'context');
     validateRequired(versionId, 'versionId');
 
     return {
@@ -425,13 +439,14 @@ export const buildBuildRequest = {
       id: crypto.randomUUID(),
       method: 'build.delete_version',
       params: {
+        context: metadata.context,
         mode: 'build' as AgentTaskMode,
-        action: 'delete_version' as BuildAction,
-        conversationId: metadata.conversationId,
         userMessage: metadata.userMessage || '',
         messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: { versionId },
+        payload: {
+          action: 'delete_version' as BuildAction,
+          versionId,
+        },
       },
     };
   },
@@ -443,7 +458,7 @@ export const buildBuildRequest = {
     metadata: RequestMetadata & { userMessage: string },
     mergeData: { versionIds: string[]; mergePrompt: string },
   ): StrictBuildRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
+    validateRequired(metadata.context, 'context');
     validateRequired(metadata.userMessage, 'userMessage');
     validateRequired(mergeData.versionIds, 'versionIds');
     validateRequired(mergeData.mergePrompt, 'mergePrompt');
@@ -453,13 +468,14 @@ export const buildBuildRequest = {
       id: crypto.randomUUID(),
       method: 'build.merge_versions',
       params: {
+        context: metadata.context,
         mode: 'build' as AgentTaskMode,
-        action: 'merge_versions' as BuildAction,
-        conversationId: metadata.conversationId,
         userMessage: metadata.userMessage,
         messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: mergeData,
+        payload: {
+          action: 'merge_versions' as BuildAction,
+          ...mergeData,
+        },
       },
     };
   },
@@ -468,7 +484,7 @@ export const buildBuildRequest = {
    * Copy deliverable version
    */
   copyVersion: (metadata: RequestMetadata, versionId: string): StrictBuildRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
+    validateRequired(metadata.context, 'context');
     validateRequired(versionId, 'versionId');
 
     return {
@@ -476,13 +492,14 @@ export const buildBuildRequest = {
       id: crypto.randomUUID(),
       method: 'build.copy_version',
       params: {
+        context: metadata.context,
         mode: 'build' as AgentTaskMode,
-        action: 'copy_version' as BuildAction,
-        conversationId: metadata.conversationId,
         userMessage: metadata.userMessage || '',
         messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: { versionId },
+        payload: {
+          action: 'copy_version' as BuildAction,
+          versionId,
+        },
       },
     };
   },
@@ -491,7 +508,7 @@ export const buildBuildRequest = {
    * Delete deliverable
    */
   delete: (metadata: RequestMetadata, deliverableId: string): StrictBuildRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
+    validateRequired(metadata.context, 'context');
     validateRequired(deliverableId, 'deliverableId');
 
     return {
@@ -499,13 +516,14 @@ export const buildBuildRequest = {
       id: crypto.randomUUID(),
       method: 'build.delete',
       params: {
+        context: metadata.context,
         mode: 'build' as AgentTaskMode,
-        action: 'delete' as BuildAction,
-        conversationId: metadata.conversationId,
         userMessage: metadata.userMessage || '',
         messages: metadata.messages || [],
-        metadata: metadata.metadata,
-        payload: { deliverableId },
+        payload: {
+          action: 'delete' as BuildAction,
+          deliverableId,
+        },
       },
     };
   },
@@ -521,7 +539,7 @@ export const buildConverseRequest = {
   send: (
     metadata: RequestMetadata & { userMessage: string },
   ): StrictConverseRequest => {
-    validateRequired(metadata.conversationId, 'conversationId');
+    validateRequired(metadata.context, 'context');
     validateRequired(metadata.userMessage, 'userMessage');
 
     return {
@@ -529,11 +547,13 @@ export const buildConverseRequest = {
       id: crypto.randomUUID(),
       method: 'converse',
       params: {
+        context: metadata.context,
         mode: 'converse' as AgentTaskMode,
-        conversationId: metadata.conversationId,
         userMessage: metadata.userMessage,
         messages: metadata.messages || [],
-        metadata: metadata.metadata,
+        payload: {
+          action: 'send',
+        },
       },
     };
   },
@@ -565,13 +585,17 @@ function validateRequired(value: unknown, fieldName: string): void {
  * Type guard to check if a value is a strict request
  */
 export function isStrictRequest(value: unknown): value is StrictA2ARequest {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const obj = value as Record<string, unknown>;
+
   return (
-    value &&
-    typeof value === 'object' &&
-    value.jsonrpc === '2.0' &&
-    value.id !== undefined &&
-    value.method !== undefined &&
-    value.params !== undefined
+    obj.jsonrpc === '2.0' &&
+    obj.id !== undefined &&
+    obj.method !== undefined &&
+    obj.params !== undefined
   );
 }
 
@@ -598,13 +622,13 @@ export function validateStrictRequest(
   }
 
   // Validate params
-  const params = request.params as Record<string, unknown>;
-  if (params) {
+  if (request.params) {
+    const params = request.params as unknown as Record<string, unknown>;
     if (!params.mode) {
       errors.push('Missing mode in params');
     }
-    if (!params.conversationId) {
-      errors.push('Missing conversationId in params');
+    if (!params.context) {
+      errors.push('Missing context in params');
     }
   }
 

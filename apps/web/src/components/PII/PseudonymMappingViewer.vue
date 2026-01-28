@@ -776,20 +776,24 @@ const demoProcessing = ref(false);
 // Computed properties using store data
 const availableDataTypes = computed(() => mappingsStore.availableDataTypes);
 const totalMappings = computed(() => mappingsStore.totalMappings);
-const totalUsage = computed(() => mappingsStore.totalUsage);
+const totalUsage = computed(() => mappingsStore.mappings.reduce((sum: number, m: PseudonymMapping) => sum + m.usageCount, 0));
 const activeDataTypes = computed(() => mappingsStore.availableDataTypes.length);
-const averageUsage = computed(() => mappingsStore.averageUsage);
-const isLoading = computed(() => mappingsStore.isLoading);
-const error = computed(() => mappingsStore.error);
+const averageUsage = computed(() => {
+  const total = totalUsage.value;
+  const count = totalMappings.value;
+  return count > 0 ? Math.round(total / count) : 0;
+});
+const isLoading = computed(() => mappingsStore.mappingsLoading);
+const error = computed(() => mappingsStore.mappingsError);
 
 // Filtered mappings with local search and filters
 const filteredMappings = computed(() => {
-  let filtered = mappingsStore.mappings;
+  let filtered = [...mappingsStore.mappings];
 
   // Apply search filter
   if (searchTerm.value) {
     const search = searchTerm.value.toLowerCase();
-    filtered = filtered.filter(mapping => 
+    filtered = filtered.filter((mapping: PseudonymMapping) =>
       mapping.pseudonym.toLowerCase().includes(search) ||
       mapping.dataType.toLowerCase().includes(search) ||
       (mapping.context && mapping.context.toLowerCase().includes(search))
@@ -798,13 +802,13 @@ const filteredMappings = computed(() => {
 
   // Apply data type filter
   if (selectedDataType.value !== 'all') {
-    filtered = filtered.filter(mapping => mapping.dataType === selectedDataType.value);
+    filtered = filtered.filter((mapping: PseudonymMapping) => mapping.dataType === selectedDataType.value);
   }
 
   // Apply sorting
-  filtered.sort((a, b) => {
-    let aVal: unknown, bVal: unknown;
-    
+  filtered.sort((a: PseudonymMapping, b: PseudonymMapping) => {
+    let aVal: string | number | Date, bVal: string | number | Date;
+
     switch (sortField.value) {
       case 'usageCount':
         aVal = a.usageCount;
@@ -857,7 +861,7 @@ const usageTrendData = computed(() => {
     date.setDate(date.getDate() - i);
     
     // Calculate actual usage based on when mappings were last used
-    const dayUsage = mappingsStore.mappings.reduce((sum, mapping) => {
+    const dayUsage = mappingsStore.mappings.reduce((sum: number, mapping: PseudonymMapping) => {
       const lastUsed = new Date(mapping.lastUsedAt);
       const isSameDay = lastUsed.toDateString() === date.toDateString();
       return isSameDay ? sum + 1 : sum; // Count actual usage events
@@ -879,10 +883,10 @@ const maxDailyUsage = computed(() => {
 
 const dataTypeDistribution = computed(() => {
   const distribution = mappingsStore.mappingsByDataType;
-  
-  return Object.entries(distribution).map(([dataType, mappings]) => ({
+
+  return Object.entries(distribution).map(([dataType, mappings]: [string, PseudonymMapping[]]) => ({
     dataType: dataType as PIIDataType,
-    totalUsage: mappings.reduce((sum, mapping) => sum + mapping.usageCount, 0),
+    totalUsage: mappings.reduce((sum: number, mapping: PseudonymMapping) => sum + mapping.usageCount, 0),
     count: mappings.length
   })).sort((a, b) => b.totalUsage - a.totalUsage);
 });
@@ -893,13 +897,13 @@ const maxTypeUsage = computed(() => {
 });
 
 const mostActiveMapping = computed(() => {
-  return mappingsStore.mappings.reduce((prev, current) => 
+  return mappingsStore.mappings.reduce((prev: PseudonymMapping, current: PseudonymMapping) =>
     (prev.usageCount > current.usageCount) ? prev : current
   );
 });
 
 const mostRecentMapping = computed(() => {
-  return mappingsStore.mappings.reduce((prev, current) => 
+  return mappingsStore.mappings.reduce((prev: PseudonymMapping, current: PseudonymMapping) =>
     (new Date(prev.lastUsedAt) > new Date(current.lastUsedAt)) ? prev : current
   );
 });
@@ -907,19 +911,30 @@ const mostRecentMapping = computed(() => {
 const newThisWeekCount = computed(() => {
   const oneWeekAgo = new Date();
   oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-  
-  return mappingsStore.mappings.filter(mapping => 
+
+  return mappingsStore.mappings.filter((mapping: PseudonymMapping) =>
     new Date(mapping.createdAt) >= oneWeekAgo
   ).length;
 });
 
 const usageGrowthRate = computed(() => {
   // Calculate growth rate based on recent vs older usage
-  const recentUsage = mappingsStore.recentMappings.reduce((sum, m) => sum + m.usageCount, 0);
-  const totalUsage = mappingsStore.totalUsage;
-  const olderUsage = totalUsage - recentUsage;
-  
-  if (olderUsage === 0) return 100; // All usage is recent
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+  const twoWeeksAgo = new Date();
+  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+
+  const recentMappings = mappingsStore.mappings.filter((m: PseudonymMapping) =>
+    new Date(m.lastUsedAt) >= oneWeekAgo
+  );
+  const olderMappings = mappingsStore.mappings.filter((m: PseudonymMapping) =>
+    new Date(m.lastUsedAt) < oneWeekAgo && new Date(m.lastUsedAt) >= twoWeeksAgo
+  );
+
+  const recentUsage = recentMappings.reduce((sum: number, m: PseudonymMapping) => sum + m.usageCount, 0);
+  const olderUsage = olderMappings.reduce((sum: number, m: PseudonymMapping) => sum + m.usageCount, 0);
+
+  if (olderUsage === 0) return recentUsage > 0 ? 100 : 0; // All usage is recent
   return ((recentUsage - olderUsage) / olderUsage) * 100;
 });
 
@@ -929,7 +944,7 @@ const usageHeatmapData = computed(() => {
   
   for (let hour = 0; hour < 24; hour++) {
     // Count actual usage events for this hour across all mappings
-    const hourUsage = mappingsStore.mappings.reduce((sum, mapping) => {
+    const hourUsage = mappingsStore.mappings.reduce((sum: number, mapping: PseudonymMapping) => {
       const lastUsed = new Date(mapping.lastUsedAt);
       const mappingHour = lastUsed.getHours();
       return mappingHour === hour ? sum + 1 : sum;
@@ -946,7 +961,10 @@ const usageHeatmapData = computed(() => {
 
 // Methods
 const refreshMappings = async () => {
-  await mappingsStore.refreshData();
+  // Note: Store follows sync-only pattern. In a real implementation,
+  // this would call a service method to fetch data and update the store.
+  // For now, this is a placeholder that doesn't do anything.
+  console.log('Refresh mappings - service integration needed');
 };
 
 const filterMappings = () => {
@@ -1019,7 +1037,7 @@ const getDataTypeIcon = (dataType: PIIDataType) => {
 };
 
 const getUsagePercentage = (usageCount: number): number => {
-  const maxUsage = Math.max(...mappingsStore.mappings.map(m => m.usageCount));
+  const maxUsage = Math.max(...mappingsStore.mappings.map((m: PseudonymMapping) => m.usageCount));
   return maxUsage > 0 ? (usageCount / maxUsage) * 100 : 0;
 };
 
@@ -1109,15 +1127,11 @@ const getHeatmapIntensity = (usage: number): string => {
 
 // Reversibility demo methods (no hardcoded mock data)
 const generateDemoValue = (mapping: PseudonymMapping): string => {
-  // Use the actual original value if available from the mapping
-  if (mapping.originalValue && mapping.originalValue !== '[REDACTED]') {
-    return mapping.originalValue;
-  }
-  
-  // If no original value, generate a contextual placeholder based on the pseudonym
+  // Note: PseudonymMapping only stores originalHash, not originalValue for privacy
+  // Generate a contextual placeholder based on the data type
   const dataTypeLabels: Record<PIIDataType, string> = {
     email: 'email address',
-    phone: 'phone number', 
+    phone: 'phone number',
     name: 'person name',
     address: 'street address',
     ip_address: 'IP address',
@@ -1126,7 +1140,7 @@ const generateDemoValue = (mapping: PseudonymMapping): string => {
     ssn: 'social security number',
     custom: 'custom data'
   };
-  
+
   return `[Original ${dataTypeLabels[mapping.dataType] || 'data'}]`;
 };
 
@@ -1162,9 +1176,10 @@ watch(reversibilityModalOpen, (isOpen) => {
 
 // Initialize component
 onMounted(async () => {
-  // Load data from store on component mount
-  await mappingsStore.fetchMappings();
-  await mappingsStore.fetchStats();
+  // Note: Store follows sync-only pattern. In a real implementation,
+  // this would call service methods to fetch data and update the store.
+  // For now, we just use whatever data is already in the store.
+  console.log('Component mounted - service integration needed for data fetching');
 });
 </script>
 

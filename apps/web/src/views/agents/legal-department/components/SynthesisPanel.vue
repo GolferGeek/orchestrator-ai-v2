@@ -14,6 +14,7 @@
     </div>
 
     <!-- Summary Text (Rendered Markdown) -->
+    <!-- eslint-disable-next-line vue/no-v-html -- Intentional: Rendering sanitized markdown/HTML content from trusted source -->
     <div v-if="summary" class="summary-text markdown-content" v-html="renderedSummary"></div>
 
     <!-- Key Metrics -->

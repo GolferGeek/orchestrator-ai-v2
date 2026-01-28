@@ -196,17 +196,18 @@
           <!-- Discovered Drivers -->
           <section class="detail-section">
             <h3>Discovered Drivers</h3>
-            <ul class="drivers-list">
+            <ul v-if="selectedOpportunity.discoveredDrivers && selectedOpportunity.discoveredDrivers.length > 0" class="drivers-list">
               <li v-for="(driver, idx) in selectedOpportunity.discoveredDrivers" :key="idx">
                 {{ driver }}
               </li>
             </ul>
+            <p v-else class="empty-text">No drivers discovered</p>
           </section>
 
           <!-- Signals We Had -->
           <section class="detail-section">
             <h3>Signals We Had</h3>
-            <div v-if="selectedOpportunity.signalsWeHad.length > 0" class="signals-list">
+            <div v-if="selectedOpportunity.signalsWeHad && selectedOpportunity.signalsWeHad.length > 0" class="signals-list">
               <div
                 v-for="signal in selectedOpportunity.signalsWeHad"
                 :key="signal.id"
@@ -222,7 +223,7 @@
           <!-- Source Gaps -->
           <section class="detail-section">
             <h3>Source Gaps</h3>
-            <ul v-if="selectedOpportunity.sourceGaps.length > 0" class="gaps-list">
+            <ul v-if="selectedOpportunity.sourceGaps && selectedOpportunity.sourceGaps.length > 0" class="gaps-list">
               <li v-for="(gap, idx) in selectedOpportunity.sourceGaps" :key="idx">
                 {{ gap }}
               </li>
@@ -233,7 +234,7 @@
           <!-- Suggested Learnings -->
           <section class="detail-section">
             <h3>Suggested Learnings</h3>
-            <ul v-if="selectedOpportunity.suggestedLearnings.length > 0" class="learnings-list">
+            <ul v-if="selectedOpportunity.suggestedLearnings && selectedOpportunity.suggestedLearnings.length > 0" class="learnings-list">
               <li v-for="(learning, idx) in selectedOpportunity.suggestedLearnings" :key="idx">
                 {{ learning }}
               </li>

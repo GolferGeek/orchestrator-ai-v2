@@ -92,9 +92,9 @@
                 <span class="detail-label">Confidence:</span>
                 <span class="detail-value">{{ formatPercent(selectedAssessment.confidence) }}</span>
               </div>
-              <div v-if="selectedAssessment.weight || selectedAssessment.dimensionWeight || selectedAssessment.dimension_weight" class="detail-row">
+              <div v-if="selectedAssessment.dimensionWeight" class="detail-row">
                 <span class="detail-label">Weight:</span>
-                <span class="detail-value">{{ formatPercent(selectedAssessment.weight || selectedAssessment.dimensionWeight || selectedAssessment.dimension_weight) }}</span>
+                <span class="detail-value">{{ formatPercent(selectedAssessment.dimensionWeight) }}</span>
               </div>
               <div v-if="getReasoning(selectedAssessment)" class="detail-section">
                 <span class="detail-label">Reasoning:</span>

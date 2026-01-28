@@ -225,76 +225,89 @@ export const ValidationRules = {
     name: 'minLength',
     priority: 2,
     description: `Minimum length of ${min} characters`,
-    validator: (value: string) => ({
-      isValid: !value || value.length >= min,
-      errors: value && value.length < min ? [{
-        field: 'minLength',
-        code: ValidationCodes.MIN_LENGTH,
-        message: message || `Must be at least ${min} characters`,
-        severity: 'error' as const,
-        context: { min, actual: value.length }
-      }] : [],
-      warnings: []
-    })
+    validator: (value: unknown) => {
+      const strValue = typeof value === 'string' ? value : '';
+      return {
+        isValid: !strValue || strValue.length >= min,
+        errors: strValue && strValue.length < min ? [{
+          field: 'minLength',
+          code: ValidationCodes.MIN_LENGTH,
+          message: message || `Must be at least ${min} characters`,
+          severity: 'error' as const,
+          context: { min, actual: strValue.length }
+        }] : [],
+        warnings: []
+      };
+    }
   }),
 
   maxLength: (max: number, message?: string): ValidationRule => ({
     name: 'maxLength',
     priority: 2,
     description: `Maximum length of ${max} characters`,
-    validator: (value: string) => ({
-      isValid: !value || value.length <= max,
-      errors: value && value.length > max ? [{
-        field: 'maxLength',
-        code: ValidationCodes.MAX_LENGTH,
-        message: message || `Must not exceed ${max} characters`,
-        severity: 'error' as const,
-        context: { max, actual: value.length }
-      }] : [],
-      warnings: []
-    })
+    validator: (value: unknown) => {
+      const strValue = typeof value === 'string' ? value : '';
+      return {
+        isValid: !strValue || strValue.length <= max,
+        errors: strValue && strValue.length > max ? [{
+          field: 'maxLength',
+          code: ValidationCodes.MAX_LENGTH,
+          message: message || `Must not exceed ${max} characters`,
+          severity: 'error' as const,
+          context: { max, actual: strValue.length }
+        }] : [],
+        warnings: []
+      };
+    }
   }),
 
   pattern: (regex: RegExp, message?: string): ValidationRule => ({
     name: 'pattern',
     priority: 3,
     description: `Must match pattern: ${regex.toString()}`,
-    validator: (value: string) => ({
-      isValid: !value || regex.test(value),
-      errors: value && !regex.test(value) ? [{
-        field: 'pattern',
-        code: ValidationCodes.PATTERN_MISMATCH,
-        message: message || 'Invalid format',
-        severity: 'error' as const,
-        context: { pattern: regex.toString() }
-      }] : [],
-      warnings: []
-    })
+    validator: (value: unknown) => {
+      const strValue = typeof value === 'string' ? value : '';
+      return {
+        isValid: !strValue || regex.test(strValue),
+        errors: strValue && !regex.test(strValue) ? [{
+          field: 'pattern',
+          code: ValidationCodes.PATTERN_MISMATCH,
+          message: message || 'Invalid format',
+          severity: 'error' as const,
+          context: { pattern: regex.toString() }
+        }] : [],
+        warnings: []
+      };
+    }
   }),
 
   email: (message = 'Invalid email format'): ValidationRule => ({
     name: 'email',
     priority: 3,
     description: 'Valid email address format',
-    validator: (value: string) => ({
-      isValid: !value || ValidationPatterns.EMAIL.test(value),
-      errors: value && !ValidationPatterns.EMAIL.test(value) ? [{
-        field: 'email',
-        code: ValidationCodes.INVALID_FORMAT,
-        message,
-        severity: 'error' as const
-      }] : [],
-      warnings: []
-    })
+    validator: (value: unknown) => {
+      const strValue = typeof value === 'string' ? value : '';
+      return {
+        isValid: !strValue || ValidationPatterns.EMAIL.test(strValue),
+        errors: strValue && !ValidationPatterns.EMAIL.test(strValue) ? [{
+          field: 'email',
+          code: ValidationCodes.INVALID_FORMAT,
+          message,
+          severity: 'error' as const
+        }] : [],
+        warnings: []
+      };
+    }
   }),
 
   regexPattern: (_message = 'Invalid regex pattern'): ValidationRule => ({
     name: 'regexPattern',
     priority: 4,
     description: 'Valid regex pattern',
-    validator: (value: string) => {
-      if (!value) return { isValid: true, errors: [], warnings: [] };
-      return validateRegexPattern(value);
+    validator: (value: unknown) => {
+      const strValue = typeof value === 'string' ? value : '';
+      if (!strValue) return { isValid: true, errors: [], warnings: [] };
+      return validateRegexPattern(strValue);
     }
   }),
 
@@ -307,8 +320,9 @@ export const ValidationRules = {
     name: 'security',
     priority: 0, // Highest priority
     description: 'Security validation',
-    validator: (value: string) => {
-      if (!value) return { isValid: true, errors: [], warnings: [] };
+    validator: (value: unknown) => {
+      const strValue = typeof value === 'string' ? value : '';
+      if (!strValue) return { isValid: true, errors: [], warnings: [] };
 
       // If no options provided, enable all protections
       const enableAll = !options || (!options.enableXSSProtection && !options.enableSQLInjectionProtection && !options.enablePathTraversalProtection);
@@ -316,7 +330,7 @@ export const ValidationRules = {
       const enableSQL = enableAll || options?.enableSQLInjectionProtection;
       const enablePath = enableAll || options?.enablePathTraversalProtection;
 
-      const allErrors = detectSecurityIssues(value);
+      const allErrors = detectSecurityIssues(strValue);
 
       // Filter errors based on enabled protections
       const errors = allErrors.filter(error => {
@@ -372,7 +386,8 @@ export const ValidationRules = {
     priority: 10,
     description: 'Sanitize input for API calls (strict)',
     validator: (value: unknown) => {
-      const sanitized = SanitizationHelpers.forApiInput(value);
+      const strValue = typeof value === 'string' ? value : '';
+      const sanitized = SanitizationHelpers.forApiInput(strValue);
       return {
         isValid: true,
         errors: [],
@@ -382,7 +397,7 @@ export const ValidationRules = {
           validatedAt: new Date().toISOString(),
           validationTime: 0,
           rules: ['sanitizeApiInput'],
-          sanitizationApplied: sanitized !== value,
+          sanitizationApplied: sanitized !== strValue,
           sanitizationProfile: 'apiInput'
         }
       };
@@ -394,7 +409,8 @@ export const ValidationRules = {
     priority: 10,
     description: 'Sanitize search query input',
     validator: (value: unknown) => {
-      const sanitized = SanitizationHelpers.forSearch(value);
+      const strValue = typeof value === 'string' ? value : '';
+      const sanitized = SanitizationHelpers.forSearch(strValue);
       return {
         isValid: true,
         errors: [],
@@ -404,7 +420,7 @@ export const ValidationRules = {
           validatedAt: new Date().toISOString(),
           validationTime: 0,
           rules: ['sanitizeSearch'],
-          sanitizationApplied: sanitized !== value,
+          sanitizationApplied: sanitized !== strValue,
           sanitizationProfile: 'search'
         }
       };
@@ -416,7 +432,8 @@ export const ValidationRules = {
     priority: 10,
     description: 'Sanitize rich text content (allows formatting)',
     validator: (value: unknown) => {
-      const sanitized = SanitizationHelpers.forRichText(value);
+      const strValue = typeof value === 'string' ? value : '';
+      const sanitized = SanitizationHelpers.forRichText(strValue);
       return {
         isValid: true,
         errors: [],
@@ -426,7 +443,7 @@ export const ValidationRules = {
           validatedAt: new Date().toISOString(),
           validationTime: 0,
           rules: ['sanitizeRichText'],
-          sanitizationApplied: sanitized !== value,
+          sanitizationApplied: sanitized !== strValue,
           sanitizationProfile: 'richText'
         }
       };
@@ -437,8 +454,9 @@ export const ValidationRules = {
     name: 'detectPII',
     priority: 5,
     description: 'Detect potential PII (Personally Identifiable Information)',
-    validator: (value: string) => {
-      if (!value) return { isValid: true, errors: [], warnings: [] };
+    validator: (value: unknown) => {
+      const strValue = typeof value === 'string' ? value : '';
+      if (!strValue) return { isValid: true, errors: [], warnings: [] };
 
       const piiPatterns = [
         { type: 'email', pattern: ValidationPatterns.EMAIL },
@@ -449,7 +467,7 @@ export const ValidationRules = {
 
       const detected: Array<{type: string; match: string}> = [];
       for (const { type, pattern } of piiPatterns) {
-        const matches = value.match(new RegExp(pattern, 'g'));
+        const matches = strValue.match(new RegExp(pattern, 'g'));
         if (matches) {
           matches.forEach(match => detected.push({ type, match }));
         }
@@ -682,10 +700,10 @@ export function useValidation(options: UseValidationOptions = {}): UseValidation
     clearWarnings,
     addRule,
     removeRule,
-    errors: readonly(errors),
-    warnings: readonly(warnings),
-    isValidating: readonly(isValidating),
-    isValid: readonly(isValid),
+    errors: readonly(errors) as unknown as Readonly<Record<string, ValidationError[]>>,
+    warnings: readonly(warnings) as unknown as Readonly<Record<string, ValidationWarning[]>>,
+    isValidating: readonly(isValidating) as unknown as Readonly<Record<string, boolean>>,
+    isValid: readonly(isValid) as unknown as Readonly<boolean>,
   };
 }
 

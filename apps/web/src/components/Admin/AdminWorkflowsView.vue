@@ -190,9 +190,9 @@
             >
               <div class="duration-label">{{ bucket.range }}</div>
               <div class="duration-bar-container">
-                <div 
+                <div
                   class="duration-bar-fill"
-                  :style="{ width: `${(bucket.count / workflowAnalytics.totalWorkflowsExecuted) * 100}%` }"
+                  :style="{ width: `${(bucket.count / (workflowAnalytics.totalWorkflowsExecuted || 1)) * 100}%` }"
                 ></div>
               </div>
               <div class="duration-count">{{ bucket.count }}</div>
@@ -313,7 +313,7 @@
       </ion-header>
       <ion-content class="ion-padding" v-if="selectedFailure">
         <h3>{{ selectedFailure.stepName }}</h3>
-        <p><strong>Failure Rate:</strong> {{ selectedFailure.failureRate.toFixed(1) }}%</p>
+        <p><strong>Failure Rate:</strong> {{ (selectedFailure.failureRate || 0).toFixed(1) }}%</p>
         <p><strong>Failed:</strong> {{ selectedFailure.failureCount }} of {{ selectedFailure.totalAttempts }} attempts</p>
         <h4>Common Error Message:</h4>
         <div class="error-message">
@@ -383,7 +383,7 @@ const workflowFilters = reactive({
   status: ''
 });
 const showFailureModal = ref(false);
-const selectedFailure = ref<WorkflowAnalytics['commonFailurePatterns'][0] | null>(null);
+const selectedFailure = ref<NonNullable<WorkflowAnalytics['commonFailures']>[0] | null>(null);
 let filterTimeout: NodeJS.Timeout | null = null;
 function debounceFilter() {
   if (filterTimeout) {
@@ -405,7 +405,7 @@ function truncateError(error: string): string {
   if (!error) return 'No error details available';
   return error.length > 100 ? error.substring(0, 100) + '...' : error;
 }
-function showFailureDetails(failure: WorkflowAnalytics['commonFailurePatterns'][0]) {
+function showFailureDetails(failure: NonNullable<WorkflowAnalytics['commonFailures']>[0]) {
   selectedFailure.value = failure;
   showFailureModal.value = true;
 }

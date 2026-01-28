@@ -15,7 +15,7 @@ function generateUUID(): string {
     return v.toString(16);
   });
 }
-interface UserPreferences {
+export interface UserPreferences {
   // API Preferences
   preferredApiVersion: ApiVersion;
   preferredTechnology: ApiTechnology;
@@ -240,10 +240,10 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
     }
   };
   const updatePreference = <K extends keyof UserPreferences>(
-    key: K, 
+    key: K,
     value: UserPreferences[K]
   ) => {
-    preferences.value[key] = value;
+    (preferences.value as UserPreferences)[key] = value;
     savePreferences();
   };
   const updateMultiplePreferences = (updates: Partial<UserPreferences>) => {
@@ -254,9 +254,9 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
     preferences.value = { ...DEFAULT_PREFERENCES };
     savePreferences();
   };
-  const resetToDefaults = (category?: keyof UserPreferences) => {
+  const resetToDefaults = <K extends keyof UserPreferences>(category?: K) => {
     if (category) {
-      preferences.value[category] = DEFAULT_PREFERENCES[category];
+      preferences.value[category] = DEFAULT_PREFERENCES[category] as UserPreferences[K];
     } else {
       preferences.value = { ...DEFAULT_PREFERENCES };
     }

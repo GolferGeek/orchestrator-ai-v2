@@ -327,7 +327,30 @@ async function loadReviewQueue() {
   try {
     const response = await predictionDashboardService.listReviewQueue();
     if (response.content) {
-      store.setItems(response.content);
+      // Map service ReviewQueueItem to store ReviewQueueItem
+      const mappedItems: ReviewQueueItem[] = response.content.map((item) => ({
+        id: item.id,
+        targetId: item.targetId,
+        targetName: item.targetName,
+        targetSymbol: item.targetSymbol,
+        signalId: item.signalId,
+        signalContent: item.signalContent,
+        sourceName: item.sourceName,
+        sourceType: item.sourceType,
+        receivedAt: item.receivedAt,
+        aiDisposition: item.aiDisposition,
+        aiStrength: item.aiStrength,
+        aiReasoning: item.aiReasoning,
+        aiConfidence: item.aiConfidence,
+        status: item.status,
+        reviewedBy: item.reviewedBy ?? null,
+        reviewedAt: item.reviewedAt ?? null,
+        reviewNotes: item.reviewerNotes ?? null,
+        finalDisposition: item.modifiedDisposition ?? null,
+        finalStrength: item.modifiedStrength ?? null,
+        createdAt: item.createdAt,
+      }));
+      store.setItems(mappedItems);
     }
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load review queue';

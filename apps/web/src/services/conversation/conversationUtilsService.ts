@@ -69,15 +69,20 @@ export class ConversationUtilsService {
    * Validate conversation object
    */
   validateConversation(conversation: unknown): conversation is AgentConversation {
+    if (!conversation || typeof conversation !== 'object') {
+      return false;
+    }
+
+    const conv = conversation as Record<string, unknown>;
+
     return (
-      conversation &&
-      typeof conversation.id === 'string' &&
-      conversation.agent &&
-      Array.isArray(conversation.messages) &&
-      conversation.createdAt instanceof Date &&
-      conversation.lastActiveAt instanceof Date &&
-      typeof conversation.executionMode === 'string' &&
-      Array.isArray(conversation.supportedExecutionModes)
+      typeof conv.id === 'string' &&
+      conv.agent !== undefined &&
+      Array.isArray(conv.messages) &&
+      conv.createdAt instanceof Date &&
+      conv.lastActiveAt instanceof Date &&
+      typeof conv.executionMode === 'string' &&
+      Array.isArray(conv.supportedExecutionModes)
     );
   }
 }

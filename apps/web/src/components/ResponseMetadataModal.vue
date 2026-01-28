@@ -202,9 +202,59 @@ import {
   IonContent,
 } from '@ionic/vue';
 import { closeOutline } from 'ionicons/icons';
+
+interface LLMOptions {
+  provider?: string;
+  model?: string;
+  temperature?: number;
+  maxTokens?: number;
+  responseTimeMs?: number;
+  operationType?: string;
+  isSystemLLM?: boolean;
+}
+
+interface Usage {
+  inputTokens?: number;
+  outputTokens?: number;
+}
+
+interface CostCalculation {
+  inputCost?: number;
+  outputCost?: number;
+  totalCost?: number;
+  currency?: string;
+}
+
+interface UserLLMPreferences {
+  providerName?: string;
+  modelName?: string;
+  temperature?: number;
+  maxTokens?: number;
+}
+
+interface ResponseMetadata {
+  agentName?: string;
+  agentType?: string;
+  delegatedTo?: string;
+  delegationReason?: string;
+  confidence?: number;
+  llmOptions?: LLMOptions;
+  usage?: Usage;
+  costCalculation?: CostCalculation;
+  userLLMPreferences?: UserLLMPreferences;
+  processedAt?: string;
+  processingAgentName?: string;
+  messageType?: string;
+  isDelegated?: boolean;
+  isTemplateResponse?: boolean;
+  stickyContext?: string;
+  continuityReason?: string;
+  agentContext?: string;
+}
+
 interface Props {
   isOpen: boolean;
-  metadata: Record<string, unknown>;
+  metadata: ResponseMetadata;
 }
 const props = defineProps<Props>();
 const emit = defineEmits<{

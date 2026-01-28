@@ -18,6 +18,7 @@ import {
   LLMUsageStatsResponse,
   LLMUsageRecordsRequest,
   LLMUsageRecordsResponse,
+  LLMUsageRecord,
   PerformanceMetricsResponse,
   CostAnalysisResponse,
 } from '@/types/llm-monitoring';
@@ -206,7 +207,7 @@ class LLMAnalyticsService {
       return {
         success: true,
         data: {
-          records: response.data ?? [],
+          records: (response.data ?? []) as unknown as LLMUsageRecord[],
           total: response.total ?? 0,
           page: Math.floor((request.offset || 0) / (request.limit || 10)) + 1,
           limit: request.limit || 10,
@@ -307,7 +308,7 @@ class LLMAnalyticsService {
         return response.data ?? null;
       }
 
-      return response;
+      return response as LlmUsageDetail;
     } catch (error) {
       console.error('Error fetching usage details:', error);
       throw error;
@@ -559,4 +560,3 @@ class LLMAnalyticsService {
 // Export singleton instance
 export const llmAnalyticsService = new LLMAnalyticsService();
 export default llmAnalyticsService;
-export type { LlmUsageDetail, LlmCostSummary, LlmPseudonymMapping };

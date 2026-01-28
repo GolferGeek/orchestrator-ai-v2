@@ -29,7 +29,7 @@ class PseudonymService {
    */
   async getPseudonymMappings(): Promise<PseudonymMapping[]> {
     try {
-      const response = await apiService.get(`${this.basePath}/pseudonym/mappings`);
+      const response = await apiService.get<{ mappings: PseudonymMapping[] }>(`${this.basePath}/pseudonym/mappings`);
       return response.mappings || [];
     } catch (error) {
       console.error('Error fetching pseudonym mappings:', error);
@@ -65,7 +65,7 @@ class PseudonymService {
         params.append('offset', filters.offset.toString());
       }
 
-      const response = await apiService.get(`${this.basePath}/pseudonym/mappings?${params.toString()}`);
+      const response = await apiService.get<{ mappings: PseudonymMapping[]; total: number }>(`${this.basePath}/pseudonym/mappings?${params.toString()}`);
       return {
         mappings: response.mappings || [],
         total: response.total || 0
@@ -81,7 +81,7 @@ class PseudonymService {
    */
   async getPseudonymMapping(id: string): Promise<PseudonymMapping> {
     try {
-      const response = await apiService.get(`${this.basePath}/pseudonym/mappings/${id}`);
+      const response = await apiService.get<{ mapping: PseudonymMapping }>(`${this.basePath}/pseudonym/mappings/${id}`);
       return response.mapping;
     } catch (error) {
       console.error(`Error fetching pseudonym mapping ${id}:`, error);
@@ -98,7 +98,7 @@ class PseudonymService {
    */
   async generatePseudonym(request: PseudonymGenerateRequest): Promise<PseudonymGenerateResponse> {
     try {
-      const response = await apiService.post(`${this.basePath}/pseudonym/generate`, {
+      const response = await apiService.post<PseudonymGenerateResponse>(`${this.basePath}/pseudonym/generate`, {
         value: request.value,
         dataType: request.dataType,
         context: request.context
@@ -115,7 +115,7 @@ class PseudonymService {
    */
   async lookupPseudonym(request: PseudonymLookupRequest): Promise<PseudonymLookupResponse> {
     try {
-      const response = await apiService.post(`${this.basePath}/pseudonym/lookup`, {
+      const response = await apiService.post<PseudonymLookupResponse>(`${this.basePath}/pseudonym/lookup`, {
         value: request.value,
         dataType: request.dataType
       });
@@ -131,7 +131,7 @@ class PseudonymService {
    */
   async getPseudonymStats(): Promise<PseudonymStatsResponse> {
     try {
-      const response = await apiService.get(`${this.basePath}/pseudonym/stats`);
+      const response = await apiService.get<PseudonymStatsResponse>(`${this.basePath}/pseudonym/stats`);
       return response;
     } catch (error) {
       console.error('Error fetching pseudonym stats:', error);
@@ -144,7 +144,7 @@ class PseudonymService {
    */
   async reversePseudonymization(request: ReversePseudonymizationRequest): Promise<ReversePseudonymizationResponse> {
     try {
-      const response = await apiService.post(`${this.basePath}/pseudonym/reverse`, request);
+      const response = await apiService.post<ReversePseudonymizationResponse>(`${this.basePath}/pseudonym/reverse`, request);
       return response;
     } catch (error) {
       console.error('Error reversing pseudonymization:', error);
@@ -163,7 +163,7 @@ class PseudonymService {
    */
   async getPseudonymDictionaries(): Promise<PseudonymDictionaryEntry[]> {
     try {
-      const response = await apiService.getQuiet404(`${this.basePath}/pseudonym/dictionaries`);
+      const response = await apiService.getQuiet404<{ dictionaries: PseudonymDictionaryEntry[] }>(`${this.basePath}/pseudonym/dictionaries`);
       return response.dictionaries || [];
     } catch (error) {
       // Graceful fallback without noisy logs for 404
@@ -180,7 +180,7 @@ class PseudonymService {
    */
   async getPseudonymDictionary(id: string): Promise<PseudonymDictionaryEntry> {
     try {
-      const response = await apiService.get(`${this.basePath}/pseudonym/dictionaries/${id}`);
+      const response = await apiService.get<{ dictionary: PseudonymDictionaryEntry }>(`${this.basePath}/pseudonym/dictionaries/${id}`);
       return response.dictionary;
     } catch (error) {
       console.error(`Error fetching pseudonym dictionary ${id}:`, error);
@@ -193,7 +193,7 @@ class PseudonymService {
    */
   async createPseudonymDictionary(dictionary: Omit<PseudonymDictionaryEntry, 'id' | 'createdAt' | 'updatedAt'>): Promise<PseudonymDictionaryEntry> {
     try {
-      const response = await apiService.post(`${this.basePath}/pseudonym/dictionaries`, dictionary);
+      const response = await apiService.post<{ dictionary: PseudonymDictionaryEntry }>(`${this.basePath}/pseudonym/dictionaries`, dictionary);
       return response.dictionary;
     } catch (error) {
       console.error('Error creating pseudonym dictionary:', error);
@@ -206,7 +206,7 @@ class PseudonymService {
    */
   async updatePseudonymDictionary(id: string, dictionary: Partial<PseudonymDictionaryEntry>): Promise<PseudonymDictionaryEntry> {
     try {
-      const response = await apiService.put(`${this.basePath}/pseudonym/dictionaries/${id}`, dictionary);
+      const response = await apiService.put<{ dictionary: PseudonymDictionaryEntry }>(`${this.basePath}/pseudonym/dictionaries/${id}`, dictionary);
       return response.dictionary;
     } catch (error) {
       console.error(`Error updating pseudonym dictionary ${id}:`, error);
@@ -231,7 +231,7 @@ class PseudonymService {
    */
   async bulkOperationPseudonymDictionaries(operation: PseudonymDictionaryBulkOperation): Promise<PseudonymDictionaryBulkResult> {
     try {
-      const response = await apiService.post(`${this.basePath}/pseudonym/dictionaries/bulk`, operation);
+      const response = await apiService.post<PseudonymDictionaryBulkResult>(`${this.basePath}/pseudonym/dictionaries/bulk`, operation);
       return response;
     } catch (error) {
       console.error('Error performing bulk operation on pseudonym dictionaries:', error);
@@ -248,7 +248,7 @@ class PseudonymService {
    */
   async importPseudonymDictionaries(data: PseudonymDictionaryImportData[]): Promise<{ success: boolean; imported: number; errors?: string[] }> {
     try {
-      const response = await apiService.post(`${this.basePath}/pseudonym/dictionaries/import`, { dictionaries: data });
+      const response = await apiService.post<{ success: boolean; imported: number; errors?: string[] }>(`${this.basePath}/pseudonym/dictionaries/import`, { dictionaries: data });
       return response;
     } catch (error) {
       console.error('Error importing pseudonym dictionaries:', error);
@@ -261,7 +261,7 @@ class PseudonymService {
    */
   async exportPseudonymDictionaries(): Promise<PseudonymDictionaryExportData> {
     try {
-      const response = await apiService.get(`${this.basePath}/pseudonym/dictionaries/export`);
+      const response = await apiService.get<PseudonymDictionaryExportData>(`${this.basePath}/pseudonym/dictionaries/export`);
       return response;
     } catch (error) {
       console.error('Error exporting pseudonym dictionaries:', error);
@@ -276,8 +276,8 @@ class PseudonymService {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      
-      const response = await apiService.post(`${this.basePath}/pseudonym/dictionaries/import/csv`, formData, {
+
+      const response = await apiService.post<{ success: boolean; imported: number; errors?: string[] }>(`${this.basePath}/pseudonym/dictionaries/import/csv`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -294,9 +294,9 @@ class PseudonymService {
    */
   async exportToCSV(): Promise<Blob> {
     try {
-      const response = await apiService.get(`${this.basePath}/pseudonym/dictionaries/export/csv`, {
-        responseType: 'blob'
-      });
+      // Note: apiService.get doesn't support responseType, so we get the response as-is
+      // and assume the backend returns the blob data correctly
+      const response = await apiService.get<Blob>(`${this.basePath}/pseudonym/dictionaries/export/csv`);
       return response;
     } catch (error) {
       console.error('Error exporting to CSV:', error);
@@ -356,7 +356,7 @@ class PseudonymService {
         }
       });
 
-      if (dictionary.category && dictionary.words.length > 0) {
+      if (dictionary.category && dictionary.words && dictionary.words.length > 0) {
         dictionaries.push(dictionary);
       }
     }
@@ -418,7 +418,7 @@ class PseudonymService {
    */
   async getMappingsByRunId(runId: string): Promise<PseudonymMapping[]> {
     try {
-      const response = await apiService.get(`${this.basePath}/pseudonym/mappings/run/${runId}`);
+      const response = await apiService.get<{ mappings: PseudonymMapping[] }>(`${this.basePath}/pseudonym/mappings/run/${runId}`);
       return response.mappings || [];
     } catch (error) {
       console.error(`Error fetching mappings for run ${runId}:`, error);

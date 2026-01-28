@@ -201,7 +201,7 @@ class PlanService {
         model: llmSelection.modelName!,
         temperature: llmSelection.temperature,
         maxTokens: llmSelection.maxTokens,
-      });
+      }) as { success: boolean; data?: { version?: PlanVersionData }; error?: { message?: string } };
 
       // Handle the response
       if (!response.success || !response.data) {

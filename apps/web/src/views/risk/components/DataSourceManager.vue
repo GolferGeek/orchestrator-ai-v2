@@ -506,11 +506,11 @@ async function loadDataSources() {
       riskDashboardService.getDataSourceHealthSummary(props.scopeId),
     ]);
 
-    if (sourcesRes.success && sourcesRes.data) {
-      dataSources.value = sourcesRes.data;
+    if (sourcesRes.success && sourcesRes.content) {
+      dataSources.value = sourcesRes.content;
     }
-    if (healthRes.success && healthRes.data) {
-      healthSummary.value = healthRes.data;
+    if (healthRes.success && healthRes.content) {
+      healthSummary.value = healthRes.content;
     }
   } catch (error) {
     console.error('Failed to load data sources:', error);
@@ -561,8 +561,8 @@ async function viewHistory(source: DataSource) {
       dataSourceId: source.id,
       limit: 50,
     });
-    if (response.success && response.data) {
-      fetchHistory.value = response.data;
+    if (response.success && response.content) {
+      fetchHistory.value = response.content;
     }
   } catch (error) {
     console.error('Failed to load history:', error);

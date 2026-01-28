@@ -246,7 +246,18 @@ import {
 import { closeOutline } from 'ionicons/icons';
 import { usePrivacyStore } from '@/stores/privacyStore';
 import * as privacyService from '@/services/privacyService';
-import type { PIIPattern, PIIPatternCreate } from '@/types/pii';
+import type { PIIPattern, PIIDataType } from '@/types/pii';
+
+// Define PIIPatternCreate type for form data
+type PIIPatternCreate = {
+  name: string;
+  regex: string; // Form uses 'regex' instead of 'pattern'
+  dataType: PIIDataType;
+  description: string;
+  priority: 'high' | 'medium' | 'low'; // Form uses string priority
+  category: string;
+  enabled: boolean;
+};
 
 // Props
 interface Props {
@@ -334,18 +345,29 @@ const resetForm = () => {
 };
 
 const loadPattern = (pattern: PIIPattern) => {
+  // Convert numeric priority to string priority
+  const priorityMap: Record<number, 'high' | 'medium' | 'low'> = {
+    1: 'high',
+    2: 'medium',
+    3: 'low'
+  };
+  const priorityValue = typeof pattern.priority === 'number'
+    ? priorityMap[pattern.priority] || 'medium'
+    : 'medium';
+
   formData.value = {
     name: pattern.name,
     regex: pattern.pattern, // Backend returns 'pattern', form expects 'regex'
     dataType: pattern.dataType,
     description: pattern.description || '',
-    priority: pattern.priority || 'medium',
+    priority: priorityValue,
     category: pattern.category || '',
     enabled: pattern.enabled !== undefined ? pattern.enabled : true
   };
 
   // Set sample text based on data type
-  sampleText.value = sampleTexts.value[pattern.dataType] || sampleTexts.value.custom;
+  const dataType = pattern.dataType;
+  sampleText.value = (dataType in sampleTexts.value ? sampleTexts.value[dataType as keyof typeof sampleTexts.value] : sampleTexts.value.custom) as string;
 
   // Validate regex and update preview
   nextTick(() => {
@@ -368,8 +390,8 @@ const validateName = async () => {
   }
 
   // Check uniqueness (skip if editing the same pattern)
-  const existingPattern = piiStore.patterns.find(p => 
-    p.name.toLowerCase() === name.toLowerCase() && 
+  const existingPattern = piiStore.patterns.find((p: PIIPattern) =>
+    p.name.toLowerCase() === name.toLowerCase() &&
     (!isEditMode.value || p.id !== props.pattern?.id)
   );
   
@@ -404,12 +426,14 @@ const validateRegex = () => {
 };
 
 const getSampleTextPlaceholder = () => {
-  return sampleTexts.value[formData.value.dataType] || sampleTexts.value.custom;
+  const dataType = formData.value.dataType;
+  return (dataType in sampleTexts.value ? sampleTexts.value[dataType as keyof typeof sampleTexts.value] : sampleTexts.value.custom) as string;
 };
 
 const updateSampleText = () => {
   if (!sampleText.value || sampleText.value === getSampleTextPlaceholder()) {
-    sampleText.value = sampleTexts.value[formData.value.dataType] || sampleTexts.value.custom;
+    const dataType = formData.value.dataType;
+    sampleText.value = (dataType in sampleTexts.value ? sampleTexts.value[dataType as keyof typeof sampleTexts.value] : sampleTexts.value.custom) as string;
     updatePreview();
   }
 };
@@ -474,16 +498,30 @@ const handleSubmit = async () => {
   try {
     let savedPattern: PIIPattern;
 
-    if (isEditMode.value && props.pattern) {
+    // Convert form data to API format
+    const priorityMap: Record<'high' | 'medium' | 'low', number> = {
+      high: 1,
+      medium: 2,
+      low: 3
+    };
+
+    const apiData: Omit<PIIPattern, 'id' | 'createdAt' | 'updatedAt' | 'isBuiltIn'> = {
+      name: formData.value.name,
+      pattern: formData.value.regex, // Convert 'regex' to 'pattern'
+      dataType: formData.value.dataType,
+      description: formData.value.description,
+      priority: priorityMap[formData.value.priority],
+      category: formData.value.category,
+      enabled: formData.value.enabled
+    };
+
+    if (isEditMode.value && props.pattern?.id) {
       // Update existing pattern
-      const updateData: Partial<PIIPattern> = {
-        ...formData.value
-      };
-      savedPattern = await privacyService.updatePatternEntry(props.pattern.id, updateData);
+      savedPattern = await privacyService.updatePatternEntry(props.pattern.id, apiData);
       await presentToast('Pattern updated successfully!');
     } else {
       // Create new pattern
-      savedPattern = await privacyService.createPattern(formData.value);
+      savedPattern = await privacyService.createPattern(apiData);
       await presentToast('Pattern created successfully!');
     }
 

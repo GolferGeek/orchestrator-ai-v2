@@ -251,18 +251,19 @@ const handleNavigate = (path: string) => {
 
 const handleReport = (error: AppError) => {
   // Implement error reporting
-  
+
   // In a real implementation, you might:
   // - Send error to logging service
   // - Open a feedback form
   // - Create a support ticket
-  
+
   // For now, mark as reported
-  errorStore.reportError(error.id, {
-    userFeedback: 'User reported this error via UI',
-    reproductionSteps: 'Error occurred during normal application use',
-    expectedBehavior: 'Application should work without errors'
-  });
+  errorStore.reportError(
+    error,
+    'User reported this error via UI',
+    'Error occurred during normal application use',
+    'Application should work without errors'
+  );
 };
 
 const checkConnection = () => {

@@ -122,7 +122,7 @@ const hasSignals = computed(() => {
   if (!signals || !Array.isArray(signals) || signals.length === 0) return false;
   // Check if at least one signal has displayable text
   return signals.some(s => {
-    const sig = s as Record<string, unknown>;
+    const sig = s as unknown as Record<string, unknown>;
     return sig.description || sig.name || sig.text;
   });
 });
@@ -135,7 +135,7 @@ const displaySignals = computed(() => {
   return signals
     .slice(0, 3)
     .map(s => {
-      const sig = s as Record<string, unknown>;
+      const sig = s as unknown as Record<string, unknown>;
       // Backend uses 'name', frontend type uses 'description'
       // Also handle 'text' for flexibility
       const text = sig.description || sig.name || sig.text || '';

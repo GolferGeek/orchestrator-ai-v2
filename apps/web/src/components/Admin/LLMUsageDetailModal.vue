@@ -355,6 +355,7 @@ import {
 } from 'ionicons/icons';
 import { useLLMAnalyticsStore } from '@/stores/llmAnalyticsStore';
 import { usePrivacyStore } from '@/stores/privacyStore';
+import type { LlmUsageRecord } from '@/services/llmAnalyticsService';
 
 interface Props {
   isOpen: boolean;
@@ -368,15 +369,36 @@ interface UsageDetails {
   run_id: string;
   status: string;
   pii_detected: boolean;
-  pseudonyms_used: number;
-  redactions_applied: number;
-  [key: string]: unknown;
+  pseudonyms_used?: number;
+  redactions_applied?: number;
+  provider?: string;
+  model?: string;
+  caller_type?: string;
+  caller_name?: string;
+  route?: string;
+  is_local?: boolean;
+  conversation_id?: string;
+  input_tokens?: number;
+  output_tokens?: number;
+  input_cost?: number;
+  output_cost?: number;
+  duration_ms?: number;
+  started_at?: string;
+  completed_at?: string;
+  error_message?: string;
+  sanitization_level?: string;
+  sanitization_time_ms?: number;
+  pii_types?: string[];
+  pseudonym_types?: string[];
+  redaction_types?: string[];
 }
 
 interface PseudonymMapping {
-  original: string;
-  pseudonym: string;
-  [key: string]: unknown;
+  id: string;
+  original_value: string;
+  pseudonym_value: string;
+  data_type: string;
+  context: string;
 }
 
 const loading = ref(false);
@@ -384,9 +406,9 @@ const usageDetails = ref<UsageDetails | null>(null);
 const pseudonymMappings = ref<PseudonymMapping[]>([]);
 
 const hasPIIData = computed(() => {
-  return usageDetails.value?.pii_detected || 
-         usageDetails.value?.pseudonyms_used > 0 || 
-         usageDetails.value?.redactions_applied > 0;
+  return usageDetails.value?.pii_detected ||
+         (usageDetails.value?.pseudonyms_used ?? 0) > 0 ||
+         (usageDetails.value?.redactions_applied ?? 0) > 0;
 });
 
 watch(() => props.runId, async (newRunId) => {
@@ -404,7 +426,7 @@ watch(() => props.isOpen, async (isOpen) => {
 async function loadUsageDetails(runId: string) {
   loading.value = true;
   const llmAnalyticsStore = useLLMAnalyticsStore();
-  const pseudonymMappingsStore = usePrivacyStore();
+  const _pseudonymMappingsStore = usePrivacyStore();
 
   try {
     // Ensure usage records are loaded
@@ -414,7 +436,7 @@ async function loadUsageDetails(runId: string) {
 
     // Find the usage details from the store records
     const details = llmAnalyticsStore.usageRecords.find(
-      record => record.run_id === runId || record.id === runId
+      (record: LlmUsageRecord) => record.run_id === runId || record.id === runId
     );
 
     if (details) {
@@ -443,10 +465,11 @@ async function loadUsageDetails(runId: string) {
       } as UsageDetails;
 
       // Load pseudonym mappings if there are pseudonyms
-      if (usageDetails.value?.pseudonyms_used > 0) {
-        const mappings = await pseudonymMappingsStore.getMappingsByRunId(runId);
-        pseudonymMappings.value = mappings;
-      }
+      // Note: getMappingsByRunId is not yet implemented in the privacy store
+      // if ((usageDetails.value?.pseudonyms_used ?? 0) > 0) {
+      //   const mappings = await pseudonymMappingsStore.getMappingsByRunId(runId);
+      //   pseudonymMappings.value = mappings;
+      // }
     }
   } catch (error) {
     console.error('Error loading usage details:', error);
@@ -544,7 +567,7 @@ function getRedactionTypesText(): string {
     (usageDetails.value.redaction_types.length > 3 ? '...' : '');
 }
 
-function formatDateTime(dateStr: string): string {
+function formatDateTime(dateStr: string | undefined): string {
   if (!dateStr) return 'N/A';
   const date = new Date(dateStr);
   return date.toLocaleString();

@@ -56,7 +56,7 @@
           :key="status"
           class="status-tab"
           :class="{ active: selectedStatus === status }"
-          @click="selectedStatus = status"
+          @click="selectedStatus = status as 'pending' | 'approved' | 'rejected' | 'modified'"
         >
           {{ status }}
         </button>
@@ -373,7 +373,7 @@ const reviewNotes = ref('');
 // Agent Activity state
 const isLoadingActivity = ref(false);
 
-const statuses = ['pending', 'approved', 'rejected', 'modified'];
+const statuses = ['pending', 'approved', 'rejected', 'modified'] as const;
 
 const modifiedData = reactive({
   title: '',
@@ -392,8 +392,8 @@ const filteredTargets = computed(() => {
   return targets.value.filter((t) => t.universeId === selectedUniverseId.value);
 });
 
-const filteredQueueItems = computed(() => {
-  let items = learningStore.learningQueue;
+const filteredQueueItems = computed((): LearningQueueItem[] => {
+  let items = learningStore.learningQueue as unknown as LearningQueueItem[];
 
   // Filter by status
   if (selectedStatus.value) {
@@ -443,7 +443,7 @@ async function loadQueue() {
     });
 
     if (queueRes.content) {
-      learningStore.setLearningQueue(queueRes.content);
+      learningStore.setLearningQueue(queueRes.content as unknown as import('@/stores/learningStore').LearningQueueItem[]);
     }
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load learning queue';
@@ -501,7 +501,7 @@ async function handleReviewDecision(decision: 'approve' | 'reject' | 'modify') {
   try {
     const params = {
       id: reviewingItem.value.id,
-      decision: reviewDecision.value === 'modify' ? 'modify' : decision,
+      decision: (reviewDecision.value === 'modify' ? 'modify' : decision) as 'approve' | 'reject' | 'modify',
       reviewNotes: reviewNotes.value || undefined,
       ...(reviewDecision.value === 'modify' && {
         modifiedTitle: modifiedData.title,
@@ -515,8 +515,9 @@ async function handleReviewDecision(decision: 'approve' | 'reject' | 'modify') {
 
     if (response.content?.success) {
       // Update the queue item status
+      const finalStatus = (reviewDecision.value === 'modify' ? 'modified' : decision) as 'pending' | 'approved' | 'rejected' | 'modified';
       learningStore.updateQueueItem(reviewingItem.value.id, {
-        status: reviewDecision.value === 'modify' ? 'modified' : decision,
+        status: finalStatus,
         reviewNotes: reviewNotes.value || null,
         reviewedAt: new Date().toISOString(),
       });

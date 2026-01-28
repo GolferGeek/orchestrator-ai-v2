@@ -352,7 +352,7 @@ export interface PrivacyDashboardData {
 /**
  * Dashboard filters
  */
-export interface DashboardFilters {
+export interface PIIDashboardFilters {
   timeRange: 'hour' | 'day' | 'week' | 'month' | 'year' | 'custom';
   customStartDate?: string;
   customEndDate?: string;

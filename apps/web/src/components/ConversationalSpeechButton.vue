@@ -199,7 +199,7 @@ const getButtonTooltip = (): string => {
 const calculateVolume = (): number => {
   if (!analyser.value || !dataArray.value) return 0;
 
-  analyser.value.getByteFrequencyData(dataArray.value);
+  analyser.value.getByteFrequencyData(dataArray.value as unknown as Uint8Array<ArrayBuffer>);
 
   let sum = 0;
   for (let i = 0; i < dataArray.value.length; i++) {
@@ -406,11 +406,7 @@ const startMediaRecording = async () => {
       echoCancellation: true,
       noiseSuppression: true,
       autoGainControl: false,  // Prevent exclusive mic access
-      googEchoCancellation: false,  // Disable Chrome-specific exclusive features
-      googAutoGainControl: false,
-      googNoiseSuppression: false,
-      googHighpassFilter: false,
-    }
+    } as MediaTrackConstraints
   });
 
   // Track this stream for cleanup

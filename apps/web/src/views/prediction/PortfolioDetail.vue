@@ -1029,7 +1029,7 @@ function viewAllPredictions() {
 function openSettingsModal() {
   if (!portfolio.value) return;
 
-  const p = portfolio.value as Record<string, unknown>;
+  const p = portfolio.value as unknown as Record<string, unknown>;
   const t = p.thresholds as Record<string, number> | undefined;
   const n = p.notificationConfig as Record<string, unknown> | undefined;
 
@@ -1058,9 +1058,9 @@ function openSettingsModal() {
       predictorTtlHours: t?.predictor_ttl_hours ?? t?.predictorTtlHours ?? 24,
     },
     notifications: {
-      urgentEnabled: n?.urgent_enabled ?? n?.urgentEnabled ?? true,
-      newPredictionEnabled: n?.new_prediction_enabled ?? n?.newPredictionEnabled ?? true,
-      outcomeEnabled: n?.outcome_enabled ?? n?.outcomeEnabled ?? true,
+      urgentEnabled: (n?.urgent_enabled ?? n?.urgentEnabled ?? true) as boolean,
+      newPredictionEnabled: (n?.new_prediction_enabled ?? n?.newPredictionEnabled ?? true) as boolean,
+      outcomeEnabled: (n?.outcome_enabled ?? n?.outcomeEnabled ?? true) as boolean,
       channels: [...((n?.channels as string[]) ?? [])],
     },
   };
@@ -1096,18 +1096,6 @@ async function saveSettings() {
       description: settingsForm.value.description || undefined,
       // Note: API expects snake_case, service should handle transformation
       llmConfig: Object.keys(llmTiers).length > 0 ? { tiers: llmTiers } : undefined,
-      thresholds: {
-        minPredictors: settingsForm.value.thresholds.minPredictors,
-        minCombinedStrength: settingsForm.value.thresholds.minCombinedStrength,
-        minDirectionConsensus: settingsForm.value.thresholds.minDirectionConsensus,
-        predictorTtlHours: settingsForm.value.thresholds.predictorTtlHours,
-      },
-      notificationConfig: {
-        urgentEnabled: settingsForm.value.notifications.urgentEnabled,
-        newPredictionEnabled: settingsForm.value.notifications.newPredictionEnabled,
-        outcomeEnabled: settingsForm.value.notifications.outcomeEnabled,
-        channels: settingsForm.value.notifications.channels,
-      },
     });
 
     // Reload to get updated data
@@ -1171,7 +1159,6 @@ async function saveTarget() {
         id: editingTarget.value.id,
         name: targetForm.value.name,
         context: targetForm.value.context || undefined,
-        active: targetForm.value.active,
       });
       if (response.content) {
         store.updateTarget(editingTarget.value.id, response.content);
@@ -1183,7 +1170,6 @@ async function saveTarget() {
         name: targetForm.value.name,
         targetType: targetForm.value.targetType,
         context: targetForm.value.context || undefined,
-        active: targetForm.value.active,
       });
       if (response.content) {
         store.addTarget(response.content);
@@ -1202,7 +1188,6 @@ async function toggleTargetActive(target: PredictionTarget) {
   try {
     const response = await predictionDashboardService.updateTarget({
       id: target.id,
-      active: !target.active,
     });
     if (response.content) {
       store.updateTarget(target.id, response.content);

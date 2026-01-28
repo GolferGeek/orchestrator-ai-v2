@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Unit Tests for Plan Store
  * Tests pure state management for plans and versions
@@ -41,9 +40,11 @@ describe('PlanStore', () => {
       const plan: PlanData = {
         id: 'plan-1',
         title: 'Test Plan',
-        description: 'Test Description',
-        status: 'draft',
         conversationId: 'conv-1',
+        userId: 'user-1',
+        agentName: 'test-agent',
+        organization: 'test-org',
+        currentVersionId: 'version-1',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -61,9 +62,11 @@ describe('PlanStore', () => {
       const plan: PlanData = {
         id: 'plan-1',
         title: 'Test Plan',
-        description: 'Test Description',
-        status: 'draft',
         conversationId: 'conv-1',
+        userId: 'user-1',
+        agentName: 'test-agent',
+        organization: 'test-org',
+        currentVersionId: 'version-1',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -72,9 +75,12 @@ describe('PlanStore', () => {
         id: 'version-1',
         planId: 'plan-1',
         versionNumber: 1,
-        content: { tasks: [] },
+        content: JSON.stringify({ tasks: [] }),
+        format: 'json',
+        createdByType: 'agent',
+        createdById: 'agent-1',
+        isCurrentVersion: true,
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
       };
 
       store.addPlan(plan, version);
@@ -90,9 +96,11 @@ describe('PlanStore', () => {
       const plan: PlanData = {
         id: 'plan-1',
         title: 'Original Title',
-        description: 'Original Description',
-        status: 'draft',
         conversationId: 'conv-1',
+        userId: 'user-1',
+        agentName: 'test-agent',
+        organization: 'test-org',
+        currentVersionId: 'version-1',
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z',
       };
@@ -103,13 +111,13 @@ describe('PlanStore', () => {
 
       store.updatePlan('plan-1', {
         title: 'Updated Title',
-        status: 'active',
+        agentName: 'updated-agent',
       });
 
       const updated = store.planById('plan-1');
       expect(updated?.title).toBe('Updated Title');
-      expect(updated?.status).toBe('active');
-      expect(updated?.description).toBe('Original Description');
+      expect(updated?.agentName).toBe('updated-agent');
+      expect(updated?.organization).toBe('test-org');
       expect(updated?.updatedAt).not.toBe(originalUpdatedAt);
     });
 
@@ -127,9 +135,11 @@ describe('PlanStore', () => {
       const plan: PlanData = {
         id: 'plan-1',
         title: 'Test Plan',
-        description: 'Test Description',
-        status: 'draft',
         conversationId: 'conv-1',
+        userId: 'user-1',
+        agentName: 'test-agent',
+        organization: 'test-org',
+        currentVersionId: 'version-1',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -138,9 +148,12 @@ describe('PlanStore', () => {
         id: 'version-1',
         planId: 'plan-1',
         versionNumber: 1,
-        content: { tasks: [] },
+        content: JSON.stringify({ tasks: [] }),
+        format: 'json',
+        createdByType: 'agent',
+        createdById: 'agent-1',
+        isCurrentVersion: true,
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
       };
 
       store.addPlan(plan, version);
@@ -162,9 +175,11 @@ describe('PlanStore', () => {
       const plan: PlanData = {
         id: 'plan-1',
         title: 'Test Plan',
-        description: 'Test Description',
-        status: 'draft',
         conversationId: 'conv-1',
+        userId: 'user-1',
+        agentName: 'test-agent',
+        organization: 'test-org',
+        currentVersionId: 'version-1',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -175,18 +190,24 @@ describe('PlanStore', () => {
         id: 'version-1',
         planId: 'plan-1',
         versionNumber: 1,
-        content: { tasks: [] },
+        content: JSON.stringify({ tasks: [] }),
+        format: 'json',
+        createdByType: 'agent',
+        createdById: 'agent-1',
+        isCurrentVersion: false,
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
       };
 
       const version2: PlanVersionData = {
         id: 'version-2',
         planId: 'plan-1',
         versionNumber: 2,
-        content: { tasks: [{ id: '1', title: 'Task 1' }] },
+        content: JSON.stringify({ tasks: [{ id: '1', title: 'Task 1' }] }),
+        format: 'json',
+        createdByType: 'agent',
+        createdById: 'agent-1',
+        isCurrentVersion: true,
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
       };
 
       store.addVersion('plan-1', version1);
@@ -204,9 +225,11 @@ describe('PlanStore', () => {
       const plan: PlanData = {
         id: 'plan-1',
         title: 'Test Plan',
-        description: 'Test Description',
-        status: 'draft',
         conversationId: 'conv-1',
+        userId: 'user-1',
+        agentName: 'test-agent',
+        organization: 'test-org',
+        currentVersionId: 'version-1',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -217,23 +240,26 @@ describe('PlanStore', () => {
         id: 'version-1',
         planId: 'plan-1',
         versionNumber: 1,
-        content: { tasks: [] },
+        content: JSON.stringify({ tasks: [] }),
+        format: 'json',
+        createdByType: 'agent',
+        createdById: 'agent-1',
+        isCurrentVersion: true,
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
       };
 
       store.addVersion('plan-1', version1);
 
       const updatedVersion1: PlanVersionData = {
         ...version1,
-        content: { tasks: [{ id: '1', title: 'Updated Task' }] },
+        content: JSON.stringify({ tasks: [{ id: '1', title: 'Updated Task' }] }),
       };
 
       store.addVersion('plan-1', updatedVersion1);
 
       const versions = store.versionsByPlanId('plan-1');
       expect(versions).toHaveLength(1);
-      expect(versions[0].content).toEqual({ tasks: [{ id: '1', title: 'Updated Task' }] });
+      expect(versions[0].content).toEqual(JSON.stringify({ tasks: [{ id: '1', title: 'Updated Task' }] }));
     });
 
     it('should set current version', () => {
@@ -242,9 +268,11 @@ describe('PlanStore', () => {
       const plan: PlanData = {
         id: 'plan-1',
         title: 'Test Plan',
-        description: 'Test Description',
-        status: 'draft',
         conversationId: 'conv-1',
+        userId: 'user-1',
+        agentName: 'test-agent',
+        organization: 'test-org',
+        currentVersionId: 'version-1',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -253,9 +281,12 @@ describe('PlanStore', () => {
         id: 'version-1',
         planId: 'plan-1',
         versionNumber: 1,
-        content: { tasks: [] },
+        content: JSON.stringify({ tasks: [] }),
+        format: 'json',
+        createdByType: 'agent',
+        createdById: 'agent-1',
+        isCurrentVersion: true,
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
       };
 
       store.addPlan(plan, version);
@@ -280,9 +311,11 @@ describe('PlanStore', () => {
       const plan: PlanData = {
         id: 'plan-1',
         title: 'Test Plan',
-        description: 'Test Description',
-        status: 'draft',
         conversationId: 'conv-1',
+        userId: 'user-1',
+        agentName: 'test-agent',
+        organization: 'test-org',
+        currentVersionId: 'version-1',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -291,18 +324,24 @@ describe('PlanStore', () => {
         id: 'version-1',
         planId: 'plan-1',
         versionNumber: 1,
-        content: { tasks: [] },
+        content: JSON.stringify({ tasks: [] }),
+        format: 'json',
+        createdByType: 'agent',
+        createdById: 'agent-1',
+        isCurrentVersion: false,
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z',
       };
 
       const version2: PlanVersionData = {
         id: 'version-2',
         planId: 'plan-1',
         versionNumber: 2,
-        content: { tasks: [] },
+        content: JSON.stringify({ tasks: [] }),
+        format: 'json',
+        createdByType: 'agent',
+        createdById: 'agent-1',
+        isCurrentVersion: true,
         createdAt: '2024-01-02T00:00:00.000Z',
-        updatedAt: '2024-01-02T00:00:00.000Z',
       };
 
       store.addPlan(plan);
@@ -324,9 +363,11 @@ describe('PlanStore', () => {
       const plan: PlanData = {
         id: 'plan-1',
         title: 'Test Plan',
-        description: 'Test Description',
-        status: 'draft',
         conversationId: 'conv-1',
+        userId: 'user-1',
+        agentName: 'test-agent',
+        organization: 'test-org',
+        currentVersionId: 'version-1',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -335,18 +376,24 @@ describe('PlanStore', () => {
         id: 'version-1',
         planId: 'plan-1',
         versionNumber: 1,
-        content: { tasks: [] },
+        content: JSON.stringify({ tasks: [] }),
+        format: 'json',
+        createdByType: 'agent',
+        createdById: 'agent-1',
+        isCurrentVersion: true,
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z',
       };
 
       const version2: PlanVersionData = {
         id: 'version-2',
         planId: 'plan-1',
         versionNumber: 2,
-        content: { tasks: [] },
+        content: JSON.stringify({ tasks: [] }),
+        format: 'json',
+        createdByType: 'agent',
+        createdById: 'agent-1',
+        isCurrentVersion: false,
         createdAt: '2024-01-02T00:00:00.000Z',
-        updatedAt: '2024-01-02T00:00:00.000Z',
       };
 
       store.addPlan(plan);
@@ -369,9 +416,11 @@ describe('PlanStore', () => {
       const plan: PlanData = {
         id: 'plan-1',
         title: 'Test Plan',
-        description: 'Test Description',
-        status: 'draft',
         conversationId: 'conv-1',
+        userId: 'user-1',
+        agentName: 'test-agent',
+        organization: 'test-org',
+        currentVersionId: 'version-1',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -390,9 +439,11 @@ describe('PlanStore', () => {
       const plan: PlanData = {
         id: 'plan-1',
         title: 'Test Plan',
-        description: 'Test Description',
-        status: 'draft',
         conversationId: 'conv-1',
+        userId: 'user-1',
+        agentName: 'test-agent',
+        organization: 'test-org',
+        currentVersionId: 'version-1',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -411,9 +462,11 @@ describe('PlanStore', () => {
       const plan1: PlanData = {
         id: 'plan-1',
         title: 'Plan 1',
-        description: 'Description 1',
-        status: 'draft',
         conversationId: 'conv-1',
+        userId: 'user-1',
+        agentName: 'test-agent',
+        organization: 'test-org',
+        currentVersionId: 'version-1',
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z',
       };
@@ -421,9 +474,11 @@ describe('PlanStore', () => {
       const plan2: PlanData = {
         id: 'plan-2',
         title: 'Plan 2',
-        description: 'Description 2',
-        status: 'active',
         conversationId: 'conv-1',
+        userId: 'user-1',
+        agentName: 'test-agent',
+        organization: 'test-org',
+        currentVersionId: 'version-2',
         createdAt: '2024-01-02T00:00:00.000Z',
         updatedAt: '2024-01-03T00:00:00.000Z',
       };
@@ -446,9 +501,11 @@ describe('PlanStore', () => {
       const plan1: PlanData = {
         id: 'plan-1',
         title: 'Plan 1',
-        description: 'Description 1',
-        status: 'draft',
         conversationId: 'conv-1',
+        userId: 'user-1',
+        agentName: 'test-agent',
+        organization: 'test-org',
+        currentVersionId: 'version-1',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -456,9 +513,11 @@ describe('PlanStore', () => {
       const plan2: PlanData = {
         id: 'plan-2',
         title: 'Plan 2',
-        description: 'Description 2',
-        status: 'active',
         conversationId: 'conv-1',
+        userId: 'user-1',
+        agentName: 'test-agent',
+        organization: 'test-org',
+        currentVersionId: 'version-2',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -483,9 +542,11 @@ describe('PlanStore', () => {
       const plan1: PlanData = {
         id: 'plan-1',
         title: 'Plan 1',
-        description: 'Description 1',
-        status: 'draft',
         conversationId: 'conv-1',
+        userId: 'user-1',
+        agentName: 'test-agent',
+        organization: 'test-org',
+        currentVersionId: 'version-1',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -493,9 +554,11 @@ describe('PlanStore', () => {
       const plan2: PlanData = {
         id: 'plan-2',
         title: 'Plan 2',
-        description: 'Description 2',
-        status: 'active',
         conversationId: 'conv-1',
+        userId: 'user-1',
+        agentName: 'test-agent',
+        organization: 'test-org',
+        currentVersionId: 'version-2',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -520,9 +583,11 @@ describe('PlanStore', () => {
       const plan: PlanData = {
         id: 'plan-1',
         title: 'Test Plan',
-        description: 'Test Description',
-        status: 'draft',
         conversationId: 'conv-1',
+        userId: 'user-1',
+        agentName: 'test-agent',
+        organization: 'test-org',
+        currentVersionId: 'version-1',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -539,9 +604,11 @@ describe('PlanStore', () => {
       const plan1: PlanData = {
         id: 'plan-1',
         title: 'Plan 1',
-        description: 'Description 1',
-        status: 'draft',
         conversationId: 'conv-1',
+        userId: 'user-1',
+        agentName: 'test-agent',
+        organization: 'test-org',
+        currentVersionId: 'version-1',
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z',
       };
@@ -549,9 +616,11 @@ describe('PlanStore', () => {
       const plan2: PlanData = {
         id: 'plan-2',
         title: 'Plan 2',
-        description: 'Description 2',
-        status: 'active',
         conversationId: 'conv-2',
+        userId: 'user-1',
+        agentName: 'test-agent',
+        organization: 'test-org',
+        currentVersionId: 'version-2',
         createdAt: '2024-01-02T00:00:00.000Z',
         updatedAt: '2024-01-03T00:00:00.000Z',
       };
@@ -574,9 +643,11 @@ describe('PlanStore', () => {
       const plan: PlanData = {
         id: 'plan-1',
         title: 'Test Plan',
-        description: 'Test Description',
-        status: 'draft',
         conversationId: 'conv-1',
+        userId: 'user-1',
+        agentName: 'test-agent',
+        organization: 'test-org',
+        currentVersionId: 'version-1',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -585,9 +656,12 @@ describe('PlanStore', () => {
         id: 'version-1',
         planId: 'plan-1',
         versionNumber: 1,
-        content: { tasks: [] },
+        content: JSON.stringify({ tasks: [] }),
+        format: 'json',
+        createdByType: 'agent',
+        createdById: 'agent-1',
+        isCurrentVersion: true,
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
       };
 
       store.addPlan(plan, version);
@@ -629,9 +703,11 @@ describe('PlanStore', () => {
       const plan1: PlanData = {
         id: 'plan-1',
         title: 'Plan 1',
-        description: 'Description 1',
-        status: 'draft',
         conversationId: 'conv-1',
+        userId: 'user-1',
+        agentName: 'test-agent',
+        organization: 'test-org',
+        currentVersionId: 'version-1',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -639,9 +715,11 @@ describe('PlanStore', () => {
       const plan2: PlanData = {
         id: 'plan-2',
         title: 'Plan 2',
-        description: 'Description 2',
-        status: 'active',
         conversationId: 'conv-2',
+        userId: 'user-1',
+        agentName: 'test-agent',
+        organization: 'test-org',
+        currentVersionId: 'version-2',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -650,9 +728,12 @@ describe('PlanStore', () => {
         id: 'version-1',
         planId: 'plan-1',
         versionNumber: 1,
-        content: { tasks: [] },
+        content: JSON.stringify({ tasks: [] }),
+        format: 'json',
+        createdByType: 'agent',
+        createdById: 'agent-1',
+        isCurrentVersion: true,
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
       };
 
       store.addPlan(plan1, version);
@@ -681,19 +762,20 @@ describe('PlanStore', () => {
       const planFromA2A: PlanData = {
         id: 'plan-123',
         title: 'Marketing Campaign Plan',
-        description: 'Q1 2024 marketing campaign',
-        status: 'active',
         conversationId: 'conv-456',
+        userId: 'user-123',
+        agentName: 'marketing-agent',
+        organization: 'acme-corp',
+        currentVersionId: 'version-1',
         createdAt: '2024-01-15T10:00:00.000Z',
         updatedAt: '2024-01-15T10:00:00.000Z',
-        currentVersionId: 'version-1',
       };
 
       store.addPlan(planFromA2A);
 
       const storedPlan = store.planById('plan-123');
       expect(storedPlan).toEqual(planFromA2A);
-      expect(storedPlan?.status).toBe('active');
+      expect(storedPlan?.agentName).toBe('marketing-agent');
       expect(storedPlan?.currentVersionId).toBe('version-1');
     });
 
@@ -703,9 +785,11 @@ describe('PlanStore', () => {
       const plan: PlanData = {
         id: 'plan-123',
         title: 'Test Plan',
-        description: 'Test Description',
-        status: 'draft',
         conversationId: 'conv-456',
+        userId: 'user-123',
+        agentName: 'test-agent',
+        organization: 'acme-corp',
+        currentVersionId: 'version-123',
         createdAt: '2024-01-15T10:00:00.000Z',
         updatedAt: '2024-01-15T10:00:00.000Z',
       };
@@ -715,14 +799,17 @@ describe('PlanStore', () => {
         id: 'version-123',
         planId: 'plan-123',
         versionNumber: 1,
-        content: {
+        content: JSON.stringify({
           tasks: [
             { id: 'task-1', title: 'Research', status: 'pending' },
             { id: 'task-2', title: 'Design', status: 'pending' },
           ],
-        },
+        }),
+        format: 'json',
+        createdByType: 'agent',
+        createdById: 'agent-123',
+        isCurrentVersion: true,
         createdAt: '2024-01-15T10:00:00.000Z',
-        updatedAt: '2024-01-15T10:00:00.000Z',
       };
 
       store.addPlan(plan, versionFromA2A);
@@ -730,7 +817,8 @@ describe('PlanStore', () => {
       const storedVersion = store.versionsByPlanId('plan-123')[0];
       expect(storedVersion).toEqual(versionFromA2A);
       expect(storedVersion.versionNumber).toBe(1);
-      expect(storedVersion.content.tasks).toHaveLength(2);
+      const parsedContent = JSON.parse(storedVersion.content);
+      expect(parsedContent.tasks).toHaveLength(2);
     });
   });
 
@@ -756,9 +844,11 @@ describe('PlanStore', () => {
         const plan: PlanData = {
           id: `plan-${i}`,
           title: `Plan ${i}`,
-          description: `Description ${i}`,
-          status: 'draft',
           conversationId: `conv-${i % 10}`,
+          userId: 'user-1',
+          agentName: 'test-agent',
+          organization: 'test-org',
+          currentVersionId: `version-${i}`,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };

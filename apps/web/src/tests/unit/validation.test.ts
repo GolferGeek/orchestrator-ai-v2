@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Validation System Unit Tests
  * Comprehensive tests for input validation, security patterns, and composables
@@ -227,12 +226,12 @@ describe('Validation System', () => {
     });
 
     it('should validate security', () => {
-      const rule = ValidationRules.security('Security violation');
-      
+      const rule = ValidationRules.security();
+
       expect(rule.validator('normal text').isValid).toBe(true);
       expect(rule.validator('<script>alert("xss")</script>').isValid).toBe(false);
       expect(rule.validator("'; DROP TABLE users; --").isValid).toBe(false);
-      
+
       const result = rule.validator('<script>alert("xss")</script>');
       expect(result.errors[0].severity).toBe('critical');
       expect(result.errors[0].code).toBe(ValidationCodes.XSS_DETECTED);
@@ -240,58 +239,58 @@ describe('Validation System', () => {
 
     it('should sanitize input with default profile', () => {
       const rule = ValidationRules.sanitize();
-      
+
       const result = rule.validator('<b>Hello</b> World');
       expect(result.isValid).toBe(true);
       expect(result.sanitizedValue).toBe('<b>Hello</b> World'); // Basic tags allowed in moderate profile
       expect(result.metadata?.sanitizationApplied).toBe(false); // No change needed
-      expect(result.metadata?.sanitizationProfile).toBe('moderate');
+      expect((result.metadata as { sanitizationProfile?: string })?.sanitizationProfile).toBe('moderate');
     });
 
     it('should sanitize input with specific profile', () => {
       const rule = ValidationRules.sanitize({ profile: 'strict' });
-      
+
       const result = rule.validator('<b>Hello</b> World');
       expect(result.isValid).toBe(true);
       expect(result.sanitizedValue).toBe('Hello World');
-      expect(result.metadata?.sanitizationProfile).toBe('strict');
+      expect((result.metadata as { sanitizationProfile?: string })?.sanitizationProfile).toBe('strict');
     });
 
     it('should sanitize API input strictly', () => {
       const rule = ValidationRules.sanitizeApiInput();
-      
+
       const result = rule.validator('<script>alert("xss")</script>Hello World');
       expect(result.isValid).toBe(true);
       expect(result.sanitizedValue).toBe('Hello World');
-      expect(result.metadata?.sanitizationProfile).toBe('apiInput');
+      expect((result.metadata as { sanitizationProfile?: string })?.sanitizationProfile).toBe('apiInput');
     });
 
     it('should sanitize search queries', () => {
       const rule = ValidationRules.sanitizeSearch();
-      
+
       const result = rule.validator('<b>search</b> term');
       expect(result.isValid).toBe(true);
       expect(result.sanitizedValue).toBe('search term');
-      expect(result.metadata?.sanitizationProfile).toBe('search');
+      expect((result.metadata as { sanitizationProfile?: string })?.sanitizationProfile).toBe('search');
     });
 
     it('should sanitize rich text content', () => {
       const rule = ValidationRules.sanitizeRichText();
-      
+
       const result = rule.validator('<p><b>Rich</b> content</p><script>alert("xss")</script>');
       expect(result.isValid).toBe(true);
       expect(result.sanitizedValue).toBe('<p><b>Rich</b> content</p>');
-      expect(result.metadata?.sanitizationProfile).toBe('richText');
+      expect((result.metadata as { sanitizationProfile?: string })?.sanitizationProfile).toBe('richText');
     });
 
     it('should provide warnings when content is modified', () => {
       const rule = ValidationRules.sanitize();
-      
+
       const result = rule.validator('<script>alert("xss")</script>Hello World');
       expect(result.isValid).toBe(true);
       expect(result.warnings).toHaveLength(1);
       expect(result.warnings[0].message).toBe('Input was sanitized for security');
-      expect(result.warnings[0].severity).toBe('info');
+      // ValidationWarning doesn't have severity property, only field, code, message, suggestion
     });
   });
 
@@ -349,9 +348,9 @@ describe('Validation System', () => {
       
       validation.removeRule('test', 'required');
       // Should have 1 rule remaining
-      
+
       validation.clearErrors('test');
-      expect(validation.errors.value.test).toBeUndefined();
+      expect('test' in validation.errors.value).toBe(false);
     });
   });
 

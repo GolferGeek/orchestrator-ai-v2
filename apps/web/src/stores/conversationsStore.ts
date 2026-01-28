@@ -24,7 +24,7 @@ import type {
   TaskMetadata,
   TaskData,
 } from '@/types/task';
-import type { AgentConversation } from '@/types/conversation';
+import type { AgentConversation, Agent } from '@/types/conversation';
 
 // ============================================================================
 // Types
@@ -43,8 +43,9 @@ export type AgentType =
 /**
  * Store Conversation type - simplified for storage
  * Can be extended with AgentConversation properties
+ * Omits conflicting date types from AgentConversation to support both Date and string
  */
-export interface Conversation extends Partial<AgentConversation> {
+export interface Conversation extends Omit<Partial<AgentConversation>, 'createdAt' | 'lastActiveAt'> {
   // Required fields
   id: string;
   title: string;
@@ -55,10 +56,24 @@ export interface Conversation extends Partial<AgentConversation> {
   agentType?: AgentType;
   organizationSlug?: string | null;
 
-  // Timestamps
+  // Timestamps (override AgentConversation's Date types to support string)
   createdAt: Date | string;
   updatedAt?: Date | string;
+  startedAt?: Date | string;
   lastActiveAt?: Date | string;
+  endedAt?: Date | string;
+
+  // Task counts
+  taskCount?: number;
+  completedTasks?: number;
+  failedTasks?: number;
+  activeTasks?: number;
+
+  // Agent reference
+  agent?: Agent;
+
+  // Metadata
+  metadata?: Record<string, unknown>;
 
   // Execution modes
   executionMode?: 'immediate' | 'polling' | 'real-time' | 'auto';
@@ -151,9 +166,9 @@ export const useConversationsStore = defineStore('conversations', () => {
   const allConversations = computed(() => {
     return Array.from(conversations.value.values())
       .sort((a, b) => {
-        const dateA = a.lastActiveAt || a.updatedAt;
-        const dateB = b.lastActiveAt || b.updatedAt;
-        return new Date(dateB).getTime() - new Date(dateA).getTime();
+        const dateA = a.lastActiveAt || a.updatedAt || a.createdAt;
+        const dateB = b.lastActiveAt || b.updatedAt || b.createdAt;
+        return new Date(dateB as string | Date).getTime() - new Date(dateA as string | Date).getTime();
       });
   });
 
@@ -164,9 +179,9 @@ export const useConversationsStore = defineStore('conversations', () => {
     return Array.from(conversations.value.values())
       .filter(conv => !conv.endedAt)
       .sort((a, b) => {
-        const dateA = a.lastActiveAt || a.updatedAt;
-        const dateB = b.lastActiveAt || b.updatedAt;
-        return new Date(dateB).getTime() - new Date(dateA).getTime();
+        const dateA = a.lastActiveAt || a.updatedAt || a.createdAt;
+        const dateB = b.lastActiveAt || b.updatedAt || b.createdAt;
+        return new Date(dateB as string | Date).getTime() - new Date(dateA as string | Date).getTime();
       });
   });
 

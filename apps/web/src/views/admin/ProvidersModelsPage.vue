@@ -194,7 +194,7 @@ import {
   arrowBackOutline,
 } from 'ionicons/icons';
 import { fetchProvidersWithModels, type ProviderWithModels } from '@/services/modelCatalogService';
-import { fetchGlobalModelConfig, updateGlobalModelConfig } from '@/services/systemSettingsService';
+import { fetchGlobalModelConfig, updateGlobalModelConfig, type GlobalModelConfig } from '@/services/systemSettingsService';
 import { apiService } from '@/services/apiService';
 
 // State
@@ -233,7 +233,7 @@ const fetchProviders = async () => {
 
 const fetchOllamaStatus = async () => {
   try {
-    const response = await apiService.get('/llm/local-models/status');
+    const response = await apiService.get('/llm/local-models/status') as { connected?: boolean; version?: string };
     ollamaStatus.value = {
       connected: response?.connected ?? false,
       version: response?.version,
@@ -246,13 +246,18 @@ const fetchOllamaStatus = async () => {
 
 const fetchDefaultModel = async () => {
   try {
-    const config = await fetchGlobalModelConfig();
-    if (config?.dbConfig) {
-      const cfg = config.dbConfig;
-      if (cfg.default) {
-        defaultModel.value = { provider: cfg.default.provider, model: cfg.default.model };
-      } else if (cfg.provider && cfg.model) {
-        defaultModel.value = { provider: cfg.provider, model: cfg.model };
+    const response = await fetchGlobalModelConfig() as { dbConfig?: GlobalModelConfig } | GlobalModelConfig;
+
+    // Handle response that may be wrapped in dbConfig or direct config
+    const config = (response && typeof response === 'object' && 'dbConfig' in response)
+      ? response.dbConfig
+      : response as GlobalModelConfig;
+
+    if (config) {
+      if (config.default) {
+        defaultModel.value = { provider: config.default.provider, model: config.default.model };
+      } else if (config.provider && config.model) {
+        defaultModel.value = { provider: config.provider, model: config.model };
       }
     }
   } catch (error) {

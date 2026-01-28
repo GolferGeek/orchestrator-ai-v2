@@ -206,7 +206,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       }
       
       if (constraintResponse.status === 'fulfilled') {
-        constraintAnalytics.value = constraintResponse.value;
+        constraintAnalytics.value = constraintResponse.value as ConstraintAnalytics | null;
       }
       
       lastUpdated.value = new Date();

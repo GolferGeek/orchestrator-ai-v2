@@ -41,11 +41,11 @@
             <div class="prediction-details">
               <div class="detail">
                 <span class="label">Confidence:</span>
-                <span class="value">{{ (prediction.confidence * 100).toFixed(0) }}%</span>
+                <span class="value">{{ (Number(prediction.confidence) * 100).toFixed(0) }}%</span>
               </div>
-              <div v-if="prediction.magnitude" class="detail">
+              <div v-if="prediction.magnitude != null" class="detail">
                 <span class="label">Magnitude:</span>
-                <span class="value">{{ prediction.magnitude.toFixed(1) }}%</span>
+                <span class="value">{{ Number(prediction.magnitude).toFixed(1) }}%</span>
               </div>
               <div v-if="prediction.timeframe" class="detail">
                 <span class="label">Timeframe:</span>

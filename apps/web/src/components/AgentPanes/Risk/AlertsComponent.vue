@@ -20,10 +20,10 @@
         <div class="alert-message">{{ getAlertMessage(alert) }}</div>
         <div v-if="getAlertDetails(alert)" class="alert-details">
           <span v-if="getAlertDetails(alert).triggerScore">
-            Trigger Score: {{ formatPercent(getAlertDetails(alert).triggerScore) }}
+            Trigger Score: {{ formatPercent(getAlertDetails(alert).triggerScore as number) }}
           </span>
           <span v-if="getAlertDetails(alert).threshold">
-            Threshold: {{ formatPercent(getAlertDetails(alert).threshold) }}
+            Threshold: {{ formatPercent(getAlertDetails(alert).threshold as number) }}
           </span>
         </div>
         <div class="alert-actions">
@@ -58,14 +58,14 @@
 
               <div v-if="getAlertDetails(selectedAlert).triggerScore !== undefined" class="detail-row">
                 <span class="detail-label">Trigger Score:</span>
-                <span class="detail-value" :class="getScoreClass(getAlertDetails(selectedAlert).triggerScore)">
-                  {{ formatPercent(getAlertDetails(selectedAlert).triggerScore) }}
+                <span class="detail-value" :class="getScoreClass(getAlertDetails(selectedAlert).triggerScore as number)">
+                  {{ formatPercent(getAlertDetails(selectedAlert).triggerScore as number) }}
                 </span>
               </div>
 
               <div v-if="getAlertDetails(selectedAlert).threshold !== undefined" class="detail-row">
                 <span class="detail-label">Threshold:</span>
-                <span class="detail-value">{{ formatPercent(getAlertDetails(selectedAlert).threshold) }}</span>
+                <span class="detail-value">{{ formatPercent(getAlertDetails(selectedAlert).threshold as number) }}</span>
               </div>
 
               <!-- Alert Context Section -->
@@ -91,6 +91,7 @@
 
                   <div v-if="alertContext.assessment.reasoning" class="context-reasoning">
                     <span class="context-label">Analysis Reasoning:</span>
+                    <!-- eslint-disable-next-line vue/no-v-html -- Intentional: Rendering sanitized markdown/HTML content from trusted source -->
                     <div class="reasoning-content" v-html="formatReasoning(alertContext.assessment.reasoning)"></div>
                   </div>
 

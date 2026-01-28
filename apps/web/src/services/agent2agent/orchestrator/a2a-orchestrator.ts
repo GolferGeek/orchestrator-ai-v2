@@ -83,8 +83,10 @@ class A2AOrchestrator {
    */
   async execute(trigger: A2ATrigger, payload: A2APayload = {}): Promise<A2AResult> {
     try {
-      // 1. Get context from store
+      // 1. Get context from store and generate a new taskId
+      // Each A2A call creates a new task, so we need a unique taskId
       const executionContextStore = useExecutionContextStore();
+      executionContextStore.newTaskId();
       const ctx = executionContextStore.current;
 
       // 2. Build the request - gets context from store internally

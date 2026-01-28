@@ -331,7 +331,16 @@ const performHealthCheck = async () => {
   healthCheckInProgress.value = true;
   try {
     await apiConfigStore.performHealthChecks();
-    emit('healthCheckCompleted', apiConfigStore.state.endpointHealthStatus);
+    // Convert EndpointHealthMap to HealthCheckResult[]
+    const results: HealthCheckResult[] = Object.entries(apiConfigStore.state.endpointHealthStatus).map(
+      ([endpoint, status]) => ({
+        endpoint,
+        status: status.isHealthy ? ('success' as const) : ('error' as const),
+        responseTime: status.responseTime,
+        error: status.error,
+      })
+    );
+    emit('healthCheckCompleted', results);
   } catch {
   } finally {
     healthCheckInProgress.value = false;

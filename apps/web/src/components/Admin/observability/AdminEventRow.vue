@@ -379,7 +379,7 @@ const eventTypeClass = computed(() => {
 });
 
 const _showProgress = computed(() => {
-  return props.event.progress !== undefined && props.event.progress > 0;
+  return props.event.progress !== null && props.event.progress !== undefined && props.event.progress > 0;
 });
 
 const _progressColor = computed(() => {

@@ -120,7 +120,7 @@ async function handleSave(params: {
       emit('dimension-updated', response.content);
       closeEditModal();
     } else {
-      editModalRef.value?.setError(response.message || 'Failed to update dimension');
+      editModalRef.value?.setError(response.error?.message || 'Failed to update dimension');
     }
   } catch (err) {
     editModalRef.value?.setError(err instanceof Error ? err.message : 'Failed to update dimension');

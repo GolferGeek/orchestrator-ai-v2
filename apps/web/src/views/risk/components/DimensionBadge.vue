@@ -5,7 +5,7 @@
     :title="tooltip"
   >
     <span v-if="showIcon" class="badge-icon">
-      <component :is="iconComponent" v-if="iconComponent" />
+      <IonIcon v-if="iconComponent" :icon="iconComponent" />
       <span v-else class="icon-fallback">{{ iconFallback }}</span>
     </span>
     <span class="badge-label">{{ displayLabel }}</span>
@@ -16,7 +16,30 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, type Component } from 'vue';
+import { computed } from 'vue';
+import { IonIcon } from '@ionic/vue';
+import {
+  trendingUpOutline,
+  waterOutline,
+  cardOutline,
+  scaleOutline,
+  cogOutline,
+  settingsOutline,
+  pulseOutline,
+  barChartOutline,
+  globeOutline,
+  gitMergeOutline,
+  flashOutline,
+  locateOutline,
+  mapOutline,
+  calculatorOutline,
+  cashOutline,
+  hardwareChipOutline,
+  peopleOutline,
+  shieldCheckmarkOutline,
+  warningOutline,
+  ellipseOutline,
+} from 'ionicons/icons';
 import type { RiskDimension } from '@/types/risk-agent';
 
 interface Props {
@@ -45,30 +68,30 @@ const props = withDefaults(defineProps<Props>(), {
   size: 'md',
 });
 
-// Icon mapping for lucide-vue-next icons
-const iconMap: Record<string, () => Promise<Component>> = {
-  'chart-line': async () => (await import('lucide-vue-next')).TrendingUp,
-  'trending-up': async () => (await import('lucide-vue-next')).TrendingUp,
-  droplet: async () => (await import('lucide-vue-next')).Droplet,
-  water: async () => (await import('lucide-vue-next')).Droplet,
-  'credit-card': async () => (await import('lucide-vue-next')).CreditCard,
-  scale: async () => (await import('lucide-vue-next')).Scale,
-  cog: async () => (await import('lucide-vue-next')).Cog,
-  settings: async () => (await import('lucide-vue-next')).Settings,
-  activity: async () => (await import('lucide-vue-next')).Activity,
-  'bar-chart-2': async () => (await import('lucide-vue-next')).BarChart2,
-  globe: async () => (await import('lucide-vue-next')).Globe,
-  'git-merge': async () => (await import('lucide-vue-next')).GitMerge,
-  zap: async () => (await import('lucide-vue-next')).Zap,
-  target: async () => (await import('lucide-vue-next')).Target,
-  map: async () => (await import('lucide-vue-next')).Map,
-  percent: async () => (await import('lucide-vue-next')).Percent,
-  'dollar-sign': async () => (await import('lucide-vue-next')).DollarSign,
-  cpu: async () => (await import('lucide-vue-next')).Cpu,
-  users: async () => (await import('lucide-vue-next')).Users,
-  shield: async () => (await import('lucide-vue-next')).Shield,
-  'alert-triangle': async () => (await import('lucide-vue-next')).AlertTriangle,
-  circle: async () => (await import('lucide-vue-next')).Circle,
+// Icon mapping for ionicons
+const iconMap: Record<string, string> = {
+  'chart-line': trendingUpOutline,
+  'trending-up': trendingUpOutline,
+  droplet: waterOutline,
+  water: waterOutline,
+  'credit-card': cardOutline,
+  scale: scaleOutline,
+  cog: cogOutline,
+  settings: settingsOutline,
+  activity: pulseOutline,
+  'bar-chart-2': barChartOutline,
+  globe: globeOutline,
+  'git-merge': gitMergeOutline,
+  zap: flashOutline,
+  target: locateOutline,
+  map: mapOutline,
+  percent: calculatorOutline,
+  'dollar-sign': cashOutline,
+  cpu: hardwareChipOutline,
+  users: peopleOutline,
+  shield: shieldCheckmarkOutline,
+  'alert-triangle': warningOutline,
+  circle: ellipseOutline,
 };
 
 // Get values from dimension object or direct props
@@ -100,7 +123,7 @@ const tooltip = computed(() => {
 const iconComponent = computed(() => {
   const iconName = resolvedIcon.value;
   if (iconName && iconMap[iconName]) {
-    return defineAsyncComponent(iconMap[iconName]);
+    return iconMap[iconName];
   }
   return null;
 });

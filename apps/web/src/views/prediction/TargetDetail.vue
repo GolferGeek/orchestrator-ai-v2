@@ -262,7 +262,7 @@ async function handleCrawlSources() {
       targetId: targetId.value,
     });
 
-    if (response.success && response.content) {
+    if (response.content) {
       actionResult.value = {
         type: 'success',
         message: response.content.message,
@@ -270,7 +270,7 @@ async function handleCrawlSources() {
     } else {
       actionResult.value = {
         type: 'error',
-        message: response.error?.message || 'Failed to crawl sources',
+        message: 'Failed to crawl sources',
       };
     }
   } catch (err) {
@@ -295,7 +295,7 @@ async function handleProcessSignals() {
       batchSize: 20,
     });
 
-    if (response.success && response.content) {
+    if (response.content) {
       actionResult.value = {
         type: 'success',
         message: response.content.message,
@@ -305,7 +305,7 @@ async function handleProcessSignals() {
     } else {
       actionResult.value = {
         type: 'error',
-        message: response.error?.message || 'Failed to process signals',
+        message: 'Failed to process signals',
       };
     }
   } catch (err) {
@@ -329,7 +329,7 @@ async function handleGeneratePredictions() {
       targetId: targetId.value,
     });
 
-    if (response.success && response.content) {
+    if (response.content) {
       actionResult.value = {
         type: 'success',
         message: response.content.message,
@@ -339,7 +339,7 @@ async function handleGeneratePredictions() {
     } else {
       actionResult.value = {
         type: 'error',
-        message: response.error?.message || 'Failed to generate predictions',
+        message: 'Failed to generate predictions',
       };
     }
   } catch (err) {

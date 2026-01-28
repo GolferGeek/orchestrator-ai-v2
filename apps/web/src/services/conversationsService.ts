@@ -18,6 +18,7 @@ import { useAgentsStore } from '@/stores/agentsStore';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
 import { useDeliverablesStore } from '@/stores/deliverablesStore';
 import type { Conversation, AgentType } from '@/stores/conversationsStore';
+import type { Agent } from '@/types/conversation';
 
 /**
  * Fetch conversations from API and update store
@@ -79,8 +80,8 @@ export async function fetchConversations(_force = false): Promise<void> {
 
       const mappedConv: Conversation = {
         id: conv.id,
-        userId: conv.userId || '',
-        title: conv.metadata?.title || conv.title || 'Untitled',
+        userId: '', // userId not provided by Agent2AgentConversation API
+        title: (typeof conv.metadata?.title === 'string' ? conv.metadata.title : conv.title) || 'Untitled',
         agentName: conv.agentName,
         agentType: conv.agentType as AgentType,
         organizationSlug: conv.organizationSlug,
@@ -95,7 +96,7 @@ export async function fetchConversations(_force = false): Promise<void> {
         activeTasks: conv.activeTasks || 0,
         metadata: conv.metadata,
         // Add agent and execution mode fields
-        agent: agent,
+        agent: agent as Agent | undefined,
         executionMode: defaultMode,
         supportedExecutionModes: validModes,
         isExecutionModeOverride: false,

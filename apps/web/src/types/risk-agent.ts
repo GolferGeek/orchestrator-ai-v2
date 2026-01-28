@@ -469,7 +469,7 @@ export interface SelectedSubjectState {
 /**
  * Dashboard filter state
  */
-export interface DashboardFilters {
+export interface RiskDashboardFilters {
   scopeId?: string;
   subjectType?: RiskSubject['subjectType'];
   minScore?: number;
@@ -517,7 +517,7 @@ export interface RiskDashboardState {
 
   // UI state
   viewMode: DashboardViewMode;
-  filters: DashboardFilters;
+  filters: RiskDashboardFilters;
   stats: DashboardStats;
 
   // Loading states
@@ -562,7 +562,7 @@ export interface RadarChartConfig {
 export interface DashboardActionRequest {
   action: string;
   params?: Record<string, unknown>;
-  filters?: DashboardFilters;
+  filters?: RiskDashboardFilters;
   pagination?: {
     page: number;
     limit: number;

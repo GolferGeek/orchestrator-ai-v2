@@ -21,13 +21,16 @@ export class StrictRequestValidationError extends Error {
  * Type guard to check if a value is a strict request
  */
 export function isStrictRequest(value: unknown): value is StrictA2ARequest {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const obj = value as Record<string, unknown>;
   return (
-    value &&
-    typeof value === 'object' &&
-    value.jsonrpc === '2.0' &&
-    value.id !== undefined &&
-    value.method !== undefined &&
-    value.params !== undefined
+    obj.jsonrpc === '2.0' &&
+    obj.id !== undefined &&
+    obj.method !== undefined &&
+    obj.params !== undefined
   );
 }
 
@@ -54,13 +57,13 @@ export function validateStrictRequest(
   }
 
   // Validate params
-  const params = request.params as Record<string, unknown>;
+  const params = request.params;
   if (params) {
     if (!params.mode) {
       errors.push('Missing mode in params');
     }
-    if (!params.conversationId) {
-      errors.push('Missing conversationId in params');
+    if (!params.context?.conversationId) {
+      errors.push('Missing conversationId in params.context');
     }
   }
 

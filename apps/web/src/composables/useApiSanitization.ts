@@ -86,7 +86,7 @@ export function useApiSanitization() {
       return value;
     }
 
-    const sanitized = sanitizeValue(data);
+    const sanitized = sanitizeValue(data) as Record<string, unknown>;
 
     return {
       sanitized,
@@ -136,7 +136,7 @@ export function useApiSanitization() {
       logSanitization: true
     });
 
-    return result.sanitized;
+    return result.sanitized as typeof payload;
   }
 
   /**
@@ -157,7 +157,7 @@ export function useApiSanitization() {
       logSanitization: true
     });
 
-    return result.sanitized;
+    return result.sanitized as typeof request;
   }
 
   /**
@@ -175,7 +175,7 @@ export function useApiSanitization() {
       logSanitization: true
     });
 
-    return result.sanitized;
+    return result.sanitized as typeof request;
   }
 
   /**
@@ -198,7 +198,7 @@ export function useApiSanitization() {
       logSanitization: true
     });
 
-    return result.sanitized;
+    return result.sanitized as typeof payload;
   }
 
   /**
@@ -227,7 +227,7 @@ export function useApiSanitization() {
           return getSanitizedValue(arg, sanitizationOptions.profile || 'apiInput');
         }
         if (arg && typeof arg === 'object') {
-          return sanitizeApiData(arg, sanitizationOptions).sanitized;
+          return sanitizeApiData(arg as Record<string, unknown>, sanitizationOptions).sanitized;
         }
         return arg;
       });

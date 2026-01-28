@@ -18,11 +18,11 @@
     <template v-else-if="agent">
       <PredictionAgentPane
         v-if="dashboardComponent === 'prediction-dashboard' || dashboardComponent === 'PredictionAgentPane'"
-        :agent="agent"
+        :agent="agentProps"
       />
       <RiskAgentPane
         v-else-if="dashboardComponent === 'investment-risk-dashboard' || dashboardComponent === 'RiskAgentPane'"
-        :agent="agent"
+        :agent="agentProps"
       />
       <!-- Fallback for unknown dashboard types -->
       <div v-else class="unknown-dashboard">
@@ -97,6 +97,17 @@ const dashboardComponent = computed<string | null>(() => {
 
   // Fall back to getDashboardComponent utility for other cases
   return getDashboardComponent(agent.value as Parameters<typeof getDashboardComponent>[0]);
+});
+
+// Create simplified agent props for child components
+const agentProps = computed(() => {
+  if (!agent.value) return null;
+  return {
+    id: agent.value.id,
+    slug: agent.value.slug,
+    name: agent.value.name,
+    organizationSlug: agent.value.organizationSlug ?? undefined
+  } as { id: string; slug: string | undefined; name: string; organizationSlug?: string | undefined };
 });
 
 // Ensure agents are loaded

@@ -194,7 +194,7 @@ async function handleCompare(subjectIds: string[]) {
     if (response.success && response.content) {
       comparisonData.value = response.content;
     } else {
-      emit('error', response.metadata?.reason || 'Failed to compare subjects');
+      emit('error', response.error?.message || 'Failed to compare subjects');
     }
   } catch (err) {
     emit('error', err instanceof Error ? err.message : 'Failed to compare subjects');
@@ -213,7 +213,7 @@ async function handleSaveComparison(data: { name: string; subjectIds: string[] }
       subjectIds: data.subjectIds,
     });
     if (!response.success) {
-      emit('error', response.metadata?.reason || 'Failed to save comparison');
+      emit('error', response.error?.message || 'Failed to save comparison');
     }
   } catch (err) {
     emit('error', err instanceof Error ? err.message : 'Failed to save comparison');

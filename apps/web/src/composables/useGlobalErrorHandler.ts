@@ -1,6 +1,6 @@
 import { onMounted, onUnmounted, getCurrentInstance, ref, computed } from 'vue';
 import { useErrorStore } from '@/stores/errorStore';
-import type { ErrorLogger } from '@/stores/errorStore';
+import type ErrorLoggerService from '@/services/errorLoggerService';
 
 /**
  * Global Error Handler Composable
@@ -10,7 +10,7 @@ export function useGlobalErrorHandler() {
   const errorStore = useErrorStore();
   const instance = getCurrentInstance();
 
-  const errorLoggerService = ref<ErrorLogger | null>(null);
+  const errorLoggerService = ref<ErrorLoggerService | null>(null);
   const isProcessingErrors = ref(false);
 
   // Computed property to check if the error logger service is available
@@ -93,7 +93,7 @@ export function useGlobalErrorHandler() {
       component: instance?.type?.name || instance?.type?.__name || 'Unknown',
       additionalContext: {
         source: 'vue-error-handler',
-        context
+        context: context ?? null
       }
     });
   };
@@ -108,8 +108,8 @@ export function useGlobalErrorHandler() {
       component: 'API',
       additionalContext: {
         source: 'api-error',
-        endpoint,
-        method
+        endpoint: endpoint ?? null,
+        method: method ?? null
       }
     });
   };
@@ -124,7 +124,7 @@ export function useGlobalErrorHandler() {
       component: 'Network',
       additionalContext: {
         source: 'network-error',
-        url
+        url: url ?? null
       }
     });
   };
@@ -281,7 +281,7 @@ export function useGlobalErrorHandler() {
 
     // Store interval for cleanup
     if (instance) {
-      (instance as Record<string, unknown>).cleanupInterval = cleanupInterval;
+      (instance as unknown as Record<string, unknown>).cleanupInterval = cleanupInterval;
     }
   });
 
@@ -290,8 +290,8 @@ export function useGlobalErrorHandler() {
     removeGlobalListeners();
     
     // Clear cleanup interval
-    if (instance && (instance as Record<string, unknown>).cleanupInterval) {
-      clearInterval((instance as Record<string, unknown>).cleanupInterval as NodeJS.Timeout);
+    if (instance && (instance as unknown as Record<string, unknown>).cleanupInterval) {
+      clearInterval((instance as unknown as Record<string, unknown>).cleanupInterval as NodeJS.Timeout);
     }
   });
 

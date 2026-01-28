@@ -152,7 +152,7 @@ const error = ref<string | null>(null);
 watch(() => props.dimensions, (dims) => {
   dimensionAdjustments.value = dims.map(d => ({
     slug: d.slug,
-    name: d.display_name || d.name,
+    name: d.displayName || d.name,
     weight: d.weight,
     adjustment: 0,
   }));

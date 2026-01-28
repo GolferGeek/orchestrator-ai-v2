@@ -21,11 +21,13 @@
 import { computed } from 'vue';
 import { IonIcon } from '@ionic/vue';
 import { chatbubblesOutline, documentTextOutline, hammerOutline } from 'ionicons/icons';
+import { useChatUiStore } from '@/stores/ui/chatUiStore';
 
 // Migrated to conversationsStore + chatUiStore
+const chatUiStore = useChatUiStore();
 
-const agent = computed(() => chatStore.getActiveConversation()?.agent || null);
-const currentMode = computed(() => chatStore.getActiveChatMode());
+const agent = computed(() => chatUiStore.activeConversation?.agent || null);
+const currentMode = computed(() => chatUiStore.chatMode);
 
 const modeConfig = {
   converse: { icon: chatbubblesOutline, label: 'Talking', className: 'mode-converse' },

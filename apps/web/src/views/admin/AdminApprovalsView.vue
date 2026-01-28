@@ -67,8 +67,8 @@ async function load() {
   loading.value = true;
   try {
     const res = await approvalsService.list({ status: status.value, agentSlug: agentFilter.value || undefined, conversationId: conversationFilter.value || undefined });
-    // The API returns { success, data } shape from controller; handle both shapes
-    records.value = Array.isArray(res) ? res as HumanApprovalRecord[] : (res?.data ?? []);
+    // The API returns HumanApprovalRecord[] directly
+    records.value = res;
   } catch (e) {
     console.error('Failed to load approvals', e);
   } finally {
@@ -106,7 +106,7 @@ async function approveContinue(rec: HumanApprovalRecord) {
     const auth = useAuthStore();
     const orgSlug = rec.organization_slug ?? auth.currentOrganization ?? 'global';
     const streamId = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
-    await approvalsService.approveAndContinue(orgSlug, rec.agent_slug, rec.id, { options: { stream: true }, metadata: { stream: true, streamId } });
+    await approvalsService.approveAndContinue(orgSlug, rec.agent_slug, rec.id, { options: { stream: true }, payload: { stream: true, streamId } });
     await load();
   } catch (e) {
     console.error('Approve & Continue failed', e);
@@ -117,7 +117,7 @@ async function approveContinue(rec: HumanApprovalRecord) {
 
 async function doInfinite(ev: CustomEvent) {
   await load();
-  (ev.target as { complete: () => void }).complete();
+  (ev.target as unknown as { complete: () => void }).complete();
 }
 
 onMounted(load);

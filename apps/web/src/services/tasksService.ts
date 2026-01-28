@@ -126,7 +126,7 @@ class TasksService {
    * Cancel task
    */
   async cancelTask(taskId: string): Promise<{ success: boolean; message: string }> {
-    const response = await apiService.delete(`${this.baseUrl}/${taskId}`);
+    const response = await apiService.delete<{ success: boolean; message: string }>(`${this.baseUrl}/${taskId}`);
     return response;
   }
   /**
@@ -182,7 +182,7 @@ class TasksService {
    * Update task progress
    */
   async updateTaskProgress(taskId: string, progress: number, message?: string): Promise<{ success: boolean }> {
-    const response = await apiService.put(`${this.baseUrl}/${taskId}/progress`, {
+    const response = await apiService.put<{ success: boolean }, { progress: number; message?: string }>(`${this.baseUrl}/${taskId}/progress`, {
       progress,
       message,
     });

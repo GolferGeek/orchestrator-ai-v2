@@ -10,6 +10,7 @@
 
 import { useAuthStore } from '@/stores/rbacStore';
 import { useExecutionContextStore } from '@/stores/executionContextStore';
+import type { JsonValue } from '@/types';
 import type {
   ExecutionContext,
   DashboardRequestPayload,
@@ -1484,7 +1485,7 @@ class PredictionDashboardService {
 
     const payload: DashboardRequestPayload = {
       action,
-      params: params as Record<string, unknown> | undefined,
+      params: params as unknown as JsonValue | undefined,
       filters,
       pagination,
     };
@@ -1532,12 +1533,12 @@ class PredictionDashboardService {
     const response = await this.executeDashboardRequest<ApiUniverse[]>(
       'universes.list',
       undefined,
-      params as Record<string, unknown> | undefined
+      params as unknown as Record<string, unknown> | undefined
     );
     // Transform snake_case API response to camelCase frontend type
     return {
       ...response,
-      content: response.content ? transformUniverses(response.content) : (null as PredictionUniverse[] | null),
+      content: response.content ? transformUniverses(response.content) : ([] as PredictionUniverse[]),
     };
   }
 
@@ -1546,12 +1547,12 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<PredictionUniverse>> {
     const response = await this.executeDashboardRequest<ApiUniverse>(
       'universes.get',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
     // Transform snake_case API response to camelCase frontend type
     return {
       ...response,
-      content: response.content ? transformUniverse(response.content) : (null as PredictionUniverse | null),
+      content: response.content ? transformUniverse(response.content) : null!,
     };
   }
 
@@ -1560,11 +1561,11 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<PredictionUniverse>> {
     const response = await this.executeDashboardRequest<ApiUniverse>(
       'universes.create',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
     return {
       ...response,
-      content: response.content ? transformUniverse(response.content) : (null as PredictionUniverse | null),
+      content: response.content ? transformUniverse(response.content) : null!,
     };
   }
 
@@ -1573,11 +1574,11 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<PredictionUniverse>> {
     const response = await this.executeDashboardRequest<ApiUniverse>(
       'universes.update',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
     return {
       ...response,
-      content: response.content ? transformUniverse(response.content) : (null as PredictionUniverse | null),
+      content: response.content ? transformUniverse(response.content) : null!,
     };
   }
 
@@ -1586,7 +1587,7 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<{ success: boolean }>> {
     return this.executeDashboardRequest<{ success: boolean }>(
       'universes.delete',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
   }
 
@@ -1600,13 +1601,13 @@ class PredictionDashboardService {
     // Pass universeId in params (first position) as backend expects it there
     const response = await this.executeDashboardRequest<ApiTarget[]>(
       'targets.list',
-      params as Record<string, unknown> | undefined, // universeId goes in params, not filters
+      params as unknown as Record<string, unknown> | undefined, // universeId goes in params, not filters
       undefined
     );
     // Transform snake_case API response to camelCase frontend type
     return {
       ...response,
-      content: response.content ? transformTargets(response.content) : (null as PredictionTarget[] | null),
+      content: response.content ? transformTargets(response.content) : ([] as PredictionTarget[]),
     };
   }
 
@@ -1615,11 +1616,11 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<PredictionTarget>> {
     const response = await this.executeDashboardRequest<ApiTarget>(
       'targets.get',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
     return {
       ...response,
-      content: response.content ? transformTarget(response.content) : (null as PredictionTarget | null),
+      content: response.content ? transformTarget(response.content) : null!,
     };
   }
 
@@ -1628,11 +1629,11 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<PredictionTarget>> {
     const response = await this.executeDashboardRequest<ApiTarget>(
       'targets.create',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
     return {
       ...response,
-      content: response.content ? transformTarget(response.content) : (null as PredictionTarget | null),
+      content: response.content ? transformTarget(response.content) : null!,
     };
   }
 
@@ -1641,11 +1642,11 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<PredictionTarget>> {
     const response = await this.executeDashboardRequest<ApiTarget>(
       'targets.update',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
     return {
       ...response,
-      content: response.content ? transformTarget(response.content) : (null as PredictionTarget | null),
+      content: response.content ? transformTarget(response.content) : null!,
     };
   }
 
@@ -1654,7 +1655,7 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<{ success: boolean }>> {
     return this.executeDashboardRequest<{ success: boolean }>(
       'targets.delete',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
   }
 
@@ -1669,7 +1670,7 @@ class PredictionDashboardService {
     return this.executeDashboardRequest<Prediction[]>(
       'predictions.list',
       undefined,
-      params as Record<string, unknown> | undefined,
+      params as unknown as Record<string, unknown> | undefined,
       pagination
     );
   }
@@ -1679,7 +1680,7 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<Prediction>> {
     return this.executeDashboardRequest<Prediction>(
       'predictions.get',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
   }
 
@@ -1688,7 +1689,7 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<PredictionSnapshot>> {
     return this.executeDashboardRequest<PredictionSnapshot>(
       'predictions.getSnapshot',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
   }
 
@@ -1715,11 +1716,11 @@ class PredictionDashboardService {
     const response = await this.executeDashboardRequest<ApiSource[]>(
       'sources.list',
       undefined,
-      params as Record<string, unknown> | undefined
+      params as unknown as Record<string, unknown> | undefined
     );
     return {
       ...response,
-      content: response.content ? transformSources(response.content) : (null as PredictionSource[] | null),
+      content: response.content ? transformSources(response.content) : ([] as PredictionSource[]),
     };
   }
 
@@ -1728,11 +1729,11 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<PredictionSource>> {
     const response = await this.executeDashboardRequest<ApiSource>(
       'sources.get',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
     return {
       ...response,
-      content: response.content ? transformSource(response.content) : (null as PredictionSource | null),
+      content: response.content ? transformSource(response.content) : null!,
     };
   }
 
@@ -1741,11 +1742,11 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<PredictionSource>> {
     const response = await this.executeDashboardRequest<ApiSource>(
       'sources.create',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
     return {
       ...response,
-      content: response.content ? transformSource(response.content) : (null as PredictionSource | null),
+      content: response.content ? transformSource(response.content) : null!,
     };
   }
 
@@ -1754,11 +1755,11 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<PredictionSource>> {
     const response = await this.executeDashboardRequest<ApiSource>(
       'sources.update',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
     return {
       ...response,
-      content: response.content ? transformSource(response.content) : (null as PredictionSource | null),
+      content: response.content ? transformSource(response.content) : null!,
     };
   }
 
@@ -1767,7 +1768,7 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<{ success: boolean }>> {
     return this.executeDashboardRequest<{ success: boolean }>(
       'sources.delete',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
   }
 
@@ -1776,7 +1777,7 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<TestCrawlResult>> {
     return this.executeDashboardRequest<TestCrawlResult>(
       'sources.testCrawl',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
   }
 
@@ -1790,7 +1791,7 @@ class PredictionDashboardService {
     return this.executeDashboardRequest<PredictionStrategy[]>(
       'strategies.list',
       undefined,
-      params as Record<string, unknown> | undefined
+      params as unknown as Record<string, unknown> | undefined
     );
   }
 
@@ -1804,12 +1805,12 @@ class PredictionDashboardService {
     const response = await this.executeDashboardRequest<ApiAnalyst[]>(
       'analysts.list',
       undefined,
-      params as Record<string, unknown> | undefined
+      params as unknown as Record<string, unknown> | undefined
     );
     // Transform snake_case API response to camelCase frontend format
     return {
       ...response,
-      content: response.content ? transformAnalysts(response.content) : (null as PredictionAnalyst[] | null),
+      content: response.content ? transformAnalysts(response.content) : ([] as PredictionAnalyst[]),
     };
   }
 
@@ -1823,7 +1824,7 @@ class PredictionDashboardService {
     // Transform snake_case API response to camelCase frontend format
     return {
       ...response,
-      content: response.content ? transformAnalyst(response.content) : (null as PredictionAnalyst | null),
+      content: response.content ? transformAnalyst(response.content) : null!,
     };
   }
 
@@ -1849,7 +1850,7 @@ class PredictionDashboardService {
     // Transform snake_case API response to camelCase frontend format
     return {
       ...response,
-      content: response.content ? transformAnalyst(response.content) : (null as PredictionAnalyst | null),
+      content: response.content ? transformAnalyst(response.content) : null!,
     };
   }
 
@@ -1867,12 +1868,12 @@ class PredictionDashboardService {
     };
     const response = await this.executeDashboardRequest<ApiAnalyst>(
       'analysts.update',
-      transformedParams as Record<string, unknown>
+      transformedParams as unknown as Record<string, unknown>
     );
     // Transform snake_case API response to camelCase frontend format
     return {
       ...response,
-      content: response.content ? transformAnalyst(response.content) : (null as PredictionAnalyst | null),
+      content: response.content ? transformAnalyst(response.content) : null!,
     };
   }
 
@@ -1917,7 +1918,7 @@ class PredictionDashboardService {
     const response = await this.executeDashboardRequest<Record<string, unknown>[]>(
       'learnings.list',
       undefined,
-      params as Record<string, unknown> | undefined
+      params as unknown as Record<string, unknown> | undefined
     );
     // Transform snake_case response to camelCase
     if (response.content && Array.isArray(response.content)) {
@@ -1972,7 +1973,7 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<PredictionLearning>> {
     return this.executeDashboardRequest<PredictionLearning>(
       'learnings.update',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
   }
 
@@ -1991,7 +1992,7 @@ class PredictionDashboardService {
     return this.executeDashboardRequest<LearningQueueItem[]>(
       'learnings.listQueue',
       undefined,
-      params as Record<string, unknown> | undefined
+      params as unknown as Record<string, unknown> | undefined
     );
   }
 
@@ -2000,7 +2001,7 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<{ success: boolean; learningId?: string }>> {
     return this.executeDashboardRequest<{ success: boolean; learningId?: string }>(
       'learnings.respondQueue',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
   }
 
@@ -2014,7 +2015,7 @@ class PredictionDashboardService {
     return this.executeDashboardRequest<ReviewQueueItem[]>(
       'reviewQueue.list',
       undefined,
-      params as Record<string, unknown> | undefined
+      params as unknown as Record<string, unknown> | undefined
     );
   }
 
@@ -2032,7 +2033,7 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<{ success: boolean }>> {
     return this.executeDashboardRequest<{ success: boolean }>(
       'reviewQueue.respond',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
   }
 
@@ -2046,7 +2047,7 @@ class PredictionDashboardService {
     return this.executeDashboardRequest<MissedOpportunity[]>(
       'missedOpportunities.list',
       undefined,
-      params as Record<string, unknown> | undefined
+      params as unknown as Record<string, unknown> | undefined
     );
   }
 
@@ -2087,7 +2088,7 @@ class PredictionDashboardService {
     return this.executeDashboardRequest<ToolRequest[]>(
       'toolRequests.list',
       undefined,
-      params as Record<string, unknown> | undefined
+      params as unknown as Record<string, unknown> | undefined
     );
   }
 
@@ -2105,7 +2106,7 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<ToolRequest>> {
     return this.executeDashboardRequest<ToolRequest>(
       'toolRequests.create',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
   }
 
@@ -2114,7 +2115,7 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<ToolRequest>> {
     return this.executeDashboardRequest<ToolRequest>(
       'toolRequests.updateStatus',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
   }
 
@@ -2136,7 +2137,7 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<LLMCostSummary>> {
     return this.executeDashboardRequest<LLMCostSummary>(
       'llmCosts.summary',
-      params as Record<string, unknown> | undefined
+      params as unknown as Record<string, unknown> | undefined
     );
   }
 
@@ -2149,7 +2150,7 @@ class PredictionDashboardService {
     predictions: Prediction[];
     strategies: PredictionStrategy[];
   }> {
-    const universeFilters: UniverseListParams | undefined = agentSlug ? { agentSlug } : undefined;
+    const universeFilters: UniverseListParams | undefined = agentSlug ? { agentSlug } as UniverseListParams : undefined;
     // Include test data by default since seed data uses is_test_data=true
     const predictionFilters = universeId
       ? { universeId, includeTestData }
@@ -2213,7 +2214,7 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<TestScenario>> {
     return this.executeDashboardRequest<TestScenario>(
       'test-scenarios.create',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
   }
 
@@ -2222,7 +2223,7 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<TestScenario>> {
     return this.executeDashboardRequest<TestScenario>(
       'test-scenarios.update',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
   }
 
@@ -2240,7 +2241,7 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<InjectResult>> {
     return this.executeDashboardRequest<InjectResult>(
       'test-scenarios.inject',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
   }
 
@@ -2249,7 +2250,7 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<GenerateResult>> {
     return this.executeDashboardRequest<GenerateResult>(
       'test-scenarios.generate',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
   }
 
@@ -2258,7 +2259,7 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<TierRunResult>> {
     return this.executeDashboardRequest<TierRunResult>(
       'test-scenarios.run-tier',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
   }
 
@@ -2267,7 +2268,7 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<CleanupResult>> {
     return this.executeDashboardRequest<CleanupResult>(
       'test-scenarios.cleanup',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
   }
 
@@ -2345,7 +2346,7 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<ReplayTest>> {
     return this.executeDashboardRequest<ReplayTest>(
       'replay-tests.create',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
   }
 
@@ -2367,7 +2368,7 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<ReplayTestPreviewResult>> {
     return this.executeDashboardRequest<ReplayTestPreviewResult>(
       'replay-tests.preview',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
   }
 
@@ -2408,7 +2409,7 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<TestArticle[]>> {
     return this.executeDashboardRequest<TestArticle[]>(
       'test-articles.list',
-      params as Record<string, unknown> | undefined,
+      params as unknown as Record<string, unknown> | undefined,
       undefined,
       params ? { page: params.page, pageSize: params.pageSize } : undefined
     );
@@ -2428,7 +2429,7 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<TestArticle>> {
     return this.executeDashboardRequest<TestArticle>(
       'test-articles.create',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
   }
 
@@ -2437,7 +2438,7 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<TestArticle>> {
     return this.executeDashboardRequest<TestArticle>(
       'test-articles.update',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
   }
 
@@ -2455,7 +2456,7 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<{ created: number; articles: TestArticle[] }>> {
     return this.executeDashboardRequest<{ created: number; articles: TestArticle[] }>(
       'test-articles.bulk-create',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
   }
 
@@ -2498,7 +2499,7 @@ class PredictionDashboardService {
         generation_time_ms: number;
       };
       created_count: number;
-    }>('test-articles.generate', params as Record<string, unknown>);
+    }>('test-articles.generate', params as unknown as Record<string, unknown>);
   }
 
   // ==========================================================================
@@ -2510,7 +2511,7 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<TestPriceData[]>> {
     return this.executeDashboardRequest<TestPriceData[]>(
       'test-price-data.list',
-      params as Record<string, unknown> | undefined,
+      params as unknown as Record<string, unknown> | undefined,
       undefined,
       params ? { page: params.page, pageSize: params.pageSize } : undefined
     );
@@ -2530,7 +2531,7 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<TestPriceData>> {
     return this.executeDashboardRequest<TestPriceData>(
       'test-price-data.create',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
   }
 
@@ -2539,7 +2540,7 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<TestPriceData>> {
     return this.executeDashboardRequest<TestPriceData>(
       'test-price-data.update',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
   }
 
@@ -2557,7 +2558,7 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<{ created: number; prices: TestPriceData[] }>> {
     return this.executeDashboardRequest<{ created: number; prices: TestPriceData[] }>(
       'test-price-data.bulk-create',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
   }
 
@@ -2672,7 +2673,7 @@ class PredictionDashboardService {
       : 'test-target-mirrors.list';
     return this.executeDashboardRequest<TestTargetMirror[] | TestTargetMirrorWithTarget[]>(
       action,
-      params as Record<string, unknown> | undefined,
+      params as unknown as Record<string, unknown> | undefined,
       undefined,
       params ? { page: params.page, pageSize: params.pageSize } : undefined
     );
@@ -2711,7 +2712,7 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<TestTargetMirror>> {
     return this.executeDashboardRequest<TestTargetMirror>(
       'test-target-mirrors.create',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
   }
 
@@ -2720,7 +2721,7 @@ class PredictionDashboardService {
   ): Promise<DashboardResponsePayload<{ mirror: TestTargetMirror; created: boolean }>> {
     return this.executeDashboardRequest<{ mirror: TestTargetMirror; created: boolean }>(
       'test-target-mirrors.ensure',
-      params as Record<string, unknown>
+      params as unknown as Record<string, unknown>
     );
   }
 

@@ -47,12 +47,12 @@
                     </div>
                     <!-- Handle email as an object -->
                     <div v-else>
-                      <p v-if="parsedResponse.email.to"><strong>To:</strong> {{ parsedResponse.email.to }}</p>
-                      <p v-if="parsedResponse.email.from"><strong>From:</strong> {{ parsedResponse.email.from }}</p>
-                      <p v-if="parsedResponse.email.subject"><strong>Subject:</strong> {{ parsedResponse.email.subject }}</p>
-                      <div v-if="parsedResponse.email.body">
+                      <p v-if="(parsedResponse.email as Record<string, unknown>).to"><strong>To:</strong> {{ (parsedResponse.email as Record<string, unknown>).to }}</p>
+                      <p v-if="(parsedResponse.email as Record<string, unknown>).from"><strong>From:</strong> {{ (parsedResponse.email as Record<string, unknown>).from }}</p>
+                      <p v-if="(parsedResponse.email as Record<string, unknown>).subject"><strong>Subject:</strong> {{ (parsedResponse.email as Record<string, unknown>).subject }}</p>
+                      <div v-if="(parsedResponse.email as Record<string, unknown>).body">
                         <p><strong>Body:</strong></p>
-                        <p class="email-body">{{ parsedResponse.email.body }}</p>
+                        <p class="email-body">{{ (parsedResponse.email as Record<string, unknown>).body }}</p>
                       </div>
                     </div>
                   </div>
@@ -271,14 +271,14 @@
           </ion-card-title>
         </ion-card-header>
         <ion-card-content>
-          <div v-if="evaluation.evaluationDetails.tags && evaluation.evaluationDetails.tags.length > 0">
+          <div v-if="Array.isArray(evaluation.evaluationDetails.tags) && evaluation.evaluationDetails.tags.length > 0">
             <ion-text>
               <h5>Tags:</h5>
             </ion-text>
             <div class="tags-container">
-              <ion-chip 
-                v-for="tag in evaluation.evaluationDetails.tags" 
-                :key="tag"
+              <ion-chip
+                v-for="tag in evaluation.evaluationDetails.tags"
+                :key="tag as string"
                 outline
                 color="tertiary"
               >
@@ -298,15 +298,15 @@
               <p>{{ evaluation.evaluationDetails.userContext }}</p>
             </ion-text>
           </div>
-          <div v-if="evaluation.evaluationDetails.modelConfidence">
+          <div v-if="typeof evaluation.evaluationDetails.modelConfidence === 'number'">
             <ion-text>
               <h5>Model Confidence:</h5>
-              <ion-progress-bar 
-                :value="evaluation.evaluationDetails.modelConfidence"
+              <ion-progress-bar
+                :value="evaluation.evaluationDetails.modelConfidence as number"
                 color="tertiary"
               ></ion-progress-bar>
               <p class="confidence-text">
-                {{ Math.round(evaluation.evaluationDetails.modelConfidence * 100) }}%
+                {{ Math.round((evaluation.evaluationDetails.modelConfidence as number) * 100) }}%
               </p>
             </ion-text>
           </div>

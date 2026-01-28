@@ -283,12 +283,15 @@ export function validateAnalyticsData(data: unknown[]): boolean {
   }
 
   // Check if data has required fields
-  return data.every(item => 
-    item && 
+  return data.every(item =>
+    item &&
     typeof item === 'object' &&
-    typeof item.date === 'string' &&
-    typeof item.total_requests === 'number' &&
-    typeof item.total_cost === 'number'
+    'date' in item &&
+    'total_requests' in item &&
+    'total_cost' in item &&
+    typeof (item as Record<string, unknown>).date === 'string' &&
+    typeof (item as Record<string, unknown>).total_requests === 'number' &&
+    typeof (item as Record<string, unknown>).total_cost === 'number'
   );
 }
 

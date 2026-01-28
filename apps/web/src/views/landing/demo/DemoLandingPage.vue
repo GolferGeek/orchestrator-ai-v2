@@ -326,11 +326,11 @@
       </ion-content>
     
     <!-- Video Modal -->
-    <VideoModal 
+    <VideoModal
       :is-open="isVideoModalOpen"
       :video-title="currentVideo?.title || ''"
       :video-description="currentVideo?.description || ''"
-      :video-url="currentVideo?.url"
+      :video-url="currentVideo?.videoUrl"
       @close="closeVideoModal"
     />
   </ion-page>
@@ -458,7 +458,12 @@ let observer: IntersectionObserver | null = null;
 // SectionNavigation removed
 
 function handleOpenVideoModal(video: Video) {
-  currentVideo.value = video;
+  currentVideo.value = {
+    id: video.id,
+    title: video.title,
+    description: video.description,
+    videoUrl: video.url
+  };
   isVideoModalOpen.value = true;
 }
 

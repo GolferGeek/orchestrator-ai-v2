@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Unit Tests for Chat UI Store
  * Tests all UI state mutations and computed properties
@@ -86,6 +85,7 @@ describe('ChatUiStore', () => {
       const store = useChatUiStore();
 
       const action: PendingAction = {
+        // @ts-expect-error - Using legacy type for backward compatibility test
         type: 'orchestration',
         status: 'completed',
       };

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { IonicVue } from '@ionic/vue';
@@ -236,6 +235,7 @@ describe('ConversationTabs', () => {
         },
       ]);
 
+      // @ts-expect-error - Accessing internal component method
       await wrapper.vm.switchToConversation('conv-1');
       await wrapper.vm.$nextTick();
 
@@ -291,6 +291,7 @@ describe('ConversationTabs', () => {
       chatUiStore.openConversationTab('conv-1');
       await wrapper.vm.$nextTick();
 
+      // @ts-expect-error - Accessing internal component method
       wrapper.vm.closeConversation('conv-1');
       await wrapper.vm.$nextTick();
 
@@ -320,6 +321,7 @@ describe('ConversationTabs', () => {
       chatUiStore.setActiveConversation('conv-1');
       await wrapper.vm.$nextTick();
 
+      // @ts-expect-error - Accessing internal component property
       expect(wrapper.vm.shouldUseTwoPaneView).toBe(true);
     });
 
@@ -350,6 +352,7 @@ describe('ConversationTabs', () => {
       chatUiStore.setChatMode('converse');
       await wrapper.vm.$nextTick();
 
+      // @ts-expect-error - Accessing internal component method
       await wrapper.vm.handleSendMessage('Hello, world!');
 
       expect(mockSendMessage).toHaveBeenCalledWith('Hello, world!');
@@ -368,6 +371,7 @@ describe('ConversationTabs', () => {
       chatUiStore.setChatMode('plan');
       await wrapper.vm.$nextTick();
 
+      // @ts-expect-error - Accessing internal component method
       await wrapper.vm.handleSendMessage('Create a plan');
 
       expect(mockCreatePlan).toHaveBeenCalledWith('Create a plan');
@@ -386,6 +390,7 @@ describe('ConversationTabs', () => {
       chatUiStore.setChatMode('build');
       await wrapper.vm.$nextTick();
 
+      // @ts-expect-error - Accessing internal component method
       await wrapper.vm.handleSendMessage('Build something');
 
       expect(mockCreateDeliverable).toHaveBeenCalledWith('Build something');
@@ -399,6 +404,7 @@ describe('ConversationTabs', () => {
 
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
+      // @ts-expect-error - Accessing internal component method
       await wrapper.vm.handleSendMessage('Hello');
 
       expect(mockSendMessage).not.toHaveBeenCalled();
@@ -417,6 +423,7 @@ describe('ConversationTabs', () => {
       const wrapper = createWrapper(pinia);
       await wrapper.vm.$nextTick();
 
+      // @ts-expect-error - Accessing internal component property
       expect(wrapper.vm.activeConversation).toEqual(conv);
     });
 
@@ -432,8 +439,11 @@ describe('ConversationTabs', () => {
       const wrapper = createWrapper(pinia);
       await wrapper.vm.$nextTick();
 
+      // @ts-expect-error - Accessing internal component property
       expect(wrapper.vm.openTabs.length).toBe(2);
+      // @ts-expect-error - Accessing internal component property
       expect(wrapper.vm.openTabs[0].id).toBe('conv-1');
+      // @ts-expect-error - Accessing internal component property
       expect(wrapper.vm.openTabs[1].id).toBe('conv-2');
     });
 
@@ -443,6 +453,7 @@ describe('ConversationTabs', () => {
       chatUiStore.openConversationTab('non-existent-conv');
       await wrapper.vm.$nextTick();
 
+      // @ts-expect-error - Accessing internal component property
       expect(wrapper.vm.openTabs.length).toBe(0);
     });
   });
@@ -466,6 +477,7 @@ describe('ConversationTabs', () => {
       await wrapper.vm.$nextTick();
 
       // Switch to same conversation
+      // @ts-expect-error - Accessing internal component method
       await wrapper.vm.switchToConversation('conv-1');
 
       expect(chatUiStore.activeConversationId).toBe('conv-1');
@@ -483,6 +495,7 @@ describe('ConversationTabs', () => {
       // Before closing, should have active conversation
       expect(chatUiStore.activeConversationId).toBe('conv-1');
 
+      // @ts-expect-error - Accessing internal component method
       wrapper.vm.closeConversation('conv-1');
       await wrapper.vm.$nextTick();
 

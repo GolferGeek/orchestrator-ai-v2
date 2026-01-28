@@ -1,4 +1,4 @@
-import { ref, onMounted, onUnmounted, watch, type Ref } from 'vue';
+import { ref, onMounted, onUnmounted, watch, readonly, type Ref } from 'vue';
 import {
   Chart,
   CategoryScale,
@@ -126,9 +126,9 @@ export function useChart(canvasRef: Ref<HTMLCanvasElement | null>, config: Ref<C
   });
 
   return {
-    chart: readonly(chart),
-    isReady: readonly(isReady),
-    error: readonly(error),
+    chart: readonly(chart) as Readonly<Ref<Chart | null>>,
+    isReady: readonly(isReady) as Readonly<Ref<boolean>>,
+    error: readonly(error) as Readonly<Ref<string | null>>,
     updateChart,
     destroyChart,
     resizeChart
@@ -292,9 +292,13 @@ export const chartConfigs = {
           borderWidth: 1,
           callbacks: {
             label: (context) => {
-              const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
-              const percentage = ((context.parsed / total) * 100).toFixed(1);
-              return `${context.label}: ${context.parsed} (${percentage}%)`;
+              const total = context.dataset.data.reduce((sum: number, value) => {
+                const num = typeof value === 'number' ? value : 0;
+                return (sum as number) + num;
+              }, 0 as number) as number;
+              const parsed = typeof context.parsed === 'number' ? context.parsed : 0;
+              const percentage = (total as number) > 0 ? ((parsed / (total as number)) * 100).toFixed(1) : '0.0';
+              return `${context.label}: ${parsed} (${percentage}%)`;
             }
           }
         }
@@ -311,13 +315,13 @@ export const chartConfigs = {
         backgroundColor,
         borderColor: '#fff',
         borderWidth: 2,
-        hoverBorderWidth: 3,
-        cutout: '60%'
+        hoverBorderWidth: 3
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      cutout: '60%',
       plugins: {
         legend: {
           display: true,
@@ -336,14 +340,18 @@ export const chartConfigs = {
           borderWidth: 1,
           callbacks: {
             label: (context) => {
-              const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
-              const percentage = ((context.parsed / total) * 100).toFixed(1);
-              return `${context.label}: ${context.parsed} (${percentage}%)`;
+              const total = context.dataset.data.reduce((sum: number, value) => {
+                const num = typeof value === 'number' ? value : 0;
+                return (sum as number) + num;
+              }, 0 as number) as number;
+              const parsed = typeof context.parsed === 'number' ? context.parsed : 0;
+              const percentage = (total as number) > 0 ? ((parsed / (total as number)) * 100).toFixed(1) : '0.0';
+              return `${context.label}: ${parsed} (${percentage}%)`;
             }
           }
         }
       }
-    }
+    } as ChartOptions
   })
 };
 

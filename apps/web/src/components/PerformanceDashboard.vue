@@ -183,7 +183,7 @@ import {
   IonList, IonItem, IonBadge
 } from '@ionic/vue';
 import { refreshOutline, closeOutline } from 'ionicons/icons';
-import { usePerformanceTracking } from '../utils/performanceMonitor';
+import { usePerformanceTracking, type PerformanceMetric, type RenderMetric, type APIMetric } from '../utils/performanceMonitor';
 
 interface Props {
   isOpen: boolean;
@@ -199,7 +199,13 @@ const emit = defineEmits<Emits>();
 const { getPerformanceSummary, measureCoreWebVitals } = usePerformanceTracking();
 
 const selectedTab = ref('renders');
-const summary = ref({
+const summary = ref<{
+  slowestMetrics: PerformanceMetric[];
+  slowestRenders: RenderMetric[];
+  slowestAPIs: APIMetric[];
+  averageRenderTime: number;
+  averageAPITime: number;
+}>({
   slowestMetrics: [],
   slowestRenders: [],
   slowestAPIs: [],

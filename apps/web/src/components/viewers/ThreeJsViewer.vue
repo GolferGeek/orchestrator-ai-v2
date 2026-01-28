@@ -23,9 +23,9 @@ import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { IonSpinner, IonIcon, IonButton } from '@ionic/vue';
 import { cubeOutline, alertCircleOutline } from 'ionicons/icons';
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 
 const props = defineProps<{
   modelUrl?: string;
@@ -256,13 +256,13 @@ async function loadGLTF(url: string): Promise<void> {
       loader.parse(
         text,
         '', // Base path for relative URIs (not needed for data URIs)
-        (gltf) => {
+        (gltf: { scene: THREE.Object3D }) => {
           console.log('[ThreeJsViewer] GLTF parsed successfully');
           currentModel = gltf.scene;
-          setupModel(currentModel);
+          setupModel(gltf.scene);
           resolve();
         },
-        (err) => {
+        (err: ErrorEvent) => {
           reject(new Error(`GLTFLoader parse error: ${err.message || 'Unknown error'}`));
         }
       );
@@ -278,7 +278,7 @@ async function loadSTL(url: string): Promise<void> {
 
     loader.load(
       url,
-      (geometry) => {
+      (geometry: THREE.BufferGeometry) => {
         // Create material
         const material = new THREE.MeshStandardMaterial({
           color: 0x4a90d9,
@@ -295,10 +295,10 @@ async function loadSTL(url: string): Promise<void> {
         setupModel(currentModel);
         resolve();
       },
-      (progress) => {
+      (progress: ProgressEvent) => {
         console.log(`Loading STL: ${(progress.loaded / progress.total * 100).toFixed(1)}%`);
       },
-      (err) => {
+      (err: unknown) => {
         reject(new Error(`Failed to load STL: ${err}`));
       }
     );

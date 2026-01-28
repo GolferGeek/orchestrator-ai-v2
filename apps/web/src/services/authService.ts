@@ -27,7 +27,7 @@ export interface AuthResponse {
 export const authService = {
   async login(credentials: UserCredentials): Promise<AuthResponse> {
     try {
-      const responseData = await apiService.login(credentials);
+      const responseData = await apiService.login(credentials) as AuthResponse;
       if (responseData.accessToken) {
         // Store tokens in secure storage
         await tokenStorage.setAccessToken(responseData.accessToken);
@@ -53,7 +53,7 @@ export const authService = {
   },
   async signup(data: SignupData): Promise<AuthResponse> {
     try {
-      const responseData = await apiService.signup(data);
+      const responseData = await apiService.signup(data) as AuthResponse;
       if (responseData.accessToken) {
         // Store tokens in secure storage
         await tokenStorage.setAccessToken(responseData.accessToken);
@@ -102,7 +102,7 @@ export const authService = {
       if (!refreshToken) {
         throw new Error('No refresh token available');
       }
-      const responseData = await apiService.refreshToken(refreshToken);
+      const responseData = await apiService.refreshToken(refreshToken) as AuthResponse;
       if (responseData.accessToken) {
         // Store tokens in secure storage
         await tokenStorage.setAccessToken(responseData.accessToken);

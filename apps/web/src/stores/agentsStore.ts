@@ -31,22 +31,25 @@ export function normalizeHierarchyResponse(input: HierarchyNode[] | AgentHierarc
       for (const department in data) {
         const departmentAgents = data[department];
         if (Array.isArray(departmentAgents)) {
-          flatAgents.push(...departmentAgents.map((agent: Record<string, unknown>) => {
+          flatAgents.push(...departmentAgents.map((agent: Record<string, unknown>): HierarchyNode => {
             // organizationSlug may be an array from API - extract first element
             const orgSlugRaw = agent.organizationSlug;
             const organizationSlug = Array.isArray(orgSlugRaw) ? orgSlugRaw[0] : orgSlugRaw;
 
             return {
-              id: agent.id || agent.slug,
-              name: agent.slug || agent.name,
-              displayName: agent.displayName || agent.name,
+              id: (agent.id || agent.slug) as string,
+              name: (agent.slug || agent.name) as string,
               type: 'agent' as const, // HierarchyNode type (not agentType)
-              agentType: agent.type, // The actual database agent type (context, api, etc.)
-              organizationSlug,
+              agentType: agent.type as string,
+              organizationSlug: organizationSlug as string | undefined,
               metadata: {
-                ...agent.metadata,
-                description: agent.description,
-                department,
+                ...(typeof agent.metadata === 'object' && agent.metadata !== null ? agent.metadata as Record<string, unknown> : {}),
+                displayName: (agent.displayName || agent.name) as string | undefined,
+                description: agent.description as string | undefined,
+                custom: {
+                  ...(typeof agent.metadata === 'object' && agent.metadata !== null && (agent.metadata as Record<string, unknown>).custom ? (agent.metadata as Record<string, unknown>).custom as Record<string, string | number | boolean> : {}),
+                  department,
+                },
               },
               children: [],
             };
@@ -146,8 +149,8 @@ export const useAgentsStore = defineStore('agents', () => {
     // This ensures the custom UI fields are available at the top level of AgentInfo
     // Also normalize organizationSlug from array to string (API may return array)
     availableAgents.value = agents.map((agent) => {
-      const metadata = (agent as Record<string, unknown>).metadata as Record<string, unknown> | undefined;
-      const rawAgent = agent as Record<string, unknown>;
+      const rawAgent = agent as unknown as Record<string, unknown>;
+      const metadata = rawAgent.metadata as Record<string, unknown> | undefined;
 
       // Handle organizationSlug - API returns array, normalize to first element
       const orgSlugRaw = rawAgent.organizationSlug ?? rawAgent.organization_slug;
@@ -158,7 +161,7 @@ export const useAgentsStore = defineStore('agents', () => {
         organizationSlug: organizationSlug as string | null,
         hasCustomUI: agent.hasCustomUI ?? metadata?.hasCustomUI ?? false,
         customUIComponent: agent.customUIComponent ?? metadata?.customUIComponent ?? null,
-      };
+      } as AgentInfo;
     });
   }
 

@@ -299,7 +299,7 @@ const formData = reactive({
 
 const availableUniverses = computed(() => predictionStore.universes);
 const availableTargets = computed(() => predictionStore.targets);
-const availableAnalysts = computed(() => []); // TODO: Load from analyst store when available
+const availableAnalysts = computed<Array<{ id: string; name: string }>>(() => []); // TODO: Load from analyst store when available
 
 const hasActiveFilters = computed(() => {
   return !!(
@@ -340,7 +340,16 @@ async function loadLearnings() {
   try {
     const response = await predictionDashboardService.listLearnings();
     if (response.content) {
-      store.setLearnings(response.content);
+      // Convert service type to store type (optional to null)
+      const learnings: PredictionLearning[] = response.content.map((l) => ({
+        ...l,
+        domain: l.domain ?? null,
+        universeId: l.universeId ?? null,
+        targetId: l.targetId ?? null,
+        analystId: l.analystId ?? null,
+        supersededBy: l.supersededBy ?? null,
+      }));
+      store.setLearnings(learnings);
     }
 
     // Load universes and targets for form dropdowns
@@ -448,7 +457,16 @@ async function saveLearning() {
         sourceType: formData.sourceType as LearningSourceType,
       });
       if (response.content) {
-        store.addLearning(response.content);
+        // Convert service type to store type (optional to null)
+        const learning: PredictionLearning = {
+          ...response.content,
+          domain: response.content.domain ?? null,
+          universeId: response.content.universeId ?? null,
+          targetId: response.content.targetId ?? null,
+          analystId: response.content.analystId ?? null,
+          supersededBy: response.content.supersededBy ?? null,
+        };
+        store.addLearning(learning);
       }
     }
 

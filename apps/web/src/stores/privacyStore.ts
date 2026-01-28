@@ -20,8 +20,6 @@ import type {
   PseudonymDictionaryEntry,
   PIIPattern,
   PIIDataType,
-  PseudonymMappingFilters,
-  PseudonymMappingSortOptions,
   PseudonymDictionaryFilters,
   PseudonymDictionarySortOptions,
   PIIPatternFilters,
@@ -39,12 +37,27 @@ import type {
   PerformanceDataPoint,
   SystemHealthIndicators,
   RecentActivityEntry,
-  DashboardFilters,
+  PIIDashboardFilters,
 } from '@/types/pii';
 
 // ============================================================================
 // TYPES
 // ============================================================================
+
+// Local filter and sort types for pseudonym mappings (not exported from pii.ts)
+export interface PseudonymMappingFilters {
+  dataType?: PIIDataType | 'all';
+  context?: string;
+  search?: string;
+}
+
+export interface PseudonymMappingSortOptions {
+  field: 'usageCount' | 'lastUsedAt' | 'createdAt' | 'dataType' | 'pseudonym';
+  direction: 'asc' | 'desc';
+}
+
+// Type alias for dashboard filters
+export type DashboardFilters = PIIDashboardFilters;
 
 export interface MessagePrivacyState {
   messageId: string;
@@ -117,7 +130,6 @@ export type {
   PerformanceDataPoint,
   SystemHealthIndicators,
   RecentActivityEntry,
-  DashboardFilters,
 };
 
 // ============================================================================
@@ -238,8 +250,8 @@ export const usePrivacyStore = defineStore('privacy', () => {
   const autoRefreshInterval = ref<NodeJS.Timeout | null>(null);
 
   const dashboardFilters = ref<DashboardFilters>({
-    timeRange: '7d',
-    dataType: ['all'],
+    timeRange: 'week',
+    dataType: 'all',
     includeSystemEvents: true
   });
 
@@ -371,15 +383,24 @@ export const usePrivacyStore = defineStore('privacy', () => {
 
     filtered.sort((a, b) => {
       const { field, direction } = dictionarySortOptions.value;
-      let aVal: number | Date | string | undefined = a[field];
-      let bVal: number | Date | string | undefined = b[field];
+      let aVal: number | Date | string | undefined;
+      let bVal: number | Date | string | undefined;
 
       if (field === 'wordsCount') {
         aVal = a.words.length;
         bVal = b.words.length;
-      } else if (field === 'createdAt' && aVal && bVal) {
-        aVal = new Date(aVal as string);
-        bVal = new Date(bVal as string);
+      } else if (field === 'createdAt') {
+        aVal = a.createdAt ? new Date(a.createdAt) : undefined;
+        bVal = b.createdAt ? new Date(b.createdAt) : undefined;
+      } else if (field === 'updatedAt') {
+        aVal = a.updatedAt ? new Date(a.updatedAt) : undefined;
+        bVal = b.updatedAt ? new Date(b.updatedAt) : undefined;
+      } else {
+        // For category, dataType fields
+        const rawAVal = a[field as keyof PseudonymDictionaryEntry];
+        const rawBVal = b[field as keyof PseudonymDictionaryEntry];
+        aVal = typeof rawAVal === 'string' ? rawAVal : undefined;
+        bVal = typeof rawBVal === 'string' ? rawBVal : undefined;
       }
 
       if (aVal === undefined || bVal === undefined) return 0;

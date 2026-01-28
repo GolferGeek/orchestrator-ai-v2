@@ -1,7 +1,10 @@
 // LLM Monitoring and Usage Tracking Types
 // Based on backend monitoring services and usage analytics
 
-import type { JsonValue, UnknownRecord } from './index';
+import type { JsonValue } from '@orchestrator-ai/transport-types';
+
+// Re-define UnknownRecord locally to avoid circular dependency
+type UnknownRecord = Record<string, JsonValue>;
 
 // =====================================
 // BASIC LLM MONITORING TYPES

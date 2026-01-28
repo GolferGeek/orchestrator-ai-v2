@@ -29,7 +29,7 @@
               <option value="">Select Provider...</option>
               <option
                 v-for="provider in llmStore.filteredProviders"
-                :key="provider.id"
+                :key="provider.name"
                 :value="provider"
               >
                 {{ provider.name }}
@@ -48,7 +48,7 @@
               <option value="">Select Model...</option>
               <option
                 v-for="model in llmStore.availableModels"
-                :key="model.id"
+                :key="model.modelName"
                 :value="model"
               >
                 {{ model.name }}

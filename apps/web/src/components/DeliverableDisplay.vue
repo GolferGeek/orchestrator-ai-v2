@@ -139,7 +139,7 @@
                 <span class="version-number">v{{ version.versionNumber }}</span>
                 <span class="version-date">{{ formatDate(version.createdAt) }}</span>
               </div>
-              <p class="version-preview">{{ getContentPreview(version.content) }}</p>
+              <p class="version-preview">{{ getContentPreview(version.content || '') }}</p>
               <div class="version-meta">
                 <span v-if="version.createdByType" class="creation-type">{{ formatCreationType(version.createdByType) }}</span>
                 <ion-chip v-if="version.isCurrentVersion" color="success" size="small">Current</ion-chip>
@@ -354,7 +354,7 @@
         <pre 
           v-else-if="displayVersion?.format === 'json'"
           class="json-content"
-        ><code>{{ formatJson(displayVersion?.content) }}</code></pre>
+        ><code>{{ formatJson(displayVersion?.content || '') }}</code></pre>
         <!-- HTML Content -->
         <div 
           v-else-if="displayVersion?.format === 'html'"
@@ -445,7 +445,7 @@
     >
       <ion-content>
         <ion-list>
-          <ion-item button @click="toggleVersionControls">
+          <ion-item button @click="showVersionControls = !showVersionControls">
             <ion-icon :icon="timeOutline" slot="start" />
             <ion-label>{{ showVersionControls ? 'Hide' : 'Show' }} Versions</ion-label>
           </ion-item>
@@ -595,8 +595,8 @@ const isEditing = ref(false);
 const editedContent = ref('');
 const editedTitle = ref('');
 const isSaving = ref(false);
-const contentTextarea = ref<HTMLTextAreaElement | null>(null);
-const activeSubTab = ref<'plan' | 'document' | 'images'>('document');
+const contentTextarea = ref<{ $el?: { querySelector: (selector: string) => HTMLTextAreaElement | null }; querySelector?: (selector: string) => HTMLTextAreaElement | null } | null>(null);
+const activeSubTab = ref<'plan' | 'document' | 'media'>('document');
 const hasAutoSelectedTab = ref(false);
 const showGenerateModal = ref(false);
 const genPrompt = ref('');
@@ -759,10 +759,20 @@ const runWithDifferentLLM = () => {
     console.error('No version available to rerun');
     return;
   }
-  
+
+  // Get the actual deliverable object
+  const deliverable = isVersionObject.value
+    ? deliverablesStore.getDeliverableById(actualDeliverableId.value)
+    : props.deliverable as Deliverable;
+
+  if (!deliverable) {
+    console.error('No deliverable found');
+    return;
+  }
+
   // Emit event to parent component to handle LLM chooser and re-run
   emit('run-with-different-llm', {
-    deliverable: props.deliverable,
+    deliverable: deliverable,
     version: version
   });
 };
@@ -799,7 +809,6 @@ const saveEdits = async () => {
 
     // The versions computed property will automatically update from the store
     // Update the display to show the new version
-    displayVersion.value = newVersion;
     selectedVersion.value = newVersion;
     // Find the index of the new version in the versions array
     if (Array.isArray(versions.value)) {
@@ -898,7 +907,7 @@ const formatJson = (content: string) => {
 };
 const loadVersions = async () => {
   try {
-    const deliverableId = props.deliverable.parent_deliverable_id || actualDeliverableId.value;
+    const deliverableId = actualDeliverableId.value;
 
     // Load versions from service
     const versionList = await deliverablesService.getVersionHistory(deliverableId);
@@ -913,11 +922,24 @@ const loadVersions = async () => {
     // The computed property will handle the fallback through the store
   }
 };
+// Type guard for media item
+interface MediaItem {
+  url: string;
+  thumbnailUrl?: string;
+  altText?: string;
+  assetId?: string;
+  mime?: string;
+}
+
+function isMediaItem(item: unknown): item is MediaItem {
+  return typeof item === 'object' && item !== null && 'url' in item && typeof (item as MediaItem).url === 'string';
+}
+
 // Combined media assets (images + videos) for the Media tab
 const mediaAssets = computed(() => {
   try {
     const attachments = (displayVersion.value as DeliverableVersion)?.fileAttachments;
-    if (!attachments) return [];
+    if (!attachments || typeof attachments !== 'object') return [];
 
     const items: Array<{
       type: 'image' | 'video';
@@ -929,10 +951,10 @@ const mediaAssets = computed(() => {
     }> = [];
 
     // Add images
-    const imgs = attachments.images;
-    if (Array.isArray(imgs)) {
+    const imgsField = (attachments as Record<string, unknown>).images;
+    if (Array.isArray(imgsField)) {
       items.push(
-        ...imgs.map((img) => ({
+        ...imgsField.filter(isMediaItem).map((img) => ({
           type: 'image' as const,
           url: img.url,
           thumbnailUrl: img.thumbnailUrl,
@@ -944,10 +966,10 @@ const mediaAssets = computed(() => {
     }
 
     // Add videos
-    const vids = attachments.videos;
-    if (Array.isArray(vids)) {
+    const vidsField = (attachments as Record<string, unknown>).videos;
+    if (Array.isArray(vidsField)) {
       items.push(
-        ...vids.map((vid) => ({
+        ...vidsField.filter(isMediaItem).map((vid) => ({
           type: 'video' as const,
           url: vid.url,
           thumbnailUrl: vid.thumbnailUrl,
@@ -1037,14 +1059,11 @@ const selectVersion = async (version: DeliverableVersion) => {
 };
 const selectAndDisplayVersion = async (version: DeliverableVersion) => {
   selectedVersion.value = version;
-  // Update the display version to show this version's content
-  displayVersion.value = version;
   // If this is not a full version object with content, load it
   if (!version.content && version.id) {
     try {
-      const fullVersion = await deliverablesStore.getVersion(version.id);
+      const fullVersion = await deliverablesStore.getDeliverableVersionsSync(actualDeliverableId.value).find(v => v.id === version.id);
       if (fullVersion) {
-        displayVersion.value = fullVersion;
         selectedVersion.value = fullVersion;
       }
     } catch {
@@ -1066,7 +1085,7 @@ const makeCurrentVersion = async () => {
       // Try to get from conversation
       const conversationsStore = useConversationsStore();
       const conversation = deliverable.conversationId
-        ? conversationsStore.getConversationById(deliverable.conversationId)
+        ? conversationsStore.conversationById(deliverable.conversationId)
         : conversationsStore.activeConversation;
 
       if (conversation?.agentName) {
@@ -1133,46 +1152,52 @@ const getMimeType = () => {
 /**
  * Extract LLM information from version metadata
  */
-const getVersionLLMInfo = (version: DeliverableVersion): string | null => {
-  if (!version?.metadata) return null;
-  
-  
+const getVersionLLMInfo = (version: DeliverableVersion | undefined): string | null => {
+  if (!version?.metadata || typeof version.metadata !== 'object') return null;
+
+  const metadata = version.metadata as Record<string, unknown>;
+
   // Check for rerun LLM info first (most specific)
-  if (version.metadata.llmRerunInfo) {
-    const info = version.metadata.llmRerunInfo;
-    return `${info.provider}/${info.model}`;
-  }
-  
-  // Check for general LLM metadata
-  if (version.metadata.llmMetadata) {
-    // Convert Vue proxy to plain object for easier access
-    const info = JSON.parse(JSON.stringify(version.metadata.llmMetadata));
-    
-    // Handle direct provider/model format (from reruns and new initial creation)
-    if (info.provider && info.model) {
+  const llmRerunInfo = metadata.llmRerunInfo;
+  if (llmRerunInfo && typeof llmRerunInfo === 'object') {
+    const info = llmRerunInfo as Record<string, unknown>;
+    if (typeof info.provider === 'string' && typeof info.model === 'string') {
       return `${info.provider}/${info.model}`;
     }
-    
+  }
+
+  // Check for general LLM metadata
+  const llmMetadata = metadata.llmMetadata;
+  if (llmMetadata && typeof llmMetadata === 'object') {
+    // Convert Vue proxy to plain object for easier access
+    const info = JSON.parse(JSON.stringify(llmMetadata)) as Record<string, unknown>;
+
+    // Handle direct provider/model format (from reruns and new initial creation)
+    if (typeof info.provider === 'string' && typeof info.model === 'string') {
+      return `${info.provider}/${info.model}`;
+    }
+
     // Handle originalLLMSelection format (from old initial creation)
-    if (info.originalLLMSelection) {
-      const selection = info.originalLLMSelection;
-      if (selection.providerName && selection.modelName) {
+    const originalLLMSelection = info.originalLLMSelection;
+    if (originalLLMSelection && typeof originalLLMSelection === 'object') {
+      const selection = originalLLMSelection as Record<string, unknown>;
+      if (typeof selection.providerName === 'string' && typeof selection.modelName === 'string') {
         return `${selection.providerName}/${selection.modelName}`;
       }
     }
   }
-  
+
   // Check for legacy LLM metadata formats
-  if (version.metadata.llmUsed) {
-    const info = version.metadata.llmUsed;
-    if (info.provider && info.model) {
+  const llmUsed = metadata.llmUsed;
+  if (llmUsed && typeof llmUsed === 'object') {
+    const info = llmUsed as Record<string, unknown>;
+    if (typeof info.provider === 'string' && typeof info.model === 'string') {
       return `${info.provider}/${info.model}`;
     }
   }
 
   // Check top-level provider/model (from metadata enrichment)
-  const metadata = version.metadata as Record<string, unknown> | undefined;
-  if (metadata && typeof metadata.provider === 'string' && typeof metadata.model === 'string') {
+  if (typeof metadata.provider === 'string' && typeof metadata.model === 'string') {
     return `${metadata.provider}/${metadata.model}`;
   }
 
@@ -1182,20 +1207,55 @@ const getVersionLLMInfo = (version: DeliverableVersion): string | null => {
 /**
  * Extract cost information from version metadata
  */
-const getVersionCost = (version: DeliverableVersion): string | null => {
-  if (!version?.metadata) return null;
-  
+const getVersionCost = (version: DeliverableVersion | undefined): string | null => {
+  if (!version?.metadata || typeof version.metadata !== 'object') return null;
+
+  const metadata = version.metadata as Record<string, unknown>;
+
+  // Helper to extract cost from nested objects
+  const extractCost = (obj: unknown): number | null => {
+    if (typeof obj === 'number') return obj;
+    if (typeof obj === 'object' && obj !== null) {
+      const costField = (obj as Record<string, unknown>).cost;
+      if (typeof costField === 'number') return costField;
+    }
+    return null;
+  };
+
   // Check various possible locations for cost data
-  const cost = version.metadata.llmMetadata?.cost || 
-               version.metadata.llmMetadata?.originalLLMSelection?.cost ||
-               version.metadata.llmRerunInfo?.cost ||
-               version.metadata.usage?.cost ||
-               version.metadata.costCalculation?.cost;
-               
+  let cost: number | null = null;
+
+  // Try llmMetadata.cost
+  const llmMetadata = metadata.llmMetadata;
+  if (!cost && llmMetadata && typeof llmMetadata === 'object') {
+    cost = extractCost(llmMetadata);
+
+    // Try llmMetadata.originalLLMSelection.cost
+    if (!cost) {
+      const originalLLMSelection = (llmMetadata as Record<string, unknown>).originalLLMSelection;
+      cost = extractCost(originalLLMSelection);
+    }
+  }
+
+  // Try llmRerunInfo.cost
+  if (!cost) {
+    cost = extractCost(metadata.llmRerunInfo);
+  }
+
+  // Try usage.cost
+  if (!cost) {
+    cost = extractCost(metadata.usage);
+  }
+
+  // Try costCalculation.cost
+  if (!cost) {
+    cost = extractCost(metadata.costCalculation);
+  }
+
   if (typeof cost === 'number' && cost > 0) {
     return cost.toFixed(4);
   }
-  
+
   return null;
 };
 // Watch for deliverable changes and reload versions

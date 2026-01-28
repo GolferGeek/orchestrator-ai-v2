@@ -20,16 +20,16 @@ export interface ToolRequest {
   id: string;
   universeId: string;
   universeName: string;
-  targetId: string | null;
-  targetName: string | null;
+  targetId?: string;
+  targetName?: string;
   requestType: ToolRequestType;
   title: string;
   description: string;
   priority: ToolRequestPriority;
   status: ToolRequestStatus;
-  sourceType: string | null;
-  sourceMissedOpportunityId: string | null;
-  statusNotes: string | null;
+  sourceType?: string;
+  sourceMissedOpportunityId?: string;
+  statusNotes?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -252,6 +252,10 @@ export const useToolRequestStore = defineStore('toolRequest', () => {
   }
 
   function selectRequest(id: string | null) {
+    state.value.selectedRequestId = id;
+  }
+
+  function _setSelectedRequestId(id: string | null) {
     state.value.selectedRequestId = id;
   }
 

@@ -220,11 +220,44 @@ const deleteAlertButtons = computed(() => [
   {
     text: 'Delete',
     role: 'destructive',
-    handler: () => {
-      executeDelete();
+    handler: async () => {
+      await executeDelete();
     }
   }
 ]);
+
+const executeDelete = async () => {
+  try {
+    const { deleteVersion: deleteVersionAction } = await import('@/services/agent2agent/actions');
+
+    // Delete all selected versions
+    for (const versionId of selectedVersions.value) {
+      await deleteVersionAction(versionId);
+    }
+
+    // Show success toast
+    const { toastController } = await import('@ionic/vue');
+    const toast = await toastController.create({
+      message: `Deleted ${selectedVersions.value.length} version(s)`,
+      duration: 2000,
+      color: 'success',
+    });
+    await toast.present();
+
+    // Clear selection
+    selectedVersions.value = [];
+    showDeleteDialog.value = false;
+  } catch (error) {
+    console.error('Failed to delete versions:', error);
+    const { toastController } = await import('@ionic/vue');
+    const toast = await toastController.create({
+      message: `Failed to delete versions: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      duration: 3000,
+      color: 'danger',
+    });
+    await toast.present();
+  }
+};
 // Methods
 const toggleVersionSelection = (versionId: string) => {
   const index = selectedVersions.value.indexOf(versionId);
@@ -277,9 +310,8 @@ const deleteVersion = async (versionId: string) => {
 };
 const copySpecificVersion = async (versionId: string) => {
   try {
-    const { useDeliverablesStore } = await import('@/stores/deliverablesStore');
-    const store = useDeliverablesStore();
-    const newVersion = await store.copyVersion(versionId);
+    const { deliverablesService } = await import('@/services/deliverablesService');
+    const newVersion = await deliverablesService.copyVersion(versionId);
     try {
       const { toastController } = await import('@ionic/vue');
       const oldNum = getVersionNumber(versionId);
@@ -299,7 +331,7 @@ const executeMerge = async () => {
   if (mergeSelectedVersions.value.length < 2 || !mergePrompt.value.trim()) return;
 
   try {
-    const { default: deliverablesService } = await import('@/services/deliverablesService');
+    const { deliverablesService } = await import('@/services/deliverablesService');
 
     // Call the merge API directly
     const result = await deliverablesService.mergeVersions(

@@ -51,7 +51,7 @@ const props = defineProps({
   }
 });
 
-import type { Chart } from 'chart.js';
+import type { Chart, ChartOptions } from 'chart.js';
 
 // Emits
 const emit = defineEmits<{
@@ -68,9 +68,9 @@ const chartConfig = computed(() => {
     props.colors.slice(0, props.data.length)
   );
 
-  // Customize cutout
-  if (config.data.datasets[0]) {
-    config.data.datasets[0].cutout = props.cutout;
+  // Customize cutout (this is a doughnut chart option, not a dataset property)
+  if (config.options) {
+    (config.options as ChartOptions<'doughnut'>).cutout = props.cutout;
   }
 
   // Customize legend position

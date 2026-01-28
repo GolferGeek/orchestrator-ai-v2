@@ -41,8 +41,7 @@ export class RoutePreloader {
         roleBasedRoutes = [
           () => import('../views/AdminEvaluationsPage.vue'),
           () => import('../views/AdminSettingsPage.vue'),
-          () => import('../views/AdminAuditDashboard.vue'),
-          () => import('../views/LlmUsageView.vue')
+          () => import('../views/admin/LlmUsageView.vue')
         ];
         break;
       case 'user':
@@ -77,8 +76,7 @@ export class RoutePreloader {
       '/app/evaluations': () => import('../views/EvaluationsPage.vue'),
       '/app/admin/evaluations': () => import('../views/AdminEvaluationsPage.vue'),
       '/app/admin/settings': () => import('../views/AdminSettingsPage.vue'),
-      '/app/admin/audit': () => import('../views/AdminAuditDashboard.vue'),
-      '/app/admin/llm-usage': () => import('../views/LlmUsageView.vue')
+      '/app/admin/llm-usage': () => import('../views/admin/LlmUsageView.vue')
     };
 
     const importFn = routeImports[routePath];
@@ -125,7 +123,7 @@ export class RoutePreloader {
       '/app/home': ['/app/pii', '/app/deliverables'],
       '/app/pii': ['/app/pii/testing', '/app/pii/dictionary'],
       '/app/pii/management': ['/app/pii/testing', '/app/pii/dictionary', '/app/pii/mappings'],
-      '/app/admin': ['/app/admin/evaluations', '/app/admin/settings', '/app/admin/audit']
+      '/app/admin': ['/app/admin/evaluations', '/app/admin/settings', '/app/admin/llm-usage']
     };
 
     const related = relatedRoutes[currentRoute];

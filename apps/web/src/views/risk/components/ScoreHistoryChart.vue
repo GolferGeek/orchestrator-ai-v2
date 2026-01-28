@@ -153,12 +153,15 @@ async function fetchScoreHistory() {
           if (subjectData.scores) {
             for (const score of subjectData.scores) {
               // Handle both camelCase (createdAt) and snake_case (created_at) from API
-              const timestamp = score.createdAt || score.created_at;
+              const scoreWithSnakeCase = score as { createdAt?: string; created_at?: string; score: number; confidence: number; change: number };
+              const timestamp = scoreWithSnakeCase.createdAt || scoreWithSnakeCase.created_at || new Date().toISOString();
               allHistory.push({
                 id: `${subjectData.subjectId}-${timestamp}`,
                 overallScore: score.score,
                 confidence: score.confidence,
+                previousScore: null,
                 scoreChange: score.change,
+                scoreChangePercent: score.change,
                 createdAt: timestamp,
                 dimensionScores: {},
               });
@@ -210,7 +213,9 @@ function aggregateByDay(entries: ScoreHistoryEntry[]): ScoreHistoryEntry[] {
       id: day,
       overallScore: avgScore,
       confidence: avgConfidence,
+      previousScore: null,
       scoreChange: 0,
+      scoreChangePercent: 0,
       createdAt: `${day}T12:00:00Z`,
       dimensionScores: {},
     });

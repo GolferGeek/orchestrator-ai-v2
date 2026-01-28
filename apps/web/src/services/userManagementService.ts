@@ -62,10 +62,9 @@ class UserManagementService {
    */
   async createUser(request: CreateUserRequest): Promise<CreateUserResponse> {
     try {
-      const response = await apiService.axiosInstance.post('/auth/admin/users', request, {
+      return await apiService.post<CreateUserResponse, CreateUserRequest>('/auth/admin/users', request, {
         headers: this.getOrgHeaders()
       });
-      return response.data;
     } catch (error) {
       console.error('Failed to create user:', error);
       throw error;
@@ -77,10 +76,9 @@ class UserManagementService {
    */
   async getAllUsers(): Promise<User[]> {
     try {
-      const response = await apiService.axiosInstance.get('/auth/admin/users', {
+      return await apiService.get<User[]>('/auth/admin/users', {
         headers: this.getOrgHeaders()
       });
-      return response.data;
     } catch (error) {
       console.error('Failed to fetch users:', error);
       throw error;
@@ -92,10 +90,9 @@ class UserManagementService {
    */
   async getUserById(userId: string): Promise<User> {
     try {
-      const response = await apiService.axiosInstance.get(`/auth/admin/users/${userId}`, {
+      return await apiService.get<User>(`/auth/admin/users/${userId}`, {
         headers: this.getOrgHeaders()
       });
-      return response.data;
     } catch (error) {
       console.error('Failed to fetch user:', error);
       throw error;
@@ -107,10 +104,9 @@ class UserManagementService {
    */
   async setUserRoles(userId: string, request: UpdateUserRolesRequest): Promise<UserManagementResponse> {
     try {
-      const response = await apiService.axiosInstance.put(`/auth/admin/users/${userId}/roles`, request, {
+      return await apiService.put<UserManagementResponse, UpdateUserRolesRequest>(`/auth/admin/users/${userId}/roles`, request, {
         headers: this.getOrgHeaders()
       });
-      return response.data;
     } catch (error) {
       console.error('Failed to set user roles:', error);
       throw error;
@@ -122,10 +118,9 @@ class UserManagementService {
    */
   async addUserRole(userId: string, request: AddUserRoleRequest): Promise<UserManagementResponse> {
     try {
-      const response = await apiService.axiosInstance.post(`/auth/admin/users/${userId}/roles`, request, {
+      return await apiService.post<UserManagementResponse, AddUserRoleRequest>(`/auth/admin/users/${userId}/roles`, request, {
         headers: this.getOrgHeaders()
       });
-      return response.data;
     } catch (error) {
       console.error('Failed to add user role:', error);
       throw error;
@@ -135,13 +130,11 @@ class UserManagementService {
   /**
    * Remove role from user (admin only)
    */
-  async removeUserRole(userId: string, role: string, request: RemoveUserRoleRequest): Promise<UserManagementResponse> {
+  async removeUserRole(userId: string, role: string, _request: RemoveUserRoleRequest): Promise<UserManagementResponse> {
     try {
-      const response = await apiService.axiosInstance.delete(`/auth/admin/users/${userId}/roles/${role}`, {
-        data: request,
+      return await apiService.delete<UserManagementResponse>(`/auth/admin/users/${userId}/roles/${role}`, {
         headers: this.getOrgHeaders()
       });
-      return response.data;
     } catch (error) {
       console.error('Failed to remove user role:', error);
       throw error;
@@ -153,10 +146,9 @@ class UserManagementService {
    */
   async deleteUser(userId: string): Promise<UserManagementResponse> {
     try {
-      const response = await apiService.axiosInstance.delete(`/auth/admin/users/${userId}`, {
+      return await apiService.delete<UserManagementResponse>(`/auth/admin/users/${userId}`, {
         headers: this.getOrgHeaders()
       });
-      return response.data;
     } catch (error) {
       console.error('Failed to delete user:', error);
       throw error;
@@ -168,12 +160,11 @@ class UserManagementService {
    */
   async changeUserPassword(userId: string, newPassword: string): Promise<UserManagementResponse> {
     try {
-      const response = await apiService.axiosInstance.put(`/auth/admin/users/${userId}/password`, {
+      return await apiService.put<UserManagementResponse, { newPassword: string }>(`/auth/admin/users/${userId}/password`, {
         newPassword
       }, {
         headers: this.getOrgHeaders()
       });
-      return response.data;
     } catch (error) {
       console.error('Failed to change user password:', error);
       throw error;
@@ -185,12 +176,11 @@ class UserManagementService {
    */
   async initiatePasswordReset(email: string): Promise<UserManagementResponse> {
     try {
-      const response = await apiService.axiosInstance.post('/auth/password-reset', {
+      return await apiService.post<UserManagementResponse, { email: string }>('/auth/password-reset', {
         email
       }, {
         headers: this.getOrgHeaders()
       });
-      return response.data;
     } catch (error) {
       console.error('Failed to initiate password reset:', error);
       throw error;

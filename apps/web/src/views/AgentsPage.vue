@@ -117,6 +117,7 @@ import { useChatUiStore } from '@/stores/ui/chatUiStore';
 import { useUserPreferencesStore } from '@/stores/userPreferencesStore';
 import { useRouter } from 'vue-router';
 import { getInteractionMode, isPredictionAgent, type Agent as InteractionAgent } from '@/utils/agent-interaction-mode';
+import type { Agent, AgentConversation } from '@/types/conversation';
 import AgentTreeView from '@/components/AgentTreeView.vue';
 import OrganizationSwitcherApp from '@/components/common/OrganizationSwitcherApp.vue';
 import SuperAdminCommandButton from '@/components/super-admin/SuperAdminCommandButton.vue';
@@ -174,7 +175,7 @@ const handleLogout = async () => {
 const navigateToLanding = () => {
   router.push('/');
 };
-const handleConversationSelected = async (conversation: Record<string, unknown>) => {
+const handleConversationSelected = async (conversation: AgentConversation) => {
   try {
     // Close the sidebar menu when a conversation is selected
     await menuController.close();
@@ -186,14 +187,14 @@ const handleConversationSelected = async (conversation: Record<string, unknown>)
     sessionStorage.setItem('activeConversation', 'true');
 
     // Check if this conversation belongs to an agent with a dedicated route
-    const agentName = (conversation.agentName || conversation.agent_name) as string;
+    const agentName = conversation.agentName || conversation.agent?.name;
     const agentsWithDedicatedRoutes = ['legal-department'];
 
     if (agentName && agentsWithDedicatedRoutes.includes(agentName)) {
       // Route to the dedicated agent view with the existing conversation
       await router.push({
         path: `/app/agents/${agentName}`,
-        query: { conversationId: conversation.id as string }
+        query: { conversationId: conversation.id }
       });
     } else {
       // Navigate to home page to show the conversation in generic view
@@ -203,12 +204,12 @@ const handleConversationSelected = async (conversation: Record<string, unknown>)
     console.error('Error selecting conversation:', error);
   }
 };
-const handleAgentSelected = async (agent: Record<string, unknown>) => {
+const handleAgentSelected = async (agent: Agent) => {
   try {
     // Close the sidebar menu when an agent is selected
     await menuController.close();
 
-    const agentSlug = (agent.slug || agent.name) as string;
+    const agentSlug = agent.slug || agent.name;
 
     // Check if this agent has a dedicated route (e.g., legal-department)
     // These agents have custom views that are better than the generic ConversationView
@@ -242,13 +243,13 @@ const handleAgentSelected = async (agent: Record<string, unknown>) => {
   }
 };
 
-const handleOpenDashboard = async (agent: Record<string, unknown>, _componentName: string) => {
+const handleOpenDashboard = async (agent: Agent, _componentName: string) => {
   try {
     // Close the sidebar menu when a dashboard is opened
     await menuController.close();
 
     const interactionMode = getInteractionMode(agent as InteractionAgent);
-    const agentSlug = (agent.slug || agent.name) as string;
+    const agentSlug = agent.slug || agent.name;
 
     // Set flag in sessionStorage to indicate active session
     sessionStorage.setItem('activeConversation', 'true');

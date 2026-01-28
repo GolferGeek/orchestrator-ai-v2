@@ -189,10 +189,10 @@ export class A2AStreamHandler {
       return;
     }
     console.log('[A2AStreamHandler] 📦 Chunk data:', {
-      hasMessage: !!data.message,
-      messageLength: data.message?.length,
-      status: data.status,
-      progress: data.progress,
+      hasMessage: !!data.chunk.content,
+      messageLength: data.chunk.content?.length,
+      chunkType: data.chunk.type,
+      progress: data.chunk.metadata?.progress,
     });
     this.handlers.onChunk?.(data);
   }
@@ -206,8 +206,8 @@ export class A2AStreamHandler {
       return;
     }
     console.log('[A2AStreamHandler] ✅ Complete data:', {
-      hasResult: !!data.result,
-      status: data.status,
+      type: data.type,
+      streamId: data.streamId,
     });
     this.handlers.onComplete?.(data);
   }
@@ -236,7 +236,7 @@ export class A2AStreamHandler {
   }
 
   private normalizeMetadata(metadata: Record<string, unknown>): NormalizedStreamMetadata {
-    const streamingMeta = metadata.streaming ?? {};
+    const streamingMeta = (metadata.streaming ?? {}) as Record<string, unknown>;
 
     const streamUrl =
       this.coerceAbsoluteUrl(streamingMeta.streamUrl || metadata.streamUrl) ??
@@ -257,12 +257,11 @@ export class A2AStreamHandler {
     return {
       streamUrl,
       streamTokenUrl,
-      streamId: streamingMeta.streamId || metadata.streamId,
+      streamId: (streamingMeta.streamId || metadata.streamId) as string | undefined,
       conversationId:
-        streamingMeta.conversationId ||
+        (streamingMeta.conversationId ||
         metadata.conversationId ||
-        metadata.conversation_id ||
-        null,
+        metadata.conversation_id) as string | null | undefined || null,
     };
   }
 

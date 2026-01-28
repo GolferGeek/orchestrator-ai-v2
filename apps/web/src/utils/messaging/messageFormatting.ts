@@ -1,5 +1,6 @@
-import type { AgentChatMessage } from '@/types/conversation';
+import type { AgentChatMessage, ConversationPlanRecord, OrchestrationRunRecord, AgentOrchestrationRecord } from '@/types/conversation';
 import type { Task } from '@/types/task';
+import type { JsonObject } from '@orchestrator-ai/transport-types';
 
 /**
  * Extract content from various response formats
@@ -99,8 +100,9 @@ export class MessageFormattingService {
     const responseData = task.response || task.result;
     
     // Also check for deliverable ID directly on the task
-    if (task.deliverableId) {
-      responseMetadata.deliverableId = task.deliverableId;
+    const taskWithDeliverable = task as Task & { deliverableId?: string };
+    if (taskWithDeliverable.deliverableId) {
+      responseMetadata.deliverableId = taskWithDeliverable.deliverableId;
     }
     
     if (responseData) {
@@ -172,12 +174,13 @@ export class MessageFormattingService {
       }
     }
 
+    const taskWithTaskId = task as Task & { taskId?: string };
     const message: AgentChatMessage = {
       id: `response-${Date.now()}`,
       role: 'assistant' as const,
       content: responseContent,
       timestamp: new Date(),
-      taskId: task.taskId,
+      taskId: taskWithTaskId.taskId,
       metadata: {
         isPlaceholder: false,
         isCompleted: true,
@@ -187,10 +190,10 @@ export class MessageFormattingService {
     };
 
     // Set deliverableId and planId directly on the message if present in metadata
-    if (responseMetadata.deliverableId) {
+    if (responseMetadata.deliverableId && typeof responseMetadata.deliverableId === 'string') {
       message.deliverableId = responseMetadata.deliverableId;
     }
-    if (responseMetadata.planId) {
+    if (responseMetadata.planId && typeof responseMetadata.planId === 'string') {
       message.planId = responseMetadata.planId;
     }
 
@@ -316,7 +319,10 @@ export class MessageFormattingService {
    * Format progress messages for display
    */
   formatProgressContent(messages: AgentChatMessage[]): string {
-    const progressMessages = messages.filter(msg => msg.messageType === 'progress');
+    const progressMessages = messages.filter(msg => {
+      const msgWithType = msg as AgentChatMessage & { messageType?: string };
+      return msgWithType.messageType === 'progress';
+    });
     let progressContent = 'Processing your request...\n\n';
     
     progressMessages.forEach(msg => {
@@ -348,7 +354,9 @@ export class MessageFormattingService {
       timestamp: new Date(plan.updated_at ?? plan.created_at ?? Date.now()),
       metadata: {
         planId: plan.id,
-        plan,
+        extra: {
+          plan: plan as unknown as JsonObject,
+        },
       },
     };
   }
@@ -364,10 +372,12 @@ export class MessageFormattingService {
       content,
       timestamp: new Date(run.started_at ?? Date.now()),
       metadata: {
-        runId: run.id,
-        planId: run.plan_id,
-        run,
-        status,
+        planId: run.plan_id ?? undefined,
+        extra: {
+          runId: run.id,
+          run: run as unknown as JsonObject,
+          status,
+        },
       },
     };
   }
@@ -380,9 +390,11 @@ export class MessageFormattingService {
       content: label,
       timestamp: now,
       metadata: {
-        streamId,
-        isStreaming: true,
         lastUpdated: now.toISOString(),
+        extra: {
+          streamId,
+          isStreaming: true,
+        },
       },
     };
   }
@@ -399,12 +411,15 @@ export class MessageFormattingService {
     message.timestamp = now;
     message.metadata = {
       ...(message.metadata ?? {}),
-      isStreaming: true,
+      planId: run.plan_id ?? undefined,
       lastUpdated: now.toISOString(),
-      runId: run.id,
-      planId: run.plan_id,
-      status,
-      run,
+      extra: {
+        ...(message.metadata?.extra ?? {}),
+        isStreaming: true,
+        runId: run.id,
+        status,
+        run: run as unknown as JsonObject,
+      },
     };
     return message;
   }
@@ -418,8 +433,11 @@ export class MessageFormattingService {
     message.timestamp = now;
     message.metadata = {
       ...(message.metadata ?? {}),
-      isStreaming: true,
       lastUpdated: now.toISOString(),
+      extra: {
+        ...(message.metadata?.extra ?? {}),
+        isStreaming: true,
+      },
     };
     return message;
   }
@@ -428,8 +446,11 @@ export class MessageFormattingService {
     const now = new Date();
     message.metadata = {
       ...(message.metadata ?? {}),
-      isStreaming: false,
       completedAt: now.toISOString(),
+      extra: {
+        ...(message.metadata?.extra ?? {}),
+        isStreaming: false,
+      },
     };
     return message;
   }
@@ -439,9 +460,12 @@ export class MessageFormattingService {
     message.content = `⚠️ Stream error: ${error}`;
     message.metadata = {
       ...(message.metadata ?? {}),
-      isStreaming: false,
       lastUpdated: now.toISOString(),
-      error,
+      errorDetails: error,
+      extra: {
+        ...(message.metadata?.extra ?? {}),
+        isStreaming: false,
+      },
     };
     message.timestamp = now;
     return message;
@@ -456,8 +480,10 @@ export class MessageFormattingService {
       content,
       timestamp: new Date(orchestration.updated_at ?? orchestration.created_at ?? Date.now()),
       metadata: {
-        orchestrationId: orchestration.id,
-        orchestration,
+        extra: {
+          orchestrationId: orchestration.id,
+          orchestration: orchestration as unknown as JsonObject,
+        },
       },
     };
   }

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Unit Tests for Conversations Service
  *
@@ -18,6 +17,7 @@ import { useConversationsStore } from '@/stores/conversationsStore';
 import { useAgentsStore } from '@/stores/agentsStore';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
 import { useDeliverablesStore } from '@/stores/deliverablesStore';
+import type { AgentInfo } from '@/types/chat';
 
 // Mock the service dependencies
 vi.mock('@/services/agent2AgentConversationsService', () => ({
@@ -51,7 +51,8 @@ describe('ConversationsService', () => {
         id: 'agent-1',
         name: 'test-agent',
         type: 'context',
-        execution_modes: ['immediate', 'polling'],
+        execution_modes: ['immediate', 'polling'] as ('immediate' | 'polling' | 'real-time' | 'auto')[],
+        description: 'Test agent description',
       };
       agentsStore.availableAgents = [mockAgent];
 
@@ -60,7 +61,6 @@ describe('ConversationsService', () => {
         conversations: [
           {
             id: 'conv-1',
-            userId: 'user-1',
             title: 'Test Conversation',
             agentName: 'test-agent',
             agentType: 'context',
@@ -76,6 +76,7 @@ describe('ConversationsService', () => {
             metadata: { title: 'Test Conversation' },
           },
         ],
+        total: 1,
       };
 
       vi.mocked(agent2AgentConversationsService.listConversations).mockResolvedValue(mockApiResponse);
@@ -109,7 +110,8 @@ describe('ConversationsService', () => {
         id: 'agent-1',
         name: 'test-agent',
         type: 'context',
-        execution_modes: ['immediate', 'polling', 'real-time', 'auto'],
+        execution_modes: ['immediate', 'polling', 'real-time', 'auto'] as ('immediate' | 'polling' | 'real-time' | 'auto')[],
+        description: 'Test agent description',
       };
       agentsStore.availableAgents = [mockAgent];
 
@@ -117,14 +119,16 @@ describe('ConversationsService', () => {
         conversations: [
           {
             id: 'conv-1',
-            userId: 'user-1',
             agentName: 'test-agent',
             agentType: 'context',
             organizationSlug: 'test-org',
             createdAt: '2024-01-01T00:00:00Z',
             updatedAt: '2024-01-01T00:00:00Z',
+            startedAt: '2024-01-01T00:00:00Z',
+            lastActiveAt: '2024-01-01T00:00:00Z',
           },
         ],
+        total: 1,
       };
 
       vi.mocked(agent2AgentConversationsService.listConversations).mockResolvedValue(mockApiResponse);
@@ -146,22 +150,25 @@ describe('ConversationsService', () => {
         id: 'agent-1',
         name: 'test-agent',
         type: 'context',
-        execution_modes: ['websocket', 'immediate'],
-      };
+        execution_modes: ['websocket', 'immediate'] as string[],
+        description: 'Test agent description',
+      } as unknown as AgentInfo;
       agentsStore.availableAgents = [mockAgent];
 
       const mockApiResponse = {
         conversations: [
           {
             id: 'conv-1',
-            userId: 'user-1',
             agentName: 'test-agent',
             agentType: 'context',
             organizationSlug: 'test-org',
             createdAt: '2024-01-01T00:00:00Z',
             updatedAt: '2024-01-01T00:00:00Z',
+            startedAt: '2024-01-01T00:00:00Z',
+            lastActiveAt: '2024-01-01T00:00:00Z',
           },
         ],
+        total: 1,
       };
 
       vi.mocked(agent2AgentConversationsService.listConversations).mockResolvedValue(mockApiResponse);
@@ -182,6 +189,7 @@ describe('ConversationsService', () => {
         id: 'agent-1',
         name: 'test-agent',
         type: 'context',
+        description: 'Test agent description',
       };
       agentsStore.availableAgents = [mockAgent];
 
@@ -189,14 +197,16 @@ describe('ConversationsService', () => {
         conversations: [
           {
             id: 'conv-1',
-            userId: 'user-1',
             agentName: 'test-agent',
             agentType: 'context',
             organizationSlug: 'test-org',
             createdAt: '2024-01-01T00:00:00Z',
             updatedAt: '2024-01-01T00:00:00Z',
+            startedAt: '2024-01-01T00:00:00Z',
+            lastActiveAt: '2024-01-01T00:00:00Z',
           },
         ],
+        total: 1,
       };
 
       vi.mocked(agent2AgentConversationsService.listConversations).mockResolvedValue(mockApiResponse);
@@ -219,14 +229,16 @@ describe('ConversationsService', () => {
         conversations: [
           {
             id: 'conv-1',
-            userId: 'user-1',
             agentName: 'unknown-agent',
             agentType: 'context',
             organizationSlug: 'test-org',
             createdAt: '2024-01-01T00:00:00Z',
             updatedAt: '2024-01-01T00:00:00Z',
+            startedAt: '2024-01-01T00:00:00Z',
+            lastActiveAt: '2024-01-01T00:00:00Z',
           },
         ],
+        total: 1,
       };
 
       vi.mocked(agent2AgentConversationsService.listConversations).mockResolvedValue(mockApiResponse);
@@ -244,7 +256,7 @@ describe('ConversationsService', () => {
       const agentsStore = useAgentsStore();
       agentsStore.availableAgents = [];
 
-      const mockApiResponse = { conversations: [] };
+      const mockApiResponse = { conversations: [], total: 0 };
       vi.mocked(agent2AgentConversationsService.listConversations).mockResolvedValue(mockApiResponse);
 
       const loadingPromise = conversationsService.fetchConversations();
@@ -290,13 +302,15 @@ describe('ConversationsService', () => {
       // Add a conversation to the store
       conversationsStore.setConversation({
         id: 'conv-1',
-        userId: 'user-1',
+        agentName: 'test-agent',
         title: 'Test Conversation',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        startedAt: new Date().toISOString(),
+        lastActiveAt: new Date().toISOString(),
       });
 
-      vi.mocked(agentConversationsService.deleteConversation).mockResolvedValue(undefined);
+      vi.mocked(agentConversationsService.deleteConversation).mockResolvedValue({ success: true });
 
       // Execute
       await conversationsService.deleteConversation('conv-1');
@@ -314,15 +328,17 @@ describe('ConversationsService', () => {
 
       conversationsStore.setConversation({
         id: 'conv-1',
-        userId: 'user-1',
+        agentName: 'test-agent',
         title: 'Test',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        startedAt: new Date().toISOString(),
+        lastActiveAt: new Date().toISOString(),
       });
 
       const closeTabSpy = vi.spyOn(chatUiStore, 'closeConversationTab');
 
-      vi.mocked(agentConversationsService.deleteConversation).mockResolvedValue(undefined);
+      vi.mocked(agentConversationsService.deleteConversation).mockResolvedValue({ success: true });
 
       await conversationsService.deleteConversation('conv-1');
 
@@ -335,16 +351,18 @@ describe('ConversationsService', () => {
 
       conversationsStore.setConversation({
         id: 'conv-1',
-        userId: 'user-1',
+        agentName: 'test-agent',
         title: 'Test',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        startedAt: new Date().toISOString(),
+        lastActiveAt: new Date().toISOString(),
       });
 
       // Mock handleConversationDeleted method
       deliverablesStore.handleConversationDeleted = vi.fn();
 
-      vi.mocked(agentConversationsService.deleteConversation).mockResolvedValue(undefined);
+      vi.mocked(agentConversationsService.deleteConversation).mockResolvedValue({ success: true });
 
       await conversationsService.deleteConversation('conv-1');
 
@@ -357,10 +375,12 @@ describe('ConversationsService', () => {
       // Add conversation
       conversationsStore.setConversation({
         id: 'conv-1',
-        userId: 'user-1',
+        agentName: 'test-agent',
         title: 'Test Conversation',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        startedAt: new Date().toISOString(),
+        lastActiveAt: new Date().toISOString(),
       });
 
       // Mock API error
@@ -372,15 +392,17 @@ describe('ConversationsService', () => {
         conversations: [
           {
             id: 'conv-1',
-            userId: 'user-1',
             title: 'Test Conversation',
             agentName: 'test-agent',
             agentType: 'context',
             organizationSlug: 'test-org',
             createdAt: '2024-01-01T00:00:00Z',
             updatedAt: '2024-01-01T00:00:00Z',
+            startedAt: '2024-01-01T00:00:00Z',
+            lastActiveAt: '2024-01-01T00:00:00Z',
           },
         ],
+        total: 1,
       });
 
       // Attempt delete
@@ -395,16 +417,18 @@ describe('ConversationsService', () => {
 
       conversationsStore.setConversation({
         id: 'conv-1',
-        userId: 'user-1',
+        agentName: 'test-agent',
         title: 'Test',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        startedAt: new Date().toISOString(),
+        lastActiveAt: new Date().toISOString(),
       });
 
       vi.mocked(agentConversationsService.deleteConversation).mockRejectedValue('String error');
 
       // Mock rollback
-      vi.mocked(agent2AgentConversationsService.listConversations).mockResolvedValue({ conversations: [] });
+      vi.mocked(agent2AgentConversationsService.listConversations).mockResolvedValue({ conversations: [], total: 0 });
 
       await expect(conversationsService.deleteConversation('conv-1')).rejects.toBe('String error');
 
@@ -418,7 +442,7 @@ describe('ConversationsService', () => {
       const agentsStore = useAgentsStore();
       agentsStore.availableAgents = [];
 
-      const mockApiResponse = { conversations: [] };
+      const mockApiResponse = { conversations: [], total: 0 };
       vi.mocked(agent2AgentConversationsService.listConversations).mockResolvedValue(mockApiResponse);
 
       // Store should be updated after fetch
@@ -430,7 +454,7 @@ describe('ConversationsService', () => {
       const agentsStore = useAgentsStore();
       agentsStore.availableAgents = [];
 
-      const mockApiResponse = { conversations: [] };
+      const mockApiResponse = { conversations: [], total: 0 };
       vi.mocked(agent2AgentConversationsService.listConversations).mockResolvedValue(mockApiResponse);
 
       // Should return a promise

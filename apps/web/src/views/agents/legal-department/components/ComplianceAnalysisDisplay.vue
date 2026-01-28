@@ -142,50 +142,10 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-
-interface PolicyCheck {
-  compliant?: boolean;
-  details: string;
-  [key: string]: unknown;
-}
-
-interface RegulatoryCompliance {
-  regulations: string[];
-  status: 'compliant' | 'non-compliant' | 'review-required' | 'not-applicable';
-  details: string;
-}
-
-interface RiskFlag {
-  flag: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  description: string;
-  recommendation?: string;
-}
-
-interface ComplianceAnalysis {
-  policyChecks: {
-    termLimit?: PolicyCheck & {
-      contractTerm: string;
-      maxAllowedTerm: string;
-    };
-    jurisdiction?: PolicyCheck & {
-      contractJurisdiction: string;
-      allowedJurisdictions: string[];
-    };
-    approvalAuthority?: {
-      contractValue?: string;
-      requiredApprover: string;
-      details: string;
-    };
-  };
-  regulatoryCompliance: RegulatoryCompliance;
-  riskFlags: RiskFlag[];
-  confidence: number;
-  summary: string;
-}
+import type { ComplianceAnalysisOutput } from '../legalDepartmentTypes';
 
 const props = defineProps<{
-  analysis: ComplianceAnalysis | null;
+  analysis: ComplianceAnalysisOutput | null;
 }>();
 
 const confidenceClass = computed(() => {

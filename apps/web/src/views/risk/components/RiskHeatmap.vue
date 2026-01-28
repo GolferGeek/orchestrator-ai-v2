@@ -175,7 +175,7 @@ async function fetchHeatmapData() {
     if (response.success && response.content) {
       internalData.value = response.content;
     } else {
-      error.value = response.error || 'Failed to load heatmap data';
+      error.value = response.error?.message || 'Failed to load heatmap data';
       emit('error', error.value);
     }
   } catch (err) {

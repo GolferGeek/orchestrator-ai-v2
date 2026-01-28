@@ -241,30 +241,7 @@ import {
 import { tasksService } from '@/services/tasksService';
 import TaskProgressBar from './TaskProgressBar.vue';
 import CreateTaskModal from './CreateTaskModal.vue';
-interface Task {
-  id: string;
-  agentConversationId: string;
-  userId: string;
-  method: string;
-  prompt: string;
-  params?: Record<string, unknown>;
-  response?: string;
-  responseMetadata?: Record<string, unknown>;
-  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
-  progress: number;
-  progressMessage?: string;
-  evaluation?: Record<string, unknown>;
-  llmMetadata?: Record<string, unknown>;
-  errorCode?: string;
-  errorMessage?: string;
-  errorData?: Record<string, unknown>;
-  startedAt?: string;
-  completedAt?: string;
-  timeoutSeconds: number;
-  metadata?: Record<string, unknown>;
-  createdAt: string;
-  updatedAt: string;
-}
+import type { TaskDetail } from '@/types/task';
 interface Conversation {
   id: string;
   agentName: string;
@@ -291,7 +268,7 @@ const emit = defineEmits<{
 // Reactive state
 const loading = ref(false);
 const error = ref<string | null>(null);
-const tasks = ref<Task[]>([]);
+const tasks = ref<TaskDetail[]>([]);
 const expandedTasks = ref(new Set<string>());
 const showCreateTaskModal = ref(false);
 // Methods
@@ -321,7 +298,7 @@ const toggleTaskDetails = (taskId: string) => {
     expandedTasks.value.add(taskId);
   }
 };
-const cancelTask = async (task: Task) => {
+const cancelTask = async (task: TaskDetail) => {
   try {
     await tasksService.cancelTask(task.id);
     await refreshTasks();

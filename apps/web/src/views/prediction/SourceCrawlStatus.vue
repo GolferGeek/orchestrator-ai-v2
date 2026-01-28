@@ -312,12 +312,12 @@ async function loadSources() {
 
   try {
     // Load sources via dashboard service
-    const response = await predictionDashboardService.executeAction('source', 'list', {
-      universeId: selectedUniverse.value,
+    const response = await predictionDashboardService.listSources({
+      universeId: selectedUniverse.value ?? undefined,
     });
 
-    if (response.success && response.data) {
-      sources.value = response.data as Source[];
+    if (response.content) {
+      sources.value = response.content as unknown as Source[];
     }
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load sources';
@@ -328,9 +328,9 @@ async function loadSources() {
 
 async function loadUniverses() {
   try {
-    const response = await predictionDashboardService.executeAction('universe', 'list', {});
-    if (response.success && response.data) {
-      universes.value = response.data as Universe[];
+    const response = await predictionDashboardService.listUniverses({});
+    if (response.content) {
+      universes.value = response.content as Universe[];
     }
   } catch (err) {
     console.error('Failed to load universes:', err);
@@ -339,12 +339,9 @@ async function loadUniverses() {
 
 async function loadRecentCrawls() {
   try {
-    const response = await predictionDashboardService.executeAction('source', 'recent-crawls', {
-      limit: 10,
-    });
-    if (response.success && response.data) {
-      recentCrawls.value = response.data as CrawlRecord[];
-    }
+    // Note: There's no specific recent crawls endpoint, so this functionality is disabled
+    // TODO: Add a dashboard endpoint for recent crawl history if needed
+    recentCrawls.value = [];
   } catch (err) {
     console.error('Failed to load recent crawls:', err);
   }
@@ -362,7 +359,7 @@ async function triggerCrawl(sourceId: string) {
   isCrawling[sourceId] = true;
 
   try {
-    await predictionDashboardService.executeAction('source', 'crawl', { sourceId });
+    await predictionDashboardService.crawlSources({ id: sourceId });
     // Refresh data after crawl
     setTimeout(() => {
       loadSources();

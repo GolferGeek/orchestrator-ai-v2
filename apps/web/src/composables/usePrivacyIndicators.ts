@@ -1,5 +1,5 @@
 import { ref, computed, watch, onMounted, onUnmounted, readonly } from 'vue';
-import { useSanitizationStore } from '@/stores/sanitizationStore';
+import { usePrivacyStore } from '@/stores/privacyStore';
 import { useLLMAnalyticsStore } from '@/stores/llmAnalyticsStore';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
 import type { AgentChatMessage } from '@/types/conversation';
@@ -53,8 +53,8 @@ export function usePrivacyIndicators(options: PrivacyIndicatorOptions = {}) {
   // =====================================
   // STORES
   // =====================================
-  
-  const sanitizationStore = useSanitizationStore();
+
+  const privacyStore = usePrivacyStore();
   const _llmAnalyticsStore = useLLMAnalyticsStore();
   const chatUiStore = useChatUiStore();
   
@@ -90,27 +90,20 @@ export function usePrivacyIndicators(options: PrivacyIndicatorOptions = {}) {
    */
   const currentMessage = computed((): AgentChatMessage | null => {
     if (!options.messageId) return null;
-    
+
     const conversation = chatUiStore.activeConversation;
     if (!conversation) return null;
-    
-    return conversation.messages.find(msg => msg.id === options.messageId) || null;
+
+    return conversation.messages?.find(msg => msg.id === options.messageId) || null;
   });
   
   /**
    * Sanitization data from current processing
    */
   const sanitizationData = computed(() => {
-    const result = sanitizationStore.currentResult;
-    if (!result) return null;
-    
-    return {
-      status: result.success ? 'completed' : 'failed',
-      piiCount: result.totalDetections,
-      processingTime: result.totalProcessingTime,
-      hasErrors: !result.success,
-      errorMessage: result.error || null
-    };
+    // Privacy store doesn't expose currentResult directly
+    // This composable tracks message-level privacy states instead
+    return null;
   });
   
   /**
@@ -126,12 +119,12 @@ export function usePrivacyIndicators(options: PrivacyIndicatorOptions = {}) {
     
     const llmMeta = currentMessage.value.metadata.llmMetadata;
     const provider = llmMeta.providerName || llmMeta.providerId;
-    
+
     // Determine routing mode based on provider
     let mode: 'local' | 'external' | 'hybrid' = 'external';
     if (!provider || provider === 'local' || provider === 'ollama') {
       mode = 'local';
-    } else if (provider.includes('hybrid')) {
+    } else if (typeof provider === 'string' && provider.includes('hybrid')) {
       mode = 'hybrid';
     }
     
@@ -221,40 +214,41 @@ export function usePrivacyIndicators(options: PrivacyIndicatorOptions = {}) {
    * Update privacy status from all available sources
    */
   function updatePrivacyStatus(): void {
-    const sanitizationData = sanitizationStore.currentResult;
     const routingData = routingInfo.value;
     const trustData = trustCalculation.value;
     const protectionData = dataProtectionStatus.value;
-    
-    // Update sanitization status
-    if (sanitizationStore.isProcessing) {
-      privacyStatus.value.sanitizationStatus = 'processing';
-    } else if (sanitizationData) {
-      privacyStatus.value.sanitizationStatus = sanitizationData.success ? 'completed' : 'failed';
-      privacyStatus.value.piiDetectionCount = sanitizationData.totalDetections;
-      privacyStatus.value.sanitizationProcessingTime = sanitizationData.totalProcessingTime;
-      privacyStatus.value.hasErrors = !sanitizationData.success;
-      privacyStatus.value.errorMessage = sanitizationData.error || null;
+
+    // Check if there's a message privacy state in the store
+    const messageState = options.messageId
+      ? privacyStore.getMessagePrivacyState(options.messageId)
+      : null;
+
+    // Update sanitization status from message state or keep current
+    if (messageState) {
+      privacyStatus.value.sanitizationStatus = messageState.sanitizationStatus;
+      privacyStatus.value.piiDetectionCount = messageState.piiDetectionCount;
+      privacyStatus.value.sanitizationProcessingTime = messageState.sanitizationProcessingTime;
+      privacyStatus.value.hasErrors = messageState.hasErrors;
+      privacyStatus.value.errorMessage = messageState.errorMessage;
+      privacyStatus.value.isProcessing = messageState.isProcessing;
     }
-    
+
     // Update routing information
     privacyStatus.value.routingMode = routingData.mode;
-    privacyStatus.value.routingProvider = routingData.provider;
-    
+    privacyStatus.value.routingProvider = typeof routingData.provider === 'string' ? routingData.provider : null;
+
     // Update trust signals
     privacyStatus.value.trustLevel = trustData.level;
     privacyStatus.value.trustScore = trustData.score;
-    
+
     // Update data protection
     privacyStatus.value.isDataProtected = protectionData.isProtected;
     privacyStatus.value.dataProtectionLevel = protectionData.level;
-    
-    // Update processing status
-    privacyStatus.value.isProcessing = sanitizationStore.isProcessing;
-    
+
     // Update processing time from message metadata
     if (currentMessage.value?.metadata?.llmMetadata?.responseTimeMs) {
-      privacyStatus.value.processingTimeMs = currentMessage.value.metadata.llmMetadata.responseTimeMs;
+      const responseTime = currentMessage.value.metadata.llmMetadata.responseTimeMs;
+      privacyStatus.value.processingTimeMs = typeof responseTime === 'number' ? responseTime : 0;
     }
   }
   
@@ -326,25 +320,15 @@ export function usePrivacyIndicators(options: PrivacyIndicatorOptions = {}) {
   // WATCHERS
   // =====================================
   
-  // Watch for sanitization store changes
+  // Watch for message privacy state changes in the store
   watch(
-    () => sanitizationStore.currentResult,
+    () => options.messageId ? privacyStore.getMessagePrivacyState(options.messageId) : null,
     () => {
       if (isInitialized.value) {
         updatePrivacyStatus();
       }
     },
     { deep: true }
-  );
-  
-  // Watch for processing status changes
-  watch(
-    () => sanitizationStore.isProcessing,
-    () => {
-      if (isInitialized.value) {
-        updatePrivacyStatus();
-      }
-    }
   );
   
   // Watch for message metadata changes

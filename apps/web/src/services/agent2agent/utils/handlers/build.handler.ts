@@ -16,6 +16,8 @@ import {
   StrictResponseValidationError,
 } from './response-validation';
 import { useDeliverablesStore } from '@/stores/deliverablesStore';
+import type { Deliverable, DeliverableVersion } from '@/services/deliverablesService';
+import { DeliverableVersionCreationType, DeliverableType, DeliverableFormat } from '@/services/deliverablesService';
 
 /**
  * Build response types for different actions
@@ -71,6 +73,42 @@ export interface BuildCopyVersionResult {
 }
 
 /**
+ * Convert DeliverableData to Deliverable for store operations
+ */
+function convertToDeliverable(data: DeliverableData): Deliverable {
+  return {
+    id: data.id,
+    userId: data.userId,
+    conversationId: data.conversationId,
+    agentName: data.agentName,
+    title: data.title,
+    type: data.type as DeliverableType | undefined, // Type is compatible string
+    createdAt: data.createdAt,
+    updatedAt: data.updatedAt,
+  };
+}
+
+/**
+ * Convert DeliverableVersionData to DeliverableVersion for store operations
+ */
+function convertToDeliverableVersion(data: DeliverableVersionData): DeliverableVersion {
+  return {
+    id: data.id,
+    deliverableId: data.deliverableId,
+    versionNumber: data.versionNumber,
+    content: data.content,
+    format: data.format as DeliverableFormat | undefined, // Format is compatible
+    isCurrentVersion: data.isCurrentVersion,
+    createdByType: data.createdByType === 'agent'
+      ? DeliverableVersionCreationType.AI_RESPONSE
+      : DeliverableVersionCreationType.MANUAL_EDIT,
+    metadata: data.metadata,
+    createdAt: data.createdAt,
+    updatedAt: data.createdAt, // DeliverableVersionData doesn't have updatedAt
+  };
+}
+
+/**
  * Shared validator/extractor helper
  * Pure function that validates response and extracts typed content
  *
@@ -122,9 +160,9 @@ export const buildResponseHandler = {
     const store = useDeliverablesStore();
 
     // Update store
-    store.addDeliverable(result.deliverable);
+    store.addDeliverable(convertToDeliverable(result.deliverable));
     if (result.version) {
-      store.addVersion(result.deliverable.id, result.version);
+      store.addVersion(result.deliverable.id, convertToDeliverableVersion(result.version));
     }
     // TODO: Add plan-deliverable association to deliverablesStore if needed
     // if (planId) {
@@ -146,9 +184,9 @@ export const buildResponseHandler = {
     const store = useDeliverablesStore();
 
     // Update store
-    store.addDeliverable(result.deliverable);
+    store.addDeliverable(convertToDeliverable(result.deliverable));
     if (result.version) {
-      store.addVersion(result.deliverable.id, result.version);
+      store.addVersion(result.deliverable.id, convertToDeliverableVersion(result.version));
     }
     if (result.version) {
       store.setCurrentVersion(result.deliverable.id, result.version.id);
@@ -167,7 +205,7 @@ export const buildResponseHandler = {
 
     // Update store with all deliverables
     result.deliverables.forEach(deliverable => {
-      store.addDeliverable(deliverable);
+      store.addDeliverable(convertToDeliverable(deliverable));
       // TODO: Add plan-deliverable association to deliverablesStore if needed
       // if (planId) {
       //   store.associateDeliverableWithPlan(deliverable.id, planId);
@@ -186,9 +224,9 @@ export const buildResponseHandler = {
     const store = useDeliverablesStore();
 
     // Update store with new version
-    store.addDeliverable(result.deliverable);
+    store.addDeliverable(convertToDeliverable(result.deliverable));
     if (result.version) {
-      store.addVersion(result.deliverable.id, result.version);
+      store.addVersion(result.deliverable.id, convertToDeliverableVersion(result.version));
     }
     if (result.version) {
       store.setCurrentVersion(result.deliverable.id, result.version.id);
@@ -206,9 +244,9 @@ export const buildResponseHandler = {
     const store = useDeliverablesStore();
 
     // Update store
-    store.addDeliverable(result.deliverable);
+    store.addDeliverable(convertToDeliverable(result.deliverable));
     if (result.version) {
-      store.addVersion(result.deliverable.id, result.version);
+      store.addVersion(result.deliverable.id, convertToDeliverableVersion(result.version));
     }
     if (result.version) {
       store.setCurrentVersion(result.deliverable.id, result.version.id);
@@ -241,7 +279,7 @@ export const buildResponseHandler = {
 
     // Update store
     if (result.deleted) {
-      store.deleteVersion(result.deliverableId, result.versionId);
+      store.removeVersion(result.deliverableId, result.versionId);
     }
 
     return result;
@@ -256,9 +294,9 @@ export const buildResponseHandler = {
     const store = useDeliverablesStore();
 
     // Update store with merged version
-    store.addDeliverable(result.deliverable);
+    store.addDeliverable(convertToDeliverable(result.deliverable));
     if (result.version) {
-      store.addVersion(result.deliverable.id, result.version);
+      store.addVersion(result.deliverable.id, convertToDeliverableVersion(result.version));
     }
     if (result.version) {
       store.setCurrentVersion(result.deliverable.id, result.version.id);
@@ -276,7 +314,7 @@ export const buildResponseHandler = {
     const store = useDeliverablesStore();
 
     // Update store with copied version
-    store.addVersion(result.deliverable.id, result.version);
+    store.addVersion(result.deliverable.id, convertToDeliverableVersion(result.version));
 
     return result;
   },
@@ -291,7 +329,7 @@ export const buildResponseHandler = {
 
     // Update store
     if (result.deleted) {
-      store.deleteDeliverable(result.deliverableId);
+      store.removeDeliverable(result.deliverableId);
     }
 
     return result;

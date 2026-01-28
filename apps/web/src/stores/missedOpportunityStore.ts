@@ -26,17 +26,17 @@ export interface MissedOpportunity {
   endValue: number;
   movePercent: number;
   direction: MoveDirection;
-  discoveredDrivers: string[];
-  signalsWeHad: Array<{
+  discoveredDrivers?: string[];
+  signalsWeHad?: Array<{
     id: string;
     content: string;
     reason: string;
   }>;
-  sourceGaps: string[];
-  suggestedLearnings: string[];
+  sourceGaps?: string[];
+  suggestedLearnings?: string[];
   analysisStatus: AnalysisStatus;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export interface MissedOpportunityAnalysis {

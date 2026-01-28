@@ -96,7 +96,14 @@ async function createArticle() {
   try {
     const result = await predictionDashboardService.createTestArticle({
       scenario_id: selectedScenarioId.value,
-      ...formData.value,
+      title: formData.value.title,
+      content: formData.value.content,
+      target_symbols: formData.value.target_symbols,
+      ...(formData.value.sentiment && { sentiment: formData.value.sentiment }),
+      ...(formData.value.expected_signal_count !== null && { expected_signal_count: formData.value.expected_signal_count }),
+      ...(formData.value.source_name && { source_name: formData.value.source_name }),
+      ...(formData.value.source_type && { source_type: formData.value.source_type }),
+      ...(formData.value.published_at && { published_at: formData.value.published_at }),
     });
 
     if (result.content) {
@@ -122,7 +129,14 @@ async function updateArticle() {
   try {
     const result = await predictionDashboardService.updateTestArticle({
       id: editingArticle.value.id,
-      ...formData.value,
+      title: formData.value.title,
+      content: formData.value.content,
+      target_symbols: formData.value.target_symbols,
+      ...(formData.value.sentiment && { sentiment: formData.value.sentiment }),
+      ...(formData.value.expected_signal_count !== null && { expected_signal_count: formData.value.expected_signal_count }),
+      ...(formData.value.source_name && { source_name: formData.value.source_name }),
+      ...(formData.value.source_type && { source_type: formData.value.source_type }),
+      ...(formData.value.published_at && { published_at: formData.value.published_at }),
     });
 
     if (result.content) {

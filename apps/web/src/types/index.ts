@@ -25,14 +25,16 @@ export * from './evaluation';
 // =====================================
 // LLM TYPES (selective export to avoid conflicts)
 // =====================================
-export type { 
-  LLMProvider, 
-  LLMModel, 
-  LLMRequest, 
-  LLMResponse,
-  LLMError,
-  LLMConfig,
-  LLMCapability
+export type {
+  Provider,
+  Model,
+  LLMSelection,
+  LLMUsageMetrics,
+  EnhancedMessage,
+  CIDAFMCommand,
+  CIDAFMOptions,
+  UnifiedLLMResponse,
+  StandardizedLLMError
 } from './llm';
 
 // =====================================
@@ -74,16 +76,12 @@ export type {
   ModelHealthMetrics,
   Alert,
   LLMMonitoringFilters,
-  LLMAlertThresholds,
-  LLMComplianceReport,
-  LLMCostBreakdown,
-  LLMPerformanceMetric,
-  LLMProviderStats,
-  LLMModelStats,
   LLMDashboardData,
   RealTimeMetrics,
   LLMDashboardResponse,
-  LLMRealTimeResponse
+  PerformanceMetrics,
+  CostAnalysis,
+  ComplianceMetrics
 } from './llm-monitoring';
 
 // =====================================

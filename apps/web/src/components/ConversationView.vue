@@ -4,25 +4,25 @@
     <template v-if="hasCustomUI">
       <MarketingSwarmTab
         v-if="customUIComponent === 'marketing-swarm'"
-        :conversation="conversation"
+        :conversation="conversation || null"
       />
       <CadAgentTab
         v-else-if="customUIComponent === 'cad-agent'"
-        :conversation="conversation"
+        :conversation="conversation || null"
       />
       <FinanceTab
         v-else-if="customUIComponent === 'finance'"
-        :conversation="conversation"
+        :conversation="conversation || null"
       />
       <PredictionAgentPane
         v-else-if="customUIComponent === 'prediction-dashboard'"
-        :conversation="conversation"
-        :agent="currentAgent"
+        :conversation="conversationForCustomUI"
+        :agent="agentForCustomUI"
       />
       <RiskAgentPane
         v-else-if="customUIComponent === 'investment-risk-dashboard'"
-        :conversation="conversation"
-        :agent="currentAgent"
+        :conversation="conversationForCustomUI"
+        :agent="agentForCustomUI"
       />
       <!-- Add more custom UI components here as needed -->
       <div v-else class="custom-ui-not-found">
@@ -126,7 +126,7 @@
               ></div>
               <!-- eslint-enable vue/no-v-html -->
               <div v-if="message.timestamp" class="message-timestamp">
-                {{ formatTimestamp(message.timestamp) }}
+                {{ formatTimestamp(message.timestamp.toString()) }}
               </div>
               <!-- Sub-agent attribution badge (Orchestrator V2) -->
               <div v-if="message.metadata?.resolvedByDisplayName" class="attribution-badge">
@@ -144,7 +144,7 @@
               v-else
               :message="message"
               :conversation-id="conversation?.id"
-              :agent="currentAgent"
+              :agent="agentForTaskItem"
               :agent-name="currentAgent?.name"
               @deliverable-created="handleDeliverableCreated"
               @deliverable-selected="selectDeliverable"
@@ -374,6 +374,7 @@ import type {
   LLMRunConfiguration,
 } from '@/types/conversation';
 import type { AgentLLMRecommendation } from '@/types/evaluation';
+import type { Agent } from '@/types/agent';
 import { rerunPlan, rerunDeliverable } from '@/services/agent2agent/actions';
 import AgentTaskItem from './AgentTaskItem.vue';
 import AgentResourcesPanel from './AgentResourcesPanel.vue';
@@ -402,11 +403,13 @@ const props = defineProps<Props>();
 interface DeliverableRerunContext {
   deliverable: Deliverable;
   version: DeliverableVersion;
+  userMessage?: string;
 }
 
 interface PlanRerunContext {
   plan: PlanData;
   version: PlanVersionData;
+  userMessage?: string;
 }
 
 type RerunContext = DeliverableRerunContext | PlanRerunContext;
@@ -443,11 +446,15 @@ const selectedDeliverable = ref<Deliverable | null>(null);
 const selectedDeliverableContent = ref<HitlGeneratedContent | undefined>(undefined);
 // Computed properties
 const currentAgent = computed(() => {
-  if (!props.conversation?.agentName) return null;
+  const conv = props.conversation;
+  if (!conv) return null;
+
+  const agentNameToFind = conv.agentName || conv.agent?.name;
+  if (!agentNameToFind) return null;
 
   // Get the full agent data from the agents store
   const agentInfo = agentsStore.availableAgents.find(
-    (agent) => agent.name === props.conversation.agentName
+    (agent) => agent.name === agentNameToFind
   );
 
   // If found in store, return with full capabilities
@@ -457,7 +464,7 @@ const currentAgent = computed(() => {
 
   // Fallback: construct minimal object with default capabilities based on agent type
   // API agents typically don't support plan mode, context agents support all modes
-  const agentType = props.conversation.agentType || 'custom';
+  const agentType = conv.agentType || conv.agent?.type || 'custom';
   const defaultCapabilities = {
     can_converse: true,
     can_plan: agentType !== 'api', // API agents don't support plan by default
@@ -466,11 +473,11 @@ const currentAgent = computed(() => {
   };
 
   return {
-    name: props.conversation.agentName || '',
+    name: agentNameToFind,
     type: agentType,
-    slug: props.conversation.agentName || '',
-    id: props.conversation.agentName || '',
-    organizationSlug: props.conversation.organizationSlug,
+    slug: agentNameToFind,
+    id: agentNameToFind,
+    organizationSlug: conv.organizationSlug,
     execution_capabilities: defaultCapabilities,
   };
 });
@@ -484,6 +491,28 @@ const hasCustomUI = computed(() => {
   return Boolean((agent as Record<string, unknown>).hasCustomUI);
 });
 
+// Transform conversation for custom UI components
+const conversationForCustomUI = computed(() => {
+  if (!props.conversation) return null;
+  return {
+    id: props.conversation.id,
+    agentName: props.conversation.agentName || undefined,
+    organizationSlug: (props.conversation.organizationSlug || undefined) as string | undefined
+  };
+});
+
+// Transform agent for custom UI components
+const agentForCustomUI = computed(() => {
+  const agent = currentAgent.value;
+  if (!agent) return undefined;
+  return {
+    id: agent.id || '',
+    slug: agent.slug || '',
+    name: agent.name || '',
+    organizationSlug: typeof agent.organizationSlug === 'string' ? agent.organizationSlug : undefined
+  };
+});
+
 const customUIComponent = computed(() => {
   const agent = currentAgent.value;
   if (!agent) return null;
@@ -491,11 +520,18 @@ const customUIComponent = computed(() => {
 });
 
 const currentAgentIdentifier = computed(() => currentAgent.value?.name ?? '');
+
+// Helper to convert agent to expected shape for AgentTaskItem
+const agentForTaskItem = computed(() => {
+  if (!currentAgent.value) return undefined;
+  return currentAgent.value as Agent | undefined;
+});
+
 const messages = computed<AgentChatMessage[]>(() => {
   // Always read from store - conversation.messages is legacy and may be empty/stale
   if (props.conversation?.id) {
     const msgs = conversationsStore.messagesByConversation(props.conversation.id);
-    return msgs;
+    return msgs as unknown as AgentChatMessage[];
   }
   return [];
 });
@@ -557,18 +593,20 @@ const thinkingMessage = computed(() => {
 // Sovereign mode computed properties
 const shouldShowSovereignBanner = computed(() => {
   // Show banner for enforced policy or when there are warnings
-  return sovereignPolicyStore.policy?.enforced ||
-         (sovereignPolicyStore.policyWarnings?.length ?? 0) > 0;
+  const store = sovereignPolicyStore as { policy?: { enforced: boolean }; policyWarnings?: unknown[] };
+  return store.policy?.enforced ||
+         (store.policyWarnings?.length ?? 0) > 0;
 });
 
 const sovereignBannerVariant = computed(() => {
-  if (sovereignPolicyStore.policy?.enforced) {
+  const store = sovereignPolicyStore as { policy?: { enforced: boolean }; policyWarnings?: unknown[]; effectiveSovereignMode?: boolean };
+  if (store.policy?.enforced) {
     return 'enforced';
   }
-  if ((sovereignPolicyStore.policyWarnings?.length ?? 0) > 0) {
+  if ((store.policyWarnings?.length ?? 0) > 0) {
     return 'warning';
   }
-  if (sovereignPolicyStore.effectiveSovereignMode) {
+  if (store.effectiveSovereignMode) {
     return 'success';
   }
   return 'info';
@@ -626,16 +664,23 @@ const formatTimestamp = (timestamp: string) => {
 };
 
 const deliverableActionButtons = computed(() => {
-  const conversationDeliverables = deliverablesStore.getDeliverablesByConversation(props.conversation?.id);
-  return conversationDeliverables.map(deliverable => ({
+  const conversationId = props.conversation?.id;
+  if (!conversationId) return [{ text: 'Cancel', handler: () => {}, role: 'cancel' as const }];
+
+  const conversationDeliverables = deliverablesStore.getDeliverablesByConversation(conversationId);
+  const deliverableButtons = conversationDeliverables.map(deliverable => ({
     text: deliverable.title,
     handler: () => selectDeliverable(deliverable),
-  })).concat([
+  }));
+
+  return [
+    ...deliverableButtons,
     {
       text: 'Cancel',
+      role: 'cancel' as const,
       handler: () => {}  // Empty handler for cancel
     }
-  ]);
+  ];
 });
 // Speech event handlers
 const handleConversationStart = () => {
@@ -661,7 +706,7 @@ const sendMessage = async (mode?: AgentChatMode) => {
   // If mode is provided, set it before sending
   // If no mode is set at all, default to 'converse' for new conversations
   if (mode) {
-    chatUiStore.setChatMode(mode);
+    chatUiStore.setChatMode(mode as 'converse' | 'plan' | 'build');
   } else if (!currentChatMode.value) {
     chatUiStore.setChatMode('converse');
   }
@@ -741,7 +786,7 @@ const sendWithMode = async (mode: AgentChatMode) => {
   }
 
   // Set this mode as active
-  chatUiStore.setChatMode(mode);
+  chatUiStore.setChatMode(mode as 'converse' | 'plan' | 'build');
 
   // Send with this mode
   await sendMessage(mode);
@@ -773,7 +818,7 @@ const handleKeydown = async (event: KeyboardEvent) => {
   // Enter key uses current active mode
   if (event.key === 'Enter' && !event.shiftKey) {
     event.preventDefault();
-    const mode = currentChatMode.value || 'converse';
+    const mode = (currentChatMode.value || 'converse') as AgentChatMode;
     await sendMessage(mode);
   }
 };
@@ -1011,17 +1056,19 @@ const executeRerunWithConfig = async (
     // Create assistant message upfront (will be updated with deliverable when complete)
     // This matches the build flow pattern
     const rerunMessageId = `rerun-${Date.now()}`;
-    const initialMessage: AgentChatMessage = {
-      id: rerunMessageId,
-      role: 'assistant',
+    const initialMessage = {
+      role: 'assistant' as const,
       content: 'Regenerating...',
-      timestamp: new Date(),
+      conversationId: props.conversation?.id || '',
+      timestamp: new Date().toISOString(),
       metadata: {
-        mode: isPlan ? 'plan' : 'build',
-        isRerunRequest: true,
-        originalVersionId: capturedRerunData.version.id,
-        provider: llmConfig.provider,
-        model: llmConfig.model,
+        custom: {
+          mode: isPlan ? 'plan' : 'build',
+          isRerunRequest: true,
+          originalVersionId: capturedRerunData.version.id,
+          provider: llmConfig.provider,
+          model: llmConfig.model,
+        }
       }
     };
 
@@ -1031,27 +1078,27 @@ const executeRerunWithConfig = async (
 
 
     // Get agent slug from conversation (this is the reliable source)
-    const agentSlug = props.conversation?.agentName || currentAgent.value?.slug;
+    const conv = props.conversation;
+    const agentSlug = conv?.agentName || conv?.agent?.slug || currentAgent.value?.slug;
 
     if (!agentSlug) {
       throw new Error('No agent slug available for rerun');
     }
 
     let result;
-    if (isPlan) {
+    if (isPlan && plan) {
       // Call the rerunPlan action
       result = await rerunPlan(
-        agentSlug,
-        plan.conversationId,
         capturedRerunData.version.id,
         {
           provider: llmConfig.provider,
           model: llmConfig.model,
           temperature: llmConfig.temperature,
           maxTokens: llmConfig.maxTokens,
-        }
+        } as { provider: string; model: string; temperature?: number; maxTokens?: number },
+        userPrompt || undefined
       );
-    } else if (isDeliverable) {
+    } else if (isDeliverable && deliverable) {
       // Rerun deliverable - orchestrator gets context from store
       result = await rerunDeliverable(
         capturedRerunData.version.id,
@@ -1072,12 +1119,12 @@ const executeRerunWithConfig = async (
       ? 'Plan created'
       : 'Created successfully';
 
-    if (props.conversation) {
+    if (props.conversation && result) {
       // Update the message we created earlier
-      conversationsStore.updateMessage(props.conversation.id, rerunMessageId, {
+      const updateData: Record<string, unknown> = {
         content: assistantContent,
-        ...(isPlan ? { planId: plan.id } : {}),
-        ...(isDeliverable ? { deliverableId: deliverable.id } : {}),
+        ...(isPlan && plan ? { planId: plan.id } : {}),
+        ...(isDeliverable && deliverable ? { deliverableId: deliverable.id } : {}),
         metadata: {
           mode: isPlan ? 'plan' : 'build',
           isCompleted: true,
@@ -1086,10 +1133,9 @@ const executeRerunWithConfig = async (
           provider: llmConfig.provider,
           model: llmConfig.model,
           sourceVersionId: capturedRerunData.version.id,
-          // Include usage/token data if available from response
-          ...(result.version.metadata?.usage && { usage: result.version.metadata.usage }),
         }
-      });
+      };
+      conversationsStore.updateMessage(props.conversation.id, rerunMessageId, updateData);
     }
 
     // For plans, the store is already updated by the rerunPlan action
@@ -1100,14 +1146,16 @@ const executeRerunWithConfig = async (
     console.error('Failed to rerun with different LLM:', error);
 
     // Create error message in conversation
-    const errorMessage: AgentChatMessage = {
-      id: `rerun-error-${Date.now()}`,
-      role: 'assistant',
+    const errorMessage = {
+      role: 'assistant' as const,
       content: `❌ Failed to regenerate: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      timestamp: new Date(),
+      conversationId: props.conversation?.id || '',
+      timestamp: new Date().toISOString(),
       metadata: {
-        isRerunError: true,
-        errorDetails: error instanceof Error ? error.message : 'Unknown error'
+        custom: {
+          isRerunError: true,
+          errorDetails: (error instanceof Error ? error.message : 'Unknown error'),
+        }
       }
     };
 
@@ -1126,16 +1174,19 @@ const executeRerunWithConfig = async (
 const handleHitlModalClose = () => {
   // When modal closes (approve/reject/replace), show processing message
   if (props.conversation && hitlData.value) {
-    conversationsStore.addMessage(props.conversation.id, {
-      id: `hitl-processing-${Date.now()}`,
-      role: 'assistant',
+    const hitlMessage = {
+      role: 'assistant' as const,
       content: 'Finalizing your content... The approved content is being processed.',
+      conversationId: props.conversation.id,
       timestamp: new Date().toISOString(),
       metadata: {
-        hitlProcessing: true,
-        taskId: hitlData.value.taskId,
+        custom: {
+          hitlProcessing: true,
+          taskId: hitlData.value.taskId,
+        }
       },
-    });
+    };
+    conversationsStore.addMessage(props.conversation.id, hitlMessage);
     scrollToBottom();
   }
 
@@ -1170,10 +1221,11 @@ const handleHitlCompleted = (deliverableId: string | undefined) => {
 const handleHitlRegenerated = (content: HitlGeneratedContent) => {
   // Update hitlData with new content so the modal can display it
   if (hitlData.value) {
+    const currentVersion = hitlData.value.currentVersionNumber ?? 0;
     hitlData.value = {
       ...hitlData.value,
       generatedContent: content,
-      currentVersionNumber: (hitlData.value.currentVersionNumber || 0) + 1,
+      currentVersionNumber: currentVersion + 1,
     };
   }
 };
@@ -1216,7 +1268,7 @@ const handleDeliverableRerunWithDifferentLlm = (deliverableId: string, versionId
     const allMessages = messages.value;
     if (allMessages && allMessages.length > 0) {
       const userMessages = allMessages.filter(msg =>
-        msg.role === 'user' && !msg.metadata?.isRerunRequest
+        msg.role === 'user' && !(msg.metadata?.isRerunRequest as boolean | undefined)
       );
       if (userMessages.length > 0) {
         userMessage = userMessages[userMessages.length - 1].content;
@@ -1259,15 +1311,16 @@ watch(
     if (!agent) return;
 
     // Check if this is a media agent (type: 'media')
-    const agentType = agent.type || (agent.metadata?.agent_type);
+    const agentMetadata = (agent as { metadata?: Record<string, unknown> }).metadata;
+    const agentType = agent.type || agentMetadata?.agent_type;
 
     if (agentType === 'media') {
       // Get media type from agent metadata to determine model_type filter
       // Check both metadata.config.* (from API) and metadata.* (fallback) paths
-      const config = agent.metadata?.config as Record<string, unknown> | undefined;
-      const mediaType = config?.mediaType || agent.metadata?.mediaType;
-      const defaultProvider = config?.defaultProvider || agent.metadata?.defaultProvider;
-      const defaultModel = config?.defaultModel || agent.metadata?.defaultModel;
+      const config = agentMetadata?.config as Record<string, unknown> | undefined;
+      const mediaType = config?.mediaType || agentMetadata?.mediaType;
+      const defaultProvider = (config?.defaultProvider || agentMetadata?.defaultProvider) as string | undefined;
+      const defaultModel = (config?.defaultModel || agentMetadata?.defaultModel) as string | undefined;
 
       // Map media type to model type
       let modelType: 'text-generation' | 'image-generation' | 'video-generation' = 'image-generation';
@@ -1277,11 +1330,11 @@ watch(
         modelType = 'image-generation';
       }
 
-      console.log(`🎨 [MEDIA-AGENT] Detected media agent: ${agent.name}, mediaType: ${mediaType}, modelType: ${modelType}`);
+      console.log(`🎨 [MEDIA-AGENT] Detected media agent: ${agent.name}, mediaType: ${mediaType as string | undefined}, modelType: ${modelType}`);
       console.log(`🎨 [MEDIA-AGENT] Default provider: ${defaultProvider}, model: ${defaultModel}`);
 
       // Update LLM store to filter by media model type and set default model
-      await llmStore.setModelTypeForAgent(modelType, defaultProvider, defaultModel);
+      await llmStore.setModelTypeForAgent(modelType, defaultProvider as string | undefined, defaultModel as string | undefined);
     } else if (llmStore.selectedModelType !== 'text-generation') {
       // If switching from a media agent to a non-media agent, reset to text generation
       await llmStore.setModelType('text-generation');

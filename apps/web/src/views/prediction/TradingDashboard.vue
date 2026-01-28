@@ -208,10 +208,10 @@ async function loadPortfolio() {
 
   try {
     const response = await predictionDashboardService.getUserPortfolio();
-    if (response.success && response.data) {
-      portfolio.value = response.data;
+    if (response.content) {
+      portfolio.value = response.content;
     } else {
-      portfolioError.value = response.error?.message || 'Failed to load portfolio';
+      portfolioError.value = 'Failed to load portfolio';
     }
   } catch (err) {
     portfolioError.value = err instanceof Error ? err.message : 'Failed to load portfolio';
@@ -226,10 +226,10 @@ async function loadLeaderboard() {
 
   try {
     const response = await predictionDashboardService.getAnalystForksSummary();
-    if (response.success && response.data) {
-      leaderboard.value = response.data;
+    if (response.content) {
+      leaderboard.value = response.content;
     } else {
-      leaderboardError.value = response.error?.message || 'Failed to load leaderboard';
+      leaderboardError.value = 'Failed to load leaderboard';
     }
   } catch (err) {
     leaderboardError.value = err instanceof Error ? err.message : 'Failed to load leaderboard';

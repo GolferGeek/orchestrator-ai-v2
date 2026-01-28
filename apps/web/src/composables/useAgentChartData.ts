@@ -17,14 +17,14 @@ export function useAgentChartData(agentIdFilter?: string) {
     '1m': { duration: 60 * 1000, bucketSize: 1500, maxPoints: 40 },
     '2m': { duration: 2 * 60 * 1000, bucketSize: 3000, maxPoints: 40 },
   };
-  
+
   const currentConfig = computed(() => timeRangeConfig[timeRange.value]);
-  
+
   const getBucketTimestamp = (timestamp: number): number => {
     const config = currentConfig.value;
     return Math.floor(timestamp / config.bucketSize) * config.bucketSize;
   };
-  
+
   const getEventTimestamp = (event: ObservabilityEvent): number => {
     // Check for timestamp in milliseconds
     if (event.timestamp) {
@@ -35,17 +35,17 @@ export function useAgentChartData(agentIdFilter?: string) {
       return new Date(event.created_at).getTime();
     }
     // Check for createdAt (camelCase) - from legacy events
-    const eventRecord = event as Record<string, unknown>;
+    const eventRecord = event as unknown as Record<string, unknown>;
     if ('createdAt' in event && typeof eventRecord.createdAt === 'string') {
       return new Date(eventRecord.createdAt).getTime();
     }
     return Date.now();
   };
-  
+
   const getEventType = (event: ObservabilityEvent): string => {
     return event.hook_event_type || 'unknown';
   };
-  
+
   const getSessionId = (event: ObservabilityEvent): string => {
     return event.context?.taskId || 'unknown';
   };
@@ -78,11 +78,11 @@ export function useAgentChartData(agentIdFilter?: string) {
 
         if (!matches) return;
       }
-      
+
       const bucketTime = getBucketTimestamp(timestamp);
       const eventType = getEventType(event);
       const sessionId = getSessionId(event);
-      
+
       // Find existing bucket or create new one
       const bucket = dataPoints.value.find(dp => dp.timestamp === bucketTime);
       if (bucket) {
@@ -108,46 +108,46 @@ export function useAgentChartData(agentIdFilter?: string) {
     cleanOldData();
     cleanOldEvents();
   };
-  
+
   const addEvent = (event: ObservabilityEvent) => {
     eventBuffer.push(event);
-    
+
     if (debounceTimer !== null) {
       clearTimeout(debounceTimer);
     }
-    
+
     debounceTimer = window.setTimeout(() => {
       processEventBuffer();
       debounceTimer = null;
     }, DEBOUNCE_DELAY);
   };
-  
+
   const cleanOldData = () => {
     const now = Date.now();
     const cutoffTime = now - currentConfig.value.duration;
-    
+
     dataPoints.value = dataPoints.value.filter(dp => dp.timestamp >= cutoffTime);
-    
+
     if (dataPoints.value.length > currentConfig.value.maxPoints) {
       dataPoints.value = dataPoints.value.slice(-currentConfig.value.maxPoints);
     }
   };
-  
+
   const cleanOldEvents = () => {
     const now = Date.now();
     const cutoffTime = now - 5 * 60 * 1000; // Keep events for max 5 minutes
-    
+
     allEvents.value = allEvents.value.filter(event => {
       const timestamp = getEventTimestamp(event);
       return timestamp >= cutoffTime;
     });
   };
-  
+
   const getChartData = (): ChartDataPoint[] => {
     const now = Date.now();
     const config = currentConfig.value;
     const startTime = now - config.duration;
-    
+
     // Create array of all time buckets in range
     const buckets: ChartDataPoint[] = [];
     for (let time = startTime; time <= now; time += config.bucketSize) {
@@ -160,26 +160,26 @@ export function useAgentChartData(agentIdFilter?: string) {
         sessions: existingBucket?.sessions || {}
       });
     }
-    
+
     return buckets.slice(-config.maxPoints);
   };
-  
+
   const setTimeRange = (range: TimeRange) => {
     timeRange.value = range;
     reaggregateData();
   };
-  
+
   const reaggregateData = () => {
     dataPoints.value = [];
-    
+
     const now = Date.now();
     const cutoffTime = now - currentConfig.value.duration;
-    
+
     let relevantEvents = allEvents.value.filter(event => {
       const timestamp = getEventTimestamp(event);
       return timestamp >= cutoffTime;
     });
-    
+
     if (agentIdFilter) {
       relevantEvents = relevantEvents.filter(event => {
         const eventConversationId = event.context?.conversationId;
@@ -193,13 +193,13 @@ export function useAgentChartData(agentIdFilter?: string) {
         );
       });
     }
-    
+
     relevantEvents.forEach(event => {
       const timestamp = getEventTimestamp(event);
       const bucketTime = getBucketTimestamp(timestamp);
       const eventType = getEventType(event);
       const sessionId = getSessionId(event);
-      
+
       const bucket = dataPoints.value.find(dp => dp.timestamp === bucketTime);
       if (bucket) {
         bucket.count++;
@@ -216,16 +216,16 @@ export function useAgentChartData(agentIdFilter?: string) {
         });
       }
     });
-    
+
     cleanOldData();
   };
-  
+
   // Auto-clean old data every second
   const cleanupInterval = setInterval(() => {
     cleanOldData();
     cleanOldEvents();
   }, 1000);
-  
+
   const cleanup = () => {
     clearInterval(cleanupInterval);
     if (debounceTimer !== null) {
@@ -233,38 +233,38 @@ export function useAgentChartData(agentIdFilter?: string) {
       processEventBuffer();
     }
   };
-  
+
   // Compute event timing metrics
   const eventTimingMetrics = computed(() => {
     const now = Date.now();
     const config = currentConfig.value;
     const cutoffTime = now - config.duration;
-    
+
     const windowEvents = allEvents.value
       .filter(e => getEventTimestamp(e) >= cutoffTime)
       .sort((a, b) => getEventTimestamp(a) - getEventTimestamp(b));
-    
+
     if (windowEvents.length < 2) {
       return { minGap: 0, maxGap: 0, avgGap: 0 };
     }
-    
+
     const gaps: number[] = [];
     for (let i = 1; i < windowEvents.length; i++) {
       const gap = getEventTimestamp(windowEvents[i]) - getEventTimestamp(windowEvents[i - 1]);
       if (gap > 0) gaps.push(gap);
     }
-    
+
     if (gaps.length === 0) {
       return { minGap: 0, maxGap: 0, avgGap: 0 };
     }
-    
+
     const minGap = Math.min(...gaps);
     const maxGap = Math.max(...gaps);
     const avgGap = gaps.reduce((a, b) => a + b, 0) / gaps.length;
-    
+
     return { minGap, maxGap, avgGap };
   });
-  
+
   return {
     timeRange,
     dataPoints,
@@ -276,21 +276,3 @@ export function useAgentChartData(agentIdFilter?: string) {
     eventTimingMetrics
   };
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

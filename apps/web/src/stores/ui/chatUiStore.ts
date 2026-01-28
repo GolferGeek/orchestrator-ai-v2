@@ -169,10 +169,15 @@ export const useChatUiStore = defineStore('chatUi', () => {
       const conversationsStore = useConversationsStore();
       const conversation = conversationsStore.conversationById(conversationId);
       if (conversation?.allowedChatModes) {
-        // Prefer 'converse' if available, otherwise use first allowed mode
-        const preferredMode = conversation.allowedChatModes.includes('converse')
+        // Filter to only primary chat modes (converse, plan, build)
+        const primaryModes = conversation.allowedChatModes.filter(
+          (mode): mode is ChatMode => mode === 'converse' || mode === 'plan' || mode === 'build'
+        );
+
+        // Prefer 'converse' if available, otherwise use first primary mode
+        const preferredMode = primaryModes.includes('converse')
           ? 'converse'
-          : conversation.allowedChatModes[0];
+          : primaryModes[0];
         if (preferredMode && preferredMode !== chatMode.value) {
           chatMode.value = preferredMode;
         }

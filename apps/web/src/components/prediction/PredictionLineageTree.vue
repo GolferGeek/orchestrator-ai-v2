@@ -328,210 +328,210 @@
           </div>
           <div class="modal-body">
             <!-- Prediction Details -->
-            <template v-if="modalType === 'prediction' && modalData">
+            <template v-if="modalPrediction">
               <div class="modal-field">
                 <span class="field-label">ID:</span>
-                <span class="field-value mono">{{ modalData.id }}</span>
+                <span class="field-value mono">{{ modalPrediction.id }}</span>
               </div>
               <div class="modal-field">
                 <span class="field-label">Direction:</span>
-                <span class="field-value direction-badge" :class="modalData.direction">
-                  {{ modalData.direction?.toUpperCase() }}
+                <span class="field-value direction-badge" :class="modalPrediction.direction">
+                  {{ modalPrediction.direction.toUpperCase() }}
                 </span>
               </div>
               <div class="modal-field">
                 <span class="field-label">Confidence:</span>
-                <span class="field-value">{{ Math.round((modalData.confidence || 0) * 100) }}%</span>
+                <span class="field-value">{{ Math.round(modalPrediction.confidence * 100) }}%</span>
               </div>
-              <div v-if="modalData.magnitude" class="modal-field">
+              <div v-if="modalPrediction.magnitude" class="modal-field">
                 <span class="field-label">Magnitude:</span>
-                <span class="field-value">{{ modalData.magnitude }}</span>
+                <span class="field-value">{{ modalPrediction.magnitude }}</span>
               </div>
-              <div v-if="modalData.timeframeHours" class="modal-field">
+              <div v-if="modalPrediction.timeframeHours" class="modal-field">
                 <span class="field-label">Timeframe:</span>
-                <span class="field-value">{{ modalData.timeframeHours }} hours</span>
+                <span class="field-value">{{ modalPrediction.timeframeHours }} hours</span>
               </div>
               <div class="modal-field">
                 <span class="field-label">Status:</span>
-                <span class="field-value status-badge" :class="modalData.status">{{ modalData.status }}</span>
+                <span class="field-value status-badge" :class="modalPrediction.status">{{ modalPrediction.status }}</span>
               </div>
-              <div v-if="modalData.predictedAt" class="modal-field">
+              <div v-if="modalPrediction.predictedAt" class="modal-field">
                 <span class="field-label">Predicted At:</span>
-                <span class="field-value">{{ formatDate(modalData.predictedAt) }}</span>
+                <span class="field-value">{{ formatDate(modalPrediction.predictedAt) }}</span>
               </div>
-              <div v-if="modalData.expiresAt" class="modal-field">
+              <div v-if="modalPrediction.expiresAt" class="modal-field">
                 <span class="field-label">Expires At:</span>
-                <span class="field-value">{{ formatDate(modalData.expiresAt) }}</span>
+                <span class="field-value">{{ formatDate(modalPrediction.expiresAt) }}</span>
               </div>
-              <div v-if="modalData.outcomeValue !== undefined && modalData.outcomeValue !== null" class="modal-field">
+              <div v-if="modalPrediction.outcomeValue !== undefined && modalPrediction.outcomeValue !== null" class="modal-field">
                 <span class="field-label">Outcome:</span>
-                <span class="field-value">{{ modalData.outcomeValue }}</span>
+                <span class="field-value">{{ modalPrediction.outcomeValue }}</span>
               </div>
-              <div v-if="modalData.reasoning" class="modal-field full-width">
+              <div v-if="modalPrediction.reasoning" class="modal-field full-width">
                 <span class="field-label">Reasoning:</span>
-                <p class="field-value text-block">{{ modalData.reasoning }}</p>
+                <p class="field-value text-block">{{ modalPrediction.reasoning }}</p>
               </div>
-              <div v-if="modalData.resolutionNotes" class="modal-field full-width">
+              <div v-if="modalPrediction.resolutionNotes" class="modal-field full-width">
                 <span class="field-label">Resolution Notes:</span>
-                <p class="field-value text-block">{{ modalData.resolutionNotes }}</p>
+                <p class="field-value text-block">{{ modalPrediction.resolutionNotes }}</p>
               </div>
             </template>
 
             <!-- Predictor Details -->
-            <template v-else-if="modalType === 'predictor' && modalData">
+            <template v-else-if="modalPredictor">
               <div class="modal-field">
                 <span class="field-label">ID:</span>
-                <span class="field-value mono">{{ modalData.id }}</span>
+                <span class="field-value mono">{{ modalPredictor.id }}</span>
               </div>
               <div class="modal-field">
                 <span class="field-label">Direction:</span>
-                <span class="field-value direction-badge" :class="modalData.direction">
-                  {{ modalData.direction?.toUpperCase() }}
+                <span class="field-value direction-badge" :class="modalPredictor.direction">
+                  {{ modalPredictor.direction.toUpperCase() }}
                 </span>
               </div>
               <div class="modal-field">
                 <span class="field-label">Strength:</span>
-                <span class="field-value">{{ modalData.strength }}/10</span>
+                <span class="field-value">{{ modalPredictor.strength }}/10</span>
               </div>
               <div class="modal-field">
                 <span class="field-label">Confidence:</span>
-                <span class="field-value">{{ Math.round((modalData.confidence || 0) * 100) }}%</span>
+                <span class="field-value">{{ Math.round(modalPredictor.confidence * 100) }}%</span>
               </div>
-              <div v-if="modalData.analystSlug" class="modal-field">
+              <div v-if="modalPredictor.analystSlug" class="modal-field">
                 <span class="field-label">Analyst:</span>
-                <span class="field-value">{{ modalData.analystSlug }}</span>
+                <span class="field-value">{{ modalPredictor.analystSlug }}</span>
               </div>
-              <div v-if="modalData.createdAt" class="modal-field">
+              <div v-if="modalPredictor.createdAt" class="modal-field">
                 <span class="field-label">Created:</span>
-                <span class="field-value">{{ formatDate(modalData.createdAt) }}</span>
+                <span class="field-value">{{ formatDate(modalPredictor.createdAt) }}</span>
               </div>
-              <div v-if="modalData.reasoning" class="modal-field full-width">
+              <div v-if="modalPredictor.reasoning" class="modal-field full-width">
                 <span class="field-label">Reasoning:</span>
-                <p class="field-value text-block">{{ modalData.reasoning }}</p>
+                <p class="field-value text-block">{{ modalPredictor.reasoning }}</p>
               </div>
             </template>
 
             <!-- Signal Details -->
-            <template v-else-if="modalType === 'signal' && modalData">
+            <template v-else-if="modalSignal">
               <div class="modal-field">
                 <span class="field-label">ID:</span>
-                <span class="field-value mono">{{ modalData.id }}</span>
+                <span class="field-value mono">{{ modalSignal.id }}</span>
               </div>
               <div class="modal-field">
                 <span class="field-label">Direction:</span>
-                <span class="field-value direction-badge" :class="modalData.direction">
-                  {{ modalData.direction?.toUpperCase() }}
+                <span class="field-value direction-badge" :class="modalSignal.direction">
+                  {{ modalSignal.direction.toUpperCase() }}
                 </span>
               </div>
-              <div v-if="modalData.urgency" class="modal-field">
+              <div v-if="modalSignal.urgency" class="modal-field">
                 <span class="field-label">Urgency:</span>
-                <span class="field-value urgency-badge" :class="modalData.urgency">{{ modalData.urgency }}</span>
+                <span class="field-value urgency-badge" :class="modalSignal.urgency">{{ modalSignal.urgency }}</span>
               </div>
-              <div v-if="modalData.sourceId" class="modal-field">
+              <div v-if="modalSignal.sourceId" class="modal-field">
                 <span class="field-label">Source ID:</span>
-                <span class="field-value mono">{{ modalData.sourceId }}</span>
+                <span class="field-value mono">{{ modalSignal.sourceId }}</span>
               </div>
-              <div v-if="modalData.detectedAt" class="modal-field">
+              <div v-if="modalSignal.detectedAt" class="modal-field">
                 <span class="field-label">Detected:</span>
-                <span class="field-value">{{ formatDate(modalData.detectedAt) }}</span>
+                <span class="field-value">{{ formatDate(modalSignal.detectedAt) }}</span>
               </div>
-              <div v-if="modalData.url" class="modal-field full-width">
+              <div v-if="modalSignal.url" class="modal-field full-width">
                 <span class="field-label">URL:</span>
-                <a :href="modalData.url" target="_blank" class="field-value link">{{ modalData.url }}</a>
+                <a :href="modalSignal.url" target="_blank" class="field-value link">{{ modalSignal.url }}</a>
               </div>
-              <div v-if="modalData.content" class="modal-field full-width">
+              <div v-if="modalSignal.content" class="modal-field full-width">
                 <span class="field-label">Content:</span>
-                <p class="field-value text-block">{{ modalData.content }}</p>
+                <p class="field-value text-block">{{ modalSignal.content }}</p>
               </div>
             </template>
 
             <!-- Fingerprint Details -->
-            <template v-else-if="modalType === 'fingerprint' && modalData">
-              <div v-if="modalData.fingerprintHash" class="modal-field">
+            <template v-else-if="modalFingerprint">
+              <div v-if="modalFingerprint.fingerprintHash" class="modal-field">
                 <span class="field-label">Hash:</span>
-                <span class="field-value mono">{{ modalData.fingerprintHash }}</span>
+                <span class="field-value mono">{{ modalFingerprint.fingerprintHash }}</span>
               </div>
-              <div v-if="modalData.titleNormalized" class="modal-field full-width">
+              <div v-if="modalFingerprint.titleNormalized" class="modal-field full-width">
                 <span class="field-label">Normalized Title:</span>
-                <p class="field-value text-block">{{ modalData.titleNormalized }}</p>
+                <p class="field-value text-block">{{ modalFingerprint.titleNormalized }}</p>
               </div>
-              <div v-if="modalData.keyPhrases?.length" class="modal-field full-width">
+              <div v-if="modalFingerprint.keyPhrases?.length" class="modal-field full-width">
                 <span class="field-label">Key Phrases:</span>
                 <div class="tags-container">
-                  <span v-for="phrase in modalData.keyPhrases" :key="phrase" class="tag">{{ phrase }}</span>
+                  <span v-for="phrase in modalFingerprint.keyPhrases" :key="phrase" class="tag">{{ phrase }}</span>
                 </div>
               </div>
             </template>
 
             <!-- Article Details -->
-            <template v-else-if="modalType === 'article' && modalData">
-              <div v-if="modalData.contentHash" class="modal-field">
+            <template v-else-if="modalArticle">
+              <div v-if="modalArticle.contentHash" class="modal-field">
                 <span class="field-label">Content Hash:</span>
-                <span class="field-value mono">{{ modalData.contentHash }}</span>
+                <span class="field-value mono">{{ modalArticle.contentHash }}</span>
               </div>
-              <div v-if="modalData.title" class="modal-field full-width">
+              <div v-if="modalArticle.title" class="modal-field full-width">
                 <span class="field-label">Title:</span>
-                <p class="field-value">{{ modalData.title }}</p>
+                <p class="field-value">{{ modalArticle.title }}</p>
               </div>
-              <div v-if="modalData.url" class="modal-field full-width">
+              <div v-if="modalArticle.url" class="modal-field full-width">
                 <span class="field-label">URL:</span>
-                <a :href="modalData.url" target="_blank" class="field-value link">{{ modalData.url }}</a>
+                <a :href="modalArticle.url" target="_blank" class="field-value link">{{ modalArticle.url }}</a>
               </div>
-              <div v-if="modalData.firstSeenAt" class="modal-field">
+              <div v-if="modalArticle.firstSeenAt" class="modal-field">
                 <span class="field-label">First Seen:</span>
-                <span class="field-value">{{ formatDate(modalData.firstSeenAt) }}</span>
+                <span class="field-value">{{ formatDate(modalArticle.firstSeenAt) }}</span>
               </div>
             </template>
 
             <!-- Threshold Details -->
-            <template v-else-if="modalType === 'threshold' && modalData">
+            <template v-else-if="modalThreshold">
               <div class="modal-field">
                 <span class="field-label">Passed:</span>
-                <span class="field-value result-badge" :class="modalData.passed ? 'passed' : 'failed'">
-                  {{ modalData.passed ? 'YES' : 'NO' }}
+                <span class="field-value result-badge" :class="modalThreshold.passed ? 'passed' : 'failed'">
+                  {{ modalThreshold.passed ? 'YES' : 'NO' }}
                 </span>
               </div>
               <div class="threshold-grid">
                 <div class="threshold-section">
                   <h4>Predictors</h4>
                   <div class="threshold-compare">
-                    <span class="actual">{{ modalData.actual_predictors ?? 0 }}</span>
+                    <span class="actual">{{ modalThreshold.actual_predictors ?? 0 }}</span>
                     <span class="separator">/</span>
-                    <span class="required">{{ modalData.min_predictors ?? 0 }} required</span>
+                    <span class="required">{{ modalThreshold.min_predictors ?? 0 }} required</span>
                   </div>
                 </div>
                 <div class="threshold-section">
                   <h4>Combined Strength</h4>
                   <div class="threshold-compare">
-                    <span class="actual">{{ (modalData.actual_combined_strength ?? 0).toFixed(2) }}</span>
+                    <span class="actual">{{ (modalThreshold.actual_combined_strength ?? 0).toFixed(2) }}</span>
                     <span class="separator">/</span>
-                    <span class="required">{{ modalData.min_combined_strength ?? 0 }} required</span>
+                    <span class="required">{{ modalThreshold.min_combined_strength ?? 0 }} required</span>
                   </div>
                 </div>
                 <div class="threshold-section">
                   <h4>Consensus</h4>
                   <div class="threshold-compare">
-                    <span class="actual">{{ Math.round((modalData.actual_consensus ?? 0) * 100) }}%</span>
+                    <span class="actual">{{ Math.round((modalThreshold.actual_consensus ?? 0) * 100) }}%</span>
                     <span class="separator">/</span>
-                    <span class="required">{{ Math.round((modalData.min_consensus ?? 0) * 100) }}% required</span>
+                    <span class="required">{{ Math.round((modalThreshold.min_consensus ?? 0) * 100) }}% required</span>
                   </div>
                 </div>
               </div>
             </template>
 
             <!-- Ensemble Details -->
-            <template v-else-if="modalType === 'ensemble' && modalData">
-              <div v-if="modalData.agreement_level !== undefined" class="modal-field">
+            <template v-else-if="modalEnsemble">
+              <div v-if="modalEnsemble.agreement_level !== undefined" class="modal-field">
                 <span class="field-label">Agreement Level:</span>
-                <span class="field-value">{{ Math.round(modalData.agreement_level * 100) }}%</span>
+                <span class="field-value">{{ Math.round(modalEnsemble.agreement_level * 100) }}%</span>
               </div>
-              <div v-if="modalData.tiers_used?.length" class="modal-field">
+              <div v-if="modalEnsemble.tiers_used?.length" class="modal-field">
                 <span class="field-label">Tiers Used:</span>
-                <span class="field-value">{{ modalData.tiers_used.join(', ') }}</span>
+                <span class="field-value">{{ modalEnsemble.tiers_used.join(', ') }}</span>
               </div>
-              <div v-if="modalData.tier_results" class="tier-results-detail">
+              <div v-if="modalEnsemble.tier_results" class="tier-results-detail">
                 <h4>Tier Results</h4>
-                <div v-for="(result, tier) in modalData.tier_results" :key="tier" class="tier-detail">
+                <div v-for="(result, tier) in modalEnsemble.tier_results" :key="tier" class="tier-detail">
                   <div class="tier-detail-header">
                     <span class="tier-name-large">{{ tier }}</span>
                     <span class="direction-badge" :class="result.direction">{{ result.direction.toUpperCase() }}</span>
@@ -545,45 +545,45 @@
             </template>
 
             <!-- Assessment Details -->
-            <template v-else-if="modalType === 'assessment' && modalData">
+            <template v-else-if="modalAssessment">
               <div class="modal-field">
                 <span class="field-label">Analyst:</span>
-                <span class="field-value">{{ modalData.analystSlug }}</span>
+                <span class="field-value">{{ modalAssessment.analystSlug }}</span>
               </div>
               <div class="modal-field">
                 <span class="field-label">Tier:</span>
-                <span class="field-value">{{ modalData.tier }}</span>
+                <span class="field-value">{{ modalAssessment.tier }}</span>
               </div>
               <div class="modal-field">
                 <span class="field-label">Direction:</span>
-                <span class="field-value direction-badge" :class="modalData.direction">
-                  {{ modalData.direction?.toUpperCase() }}
+                <span class="field-value direction-badge" :class="modalAssessment.direction">
+                  {{ modalAssessment.direction.toUpperCase() }}
                 </span>
               </div>
               <div class="modal-field">
                 <span class="field-label">Confidence:</span>
-                <span class="field-value">{{ Math.round((modalData.confidence || 0) * 100) }}%</span>
+                <span class="field-value">{{ Math.round(modalAssessment.confidence * 100) }}%</span>
               </div>
-              <div v-if="modalData.reasoning" class="modal-field full-width">
+              <div v-if="modalAssessment.reasoning" class="modal-field full-width">
                 <span class="field-label">Reasoning:</span>
-                <p class="field-value text-block">{{ modalData.reasoning }}</p>
+                <p class="field-value text-block">{{ modalAssessment.reasoning }}</p>
               </div>
-              <div v-if="modalData.keyFactors?.length" class="modal-field full-width">
+              <div v-if="modalAssessment.keyFactors?.length" class="modal-field full-width">
                 <span class="field-label">Key Factors:</span>
                 <ul class="factor-list">
-                  <li v-for="factor in modalData.keyFactors" :key="factor">{{ factor }}</li>
+                  <li v-for="factor in modalAssessment.keyFactors" :key="factor">{{ factor }}</li>
                 </ul>
               </div>
-              <div v-if="modalData.risks?.length" class="modal-field full-width">
+              <div v-if="modalAssessment.risks?.length" class="modal-field full-width">
                 <span class="field-label">Risks:</span>
                 <ul class="risk-list">
-                  <li v-for="risk in modalData.risks" :key="risk">{{ risk }}</li>
+                  <li v-for="risk in modalAssessment.risks" :key="risk">{{ risk }}</li>
                 </ul>
               </div>
-              <div v-if="modalData.learningsApplied?.length" class="modal-field full-width">
+              <div v-if="modalAssessment.learningsApplied?.length" class="modal-field full-width">
                 <span class="field-label">Learnings Applied:</span>
                 <div class="tags-container">
-                  <span v-for="learning in modalData.learningsApplied" :key="learning" class="tag">
+                  <span v-for="learning in modalAssessment.learningsApplied" :key="learning" class="tag">
                     {{ learning }}
                   </span>
                 </div>
@@ -610,10 +610,20 @@ const isLoading = ref(false);
 const error = ref<string | null>(null);
 const deepDive = ref<PredictionDeepDive | null>(null);
 
-// Modal state
+// Modal state types
+type ModalData =
+  | PredictionDeepDive['prediction']
+  | PredictionDeepDive['lineage']['predictors'][0]
+  | NonNullable<PredictionDeepDive['lineage']['predictors'][0]['signal']>
+  | NonNullable<PredictionDeepDive['lineage']['predictors'][0]['fingerprint']>
+  | NonNullable<PredictionDeepDive['lineage']['predictors'][0]['sourceArticle']>
+  | NonNullable<PredictionDeepDive['lineage']['thresholdEvaluation']>
+  | NonNullable<PredictionDeepDive['lineage']['llmEnsemble']>
+  | PredictionDeepDive['lineage']['analystAssessments'][0];
+
 const modalVisible = ref(false);
 const modalType = ref<string>('');
-const modalData = ref<Record<string, unknown> | null>(null);
+const modalData = ref<ModalData | null>(null);
 
 const modalTitle = computed(() => {
   const titles: Record<string, string> = {
@@ -627,6 +637,63 @@ const modalTitle = computed(() => {
     assessment: 'Analyst Assessment Details',
   };
   return titles[modalType.value] || 'Details';
+});
+
+// Type-safe modal data accessors
+const modalPrediction = computed(() => {
+  if (modalType.value === 'prediction' && modalData.value) {
+    return modalData.value as PredictionDeepDive['prediction'];
+  }
+  return null;
+});
+
+const modalPredictor = computed(() => {
+  if (modalType.value === 'predictor' && modalData.value) {
+    return modalData.value as PredictionDeepDive['lineage']['predictors'][0];
+  }
+  return null;
+});
+
+const modalSignal = computed(() => {
+  if (modalType.value === 'signal' && modalData.value) {
+    return modalData.value as NonNullable<PredictionDeepDive['lineage']['predictors'][0]['signal']>;
+  }
+  return null;
+});
+
+const modalFingerprint = computed(() => {
+  if (modalType.value === 'fingerprint' && modalData.value) {
+    return modalData.value as NonNullable<PredictionDeepDive['lineage']['predictors'][0]['fingerprint']>;
+  }
+  return null;
+});
+
+const modalArticle = computed(() => {
+  if (modalType.value === 'article' && modalData.value) {
+    return modalData.value as NonNullable<PredictionDeepDive['lineage']['predictors'][0]['sourceArticle']>;
+  }
+  return null;
+});
+
+const modalThreshold = computed(() => {
+  if (modalType.value === 'threshold' && modalData.value) {
+    return modalData.value as NonNullable<PredictionDeepDive['lineage']['thresholdEvaluation']>;
+  }
+  return null;
+});
+
+const modalEnsemble = computed(() => {
+  if (modalType.value === 'ensemble' && modalData.value) {
+    return modalData.value as NonNullable<PredictionDeepDive['lineage']['llmEnsemble']>;
+  }
+  return null;
+});
+
+const modalAssessment = computed(() => {
+  if (modalType.value === 'assessment' && modalData.value) {
+    return modalData.value as PredictionDeepDive['lineage']['analystAssessments'][0];
+  }
+  return null;
 });
 
 const loadDeepDive = async () => {
@@ -663,7 +730,7 @@ const loadDeepDive = async () => {
   }
 };
 
-const showNodeDetails = (type: string, data: Record<string, unknown>) => {
+const showNodeDetails = (type: string, data: ModalData) => {
   modalType.value = type;
   modalData.value = data;
   modalVisible.value = true;

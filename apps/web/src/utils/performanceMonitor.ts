@@ -315,8 +315,10 @@ export class PerformanceMonitor {
         let clsValue = 0;
         const clsObserver = new PerformanceObserver((list) => {
           for (const entry of list.getEntries()) {
-            if (!(entry as { hadRecentInput?: boolean }).hadRecentInput) {
-              clsValue += (entry as { value: number }).value;
+            // LayoutShift interface has hadRecentInput and value properties
+            const layoutShiftEntry = entry as PerformanceEntry & { hadRecentInput?: boolean; value: number };
+            if (!layoutShiftEntry.hadRecentInput) {
+              clsValue += layoutShiftEntry.value;
             }
           }
         });

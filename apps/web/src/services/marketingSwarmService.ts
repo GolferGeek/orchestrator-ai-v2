@@ -607,7 +607,7 @@ class MarketingSwarmService {
         const data = JSON.parse(event.data) as ObservabilityEvent;
 
         // Skip connection confirmation events
-        if (data.event_type === 'connected') {
+        if (data.hook_event_type === 'connected') {
           console.log('[MarketingSwarm] ✅ SSE connection confirmed by server');
           return;
         }
@@ -615,7 +615,6 @@ class MarketingSwarmService {
         // Log all received events with full payload structure
         console.log('[MarketingSwarm] 📨 SSE event received:', {
           hook_event_type: data.hook_event_type,
-          event_type: data.event_type,
           context: data.context,
           payloadKeys: Object.keys((data as unknown as { payload?: Record<string, unknown> }).payload || {}),
           payloadDataKeys: Object.keys(((data as unknown as { payload?: Record<string, unknown> }).payload?.data as Record<string, unknown>) || {}),
@@ -730,8 +729,8 @@ class MarketingSwarmService {
       if (executionContextStore.isInitialized) {
         const ctx = executionContextStore.current;
         const conversationsStore = useConversationsStore();
-        const outputCount = store.outputsPhase2?.length || store.outputs?.length || 0;
-        const evalCount = store.evaluationsPhase2?.length || store.evaluations?.length || 0;
+        const outputCount = store.phase2Outputs?.length || store.outputs?.length || 0;
+        const evalCount = store.phase2Evaluations?.length || store.evaluations?.length || 0;
         
         conversationsStore.addMessage(ctx.conversationId, {
           conversationId: ctx.conversationId,

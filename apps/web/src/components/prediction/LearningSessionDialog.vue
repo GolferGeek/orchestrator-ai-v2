@@ -41,7 +41,7 @@
                 </div>
                 <div class="stat">
                   <span class="label">Trades</span>
-                  <span class="value">{{ comparisonReport.userFork.totalTrades }}</span>
+                  <span class="value">{{ comparisonReport.userFork.winCount + comparisonReport.userFork.lossCount }}</span>
                 </div>
               </div>
               <div v-else class="no-data">No data available</div>
@@ -66,7 +66,7 @@
                 </div>
                 <div class="stat">
                   <span class="label">Trades</span>
-                  <span class="value">{{ comparisonReport.agentFork.totalTrades }}</span>
+                  <span class="value">{{ comparisonReport.agentFork.winCount + comparisonReport.agentFork.lossCount }}</span>
                 </div>
               </div>
               <div v-else class="no-data">No data available</div>
@@ -100,12 +100,12 @@
             <p class="subtitle">Cases where your version and the agent's version disagreed</p>
             <div class="prediction-list">
               <div v-for="pred in comparisonReport.divergentPredictions.slice(0, 5)" :key="pred.predictionId" class="prediction-item">
-                <span class="symbol">{{ pred.symbol }}</span>
+                <span class="symbol">{{ pred.targetSymbol }}</span>
                 <div class="directions">
                   <span class="user-dir">You: {{ pred.userDirection }}</span>
                   <span class="agent-dir">Agent: {{ pred.agentDirection }}</span>
                 </div>
-                <span class="outcome" :class="pred.winningFork">{{ pred.winningFork === 'user' ? 'You won' : pred.winningFork === 'agent' ? 'Agent won' : 'Pending' }}</span>
+                <span class="outcome" :class="getWinningFork(pred)">{{ getWinningForkLabel(pred) }}</span>
               </div>
             </div>
           </div>
@@ -280,13 +280,13 @@ async function loadSession() {
   isLoading.value = true;
   try {
     const response = await predictionDashboardService.startLearningSession(props.analystId);
-    if (response.success && response.data) {
+    if (response.content) {
       learningStore.startLearningSession(props.analystId);
-      if (response.data.comparisonReport) {
-        learningStore.setComparisonReport(response.data.comparisonReport);
+      if (response.content.comparisonReport) {
+        learningStore.setComparisonReport(response.content.comparisonReport);
       }
-      if (response.data.exchanges) {
-        learningStore.setSessionExchanges(response.data.exchanges);
+      if (response.content.exchanges) {
+        learningStore.setSessionExchanges(response.content.exchanges);
       }
     }
   } catch (error) {
@@ -307,8 +307,8 @@ async function askQuestion() {
       question: newQuestion.value.trim(),
     });
 
-    if (response.success && response.data) {
-      learningStore.addSessionExchange(response.data);
+    if (response.content) {
+      learningStore.addSessionExchange(response.content);
       newQuestion.value = '';
       await nextTick();
       scrollToBottom();
@@ -330,7 +330,7 @@ async function respondToAgent(exchangeId: string) {
       response: response.trim(),
     });
 
-    if (result.success) {
+    if (result.content) {
       learningStore.setExchangeResponse(exchangeId, response.trim());
       delete agentResponses.value[exchangeId];
     }
@@ -339,14 +339,14 @@ async function respondToAgent(exchangeId: string) {
   }
 }
 
-async function setExchangeOutcome(exchangeId: string, outcome: ExchangeOutcome) {
+async function setExchangeOutcome(exchangeId: string, outcome: 'rejected' | 'adopted' | 'noted') {
   try {
     const result = await predictionDashboardService.updateExchangeOutcome({
       exchangeId,
       outcome,
     });
 
-    if (result.success) {
+    if (result.content) {
       learningStore.updateExchangeOutcome(exchangeId, outcome);
     }
   } catch (error) {
@@ -363,15 +363,15 @@ async function adoptChange(diff: { field: string; userValue?: string; agentValue
       question: `Adopting agent's change to ${diff.field}: "${diff.agentValue}"`,
     });
 
-    if (response.success && response.data) {
+    if (response.content) {
       // Immediately mark as adopted
       await predictionDashboardService.updateExchangeOutcome({
-        exchangeId: response.data.id,
+        exchangeId: response.content.id,
         outcome: 'adopted',
         adoptionDetails: { field: diff.field, value: diff.agentValue },
       });
       learningStore.addSessionExchange({
-        ...response.data,
+        ...response.content,
         outcome: 'adopted',
         adoptionDetails: { field: diff.field, value: diff.agentValue },
       });
@@ -434,6 +434,26 @@ function formatOutcome(outcome: ExchangeOutcome): string {
     pending: 'Pending',
   };
   return labels[outcome] || outcome;
+}
+
+function getWinningFork(pred: { userDirection: string; agentDirection: string; actualOutcome: string }): string {
+  if (!pred.actualOutcome || pred.actualOutcome === 'pending') {
+    return 'pending';
+  }
+  if (pred.userDirection === pred.actualOutcome) {
+    return 'user';
+  }
+  if (pred.agentDirection === pred.actualOutcome) {
+    return 'agent';
+  }
+  return 'pending';
+}
+
+function getWinningForkLabel(pred: { userDirection: string; agentDirection: string; actualOutcome: string }): string {
+  const winner = getWinningFork(pred);
+  if (winner === 'user') return 'You won';
+  if (winner === 'agent') return 'Agent won';
+  return 'Pending';
 }
 
 // Watch for visibility changes

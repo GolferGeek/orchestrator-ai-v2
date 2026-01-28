@@ -27,6 +27,7 @@ import type {
   ModelType,
 } from '../types/llm';
 import type { AgentLLMRecommendation } from '../types/evaluation';
+import type { SovereignPolicy } from './privacyStore';
 import { apiService } from '../services/apiService';
 import { sovereignPolicyService } from '../services/sovereignPolicyService';
 import evaluationService from '../services/evaluationService';
@@ -268,32 +269,35 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
     },
 
     // Unified response getters
-    lastResponseContent: (state) => {
+    lastResponseContent: (state): string | null => {
       if (state.lastStandardizedError) {
         return state.lastStandardizedError.userMessage;
       }
       return state.lastUnifiedResponse?.content || null;
     },
 
-    lastResponseMetadata: (state) => {
+    lastResponseMetadata: (state): Record<string, unknown> | null => {
       if (state.lastStandardizedError) {
+        const tech = state.lastStandardizedError.technical as Record<string, unknown>;
         return {
-          provider: state.lastStandardizedError.technical.provider,
-          model: state.lastStandardizedError.technical.model,
+          provider: tech.provider,
+          model: tech.model,
           isError: true,
-          errorCode: state.lastStandardizedError.technical.code,
-          severity: state.lastStandardizedError.technical.severity,
-          retryable: state.lastStandardizedError.technical.retryable,
+          errorCode: tech.code,
+          severity: tech.severity,
+          retryable: tech.retryable,
         };
       }
 
       if (state.lastUnifiedResponse) {
+        const meta = state.lastUnifiedResponse.metadata as Record<string, unknown>;
+        const usage = meta.usage as Record<string, unknown>;
         return {
-          provider: state.lastUnifiedResponse.metadata.provider,
-          model: state.lastUnifiedResponse.metadata.model,
-          usage: state.lastUnifiedResponse.metadata.usage,
-          timing: state.lastUnifiedResponse.metadata.timing,
-          cost: state.lastUnifiedResponse.metadata.usage.cost,
+          provider: meta.provider,
+          model: meta.model,
+          usage: meta.usage,
+          timing: meta.timing,
+          cost: usage.cost,
           isError: false,
         };
       }
@@ -301,16 +305,18 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
       return null;
     },
 
-    hasUnifiedResponse: (state) => {
+    hasUnifiedResponse: (state): boolean => {
       return !!(state.lastUnifiedResponse || state.lastStandardizedError);
     },
 
-    isLastResponseError: (state) => {
+    isLastResponseError: (state): boolean => {
       return !!state.lastStandardizedError;
     },
 
-    isLastResponseRetryable: (state) => {
-      return state.lastStandardizedError?.technical.retryable || false;
+    isLastResponseRetryable: (state): boolean => {
+      const error = state.lastStandardizedError as StandardizedLLMError | null;
+      if (!error) return false;
+      return error.technical.retryable;
     },
   },
   actions: {
@@ -318,8 +324,8 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
     async ensureSystemModelSelection(force: boolean = false) {
       if (!force && this._systemModelLoaded && this._systemModelSelection) return this._systemModelSelection;
       try {
-        const resp = await apiService.get('/system/model-config/global');
-        const cfg = resp?.dbConfig || resp?.config || resp;
+        const resp = await apiService.get('/system/model-config/global') as Record<string, unknown>;
+        const cfg = (resp?.dbConfig as Record<string, unknown>) || (resp?.config as Record<string, unknown>) || resp;
         if (!cfg || typeof cfg !== 'object') {
           this._systemModelLoaded = true;
           this._systemModelSelection = null;
@@ -327,15 +333,16 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
         }
         // Shape: { provider, model, parameters? } or { default: { provider, model, parameters? }, localOnly?: {..} }
         const useLocal = this.effectiveSovereignMode && cfg.localOnly;
-        const selected = useLocal ? cfg.localOnly : (cfg.default || cfg);
-        const provider = selected?.provider;
-        const model = selected?.model;
+        const selected: Record<string, unknown> = (useLocal ? cfg.localOnly : (cfg.default || cfg)) as Record<string, unknown>;
+        const provider: string | undefined = selected?.provider as string | undefined;
+        const model: string | undefined = selected?.model as string | undefined;
         if (provider && model) {
+          const parameters: Record<string, unknown> | undefined = selected?.parameters as Record<string, unknown> | undefined;
           this._systemModelSelection = {
             providerName: provider,
             modelName: model,
-            temperature: selected?.parameters?.temperature ?? this.temperature,
-            maxTokens: selected?.parameters?.maxTokens ?? this.maxTokens,
+            temperature: (parameters?.temperature as number | undefined) ?? this.temperature,
+            maxTokens: (parameters?.maxTokens as number | undefined) ?? this.maxTokens,
           };
         } else {
           this._systemModelSelection = null;
@@ -409,9 +416,19 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
 
         // Fetch corporate policy from backend
         try {
-          this.sovereignPolicy = await sovereignPolicyService.getPolicy();
+          const policy = await sovereignPolicyService.getPolicy();
+          // Map service response to store's SovereignPolicy interface
+          this.sovereignPolicy = {
+            enforced: policy.enforced,
+            allowedProviders: [], // Not provided by getPolicy, would need getPolicyStatus
+            requiresLocalProcessing: policy.defaultMode === 'strict'
+          } as SovereignPolicy;
         } catch {
-          this.sovereignPolicy = { enforced: false };
+          this.sovereignPolicy = {
+            enforced: false,
+            allowedProviders: [],
+            requiresLocalProcessing: false
+          } as SovereignPolicy;
         }
 
       } catch (error) {
@@ -474,9 +491,9 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
       this.providerError = undefined;
       try {
         // Use shared apiService to inherit base URL and auth headers
-        const response = await apiService.get('/providers');
+        const response = await apiService.get('/providers') as Record<string, unknown> | Provider[];
         // apiService returns parsed JSON
-        let providers = Array.isArray(response) ? response : (response?.data ?? response ?? []);
+        let providers = Array.isArray(response) ? response : ((response as Record<string, unknown>)?.data as Provider[] ?? response ?? []);
 
         // Fallback to names endpoint if empty or unexpected
         if (!Array.isArray(providers) || providers.length === 0) {
@@ -500,7 +517,7 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
 
         // Set default provider if none selected
         if (!this.selectedProvider && providers.length > 0) {
-          const ollama = providers.find(p => p.name.toLowerCase() === 'ollama');
+          const ollama = providers.find((p: Provider) => p.name.toLowerCase() === 'ollama');
           this.selectedProvider = ollama || providers[0];
         }
       } catch (error) {
@@ -599,8 +616,8 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
       this.loadingCommands = true;
       this.commandError = undefined;
       try {
-        const response = await apiService.get('/cidafm/commands');
-        this.cidafmCommands = Array.isArray(response) ? response : (response?.data ?? response ?? []);
+        const response = await apiService.get('/cidafm/commands') as Record<string, unknown> | CIDAFMCommand[];
+        this.cidafmCommands = Array.isArray(response) ? response : ((response as Record<string, unknown>)?.data as CIDAFMCommand[] ?? response ?? []);
       } catch (error) {
         const message = resolveErrorMessage(error, 'Failed to fetch CIDAFM commands');
         this.commandError = message;
@@ -697,7 +714,8 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
       this.selectedModel = model;
       // Ensure provider is also selected
       if (!this.selectedProvider || this.selectedProvider.name !== model.providerName) {
-        this.selectedProvider = this.getProviderByName()(model.providerName);
+        const providerGetter = this.getProviderByName;
+        this.selectedProvider = providerGetter(model.providerName);
       }
     },
     // Toggle CIDAFM command selection
@@ -752,10 +770,12 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
       if (saved) {
         const preferences = JSON.parse(saved);
           if (preferences.selectedProviderName) {
-            this.selectedProvider = this.getProviderByName()(preferences.selectedProviderName);
+            const providerGetter = this.getProviderByName;
+            this.selectedProvider = providerGetter(preferences.selectedProviderName);
           }
           if (preferences.selectedProviderName && preferences.selectedModelName) {
-            this.selectedModel = this.getModelByName()(preferences.selectedProviderName, preferences.selectedModelName);
+            const modelGetter = this.getModelByName;
+            this.selectedModel = modelGetter(preferences.selectedProviderName, preferences.selectedModelName);
           }
           this.selectedCIDAFMCommands = preferences.selectedCIDAFMCommands || [];
           this.customModifiers = preferences.customModifiers || [];
@@ -797,36 +817,43 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
         this.lastUnifiedResponse = null;
         this.lastStandardizedError = null;
 
+        const resp = response as Record<string, unknown>;
+
         // Check if it's a standardized error
-        if (response?.error === true && response?.technical && response?.userMessage) {
-          this.lastStandardizedError = response as StandardizedLLMError;
+        if (resp?.error === true && resp?.technical && resp?.userMessage) {
+          const errorObj = response as unknown as StandardizedLLMError;
+          // @ts-expect-error Type instantiation is excessively deep - using type assertion to break inference chain
+          this.lastStandardizedError = errorObj;
+          const technical = resp.technical as Record<string, unknown>;
           return {
-            content: response.userMessage,
-            metadata: response.technical,
+            content: resp.userMessage as string,
+            metadata: technical,
             isError: true,
-            isRetryable: response.technical.retryable || false,
+            isRetryable: (technical.retryable as boolean) || false,
           };
         }
 
         // Check if it's a unified LLM response
-        if (response?.content && response?.metadata?.provider) {
-          this.lastUnifiedResponse = response as UnifiedLLMResponse;
+        if (resp?.content && (resp?.metadata as Record<string, unknown>)?.provider) {
+          const unifiedResp = response as UnifiedLLMResponse;
+          this.lastUnifiedResponse = unifiedResp;
           return {
-            content: response.content,
-            metadata: response.metadata,
+            content: resp.content as string,
+            metadata: resp.metadata as Record<string, unknown>,
             isError: false,
             isRetryable: false,
           };
         }
 
         // Handle legacy format
-        const content = response?.content || response?.response || 'No content available';
+        const content = (resp?.content as string) || (resp?.response as string) || 'No content available';
+        const runMetadata = resp?.runMetadata as Record<string, unknown> | undefined;
         const metadata = {
-          provider: response?.runMetadata?.provider || 'unknown',
-          model: response?.runMetadata?.model || 'unknown',
-          usage: response?.runMetadata,
-          cost: response?.runMetadata?.cost,
-        };
+          provider: runMetadata?.provider || 'unknown',
+          model: runMetadata?.model || 'unknown',
+          usage: runMetadata,
+          cost: runMetadata?.cost,
+        } as Record<string, unknown>;
 
         return {
           content,

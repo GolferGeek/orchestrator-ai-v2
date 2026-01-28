@@ -19,6 +19,10 @@ import { conversationFactoryService } from '@/services/conversation/conversation
 import { conversationMetadataService } from '@/services/conversation/conversationMetadataService';
 import { conversationUtilsService } from '@/services/conversation/conversationUtilsService';
 import type { Agent, AgentConversation, ExecutionMode } from '@/types/conversation';
+import type agentConversationsService from '@/services/agentConversationsService';
+
+// Backend conversation type from the API (different from frontend AgentConversation type)
+type BackendAgentConversation = Awaited<ReturnType<typeof agentConversationsService.getConversation>>;
 
 /**
  * Service for managing conversations and backend persistence
@@ -85,7 +89,7 @@ export class ConversationService {
    * Get conversation from backend
    * @deprecated Use conversationCrudService.getBackendConversation()
    */
-  async getBackendConversation(conversationId: string): Promise<AgentConversation> {
+  async getBackendConversation(conversationId: string): Promise<BackendAgentConversation> {
     return conversationCrudService.getBackendConversation(conversationId);
   }
 
@@ -109,7 +113,7 @@ export class ConversationService {
    * Get all conversations for current user
    * @deprecated Use useAgentConversationsStore().fetchConversations() instead for reactive updates
    */
-  async getUserConversations(): Promise<AgentConversation[]> {
+  async getUserConversations(): Promise<BackendAgentConversation[]> {
     return conversationCrudService.getUserConversations();
   }
 

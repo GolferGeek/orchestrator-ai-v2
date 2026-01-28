@@ -73,7 +73,7 @@
             {{ event.payload.direction }}
           </span>
           <span v-if="event.payload?.confidence" class="detail-chip confidence">
-            {{ (event.payload.confidence * 100).toFixed(0) }}%
+            {{ (Number(event.payload.confidence) * 100).toFixed(0) }}%
           </span>
         </div>
       </div>
@@ -123,10 +123,10 @@
               <label>Assessment</label>
               <div class="assessment-row">
                 <span v-if="selectedEvent.payload?.direction" :class="['direction-badge', selectedEvent.payload.direction]">
-                  {{ selectedEvent.payload.direction.toUpperCase() }}
+                  {{ String(selectedEvent.payload.direction).toUpperCase() }}
                 </span>
                 <span v-if="selectedEvent.payload?.confidence" class="confidence-badge">
-                  {{ (selectedEvent.payload.confidence * 100).toFixed(0) }}% confidence
+                  {{ (Number(selectedEvent.payload.confidence) * 100).toFixed(0) }}% confidence
                 </span>
               </div>
             </div>
@@ -135,9 +135,9 @@
             <div v-if="selectedEvent.payload?.sourceName || selectedEvent.payload?.sourceUrl" class="detail-section">
               <label>Source</label>
               <div class="source-info">
-                <span v-if="selectedEvent.payload?.sourceName">{{ selectedEvent.payload.sourceName }}</span>
-                <a v-if="selectedEvent.payload?.sourceUrl" :href="selectedEvent.payload.sourceUrl" target="_blank" class="source-link">
-                  {{ selectedEvent.payload.sourceUrl }}
+                <span v-if="selectedEvent.payload?.sourceName">{{ String(selectedEvent.payload.sourceName) }}</span>
+                <a v-if="selectedEvent.payload?.sourceUrl" :href="String(selectedEvent.payload.sourceUrl)" target="_blank" class="source-link">
+                  {{ String(selectedEvent.payload.sourceUrl) }}
                 </a>
               </div>
             </div>
@@ -145,8 +145,8 @@
             <!-- Article URL -->
             <div v-if="selectedEvent.payload?.url" class="detail-section">
               <label>Article URL</label>
-              <a :href="selectedEvent.payload.url" target="_blank" class="article-link">
-                {{ selectedEvent.payload.url }}
+              <a :href="String(selectedEvent.payload.url)" target="_blank" class="article-link">
+                {{ String(selectedEvent.payload.url) }}
               </a>
             </div>
 
@@ -154,8 +154,8 @@
             <div v-if="selectedEvent.payload?.content || selectedEvent.payload?.title" class="detail-section">
               <label>Content</label>
               <div class="content-preview">
-                <strong v-if="selectedEvent.payload?.title">{{ selectedEvent.payload.title }}</strong>
-                <p v-if="selectedEvent.payload?.content">{{ truncateContent(selectedEvent.payload.content) }}</p>
+                <strong v-if="selectedEvent.payload?.title">{{ String(selectedEvent.payload.title) }}</strong>
+                <p v-if="selectedEvent.payload?.content">{{ truncateContent(String(selectedEvent.payload.content)) }}</p>
               </div>
             </div>
 
@@ -176,7 +176,7 @@
                   <span class="stat-label">Duplicates Skipped</span>
                 </div>
                 <div v-if="selectedEvent.payload?.duration !== undefined" class="stat-item">
-                  <span class="stat-value">{{ (selectedEvent.payload.duration / 1000).toFixed(1) }}s</span>
+                  <span class="stat-value">{{ ((Number(selectedEvent.payload.duration) ?? 0) / 1000).toFixed(1) }}s</span>
                   <span class="stat-label">Duration</span>
                 </div>
               </div>

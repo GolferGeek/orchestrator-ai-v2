@@ -35,6 +35,8 @@ export interface HitlWaitingResult {
   generatedContent: HitlGeneratedContent;
   agentSlug: string;
   conversationId: string;
+  deliverableId?: string;
+  currentVersionNumber?: number;
 }
 
 /**
@@ -123,6 +125,7 @@ export async function createDeliverable(
 
     // Add user message to conversation
     conversationsStore.addMessage(ctx.conversationId, {
+      conversationId: ctx.conversationId,
       role: 'user',
       content: userMessage,
       timestamp: new Date().toISOString(),
@@ -175,14 +178,16 @@ export async function createDeliverable(
     // Add final assistant message based on result
     if (result.type === 'deliverable') {
       conversationsStore.addMessage(ctx.conversationId, {
+        conversationId: ctx.conversationId,
         role: 'assistant',
         content: 'Deliverable created successfully',
         timestamp: new Date().toISOString(),
-        deliverableId: result.deliverable.id,
         metadata: {
           deliverableId: result.deliverable.id,
-          mode: 'build',
-          isCompleted: true,
+          custom: {
+            mode: 'build',
+            isCompleted: true,
+          },
         },
       });
 
@@ -196,13 +201,16 @@ export async function createDeliverable(
       await successToast.present();
     } else if (result.type === 'hitl_waiting') {
       conversationsStore.addMessage(ctx.conversationId, {
+        conversationId: ctx.conversationId,
         role: 'assistant',
         content: 'Content generated. Waiting for your review...',
         timestamp: new Date().toISOString(),
         metadata: {
           taskId: result.taskId,
-          hitlWaiting: true,
-          mode: 'build',
+          custom: {
+            hitlWaiting: true,
+            mode: 'build',
+          },
         },
       });
 
@@ -217,25 +225,32 @@ export async function createDeliverable(
     } else if (result.type === 'message') {
       // Conversational response from BUILD mode (e.g., RAG agent with no results)
       conversationsStore.addMessage(ctx.conversationId, {
+        conversationId: ctx.conversationId,
         role: 'assistant',
         content: result.message,
         timestamp: new Date().toISOString(),
         metadata: {
-          mode: 'build',
-          isConversational: true,
           ...result.metadata,
+          custom: {
+            mode: 'build',
+            isConversational: true,
+            ...(result.metadata?.custom || {}),
+          },
         },
       });
 
       // No toast needed - this is a normal conversational response
     } else if (result.type === 'error') {
       conversationsStore.addMessage(ctx.conversationId, {
+        conversationId: ctx.conversationId,
         role: 'assistant',
         content: `Error: ${result.error}`,
         timestamp: new Date().toISOString(),
         metadata: {
-          mode: 'build',
-          error: result.error,
+          custom: {
+            mode: 'build',
+            error: result.error,
+          },
         },
       });
 

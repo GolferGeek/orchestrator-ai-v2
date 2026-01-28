@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useConversationDetail } from '../useConversationDetail';
 import type {
@@ -89,7 +88,7 @@ describe('useConversationDetail', () => {
           hook_event_type: 'conversation_start',
           timestamp: Date.now(),
           created_at: '2024-01-01T00:00:00Z',
-        } as ObservabilityEvent,
+        } as unknown as ObservabilityEvent,
       ];
 
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockConversation });
@@ -263,17 +262,17 @@ describe('useConversationDetail', () => {
           id: 'event-1',
           hook_event_type: 'conversation_start',
           timestamp: 1000,
-        } as ObservabilityEvent,
+        } as unknown as ObservabilityEvent,
         {
           id: 'event-2',
           hook_event_type: 'message_sent',
           timestamp: 2000,
-        } as ObservabilityEvent,
+        } as unknown as ObservabilityEvent,
         {
           id: 'event-3',
           hook_event_type: 'message_sent',
           timestamp: 3000,
-        } as ObservabilityEvent,
+        } as unknown as ObservabilityEvent,
       ];
 
       vi.mocked(axios.get).mockResolvedValueOnce({ data: {} });
@@ -297,19 +296,19 @@ describe('useConversationDetail', () => {
           hook_event_type: 'event_3',
           timestamp: 3000,
           created_at: '2024-01-01T00:03:00Z',
-        } as ObservabilityEvent,
+        } as unknown as ObservabilityEvent,
         {
           id: 'event-1',
           hook_event_type: 'event_1',
           timestamp: 1000,
           created_at: '2024-01-01T00:01:00Z',
-        } as ObservabilityEvent,
+        } as unknown as ObservabilityEvent,
         {
           id: 'event-2',
           hook_event_type: 'event_2',
           timestamp: 2000,
           created_at: '2024-01-01T00:02:00Z',
-        } as ObservabilityEvent,
+        } as unknown as ObservabilityEvent,
       ];
 
       vi.mocked(axios.get).mockResolvedValueOnce({ data: {} });
@@ -332,12 +331,12 @@ describe('useConversationDetail', () => {
           id: 'event-1',
           hook_event_type: 'event_1',
           timestamp: 2000,
-        } as ObservabilityEvent,
+        } as unknown as ObservabilityEvent,
         {
           id: 'event-2',
           hook_event_type: 'event_2',
           timestamp: 1000,
-        } as ObservabilityEvent,
+        } as unknown as ObservabilityEvent,
       ];
 
       vi.mocked(axios.get).mockResolvedValueOnce({ data: {} });

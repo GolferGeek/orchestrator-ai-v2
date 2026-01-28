@@ -43,8 +43,15 @@ export interface AllEvaluationsFilters {
   page?: number;
   limit?: number;
   minRating?: UserRatingScale;
+  maxRating?: UserRatingScale;
   hasNotes?: boolean;
   agentName?: string;
+  userEmail?: string;
+  startDate?: string;
+  endDate?: string;
+  hasWorkflowSteps?: boolean;
+  hasConstraints?: boolean;
+  [key: string]: number | UserRatingScale | boolean | string | undefined;
 }
 export interface WorkflowSteps {
   completedSteps: number;

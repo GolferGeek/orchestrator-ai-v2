@@ -86,7 +86,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { RiskScope, RiskSubject, ActiveCompositeScoreView, DashboardStats } from '@/types/risk-agent';
+import type { RiskScope, RiskSubject, ActiveCompositeScoreView, DashboardStats, DimensionScoreMap } from '@/types/risk-agent';
 
 const props = defineProps<{
   scope: RiskScope | null;
@@ -204,7 +204,7 @@ function formatScoreFromApi(score: ApiScore): string {
 }
 
 // Get dimension scores (handles both formats)
-function getDimensionScores(score: ApiScore): Record<string, number> {
+function getDimensionScores(score: ApiScore): DimensionScoreMap | Record<string, number> {
   return score.dimensionScores || score.dimension_scores || {};
 }
 

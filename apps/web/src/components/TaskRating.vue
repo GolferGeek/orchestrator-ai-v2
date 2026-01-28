@@ -150,11 +150,14 @@ import {
 } from 'ionicons/icons';
 import { tasksService } from '../services/tasksService';
 import type { EvaluationRequest, UserRatingScale } from '../types/evaluation';
+import type { TaskEvaluation as TaskEvaluationType } from '../types/task';
+
 interface Props {
   taskId: string;
   agentName?: string;
   messageRole?: 'user' | 'assistant' | 'system' | 'tool';
 }
+
 interface TaskEvaluation {
   userRating?: UserRatingScale;
   speedRating?: UserRatingScale;
@@ -162,6 +165,30 @@ interface TaskEvaluation {
   userNotes?: string;
   evaluationDetails?: Record<string, unknown>;
   evaluationTimestamp?: string;
+}
+
+// Helper function to validate and convert rating to UserRatingScale
+function toUserRatingScale(value: unknown): UserRatingScale | undefined {
+  if (typeof value === 'number' && value >= 1 && value <= 5) {
+    return value as UserRatingScale;
+  }
+  return undefined;
+}
+
+// Helper function to safely convert JsonValue to string
+function toString(value: unknown): string | undefined {
+  if (typeof value === 'string') {
+    return value;
+  }
+  return undefined;
+}
+
+// Helper function to safely convert JsonValue to Record
+function toRecord(value: unknown): Record<string, unknown> | undefined {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return undefined;
 }
 const props = defineProps<Props>();
 // State
@@ -197,19 +224,19 @@ const loadExistingRating = async () => {
     const task = await tasksService.getTaskById(props.taskId);
     if (task?.evaluation) {
       currentRating.value = {
-        userRating: task.evaluation.user_rating,
-        speedRating: task.evaluation.speed_rating,
-        accuracyRating: task.evaluation.accuracy_rating,
-        userNotes: task.evaluation.user_notes,
-        evaluationDetails: task.evaluation.evaluation_details,
-        evaluationTimestamp: task.evaluation.evaluation_timestamp
+        userRating: toUserRatingScale(task.evaluation.userRating),
+        speedRating: toUserRatingScale(task.evaluation.speedRating),
+        accuracyRating: toUserRatingScale(task.evaluation.accuracyRating),
+        userNotes: toString(task.evaluation.userNotes),
+        evaluationDetails: toRecord(task.evaluation.evaluationDetails),
+        evaluationTimestamp: toString(task.evaluation.evaluationTimestamp)
       };
       // Populate draft with existing data
       draftRating.value = {
-        userRating: task.evaluation.user_rating,
-        speedRating: task.evaluation.speed_rating,
-        accuracyRating: task.evaluation.accuracy_rating,
-        userNotes: task.evaluation.user_notes || ''
+        userRating: toUserRatingScale(task.evaluation.userRating),
+        speedRating: toUserRatingScale(task.evaluation.speedRating),
+        accuracyRating: toUserRatingScale(task.evaluation.accuracyRating),
+        userNotes: toString(task.evaluation.userNotes) || ''
       };
     }
   } catch (error) {
@@ -230,15 +257,15 @@ const quickRate = async (type: 'positive' | 'negative') => {
         tags: [type, 'quick-rating', 'task-evaluation']
       }
     };
-    const updatedTask = await tasksService.evaluateTask(props.taskId, evaluation);
+    const updatedTask = await tasksService.evaluateTask(props.taskId, evaluation as TaskEvaluationType);
     if (updatedTask?.evaluation) {
       currentRating.value = {
-        userRating: updatedTask.evaluation.user_rating,
-        speedRating: updatedTask.evaluation.speed_rating,
-        accuracyRating: updatedTask.evaluation.accuracy_rating,
-        userNotes: updatedTask.evaluation.user_notes,
-        evaluationDetails: updatedTask.evaluation.evaluation_details,
-        evaluationTimestamp: updatedTask.evaluation.evaluation_timestamp
+        userRating: toUserRatingScale(updatedTask.evaluation.userRating),
+        speedRating: toUserRatingScale(updatedTask.evaluation.speedRating),
+        accuracyRating: toUserRatingScale(updatedTask.evaluation.accuracyRating),
+        userNotes: toString(updatedTask.evaluation.userNotes),
+        evaluationDetails: toRecord(updatedTask.evaluation.evaluationDetails),
+        evaluationTimestamp: toString(updatedTask.evaluation.evaluationTimestamp)
       };
       // Update draft
       draftRating.value.userRating = rating;
@@ -263,15 +290,15 @@ const saveRating = async () => {
         tags: ['detailed-rating', 'task-evaluation']
       }
     };
-    const updatedTask = await tasksService.evaluateTask(props.taskId, evaluation);
+    const updatedTask = await tasksService.evaluateTask(props.taskId, evaluation as TaskEvaluationType);
     if (updatedTask?.evaluation) {
       currentRating.value = {
-        userRating: updatedTask.evaluation.user_rating,
-        speedRating: updatedTask.evaluation.speed_rating,
-        accuracyRating: updatedTask.evaluation.accuracy_rating,
-        userNotes: updatedTask.evaluation.user_notes,
-        evaluationDetails: updatedTask.evaluation.evaluation_details,
-        evaluationTimestamp: updatedTask.evaluation.evaluation_timestamp
+        userRating: toUserRatingScale(updatedTask.evaluation.userRating),
+        speedRating: toUserRatingScale(updatedTask.evaluation.speedRating),
+        accuracyRating: toUserRatingScale(updatedTask.evaluation.accuracyRating),
+        userNotes: toString(updatedTask.evaluation.userNotes),
+        evaluationDetails: toRecord(updatedTask.evaluation.evaluationDetails),
+        evaluationTimestamp: toString(updatedTask.evaluation.evaluationTimestamp)
       };
     }
     showDetailedRating.value = false;

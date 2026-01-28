@@ -524,10 +524,24 @@ import { conversationsService } from '@/services/conversationsService';
 import { agentsService } from '@/services/agentsService';
 import { useAuthStore } from '@/stores/rbacStore';
 import ConversationDeleteModal from './ConversationDeleteModal.vue';
-import type { Agent, AgentConversation } from '@/types/conversation';
-import type { HierarchyNode } from '@/types/agent';
-import type { Conversation } from '@/types/message';
+import type { Agent, AgentConversation, AgentExecutionProfile, AgentExecutionCapabilities } from '@/types/conversation';
+import type { HierarchyNode, AgentHierarchyResponse } from '@/types/agent';
 import type { AgentType } from '@/stores/conversationsStore';
+
+// Extended metadata type for execution properties
+interface ExtendedMetadata {
+  displayName?: string;
+  description?: string;
+  execution_modes?: string[];
+  execution_profile?: AgentExecutionProfile;
+  execution_capabilities?: AgentExecutionCapabilities;
+  custom?: Record<string, string | number | boolean>;
+}
+
+// Extended conversation with agentName property
+interface ConversationWithAgent extends AgentConversation {
+  agentName?: string;
+}
 
 // Extended types for this component
 interface EnhancedAgent extends Agent {
@@ -538,8 +552,8 @@ interface EnhancedAgent extends Agent {
     hasCustomUI?: boolean;
     customUIComponent?: string | null;
     execution_modes?: string[];
-    execution_profile?: string;
-    execution_capabilities?: Record<string, boolean>;
+    execution_profile?: AgentExecutionProfile;
+    execution_capabilities?: AgentExecutionCapabilities;
   };
   agentType?: string;
   children?: HierarchyNode[];
@@ -745,8 +759,8 @@ const hierarchyGroups = computed(() => {
   // hierarchy can be either an array or an object with data property
   const flatAgents = Array.isArray(hierarchy)
     ? hierarchy
-    : (hierarchy as any).data
-      ? ((hierarchy as any).data as HierarchyNode[])
+    : (hierarchy as AgentHierarchyResponse).data
+      ? ((hierarchy as AgentHierarchyResponse).data as HierarchyNode[])
       : [];
 
   const groups: HierarchyGroup[] = [];
@@ -781,22 +795,23 @@ const hierarchyGroups = computed(() => {
     ) as ExtendedConversation[];
 
     // Create the manager/orchestrator agent
+    const nodeMetadata = node.metadata as ExtendedMetadata | undefined;
     const mainAgent: EnhancedAgent = {
       name: node.name,
       type: node.agentType || 'unknown',
       displayName: node.metadata?.displayName || node.name,
       description: node.metadata?.description || '',
-      execution_modes: (node.metadata as any)?.execution_modes || [],
-      execution_profile: (node.metadata as any)?.execution_profile,
-      execution_capabilities: (node.metadata as any)?.execution_capabilities,
+      execution_modes: nodeMetadata?.execution_modes || [],
+      execution_profile: nodeMetadata?.execution_profile,
+      execution_capabilities: nodeMetadata?.execution_capabilities,
       metadata: {
         displayName: node.metadata?.displayName,
         description: node.metadata?.description,
         hasCustomUI: node.metadata?.custom?.hasCustomUI as boolean || false,
         customUIComponent: (node.metadata?.custom?.customUIComponent as string) || null,
-        execution_modes: (node.metadata as any)?.execution_modes,
-        execution_profile: (node.metadata as any)?.execution_profile,
-        execution_capabilities: (node.metadata as any)?.execution_capabilities,
+        execution_modes: nodeMetadata?.execution_modes,
+        execution_profile: nodeMetadata?.execution_profile,
+        execution_capabilities: nodeMetadata?.execution_capabilities,
       },
       organizationSlug: node.organizationSlug,
       conversations: nodeConversations,
@@ -824,22 +839,23 @@ const hierarchyGroups = computed(() => {
             child.organizationSlug || null
           ) as ExtendedConversation[];
 
+          const childMetadata = child.metadata as ExtendedMetadata | undefined;
           agents.push({
             name: child.name,
             type: child.agentType || 'unknown',
             displayName: child.metadata?.displayName || child.name,
             description: child.metadata?.description || '',
-            execution_modes: (child.metadata as any)?.execution_modes || [],
-            execution_profile: (child.metadata as any)?.execution_profile,
-            execution_capabilities: (child.metadata as any)?.execution_capabilities,
+            execution_modes: childMetadata?.execution_modes || [],
+            execution_profile: childMetadata?.execution_profile,
+            execution_capabilities: childMetadata?.execution_capabilities,
             metadata: {
               displayName: child.metadata?.displayName,
               description: child.metadata?.description,
               hasCustomUI: child.metadata?.custom?.hasCustomUI as boolean || false,
               customUIComponent: (child.metadata?.custom?.customUIComponent as string) || null,
-              execution_modes: (child.metadata as any)?.execution_modes,
-              execution_profile: (child.metadata as any)?.execution_profile,
-              execution_capabilities: (child.metadata as any)?.execution_capabilities,
+              execution_modes: childMetadata?.execution_modes,
+              execution_profile: childMetadata?.execution_profile,
+              execution_capabilities: childMetadata?.execution_capabilities,
             },
             organizationSlug: child.organizationSlug,
             conversations: childConversations,
@@ -891,7 +907,7 @@ const hierarchyGroups = computed(() => {
     const orchestratorConversations = (topOrchestrator.organizationSlug
       ? conversationsStore.conversationsByAgent(topOrchestrator.name, topOrchestrator.organizationSlug)
       : conversationsStore.conversationsByAgentType((topOrchestrator.agentType || 'orchestrator') as AgentType)
-          .filter(conv => (conv as any).agentName === topOrchestrator.name)) as ExtendedConversation[];
+          .filter(conv => (conv as ConversationWithAgent).agentName === topOrchestrator.name)) as ExtendedConversation[];
 
     const orchestratorMatchesSearch = !searchQuery.value ||
       topOrchestrator.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
@@ -900,18 +916,19 @@ const hierarchyGroups = computed(() => {
 
     if (orchestratorMatchesSearch) {
       // Build the agents array starting with the orchestrator
+      const topOrchestratorMetadata = topOrchestrator.metadata as ExtendedMetadata | undefined;
       const orchestratorAgents: EnhancedAgent[] = [{
         name: topOrchestrator.name,
         type: topOrchestrator.agentType || 'unknown',
         displayName: topOrchestrator.metadata?.displayName || topOrchestrator.name,
         description: topOrchestrator.metadata?.description || '',
-        execution_modes: (topOrchestrator.metadata as any)?.execution_modes || [],
+        execution_modes: topOrchestratorMetadata?.execution_modes || [],
         metadata: {
           displayName: topOrchestrator.metadata?.displayName,
           description: topOrchestrator.metadata?.description,
           hasCustomUI: topOrchestrator.metadata?.custom?.hasCustomUI as boolean || false,
           customUIComponent: (topOrchestrator.metadata?.custom?.customUIComponent as string) || null,
-          execution_modes: (topOrchestrator.metadata as any)?.execution_modes,
+          execution_modes: topOrchestratorMetadata?.execution_modes,
         },
         organizationSlug: topOrchestrator.organizationSlug,
         conversations: orchestratorConversations,
@@ -928,19 +945,20 @@ const hierarchyGroups = computed(() => {
             const childConversations = (child.organizationSlug
               ? conversationsStore.conversationsByAgent(child.name, child.organizationSlug)
               : conversationsStore.conversationsByAgentType((child.agentType || 'custom') as AgentType)
-                  .filter(conv => (conv as any).agentName === child.name)) as ExtendedConversation[];
+                  .filter(conv => (conv as ConversationWithAgent).agentName === child.name)) as ExtendedConversation[];
+            const orchChildMetadata = child.metadata as ExtendedMetadata | undefined;
             orchestratorAgents.push({
               name: child.name,
               type: child.agentType || 'unknown',
               displayName: child.metadata?.displayName || child.name,
               description: child.metadata?.description || '',
-              execution_modes: (child.metadata as any)?.execution_modes || [],
+              execution_modes: orchChildMetadata?.execution_modes || [],
               metadata: {
                 displayName: child.metadata?.displayName,
                 description: child.metadata?.description,
                 hasCustomUI: child.metadata?.custom?.hasCustomUI as boolean || false,
                 customUIComponent: (child.metadata?.custom?.customUIComponent as string) || null,
-                execution_modes: (child.metadata as any)?.execution_modes,
+                execution_modes: orchChildMetadata?.execution_modes,
               },
               organizationSlug: child.organizationSlug,
               conversations: childConversations,
@@ -1015,18 +1033,19 @@ const hierarchyGroups = computed(() => {
         agent.metadata?.description?.toLowerCase().includes(searchQuery.value.toLowerCase());
 
       if (matchesSearch) {
+        const specialistMetadata = agent.metadata as ExtendedMetadata | undefined;
         specialistAgents.push({
           name: agent.name,
           type: agent.agentType || 'unknown',
           displayName: agent.metadata?.displayName || agent.name,
           description: agent.metadata?.description || '',
-          execution_modes: (agent.metadata as any)?.execution_modes || [],
+          execution_modes: specialistMetadata?.execution_modes || [],
           metadata: {
             displayName: agent.metadata?.displayName,
             description: agent.metadata?.description,
             hasCustomUI: agent.metadata?.custom?.hasCustomUI as boolean || false,
             customUIComponent: (agent.metadata?.custom?.customUIComponent as string) || null,
-            execution_modes: (agent.metadata as any)?.execution_modes,
+            execution_modes: specialistMetadata?.execution_modes,
           },
           organizationSlug: agent.organizationSlug,
           conversations: nodeConversations,
@@ -1088,7 +1107,7 @@ const refreshDataForOrganization = async (organization: string) => {
       ? filterHierarchyByOrganization(hierarchy, organization)
       : null;
     // Extract the hierarchy from the result (filterHierarchyByOrganization returns { data, metadata, ... })
-    const filteredHierarchy = filteredHierarchyResult as any;
+    const filteredHierarchy = filteredHierarchyResult as HierarchyNode | null;
 
     // Update store via mutations
     agentsStore.setAvailableAgents(filteredAgents);

@@ -9,7 +9,7 @@
             <ion-searchbar
               v-model="searchQuery"
               placeholder="Search patterns..."
-              debounce="300"
+              :debounce="300"
               @ionInput="handleSearch"
               show-clear-button="focus"
             />
@@ -357,7 +357,7 @@ const filters = computed(() => piiStore.patternFilters);
 const sortOptions = computed(() => piiStore.patternSortOptions);
 const filteredPatterns = computed(() => piiStore.filteredAndSortedPatterns);
 const selectedPatterns = computed(() =>
-  piiStore.patterns.filter(p => piiStore.selectedPatternIds.includes(p.id || p.name))
+  piiStore.patterns.filter((p: PIIPattern) => piiStore.selectedPatternIds.includes(p.id || p.name))
 );
 const isLoading = computed(() => piiStore.patternsLoading);
 
@@ -367,7 +367,7 @@ const selectAll = computed({
   set: (value: boolean) => {
     if (value) {
       // Select all filtered patterns
-      filteredPatterns.value.forEach(p => {
+      filteredPatterns.value.forEach((p: PIIPattern) => {
         const id = p.id || p.name;
         if (!piiStore.selectedPatternIds.includes(id)) {
           piiStore.togglePatternSelection(id);
@@ -393,7 +393,7 @@ const applyFilters = () => {
 };
 
 const sortBy = (field: string) => {
-  piiStore.patternSortOptions.field = field;
+  piiStore.patternSortOptions.field = field as 'name' | 'dataType' | 'priority' | 'enabled' | 'createdAt';
   piiStore.patternSortOptions.direction =
     sortOptions.value.field === field && sortOptions.value.direction === 'asc' ? 'desc' : 'asc';
 };
@@ -476,7 +476,7 @@ const showPatternActions = async (pattern: PIIPattern) => {
 };
 
 const performBulkAction = async (action: 'enable' | 'disable' | 'delete') => {
-  const selectedIds = selectedPatterns.value.map(p => p.id || p.name);
+  const selectedIds = selectedPatterns.value.map((p: PIIPattern) => p.id || p.name);
 
   try {
     // Note: Store doesn't have bulkOperation. Perform individual operations.
@@ -484,7 +484,7 @@ const performBulkAction = async (action: 'enable' | 'disable' | 'delete') => {
       if (action === 'delete') {
         piiStore.removePattern(id);
       } else {
-        const pattern = piiStore.patterns.find(p => (p.id || p.name) === id);
+        const pattern = piiStore.patterns.find((p: PIIPattern) => (p.id || p.name) === id);
         if (pattern) {
           piiStore.updatePattern(id, { enabled: action === 'enable' });
         }

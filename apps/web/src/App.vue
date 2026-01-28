@@ -1,11 +1,11 @@
 <template>
   <ion-app>
     <!-- Main application content -->
-    <ErrorBoundary 
+    <ErrorBoundary
       :show-details="isDevelopment"
       :max-retries="3"
       @error="onGlobalError"
-      @retry="onErrorRetry"
+      :on-retry="onErrorRetry"
       @report="onErrorReport"
     >
       <ion-router-outlet id="main-content"></ion-router-outlet>
@@ -37,7 +37,14 @@ const {
   testErrorHandling 
 } = useGlobalErrorHandler();
 
-type ErrorBoundaryInfo = Record<string, unknown>;
+interface ErrorInfo {
+  componentName?: string;
+  propsData?: Record<string, unknown>;
+  lifecycle?: string;
+  timestamp: number;
+  userAgent: string;
+  url: string;
+}
 
 interface ErrorDebugContext {
   store: typeof errorStore;
@@ -47,20 +54,20 @@ interface ErrorDebugContext {
 }
 
 // Global error event handlers
-const onGlobalError = (_error: Error, _errorInfo: ErrorBoundaryInfo) => {
-
+const onGlobalError = (error: Error, errorInfo: ErrorInfo) => {
+  console.log('Global error captured:', error, errorInfo);
   // Error is already handled by ErrorBoundary and added to store
   // This is just for additional app-level logic if needed
 };
 
-const onErrorRetry = (_attempt: number) => {
-
+const onErrorRetry = () => {
+  console.log('Error retry triggered');
   // You could add app-level retry logic here
   // For example, clearing caches, refreshing auth tokens, etc.
 };
 
-const onErrorReport = (_error: Error, _errorInfo: ErrorBoundaryInfo) => {
-
+const onErrorReport = (error: Error, errorInfo: ErrorInfo) => {
+  console.log('Error report requested:', error, errorInfo);
   // Additional reporting logic could go here
   // For example, showing a feedback form, etc.
 };

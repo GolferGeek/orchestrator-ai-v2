@@ -95,7 +95,7 @@
             v-model="searchQuery"
             placeholder="Search tools..."
             @ionInput="filterTools"
-            debounce="300"
+            :debounce="300"
             class="tools-search"
           />
 
@@ -296,7 +296,7 @@ const fetchServerInfo = async () => {
         clientInfo: { name: 'admin-ui', version: '1.0.0' },
         capabilities: {},
       },
-    });
+    }) as { result?: MCPServerInfo };
     serverInfo.value = response.result || {};
   } catch (error) {
     console.error('Failed to fetch MCP server info:', error);
@@ -305,7 +305,10 @@ const fetchServerInfo = async () => {
 
 const fetchMCPHealth = async () => {
   try {
-    const response = await apiService.post('/mcp/health', {});
+    const response = await apiService.post('/mcp/health', {}) as {
+      status?: string;
+      namespaces?: Record<string, boolean>;
+    };
     mcpHealth.value = {
       status: response.status || 'healthy',
       namespaceCount: Object.keys(response.namespaces || {}).length,
@@ -333,7 +336,7 @@ const fetchTools = async () => {
       id: 'list-1',
       method: 'tools/list',
       params: {},
-    });
+    }) as { result?: { tools?: Omit<MCPTool, 'namespace'>[] } };
 
     const rawTools = response.result?.tools || [];
     tools.value = rawTools.map((t: Omit<MCPTool, 'namespace'>) => ({

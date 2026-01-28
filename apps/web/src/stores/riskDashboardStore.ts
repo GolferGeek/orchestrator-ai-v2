@@ -19,7 +19,7 @@ import type {
   PendingLearningView,
   RiskEvaluation,
   DashboardViewMode,
-  DashboardFilters,
+  RiskDashboardFilters,
   DashboardStats,
   SelectedSubjectState,
   RadarChartDataPoint,
@@ -48,7 +48,7 @@ interface RiskDashboardState {
 
   // UI state
   viewMode: DashboardViewMode;
-  filters: DashboardFilters;
+  filters: RiskDashboardFilters;
   stats: DashboardStats;
 
   // Comparison feature
@@ -572,11 +572,11 @@ export const useRiskDashboardStore = defineStore('riskDashboard', () => {
     state.value.viewMode = mode;
   }
 
-  function setFilters(filters: DashboardFilters) {
+  function setFilters(filters: RiskDashboardFilters) {
     state.value.filters = filters;
   }
 
-  function updateFilters(updates: Partial<DashboardFilters>) {
+  function updateFilters(updates: Partial<RiskDashboardFilters>) {
     state.value.filters = {
       ...state.value.filters,
       ...updates,

@@ -56,7 +56,7 @@ const updateTimeElapsed = () => {
     timeElapsed.value = `${seconds}s`;
   }
 };
-const handleProgressUpdate = (event: { taskId: string; progress?: number; message?: string }) => {
+const handleProgressUpdate = (event: { taskId: string; progress?: number; message?: string; status?: string }) => {
   if (event.taskId !== props.taskId) return;
   currentProgress.value = event.progress || 0;
   progressMessage.value = event.message || '';

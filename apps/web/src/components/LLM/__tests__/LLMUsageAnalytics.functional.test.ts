@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * LLMUsageAnalytics Functional Integration Tests
  * 
@@ -97,6 +96,7 @@ describe('LLMUsageAnalytics Functional Integration Tests', () => {
     });
 
     it('calculates provider statistics correctly', () => {
+      // @ts-expect-error - Test data with intentional type mismatch
       const validRecords = sanitizeUsageRecords(mockUsageRecords);
       const stats = calculateProviderStats(validRecords);
       
@@ -113,6 +113,7 @@ describe('LLMUsageAnalytics Functional Integration Tests', () => {
     });
 
     it('calculates provider response times correctly', () => {
+      // @ts-expect-error - Test data with intentional type mismatch
       const validRecords = sanitizeUsageRecords(mockUsageRecords);
       const { providers, responseTimes } = calculateProviderResponseTimes(validRecords);
       
@@ -124,6 +125,7 @@ describe('LLMUsageAnalytics Functional Integration Tests', () => {
     });
 
     it('calculates sanitization breakdown correctly', () => {
+      // @ts-expect-error - Test data with intentional type mismatch
       const validRecords = sanitizeUsageRecords(mockUsageRecords);
       const breakdown = calculateSanitizationBreakdown(validRecords);
       
@@ -151,6 +153,7 @@ describe('LLMUsageAnalytics Functional Integration Tests', () => {
     });
 
     it('generates insights from real data', () => {
+      // @ts-expect-error - Test data with intentional type mismatch
       const validRecords = sanitizeUsageRecords(mockUsageRecords);
       const insights = generateAnalyticsInsights(mockAnalytics, validRecords);
       
@@ -171,6 +174,7 @@ describe('LLMUsageAnalytics Functional Integration Tests', () => {
 
   describe('Data Sanitization and Validation', () => {
     it('sanitizes invalid usage records correctly', () => {
+      // @ts-expect-error - Test data with intentional type mismatch
       const sanitized = sanitizeUsageRecords(mockUsageRecords);
       
       // Should remove the invalid record
@@ -189,6 +193,7 @@ describe('LLMUsageAnalytics Functional Integration Tests', () => {
       expect(validateAnalyticsData(mockAnalytics)).toBe(true);
       expect(validateAnalyticsData([])).toBe(false);
       expect(validateAnalyticsData([{ invalid: 'data' }])).toBe(false);
+      // @ts-expect-error - Testing with invalid argument type
       expect(validateAnalyticsData(null as unknown)).toBe(false);
     });
 
@@ -224,7 +229,8 @@ describe('LLMUsageAnalytics Functional Integration Tests', () => {
       }));
 
       const startTime = performance.now();
-      
+
+      // @ts-expect-error - Test data with intentional type mismatch
       const sanitized = sanitizeUsageRecords(largeDataset);
       const stats = calculateProviderStats(sanitized);
       const breakdown = calculateSanitizationBreakdown(sanitized);
@@ -253,10 +259,12 @@ describe('LLMUsageAnalytics Functional Integration Tests', () => {
           total_cost: 0.01 + i * 0.001
         }));
 
+        // @ts-expect-error - Test data with intentional type mismatch
         const stats = calculateProviderStats(dataset);
         expect(stats[0].count).toBe(size);
         expect(stats[0].percentage).toBe(100);
-        
+
+        // @ts-expect-error - Test data with intentional type mismatch
         const breakdown = calculateSanitizationBreakdown(dataset);
         expect(breakdown).not.toBeNull();
         expect(breakdown!.total).toBeGreaterThan(0);
@@ -274,6 +282,7 @@ describe('LLMUsageAnalytics Functional Integration Tests', () => {
       ] as Record<string, unknown>[];
 
       expect(() => {
+        // @ts-expect-error - Test data with intentional type mismatch
         const sanitized = sanitizeUsageRecords(corruptedData);
         calculateProviderStats(sanitized);
         calculateProviderResponseTimes(sanitized);
@@ -298,6 +307,7 @@ describe('LLMUsageAnalytics Functional Integration Tests', () => {
         { provider_name: 'anthropic', total_cost: 0.02 } // Missing id
       ] as Record<string, unknown>[];
 
+      // @ts-expect-error - Test data with intentional type mismatch
       const sanitized = sanitizeUsageRecords(incompleteData);
       expect(sanitized.length).toBeLessThanOrEqual(1); // Most should be filtered out
     });

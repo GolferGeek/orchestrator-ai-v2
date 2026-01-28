@@ -54,8 +54,8 @@ export function toDeliverableFormat(format: string | DeliverableFormat): Deliver
 export function convertServiceToStoreDeliverable(serviceDeliverable: ServiceDeliverable): StoreDeliverable {
   return {
     ...serviceDeliverable,
-    type: toDeliverableType(serviceDeliverable.type),
-    format: toDeliverableFormat(serviceDeliverable.format),
+    type: toDeliverableType(serviceDeliverable.type || DeliverableType.DOCUMENT),
+    format: toDeliverableFormat(serviceDeliverable.format || DeliverableFormat.MARKDOWN),
     created_at: new Date(serviceDeliverable.created_at),
     updated_at: new Date(serviceDeliverable.updated_at),
     content_preview: serviceDeliverable.content_preview || serviceDeliverable.content?.substring(0, 200) || ''

@@ -341,7 +341,7 @@ export default defineComponent({
       refreshing: false,
       performingAction: false,
       autoCapture: true,
-      currentMetadata: null as RunMetadata | null,
+      currentMetadata: undefined as RunMetadata | undefined,
       metadataHistory: [] as RunMetadata[],
       systemHealth: {
         overall: 'healthy',
@@ -494,7 +494,7 @@ export default defineComponent({
     },
 
     clearMetadata() {
-      this.currentMetadata = null
+      this.currentMetadata = undefined
       this.metadataHistory = []
       this.updateTabBadges()
     },

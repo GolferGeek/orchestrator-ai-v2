@@ -28,7 +28,7 @@
     </div>
     <!-- Input Area -->
     <div class="input-area">
-      <form @submit.prevent="sendMessage">
+      <form @submit.prevent="() => sendMessage()">
         <ion-item>
           <ion-textarea
             v-model="messageText"
@@ -74,7 +74,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ref, computed, nextTick } from 'vue';
+import { ref, computed, nextTick, watch } from 'vue';
 import {
   IonIcon,
   IonItem,
@@ -86,7 +86,6 @@ import {
 } from 'ionicons/icons';
 import { useConversationsStore } from '@/stores/conversationsStore';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
-import { usePrivacyStore } from '@/stores/privacyStore';
 import { sendMessage as sendMessageAction, createPlan, createDeliverable } from '@/services/agent2agent/actions';
 import { tasksService } from '@/services/tasksService';
 // TTS is now handled directly in AgentTaskItem when messages are displayed
@@ -97,8 +96,7 @@ import SpeechButton from './SpeechButton.vue';
 import ChatModeSendButton from './ChatModeSendButton.vue';
 import ChatHeader from './ChatHeader.vue';
 import ChatModeControl from './ChatModeControl.vue';
-import { useModeSwitchShortcuts } from '@/composables/useKeyboardShortcuts';
-import type { AgentChatMode, AgentConversation } from '@/types/conversation';
+import type { AgentChatMode, AgentConversation, AgentChatMessage } from '@/types/conversation';
 // Define emits
 interface Props {
   conversation?: AgentConversation; // The conversation object from the store
@@ -107,8 +105,6 @@ const props = defineProps<Props>();
 // Stores
 const conversationsStore = useConversationsStore();
 const chatUiStore = useChatUiStore();
-const privacyIndicatorsStore = usePrivacyStore();
-useModeSwitchShortcuts(chatUiStore);
 
 // TTS is now handled directly in AgentTaskItem components
 
@@ -119,15 +115,17 @@ const messagesContainer = ref<HTMLElement | null>(null);
 const currentAgent = computed(() => {
   const conv = props.conversation || chatUiStore.activeConversation;
   if (!conv) return null;
+  // Type guard to check if it's an AgentConversation
+  const isAgentConv = 'agentName' in conv;
   return {
-    name: conv.agentName || '',
-    type: conv.agentType || 'custom',
-    slug: conv.agentName || '',
-    id: conv.agentName || '',
-    organizationSlug: conv.organizationSlug,
+    name: isAgentConv ? conv.agentName || '' : '',
+    type: isAgentConv ? conv.agentType || 'custom' : 'custom',
+    slug: isAgentConv ? conv.agentName || '' : '',
+    id: isAgentConv ? conv.agentName || '' : '',
+    organizationSlug: 'organizationSlug' in conv ? conv.organizationSlug : undefined,
   };
 });
-const messages = computed(() => {
+const messages = computed((): AgentChatMessage[] => {
   // Get conversation ID from props or active conversation
   const convId = props.conversation?.id || chatUiStore.activeConversation?.id;
 
@@ -138,7 +136,22 @@ const messages = computed(() => {
   // Access the reactive messagesMap directly for proper Vue reactivity
   // This ensures the computed re-runs when the Map is updated
   const msgMap = conversationsStore.messagesMap;
-  return msgMap.get(convId) || [];
+  const rawMessages = msgMap.get(convId) || [];
+
+  // Convert Message[] to AgentChatMessage[]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (rawMessages as any[])
+    .filter((msg) => msg.role !== 'system') // Filter out system messages
+    .map((msg): AgentChatMessage => ({
+      id: msg.id,
+      role: msg.role as 'user' | 'assistant',
+      content: msg.content,
+      timestamp: new Date(msg.timestamp || msg.createdAt || new Date().toISOString()),
+      taskId: msg.taskId,
+      deliverableId: msg.metadata?.deliverableId,
+      planId: msg.metadata?.references?.taskIds?.[0],
+      metadata: msg.metadata,
+    }));
 });
 const isLoading = computed(() =>
   props.conversation?.isLoading || chatUiStore.activeConversation?.isLoading || false
@@ -172,7 +185,9 @@ const sendMessage = async (mode?: AgentChatMode) => {
 
   // If mode is provided, set it before sending
   if (mode) {
-    chatUiStore.setChatMode(mode);
+    // Map AgentChatMode to ChatMode (only primary modes are supported in chatUiStore)
+    const primaryMode = mode === 'converse' || mode === 'plan' || mode === 'build' ? mode : 'converse';
+    chatUiStore.setChatMode(primaryMode);
   }
 
   try {
@@ -236,45 +251,6 @@ const cancelCurrentOperation = async () => {
 // Watch for new messages to auto-scroll
 watch(() => messages.value.length, () => {
   scrollToBottom();
-});
-
-// Initialize privacy indicators store
-onMounted(async () => {
-  await privacyIndicatorsStore.initialize();
-  
-  // Set up conversation privacy settings if we have a conversation
-  if (conversationId.value) {
-    privacyIndicatorsStore.setConversationSettings(conversationId.value, {
-      enableRealTimeUpdates: true,
-      updateInterval: 2000,
-      compactMode: false,
-      position: 'inline'
-    });
-  }
-});
-
-// Cleanup on unmount
-onUnmounted(() => {
-  if (conversationId.value) {
-    privacyIndicatorsStore.stopConversationRealTimeUpdates(conversationId.value);
-  }
-  // TTS cleanup is handled in individual AgentTaskItem components
-});
-
-// Watch for conversation changes
-watch(() => conversationId.value, (newConversationId, oldConversationId) => {
-  if (oldConversationId) {
-    privacyIndicatorsStore.stopConversationRealTimeUpdates(oldConversationId);
-  }
-  
-  if (newConversationId) {
-    privacyIndicatorsStore.setConversationSettings(newConversationId, {
-      enableRealTimeUpdates: true,
-      updateInterval: 2000,
-      compactMode: false,
-      position: 'inline'
-    });
-  }
 });
 </script>
 <style scoped>

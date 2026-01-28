@@ -205,7 +205,10 @@ export const useAdminEvaluationStore = defineStore('adminEvaluation', () => {
           params.append(key, value.toString());
         }
       });
-      const response = await apiService.get(`/evaluation/admin/all?${params.toString()}`);
+      const response = await apiService.get<{
+        evaluations: EnhancedEvaluationMetadata[];
+        pagination: { page: number; limit: number; total: number; totalPages: number };
+      }>(`/evaluation/admin/all?${params.toString()}`);
       evaluations.value = response.evaluations || [];
       pagination.value = response.pagination || {
         page: 1,
@@ -334,7 +337,7 @@ export const useAdminEvaluationStore = defineStore('adminEvaluation', () => {
           params.append(key, String(value));
         }
       });
-      const response = await apiService.get(`/evaluation/admin/export?${params.toString()}`);
+      const response = await apiService.get<string>(`/evaluation/admin/export?${params.toString()}`);
       // Handle different export formats
       if (options.format === 'csv') {
         // Create and download CSV file

@@ -80,14 +80,14 @@ import {
   bugOutline,
   checkmarkOutline
 } from 'ionicons/icons';
-import { useErrorStore } from '@/stores/errorStore';
+import { useErrorStore, type AppError } from '@/stores/errorStore';
 
 const errorStore = useErrorStore();
 
 // Component state
 const isVisible = ref(false);
 const showCriticalModal = ref(false);
-const currentNotificationError = ref<Record<string, unknown> | null>(null);
+const currentNotificationError = ref<AppError | null>(null);
 
 // Computed properties
 const errorMessage = computed(() => {
@@ -221,19 +221,19 @@ watch(
 );
 
 // Methods
-const showErrorNotification = (error: Record<string, unknown>) => {
+const showErrorNotification = (error: AppError) => {
   // Don't show notifications for resolved errors
   if (error.resolved) return;
-  
+
   // Don't show multiple notifications at once
   if (isVisible.value) return;
-  
+
   currentNotificationError.value = error;
   isVisible.value = true;
-  
+
 };
 
-const showCriticalError = (error: Record<string, unknown>) => {
+const showCriticalError = (error: AppError) => {
   errorStore.showGlobalError(error);
 };
 

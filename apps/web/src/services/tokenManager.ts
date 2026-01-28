@@ -35,7 +35,7 @@ class TokenManager {
    * Check if token needs refresh and refresh if needed
    */
   private async checkAndRefreshToken(): Promise<void> {
-    const token = authService.getToken();
+    const token = await authService.getToken();
     if (!token) {
       return; // No token to refresh
     }
@@ -79,13 +79,13 @@ class TokenManager {
   /**
    * Get current token status information
    */
-  getTokenStatus(): {
+  async getTokenStatus(): Promise<{
     hasToken: boolean;
     isValid: boolean;
     timeRemaining: number;
     isExpiringSoon: boolean;
-  } {
-    const token = authService.getToken();
+  }> {
+    const token = await authService.getToken();
     if (!token) {
       return {
         hasToken: false,
@@ -107,6 +107,10 @@ class TokenManager {
 // Export singleton instance
 export const tokenManager = new TokenManager();
 // Auto-start monitoring when the module is imported (if user is authenticated)
-if (authService.getToken()) {
-  tokenManager.startMonitoring();
-}
+authService.getToken().then((token) => {
+  if (token) {
+    tokenManager.startMonitoring();
+  }
+}).catch(() => {
+  // Silently ignore errors during initialization
+});

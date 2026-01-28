@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { IonicVue } from '@ionic/vue';
@@ -20,6 +19,7 @@ const mockToast = {
 vi.mock('@ionic/vue', async () => {
   const actual = await vi.importActual('@ionic/vue');
   return {
+    // @ts-expect-error - Spread in mock return object
     ...actual,
     toastController: {
       create: vi.fn(() => Promise.resolve(mockToast)),
@@ -129,6 +129,7 @@ describe('ChatInput', () => {
       await wrapper.vm.$nextTick();
 
       // Check internal state
+      // @ts-expect-error - Accessing internal component property
       expect(wrapper.vm.inputText).toBe('Hello, world!');
     });
 
@@ -140,16 +141,20 @@ describe('ChatInput', () => {
       await wrapper.vm.$nextTick();
 
       // Send message
+      // @ts-expect-error - Accessing internal component method
       wrapper.vm.sendMessage();
       await wrapper.vm.$nextTick();
 
+      // @ts-expect-error - Accessing internal component property
       expect(wrapper.vm.inputText).toBe('');
     });
 
     it('trims whitespace from message before sending', async () => {
       const wrapper = createWrapper();
 
+      // @ts-expect-error - Accessing internal component property
       wrapper.vm.inputText = '  Hello  ';
+      // @ts-expect-error - Accessing internal component method
       wrapper.vm.sendMessage();
 
       expect(wrapper.emitted('sendMessage')?.[0]).toEqual(['Hello']);
@@ -174,6 +179,7 @@ describe('ChatInput', () => {
     it('does not emit sendMessage when input is empty', async () => {
       const wrapper = createWrapper();
 
+      // @ts-expect-error - Accessing internal component method
       wrapper.vm.sendMessage();
       await wrapper.vm.$nextTick();
 
@@ -183,7 +189,9 @@ describe('ChatInput', () => {
     it('does not emit sendMessage when input contains only whitespace', async () => {
       const wrapper = createWrapper();
 
+      // @ts-expect-error - Accessing internal component property
       wrapper.vm.inputText = '   ';
+      // @ts-expect-error - Accessing internal component method
       wrapper.vm.sendMessage();
 
       expect(wrapper.emitted('sendMessage')).toBeFalsy();
@@ -194,6 +202,7 @@ describe('ChatInput', () => {
 
       // Call togglePtt directly instead of clicking button
       // (since the stub doesn't perfectly replicate Ionic's click handling)
+      // @ts-expect-error - Accessing internal component method
       wrapper.vm.togglePtt();
       await wrapper.vm.$nextTick();
 
@@ -205,6 +214,7 @@ describe('ChatInput', () => {
 
       // Should not emit pttToggle on start (only on end)
       // But isRecording should be true
+      // @ts-expect-error - Accessing internal component property
       expect(wrapper.vm.isRecording).toBe(true);
     });
   });
@@ -221,6 +231,7 @@ describe('ChatInput', () => {
         key: 'Enter',
         shiftKey: false,
       });
+      // @ts-expect-error - Accessing internal component method
       wrapper.vm.handleEnterKey(enterEvent);
 
       expect(wrapper.emitted('sendMessage')).toBeTruthy();
@@ -230,11 +241,13 @@ describe('ChatInput', () => {
     it('does not send message on Shift+Enter', async () => {
       const wrapper = createWrapper();
 
+      // @ts-expect-error - Accessing internal component property
       wrapper.vm.inputText = 'Test message';
       const shiftEnterEvent = new KeyboardEvent('keydown', {
         key: 'Enter',
         shiftKey: true,
       });
+      // @ts-expect-error - Accessing internal component method
       wrapper.vm.handleEnterKey(shiftEnterEvent);
 
       expect(wrapper.emitted('sendMessage')).toBeFalsy();
@@ -243,13 +256,16 @@ describe('ChatInput', () => {
     it('does not send message on Enter when recording', async () => {
       const wrapper = createWrapper();
 
+      // @ts-expect-error - Accessing internal component property
       wrapper.vm.inputText = 'Test message';
+      // @ts-expect-error - Accessing internal component property
       wrapper.vm.isRecording = true;
 
       const enterEvent = new KeyboardEvent('keydown', {
         key: 'Enter',
         shiftKey: false,
       });
+      // @ts-expect-error - Accessing internal component method
       wrapper.vm.handleEnterKey(enterEvent);
 
       expect(wrapper.emitted('sendMessage')).toBeFalsy();
@@ -278,7 +294,9 @@ describe('ChatInput', () => {
     it('disables send button when recording', async () => {
       const wrapper = createWrapper();
 
+      // @ts-expect-error - Accessing internal component property
       wrapper.vm.inputText = 'Test message';
+      // @ts-expect-error - Accessing internal component property
       wrapper.vm.isRecording = true;
       await wrapper.vm.$nextTick();
 
@@ -289,6 +307,7 @@ describe('ChatInput', () => {
     it('changes PTT button color when recording', async () => {
       const wrapper = createWrapper();
 
+      // @ts-expect-error - Accessing internal component property
       wrapper.vm.isRecording = true;
       await wrapper.vm.$nextTick();
 
@@ -316,6 +335,7 @@ describe('ChatInput', () => {
 
     it('stops recording when PTT button is clicked while recording', async () => {
       const wrapper = createWrapper();
+      // @ts-expect-error - Accessing internal component property
       wrapper.vm.isRecording = true;
 
       const pttButton = wrapper.findAll('button')[0];
@@ -326,6 +346,7 @@ describe('ChatInput', () => {
 
     it('clears input text when starting recording', async () => {
       const wrapper = createWrapper();
+      // @ts-expect-error - Accessing internal component property
       wrapper.vm.inputText = 'Previous text';
 
       const pttButton = wrapper.findAll('button')[0];
@@ -337,33 +358,39 @@ describe('ChatInput', () => {
       if (mockRecognition.onstart) {
         mockRecognition.onstart();
       }
+      // @ts-expect-error - Accessing internal component property
       expect(wrapper.vm.inputText).toBe('');
     });
 
     it('updates isRecording state on recognition start', () => {
       const wrapper = createWrapper();
+      // @ts-expect-error - Accessing internal component property
       wrapper.vm.isRecording = false;
 
       // Simulate recognition start event
       if (mockRecognition.onstart) {
         mockRecognition.onstart();
       }
+      // @ts-expect-error - Accessing internal component property
       expect(wrapper.vm.isRecording).toBe(true);
     });
 
     it('updates isRecording state on recognition end', () => {
       const wrapper = createWrapper();
+      // @ts-expect-error - Accessing internal component property
       wrapper.vm.isRecording = true;
 
       // Simulate recognition end event
       if (mockRecognition.onend) {
         mockRecognition.onend();
       }
+      // @ts-expect-error - Accessing internal component property
       expect(wrapper.vm.isRecording).toBe(false);
     });
 
     it('emits pttToggle event with false when recording ends', () => {
       const wrapper = createWrapper();
+      // @ts-expect-error - Accessing internal component property
       wrapper.vm.isRecording = true;
 
       // Simulate recognition end event
@@ -380,8 +407,10 @@ describe('ChatInput', () => {
   describe('Store Integration', () => {
     it('updates UI store PTT recording state when recording starts', async () => {
       const wrapper = createWrapper();
+      // @ts-expect-error - Accessing internal component property
       const uiStore = wrapper.vm.uiStore;
 
+      // @ts-expect-error - Accessing internal component property
       wrapper.vm.isRecording = true;
       await wrapper.vm.$nextTick();
 
@@ -390,11 +419,14 @@ describe('ChatInput', () => {
 
     it('updates UI store PTT recording state when recording stops', async () => {
       const wrapper = createWrapper();
+      // @ts-expect-error - Accessing internal component property
       const uiStore = wrapper.vm.uiStore;
 
+      // @ts-expect-error - Accessing internal component property
       wrapper.vm.isRecording = true;
       await wrapper.vm.$nextTick();
 
+      // @ts-expect-error - Accessing internal component property
       wrapper.vm.isRecording = false;
       await wrapper.vm.$nextTick();
 
@@ -406,6 +438,7 @@ describe('ChatInput', () => {
     it('handles multiple rapid Enter key presses', async () => {
       const wrapper = createWrapper();
 
+      // @ts-expect-error - Accessing internal component property
       wrapper.vm.inputText = 'Test message';
 
       const enterEvent = new KeyboardEvent('keydown', {
@@ -414,8 +447,11 @@ describe('ChatInput', () => {
       });
 
       // Simulate rapid pressing
+      // @ts-expect-error - Accessing internal component method
       wrapper.vm.handleEnterKey(enterEvent);
+      // @ts-expect-error - Accessing internal component method
       wrapper.vm.handleEnterKey(enterEvent);
+      // @ts-expect-error - Accessing internal component method
       wrapper.vm.handleEnterKey(enterEvent);
 
       // Only first should emit (input is cleared after first send)
@@ -425,7 +461,9 @@ describe('ChatInput', () => {
     it('handles sending message with newlines from Shift+Enter', async () => {
       const wrapper = createWrapper();
 
+      // @ts-expect-error - Accessing internal component property
       wrapper.vm.inputText = 'Line 1\nLine 2';
+      // @ts-expect-error - Accessing internal component method
       wrapper.vm.sendMessage();
 
       expect(wrapper.emitted('sendMessage')?.[0]).toEqual(['Line 1\nLine 2']);
@@ -433,6 +471,7 @@ describe('ChatInput', () => {
 
     it('handles component unmount while recording', () => {
       const wrapper = createWrapper();
+      // @ts-expect-error - Accessing internal component property
       wrapper.vm.isRecording = true;
 
       // Unmount should stop recording

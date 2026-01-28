@@ -27,11 +27,11 @@
         </div>
         <div class="quick-stats" v-if="healthData">
           <div class="stat">
-            <span class="stat-value">{{ formatUptime(healthData.uptime) }}</span>
+            <span class="stat-value">{{ formatUptime(healthUptime) }}</span>
             <span class="stat-label">Uptime</span>
           </div>
           <div class="stat">
-            <span class="stat-value">{{ healthData.memory?.utilization }}%</span>
+            <span class="stat-value">{{ healthMemoryUtilization }}%</span>
             <span class="stat-label">Memory</span>
           </div>
           <div class="stat">
@@ -249,8 +249,8 @@
                 >
                   <ion-icon :icon="serverOutline" />
                   <span>Database</span>
-                  <ion-chip :color="getStatusColor(healthData?.services?.database)" size="small">
-                    <ion-label>{{ healthData?.services?.database || '...' }}</ion-label>
+                  <ion-chip :color="getStatusColor(healthDatabaseStatus)" size="small">
+                    <ion-label>{{ healthDatabaseStatus || '...' }}</ion-label>
                   </ion-chip>
                 </div>
                 <div
@@ -504,6 +504,12 @@ const agentsHealthData = ref<{ discoveredAgents: number; runningInstances: numbe
 const monitoringStatusData = ref<Record<string, unknown> | null>(null);
 const lastHealthChecked = ref('');
 
+// Computed properties for health data access
+const healthUptime = computed(() => healthData.value?.uptime as number | undefined);
+const healthMemoryUtilization = computed(() => (healthData.value?.memory as { utilization?: number } | undefined)?.utilization);
+const _healthServices = computed(() => healthData.value?.services as Record<string, string> | undefined);
+const healthDatabaseStatus = computed(() => (healthData.value?.services as Record<string, string> | undefined)?.database);
+
 // Overall health computed
 const overallHealthy = computed(() => {
   if (!healthData.value) return false;
@@ -662,7 +668,7 @@ onMounted(async () => {
   try {
     await Promise.all([
       llmAnalyticsStore.initialize(),
-      analyticsStore.initialize?.() || Promise.resolve(),
+      (analyticsStore as { initialize?: () => Promise<void> }).initialize?.() || Promise.resolve(),
       refreshSystemHealth()
     ]);
   } catch (error) {

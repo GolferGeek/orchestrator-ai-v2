@@ -33,7 +33,7 @@
               {{ formatPercent(comparisonData.comparison.confidenceRange.max) }}
             </span>
           </div>
-          <div v-if="comparisonData.comparison.outcomeComparison.resolvedCount > 0" class="stat">
+          <div v-if="comparisonData.comparison.outcomeComparison.resolvedCount > 0 && comparisonData.comparison.outcomeComparison.accuracyPct !== null" class="stat">
             <span class="stat-label">Accuracy</span>
             <span class="stat-value">
               {{ formatPercent(comparisonData.comparison.outcomeComparison.accuracyPct / 100) }}
@@ -52,7 +52,7 @@
             class="direction-bar"
             :class="direction"
           >
-            <span class="direction-label">{{ direction.toUpperCase() }}</span>
+            <span class="direction-label">{{ String(direction).toUpperCase() }}</span>
             <div class="bar-fill" :style="{ width: `${(count / comparisonData.comparison.totalCompared) * 100}%` }"></div>
             <span class="direction-count">{{ count }}</span>
           </div>

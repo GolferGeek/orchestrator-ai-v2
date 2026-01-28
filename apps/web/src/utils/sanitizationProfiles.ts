@@ -267,49 +267,56 @@ export const SanitizationHelpers = {
    * Generic sanitize string with profile options
    */
   sanitizeString(value: string, options: SanitizationOptions = {}): string {
-    return sanitizeWithProfile(value, options).sanitized;
+    const result = sanitizeWithProfile(value, options).sanitized;
+    return typeof result === 'string' ? result : '';
   },
 
   /**
    * Sanitize user input for API calls
    */
   forApiInput(value: string): string {
-    return sanitizeWithProfile(value, { profile: 'apiInput' }).sanitized;
+    const result = sanitizeWithProfile(value, { profile: 'apiInput' }).sanitized;
+    return typeof result === 'string' ? result : '';
   },
 
   /**
    * Sanitize search queries
    */
   forSearch(value: string): string {
-    return sanitizeWithProfile(value, { profile: 'search' }).sanitized;
+    const result = sanitizeWithProfile(value, { profile: 'search' }).sanitized;
+    return typeof result === 'string' ? result : '';
   },
 
   /**
    * Sanitize email content
    */
   forEmail(value: string): string {
-    return sanitizeWithProfile(value, { profile: 'email' }).sanitized;
+    const result = sanitizeWithProfile(value, { profile: 'email' }).sanitized;
+    return typeof result === 'string' ? result : '';
   },
 
   /**
    * Sanitize rich text content
    */
   forRichText(value: string): string {
-    return sanitizeWithProfile(value, { profile: 'richText' }).sanitized;
+    const result = sanitizeWithProfile(value, { profile: 'richText' }).sanitized;
+    return typeof result === 'string' ? result : '';
   },
 
   /**
    * Strict sanitization - plain text only
    */
   strict(value: string): string {
-    return sanitizeWithProfile(value, { profile: 'strict' }).sanitized;
+    const result = sanitizeWithProfile(value, { profile: 'strict' }).sanitized;
+    return typeof result === 'string' ? result : '';
   },
 
   /**
    * Moderate sanitization - basic formatting
    */
   moderate(value: string): string {
-    return sanitizeWithProfile(value, { profile: 'moderate' }).sanitized;
+    const result = sanitizeWithProfile(value, { profile: 'moderate' }).sanitized;
+    return typeof result === 'string' ? result : '';
   },
 
   /**
@@ -389,8 +396,9 @@ export function testSanitization(input: string): Record<string, { output: string
   
   for (const [profileName, _profile] of Object.entries(SANITIZATION_PROFILES)) {
     const result = sanitizeWithProfile(input, { profile: profileName });
+    const sanitizedValue = result.sanitized;
     results[profileName] = {
-      output: result.sanitized,
+      output: typeof sanitizedValue === 'string' ? sanitizedValue : '',
       modified: result.wasModified
     };
   }

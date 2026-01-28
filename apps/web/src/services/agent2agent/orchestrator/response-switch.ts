@@ -129,7 +129,7 @@ export async function handleA2AResponse(response: TaskResponse): Promise<A2AResu
   if (!response.success) {
     // TaskResponseDto.failure() stores error in payload.metadata.reason
     // Also check response.error?.message for other error formats
-    const payload = response.payload as Record<string, unknown> | undefined;
+    const payload = response.payload as unknown as Record<string, unknown> | undefined;
     const metadata = payload?.metadata as Record<string, unknown> | undefined;
     const errorMessage =
       (metadata?.reason as string) ||
@@ -194,7 +194,7 @@ export async function handleA2AResponse(response: TaskResponse): Promise<A2AResu
         const deliverableId = hitlContent.deliverableId;
 
         // Fetch the full deliverable from API
-        const deliverable = await deliverablesService.getDeliverable(deliverableId);
+        const deliverable = await deliverablesService.getDeliverable(deliverableId!);
 
         // Add to store
         deliverablesStore.addDeliverable(deliverable);
@@ -211,26 +211,45 @@ export async function handleA2AResponse(response: TaskResponse): Promise<A2AResu
           content: hitlMessage || 'Content finalized!',
           timestamp: new Date().toISOString(),
           metadata: {
-            hitlCompleted: true,
             deliverableId,
+            custom: {
+              hitlCompleted: true,
+            },
           },
         });
 
+        // Convert service Deliverable to transport DeliverableData
+        const transportDeliverable: DeliverableData = {
+          id: deliverable.id,
+          userId: ctx.userId,
+          agentName: ctx.agentSlug || '',
+          organization: ctx.orgSlug || '',
+          conversationId: ctx.conversationId,
+          title: deliverable.title || '',
+          type: deliverable.type || 'document',
+          currentVersionId: deliverable.currentVersion?.id || '',
+          createdAt: deliverable.createdAt,
+          updatedAt: deliverable.updatedAt,
+        };
+
+        // Convert service DeliverableVersion to transport DeliverableVersionData
+        const transportVersion: DeliverableVersionData | undefined = deliverable.currentVersion ? {
+          id: deliverable.currentVersion.id,
+          deliverableId: deliverable.currentVersion.deliverableId,
+          versionNumber: deliverable.currentVersion.versionNumber,
+          content: deliverable.currentVersion.content || '',
+          format: (deliverable.currentVersion.format as 'markdown' | 'json' | 'html') || 'markdown',
+          createdByType: 'agent',
+          createdById: null,
+          metadata: deliverable.currentVersion.metadata,
+          isCurrentVersion: deliverable.currentVersion.isCurrentVersion,
+          createdAt: deliverable.currentVersion.createdAt,
+        } : undefined;
+
         return {
           type: 'deliverable',
-          deliverable: {
-            id: deliverable.id,
-            userId: ctx.userId,
-            agentName: ctx.agentSlug,
-            organization: ctx.orgSlug,
-            conversationId: ctx.conversationId,
-            title: deliverable.title || '',
-            type: deliverable.type || 'document',
-            currentVersionId: deliverable.currentVersion?.id,
-            createdAt: deliverable.createdAt,
-            updatedAt: deliverable.updatedAt,
-          },
-          version: deliverable.currentVersion,
+          deliverable: transportDeliverable,
+          version: transportVersion,
           context: responseWithContext.context || ctx,
         };
       }
@@ -259,7 +278,6 @@ export async function handleA2AResponse(response: TaskResponse): Promise<A2AResu
             createdByType: mapCreatedByType(version.createdByType),
             isCurrentVersion: version.isCurrentVersion ?? true,
             metadata: version.metadata,
-            fileAttachments: version.fileAttachments,
             createdAt: version.createdAt || new Date().toISOString(),
             updatedAt: version.createdAt || new Date().toISOString(),
           } : undefined,
@@ -282,7 +300,6 @@ export async function handleA2AResponse(response: TaskResponse): Promise<A2AResu
           createdByType: mapCreatedByType(version.createdByType),
           isCurrentVersion: version.isCurrentVersion ?? true,
           metadata: version.metadata,
-          fileAttachments: version.fileAttachments,
           createdAt: version.createdAt || new Date().toISOString(),
           updatedAt: version.createdAt || new Date().toISOString(),
         };
@@ -397,26 +414,45 @@ export async function handleA2AResponse(response: TaskResponse): Promise<A2AResu
             content: hitlContent?.message || 'Content finalized!',
             timestamp: new Date().toISOString(),
             metadata: {
-              hitlCompleted: true,
               deliverableId,
+              custom: {
+                hitlCompleted: true,
+              },
             },
           });
 
+          // Convert service Deliverable to transport DeliverableData
+          const transportDeliverable: DeliverableData = {
+            id: deliverable.id,
+            userId: ctx.userId,
+            agentName: ctx.agentSlug || '',
+            organization: ctx.orgSlug || '',
+            conversationId: ctx.conversationId,
+            title: deliverable.title || hitlContent?.topic || '',
+            type: deliverable.type || 'document',
+            currentVersionId: deliverable.currentVersion?.id || '',
+            createdAt: deliverable.createdAt,
+            updatedAt: deliverable.updatedAt,
+          };
+
+          // Convert service DeliverableVersion to transport DeliverableVersionData
+          const transportVersion: DeliverableVersionData | undefined = deliverable.currentVersion ? {
+            id: deliverable.currentVersion.id,
+            deliverableId: deliverable.currentVersion.deliverableId,
+            versionNumber: deliverable.currentVersion.versionNumber,
+            content: deliverable.currentVersion.content || '',
+            format: (deliverable.currentVersion.format as 'markdown' | 'json' | 'html') || 'markdown',
+            createdByType: 'agent',
+            createdById: null,
+            metadata: deliverable.currentVersion.metadata,
+            isCurrentVersion: deliverable.currentVersion.isCurrentVersion,
+            createdAt: deliverable.currentVersion.createdAt,
+          } : undefined;
+
           return {
             type: 'deliverable',
-            deliverable: {
-              id: deliverable.id,
-              userId: ctx.userId,
-              agentName: ctx.agentSlug,
-              organization: ctx.orgSlug,
-              conversationId: ctx.conversationId,
-              title: deliverable.title || hitlContent?.topic || '',
-              type: deliverable.type || 'document',
-              currentVersionId: deliverable.currentVersion?.id,
-              createdAt: deliverable.createdAt,
-              updatedAt: deliverable.updatedAt,
-            },
-            version: deliverable.currentVersion,
+            deliverable: transportDeliverable,
+            version: transportVersion,
             context: responseWithContext.context || ctx,
           };
         }

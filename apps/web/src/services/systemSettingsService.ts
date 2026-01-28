@@ -9,12 +9,12 @@ export interface GlobalModelConfig {
 }
 
 export async function fetchGlobalModelConfig() {
-  const { data } = await apiService.axiosInstance.get('/system/model-config/global');
+  const data = await apiService.get('/system/model-config/global');
   return data;
 }
 
 export async function updateGlobalModelConfig(config: GlobalModelConfig) {
-  const { data } = await apiService.axiosInstance.put('/system/model-config/global', { config });
+  const data = await apiService.put('/system/model-config/global', { config });
   return data;
 }
 

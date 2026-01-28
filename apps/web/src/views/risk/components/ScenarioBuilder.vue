@@ -336,7 +336,7 @@ async function loadDimensions() {
 async function loadSavedScenarios() {
   isLoadingSaved.value = true;
   try {
-    const response = await riskDashboardService.listScenarios(props.scopeId);
+    const response = await riskDashboardService.listScenarios({ scopeId: props.scopeId });
     if (response.success && Array.isArray(response.content)) {
       savedScenarios.value = response.content;
     }
@@ -397,11 +397,11 @@ async function onRunScenario() {
       .filter(([_, v]) => v !== 0)
       .map(([slug, adjustment]) => ({ dimensionSlug: slug, adjustment }));
 
-    const response = await riskDashboardService.runScenario(
-      props.scopeId,
-      adjustmentsList,
-      scenarioName.value || 'Untitled Scenario'
-    );
+    const response = await riskDashboardService.runScenario({
+      scopeId: props.scopeId,
+      name: scenarioName.value || 'Untitled Scenario',
+      adjustments: adjustmentsList
+    });
 
     if (response.success && response.content) {
       result.value = response.content;
@@ -421,14 +421,14 @@ async function onSaveScenario() {
 
   isSaving.value = true;
   try {
-    const response = await riskDashboardService.saveScenario(
-      props.scopeId,
-      scenarioName.value,
-      Object.entries(adjustments.value)
+    const response = await riskDashboardService.saveScenario({
+      scopeId: props.scopeId,
+      name: scenarioName.value,
+      adjustments: Object.entries(adjustments.value)
         .filter(([_, v]) => v !== 0)
         .map(([slug, adjustment]) => ({ dimensionSlug: slug, adjustment })),
-      result.value || undefined
-    );
+      results: result.value || undefined
+    });
 
     if (response.success && response.content) {
       savedScenarios.value = [response.content, ...savedScenarios.value];

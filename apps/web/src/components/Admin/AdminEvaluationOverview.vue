@@ -31,8 +31,8 @@
           <ion-col size="12" size-md="6" size-lg="3">
             <ion-card class="metric-card">
               <ion-card-content class="ion-text-center">
-                <h2>{{ Math.round(analytics.averageWorkflowCompletionRate) }}%</h2>
-                <p>Workflow Success</p>
+                <h2>{{ analytics.modelPerformanceComparison?.length ?? 0 }}</h2>
+                <p>Models Tracked</p>
                 <ion-icon :icon="checkmarkCircleOutline" color="success" size="large"></ion-icon>
               </ion-card-content>
             </ion-card>
@@ -40,7 +40,7 @@
           <ion-col size="12" size-md="6" size-lg="3">
             <ion-card class="metric-card">
               <ion-card-content class="ion-text-center">
-                <h2>${{ analytics.averageCost.toFixed(4) }}</h2>
+                <h2>${{ analytics.costAnalysis?.averageCostPerRequest?.toFixed(4) ?? '0.0000' }}</h2>
                 <p>Avg Cost</p>
                 <ion-icon :icon="cardOutline" color="medium" size="large"></ion-icon>
               </ion-card-content>
@@ -72,64 +72,64 @@
           </div>
         </ion-card-content>
       </ion-card>
-      <!-- Top Performing Agents -->
+      <!-- Top Performing Models -->
       <ion-card>
         <ion-card-header>
-          <ion-card-title>Top Performing Agents</ion-card-title>
+          <ion-card-title>Top Performing Models</ion-card-title>
         </ion-card-header>
         <ion-card-content>
           <ion-list>
-            <ion-item 
-              v-for="agent in analytics.topPerformingAgents.slice(0, 5)"
-              :key="agent.agentName"
+            <ion-item
+              v-for="model in analytics.modelPerformanceComparison?.slice(0, 5) ?? []"
+              :key="model.modelName"
             >
               <ion-label>
-                <h3>{{ agent.agentName }}</h3>
-                <p>{{ agent.evaluationCount }} evaluations</p>
+                <h3>{{ model.modelName }}</h3>
+                <p>{{ model.usageCount }} evaluations</p>
               </ion-label>
-              <ion-chip slot="end" :color="getRatingColor(agent.averageRating)">
-                {{ agent.averageRating.toFixed(1) }} ⭐
+              <ion-chip slot="end" :color="getRatingColor(model.averageRating)">
+                {{ model.averageRating.toFixed(1) }} ⭐
               </ion-chip>
             </ion-item>
           </ion-list>
         </ion-card-content>
       </ion-card>
-      <!-- Most Effective Constraints -->
+      <!-- Cost Analysis by Provider -->
       <ion-card>
         <ion-card-header>
-          <ion-card-title>Most Effective Constraints</ion-card-title>
+          <ion-card-title>Cost by Provider</ion-card-title>
         </ion-card-header>
         <ion-card-content>
           <ion-list>
-            <ion-item 
-              v-for="constraint in analytics.topConstraints.slice(0, 5)"
-              :key="constraint.constraintName"
+            <ion-item
+              v-for="(cost, provider) in analytics.costAnalysis?.costByProvider ?? {}"
+              :key="provider"
             >
               <ion-label>
-                <h3>{{ constraint.constraintName }}</h3>
-                <p>Used {{ constraint.usageCount }} times</p>
+                <h3>{{ provider }}</h3>
+                <p>Total cost</p>
               </ion-label>
               <ion-chip slot="end" color="success">
-                {{ constraint.effectivenessScore.toFixed(1) }}
+                ${{ cost.toFixed(4) }}
               </ion-chip>
             </ion-item>
           </ion-list>
         </ion-card-content>
       </ion-card>
       <!-- Workflow Failure Points -->
-      <ion-card v-if="analytics.workflowFailurePoints.length > 0">
+      <ion-card v-if="analytics.workflowFailurePoints && analytics.workflowFailurePoints.length > 0">
         <ion-card-header>
           <ion-card-title>Common Workflow Issues</ion-card-title>
         </ion-card-header>
         <ion-card-content>
           <ion-list>
-            <ion-item 
+            <ion-item
               v-for="failure in analytics.workflowFailurePoints.slice(0, 5)"
               :key="failure.stepName"
             >
               <ion-label>
                 <h3>{{ failure.stepName }}</h3>
-                <p>Avg duration: {{ Math.round(failure.averageDuration) }}ms</p>
+                <p>Avg recovery: {{ Math.round(failure.averageRecoveryTime) }}ms</p>
               </ion-label>
               <ion-chip slot="end" color="danger">
                 {{ failure.failureRate.toFixed(1) }}% fail
@@ -150,21 +150,21 @@
                 <ion-item lines="none">
                   <ion-label>
                     <h3>Speed Rating</h3>
-                    <p>{{ analytics.averageSpeedRating.toFixed(1) }}/5</p>
+                    <p>{{ analytics.userSatisfactionMetrics?.averageSpeedRating?.toFixed(1) ?? 'N/A' }}/5</p>
                   </ion-label>
                   <ion-icon :icon="timerOutline" slot="end" color="primary"></ion-icon>
                 </ion-item>
                 <ion-item lines="none">
                   <ion-label>
                     <h3>Accuracy Rating</h3>
-                    <p>{{ analytics.averageAccuracyRating.toFixed(1) }}/5</p>
+                    <p>{{ analytics.userSatisfactionMetrics?.averageAccuracyRating?.toFixed(1) ?? 'N/A' }}/5</p>
                   </ion-label>
                   <ion-icon :icon="radioButtonOnOutline" slot="end" color="success"></ion-icon>
                 </ion-item>
                 <ion-item lines="none">
                   <ion-label>
                     <h3>Avg Response Time</h3>
-                    <p>{{ Math.round(analytics.averageResponseTime) }}ms</p>
+                    <p>{{ analytics.responseTimeAnalysis?.averageResponseTime ? Math.round(analytics.responseTimeAnalysis.averageResponseTime) : 'N/A' }}ms</p>
                   </ion-label>
                   <ion-icon :icon="timeOutline" slot="end" color="warning"></ion-icon>
                 </ion-item>

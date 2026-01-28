@@ -282,7 +282,9 @@ function isRequiredSection(key: string): boolean {
 async function loadReportHistory() {
   isLoadingHistory.value = true;
   try {
-    const response = await riskDashboardService.listReports(props.scopeId);
+    const response = await riskDashboardService.listReports({
+      scopeId: props.scopeId,
+    });
     if (response.success && Array.isArray(response.content)) {
       reports.value = response.content;
     }
@@ -312,15 +314,15 @@ async function onGenerateReport() {
 
     // Ensure required sections are enabled
     requiredSections.value.forEach(key => {
-      (reportConfig as Record<string, boolean>)[key] = true;
+      (reportConfig as unknown as Record<string, boolean>)[key] = true;
     });
 
-    const response = await riskDashboardService.generateReport(
-      props.scopeId,
-      reportTitle.value,
-      selectedType.value,
-      reportConfig
-    );
+    const response = await riskDashboardService.generateReport({
+      scopeId: props.scopeId,
+      title: reportTitle.value,
+      reportType: selectedType.value,
+      config: reportConfig,
+    });
 
     if (response.success && response.content) {
       activeReport.value = response.content;
@@ -488,7 +490,7 @@ watch(selectedType, (type) => {
   } else {
     // Comprehensive - enable all
     Object.keys(config).forEach(key => {
-      (config as Record<string, boolean>)[key] = true;
+      (config as unknown as Record<string, boolean>)[key] = true;
     });
   }
 });

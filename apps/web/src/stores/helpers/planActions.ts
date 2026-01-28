@@ -79,20 +79,21 @@ export async function createPlanVersion(
 
 
     // Handle JSON-RPC response format
-    if (jsonRpcResponse.error) {
+    if ('error' in jsonRpcResponse && jsonRpcResponse.error) {
       console.error('❌ [Plan Create Version Action] Failed:', jsonRpcResponse.error);
       throw new Error(jsonRpcResponse.error?.message || 'Failed to create version');
     }
 
-    const response = jsonRpcResponse.result || jsonRpcResponse;
+    const response = 'result' in jsonRpcResponse ? jsonRpcResponse.result : jsonRpcResponse;
 
-    if (!response.success) {
+    if (!('success' in response) || !response.success) {
       console.error('❌ [Plan Create Version Action] Failed:', response);
       throw new Error('Failed to create version');
     }
 
     // Extract the new version from response
-    const newVersion = response.data?.version || response.payload?.version;
+    const newVersion = ('data' in response && (response as { data?: { version?: PlanVersionData } }).data?.version) ||
+                      ('payload' in response && (response as { payload?: { version?: PlanVersionData } }).payload?.version);
 
     if (!newVersion) {
       throw new Error('No version returned from API');
@@ -126,23 +127,24 @@ export async function loadPlanVersions(
     store.clearError();
 
     // Use A2A API to list versions
-    const api = createAgent2AgentApi(agentName);
+    const api = createAgent2AgentApi(agentSlug);
     const jsonRpcResponse = await api.plans.list(planId) as JsonRpcSuccessResponse<{ versions?: PlanVersionData[] }> | JsonRpcErrorResponse;
 
     // Handle JSON-RPC response format
-    if (jsonRpcResponse.error) {
+    if ('error' in jsonRpcResponse && jsonRpcResponse.error) {
       console.error('❌ [Plan Load Versions] Failed:', jsonRpcResponse.error);
       throw new Error(jsonRpcResponse.error?.message || 'Failed to load versions');
     }
 
-    const response = jsonRpcResponse.result || jsonRpcResponse;
+    const response = 'result' in jsonRpcResponse ? jsonRpcResponse.result : jsonRpcResponse;
 
-    if (!response.success) {
+    if (!('success' in response) || !response.success) {
       console.error('❌ [Plan Load Versions] Failed:', response);
       throw new Error('Failed to load versions');
     }
 
-    const versions = response.data?.versions || response.payload?.versions || [];
+    const versions = (('data' in response && (response as { data?: { versions?: PlanVersionData[] } }).data?.versions) ||
+                     ('payload' in response && (response as { payload?: { versions?: PlanVersionData[] } }).payload?.versions)) || [];
 
     // Update store via mutations
     versions.forEach((version: PlanVersionData) => {

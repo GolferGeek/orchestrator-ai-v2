@@ -139,6 +139,10 @@ const createMockStore = () => ({
   initialize: vi.fn(),
   startAutoRefresh: vi.fn(),
   stopAutoRefresh: vi.fn(),
+  setDashboardLoading: vi.fn(),
+  setDashboardError: vi.fn(),
+  dashboardLoading: false,
+  dashboardError: null,
 
   // Utility methods - return actual implementations
   formatNumber: (num: number) => (num ?? 0).toLocaleString(),

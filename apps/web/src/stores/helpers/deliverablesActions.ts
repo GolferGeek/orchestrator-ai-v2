@@ -17,16 +17,52 @@
  * ```
  */
 
-import { deliverablesService } from '@/services/deliverablesService';
+import { deliverablesService, DeliverableFormat, DeliverableVersionCreationType } from '@/services/deliverablesService';
 import { useDeliverablesStore } from '@/stores/deliverablesStore';
 import type { Deliverable, DeliverableVersion } from '@/services/deliverablesService';
-import type { JsonRpcSuccessResponse, JsonRpcErrorResponse } from '@orchestrator-ai/transport-types';
+import type { JsonRpcSuccessResponse as _JsonRpcSuccessResponse, JsonRpcErrorResponse as _JsonRpcErrorResponse } from '@orchestrator-ai/transport-types';
+import type { EditDeliverableResponse } from '@/services/agent2agent/types/deliverable.types';
+import type { DeliverableVersion as A2ADeliverableVersion } from '@/services/agent2agent/types/index';
+import type { JsonObject } from '@/types';
 
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
 const normalizeError = (error: unknown): Error =>
   (error instanceof Error ? error : new Error(String(error)));
+
+/**
+ * Transform A2A DeliverableVersion (snake_case) to service DeliverableVersion (camelCase)
+ */
+const transformA2AVersion = (a2aVersion: A2ADeliverableVersion): DeliverableVersion => {
+  // Map format string to enum
+  const formatMap: Record<string, DeliverableFormat> = {
+    'markdown': DeliverableFormat.MARKDOWN,
+    'json': DeliverableFormat.JSON,
+    'text': DeliverableFormat.TEXT,
+    'html': DeliverableFormat.HTML,
+  };
+
+  // Map created_by_type string to enum
+  const createdByTypeMap: Record<string, DeliverableVersionCreationType> = {
+    'agent': DeliverableVersionCreationType.AI_RESPONSE,
+    'user': DeliverableVersionCreationType.MANUAL_EDIT,
+  };
+
+  return {
+    id: a2aVersion.id,
+    deliverableId: a2aVersion.deliverable_id,
+    versionNumber: a2aVersion.version_number,
+    content: a2aVersion.content,
+    format: formatMap[a2aVersion.format] || DeliverableFormat.TEXT,
+    isCurrentVersion: a2aVersion.is_current_version,
+    createdByType: createdByTypeMap[a2aVersion.created_by_type] || DeliverableVersionCreationType.MANUAL_EDIT,
+    taskId: a2aVersion.task_id,
+    metadata: a2aVersion.metadata as JsonObject | undefined,
+    createdAt: a2aVersion.created_at,
+    updatedAt: a2aVersion.created_at, // A2A version doesn't have updatedAt, use createdAt
+  };
+};
 
 /**
  * Load all deliverables for the current user
@@ -167,7 +203,7 @@ export async function createDeliverableVersion(
     store.clearError();
 
     // Get the deliverable to find its conversationId
-    const deliverable = store.deliverables.get(deliverableId);
+    const deliverable = store.getDeliverableById(deliverableId);
     if (!deliverable) {
       throw new Error(`Deliverable ${deliverableId} not found in store`);
     }
@@ -186,16 +222,22 @@ export async function createDeliverableVersion(
     // Use A2A API 'edit' action which triggers saveManualEdit on backend
     const { createAgent2AgentApi } = await import('@/services/agent2agent/api');
     const api = createAgent2AgentApi(agentSlug);
-    const jsonRpcResponse = await api.deliverables.edit(deliverable.conversationId, content, versionMetadata) as JsonRpcSuccessResponse<{ success: boolean; version?: DeliverableVersion }> | JsonRpcErrorResponse;
+    const jsonRpcResponse = await api.deliverables.edit(deliverable.conversationId, content, versionMetadata);
 
+    // Handle JSON-RPC response format - check if it's a JSON-RPC wrapper or direct response
+    let response: EditDeliverableResponse;
 
-    // Handle JSON-RPC response format
-    if (jsonRpcResponse.error) {
+    if ('error' in jsonRpcResponse) {
+      // It's a JsonRpcErrorResponse
       console.error('❌ [Deliverable Create Version] Failed:', jsonRpcResponse.error);
       throw new Error(jsonRpcResponse.error?.message || 'Failed to create version');
+    } else if ('result' in jsonRpcResponse) {
+      // It's a JsonRpcSuccessResponse
+      response = jsonRpcResponse.result as EditDeliverableResponse;
+    } else {
+      // It's a direct EditDeliverableResponse
+      response = jsonRpcResponse as EditDeliverableResponse;
     }
-
-    const response = jsonRpcResponse.result || jsonRpcResponse;
 
     if (!response.success) {
       console.error('❌ [Deliverable Create Version] Failed:', response);
@@ -203,11 +245,14 @@ export async function createDeliverableVersion(
     }
 
     // Extract the new version from response
-    const newVersion = response.data?.version || response.payload?.version;
+    const a2aVersion = response.data.version;
 
-    if (!newVersion) {
+    if (!a2aVersion) {
       throw new Error('No version returned from API');
     }
+
+    // Transform A2A version to service version format
+    const newVersion = transformA2AVersion(a2aVersion);
 
     // Update store via mutation
     store.addVersion(deliverableId, newVersion);
@@ -324,7 +369,10 @@ export async function createEditingConversation(
       store.addDeliverable(deliverable);
     }
 
-    return result;
+    return {
+      conversationId: result.conversationId,
+      deliverableId
+    };
   } catch (error) {
     console.error('Failed to create editing conversation:', error);
     store.setError(getErrorMessage(error));

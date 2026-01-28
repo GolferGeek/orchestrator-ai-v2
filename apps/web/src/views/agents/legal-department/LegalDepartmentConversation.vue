@@ -82,6 +82,7 @@
               <ion-icon :icon="chatbubbleOutline" />
               <span>Legal Department AI Response</span>
             </div>
+            <!-- eslint-disable-next-line vue/no-v-html -- Intentional: Rendering sanitized markdown/HTML content from trusted source -->
             <div class="response-content markdown-content" v-html="marked(analysisResults.summary || '')">
             </div>
             <div class="response-hint">
@@ -210,7 +211,7 @@ const isLoading = ref(false);
 const isProcessing = ref(false);
 const error = ref<string | null>(null);
 const currentRequest = ref<ConversationRequest | null>(null);
-const routingDecision = ref<RoutingDecision | null>(null);
+const routingDecision = ref<RoutingDecision | undefined>(undefined);
 const specialistStates = ref<Record<SpecialistType, SpecialistState>>({} as Record<SpecialistType, SpecialistState>);
 const analysisPhase = ref<AnalysisPhase>('initializing');
 const analysisProgress = ref({ current: 0, total: 100, percentage: 0 });
@@ -227,13 +228,15 @@ const hasSpecialistOutputs = computed(() => {
 });
 
 const isTextOnlyResponse = computed(() => {
-  const result = analysisResults.value as (AnalysisResults & { isTextOnlyResponse?: boolean }) | null;
-  return result?.isTextOnlyResponse === true || (
-    analysisResults.value &&
-    !hasSpecialistOutputs.value &&
-    !routingDecision.value &&
-    analysisResults.value.findings.length === 0
-  );
+  const result = analysisResults.value;
+  if (!result) return false;
+
+  // Check if explicitly marked as text-only
+  const resultWithFlag = result as AnalysisResults & { isTextOnlyResponse?: boolean };
+  if (resultWithFlag.isTextOnlyResponse === true) return true;
+
+  // Infer text-only if no specialist outputs, no routing, and no findings
+  return !hasSpecialistOutputs.value && !routingDecision.value && result.findings.length === 0;
 });
 
 const inputPlaceholder = computed(() => {
@@ -294,7 +297,7 @@ function resetState() {
   isProcessing.value = false;
   error.value = null;
   currentRequest.value = null;
-  routingDecision.value = null;
+  routingDecision.value = undefined;
   specialistStates.value = {} as Record<SpecialistType, SpecialistState>;
   analysisPhase.value = 'initializing';
   analysisProgress.value = { current: 0, total: 100, percentage: 0 };
@@ -521,15 +524,8 @@ async function processDocumentAnalysis(
 
     // Extract routing decision
     if (result.analysisResults) {
-      // Update routing from result
-      const routingData = (result as { routingDecision?: RoutingDecision }).routingDecision;
-      if (routingData) {
-        routingDecision.value = routingData;
-        updateSpecialistStates(routingData);
-      } else {
-        // Infer routing from specialist outputs
-        inferRoutingFromResults(result.analysisResults);
-      }
+      // Infer routing from specialist outputs (uploadAndAnalyze doesn't return routingDecision directly)
+      inferRoutingFromResults(result.analysisResults);
 
       // Final completion update
       analysisPhase.value = 'completed';
@@ -580,13 +576,17 @@ function handleProgressEvent(event: ProgressEvent) {
 
   // Handle metadata for specialist state updates
   if (event.metadata) {
-    const specialist = event.metadata.specialist as string | undefined;
-    const status = event.metadata.status as string | undefined;
-    if (specialist && status && specialistStates.value[specialist as SpecialistType]) {
-      specialistStates.value[specialist as SpecialistType] = {
-        ...specialistStates.value[specialist as SpecialistType],
-        status: status as SpecialistStatus,
-      };
+    const specialist = event.metadata.specialist;
+    const status = event.metadata.status;
+    if (typeof specialist === 'string' && typeof status === 'string') {
+      const specialistType = specialist as SpecialistType;
+      if (specialistStates.value[specialistType]) {
+        const specialistStatus = status as SpecialistStatus;
+        specialistStates.value[specialistType] = {
+          ...specialistStates.value[specialistType],
+          status: specialistStatus,
+        };
+      }
     }
   }
 }
@@ -685,13 +685,22 @@ async function processTextQuery(message: string) {
     console.log('[LegalDepartment] Text query response:', result);
 
     // Extract routing decision if available
-    if (result.routingDecision) {
+    const resultWithRouting = result as AnalysisTaskResponse & {
+      analysisResults?: AnalysisResults;
+      routingDecision?: {
+        specialist?: string;
+        multiAgent?: boolean;
+        reasoning?: string;
+      };
+    };
+    if (resultWithRouting.routingDecision) {
+      const routingData = resultWithRouting.routingDecision;
       routingDecision.value = {
-        specialist: (result.routingDecision.specialist as SpecialistType) || 'unknown',
+        specialist: (routingData.specialist || 'unknown') as SpecialistType,
         confidence: 0.85,
-        reasoning: result.routingDecision.reasoning || 'Routed based on query content.',
+        reasoning: routingData.reasoning || 'Routed based on query content.',
         categories: ['text-query'],
-        multiAgent: result.routingDecision.multiAgent,
+        multiAgent: routingData.multiAgent,
       };
       updateSpecialistStates(routingDecision.value);
     }
@@ -709,7 +718,7 @@ async function processTextQuery(message: string) {
       // create a minimal result object with the conversational response
       const responseText = extractResponseText(result);
       if (responseText) {
-        analysisResults.value = {
+        const textOnlyResult: AnalysisResults & { isTextOnlyResponse?: boolean } = {
           taskId: result.taskId,
           documentId: result.taskId,
           documentName: 'Text Query',
@@ -724,7 +733,8 @@ async function processTextQuery(message: string) {
           },
           // Mark as text-only response (no specialist analysis)
           isTextOnlyResponse: true,
-        } as AnalysisResults & { isTextOnlyResponse?: boolean };
+        };
+        analysisResults.value = textOnlyResult;
       }
     }
 
@@ -741,7 +751,7 @@ async function processTextQuery(message: string) {
   } catch (err) {
     console.error('[LegalDepartment] Text query failed:', err);
     error.value = err instanceof Error ? err.message : 'Failed to process your question. Please try again.';
-    analysisPhase.value = 'idle';
+    analysisPhase.value = 'failed' as AnalysisPhase;
     currentRequest.value = null;
   } finally {
     // Disconnect SSE stream when query completes or fails
@@ -761,10 +771,16 @@ function extractResponseText(result: AnalysisTaskResponse & { analysisResults?: 
   if (result.analysisResults?.summary) {
     return result.analysisResults.summary;
   }
-  // The response might be in the raw result data
-  const anyResult = result as Record<string, unknown>;
-  if (anyResult.result && typeof (anyResult.result as Record<string, unknown>).response === 'string') {
-    return (anyResult.result as Record<string, unknown>).response as string;
+  // The response might be in the raw result data - use unknown conversion first
+  const anyResult = result as unknown;
+  if (anyResult && typeof anyResult === 'object' && anyResult !== null) {
+    const resultRecord = anyResult as Record<string, unknown>;
+    if (resultRecord.result && typeof resultRecord.result === 'object' && resultRecord.result !== null) {
+      const resultObj = resultRecord.result as Record<string, unknown>;
+      if (typeof resultObj.response === 'string') {
+        return resultObj.response;
+      }
+    }
   }
   return '';
 }
@@ -849,7 +865,7 @@ async function handleHITLAction(action: HITLAction, comment?: string) {
 
   // Record the decision to the backend
   try {
-    const taskId = analysisResults.value?.taskId || currentRequest.value?.taskId || 'unknown';
+    const taskId = analysisResults.value?.taskId || 'unknown';
     const result = await legalDepartmentService.recordHITLDecision(taskId, action, comment);
     console.log('[LegalDepartment] HITL decision recorded:', result);
 
@@ -1311,7 +1327,7 @@ function formatClauseLabel(key: string): string {
 function handleRetry() {
   error.value = null;
   currentRequest.value = null;
-  routingDecision.value = null;
+  routingDecision.value = undefined;
   analysisResults.value = null;
 }
 

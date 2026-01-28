@@ -106,10 +106,11 @@ export class ApiClient extends BaseApiClient {
       let respondingAgentName = 'Orchestrator Agent'; // default
       if (result.metadata) {
         // Try different fields where agent name might be
-        respondingAgentName = result.metadata.delegatedTo ||
-                            result.metadata.originalAgent?.agentName ||
-                            result.metadata.agentName ||
-                            result.metadata.respondingAgentName ||
+        const originalAgent = result.metadata.originalAgent as JsonObject | undefined;
+        respondingAgentName = (result.metadata.delegatedTo as string) ||
+                            (originalAgent?.agentName as string) ||
+                            (result.metadata.agentName as string) ||
+                            (result.metadata.respondingAgentName as string) ||
                             'Orchestrator Agent';
       }
       return {

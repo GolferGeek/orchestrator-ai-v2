@@ -73,7 +73,7 @@ let hideTimeout: NodeJS.Timeout | null = null;
 
 // Computed properties
 const icon = computed(() => {
-  if (sovereignPolicyStore.policy?.enforced) {
+  if (sovereignPolicyStore.sovereignPolicy?.enforced) {
     return '🔒';
   }
   return sovereignPolicyStore.effectiveSovereignMode ? '🛡️' : '🌐';
@@ -81,29 +81,29 @@ const icon = computed(() => {
 
 const title = computed(() => {
   if (props.customTitle) return props.customTitle;
-  
-  if (sovereignPolicyStore.policy?.enforced) {
+
+  if (sovereignPolicyStore.sovereignPolicy?.enforced) {
     return 'Sovereign Mode (Enforced)';
   }
-  
+
   if (sovereignPolicyStore.effectiveSovereignMode) {
     return 'Sovereign Mode (Active)';
   }
-  
+
   return 'Sovereign Mode (Available)';
 });
 
 const description = computed(() => {
   if (props.customDescription) return props.customDescription;
-  
-  if (sovereignPolicyStore.policy?.enforced) {
+
+  if (sovereignPolicyStore.sovereignPolicy?.enforced) {
     return 'Your organization requires all AI processing to use local models only. This ensures maximum data privacy and compliance with organizational policies.';
   }
-  
+
   if (sovereignPolicyStore.effectiveSovereignMode) {
     return 'All AI processing is currently using local models (Ollama) for enhanced privacy and data sovereignty. Your data never leaves your infrastructure.';
   }
-  
+
   return 'Sovereign mode allows you to use only local AI models, ensuring your data never leaves your infrastructure. Toggle this mode for enhanced privacy and compliance.';
 });
 
@@ -126,30 +126,30 @@ const dataFlowSteps = computed(() => {
 });
 
 const complianceText = computed(() => {
-  if (sovereignPolicyStore.policy?.enforced) {
+  if (sovereignPolicyStore.sovereignPolicy?.enforced) {
     return 'Organization policy enforces sovereign mode for regulatory compliance and data protection requirements.';
   }
-  
+
   if (sovereignPolicyStore.effectiveSovereignMode) {
     return 'Meets highest privacy standards including GDPR, HIPAA, and other data protection regulations.';
   }
-  
+
   return 'Enable sovereign mode to meet strict compliance requirements and ensure data never leaves your infrastructure.';
 });
 
 const tooltipClasses = computed(() => {
   const classes = [`sovereign-tooltip--${tooltipPosition.value}`];
-  
+
   if (sovereignPolicyStore.effectiveSovereignMode) {
     classes.push('sovereign-tooltip--active');
   } else {
     classes.push('sovereign-tooltip--inactive');
   }
-  
-  if (sovereignPolicyStore.policy?.enforced) {
+
+  if (sovereignPolicyStore.sovereignPolicy?.enforced) {
     classes.push('sovereign-tooltip--enforced');
   }
-  
+
   return classes;
 });
 

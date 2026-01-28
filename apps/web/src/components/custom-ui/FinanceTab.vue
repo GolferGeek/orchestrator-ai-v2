@@ -325,13 +325,13 @@ const timingWindowOptions = [
 
 // Progress steps
 const progressSteps = computed(() => [
-  { id: 'init', label: 'Initializing', completed: progressPct.value > 5, active: progressPct.value <= 5 },
-  { id: 'market', label: 'Ingesting Market Data', completed: progressPct.value > 25, active: progressPct.value > 5 && progressPct.value <= 25 },
-  { id: 'news', label: 'Ingesting News', completed: progressPct.value > 45, active: progressPct.value > 25 && progressPct.value <= 45 },
-  { id: 'agenda', label: 'Extracting Agenda Signals', completed: progressPct.value > 65, active: progressPct.value > 45 && progressPct.value <= 65 },
-  { id: 'features', label: 'Building Features', completed: progressPct.value > 85, active: progressPct.value > 65 && progressPct.value <= 85 },
-  { id: 'recs', label: 'Generating Recommendations', completed: progressPct.value > 95, active: progressPct.value > 85 && progressPct.value <= 95 },
-  { id: 'save', label: 'Saving Results', completed: progressPct.value >= 100, active: progressPct.value > 95 && progressPct.value < 100 },
+  { id: 'init', label: 'Initializing', completed: progressPct.value > 5, active: progressPct.value <= 5, progress: progressPct.value <= 5 ? progressPct.value : undefined },
+  { id: 'market', label: 'Ingesting Market Data', completed: progressPct.value > 25, active: progressPct.value > 5 && progressPct.value <= 25, progress: progressPct.value > 5 && progressPct.value <= 25 ? progressPct.value : undefined },
+  { id: 'news', label: 'Ingesting News', completed: progressPct.value > 45, active: progressPct.value > 25 && progressPct.value <= 45, progress: progressPct.value > 25 && progressPct.value <= 45 ? progressPct.value : undefined },
+  { id: 'agenda', label: 'Extracting Agenda Signals', completed: progressPct.value > 65, active: progressPct.value > 45 && progressPct.value <= 65, progress: progressPct.value > 45 && progressPct.value <= 65 ? progressPct.value : undefined },
+  { id: 'features', label: 'Building Features', completed: progressPct.value > 85, active: progressPct.value > 65 && progressPct.value <= 85, progress: progressPct.value > 65 && progressPct.value <= 85 ? progressPct.value : undefined },
+  { id: 'recs', label: 'Generating Recommendations', completed: progressPct.value > 95, active: progressPct.value > 85 && progressPct.value <= 95, progress: progressPct.value > 85 && progressPct.value <= 95 ? progressPct.value : undefined },
+  { id: 'save', label: 'Saving Results', completed: progressPct.value >= 100, active: progressPct.value > 95 && progressPct.value < 100, progress: progressPct.value > 95 && progressPct.value < 100 ? progressPct.value : undefined },
 ]);
 
 // Computed from store
@@ -392,7 +392,7 @@ async function handleStartRun() {
 
     const result = await financeService.triggerRun({
       universeVersionId: activeVersion.value.id,
-      timingWindows: selectedTimingWindows.value as ('pre_close' | 'post_close' | 'pre_open' | 'intraday')[],
+      timingWindows: selectedTimingWindows.value,
       lookbackDays: lookbackDays.value,
       includeAgendaAnalysis: includeAgendaAnalysis.value,
     });

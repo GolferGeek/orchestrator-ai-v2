@@ -339,12 +339,18 @@
               v-model="queryText"
               placeholder="Enter your search query..."
               auto-grow
-              rows="3"
+              :rows="3"
             />
           </ion-item>
           <ion-item>
             <ion-label position="stacked">Top K Results</ion-label>
-            <ion-input v-model.number="queryTopK" type="number" min="1" max="20" />
+            <ion-input
+              :value="queryTopK"
+              type="number"
+              :min="1"
+              :max="20"
+              @ionInput="queryTopK = Number($event.target.value)"
+            />
           </ion-item>
           <ion-item>
             <ion-label position="stacked">Strategy</ion-label>
@@ -487,7 +493,7 @@ const selectedFolderFiles = ref<File[]>([]);
 // Query Modal
 const showQueryModal = ref(false);
 const queryText = ref('');
-const queryTopK = ref(5);
+const queryTopK = ref<number | string>(5);
 const queryStrategy = ref<'basic' | 'mmr'>('basic');
 
 // Delete Alert
@@ -718,7 +724,7 @@ const executeQuery = async () => {
   try {
     const response = await ragService.queryCollection(collectionId.value, getOrgSlug(), {
       query: queryText.value,
-      topK: queryTopK.value,
+      topK: typeof queryTopK.value === 'string' ? parseInt(queryTopK.value, 10) : queryTopK.value,
       strategy: queryStrategy.value,
     });
     ragStore.setSearchResults(response.results);

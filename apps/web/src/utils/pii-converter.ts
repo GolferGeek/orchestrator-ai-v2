@@ -39,6 +39,11 @@ interface LegacyPIIMetadata {
   pseudonymResults?: {
     processedMatches?: LegacyPIIMatch[];
   };
+  showstopperDetected?: boolean;
+  policyDecision?: {
+    blocked?: boolean;
+    blockingReason?: string;
+  };
 }
 
 /**
@@ -61,7 +66,7 @@ export function convertToSimplifiedPII(legacyMetadata: LegacyPIIMetadata): Simpl
     simplified.flags = legacyMetadata.detectionResults.flaggedMatches.map((match: LegacyPIIMatch) => ({
       value: match.value,
       dataType: match.dataType,
-      severity: match.severity,
+      severity: match.severity as 'info' | 'warning' | 'showstopper',
       confidence: match.confidence,
       pattern: match.pattern
     }));
@@ -74,7 +79,7 @@ export function convertToSimplifiedPII(legacyMetadata: LegacyPIIMetadata): Simpl
       .filter((match: LegacyPIIMatch) => match.pseudonym)
       .map((match: LegacyPIIMatch) => ({
         original: match.value,
-        pseudonym: match.pseudonym,
+        pseudonym: match.pseudonym as string,
         dataType: match.dataType
       }));
     simplified.pseudonymCount = simplified.pseudonyms.length;

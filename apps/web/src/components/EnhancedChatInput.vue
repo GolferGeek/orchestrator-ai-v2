@@ -93,6 +93,7 @@ import { IonTextarea, IonButtons, IonButton, IonIcon, IonToolbar, toastControlle
 import { chevronUpOutline, checkmarkOutline } from 'ionicons/icons';
 import { useUiStore } from '../stores/uiStore';
 import { useLLMPreferencesStore } from '../stores/llmPreferencesStore';
+import { useChatUiStore } from '../stores/ui/chatUiStore';
 import LLMSelector from './LLMSelector.vue';
 import CIDAFMControls from './CIDAFMControls.vue';
 import ConversationalSpeechButton from './ConversationalSpeechButton.vue';
@@ -109,6 +110,7 @@ const activeTab = ref<'model' | 'behavior'>('model');
 const showCostEstimate = ref(true);
 const uiStore = useUiStore();
 const llmStore = useLLMPreferencesStore();
+const chatUiStore = useChatUiStore();
 const validation = useValidation();
 
 // Get current conversation ID from props or store
@@ -126,7 +128,7 @@ const currentConversation = computed(() => {
 onMounted(() => {
   validation.addRule('message', ValidationRules.required('Message cannot be empty'));
   validation.addRule('message', ValidationRules.maxLength(4000, 'Message must not exceed 4000 characters'));
-  validation.addRule('message', ValidationRules.security('Potentially unsafe content detected in message'));
+  validation.addRule('message', ValidationRules.security({ message: 'Potentially unsafe content detected in message' }));
   validation.addRule('message', ValidationRules.sanitizeApiInput());
 });
 
@@ -182,15 +184,20 @@ const sendMessage = async (mode?: AgentChatMode) => {
   }
 
   // Use the sanitized value if available
-  const messageToSend = validationResult.sanitizedValue || inputText.value.trim();
+  const messageToSend = (validationResult.sanitizedValue as string) || inputText.value.trim();
   const llmSelection = llmStore.currentLLMSelection;
 
   // If mode is provided, set it before sending
-  if (mode) {
+  if (mode && (mode === 'converse' || mode === 'plan' || mode === 'build')) {
     chatUiStore.setChatMode(mode);
   }
 
-  emit('sendMessage', messageToSend, llmSelection);
+  // Convert LLMSelection to expected format
+  const llmSelectionParam = llmSelection && llmSelection.modelName && llmSelection.providerName
+    ? { model: llmSelection.modelName, provider: llmSelection.providerName }
+    : undefined;
+
+  emit('sendMessage', messageToSend, llmSelectionParam);
   inputText.value = '';
 };
 

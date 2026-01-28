@@ -98,7 +98,7 @@ const toggleExpanded = () => {
 const getContextDescription = () => {
   if (!props.agentContext) return 'No context available';
   const context = props.agentContext;
-  if (context.contextStrength) {
+  if (context.contextStrength && typeof context.contextStrength === 'number') {
     const strength = Math.round(context.contextStrength * 100);
     return `Context strength: ${strength}%`;
   }

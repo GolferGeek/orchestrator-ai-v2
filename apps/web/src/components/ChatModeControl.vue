@@ -22,10 +22,12 @@ import { IonItem, IonLabel, IonSelect, IonSelectOption } from '@ionic/vue';
 import type { PrimaryChatMode } from '@/types/conversation';
 import { DEFAULT_CHAT_MODES } from '@/types/conversation';
 import analyticsService from '@/services/analyticsService';
+import { useChatUiStore } from '@/stores/ui/chatUiStore';
 
 // Migrated to conversationsStore + chatUiStore
+const chatUiStore = useChatUiStore();
 
-const mode = computed(() => chatStore.getActiveChatMode());
+const mode = computed(() => chatUiStore.chatMode);
 
 const BASE_MODE_OPTIONS: Array<{ value: PrimaryChatMode; label: string }> = [
   { value: 'converse', label: 'Converse' },
@@ -41,7 +43,7 @@ type SelectableMode = {
 };
 
 const selectableModes = computed<SelectableMode[]>(() => {
-  const conv = chatStore.getActiveConversation();
+  const conv = chatUiStore.activeConversation;
   const allowed = conv?.allowedChatModes?.length ? conv.allowedChatModes : DEFAULT_CHAT_MODES;
   const agent = conv?.agent;
   const planSupported = Boolean(agent?.plan_structure);
@@ -69,9 +71,9 @@ const selectableModes = computed<SelectableMode[]>(() => {
 
 function onChange(ev: CustomEvent) {
   const value = ev.detail.value as PrimaryChatMode;
-  chatStore.setChatMode(value);
+  chatUiStore.setChatMode(value);
   // Optional: emit an event if switching to build should auto-trigger a build task later
-  const conv = chatStore.getActiveConversation();
+  const conv = chatUiStore.activeConversation;
   analyticsService.trackEvent({
     eventType: 'ui',
     category: 'chat',
@@ -79,9 +81,9 @@ function onChange(ev: CustomEvent) {
     label: value,
     value: undefined,
     properties: {
-      conversationId: conv?.id,
-      agentName: conv?.agent?.name,
-      agentType: conv?.agent?.type,
+      conversationId: conv?.id ?? null,
+      agentName: conv?.agent?.name ?? null,
+      agentType: conv?.agent?.type ?? null,
     },
     context: { url: window.location.pathname, userAgent: navigator.userAgent },
   });

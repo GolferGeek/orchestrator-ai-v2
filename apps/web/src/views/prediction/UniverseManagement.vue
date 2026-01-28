@@ -247,7 +247,7 @@ const strategies = computed(() => store.strategies);
 
 const formData = reactive({
   name: '',
-  domain: '' as 'stocks' | 'crypto' | '',
+  domain: '' as 'stocks' | 'crypto' | 'elections' | 'polymarket' | '',
   description: '',
   strategyId: '',
   llmConfig: {

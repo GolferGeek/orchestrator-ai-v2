@@ -117,22 +117,22 @@ export function withPerformanceTracking<T extends Record<string, unknown>>(
   component: T,
   componentName?: string
 ): T {
-  const originalMounted = component.mounted || (() => {});
-  const originalUpdated = component.updated || (() => {});
-  
-  const name = componentName || component.name || 'Component';
+  const originalMounted = (component.mounted as (() => void) | undefined) || (() => {});
+  const originalUpdated = (component.updated as (() => void) | undefined) || (() => {});
+
+  const name = componentName || (component.name as string | undefined) || 'Component';
 
   return {
     ...component,
     setup(props: Record<string, unknown>, context: Record<string, unknown>) {
       const { trackComponentRender: _trackComponentRender } = useComponentPerformance(name);
-      
+
       // Track renders on updates
-      const originalSetup = component.setup;
+      const originalSetup = component.setup as ((props: Record<string, unknown>, context: Record<string, unknown>) => unknown) | undefined;
       if (originalSetup) {
         return originalSetup(props, context);
       }
-      
+
       return {};
     },
     mounted() {
@@ -142,10 +142,10 @@ export function withPerformanceTracking<T extends Record<string, unknown>>(
       // Track render time on updates
       const renderStart = performance.now();
       originalUpdated.call(this);
-      
+
       nextTick(() => {
         const renderTime = performance.now() - renderStart;
-        trackRender(name, renderTime, this.$props || {});
+        trackRender(name, renderTime, (this as { $props?: Record<string, unknown> }).$props || {});
       });
     }
   };

@@ -303,7 +303,8 @@
       <ion-spinner name="crescent"></ion-spinner>
     </div>
     <!-- Evaluation Details Modal -->
-    <AdminEvaluationDetailsModal 
+    <AdminEvaluationDetailsModal
+      v-if="selectedEvaluation"
       :is-open="showDetailsModal"
       :evaluation="selectedEvaluation"
       @dismiss="closeEvaluationDetails"
@@ -348,7 +349,7 @@ import {
   chevronForwardOutline
 } from 'ionicons/icons';
 import AdminEvaluationDetailsModal from './AdminEvaluationDetailsModal.vue';
-import type { EvaluationWithMessage, AllEvaluationsFilters } from '@/types/evaluation';
+import type { EvaluationWithMessage, AllEvaluationsFilters, LLMConstraints } from '@/types/evaluation';
 
 interface PaginationInfo {
   page: number;
@@ -427,10 +428,10 @@ function formatDate(dateString: string): string {
   const date = new Date(dateString);
   return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
-function getTotalConstraints(constraints: Record<string, unknown>): number {
+function getTotalConstraints(constraints: LLMConstraints): number {
   if (!constraints) return 0;
-  return (constraints.activeStateModifiers?.length || 0) + 
-         (constraints.responseModifiers?.length || 0) + 
+  return (constraints.activeStateModifiers?.length || 0) +
+         (constraints.responseModifiers?.length || 0) +
          (constraints.executedCommands?.length || 0);
 }
 </script>

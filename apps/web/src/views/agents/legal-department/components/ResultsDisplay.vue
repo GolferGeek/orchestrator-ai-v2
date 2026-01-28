@@ -56,7 +56,7 @@
 
     <!-- Compliance Analysis Section (M4 Specialist Output) -->
     <div v-if="results.specialistOutputs?.compliance" class="specialist-section">
-      <ComplianceAnalysisDisplay :analysis="results.specialistOutputs.compliance" />
+      <ComplianceAnalysisDisplay :analysis="adaptComplianceAnalysis(results.specialistOutputs.compliance) as any" />
     </div>
 
     <!-- IP Analysis Section (M5 Specialist Output) -->
@@ -294,7 +294,7 @@ import {
   listOutline,
   analyticsOutline,
 } from 'ionicons/icons';
-import type { AnalysisResults } from '../legalDepartmentTypes';
+import type { AnalysisResults, ComplianceAnalysisOutput } from '../legalDepartmentTypes';
 import DocumentMetadataDisplay from './DocumentMetadataDisplay.vue';
 import ContractAnalysisDisplay from './ContractAnalysisDisplay.vue';
 import ComplianceAnalysisDisplay from './ComplianceAnalysisDisplay.vue';
@@ -410,6 +410,41 @@ function handleExport() {
   a.download = `legal-analysis-${props.results.taskId}.json`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+// Adapter to convert ComplianceAnalysisOutput to the format expected by ComplianceAnalysisDisplay
+function adaptComplianceAnalysis(output: ComplianceAnalysisOutput | undefined): {
+  policyChecks?: Record<string, unknown>;
+  regulatoryCompliance?: {
+    regulations: string[];
+    status: 'compliant' | 'non-compliant' | 'review-required' | 'not-applicable';
+    details: string;
+  };
+  riskFlags: Array<{
+    flag: string;
+    severity: 'low' | 'medium' | 'high' | 'critical';
+    description: string;
+    recommendation?: string;
+  }>;
+  confidence: number;
+  summary: string;
+} | null {
+  if (!output) return null;
+
+  // Map ComplianceAnalysisOutput to ComplianceAnalysis format
+  return {
+    regulatoryCompliance: {
+      regulations: output.regulatoryFrameworks?.map(f => f.framework) || [],
+      status: output.complianceStatus?.overall === 'compliant' ? 'compliant' :
+              output.complianceStatus?.overall === 'non-compliant' ? 'non-compliant' :
+              output.complianceStatus?.overall === 'partial' ? 'review-required' :
+              'not-applicable',
+      details: output.complianceStatus?.details || output.summary
+    },
+    riskFlags: output.riskFlags || [],
+    confidence: output.confidence || 0,
+    summary: output.summary || ''
+  };
 }
 </script>
 

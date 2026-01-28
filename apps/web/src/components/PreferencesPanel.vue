@@ -115,9 +115,9 @@
           <h4>Theme</h4>
           <p>Choose your preferred color scheme</p>
         </ion-label>
-        <ion-segment 
+        <ion-segment
           v-model="preferences.theme"
-          @ionChange="updatePreference('theme', $event.detail.value)"
+          @ionChange="updatePreference('theme', $event.detail.value as 'light' | 'dark' | 'auto')"
         >
           <ion-segment-button value="light">
             <ion-icon :icon="sunny" />
@@ -285,7 +285,7 @@
         </ion-label>
         <ion-range
           v-model="preferences.pollingInterval"
-          @ionChange="updatePreference('pollingInterval', $event.detail.value)"
+          @ionChange="updatePreference('pollingInterval', $event.detail.value as number)"
           :min="1"
           :max="60"
           :pin="true"
@@ -304,7 +304,7 @@
         </ion-label>
         <ion-range
           v-model="preferences.immediateTimeoutDuration"
-          @ionChange="updatePreference('immediateTimeoutDuration', $event.detail.value)"
+          @ionChange="updatePreference('immediateTimeoutDuration', $event.detail.value as number)"
           :min="5"
           :max="300"
           :pin="true"
@@ -389,9 +389,9 @@
           <h4>Font Size</h4>
           <p>Choose your preferred text size</p>
         </ion-label>
-        <ion-segment 
+        <ion-segment
           v-model="preferences.fontSize"
-          @ionChange="updatePreference('fontSize', $event.detail.value)"
+          @ionChange="updatePreference('fontSize', $event.detail.value as 'small' | 'medium' | 'large')"
         >
           <ion-segment-button value="small">
             <ion-label>Small</ion-label>
@@ -506,7 +506,7 @@ import {
   contrast,
   playCircle
 } from 'ionicons/icons';
-import { useUserPreferencesStore } from '../stores/userPreferencesStore';
+import { useUserPreferencesStore, type UserPreferences } from '../stores/userPreferencesStore';
 // Props
 interface Props {
   initialCategory?: string;
@@ -531,8 +531,8 @@ const isAdvancedUser = computed(() => userPreferencesStore.isAdvancedUser);
 const handleCategoryChange = (event: CustomEvent) => {
   activeCategory.value = event.detail.value;
 };
-const updatePreference = (key: string, value: unknown) => {
-  userPreferencesStore.updatePreference(key as string, value);
+const updatePreference = <K extends keyof UserPreferences>(key: K, value: UserPreferences[K]) => {
+  userPreferencesStore.updatePreference(key, value);
   emit('preferencesChanged', activeCategory.value, preferences.value);
 };
 const resetCategory = async () => {

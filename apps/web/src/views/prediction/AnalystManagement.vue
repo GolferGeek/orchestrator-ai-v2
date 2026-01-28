@@ -32,7 +32,7 @@
           :key="level"
           class="filter-tab"
           :class="{ active: selectedScopeLevel === level }"
-          @click="selectedScopeLevel = level"
+          @click="selectedScopeLevel = level as 'runner' | 'domain' | 'universe' | 'target'"
         >
           {{ level }}
         </button>
@@ -110,7 +110,7 @@
       <AnalystCard
         v-for="analyst in displayedAnalysts"
         :key="analyst.id"
-        :analyst="analyst"
+        :analyst="analyst as import('@/stores/analystStore').PredictionAnalyst"
         :is-selected="analyst.id === selectedAnalystId"
         @select="onAnalystSelect"
         @edit="openEditModal"
@@ -515,11 +515,11 @@ import { useAnalystStore } from '@/stores/analystStore';
 import { usePredictionStore } from '@/stores/predictionStore';
 import {
   predictionDashboardService,
-  type PredictionAnalyst,
+  type PredictionAnalyst as ServicePredictionAnalyst,
 } from '@/services/predictionDashboardService';
 import AnalystCard from '@/components/prediction/AnalystCard.vue';
 import LearningSessionDialog from '@/components/prediction/LearningSessionDialog.vue';
-import type { ForkComparison, AnalystContextVersion, ForkType } from '@/stores/analystStore';
+import type { ForkComparison, AnalystContextVersion, ForkType, PredictionAnalyst } from '@/stores/analystStore';
 
 const router = useRouter();
 const analystStore = useAnalystStore();
@@ -527,6 +527,26 @@ const predictionStore = usePredictionStore();
 
 function goBackToDashboard() {
   router.push({ name: 'PredictionDashboard' });
+}
+
+// Helper function to convert service type to store type
+function convertToStoreAnalyst(serviceAnalyst: ServicePredictionAnalyst): PredictionAnalyst {
+  return {
+    id: serviceAnalyst.id,
+    slug: serviceAnalyst.slug,
+    name: serviceAnalyst.name,
+    perspective: serviceAnalyst.perspective,
+    scopeLevel: serviceAnalyst.scopeLevel,
+    domain: serviceAnalyst.domain ?? null,
+    universeId: serviceAnalyst.universeId ?? null,
+    targetId: serviceAnalyst.targetId ?? null,
+    defaultWeight: serviceAnalyst.defaultWeight,
+    tierInstructions: serviceAnalyst.tierInstructions ?? {},
+    learnedPatterns: serviceAnalyst.learnedPatterns ?? [],
+    active: serviceAnalyst.active,
+    createdAt: serviceAnalyst.createdAt,
+    updatedAt: serviceAnalyst.updatedAt,
+  };
 }
 
 const isLoading = ref(false);
@@ -539,7 +559,7 @@ const showModal = ref(false);
 const showDeleteModal = ref(false);
 const isSaving = ref(false);
 const isDeleting = ref(false);
-const editingAnalyst = ref<PredictionAnalyst | null>(null);
+const editingAnalyst = ref<PredictionAnalyst | ServicePredictionAnalyst | null>(null);
 const analystToDelete = ref<PredictionAnalyst | null>(null);
 
 // Phase 7: Details Panel State
@@ -637,7 +657,8 @@ async function loadAnalysts() {
   try {
     const response = await predictionDashboardService.listAnalysts();
     if (response.content) {
-      analystStore.setAnalysts(response.content);
+      const storeAnalysts = response.content.map(convertToStoreAnalyst);
+      analystStore.setAnalysts(storeAnalysts);
     }
 
     // Load universes and targets for dropdowns
@@ -845,19 +866,19 @@ function openCreateModal() {
   showModal.value = true;
 }
 
-function openEditModal(analyst: PredictionAnalyst) {
+function openEditModal(analyst: ServicePredictionAnalyst) {
   editingAnalyst.value = analyst;
   formData.slug = analyst.slug;
   formData.name = analyst.name;
   formData.perspective = analyst.perspective;
   formData.scopeLevel = analyst.scopeLevel;
-  formData.domain = analyst.domain || '';
-  formData.universeId = analyst.universeId || '';
-  formData.targetId = analyst.targetId || '';
+  formData.domain = analyst.domain ?? '';
+  formData.universeId = analyst.universeId ?? '';
+  formData.targetId = analyst.targetId ?? '';
   formData.defaultWeight = analyst.defaultWeight;
-  formData.tierInstructions.gold = analyst.tierInstructions?.gold || '';
-  formData.tierInstructions.silver = analyst.tierInstructions?.silver || '';
-  formData.tierInstructions.bronze = analyst.tierInstructions?.bronze || '';
+  formData.tierInstructions.gold = analyst.tierInstructions?.gold ?? '';
+  formData.tierInstructions.silver = analyst.tierInstructions?.silver ?? '';
+  formData.tierInstructions.bronze = analyst.tierInstructions?.bronze ?? '';
   showModal.value = true;
 }
 
@@ -902,7 +923,7 @@ async function saveAnalyst() {
         tierInstructions,
       });
       if (response.content) {
-        analystStore.updateAnalyst(editingAnalyst.value.id, response.content);
+        analystStore.updateAnalyst(editingAnalyst.value.id, convertToStoreAnalyst(response.content));
       }
     } else {
       const response = await predictionDashboardService.createAnalyst({
@@ -917,7 +938,7 @@ async function saveAnalyst() {
         tierInstructions,
       });
       if (response.content) {
-        analystStore.addAnalyst(response.content);
+        analystStore.addAnalyst(convertToStoreAnalyst(response.content));
       }
     }
 
@@ -930,7 +951,7 @@ async function saveAnalyst() {
 }
 
 function confirmDelete(id: string) {
-  analystToDelete.value = analystStore.getAnalystById(id) || null;
+  analystToDelete.value = analystStore.getAnalystById(id) ?? null;
   showDeleteModal.value = true;
 }
 

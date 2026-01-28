@@ -301,9 +301,9 @@ export interface TokenPayload {
   roles: string[];
   iat: number; // issued at
   exp: number; // expires at
-  aud?: string; // audience
-  iss?: string; // issuer
-  [key: string]: JsonValue;
+  aud?: string | undefined; // audience
+  iss?: string | undefined; // issuer
+  [key: string]: JsonValue | string | string[] | number | undefined;
 }
 
 /**

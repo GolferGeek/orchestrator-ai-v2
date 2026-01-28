@@ -86,8 +86,7 @@
     </div>
 
     <div class="debate-meta">
-      <span>Debate conducted: {{ formatDate(debate.createdAt || debate.created_at) }}</span>
-      <span v-if="debate.status" class="status-badge" :class="debate.status">{{ debate.status }}</span>
+      <span>Debate conducted: {{ formatDate(debate.createdAt) }}</span>
     </div>
   </div>
 </template>

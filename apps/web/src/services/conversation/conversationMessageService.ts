@@ -24,7 +24,11 @@ export class ConversationMessageService {
       }
 
       // Load deliverables for this conversation to link them to messages
-      const deliverables: unknown[] = [];
+      const deliverables: Array<{
+        id: string;
+        message_id?: string;
+        metadata?: { taskId?: string };
+      }> = [];
       try {
         const { deliverablesService } = await import('@/services/deliverablesService');
         const conversationDeliverables = await deliverablesService.getConversationDeliverables(conversationId);
@@ -51,7 +55,7 @@ export class ConversationMessageService {
         }
       });
 
-      deliverables.forEach(deliverable => {
+      deliverables.forEach((deliverable: { id: string; message_id?: string; metadata?: { taskId?: string } }) => {
         // Keep the existing logic for backwards compatibility
         if (deliverable.message_id) {
           messageDeliverableMap.set(deliverable.message_id, deliverable.id);
@@ -74,10 +78,13 @@ export class ConversationMessageService {
             timestamp: new Date(task.createdAt),
             taskId: task.id,
             metadata: {
-              originalTaskData: {
-                method: task.method,
-                params: task.params,
-                status: task.status
+              taskId: task.id,
+              extra: {
+                originalTaskData: {
+                  method: task.method,
+                  params: task.params,
+                  status: task.status
+                }
               }
             }
           };
@@ -209,7 +216,7 @@ export class ConversationMessageService {
           const assistantMessageId = `assistant-${task.id}`;
 
           // For API agents that don't use LLMs, provide defaults
-          const taskMode = task.params?.mode || (task.method?.includes('plan') ? 'plan' : task.method?.includes('build') ? 'build' : 'converse');
+          const taskMode = (typeof task.params?.mode === 'string' ? task.params.mode : null) || (task.method?.includes('plan') ? 'plan' : task.method?.includes('build') ? 'build' : 'converse');
 
           // Check if we have LLM metadata from task storage
           const storedLlmSelection = task.llmMetadata?.originalLLMSelection;
@@ -231,7 +238,7 @@ export class ConversationMessageService {
             metadata: {
               isCompleted: true,
               completedAt: task.completedAt,
-              responseMetadata: task.responseMetadata,
+              taskId: task.id,
               // Include mode information
               mode: taskMode,
               // Include LLM metadata stored with the task (contains original selection)
@@ -243,10 +250,13 @@ export class ConversationMessageService {
                 provider: 'n8n',
                 model: 'workflow'
               } : {}),
-              originalTaskData: {
-                method: task.method,
-                status: task.status,
-                progress: task.progress,
+              extra: {
+                responseMetadata: task.responseMetadata,
+                originalTaskData: {
+                  method: task.method,
+                  status: task.status,
+                  progress: task.progress,
+                },
               },
             },
           };
@@ -272,6 +282,9 @@ export class ConversationMessageService {
           if (deliverableId) {
             assistantMessage.deliverableId = deliverableId;
             // Also add to metadata for easier access
+            if (!assistantMessage.metadata) {
+              assistantMessage.metadata = {};
+            }
             assistantMessage.metadata.deliverableId = deliverableId;
           }
 
@@ -293,13 +306,16 @@ export class ConversationMessageService {
             metadata: {
               isPlaceholder: true,
               processing_type: 'active_task',
-              originalTaskData: {
-                method: task.method,
-                status: task.status,
-                progress: task.progress,
-                progressMessage: task.progressMessage
-              },
-              lastUpdated: task.updatedAt
+              lastUpdated: task.updatedAt,
+              taskId: task.id,
+              extra: {
+                originalTaskData: {
+                  method: task.method,
+                  status: task.status,
+                  progress: task.progress,
+                  progressMessage: task.progressMessage
+                }
+              }
             }
           };
           messages.push(placeholderMessage);
@@ -314,14 +330,18 @@ export class ConversationMessageService {
             taskId: task.id,
             metadata: {
               isCompleted: true,
-              isError: true,
-              errorCode: task.errorCode,
-              errorMessage: task.errorMessage,
-              errorData: task.errorData,
-              originalTaskData: {
-                method: task.method,
-                status: task.status,
-                progress: task.progress
+              errorDetails: task.errorMessage,
+              taskId: task.id,
+              extra: {
+                isError: true,
+                errorCode: task.errorCode,
+                errorMessage: task.errorMessage,
+                errorData: task.errorData,
+                originalTaskData: {
+                  method: task.method,
+                  status: task.status,
+                  progress: task.progress
+                }
               }
             }
           };
@@ -357,8 +377,8 @@ export class ConversationMessageService {
   }>> {
     try {
       const tasksResponse = await tasksService.listTasks({
-        conversationId: conversationId,
-        status: 'pending,running' // Filter for active tasks only
+        conversationId: conversationId
+        // Note: Filter for active tasks in the next step instead of using status parameter
       });
 
       const activeTasks = (tasksResponse.tasks || [])

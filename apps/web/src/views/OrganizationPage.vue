@@ -91,6 +91,7 @@ import { conversation } from '@/services/conversationHelpers';
 import { useConversationsStore } from '@/stores/conversationsStore';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
 import { useAgentsStore } from '@/stores/agentsStore';
+import type { Agent } from '@/types/conversation';
 const _conversationsStore = useConversationsStore();
 const chatUiStore = useChatUiStore();
 const agentsStore = useAgentsStore();
@@ -103,7 +104,7 @@ const handleConversationSelected = async (conv: { id: string }) => {
 
   }
 };
-const handleAgentSelected = async (agent: { type: string }) => {
+const handleAgentSelected = async (agent: Agent) => {
   try {
     await conversation.createConversation(agent);
   } catch {
@@ -113,11 +114,11 @@ const handleAgentSelected = async (agent: { type: string }) => {
 const handleQuickAction = async (agentType: string) => {
   try {
     // Find the first agent of the requested type
-    const availableAgents = agentsStore.getAvailableAgents;
-    const targetAgent = availableAgents.find((agent: { type: string }) => agent.type === agentType);
+    const availableAgents = agentsStore.availableAgents;
+    const targetAgent = availableAgents.find((agent) => agent.type === agentType);
     if (targetAgent && targetAgent.type) {
       // Ensure the agent has the required type field
-      const agentData = {
+      const agentData: Agent = {
         name: targetAgent.name,
         type: targetAgent.type,
         description: targetAgent.description,

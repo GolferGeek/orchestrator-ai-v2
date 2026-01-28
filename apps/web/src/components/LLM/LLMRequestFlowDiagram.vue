@@ -17,13 +17,13 @@
             @change="selectRequest(selectedRequestId!)"
             class="request-selector"
           >
-            <option 
-              v-for="request in recentRequests" 
+            <option
+              v-for="request in recentRequests"
               :key="request.id"
               :value="request.id"
             >
-              {{ new Date(request.createdAt || request.timestamp).toLocaleTimeString() }} - 
-              {{ request.provider }} {{ request.model }}
+              {{ new Date(request.created_at).toLocaleTimeString() }} -
+              {{ request.provider_name }} {{ request.model_name }}
             </option>
           </select>
           
@@ -333,15 +333,34 @@ import {
   playSkipForwardOutline 
 } from 'ionicons/icons';
 import { useLLMAnalyticsStore } from '@/stores/llmAnalyticsStore';
-// import { llmAnalyticsService } from '@/services/llmAnalyticsService';
+import type { LlmUsageRecord } from '@/services/llmAnalyticsService';
 
 // Component Props
 interface RequestData {
   id: string;
   provider: string;
   model: string;
+  provider_name?: string;
+  model_name?: string;
+  created_at?: string;
+  timestamp?: string;
+  createdAt?: string;
+  responseTime?: number;
+  inputTokens?: number;
+  outputTokens?: number;
   runMetadata?: {
     sanitizationTimeMs?: number;
+    routingTimeMs?: number;
+    llmResponseTimeMs?: number;
+    requestStartTime?: number;
+    systemPromptLength?: number;
+    userMessageLength?: number;
+    piiDetected?: number;
+    sanitizationLevel?: string;
+    piiTypes?: string[];
+    complexityScore?: number;
+    routingReason?: string;
+    totalCost?: number;
     [key: string]: unknown;
   };
   [key: string]: unknown;
@@ -385,7 +404,7 @@ const llmAnalyticsStore = useLLMAnalyticsStore();
 const liveRequestData = ref<RequestData | null>(null);
 const isLoadingLiveData = computed(() => llmAnalyticsStore.loading);
 const _liveDataError = computed(() => llmAnalyticsStore.error);
-const recentRequests = computed(() => llmAnalyticsStore.usageRecords.slice(0, 10)); // Last 10 requests
+const recentRequests = computed<LlmUsageRecord[]>(() => llmAnalyticsStore.usageRecords.slice(0, 10)); // Last 10 requests
 const selectedRequestId = ref<string | null>(null);
 
 // SVG Dimensions
@@ -405,8 +424,8 @@ const flowSteps = ref([
     x: 50,
     y: 50,
     description: 'Receives user message and system prompt from the frontend',
-    timing: null,
-    metadata: {}
+    timing: null as number | null,
+    metadata: {} as Record<string, unknown>
   },
   {
     id: 'sanitization',
@@ -417,8 +436,8 @@ const flowSteps = ref([
     x: 200,
     y: 50,
     description: 'Detects and sanitizes PII data using reversible sanitization',
-    timing: null,
-    metadata: {}
+    timing: null as number | null,
+    metadata: {} as Record<string, unknown>
   },
   {
     id: 'routing',
@@ -429,8 +448,8 @@ const flowSteps = ref([
     x: 350,
     y: 50,
     description: 'Analyzes complexity and selects optimal provider/model',
-    timing: null,
-    metadata: {}
+    timing: null as number | null,
+    metadata: {} as Record<string, unknown>
   },
   {
     id: 'metadata',
@@ -441,8 +460,8 @@ const flowSteps = ref([
     x: 500,
     y: 50,
     description: 'Initializes request tracking and analytics collection',
-    timing: null,
-    metadata: {}
+    timing: null as number | null,
+    metadata: {} as Record<string, unknown>
   },
   {
     id: 'provider-config',
@@ -453,8 +472,8 @@ const flowSteps = ref([
     x: 650,
     y: 50,
     description: 'Loads provider-specific configuration and settings',
-    timing: null,
-    metadata: {}
+    timing: null as number | null,
+    metadata: {} as Record<string, unknown>
   },
   {
     id: 'llm-call',
@@ -465,8 +484,8 @@ const flowSteps = ref([
     x: 350,
     y: 200,
     description: 'Makes API call to selected LLM provider',
-    timing: null,
-    metadata: {}
+    timing: null as number | null,
+    metadata: {} as Record<string, unknown>
   },
   {
     id: 'response-processing',
@@ -477,8 +496,8 @@ const flowSteps = ref([
     x: 200,
     y: 350,
     description: 'Processes and validates LLM response',
-    timing: null,
-    metadata: {}
+    timing: null as number | null,
+    metadata: {} as Record<string, unknown>
   },
   {
     id: 'reverse-sanitization',
@@ -489,8 +508,8 @@ const flowSteps = ref([
     x: 350,
     y: 350,
     description: 'Restores original PII data in response using reversal context',
-    timing: null,
-    metadata: {}
+    timing: null as number | null,
+    metadata: {} as Record<string, unknown>
   },
   {
     id: 'final-response',
@@ -501,8 +520,8 @@ const flowSteps = ref([
     x: 500,
     y: 350,
     description: 'Returns processed response to user',
-    timing: null,
-    metadata: {}
+    timing: null as number | null,
+    metadata: {} as Record<string, unknown>
   }
 ]);
 
@@ -620,6 +639,28 @@ const timingData = ref<Array<{
   completed: boolean;
 }>>([]);
 
+// Helper Functions
+const convertUsageRecordToRequestData = (record: LlmUsageRecord): RequestData => {
+  return {
+    id: record.id,
+    provider: record.provider_name,
+    model: record.model_name,
+    provider_name: record.provider_name,
+    model_name: record.model_name,
+    created_at: record.created_at,
+    createdAt: record.created_at,
+    timestamp: record.created_at,
+    responseTime: record.duration_ms ?? undefined,
+    inputTokens: record.input_tokens ?? undefined,
+    outputTokens: record.output_tokens ?? undefined,
+    runMetadata: {
+      totalCost: record.total_cost ?? undefined,
+      complexityScore: record.complexity_score ?? undefined,
+      routingReason: record.routing_reason ?? undefined
+    }
+  };
+};
+
 // Methods
 const getNodeClass = (index: number) => {
   if (currentStep.value === index) return 'current';
@@ -689,18 +730,20 @@ const updateStepData = () => {
     // Use real timing data only
     switch (step.id) {
       case 'sanitization':
-        if (metadata.sanitizationTimeMs) {
+        if (metadata.sanitizationTimeMs && typeof metadata.sanitizationTimeMs === 'number') {
           step.timing = metadata.sanitizationTimeMs;
         }
         break;
       case 'routing':
-        if (metadata.routingTimeMs) {
+        if (metadata.routingTimeMs && typeof metadata.routingTimeMs === 'number') {
           step.timing = metadata.routingTimeMs;
         }
         break;
       case 'llm-call':
-        if (metadata.llmResponseTimeMs || liveRequestData.value.responseTime) {
-          step.timing = metadata.llmResponseTimeMs || liveRequestData.value.responseTime;
+        if (metadata.llmResponseTimeMs && typeof metadata.llmResponseTimeMs === 'number') {
+          step.timing = metadata.llmResponseTimeMs;
+        } else if (liveRequestData.value.responseTime && typeof liveRequestData.value.responseTime === 'number') {
+          step.timing = liveRequestData.value.responseTime as number;
         }
         break;
     }
@@ -722,7 +765,7 @@ const updateStepData = () => {
       }
       
       // Recalculate percentages
-      const maxTiming = Math.max(...timingData.value.map(t => t.duration));
+      const maxTiming = Math.max(...timingData.value.map((t: { duration: number }) => t.duration));
       timingData.value.forEach(item => {
         item.percentage = maxTiming > 0 ? (item.duration / maxTiming) * 100 : 0;
       });
@@ -750,20 +793,24 @@ const fetchLiveData = async () => {
     // If we have a specific request ID, fetch its details
     if (props.requestId) {
       selectedRequestId.value = props.requestId;
-      const selectedRequest = records.find(r => r.id === props.requestId);
-      if (selectedRequest) {
+      const selectedRecord = records.find((r: LlmUsageRecord) => r.id === props.requestId);
+      if (selectedRecord) {
+        const selectedRequest = convertUsageRecordToRequestData(selectedRecord);
         liveRequestData.value = selectedRequest;
         updateFlowWithLiveData(selectedRequest);
       }
     } else if (records.length > 0) {
       // Use the most recent request
-      const mostRecent = records[0];
+      const mostRecentRecord = records[0] as LlmUsageRecord;
+      const mostRecent = convertUsageRecordToRequestData(mostRecentRecord);
       liveRequestData.value = mostRecent;
       selectedRequestId.value = mostRecent.id;
       updateFlowWithLiveData(mostRecent);
     }
     
-    emit('data-updated', liveRequestData.value);
+    if (liveRequestData.value) {
+      emit('data-updated', liveRequestData.value);
+    }
   } catch (error) {
     console.error('Error fetching live LLM data:', error);
     // Error is handled by the store
@@ -772,13 +819,17 @@ const fetchLiveData = async () => {
 
 const updateFlowWithLiveData = (requestData: RequestData) => {
   if (!requestData) return;
-  
+
+  // Normalize provider and model (support both snake_case and camelCase)
+  const provider = requestData.provider || requestData.provider_name;
+  const model = requestData.model || requestData.model_name;
+
   // Update provider indicators
-  if (requestData.provider && requestData.model) {
+  if (provider && model) {
     providerIndicators.value[0] = {
       ...providerIndicators.value[0],
-      name: `${requestData.provider} ${requestData.model}`,
-      type: requestData.provider.toLowerCase() === 'ollama' ? 'local' : 'external'
+      name: `${provider} ${model}`,
+      type: provider.toLowerCase() === 'ollama' ? 'local' : 'external'
     };
   }
   
@@ -801,26 +852,27 @@ const updateFlowWithLiveData = (requestData: RequestData) => {
         metadata: {
           'PII Detected': metadata.piiDetected ? `${metadata.piiDetected} items` : '0 items',
           'Sanitization Level': metadata.sanitizationLevel || 'None',
-          'Patterns Found': metadata.piiTypes ? metadata.piiTypes.join(', ') : 'None'
+          'Patterns Found': (metadata.piiTypes && Array.isArray(metadata.piiTypes)) ? metadata.piiTypes.join(', ') : 'None'
         }
       },
       'routing': {
         timing: metadata.routingTimeMs || null,
         metadata: {
           'Complexity Score': metadata.complexityScore ? `${metadata.complexityScore}/10` : 'N/A',
-          'Selected Provider': requestData.provider || 'Unknown',
-          'Model': requestData.model || 'Unknown',
+          'Selected Provider': provider || 'Unknown',
+          'Model': model || 'Unknown',
           'Reasoning': metadata.routingReason || 'Automatic selection'
         }
       },
       'llm-call': {
-        timing: metadata.llmResponseTimeMs || requestData.responseTime || null,
+        timing: (typeof metadata.llmResponseTimeMs === 'number' ? metadata.llmResponseTimeMs :
+                (typeof requestData.responseTime === 'number' ? requestData.responseTime : null)),
         metadata: {
-          'Provider': requestData.provider || 'Unknown',
-          'Model': requestData.model || 'Unknown',
+          'Provider': provider || 'Unknown',
+          'Model': model || 'Unknown',
           'Input Tokens': `${requestData.inputTokens || 0}`,
           'Output Tokens': `${requestData.outputTokens || 0}`,
-          'Total Cost': metadata.totalCost ? `$${metadata.totalCost.toFixed(4)}` : 'N/A'
+          'Total Cost': (typeof metadata.totalCost === 'number') ? `$${metadata.totalCost.toFixed(4)}` : 'N/A'
         }
       }
     };
@@ -829,7 +881,7 @@ const updateFlowWithLiveData = (requestData: RequestData) => {
     flowSteps.value.forEach(step => {
       const mapping = stepMappings[step.id as keyof typeof stepMappings];
       if (mapping) {
-        if (mapping.timing) step.timing = mapping.timing;
+        if (mapping.timing !== null && mapping.timing !== undefined) step.timing = mapping.timing;
         if (mapping.metadata) step.metadata = { ...step.metadata, ...mapping.metadata };
       }
     });
@@ -846,7 +898,7 @@ const updateTimingDataFromLive = (requestData: RequestData) => {
   const newTimingData = [];
   
   // Extract timing data from metadata
-  if (metadata.sanitizationTimeMs) {
+  if (metadata.sanitizationTimeMs && typeof metadata.sanitizationTimeMs === 'number') {
     newTimingData.push({
       step: 'Data Sanitization',
       duration: metadata.sanitizationTimeMs,
@@ -854,8 +906,8 @@ const updateTimingDataFromLive = (requestData: RequestData) => {
       completed: true
     });
   }
-  
-  if (metadata.routingTimeMs) {
+
+  if (metadata.routingTimeMs && typeof metadata.routingTimeMs === 'number') {
     newTimingData.push({
       step: 'Routing Decision',
       duration: metadata.routingTimeMs,
@@ -863,8 +915,8 @@ const updateTimingDataFromLive = (requestData: RequestData) => {
       completed: true
     });
   }
-  
-  if (metadata.llmResponseTimeMs) {
+
+  if (metadata.llmResponseTimeMs && typeof metadata.llmResponseTimeMs === 'number') {
     newTimingData.push({
       step: 'LLM Call',
       duration: metadata.llmResponseTimeMs,
@@ -872,9 +924,9 @@ const updateTimingDataFromLive = (requestData: RequestData) => {
       completed: true
     });
   }
-  
+
   // Calculate percentages
-  const maxTiming = Math.max(...newTimingData.map(t => t.duration));
+  const maxTiming = Math.max(...newTimingData.map((t: { duration: number }) => t.duration));
   newTimingData.forEach(item => {
     item.percentage = maxTiming > 0 ? (item.duration / maxTiming) * 100 : 0;
   });
@@ -901,8 +953,9 @@ const stopLiveDataPolling = () => {
 
 const selectRequest = (requestId: string) => {
   selectedRequestId.value = requestId;
-  const request = recentRequests.value.find(r => r.id === requestId);
-  if (request) {
+  const record = recentRequests.value.find((r: LlmUsageRecord) => r.id === requestId);
+  if (record) {
+    const request = convertUsageRecordToRequestData(record);
     liveRequestData.value = request;
     updateFlowWithLiveData(request);
     emit('request-selected', requestId);

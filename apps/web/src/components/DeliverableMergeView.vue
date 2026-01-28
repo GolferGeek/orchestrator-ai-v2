@@ -20,8 +20,8 @@
       <div class="version-selector">
         <div class="version-option">
           <ion-label>
-            <h3>Current Version (v{{ currentVersion.version }})</h3>
-            <p>{{ formatDate(currentVersion.created_at) }}</p>
+            <h3>Current Version (v{{ currentVersion.currentVersion?.versionNumber || 1 }})</h3>
+            <p>{{ formatDate(currentVersion.currentVersion?.createdAt || currentVersion.createdAt) }}</p>
           </ion-label>
           <ion-radio-group v-model="baseVersion" value="current">
             <ion-radio value="current" />
@@ -29,8 +29,8 @@
         </div>
         <div class="version-option">
           <ion-label>
-            <h3>Latest Version (v{{ latestVersion.version }})</h3>
-            <p>{{ formatDate(latestVersion.created_at) }}</p>
+            <h3>Latest Version (v{{ latestVersion.currentVersion?.versionNumber || 1 }})</h3>
+            <p>{{ formatDate(latestVersion.currentVersion?.createdAt || latestVersion.createdAt) }}</p>
           </ion-label>
           <ion-radio-group v-model="baseVersion" value="latest">
             <ion-radio value="latest" />
@@ -38,8 +38,8 @@
         </div>
         <div class="version-option" v-if="previousVersion">
           <ion-label>
-            <h3>Previous Version (v{{ previousVersion.version }})</h3>
-            <p>{{ formatDate(previousVersion.created_at) }}</p>
+            <h3>Previous Version (v{{ previousVersion.currentVersion?.versionNumber || 1 }})</h3>
+            <p>{{ formatDate(previousVersion.currentVersion?.createdAt || previousVersion.createdAt) }}</p>
           </ion-label>
           <ion-radio-group v-model="baseVersion" value="previous">
             <ion-radio value="previous" />
@@ -205,9 +205,10 @@ import {
   arrowRedoOutline,
 } from 'ionicons/icons';
 import { useDeliverablesStore } from '@/stores/deliverablesStore';
+import { deliverablesService, DeliverableVersionCreationType } from '@/services/deliverablesService';
 import * as diff from 'diff';
 // import { marked } from 'marked';
-import type { Deliverable } from '@/types/deliverable';
+import type { Deliverable } from '@/types/deliverables';
 
 interface Props {
   deliverable: Deliverable;
@@ -219,7 +220,7 @@ interface Emits {
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 // Store
-const deliverablesStore = useDeliverablesStore();
+const _deliverablesStore = useDeliverablesStore();
 // Reactive state
 const baseVersion = ref<'current' | 'latest' | 'previous'>('current');
 const compareVersion = ref<'current' | 'latest' | 'previous'>('latest');
@@ -231,29 +232,29 @@ const editHistoryIndex = ref(-1);
 const versions = ref<Deliverable[]>([]);
 // Computed properties
 const currentVersion = computed(() => props.deliverable);
-const latestVersion = computed(() => versions.value.find(v => v.is_latest_version) || currentVersion.value);
+const latestVersion = computed(() => versions.value.find((v: Deliverable) => v.currentVersion?.isCurrentVersion) || currentVersion.value);
 const previousVersion = computed(() => {
-  const sorted = [...versions.value].sort((a, b) => a.version - b.version);
+  const sorted = [...versions.value].sort((a, b) => (a.currentVersion?.versionNumber || 0) - (b.currentVersion?.versionNumber || 0));
   const currentIndex = sorted.findIndex(v => v.id === currentVersion.value.id);
   return currentIndex > 0 ? sorted[currentIndex - 1] : null;
 });
 const hasChanges = computed(() => {
-  return selectedSections.value.size > 0 || 
-         manualEditContent.value !== currentVersion.value.content;
+  return selectedSections.value.size > 0 ||
+         manualEditContent.value !== (currentVersion.value.currentVersion?.content || '');
 });
 const canUndo = computed(() => editHistoryIndex.value > 0);
 const canRedo = computed(() => editHistoryIndex.value < editHistory.value.length - 1);
 const baseSections = computed(() => {
   const version = getVersionByType(baseVersion.value);
-  return parseContentIntoSections(version?.content || '');
+  return parseContentIntoSections(version?.currentVersion?.content || '');
 });
 const compareSections = computed(() => {
   const version = getVersionByType(compareVersion.value);
-  return parseContentIntoSections(version?.content || '');
+  return parseContentIntoSections(version?.currentVersion?.content || '');
 });
 const textDiffContent = computed(() => {
-  const baseContent = getVersionByType(baseVersion.value)?.content || '';
-  const compareContent = getVersionByType(compareVersion.value)?.content || '';
+  const baseContent = getVersionByType(baseVersion.value)?.currentVersion?.content || '';
+  const compareContent = getVersionByType(compareVersion.value)?.currentVersion?.content || '';
   const diffResult = diff.diffLines(baseContent, compareContent);
   return diffResult.map(part => {
     const prefix = part.added ? '+ ' : part.removed ? '- ' : '  ';
@@ -273,8 +274,13 @@ const mergedContent = computed(() => {
 // Methods
 const loadVersions = async () => {
   try {
-    const parentId = currentVersion.value.parent_deliverable_id || currentVersion.value.id;
-    versions.value = await deliverablesStore.getDeliverableVersions(parentId);
+    const parentId = currentVersion.value.id;
+    const versionHistory = await deliverablesService.getVersionHistory(parentId);
+    // Convert DeliverableVersion[] to Deliverable[] by creating mock deliverables
+    versions.value = versionHistory.map(v => ({
+      ...currentVersion.value,
+      currentVersion: v,
+    }));
   } catch {
     versions.value = [currentVersion.value];
   }
@@ -293,14 +299,14 @@ const getVersionByType = (type: 'current' | 'latest' | 'previous') => {
 };
 const getVersionLabel = (type: string) => {
   const labels = {
-    current: `Current (v${currentVersion.value.version})`,
-    latest: `Latest (v${latestVersion.value.version})`,
-    previous: previousVersion.value ? `Previous (v${previousVersion.value.version})` : 'Previous',
+    current: `Current (v${currentVersion.value.currentVersion?.versionNumber || 1})`,
+    latest: `Latest (v${latestVersion.value.currentVersion?.versionNumber || 1})`,
+    previous: previousVersion.value ? `Previous (v${previousVersion.value.currentVersion?.versionNumber || 1})` : 'Previous',
   };
   return labels[type as keyof typeof labels] || type;
 };
 const parseContentIntoSections = (content: string) => {
-  if (currentVersion.value.format === 'markdown') {
+  if (currentVersion.value.currentVersion?.format === 'markdown') {
     // Parse markdown sections (headings, paragraphs, lists, etc.)
     const lines = content.split('\n');
     const sections: Array<{ type: string; content: string; lines: string[]; level?: number }> = [];
@@ -387,13 +393,13 @@ const toggleSectionSelection = (index: number, pane: 'base' | 'compare') => {
 };
 const hasContentChanges = (section: { type: string; content: string; lines: string[]; level?: number }) => {
   // Simple heuristic to detect if section has changes
-  const baseContent = getVersionByType(baseVersion.value)?.content || '';
+  const baseContent = getVersionByType(baseVersion.value)?.currentVersion?.content || '';
   return !baseContent.includes(section.content);
 };
 const handleModeChange = (event: CustomEvent) => {
   mergeMode.value = event.detail.value;
   if (mergeMode.value === 'manual' && !manualEditContent.value) {
-    manualEditContent.value = currentVersion.value.content;
+    manualEditContent.value = currentVersion.value.currentVersion?.content || '';
     addToEditHistory(manualEditContent.value);
   }
 };
@@ -425,7 +431,7 @@ const redoEdit = () => {
   }
 };
 const insertFromBase = () => {
-  const baseContent = getVersionByType(baseVersion.value)?.content || '';
+  const baseContent = getVersionByType(baseVersion.value)?.currentVersion?.content || '';
   const cursorPos = 0; // TODO: Get actual cursor position
   const before = manualEditContent.value.substring(0, cursorPos);
   const after = manualEditContent.value.substring(cursorPos);
@@ -433,7 +439,7 @@ const insertFromBase = () => {
   addToEditHistory(manualEditContent.value);
 };
 const insertFromCompare = () => {
-  const compareContent = getVersionByType(compareVersion.value)?.content || '';
+  const compareContent = getVersionByType(compareVersion.value)?.currentVersion?.content || '';
   const cursorPos = 0; // TODO: Get actual cursor position
   const before = manualEditContent.value.substring(0, cursorPos);
   const after = manualEditContent.value.substring(cursorPos);
@@ -441,18 +447,18 @@ const insertFromCompare = () => {
   addToEditHistory(manualEditContent.value);
 };
 const acceptAllChanges = () => {
-  const compareContent = getVersionByType(compareVersion.value)?.content || '';
+  const compareContent = getVersionByType(compareVersion.value)?.currentVersion?.content || '';
   manualEditContent.value = compareContent;
   addToEditHistory(manualEditContent.value);
 };
 const rejectAllChanges = () => {
-  const baseContent = getVersionByType(baseVersion.value)?.content || '';
+  const baseContent = getVersionByType(baseVersion.value)?.currentVersion?.content || '';
   manualEditContent.value = baseContent;
   addToEditHistory(manualEditContent.value);
 };
 const resetMerge = () => {
   selectedSections.value = new Map();
-  manualEditContent.value = currentVersion.value.content;
+  manualEditContent.value = currentVersion.value.currentVersion?.content || '';
   editHistory.value = [manualEditContent.value];
   editHistoryIndex.value = 0;
 };
@@ -471,10 +477,10 @@ const completeMerge = async () => {
     let mergedContent = '';
     if (mergeMode.value === 'visual') {
       // Combine selected sections
-      const selectedFromBase = baseSections.value.filter((_, index) => 
+      const selectedFromBase = baseSections.value.filter((_, index) =>
         isSectionSelected(index, 'base')
       );
-      const selectedFromCompare = compareSections.value.filter((_, index) => 
+      const selectedFromCompare = compareSections.value.filter((_, index) =>
         isSectionSelected(index, 'compare')
       );
       mergedContent = [...selectedFromBase, ...selectedFromCompare]
@@ -484,23 +490,26 @@ const completeMerge = async () => {
       mergedContent = manualEditContent.value;
     } else {
       // For text diff mode, use the latest version content for now
-      mergedContent = latestVersion.value.content;
+      mergedContent = latestVersion.value.currentVersion?.content || '';
     }
     // Create new version with merged content
-    const newVersion = await deliverablesStore.createVersion(
-      currentVersion.value.parent_deliverable_id || currentVersion.value.id,
+    const _newVersion = await deliverablesService.createVersion(
+      currentVersion.value.id,
       {
-        title: `${currentVersion.value.title} (Merged)`,
         content: mergedContent,
-        created_by_agent: 'merge_tool',
+        format: currentVersion.value.currentVersion?.format,
+        createdByType: DeliverableVersionCreationType.MANUAL_EDIT,
         metadata: {
-          merge_source: `v${currentVersion.value.version} + v${latestVersion.value.version}`,
+          merge_source: `v${currentVersion.value.currentVersion?.versionNumber || 1} + v${latestVersion.value.currentVersion?.versionNumber || 1}`,
           merge_mode: mergeMode.value,
           merged_at: new Date().toISOString(),
         }
       }
     );
-    emit('merge-completed', newVersion);
+
+    // Fetch updated deliverable to get full object
+    const updatedDeliverable = await deliverablesService.getDeliverable(currentVersion.value.id);
+    emit('merge-completed', updatedDeliverable);
   } catch {
     // TODO: Show error toast
   }
@@ -517,7 +526,7 @@ const formatDate = (dateString: string) => {
 // Initialize
 onMounted(() => {
   loadVersions();
-  manualEditContent.value = currentVersion.value.content;
+  manualEditContent.value = currentVersion.value.currentVersion?.content || '';
   addToEditHistory(manualEditContent.value);
 });
 </script>

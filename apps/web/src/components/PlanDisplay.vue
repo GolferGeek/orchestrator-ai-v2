@@ -7,13 +7,13 @@
         <div class="title-section">
           <h3 class="plan-title">{{ displayTitle }}</h3>
           <!-- LLM Information in Main Header -->
-          <div v-if="getVersionLLMInfo(displayVersion)" class="llm-info-header">
+          <div v-if="getVersionLLMInfo(displayVersion as unknown as Record<string, unknown>)" class="llm-info-header">
             <ion-chip color="primary" size="small">
               <ion-icon :icon="hardwareChipOutline" />
-              {{ getVersionLLMInfo(displayVersion) }}
+              {{ getVersionLLMInfo(displayVersion as unknown as Record<string, unknown>) }}
             </ion-chip>
-            <span v-if="getVersionCost(displayVersion)" class="cost-info">
-              ${{ getVersionCost(displayVersion) }}
+            <span v-if="getVersionCost(displayVersion as unknown as Record<string, unknown>)" class="cost-info">
+              ${{ getVersionCost(displayVersion as unknown as Record<string, unknown>) }}
             </span>
           </div>
         </div>
@@ -76,8 +76,8 @@
           <span class="version-label">
             Version {{ displayVersion?.versionNumber || currentVersion?.versionNumber || 1 }} of {{ totalVersions }}
           </span>
-          <span v-if="getVersionLLMInfo(displayVersion)" class="llm-used">
-            ({{ getVersionLLMInfo(displayVersion) }})
+          <span v-if="getVersionLLMInfo(displayVersion as unknown as Record<string, unknown>)" class="llm-used">
+            ({{ getVersionLLMInfo(displayVersion as unknown as Record<string, unknown>) }})
           </span>
           <ion-chip v-if="isViewingNewest && !displayVersion?.isCurrentVersion" color="tertiary" size="small" class="viewing-indicator">
             Viewing new version
@@ -146,13 +146,13 @@
                   <span v-if="version.createdByType" class="creation-type">{{ formatCreationType(version.createdByType) }}</span>
                   <ion-chip v-if="version.isCurrentVersion" color="success" size="small">Current</ion-chip>
                   <!-- LLM Information -->
-                  <div v-if="getVersionLLMInfo(version)" class="llm-info">
+                  <div v-if="getVersionLLMInfo(version as unknown as Record<string, unknown>)" class="llm-info">
                     <ion-chip color="primary" size="small">
                       <ion-icon :icon="hardwareChipOutline" />
-                      {{ getVersionLLMInfo(version) }}
+                      {{ getVersionLLMInfo(version as unknown as Record<string, unknown>) }}
                     </ion-chip>
-                    <span v-if="getVersionCost(version)" class="cost-info">
-                      ${{ getVersionCost(version) }}
+                    <span v-if="getVersionCost(version as unknown as Record<string, unknown>)" class="cost-info">
+                      ${{ getVersionCost(version as unknown as Record<string, unknown>) }}
                     </span>
                   </div>
                 </div>
@@ -344,11 +344,11 @@
       <div class="plan-footer compact">
         <div class="version-info">
           <span class="version-badge">v{{ displayVersion?.versionNumber || currentVersion?.versionNumber || 1 }} of {{ totalVersions }}</span>
-          <span v-if="getVersionLLMInfo(displayVersion)" class="llm-used">
-            ({{ getVersionLLMInfo(displayVersion) }})
+          <span v-if="getVersionLLMInfo(displayVersion as unknown as Record<string, unknown>)" class="llm-used">
+            ({{ getVersionLLMInfo(displayVersion as unknown as Record<string, unknown>) }})
           </span>
-          <span v-if="getVersionCost(displayVersion)" class="cost-info">
-            ${{ getVersionCost(displayVersion) }}
+          <span v-if="getVersionCost(displayVersion as unknown as Record<string, unknown>)" class="cost-info">
+            ${{ getVersionCost(displayVersion as unknown as Record<string, unknown>) }}
           </span>
         </div>
         <div class="footer-actions">
@@ -365,7 +365,7 @@
           <div v-if="displayVersion?.taskId" class="inline-rating">
             <TaskRating
               :task-id="displayVersion.taskId"
-              :agent-name="plan.agentName"
+              :agent-name="plan.agent_name"
             />
           </div>
           <!-- Settings/More Button -->
@@ -435,6 +435,7 @@ import {
 import { marked } from 'marked';
 import TaskRating from './TaskRating.vue';
 import type { Plan, PlanVersion } from '@/services/agent2agent/types';
+import type { PlanVersionData } from '@orchestrator-ai/transport-types';
 import { usePlanStore } from '@/stores/planStore';
 
 interface Props {
@@ -461,7 +462,7 @@ const showVersionHistory = ref(false);
 const showDiff = ref(false);
 const showActionsMenu = ref(false);
 const showFooterMenu = ref(false);
-const selectedVersion = ref<PlanVersion | null>(null);
+const selectedVersion = ref<PlanVersionData | null>(null);
 const isEditing = ref(false);
 const editedContent = ref('');
 const editedTitle = ref('');
@@ -571,6 +572,23 @@ const diffLines = computed(() => {
   return out;
 });
 
+// Helper to convert PlanVersionData to PlanVersion for emits
+const toPlanVersion = (version: PlanVersionData): PlanVersion => {
+  return {
+    id: version.id,
+    plan_id: version.planId,
+    version_number: version.versionNumber,
+    content: version.content,
+    format: version.format,
+    created_by_type: version.createdByType,
+    created_by_id: version.createdById ?? undefined,
+    task_id: version.taskId ?? undefined,
+    metadata: version.metadata,
+    is_current_version: version.isCurrentVersion,
+    created_at: version.createdAt,
+  };
+};
+
 // Methods
 const formatDate = (dateString: string) => {
   const date = new Date(dateString);
@@ -631,7 +649,7 @@ const runWithDifferentLLM = () => {
   }
   emit('run-with-different-llm', {
     plan: props.plan,
-    version: version
+    version: toPlanVersion(version)
   });
 };
 
@@ -676,8 +694,8 @@ const saveEdits = async () => {
 
 // Markdown toolbar methods
 const insertMarkdown = (before: string, after: string, placeholder: string) => {
-  const ionTextarea = contentTextarea.value;
-  const textarea = ionTextarea?.$el?.querySelector('textarea') || ionTextarea?.querySelector?.('textarea');
+  const ionTextarea = contentTextarea.value as unknown as { $el?: HTMLElement };
+  const textarea = ionTextarea?.$el?.querySelector('textarea');
   if (!textarea) return;
   const start = textarea.selectionStart || 0;
   const end = textarea.selectionEnd || 0;
@@ -697,8 +715,8 @@ const insertMarkdown = (before: string, after: string, placeholder: string) => {
 };
 
 const insertList = (type: 'bullet' | 'numbered') => {
-  const ionTextarea = contentTextarea.value;
-  const textarea = ionTextarea?.$el?.querySelector('textarea') || ionTextarea?.querySelector?.('textarea');
+  const ionTextarea = contentTextarea.value as unknown as { $el?: HTMLElement };
+  const textarea = ionTextarea?.$el?.querySelector('textarea');
   if (!textarea) return;
   const start = textarea.selectionStart || 0;
   const prefix = type === 'bullet' ? '- ' : '1. ';
@@ -717,8 +735,8 @@ const insertList = (type: 'bullet' | 'numbered') => {
 };
 
 const insertCodeBlock = () => {
-  const ionTextarea = contentTextarea.value;
-  const textarea = ionTextarea?.$el?.querySelector('textarea') || ionTextarea?.querySelector?.('textarea');
+  const ionTextarea = contentTextarea.value as unknown as { $el?: HTMLElement };
+  const textarea = ionTextarea?.$el?.querySelector('textarea');
   if (!textarea) return;
   const start = textarea.selectionStart || 0;
   const end = textarea.selectionEnd || 0;
@@ -753,8 +771,8 @@ const goToPreviousVersion = async () => {
   if (!Array.isArray(sortedVersions.value) || !currentDisplayVersion) return;
   const currentIndex = sortedVersions.value.findIndex(v => v.id === currentDisplayVersion.id);
   if (currentIndex < sortedVersions.value.length - 1) {
-    const previousVersion = sortedVersions.value[currentIndex + 1];
-    await selectAndDisplayVersion(previousVersion);
+    const previousVer = sortedVersions.value[currentIndex + 1];
+    await selectAndDisplayVersion(previousVer);
   }
 };
 
@@ -763,17 +781,17 @@ const goToNextVersion = async () => {
   const currentDisplayVersion = displayVersion.value || currentVersion.value;
   const currentIndex = sortedVersions.value.findIndex(v => v.id === currentDisplayVersion?.id);
   if (currentIndex > 0) {
-    const nextVersion = sortedVersions.value[currentIndex - 1];
-    await selectAndDisplayVersion(nextVersion);
+    const nextVer = sortedVersions.value[currentIndex - 1];
+    await selectAndDisplayVersion(nextVer);
   }
 };
 
-const selectVersion = async (version: PlanVersion) => {
+const selectVersion = async (version: PlanVersionData) => {
   selectedVersion.value = version;
   await selectAndDisplayVersion(version);
 };
 
-const selectAndDisplayVersion = async (version: PlanVersion) => {
+const selectAndDisplayVersion = async (version: PlanVersionData) => {
   selectedVersion.value = version;
   // TODO: Load full version if needed
 };
@@ -788,11 +806,11 @@ const makeCurrentVersion = async () => {
 
     // Reload versions to get updated current version status
     const planStore = usePlanStore();
-    const _updatedVersions = planStore.planVersions(props.plan.id);
+    const _updatedVersions = planStore.versionsByPlanId(props.plan.id);
 
     // Update local state
     selectedVersion.value.isCurrentVersion = true;
-    emit('current-version-changed', selectedVersion.value);
+    emit('current-version-changed', toPlanVersion(selectedVersion.value));
   } catch (error: unknown) {
     alert(`Failed to set current version: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
@@ -832,27 +850,27 @@ const getMimeType = () => {
   return mimeTypes[format as keyof typeof mimeTypes] || 'text/plain';
 };
 
-const getVersionLLMInfo = (version: Record<string, unknown>): string | null => {
+const getVersionLLMInfo = (version: Record<string, unknown> | null | undefined): string | null | undefined => {
   if (!version?.metadata) return null;
 
-  const metadata = version.metadata as Record<string, unknown>;
+  const metadata = version.metadata as unknown as Record<string, unknown>;
 
   // Check for llmRerunInfo (from rerun operations)
-  if (metadata.llmRerunInfo?.provider && metadata.llmRerunInfo?.model) {
-    return `${metadata.llmRerunInfo.provider}/${metadata.llmRerunInfo.model}`;
+  const llmRerunInfo = metadata.llmRerunInfo as unknown as Record<string, unknown> | undefined;
+  if (llmRerunInfo && llmRerunInfo.provider && llmRerunInfo.model) {
+    return `${llmRerunInfo.provider}/${llmRerunInfo.model}`;
   }
 
   // Check for general LLM metadata
-  if (metadata.llmMetadata) {
-    if (metadata.llmMetadata.provider && metadata.llmMetadata.model) {
-      return `${metadata.llmMetadata.provider}/${metadata.llmMetadata.model}`;
+  const llmMetadata = metadata.llmMetadata as unknown as Record<string, unknown> | undefined;
+  if (llmMetadata) {
+    if (llmMetadata.provider && llmMetadata.model) {
+      return `${llmMetadata.provider}/${llmMetadata.model}`;
     }
 
-    if (metadata.llmMetadata.originalLLMSelection) {
-      const selection = metadata.llmMetadata.originalLLMSelection;
-      if (selection.providerName && selection.modelName) {
-        return `${selection.providerName}/${selection.modelName}`;
-      }
+    const originalLLMSelection = llmMetadata.originalLLMSelection as unknown as Record<string, unknown> | undefined;
+    if (originalLLMSelection && originalLLMSelection.providerName && originalLLMSelection.modelName) {
+      return `${originalLLMSelection.providerName}/${originalLLMSelection.modelName}`;
     }
   }
 
@@ -864,13 +882,29 @@ const getVersionLLMInfo = (version: Record<string, unknown>): string | null => {
   return null;
 };
 
-const getVersionCost = (version: Record<string, unknown>): string | null => {
+const getVersionCost = (version: Record<string, unknown> | null | undefined): string | null | undefined => {
   if (!version?.metadata) return null;
 
-  const cost = version.metadata.llmMetadata?.cost ||
-               version.metadata.llmMetadata?.originalLLMSelection?.cost ||
-               version.metadata.usage?.cost ||
-               version.metadata.costCalculation?.cost;
+  const metadata = version.metadata as unknown as Record<string, unknown>;
+  const llmMetadata = metadata.llmMetadata as unknown as Record<string, unknown> | undefined;
+  const usage = metadata.usage as unknown as Record<string, unknown> | undefined;
+  const costCalculation = metadata.costCalculation as unknown as Record<string, unknown> | undefined;
+
+  let cost: unknown;
+  if (llmMetadata?.cost !== undefined) {
+    cost = llmMetadata.cost;
+  } else if (llmMetadata) {
+    const originalLLMSelection = llmMetadata.originalLLMSelection as unknown as Record<string, unknown> | undefined;
+    if (originalLLMSelection?.cost !== undefined) {
+      cost = originalLLMSelection.cost;
+    }
+  }
+  if (cost === undefined && usage?.cost !== undefined) {
+    cost = usage.cost;
+  }
+  if (cost === undefined && costCalculation?.cost !== undefined) {
+    cost = costCalculation.cost;
+  }
 
   if (typeof cost === 'number' && cost > 0) {
     return cost.toFixed(4);

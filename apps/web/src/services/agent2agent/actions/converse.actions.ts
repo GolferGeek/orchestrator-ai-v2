@@ -14,7 +14,7 @@ import { a2aOrchestrator } from '../orchestrator';
 import { useConversationsStore } from '@/stores/conversationsStore';
 import { useChatUiStore } from '@/stores/ui/chatUiStore';
 import { useExecutionContextStore } from '@/stores/executionContextStore';
-import type { Conversation, Message } from '@/stores/conversationsStore';
+import type { Conversation, Message, AgentType } from '@/stores/conversationsStore';
 
 /**
  * Send a message in converse mode
@@ -35,6 +35,7 @@ export async function sendMessage(
 
     // Add user message to conversation
     conversationsStore.addMessage(ctx.conversationId, {
+      conversationId: ctx.conversationId,
       role: 'user',
       content: userMessage,
       timestamp: new Date().toISOString(),
@@ -42,10 +43,10 @@ export async function sendMessage(
 
     // Create assistant message placeholder
     const assistantMessage = conversationsStore.addMessage(ctx.conversationId, {
+      conversationId: ctx.conversationId,
       role: 'assistant',
       content: 'Thinking...',
       timestamp: new Date().toISOString(),
-      metadata: { mode: 'converse' },
     });
 
     // Execute via orchestrator
@@ -57,8 +58,6 @@ export async function sendMessage(
         content: result.message,
       });
       conversationsStore.updateMessageMetadata(ctx.conversationId, assistantMessage.id, {
-        mode: 'converse',
-        isCompleted: true,
         ...result.metadata,
       });
 
@@ -75,10 +74,6 @@ export async function sendMessage(
     } else if (result.type === 'error') {
       conversationsStore.updateMessage(ctx.conversationId, assistantMessage.id, {
         content: `Error: ${result.error}`,
-      });
-      conversationsStore.updateMessageMetadata(ctx.conversationId, assistantMessage.id, {
-        mode: 'converse',
-        error: result.error,
       });
 
       chatUiStore.setIsSendingMessage(false);
@@ -117,32 +112,31 @@ export async function createConversation(
   // because these are used to SET the context, not read from it.
   // The context doesn't exist yet when creating a new conversation.
 
-  // TODO: Once the orchestrator supports conversation creation, migrate this
-  // For now, use the legacy API approach
-  const { createAgent2AgentApi } = await import('@/services/agent2agent/api');
-  const api = createAgent2AgentApi(agentName);
+  // Use agent2AgentConversationsService to create conversation
+  const agent2AgentConversationsService = await import('@/services/agent2AgentConversationsService');
 
-  const response = await api.conversations.create(agentName, agentType, organizationSlug);
-
-  if (!response.success || !response.conversationId) {
-    console.error('[Converse Create] Request failed:', response.error);
-    throw new Error(response.error?.message || 'Failed to create conversation');
-  }
-
-  const conversation: Conversation = {
-    id: response.conversationId,
-    userId: '', // Will be set by backend
-    title: title || `Chat with ${agentName}`,
+  const response = await agent2AgentConversationsService.default.createConversation({
     agentName,
     agentType,
     organizationSlug,
+    metadata: {
+      title: title || `Chat with ${agentName}`,
+    },
+  });
+
+  const conversation: Conversation = {
+    id: response.id,
+    userId: '', // Will be set by backend
+    title: title || `Chat with ${agentName}`,
+    agentName,
+    agentType: agentType as AgentType,
+    organizationSlug,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    taskCount: 0,
   };
 
   const conversationsStore = useConversationsStore();
-  conversationsStore.addConversation(conversation);
+  conversationsStore.setConversation(conversation);
 
   const chatUiStore = useChatUiStore();
   chatUiStore.setActiveConversation(conversation.id);

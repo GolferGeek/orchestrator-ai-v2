@@ -590,24 +590,25 @@ export function createUnifiedStoreInterface<T extends Record<string, unknown>>(s
   // Create combined loading state
   const isLoading = computed(() => {
     return storeKeys.some(key => {
-      const store = stores[key];
-      return store.isLoading?.value === true;
+      const store = stores[key] as Record<string, unknown>;
+      return (store.isLoading as Ref<boolean> | undefined)?.value === true;
     });
   });
 
   // Create combined error state
   const hasError = computed(() => {
     return storeKeys.some(key => {
-      const store = stores[key];
-      return store.error?.value !== null;
+      const store = stores[key] as Record<string, unknown>;
+      return (store.error as Ref<string | null> | undefined)?.value !== null;
     });
   });
 
   const firstError = computed(() => {
     for (const key of storeKeys) {
-      const store = stores[key];
-      if (store.error?.value) {
-        return store.error.value;
+      const store = stores[key] as Record<string, unknown>;
+      const errorRef = store.error as Ref<string | null> | undefined;
+      if (errorRef?.value) {
+        return errorRef.value;
       }
     }
     return null;
@@ -616,9 +617,9 @@ export function createUnifiedStoreInterface<T extends Record<string, unknown>>(s
   // Create refresh all function
   const refreshAll = async () => {
     const refreshPromises = storeKeys.map(key => {
-      const store = stores[key];
+      const store = stores[key] as Record<string, unknown>;
       if (store.refresh && typeof store.refresh === 'function') {
-        return store.refresh();
+        return (store.refresh as () => Promise<void> | void)();
       }
       return Promise.resolve();
     });
@@ -629,9 +630,9 @@ export function createUnifiedStoreInterface<T extends Record<string, unknown>>(s
   // Create clear all errors function
   const clearAllErrors = () => {
     storeKeys.forEach(key => {
-      const store = stores[key];
+      const store = stores[key] as Record<string, unknown>;
       if (store.clearError && typeof store.clearError === 'function') {
-        store.clearError();
+        (store.clearError as () => void)();
       }
     });
   };

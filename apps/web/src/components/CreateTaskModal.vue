@@ -166,6 +166,7 @@ import {
 } from '@ionic/vue';
 import { closeOutline, alertCircleOutline } from 'ionicons/icons';
 import { tasksService } from '@/services/tasksService';
+import type { TaskLLMSelection, TaskParameters } from '@/types/task';
 import LLMSelector from './LLMSelector.vue';
 import CIDAFMControls from './CIDAFMControls.vue';
 import { useLLMPreferencesStore } from '@/stores/llmPreferencesStore';
@@ -215,7 +216,7 @@ onMounted(() => {
   validation.addRule('prompt', ValidationRules.required('Task prompt is required'));
   validation.addRule('prompt', ValidationRules.minLength(5, 'Prompt must be at least 5 characters'));
   validation.addRule('prompt', ValidationRules.maxLength(2000, 'Prompt must not exceed 2000 characters'));
-  validation.addRule('prompt', ValidationRules.security('Potentially unsafe content detected in prompt'));
+  validation.addRule('prompt', ValidationRules.security({ message: 'Potentially unsafe content detected in prompt' }));
   validation.addRule('prompt', ValidationRules.sanitizeApiInput());
   
   validation.addRule('method', ValidationRules.required('Method is required'));
@@ -270,10 +271,10 @@ const createTask = async () => {
   error.value = null;
   try {
     // Parse parameters JSON
-    let params: Record<string, unknown> | undefined;
+    let params: TaskParameters | undefined;
     if (parametersJson.value.trim()) {
       try {
-        params = JSON.parse(parametersJson.value);
+        params = JSON.parse(parametersJson.value) as TaskParameters;
       } catch {
         throw new Error('Invalid JSON in parameters');
       }
@@ -286,7 +287,7 @@ const createTask = async () => {
       params,
       conversationId: props.conversation.id,
       timeoutSeconds: taskData.value.timeoutSeconds,
-      llmSelection: llmStore.currentLLMSelection,
+      llmSelection: llmStore.currentLLMSelection as TaskLLMSelection,
     };
     // Create task via direct agent call
     const result = await tasksService.createAgentTask(

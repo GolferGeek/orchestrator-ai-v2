@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Enhanced Sanitization System Tests
  * Comprehensive tests for DOMPurify v3.x integration and sanitization profiles
@@ -136,10 +135,14 @@ describe('Sanitization Profiles', () => {
       };
       
       const result = SanitizationHelpers.deep(obj, { profile: 'strict' });
-      
+
+      // @ts-expect-error - result is of type 'unknown' but we know the shape from the input
       expect(result.user.name).toBe('John');
+      // @ts-expect-error - result is of type 'unknown' but we know the shape from the input
       expect(result.user.details.bio).toBe('Hello world');
+      // @ts-expect-error - result is of type 'unknown' but we know the shape from the input
       expect(result.messages[0]).toBe('Message 1');
+      // @ts-expect-error - result is of type 'unknown' but we know the shape from the input
       expect(result.messages[1]).toBe('Message 2');
     });
   });
@@ -239,10 +242,12 @@ describe('API Sanitization Composable', () => {
           }
         }
       };
-      
+
       const result = apiSanitization.sanitizeApiData(data, { deep: true });
-      
+
+      // @ts-expect-error - result.sanitized is of type 'unknown' but we know the shape from the input
       expect(result.sanitized.user.name).toBe('John');
+      // @ts-expect-error - result.sanitized is of type 'unknown' but we know the shape from the input
       expect(result.sanitized.user.profile.bio).toBe('Hello world');
     });
   });
@@ -256,11 +261,12 @@ describe('API Sanitization Composable', () => {
           { role: 'user', content: '<b>Previous</b> message' }
         ]
       };
-      
+
       const result = apiSanitization.sanitizeOrchestratorRequest(payload);
-      
+
       expect(result.message).toBe('Hello');
       expect(result.session_id).toBe('session-123'); // Should be excluded
+      // @ts-expect-error - conversation_history is possibly undefined but we know it exists from the input
       expect(result.conversation_history[0].content).toBe('Previous message');
     });
 
@@ -455,9 +461,11 @@ describe('Edge Cases and Security Tests', () => {
       const startTime = performance.now();
       const result = SanitizationHelpers.deep(largeObject, { profile: 'strict' });
       const endTime = performance.now();
-      
+
       expect(endTime - startTime).toBeLessThan(1000); // Should complete in under 1 second
+      // @ts-expect-error - result is of type 'unknown' but we know it's a Record<string, string> from the input
       expect(Object.keys(result)).toHaveLength(1000);
+      // @ts-expect-error - result is of type 'unknown' but we know it's a Record<string, string> from the input
       expect(result.field0).toBe('Value 0');
     });
   });

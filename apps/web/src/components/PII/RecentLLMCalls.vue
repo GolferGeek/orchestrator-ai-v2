@@ -35,17 +35,33 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { apiService } from '@/services/apiService';
 
+interface LLMCall {
+  run_id: string;
+  created_at: string;
+  provider_name: string;
+  model_name: string;
+  status: string;
+  pii_detected: boolean;
+  pseudonyms_used: number;
+}
+
+interface ApiResponse {
+  success: boolean;
+  data?: LLMCall[];
+  message?: string;
+}
+
 const router = useRouter();
-const calls = ref<Record<string, unknown>[]>([]);
+const calls = ref<LLMCall[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
 
 onMounted(async () => {
   loading.value = true;
   try {
-    const response = await apiService.get('/llm/sanitization/llm-usage/recent');
+    const response = await apiService.get('/llm/sanitization/llm-usage/recent') as ApiResponse;
     if (response.success) {
-      calls.value = response.data;
+      calls.value = response.data || [];
     } else {
       throw new Error(response.message || 'Failed to fetch recent calls');
     }

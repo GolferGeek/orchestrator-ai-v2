@@ -6,7 +6,7 @@
         fill="clear"
         size="small"
         color="medium"
-        @click="uiStore.toggleSpeechDevMode()"
+        @click="uiStore.setShowSpeechDevMode(false)"
         class="close-button"
       >
         <ion-icon :icon="closeOutline" slot="icon-only"></ion-icon>
@@ -19,24 +19,24 @@
         @ionChange="handleModeChange"
         class="speech-mode-segment"
       >
-        <ion-segment-button value="frontend">
+        <ion-segment-button value="standard">
           <ion-label>
-            <div class="mode-label">Frontend</div>
+            <div class="mode-label">Standard</div>
             <div class="mode-description">Browser → Deepgram → AI → Eleven Labs</div>
           </ion-label>
         </ion-segment-button>
 
-        <ion-segment-button value="backend">
+        <ion-segment-button value="advanced">
           <ion-label>
-            <div class="mode-label">Backend</div>
+            <div class="mode-label">Advanced</div>
             <div class="mode-description">Audio → Server Processing → Audio</div>
           </ion-label>
         </ion-segment-button>
 
-        <ion-segment-button value="hybrid">
+        <ion-segment-button value="disabled">
           <ion-label>
-            <div class="mode-label">Hybrid</div>
-            <div class="mode-description">Try Both → Use Best Result</div>
+            <div class="mode-label">Disabled</div>
+            <div class="mode-description">Speech features turned off</div>
           </ion-label>
         </ion-segment-button>
       </ion-segment>
@@ -64,19 +64,19 @@ const handleModeChange = (event: CustomEvent) => {
 
 const getModeDisplayName = (): string => {
   switch (uiStore.speechMode) {
-    case 'frontend': return 'Frontend Processing';
-    case 'backend': return 'Backend Processing';
-    case 'hybrid': return 'Hybrid Processing';
-    default: return 'Backend Processing';
+    case 'standard': return 'Standard Processing';
+    case 'advanced': return 'Advanced Processing';
+    case 'disabled': return 'Disabled';
+    default: return 'Standard Processing';
   }
 };
 
 const getModeDescription = (): string => {
   switch (uiStore.speechMode) {
-    case 'frontend': return 'Browser calls Deepgram/Eleven Labs directly';
-    case 'backend': return 'Server handles all speech processing';
-    case 'hybrid': return 'Tries both approaches, uses best result';
-    default: return 'Server handles all speech processing';
+    case 'standard': return 'Browser calls Deepgram/Eleven Labs directly';
+    case 'advanced': return 'Server handles all speech processing';
+    case 'disabled': return 'Speech features are turned off';
+    default: return 'Standard speech processing';
   }
 };
 </script>

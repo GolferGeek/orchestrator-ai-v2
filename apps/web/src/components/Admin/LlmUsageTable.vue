@@ -302,21 +302,28 @@
                   
                   <td>
                     <div class="pii-indicators">
-                      <ion-badge 
-                        v-if="record.pii_detected"
+                      <ion-badge
+                        v-if="'pii_detected' in record && record.pii_detected"
                         color="warning"
                         @click="viewDetails(record)"
                         class="clickable"
                       >
                         <ion-icon :icon="warningOutline" />
-                        {{ record.pseudonyms_used || 0 }}P / {{ record.redactions_applied || 0 }}R
+                        {{ ('pseudonyms_used' in record ? record.pseudonyms_used : 0) || 0 }}P / {{ ('redactions_applied' in record ? record.redactions_applied : 0) || 0 }}R
                       </ion-badge>
-                      <ion-badge 
-                        v-else
+                      <ion-badge
+                        v-else-if="'pii_detected' in record"
                         color="success"
                       >
                         <ion-icon :icon="checkmarkCircleOutline" />
                         Clean
+                      </ion-badge>
+                      <ion-badge
+                        v-else
+                        color="medium"
+                      >
+                        <ion-icon :icon="helpCircleOutline" />
+                        N/A
                       </ion-badge>
                     </div>
                   </td>
@@ -395,35 +402,35 @@
           <ion-item>
             <ion-label>
               <h3>Run ID</h3>
-              <p>{{ selectedRecord.run_id }}</p>
+              <p>{{ selectedRecord?.run_id }}</p>
             </ion-label>
           </ion-item>
-          
+
           <ion-item>
             <ion-label>
               <h3>Conversation ID</h3>
-              <p>{{ selectedRecord.conversation_id || 'N/A' }}</p>
+              <p>{{ selectedRecord?.conversation_id || 'N/A' }}</p>
             </ion-label>
           </ion-item>
-          
+
           <ion-item>
             <ion-label>
               <h3>Routing Reason</h3>
-              <p>{{ selectedRecord.routing_reason || 'N/A' }}</p>
+              <p>{{ selectedRecord?.routing_reason || 'N/A' }}</p>
             </ion-label>
           </ion-item>
-          
+
           <ion-item>
             <ion-label>
               <h3>Complexity</h3>
-              <p>{{ selectedRecord.complexity_level || 'N/A' }} (Score: {{ selectedRecord.complexity_score || 'N/A' }})</p>
+              <p>{{ selectedRecord?.complexity_level || 'N/A' }} (Score: {{ selectedRecord?.complexity_score || 'N/A' }})</p>
             </ion-label>
           </ion-item>
-          
-          <ion-item v-if="selectedRecord.error_message">
+
+          <ion-item v-if="selectedRecord?.error_message">
             <ion-label>
               <h3>Error Message</h3>
-              <p class="error-text">{{ selectedRecord.error_message }}</p>
+              <p class="error-text">{{ selectedRecord?.error_message }}</p>
             </ion-label>
           </ion-item>
         </ion-list>
@@ -478,20 +485,20 @@ import {
 } from 'ionicons/icons';
 
 import { useLLMAnalyticsStore } from '@/stores/llmAnalyticsStore';
-import { llmAnalyticsService, type LlmUsageRecord } from '@/services/llmAnalyticsService';
+import { llmAnalyticsService, type LlmUsageRecord, type LlmUsageFilters } from '@/services/llmAnalyticsService';
 import { storeToRefs } from 'pinia';
 import LLMUsageDetailModal from './LLMUsageDetailModal.vue';
 
 const store = useLLMAnalyticsStore();
 
 // Reactive data
-const localFilters = ref({
+const localFilters = ref<LlmUsageFilters>({
   callerType: '',
   callerName: '',
   startDate: '',
   endDate: '',
   limit: 100,
-  route: '' as '' | 'local' | 'remote'
+  route: undefined
 });
 
 const showDetailsModal = ref(false);
@@ -514,12 +521,13 @@ const {
 const applyFilters = () => {
   const filters = { ...localFilters.value };
   // Remove empty strings
-  Object.keys(filters).forEach(key => {
-    if (filters[key] === '') {
-      delete filters[key];
+  Object.keys(filters).forEach((key) => {
+    const typedKey = key as keyof typeof filters;
+    if (filters[typedKey] === '') {
+      delete filters[typedKey];
     }
   });
-  
+
   store.updateFilters(filters);
   store.fetchUsageRecords();
 };
@@ -531,7 +539,7 @@ const clearFilters = () => {
     startDate: '',
     endDate: '',
     limit: 100,
-    route: ''
+    route: undefined
   };
   store.clearFilters();
   store.fetchUsageRecords();
@@ -601,7 +609,7 @@ const exportCsv = () => {
     'total_cost',
     'run_id',
   ];
-  const rows = usageRecords.value.map((r) => [
+  const rows = usageRecords.value.map((r: LlmUsageRecord) => [
     r.started_at,
     r.caller_type,
     r.caller_name,
@@ -616,7 +624,7 @@ const exportCsv = () => {
     r.run_id,
   ]);
   const csv = [headers, ...rows]
-    .map((row) => row.map((v) => {
+    .map((row) => row.map((v: string | number | boolean | null | undefined) => {
       const s = String(v ?? '');
       return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
     }).join(','))
@@ -644,7 +652,7 @@ const onLocal7dPresetChange = async (event: CustomEvent) => {
     // Clear the preset filters when unchecked
     localFilters.value.startDate = '';
     localFilters.value.endDate = '';
-    localFilters.value.route = '';
+    localFilters.value.route = undefined;
     applyFilters();
   }
 };

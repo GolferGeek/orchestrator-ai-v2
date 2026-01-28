@@ -128,7 +128,7 @@ import { ref, computed } from 'vue';
 import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonIcon, IonButton, IonSearchbar } from '@ionic/vue';
 import { arrowBackOutline, playCircleOutline, calendarOutline } from 'ionicons/icons';
 import VideoModal from '@/components/landing/VideoModal.vue';
-import { videoService, type Video } from '@/services/videoService';
+import { videoService, type Video, type VideoCategory } from '@/services/videoService';
 
 // Video modal state
 const isVideoModalOpen = ref(false);
@@ -136,7 +136,7 @@ const currentVideo = ref<Video | null>(null);
 
 // Search state
 const searchQuery = ref('');
-const searchResults = ref<Array<{ video: Video; category: unknown; categoryKey: string }>>([]);
+const searchResults = ref<Array<{ video: Video; category: VideoCategory; categoryKey: string }>>([]);
 
 // Get video data from service
 const videoCategories = computed(() => videoService.getCategoriesInOrder());

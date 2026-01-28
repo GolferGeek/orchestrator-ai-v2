@@ -407,12 +407,28 @@ async function performExport() {
     // This would be replaced with actual export API integration
     exportProgress.percent = 0;
     exportProgress.message = 'Export API not yet implemented';
-    
+
     // Real implementation would:
     // const exportResult = await exportService.startExport(exportOptions);
     // Track progress via WebSocket or polling
-    // Emit export event with options
-    emit('export', exportOptions);
+
+    // Transform exportOptions to ExportConfig type
+    const exportConfig: ExportConfig = {
+      format: exportOptions.format as 'json' | 'csv',
+      includeCharts: false,
+      includeRawData: true,
+      dateRange: {
+        startDate: exportOptions.startDate,
+        endDate: exportOptions.endDate
+      },
+      filters: {
+        userRole: exportOptions.userRole.length > 0 ? exportOptions.userRole[0] : undefined
+      },
+      sections: getIncludedFields()
+    };
+
+    // Emit export event with transformed config
+    emit('export', exportConfig);
     // Reset state
     setTimeout(() => {
       exportProgress.show = false;

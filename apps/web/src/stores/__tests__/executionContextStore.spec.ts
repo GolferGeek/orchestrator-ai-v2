@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Unit Tests for ExecutionContext Store
  * Tests the single source of truth for ExecutionContext in the UI layer
@@ -176,6 +175,7 @@ describe('ExecutionContextStore', () => {
 
       // Mock new UUID for next task
       const newTaskUUID = 'new-task-uuid-12345';
+      // @ts-expect-error - Test mock with non-UUID format string
       vi.mocked(crypto.randomUUID).mockReturnValueOnce(newTaskUUID);
 
       const generatedTaskId = store.newTaskId();
@@ -211,6 +211,7 @@ describe('ExecutionContextStore', () => {
       store.initialize(params);
 
       const newTaskUUID = 'new-task-uuid';
+      // @ts-expect-error - Test mock with non-UUID format string
       vi.mocked(crypto.randomUUID).mockReturnValueOnce(newTaskUUID);
 
       store.newTaskId();
@@ -587,6 +588,7 @@ describe('ExecutionContextStore', () => {
 
       // Step 2: Generate new taskId before A2A operation
       const newTaskUUID = 'new-task-for-operation';
+      // @ts-expect-error - Test mock with non-UUID format string
       vi.mocked(crypto.randomUUID).mockReturnValueOnce(newTaskUUID);
 
       const taskId = store.newTaskId();

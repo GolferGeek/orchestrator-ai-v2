@@ -63,7 +63,7 @@
             <!-- Radar Chart -->
             <section v-if="displayAssessments.length > 0" class="section radar-section">
               <h3>Risk Dimensions</h3>
-              <RiskRadarChart :assessments="displayAssessments" :size="260" />
+              <RiskRadarChart :assessments="(displayAssessments as unknown as RiskAssessment[])" :size="260" />
             </section>
 
             <!-- Assessments Grid -->
@@ -93,7 +93,7 @@
                         <strong>Reasoning:</strong>
                         <p>{{ assessment.analystResponse.reasoning }}</p>
                       </div>
-                      <div v-if="assessment.signals?.length > 0" class="signals">
+                      <div v-if="assessment.signals && assessment.signals.length > 0" class="signals">
                         <strong>Signals:</strong>
                         <ul>
                           <li v-for="(signal, idx) in assessment.signals" :key="idx" :class="`signal-${signal.impact}`">
@@ -165,7 +165,7 @@
                 >
                   <span class="alert-severity">{{ alert.severity }}</span>
                   <span class="alert-message">{{ alert.message }}</span>
-                  <span class="alert-time">{{ formatTime(alert.createdAt || alert.created_at) }}</span>
+                  <span class="alert-time">{{ formatTime(alert.createdAt) }}</span>
                 </div>
               </div>
             </section>
@@ -263,7 +263,20 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import RiskRadarChart from '@/components/AgentPanes/Risk/RiskRadarChart.vue';
-import type { SelectedSubjectState } from '@/types/risk-agent';
+import type { SelectedSubjectState, RiskAssessment, AssessmentSignal, AssessmentAnalystResponse } from '@/types/risk-agent';
+
+// Display assessment type - used in the template
+interface DisplayAssessment {
+  id: string;
+  dimensionSlug: string;
+  dimensionName: string;
+  score: number;
+  confidence: number;
+  weight: number;
+  analystResponse?: AssessmentAnalystResponse;
+  signals?: AssessmentSignal[];
+  reasoning?: string;
+}
 
 interface Props {
   isOpen: boolean;
@@ -331,7 +344,7 @@ const overallConfidence = computed(() => {
 });
 
 // Get dimension scores from composite score as fallback when assessments aren't loaded
-const dimensionScoresFromComposite = computed(() => {
+const dimensionScoresFromComposite = computed<DisplayAssessment[]>(() => {
   const cs = props.subject?.compositeScore;
   if (!cs) return [];
   // Handle both snake_case and camelCase - API returns dimension_scores
@@ -342,7 +355,7 @@ const dimensionScoresFromComposite = computed(() => {
       : (typeof csRecord['dimensionScores'] === 'object' && csRecord['dimensionScores'])
         ? (csRecord['dimensionScores'] as Record<string, unknown>)
         : {};
-  return Object.entries(scores).map(([slug, data]: [string, unknown]) => {
+  return Object.entries(scores).map(([slug, data]: [string, unknown]): DisplayAssessment => {
     // Dimension scores can be raw numbers (0-100) or objects with score property
     const dataRecord =
       typeof data === 'object' && data !== null && !Array.isArray(data)
@@ -371,6 +384,10 @@ const dimensionScoresFromComposite = computed(() => {
       score: normalizedScore,
       confidence: normalizedConfidence,
       weight,
+      // No analystResponse or signals for composite score fallback
+      analystResponse: undefined,
+      signals: undefined,
+      reasoning: undefined,
     };
   });
 });
@@ -381,20 +398,20 @@ function formatDimensionName(slug: string): string {
 }
 
 // Use assessments if available, otherwise use dimension scores from composite
-const displayAssessments = computed(() => {
+const displayAssessments = computed<DisplayAssessment[]>(() => {
   if (props.subject?.assessments && props.subject.assessments.length > 0) {
     // Normalize API response (snake_case) to expected format (camelCase)
-    return props.subject.assessments.map((a: Record<string, unknown>) => ({
-      id: a.id || a.dimension_id,
-      dimensionSlug: a.dimensionSlug || a.dimension_slug || '',
-      dimensionName: a.dimensionName || a.dimension_name ||
-        formatDimensionName(String(a.dimensionSlug || a.dimension_slug || '')),
+    return props.subject.assessments.map((a: RiskAssessment): DisplayAssessment => ({
+      id: a.id,
+      dimensionSlug: a.dimensionSlug || '',
+      dimensionName: a.dimensionName ||
+        formatDimensionName(a.dimensionSlug || ''),
       score: a.score,
       confidence: a.confidence,
-      weight: a.dimensionWeight || a.dimension_weight,
-      analystResponse: a.analystResponse || a.analyst_response,
+      weight: a.dimensionWeight || 1,
+      analystResponse: a.analystResponse,
       signals: a.signals,
-      reasoning: a.reasoning,
+      reasoning: a.analystResponse?.reasoning,
     }));
   }
   return dimensionScoresFromComposite.value;

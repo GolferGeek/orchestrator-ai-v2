@@ -58,7 +58,7 @@
         <option value="">Select Provider...</option>
         <option
           v-for="provider in llmStore.filteredProviders"
-          :key="provider.id"
+          :key="provider.name"
           :value="provider"
         >
           {{ provider.name }}
@@ -78,9 +78,9 @@
         @change="onModelChange"
       >
         <option value="">Select Model...</option>
-        <option 
-          v-for="model in llmStore.availableModels" 
-          :key="model.id" 
+        <option
+          v-for="model in llmStore.availableModels"
+          :key="`${model.providerName}-${model.modelName}`"
           :value="model"
         >
           {{ model.name }}
@@ -258,7 +258,7 @@ onMounted(async () => {
 watch(() => llmStore.selectedProvider, (newProvider) => {
   // Find the matching provider object from the available options
   if (newProvider) {
-    const matchingProvider = llmStore.filteredProviders.find(p => p.id === newProvider.id);
+    const matchingProvider = llmStore.filteredProviders.find(p => p.name === newProvider.name);
     selectedProvider.value = matchingProvider || newProvider;
   } else {
     selectedProvider.value = '';
@@ -268,7 +268,7 @@ watch(() => llmStore.selectedProvider, (newProvider) => {
 watch(() => llmStore.selectedModel, (newModel) => {
   // Find the matching model object from the available options
   if (newModel) {
-    const matchingModel = llmStore.availableModels.find(m => m.id === newModel.id);
+    const matchingModel = llmStore.availableModels.find(m => m.providerName === newModel.providerName && m.modelName === newModel.modelName);
     selectedModel.value = matchingModel || newModel;
   } else {
     selectedModel.value = '';

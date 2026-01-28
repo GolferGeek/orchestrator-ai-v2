@@ -6,6 +6,7 @@
  * Includes fields for title, content, target symbols, sentiment, and metadata.
  */
 
+import { ref, computed, watch } from 'vue';
 import TestSymbolBadge from './TestSymbolBadge.vue';
 
 interface ArticleData {

@@ -89,9 +89,9 @@
           </div>
           <!-- Deliverables Grid -->
           <div class="deliverables-grid">
-            <ion-card 
-              v-for="deliverable in displayedDeliverables" 
-              :key="deliverable.id"
+            <ion-card
+              v-for="deliverable in displayedDeliverables"
+              :key="deliverable.id as string"
               @click="viewDeliverable(deliverable)"
               class="deliverable-card"
               button
@@ -100,16 +100,16 @@
                 <div class="deliverable-header">
                   <div class="deliverable-title-section">
                     <div class="title-with-icon">
-                      <span class="type-icon">{{ getTypeIcon(deliverable.type as string) }}</span>
+                      <span class="type-icon">{{ getTypeIcon(deliverable.type as DeliverableType) }}</span>
                       <ion-card-title>{{ deliverable.title }}</ion-card-title>
                     </div>
                   </div>
                   <div class="deliverable-badges">
-                    <ion-badge 
-                      :color="getTypeColor(deliverable.type as string)"
+                    <ion-badge
+                      :color="getTypeColor(deliverable.type as DeliverableType)"
                       class="type-badge"
                     >
-                      {{ getTypeName(deliverable.type as string) }}
+                      {{ getTypeName(deliverable.type as DeliverableType) }}
                     </ion-badge>
                     <ion-badge 
                       v-if="getVersionNumber(deliverable) > 1"
@@ -145,7 +145,7 @@
                   </div>
                   <div class="meta-item">
                     <ion-icon :icon="calendarOutline"></ion-icon>
-                    <span>{{ formatDate(deliverable.createdAt) }}</span>
+                    <span>{{ formatDate(deliverable.createdAt as string | Date) }}</span>
                   </div>
                 </div>
                 <div class="deliverable-tags" v-if="getDeliverableTags(deliverable).length > 0">
@@ -185,9 +185,9 @@
                     <ion-icon :icon="createOutline" slot="start"></ion-icon>
                     Edit
                   </ion-button>
-                  <ion-button 
-                    v-if="getVersionNumber(deliverable) > 1 || hasVersions(deliverable.id)"
-                    fill="clear" 
+                  <ion-button
+                    v-if="getVersionNumber(deliverable) > 1 || hasVersions(deliverable.id as string)"
+                    fill="clear"
                     size="small"
                     color="secondary"
                     @click.stop="viewVersions(deliverable)"
@@ -244,9 +244,9 @@
           <p>No versions found</p>
         </div>
         <div v-else class="versions-list">
-          <ion-card 
-            v-for="version in versions" 
-            :key="version.id"
+          <ion-card
+            v-for="version in versions"
+            :key="version.id as string"
             class="version-card"
             :class="{ 'latest-version': version.isCurrentVersion }"
           >
@@ -264,22 +264,22 @@
                   </ion-chip>
                   <ion-chip color="light">
                     <ion-icon :icon="timeOutline" />
-                    <ion-label>{{ formatDate(version.createdAt) }}</ion-label>
+                    <ion-label>{{ formatDate(version.createdAt as string | Date) }}</ion-label>
                   </ion-chip>
-                  <ion-chip v-if="version.metadata?.createdByAgent" color="secondary">
+                  <ion-chip v-if="getVersionCreatedByAgent(version)" color="secondary">
                     <ion-icon :icon="personOutline" />
-                    <ion-label>{{ version.metadata.createdByAgent }}</ion-label>
+                    <ion-label>{{ getVersionCreatedByAgent(version) }}</ion-label>
                   </ion-chip>
                 </div>
               </ion-card-subtitle>
             </ion-card-header>
             <ion-card-content>
-              <p class="content-preview">{{ getContentPreview(version.content || '') }}</p>
+              <p class="content-preview">{{ getContentPreview((version.content as string) || '') }}</p>
               <div class="version-actions">
-                <ion-button 
-                  fill="outline" 
+                <ion-button
+                  fill="outline"
                   size="small"
-                  @click="viewVersion(version.id)"
+                  @click="viewVersion(version.id as string)"
                 >
                   <ion-icon :icon="eyeOutline" slot="start" />
                   View
@@ -358,7 +358,7 @@ import {
 } from 'ionicons/icons';
 import { useRouter } from 'vue-router';
 import { useDeliverables } from '@/composables/useDeliverables';
-import { DeliverableType, type Deliverable, deliverablesService } from '@/services/deliverablesService';
+import { DeliverableType, type Deliverable, type DeliverableVersion, deliverablesService } from '@/services/deliverablesService';
 import { useDeliverablesStore } from '@/stores/deliverablesStore';
 import { deleteDeliverable as deleteDeliverableAction, setCurrentVersion } from '@/services/agent2agent/actions';
 import NewDeliverableDialog from '@/components/NewDeliverableDialog.vue';
@@ -374,7 +374,7 @@ const currentOffset = ref(0);
 const pageSize = 20;
 // Versions modal state
 const showVersionsModal = ref(false);
-const versions = ref<Record<string, unknown>[]>([]);
+const versions = ref<DeliverableVersion[]>([]);
 const isLoadingVersions = ref(false);
 const selectedDeliverableId = ref<string | null>(null);
 // Computed properties
@@ -383,8 +383,8 @@ const displayedDeliverables = computed(() => {
   // Apply search filter
   if (searchQuery.value.trim()) {
     const query = searchQuery.value.toLowerCase();
-    filtered = filtered.filter(deliverable => 
-      deliverable.title.toLowerCase().includes(query) ||
+    filtered = filtered.filter(deliverable =>
+      (deliverable.title as string).toLowerCase().includes(query) ||
       getDeliverableContent(deliverable).toLowerCase().includes(query) ||
       getDeliverableTags(deliverable)?.some((tag: string) => tag.toLowerCase().includes(query))
     );
@@ -398,23 +398,24 @@ const displayedDeliverables = computed(() => {
   // Apply sorting
   const [sortField, sortOrder] = sortBy.value.split('_');
   filtered.sort((a, b) => {
-    let aValue: unknown, bValue: unknown;
+    let aValue: string | number = 0;
+    let bValue: string | number = 0;
     switch (sortField) {
       case 'created':
-        aValue = new Date(a.createdAt).getTime();
-        bValue = new Date(b.createdAt).getTime();
+        aValue = new Date(a.createdAt as string).getTime();
+        bValue = new Date(b.createdAt as string).getTime();
         break;
       case 'updated':
-        aValue = new Date(a.updatedAt || a.createdAt).getTime();
-        bValue = new Date(b.updatedAt || b.createdAt).getTime();
+        aValue = new Date((a.updatedAt as string) || (a.createdAt as string)).getTime();
+        bValue = new Date((b.updatedAt as string) || (b.createdAt as string)).getTime();
         break;
       case 'title':
-        aValue = a.title.toLowerCase();
-        bValue = b.title.toLowerCase();
+        aValue = (a.title as string).toLowerCase();
+        bValue = (b.title as string).toLowerCase();
         break;
       case 'type':
-        aValue = a.type;
-        bValue = b.type;
+        aValue = a.type as string;
+        bValue = b.type as string;
         break;
       default:
         return 0;
@@ -465,7 +466,7 @@ const loadDeliverables = async () => {
     });
   } catch (err: unknown) {
     console.error('Failed to load deliverables:', err);
-    deliverablesStore.setError(err.message);
+    deliverablesStore.setError(err instanceof Error ? err.message : 'Unknown error');
   } finally {
     deliverablesStore.setLoading(false);
   }
@@ -477,7 +478,7 @@ const handleRefresh = async (event: CustomEvent) => {
 const handleSearch = async () => {
   if (searchQuery.value.trim()) {
     await deliverables.search(searchQuery.value, {
-      type: typeFilter.value as string || undefined,
+      type: typeFilter.value as DeliverableType || undefined,
       limit: pageSize,
       offset: 0
     });
@@ -489,7 +490,7 @@ const handleSearch = async () => {
 const handleFilter = async () => {
   if (searchQuery.value.trim()) {
     await deliverables.search(searchQuery.value, {
-      type: typeFilter.value as string || undefined,
+      type: typeFilter.value as DeliverableType || undefined,
       limit: pageSize,
       offset: 0
     });
@@ -507,7 +508,7 @@ const loadMoreDeliverables = async () => {
     const newOffset = currentOffset.value + pageSize;
     if (searchQuery.value.trim()) {
       await deliverables.search(searchQuery.value, {
-        type: typeFilter.value as string || undefined,
+        type: typeFilter.value as DeliverableType || undefined,
         limit: pageSize,
         offset: newOffset
       });
@@ -529,18 +530,24 @@ const handleDeliverableCreated = (_deliverableId: string) => {
   showNewDeliverableDialog.value = false;
 };
 
-function getImageAssets(deliverable: Record<string, unknown>) {
+interface ImageAsset {
+  url: string;
+  thumbnailUrl?: string;
+  altText?: string;
+}
+
+function getImageAssets(deliverable: Record<string, unknown>): ImageAsset[] {
   try {
-    const current = deliverablesStore.getCurrentVersion(deliverable.id);
-    const images = (current?.fileAttachments?.images || []) as string[];
+    const current = deliverablesStore.getCurrentVersion(deliverable.id as string);
+    const images = (current?.fileAttachments?.images || []) as unknown as ImageAsset[];
     return Array.isArray(images) ? images : [];
   } catch {
     return [];
   }
 }
-function openImage(img: Record<string, unknown>) {
+function openImage(img: ImageAsset) {
   try {
-    window.open(img.url, '_blank');
+    window.open(img.url as string, '_blank');
   } catch {}
 }
 const viewDeliverable = async (deliverable: Record<string, unknown>) => {
@@ -550,16 +557,16 @@ const viewDeliverable = async (deliverable: Record<string, unknown>) => {
 
     // Create conversation with "view" intent
     const result = await deliverablesService.createEditingConversation(
-      deliverable.id,
+      deliverable.id as string,
       {
         action: 'discuss',
-        agentName: deliverable.agentName || 'blog_post', // Fallback to blog post writer
-        initialMessage: `Please show me this deliverable: "${deliverable.title}"`
+        agentName: (deliverable.agentName as string) || 'blog_post', // Fallback to blog post writer
+        initialMessage: `Please show me this deliverable: "${deliverable.title as string}"`
       }
     );
 
     // Update store with new conversation link
-    const updatedDeliverable = deliverablesStore.getDeliverableById(deliverable.id);
+    const updatedDeliverable = deliverablesStore.getDeliverableById(deliverable.id as string);
     if (updatedDeliverable) {
       updatedDeliverable.conversationId = result.conversationId;
       deliverablesStore.addDeliverable(updatedDeliverable);
@@ -570,16 +577,16 @@ const viewDeliverable = async (deliverable: Record<string, unknown>) => {
     await router.push({
       name: 'Home',
       query: {
-        conversationId: result.conversationId,
-        deliverableId: deliverable.id,
+        conversationId: result.conversationId as string,
+        deliverableId: deliverable.id as string,
         mode: 'view'
       }
     });
-  } catch (error) {
+  } catch (error: unknown) {
 
     // Show error toast
     const toast = await toastController.create({
-      message: 'Failed to open deliverable: ' + error.message,
+      message: 'Failed to open deliverable: ' + (error instanceof Error ? error.message : 'Unknown error'),
       duration: 3000,
       position: 'bottom',
       color: 'danger'
@@ -591,19 +598,19 @@ const editDeliverable = async (deliverable: Record<string, unknown>) => {
   try {
     // Create editing conversation for this deliverable
     const result = await deliverablesService.createEditingConversation(
-      deliverable.id,
+      deliverable.id as string,
       {
         action: 'edit',
-        agentName: deliverable.agentName || 'blog_post', // Fallback to blog post writer
-        initialMessage: `I want to edit this deliverable: "${deliverable.title}"`
+        agentName: (deliverable.agentName as string) || 'blog_post', // Fallback to blog post writer
+        initialMessage: `I want to edit this deliverable: "${deliverable.title as string}"`
       }
     );
     // Navigate to split view with conversation and deliverable
     await router.push({
       name: 'Home',
       query: {
-        conversationId: result.conversationId,
-        deliverableId: deliverable.id,
+        conversationId: result.conversationId as string,
+        deliverableId: deliverable.id as string,
         mode: 'edit'
       }
     });
@@ -611,7 +618,7 @@ const editDeliverable = async (deliverable: Record<string, unknown>) => {
 
     // Show error toast
     const toast = await toastController.create({
-      message: 'Failed to start editing: ' + err.message,
+      message: 'Failed to start editing: ' + (err instanceof Error ? err.message : 'Unknown error'),
       duration: 3000,
       position: 'bottom',
       color: 'danger'
@@ -622,15 +629,15 @@ const editDeliverable = async (deliverable: Record<string, unknown>) => {
 const viewVersions = async (deliverable: Record<string, unknown>) => {
   try {
     isLoadingVersions.value = true;
-    selectedDeliverableId.value = deliverable.id;
+    selectedDeliverableId.value = deliverable.id as string;
     showVersionsModal.value = true;
 
     // Load versions from service
-    const versionList = await deliverablesService.getVersionHistory(deliverable.id);
+    const versionList = await deliverablesService.getVersionHistory(deliverable.id as string);
 
     // Update store
     versionList.forEach(version => {
-      deliverablesStore.addVersion(deliverable.id, version);
+      deliverablesStore.addVersion(deliverable.id as string, version);
     });
 
     versions.value = versionList;
@@ -684,16 +691,26 @@ const deleteDeliverable = async () => {
 };
 // Helper functions for new data structure
 const getVersionNumber = (deliverable: Record<string, unknown>): number => {
-  return deliverable.currentVersion?.versionNumber || 1;
+  const version = deliverable.currentVersion as DeliverableVersion | undefined;
+  return version?.versionNumber || 1;
 };
 const getDeliverableContent = (deliverable: Record<string, unknown>): string => {
-  return deliverable.currentVersion?.content || '';
+  const version = deliverable.currentVersion as DeliverableVersion | undefined;
+  return version?.content || '';
 };
 const getCreatedByAgent = (deliverable: Record<string, unknown>): string | null => {
-  return deliverable.currentVersion?.metadata?.createdByAgent || null;
+  const version = deliverable.currentVersion as DeliverableVersion | undefined;
+  const metadata = version?.metadata as Record<string, unknown> | undefined;
+  return (metadata?.createdByAgent as string) || null;
 };
 const getDeliverableTags = (deliverable: Record<string, unknown>): string[] => {
-  return deliverable.currentVersion?.metadata?.tags || [];
+  const version = deliverable.currentVersion as DeliverableVersion | undefined;
+  const metadata = version?.metadata as Record<string, unknown> | undefined;
+  return (metadata?.tags as string[]) || [];
+};
+const getVersionCreatedByAgent = (version: DeliverableVersion): string | null => {
+  const metadata = version.metadata as Record<string, unknown> | undefined;
+  return (metadata?.createdByAgent as string) || null;
 };
 // Utility methods
 const getContentPreview = (content: string): string => {
@@ -707,7 +724,7 @@ const getTypeName = (type: DeliverableType): string => {
   return deliverables.getTypeName(type);
 };
 const getTypeColor = (type: DeliverableType): string => {
-  const colors = {
+  const colors: Record<string, string> = {
     [DeliverableType.DOCUMENT]: 'primary',
     [DeliverableType.ANALYSIS]: 'secondary',
     [DeliverableType.REPORT]: 'tertiary',
@@ -723,7 +740,7 @@ const formatDate = (date: string | Date): string => {
 const hasVersions = (deliverableId: string): boolean => {
   // Check if there are cached versions for this deliverable
   const deliverable = deliverablesStore.getDeliverableById(deliverableId);
-  return deliverable ? getVersionNumber(deliverable) > 1 : false;
+  return deliverable ? getVersionNumber(deliverable as unknown as Record<string, unknown>) > 1 : false;
 };
 const hideVersionsModal = () => {
   showVersionsModal.value = false;
@@ -762,7 +779,7 @@ const makeCurrentVersion = async (version: Record<string, unknown>) => {
 
               // Set the selected version as the current version using action
               // Note: setCurrentVersion gets deliverableId from ExecutionContext store
-              await setCurrentVersion(version.id);
+              await setCurrentVersion(version.id as string);
 
               // Refresh the deliverables list to show the new current version
               await loadDeliverables();

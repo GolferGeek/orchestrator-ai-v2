@@ -179,10 +179,10 @@ async function loadSizeRecommendation(predictionId: string) {
 
   try {
     const response = await predictionDashboardService.calculatePositionSize(predictionId);
-    if (response.success && response.data) {
-      sizeRecommendation.value = response.data;
+    if (response.content) {
+      sizeRecommendation.value = response.content;
       // Pre-fill recommended quantity
-      quantity.value = response.data.recommendedQuantity;
+      quantity.value = response.content.recommendedQuantity;
     }
   } catch (err) {
     console.error('Failed to load size recommendation:', err);
@@ -205,11 +205,11 @@ async function submitPosition() {
       entryPrice: entryPrice.value || undefined,
     });
 
-    if (response.success && response.data) {
+    if (response.content) {
       success.value = true;
       emit('positionCreated', {
-        positionId: response.data.position.id,
-        symbol: response.data.position.symbol,
+        positionId: response.content.position.id,
+        symbol: response.content.position.symbol,
       });
 
       // Close modal after short delay
@@ -217,7 +217,7 @@ async function submitPosition() {
         closeModal();
       }, 1500);
     } else {
-      error.value = response.error?.message || 'Failed to create position';
+      error.value = 'Failed to create position';
     }
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to create position';

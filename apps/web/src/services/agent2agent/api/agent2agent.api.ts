@@ -117,46 +117,41 @@ export class Agent2AgentApi {
    */
   plans = {
     create: async (conversationId: string, message: string) => {
-      const strictRequest = buildRequest.plan.create(
-        { conversationId, userMessage: message },
-        { title: '', content: message }
-      );
+      const strictRequest = buildRequest.plan.create({
+        userMessage: message,
+      });
       return this.executeStrictRequest(strictRequest);
     },
 
-    read: async (conversationId: string) => {
-      const strictRequest = buildRequest.plan.read({ conversationId });
+    read: async (_conversationId: string) => {
+      const strictRequest = buildRequest.plan.read();
       return this.executeStrictRequest(strictRequest);
     },
 
-    list: async (conversationId: string) => {
-      const strictRequest = buildRequest.plan.list({ conversationId });
+    list: async (_conversationId: string) => {
+      const strictRequest = buildRequest.plan.list();
       return this.executeStrictRequest(strictRequest);
     },
 
-    edit: async (conversationId: string, editedContent: string, metadata?: Record<string, unknown>) => {
-      const strictRequest = buildRequest.plan.edit(
-        { conversationId, userMessage: 'Edit plan' },
-        { editedContent, metadata }
-      );
+    edit: async (_conversationId: string, editedContent: string, _metadata?: Record<string, unknown>) => {
+      const strictRequest = buildRequest.plan.edit({
+        userMessage: 'Edit plan',
+        content: editedContent,
+      });
       return this.executeStrictRequest(strictRequest);
     },
 
     rerun: async (
       conversationId: string,
       versionId: string,
-      config: {
-        provider: string;
-        model: string;
-        temperature?: number;
-        maxTokens?: number;
-      },
+      config: Record<string, unknown>,
       userMessage?: string
     ) => {
-      const strictRequest = buildRequest.plan.rerun(
-        { conversationId, userMessage: userMessage || 'Please regenerate this plan with the same requirements' },
-        { versionId, config }
-      );
+      const strictRequest = buildRequest.plan.rerun({
+        versionId,
+        config,
+        userMessage: userMessage || 'Please regenerate this plan with the same requirements',
+      });
       return this.executeStrictRequest(strictRequest);
     },
 
@@ -229,20 +224,19 @@ export class Agent2AgentApi {
    */
   deliverables = {
     create: async (conversationId: string, message: string) => {
-      const strictRequest = buildRequest.build.execute(
-        { conversationId, userMessage: message },
-        { message }
-      );
+      const strictRequest = buildRequest.build.execute({
+        userMessage: message,
+      });
       return this.executeStrictRequest(strictRequest);
     },
 
-    read: async (conversationId: string) => {
-      const strictRequest = buildRequest.build.read({ conversationId });
+    read: async (_conversationId: string) => {
+      const strictRequest = buildRequest.build.read();
       return this.executeStrictRequest(strictRequest);
     },
 
-    list: async (conversationId: string) => {
-      const strictRequest = buildRequest.build.list({ conversationId });
+    list: async (_conversationId: string) => {
+      const strictRequest = buildRequest.build.list();
       return this.executeStrictRequest(strictRequest);
     },
 
@@ -251,15 +245,19 @@ export class Agent2AgentApi {
         mode: TaskMode.BUILD,
         action: 'edit',
         conversationId,
-        params: { editedContent, metadata },
-      } as unknown as DeliverableRequest);
+        params: {
+          content: editedContent,
+          metadata,
+        },
+      });
     },
 
-    rerun: async (conversationId: string, versionId: string, config: object, userMessage?: string) => {
-      const strictRequest = buildRequest.build.rerun(
-        { conversationId, userMessage: userMessage || 'Please regenerate this deliverable with the same requirements' },
-        { versionId, config }
-      );
+    rerun: async (conversationId: string, versionId: string, config: Record<string, unknown>, userMessage?: string) => {
+      const strictRequest = buildRequest.build.rerun({
+        versionId,
+        config,
+        userMessage: userMessage || 'Please regenerate this deliverable with the same requirements',
+      });
       return this.executeStrictRequest(strictRequest);
     },
 
@@ -395,9 +393,7 @@ export class Agent2AgentApi {
         throw new Error('Agent2Agent API returned an invalid JSON payload');
       }
 
-      const data = envelopeRecord as
-        | StrictA2ASuccessResponse
-        | StrictA2AErrorResponse;
+      const data = envelopeRecord as unknown as StrictA2ASuccessResponse | StrictA2AErrorResponse;
 
       // Validate JSON-RPC envelope
       const envelopeValidation = validateJsonRpcEnvelope(data);
@@ -447,7 +443,7 @@ export class Agent2AgentApi {
    */
   private async executeAction<T = unknown>(
     mode: TaskMode,
-    request: Record<string, unknown>,
+    request: PlanRequest | DeliverableRequest,
   ): Promise<T> {
     const org = this.getOrgSlug();
     const endpoint = `${API_BASE_URL}/agent-to-agent/${encodeURIComponent(org)}/${encodeURIComponent(this.agentSlug)}/tasks`;

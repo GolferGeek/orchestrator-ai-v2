@@ -111,7 +111,7 @@
         <div class="connection-details" v-if="dbConfig">
           <div class="detail-row">
             <span class="detail-label">URL</span>
-            <span class="detail-value">{{ maskUrl(dbConfig.url) }}</span>
+            <span class="detail-value">{{ maskUrl(dbConfig.url as string) }}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Database</span>
@@ -120,16 +120,16 @@
           <div class="detail-row">
             <span class="detail-label">Anon Client</span>
             <span class="detail-value">
-              <ion-chip size="small" :color="dbConfig.clientsAvailable?.anon ? 'success' : 'danger'">
-                <ion-label>{{ dbConfig.clientsAvailable?.anon ? 'Available' : 'Unavailable' }}</ion-label>
+              <ion-chip size="small" :color="(dbConfig.clientsAvailable as Record<string, boolean> | undefined)?.anon ? 'success' : 'danger'">
+                <ion-label>{{ (dbConfig.clientsAvailable as Record<string, boolean> | undefined)?.anon ? 'Available' : 'Unavailable' }}</ion-label>
               </ion-chip>
             </span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Service Client</span>
             <span class="detail-value">
-              <ion-chip size="small" :color="dbConfig.clientsAvailable?.service ? 'success' : 'danger'">
-                <ion-label>{{ dbConfig.clientsAvailable?.service ? 'Available' : 'Unavailable' }}</ion-label>
+              <ion-chip size="small" :color="(dbConfig.clientsAvailable as Record<string, boolean> | undefined)?.service ? 'success' : 'danger'">
+                <ion-label>{{ (dbConfig.clientsAvailable as Record<string, boolean> | undefined)?.service ? 'Available' : 'Unavailable' }}</ion-label>
               </ion-chip>
             </span>
           </div>

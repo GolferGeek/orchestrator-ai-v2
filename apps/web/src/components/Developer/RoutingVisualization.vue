@@ -431,22 +431,22 @@ export default defineComponent({
     },
 
     generateRoutingFactors(): RoutingFactor[] {
-      const factors = [
-        { name: 'Ollama Available', value: 'Yes', status: 'positive' },
-        { name: 'Model Loaded', value: 'llama3.2:latest', status: 'positive' },
-        { name: 'Memory Pressure', value: 'Low', status: 'positive' },
-        { name: 'Request Complexity', value: this.currentRequest?.complexity || 'medium', status: 'neutral' },
-        { name: 'Response Speed', value: 'Required: Fast', status: 'positive' }
+      const factors: RoutingFactor[] = [
+        { name: 'Ollama Available', value: 'Yes', status: 'positive' as const },
+        { name: 'Model Loaded', value: 'llama3.2:latest', status: 'positive' as const },
+        { name: 'Memory Pressure', value: 'Low', status: 'positive' as const },
+        { name: 'Request Complexity', value: this.currentRequest?.complexity || 'medium', status: 'neutral' as const },
+        { name: 'Response Speed', value: 'Required: Fast', status: 'positive' as const }
       ]
 
       // Randomly modify some factors to create variety
       if (Math.random() > 0.7) {
-        factors[0] = { name: 'Ollama Available', value: 'No', status: 'negative' }
-        factors[1] = { name: 'Model Loaded', value: 'None', status: 'negative' }
+        factors[0] = { name: 'Ollama Available', value: 'No', status: 'negative' as const }
+        factors[1] = { name: 'Model Loaded', value: 'None', status: 'negative' as const }
       }
 
       if (Math.random() > 0.8) {
-        factors[2] = { name: 'Memory Pressure', value: 'High', status: 'negative' }
+        factors[2] = { name: 'Memory Pressure', value: 'High', status: 'negative' as const }
       }
 
       return factors

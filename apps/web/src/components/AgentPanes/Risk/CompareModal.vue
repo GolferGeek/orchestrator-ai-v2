@@ -198,8 +198,8 @@ function handleClose() {
 }
 
 function getSubjectScore(subjectId: string): number | null {
-  const score = props.compositeScores.find(s => s.subject_id === subjectId);
-  return score?.overall_score ?? null;
+  const score = props.compositeScores.find(s => s.subjectId === subjectId);
+  return score?.score ?? null;
 }
 
 function formatScore(value: number | null): string {

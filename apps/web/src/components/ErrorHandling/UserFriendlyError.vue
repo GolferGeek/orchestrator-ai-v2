@@ -233,7 +233,7 @@ const getRecoveryActions = (error: AppError): RecoveryAction[] => {
           icon: lockClosedOutline,
           primary: true,
           action: 'navigate',
-          params: '/login'
+          params: { path: '/login' }
         });
       }
       actions.push({
@@ -241,7 +241,7 @@ const getRecoveryActions = (error: AppError): RecoveryAction[] => {
         label: 'Go Home',
         icon: homeOutline,
         action: 'navigate',
-        params: '/app/home'
+        params: { path: '/app/home' }
       });
       break;
       
@@ -311,13 +311,13 @@ const formatTimestamp = (timestamp: number): string => {
 const executeAction = (action: RecoveryAction) => {
   // Check if component is still mounted before executing actions
   if (instance?.isUnmounted) return;
-  
+
   switch (action.action) {
     case 'retry':
       emit('retry', props.error);
       break;
     case 'navigate':
-      emit('navigate', action.params);
+      emit('navigate', (action.params?.path as string) || '/');
       break;
     case 'report':
       emit('report', props.error);

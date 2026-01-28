@@ -212,6 +212,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { IonPage, IonContent, IonHeader, IonToolbar, IonButtons, IonMenuButton, IonTitle } from '@ionic/vue';
 import { usePredictionStore } from '@/stores/predictionStore';
 import { useAuthStore } from '@/stores/rbacStore';
+import { useAgentsStore } from '@/stores/agentsStore';
 import { predictionDashboardService } from '@/services/predictionDashboardService';
 import PredictionCard from '@/components/prediction/PredictionCard.vue';
 import PredictionActivityFeed from '@/components/prediction/PredictionActivityFeed.vue';
@@ -220,9 +221,32 @@ const router = useRouter();
 const route = useRoute();
 const store = usePredictionStore();
 const authStore = useAuthStore();
+const agentsStore = useAgentsStore();
 
 // Get agentSlug from query parameter (passed when clicking prediction agent in sidebar)
 const agentSlug = computed(() => route.query.agentSlug as string | undefined);
+
+// Look up the agent by slug to get its organizationSlug
+const currentAgent = computed(() => {
+  const slug = agentSlug.value;
+  if (!slug) return null;
+  return agentsStore.availableAgents.find(a => a.slug === slug || a.name === slug) || null;
+});
+
+// Get organization from agent (priority) or fall back to auth store
+const effectiveOrg = computed(() => {
+  // Priority 1: Agent's organizationSlug
+  const agentOrg = currentAgent.value?.organizationSlug;
+  if (agentOrg && agentOrg !== '*') {
+    return Array.isArray(agentOrg) ? agentOrg[0] : agentOrg;
+  }
+  // Priority 2: Auth store's current organization (but not if it's '*')
+  const authOrg = authStore.currentOrganization;
+  if (authOrg && authOrg !== '*') {
+    return authOrg;
+  }
+  return null;
+});
 
 const selectedUniverse = ref<string | null>(null);
 const statusFilter = ref<'all' | 'active' | 'resolved' | 'expired' | 'cancelled'>('all');
@@ -235,19 +259,21 @@ const hasFilters = computed(() => {
 });
 
 async function loadData() {
-  // Wait for organization context to be available
-  const org = authStore.currentOrganization;
+  // Get organization from agent (not from global auth store which may be '*')
+  const org = effectiveOrg.value;
   if (!org) {
-    console.log('Waiting for organization context...');
+    console.log('[PredictionDashboard] Waiting for organization context from agent...');
+    store.setError('No organization context available. Please select a prediction agent from the agents panel.');
     return;
   }
 
-  // Set the agent slug for API calls (from URL query param or default)
+  // Set the organization and agent slug for API calls
   const agent = agentSlug.value || 'us-tech-stocks';
+  predictionDashboardService.setOrgSlug(org);
   predictionDashboardService.setAgentSlug(agent);
 
   // Debug: Log the organization and agent being used
-  console.log('Loading prediction data for organization:', org, 'agentSlug:', agent);
+  console.log('[PredictionDashboard] Loading data for org:', org, 'agent:', agent, '(from agent:', currentAgent.value?.name, ')');
 
   store.setLoading(true);
   store.clearError();
@@ -307,11 +333,12 @@ function navigateToTraining(screenName: string) {
   router.push({ name: screenName });
 }
 
-// Watch for organization context to become available
+// Watch for organization context to become available (from agent or auth store)
 watch(
-  () => authStore.currentOrganization,
-  (newOrg) => {
+  [effectiveOrg, agentSlug],
+  ([newOrg, newAgentSlug]) => {
     if (newOrg) {
+      console.log('[PredictionDashboard] Org/agent changed:', newOrg, newAgentSlug);
       loadData();
     }
   },
@@ -327,10 +354,8 @@ onMounted(async () => {
     await contentRef.value.$el.scrollToTop(0);
   }
 
-  // If organization is already set, load data
-  if (authStore.currentOrganization) {
-    loadData();
-  }
+  // Note: Data loading is handled by the watch on effectiveOrg
+  // which fires immediately. No need to call loadData() here.
 });
 </script>
 

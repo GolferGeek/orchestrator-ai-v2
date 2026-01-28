@@ -285,9 +285,9 @@ class DeliverablesService {
    */
   async getConversationDeliverables(conversationId: string): Promise<Deliverable[]> {
     // Use shared apiService to ensure correct base URL and auth headers
-    const response = await apiService.get(`/deliverables/conversation/${conversationId}`);
+    const response = await apiService.get<Deliverable[] | DeliverableSearchResponse>(`/deliverables/conversation/${conversationId}`);
     // apiService.get already returns parsed JSON
-    return Array.isArray(response) ? response : (response?.items || response || []);
+    return Array.isArray(response) ? response : ((response as DeliverableSearchResponse)?.items || []);
   }
   /**
    * Get deliverables created by a specific agent (by searching version metadata)

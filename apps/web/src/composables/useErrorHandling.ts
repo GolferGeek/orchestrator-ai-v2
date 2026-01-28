@@ -41,13 +41,19 @@ export function useErrorHandling(options: ErrorHandlingOptions = {}) {
     try {
       // Convert to AppError if needed
       let appError: Error;
-      
+
       if (error instanceof Error) {
         appError = error;
-      } else if (typeof error === 'object' && error.message) {
+      } else if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string') {
         appError = new Error(error.message);
-        appError.stack = error.stack;
-        appError.name = error.name || 'ApplicationError';
+        if ('stack' in error && typeof error.stack === 'string') {
+          appError.stack = error.stack;
+        }
+        if ('name' in error && typeof error.name === 'string') {
+          appError.name = error.name;
+        } else {
+          appError.name = 'ApplicationError';
+        }
       } else {
         appError = new Error(String(error));
         appError.name = 'UnknownError';
@@ -60,7 +66,7 @@ export function useErrorHandling(options: ErrorHandlingOptions = {}) {
         userId: context?.userId,
         sessionId: context?.sessionId,
         additionalContext: {
-          operation: context?.operation,
+          ...(context?.operation ? { operation: context.operation } : {}),
           ...context?.additionalContext
         }
       });
@@ -95,17 +101,19 @@ export function useErrorHandling(options: ErrorHandlingOptions = {}) {
   ): Promise<void> => {
     const apiError = new Error(getApiErrorMessage(error));
     apiError.name = 'ApiError';
-    apiError.stack = error.stack;
+    apiError.stack = typeof error.stack === 'string' ? error.stack : undefined;
+
+    const errorResponse = error.response as { status?: number; statusText?: string; data?: unknown } | undefined;
 
     await handleError(apiError, {
       operation: context?.operation || `${context?.method} ${context?.url}`,
       url: context?.url,
       additionalContext: {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
+        status: errorResponse?.status,
+        statusText: errorResponse?.statusText,
         method: context?.method,
         requestData: context?.requestData,
-        responseData: error.response?.data
+        responseData: errorResponse?.data
       }
     });
   };
@@ -243,12 +251,13 @@ export function useErrorHandling(options: ErrorHandlingOptions = {}) {
   };
 
   const getApiErrorMessage = (error: Record<string, unknown>): string => {
-    const status = error.response?.status;
-    
-    if (!error.response) {
+    const errorResponse = error.response as { status?: number; data?: { message?: string } } | undefined;
+    const status = errorResponse?.status;
+
+    if (!errorResponse) {
       return 'Network connection failed - please check your internet connection';
     }
-    
+
     switch (status) {
       case 401:
         return 'Your session has expired - please sign in again';
@@ -265,7 +274,7 @@ export function useErrorHandling(options: ErrorHandlingOptions = {}) {
       case 504:
         return 'Service temporarily unavailable - please try again in a few minutes';
       default:
-        return error.response?.data?.message || `Request failed (${status})`;
+        return errorResponse?.data?.message || `Request failed (${status})`;
     }
   };
 

@@ -47,17 +47,20 @@ export async function createPlan(
 
     // Add user message to conversation
     conversationsStore.addMessage(ctx.conversationId, {
+      conversationId: ctx.conversationId,
       role: 'user',
       content: userMessage,
       timestamp: new Date().toISOString(),
+      metadata: {},
     });
 
     // Create assistant message placeholder
     const assistantMessage = conversationsStore.addMessage(ctx.conversationId, {
+      conversationId: ctx.conversationId,
       role: 'assistant',
       content: 'Creating plan...',
       timestamp: new Date().toISOString(),
-      metadata: { mode: 'plan' },
+      metadata: { custom: { mode: 'plan' } },
     });
 
     // Execute via orchestrator
@@ -67,12 +70,13 @@ export async function createPlan(
     if (result.type === 'plan') {
       conversationsStore.updateMessage(ctx.conversationId, assistantMessage.id, {
         content: 'Plan created successfully',
-        planId: result.plan.id,
       });
       conversationsStore.updateMessageMetadata(ctx.conversationId, assistantMessage.id, {
-        planId: result.plan.id,
-        mode: 'plan',
-        isCompleted: true,
+        custom: {
+          planId: result.plan.id,
+          mode: 'plan',
+          isCompleted: true,
+        },
       });
 
       chatUiStore.setIsSendingMessage(false);
@@ -87,8 +91,10 @@ export async function createPlan(
         content: `Error: ${result.error}`,
       });
       conversationsStore.updateMessageMetadata(ctx.conversationId, assistantMessage.id, {
-        mode: 'plan',
-        error: result.error,
+        custom: {
+          mode: 'plan',
+          error: result.error,
+        },
       });
 
       chatUiStore.setIsSendingMessage(false);

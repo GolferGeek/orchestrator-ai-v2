@@ -142,28 +142,28 @@
               <div v-if="getAlertDetails(selectedAlert).triggerScore !== undefined" class="detail-row">
                 <span class="detail-label">Trigger Score:</span>
                 <span class="detail-value" :class="getScoreClass(getAlertDetails(selectedAlert).triggerScore)">
-                  {{ formatPercent(getAlertDetails(selectedAlert).triggerScore) }}
+                  {{ formatPercent(getAlertDetails(selectedAlert).triggerScore ?? 0) }}
                 </span>
               </div>
 
               <div v-if="getAlertDetails(selectedAlert).threshold !== undefined" class="detail-row">
                 <span class="detail-label">Threshold:</span>
-                <span class="detail-value">{{ formatPercent(getAlertDetails(selectedAlert).threshold) }}</span>
+                <span class="detail-value">{{ formatPercent(getAlertDetails(selectedAlert).threshold ?? 0) }}</span>
               </div>
 
               <div v-if="getAlertDetails(selectedAlert).previousScore !== undefined" class="detail-row">
                 <span class="detail-label">Previous Score:</span>
-                <span class="detail-value">{{ formatPercent(getAlertDetails(selectedAlert).previousScore) }}</span>
+                <span class="detail-value">{{ formatPercent(getAlertDetails(selectedAlert).previousScore ?? 0) }}</span>
               </div>
 
               <div v-if="getAlertDetails(selectedAlert).changePercent !== undefined" class="detail-row">
                 <span class="detail-label">Change:</span>
-                <span class="detail-value" :class="getAlertDetails(selectedAlert).changePercent > 0 ? 'increase' : 'decrease'">
-                  {{ getAlertDetails(selectedAlert).changePercent > 0 ? '+' : '' }}{{ getAlertDetails(selectedAlert).changePercent?.toFixed(1) }}%
+                <span class="detail-value" :class="(getAlertDetails(selectedAlert).changePercent ?? 0) > 0 ? 'increase' : 'decrease'">
+                  {{ (getAlertDetails(selectedAlert).changePercent ?? 0) > 0 ? '+' : '' }}{{ (getAlertDetails(selectedAlert).changePercent ?? 0).toFixed(1) }}%
                 </span>
               </div>
 
-              <div v-if="getAlertDetails(selectedAlert).dimensions && getAlertDetails(selectedAlert).dimensions.length > 0" class="detail-section">
+              <div v-if="getAlertDetails(selectedAlert).dimensions && (getAlertDetails(selectedAlert).dimensions?.length ?? 0) > 0" class="detail-section">
                 <span class="detail-label">Affected Dimensions:</span>
                 <ul class="dimensions-list">
                   <li v-for="dim in getAlertDetails(selectedAlert).dimensions" :key="dim">
@@ -203,6 +203,7 @@
 
                   <div v-if="alertContext.assessment.reasoning" class="context-reasoning">
                     <span class="context-label">Analysis Reasoning:</span>
+                    <!-- eslint-disable-next-line vue/no-v-html -- Intentional: Rendering sanitized markdown/HTML content from trusted source -->
                     <div class="reasoning-content" v-html="formatReasoning(alertContext.assessment.reasoning)"></div>
                   </div>
 
@@ -216,8 +217,8 @@
                         class="signal-item"
                         @click="showSignalDetail(signal)"
                       >
-                        <strong>{{ signal.name }}</strong>: {{ signal.value }}
-                        <span v-if="signal.weight" class="signal-weight">({{ (signal.weight * 100).toFixed(0) }}%)</span>
+                        <strong>{{ signal.name ?? 'Signal' }}</strong>: {{ signal.value ?? signal.description }}
+                        <span v-if="signal.weight" class="signal-weight">({{ ((signal.weight ?? 0) * 100).toFixed(0) }}%)</span>
                       </li>
                     </ul>
                   </div>
@@ -230,6 +231,7 @@
                         {{ alertContext.assessment.score > alertContext.previousAssessment.score ? '+' : '' }}{{ ((alertContext.assessment.score - alertContext.previousAssessment.score)).toFixed(0) }} points
                       </span>
                     </div>
+                    <!-- eslint-disable-next-line vue/no-v-html -- Intentional: Rendering sanitized markdown/HTML content from trusted source -->
                     <div v-if="alertContext.previousAssessment.reasoning" class="previous-reasoning" v-html="formatReasoning(alertContext.previousAssessment.reasoning)"></div>
                   </div>
                 </div>
@@ -305,13 +307,27 @@ interface AlertContext {
     score: number;
     confidence: number;
     reasoning?: string;
-    signals?: Array<{ description: string; impact: string }>;
+    signals?: Array<{
+      name?: string;
+      description: string;
+      impact: string;
+      value?: unknown;
+      weight?: number;
+      source?: string;
+    }>;
     evidence?: string;
   };
   previousAssessment?: {
     score: number;
     reasoning?: string;
-    signals?: Array<{ description: string; impact: string }>;
+    signals?: Array<{
+      name?: string;
+      description: string;
+      impact: string;
+      value?: unknown;
+      weight?: number;
+      source?: string;
+    }>;
   };
 }
 

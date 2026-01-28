@@ -76,29 +76,29 @@
                     ></ion-progress-bar>
                   </div>
                   <div class="metric-item">
-                    <h3>{{ analytics?.averageSpeedRating?.toFixed(1) || 'N/A' }}</h3>
+                    <h3>{{ analytics?.userSatisfactionMetrics?.averageSpeedRating?.toFixed(1) || 'N/A' }}</h3>
                     <p>Speed Rating</p>
-                    <ion-progress-bar 
-                      :value="(analytics?.averageSpeedRating || 0) / 5" 
+                    <ion-progress-bar
+                      :value="(analytics?.userSatisfactionMetrics?.averageSpeedRating || 0) / 5"
                       color="primary"
                     ></ion-progress-bar>
                   </div>
                   <div class="metric-item">
-                    <h3>{{ analytics?.averageAccuracyRating?.toFixed(1) || 'N/A' }}</h3>
+                    <h3>{{ analytics?.userSatisfactionMetrics?.averageAccuracyRating?.toFixed(1) || 'N/A' }}</h3>
                     <p>Accuracy Rating</p>
-                    <ion-progress-bar 
-                      :value="(analytics?.averageAccuracyRating || 0) / 5" 
+                    <ion-progress-bar
+                      :value="(analytics?.userSatisfactionMetrics?.averageAccuracyRating || 0) / 5"
                       color="warning"
                     ></ion-progress-bar>
                   </div>
                   <div class="metric-item">
-                    <h3>{{ Math.round(analytics?.averageResponseTime || 0) }}ms</h3>
+                    <h3>{{ Math.round(analytics?.responseTimeAnalysis?.averageResponseTime || 0) }}ms</h3>
                     <p>Avg Response Time</p>
-                    <ion-chip 
-                      :color="getResponseTimeColor(analytics?.averageResponseTime || 0)"
+                    <ion-chip
+                      :color="getResponseTimeColor(analytics?.responseTimeAnalysis?.averageResponseTime || 0)"
                       size="small"
                     >
-                      {{ getResponseTimeLabel(analytics?.averageResponseTime || 0) }}
+                      {{ getResponseTimeLabel(analytics?.responseTimeAnalysis?.averageResponseTime || 0) }}
                     </ion-chip>
                   </div>
                 </div>
@@ -116,14 +116,14 @@
                   <ion-item lines="none">
                     <ion-label>
                       <h3>Average Cost per Evaluation</h3>
-                      <p>${{ analytics?.averageCost?.toFixed(4) || '0.0000' }}</p>
+                      <p>${{ analytics?.costAnalysis?.averageCostPerRequest?.toFixed(4) || '0.0000' }}</p>
                     </ion-label>
                     <ion-icon :icon="cardOutline" slot="end" color="medium"></ion-icon>
                   </ion-item>
                   <ion-item lines="none">
                     <ion-label>
                       <h3>Total Estimated Cost</h3>
-                      <p>${{ ((analytics?.averageCost || 0) * (analytics?.totalEvaluations || 0)).toFixed(2) }}</p>
+                      <p>${{ (analytics?.costAnalysis?.totalCost || 0).toFixed(2) }}</p>
                     </ion-label>
                     <ion-icon :icon="cashOutline" slot="end" color="success"></ion-icon>
                   </ion-item>
@@ -150,20 +150,20 @@
             <ion-row>
               <ion-col size="12" size-md="6">
                 <div class="workflow-metric">
-                  <h3>{{ Math.round(analytics?.averageWorkflowCompletionRate || 0) }}%</h3>
+                  <h3>{{ calculateWorkflowSuccessRate() }}%</h3>
                   <p>Overall Success Rate</p>
-                  <ion-progress-bar 
-                    :value="(analytics?.averageWorkflowCompletionRate || 0) / 100" 
+                  <ion-progress-bar
+                    :value="calculateWorkflowSuccessRate() / 100"
                     color="success"
                   ></ion-progress-bar>
                 </div>
               </ion-col>
               <ion-col size="12" size-md="6">
                 <div class="workflow-metric">
-                  <h3>{{ workflowAnalytics.averageStepsCompleted || 0 }}</h3>
+                  <h3>{{ calculateAverageSteps() }}</h3>
                   <p>Avg Steps Completed</p>
                   <ion-chip color="primary" size="small">
-                    of {{ workflowAnalytics.averageTotalSteps || 0 }} total
+                    workflow steps
                   </ion-chip>
                 </div>
               </ion-col>
@@ -180,7 +180,7 @@
                 <ion-label>
                   <h3>{{ failure.stepName }}</h3>
                   <p>{{ failure.failureRate.toFixed(1) }}% failure rate</p>
-                  <p class="text-small">Avg duration: {{ Math.round(failure.averageDuration) }}ms</p>
+                  <p class="text-small">Avg recovery: {{ Math.round(failure.averageRecoveryTime) }}ms</p>
                 </ion-label>
                 <ion-chip slot="end" color="danger" size="small">
                   Critical
@@ -202,19 +202,19 @@
               <ion-col size="12" size-lg="6">
                 <h4>Most Effective Constraints</h4>
                 <ion-list>
-                  <ion-item 
-                    v-for="constraint in analytics?.topConstraints?.slice(0, 5) || []"
+                  <ion-item
+                    v-for="constraint in constraintAnalytics?.constraintUsage?.slice(0, 5) || []"
                     :key="constraint.constraintName"
                   >
                     <ion-label>
                       <h3>{{ constraint.constraintName }}</h3>
                       <p>Used {{ constraint.usageCount }} times</p>
                     </ion-label>
-                    <ion-chip 
-                      slot="end" 
-                      :color="getEffectivenessColor(constraint.effectivenessScore)"
+                    <ion-chip
+                      slot="end"
+                      :color="getEffectivenessColor(constraint.averageEffectiveness)"
                     >
-                      {{ constraint.effectivenessScore.toFixed(1) }}
+                      {{ constraint.averageEffectiveness.toFixed(1) }}
                     </ion-chip>
                   </ion-item>
                 </ion-list>
@@ -224,15 +224,15 @@
                 <h4>Usage Statistics</h4>
                 <div class="constraint-stats">
                   <div class="stat-item">
-                    <h3>{{ constraintAnalytics.totalConstraintsUsed || 0 }}</h3>
+                    <h3>{{ calculateTotalConstraints() }}</h3>
                     <p>Total Constraints Applied</p>
                   </div>
                   <div class="stat-item">
-                    <h3>{{ constraintAnalytics.averageConstraintsPerEvaluation?.toFixed(1) || '0.0' }}</h3>
+                    <h3>{{ calculateAverageConstraintsPerEvaluation() }}</h3>
                     <p>Avg per Evaluation</p>
                   </div>
                   <div class="stat-item">
-                    <h3>{{ constraintAnalytics.constraintComplianceRate?.toFixed(1) || '0.0' }}%</h3>
+                    <h3>{{ calculateConstraintComplianceRate() }}%</h3>
                     <p>Compliance Rate</p>
                   </div>
                 </div>
@@ -248,22 +248,22 @@
         </ion-card-header>
         <ion-card-content>
           <div class="agent-comparison">
-            <ion-item 
-              v-for="agent in analytics?.topPerformingAgents?.slice(0, 10) || []"
-              :key="agent.agentName"
+            <ion-item
+              v-for="model in analytics?.modelPerformanceComparison?.slice(0, 10) || []"
+              :key="model.modelName"
               class="agent-item"
             >
               <ion-label>
-                <h3>{{ agent.agentName }}</h3>
-                <p>{{ agent.evaluationCount }} evaluations</p>
+                <h3>{{ model.modelName }}</h3>
+                <p>{{ model.usageCount }} evaluations</p>
               </ion-label>
               <div slot="end" class="agent-metrics">
-                <ion-chip :color="getRatingColor(agent.averageRating)">
-                  {{ agent.averageRating.toFixed(1) }} ⭐
+                <ion-chip :color="getRatingColor(model.averageRating)">
+                  {{ model.averageRating.toFixed(1) }} ⭐
                 </ion-chip>
-                <ion-progress-bar 
-                  :value="agent.averageRating / 5" 
-                  :color="getRatingColor(agent.averageRating)"
+                <ion-progress-bar
+                  :value="model.averageRating / 5"
+                  :color="getRatingColor(model.averageRating)"
                   style="width: 100px; margin-top: 4px;"
                 ></ion-progress-bar>
               </div>
@@ -365,9 +365,51 @@ function getEffectivenessColor(score: number): string {
   return 'danger';
 }
 function getCostPerRatingPoint(): number {
-  const avgCost = props.analytics?.averageCost || 0;
+  const avgCost = props.analytics?.costAnalysis?.averageCostPerRequest || 0;
   const avgRating = props.analytics?.averageRating || 1;
   return avgRating > 0 ? avgCost / avgRating : 0;
+}
+
+function calculateWorkflowSuccessRate(): number {
+  if (!props.workflowAnalytics?.workflowPerformance?.length) return 0;
+  const totalSuccessRate = props.workflowAnalytics.workflowPerformance.reduce(
+    (sum, workflow) => sum + workflow.successRate,
+    0
+  );
+  return Math.round(totalSuccessRate / props.workflowAnalytics.workflowPerformance.length);
+}
+
+function calculateAverageSteps(): number {
+  if (!props.workflowAnalytics?.workflowEfficiencyTrends?.length) return 0;
+  const totalSteps = props.workflowAnalytics.workflowEfficiencyTrends.reduce(
+    (sum, trend) => sum + trend.averageSteps,
+    0
+  );
+  return Math.round(totalSteps / props.workflowAnalytics.workflowEfficiencyTrends.length);
+}
+
+function calculateTotalConstraints(): number {
+  if (!props.constraintAnalytics?.constraintUsage?.length) return 0;
+  return props.constraintAnalytics.constraintUsage.reduce(
+    (sum, constraint) => sum + constraint.usageCount,
+    0
+  );
+}
+
+function calculateAverageConstraintsPerEvaluation(): string {
+  const total = calculateTotalConstraints();
+  const evaluations = props.analytics?.totalEvaluations || 1;
+  return (total / evaluations).toFixed(1);
+}
+
+function calculateConstraintComplianceRate(): string {
+  if (!props.constraintAnalytics?.constraintUsage?.length) return '0.0';
+  const totalSatisfaction = props.constraintAnalytics.constraintUsage.reduce(
+    (sum, constraint) => sum + constraint.userSatisfaction,
+    0
+  );
+  const avgSatisfaction = totalSatisfaction / props.constraintAnalytics.constraintUsage.length;
+  return (avgSatisfaction * 10).toFixed(1);
 }
 function exportDetailedReport() {
   // This would trigger a detailed analytics export

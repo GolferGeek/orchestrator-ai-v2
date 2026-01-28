@@ -12,8 +12,8 @@ import { useApiSanitization } from '@/composables/useApiSanitization';
 class PIIService {
   // Align with backend routes under /llm/sanitization
   private readonly basePath = '/llm/sanitization';
-  private _apiSanitization: unknown = null;
-  
+  private _apiSanitization: ReturnType<typeof useApiSanitization> | null = null;
+
   private get apiSanitization() {
     if (!this._apiSanitization) {
       this._apiSanitization = useApiSanitization();
@@ -30,7 +30,7 @@ class PIIService {
    */
   async getPIIPatterns(): Promise<PIIPattern[]> {
     try {
-      const response = await apiService.getQuiet404(`${this.basePath}/pii/patterns`);
+      const response = await apiService.getQuiet404<{ patterns: PIIPattern[] }>(`${this.basePath}/pii/patterns`);
       return response.patterns || [];
     } catch (error) {
       // Graceful demo fallback without noisy logs for 404
@@ -47,7 +47,7 @@ class PIIService {
    */
   async getPIIPattern(id: string): Promise<PIIPattern> {
     try {
-      const response = await apiService.get(`${this.basePath}/pii/patterns/${id}`);
+      const response = await apiService.get<{ pattern: PIIPattern }>(`${this.basePath}/pii/patterns/${id}`);
       return response.pattern;
     } catch (error) {
       console.error(`Error fetching PII pattern ${id}:`, error);
@@ -60,7 +60,7 @@ class PIIService {
    */
   async createPIIPattern(pattern: Omit<PIIPattern, 'id' | 'createdAt' | 'updatedAt'>): Promise<PIIPattern> {
     try {
-      const response = await apiService.post(`${this.basePath}/pii/patterns`, pattern);
+      const response = await apiService.post<{ pattern: PIIPattern }>(`${this.basePath}/pii/patterns`, pattern);
       return response.pattern;
     } catch (error) {
       console.error('Error creating PII pattern:', error);
@@ -73,7 +73,7 @@ class PIIService {
    */
   async updatePIIPattern(id: string, pattern: Partial<PIIPattern>): Promise<PIIPattern> {
     try {
-      const response = await apiService.put(`${this.basePath}/pii/patterns/${id}`, pattern);
+      const response = await apiService.put<{ pattern: PIIPattern }>(`${this.basePath}/pii/patterns/${id}`, pattern);
       return response.pattern;
     } catch (error) {
       console.error(`Error updating PII pattern ${id}:`, error);
@@ -98,7 +98,7 @@ class PIIService {
    */
   async bulkOperationPIIPatterns(operation: PIIPatternBulkOperation): Promise<PIIPatternBulkResult> {
     try {
-      const response = await apiService.post(`${this.basePath}/pii/patterns/bulk`, operation);
+      const response = await apiService.post<PIIPatternBulkResult>(`${this.basePath}/pii/patterns/bulk`, operation);
       return response;
     } catch (error) {
       console.error('Error performing bulk operation on PII patterns:', error);
@@ -116,8 +116,8 @@ class PIIService {
   async testPIIDetection(request: PIITestRequest): Promise<PIITestResponse> {
     try {
       // Sanitize the PII test request
-      const sanitizedRequest = this.apiSanitization.sanitizePIIRequest(request);
-      const response = await apiService.post(`${this.basePath}/pii/test`, sanitizedRequest);
+      const sanitizedRequest = this.apiSanitization.sanitizePIIRequest(request as { text: string; [key: string]: unknown });
+      const response = await apiService.post<PIITestResponse>(`${this.basePath}/pii/test`, sanitizedRequest);
       return response;
     } catch (error) {
       console.error('Error testing PII detection:', error);
@@ -131,8 +131,8 @@ class PIIService {
   async sanitizeText(request: PIITestRequest): Promise<PIITestResponse> {
     try {
       // Sanitize the request before sending
-      const sanitizedRequest = this.apiSanitization.sanitizePIIRequest(request);
-      const response = await apiService.post(`${this.basePath}/sanitize`, sanitizedRequest);
+      const sanitizedRequest = this.apiSanitization.sanitizePIIRequest(request as { text: string; [key: string]: unknown });
+      const response = await apiService.post<PIITestResponse>(`${this.basePath}/sanitize`, sanitizedRequest);
       return response;
     } catch (error) {
       console.error('Error sanitizing text:', error);
@@ -149,17 +149,23 @@ class PIIService {
    */
   async getPIIStats(): Promise<PIIStatsResponse> {
     try {
-      const response = await apiService.getQuiet404(`${this.basePath}/stats`);
+      const response = await apiService.getQuiet404<PIIStatsResponse>(`${this.basePath}/stats`);
       return response;
     } catch (error) {
       if ((error as { response?: { status?: number } })?.response?.status === 404) {
         return {
+          success: true,
           totalPatterns: 0,
           customPatterns: 0,
           enabledPatterns: 0,
-          detectionsByType: {},
-          lastUpdated: new Date().toISOString()
-        } as unknown;
+          builtInPatterns: 0,
+          recentDetections: 0,
+          processingStats: {
+            averageProcessingTime: 0,
+            totalProcessed: 0,
+            successRate: 0
+          }
+        };
       }
       console.error('Error fetching PII stats:', error);
       throw error;

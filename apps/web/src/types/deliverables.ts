@@ -12,7 +12,7 @@ export {
   type DeliverableSearchResponse
 } from '@/services/deliverablesService';
 // Import types for use in interfaces
-import type { Deliverable, DeliverableVersion } from '@/services/deliverablesService';
+import type { Deliverable, DeliverableVersion, DeliverableSearchResult } from '@/services/deliverablesService';
 import type { JsonObject } from '@orchestrator-ai/transport-types';
 import type { ConversationHistoryEntry } from './conversation';
 // Additional frontend-specific types

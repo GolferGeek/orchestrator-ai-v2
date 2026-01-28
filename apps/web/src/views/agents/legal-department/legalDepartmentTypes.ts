@@ -599,16 +599,42 @@ export interface RealEstateAnalysisOutput {
 // =============================================================================
 
 export interface ComplianceAnalysisOutput {
-  regulatoryFrameworks: Array<{
+  policyChecks: {
+    termLimit?: {
+      compliant?: boolean;
+      contractTerm: string;
+      maxAllowedTerm: string;
+      details: string;
+      [key: string]: unknown;
+    };
+    jurisdiction?: {
+      compliant?: boolean;
+      contractJurisdiction: string;
+      allowedJurisdictions: string[];
+      details: string;
+      [key: string]: unknown;
+    };
+    approvalAuthority?: {
+      contractValue?: string;
+      requiredApprover: string;
+      details: string;
+    };
+  };
+  regulatoryCompliance: {
+    regulations: string[];
+    status: 'compliant' | 'non-compliant' | 'review-required' | 'not-applicable';
+    details: string;
+  };
+  regulatoryFrameworks?: Array<{
     framework: string;
     applicable: boolean;
     details: string;
   }>;
-  complianceStatus: {
+  complianceStatus?: {
     overall: 'compliant' | 'non-compliant' | 'partial' | 'unknown';
     details: string;
   };
-  requirements: Array<{
+  requirements?: Array<{
     requirement: string;
     status: 'met' | 'not-met' | 'partial' | 'unknown';
     details: string;

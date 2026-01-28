@@ -105,7 +105,7 @@ const handleConversationFromQuery = async () => {
       conversationId,
       router,
       {
-        name: route.name,
+        name: typeof route.name === 'string' ? route.name : null,
         params: route.params,
         query: route.query
       }

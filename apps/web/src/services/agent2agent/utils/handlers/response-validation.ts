@@ -39,11 +39,13 @@ export function validateJsonRpcEnvelope(response: unknown): {
     return { valid: false, errors };
   }
 
-  if (response.jsonrpc !== '2.0') {
+  const resp = response as Record<string, unknown>;
+
+  if (resp.jsonrpc !== '2.0') {
     errors.push('Invalid JSON-RPC version');
   }
 
-  if (response.id === undefined) {
+  if (resp.id === undefined) {
     errors.push('Missing response id');
   }
 
@@ -63,12 +65,19 @@ export function validateSuccessResponse(
 ): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
-  if (!response.result) {
+  if (!response || typeof response !== 'object') {
     errors.push('Missing result in success response');
     return { valid: false, errors };
   }
 
-  const result = response.result;
+  const resp = response as Record<string, unknown>;
+
+  if (!resp.result) {
+    errors.push('Missing result in success response');
+    return { valid: false, errors };
+  }
+
+  const result = resp.result as Record<string, unknown>;
 
   if (result.success !== true) {
     errors.push('Success flag must be true');
@@ -98,12 +107,19 @@ export function validateErrorResponse(response: unknown): {
 } {
   const errors: string[] = [];
 
-  if (!response.error) {
+  if (!response || typeof response !== 'object') {
     errors.push('Missing error in error response');
     return { valid: false, errors };
   }
 
-  const error = response.error;
+  const resp = response as Record<string, unknown>;
+
+  if (!resp.error) {
+    errors.push('Missing error in error response');
+    return { valid: false, errors };
+  }
+
+  const error = resp.error as Record<string, unknown>;
 
   if (typeof error.code !== 'number') {
     errors.push('Error code must be a number');
@@ -172,45 +188,69 @@ export function extractSuccessPayload<T = unknown>(
  * Type guard functions for mode-specific responses
  */
 export function isStrictPlanResponse(response: unknown): response is StrictPlanResponse {
+  if (!response || typeof response !== 'object') {
+    return false;
+  }
+  const resp = response as Record<string, unknown>;
   return (
-    response &&
-    response.jsonrpc === '2.0' &&
-    response.result &&
-    response.result.mode === 'plan'
+    resp.jsonrpc === '2.0' &&
+    resp.result !== undefined &&
+    typeof resp.result === 'object' &&
+    resp.result !== null &&
+    (resp.result as Record<string, unknown>).mode === 'plan'
   );
 }
 
 export function isStrictBuildResponse(response: unknown): response is StrictBuildResponse {
+  if (!response || typeof response !== 'object') {
+    return false;
+  }
+  const resp = response as Record<string, unknown>;
   return (
-    response &&
-    response.jsonrpc === '2.0' &&
-    response.result &&
-    response.result.mode === 'build'
+    resp.jsonrpc === '2.0' &&
+    resp.result !== undefined &&
+    typeof resp.result === 'object' &&
+    resp.result !== null &&
+    (resp.result as Record<string, unknown>).mode === 'build'
   );
 }
 
 export function isStrictConverseResponse(response: unknown): response is StrictConverseResponse {
+  if (!response || typeof response !== 'object') {
+    return false;
+  }
+  const resp = response as Record<string, unknown>;
   return (
-    response &&
-    response.jsonrpc === '2.0' &&
-    response.result &&
-    response.result.mode === 'converse'
+    resp.jsonrpc === '2.0' &&
+    resp.result !== undefined &&
+    typeof resp.result === 'object' &&
+    resp.result !== null &&
+    (resp.result as Record<string, unknown>).mode === 'converse'
   );
 }
 
 export function isStrictErrorResponse(response: unknown): response is StrictA2AErrorResponse {
+  if (!response || typeof response !== 'object') {
+    return false;
+  }
+  const resp = response as Record<string, unknown>;
   return (
-    response &&
-    response.jsonrpc === '2.0' &&
+    resp.jsonrpc === '2.0' &&
     'error' in response
   );
 }
 
 export function isStrictSuccessResponse(response: unknown): response is StrictA2ASuccessResponse {
+  if (!response || typeof response !== 'object') {
+    return false;
+  }
+  const resp = response as Record<string, unknown>;
   return (
-    response &&
-    response.jsonrpc === '2.0' &&
+    resp.jsonrpc === '2.0' &&
     'result' in response &&
-    response.result.success === true
+    resp.result !== undefined &&
+    typeof resp.result === 'object' &&
+    resp.result !== null &&
+    (resp.result as Record<string, unknown>).success === true
   );
 }

@@ -84,10 +84,8 @@
               </ion-card-header>
               <ion-card-content>
                 <BaseChart
-                  v-if="routingDistributionData.labels.length > 0"
-                  :type="'pie'"
-                  :data="routingDistributionData"
-                  :options="pieChartOptions"
+                  v-if="routingDistributionData.labels && routingDistributionData.labels.length > 0"
+                  :config="{ type: 'pie', data: routingDistributionData, options: pieChartOptions }"
                   :height="300"
                 />
                 <div v-else class="no-data-message">
@@ -107,10 +105,8 @@
               </ion-card-header>
               <ion-card-content>
                 <BaseChart
-                  v-if="complexityDistributionData.labels.length > 0"
-                  :type="'bar'"
-                  :data="complexityDistributionData"
-                  :options="barChartOptions"
+                  v-if="complexityDistributionData.labels && complexityDistributionData.labels.length > 0"
+                  :config="{ type: 'bar', data: complexityDistributionData, options: barChartOptions }"
                   :height="300"
                 />
                 <div v-else class="no-data-message">
@@ -132,10 +128,8 @@
               </ion-card-header>
               <ion-card-content>
                 <BaseChart
-                  v-if="performanceByRouteData.labels.length > 0"
-                  :type="'bar'"
-                  :data="performanceByRouteData"
-                  :options="performanceChartOptions"
+                  v-if="performanceByRouteData.labels && performanceByRouteData.labels.length > 0"
+                  :config="{ type: 'bar', data: performanceByRouteData, options: performanceChartOptions }"
                   :height="400"
                 />
                 <div v-else class="no-data-message">
@@ -286,6 +280,8 @@ import {
 
 import BaseChart from '@/components/Charts/BaseChart.vue';
 import { useLLMAnalyticsStore } from '@/stores/llmAnalyticsStore';
+import type { ChartData, ChartOptions } from 'chart.js';
+import type { LlmUsageRecord } from '@/services/llmAnalyticsService';
 
 // Props
 const props = defineProps<{
@@ -312,7 +308,7 @@ const totalRoutingDecisions = computed(() => usageRecords.value.length);
 
 const localRoutingPercentage = computed(() => {
   if (usageRecords.value.length === 0) return 0;
-  const localCount = usageRecords.value.filter(r => r.is_local).length;
+  const localCount = usageRecords.value.filter((r: LlmUsageRecord) => r.is_local).length;
   return Math.round((localCount / usageRecords.value.length) * 100);
 });
 
@@ -322,19 +318,19 @@ const cloudRoutingPercentage = computed(() => {
 
 const fallbackPercentage = computed(() => {
   if (usageRecords.value.length === 0) return 0;
-  const fallbackCount = usageRecords.value.filter(r => r.fallback_used).length;
+  const fallbackCount = usageRecords.value.filter((r: LlmUsageRecord) => r.fallback_used).length;
   return Math.round((fallbackCount / usageRecords.value.length) * 100);
 });
 
 // Computed - Chart Data
-const routingDistributionData = computed(() => {
-  const localCount = usageRecords.value.filter(r => r.is_local).length;
+const routingDistributionData = computed((): ChartData<'pie'> => {
+  const localCount = usageRecords.value.filter((r: LlmUsageRecord) => r.is_local).length;
   const cloudCount = usageRecords.value.length - localCount;
-  
+
   if (localCount === 0 && cloudCount === 0) {
     return { labels: [], datasets: [] };
   }
-  
+
   return {
     labels: ['Local', 'Cloud'],
     datasets: [{
@@ -352,29 +348,29 @@ const routingDistributionData = computed(() => {
   };
 });
 
-const complexityDistributionData = computed(() => {
-  const recordsWithComplexity = usageRecords.value.filter(r => r.complexity_score !== null);
-  
+const complexityDistributionData = computed((): ChartData<'bar'> => {
+  const recordsWithComplexity = usageRecords.value.filter((r: LlmUsageRecord) => r.complexity_score !== null);
+
   if (recordsWithComplexity.length === 0) {
     return { labels: [], datasets: [] };
   }
-  
+
   // Create complexity buckets
-  const buckets = {
+  const buckets: Record<string, number> = {
     'Low (0-3)': 0,
     'Medium (3-6)': 0,
     'High (6-8)': 0,
     'Very High (8-10)': 0
   };
-  
-  recordsWithComplexity.forEach(record => {
+
+  recordsWithComplexity.forEach((record: LlmUsageRecord) => {
     const score = record.complexity_score!;
     if (score <= 3) buckets['Low (0-3)']++;
     else if (score <= 6) buckets['Medium (3-6)']++;
     else if (score <= 8) buckets['High (6-8)']++;
     else buckets['Very High (8-10)']++;
   });
-  
+
   return {
     labels: Object.keys(buckets),
     datasets: [{
@@ -397,30 +393,30 @@ const complexityDistributionData = computed(() => {
   };
 });
 
-const performanceByRouteData = computed(() => {
-  const localRecords = usageRecords.value.filter(r => r.is_local && r.duration_ms);
-  const cloudRecords = usageRecords.value.filter(r => !r.is_local && r.duration_ms);
-  
+const performanceByRouteData = computed((): ChartData<'bar'> => {
+  const localRecords = usageRecords.value.filter((r: LlmUsageRecord) => r.is_local && r.duration_ms);
+  const cloudRecords = usageRecords.value.filter((r: LlmUsageRecord) => !r.is_local && r.duration_ms);
+
   if (localRecords.length === 0 && cloudRecords.length === 0) {
     return { labels: [], datasets: [] };
   }
-  
-  const localAvgDuration = localRecords.length > 0 
-    ? Math.round(localRecords.reduce((sum, r) => sum + r.duration_ms!, 0) / localRecords.length)
+
+  const localAvgDuration = localRecords.length > 0
+    ? Math.round(localRecords.reduce((sum: number, r: LlmUsageRecord) => sum + r.duration_ms!, 0) / localRecords.length)
     : 0;
-    
+
   const cloudAvgDuration = cloudRecords.length > 0
-    ? Math.round(cloudRecords.reduce((sum, r) => sum + r.duration_ms!, 0) / cloudRecords.length)
+    ? Math.round(cloudRecords.reduce((sum: number, r: LlmUsageRecord) => sum + r.duration_ms!, 0) / cloudRecords.length)
     : 0;
-    
+
   const localSuccessRate = localRecords.length > 0
-    ? Math.round((localRecords.filter(r => r.status === 'completed').length / localRecords.length) * 100)
+    ? Math.round((localRecords.filter((r: LlmUsageRecord) => r.status === 'completed').length / localRecords.length) * 100)
     : 0;
-    
+
   const cloudSuccessRate = cloudRecords.length > 0
-    ? Math.round((cloudRecords.filter(r => r.status === 'completed').length / cloudRecords.length) * 100)
+    ? Math.round((cloudRecords.filter((r: LlmUsageRecord) => r.status === 'completed').length / cloudRecords.length) * 100)
     : 0;
-  
+
   return {
     labels: ['Average Response Time (ms)', 'Success Rate (%)'],
     datasets: [
@@ -442,13 +438,30 @@ const performanceByRouteData = computed(() => {
   };
 });
 
+interface RoutingReasonData {
+  reason: string;
+  isLocal: boolean;
+  count: number;
+  totalDuration: number;
+  successCount: number;
+  complexitySum: number;
+  complexityCount: number;
+}
+
+interface RoutingReasonStats extends RoutingReasonData {
+  percentage: number;
+  avgDuration: number;
+  successRate: number;
+  avgComplexity: string;
+}
+
 const routingReasons = computed(() => {
-  const reasonMap = new Map();
-  
-  usageRecords.value.forEach(record => {
+  const reasonMap = new Map<string, RoutingReasonData>();
+
+  usageRecords.value.forEach((record: LlmUsageRecord) => {
     const reason = record.routing_reason || 'No reason specified';
     const key = `${reason}_${record.is_local}`;
-    
+
     if (!reasonMap.has(key)) {
       reasonMap.set(key, {
         reason,
@@ -460,8 +473,8 @@ const routingReasons = computed(() => {
         complexityCount: 0
       });
     }
-    
-    const data = reasonMap.get(key);
+
+    const data = reasonMap.get(key)!;
     data.count++;
     if (record.duration_ms) data.totalDuration += record.duration_ms;
     if (record.status === 'completed') data.successCount++;
@@ -470,9 +483,9 @@ const routingReasons = computed(() => {
       data.complexityCount++;
     }
   });
-  
+
   return Array.from(reasonMap.values())
-    .map(data => ({
+    .map((data): RoutingReasonStats => ({
       ...data,
       percentage: Math.round((data.count / usageRecords.value.length) * 100),
       avgDuration: data.count > 0 ? Math.round(data.totalDuration / data.count) : 0,
@@ -483,7 +496,7 @@ const routingReasons = computed(() => {
 });
 
 // Chart Options
-const pieChartOptions = {
+const pieChartOptions: ChartOptions<'pie'> = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
@@ -492,10 +505,10 @@ const pieChartOptions = {
     },
     tooltip: {
       callbacks: {
-        label: function(context: { label?: string; parsed: number; dataset: { data: number[] } }) {
+        label: function(context) {
           const label = context.label || '';
-          const value = context.parsed;
-          const total = context.dataset.data.reduce((sum: number, val: number) => sum + val, 0);
+          const value = context.parsed as number;
+          const total = (context.dataset.data as number[]).reduce((sum: number, val: number) => sum + val, 0);
           const percentage = Math.round((value / total) * 100);
           return `${label}: ${value} (${percentage}%)`;
         }
@@ -504,7 +517,7 @@ const pieChartOptions = {
   }
 };
 
-const barChartOptions = {
+const barChartOptions: ChartOptions<'bar'> = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
@@ -522,7 +535,7 @@ const barChartOptions = {
   }
 };
 
-const performanceChartOptions = {
+const performanceChartOptions: ChartOptions<'bar'> = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: {

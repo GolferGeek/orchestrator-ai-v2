@@ -46,7 +46,7 @@
       </div>
     </div>
 
-    <div v-if="opportunity.discoveredDrivers.length > 0" class="drivers-preview">
+    <div v-if="opportunity.discoveredDrivers && opportunity.discoveredDrivers.length > 0" class="drivers-preview">
       <span class="drivers-label">Discovered Drivers:</span>
       <div class="drivers-list">
         <span
@@ -56,7 +56,7 @@
         >
           {{ driver }}
         </span>
-        <span v-if="opportunity.discoveredDrivers.length > 3" class="more-count">
+        <span v-if="opportunity.discoveredDrivers && opportunity.discoveredDrivers.length > 3" class="more-count">
           +{{ opportunity.discoveredDrivers.length - 3 }} more
         </span>
       </div>
@@ -84,7 +84,7 @@ defineEmits<{
 }>();
 
 const previewDrivers = computed(() => {
-  return props.opportunity.discoveredDrivers.slice(0, 3);
+  return props.opportunity.discoveredDrivers?.slice(0, 3) || [];
 });
 
 function formatPercent(value: number): string {

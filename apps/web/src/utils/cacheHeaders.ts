@@ -29,12 +29,12 @@ export const CACHE_STRATEGIES = {
   }
 };
 
-export const FILE_TYPE_CACHE_MAP = {
+export const FILE_TYPE_CACHE_MAP: Record<string, Record<string, string>> = {
   // JavaScript and CSS files (with hashes)
   '.js': CACHE_STRATEGIES.IMMUTABLE_ASSETS,
   '.css': CACHE_STRATEGIES.IMMUTABLE_ASSETS,
   '.mjs': CACHE_STRATEGIES.IMMUTABLE_ASSETS,
-  
+
   // Images and fonts
   '.png': CACHE_STRATEGIES.STATIC_ASSETS,
   '.jpg': CACHE_STRATEGIES.STATIC_ASSETS,
@@ -47,7 +47,7 @@ export const FILE_TYPE_CACHE_MAP = {
   '.woff2': CACHE_STRATEGIES.STATIC_ASSETS,
   '.ttf': CACHE_STRATEGIES.STATIC_ASSETS,
   '.otf': CACHE_STRATEGIES.STATIC_ASSETS,
-  
+
   // HTML files
   '.html': CACHE_STRATEGIES.HTML_FILES
 };

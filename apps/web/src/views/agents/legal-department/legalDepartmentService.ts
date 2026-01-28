@@ -806,6 +806,7 @@ class LegalDepartmentService {
         name: file.name,
         size: file.size,
         type: file.type as DocumentType,
+        uploadedAt: new Date().toISOString(),
         url: result.data?.url || result.url,
       };
 

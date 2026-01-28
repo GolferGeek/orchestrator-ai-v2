@@ -191,7 +191,7 @@
             <ion-col size="6" size-md="3">
               <ion-item>
                 <ion-label class="ion-text-center">
-                  <h3>{{ dashboardData.alerts?.length || 0 }}</h3>
+                  <h3>{{ dashboardData?.overview?.activeAlerts || 0 }}</h3>
                   <p>Active Alerts</p>
                 </ion-label>
               </ion-item>
@@ -199,7 +199,7 @@
             <ion-col size="6" size-md="3">
               <ion-item>
                 <ion-label class="ion-text-center">
-                  <h3>{{ dashboardData.systemHealth?.totalModels || 0 }}</h3>
+                  <h3>{{ dashboardData?.topPerformers?.models?.length || 0 }}</h3>
                   <p>Total Models</p>
                 </ion-label>
               </ion-item>
@@ -207,7 +207,7 @@
             <ion-col size="6" size-md="3">
               <ion-item>
                 <ion-label class="ion-text-center">
-                  <h3>{{ dashboardData.systemHealth?.healthyModels || 0 }}</h3>
+                  <h3>{{ dashboardData?.topPerformers?.models?.length || 0 }}</h3>
                   <p>Healthy Models</p>
                 </ion-label>
               </ion-item>
@@ -215,7 +215,7 @@
             <ion-col size="6" size-md="3">
               <ion-item>
                 <ion-label class="ion-text-center">
-                  <h3>{{ formatPercentage(dashboardData.systemHealth?.memoryStats?.usagePercent || 0) }}</h3>
+                  <h3>{{ formatPercentage(0) }}</h3>
                   <p>Memory Usage</p>
                 </ion-label>
               </ion-item>
@@ -235,19 +235,19 @@
       </ion-card-header>
       <ion-card-content>
         <ion-list>
-          <ion-item 
-            v-for="(model, index) in topPerformingModels.slice(0, 5)" 
-            :key="model.modelName"
+          <ion-item
+            v-for="(model, index) in topPerformingModels.slice(0, 5)"
+            :key="index"
           >
             <ion-avatar slot="start">
               <div class="rank-badge">{{ index + 1 }}</div>
             </ion-avatar>
             <ion-label>
-              <h3>{{ model.modelName }}</h3>
-              <p>{{ model.provider }} • {{ formatNumber(model.totalRequests) }} requests</p>
+              <h3>{{ (model.model as any)?.name || 'Unknown' }}</h3>
+              <p>{{ (model.model as any)?.provider || 'Unknown' }} • {{ formatNumber(model.metrics.usageCount) }} requests</p>
             </ion-label>
-            <ion-badge :color="getPerformanceColor(model.performanceScore)" slot="end">
-              {{ formatPercentage(model.performanceScore) }}
+            <ion-badge :color="getPerformanceColor(model.metrics.performanceScore)" slot="end">
+              {{ formatPercentage(model.metrics.performanceScore) }}
             </ion-badge>
           </ion-item>
         </ion-list>
@@ -264,20 +264,20 @@
       </ion-card-header>
       <ion-card-content>
         <ion-list>
-          <ion-item 
-            v-for="activity in recentActivity.slice(0, 10)" 
+          <ion-item
+            v-for="activity in recentActivity.slice(0, 10)"
             :key="activity.id"
           >
-            <ion-icon 
-              :icon="getActivityIcon(activity.type)" 
+            <ion-icon
+              :icon="getActivityIcon(activity.type)"
               :color="getActivityColor(activity.type)"
-              slot="start" 
+              slot="start"
             />
             <ion-label>
               <h3>{{ activity.description }}</h3>
-              <p>{{ formatRelativeTime(activity.timestamp) }} • {{ activity.user || 'System' }}</p>
+              <p>{{ formatRelativeTime(activity.timestamp) }} • {{ activity.userId || 'System' }}</p>
             </ion-label>
-            <ion-badge 
+            <ion-badge
               :color="getActivityStatusColor(activity.status)"
               slot="end"
             >
@@ -303,29 +303,29 @@
               <ion-item>
                 <ion-label>
                   <h3>Total Cost</h3>
-                  <p>${{ formatCurrency(costAnalysis.totalCost) }}</p>
+                  <p>${{ formatCurrency(costAnalysis?.totalCost || 0) }}</p>
                 </ion-label>
               </ion-item>
               <ion-item>
                 <ion-label>
                   <h3>Average Cost per Request</h3>
-                  <p>${{ formatCurrency(costAnalysis.avgCostPerRequest) }}</p>
+                  <p>${{ formatCurrency((costAnalysis?.totalCost || 0) / (costAnalysis?.totalRequests || 1)) }}</p>
                 </ion-label>
               </ion-item>
             </ion-col>
             <ion-col size="12" size-md="6">
               <div class="cost-providers">
                 <h4>Top Cost Providers</h4>
-                <ion-item 
-                  v-for="(cost, provider) in Object.entries(costAnalysis.topCostProviders).slice(0, 3)" 
-                  :key="provider"
+                <ion-item
+                  v-for="item in (costAnalysis?.breakdown || []).slice(0, 3)"
+                  :key="item.key"
                 >
                   <ion-label>
-                    <h3>{{ provider }}</h3>
-                    <p>${{ formatCurrency(cost) }}</p>
+                    <h3>{{ item.key }}</h3>
+                    <p>${{ formatCurrency(item.cost) }}</p>
                   </ion-label>
                   <ion-badge color="primary" slot="end">
-                    {{ formatPercentage((cost / costAnalysis.totalCost) * 100) }}
+                    {{ formatPercentage(item.percentage) }}
                   </ion-badge>
                 </ion-item>
               </div>
@@ -448,19 +448,17 @@ import {
   warningOutline
 } from 'ionicons/icons';
 import { useAnalyticsStore } from '@/stores/analyticsStore';
-import { useLLMMonitoringStore } from '@/stores/llmMonitoringStore';
 
 // Store integration
 const analyticsStore = useAnalyticsStore();
-const llmMonitoringStore = useLLMMonitoringStore();
 
 // Computed properties
 const dashboardData = computed(() => analyticsStore.dashboardData);
-const systemHealthStatus = computed(() => llmMonitoringStore.systemHealth?.status || 'unknown');
-const costAnalysis = computed(() => analyticsStore.costAnalysis);
-const isLoading = computed(() => analyticsStore.isLoading || llmMonitoringStore.isLoading);
-const hasError = computed(() => !!analyticsStore.error || !!llmMonitoringStore.error);
-const firstError = computed(() => analyticsStore.error || llmMonitoringStore.error);
+const systemHealthStatus = computed(() => analyticsStore.systemAnalytics?.systemHealth?.status || 'unknown');
+const costAnalysis = computed(() => analyticsStore.costSummary);
+const isLoading = computed(() => analyticsStore.isLoading);
+const hasError = computed(() => !!analyticsStore.error);
+const firstError = computed(() => analyticsStore.error);
 
 // Auto-refresh functionality
 const isAutoRefreshEnabled = ref(false);
@@ -475,7 +473,7 @@ const refreshNow = async () => {
 const refreshAll = async () => {
   await Promise.all([
     analyticsStore.loadDashboardData(),
-    llmMonitoringStore.fetchSystemHealth()
+    analyticsStore.loadSystemAnalytics()
   ]);
 };
 
@@ -486,32 +484,36 @@ const customEndDate = ref('');
 const autoRefreshInterval = ref(30000); // 30 seconds
 
 // Computed properties from stores
-const keyMetrics = computed(() => analyticsStore.keyMetrics || {
-  totalRequests: 0,
-  totalCost: 0,
-  avgResponseTime: 0,
-  successRate: 0,
-  requestsTrend: 0,
-  costTrend: 0
+const keyMetrics = computed(() => {
+  const usage = analyticsStore.usageStats;
+  return {
+    totalRequests: usage?.totalRequests || 0,
+    totalCost: usage?.totalCost || 0,
+    avgResponseTime: usage?.averageResponseTime || 0,
+    successRate: usage?.successRate || 0,
+    requestsTrend: 0,
+    costTrend: 0
+  };
 });
 
 const topPerformingModels = computed(() => analyticsStore.topPerformingModels || []);
 const recentActivity = computed(() => analyticsStore.recentActivity || []);
-const eventQueueSize = computed(() => analyticsStore.eventQueueSize || 0);
+const eventQueueSize = computed(() => analyticsStore.eventQueue?.length || 0);
 const isEventTrackingEnabled = computed({
-  get: () => analyticsStore.isEventTrackingEnabled || false,
-  set: (value) => {
+  get: () => analyticsStore.eventTrackingEnabled || false,
+  set: (value: boolean) => {
     if (value) {
-      analyticsStore.enableEventTracking();
+      analyticsStore.startAutoRefresh();
     } else {
-      analyticsStore.disableEventTracking();
+      analyticsStore.stopAutoRefresh();
     }
   }
 });
 
 // Methods
 const updateTimeRange = () => {
-  analyticsStore.setTimeRange(selectedTimeRange.value);
+  const timeRange = selectedTimeRange.value as 'today' | 'yesterday' | 'last7days' | 'last30days' | 'thisMonth' | 'lastMonth' | 'custom';
+  analyticsStore.setTimeRange(timeRange);
   if (selectedTimeRange.value !== 'custom') {
     refreshAll();
   }
@@ -519,16 +521,19 @@ const updateTimeRange = () => {
 
 const updateCustomRange = () => {
   if (customStartDate.value && customEndDate.value) {
-    analyticsStore.setCustomTimeRange(customStartDate.value, customEndDate.value);
+    analyticsStore.setTimeRange('custom', {
+      startDate: customStartDate.value,
+      endDate: customEndDate.value
+    });
     refreshAll();
   }
 };
 
 const toggleEventTracking = () => {
   if (isEventTrackingEnabled.value) {
-    analyticsStore.enableEventTracking();
+    analyticsStore.startAutoRefresh();
   } else {
-    analyticsStore.disableEventTracking();
+    analyticsStore.stopAutoRefresh();
   }
 };
 
@@ -538,7 +543,6 @@ const flushEventQueue = async () => {
 
 const clearAllErrors = () => {
   analyticsStore.clearError();
-  llmMonitoringStore.clearError();
 };
 
 // Formatting helpers

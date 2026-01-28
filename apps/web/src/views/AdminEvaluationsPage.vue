@@ -44,19 +44,19 @@
       </ion-segment>
       <!-- Overview Tab -->
       <div v-if="activeTab === 'overview'">
-        <AdminEvaluationOverview 
-          :analytics="analytics"
+        <AdminEvaluationOverview
+          :analytics="analytics as any"
           :is-loading="isLoading"
           @refresh="refreshData"
         />
       </div>
       <!-- All Evaluations Tab -->
       <div v-if="activeTab === 'evaluations'">
-        <AdminEvaluationsList 
-          :evaluations="evaluations"
+        <AdminEvaluationsList
+          :evaluations="evaluations as any"
           :pagination="pagination"
           :is-loading="isLoading"
-          :filters="filters"
+          :filters="filters as any"
           @filter-change="onFilterChange"
           @page-change="onPageChange"
           @refresh="refreshData"
@@ -64,18 +64,18 @@
       </div>
       <!-- Analytics Tab -->
       <div v-if="activeTab === 'analytics'">
-        <AdminAnalyticsView 
-          :analytics="analytics"
-          :workflow-analytics="workflowAnalytics"
-          :constraint-analytics="constraintAnalytics"
+        <AdminAnalyticsView
+          :analytics="analytics as any"
+          :workflow-analytics="workflowAnalytics as any"
+          :constraint-analytics="constraintAnalytics as any"
           :is-loading="isLoading"
           @refresh="refreshData"
         />
       </div>
       <!-- Workflows Tab -->
       <div v-if="activeTab === 'workflows'">
-        <AdminWorkflowsView 
-          :workflow-analytics="workflowAnalytics"
+        <AdminWorkflowsView
+          :workflow-analytics="workflowAnalytics as any"
           :is-loading="isLoading"
           @refresh="refreshData"
         />
@@ -128,7 +128,10 @@ import AdminAnalyticsView from '@/components/Admin/AdminAnalyticsView.vue';
 import AdminWorkflowsView from '@/components/Admin/AdminWorkflowsView.vue';
 import AdminExportModal from '@/components/Admin/AdminExportModal.vue';
 // Import admin service
-import { useAdminEvaluationStore } from '@/stores/adminEvaluationStore';
+import { useAdminEvaluationStore, type AdminEvaluationFilters, type EnhancedEvaluationMetadata } from '@/stores/adminEvaluationStore';
+// Import types
+import type { AllEvaluationsFilters } from '@/types/evaluation';
+import type { WorkflowAnalytics, ConstraintAnalytics, ExportConfig } from '@/types/analytics';
 const adminStore = useAdminEvaluationStore();
 const route = useRoute();
 const _router = useRouter();
@@ -140,14 +143,54 @@ const autoRefreshEnabled = ref(true);
 const showExportModal = ref(false);
 const isLoading = ref(false);
 const error = ref<string | null>(null);
+// PaginationInfo type
+interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+// AdminEvaluationAnalytics type (from store)
+interface AdminEvaluationAnalytics {
+  totalEvaluations: number;
+  averageRating: number;
+  averageSpeedRating: number;
+  averageAccuracyRating: number;
+  averageWorkflowCompletionRate: number;
+  averageResponseTime: number;
+  averageCost: number;
+  ratingDistribution: Record<string, number>;
+  topPerformingAgents: Array<{
+    agentName: string;
+    averageRating: number;
+    evaluationCount: number;
+  }>;
+  topConstraints: Array<{
+    constraintName: string;
+    effectivenessScore: number;
+    usageCount: number;
+  }>;
+  workflowFailurePoints: Array<{
+    stepName: string;
+    failureRate: number;
+    averageDuration: number;
+  }>;
+}
+
 // Data from store
-const evaluations = ref<Record<string, unknown>[]>([]);
-const pagination = ref<Record<string, unknown>>({});
-const analytics = ref<Record<string, unknown> | null>(null);
-const workflowAnalytics = ref<Record<string, unknown> | null>(null);
-const constraintAnalytics = ref<Record<string, unknown> | null>(null);
+const evaluations = ref<EnhancedEvaluationMetadata[]>([]);
+const pagination = ref<PaginationInfo>({
+  page: 1,
+  limit: 20,
+  total: 0,
+  totalPages: 0
+});
+const analytics = ref<AdminEvaluationAnalytics | null>(null);
+const workflowAnalytics = ref<WorkflowAnalytics | null>(null);
+const constraintAnalytics = ref<ConstraintAnalytics | null>(null);
 // Filters
-const filters = reactive({
+const filters = reactive<AdminEvaluationFilters>({
   page: 1,
   limit: 20,
   minRating: undefined,
@@ -221,12 +264,12 @@ function setupFocusRefresh() {
     window.removeEventListener('focus', handleFocus);
   };
   // Store cleanup function for onUnmounted
-  (window as Record<string, unknown>).__adminEvaluationsCleanup = cleanupFunctions;
+  (window as unknown as Record<string, unknown>).__adminEvaluationsCleanup = cleanupFunctions;
 }
 function cleanupFocusRefresh() {
-  if ((window as Record<string, unknown>).__adminEvaluationsCleanup) {
-    ((window as Record<string, unknown>).__adminEvaluationsCleanup as () => void)();
-    delete (window as Record<string, unknown>).__adminEvaluationsCleanup;
+  if ((window as unknown as Record<string, unknown>).__adminEvaluationsCleanup) {
+    ((window as unknown as Record<string, unknown>).__adminEvaluationsCleanup as () => void)();
+    delete (window as unknown as Record<string, unknown>).__adminEvaluationsCleanup;
   }
 }
 async function refreshData() {
@@ -311,7 +354,7 @@ async function onTabChange(event: CustomEvent) {
   activeTab.value = event.detail.value;
   await refreshData();
 }
-function onFilterChange(newFilters: Record<string, unknown>) {
+function onFilterChange(newFilters: AllEvaluationsFilters) {
   Object.assign(filters, newFilters);
   loadEvaluationsData();
 }
@@ -319,10 +362,18 @@ function onPageChange(page: number) {
   filters.page = page;
   loadEvaluationsData();
 }
-async function onExport(exportOptions: Record<string, unknown>) {
+async function onExport(exportOptions: ExportConfig) {
   try {
     isLoading.value = true;
-    await adminStore.exportEvaluations(exportOptions);
+    // Convert ExportConfig to the format expected by exportEvaluations
+    const exportParams = {
+      format: exportOptions.format === 'excel' || exportOptions.format === 'pdf' || exportOptions.format === 'png' || exportOptions.format === 'svg' ? 'json' : exportOptions.format,
+      includeUserData: exportOptions.includeRawData,
+      includeContent: exportOptions.includeCharts,
+      startDate: exportOptions.dateRange?.startDate,
+      endDate: exportOptions.dateRange?.endDate
+    };
+    await adminStore.exportEvaluations(exportParams);
     showExportModal.value = false;
   } catch (err: unknown) {
     error.value = err instanceof Error ? err.message : 'Export failed';

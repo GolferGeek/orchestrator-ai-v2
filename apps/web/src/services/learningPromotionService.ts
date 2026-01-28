@@ -142,7 +142,7 @@ class LearningPromotionService {
     return await predictionDashboardService.promoteLearning({
       learningId,
       reviewerNotes,
-      backtestResult,
+      backtestResult: backtestResult as unknown as Record<string, unknown> | undefined,
       scenarioRunIds,
     });
   }

@@ -36,7 +36,7 @@
           v-model="searchQuery"
           placeholder="Search teams..."
           @ionInput="applyFilters"
-          debounce="300"
+          :debounce="300"
         />
         <ion-button @click="openCreateModal">
           <ion-icon :icon="addOutline" slot="start" />

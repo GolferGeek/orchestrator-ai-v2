@@ -16,7 +16,7 @@
               <ion-searchbar
                 v-model="searchQuery"
                 placeholder="Search dictionaries..."
-                debounce="300"
+                :debounce="300"
                 @ionInput="handleSearch"
                 show-clear-button="focus"
               />
@@ -31,9 +31,9 @@
                 @ionChange="applyFilters"
               >
                 <ion-select-option value="all">All Categories</ion-select-option>
-                <ion-select-option 
-                  v-for="category in availableCategories" 
-                  :key="category" 
+                <ion-select-option
+                  v-for="category in availableCategories"
+                  :key="String(category)"
                   :value="category"
                 >
                   {{ category }}
@@ -602,16 +602,16 @@ const importErrors = ref<string[]>([]);
 // Computed
 const filteredDictionaries = computed(() => {
   let result = [...store.filteredAndSortedDictionaries];
-  
+
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase();
-    result = result.filter(dict => 
+    result = result.filter(dict =>
       dict.category.toLowerCase().includes(query) ||
       dict.description?.toLowerCase().includes(query) ||
-      dict.words.some(word => word.toLowerCase().includes(query))
+      dict.words.some((word: string) => word.toLowerCase().includes(query))
     );
   }
-  
+
   return result;
 });
 
@@ -633,7 +633,7 @@ const hasActiveFilters = computed(() => {
 });
 
 const availableCategories = computed(() => {
-  const categories = new Set(store.dictionaries.map(d => d.category));
+  const categories = new Set((store.dictionaries as PseudonymDictionaryEntry[]).map(d => d.category));
   return Array.from(categories).sort();
 });
 
@@ -719,11 +719,11 @@ const saveDictionary = async () => {
       return { originalValue: line };
     });
 
-    const dictionaryData = {
+    const dictionaryData: Omit<PseudonymDictionaryEntry, 'id' | 'createdAt' | 'updatedAt'> = {
       category: editorForm.value.category.trim(),
       dataType: editorForm.value.dataType,
       description: editorForm.value.description.trim() || undefined,
-      entries, // Use new entries format
+      words: entries.map(e => e.pseudonym ? `${e.originalValue} → ${e.pseudonym}` : e.originalValue),
       isActive: editorForm.value.isActive
     };
 
@@ -846,13 +846,13 @@ const parseCSVFile = (file: File): Promise<void> => {
           
           data.forEach((row) => {
             const dict: PseudonymDictionaryImportData = {
-              category: row.category || '',
-              dataType: row.dataType || row.data_type || 'custom',
-              words: row.words ? row.words.split('|').map((w: string) => w.trim()).filter((w: string) => w) : [],
-              description: row.description || ''
+              category: String(row.category || ''),
+              dataType: (row.dataType || row.data_type || 'custom') as PIIDataType,
+              words: typeof row.words === 'string' ? row.words.split('|').map((w: string) => w.trim()).filter((w: string) => w) : [],
+              description: String(row.description || '')
             };
-            
-            if (dict.category && dict.words.length > 0) {
+
+            if (dict.category && dict.words && dict.words.length > 0) {
               dictionaries.push(dict);
             }
           });
@@ -888,7 +888,7 @@ const parseJSONFile = (file: File): Promise<void> => {
         }
 
         // Normalize: convert new format (entries) to include words array for display
-        importPreview.value = dictionaries.map(dict => {
+        importPreview.value = dictionaries.map((dict: PseudonymDictionaryImportData) => {
           // If it has entries (new format), convert to words for display
           if (dict.entries && Array.isArray(dict.entries)) {
             return {
