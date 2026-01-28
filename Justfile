@@ -13,13 +13,11 @@ default:
 
 cldi:
     @echo "🤖 Starting Agentic Install..."
-    @echo "Type: /install (after hook completes)"
-    claude --init --dangerously-skip-permissions
+    claude --init "/install" --dangerously-skip-permissions
 
 cldu:
     @echo "🤖 Starting Agentic Update..."
-    @echo "Type: /update (after hook completes)"
-    claude --init --dangerously-skip-permissions
+    claude --init "/update" --dangerously-skip-permissions
 
 # --- AI Agent Commands ---
 
@@ -30,32 +28,27 @@ agent:
 # Start Agentic Monitoring
 monitor:
     @echo "🤖 Starting Monitor..."
-    @echo "Type: /monitor"
-    claude --dangerously-skip-permissions
+    claude "/monitor" --dangerously-skip-permissions
 
 # Harden Codebase (Fix monitored issues)
 harden:
     @echo "🧱 Hardening codebase..."
-    @echo "Type: /harden"
-    claude --dangerously-skip-permissions
+    claude "/harden" --dangerously-skip-permissions
 
 # Scan Codebase for Errors (Build, Lint, Test)
 scan-errors:
     @echo "🔍 Scanning codebase..."
-    @echo "Type: /scan-errors"
-    claude --dangerously-skip-permissions
+    claude "/scan-errors" --dangerously-skip-permissions
 
 # Fix Codebase Errors (Parallel agent processing)
 fix-errors:
     @echo "🔧 Fixing code errors..."
-    @echo "Type: /fix-errors"
-    claude --dangerously-skip-permissions
+    claude "/fix-errors" --dangerously-skip-permissions
 
 # Fix Claude Ecosystem (Skills/Agents)
 fix-claude:
     @echo "🔧 Fixing Claude Ecosystem..."
-    @echo "Type: /fix-claude"
-    claude --dangerously-skip-permissions
+    claude "/fix-claude" --dangerously-skip-permissions
 
 # --- Development (Local) ---
 
