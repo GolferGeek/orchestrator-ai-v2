@@ -140,15 +140,11 @@ export class CrawlerSourceRepository {
   async findDueForCrawl(
     frequency?: CrawlFrequency,
   ): Promise<SourceDueForCrawl[]> {
-    const { data, error } = (await this.getClient().rpc(
-      'get_sources_due_for_crawl',
-      {
+    const { data, error } = await this.getClient()
+      .schema(this.schema)
+      .rpc('get_sources_due_for_crawl', {
         p_frequency_minutes: frequency ?? null,
-      },
-    )) as {
-      data: SourceDueForCrawl[] | null;
-      error: { message: string } | null;
-    };
+      });
 
     if (error) {
       this.logger.error(

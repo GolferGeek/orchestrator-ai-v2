@@ -260,3 +260,28 @@ COMMENT ON COLUMN crawler.source_crawls.duplicates_fuzzy_title IS 'Layer 3: Simi
 COMMENT ON COLUMN crawler.source_crawls.duplicates_phrase_overlap IS 'Layer 4: Key phrase overlap > 70%';
 
 COMMENT ON TABLE crawler.agent_article_outputs IS 'Audit trail: what each agent did with each article';
+
+-- =============================================================================
+-- PERMISSIONS
+-- =============================================================================
+
+-- Grant schema usage
+GRANT USAGE ON SCHEMA crawler TO postgres, anon, authenticated, service_role;
+
+-- Grant table permissions
+GRANT ALL ON ALL TABLES IN SCHEMA crawler TO postgres, service_role;
+GRANT SELECT ON ALL TABLES IN SCHEMA crawler TO anon, authenticated;
+
+-- Grant function permissions
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA crawler TO postgres, anon, authenticated, service_role;
+
+-- Grant sequence permissions
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA crawler TO postgres, service_role;
+
+-- Set default privileges for future objects
+ALTER DEFAULT PRIVILEGES IN SCHEMA crawler
+  GRANT ALL ON TABLES TO postgres, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA crawler
+  GRANT SELECT ON TABLES TO anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA crawler
+  GRANT EXECUTE ON FUNCTIONS TO postgres, anon, authenticated, service_role;

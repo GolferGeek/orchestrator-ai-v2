@@ -127,6 +127,26 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
       }
       return state.models;
     },
+
+    /**
+     * Get providers that have at least one available model for the current model type.
+     * This is used to hide providers that don't support the current output type
+     * (e.g., hide Ollama/Anthropic for image-generation if they have no image models).
+     *
+     * This is dynamic - if a provider adds models for a type in the future,
+     * they will automatically appear in this list.
+     */
+    providersWithAvailableModels(): Provider[] {
+      // Get unique provider names from the filtered models (already filtered by model type and sovereign mode)
+      const providerNamesWithModels = new Set(
+        this.filteredModels.map(model => model.providerName)
+      );
+
+      // Return only providers that have at least one model available
+      return this.filteredProviders.filter(provider =>
+        providerNamesWithModels.has(provider.name)
+      );
+    },
     getRecommendationsForAgent: (state) => (agentIdentifier?: string) => {
       if (!agentIdentifier) return [];
       return state.agentRecommendations[agentIdentifier] || [];
@@ -554,6 +574,11 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
      * Set model type for a media agent with optional default provider/model.
      * Used when switching to a media agent that has specific model requirements.
      *
+     * This method ensures that:
+     * 1. Only providers with available models for the type are considered
+     * 2. The agent's default provider is used if it has models, otherwise falls back
+     * 3. A valid model is always selected if one exists
+     *
      * @param modelType - The model type ('image-generation', 'video-generation', etc.)
      * @param defaultProvider - Optional default provider from agent metadata
      * @param defaultModel - Optional default model from agent metadata
@@ -567,9 +592,22 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
       this.selectedModelType = modelType;
       await this.fetchModels(modelType);
 
-      // If we have a default provider from agent metadata, try to select it
+      // Clear current selection to force re-selection with valid options
+      this.selectedProvider = undefined;
+      this.selectedModel = undefined;
+
+      // Get providers that actually have models for this type
+      const availableProviders = this.providersWithAvailableModels;
+
+      if (availableProviders.length === 0) {
+        // No providers have models for this type - leave selection empty
+        console.warn(`[LLMPreferencesStore] No providers have models for type: ${modelType}`);
+        return;
+      }
+
+      // Try to use the default provider from agent metadata if it has models
       if (defaultProvider) {
-        const provider = this.filteredProviders.find(
+        const provider = availableProviders.find(
           p => p.name.toLowerCase() === defaultProvider.toLowerCase()
         );
         if (provider) {
@@ -577,9 +615,19 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
         }
       }
 
-      // If we have a default model from agent metadata, try to select it
-      if (defaultModel && this.selectedProvider) {
-        const model = this.availableModels.find(
+      // If no default provider or it doesn't have models, use the first available provider
+      if (!this.selectedProvider) {
+        this.selectedProvider = availableProviders[0];
+      }
+
+      // Now select a model for the chosen provider
+      const providerModels = this.filteredModels.filter(
+        m => m.providerName === this.selectedProvider?.name
+      );
+
+      // Try to use the default model from agent metadata
+      if (defaultModel) {
+        const model = providerModels.find(
           m => m.modelName === defaultModel || m.name === defaultModel
         );
         if (model) {
@@ -588,9 +636,9 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
         }
       }
 
-      // Auto-select first available model if no default was set
-      if (this.selectedProvider && this.availableModels.length > 0 && !this.selectedModel) {
-        this.selectedModel = this.availableModels[0];
+      // Auto-select first available model for this provider
+      if (providerModels.length > 0) {
+        this.selectedModel = providerModels[0];
       }
     },
 
