@@ -3,20 +3,19 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
+# Copy all package files for workspace resolution
 COPY package*.json ./
 COPY apps/transport-types/package*.json ./apps/transport-types/
 COPY apps/web/package*.json ./apps/web/
 
-# Install dependencies
-RUN npm ci --workspace=apps/transport-types
-RUN npm ci --workspace=apps/web
+# Install all dependencies (workspace-aware)
+RUN npm ci
 
 # Copy source code
 COPY apps/transport-types ./apps/transport-types
 COPY apps/web ./apps/web
 
-# Build transport types
+# Build transport types first
 WORKDIR /app/apps/transport-types
 RUN npm run build
 
@@ -30,8 +29,19 @@ FROM nginx:alpine
 # Copy built files
 COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
 
-# Copy nginx config (if custom config needed)
-# COPY nginx.conf /etc/nginx/nginx.conf
+# Create nginx config for SPA routing on port 7101
+RUN echo 'server { \
+    listen 7101; \
+    root /usr/share/nginx/html; \
+    index index.html; \
+    location / { \
+        try_files $uri $uri/ /index.html; \
+    } \
+    location /assets { \
+        expires 1y; \
+        add_header Cache-Control "public, immutable"; \
+    } \
+}' > /etc/nginx/conf.d/default.conf
 
 # Expose port
 EXPOSE 7101

@@ -103,6 +103,24 @@ db-reset:
 db-validate:
     ./scripts/validate-migration.sh
 
+# --- Ollama ---
+
+# Setup Ollama with appropriate models for this machine
+ollama-setup:
+    ./scripts/ollama-setup-wizard.sh
+
+# Auto-install recommended models (no prompts)
+ollama-setup-auto:
+    ./scripts/ollama-setup-wizard.sh --auto
+
+# List recommended models for this machine
+ollama-list:
+    ./scripts/ollama-setup-wizard.sh --list
+
+# Sync Ollama models with database
+ollama-sync:
+    ./scripts/ollama-sync.sh
+
 # --- Maintenance ---
 
 # Clean Install (Delete node_modules and reinstall)

@@ -15,6 +15,11 @@ import { LocalModelStatusService } from './local-model-status.service';
 import { RunMetadataService } from './run-metadata.service';
 import { LLMPricingService } from './llm-pricing.service';
 import { RecordLLMUsageDto } from './dto/record-llm-usage.dto';
+import {
+  OllamaStartupService,
+  StartupSyncResult,
+  ModelRecommendation,
+} from './ollama-startup.service';
 import type { ExecutionContext } from '@orchestrator-ai/transport-types';
 
 @Controller('llm')
@@ -26,6 +31,7 @@ export class LLMController {
     private readonly localModelStatusService: LocalModelStatusService,
     private readonly runMetadataService: RunMetadataService,
     private readonly llmPricingService: LLMPricingService,
+    private readonly ollamaStartupService: OllamaStartupService,
   ) {}
 
   @Post('generate')
@@ -316,6 +322,63 @@ export class LLMController {
       return { response: String(result) };
     } catch (error) {
       this.logger.error('Quick generate failed', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sync Ollama models with database.
+   *
+   * Triggers a full discovery and sync of Ollama models:
+   * - Discovers working Ollama endpoint
+   * - Fetches available models
+   * - Syncs with llm_models table
+   * - Updates global config if current model unavailable
+   */
+  @Post('sync-models')
+  @HttpCode(HttpStatus.OK)
+  async syncModels(): Promise<StartupSyncResult> {
+    try {
+      this.logger.log('Manual Ollama sync triggered');
+      const result = await this.ollamaStartupService.triggerSync();
+
+      if (result.success) {
+        this.logger.log(
+          `Sync complete: ${result.models.length} models at ${result.ollamaUrl}`,
+        );
+      } else {
+        this.logger.warn(`Sync failed: ${result.warnings.join(', ')}`);
+      }
+
+      return result;
+    } catch (error) {
+      this.logger.error('Failed to sync Ollama models', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get recommended models for a given RAM size.
+   *
+   * @param ramGB System RAM in gigabytes (optional, returns all models if not specified)
+   * @returns List of model recommendations with RAM requirements
+   */
+  @Get('recommended-models')
+  @HttpCode(HttpStatus.OK)
+  getRecommendedModels(
+    @Query('ramGB') ramGBStr?: string,
+  ): ModelRecommendation[] {
+    try {
+      const ramGB = ramGBStr ? parseInt(ramGBStr, 10) : undefined;
+
+      if (ramGB !== undefined && !isNaN(ramGB)) {
+        return this.ollamaStartupService.getRecommendedModelsForRAM(ramGB);
+      }
+
+      // Return all model requirements if no RAM specified
+      return this.ollamaStartupService.getAllModelRequirements();
+    } catch (error) {
+      this.logger.error('Failed to get recommended models', error);
       throw error;
     }
   }
