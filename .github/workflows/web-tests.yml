@@ -32,6 +32,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Build transport-types
+        run: npm run build --workspace=@orchestrator-ai/transport-types
+
       - name: Run web linter
         run: npm run lint --workspace=web-v1
 
