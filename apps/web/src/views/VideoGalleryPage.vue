@@ -1,20 +1,18 @@
 <template>
   <ion-page class="video-gallery-page">
-    <ion-header>
-      <ion-toolbar>
-        <ion-title>Video Gallery - Building AI Together</ion-title>
-        <ion-buttons slot="start">
-          <ion-button @click="$router.push('/')">
-            <ion-icon :icon="arrowBackOutline"></ion-icon>
-          </ion-button>
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
-    <ion-content class="ion-padding">
-      <div class="gallery-intro">
-        <h1>Video Library</h1>
-        <p>All our demos and behind-the-scenes videos in one place.</p>
-        
+    <LandingHeader />
+    <ion-content>
+      <!-- Page Title -->
+      <div class="page-header">
+        <div class="container">
+          <h1 class="page-title">Video Gallery</h1>
+          <p class="page-subtitle">
+            All our demos and behind-the-scenes videos in one place.
+          </p>
+        </div>
+      </div>
+
+      <div class="container">
         <!-- Stats -->
         <div class="stats-bar">
           <div class="stat-item">
@@ -30,68 +28,34 @@
             <span class="stat-label">Total Duration</span>
           </div>
         </div>
-      </div>
 
-      <!-- Search Bar -->
-      <div class="search-section">
-        <ion-searchbar 
-          v-model="searchQuery" 
-          placeholder="Search videos..."
-          @ion-input="handleSearch"
-          class="custom-searchbar"
-        ></ion-searchbar>
-      </div>
-
-      <!-- Search Results -->
-      <div v-if="searchResults.length > 0" class="search-results">
-        <h2>Search Results ({{ searchResults.length }})</h2>
-        <div class="video-list">
-          <div 
-            v-for="result in searchResults" 
-            :key="result.video.id"
-            class="video-list-item"
-            @click="openVideoModal(result.video)"
-          >
-            <div class="video-info">
-              <h3>{{ result.video.title }}</h3>
-              <p>{{ result.video.description }}</p>
-              <div class="video-meta">
-                <span class="duration">{{ result.video.duration }}</span>
-                <span class="category">{{ result.category.title }}</span>
-                <span v-if="result.video.featured" class="featured-badge">Featured</span>
-              </div>
-            </div>
-            <div class="video-action">
-              <ion-icon :icon="playCircleOutline" class="play-icon"></ion-icon>
-            </div>
-          </div>
+        <!-- Search Bar -->
+        <div class="search-section">
+          <ion-searchbar 
+            v-model="searchQuery" 
+            placeholder="Search videos..."
+            @ion-input="handleSearch"
+            class="custom-searchbar"
+          ></ion-searchbar>
         </div>
-      </div>
 
-      <!-- Categories -->
-      <div v-else>
-        <div 
-          v-for="item in videoCategories" 
-          :key="item.key"
-          class="category-section"
-        >
-          <h2>{{ item.category.title }}</h2>
-          <p class="category-description">{{ item.category.description }}</p>
-          
+        <!-- Search Results -->
+        <div v-if="searchResults.length > 0" class="search-results">
+          <h2>Search Results ({{ searchResults.length }})</h2>
           <div class="video-list">
             <div 
-              v-for="video in videoService.getVideosByCategory(item.key)" 
-              :key="video.id"
+              v-for="result in searchResults" 
+              :key="result.video.id"
               class="video-list-item"
-              :class="{ featured: video.featured }"
-              @click="openVideoModal(video)"
+              @click="openVideoModal(result.video)"
             >
               <div class="video-info">
-                <h3>{{ video.title }}</h3>
-                <p>{{ video.description }}</p>
+                <h3>{{ result.video.title }}</h3>
+                <p>{{ result.video.description }}</p>
                 <div class="video-meta">
-                  <span class="duration">{{ video.duration }}</span>
-                  <span v-if="video.featured" class="featured-badge">Featured</span>
+                  <span class="duration">{{ result.video.duration }}</span>
+                  <span class="category">{{ result.category.title }}</span>
+                  <span v-if="result.video.featured" class="featured-badge">Featured</span>
                 </div>
               </div>
               <div class="video-action">
@@ -100,16 +64,50 @@
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- CTA Section -->
-      <div class="gallery-cta">
-        <h2>Want to See More?</h2>
-        <p>Schedule a call to see live demos and discuss your specific needs.</p>
-        <ion-button size="large" @click="$router.push('/')">
-          <ion-icon slot="start" :icon="calendarOutline"></ion-icon>
-          Schedule a Call
-        </ion-button>
+        <!-- Categories -->
+        <div v-else>
+          <div 
+            v-for="item in videoCategories" 
+            :key="item.key"
+            class="category-section"
+          >
+            <h2>{{ item.category.title }}</h2>
+            <p class="category-description">{{ item.category.description }}</p>
+            
+            <div class="video-list">
+              <div 
+                v-for="video in videoService.getVideosByCategory(item.key)" 
+                :key="video.id"
+                class="video-list-item"
+                :class="{ featured: video.featured }"
+                @click="openVideoModal(video)"
+              >
+                <div class="video-info">
+                  <h3>{{ video.title }}</h3>
+                  <p>{{ video.description }}</p>
+                  <div class="video-meta">
+                    <span class="duration">{{ video.duration }}</span>
+                    <span v-if="video.featured" class="featured-badge">Featured</span>
+                  </div>
+                </div>
+                <div class="video-action">
+                  <ion-icon :icon="playCircleOutline" class="play-icon"></ion-icon>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CTA Section -->
+        <div class="gallery-cta">
+          <h2>Want to See More?</h2>
+          <p>Schedule a call to see live demos and discuss your specific needs.</p>
+          <ion-button size="large" @click="$router.push('/')">
+            <ion-icon slot="start" :icon="calendarOutline"></ion-icon>
+            Schedule a Call
+          </ion-button>
+        </div>
       </div>
     </ion-content>
 
@@ -125,8 +123,9 @@
 </template>
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonIcon, IonButton, IonSearchbar } from '@ionic/vue';
-import { arrowBackOutline, playCircleOutline, calendarOutline } from 'ionicons/icons';
+import { IonPage, IonContent, IonIcon, IonButton, IonSearchbar } from '@ionic/vue';
+import { playCircleOutline, calendarOutline } from 'ionicons/icons';
+import LandingHeader from '@/components/landing/LandingHeader.vue';
 import VideoModal from '@/components/landing/VideoModal.vue';
 import { videoService, type Video, type VideoCategory } from '@/services/videoService';
 
@@ -164,20 +163,34 @@ function handleSearch() {
 .video-gallery-page {
   --ion-background-color: var(--landing-light);
 }
-.gallery-intro {
-  text-align: center;
-  margin-bottom: 1.5rem;
-}
-.gallery-intro h1 {
-  font-size: 2rem;
-  color: var(--landing-dark);
-  margin-bottom: 0.5rem;
-}
-.gallery-intro p {
-  font-size: 1rem;
-  color: var(--ion-color-medium);
-  max-width: 600px;
+
+.container {
+  max-width: var(--container-max-width, 1200px);
   margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.page-header {
+  background: linear-gradient(135deg, var(--landing-primary-50) 0%, var(--landing-accent-50) 100%);
+  padding: 3rem 0;
+  border-bottom: 1px solid rgba(139, 90, 60, 0.1);
+  margin-bottom: 2rem;
+}
+
+.page-title {
+  font-size: var(--text-4xl, 2.25rem);
+  font-weight: var(--font-weight-bold, 700);
+  color: var(--landing-primary);
+  margin: 0 0 1rem 0;
+  line-height: 1.2;
+}
+
+.page-subtitle {
+  font-size: var(--text-lg, 1.125rem);
+  color: var(--landing-secondary);
+  margin: 0;
+  line-height: 1.5;
+  max-width: 600px;
 }
 
 /* Stats Bar */
@@ -291,8 +304,6 @@ function handleSearch() {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  max-width: 1000px;
-  margin: 0 auto;
 }
 
 .video-list-item {
@@ -314,10 +325,7 @@ function handleSearch() {
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-.video-list-item.featured {
-  border-color: var(--landing-accent);
-  background: var(--landing-accent-50);
-}
+
 
 .video-info {
   flex: 1;
@@ -398,6 +406,7 @@ function handleSearch() {
   border-radius: 16px;
   color: white;
   margin-top: 3rem;
+  margin-bottom: 3rem;
 }
 .gallery-cta h2 {
   margin-bottom: 1.5rem;

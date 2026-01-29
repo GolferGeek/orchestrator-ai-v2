@@ -319,7 +319,7 @@
         <!-- Footer -->
         <footer class="landing-footer">
           <div class="footer-content">
-            <p>2025 – Orchestrator AI</p>
+            <p>2026 – Orchestrator AI</p>
           </div>
         </footer>
 

@@ -390,8 +390,20 @@ async function handleSubmit() {
   --color: white;
   --background: rgba(255, 255, 255, 0.1);
   --border-radius: 50%;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
+  transition: all 0.3s ease;
+}
+
+.back-button ion-icon,
+.close-button ion-icon {
+  font-size: 24px;
+}
+
+.back-button:hover,
+.close-button:hover {
+  --background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
 }
 
 /* Step Content */
@@ -432,6 +444,8 @@ async function handleSubmit() {
   border-radius: 8px;
   font-size: 1rem;
   transition: border-color 0.2s, box-shadow 0.2s;
+  background-color: white;
+  color: #374151;
 }
 
 .input-group input:focus {

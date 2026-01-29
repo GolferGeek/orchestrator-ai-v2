@@ -22,10 +22,16 @@
           <ion-icon slot="start" :icon="sparklesOutline"></ion-icon>
           <span class="button-text">How can agents help you?</span>
         </ion-button>
-        <a href="/videos" class="nav-link">
-          <ion-icon :icon="playCircleOutline"></ion-icon>
+        <ion-button
+          fill="outline"
+          size="small"
+          class="login-button"
+          :class="{ 'active-button': isVideosPage }"
+          @click="navigateToVideos"
+        >
+          <ion-icon slot="start" :icon="playCircleOutline"></ion-icon>
           All Videos
-        </a>
+        </ion-button>
         <ion-button
           fill="outline"
           size="small"
@@ -50,7 +56,7 @@ import {
   appsOutline,
   sparklesOutline,
 } from 'ionicons/icons';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/rbacStore';
 import { useAgentIdeasStore } from '@/stores/agentIdeasStore';
 import { storeToRefs } from 'pinia';
@@ -59,6 +65,7 @@ import ViewToggle from '@/components/landing/ViewToggle.vue';
 import AgentIdeasModal from '@/components/landing/AgentIdeasModal.vue';
 
 const router = useRouter();
+const route = useRoute();
 const authStore = useAuthStore();
 const agentIdeasStore = useAgentIdeasStore();
 const { currentOrganization } = storeToRefs(authStore);
@@ -67,6 +74,15 @@ const { currentOrganization } = storeToRefs(authStore);
 const isDemoOrg = computed(() => {
   return (currentOrganization?.value || 'demo-org') === 'demo-org';
 });
+
+// Check if we are on the videos page
+const isVideosPage = computed(() => {
+  return route.path === '/videos';
+});
+
+function navigateToVideos() {
+  router.push('/videos');
+}
 
 function navigateToApp() {
   if (authStore.isAuthenticated) {
@@ -122,43 +138,7 @@ function openAgentIdeasModal() {
   align-items: center;
   gap: 1.5rem;
 }
-.nav-link {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  color: var(--landing-dark);
-  text-decoration: none;
-  font-weight: var(--font-weight-medium);
-  font-size: var(--text-sm);
-  transition: var(--transition-smooth);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-lg);
-  position: relative;
-  overflow: hidden;
-}
-.nav-link::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--landing-primary-50);
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-.nav-link:hover {
-  color: var(--landing-primary);
-  transform: translateY(-1px);
-}
-.nav-link:hover::before {
-  opacity: 1;
-}
-.nav-link ion-icon {
-  font-size: var(--text-base);
-  position: relative;
-  z-index: 1;
-}
+
 .agent-ideas-button {
   --color: var(--landing-primary);
   font-weight: var(--font-weight-semibold);
@@ -183,10 +163,13 @@ function openAgentIdeasModal() {
   font-size: var(--text-sm);
   --border-radius: var(--radius-lg);
   --box-shadow: var(--shadow-sm);
+  transition: var(--transition-smooth);
 }
-.login-button:hover {
-  --background: var(--landing-accent);
+.login-button:hover,
+.active-button {
+  --background: var(--landing-primary);
   --color: var(--landing-white);
+  --border-color: var(--landing-primary);
   --box-shadow: var(--shadow-forest);
   transform: translateY(-1px);
 }
@@ -198,41 +181,9 @@ function openAgentIdeasModal() {
   .header-nav {
     gap: 0.75rem;
   }
-  .nav-link {
-    font-size: 0.8rem;
-    padding: 0.75rem; /* Better touch target padding */
-    min-height: 2.75rem; /* 44px minimum touch target */
-  }
-  .nav-link span {
-    display: none;
-  }
   .agent-ideas-button .button-text {
     display: none;
   }
-  .login-button {
-    font-size: 0.75rem;
-  }
-}
-/* Mobile responsive */
-@media (max-width: 768px) {
-  .header-content {
-    padding: 0 1rem;
-  }
-  
-  .header-nav {
-    gap: 0.75rem;
-  }
-  
-  .nav-link {
-    font-size: 0.8rem;
-    padding: 0.75rem;
-    min-height: 2.75rem;
-  }
-  
-  .nav-link span {
-    display: none;
-  }
-  
   .login-button {
     font-size: 0.75rem;
   }
