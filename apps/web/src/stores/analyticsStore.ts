@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref, computed, shallowRef } from 'vue';
 import { analyticsService } from '@/services/analyticsService';
 import {
   AnalyticsFilters,
@@ -28,34 +28,34 @@ export const useAnalyticsStore = defineStore('analytics', () => {
   // =====================================
   // STATE
   // =====================================
-  
+
   // Dashboard Data
   const dashboardData = ref<DashboardData | null>(null);
   const realTimeAnalytics = ref<RealTimeAnalytics | null>(null);
-  
+
   // Evaluation Analytics
   const evaluationAnalytics = ref<EvaluationAnalytics | null>(null);
   const workflowAnalytics = ref<WorkflowAnalytics | null>(null);
   const constraintAnalytics = ref<ConstraintAnalytics | null>(null);
-  
+
   // Usage Analytics
   const usageStats = ref<UsageStats | null>(null);
   const costSummary = ref<CostSummary | null>(null);
   const modelPerformance = ref<ModelPerformance[]>([]);
-  
+
   // Task & System Analytics
   const taskAnalytics = ref<TaskAnalytics | null>(null);
   const systemAnalytics = ref<SystemAnalytics | null>(null);
   const businessMetrics = ref<BusinessMetrics | null>(null);
-  
+
   // Reporting
   const reportConfigs = ref<ReportConfig[]>([]);
-  const generatedReports = ref<GeneratedReport[]>([]);
-  
+  const generatedReports = shallowRef<GeneratedReport[]>([]);
+
   // Event Tracking
   const eventQueue = ref<AnalyticsEvent[]>([]);
   const eventTrackingEnabled = ref(true);
-  
+
   // Loading States
   const isLoadingDashboard = ref(false);
   const isLoadingEvaluation = ref(false);
@@ -64,11 +64,11 @@ export const useAnalyticsStore = defineStore('analytics', () => {
   const isLoadingSystem = ref(false);
   const isLoadingReports = ref(false);
   const isLoadingRealTime = ref(false);
-  
+
   // Error States
   const error = ref<string | null>(null);
   const lastUpdated = ref<Date | null>(null);
-  
+
   // Filters and Settings
   const filters = ref<AnalyticsFiltersUI>({
     timeRange: 'last30days',
@@ -80,12 +80,12 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     includeDetails: false,
     search: ''
   });
-  
+
   const sortOptions = ref<AnalyticsSortOptions>({
     field: 'timestamp',
     direction: 'desc'
   });
-  
+
   // Auto-refresh settings
   const autoRefreshEnabled = ref(false);
   const autoRefreshInterval = ref(30000); // 30 seconds
@@ -94,14 +94,14 @@ export const useAnalyticsStore = defineStore('analytics', () => {
   // =====================================
   // GETTERS
   // =====================================
-  
+
   const currentTimeRange = computed((): TimeRange => {
     if (filters.value.timeRange === 'custom' && filters.value.customTimeRange) {
       return filters.value.customTimeRange;
     }
     return analyticsService.getDateRange(filters.value.timeRange as 'today' | 'yesterday' | 'last7days' | 'last30days' | 'thisMonth' | 'lastMonth' || 'last30days');
   });
-  
+
   const isLoading = computed(() =>
     isLoadingDashboard.value ||
     isLoadingEvaluation.value ||
@@ -109,33 +109,33 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     isLoadingTasks.value ||
     isLoadingSystem.value
   );
-  
+
   const keyMetrics = computed((): PerformanceMetric[] => {
     if (!dashboardData.value) return [];
     return dashboardData.value.keyMetrics || [];
   });
-  
+
   const systemHealthStatus = computed(() => {
     if (!systemAnalytics.value) return 'unknown';
     return systemAnalytics.value.systemHealth.status;
   });
-  
+
   const totalCostToday = computed(() => {
     if (!usageStats.value) return 0;
     return usageStats.value.totalCost;
   });
-  
+
   const averageResponseTime = computed(() => {
     if (!usageStats.value) return 0;
     return usageStats.value.averageResponseTime;
   });
-  
+
   const topPerformingModels = computed(() => {
     return modelPerformance.value
       .sort((a, b) => b.metrics.performanceScore - a.metrics.performanceScore)
       .slice(0, 5);
   });
-  
+
   const recentActivity = computed(() => {
     if (!dashboardData.value) return [];
     return dashboardData.value.recentActivity || [];
@@ -150,20 +150,20 @@ export const useAnalyticsStore = defineStore('analytics', () => {
   // =====================================
   // ACTIONS
   // =====================================
-  
+
   /**
    * Load dashboard data (aggregated overview)
    */
   async function loadDashboardData(customFilters?: Partial<AnalyticsFilters>) {
     isLoadingDashboard.value = true;
     error.value = null;
-    
+
     try {
       const filterParams = {
         timeRange: currentTimeRange.value,
         ...customFilters
       };
-      
+
       const response = await analyticsService.getDashboardData(filterParams);
       if (response.success) {
         dashboardData.value = response.data;
@@ -176,39 +176,39 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       isLoadingDashboard.value = false;
     }
   }
-  
+
   /**
    * Load evaluation analytics
    */
   async function loadEvaluationAnalytics(customFilters?: Partial<AnalyticsFilters>) {
     isLoadingEvaluation.value = true;
     error.value = null;
-    
+
     try {
       const filterParams = {
         timeRange: currentTimeRange.value,
         userRole: filters.value.userRole !== 'all' ? filters.value.userRole : undefined,
         ...customFilters
       };
-      
+
       const [evalResponse, workflowResponse, constraintResponse] = await Promise.allSettled([
         analyticsService.getEvaluationAnalytics(filterParams),
         analyticsService.getWorkflowAnalytics(filterParams),
         analyticsService.getConstraintAnalytics(filterParams)
       ]);
-      
+
       if (evalResponse.status === 'fulfilled' && evalResponse.value.success) {
         evaluationAnalytics.value = evalResponse.value.data;
       }
-      
+
       if (workflowResponse.status === 'fulfilled' && workflowResponse.value.success) {
         workflowAnalytics.value = workflowResponse.value.data;
       }
-      
+
       if (constraintResponse.status === 'fulfilled') {
         constraintAnalytics.value = constraintResponse.value as ConstraintAnalytics | null;
       }
-      
+
       lastUpdated.value = new Date();
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to load evaluation analytics';
@@ -217,14 +217,14 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       isLoadingEvaluation.value = false;
     }
   }
-  
+
   /**
    * Load usage analytics
    */
   async function loadUsageAnalytics(customFilters?: Partial<AnalyticsFilters>) {
     isLoadingUsage.value = true;
     error.value = null;
-    
+
     try {
       const filterParams = {
         timeRange: currentTimeRange.value,
@@ -234,25 +234,25 @@ export const useAnalyticsStore = defineStore('analytics', () => {
         includeDetails: filters.value.includeDetails,
         ...customFilters
       };
-      
+
       const [usageResponse, costResponse, modelResponse] = await Promise.allSettled([
         analyticsService.getUserUsageStats(filterParams),
         analyticsService.getCostSummary({ ...filterParams, groupBy: 'provider' }),
         analyticsService.getModelPerformance({ ...filterParams, sortBy: 'rating' })
       ]);
-      
+
       if (usageResponse.status === 'fulfilled' && usageResponse.value.success) {
         usageStats.value = usageResponse.value.data;
       }
-      
+
       if (costResponse.status === 'fulfilled' && costResponse.value.success) {
         costSummary.value = costResponse.value.data;
       }
-      
+
       if (modelResponse.status === 'fulfilled' && modelResponse.value.success) {
         modelPerformance.value = modelResponse.value.data;
       }
-      
+
       lastUpdated.value = new Date();
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to load usage analytics';
@@ -261,14 +261,14 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       isLoadingUsage.value = false;
     }
   }
-  
+
   /**
    * Load task analytics
    */
   async function loadTaskAnalytics() {
     isLoadingTasks.value = true;
     error.value = null;
-    
+
     try {
       const response = await analyticsService.getTaskMetrics();
       if (response.success) {
@@ -282,14 +282,14 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       isLoadingTasks.value = false;
     }
   }
-  
+
   /**
    * Load system analytics
    */
   async function loadSystemAnalytics() {
     isLoadingSystem.value = true;
     error.value = null;
-    
+
     try {
       const response = await analyticsService.getSystemAnalytics();
       if (response.success) {
@@ -303,13 +303,13 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       isLoadingSystem.value = false;
     }
   }
-  
+
   /**
    * Load real-time analytics
    */
   async function loadRealTimeAnalytics() {
     isLoadingRealTime.value = true;
-    
+
     try {
       const response = await analyticsService.getRealTimeAnalytics();
       if (response.success) {
@@ -322,18 +322,18 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       isLoadingRealTime.value = false;
     }
   }
-  
+
   // =====================================
   // REPORTING ACTIONS
   // =====================================
-  
+
   /**
    * Load report configurations
    */
   async function loadReportConfigs() {
     isLoadingReports.value = true;
     error.value = null;
-    
+
     try {
       const configs = await analyticsService.getReportConfigs();
       reportConfigs.value = configs;
@@ -344,7 +344,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       isLoadingReports.value = false;
     }
   }
-  
+
   /**
    * Create a new report configuration
    */
@@ -358,21 +358,21 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       throw err;
     }
   }
-  
+
   /**
    * Generate a report
    */
   async function generateReport(configId: string, customFilters?: AnalyticsFilters) {
     try {
       const report = await analyticsService.generateReport(configId, customFilters);
-      generatedReports.value.push(report);
+      generatedReports.value = [...generatedReports.value, report];
       return report;
     } catch (err) {
       console.error('Error generating report:', err);
       throw err;
     }
   }
-  
+
   /**
    * Load generated reports
    */
@@ -385,11 +385,11 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       throw err;
     }
   }
-  
+
   // =====================================
   // EVENT TRACKING ACTIONS
   // =====================================
-  
+
   /**
    * Track an analytics event
    */
@@ -402,7 +402,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     properties?: UnknownRecord
   ) {
     if (!eventTrackingEnabled.value) return;
-    
+
     const event: Omit<AnalyticsEvent, 'id' | 'timestamp'> = {
       eventType,
       category,
@@ -416,7 +416,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
         referrer: document.referrer
       }
     };
-    
+
     try {
       const result = await analyticsService.trackEvent(event);
       if (!result.success) {
@@ -432,7 +432,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       });
     }
   }
-  
+
   /**
    * Track page view
    */
@@ -442,14 +442,14 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       ...additionalProperties
     });
   }
-  
+
   /**
    * Track user action
    */
   async function trackUserAction(action: string, category: string, label?: string, value?: number) {
     await trackEvent('user_action', category, action, label, value);
   }
-  
+
   /**
    * Track performance metric
    */
@@ -460,16 +460,16 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       unit
     });
   }
-  
+
   /**
    * Flush event queue (retry failed events)
    */
   async function flushEventQueue() {
     if (eventQueue.value.length === 0) return;
-    
+
     const events = [...eventQueue.value];
     eventQueue.value = [];
-    
+
     try {
       const result = await analyticsService.trackEventBatch(events);
       if (!result.success) {
@@ -482,16 +482,16 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       eventQueue.value.push(...events);
     }
   }
-  
+
   // =====================================
   // AUTO-REFRESH FUNCTIONALITY
   // =====================================
-  
+
   function startAutoRefresh() {
     if (autoRefreshTimer.value) {
       clearInterval(autoRefreshTimer.value);
     }
-    
+
     autoRefreshEnabled.value = true;
     autoRefreshTimer.value = setInterval(async () => {
       try {
@@ -505,7 +505,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       }
     }, autoRefreshInterval.value);
   }
-  
+
   function stopAutoRefresh() {
     if (autoRefreshTimer.value) {
       clearInterval(autoRefreshTimer.value);
@@ -513,26 +513,26 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     }
     autoRefreshEnabled.value = false;
   }
-  
+
   function setAutoRefreshInterval(interval: number) {
     autoRefreshInterval.value = interval;
     if (autoRefreshEnabled.value) {
       startAutoRefresh(); // Restart with new interval
     }
   }
-  
+
   // =====================================
   // FILTER AND SORT ACTIONS
   // =====================================
-  
+
   function updateFilters(newFilters: Partial<AnalyticsFiltersUI>) {
     filters.value = { ...filters.value, ...newFilters };
   }
-  
+
   function updateSortOptions(newSortOptions: Partial<AnalyticsSortOptions>) {
     sortOptions.value = { ...sortOptions.value, ...newSortOptions };
   }
-  
+
   function clearFilters() {
     filters.value = {
       timeRange: 'last30days',
@@ -545,22 +545,22 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       search: ''
     };
   }
-  
+
   function setTimeRange(timeRange: AnalyticsFiltersUI['timeRange'], customRange?: TimeRange) {
     filters.value.timeRange = timeRange;
     if (timeRange === 'custom' && customRange) {
       filters.value.customTimeRange = customRange;
     }
   }
-  
+
   function clearError() {
     error.value = null;
   }
-  
+
   // =====================================
   // UTILITY ACTIONS
   // =====================================
-  
+
   /**
    * Refresh all analytics data
    */
@@ -573,7 +573,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       loadSystemAnalytics()
     ]);
   }
-  
+
   /**
    * Export analytics data
    */
@@ -592,7 +592,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
         },
         sections: ['dashboard', 'evaluation', 'usage', 'tasks']
       });
-      
+
       if (result.success && result.downloadUrl) {
         const link = document.createElement('a');
         link.href = result.downloadUrl;
@@ -602,14 +602,14 @@ export const useAnalyticsStore = defineStore('analytics', () => {
         document.body.removeChild(link);
         URL.revokeObjectURL(result.downloadUrl);
       }
-      
+
       return result;
     } catch (err) {
       console.error('Error exporting data:', err);
       throw err;
     }
   }
-  
+
   /**
    * Get formatted date range string
    */
@@ -621,9 +621,20 @@ export const useAnalyticsStore = defineStore('analytics', () => {
   }
 
   // =====================================
+  // INITIALIZATION
+  // =====================================
+
+  /**
+   * Initialize the store
+   */
+  async function initialize() {
+    await refreshAllData();
+  }
+
+  // =====================================
   // RETURN STORE INTERFACE
   // =====================================
-  
+
   return {
     // State
     dashboardData,
@@ -654,7 +665,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     sortOptions,
     autoRefreshEnabled,
     autoRefreshInterval,
-    
+
     // Getters
     currentTimeRange,
     isLoading,
@@ -665,7 +676,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     topPerformingModels,
     recentActivity,
     availableReportTypes,
-    
+
     // Actions
     loadDashboardData,
     loadEvaluationAnalytics,
@@ -692,6 +703,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     clearError,
     refreshAllData,
     exportData,
-    getFormattedDateRange
+    getFormattedDateRange,
+    initialize
   };
 });

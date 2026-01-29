@@ -1,20 +1,22 @@
 <template>
-  <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-title>Human Approvals</ion-title>
-      </ion-toolbar>
-    </ion-header>
-    <ion-content class="ion-padding">
+  <div class="detail-view">
+    <div class="detail-header">
+      <h2>Human Approvals</h2>
+      <div class="header-actions">
+        <ion-button fill="clear" size="small" @click="load" :disabled="loading">
+          <ion-icon :icon="refreshOutline" slot="icon-only" />
+        </ion-button>
+      </div>
+    </div>
+    <div class="detail-body ion-padding">
       <div class="filters">
-        <ion-select v-model="status" label="Status" interface="popover">
+        <ion-select v-model="status" label="Status" interface="popover" label-placement="stacked" fill="outline">
           <ion-select-option value="pending">Pending</ion-select-option>
           <ion-select-option value="approved">Approved</ion-select-option>
           <ion-select-option value="rejected">Rejected</ion-select-option>
         </ion-select>
-        <ion-input v-model="agentFilter" label="Agent" placeholder="agent slug"></ion-input>
-        <ion-input v-model="conversationFilter" label="Conversation" placeholder="conversation id"></ion-input>
-        <ion-button @click="load" :disabled="loading">Refresh</ion-button>
+        <ion-input v-model="agentFilter" label="Agent" placeholder="agent slug" label-placement="stacked" fill="outline"></ion-input>
+        <ion-input v-model="conversationFilter" label="Conversation" placeholder="conversation id" label-placement="stacked" fill="outline"></ion-input>
       </div>
 
       <ion-list>
@@ -39,13 +41,14 @@
       <ion-infinite-scroll threshold="100px" @ionInfinite="doInfinite">
         <ion-infinite-scroll-content loading-text="Loading more..."></ion-infinite-scroll-content>
       </ion-infinite-scroll>
-    </ion-content>
-  </ion-page>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonList, IonItem, IonLabel, IonButton, IonButtons, IonSelect, IonSelectOption, IonInput, IonChip, IonInfiniteScroll, IonInfiniteScrollContent } from '@ionic/vue';
+import { IonList, IonItem, IonLabel, IonButton, IonButtons, IonSelect, IonSelectOption, IonInput, IonChip, IonInfiniteScroll, IonInfiniteScrollContent, IonIcon } from '@ionic/vue';
+import { refreshOutline } from 'ionicons/icons';
 import approvalsService, { type HumanApprovalRecord } from '@/services/approvalsService';
 import { useAuthStore } from '@/stores/rbacStore';
 
@@ -124,14 +127,49 @@ onMounted(load);
 </script>
 
 <style scoped>
+/* Detail View Container */
+.detail-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--ion-color-light-shade);
+  background: var(--ion-color-light);
+}
+
+.detail-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.detail-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
 .filters {
   display: flex;
   gap: 12px;
-  align-items: flex-end;
+  align-items: flex-start;
   margin-bottom: 12px;
+  flex-wrap: wrap;
 }
-.approval-status {
-  margin: 6px 0 0 0;
+
+.filters > ion-select,
+.filters > ion-input {
+  min-width: 200px;
 }
 </style>
-

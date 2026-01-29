@@ -749,6 +749,7 @@ import {
 
 import { PseudonymMapping, PIIDataType } from '@/types/pii';
 import { usePrivacyStore } from '@/stores/privacyStore';
+import { privacyService } from '@/services/privacyService';
 
 // Pinia store
 const mappingsStore = usePrivacyStore();
@@ -776,13 +777,9 @@ const demoProcessing = ref(false);
 // Computed properties using store data
 const availableDataTypes = computed(() => mappingsStore.availableDataTypes);
 const totalMappings = computed(() => mappingsStore.totalMappings);
-const totalUsage = computed(() => mappingsStore.mappings.reduce((sum: number, m: PseudonymMapping) => sum + m.usageCount, 0));
+const totalUsage = computed(() => mappingsStore.mappingStats?.totalUsage || 0);
 const activeDataTypes = computed(() => mappingsStore.availableDataTypes.length);
-const averageUsage = computed(() => {
-  const total = totalUsage.value;
-  const count = totalMappings.value;
-  return count > 0 ? Math.round(total / count) : 0;
-});
+const averageUsage = computed(() => mappingsStore.mappingStats?.averageUsagePerMapping || 0);
 const isLoading = computed(() => mappingsStore.mappingsLoading);
 const error = computed(() => mappingsStore.mappingsError);
 
@@ -897,13 +894,15 @@ const maxTypeUsage = computed(() => {
 });
 
 const mostActiveMapping = computed(() => {
-  return mappingsStore.mappings.reduce((prev: PseudonymMapping, current: PseudonymMapping) =>
+  if (mappingsStore.mappings.length === 0) return null;
+  return mappingsStore.mappings.reduce((prev, current) => 
     (prev.usageCount > current.usageCount) ? prev : current
   );
 });
 
 const mostRecentMapping = computed(() => {
-  return mappingsStore.mappings.reduce((prev: PseudonymMapping, current: PseudonymMapping) =>
+  if (mappingsStore.mappings.length === 0) return null;
+  return mappingsStore.mappings.reduce((prev, current) => 
     (new Date(prev.lastUsedAt) > new Date(current.lastUsedAt)) ? prev : current
   );
 });
@@ -917,24 +916,19 @@ const newThisWeekCount = computed(() => {
   ).length;
 });
 
+const recentMappings = computed(() => {
+  return [...mappingsStore.mappings]
+    .sort((a, b) => new Date(b.lastUsedAt).getTime() - new Date(a.lastUsedAt).getTime())
+    .slice(0, 10);
+});
+
 const usageGrowthRate = computed(() => {
   // Calculate growth rate based on recent vs older usage
-  const oneWeekAgo = new Date();
-  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-  const twoWeeksAgo = new Date();
-  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
-
-  const recentMappings = mappingsStore.mappings.filter((m: PseudonymMapping) =>
-    new Date(m.lastUsedAt) >= oneWeekAgo
-  );
-  const olderMappings = mappingsStore.mappings.filter((m: PseudonymMapping) =>
-    new Date(m.lastUsedAt) < oneWeekAgo && new Date(m.lastUsedAt) >= twoWeeksAgo
-  );
-
-  const recentUsage = recentMappings.reduce((sum: number, m: PseudonymMapping) => sum + m.usageCount, 0);
-  const olderUsage = olderMappings.reduce((sum: number, m: PseudonymMapping) => sum + m.usageCount, 0);
-
-  if (olderUsage === 0) return recentUsage > 0 ? 100 : 0; // All usage is recent
+  const recentUsage = recentMappings.value.reduce((sum, m) => sum + m.usageCount, 0);
+  const total = mappingsStore.mappingStats?.totalUsage || 0;
+  const olderUsage = total - recentUsage;
+  
+  if (olderUsage === 0) return 100; // All usage is recent
   return ((recentUsage - olderUsage) / olderUsage) * 100;
 });
 
@@ -961,10 +955,11 @@ const usageHeatmapData = computed(() => {
 
 // Methods
 const refreshMappings = async () => {
-  // Note: Store follows sync-only pattern. In a real implementation,
-  // this would call a service method to fetch data and update the store.
-  // For now, this is a placeholder that doesn't do anything.
-  console.log('Refresh mappings - service integration needed');
+  // Fetch both mappings and stats using the service
+  await Promise.all([
+    privacyService.fetchMappings(true),
+    privacyService.fetchMappingStats(true)
+  ]);
 };
 
 const filterMappings = () => {
@@ -1176,10 +1171,11 @@ watch(reversibilityModalOpen, (isOpen) => {
 
 // Initialize component
 onMounted(async () => {
-  // Note: Store follows sync-only pattern. In a real implementation,
-  // this would call service methods to fetch data and update the store.
-  // For now, we just use whatever data is already in the store.
-  console.log('Component mounted - service integration needed for data fetching');
+  // Load data from service on component mount
+  await Promise.all([
+    privacyService.fetchMappings(),
+    privacyService.fetchMappingStats()
+  ]);
 });
 </script>
 

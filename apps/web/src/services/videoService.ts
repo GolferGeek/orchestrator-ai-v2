@@ -100,7 +100,7 @@ class VideoService {
    */
   getFeaturedVideos(): Array<{ categoryKey: string; video: Video; category: VideoCategory }> {
     const featured: Array<{ categoryKey: string; video: Video; category: VideoCategory }> = [];
-    
+
     Object.entries(this.data.categories).forEach(([categoryKey, category]) => {
       const featuredVideo = category.videos.find(video => video.featured);
       if (featuredVideo) {
@@ -111,7 +111,7 @@ class VideoService {
         });
       }
     });
-    
+
     return featured;
   }
 
@@ -128,7 +128,7 @@ class VideoService {
   getVideosByCategory(categoryKey: string): Video[] {
     const category = this.getCategory(categoryKey);
     if (!category) return [];
-    
+
     return [...category.videos].sort((a, b) => a.order - b.order);
   }
 

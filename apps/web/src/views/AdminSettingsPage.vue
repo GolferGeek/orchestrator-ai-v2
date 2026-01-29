@@ -496,8 +496,19 @@ const handleResize = () => {
 // ============================================================================
 // System Health State
 // ============================================================================
+interface HealthStats {
+  uptime?: number;
+  memory?: {
+    utilization?: number;
+    used?: number;
+    total?: number;
+  };
+  services?: Record<string, string>;
+  [key: string]: unknown;
+}
+
 const healthLoading = ref(false);
-const healthData = ref<Record<string, unknown> | null>(null);
+const healthData = ref<HealthStats | null>(null);
 const dbHealthData = ref<Record<string, unknown> | null>(null);
 const localModelStatusData = ref<Record<string, unknown> | null>(null);
 const agentsHealthData = ref<{ discoveredAgents: number; runningInstances: number; agents: unknown[] }>({ discoveredAgents: 0, runningInstances: 0, agents: [] });
@@ -574,7 +585,7 @@ const formatUptime = (ms: number | undefined) => {
 const fetchHealthData = async () => {
   try {
     const response = await apiService.get('/system/health');
-    healthData.value = response as Record<string, unknown>;
+    healthData.value = response as HealthStats;
   } catch (error) {
     console.error('Failed to fetch system health:', error);
   }
@@ -764,17 +775,18 @@ onMounted(async () => {
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 0.75rem;
-  background: var(--ion-color-danger-tint);
-  border-left: 3px solid var(--ion-color-danger);
-  border-radius: 0 6px 6px 0;
+  background: var(--ion-color-danger);
+  border-left: 3px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
   margin-bottom: 0.25rem;
   font-size: 0.85rem;
-  color: var(--ion-color-danger-shade);
+  color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .issue-alert ion-icon {
   font-size: 1rem;
-  color: var(--ion-color-danger);
+  color: white;
 }
 
 /* ============================================================================

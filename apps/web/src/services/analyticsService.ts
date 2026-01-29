@@ -1,7 +1,7 @@
 import { apiService } from './apiService';
 import {
   AnalyticsFilters,
-  // AnalyticsRequest,
+  ConstraintAnalytics,
   EvaluationAnalytics,
   WorkflowAnalytics,
   UsageStats,
@@ -41,7 +41,7 @@ class AnalyticsService {
       if (filters.timeRange?.endDate) params.append('endDate', filters.timeRange.endDate);
       if (filters.userRole) params.append('userRole', filters.userRole);
 
-      const response = await apiService.get(`/evaluation/admin/analytics/overview?${params.toString()}`);
+      const response = await apiService.get<EvaluationAnalytics>(`/evaluation/admin/analytics/overview?${params.toString()}`);
       return {
         success: true,
         data: response as EvaluationAnalytics,
@@ -68,7 +68,7 @@ class AnalyticsService {
       if (filters.timeRange?.startDate) params.append('startDate', filters.timeRange.startDate);
       if (filters.timeRange?.endDate) params.append('endDate', filters.timeRange.endDate);
 
-      const response = await apiService.get(`/evaluation/admin/analytics/workflow?${params.toString()}`);
+      const response = await apiService.get<WorkflowAnalytics>(`/evaluation/admin/analytics/workflow?${params.toString()}`);
       return {
         success: true,
         data: response as WorkflowAnalytics,
@@ -89,14 +89,14 @@ class AnalyticsService {
   /**
    * Get constraint effectiveness analytics
    */
-  async getConstraintAnalytics(filters: AnalyticsFilters = {}): Promise<unknown> {
+  async getConstraintAnalytics(filters: AnalyticsFilters = {}): Promise<ConstraintAnalytics> {
     try {
       const params = new URLSearchParams();
       if (filters.timeRange?.startDate) params.append('startDate', filters.timeRange.startDate);
       if (filters.timeRange?.endDate) params.append('endDate', filters.timeRange.endDate);
 
       const response = await apiService.get(`/evaluation/admin/analytics/constraints?${params.toString()}`);
-      return response;
+      return response as ConstraintAnalytics;
     } catch (error) {
       console.error('Error fetching constraint analytics:', error);
       throw error;
@@ -120,7 +120,7 @@ class AnalyticsService {
       if (filters.includeDetails !== undefined) params.append('include_details', filters.includeDetails.toString());
       if (filters.granularity) params.append('granularity', filters.granularity);
 
-      const response = await apiService.get(`/usage/stats?${params.toString()}`);
+      const response = await apiService.get<UsageStats>(`/usage/stats?${params.toString()}`);
       return {
         success: true,
         data: response as UsageStats,
@@ -148,7 +148,7 @@ class AnalyticsService {
       if (filters.timeRange?.endDate) params.append('end_date', filters.timeRange.endDate);
       if (filters.groupBy) params.append('group_by', filters.groupBy);
 
-      const response = await apiService.get(`/usage/costs/summary?${params.toString()}`);
+      const response = await apiService.get<CostSummary>(`/usage/costs/summary?${params.toString()}`);
       return {
         success: true,
         data: response as CostSummary,
@@ -169,9 +169,9 @@ class AnalyticsService {
   /**
    * Get model performance metrics
    */
-  async getModelPerformance(filters: AnalyticsFilters & { 
-    minUsage?: number; 
-    sortBy?: 'rating' | 'speed' | 'cost' | 'usage' 
+  async getModelPerformance(filters: AnalyticsFilters & {
+    minUsage?: number;
+    sortBy?: 'rating' | 'speed' | 'cost' | 'usage'
   } = {}): Promise<ModelPerformanceResponse> {
     try {
       const params = new URLSearchParams();
@@ -180,7 +180,7 @@ class AnalyticsService {
       if (filters.minUsage) params.append('min_usage', filters.minUsage.toString());
       if (filters.sortBy) params.append('sort_by', filters.sortBy);
 
-      const response = await apiService.get(`/usage/performance/models?${params.toString()}`) as ModelPerformance[];
+      const response = await apiService.get<ModelPerformance[]>(`/usage/performance/models?${params.toString()}`);
       return {
         success: true,
         data: response,
@@ -205,7 +205,7 @@ class AnalyticsService {
   /**
    * Get LLM usage records
    */
-  async getLLMUsageRecords(filters: AnalyticsFilters & { 
+  async getLLMUsageRecords(filters: AnalyticsFilters & {
     userId?: string;
     callerType?: string;
     callerName?: string;
@@ -271,7 +271,7 @@ class AnalyticsService {
   async getTaskMetrics(): Promise<TaskAnalyticsResponse> {
     try {
       // This would need to be implemented in the backend
-      const response = await apiService.get('/tasks/metrics');
+      const response = await apiService.get<TaskAnalytics>('/tasks/metrics');
       return {
         success: true,
         data: response as TaskAnalytics,
@@ -324,7 +324,7 @@ class AnalyticsService {
   async getSystemAnalytics(): Promise<SystemAnalyticsResponse> {
     try {
       // This would need to be implemented in the backend
-      const response = await apiService.get('/system/analytics');
+      const response = await apiService.get<SystemAnalytics>('/system/analytics');
       return {
         success: true,
         data: response as SystemAnalytics,
@@ -477,7 +477,7 @@ class AnalyticsService {
 
       // Populate from available data
       if (taskMetrics.status === 'fulfilled') {
-        realTimeData.currentStats.runningTasks = 0; // TaskAnalytics doesn't have activeTasks
+        realTimeData.currentStats.runningTasks = taskMetrics.value.data.tasksByStatus?.running || 0;
         realTimeData.currentStats.averageResponseTime = taskMetrics.value.data.averageTaskDuration || 0;
       }
 
@@ -557,7 +557,7 @@ class AnalyticsService {
    */
   async getReportConfigs(): Promise<ReportConfig[]> {
     try {
-      const response = await apiService.get('/analytics/reports/configs') as { data?: ReportConfig[] };
+      const response = await apiService.get<{ data: ReportConfig[] }>('/analytics/reports/configs');
       return response.data || [];
     } catch (error) {
       console.error('Error fetching report configs:', error);
@@ -570,7 +570,7 @@ class AnalyticsService {
    */
   async createReportConfig(config: Omit<ReportConfig, 'id' | 'createdAt' | 'updatedAt'>): Promise<ReportConfig> {
     try {
-      const response = await apiService.post('/analytics/reports/configs', config) as { data: ReportConfig };
+      const response = await apiService.post<{ data: ReportConfig }>('/analytics/reports/configs', config);
       return response.data;
     } catch (error) {
       console.error('Error creating report config:', error);
@@ -583,7 +583,7 @@ class AnalyticsService {
    */
   async generateReport(configId: string, filters?: AnalyticsFilters): Promise<GeneratedReport> {
     try {
-      const response = await apiService.post(`/analytics/reports/generate/${configId}`, { filters }) as { data: GeneratedReport };
+      const response = await apiService.post<{ data: GeneratedReport }>(`/analytics/reports/generate/${configId}`, { filters });
       return response.data;
     } catch (error) {
       console.error('Error generating report:', error);
@@ -597,7 +597,7 @@ class AnalyticsService {
   async getGeneratedReports(configId?: string): Promise<GeneratedReport[]> {
     try {
       const params = configId ? `?configId=${configId}` : '';
-      const response = await apiService.get(`/analytics/reports/generated${params}`) as { data?: GeneratedReport[] };
+      const response = await apiService.get<{ data: GeneratedReport[] }>(`/analytics/reports/generated${params}`);
       return response.data || [];
     } catch (error) {
       console.error('Error fetching generated reports:', error);
@@ -614,7 +614,7 @@ class AnalyticsService {
    */
   async exportData(config: ExportConfig): Promise<{ success: boolean; downloadUrl?: string; error?: string }> {
     try {
-      const response = await apiService.post('/analytics/export', config) as { data: unknown };
+      const response = await apiService.post<{ data: unknown }>('/analytics/export', config);
 
       if (config.format === 'json') {
         return {
@@ -624,7 +624,7 @@ class AnalyticsService {
       } else {
         return {
           success: true,
-          downloadUrl: URL.createObjectURL(new Blob([response.data as BlobPart]))
+          downloadUrl: URL.createObjectURL(response.data as Blob)
         };
       }
     } catch (error) {
@@ -653,7 +653,7 @@ class AnalyticsService {
   getDateRange(period: 'today' | 'yesterday' | 'last7days' | 'last30days' | 'thisMonth' | 'lastMonth'): TimeRange {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
+
     switch (period) {
       case 'today':
         return {
@@ -733,10 +733,10 @@ class AnalyticsService {
     if (previous === 0) {
       return { trend: current > 0 ? 'up' : 'stable', changePercentage: 0 };
     }
-    
+
     const changePercentage = ((current - previous) / previous) * 100;
     const trend = Math.abs(changePercentage) < 1 ? 'stable' : changePercentage > 0 ? 'up' : 'down';
-    
+
     return { trend, changePercentage: Math.round(changePercentage * 10) / 10 };
   }
 }
