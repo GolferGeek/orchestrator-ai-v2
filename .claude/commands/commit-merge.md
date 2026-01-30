@@ -69,7 +69,32 @@ All quality gates must pass before committing:
 - ✅ **Build**: Build succeeds
 - ✅ **Safety**: No obvious violations found
 
-If any check fails, the entire operation is blocked.
+If any check fails, fix the issue before proceeding.
+
+## Fixing Common Lint Errors
+
+### Supabase RPC Type Safety (`@typescript-eslint/no-unsafe-assignment`)
+
+When calling Supabase RPC functions, the return type is `any`. Fix by adding type assertion:
+
+**Before (fails lint):**
+```typescript
+const { data, error } = await this.getClient()
+  .schema(this.schema)
+  .rpc('get_sources_due_for_crawl', { p_frequency_minutes: frequency ?? null });
+```
+
+**After (passes lint):**
+```typescript
+const { data, error } = (await this.getClient()
+  .schema(this.schema)
+  .rpc('get_sources_due_for_crawl', { p_frequency_minutes: frequency ?? null })
+) as SupabaseSelectListResponse<SourceDueForCrawl>;
+```
+
+Use the appropriate response type:
+- `SupabaseSelectResponse<T>` - single record
+- `SupabaseSelectListResponse<T>` - array of records
 
 ## Merge Strategy
 
@@ -150,8 +175,8 @@ Main Branch: main
 
 ```bash
 docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
-INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, details)
-VALUES ('command', 'commit-merge', 'invoked',
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, artifact_version, event_type, details)
+VALUES ('command', 'commit-merge', 'unknown', 'invoked',
   '{\"branch\": \"current branch\", \"triggered_by\": \"user\"}'::jsonb);"
 ```
 
@@ -159,8 +184,8 @@ VALUES ('command', 'commit-merge', 'invoked',
 
 ```bash
 docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
-INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
-VALUES ('command', 'commit-merge', 'completed', true,
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, artifact_version, event_type, success, details)
+VALUES ('command', 'commit-merge', 'unknown', 'completed', true,
   '{\"outcome\": \"Merged to main and cleaned up\", \"commit_hash\": \"hash\", \"branch_deleted\": \"feature-branch\"}'::jsonb);"
 ```
 
@@ -168,8 +193,8 @@ VALUES ('command', 'commit-merge', 'completed', true,
 
 ```bash
 docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
-INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
-VALUES ('command', 'commit-merge', 'completed', false,
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, artifact_version, event_type, success, details)
+VALUES ('command', 'commit-merge', 'unknown', 'completed', false,
   '{\"error\": \"description of what went wrong\"}'::jsonb);"
 ```
 
