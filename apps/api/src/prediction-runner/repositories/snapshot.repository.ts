@@ -59,18 +59,32 @@ export class SnapshotRepository {
   async findByPredictionId(
     predictionId: string,
   ): Promise<PredictionSnapshot | null> {
+    // Database uses snake_case column names, interface uses different names
+    // analyst_predictions (db) -> analyst_assessments (interface)
     const { data, error } = (await this.getClient()
       .schema(this.schema)
       .from(this.table)
       .select('*')
       .eq('prediction_id', predictionId)
-      .single()) as SupabaseSelectResponse<PredictionSnapshot>;
+      .single()) as SupabaseSelectResponse<
+      Omit<PredictionSnapshot, 'analyst_assessments'> & {
+        analyst_predictions: PredictionSnapshot['analyst_assessments'];
+      }
+    >;
 
     if (error && error.code !== 'PGRST116') {
       this.logger.error(`Failed to fetch snapshot: ${error.message}`);
       throw new Error(`Failed to fetch snapshot: ${error.message}`);
     }
 
-    return data;
+    if (!data) {
+      return null;
+    }
+
+    // Map database column names to interface field names
+    return {
+      ...data,
+      analyst_assessments: data.analyst_predictions,
+    } as unknown as PredictionSnapshot;
   }
 }

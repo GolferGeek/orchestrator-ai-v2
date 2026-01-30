@@ -36,10 +36,18 @@ export class BatchPredictionGeneratorRunner {
   ) {}
 
   /**
+   * Check if batch prediction generation is disabled via master environment variable
+   */
+  private isDisabled(): boolean {
+    return process.env.DISABLE_PREDICTION_RUNNERS === 'true';
+  }
+
+  /**
    * Main cron job - runs every 30 minutes
    */
   @Cron('*/30 * * * *')
   async generatePredictionsBatch(): Promise<void> {
+    if (this.isDisabled()) return;
     await this.runBatchGeneration();
   }
 

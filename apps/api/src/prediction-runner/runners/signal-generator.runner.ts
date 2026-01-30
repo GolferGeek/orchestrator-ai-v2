@@ -35,9 +35,13 @@ export class SignalGeneratorRunner {
 
   /**
    * Check if signal generation is disabled via environment variable
+   * Checks both individual flag and master DISABLE_PREDICTION_RUNNERS flag
    */
   private isSignalGenerationDisabled(): boolean {
-    return process.env.DISABLE_SIGNAL_GENERATION === 'true';
+    return (
+      process.env.DISABLE_SIGNAL_GENERATION === 'true' ||
+      process.env.DISABLE_PREDICTION_RUNNERS === 'true'
+    );
   }
 
   /**
