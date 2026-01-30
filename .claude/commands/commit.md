@@ -119,8 +119,8 @@ Runs checks, uses your message, commits.
 
 ```bash
 docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
-INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, details)
-VALUES ('command', 'commit', 'invoked',
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, artifact_version, event_type, details)
+VALUES ('command', 'commit', 'unknown', 'invoked',
   '{\"branch\": \"current branch\", \"triggered_by\": \"user\"}'::jsonb);"
 ```
 
@@ -128,8 +128,8 @@ VALUES ('command', 'commit', 'invoked',
 
 ```bash
 docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
-INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
-VALUES ('command', 'commit', 'completed', true,
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, artifact_version, event_type, success, details)
+VALUES ('command', 'commit', 'unknown', 'completed', true,
   '{\"outcome\": \"Changes committed\", \"commit_hash\": \"hash\"}'::jsonb);"
 ```
 
@@ -137,8 +137,8 @@ VALUES ('command', 'commit', 'completed', true,
 
 ```bash
 docker exec supabase_db_api-dev psql -U postgres -d postgres -c "
-INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, event_type, success, details)
-VALUES ('command', 'commit', 'completed', false,
+INSERT INTO code_ops.artifact_events (artifact_type, artifact_name, artifact_version, event_type, success, details)
+VALUES ('command', 'commit', 'unknown', 'completed', false,
   '{\"error\": \"description of what went wrong\"}'::jsonb);"
 ```
 

@@ -381,10 +381,21 @@ export const useRiskDashboardStore = defineStore('riskDashboard', () => {
   }
 
   // Helper to transform dimension scores to 0-1 scale
+  // Handles both simple number format {credit: 50} and object format {credit: {score: 50, confidence: 0.8}}
   function transformDimensionScores(dimensionScores: Record<string, unknown>): Record<string, { score: number; confidence: number; weight: number; assessmentId: string }> {
     const result: Record<string, { score: number; confidence: number; weight: number; assessmentId: string }> = {};
     for (const [slug, data] of Object.entries(dimensionScores)) {
-      if (data && typeof data === 'object' && !Array.isArray(data)) {
+      // Handle simple number format: {credit: 50, momentum: 50}
+      if (typeof data === 'number') {
+        result[slug] = {
+          score: normalizeScore(data),
+          confidence: 0,
+          weight: 1,
+          assessmentId: '',
+        };
+      }
+      // Handle object format: {credit: {score: 50, confidence: 0.8, weight: 1, assessmentId: 'xxx'}}
+      else if (data && typeof data === 'object' && !Array.isArray(data)) {
         const d = data as Record<string, unknown>;
         const rawScore = typeof d.score === 'number' ? d.score : 0;
         const rawConfidence = typeof d.confidence === 'number' ? d.confidence : 0;

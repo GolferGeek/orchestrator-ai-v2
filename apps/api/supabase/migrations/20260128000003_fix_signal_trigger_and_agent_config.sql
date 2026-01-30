@@ -56,6 +56,16 @@ SET metadata = jsonb_set(
 WHERE slug = 'legal-intake-agent'
   AND metadata->'rag_config'->>'collection_slug' = 'law-client-intake-temporal';
 
+-- Also fix similarity_threshold from 0.6 to 0.4 (actual similarity scores are ~0.5-0.56)
+UPDATE public.agents
+SET metadata = jsonb_set(
+  metadata,
+  '{rag_config,similarity_threshold}',
+  '0.4'
+)
+WHERE slug = 'legal-intake-agent'
+  AND (metadata->'rag_config'->>'similarity_threshold')::numeric >= 0.6;
+
 -- =============================================================================
 -- 3. FIX RAG COLLECTION: organization_slug was '*' instead of 'legal'
 -- =============================================================================
