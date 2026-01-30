@@ -59,10 +59,18 @@ export class OutcomeTrackingRunner {
   ) {}
 
   /**
+   * Check if outcome tracking is disabled via master environment variable
+   */
+  private isDisabled(): boolean {
+    return process.env.DISABLE_PREDICTION_RUNNERS === 'true';
+  }
+
+  /**
    * Main cron job - runs every 15 minutes
    */
   @Cron('*/15 * * * *')
   async trackOutcomes(): Promise<void> {
+    if (this.isDisabled()) return;
     await this.runOutcomeTracking();
   }
 

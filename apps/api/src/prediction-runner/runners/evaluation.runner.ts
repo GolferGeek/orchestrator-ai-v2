@@ -34,10 +34,18 @@ export class EvaluationRunner {
   ) {}
 
   /**
+   * Check if evaluation is disabled via master environment variable
+   */
+  private isDisabled(): boolean {
+    return process.env.DISABLE_PREDICTION_RUNNERS === 'true';
+  }
+
+  /**
    * Main cron job - runs every hour
    */
   @Cron(CronExpression.EVERY_HOUR)
   async runEvaluations(): Promise<void> {
+    if (this.isDisabled()) return;
     await this.runEvaluationBatch();
   }
 

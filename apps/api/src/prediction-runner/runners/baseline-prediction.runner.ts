@@ -24,11 +24,19 @@ export class BaselinePredictionRunner {
   ) {}
 
   /**
+   * Check if baseline prediction is disabled via master environment variable
+   */
+  private isDisabled(): boolean {
+    return process.env.DISABLE_PREDICTION_RUNNERS === 'true';
+  }
+
+  /**
    * Main cron job - runs at 4:30 PM ET (21:30 UTC) Monday-Friday
    * After market close but before end-of-day processing
    */
   @Cron('30 21 * * 1-5') // 21:30 UTC, Monday-Friday
   async runBaselineCreation(): Promise<void> {
+    if (this.isDisabled()) return;
     const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
     await this.runForDate(today);
   }
