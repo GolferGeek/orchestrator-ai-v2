@@ -27,7 +27,9 @@ INSERT INTO public.llm_models (
 ('llama3.3:70b', 'ollama', 'Llama 3.3 70B (Cloud)', 'text-generation', '3.3', 128000, 4096, 'cloud', 'medium', '["chat", "text-generation"]'::jsonb),
 ('qwen2.5:72b', 'ollama', 'Qwen 2.5 72B (Cloud)', 'text-generation', '2.5', 32768, 4096, 'cloud', 'medium', '["chat", "text-generation"]'::jsonb),
 ('deepseek-r1:671b', 'ollama', 'DeepSeek R1 671B (Cloud)', 'text-generation', 'r1', 65536, 4096, 'cloud', 'slow', '["chat", "text-generation", "reasoning"]'::jsonb),
-('mixtral:8x22b', 'ollama', 'Mixtral 8x22B (Cloud)', 'text-generation', '8x22b', 65536, 4096, 'cloud', 'medium', '["chat", "text-generation"]'::jsonb)
+('mixtral:8x22b', 'ollama', 'Mixtral 8x22B (Cloud)', 'text-generation', '8x22b', 65536, 4096, 'cloud', 'medium', '["chat", "text-generation"]'::jsonb),
+('gpt-oss:20b', 'ollama', 'GPT-OSS 20B (Cloud)', 'text-generation', '1.0', 32768, 4096, 'cloud', 'fast', '["chat", "text-generation"]'::jsonb),
+('gpt-oss:120b', 'ollama', 'GPT-OSS 120B (Cloud)', 'text-generation', '1.0', 32768, 4096, 'cloud', 'medium', '["chat", "text-generation"]'::jsonb)
 ON CONFLICT (model_name, provider_name) DO UPDATE SET
   display_name = EXCLUDED.display_name,
   model_type = EXCLUDED.model_type,
@@ -49,7 +51,7 @@ BEGIN
 
   RAISE NOTICE 'Ollama Cloud models added: %', cloud_model_count;
 
-  IF cloud_model_count < 5 THEN
-    RAISE WARNING 'Expected at least 5 Ollama Cloud models, found %', cloud_model_count;
+  IF cloud_model_count < 7 THEN
+    RAISE WARNING 'Expected at least 7 Ollama Cloud models, found %', cloud_model_count;
   END IF;
 END $$;

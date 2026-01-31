@@ -99,7 +99,7 @@ export function getInteractionMode(agent: Agent): InteractionModeConfig {
     const customComponent = (agent.metadata?.customUIComponent || agent.customUIComponent) as string | undefined;
 
     // Conversation pane components with custom UI (still use conversation flow)
-    const conversationPaneComponents = ['marketing-swarm', 'cad-agent'];
+    const conversationPaneComponents = ['cad-agent'];
     const isConversationPaneCustomUI = customComponent && conversationPaneComponents.includes(customComponent);
 
     if (isConversationPaneCustomUI) {
