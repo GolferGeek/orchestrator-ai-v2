@@ -32,9 +32,19 @@ export function normalizeHierarchyResponse(input: HierarchyNode[] | AgentHierarc
         const departmentAgents = data[department];
         if (Array.isArray(departmentAgents)) {
           flatAgents.push(...departmentAgents.map((agent: Record<string, unknown>): HierarchyNode => {
-            // organizationSlug may be an array from API - extract first element
-            const orgSlugRaw = agent.organizationSlug;
-            const organizationSlug = Array.isArray(orgSlugRaw) ? orgSlugRaw[0] : orgSlugRaw;
+            // API returns 'organization' as comma-separated string (e.g., "legal,global")
+            // Extract the first non-global org, or fall back to first org
+            const orgRaw = agent.organization || agent.organizationSlug;
+            let organizationSlug: string | undefined;
+            if (typeof orgRaw === 'string') {
+              const orgs = orgRaw.split(',').map(s => s.trim()).filter(Boolean);
+              // Prefer first non-global org
+              organizationSlug = orgs.find(o => o !== 'global') || orgs[0];
+            } else if (Array.isArray(orgRaw)) {
+              organizationSlug = (orgRaw as string[]).find(o => o !== 'global') || orgRaw[0];
+            } else {
+              organizationSlug = orgRaw as string | undefined;
+            }
 
             return {
               id: (agent.id || agent.slug) as string,

@@ -29,6 +29,457 @@
 
     <!-- Hierarchy Display -->
     <div v-else class="hierarchy-container">
+      <!-- All Orgs Mode: Group by Organization -->
+      <template v-if="isAllOrgsMode">
+        <div v-for="orgGroup in hierarchyGroupedByOrg" :key="orgGroup.orgSlug" class="org-section">
+          <!-- Organization Header -->
+          <div class="org-header">
+            <ion-icon :icon="getOrgIcon(orgGroup.orgSlug)" class="org-icon" />
+            <span class="org-name">{{ orgGroup.orgName }}</span>
+            <ion-badge color="medium" class="org-conversation-count">
+              {{ orgGroup.totalConversations }}
+            </ion-badge>
+          </div>
+
+          <!-- CEO/Top Orchestrator within this org -->
+          <div v-for="group in orgGroup.groups.filter(g => g.isCEOAgent)" :key="group.type" class="agent-group org-nested">
+            <ion-accordion-group>
+              <ion-accordion :value="expandedAccordions.includes('ceo-' + orgGroup.orgSlug) ? 'ceo-' + orgGroup.orgSlug : undefined">
+                <!-- CEO as accordion header with action buttons -->
+                <ion-item slot="header" class="ceo-header">
+                  <ion-icon :icon="icons.briefcaseOutline" class="ceo-icon" slot="start" />
+                  <ion-label>
+                    <h3>{{ formatAgentDisplayName(group.agents[0], true) }}</h3>
+                  </ion-label>
+                  <ion-badge :color="group.totalConversations > 0 ? 'primary' : 'medium'" class="ceo-conversation-count">
+                    {{ group.totalConversations }}
+                  </ion-badge>
+                  <!-- Action buttons in header -->
+                  <div class="header-actions" @click.stop>
+                    <ion-button
+                      fill="clear"
+                      size="small"
+                      @click="startNewConversation(group.agents[0], 'ceo-' + orgGroup.orgSlug)"
+                      title="Start new conversation"
+                      class="header-action-btn"
+                    >
+                      <ion-icon :icon="icons.chatbubbleOutline" />
+                    </ion-button>
+                  </div>
+                </ion-item>
+
+                <!-- Accordion content: CEO's conversations -->
+                <div slot="content" class="accordion-content">
+                  <!-- CEO's Conversations (collapsible) -->
+                  <div v-if="group.agents[0]" class="ceo-content">
+                    <!-- Conversation list toggle header -->
+                    <div
+                      v-if="group.agents[0].conversations && group.agents[0].conversations.length > 0"
+                      class="conversation-toggle-header"
+                      @click="toggleConversationList(group.agents[0].name)"
+                    >
+                      <ion-icon
+                        :icon="isConversationListExpanded(group.agents[0].name) ? icons.chevronDownOutline : icons.chevronForwardOutline"
+                        class="toggle-chevron"
+                      />
+                      <span class="toggle-label">Conversations</span>
+                      <ion-badge color="primary" class="toggle-badge">
+                        {{ group.agents[0].conversations.length }}
+                      </ion-badge>
+                    </div>
+                    <!-- CEO's Conversations (collapsed by default) -->
+                    <div v-if="isConversationListExpanded(group.agents[0].name) && group.agents[0].conversations && group.agents[0].conversations.length > 0" class="conversations-list">
+                      <ion-item
+                        v-for="conversation in group.agents[0].conversations"
+                        :key="conversation.id"
+                        @click="selectConversation(conversation)"
+                        button
+                        class="conversation-item ceo-conversation"
+                      >
+                        <ion-icon :icon="icons.chatbubbleOutline" slot="start" color="primary" />
+                        <ion-label>
+                          <p>{{ formatConversationTitle(conversation) }}</p>
+                        </ion-label>
+                        <ion-badge
+                          v-if="conversation.activeTasks && conversation.activeTasks > 0"
+                          slot="end"
+                          color="warning"
+                        >
+                          {{ conversation.activeTasks }}
+                        </ion-badge>
+                        <ion-button
+                          fill="clear"
+                          size="small"
+                          color="danger"
+                          slot="end"
+                          @click="deleteConversation(conversation, $event)"
+                        >
+                          <ion-icon :icon="icons.trashOutline" />
+                        </ion-button>
+                      </ion-item>
+                    </div>
+                  </div>
+
+                  <!-- Team Members (for orchestrator's direct agents, not managers) -->
+                  <div v-if="group.agents.length > 1" class="team-members">
+                    <h5 class="section-title">Team Members</h5>
+                    <div v-for="agent in group.agents.slice(1)" :key="agent.name" class="agent-section nested-agent">
+                      <!-- Agent Header -->
+                      <ion-item class="nested-agent-item">
+                        <ion-icon
+                          :icon="agentShowsDashboard(agent) ? icons.analyticsOutline : icons.personOutline"
+                          slot="start"
+                          :color="agentShowsDashboard(agent) ? 'tertiary' : 'medium'"
+                        />
+                        <ion-label>
+                          <h4>{{ formatAgentDisplayName(agent, false) }}</h4>
+                        </ion-label>
+                        <!-- Conversation count badge - only show for agents that support conversations -->
+                        <ion-badge v-if="agentShowsConversation(agent)" :color="(agent.totalConversations || 0) > 0 ? 'secondary' : 'light'" class="conversation-count">
+                          {{ agent.totalConversations || 0 }}
+                        </ion-badge>
+                        <div class="header-actions" @click.stop>
+                          <!-- Toggle conversations arrow (only show if agent supports conversations and has some) -->
+                          <ion-button
+                            v-if="agentShowsConversation(agent) && agent.conversations && agent.conversations.length > 0"
+                            fill="clear"
+                            size="small"
+                            @click="toggleConversationList(agent.name)"
+                            title="Toggle conversation list"
+                            class="header-action-btn toggle-btn"
+                          >
+                            <ion-icon :icon="isConversationListExpanded(agent.name) ? icons.chevronDownOutline : icons.chevronForwardOutline" />
+                          </ion-button>
+                          <!-- Dashboard button for dashboard agents -->
+                          <ion-button
+                            v-if="agentShowsDashboard(agent)"
+                            fill="clear"
+                            size="small"
+                            @click="openAgentDashboard(agent)"
+                            title="Open dashboard"
+                            class="header-action-btn dashboard-btn"
+                          >
+                            <ion-icon :icon="icons.gridOutline" color="tertiary" />
+                          </ion-button>
+                          <!-- New conversation button (show for conversation agents or dashboard agents that support chat) -->
+                          <ion-button
+                            v-if="agentShowsConversation(agent)"
+                            fill="clear"
+                            size="small"
+                            @click="createNewConversation(agent)"
+                            title="Start new conversation"
+                            class="header-action-btn"
+                          >
+                            <ion-icon :icon="icons.chatbubbleOutline" />
+                          </ion-button>
+                        </div>
+                      </ion-item>
+
+                      <!-- Agent's Conversations (collapsed by default) - only for agents that support conversations -->
+                      <div v-if="agentShowsConversation(agent) && isConversationListExpanded(agent.name) && agent.conversations && agent.conversations.length > 0" class="conversations-list">
+                        <ion-item
+                          v-for="conversation in agent.conversations"
+                          :key="conversation.id"
+                          button
+                          @click="selectConversation(conversation)"
+                          class="conversation-item"
+                        >
+                          <ion-icon :icon="icons.chatbubbleOutline" slot="start" color="tertiary" />
+                          <ion-label>
+                            <p>{{ formatConversationTitle(conversation) }}</p>
+                          </ion-label>
+                          <ion-badge
+                            v-if="conversation.activeTasks && conversation.activeTasks > 0"
+                            slot="end"
+                            color="warning"
+                          >
+                            {{ conversation.activeTasks }}
+                          </ion-badge>
+                          <ion-button
+                            fill="clear"
+                            size="small"
+                            color="danger"
+                            slot="end"
+                            @click="deleteConversation(conversation, $event)"
+                          >
+                            <ion-icon :icon="icons.trashOutline" />
+                          </ion-button>
+                        </ion-item>
+                      </div>
+                    </div> <!-- End nested-agent -->
+                  </div> <!-- End team-members -->
+                </div> <!-- End accordion-content -->
+              </ion-accordion>
+            </ion-accordion-group>
+          </div>
+
+          <!-- Managers within this org -->
+          <div v-for="group in orgGroup.groups.filter(g => g.isManager && !g.isCEOAgent)" :key="group.type" class="agent-group org-nested">
+            <ion-accordion-group>
+              <ion-accordion :value="expandedAccordions.includes(group.type + '-' + orgGroup.orgSlug) ? group.type + '-' + orgGroup.orgSlug : undefined">
+                <!-- Manager as accordion header with action buttons -->
+                <ion-item slot="header" class="manager-header">
+                  <ion-icon :icon="icons.briefcaseOutline" class="manager-icon" slot="start" />
+                  <ion-label>
+                    <h3>{{ formatAgentDisplayName(group.agents[0], true) }}</h3>
+                  </ion-label>
+                  <ion-badge :color="group.totalConversations > 0 ? 'tertiary' : 'medium'" class="manager-conversation-count">
+                    {{ group.totalConversations }}
+                  </ion-badge>
+                  <!-- Action buttons in header -->
+                  <div class="header-actions" @click.stop>
+                    <ion-button
+                      fill="clear"
+                      size="small"
+                      @click="startNewConversation(group.agents[0], group.type + '-' + orgGroup.orgSlug)"
+                      title="Start new conversation"
+                      class="header-action-btn"
+                    >
+                      <ion-icon :icon="icons.chatbubbleOutline" />
+                    </ion-button>
+                  </div>
+                </ion-item>
+
+                <!-- Accordion content: Manager's conversations first, then team members -->
+                <div slot="content" class="accordion-content">
+                  <!-- Manager's Conversations (first agent in the group, collapsible) -->
+                  <div v-if="group.agents[0]" class="manager-content">
+                    <!-- Conversation list toggle header -->
+                    <div
+                      v-if="group.agents[0].conversations && group.agents[0].conversations.length > 0"
+                      class="conversation-toggle-header"
+                      @click="toggleConversationList(group.agents[0].name)"
+                    >
+                      <ion-icon
+                        :icon="isConversationListExpanded(group.agents[0].name) ? icons.chevronDownOutline : icons.chevronForwardOutline"
+                        class="toggle-chevron"
+                      />
+                      <span class="toggle-label">Manager Conversations</span>
+                      <ion-badge color="tertiary" class="toggle-badge">
+                        {{ group.agents[0].conversations.length }}
+                      </ion-badge>
+                    </div>
+                    <!-- Manager's Conversations (collapsed by default) -->
+                    <div v-if="isConversationListExpanded(group.agents[0].name) && group.agents[0].conversations && group.agents[0].conversations.length > 0" class="conversations-list">
+                      <ion-item
+                        v-for="conversation in group.agents[0].conversations"
+                        :key="conversation.id"
+                        @click="selectConversation(conversation)"
+                        button
+                        class="conversation-item manager-conversation"
+                      >
+                        <ion-icon :icon="icons.chatbubbleOutline" slot="start" color="primary" />
+                        <ion-label>
+                          <p>{{ formatConversationTitle(conversation) }}</p>
+                        </ion-label>
+                        <ion-badge
+                          v-if="conversation.activeTasks && conversation.activeTasks > 0"
+                          slot="end"
+                          color="warning"
+                        >
+                          {{ conversation.activeTasks }}
+                        </ion-badge>
+                        <ion-button
+                          fill="clear"
+                          size="small"
+                          color="danger"
+                          slot="end"
+                          @click="deleteConversation(conversation, $event)"
+                        >
+                          <ion-icon :icon="icons.trashOutline" />
+                        </ion-button>
+                      </ion-item>
+                    </div>
+                  </div>
+
+                  <!-- Team Members -->
+                  <div v-if="group.agents.length > 1" class="team-members">
+                    <h5 class="section-title">Team Members</h5>
+                    <div v-for="agent in group.agents.slice(1)" :key="agent.name" class="agent-section nested-agent">
+                      <!-- Agent Header -->
+                      <ion-item class="nested-agent-item">
+                        <ion-icon
+                          :icon="agentShowsDashboard(agent) ? icons.analyticsOutline : icons.personOutline"
+                          slot="start"
+                          :color="agentShowsDashboard(agent) ? 'tertiary' : 'medium'"
+                        />
+                        <ion-label>
+                          <h4>{{ formatAgentDisplayName(agent, false) }}</h4>
+                        </ion-label>
+                        <!-- Conversation count badge - only show for agents that support conversations -->
+                        <ion-badge v-if="agentShowsConversation(agent)" :color="(agent.totalConversations || 0) > 0 ? 'secondary' : 'light'" class="conversation-count">
+                          {{ agent.totalConversations || 0 }}
+                        </ion-badge>
+                        <div class="header-actions" @click.stop>
+                          <!-- Toggle conversations arrow (only show if agent supports conversations and has some) -->
+                          <ion-button
+                            v-if="agentShowsConversation(agent) && agent.conversations && agent.conversations.length > 0"
+                            fill="clear"
+                            size="small"
+                            @click="toggleConversationList(agent.name)"
+                            title="Toggle conversation list"
+                            class="header-action-btn toggle-btn"
+                          >
+                            <ion-icon :icon="isConversationListExpanded(agent.name) ? icons.chevronDownOutline : icons.chevronForwardOutline" />
+                          </ion-button>
+                          <!-- Dashboard button for dashboard agents -->
+                          <ion-button
+                            v-if="agentShowsDashboard(agent)"
+                            fill="clear"
+                            size="small"
+                            @click="openAgentDashboard(agent)"
+                            title="Open dashboard"
+                            class="header-action-btn dashboard-btn"
+                          >
+                            <ion-icon :icon="icons.gridOutline" color="tertiary" />
+                          </ion-button>
+                          <!-- New conversation button (show for conversation agents or dashboard agents that support chat) -->
+                          <ion-button
+                            v-if="agentShowsConversation(agent)"
+                            fill="clear"
+                            size="small"
+                            @click="createNewConversation(agent)"
+                            title="Start new conversation"
+                            class="header-action-btn"
+                          >
+                            <ion-icon :icon="icons.chatbubbleOutline" />
+                          </ion-button>
+                        </div>
+                      </ion-item>
+
+                      <!-- Agent's Conversations (collapsed by default) - only for agents that support conversations -->
+                      <div v-if="agentShowsConversation(agent) && isConversationListExpanded(agent.name) && agent.conversations && agent.conversations.length > 0" class="conversations-list">
+                        <ion-item
+                          v-for="conversation in agent.conversations"
+                          :key="conversation.id"
+                          button
+                          @click="selectConversation(conversation)"
+                          class="conversation-item"
+                        >
+                          <ion-icon :icon="icons.chatbubbleOutline" slot="start" color="tertiary" />
+                          <ion-label>
+                            <p>{{ formatConversationTitle(conversation) }}</p>
+                          </ion-label>
+                          <ion-badge
+                            v-if="conversation.activeTasks && conversation.activeTasks > 0"
+                            slot="end"
+                            color="warning"
+                          >
+                            {{ conversation.activeTasks }}
+                          </ion-badge>
+                          <ion-button
+                            fill="clear"
+                            size="small"
+                            color="danger"
+                            slot="end"
+                            @click="deleteConversation(conversation, $event)"
+                          >
+                            <ion-icon :icon="icons.trashOutline" />
+                          </ion-button>
+                        </ion-item>
+                      </div>
+
+                    </div> <!-- End nested-agent -->
+                  </div> <!-- End team-members -->
+
+                </div> <!-- End accordion-content -->
+              </ion-accordion>
+            </ion-accordion-group>
+          </div>
+
+          <!-- Specialists within this org -->
+          <div v-for="group in orgGroup.groups.filter(g => g.isSpecialists)" :key="group.type" class="org-nested">
+            <div v-for="agent in group.agents" :key="agent.name" class="agent-section">
+              <!-- Agent Header -->
+              <ion-item class="specialist-item">
+                <ion-icon
+                  :icon="agentShowsDashboard(agent) ? icons.analyticsOutline : icons.personOutline"
+                  :color="agentShowsDashboard(agent) ? 'tertiary' : 'medium'"
+                  slot="start"
+                />
+                <ion-label>
+                  <h3>{{ formatAgentDisplayName(agent, true) }}</h3>
+                </ion-label>
+                <!-- Conversation count badge - only show for agents that support conversations -->
+                <ion-badge v-if="agentShowsConversation(agent)" :color="(agent.totalConversations || 0) > 0 ? 'primary' : 'medium'" class="conversation-count">
+                  {{ agent.totalConversations || 0 }}
+                </ion-badge>
+                <div class="header-actions" @click.stop>
+                  <!-- Toggle conversations arrow (only show if agent supports conversations and has some) -->
+                  <ion-button
+                    v-if="agentShowsConversation(agent) && agent.conversations && agent.conversations.length > 0"
+                    fill="clear"
+                    size="small"
+                    @click="toggleConversationList(agent.name)"
+                    title="Toggle conversation list"
+                    class="header-action-btn toggle-btn"
+                  >
+                    <ion-icon :icon="isConversationListExpanded(agent.name) ? icons.chevronDownOutline : icons.chevronForwardOutline" />
+                  </ion-button>
+                  <!-- Dashboard button for dashboard agents -->
+                  <ion-button
+                    v-if="agentShowsDashboard(agent)"
+                    fill="clear"
+                    size="small"
+                    @click="openAgentDashboard(agent)"
+                    title="Open dashboard"
+                    class="header-action-btn dashboard-btn"
+                  >
+                    <ion-icon :icon="icons.gridOutline" color="tertiary" />
+                  </ion-button>
+                  <!-- New conversation button (show for conversation agents or dashboard agents that support chat) -->
+                  <ion-button
+                    v-if="agentShowsConversation(agent)"
+                    fill="clear"
+                    size="small"
+                    @click="createNewConversation(agent)"
+                    title="Start new conversation"
+                    class="header-action-btn"
+                  >
+                    <ion-icon :icon="icons.chatbubbleOutline" />
+                  </ion-button>
+                </div>
+              </ion-item>
+
+              <!-- Agent's Conversations (collapsed by default) - only for agents that support conversations -->
+              <div v-if="agentShowsConversation(agent) && isConversationListExpanded(agent.name) && agent.conversations && agent.conversations.length > 0" class="conversations-list">
+                <ion-item
+                  v-for="conversation in agent.conversations"
+                  :key="conversation.id"
+                  button
+                  @click="selectConversation(conversation)"
+                  class="conversation-item"
+                >
+                  <ion-icon :icon="icons.chatbubbleOutline" slot="start" color="tertiary" />
+                  <ion-label>
+                    <p>{{ formatConversationTitle(conversation) }}</p>
+                  </ion-label>
+                  <ion-badge
+                    v-if="conversation.activeTasks && conversation.activeTasks > 0"
+                    slot="end"
+                    color="warning"
+                  >
+                    {{ conversation.activeTasks }}
+                  </ion-badge>
+                  <ion-button
+                    fill="clear"
+                    size="small"
+                    color="danger"
+                    slot="end"
+                    @click="deleteConversation(conversation, $event)"
+                  >
+                    <ion-icon :icon="icons.trashOutline" />
+                  </ion-button>
+                </ion-item>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- Single Org Mode: Original Display (no org grouping) -->
+      <template v-else>
       <!-- CEO as accordion (similar to managers) -->
       <div v-for="group in hierarchyGroups.filter(g => g.isCEOAgent)" :key="group.type" class="agent-group">
         <ion-accordion-group>
@@ -464,7 +915,8 @@
 
         </div>
       </div>
-                </div>
+      </template>
+    </div>
   </div>
 
   <!-- Conversation Delete Modal -->
@@ -504,6 +956,20 @@ import {
   chevronForwardOutline,
   gridOutline,
   analyticsOutline,
+  businessOutline,
+  codeSlashOutline,
+  cashOutline,
+  scaleOutline,
+  megaphoneOutline,
+  cogOutline,
+  peopleOutline,
+  ribbonOutline,
+  rocketOutline,
+  shieldOutline,
+  storefrontOutline,
+  constructOutline,
+  bulbOutline,
+  globeOutline,
 } from 'ionicons/icons';
 import { formatAgentName } from '@/utils/caseConverter';
 import {
@@ -554,6 +1020,7 @@ interface EnhancedAgent extends Agent {
     execution_modes?: string[];
     execution_profile?: AgentExecutionProfile;
     execution_capabilities?: AgentExecutionCapabilities;
+    custom?: Record<string, string | number | boolean>;
   };
   agentType?: string;
   children?: HierarchyNode[];
@@ -616,6 +1083,41 @@ const icons = {
   chevronForwardOutline,
   gridOutline,
   analyticsOutline,
+  businessOutline,
+  codeSlashOutline,
+  cashOutline,
+  scaleOutline,
+  megaphoneOutline,
+  cogOutline,
+  peopleOutline,
+  ribbonOutline,
+  rocketOutline,
+  shieldOutline,
+  storefrontOutline,
+  constructOutline,
+  bulbOutline,
+  globeOutline,
+};
+
+// Get icon for organization based on slug
+const getOrgIcon = (orgSlug: string): string => {
+  const iconMap: Record<string, string> = {
+    'engineering': codeSlashOutline,
+    'finance': cashOutline,
+    'legal': scaleOutline,
+    'marketing': megaphoneOutline,
+    'operations': cogOutline,
+    'hr': peopleOutline,
+    'human-resources': peopleOutline,
+    'sales': storefrontOutline,
+    'product': rocketOutline,
+    'security': shieldOutline,
+    'it': constructOutline,
+    'research': bulbOutline,
+    'global': globeOutline,
+    'unassigned': businessOutline,
+  };
+  return iconMap[orgSlug.toLowerCase()] || businessOutline;
 };
 
 // Stores
@@ -812,6 +1314,7 @@ const hierarchyGroups = computed(() => {
         execution_modes: nodeMetadata?.execution_modes,
         execution_profile: nodeMetadata?.execution_profile,
         execution_capabilities: nodeMetadata?.execution_capabilities,
+        custom: nodeMetadata?.custom,
       },
       organizationSlug: node.organizationSlug,
       conversations: nodeConversations,
@@ -856,6 +1359,7 @@ const hierarchyGroups = computed(() => {
               execution_modes: childMetadata?.execution_modes,
               execution_profile: childMetadata?.execution_profile,
               execution_capabilities: childMetadata?.execution_capabilities,
+              custom: childMetadata?.custom,
             },
             organizationSlug: child.organizationSlug,
             conversations: childConversations,
@@ -929,6 +1433,7 @@ const hierarchyGroups = computed(() => {
           hasCustomUI: topOrchestrator.metadata?.custom?.hasCustomUI as boolean || false,
           customUIComponent: (topOrchestrator.metadata?.custom?.customUIComponent as string) || null,
           execution_modes: topOrchestratorMetadata?.execution_modes,
+          custom: topOrchestratorMetadata?.custom,
         },
         organizationSlug: topOrchestrator.organizationSlug,
         conversations: orchestratorConversations,
@@ -959,6 +1464,7 @@ const hierarchyGroups = computed(() => {
                 hasCustomUI: child.metadata?.custom?.hasCustomUI as boolean || false,
                 customUIComponent: (child.metadata?.custom?.customUIComponent as string) || null,
                 execution_modes: orchChildMetadata?.execution_modes,
+                custom: orchChildMetadata?.custom,
               },
               organizationSlug: child.organizationSlug,
               conversations: childConversations,
@@ -1046,6 +1552,7 @@ const hierarchyGroups = computed(() => {
             hasCustomUI: agent.metadata?.custom?.hasCustomUI as boolean || false,
             customUIComponent: (agent.metadata?.custom?.customUIComponent as string) || null,
             execution_modes: specialistMetadata?.execution_modes,
+            custom: specialistMetadata?.custom,
           },
           organizationSlug: agent.organizationSlug,
           conversations: nodeConversations,
@@ -1070,7 +1577,102 @@ const hierarchyGroups = computed(() => {
   return groups;
 });
 
-// Removed unused computed property
+// Check if we're viewing all organizations
+const isAllOrgsMode = computed(() => authStore.currentOrganization === '*');
+
+// Get organization/department display name
+const getOrgDisplayName = (orgSlug: string | null | undefined): string => {
+  if (!orgSlug || orgSlug === 'unassigned') return 'Unassigned';
+  // Check if it matches a known organization
+  const org = authStore.userOrganizations.find(o => o.organizationSlug === orgSlug);
+  if (org) return org.organizationName;
+  // Otherwise format the slug as a title (e.g., "legal" -> "Legal")
+  return orgSlug.charAt(0).toUpperCase() + orgSlug.slice(1).replace(/-/g, ' ');
+};
+
+// Get the grouping key for an agent (organizationSlug or department)
+const getAgentGroupKey = (agent: EnhancedAgent): string => {
+  // First try organizationSlug
+  if (agent.organizationSlug) return agent.organizationSlug;
+  // Fall back to department from metadata
+  const department = agent.metadata?.custom?.department as string | undefined;
+  if (department) return department;
+  // Default to unassigned
+  return 'unassigned';
+};
+
+// Group hierarchy by organization/department when in all-orgs mode
+interface OrgGroupedHierarchy {
+  orgSlug: string;
+  orgName: string;
+  groups: HierarchyGroup[];
+  totalConversations: number;
+}
+
+const hierarchyGroupedByOrg = computed((): OrgGroupedHierarchy[] => {
+  if (!isAllOrgsMode.value) {
+    // Single org mode - no grouping needed
+    return [];
+  }
+
+  // Group agents by organizationSlug or department
+  // For specialist groups, we need to split agents by their individual department
+  const orgMap = new Map<string, HierarchyGroup[]>();
+
+  for (const group of hierarchyGroups.value) {
+    if (group.isSpecialists) {
+      // Split specialist agents by their individual department
+      const agentsByDept = new Map<string, EnhancedAgent[]>();
+
+      for (const agent of group.agents) {
+        const dept = getAgentGroupKey(agent);
+        if (!agentsByDept.has(dept)) {
+          agentsByDept.set(dept, []);
+        }
+        agentsByDept.get(dept)!.push(agent);
+      }
+
+      // Create a separate specialist group for each department
+      for (const [dept, agents] of agentsByDept.entries()) {
+        if (!orgMap.has(dept)) {
+          orgMap.set(dept, []);
+        }
+        orgMap.get(dept)!.push({
+          type: `specialists-${dept}`,
+          agents,
+          totalConversations: agents.reduce((sum, a) => sum + (a.totalConversations || 0), 0),
+          isSpecialists: true,
+        });
+      }
+    } else {
+      // For orchestrators/managers, use the first agent's department
+      const orgSlug = getAgentGroupKey(group.agents[0]);
+
+      if (!orgMap.has(orgSlug)) {
+        orgMap.set(orgSlug, []);
+      }
+      orgMap.get(orgSlug)!.push(group);
+    }
+  }
+
+  // Convert to array and sort by org name
+  const result: OrgGroupedHierarchy[] = [];
+  for (const [orgSlug, groups] of orgMap.entries()) {
+    result.push({
+      orgSlug,
+      orgName: getOrgDisplayName(orgSlug),
+      groups,
+      totalConversations: groups.reduce((sum, g) => sum + g.totalConversations, 0),
+    });
+  }
+
+  // Sort alphabetically by org name, but put "Unassigned" last
+  return result.sort((a, b) => {
+    if (a.orgSlug === 'unassigned') return 1;
+    if (b.orgSlug === 'unassigned') return -1;
+    return a.orgName.localeCompare(b.orgName);
+  });
+});
 
 // Methods
 const refreshDataForOrganization = async (organization: string) => {
@@ -1079,39 +1681,53 @@ const refreshDataForOrganization = async (organization: string) => {
       return;
     }
 
-    console.log('📡 Fetching agents for organization:', organization);
+    const isAllOrgs = organization === '*';
+    console.log('📡 Fetching agents for organization:', organization, isAllOrgs ? '(all orgs)' : '');
 
     agentsStore.setLoading(true);
     agentsStore.clearError();
 
-    // Load agents and hierarchy from service with organization filter
+    // Load agents and hierarchy from service
+    // For all-orgs mode (*), don't pass organization filter to get all agents
     const [agents, hierarchy] = await Promise.all([
-      agentsService.getAvailableAgents(organization),
-      agentsService.getAgentHierarchy(organization).catch(() => null),
+      agentsService.getAvailableAgents(isAllOrgs ? undefined : organization),
+      agentsService.getAgentHierarchy(isAllOrgs ? undefined : organization).catch(() => null),
     ]);
 
     console.log('✅ Received agents:', agents?.length || 0, 'for org:', organization);
 
-    // Filter agents by organization
-    const filteredAgents = Array.isArray(agents)
-      ? agents.filter((agent) => {
-          if (!agent || typeof agent !== 'object') return false;
-          if (!('organization' in agent) || !agent.organization) return true;
-          return agent.organization === organization || agent.organization === 'global';
-        })
-      : [];
+    let finalAgents = agents;
+    let finalHierarchy = hierarchy;
 
-    // Filter hierarchy by organization
-    const { filterHierarchyByOrganization } = await import('@/stores/agentsStore');
-    const filteredHierarchyResult = hierarchy
-      ? filterHierarchyByOrganization(hierarchy, organization)
-      : null;
-    // Extract the hierarchy from the result (filterHierarchyByOrganization returns { data, metadata, ... })
-    const filteredHierarchy = filteredHierarchyResult as HierarchyNode | null;
+    // Only filter by organization if NOT in all-orgs mode
+    if (!isAllOrgs) {
+      // Filter agents by organization
+      finalAgents = Array.isArray(agents)
+        ? agents.filter((agent) => {
+            if (!agent || typeof agent !== 'object') return false;
+            if (!('organization' in agent) || !agent.organization) return true;
+            return agent.organization === organization || agent.organization === 'global';
+          })
+        : [];
+
+      // Filter hierarchy by organization
+      const { filterHierarchyByOrganization } = await import('@/stores/agentsStore');
+      const filteredHierarchyResult = hierarchy
+        ? filterHierarchyByOrganization(hierarchy, organization)
+        : null;
+      finalHierarchy = filteredHierarchyResult as HierarchyNode | null;
+    } else {
+      // All-orgs mode: normalize hierarchy but don't filter
+      const { normalizeHierarchyResponse } = await import('@/stores/agentsStore');
+      if (hierarchy) {
+        const normalized = normalizeHierarchyResponse(hierarchy);
+        finalHierarchy = { data: normalized.data, metadata: normalized.metadata } as unknown as HierarchyNode;
+      }
+    }
 
     // Update store via mutations
-    agentsStore.setAvailableAgents(filteredAgents);
-    agentsStore.setAgentHierarchy(filteredHierarchy);
+    agentsStore.setAvailableAgents(finalAgents);
+    agentsStore.setAgentHierarchy(finalHierarchy);
     agentsStore.setLastLoadedOrganization(organization);
     agentsStore.setLoading(false);
 
@@ -1504,6 +2120,50 @@ watch(
   margin: 12px 16px 8px 16px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+/* Organization section styling (all-orgs mode) */
+.org-section {
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--ion-color-step-200, #d0d0d0);
+  padding-bottom: 8px;
+}
+
+.org-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.org-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px 8px 16px;
+  background: linear-gradient(135deg, rgba(var(--ion-color-primary-rgb), 0.08), rgba(var(--ion-color-secondary-rgb), 0.05));
+  border-radius: 8px 8px 0 0;
+  margin-bottom: 4px;
+}
+
+.org-icon {
+  font-size: 20px;
+  color: var(--ion-color-primary);
+  margin-right: 10px;
+}
+
+.org-name {
+  flex: 1;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ion-color-primary-shade);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.org-conversation-count {
+  font-size: 0.75rem;
+}
+
+.org-nested {
+  margin-left: 8px;
 }
 
 /* Conversation toggle header (for CEO/Manager's own conversations) */
