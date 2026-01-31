@@ -55,6 +55,13 @@ export function createCadAgentGraph(
       `Starting CAD generation for: ${state.userMessage}`,
     );
 
+    // Emit initial progress event
+    await observability.emitProgress(ctx, ctx.taskId, "Prompt received", {
+      type: "progress",
+      stage: "prompt_received",
+      progressPercent: 5,
+    });
+
     return {
       status: "generating",
       startedAt: Date.now(),
@@ -69,8 +76,9 @@ export function createCadAgentGraph(
     const ctx = state.executionContext;
 
     await observability.emitProgress(ctx, ctx.taskId, "Applying constraints", {
-      step: "apply_constraints",
-      progress: 10,
+      type: "progress",
+      stage: "constraints_applied",
+      progressPercent: 10,
     });
 
     try {
@@ -127,7 +135,7 @@ export function createCadAgentGraph(
       ctx,
       ctx.taskId,
       "Generating OpenCASCADE.js code",
-      { step: "generate_code", progress: 30 },
+      { type: "progress", stage: "llm_started", progressPercent: 30 },
     );
 
     // Log LLM start
@@ -183,6 +191,18 @@ export function createCadAgentGraph(
         });
       }
 
+      // Emit LLM completed progress event
+      await observability.emitProgress(
+        ctx,
+        ctx.taskId,
+        "LLM code generation completed",
+        {
+          type: "progress",
+          stage: "llm_completed",
+          progressPercent: 40,
+        },
+      );
+
       return {
         generatedCode,
         codeAttempt: state.codeAttempt + 1,
@@ -209,8 +229,9 @@ export function createCadAgentGraph(
     const ctx = state.executionContext;
 
     await observability.emitProgress(ctx, ctx.taskId, "Validating code", {
-      step: "validate_code",
-      progress: 50,
+      type: "progress",
+      stage: "code_validation",
+      progressPercent: 50,
     });
 
     if (!state.generatedCode) {
@@ -271,8 +292,9 @@ export function createCadAgentGraph(
     const ctx = state.executionContext;
 
     await observability.emitProgress(ctx, ctx.taskId, "Executing CAD code", {
-      step: "execute_cad",
-      progress: 70,
+      type: "progress",
+      stage: "execution_started",
+      progressPercent: 70,
     });
 
     // Log execution start
@@ -315,6 +337,18 @@ export function createCadAgentGraph(
           },
         });
       }
+
+      // Emit execution completed progress event
+      await observability.emitProgress(
+        ctx,
+        ctx.taskId,
+        "CAD execution completed",
+        {
+          type: "progress",
+          stage: "execution_completed",
+          progressPercent: 85,
+        },
+      );
 
       return {
         executionStatus: "completed",
@@ -369,8 +403,9 @@ export function createCadAgentGraph(
     const ctx = state.executionContext;
 
     await observability.emitProgress(ctx, ctx.taskId, "Exporting files", {
-      step: "export_files",
-      progress: 90,
+      type: "progress",
+      stage: "export_completed",
+      progressPercent: 90,
     });
 
     try {
@@ -499,6 +534,20 @@ export function createCadAgentGraph(
 
       const duration = Date.now() - state.startedAt;
 
+      // Emit final progress event at 100%
+      await observability.emitProgress(ctx, ctx.taskId, "Generation complete", {
+        type: "progress",
+        stage: "export_completed",
+        progressPercent: 100,
+      });
+
+      // Emit completed event with type for frontend handler
+      await observability.emitProgress(ctx, ctx.taskId, "Workflow completed", {
+        type: "completed",
+        outputs,
+        duration,
+      });
+
       await observability.emitCompleted(ctx, ctx.taskId, { outputs }, duration);
 
       // Clear execution result after export
@@ -539,6 +588,13 @@ export function createCadAgentGraph(
     const ctx = state.executionContext;
 
     const duration = Date.now() - state.startedAt;
+
+    // Emit failed event with type for frontend handler
+    await observability.emitProgress(ctx, ctx.taskId, "Workflow failed", {
+      type: "failed",
+      error: state.error || "Unknown error",
+      duration,
+    });
 
     await observability.emitFailed(
       ctx,
@@ -664,12 +720,13 @@ Primitives: BRepPrimAPI_MakeBox_2, BRepPrimAPI_MakeCylinder_1, BRepPrimAPI_MakeS
 Booleans: BRepAlgoAPI_Cut_3, BRepAlgoAPI_Fuse_3, BRepAlgoAPI_Common_3
 Transform: gp_Trsf_1, gp_Vec_4, gp_Pnt_3, gp_Dir_4, gp_Ax1_2, BRepBuilderAPI_Transform_2
 Fillet/Chamfer: BRepFilletAPI_MakeFillet, BRepFilletAPI_MakeChamfer
-Explorer: TopExp_Explorer_2
+Explorer: TopExp_Explorer_1 (then call .Init())
 Utilities: Message_ProgressRange_1, TopoDS.Edge_1, TopoDS.Face_1
 Enums: TopAbs_ShapeEnum.TopAbs_EDGE, TopAbs_ShapeEnum.TopAbs_FACE, TopAbs_ShapeEnum.TopAbs_SHAPE, ChFi3d_FilletShape.ChFi3d_Rational
 
 **DO NOT USE** any class not in the whitelist above! Common mistakes to avoid:
-- TopExp_Explorer_3 does NOT exist - use TopExp_Explorer_2
+- TopExp_Explorer_2 does NOT exist as a constructor - use TopExp_Explorer_1() then call .Init(shape, toFind, toAvoid)
+- TopExp_Explorer_3 does NOT exist
 - TopoDS_Shape_1 does NOT exist - shapes are returned by .Shape() method
 - BRepFilletAPI_MakeFillet2d does NOT exist - use BRepFilletAPI_MakeFillet
 
@@ -740,8 +797,9 @@ FILLETS (Rounded Edges) - Add rounded edges to shapes:
 // ChFi3d_Rational is standard fillet shape
 const filletMaker = new oc.BRepFilletAPI_MakeFillet(shape, oc.ChFi3d_FilletShape.ChFi3d_Rational);
 
-// Iterate through edges and add fillet radius
-const explorer = new oc.TopExp_Explorer_2(shape, oc.TopAbs_ShapeEnum.TopAbs_EDGE, oc.TopAbs_ShapeEnum.TopAbs_SHAPE);
+// Iterate through edges using TopExp_Explorer_1 with Init()
+const explorer = new oc.TopExp_Explorer_1();
+explorer.Init(shape, oc.TopAbs_ShapeEnum.TopAbs_EDGE, oc.TopAbs_ShapeEnum.TopAbs_SHAPE);
 while (explorer.More()) {
   const edge = oc.TopoDS.Edge_1(explorer.Current());
   filletMaker.Add_2(2.0, edge);  // 2.0 is the fillet radius
@@ -758,8 +816,9 @@ CHAMFERS (Beveled Edges) - Add chamfered/beveled edges to EDGES (NOT faces!):
 // Create chamfer maker
 const chamferMaker = new oc.BRepFilletAPI_MakeChamfer(shape);
 
-// Add chamfer to specific EDGES (not faces!)
-const explorer = new oc.TopExp_Explorer_2(shape, oc.TopAbs_ShapeEnum.TopAbs_EDGE, oc.TopAbs_ShapeEnum.TopAbs_SHAPE);
+// Add chamfer to specific EDGES using TopExp_Explorer_1 with Init()
+const explorer = new oc.TopExp_Explorer_1();
+explorer.Init(shape, oc.TopAbs_ShapeEnum.TopAbs_EDGE, oc.TopAbs_ShapeEnum.TopAbs_SHAPE);
 while (explorer.More()) {
   const edge = oc.TopoDS.Edge_1(explorer.Current());
   chamferMaker.Add_2(1.5, edge);  // 1.5 is the chamfer distance
@@ -781,24 +840,18 @@ const chamferedShape = chamferMaker.Shape();
 
 ITERATING EDGES/FACES - Access sub-shapes:
 \`\`\`javascript
-// Explore edges of a shape
-const edgeExplorer = new oc.TopExp_Explorer_2(
-  shape,
-  oc.TopAbs_ShapeEnum.TopAbs_EDGE,
-  oc.TopAbs_ShapeEnum.TopAbs_SHAPE
-);
+// Explore edges of a shape - use TopExp_Explorer_1() then Init()
+const edgeExplorer = new oc.TopExp_Explorer_1();
+edgeExplorer.Init(shape, oc.TopAbs_ShapeEnum.TopAbs_EDGE, oc.TopAbs_ShapeEnum.TopAbs_SHAPE);
 const edges = [];
 while (edgeExplorer.More()) {
   edges.push(oc.TopoDS.Edge_1(edgeExplorer.Current()));
   edgeExplorer.Next();
 }
 
-// Explore faces of a shape
-const faceExplorer = new oc.TopExp_Explorer_2(
-  shape,
-  oc.TopAbs_ShapeEnum.TopAbs_FACE,
-  oc.TopAbs_ShapeEnum.TopAbs_SHAPE
-);
+// Explore faces of a shape - use TopExp_Explorer_1() then Init()
+const faceExplorer = new oc.TopExp_Explorer_1();
+faceExplorer.Init(shape, oc.TopAbs_ShapeEnum.TopAbs_FACE, oc.TopAbs_ShapeEnum.TopAbs_SHAPE);
 const faces = [];
 while (faceExplorer.More()) {
   faces.push(oc.TopoDS.Face_1(faceExplorer.Current()));
@@ -896,8 +949,8 @@ const VALID_OC_CLASSES = new Set([
   // Fillet/Chamfer
   "BRepFilletAPI_MakeFillet",
   "BRepFilletAPI_MakeChamfer",
-  // Explorer
-  "TopExp_Explorer_2",
+  // Explorer - use TopExp_Explorer_1() then call .Init()
+  "TopExp_Explorer_1",
   // Utilities
   "Message_ProgressRange_1",
   // Static methods (accessed via oc.TopoDS.Edge_1, etc.)
@@ -912,9 +965,10 @@ const VALID_OC_CLASSES = new Set([
  * Map from invalid -> suggested valid alternative
  */
 const INVALID_CLASS_FIXES: Record<string, string> = {
-  TopExp_Explorer_3: "TopExp_Explorer_2",
-  TopExp_Explorer_1:
-    "TopExp_Explorer_2 (with 3 arguments: shape, toFind, toAvoid)",
+  TopExp_Explorer_2:
+    "TopExp_Explorer_1() then call .Init(shape, toFind, toAvoid)",
+  TopExp_Explorer_3:
+    "TopExp_Explorer_1() then call .Init(shape, toFind, toAvoid)",
   TopoDS_Shape_1:
     "shapes are returned by .Shape() method, not constructed directly",
   TopoDS_Shape:

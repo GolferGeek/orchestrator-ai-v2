@@ -69,11 +69,14 @@
         <ion-item>
           <ion-label position="stacked">Model *</ion-label>
           <ion-select v-model="selectedModel" interface="popover">
-            <ion-select-option value="anthropic:claude-sonnet-4-20250514">
-              Claude Sonnet 4 (Recommended)
+            <ion-select-option value="anthropic:claude-sonnet-4-5-20250929">
+              Claude Sonnet 4.5 (Recommended - Best for Code)
             </ion-select-option>
-            <ion-select-option value="anthropic:claude-3-5-sonnet-20241022">
-              Claude 3.5 Sonnet
+            <ion-select-option value="anthropic:claude-opus-4-5-20251101">
+              Claude Opus 4.5 (Most Capable)
+            </ion-select-option>
+            <ion-select-option value="anthropic:claude-sonnet-4-20250514">
+              Claude Sonnet 4 (Fast)
             </ion-select-option>
             <ion-select-option value="ollama:qwen2.5-coder:14b">
               Qwen 2.5 Coder 14B (Local)
@@ -257,8 +260,8 @@ const store = useCadAgentStore();
 const prompt = ref<string>('');
 const selectedProjectId = ref<string | null>(null);
 const newProjectName = ref<string>('');
-// Default to Claude Sonnet 4 (recommended)
-const selectedModel = ref<string>('anthropic:claude-sonnet-4-20250514');
+// Default to Claude Sonnet 4.5 (recommended for coding)
+const selectedModel = ref<string>('anthropic:claude-sonnet-4-5-20250929');
 
 // Constraints from store (reactive)
 const constraints = computed({

@@ -249,6 +249,36 @@ const openAIConfig: ModelConfig = {
 const anthropicConfig: ModelConfig = {
   provider: 'anthropic',
   models: {
+    // Claude 4.5 series (Latest - October 2025)
+    'claude-opus-4-5-20251101': {
+      temperature: {
+        supported: true,
+        min: 0,
+        max: 1,
+        default: 0.3,
+      },
+      systemMessages: {
+        supported: true,
+      },
+      maxTokensField: {
+        fieldName: 'max_tokens',
+      },
+    },
+    'claude-sonnet-4-5-20250929': {
+      temperature: {
+        supported: true,
+        min: 0,
+        max: 1,
+        default: 0.3,
+      },
+      systemMessages: {
+        supported: true,
+      },
+      maxTokensField: {
+        fieldName: 'max_tokens',
+      },
+    },
+    // Claude 4 series
     'claude-opus-4-1-20250805': {
       temperature: {
         supported: true,

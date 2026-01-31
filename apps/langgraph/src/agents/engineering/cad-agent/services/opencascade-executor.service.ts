@@ -452,102 +452,100 @@ export class OpenCascadeExecutorService implements OnModuleInit {
   private extractMeshStats(shape: unknown): OcctExecutionResult["meshStats"] {
     const oc = this.oc as Record<string, unknown>;
 
+    // Default values
+    let xmin = 0,
+      ymin = 0,
+      zmin = 0;
+    let xmax = 0,
+      ymax = 0,
+      zmax = 0;
+    let vertices = 0;
+    let faces = 0;
+
+    // Try to get bounding box using CornerMin/CornerMax (more reliable than Get with refs)
     try {
-      // Get bounding box
-      const bbox = new (oc["Bnd_Box"] as new () => unknown)() as {
-        Add: (shape: unknown) => void;
-        Get: (
-          xmin: { value: number },
-          ymin: { value: number },
-          zmin: { value: number },
-          xmax: { value: number },
-          ymax: { value: number },
-          zmax: { value: number },
-        ) => void;
-      };
+      const bbox = new (oc["Bnd_Box_1"] as new () => {
+        IsVoid: () => boolean;
+        CornerMin: () => {
+          X: () => number;
+          Y: () => number;
+          Z: () => number;
+          delete: () => void;
+        };
+        CornerMax: () => {
+          X: () => number;
+          Y: () => number;
+          Z: () => number;
+          delete: () => void;
+        };
+        delete: () => void;
+      })();
       const brepBndLib = oc["BRepBndLib"] as {
-        Add: (shape: unknown, bbox: unknown) => void;
+        Add: (shape: unknown, bbox: unknown, useTriangulation: boolean) => void;
       };
-      brepBndLib.Add(shape, bbox);
+      brepBndLib.Add(shape, bbox, false);
 
-      const xmin = { value: 0 },
-        ymin = { value: 0 },
-        zmin = { value: 0 };
-      const xmax = { value: 0 },
-        ymax = { value: 0 },
-        zmax = { value: 0 };
-      bbox.Get(xmin, ymin, zmin, xmax, ymax, zmax);
+      if (!bbox.IsVoid()) {
+        const cornerMin = bbox.CornerMin();
+        const cornerMax = bbox.CornerMax();
+        xmin = cornerMin.X();
+        ymin = cornerMin.Y();
+        zmin = cornerMin.Z();
+        xmax = cornerMax.X();
+        ymax = cornerMax.Y();
+        zmax = cornerMax.Z();
+        cornerMin.delete();
+        cornerMax.delete();
+        this.logger.log(
+          `[CAD-EXEC] Bounding box: (${xmin.toFixed(2)}, ${ymin.toFixed(2)}, ${zmin.toFixed(2)}) to (${xmax.toFixed(2)}, ${ymax.toFixed(2)}, ${zmax.toFixed(2)})`,
+        );
+      } else {
+        this.logger.warn(`[CAD-EXEC] Bounding box is void`);
+      }
+      bbox.delete();
+    } catch (bboxError) {
+      this.logger.warn(
+        `[CAD-EXEC] Failed to extract bounding box: ${bboxError instanceof Error ? bboxError.message : String(bboxError)}`,
+      );
+    }
 
-      // Triangulate the shape to count vertices and faces
-      const deflection = 0.1;
-      const mesh = new (oc["BRepMesh_IncrementalMesh_2"] as new (
-        shape: unknown,
-        deflection: number,
-      ) => unknown)(shape, deflection);
-      (mesh as { Perform: () => void }).Perform();
-
-      // Count vertices and triangles
-      let vertices = 0;
-      let faces = 0;
-
-      const explorer = new (oc["TopExp_Explorer_2"] as new (
-        shape: unknown,
-        type: unknown,
-      ) => {
+    // Try to count faces (skip vertex/triangle counting which is causing WASM crashes)
+    try {
+      const TopAbs_FACE = (oc["TopAbs_ShapeEnum"] as { TopAbs_FACE: unknown })
+        .TopAbs_FACE;
+      const TopAbs_SHAPE = (oc["TopAbs_ShapeEnum"] as { TopAbs_SHAPE: unknown })
+        .TopAbs_SHAPE;
+      // Use TopExp_Explorer_1 (no args constructor) then Init()
+      const explorer = new (oc["TopExp_Explorer_1"] as new () => {
+        Init: (shape: unknown, toFind: unknown, toAvoid: unknown) => void;
         More: () => boolean;
         Next: () => void;
-        Current: () => unknown;
-      })(
-        shape,
-        (oc["TopAbs_ShapeEnum"] as { TopAbs_FACE: unknown }).TopAbs_FACE,
-      );
+      })();
+      explorer.Init(shape, TopAbs_FACE, TopAbs_SHAPE);
 
       while (explorer.More()) {
-        const face = explorer.Current();
-        const location = new (oc["TopLoc_Location_1"] as new () => unknown)();
-        const triangulation = (
-          oc["BRep_Tool"] as {
-            Triangulation: (
-              face: unknown,
-              location: unknown,
-            ) => { NbTriangles: () => number; NbNodes: () => number } | null;
-          }
-        ).Triangulation(face, location);
-
-        if (triangulation) {
-          faces += triangulation.NbTriangles();
-          vertices += triangulation.NbNodes();
-        }
-
+        faces++;
         explorer.Next();
       }
-
-      return {
-        vertices,
-        faces,
-        boundingBox: {
-          min: { x: xmin.value, y: ymin.value, z: zmin.value },
-          max: { x: xmax.value, y: ymax.value, z: zmax.value },
-        },
-      };
-    } catch (error) {
-      this.logger.error(
-        `[CAD-EXEC] Failed to extract mesh stats: ${error instanceof Error ? error.message : String(error)}`,
+      // Estimate vertices based on faces (rough approximation)
+      vertices = faces * 4;
+      this.logger.log(
+        `[CAD-EXEC] Face count: ${faces}, estimated vertices: ${vertices}`,
       );
-      if (error instanceof Error && error.stack) {
-        this.logger.error(`[CAD-EXEC] Stack trace: ${error.stack}`);
-      }
-
-      // Return placeholder stats
-      return {
-        vertices: 0,
-        faces: 0,
-        boundingBox: {
-          min: { x: 0, y: 0, z: 0 },
-          max: { x: 0, y: 0, z: 0 },
-        },
-      };
+    } catch (faceError) {
+      this.logger.warn(
+        `[CAD-EXEC] Failed to count faces: ${faceError instanceof Error ? faceError.message : String(faceError)}`,
+      );
     }
+
+    return {
+      vertices,
+      faces,
+      boundingBox: {
+        min: { x: xmin, y: ymin, z: zmin },
+        max: { x: xmax, y: ymax, z: zmax },
+      },
+    };
   }
 
   /**
@@ -557,20 +555,28 @@ export class OpenCascadeExecutorService implements OnModuleInit {
     const oc = this.oc as Record<string, unknown>;
 
     try {
+      // Create a progress range for the transfer operation
+      const progressRange = new (oc[
+        "Message_ProgressRange_1"
+      ] as new () => unknown)();
+
       const writer = new (oc["STEPControl_Writer_1"] as new () => {
         Transfer: (
           shape: unknown,
           mode: unknown,
           compgraph: boolean,
+          progress: unknown,
         ) => unknown;
         Write: (filename: string) => unknown;
       })();
 
+      // STEPControl_Writer.Transfer requires 4 params: (shape, mode, compgraph, progress)
       writer.Transfer(
         shape,
         (oc["STEPControl_StepModelType"] as { STEPControl_AsIs: unknown })
           .STEPControl_AsIs,
         true,
+        progressRange,
       );
 
       // Write to virtual file system
@@ -597,21 +603,28 @@ export class OpenCascadeExecutorService implements OnModuleInit {
     const oc = this.oc as Record<string, unknown>;
 
     try {
-      // Triangulate first
+      // Triangulate the shape first - meshing happens in constructor (no Perform needed)
       const deflection = 0.1;
       new (oc["BRepMesh_IncrementalMesh_2"] as new (
         shape: unknown,
         deflection: number,
-      ) => { Perform: () => void })(shape, deflection).Perform();
+        isRelative: boolean,
+        angularDeflection: number,
+        isInParallel: boolean,
+      ) => void)(shape, deflection, false, 0.5, false);
 
-      const writer = new (oc["StlAPI_Writer_1"] as new () => {
-        SetASCIIMode: (ascii: boolean) => void;
-        Write: (shape: unknown, filename: string) => boolean;
+      // Progress range for write operation
+      const writeProgressRange = new (oc[
+        "Message_ProgressRange_1"
+      ] as new () => unknown)();
+
+      // StlAPI_Writer - no _1 suffix needed
+      const writer = new (oc["StlAPI_Writer"] as new () => {
+        Write: (shape: unknown, filename: string, progress: unknown) => boolean;
       })();
-      writer.SetASCIIMode(true);
 
       const filename = "/tmp/model.stl";
-      writer.Write(shape, filename);
+      writer.Write(shape, filename, writeProgressRange);
 
       const fs = (oc as { FS: { readFile: (path: string) => Uint8Array } }).FS;
       const content = fs.readFile(filename);
@@ -634,12 +647,15 @@ export class OpenCascadeExecutorService implements OnModuleInit {
     const oc = this.oc as Record<string, unknown>;
 
     try {
-      // Triangulate the shape
+      // Triangulate the shape - meshing happens in constructor (no Perform needed)
       const deflection = 0.1;
       new (oc["BRepMesh_IncrementalMesh_2"] as new (
         shape: unknown,
         deflection: number,
-      ) => { Perform: () => void })(shape, deflection).Perform();
+        isRelative: boolean,
+        angularDeflection: number,
+        isInParallel: boolean,
+      ) => void)(shape, deflection, false, 0.5, false);
 
       // Use RWGltf_CafWriter if available, otherwise manual conversion
       // For simplicity, we'll create a basic GLTF from triangulation
@@ -650,12 +666,25 @@ export class OpenCascadeExecutorService implements OnModuleInit {
       this.logger.warn(
         `GLTF export failed: ${error instanceof Error ? error.message : String(error)}`,
       );
-      return Buffer.from("{}");
+      // Return a valid minimal GLTF with required asset.version
+      const emptyGltf = {
+        asset: {
+          version: "2.0",
+          generator:
+            "OpenCASCADE.js - Orchestrator AI CAD Agent (error fallback)",
+        },
+        scene: 0,
+        scenes: [{ nodes: [] }],
+        nodes: [],
+        meshes: [],
+      };
+      return Buffer.from(JSON.stringify(emptyGltf), "utf-8");
     }
   }
 
   /**
    * Build GLTF JSON from shape triangulation
+   * Based on: https://github.com/donalffons/opencascade.js-examples/blob/main/src/common/visualize.js
    */
   private buildGltfFromTriangulation(shape: unknown): object {
     const oc = this.oc as Record<string, unknown>;
@@ -665,71 +694,133 @@ export class OpenCascadeExecutorService implements OnModuleInit {
     const allIndices: number[] = [];
     let vertexOffset = 0;
 
-    const explorer = new (oc["TopExp_Explorer_2"] as new (
-      shape: unknown,
-      type: unknown,
-    ) => {
+    // Use TopExp_Explorer_1 (no args constructor) then Init()
+    const TopAbs_FACE = (oc["TopAbs_ShapeEnum"] as { TopAbs_FACE: unknown })
+      .TopAbs_FACE;
+    const TopAbs_SHAPE = (oc["TopAbs_ShapeEnum"] as { TopAbs_SHAPE: unknown })
+      .TopAbs_SHAPE;
+
+    const explorer = new (oc["TopExp_Explorer_1"] as new () => {
+      Init: (shape: unknown, toFind: unknown, toAvoid: unknown) => void;
       More: () => boolean;
       Next: () => void;
       Current: () => unknown;
-    })(shape, (oc["TopAbs_ShapeEnum"] as { TopAbs_FACE: unknown }).TopAbs_FACE);
+      delete: () => void;
+    })();
+    explorer.Init(shape, TopAbs_FACE, TopAbs_SHAPE);
 
     while (explorer.More()) {
-      const face = explorer.Current();
-      const location = new (oc["TopLoc_Location_1"] as new () => unknown)();
-      const triangulation = (
+      const myShape = explorer.Current();
+      // Cast TopoDS_Shape to TopoDS_Face using TopoDS.Face_1
+      const myFace = (
+        oc["TopoDS"] as { Face_1: (shape: unknown) => unknown }
+      ).Face_1(myShape);
+
+      // Mesh THIS FACE (not the whole shape) - this is critical!
+      try {
+        const inc = new (oc["BRepMesh_IncrementalMesh_2"] as new (
+          face: unknown,
+          deflection: number,
+          isRelative: boolean,
+          angularDeflection: number,
+          isInParallel: boolean,
+        ) => { delete: () => void })(myFace, 0.1, false, 0.5, false);
+        // inc is created but we don't need to call anything - meshing happens in constructor
+        // We should delete it after use
+        inc.delete();
+      } catch (meshErr) {
+        this.logger.warn(`[CAD-EXEC] Face meshing failed: ${meshErr}`);
+        explorer.Next();
+        continue;
+      }
+
+      const aLocation = new (oc["TopLoc_Location_1"] as new () => {
+        Transformation: () => unknown;
+        delete: () => void;
+      })();
+
+      // BRep_Tool.Triangulation - third param is 0 (Poly_MeshPurpose_NONE)
+      const myT = (
         oc["BRep_Tool"] as {
           Triangulation: (
             face: unknown,
             location: unknown,
+            meshPurpose: number,
           ) => {
-            NbTriangles: () => number;
-            NbNodes: () => number;
-            Node: (i: number) => {
-              X: () => number;
-              Y: () => number;
-              Z: () => number;
+            IsNull: () => boolean;
+            get: () => {
+              NbTriangles: () => number;
+              NbNodes: () => number;
+              Node: (i: number) => {
+                Transformed: (t: unknown) => {
+                  X: () => number;
+                  Y: () => number;
+                  Z: () => number;
+                  delete: () => void;
+                };
+                delete: () => void;
+              };
+              Triangles: () => {
+                Length: () => number;
+                Value: (i: number) => {
+                  Value: (idx: number) => number;
+                  delete: () => void;
+                };
+                delete: () => void;
+              };
             };
-            Triangle: (i: number) => {
-              Get: (
-                n1: { value: number },
-                n2: { value: number },
-                n3: { value: number },
-              ) => void;
-            };
-          } | null;
+            delete: () => void;
+          };
         }
-      ).Triangulation(face, location);
+      ).Triangulation(myFace, aLocation, 0);
 
-      if (triangulation) {
-        // Get vertices
-        const nbNodes = triangulation.NbNodes();
-        for (let i = 1; i <= nbNodes; i++) {
-          const node = triangulation.Node(i);
-          allVertices.push(node.X(), node.Y(), node.Z());
-        }
-
-        // Get triangles (indices)
-        const nbTriangles = triangulation.NbTriangles();
-        for (let i = 1; i <= nbTriangles; i++) {
-          const triangle = triangulation.Triangle(i);
-          const n1 = { value: 0 },
-            n2 = { value: 0 },
-            n3 = { value: 0 };
-          triangle.Get(n1, n2, n3);
-          // Convert 1-based to 0-based and add offset
-          allIndices.push(
-            n1.value - 1 + vertexOffset,
-            n2.value - 1 + vertexOffset,
-            n3.value - 1 + vertexOffset,
-          );
-        }
-
-        vertexOffset += nbNodes;
+      if (myT.IsNull()) {
+        aLocation.delete();
+        explorer.Next();
+        continue;
       }
+
+      const triangulation = myT.get();
+      const nbNodes = triangulation.NbNodes();
+
+      // Get vertices with transformation applied
+      const t1 = aLocation.Transformation();
+      for (let i = 1; i <= nbNodes; i++) {
+        const p = triangulation.Node(i);
+        const p1 = p.Transformed(t1);
+        allVertices.push(p1.X(), p1.Y(), p1.Z());
+        p.delete();
+        p1.delete();
+      }
+
+      // Get triangles using Triangles().Value() pattern
+      const triangles = triangulation.Triangles();
+      const nbTriangles = triangulation.NbTriangles();
+      for (let nt = 1; nt <= nbTriangles; nt++) {
+        const t = triangles.Value(nt);
+        const n1 = t.Value(1);
+        const n2 = t.Value(2);
+        const n3 = t.Value(3);
+        // Convert 1-based to 0-based and add offset
+        allIndices.push(
+          n1 - 1 + vertexOffset,
+          n2 - 1 + vertexOffset,
+          n3 - 1 + vertexOffset,
+        );
+        t.delete();
+      }
+
+      vertexOffset += nbNodes;
+
+      // Clean up
+      triangles.delete();
+      myT.delete();
+      aLocation.delete();
 
       explorer.Next();
     }
+
+    explorer.delete();
 
     // Calculate bounding box
     const min = [Infinity, Infinity, Infinity];
@@ -828,17 +919,19 @@ export class OpenCascadeExecutorService implements OnModuleInit {
         end: { x: number; y: number };
       }> = [];
 
-      const explorer = new (oc["TopExp_Explorer_2"] as new (
-        shape: unknown,
-        type: unknown,
-      ) => {
+      // Use TopExp_Explorer_1 (no args constructor) then Init()
+      const TopAbs_EDGE = (oc["TopAbs_ShapeEnum"] as { TopAbs_EDGE: unknown })
+        .TopAbs_EDGE;
+      const TopAbs_SHAPE = (oc["TopAbs_ShapeEnum"] as { TopAbs_SHAPE: unknown })
+        .TopAbs_SHAPE;
+
+      const explorer = new (oc["TopExp_Explorer_1"] as new () => {
+        Init: (shape: unknown, toFind: unknown, toAvoid: unknown) => void;
         More: () => boolean;
         Next: () => void;
         Current: () => unknown;
-      })(
-        shape,
-        (oc["TopAbs_ShapeEnum"] as { TopAbs_EDGE: unknown }).TopAbs_EDGE,
-      );
+      })();
+      explorer.Init(shape, TopAbs_EDGE, TopAbs_SHAPE);
 
       while (explorer.More()) {
         const edge = explorer.Current();
