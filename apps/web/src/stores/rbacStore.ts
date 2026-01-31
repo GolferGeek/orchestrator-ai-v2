@@ -50,9 +50,9 @@ const getResponseStatus = (error: unknown): number | undefined => {
 
 export const useRbacStore = defineStore('rbac', () => {
   // ==================== AUTH STATE ====================
-  // TokenStorageService migrates tokens to sessionStorage, so check there first
-  const token = ref<string | null>(sessionStorage.getItem('authToken') || localStorage.getItem('authToken'));
-  const refreshToken = ref<string | null>(sessionStorage.getItem('refreshToken') || localStorage.getItem('refreshToken'));
+  // Tokens are persisted in localStorage for login across browser sessions
+  const token = ref<string | null>(localStorage.getItem('authToken'));
+  const refreshToken = ref<string | null>(localStorage.getItem('refreshToken'));
   const user = ref<UserProfile | null>(null);
   const authLoading = ref(false);
   const authError = ref<string | null>(null);
@@ -126,14 +126,11 @@ export const useRbacStore = defineStore('rbac', () => {
 
   function setTokenData(tokenData: TokenData) {
     token.value = tokenData.accessToken;
-    // Store in both localStorage and sessionStorage for compatibility
-    // tokenStorageService migrates to sessionStorage, but some services read from localStorage
+    // Store in localStorage for persistent login across browser sessions
     localStorage.setItem('authToken', tokenData.accessToken);
-    sessionStorage.setItem('authToken', tokenData.accessToken);
     if (tokenData.refreshToken) {
       refreshToken.value = tokenData.refreshToken;
       localStorage.setItem('refreshToken', tokenData.refreshToken);
-      sessionStorage.setItem('refreshToken', tokenData.refreshToken);
     }
     apiService.setAuthToken(tokenData.accessToken);
     authError.value = null;
@@ -143,12 +140,10 @@ export const useRbacStore = defineStore('rbac', () => {
     token.value = null;
     refreshToken.value = null;
     user.value = null;
-    // Clear from both localStorage and sessionStorage
+    // Clear from localStorage (explicit logout)
     localStorage.removeItem('authToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('userData');
-    sessionStorage.removeItem('authToken');
-    sessionStorage.removeItem('refreshToken');
     apiService.clearAuth();
     reset();
   }
@@ -256,20 +251,17 @@ export const useRbacStore = defineStore('rbac', () => {
 
       if (orgs.length > 0) {
         // Check if persisted org is still valid (user has access to it)
+        // Allow '*' (all orgs) as a valid persisted value
         const persistedOrg = currentOrganization.value;
         const persistedOrgValid = persistedOrg &&
-          persistedOrg !== '*' &&
-          orgs.some((o) => o.organizationSlug === persistedOrg);
+          (persistedOrg === '*' || orgs.some((o) => o.organizationSlug === persistedOrg));
 
         if (persistedOrgValid) {
           // Load permissions for the persisted org
           await setOrganization(persistedOrg);
         } else {
-          // Prefer non-global orgs, explicitly exclude '*' slug
-          const defaultOrg = orgs.find((o) => !o.isGlobal && o.organizationSlug !== '*')
-            || orgs.find((o) => o.organizationSlug !== '*')
-            || orgs[0];
-          await setOrganization(defaultOrg.organizationSlug);
+          // Default to '*' (all orgs) when no valid persisted org
+          await setOrganization('*');
         }
       }
 
