@@ -178,12 +178,31 @@ const redChallengesList = computed(() => {
 const redBlindSpots = computed(() => {
   const red = redChallenges.value;
   const spots = red.blind_spots || red.blindSpots || [];
+
+  // Handle case where blind_spots is an object with challenges array
+  if (spots && typeof spots === 'object' && !Array.isArray(spots)) {
+    const spotsObj = spots as Record<string, unknown>;
+    if (spotsObj.challenges && Array.isArray(spotsObj.challenges)) {
+      // Extract challenge texts from the challenges array
+      return (spotsObj.challenges as Record<string, unknown>[])
+        .map(c => c.challenge || c.text || '')
+        .filter(Boolean) as string[];
+    }
+    // Single object - try to extract meaningful text
+    return [];
+  }
+
   if (!Array.isArray(spots)) return [];
 
   // Filter and clean up blind spots - some might be raw JSON from failed parsing
   return spots
-    .filter((s): s is string => typeof s === 'string')
-    .map(spot => {
+    .map((spot: unknown) => {
+      // Handle object entries
+      if (typeof spot === 'object' && spot !== null) {
+        const spotObj = spot as Record<string, unknown>;
+        return (spotObj.challenge || spotObj.text || '') as string;
+      }
+      if (typeof spot !== 'string') return '';
       // If it looks like JSON, try to extract meaningful text
       if (spot.trim().startsWith('{') || spot.trim().startsWith('[')) {
         try {
@@ -203,7 +222,7 @@ const redBlindSpots = computed(() => {
       }
       return spot;
     })
-    .filter(Boolean);
+    .filter(Boolean) as string[];
 });
 
 const redOverstated = computed(() => {
