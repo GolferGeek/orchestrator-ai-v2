@@ -69,6 +69,8 @@ import {
   // Phase 9 Services
   NotificationService,
   PredictionStreamingService,
+  // Phase 2 Test Input Infrastructure
+  TestPriceDataRouterService,
   // Phase 3 Test Data Injection Framework
   TestDataInjectorService,
   TestDataGeneratorService,
@@ -223,6 +225,8 @@ const services = [
   // Phase 9 Services
   NotificationService,
   PredictionStreamingService,
+  // Phase 2 Test Input Infrastructure
+  TestPriceDataRouterService,
   // Phase 3 Test Data Injection Framework
   TestDataInjectorService,
   TestDataGeneratorService,

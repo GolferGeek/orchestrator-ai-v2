@@ -6,7 +6,12 @@ import { PredictorManagementService } from './predictor-management.service';
 import { SnapshotService } from './snapshot.service';
 import { AnalystEnsembleService } from './analyst-ensemble.service';
 import { TargetService } from './target.service';
+import { AnalystPositionService } from './analyst-position.service';
+import { TestPriceDataRouterService } from './test-price-data-router.service';
+import { TestTargetMirrorService } from './test-target-mirror.service';
 import { ObservabilityEventsService } from '@/observability/observability-events.service';
+import { AnalystAssessmentResult } from '../interfaces/ensemble.interface';
+import { Target } from '../interfaces/target.interface';
 import {
   Prediction,
   PredictionDirection,
@@ -53,6 +58,9 @@ export class PredictionGenerationService {
     private readonly ensembleService: AnalystEnsembleService,
     private readonly targetService: TargetService,
     private readonly observabilityEventsService: ObservabilityEventsService,
+    private readonly analystPositionService: AnalystPositionService,
+    private readonly testPriceDataRouterService: TestPriceDataRouterService,
+    private readonly testTargetMirrorService: TestTargetMirrorService,
   ) {}
 
   /**
@@ -475,6 +483,14 @@ export class PredictionGenerationService {
       timestamp: Date.now(),
     });
 
+    // Create positions for all three forks (user, ai, arbitrator)
+    await this.createThreeWayForkPositions(
+      ctx,
+      target,
+      threeWayResult,
+      arbitratorPrediction.id,
+    );
+
     // Return the arbitrator prediction as the primary prediction
     return arbitratorPrediction;
   }
@@ -775,6 +791,178 @@ export class PredictionGenerationService {
     if (normalized === 'bullish' || normalized === 'up') return 'up';
     if (normalized === 'bearish' || normalized === 'down') return 'down';
     return 'flat';
+  }
+
+  /**
+   * Create positions for all three forks (user, ai, arbitrator) from analyst assessments
+   *
+   * This method creates positions in the analyst portfolios based on each fork's assessment.
+   * Each analyst has 3 portfolios (user, ai, arbitrator) and positions are created based on
+   * their respective fork's assessment direction and confidence.
+   *
+   * @param ctx - Execution context
+   * @param target - The target being predicted (full Target object)
+   * @param threeWayResult - The three-way fork ensemble result containing all assessments
+   * @param predictionId - The prediction ID to link positions to
+   */
+  private async createThreeWayForkPositions(
+    ctx: ExecutionContext,
+    target: Target,
+    threeWayResult: ThreeWayForkEnsembleResult,
+    predictionId: string,
+  ): Promise<void> {
+    // Get entry price for the target
+    const entryPrice = await this.getEntryPriceForTarget(
+      target.id,
+      target.symbol,
+      ctx.orgSlug,
+    );
+
+    if (!entryPrice) {
+      this.logger.warn(
+        `Cannot create positions for ${target.symbol}: no price data available`,
+      );
+      return;
+    }
+
+    this.logger.log(
+      `Creating three-way fork positions for ${target.symbol} at $${entryPrice.toFixed(2)}`,
+    );
+
+    // Create positions for each fork type
+    const forkTypes = ['user', 'ai', 'arbitrator'] as const;
+    const assessmentsByFork = {
+      user: threeWayResult.userForkAssessments,
+      ai: threeWayResult.aiForkAssessments,
+      arbitrator: threeWayResult.arbitratorForkAssessments,
+    };
+
+    let totalPositionsCreated = 0;
+
+    for (const forkType of forkTypes) {
+      const assessments = assessmentsByFork[forkType];
+
+      for (const assessment of assessments) {
+        try {
+          // Add fork_type to assessment for position service
+          const assessmentWithFork: AnalystAssessmentResult = {
+            ...assessment,
+            fork_type: forkType,
+          };
+
+          const result =
+            await this.analystPositionService.createPositionFromAssessment({
+              assessment: assessmentWithFork,
+              target,
+              entryPrice,
+              predictionId,
+            });
+
+          if (result) {
+            totalPositionsCreated++;
+            this.logger.debug(
+              `Created ${forkType} position for ${assessment.analyst.slug}: ${result.position.direction} ${result.position.quantity} @ $${entryPrice}`,
+            );
+          }
+        } catch (error) {
+          this.logger.error(
+            `Failed to create ${forkType} position for ${assessment.analyst.slug}: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+      }
+    }
+
+    this.logger.log(
+      `Created ${totalPositionsCreated} positions across all forks for ${target.symbol}`,
+    );
+
+    // Emit observability event for position creation
+    await this.observabilityEventsService.push({
+      context: ctx,
+      source_app: 'prediction-runner',
+      hook_event_type: 'positions.created',
+      status: 'created',
+      message: `Created ${totalPositionsCreated} analyst positions for ${target.symbol}`,
+      progress: null,
+      step: 'positions-created',
+      payload: {
+        targetId: target.id,
+        targetSymbol: target.symbol,
+        predictionId,
+        entryPrice,
+        positionsCreated: totalPositionsCreated,
+        forkBreakdown: {
+          user: threeWayResult.userForkAssessments.length,
+          ai: threeWayResult.aiForkAssessments.length,
+          arbitrator: threeWayResult.arbitratorForkAssessments.length,
+        },
+      },
+      timestamp: Date.now(),
+    });
+  }
+
+  /**
+   * Get entry price for a target
+   *
+   * Tries to get price from:
+   * 1. Test price data (if target has a test mirror with T_ prefix)
+   * 2. Target metadata (if available)
+   *
+   * @param targetId - The target ID
+   * @param symbol - The target symbol
+   * @param orgSlug - Organization slug for test data lookup
+   * @returns The entry price or null if not available
+   */
+  private async getEntryPriceForTarget(
+    targetId: string,
+    symbol: string,
+    orgSlug: string,
+  ): Promise<number | null> {
+    try {
+      // First, try to get test symbol from mirror
+      const testSymbol =
+        await this.testTargetMirrorService.getTestSymbol(targetId);
+
+      if (testSymbol) {
+        // Get price from test price data
+        const priceResult =
+          await this.testPriceDataRouterService.getLatestPrice(
+            testSymbol,
+            orgSlug,
+          );
+
+        if (priceResult.data && !Array.isArray(priceResult.data)) {
+          this.logger.debug(
+            `Got test price for ${symbol} (${testSymbol}): $${priceResult.data.close}`,
+          );
+          return priceResult.data.close;
+        }
+      }
+
+      // Fallback: try direct test symbol lookup (T_SYMBOL)
+      const directTestSymbol = `T_${symbol}`;
+      const directResult = await this.testPriceDataRouterService.getLatestPrice(
+        directTestSymbol,
+        orgSlug,
+      );
+
+      if (directResult.data && !Array.isArray(directResult.data)) {
+        this.logger.debug(
+          `Got direct test price for ${symbol}: $${directResult.data.close}`,
+        );
+        return directResult.data.close;
+      }
+
+      this.logger.warn(
+        `No price data available for ${symbol} (tried ${testSymbol || directTestSymbol})`,
+      );
+      return null;
+    } catch (error) {
+      this.logger.error(
+        `Error getting entry price for ${symbol}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return null;
+    }
   }
 
   /**
