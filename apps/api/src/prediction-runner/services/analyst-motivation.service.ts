@@ -99,7 +99,7 @@ export interface AgentSelfAdaptationInput {
 
 /**
  * Service for managing analyst motivation through P&L-driven feedback
- * Applies ONLY to the agent fork - user fork remains stable
+ * Applies ONLY to the AI fork - user fork remains stable
  *
  * Status thresholds (based on $1M initial):
  * - active: $800K+ - Normal operation
@@ -144,20 +144,20 @@ export class AnalystMotivationService {
   }
 
   /**
-   * Evaluate and update status for a single analyst's agent portfolio
+   * Evaluate and update status for a single analyst's AI portfolio
    * Returns status change event if status changed
    */
   async evaluateAndUpdateStatus(
     analystId: string,
   ): Promise<StatusChangeEvent | null> {
-    // Get the agent portfolio (motivation only applies to agent fork)
+    // Get the AI portfolio (motivation only applies to AI fork)
     const portfolio = await this.portfolioRepository.getAnalystPortfolio(
       analystId,
-      'agent',
+      'ai',
     );
 
     if (!portfolio) {
-      this.logger.warn(`No agent portfolio found for analyst ${analystId}`);
+      this.logger.warn(`No AI portfolio found for analyst ${analystId}`);
       return null;
     }
 
@@ -247,7 +247,7 @@ export class AnalystMotivationService {
   }
 
   /**
-   * Apply boss feedback context modification to analyst's agent fork
+   * Apply boss feedback context modification to analyst's AI fork
    */
   private async applyBossFeedbackToContext(
     analyst: Analyst,
@@ -270,7 +270,7 @@ export class AnalystMotivationService {
 
       await this.analystRepository.createContextVersion(
         analyst.id,
-        'agent',
+        'ai',
         analyst.perspective,
         modifiedTierInstructions,
         analyst.default_weight,
@@ -289,12 +289,12 @@ export class AnalystMotivationService {
   }
 
   /**
-   * Evaluate status for all agent portfolios
+   * Evaluate status for all AI portfolios
    * Should be called periodically (e.g., daily)
    */
-  async evaluateAllAgentPortfolios(): Promise<StatusChangeEvent[]> {
+  async evaluateAllAiPortfolios(): Promise<StatusChangeEvent[]> {
     const portfolios =
-      await this.portfolioRepository.getAllAnalystPortfolios('agent');
+      await this.portfolioRepository.getAllAnalystPortfolios('ai');
     const events: StatusChangeEvent[] = [];
 
     for (const portfolio of portfolios) {
@@ -312,7 +312,7 @@ export class AnalystMotivationService {
 
     if (events.length > 0) {
       this.logger.log(
-        `Evaluated ${portfolios.length} agent portfolios, ${events.length} status changes`,
+        `Evaluated ${portfolios.length} AI portfolios, ${events.length} status changes`,
       );
     }
 
@@ -351,14 +351,14 @@ export class AnalystMotivationService {
       status: portfolio.status,
     };
 
-    // Add status-specific messaging for agent fork
-    if (forkType === 'agent') {
+    // Add status-specific messaging for AI fork
+    if (forkType === 'ai') {
       context.statusMessage = this.getStatusMessage(
         portfolio.status,
         pnlPercent,
       );
 
-      // Add peer comparison for agent fork
+      // Add peer comparison for AI fork
       const peerComparison = await this.buildPeerComparison(analystId);
       if (peerComparison) {
         context.peerComparison = peerComparison.peers;
@@ -379,7 +379,7 @@ export class AnalystMotivationService {
     totalAnalysts: number;
   } | null> {
     const portfolios =
-      await this.portfolioRepository.getAllAnalystPortfolios('agent');
+      await this.portfolioRepository.getAllAnalystPortfolios('ai');
 
     if (portfolios.length === 0) {
       return null;
@@ -578,7 +578,7 @@ export class AnalystMotivationService {
   }> {
     const portfolio = await this.portfolioRepository.getAnalystPortfolio(
       analystId,
-      'agent',
+      'ai',
     );
 
     if (!portfolio || portfolio.status !== 'suspended') {
@@ -624,7 +624,7 @@ export class AnalystMotivationService {
 
     const portfolio = await this.portfolioRepository.getAnalystPortfolio(
       analystId,
-      'agent',
+      'ai',
     );
 
     if (!portfolio) {
@@ -684,7 +684,7 @@ export class AnalystMotivationService {
    */
   async processAllRecoveries(): Promise<StatusChangeEvent[]> {
     const portfolios =
-      await this.portfolioRepository.getAllAnalystPortfolios('agent');
+      await this.portfolioRepository.getAllAnalystPortfolios('ai');
     const events: StatusChangeEvent[] = [];
 
     // Filter to suspended portfolios only
@@ -720,7 +720,7 @@ export class AnalystMotivationService {
 
   /**
    * Allow agent to adapt its own context based on performance
-   * This is called when the agent fork decides to modify its own behavior
+   * This is called when the AI fork decides to modify its own behavior
    */
   async recordAgentSelfAdaptation(
     input: AgentSelfAdaptationInput,
@@ -782,7 +782,7 @@ export class AnalystMotivationService {
       // Create a new context version with the adaptation
       await this.analystRepository.createContextVersion(
         analystId,
-        'agent',
+        'ai',
         analyst.perspective,
         modifiedTierInstructions,
         analyst.default_weight,
@@ -835,7 +835,7 @@ export class AnalystMotivationService {
     try {
       // Get current context version to append journal
       const currentVersions =
-        await this.analystRepository.getAllCurrentContextVersions('agent');
+        await this.analystRepository.getAllCurrentContextVersions('ai');
       const currentVersion = currentVersions.get(analystId);
 
       const currentJournal = currentVersion?.agent_journal || '';
@@ -846,7 +846,7 @@ export class AnalystMotivationService {
       // Create new version with updated journal
       await this.analystRepository.createContextVersion(
         analystId,
-        'agent',
+        'ai',
         analyst.perspective,
         analyst.tier_instructions,
         analyst.default_weight,

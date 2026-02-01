@@ -136,6 +136,7 @@ describe('AnalystEnsembleService', () => {
               .mockReturnValue({ allowed: true, remaining: 100000 }),
             recordUsage: jest.fn(),
             checkAndEmitWarnings: jest.fn().mockResolvedValue(undefined),
+            isLocalProvider: jest.fn().mockReturnValue(false),
           },
         },
         {
@@ -546,7 +547,7 @@ describe('AnalystEnsembleService', () => {
         ['analyst-123', createMockContextVersion('analyst-123', 'user')],
       ]);
       const agentVersions = new Map([
-        ['analyst-123', createMockContextVersion('analyst-123', 'agent')],
+        ['analyst-123', createMockContextVersion('analyst-123', 'ai')],
       ]);
       analystRepository.getAllCurrentContextVersions
         .mockResolvedValueOnce(userVersions)
@@ -567,9 +568,9 @@ describe('AnalystEnsembleService', () => {
       );
 
       expect(result.userForkAssessments).toHaveLength(1);
-      expect(result.agentForkAssessments).toHaveLength(1);
+      expect(result.aiForkAssessments).toHaveLength(1);
       expect(result.userForkAssessments[0]!.fork_type).toBe('user');
-      expect(result.agentForkAssessments[0]!.fork_type).toBe('agent');
+      expect(result.aiForkAssessments[0]!.fork_type).toBe('ai');
     });
 
     it('should include context version IDs in assessments', async () => {
@@ -580,7 +581,7 @@ describe('AnalystEnsembleService', () => {
         ['analyst-123', createMockContextVersion('analyst-123', 'user')],
       ]);
       const agentVersions = new Map([
-        ['analyst-123', createMockContextVersion('analyst-123', 'agent')],
+        ['analyst-123', createMockContextVersion('analyst-123', 'ai')],
       ]);
       analystRepository.getAllCurrentContextVersions
         .mockResolvedValueOnce(userVersions)
@@ -599,8 +600,8 @@ describe('AnalystEnsembleService', () => {
       expect(result.userForkAssessments[0]!.context_version_id).toBe(
         'version-user-analyst-123',
       );
-      expect(result.agentForkAssessments[0]!.context_version_id).toBe(
-        'version-agent-analyst-123',
+      expect(result.aiForkAssessments[0]!.context_version_id).toBe(
+        'version-ai-analyst-123',
       );
     });
 
@@ -621,7 +622,7 @@ describe('AnalystEnsembleService', () => {
       const agentVersions = new Map(
         analysts.map((a) => [
           a.analyst_id,
-          createMockContextVersion(a.analyst_id, 'agent'),
+          createMockContextVersion(a.analyst_id, 'ai'),
         ]),
       );
       analystRepository.getAllCurrentContextVersions
@@ -651,7 +652,7 @@ describe('AnalystEnsembleService', () => {
       );
 
       expect(result.userForkAssessments).toHaveLength(2);
-      expect(result.agentForkAssessments).toHaveLength(2);
+      expect(result.aiForkAssessments).toHaveLength(2);
 
       // User fork should be bullish (both assessments bullish)
       expect(result.userForkAggregated.direction).toBe('bullish');
@@ -668,7 +669,7 @@ describe('AnalystEnsembleService', () => {
         ['analyst-123', createMockContextVersion('analyst-123', 'user')],
       ]);
       const agentVersions = new Map([
-        ['analyst-123', createMockContextVersion('analyst-123', 'agent')],
+        ['analyst-123', createMockContextVersion('analyst-123', 'ai')],
       ]);
       analystRepository.getAllCurrentContextVersions
         .mockResolvedValueOnce(userVersions)
@@ -697,7 +698,7 @@ describe('AnalystEnsembleService', () => {
         ['analyst-123', createMockContextVersion('analyst-123', 'user')],
       ]);
       const agentVersions = new Map([
-        ['analyst-123', createMockContextVersion('analyst-123', 'agent')],
+        ['analyst-123', createMockContextVersion('analyst-123', 'ai')],
       ]);
       analystRepository.getAllCurrentContextVersions
         .mockResolvedValueOnce(userVersions)
@@ -717,10 +718,245 @@ describe('AnalystEnsembleService', () => {
       );
 
       expect(result.userForkAssessments).toHaveLength(1);
-      expect(result.agentForkAssessments).toHaveLength(0);
-      expect(result.agentForkAggregated.reasoning).toBe(
-        'No agent fork assessments available',
+      expect(result.aiForkAssessments).toHaveLength(0);
+      expect(result.aiForkAggregated.reasoning).toBe(
+        'No ai fork assessments available',
       );
+    });
+  });
+
+  describe('runThreeWayForkEnsemble', () => {
+    const mockInput = {
+      targetId: 'target-456',
+      content: 'Test content',
+      direction: 'bullish',
+    };
+
+    const createMockContextVersion = (
+      analystId: string,
+      forkType: ForkType,
+    ): AnalystContextVersion => ({
+      id: `version-${forkType}-${analystId}`,
+      analyst_id: analystId,
+      fork_type: forkType,
+      version_number: 1,
+      perspective: `${forkType} perspective`,
+      tier_instructions: {},
+      default_weight: 1.0,
+      changed_by: 'system',
+      is_current: true,
+      created_at: '2026-01-01T00:00:00Z',
+    });
+
+    beforeEach(() => {
+      learningService.getActiveLearnings.mockResolvedValue([]);
+      promptBuilderService.buildPrompt.mockReturnValue({
+        systemPrompt: 'System prompt',
+        userPrompt: 'User prompt',
+        learningIds: [],
+      });
+      llmTierResolverService.createTierContext.mockResolvedValue({
+        context: mockExecutionContext,
+        resolved: {
+          tier: 'silver',
+          provider: 'anthropic',
+          model: 'claude-3-sonnet',
+        },
+      });
+    });
+
+    it('should throw error when no analysts available', async () => {
+      analystService.getActiveAnalysts.mockResolvedValue([]);
+
+      await expect(
+        service.runThreeWayForkEnsemble(
+          mockExecutionContext,
+          mockTarget,
+          mockInput,
+        ),
+      ).rejects.toThrow('No active analysts available for evaluation');
+    });
+
+    it('should run assessments for all three forks', async () => {
+      const analyst = createMockAnalyst({ analyst_id: 'analyst-123' });
+      analystService.getActiveAnalysts.mockResolvedValue([analyst]);
+
+      // Mock context versions for user and ai forks
+      const userVersions = new Map([
+        ['analyst-123', createMockContextVersion('analyst-123', 'user')],
+      ]);
+      const aiVersions = new Map([
+        ['analyst-123', createMockContextVersion('analyst-123', 'ai')],
+      ]);
+      analystRepository.getAllCurrentContextVersions
+        .mockResolvedValueOnce(userVersions)
+        .mockResolvedValueOnce(aiVersions);
+
+      llmService.generateResponse.mockResolvedValue(
+        JSON.stringify({
+          direction: 'bullish',
+          confidence: 0.8,
+          reasoning: 'Strong buy signal',
+        }),
+      );
+
+      const result = await service.runThreeWayForkEnsemble(
+        mockExecutionContext,
+        mockTarget,
+        mockInput,
+      );
+
+      expect(result.userForkAssessments).toHaveLength(1);
+      expect(result.aiForkAssessments).toHaveLength(1);
+      expect(result.arbitratorForkAssessments).toHaveLength(1);
+      expect(result.userForkAssessments[0]!.fork_type).toBe('user');
+      expect(result.aiForkAssessments[0]!.fork_type).toBe('ai');
+      expect(result.arbitratorForkAssessments[0]!.fork_type).toBe('arbitrator');
+    });
+
+    it('should use arbitrator result for final aggregation', async () => {
+      const analyst = createMockAnalyst({ analyst_id: 'analyst-123' });
+      analystService.getActiveAnalysts.mockResolvedValue([analyst]);
+
+      const userVersions = new Map([
+        ['analyst-123', createMockContextVersion('analyst-123', 'user')],
+      ]);
+      const aiVersions = new Map([
+        ['analyst-123', createMockContextVersion('analyst-123', 'ai')],
+      ]);
+      analystRepository.getAllCurrentContextVersions
+        .mockResolvedValueOnce(userVersions)
+        .mockResolvedValueOnce(aiVersions);
+
+      // Simulate different directions for each fork
+      llmService.generateResponse
+        .mockResolvedValueOnce(
+          JSON.stringify({ direction: 'bullish', confidence: 0.8 }),
+        ) // user
+        .mockResolvedValueOnce(
+          JSON.stringify({ direction: 'bearish', confidence: 0.7 }),
+        ) // ai
+        .mockResolvedValueOnce(
+          JSON.stringify({ direction: 'neutral', confidence: 0.9 }),
+        ); // arbitrator
+
+      const result = await service.runThreeWayForkEnsemble(
+        mockExecutionContext,
+        mockTarget,
+        mockInput,
+      );
+
+      expect(result.userForkAggregated.direction).toBe('bullish');
+      expect(result.aiForkAggregated.direction).toBe('bearish');
+      expect(result.arbitratorForkAggregated.direction).toBe('neutral');
+      // Final uses arbitrator
+      expect(result.final.aggregated.direction).toBe('neutral');
+    });
+
+    it('should calculate metadata correctly', async () => {
+      const analysts = [
+        createMockAnalyst({ analyst_id: 'analyst-1', slug: 'analyst-1' }),
+        createMockAnalyst({ analyst_id: 'analyst-2', slug: 'analyst-2' }),
+      ];
+      analystService.getActiveAnalysts.mockResolvedValue(analysts);
+
+      // Mock context versions
+      const userVersions = new Map(
+        analysts.map((a) => [
+          a.analyst_id,
+          createMockContextVersion(a.analyst_id, 'user'),
+        ]),
+      );
+      const aiVersions = new Map(
+        analysts.map((a) => [
+          a.analyst_id,
+          createMockContextVersion(a.analyst_id, 'ai'),
+        ]),
+      );
+      analystRepository.getAllCurrentContextVersions
+        .mockResolvedValueOnce(userVersions)
+        .mockResolvedValueOnce(aiVersions);
+
+      // All agree on bullish
+      llmService.generateResponse.mockResolvedValue(
+        JSON.stringify({ direction: 'bullish', confidence: 0.8 }),
+      );
+
+      const result = await service.runThreeWayForkEnsemble(
+        mockExecutionContext,
+        mockTarget,
+        mockInput,
+      );
+
+      expect(result.metadata.totalAnalysts).toBe(2);
+      // All three forks agree, so all metrics should be 100%
+      expect(result.metadata.userVsAiAgreement).toBe(1);
+      expect(result.metadata.arbitratorAgreesWithUser).toBe(1);
+      expect(result.metadata.arbitratorAgreesWithAi).toBe(1);
+    });
+
+    it('should apply learnings to user and arbitrator forks only', async () => {
+      const analyst = createMockAnalyst({ analyst_id: 'analyst-123' });
+      analystService.getActiveAnalysts.mockResolvedValue([analyst]);
+
+      const userVersions = new Map([
+        ['analyst-123', createMockContextVersion('analyst-123', 'user')],
+      ]);
+      const aiVersions = new Map([
+        ['analyst-123', createMockContextVersion('analyst-123', 'ai')],
+      ]);
+      analystRepository.getAllCurrentContextVersions
+        .mockResolvedValueOnce(userVersions)
+        .mockResolvedValueOnce(aiVersions);
+
+      llmService.generateResponse.mockResolvedValue(
+        JSON.stringify({ direction: 'bullish', confidence: 0.8 }),
+      );
+
+      await service.runThreeWayForkEnsemble(
+        mockExecutionContext,
+        mockTarget,
+        mockInput,
+      );
+
+      // Learnings should be called for user and arbitrator forks (2 times)
+      // but not for ai fork
+      expect(learningService.getActiveLearnings).toHaveBeenCalledTimes(2);
+    });
+
+    it('should continue if one fork fails for an analyst', async () => {
+      const analyst = createMockAnalyst({ analyst_id: 'analyst-123' });
+      analystService.getActiveAnalysts.mockResolvedValue([analyst]);
+
+      const userVersions = new Map([
+        ['analyst-123', createMockContextVersion('analyst-123', 'user')],
+      ]);
+      const aiVersions = new Map([
+        ['analyst-123', createMockContextVersion('analyst-123', 'ai')],
+      ]);
+      analystRepository.getAllCurrentContextVersions
+        .mockResolvedValueOnce(userVersions)
+        .mockResolvedValueOnce(aiVersions);
+
+      // User fork succeeds, ai fork fails, arbitrator succeeds
+      llmService.generateResponse
+        .mockResolvedValueOnce(
+          JSON.stringify({ direction: 'bullish', confidence: 0.8 }),
+        )
+        .mockRejectedValueOnce(new Error('LLM error'))
+        .mockResolvedValueOnce(
+          JSON.stringify({ direction: 'bullish', confidence: 0.75 }),
+        );
+
+      const result = await service.runThreeWayForkEnsemble(
+        mockExecutionContext,
+        mockTarget,
+        mockInput,
+      );
+
+      expect(result.userForkAssessments).toHaveLength(1);
+      expect(result.aiForkAssessments).toHaveLength(0);
+      expect(result.arbitratorForkAssessments).toHaveLength(1);
     });
   });
 });

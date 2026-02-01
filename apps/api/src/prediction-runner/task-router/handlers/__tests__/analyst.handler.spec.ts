@@ -73,7 +73,7 @@ describe('AnalystHandler', () => {
   const mockAgentPortfolio: AnalystPortfolio = {
     id: 'portfolio-agent-1',
     analyst_id: 'analyst-1',
-    fork_type: 'agent',
+    fork_type: 'ai',
     initial_balance: 1000000,
     current_balance: 1080000,
     total_realized_pnl: 80000,
@@ -101,7 +101,7 @@ describe('AnalystHandler', () => {
   const mockAgentContext: AnalystContextVersion = {
     id: 'context-agent-1',
     analyst_id: 'analyst-1',
-    fork_type: 'agent',
+    fork_type: 'ai',
     version_number: 3,
     perspective: 'Technical analysis expert with enhanced momentum focus',
     tier_instructions: { tier1: 'Be conservative', tier2: 'Focus on volume' },
@@ -259,9 +259,9 @@ describe('AnalystHandler', () => {
       const data = result.data as {
         analyst: { id: string; name: string };
         userFork: { pnl: number; winRate: number };
-        agentFork: { pnl: number; winRate: number; status: string };
+        aiFork: { pnl: number; winRate: number; status: string };
         comparison: {
-          agentOutperforming: boolean;
+          aiOutperforming: boolean;
           contextDiff: { perspectiveChanged: boolean };
         };
       };
@@ -269,8 +269,8 @@ describe('AnalystHandler', () => {
       expect(data.analyst.id).toBe('analyst-1');
       expect(data.analyst.name).toBe('Technical Tina');
       expect(data.userFork.pnl).toBe(50000);
-      expect(data.agentFork.pnl).toBe(80000);
-      expect(data.comparison.agentOutperforming).toBe(true);
+      expect(data.aiFork.pnl).toBe(80000);
+      expect(data.comparison.aiOutperforming).toBe(true);
       expect(data.comparison.contextDiff.perspectiveChanged).toBe(true);
     });
 
@@ -296,13 +296,13 @@ describe('AnalystHandler', () => {
       expect(result.success).toBe(true);
       const data = result.data as {
         userFork: { winRate: number };
-        agentFork: { winRate: number };
+        aiFork: { winRate: number };
       };
 
       // User: 10 wins / 15 total = 0.667
       expect(data.userFork.winRate).toBeCloseTo(0.667, 2);
       // Agent: 12 wins / 16 total = 0.75
-      expect(data.agentFork.winRate).toBe(0.75);
+      expect(data.aiFork.winRate).toBe(0.75);
     });
   });
 
@@ -327,7 +327,7 @@ describe('AnalystHandler', () => {
         comparisons: AnalystForkComparison[];
         summary: {
           totalAnalysts: number;
-          agentOutperforming: number;
+          aiOutperforming: number;
           userOutperforming: number;
           statusBreakdown: Record<string, number>;
         };
@@ -335,7 +335,7 @@ describe('AnalystHandler', () => {
 
       expect(data.comparisons).toHaveLength(2);
       expect(data.summary.totalAnalysts).toBe(2);
-      expect(data.summary.agentOutperforming).toBe(1);
+      expect(data.summary.aiOutperforming).toBe(1);
       expect(data.summary.userOutperforming).toBe(1);
       expect(data.summary.statusBreakdown.active).toBe(1);
       expect(data.summary.statusBreakdown.warning).toBe(1);
@@ -422,7 +422,7 @@ describe('AnalystHandler', () => {
 
       const payload: DashboardRequestPayload = {
         action: 'getForkHistory',
-        params: { id: 'analyst-1', forkType: 'agent' },
+        params: { id: 'analyst-1', forkType: 'ai' },
       };
       const result = await handler.execute(
         'getForkHistory',
@@ -433,13 +433,13 @@ describe('AnalystHandler', () => {
       expect(result.success).toBe(true);
       expect(
         portfolioRepository.getAnalystContextVersionHistory,
-      ).toHaveBeenCalledWith('analyst-1', 'agent');
+      ).toHaveBeenCalledWith('analyst-1', 'ai');
 
       const data = result.data as {
         forkType: string;
         versions: AnalystContextVersion[];
       };
-      expect(data.forkType).toBe('agent');
+      expect(data.forkType).toBe('ai');
       expect(data.versions[0]?.agent_journal).toBeDefined();
     });
   });

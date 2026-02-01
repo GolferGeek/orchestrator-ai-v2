@@ -124,56 +124,62 @@
                   <div v-if="group.agents.length > 1" class="team-members">
                     <h5 class="section-title">Team Members</h5>
                     <div v-for="agent in group.agents.slice(1)" :key="agent.name" class="agent-section nested-agent">
-                      <!-- Agent Header -->
-                      <ion-item class="nested-agent-item">
-                        <ion-icon
-                          :icon="agentShowsDashboard(agent) ? icons.analyticsOutline : icons.personOutline"
-                          slot="start"
-                          :color="agentShowsDashboard(agent) ? 'tertiary' : 'medium'"
-                        />
-                        <ion-label>
-                          <h4>{{ formatAgentDisplayName(agent, false) }}</h4>
-                        </ion-label>
-                        <!-- Conversation count badge - only show for agents that support conversations -->
-                        <ion-badge v-if="agentShowsConversation(agent)" :color="(agent.totalConversations || 0) > 0 ? 'secondary' : 'light'" class="conversation-count">
-                          {{ agent.totalConversations || 0 }}
-                        </ion-badge>
-                        <div class="header-actions" @click.stop>
-                          <!-- Toggle conversations arrow (only show if agent supports conversations and has some) -->
+                      <!-- Agent Row: Item box + external meta -->
+                      <div class="agent-row">
+                        <ion-item class="nested-agent-item">
+                          <ion-icon
+                            :icon="agentShowsDashboard(agent) ? icons.analyticsOutline : icons.personOutline"
+                            slot="start"
+                            :color="agentShowsDashboard(agent) ? 'tertiary' : 'medium'"
+                          />
+                          <ion-label>
+                            <h4>{{ formatAgentDisplayName(agent, false) }}</h4>
+                          </ion-label>
+                          <!-- Chat and Dashboard buttons stay inside the item -->
+                          <ion-button
+                            v-if="agentShowsConversation(agent)"
+                            slot="end"
+                            fill="clear"
+                            size="small"
+                            @click.stop="createNewConversation(agent)"
+                            title="Start new conversation"
+                            class="agent-action-btn"
+                          >
+                            <ion-icon :icon="icons.chatbubbleOutline" />
+                          </ion-button>
+                          <ion-button
+                            v-if="agentShowsDashboard(agent)"
+                            slot="end"
+                            fill="clear"
+                            size="small"
+                            @click.stop="openAgentDashboard(agent)"
+                            title="Open dashboard"
+                            class="agent-action-btn"
+                          >
+                            <ion-icon :icon="icons.gridOutline" color="tertiary" />
+                          </ion-button>
+                        </ion-item>
+                        <!-- Badge and Arrow outside the item box -->
+                        <div class="agent-meta">
+                          <ion-badge
+                            v-if="agentShowsConversation(agent)"
+                            :color="(agent.totalConversations || 0) > 0 ? 'secondary' : 'light'"
+                            class="agent-badge"
+                          >
+                            {{ agent.totalConversations || 0 }}
+                          </ion-badge>
                           <ion-button
                             v-if="agentShowsConversation(agent) && agent.conversations && agent.conversations.length > 0"
                             fill="clear"
                             size="small"
-                            @click="toggleConversationList(agent.name)"
+                            @click.stop="toggleConversationList(agent.name)"
                             title="Toggle conversation list"
-                            class="header-action-btn toggle-btn"
+                            class="agent-action-btn"
                           >
                             <ion-icon :icon="isConversationListExpanded(agent.name) ? icons.chevronDownOutline : icons.chevronForwardOutline" />
                           </ion-button>
-                          <!-- Dashboard button for dashboard agents -->
-                          <ion-button
-                            v-if="agentShowsDashboard(agent)"
-                            fill="clear"
-                            size="small"
-                            @click="openAgentDashboard(agent)"
-                            title="Open dashboard"
-                            class="header-action-btn dashboard-btn"
-                          >
-                            <ion-icon :icon="icons.gridOutline" color="tertiary" />
-                          </ion-button>
-                          <!-- New conversation button (show for conversation agents or dashboard agents that support chat) -->
-                          <ion-button
-                            v-if="agentShowsConversation(agent)"
-                            fill="clear"
-                            size="small"
-                            @click="createNewConversation(agent)"
-                            title="Start new conversation"
-                            class="header-action-btn"
-                          >
-                            <ion-icon :icon="icons.chatbubbleOutline" />
-                          </ion-button>
                         </div>
-                      </ion-item>
+                      </div>
 
                       <!-- Agent's Conversations (collapsed by default) - only for agents that support conversations -->
                       <div v-if="agentShowsConversation(agent) && isConversationListExpanded(agent.name) && agent.conversations && agent.conversations.length > 0" class="conversations-list">
@@ -296,56 +302,62 @@
                   <div v-if="group.agents.length > 1" class="team-members">
                     <h5 class="section-title">Team Members</h5>
                     <div v-for="agent in group.agents.slice(1)" :key="agent.name" class="agent-section nested-agent">
-                      <!-- Agent Header -->
-                      <ion-item class="nested-agent-item">
-                        <ion-icon
-                          :icon="agentShowsDashboard(agent) ? icons.analyticsOutline : icons.personOutline"
-                          slot="start"
-                          :color="agentShowsDashboard(agent) ? 'tertiary' : 'medium'"
-                        />
-                        <ion-label>
-                          <h4>{{ formatAgentDisplayName(agent, false) }}</h4>
-                        </ion-label>
-                        <!-- Conversation count badge - only show for agents that support conversations -->
-                        <ion-badge v-if="agentShowsConversation(agent)" :color="(agent.totalConversations || 0) > 0 ? 'secondary' : 'light'" class="conversation-count">
-                          {{ agent.totalConversations || 0 }}
-                        </ion-badge>
-                        <div class="header-actions" @click.stop>
-                          <!-- Toggle conversations arrow (only show if agent supports conversations and has some) -->
+                      <!-- Agent Row: Item box + external meta -->
+                      <div class="agent-row">
+                        <ion-item class="nested-agent-item">
+                          <ion-icon
+                            :icon="agentShowsDashboard(agent) ? icons.analyticsOutline : icons.personOutline"
+                            slot="start"
+                            :color="agentShowsDashboard(agent) ? 'tertiary' : 'medium'"
+                          />
+                          <ion-label>
+                            <h4>{{ formatAgentDisplayName(agent, false) }}</h4>
+                          </ion-label>
+                          <!-- Chat and Dashboard buttons stay inside the item -->
+                          <ion-button
+                            v-if="agentShowsConversation(agent)"
+                            slot="end"
+                            fill="clear"
+                            size="small"
+                            @click.stop="createNewConversation(agent)"
+                            title="Start new conversation"
+                            class="agent-action-btn"
+                          >
+                            <ion-icon :icon="icons.chatbubbleOutline" />
+                          </ion-button>
+                          <ion-button
+                            v-if="agentShowsDashboard(agent)"
+                            slot="end"
+                            fill="clear"
+                            size="small"
+                            @click.stop="openAgentDashboard(agent)"
+                            title="Open dashboard"
+                            class="agent-action-btn"
+                          >
+                            <ion-icon :icon="icons.gridOutline" color="tertiary" />
+                          </ion-button>
+                        </ion-item>
+                        <!-- Badge and Arrow outside the item box -->
+                        <div class="agent-meta">
+                          <ion-badge
+                            v-if="agentShowsConversation(agent)"
+                            :color="(agent.totalConversations || 0) > 0 ? 'secondary' : 'light'"
+                            class="agent-badge"
+                          >
+                            {{ agent.totalConversations || 0 }}
+                          </ion-badge>
                           <ion-button
                             v-if="agentShowsConversation(agent) && agent.conversations && agent.conversations.length > 0"
                             fill="clear"
                             size="small"
-                            @click="toggleConversationList(agent.name)"
+                            @click.stop="toggleConversationList(agent.name)"
                             title="Toggle conversation list"
-                            class="header-action-btn toggle-btn"
+                            class="agent-action-btn"
                           >
                             <ion-icon :icon="isConversationListExpanded(agent.name) ? icons.chevronDownOutline : icons.chevronForwardOutline" />
                           </ion-button>
-                          <!-- Dashboard button for dashboard agents -->
-                          <ion-button
-                            v-if="agentShowsDashboard(agent)"
-                            fill="clear"
-                            size="small"
-                            @click="openAgentDashboard(agent)"
-                            title="Open dashboard"
-                            class="header-action-btn dashboard-btn"
-                          >
-                            <ion-icon :icon="icons.gridOutline" color="tertiary" />
-                          </ion-button>
-                          <!-- New conversation button (show for conversation agents or dashboard agents that support chat) -->
-                          <ion-button
-                            v-if="agentShowsConversation(agent)"
-                            fill="clear"
-                            size="small"
-                            @click="createNewConversation(agent)"
-                            title="Start new conversation"
-                            class="header-action-btn"
-                          >
-                            <ion-icon :icon="icons.chatbubbleOutline" />
-                          </ion-button>
                         </div>
-                      </ion-item>
+                      </div>
 
                       <!-- Agent's Conversations (collapsed by default) - only for agents that support conversations -->
                       <div v-if="agentShowsConversation(agent) && isConversationListExpanded(agent.name) && agent.conversations && agent.conversations.length > 0" class="conversations-list">
@@ -390,56 +402,62 @@
           <!-- Specialists within this org -->
           <div v-for="group in orgGroup.groups.filter(g => g.isSpecialists)" :key="group.type" class="org-nested">
             <div v-for="agent in group.agents" :key="agent.name" class="agent-section">
-              <!-- Agent Header -->
-              <ion-item class="specialist-item">
-                <ion-icon
-                  :icon="agentShowsDashboard(agent) ? icons.analyticsOutline : icons.personOutline"
-                  :color="agentShowsDashboard(agent) ? 'tertiary' : 'medium'"
-                  slot="start"
-                />
-                <ion-label>
-                  <h3>{{ formatAgentDisplayName(agent, true) }}</h3>
-                </ion-label>
-                <!-- Conversation count badge - only show for agents that support conversations -->
-                <ion-badge v-if="agentShowsConversation(agent)" :color="(agent.totalConversations || 0) > 0 ? 'primary' : 'medium'" class="conversation-count">
-                  {{ agent.totalConversations || 0 }}
-                </ion-badge>
-                <div class="header-actions" @click.stop>
-                  <!-- Toggle conversations arrow (only show if agent supports conversations and has some) -->
+              <!-- Agent Row: Item box + external meta -->
+              <div class="agent-row">
+                <ion-item class="specialist-item">
+                  <ion-icon
+                    :icon="agentShowsDashboard(agent) ? icons.analyticsOutline : icons.personOutline"
+                    :color="agentShowsDashboard(agent) ? 'tertiary' : 'medium'"
+                    slot="start"
+                  />
+                  <ion-label>
+                    <h3>{{ formatAgentDisplayName(agent, true) }}</h3>
+                  </ion-label>
+                  <!-- Chat and Dashboard buttons stay inside the item -->
+                  <ion-button
+                    v-if="agentShowsConversation(agent)"
+                    slot="end"
+                    fill="clear"
+                    size="small"
+                    @click.stop="createNewConversation(agent)"
+                    title="Start new conversation"
+                    class="agent-action-btn"
+                  >
+                    <ion-icon :icon="icons.chatbubbleOutline" />
+                  </ion-button>
+                  <ion-button
+                    v-if="agentShowsDashboard(agent)"
+                    slot="end"
+                    fill="clear"
+                    size="small"
+                    @click.stop="openAgentDashboard(agent)"
+                    title="Open dashboard"
+                    class="agent-action-btn"
+                  >
+                    <ion-icon :icon="icons.gridOutline" color="tertiary" />
+                  </ion-button>
+                </ion-item>
+                <!-- Badge and Arrow outside the item box -->
+                <div class="agent-meta">
+                  <ion-badge
+                    v-if="agentShowsConversation(agent)"
+                    :color="(agent.totalConversations || 0) > 0 ? 'primary' : 'medium'"
+                    class="agent-badge"
+                  >
+                    {{ agent.totalConversations || 0 }}
+                  </ion-badge>
                   <ion-button
                     v-if="agentShowsConversation(agent) && agent.conversations && agent.conversations.length > 0"
                     fill="clear"
                     size="small"
-                    @click="toggleConversationList(agent.name)"
+                    @click.stop="toggleConversationList(agent.name)"
                     title="Toggle conversation list"
-                    class="header-action-btn toggle-btn"
+                    class="agent-action-btn"
                   >
                     <ion-icon :icon="isConversationListExpanded(agent.name) ? icons.chevronDownOutline : icons.chevronForwardOutline" />
                   </ion-button>
-                  <!-- Dashboard button for dashboard agents -->
-                  <ion-button
-                    v-if="agentShowsDashboard(agent)"
-                    fill="clear"
-                    size="small"
-                    @click="openAgentDashboard(agent)"
-                    title="Open dashboard"
-                    class="header-action-btn dashboard-btn"
-                  >
-                    <ion-icon :icon="icons.gridOutline" color="tertiary" />
-                  </ion-button>
-                  <!-- New conversation button (show for conversation agents or dashboard agents that support chat) -->
-                  <ion-button
-                    v-if="agentShowsConversation(agent)"
-                    fill="clear"
-                    size="small"
-                    @click="createNewConversation(agent)"
-                    title="Start new conversation"
-                    class="header-action-btn"
-                  >
-                    <ion-icon :icon="icons.chatbubbleOutline" />
-                  </ion-button>
                 </div>
-              </ion-item>
+              </div>
 
               <!-- Agent's Conversations (collapsed by default) - only for agents that support conversations -->
               <div v-if="agentShowsConversation(agent) && isConversationListExpanded(agent.name) && agent.conversations && agent.conversations.length > 0" class="conversations-list">
@@ -563,56 +581,62 @@
               <div v-if="group.agents.length > 1" class="team-members">
                 <h5 class="section-title">Team Members</h5>
                 <div v-for="agent in group.agents.slice(1)" :key="agent.name" class="agent-section nested-agent">
-                  <!-- Agent Header -->
-                  <ion-item class="nested-agent-item">
-                    <ion-icon
-                      :icon="agentShowsDashboard(agent) ? icons.analyticsOutline : icons.personOutline"
-                      slot="start"
-                      :color="agentShowsDashboard(agent) ? 'tertiary' : 'medium'"
-                    />
-                    <ion-label>
-                      <h4>{{ formatAgentDisplayName(agent, false) }}</h4>
-                    </ion-label>
-                    <!-- Conversation count badge - only show for agents that support conversations -->
-                    <ion-badge v-if="agentShowsConversation(agent)" :color="(agent.totalConversations || 0) > 0 ? 'secondary' : 'light'" class="conversation-count">
-                      {{ agent.totalConversations || 0 }}
-                    </ion-badge>
-                    <div class="header-actions" @click.stop>
-                      <!-- Toggle conversations arrow (only show if agent supports conversations and has some) -->
+                  <!-- Agent Row: Item box + external meta -->
+                  <div class="agent-row">
+                    <ion-item class="nested-agent-item">
+                      <ion-icon
+                        :icon="agentShowsDashboard(agent) ? icons.analyticsOutline : icons.personOutline"
+                        slot="start"
+                        :color="agentShowsDashboard(agent) ? 'tertiary' : 'medium'"
+                      />
+                      <ion-label>
+                        <h4>{{ formatAgentDisplayName(agent, false) }}</h4>
+                      </ion-label>
+                      <!-- Chat and Dashboard buttons stay inside the item -->
+                      <ion-button
+                        v-if="agentShowsConversation(agent)"
+                        slot="end"
+                        fill="clear"
+                        size="small"
+                        @click.stop="createNewConversation(agent)"
+                        title="Start new conversation"
+                        class="agent-action-btn"
+                      >
+                        <ion-icon :icon="icons.chatbubbleOutline" />
+                      </ion-button>
+                      <ion-button
+                        v-if="agentShowsDashboard(agent)"
+                        slot="end"
+                        fill="clear"
+                        size="small"
+                        @click.stop="openAgentDashboard(agent)"
+                        title="Open dashboard"
+                        class="agent-action-btn"
+                      >
+                        <ion-icon :icon="icons.gridOutline" color="tertiary" />
+                      </ion-button>
+                    </ion-item>
+                    <!-- Badge and Arrow outside the item box -->
+                    <div class="agent-meta">
+                      <ion-badge
+                        v-if="agentShowsConversation(agent)"
+                        :color="(agent.totalConversations || 0) > 0 ? 'secondary' : 'light'"
+                        class="agent-badge"
+                      >
+                        {{ agent.totalConversations || 0 }}
+                      </ion-badge>
                       <ion-button
                         v-if="agentShowsConversation(agent) && agent.conversations && agent.conversations.length > 0"
                         fill="clear"
                         size="small"
-                        @click="toggleConversationList(agent.name)"
+                        @click.stop="toggleConversationList(agent.name)"
                         title="Toggle conversation list"
-                        class="header-action-btn toggle-btn"
+                        class="agent-action-btn"
                       >
                         <ion-icon :icon="isConversationListExpanded(agent.name) ? icons.chevronDownOutline : icons.chevronForwardOutline" />
                       </ion-button>
-                      <!-- Dashboard button for dashboard agents -->
-                      <ion-button
-                        v-if="agentShowsDashboard(agent)"
-                        fill="clear"
-                        size="small"
-                        @click="openAgentDashboard(agent)"
-                        title="Open dashboard"
-                        class="header-action-btn dashboard-btn"
-                      >
-                        <ion-icon :icon="icons.gridOutline" color="tertiary" />
-                      </ion-button>
-                      <!-- New conversation button (show for conversation agents or dashboard agents that support chat) -->
-                      <ion-button
-                        v-if="agentShowsConversation(agent)"
-                        fill="clear"
-                        size="small"
-                        @click="createNewConversation(agent)"
-                        title="Start new conversation"
-                        class="header-action-btn"
-                      >
-                        <ion-icon :icon="icons.chatbubbleOutline" />
-                      </ion-button>
                     </div>
-                  </ion-item>
+                  </div>
 
                   <!-- Agent's Conversations (collapsed by default) - only for agents that support conversations -->
                   <div v-if="agentShowsConversation(agent) && isConversationListExpanded(agent.name) && agent.conversations && agent.conversations.length > 0" class="conversations-list">
@@ -736,56 +760,62 @@
               <div v-if="group.agents.length > 1" class="team-members">
                 <h5 class="section-title">Team Members</h5>
                 <div v-for="agent in group.agents.slice(1)" :key="agent.name" class="agent-section nested-agent">
-                <!-- Agent Header -->
-                <ion-item class="nested-agent-item">
-                  <ion-icon
-                    :icon="agentShowsDashboard(agent) ? icons.analyticsOutline : icons.personOutline"
-                    slot="start"
-                    :color="agentShowsDashboard(agent) ? 'tertiary' : 'medium'"
-                  />
-                  <ion-label>
-                    <h4>{{ formatAgentDisplayName(agent, false) }}</h4>
-                  </ion-label>
-                  <!-- Conversation count badge - only show for agents that support conversations -->
-                  <ion-badge v-if="agentShowsConversation(agent)" :color="(agent.totalConversations || 0) > 0 ? 'secondary' : 'light'" class="conversation-count">
-                    {{ agent.totalConversations || 0 }}
-                  </ion-badge>
-                  <div class="header-actions" @click.stop>
-                    <!-- Toggle conversations arrow (only show if agent supports conversations and has some) -->
-                    <ion-button
-                      v-if="agentShowsConversation(agent) && agent.conversations && agent.conversations.length > 0"
-                      fill="clear"
-                      size="small"
-                      @click="toggleConversationList(agent.name)"
-                      title="Toggle conversation list"
-                      class="header-action-btn toggle-btn"
-                    >
-                      <ion-icon :icon="isConversationListExpanded(agent.name) ? icons.chevronDownOutline : icons.chevronForwardOutline" />
-                    </ion-button>
-                    <!-- Dashboard button for dashboard agents -->
-                    <ion-button
-                      v-if="agentShowsDashboard(agent)"
-                      fill="clear"
-                      size="small"
-                      @click="openAgentDashboard(agent)"
-                      title="Open dashboard"
-                      class="header-action-btn dashboard-btn"
-                    >
-                      <ion-icon :icon="icons.gridOutline" color="tertiary" />
-                    </ion-button>
-                    <!-- New conversation button (show for conversation agents or dashboard agents that support chat) -->
-                    <ion-button
-                      v-if="agentShowsConversation(agent)"
-                      fill="clear"
-                      size="small"
-                      @click="createNewConversation(agent)"
-                      title="Start new conversation"
-                      class="header-action-btn"
-                    >
-                      <ion-icon :icon="icons.chatbubbleOutline" />
-                    </ion-button>
+                  <!-- Agent Row: Item box + external meta -->
+                  <div class="agent-row">
+                    <ion-item class="nested-agent-item">
+                      <ion-icon
+                        :icon="agentShowsDashboard(agent) ? icons.analyticsOutline : icons.personOutline"
+                        slot="start"
+                        :color="agentShowsDashboard(agent) ? 'tertiary' : 'medium'"
+                      />
+                      <ion-label>
+                        <h4>{{ formatAgentDisplayName(agent, false) }}</h4>
+                      </ion-label>
+                      <!-- Chat and Dashboard buttons stay inside the item -->
+                      <ion-button
+                        v-if="agentShowsConversation(agent)"
+                        slot="end"
+                        fill="clear"
+                        size="small"
+                        @click.stop="createNewConversation(agent)"
+                        title="Start new conversation"
+                        class="agent-action-btn"
+                      >
+                        <ion-icon :icon="icons.chatbubbleOutline" />
+                      </ion-button>
+                      <ion-button
+                        v-if="agentShowsDashboard(agent)"
+                        slot="end"
+                        fill="clear"
+                        size="small"
+                        @click.stop="openAgentDashboard(agent)"
+                        title="Open dashboard"
+                        class="agent-action-btn"
+                      >
+                        <ion-icon :icon="icons.gridOutline" color="tertiary" />
+                      </ion-button>
+                    </ion-item>
+                    <!-- Badge and Arrow outside the item box -->
+                    <div class="agent-meta">
+                      <ion-badge
+                        v-if="agentShowsConversation(agent)"
+                        :color="(agent.totalConversations || 0) > 0 ? 'secondary' : 'light'"
+                        class="agent-badge"
+                      >
+                        {{ agent.totalConversations || 0 }}
+                      </ion-badge>
+                      <ion-button
+                        v-if="agentShowsConversation(agent) && agent.conversations && agent.conversations.length > 0"
+                        fill="clear"
+                        size="small"
+                        @click.stop="toggleConversationList(agent.name)"
+                        title="Toggle conversation list"
+                        class="agent-action-btn"
+                      >
+                        <ion-icon :icon="isConversationListExpanded(agent.name) ? icons.chevronDownOutline : icons.chevronForwardOutline" />
+                      </ion-button>
+                    </div>
                   </div>
-                </ion-item>
 
                 <!-- Agent's Conversations (collapsed by default) - only for agents that support conversations -->
                 <div v-if="agentShowsConversation(agent) && isConversationListExpanded(agent.name) && agent.conversations && agent.conversations.length > 0" class="conversations-list">
@@ -830,56 +860,62 @@
       <!-- Specialists as individual agents (no grouping) -->
       <div v-for="group in hierarchyGroups.filter(g => g.isSpecialists)" :key="group.type">
         <div v-for="agent in group.agents" :key="agent.name" class="agent-section">
-          <!-- Agent Header -->
-          <ion-item class="specialist-item">
-            <ion-icon
-              :icon="agentShowsDashboard(agent) ? icons.analyticsOutline : icons.personOutline"
-              :color="agentShowsDashboard(agent) ? 'tertiary' : 'medium'"
-              slot="start"
-            />
-            <ion-label>
-              <h3>{{ formatAgentDisplayName(agent, true) }}</h3>
-            </ion-label>
-            <!-- Conversation count badge - only show for agents that support conversations -->
-            <ion-badge v-if="agentShowsConversation(agent)" :color="(agent.totalConversations || 0) > 0 ? 'primary' : 'medium'" class="conversation-count">
-              {{ agent.totalConversations || 0 }}
-            </ion-badge>
-            <div class="header-actions" @click.stop>
-              <!-- Toggle conversations arrow (only show if agent supports conversations and has some) -->
+          <!-- Agent Row: Item box + external meta -->
+          <div class="agent-row">
+            <ion-item class="specialist-item">
+              <ion-icon
+                :icon="agentShowsDashboard(agent) ? icons.analyticsOutline : icons.personOutline"
+                :color="agentShowsDashboard(agent) ? 'tertiary' : 'medium'"
+                slot="start"
+              />
+              <ion-label>
+                <h3>{{ formatAgentDisplayName(agent, true) }}</h3>
+              </ion-label>
+              <!-- Chat and Dashboard buttons stay inside the item -->
+              <ion-button
+                v-if="agentShowsConversation(agent)"
+                slot="end"
+                fill="clear"
+                size="small"
+                @click.stop="createNewConversation(agent)"
+                title="Start new conversation"
+                class="agent-action-btn"
+              >
+                <ion-icon :icon="icons.chatbubbleOutline" />
+              </ion-button>
+              <ion-button
+                v-if="agentShowsDashboard(agent)"
+                slot="end"
+                fill="clear"
+                size="small"
+                @click.stop="openAgentDashboard(agent)"
+                title="Open dashboard"
+                class="agent-action-btn"
+              >
+                <ion-icon :icon="icons.gridOutline" color="tertiary" />
+              </ion-button>
+            </ion-item>
+            <!-- Badge and Arrow outside the item box -->
+            <div class="agent-meta">
+              <ion-badge
+                v-if="agentShowsConversation(agent)"
+                :color="(agent.totalConversations || 0) > 0 ? 'primary' : 'medium'"
+                class="agent-badge"
+              >
+                {{ agent.totalConversations || 0 }}
+              </ion-badge>
               <ion-button
                 v-if="agentShowsConversation(agent) && agent.conversations && agent.conversations.length > 0"
                 fill="clear"
                 size="small"
-                @click="toggleConversationList(agent.name)"
+                @click.stop="toggleConversationList(agent.name)"
                 title="Toggle conversation list"
-                class="header-action-btn toggle-btn"
+                class="agent-action-btn"
               >
                 <ion-icon :icon="isConversationListExpanded(agent.name) ? icons.chevronDownOutline : icons.chevronForwardOutline" />
               </ion-button>
-              <!-- Dashboard button for dashboard agents -->
-              <ion-button
-                v-if="agentShowsDashboard(agent)"
-                fill="clear"
-                size="small"
-                @click="openAgentDashboard(agent)"
-                title="Open dashboard"
-                class="header-action-btn dashboard-btn"
-              >
-                <ion-icon :icon="icons.gridOutline" color="tertiary" />
-              </ion-button>
-              <!-- New conversation button (show for conversation agents or dashboard agents that support chat) -->
-              <ion-button
-                v-if="agentShowsConversation(agent)"
-                fill="clear"
-                size="small"
-                @click="createNewConversation(agent)"
-                title="Start new conversation"
-                class="header-action-btn"
-              >
-                <ion-icon :icon="icons.chatbubbleOutline" />
-              </ion-button>
             </div>
-          </ion-item>
+          </div>
 
           <!-- Agent's Conversations (collapsed by default) - only for agents that support conversations -->
           <div v-if="agentShowsConversation(agent) && isConversationListExpanded(agent.name) && agent.conversations && agent.conversations.length > 0" class="conversations-list">
@@ -2022,20 +2058,46 @@ watch(
   padding-right: 4px;
 }
 
-.header-action-btn {
-  --padding-start: 4px;
-  --padding-end: 4px;
-  --padding-top: 4px;
-  --padding-bottom: 4px;
-  min-width: 28px;
-  height: 28px;
+/* Fixed-width action slots for consistent alignment */
+/* Agent action buttons - using Ionic slot="end" for right alignment */
+.agent-badge {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  min-width: auto;
+  margin: 0;
 }
 
-.header-action-btn ion-icon {
+.agent-action-btn {
+  --padding-start: 2px;
+  --padding-end: 2px;
+  --padding-top: 2px;
+  --padding-bottom: 2px;
+  margin: 0;
+  min-width: 24px;
+  min-height: 24px;
+}
+
+.agent-action-btn ion-icon {
+  font-size: 16px;
+}
+
+/* Chevron button in agent-meta - stacked below badge */
+.agent-meta .agent-action-btn {
+  --padding-start: 0;
+  --padding-end: 0;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  min-width: 20px;
+  min-height: 20px;
+  height: 20px;
+  margin-top: 2px;
+}
+
+.agent-meta .agent-action-btn ion-icon {
   font-size: 18px;
 }
 
-/* Prevent accordion toggle when clicking buttons */
+/* Legacy support */
 .header-actions {
   z-index: 10;
 }
@@ -2096,10 +2158,45 @@ watch(
   margin-right: 8px;
 }
 
+/* Agent row - flex container for item + external meta */
+.agent-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 2px 0 2px 8px;
+}
+
+.agent-row ion-item {
+  flex: 1;
+  min-width: 0;
+  --padding-end: 0;
+  --inner-padding-end: 2px;
+}
+
+/* Right-justify action buttons inside the item - tight to edge */
+.agent-row ion-item ion-button[slot="end"] {
+  margin: 0;
+  --padding-start: 4px;
+  --padding-end: 4px;
+}
+
+/* Agent meta - badge and arrow outside the item box - stacked vertically */
+.agent-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 4px 6px;
+  flex-shrink: 0;
+  min-width: 32px;
+}
+
 /* Specialist item styling */
 .specialist-item {
   --padding-start: 12px;
   --background: var(--ion-color-step-100, #e7e7e7);
+  border-radius: 8px 0 0 8px;
 }
 
 .specialist-item ion-icon {
@@ -2109,6 +2206,7 @@ watch(
 /* Nested agent item styling */
 .nested-agent-item {
   --background: var(--ion-color-step-100, #e7e7e7);
+  border-radius: 8px 0 0 8px;
 }
 
 /* Section titles for manager content and team members */

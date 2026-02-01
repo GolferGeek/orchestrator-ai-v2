@@ -3,7 +3,7 @@
  *
  * Handles dashboard mode requests for prediction analysts.
  * Analysts are AI personas that evaluate signals/predictors from different perspectives.
- * Supports fork comparison (user vs agent) and adoption workflows.
+ * Supports fork comparison (user vs ai) and adoption workflows.
  */
 
 import { Injectable, Logger } from '@nestjs/common';
@@ -300,7 +300,7 @@ export class AnalystHandler implements IDashboardHandler {
   // =============================================================================
 
   /**
-   * Compare user fork vs agent fork for a specific analyst
+   * Compare user fork vs ai fork for a specific analyst
    * Returns portfolio performance, context differences, and adoption suggestions
    */
   private async handleCompareForks(
@@ -324,9 +324,9 @@ export class AnalystHandler implements IDashboardHandler {
         params.id,
         'user',
       );
-      const agentPortfolio = await this.portfolioRepository.getAnalystPortfolio(
+      const aiPortfolio = await this.portfolioRepository.getAnalystPortfolio(
         params.id,
-        'agent',
+        'ai',
       );
 
       // Get current context versions for both forks
@@ -335,14 +335,14 @@ export class AnalystHandler implements IDashboardHandler {
           params.id,
           'user',
         );
-      const agentContext =
+      const aiContext =
         await this.portfolioRepository.getCurrentAnalystContextVersion(
           params.id,
-          'agent',
+          'ai',
         );
 
       // Calculate context differences
-      const contextDiff = this.calculateContextDiff(userContext, agentContext);
+      const contextDiff = this.calculateContextDiff(userContext, aiContext);
 
       // Build comparison result
       const comparison = {
@@ -361,22 +361,21 @@ export class AnalystHandler implements IDashboardHandler {
             : 0,
           winRate: this.calculateWinRate(userPortfolio),
         },
-        agentFork: {
-          portfolio: agentPortfolio,
-          currentContext: agentContext,
-          pnl: agentPortfolio
-            ? agentPortfolio.total_realized_pnl +
-              agentPortfolio.total_unrealized_pnl
+        aiFork: {
+          portfolio: aiPortfolio,
+          currentContext: aiContext,
+          pnl: aiPortfolio
+            ? aiPortfolio.total_realized_pnl + aiPortfolio.total_unrealized_pnl
             : 0,
-          winRate: this.calculateWinRate(agentPortfolio),
-          status: agentPortfolio?.status ?? 'active',
+          winRate: this.calculateWinRate(aiPortfolio),
+          status: aiPortfolio?.status ?? 'active',
         },
         comparison: {
-          pnlDiff: this.calculatePnlDiff(userPortfolio, agentPortfolio),
+          pnlDiff: this.calculatePnlDiff(userPortfolio, aiPortfolio),
           contextDiff,
-          agentOutperforming:
-            (agentPortfolio?.total_realized_pnl ?? 0) +
-              (agentPortfolio?.total_unrealized_pnl ?? 0) >
+          aiOutperforming:
+            (aiPortfolio?.total_realized_pnl ?? 0) +
+              (aiPortfolio?.total_unrealized_pnl ?? 0) >
             (userPortfolio?.total_realized_pnl ?? 0) +
               (userPortfolio?.total_unrealized_pnl ?? 0),
         },
@@ -417,10 +416,9 @@ export class AnalystHandler implements IDashboardHandler {
       // Calculate summary stats
       const summary = {
         totalAnalysts: comparisons.length,
-        agentOutperforming: comparisons.filter((c) => c.balance_diff > 0)
-          .length,
+        aiOutperforming: comparisons.filter((c) => c.balance_diff > 0).length,
         userOutperforming: comparisons.filter((c) => c.balance_diff < 0).length,
-        totalAgentPnl: comparisons.reduce(
+        totalAiPnl: comparisons.reduce(
           (sum, c) => sum + c.agent_realized_pnl + c.agent_unrealized_pnl,
           0,
         ),
@@ -503,7 +501,7 @@ export class AnalystHandler implements IDashboardHandler {
   }
 
   /**
-   * Adopt a specific change from agent fork to user fork
+   * Adopt a specific change from ai fork to user fork
    * Creates a new user context version with the adopted changes
    */
   private async handleAdoptChange(
@@ -558,13 +556,12 @@ export class AnalystHandler implements IDashboardHandler {
             userContext.tier_instructions,
           default_weight:
             adoptionData.changes.defaultWeight ?? userContext.default_weight,
-          change_reason:
-            adoptionData.reason ?? 'Adopted changes from agent fork',
+          change_reason: adoptionData.reason ?? 'Adopted changes from ai fork',
           changed_by: 'user',
         });
 
       this.logger.log(
-        `User adopted changes from agent fork for analyst ${params.id}, created version ${newVersion.version_number}`,
+        `User adopted changes from ai fork for analyst ${params.id}, created version ${newVersion.version_number}`,
       );
 
       return buildDashboardSuccess({
@@ -693,7 +690,7 @@ export class AnalystHandler implements IDashboardHandler {
 
   private calculatePnlDiff(
     userPortfolio: AnalystPortfolio | null,
-    agentPortfolio: AnalystPortfolio | null,
+    aiPortfolio: AnalystPortfolio | null,
   ): {
     absolute: number;
     percent: number;
@@ -701,11 +698,11 @@ export class AnalystHandler implements IDashboardHandler {
     const userPnl =
       (userPortfolio?.total_realized_pnl ?? 0) +
       (userPortfolio?.total_unrealized_pnl ?? 0);
-    const agentPnl =
-      (agentPortfolio?.total_realized_pnl ?? 0) +
-      (agentPortfolio?.total_unrealized_pnl ?? 0);
+    const aiPnl =
+      (aiPortfolio?.total_realized_pnl ?? 0) +
+      (aiPortfolio?.total_unrealized_pnl ?? 0);
 
-    const absolute = agentPnl - userPnl;
+    const absolute = aiPnl - userPnl;
     const percent = userPnl !== 0 ? (absolute / Math.abs(userPnl)) * 100 : 0;
 
     return { absolute, percent };
@@ -713,55 +710,55 @@ export class AnalystHandler implements IDashboardHandler {
 
   private calculateContextDiff(
     userContext: AnalystContextVersion | null,
-    agentContext: AnalystContextVersion | null,
+    aiContext: AnalystContextVersion | null,
   ): {
     perspectiveChanged: boolean;
     tierInstructionsChanged: boolean;
     weightChanged: boolean;
-    agentHasJournal: boolean;
+    aiHasJournal: boolean;
     summary: string[];
   } {
     const diff: string[] = [];
     let perspectiveChanged = false;
     let tierInstructionsChanged = false;
     let weightChanged = false;
-    const agentHasJournal = !!agentContext?.agent_journal;
+    const aiHasJournal = !!aiContext?.agent_journal;
 
-    if (!userContext || !agentContext) {
+    if (!userContext || !aiContext) {
       return {
         perspectiveChanged: false,
         tierInstructionsChanged: false,
         weightChanged: false,
-        agentHasJournal,
+        aiHasJournal,
         summary: ['One or both forks have no context version'],
       };
     }
 
     // Check perspective
-    if (userContext.perspective !== agentContext.perspective) {
+    if (userContext.perspective !== aiContext.perspective) {
       perspectiveChanged = true;
-      diff.push('Agent has modified perspective');
+      diff.push('AI has modified perspective');
     }
 
     // Check tier instructions
     const userTiers = JSON.stringify(userContext.tier_instructions);
-    const agentTiers = JSON.stringify(agentContext.tier_instructions);
-    if (userTiers !== agentTiers) {
+    const aiTiers = JSON.stringify(aiContext.tier_instructions);
+    if (userTiers !== aiTiers) {
       tierInstructionsChanged = true;
-      diff.push('Agent has modified tier instructions');
+      diff.push('AI has modified tier instructions');
     }
 
     // Check weight
-    if (userContext.default_weight !== agentContext.default_weight) {
+    if (userContext.default_weight !== aiContext.default_weight) {
       weightChanged = true;
       diff.push(
-        `Agent changed weight from ${userContext.default_weight} to ${agentContext.default_weight}`,
+        `AI changed weight from ${userContext.default_weight} to ${aiContext.default_weight}`,
       );
     }
 
     // Check journal
-    if (agentHasJournal) {
-      diff.push('Agent has journal entries with self-reflection');
+    if (aiHasJournal) {
+      diff.push('AI has journal entries with self-reflection');
     }
 
     if (diff.length === 0) {
@@ -772,7 +769,7 @@ export class AnalystHandler implements IDashboardHandler {
       perspectiveChanged,
       tierInstructionsChanged,
       weightChanged,
-      agentHasJournal,
+      aiHasJournal,
       summary: diff,
     };
   }

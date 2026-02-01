@@ -55,7 +55,7 @@ const DEFAULT_CONFIG: SelfImprovementConfig = {
 /**
  * Agent Self-Improvement Service
  *
- * Analyzes agent fork performance after predictions are resolved and
+ * Analyzes ai fork performance after predictions are resolved and
  * triggers self-adaptation when patterns are detected:
  *
  * - Consecutive losses → Add caution rule
@@ -80,7 +80,7 @@ export class AgentSelfImprovementService {
   }
 
   /**
-   * Analyze and potentially trigger self-improvement for an analyst's agent fork
+   * Analyze and potentially trigger self-improvement for an analyst's ai fork
    * Called after a prediction involving this analyst is evaluated
    */
   async analyzeAndAdapt(
@@ -91,14 +91,14 @@ export class AgentSelfImprovementService {
       `Analyzing self-improvement for analyst ${analystId} after evaluation`,
     );
 
-    // Get the agent portfolio
+    // Get the ai portfolio
     const portfolio = await this.portfolioRepository.getAnalystPortfolio(
       analystId,
-      'agent',
+      'ai',
     );
 
     if (!portfolio) {
-      this.logger.warn(`No agent portfolio found for analyst ${analystId}`);
+      this.logger.warn(`No ai portfolio found for analyst ${analystId}`);
       return [];
     }
 
@@ -165,14 +165,14 @@ export class AgentSelfImprovementService {
   }
 
   /**
-   * Run periodic self-improvement analysis for all agent forks
+   * Run periodic self-improvement analysis for all ai forks
    * Should be called daily or after batch evaluations
    */
   async runPeriodicAnalysis(): Promise<Map<string, PatternDetectionResult[]>> {
     this.logger.log('Running periodic self-improvement analysis');
 
     const portfolios =
-      await this.portfolioRepository.getAllAnalystPortfolios('agent');
+      await this.portfolioRepository.getAllAnalystPortfolios('ai');
     const results = new Map<string, PatternDetectionResult[]>();
 
     for (const portfolio of portfolios) {

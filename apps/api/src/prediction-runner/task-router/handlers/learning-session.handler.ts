@@ -1,12 +1,12 @@
 /**
  * Learning Session Handler
  *
- * Handles bidirectional learning between user and agent forks.
+ * Handles bidirectional learning between user and ai forks.
  * Part of the Learning Loop: Review Queue → Learning Queue → Learning Session → Apply Changes
  *
  * Features:
  * - Start learning session with comparison report
- * - Interactive dialogue (user asks agent, agent asks user)
+ * - Interactive dialogue (user asks ai, ai asks user)
  * - Adoption decisions with full audit trail
  */
 
@@ -32,7 +32,7 @@ import {
 interface LearningSessionParams {
   id?: string;
   analystId?: string;
-  initiatedBy?: 'user' | 'agent';
+  initiatedBy?: 'user' | 'ai';
   outcome?: LearningOutcome;
   page?: number;
   pageSize?: number;
@@ -63,7 +63,7 @@ export class LearningSessionHandler implements IDashboardHandler {
     'list',
     'get',
     'start',
-    'askAgent',
+    'askAi',
     'askUser',
     'respond',
     'pending',
@@ -93,8 +93,8 @@ export class LearningSessionHandler implements IDashboardHandler {
         return this.handleGet(params);
       case 'start':
         return this.handleStartSession(payload);
-      case 'askagent':
-        return this.handleAskAgent(payload);
+      case 'askai':
+        return this.handleAskAi(payload);
       case 'askuser':
         return this.handleAskUser(payload);
       case 'respond':
@@ -243,9 +243,9 @@ export class LearningSessionHandler implements IDashboardHandler {
         input.analystId,
         'user',
       );
-      const agentPortfolio = await this.portfolioRepository.getAnalystPortfolio(
+      const aiPortfolio = await this.portfolioRepository.getAnalystPortfolio(
         input.analystId,
-        'agent',
+        'ai',
       );
 
       // Get current contexts for diff
@@ -254,10 +254,10 @@ export class LearningSessionHandler implements IDashboardHandler {
           input.analystId,
           'user',
         );
-      const agentContext =
+      const aiContext =
         await this.portfolioRepository.getCurrentAnalystContextVersion(
           input.analystId,
-          'agent',
+          'ai',
         );
 
       // Get recent exchanges
@@ -268,9 +268,9 @@ export class LearningSessionHandler implements IDashboardHandler {
       const report = this.buildComparisonReport(
         analyst,
         userPortfolio,
-        agentPortfolio,
+        aiPortfolio,
         userContext,
-        agentContext,
+        aiContext,
         recentExchanges,
       );
 
@@ -297,9 +297,9 @@ export class LearningSessionHandler implements IDashboardHandler {
   }
 
   /**
-   * User asks a question to the agent fork
+   * User asks a question to the ai fork
    */
-  private async handleAskAgent(
+  private async handleAskAi(
     payload: DashboardRequestPayload,
   ): Promise<DashboardActionResult> {
     const input = payload.params as AskQuestionInput | undefined;
@@ -317,9 +317,9 @@ export class LearningSessionHandler implements IDashboardHandler {
         input.analystId,
         'user',
       );
-      const agentPortfolio = await this.portfolioRepository.getAnalystPortfolio(
+      const aiPortfolio = await this.portfolioRepository.getAnalystPortfolio(
         input.analystId,
-        'agent',
+        'ai',
       );
 
       const performanceEvidence = input.performanceEvidence ?? {
@@ -327,9 +327,8 @@ export class LearningSessionHandler implements IDashboardHandler {
           ? userPortfolio.total_realized_pnl +
             userPortfolio.total_unrealized_pnl
           : 0,
-        agentPnl: agentPortfolio
-          ? agentPortfolio.total_realized_pnl +
-            agentPortfolio.total_unrealized_pnl
+        aiPnl: aiPortfolio
+          ? aiPortfolio.total_realized_pnl + aiPortfolio.total_unrealized_pnl
           : 0,
         period: '30d',
       };
@@ -344,28 +343,28 @@ export class LearningSessionHandler implements IDashboardHandler {
       );
 
       this.logger.log(
-        `User asked agent: "${input.question.substring(0, 50)}..." for analyst ${input.analystId}`,
+        `User asked ai: "${input.question.substring(0, 50)}..." for analyst ${input.analystId}`,
       );
 
       return buildDashboardSuccess({
         exchange,
         message:
-          'Question recorded. Agent response will be generated during next evaluation cycle.',
+          'Question recorded. AI response will be generated during next evaluation cycle.',
       });
     } catch (error) {
       this.logger.error(
-        `Failed to ask agent: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to ask ai: ${error instanceof Error ? error.message : String(error)}`,
       );
       return buildDashboardError(
         'ASK_FAILED',
-        error instanceof Error ? error.message : 'Failed to ask agent',
+        error instanceof Error ? error.message : 'Failed to ask ai',
       );
     }
   }
 
   /**
-   * Agent asks a question to the user
-   * (This is typically triggered by agent self-reflection)
+   * AI asks a question to the user
+   * (This is typically triggered by ai self-reflection)
    */
   private async handleAskUser(
     payload: DashboardRequestPayload,
@@ -386,30 +385,30 @@ export class LearningSessionHandler implements IDashboardHandler {
           input.analystId,
           'user',
         );
-      const agentContext =
+      const aiContext =
         await this.portfolioRepository.getCurrentAnalystContextVersion(
           input.analystId,
-          'agent',
+          'ai',
         );
 
       const contextDiff = input.contextDiff ?? {
         userPerspective: userContext?.perspective,
-        agentPerspective: agentContext?.perspective,
+        aiPerspective: aiContext?.perspective,
         userWeight: userContext?.default_weight,
-        agentWeight: agentContext?.default_weight,
+        aiWeight: aiContext?.default_weight,
       };
 
       // Create the exchange
       const exchange = await this.portfolioRepository.createLearningExchange(
         input.analystId,
-        'agent',
+        'ai',
         input.question,
         contextDiff,
         input.performanceEvidence,
       );
 
       this.logger.log(
-        `Agent asked user: "${input.question.substring(0, 50)}..." for analyst ${input.analystId}`,
+        `AI asked user: "${input.question.substring(0, 50)}..." for analyst ${input.analystId}`,
       );
 
       return buildDashboardSuccess({
@@ -543,7 +542,7 @@ export class LearningSessionHandler implements IDashboardHandler {
       let totalRejected = 0;
       let totalNoted = 0;
       let userInitiated = 0;
-      let agentInitiated = 0;
+      let aiInitiated = 0;
 
       for (const analyst of analysts) {
         const exchanges = await this.portfolioRepository.getLearningExchanges(
@@ -556,7 +555,7 @@ export class LearningSessionHandler implements IDashboardHandler {
           if (ex.outcome === 'rejected') totalRejected++;
           if (ex.outcome === 'noted') totalNoted++;
           if (ex.initiated_by === 'user') userInitiated++;
-          if (ex.initiated_by === 'agent') agentInitiated++;
+          if (ex.initiated_by === 'ai') aiInitiated++;
         }
       }
 
@@ -571,7 +570,7 @@ export class LearningSessionHandler implements IDashboardHandler {
         },
         initiators: {
           user: userInitiated,
-          agent: agentInitiated,
+          ai: aiInitiated,
         },
         adoptionRate:
           totalExchanges > 0
@@ -601,17 +600,17 @@ export class LearningSessionHandler implements IDashboardHandler {
   private buildComparisonReport(
     analyst: { id: string; slug: string; name: string },
     userPortfolio: AnalystPortfolio | null,
-    agentPortfolio: AnalystPortfolio | null,
+    aiPortfolio: AnalystPortfolio | null,
     userContext: AnalystContextVersion | null,
-    agentContext: AnalystContextVersion | null,
+    aiContext: AnalystContextVersion | null,
     recentExchanges: ForkLearningExchange[],
   ): {
     performanceDiff: {
       userPnl: number;
-      agentPnl: number;
+      aiPnl: number;
       diff: number;
       diffPercent: number;
-      agentOutperforming: boolean;
+      aiOutperforming: boolean;
     };
     contextDiff: {
       perspectiveChanged: boolean;
@@ -631,10 +630,10 @@ export class LearningSessionHandler implements IDashboardHandler {
     const userPnl =
       (userPortfolio?.total_realized_pnl ?? 0) +
       (userPortfolio?.total_unrealized_pnl ?? 0);
-    const agentPnl =
-      (agentPortfolio?.total_realized_pnl ?? 0) +
-      (agentPortfolio?.total_unrealized_pnl ?? 0);
-    const diff = agentPnl - userPnl;
+    const aiPnl =
+      (aiPortfolio?.total_realized_pnl ?? 0) +
+      (aiPortfolio?.total_unrealized_pnl ?? 0);
+    const diff = aiPnl - userPnl;
     const diffPercent = userPnl !== 0 ? (diff / Math.abs(userPnl)) * 100 : 0;
 
     // Context comparison
@@ -643,31 +642,31 @@ export class LearningSessionHandler implements IDashboardHandler {
     let tierInstructionsChanged = false;
     let weightChanged = false;
 
-    if (userContext && agentContext) {
-      if (userContext.perspective !== agentContext.perspective) {
+    if (userContext && aiContext) {
+      if (userContext.perspective !== aiContext.perspective) {
         perspectiveChanged = true;
         contextDetails.push(
-          `Perspective changed: "${userContext.perspective.substring(0, 30)}..." → "${agentContext.perspective.substring(0, 30)}..."`,
+          `Perspective changed: "${userContext.perspective.substring(0, 30)}..." → "${aiContext.perspective.substring(0, 30)}..."`,
         );
       }
 
       if (
         JSON.stringify(userContext.tier_instructions) !==
-        JSON.stringify(agentContext.tier_instructions)
+        JSON.stringify(aiContext.tier_instructions)
       ) {
         tierInstructionsChanged = true;
         contextDetails.push('Tier instructions have been modified');
       }
 
-      if (userContext.default_weight !== agentContext.default_weight) {
+      if (userContext.default_weight !== aiContext.default_weight) {
         weightChanged = true;
         contextDetails.push(
-          `Weight changed: ${userContext.default_weight} → ${agentContext.default_weight}`,
+          `Weight changed: ${userContext.default_weight} → ${aiContext.default_weight}`,
         );
       }
 
-      if (agentContext.agent_journal) {
-        contextDetails.push('Agent has self-reflection journal entries');
+      if (aiContext.agent_journal) {
+        contextDetails.push('AI has self-reflection journal entries');
       }
     }
 
@@ -684,25 +683,25 @@ export class LearningSessionHandler implements IDashboardHandler {
 
     if (diff > 0 && diffPercent > 5) {
       suggestions.push(
-        `Agent fork is outperforming by ${diffPercent.toFixed(1)}%. Consider reviewing agent's changes.`,
+        `AI fork is outperforming by ${diffPercent.toFixed(1)}%. Consider reviewing AI's changes.`,
       );
     }
 
     if (diff < 0 && diffPercent < -5) {
       suggestions.push(
-        `User fork is outperforming by ${Math.abs(diffPercent).toFixed(1)}%. Agent may need guidance.`,
+        `User fork is outperforming by ${Math.abs(diffPercent).toFixed(1)}%. AI may need guidance.`,
       );
     }
 
     if (perspectiveChanged) {
       suggestions.push(
-        "Review agent's perspective changes - they may contain valuable insights.",
+        "Review AI's perspective changes - they may contain valuable insights.",
       );
     }
 
     if (weightChanged) {
       suggestions.push(
-        'Agent has adjusted confidence weighting. Check if it aligns with performance.',
+        'AI has adjusted confidence weighting. Check if it aligns with performance.',
       );
     }
 
@@ -721,10 +720,10 @@ export class LearningSessionHandler implements IDashboardHandler {
     return {
       performanceDiff: {
         userPnl,
-        agentPnl,
+        aiPnl,
         diff,
         diffPercent,
-        agentOutperforming: agentPnl > userPnl,
+        aiOutperforming: aiPnl > userPnl,
       },
       contextDiff: {
         perspectiveChanged,

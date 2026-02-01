@@ -49,7 +49,7 @@ export class AnalystService {
   }
 
   /**
-   * Create a new analyst with dual portfolios (user fork and agent fork)
+   * Create a new analyst with dual portfolios (user fork and ai fork)
    * Each fork starts with $1M initial balance for P&L tracking
    */
   async create(dto: CreateAnalystDto): Promise<Analyst> {
@@ -60,13 +60,13 @@ export class AnalystService {
     // Create the analyst first
     const analyst = await this.analystRepository.create(dto);
 
-    // Create dual portfolios (user fork + agent fork) for P&L tracking
+    // Create dual portfolios (user fork + ai fork) for P&L tracking
     try {
-      const { userPortfolio, agentPortfolio } =
+      const { userPortfolio, aiPortfolio } =
         await this.portfolioRepository.createAnalystPortfolios(analyst.id);
 
       this.logger.log(
-        `Created dual portfolios for analyst ${analyst.slug}: user=${userPortfolio.id}, agent=${agentPortfolio.id}`,
+        `Created dual portfolios for analyst ${analyst.slug}: user=${userPortfolio.id}, ai=${aiPortfolio.id}`,
       );
     } catch (error) {
       // Log but don't fail - analyst creation succeeded
@@ -89,22 +89,22 @@ export class AnalystService {
   }
 
   /**
-   * Get analyst portfolios (both user and agent forks)
+   * Get analyst portfolios (both user and ai forks)
    */
   async getAnalystPortfolios(analystId: string): Promise<{
     user: AnalystPortfolio | null;
-    agent: AnalystPortfolio | null;
+    ai: AnalystPortfolio | null;
   }> {
     const userPortfolio = await this.portfolioRepository.getAnalystPortfolio(
       analystId,
       'user',
     );
-    const agentPortfolio = await this.portfolioRepository.getAnalystPortfolio(
+    const aiPortfolio = await this.portfolioRepository.getAnalystPortfolio(
       analystId,
-      'agent',
+      'ai',
     );
 
-    return { user: userPortfolio, agent: agentPortfolio };
+    return { user: userPortfolio, ai: aiPortfolio };
   }
 
   /**
@@ -113,12 +113,12 @@ export class AnalystService {
    */
   async ensureAnalystPortfolios(analystId: string): Promise<{
     userPortfolio: AnalystPortfolio;
-    agentPortfolio: AnalystPortfolio;
+    aiPortfolio: AnalystPortfolio;
   }> {
     const existing = await this.getAnalystPortfolios(analystId);
 
     let userPortfolio = existing.user;
-    let agentPortfolio = existing.agent;
+    let aiPortfolio = existing.ai;
 
     if (!userPortfolio) {
       userPortfolio = await this.portfolioRepository.createAnalystPortfolio(
@@ -130,17 +130,15 @@ export class AnalystService {
       );
     }
 
-    if (!agentPortfolio) {
-      agentPortfolio = await this.portfolioRepository.createAnalystPortfolio(
+    if (!aiPortfolio) {
+      aiPortfolio = await this.portfolioRepository.createAnalystPortfolio(
         analystId,
-        'agent',
+        'ai',
       );
-      this.logger.log(
-        `Created missing agent portfolio for analyst ${analystId}`,
-      );
+      this.logger.log(`Created missing ai portfolio for analyst ${analystId}`);
     }
 
-    return { userPortfolio, agentPortfolio };
+    return { userPortfolio, aiPortfolio };
   }
 
   async update(id: string, dto: UpdateAnalystDto): Promise<Analyst> {

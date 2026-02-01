@@ -40,7 +40,7 @@ describe('AnalystMotivationService', () => {
   ): AnalystPortfolio => ({
     id: 'portfolio-1',
     analyst_id: 'analyst-1',
-    fork_type: 'agent' as ForkType,
+    fork_type: 'ai' as ForkType,
     initial_balance: 1000000,
     current_balance: 1000000,
     total_realized_pnl: 0,
@@ -79,7 +79,7 @@ describe('AnalystMotivationService', () => {
       createContextVersion: jest.fn().mockResolvedValue({
         id: 'version-1',
         analyst_id: 'analyst-1',
-        fork_type: 'agent',
+        fork_type: 'ai',
         version_number: 2,
         perspective: 'Test perspective',
         tier_instructions: {},
@@ -218,7 +218,7 @@ describe('AnalystMotivationService', () => {
       // Boss feedback should create a new context version for probation
       expect(analystRepository.createContextVersion).toHaveBeenCalledWith(
         'analyst-1',
-        'agent',
+        'ai',
         expect.any(String),
         expect.objectContaining({
           silver: expect.stringContaining('IMPORTANT'),
@@ -244,7 +244,7 @@ describe('AnalystMotivationService', () => {
       // Boss feedback should create a new context version for suspended
       expect(analystRepository.createContextVersion).toHaveBeenCalledWith(
         'analyst-1',
-        'agent',
+        'ai',
         expect.any(String),
         expect.objectContaining({
           silver: expect.stringContaining('CRITICAL'),
@@ -273,7 +273,7 @@ describe('AnalystMotivationService', () => {
     });
   });
 
-  describe('evaluateAllAgentPortfolios', () => {
+  describe('evaluateAllAiPortfolios', () => {
     it('should evaluate all agent portfolios and return status changes', async () => {
       const portfolios = [
         createMockPortfolio({
@@ -299,7 +299,7 @@ describe('AnalystMotivationService', () => {
       portfolioRepository.logAgentSelfModification.mockResolvedValue({} as any);
       analystRepository.findById.mockResolvedValue(mockAnalyst);
 
-      const results = await service.evaluateAllAgentPortfolios();
+      const results = await service.evaluateAllAiPortfolios();
 
       // Only analyst-1 should have a status change (700K -> warning)
       expect(results.length).toBe(1);
@@ -319,7 +319,7 @@ describe('AnalystMotivationService', () => {
       ]);
       portfolioRepository.getAnalystPortfolio.mockResolvedValue(portfolio);
 
-      const results = await service.evaluateAllAgentPortfolios();
+      const results = await service.evaluateAllAiPortfolios();
 
       expect(results).toEqual([]);
     });
@@ -329,10 +329,7 @@ describe('AnalystMotivationService', () => {
     it('should return null if no portfolio exists', async () => {
       portfolioRepository.getAnalystPortfolio.mockResolvedValue(null);
 
-      const result = await service.buildPerformanceContext(
-        'analyst-1',
-        'agent',
-      );
+      const result = await service.buildPerformanceContext('analyst-1', 'ai');
 
       expect(result).toBeNull();
     });
@@ -352,10 +349,7 @@ describe('AnalystMotivationService', () => {
       ]);
       analystRepository.getActive.mockResolvedValue([mockAnalyst]);
 
-      const result = await service.buildPerformanceContext(
-        'analyst-1',
-        'agent',
-      );
+      const result = await service.buildPerformanceContext('analyst-1', 'ai');
 
       expect(result).not.toBeNull();
       expect(result!.currentBalance).toBe(1150000);
@@ -377,10 +371,7 @@ describe('AnalystMotivationService', () => {
       ]);
       analystRepository.getActive.mockResolvedValue([mockAnalyst]);
 
-      const result = await service.buildPerformanceContext(
-        'analyst-1',
-        'agent',
-      );
+      const result = await service.buildPerformanceContext('analyst-1', 'ai');
 
       expect(result).not.toBeNull();
       // Win rate = 10 / 12 = 0.833...
@@ -410,10 +401,7 @@ describe('AnalystMotivationService', () => {
         { ...mockAnalyst, id: 'analyst-2', slug: 'sentiment-sam' },
       ]);
 
-      const result = await service.buildPerformanceContext(
-        'analyst-1',
-        'agent',
-      );
+      const result = await service.buildPerformanceContext('analyst-1', 'ai');
 
       expect(result).not.toBeNull();
       expect(result!.peerComparison).toBeDefined();

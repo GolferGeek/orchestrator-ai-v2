@@ -116,6 +116,7 @@ describe('AnalystPositionService', () => {
         }
         return (entry - current) * quantity;
       }),
+      getPositionPercentForConfidence: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -140,65 +141,84 @@ describe('AnalystPositionService', () => {
   // =============================================================================
 
   describe('calculatePositionSize', () => {
-    it('should calculate position size based on risk parameters', () => {
+    beforeEach(() => {
+      // Mock the tiered position sizing from database
+      // 60-70% = 5%, 70-80% = 10%, 80%+ = 15%
+      (
+        mockPortfolioRepository.getPositionPercentForConfidence as jest.Mock
+      ).mockImplementation((confidence: number) => {
+        if (confidence >= 0.8) return Promise.resolve(0.15);
+        if (confidence >= 0.7) return Promise.resolve(0.1);
+        if (confidence >= 0.6) return Promise.resolve(0.05);
+        return Promise.resolve(0.05);
+      });
+    });
+
+    it('should calculate position size using tiered confidence sizing', async () => {
       // $1M portfolio, $150 entry, 80% confidence
-      // Default: 2% risk, 5% stop
-      // Risk amount = $1M * 0.02 = $20,000
-      // Stop distance = $150 * 0.05 = $7.50
-      // Base quantity = $20,000 / $7.50 = 2666.67
-      // Confidence multiplier = 0.8 / 0.7 = 1.143
-      // Final = floor(2666.67 * 1.143) = 3047
-
-      const size = service.calculatePositionSize(1000000, 150, 0.8);
-      expect(size).toBe(3047);
+      // 80%+ confidence = 15% of portfolio = $150,000
+      // Quantity = $150,000 / $150 = 1000
+      const size = await service.calculatePositionSize(1000000, 150, 0.8);
+      expect(size).toBe(1000);
     });
 
-    it('should return 0 when stop distance is 0', () => {
-      const size = service.calculatePositionSize(1000000, 150, 0.8, 0.02, 0);
+    it('should use medium tier for 70-80% confidence', async () => {
+      // $1M portfolio, $150 entry, 75% confidence
+      // 70-80% confidence = 10% of portfolio = $100,000
+      // Quantity = $100,000 / $150 = 666
+      const size = await service.calculatePositionSize(1000000, 150, 0.75);
+      expect(size).toBe(666);
+    });
+
+    it('should use low tier for 60-70% confidence', async () => {
+      // $1M portfolio, $150 entry, 65% confidence
+      // 60-70% confidence = 5% of portfolio = $50,000
+      // Quantity = $50,000 / $150 = 333
+      const size = await service.calculatePositionSize(1000000, 150, 0.65);
+      expect(size).toBe(333);
+    });
+
+    it('should return 0 when entry price is 0', async () => {
+      const size = await service.calculatePositionSize(1000000, 0, 0.8);
       expect(size).toBe(0);
     });
 
-    it('should return 0 when entry price is 0', () => {
-      const size = service.calculatePositionSize(1000000, 0, 0.8);
+    it('should return 0 when confidence is below minimum threshold', async () => {
+      // Confidence below 60% should return 0
+      const size = await service.calculatePositionSize(1000000, 150, 0.5);
       expect(size).toBe(0);
     });
 
-    it('should scale down with lower confidence', () => {
-      const highConfidenceSize = service.calculatePositionSize(
+    it('should scale position with confidence tiers', async () => {
+      const highConfidenceSize = await service.calculatePositionSize(
         1000000,
         150,
-        0.9,
+        0.85, // High tier (15%)
       );
-      const lowConfidenceSize = service.calculatePositionSize(
+      const medConfidenceSize = await service.calculatePositionSize(
         1000000,
         150,
-        0.5,
+        0.75, // Medium tier (10%)
+      );
+      const lowConfidenceSize = await service.calculatePositionSize(
+        1000000,
+        150,
+        0.65, // Low tier (5%)
       );
 
-      expect(highConfidenceSize).toBeGreaterThan(lowConfidenceSize);
+      expect(highConfidenceSize).toBeGreaterThan(medConfidenceSize);
+      expect(medConfidenceSize).toBeGreaterThan(lowConfidenceSize);
     });
 
-    it('should allow custom risk and stop parameters', () => {
-      // 1% risk, 3% stop (more conservative)
-      const conservativeSize = service.calculatePositionSize(
-        1000000,
-        150,
-        0.8,
-        0.01,
-        0.03,
-      );
+    it('should use default when database config fails', async () => {
+      (
+        mockPortfolioRepository.getPositionPercentForConfidence as jest.Mock
+      ).mockRejectedValue(new Error('Database error'));
 
-      // 3% risk, 8% stop (more aggressive)
-      const aggressiveSize = service.calculatePositionSize(
-        1000000,
-        150,
-        0.8,
-        0.03,
-        0.08,
-      );
-
-      // Conservative should be smaller than aggressive
-      expect(conservativeSize).toBeLessThan(aggressiveSize);
+      // Should fall back to default 5%
+      // $1M * 5% = $50,000 / $150 = 333
+      const size = await service.calculatePositionSize(1000000, 150, 0.8);
+      expect(size).toBe(333);
     });
   });
 
@@ -306,7 +326,7 @@ describe('AnalystPositionService', () => {
     });
 
     it('should create paper-only position for suspended portfolio', async () => {
-      const suspendedPortfolio = createMockPortfolio('agent', {
+      const suspendedPortfolio = createMockPortfolio('ai', {
         status: 'suspended',
       });
       const paperPosition = createMockPosition('long', { is_paper_only: true });
@@ -319,7 +339,7 @@ describe('AnalystPositionService', () => {
       ).mockResolvedValue(paperPosition);
 
       const result = await service.createPositionFromAssessment({
-        assessment: createMockAssessment({ fork_type: 'agent' }),
+        assessment: createMockAssessment({ fork_type: 'ai' }),
         target: mockTarget,
         entryPrice: 150,
       });
@@ -335,25 +355,25 @@ describe('AnalystPositionService', () => {
     });
 
     it('should use correct fork type from assessment', async () => {
-      const agentPortfolio = createMockPortfolio('agent');
+      const aiPortfolio = createMockPortfolio('ai');
       const position = createMockPosition('long');
 
       (
         mockPortfolioRepository.getAnalystPortfolio as jest.Mock
-      ).mockResolvedValue(agentPortfolio);
+      ).mockResolvedValue(aiPortfolio);
       (
         mockPortfolioRepository.createAnalystPosition as jest.Mock
       ).mockResolvedValue(position);
 
       await service.createPositionFromAssessment({
-        assessment: createMockAssessment({ fork_type: 'agent' }),
+        assessment: createMockAssessment({ fork_type: 'ai' }),
         target: mockTarget,
         entryPrice: 150,
       });
 
       expect(mockPortfolioRepository.getAnalystPortfolio).toHaveBeenCalledWith(
         'analyst-123',
-        'agent',
+        'ai',
       );
     });
   });
@@ -365,18 +385,18 @@ describe('AnalystPositionService', () => {
   describe('createPositionsFromDualForkAssessments', () => {
     it('should create positions for both forks', async () => {
       const userPortfolio = createMockPortfolio('user');
-      const agentPortfolio = createMockPortfolio('agent');
+      const aiPortfolio = createMockPortfolio('ai');
       const position = createMockPosition('long');
 
       (mockPortfolioRepository.getAnalystPortfolio as jest.Mock)
         .mockResolvedValueOnce(userPortfolio)
-        .mockResolvedValueOnce(agentPortfolio);
+        .mockResolvedValueOnce(aiPortfolio);
       (
         mockPortfolioRepository.createAnalystPosition as jest.Mock
       ).mockResolvedValue(position);
 
       const userAssessments = [createMockAssessment({ fork_type: 'user' })];
-      const agentAssessments = [createMockAssessment({ fork_type: 'agent' })];
+      const agentAssessments = [createMockAssessment({ fork_type: 'ai' })];
 
       const result = await service.createPositionsFromDualForkAssessments(
         userAssessments,
@@ -387,7 +407,7 @@ describe('AnalystPositionService', () => {
       );
 
       expect(result.userPositions).toHaveLength(1);
-      expect(result.agentPositions).toHaveLength(1);
+      expect(result.aiPositions).toHaveLength(1);
     });
 
     it('should continue if one assessment fails', async () => {
@@ -421,7 +441,7 @@ describe('AnalystPositionService', () => {
       const agentAssessments = [
         createMockAssessment({
           analyst: createMockAnalyst({ analyst_id: 'analyst-1' }),
-          fork_type: 'agent',
+          fork_type: 'ai',
         }),
       ];
 
@@ -433,7 +453,7 @@ describe('AnalystPositionService', () => {
       );
 
       expect(result.userPositions).toHaveLength(2);
-      expect(result.agentPositions).toHaveLength(0);
+      expect(result.aiPositions).toHaveLength(0);
     });
   });
 

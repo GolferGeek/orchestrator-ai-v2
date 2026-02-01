@@ -18,6 +18,7 @@ import {
   CreatePositionInput,
   CreateAnalystContextVersionInput,
   ModificationType,
+  PositionSizingConfig,
 } from '../interfaces/portfolio.interface';
 
 type SupabaseError = { message: string; code?: string } | null;
@@ -41,6 +42,100 @@ export class PortfolioRepository {
 
   private getClient() {
     return this.supabaseService.getServiceClient();
+  }
+
+  // =============================================================================
+  // POSITION SIZING CONFIG
+  // =============================================================================
+
+  /**
+   * Get position sizing configuration for an organization
+   * Falls back to global defaults (org_slug = '*') if no org-specific config exists
+   */
+  async getPositionSizingConfig(
+    orgSlug: string = '*',
+  ): Promise<PositionSizingConfig[]> {
+    // First try org-specific config
+    const { data: orgConfig, error: orgError } = (await this.getClient()
+      .schema(this.schema)
+      .from('position_sizing_config')
+      .select('*')
+      .eq('org_slug', orgSlug)
+      .eq('is_active', true)
+      .order('min_confidence', {
+        ascending: true,
+      })) as SupabaseSelectListResponse<PositionSizingConfig>;
+
+    if (orgError) {
+      this.logger.error(
+        `Failed to get position sizing config: ${orgError.message}`,
+      );
+      throw new Error(
+        `Failed to get position sizing config: ${orgError.message}`,
+      );
+    }
+
+    // If org-specific config exists, use it
+    if (orgConfig && orgConfig.length > 0) {
+      return orgConfig;
+    }
+
+    // Fall back to global defaults
+    const { data: globalConfig, error: globalError } = (await this.getClient()
+      .schema(this.schema)
+      .from('position_sizing_config')
+      .select('*')
+      .eq('org_slug', '*')
+      .eq('is_active', true)
+      .order('min_confidence', {
+        ascending: true,
+      })) as SupabaseSelectListResponse<PositionSizingConfig>;
+
+    if (globalError) {
+      this.logger.error(
+        `Failed to get global position sizing config: ${globalError.message}`,
+      );
+      throw new Error(
+        `Failed to get global position sizing config: ${globalError.message}`,
+      );
+    }
+
+    return globalConfig ?? [];
+  }
+
+  /**
+   * Get position percent based on confidence level
+   * Uses the tiered config from database
+   */
+  async getPositionPercentForConfidence(
+    confidence: number,
+    orgSlug: string = '*',
+  ): Promise<number> {
+    const config = await this.getPositionSizingConfig(orgSlug);
+
+    // Find the tier that matches the confidence
+    for (const tier of config) {
+      if (
+        confidence >= tier.min_confidence &&
+        confidence < tier.max_confidence
+      ) {
+        return tier.position_percent;
+      }
+    }
+
+    // If confidence is at or above the highest tier max, use the highest tier
+    if (config.length > 0) {
+      const highestTier = config[config.length - 1];
+      if (highestTier && confidence >= highestTier.min_confidence) {
+        return highestTier.position_percent;
+      }
+    }
+
+    // Default fallback if no config found
+    this.logger.warn(
+      `No position sizing tier found for confidence ${confidence}, using default 5%`,
+    );
+    return 0.05;
   }
 
   // =============================================================================
@@ -127,7 +222,7 @@ export class PortfolioRepository {
   }
 
   /**
-   * Create both user and agent portfolios for an analyst
+   * Create both user and ai portfolios for an analyst
    * Called when a new analyst is created
    */
   async createAnalystPortfolios(
@@ -135,16 +230,16 @@ export class PortfolioRepository {
     initialBalance: number = 1000000,
   ): Promise<{
     userPortfolio: AnalystPortfolio;
-    agentPortfolio: AnalystPortfolio;
+    aiPortfolio: AnalystPortfolio;
   }> {
     const userPortfolio = await this.createAnalystPortfolio(
       analystId,
       'user',
       initialBalance,
     );
-    const agentPortfolio = await this.createAnalystPortfolio(
+    const aiPortfolio = await this.createAnalystPortfolio(
       analystId,
-      'agent',
+      'ai',
       initialBalance,
     );
 
@@ -152,7 +247,7 @@ export class PortfolioRepository {
       `Created dual portfolios for analyst ${analystId} with $${initialBalance} initial balance each`,
     );
 
-    return { userPortfolio, agentPortfolio };
+    return { userPortfolio, aiPortfolio };
   }
 
   async updateAnalystPortfolioBalance(
@@ -1103,7 +1198,7 @@ export class PortfolioRepository {
    */
   async createLearningExchange(
     analystId: string,
-    initiatedBy: 'user' | 'agent',
+    initiatedBy: 'user' | 'ai',
     question: string,
     contextDiff?: Record<string, unknown>,
     performanceEvidence?: Record<string, unknown>,
@@ -1164,7 +1259,7 @@ export class PortfolioRepository {
    */
   async getLearningExchanges(
     analystId: string,
-    initiatedBy?: 'user' | 'agent',
+    initiatedBy?: 'user' | 'ai',
     outcome?: 'adopted' | 'rejected' | 'noted' | 'pending',
   ): Promise<ForkLearningExchange[]> {
     let query = this.getClient()
@@ -1299,7 +1394,7 @@ export class PortfolioRepository {
    * preserving the full history. The rollback itself is logged.
    *
    * @param analystId The analyst ID
-   * @param forkType Which fork to rollback ('user' or 'agent')
+   * @param forkType Which fork to rollback ('user' or 'ai')
    * @param targetVersionId The version ID to rollback to
    * @param reason Why the rollback is being performed
    * @returns The new version created from the rollback

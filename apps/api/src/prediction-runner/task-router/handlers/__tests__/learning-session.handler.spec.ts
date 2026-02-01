@@ -73,7 +73,7 @@ describe('LearningSessionHandler', () => {
   const mockAgentPortfolio: AnalystPortfolio = {
     id: 'portfolio-agent-1',
     analyst_id: 'analyst-1',
-    fork_type: 'agent',
+    fork_type: 'ai',
     initial_balance: 1000000,
     current_balance: 1080000,
     total_realized_pnl: 80000,
@@ -101,7 +101,7 @@ describe('LearningSessionHandler', () => {
   const mockAgentContext: AnalystContextVersion = {
     id: 'context-agent-1',
     analyst_id: 'analyst-1',
-    fork_type: 'agent',
+    fork_type: 'ai',
     version_number: 3,
     perspective: 'Technical analysis expert with momentum focus',
     tier_instructions: { tier1: 'Focus on volume' },
@@ -128,7 +128,7 @@ describe('LearningSessionHandler', () => {
     {
       id: 'exchange-2',
       analyst_id: 'analyst-1',
-      initiated_by: 'agent',
+      initiated_by: 'ai',
       question: 'Why did you take 2x position on AAPL?',
       outcome: 'pending',
       created_at: '2024-01-14T10:00:00Z',
@@ -296,7 +296,7 @@ describe('LearningSessionHandler', () => {
         sessionStarted: boolean;
         analyst: { name: string };
         report: {
-          performanceDiff: { agentOutperforming: boolean };
+          performanceDiff: { aiOutperforming: boolean };
           contextDiff: { perspectiveChanged: boolean };
           suggestions: string[];
         };
@@ -304,7 +304,7 @@ describe('LearningSessionHandler', () => {
 
       expect(data.sessionStarted).toBe(true);
       expect(data.analyst.name).toBe('Technical Tina');
-      expect(data.report.performanceDiff.agentOutperforming).toBe(true);
+      expect(data.report.performanceDiff.aiOutperforming).toBe(true);
       expect(data.report.contextDiff.perspectiveChanged).toBe(true);
       expect(data.report.suggestions.length).toBeGreaterThan(0);
     });
@@ -364,7 +364,7 @@ describe('LearningSessionHandler', () => {
       const newExchange: ForkLearningExchange = {
         id: 'exchange-agent',
         analyst_id: 'analyst-1',
-        initiated_by: 'agent',
+        initiated_by: 'ai',
         question: 'Why did you take 2x on this trade?',
         outcome: 'pending',
         created_at: new Date().toISOString(),
@@ -383,7 +383,7 @@ describe('LearningSessionHandler', () => {
       expect(result.success).toBe(true);
       expect(portfolioRepository.createLearningExchange).toHaveBeenCalledWith(
         'analyst-1',
-        'agent',
+        'ai',
         'Why did you take 2x on this trade?',
         expect.any(Object),
         undefined,
@@ -487,7 +487,7 @@ describe('LearningSessionHandler', () => {
       expect(stats.outcomes.adopted).toBe(1);
       expect(stats.outcomes.pending).toBe(1);
       expect(stats.initiators.user).toBe(1);
-      expect(stats.initiators.agent).toBe(1);
+      expect(stats.initiators.ai).toBe(1);
     });
   });
 

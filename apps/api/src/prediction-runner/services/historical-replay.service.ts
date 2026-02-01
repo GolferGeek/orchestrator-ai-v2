@@ -249,10 +249,10 @@ export class HistoricalReplayService {
 
   /**
    * Step 3: Sync test instruments with production instrument contexts
-   * Copies current learnings/contexts from production (user fork) to test (agent fork)
+   * Copies current learnings/contexts from production (user fork) to test (ai fork)
    *
-   * The agent fork acts as the "test" version that we're validating.
-   * We copy the current user fork contexts to agent fork to test current learnings.
+   * The ai fork acts as the "test" version that we're validating.
+   * We copy the current user fork contexts to ai fork to test current learnings.
    *
    * Also copies all active learnings as test learnings for the test pipeline.
    */
@@ -288,7 +288,7 @@ export class HistoricalReplayService {
           // This effectively "syncs" test instruments with production
           await this.analystRepository.createContextVersion(
             analyst.id,
-            'agent',
+            'ai',
             userContext.perspective,
             userContext.tier_instructions,
             userContext.default_weight,

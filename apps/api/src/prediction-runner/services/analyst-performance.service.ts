@@ -455,15 +455,15 @@ export class AnalystPerformanceService {
     }
 
     if (agentAssessments.length > 0) {
-      // Build a pseudo ensemble result for agent fork
-      const agentEnsembleDirection =
+      // Build a pseudo ensemble result for ai fork
+      const aiEnsembleDirection =
         this.calculateMajorityDirection(agentAssessments);
       for (const assessment of agentAssessments) {
         this.trackDissent({
           analystId: assessment.analyst.analyst_id,
-          forkType: 'agent',
+          forkType: 'ai',
           analystDirection: assessment.direction,
-          ensembleDirection: agentEnsembleDirection,
+          ensembleDirection: aiEnsembleDirection,
           actualDirection,
         });
       }

@@ -356,7 +356,7 @@ hr {
   --background: rgba(var(--ion-color-primary-rgb), var(--app-accent-opacity)) !important;
   --ion-background-color: rgba(var(--ion-color-primary-rgb), var(--app-accent-opacity)) !important;
   border-radius: 6px !important;
-  margin: 2px 0 !important;
+  margin: 4px 8px !important; /* Horizontal margin for breathing room from edges */
   font-weight: 500 !important;
   /* Use text color that adapts to theme - dark in light mode, removed !important so dark mode can override */
   --color: var(--ion-color-dark);
@@ -376,7 +376,7 @@ ion-accordion ion-item {
 
 /* Main navigation accordion content */
 .main-nav-content {
-  padding: 0;
+  padding: 0 8px;
   background: white !important;
   display: block !important;
   visibility: visible !important;
@@ -451,7 +451,7 @@ ion-split-pane {
 
 /* Agents & Conversations accordion content */
 .agents-content {
-  padding: 0;
+  padding: 0 8px;
   flex: 1;
   min-height: 0; /* Allow flex child to shrink */
   overflow-y: auto;
@@ -477,41 +477,20 @@ ion-split-pane {
   min-width: 40px;
 }
 /* Compact styles for tree view in menu - Updated selectors */
-.agents-content :deep(.agent-tree-view) {
-  padding-left: 32px; /* Indent entire agent tree */
+.agents-content :deep(.agent-tree-container) {
+  padding: 0; /* Let the container handle its own padding */
 }
 
-.agents-content :deep(.organization-header) {
-  margin-left: 16px; /* Indent organization headers */
+.agents-content :deep(.hierarchy-container) {
+  padding: 0 4px; /* Minimal additional padding */
 }
 
-.agents-content :deep(.agent-section) {
-  margin-left: 32px; /* Indent agent sections */
+.agents-content :deep(.agent-group) {
+  margin: 0; /* Remove excessive margins */
 }
 
-.agents-content :deep(.agent-header-button) {
-  margin-left: 16px; /* Indent agent headers */
-}
-
-.agents-content :deep(.agent-type-content) {
-  padding-left: 24px; /* Indent agent type content */
-}
-
-/* Legacy selectors for backward compatibility */
-.agents-content :deep(.department-section) {
-  margin-left: 48px;
-}
-
-.agents-content :deep(.department-header) {
-  padding: 0.5rem 1rem;
-  font-size: 0.9rem;
-  margin-left: 32px;
-}
-
-.agents-content :deep(.agent-item) {
-  padding: 0.5rem 1.5rem;
-  font-size: 0.85rem;
-  margin-left: 64px;
+.agents-content :deep(.org-section) {
+  margin-bottom: 8px;
 }
 /* Dark theme support for navigation - class-based */
 :global(html.ion-palette-dark) ion-item.selected,

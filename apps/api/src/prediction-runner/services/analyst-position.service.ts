@@ -29,15 +29,19 @@ export interface PositionCreationResult {
 /**
  * Service for managing analyst positions based on their assessments
  * Handles position sizing, creation, and P&L tracking per fork
+ *
+ * Position sizing is tiered based on confidence (configurable in database):
+ * - 60-70% confidence → 5% of portfolio
+ * - 70-80% confidence → 10% of portfolio
+ * - 80%+ confidence → 15% of portfolio
  */
 @Injectable()
 export class AnalystPositionService {
   private readonly logger = new Logger(AnalystPositionService.name);
 
-  // Default position sizing parameters
-  private readonly DEFAULT_RISK_PERCENT = 0.02; // 2% risk per trade
-  private readonly DEFAULT_STOP_DISTANCE_PERCENT = 0.05; // 5% stop loss
-  private readonly CONFIDENCE_BASELINE = 0.7; // Confidence normalization baseline
+  // Default position sizing parameters (used as fallback)
+  private readonly DEFAULT_POSITION_PERCENT = 0.05; // 5% default position
+  private readonly MIN_CONFIDENCE_FOR_POSITION = 0.6; // Minimum 60% confidence to take position
 
   constructor(private readonly portfolioRepository: PortfolioRepository) {}
 
@@ -67,7 +71,7 @@ export class AnalystPositionService {
     }
 
     // Skip if portfolio is suspended (paper-only mode)
-    if (portfolio.status === 'suspended' && forkType === 'agent') {
+    if (portfolio.status === 'suspended' && forkType === 'ai') {
       this.logger.log(
         `Analyst ${assessment.analyst.slug} is suspended - creating paper-only position`,
       );
@@ -82,8 +86,8 @@ export class AnalystPositionService {
       return null;
     }
 
-    // Calculate position size based on confidence
-    const quantity = this.calculatePositionSize(
+    // Calculate position size based on confidence (using tiered sizing from DB)
+    const quantity = await this.calculatePositionSize(
       portfolio.current_balance,
       entryPrice,
       assessment.confidence,
@@ -128,10 +132,10 @@ export class AnalystPositionService {
     predictionId?: string,
   ): Promise<{
     userPositions: PositionCreationResult[];
-    agentPositions: PositionCreationResult[];
+    aiPositions: PositionCreationResult[];
   }> {
     const userPositions: PositionCreationResult[] = [];
-    const agentPositions: PositionCreationResult[] = [];
+    const aiPositions: PositionCreationResult[] = [];
 
     // Create user fork positions
     for (const assessment of userAssessments) {
@@ -156,13 +160,13 @@ export class AnalystPositionService {
     for (const assessment of agentAssessments) {
       try {
         const result = await this.createPositionFromAssessment({
-          assessment: { ...assessment, fork_type: 'agent' },
+          assessment: { ...assessment, fork_type: 'ai' },
           target,
           entryPrice,
           predictionId,
         });
         if (result) {
-          agentPositions.push(result);
+          aiPositions.push(result);
         }
       } catch (error) {
         this.logger.error(
@@ -172,44 +176,61 @@ export class AnalystPositionService {
     }
 
     this.logger.log(
-      `Created ${userPositions.length} user positions and ${agentPositions.length} agent positions for ${target.symbol}`,
+      `Created ${userPositions.length} user positions and ${aiPositions.length} ai positions for ${target.symbol}`,
     );
 
-    return { userPositions, agentPositions };
+    return { userPositions, aiPositions };
   }
 
   /**
    * Calculate position size based on portfolio balance and confidence
-   * Uses confidence-weighted sizing: higher confidence = larger position
+   * Uses tiered position sizing from database configuration:
+   * - 60-70% confidence → 5% of portfolio
+   * - 70-80% confidence → 10% of portfolio
+   * - 80%+ confidence → 15% of portfolio
    *
-   * Formula: base_quantity * (confidence / 0.7)
-   * Where base_quantity = (balance * risk%) / (entry_price * stop_distance%)
+   * Formula: quantity = (balance * position_percent) / entry_price
    */
-  calculatePositionSize(
+  async calculatePositionSize(
     portfolioBalance: number,
     entryPrice: number,
     confidence: number,
-    riskPercent: number = this.DEFAULT_RISK_PERCENT,
-    stopDistancePercent: number = this.DEFAULT_STOP_DISTANCE_PERCENT,
-  ): number {
-    if (stopDistancePercent <= 0 || entryPrice <= 0) {
+    orgSlug: string = '*',
+  ): Promise<number> {
+    if (entryPrice <= 0) {
       return 0;
     }
 
-    // Calculate risk amount
-    const riskAmount = portfolioBalance * riskPercent;
+    // Require minimum confidence to take a position
+    if (confidence < this.MIN_CONFIDENCE_FOR_POSITION) {
+      this.logger.debug(
+        `Confidence ${(confidence * 100).toFixed(1)}% below minimum threshold ${(this.MIN_CONFIDENCE_FOR_POSITION * 100).toFixed(1)}%`,
+      );
+      return 0;
+    }
 
-    // Calculate stop distance in dollars
-    const stopDistance = entryPrice * stopDistancePercent;
+    // Get the position percent for this confidence level from database
+    let positionPercent: number;
+    try {
+      positionPercent =
+        await this.portfolioRepository.getPositionPercentForConfidence(
+          confidence,
+          orgSlug,
+        );
+    } catch (error) {
+      this.logger.warn(
+        `Failed to get position sizing config, using default: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      positionPercent = this.DEFAULT_POSITION_PERCENT;
+    }
 
-    // Base quantity (how many shares/units we can buy given the risk)
-    const baseQuantity = riskAmount / stopDistance;
+    // Calculate position value and quantity
+    const positionValue = portfolioBalance * positionPercent;
+    const quantity = Math.floor(positionValue / entryPrice);
 
-    // Apply confidence multiplier (normalized to 70% baseline)
-    const confidenceMultiplier = confidence / this.CONFIDENCE_BASELINE;
-
-    // Final quantity
-    const quantity = Math.floor(baseQuantity * confidenceMultiplier);
+    this.logger.debug(
+      `Position sizing: confidence=${(confidence * 100).toFixed(1)}%, tier=${(positionPercent * 100).toFixed(0)}%, value=$${positionValue.toFixed(2)}, quantity=${quantity}`,
+    );
 
     return Math.max(0, quantity);
   }

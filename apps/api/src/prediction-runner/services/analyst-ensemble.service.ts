@@ -44,12 +44,12 @@ export interface EnsembleOptions {
 }
 
 /**
- * Result from running dual-fork ensemble
+ * Result from running dual-fork ensemble (deprecated - use ThreeWayForkEnsembleResult)
  */
 export interface DualForkEnsembleResult {
   // Assessments organized by fork type
   userForkAssessments: AnalystAssessmentResult[];
-  agentForkAssessments: AnalystAssessmentResult[];
+  aiForkAssessments: AnalystAssessmentResult[];
   // Aggregated results per fork
   userForkAggregated: {
     direction: string;
@@ -57,7 +57,7 @@ export interface DualForkEnsembleResult {
     consensus_strength: number;
     reasoning: string;
   };
-  agentForkAggregated: {
+  aiForkAggregated: {
     direction: string;
     confidence: number;
     consensus_strength: number;
@@ -65,6 +65,43 @@ export interface DualForkEnsembleResult {
   };
   // Combined result (defaults to user fork for backward compatibility)
   combined: EnsembleResult;
+}
+
+/**
+ * Aggregated result for a single fork
+ */
+export interface ForkAggregatedResult {
+  direction: string;
+  confidence: number;
+  consensus_strength: number;
+  reasoning: string;
+}
+
+/**
+ * Result from running three-way fork ensemble
+ * Each analyst runs 3 times with different context modes:
+ * - user: User-maintained context section only
+ * - ai: AI-maintained context section only
+ * - arbitrator: Combines both sections for final call
+ */
+export interface ThreeWayForkEnsembleResult {
+  // Assessments organized by fork type
+  userForkAssessments: AnalystAssessmentResult[];
+  aiForkAssessments: AnalystAssessmentResult[];
+  arbitratorForkAssessments: AnalystAssessmentResult[];
+  // Aggregated results per fork
+  userForkAggregated: ForkAggregatedResult;
+  aiForkAggregated: ForkAggregatedResult;
+  arbitratorForkAggregated: ForkAggregatedResult;
+  // Final result uses arbitrator for the prediction
+  final: EnsembleResult;
+  // Metadata for comparison
+  metadata: {
+    totalAnalysts: number;
+    userVsAiAgreement: number; // Percentage of analysts where user and ai agree
+    arbitratorAgreesWithUser: number; // Percentage of arbitrator decisions that match user
+    arbitratorAgreesWithAi: number; // Percentage of arbitrator decisions that match ai
+  };
 }
 
 @Injectable()
@@ -147,7 +184,7 @@ export class AnalystEnsembleService {
   }
 
   /**
-   * Run dual-fork ensemble - generates assessments for both user and agent forks
+   * Run dual-fork ensemble - generates assessments for both user and ai forks
    * This is the main entry point for the dual-fork system
    */
   async runDualForkEnsemble(
@@ -178,12 +215,12 @@ export class AnalystEnsembleService {
     // Get context versions for all analysts (both forks)
     const userContextVersions =
       await this.analystRepository.getAllCurrentContextVersions('user');
-    const agentContextVersions =
-      await this.analystRepository.getAllCurrentContextVersions('agent');
+    const aiContextVersions =
+      await this.analystRepository.getAllCurrentContextVersions('ai');
 
     // Run assessments for both forks
     const userForkAssessments: AnalystAssessmentResult[] = [];
-    const agentForkAssessments: AnalystAssessmentResult[] = [];
+    const aiForkAssessments: AnalystAssessmentResult[] = [];
 
     for (const analyst of analysts) {
       // User fork assessment
@@ -205,24 +242,22 @@ export class AnalystEnsembleService {
         );
       }
 
-      // Agent fork assessment
+      // AI fork assessment
       try {
-        const agentContextVersion = agentContextVersions.get(
-          analyst.analyst_id,
-        );
-        const agentAssessment = await this.runAnalystAssessmentWithFork(
+        const aiContextVersion = aiContextVersions.get(analyst.analyst_id);
+        const aiAssessment = await this.runAnalystAssessmentWithFork(
           baseContext,
           analyst,
           target,
           input,
           resolutionContext,
-          'agent',
-          agentContextVersion,
+          'ai',
+          aiContextVersion,
         );
-        agentForkAssessments.push(agentAssessment);
+        aiForkAssessments.push(aiAssessment);
       } catch (error) {
         this.logger.error(
-          `Failed to run agent fork for analyst ${analyst.slug}: ${error instanceof Error ? error.message : String(error)}`,
+          `Failed to run ai fork for analyst ${analyst.slug}: ${error instanceof Error ? error.message : String(error)}`,
         );
       }
     }
@@ -240,33 +275,381 @@ export class AnalystEnsembleService {
             reasoning: 'No user fork assessments available',
           };
 
-    const agentForkAggregated =
-      agentForkAssessments.length > 0
-        ? this.aggregateAssessments(agentForkAssessments, aggregationMethod)
+    const aiForkAggregated =
+      aiForkAssessments.length > 0
+        ? this.aggregateAssessments(aiForkAssessments, aggregationMethod)
         : {
             direction: 'neutral',
             confidence: 0,
             consensus_strength: 0,
-            reasoning: 'No agent fork assessments available',
+            reasoning: 'No ai fork assessments available',
           };
 
     // Combined result uses user fork for backward compatibility
     const combined: EnsembleResult = {
-      assessments: [...userForkAssessments, ...agentForkAssessments],
+      assessments: [...userForkAssessments, ...aiForkAssessments],
       aggregated: userForkAggregated,
     };
 
     this.logger.log(
-      `Dual-fork ensemble complete: user=${userForkAssessments.length}, agent=${agentForkAssessments.length} assessments`,
+      `Dual-fork ensemble complete: user=${userForkAssessments.length}, ai=${aiForkAssessments.length} assessments`,
     );
 
     return {
       userForkAssessments,
-      agentForkAssessments,
+      aiForkAssessments,
       userForkAggregated,
-      agentForkAggregated,
+      aiForkAggregated,
       combined,
     };
+  }
+
+  /**
+   * Run three-way fork ensemble - generates assessments for user, ai, and arbitrator forks
+   * Each analyst runs 3 times with different context modes:
+   * - user: Uses only user-maintained context section
+   * - ai: Uses only AI-maintained context section
+   * - arbitrator: Combines both user and ai context sections for the final call
+   *
+   * The arbitrator fork is used for the final prediction, while user and ai forks
+   * are tracked separately for performance comparison.
+   */
+  async runThreeWayForkEnsemble(
+    baseContext: ExecutionContext,
+    target: Target,
+    input: EnsembleInput,
+    options?: EnsembleOptions,
+  ): Promise<ThreeWayForkEnsembleResult> {
+    this.logger.log(
+      `Running three-way fork ensemble for target: ${target.symbol}`,
+    );
+
+    // Get active analysts for this target
+    const analysts = await this.analystService.getActiveAnalysts(target.id);
+    if (analysts.length === 0) {
+      this.logger.warn(`No active analysts for target: ${target.id}`);
+      throw new Error('No active analysts available for evaluation');
+    }
+    this.logger.log(
+      `Found ${analysts.length} active analysts, running three-way fork assessments`,
+    );
+
+    // Build resolution context
+    const resolutionContext: TierResolutionContext = {
+      targetLlmConfig: options?.llmConfigContext?.targetConfig,
+      universeLlmConfig: options?.llmConfigContext?.universeConfig,
+      agentLlmConfig: options?.llmConfigContext?.agentConfig,
+    };
+
+    // Get context versions for all three forks
+    const userContextVersions =
+      await this.analystRepository.getAllCurrentContextVersions('user');
+    const aiContextVersions =
+      await this.analystRepository.getAllCurrentContextVersions('ai');
+    // Arbitrator uses both - we'll combine them in the assessment method
+
+    // Run assessments for all three forks
+    const userForkAssessments: AnalystAssessmentResult[] = [];
+    const aiForkAssessments: AnalystAssessmentResult[] = [];
+    const arbitratorForkAssessments: AnalystAssessmentResult[] = [];
+
+    for (const analyst of analysts) {
+      // User fork assessment
+      try {
+        const userContextVersion = userContextVersions.get(analyst.analyst_id);
+        const userAssessment = await this.runAnalystAssessmentWithFork(
+          baseContext,
+          analyst,
+          target,
+          input,
+          resolutionContext,
+          'user',
+          userContextVersion,
+        );
+        userForkAssessments.push(userAssessment);
+      } catch (error) {
+        this.logger.error(
+          `Failed to run user fork for analyst ${analyst.slug}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+
+      // AI fork assessment
+      try {
+        const aiContextVersion = aiContextVersions.get(analyst.analyst_id);
+        const aiAssessment = await this.runAnalystAssessmentWithFork(
+          baseContext,
+          analyst,
+          target,
+          input,
+          resolutionContext,
+          'ai',
+          aiContextVersion,
+        );
+        aiForkAssessments.push(aiAssessment);
+      } catch (error) {
+        this.logger.error(
+          `Failed to run ai fork for analyst ${analyst.slug}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+
+      // Arbitrator fork assessment - combines both contexts
+      try {
+        const userContextVersion = userContextVersions.get(analyst.analyst_id);
+        const aiContextVersion = aiContextVersions.get(analyst.analyst_id);
+
+        // Combine contexts for arbitrator
+        const arbitratorContextVersion = this.combineContextVersions(
+          userContextVersion,
+          aiContextVersion,
+        );
+
+        const arbitratorAssessment = await this.runAnalystAssessmentWithFork(
+          baseContext,
+          analyst,
+          target,
+          input,
+          resolutionContext,
+          'arbitrator',
+          arbitratorContextVersion,
+        );
+        arbitratorForkAssessments.push(arbitratorAssessment);
+      } catch (error) {
+        this.logger.error(
+          `Failed to run arbitrator fork for analyst ${analyst.slug}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+
+    // Aggregate results per fork
+    const aggregationMethod = options?.aggregationMethod || 'weighted_ensemble';
+
+    const userForkAggregated =
+      userForkAssessments.length > 0
+        ? this.aggregateAssessments(userForkAssessments, aggregationMethod)
+        : {
+            direction: 'neutral',
+            confidence: 0,
+            consensus_strength: 0,
+            reasoning: 'No user fork assessments available',
+          };
+
+    const aiForkAggregated =
+      aiForkAssessments.length > 0
+        ? this.aggregateAssessments(aiForkAssessments, aggregationMethod)
+        : {
+            direction: 'neutral',
+            confidence: 0,
+            consensus_strength: 0,
+            reasoning: 'No ai fork assessments available',
+          };
+
+    const arbitratorForkAggregated =
+      arbitratorForkAssessments.length > 0
+        ? this.aggregateAssessments(
+            arbitratorForkAssessments,
+            aggregationMethod,
+          )
+        : {
+            direction: 'neutral',
+            confidence: 0,
+            consensus_strength: 0,
+            reasoning: 'No arbitrator fork assessments available',
+          };
+
+    // Final result uses arbitrator fork (it has the full context)
+    const final: EnsembleResult = {
+      assessments: [
+        ...userForkAssessments,
+        ...aiForkAssessments,
+        ...arbitratorForkAssessments,
+      ],
+      aggregated: arbitratorForkAggregated,
+    };
+
+    // Calculate metadata for comparison
+    const metadata = this.calculateThreeWayMetadata(
+      userForkAssessments,
+      aiForkAssessments,
+      arbitratorForkAssessments,
+    );
+
+    this.logger.log(
+      `Three-way fork ensemble complete: user=${userForkAssessments.length}, ai=${aiForkAssessments.length}, arbitrator=${arbitratorForkAssessments.length} assessments`,
+    );
+    this.logger.log(
+      `User vs AI agreement: ${(metadata.userVsAiAgreement * 100).toFixed(1)}%, Arbitrator agrees with user: ${(metadata.arbitratorAgreesWithUser * 100).toFixed(1)}%, with AI: ${(metadata.arbitratorAgreesWithAi * 100).toFixed(1)}%`,
+    );
+
+    return {
+      userForkAssessments,
+      aiForkAssessments,
+      arbitratorForkAssessments,
+      userForkAggregated,
+      aiForkAggregated,
+      arbitratorForkAggregated,
+      final,
+      metadata,
+    };
+  }
+
+  /**
+   * Combine user and AI context versions for the arbitrator fork
+   * Merges both perspectives and tier instructions
+   */
+  private combineContextVersions(
+    userVersion?: AnalystContextVersion,
+    aiVersion?: AnalystContextVersion,
+  ): AnalystContextVersion | undefined {
+    if (!userVersion && !aiVersion) {
+      return undefined;
+    }
+
+    // If only one exists, use it
+    if (!userVersion) return aiVersion;
+    if (!aiVersion) return userVersion;
+
+    // Combine tier instructions from both versions
+    const combinedTierInstructions: Record<string, string | undefined> = {};
+
+    // Add user tier instructions with prefix
+    for (const [tier, instructions] of Object.entries(
+      userVersion.tier_instructions,
+    )) {
+      if (instructions) {
+        combinedTierInstructions[tier] =
+          `## User Instructions\n${instructions}`;
+      }
+    }
+
+    // Add AI tier instructions (merge with existing if same tier)
+    for (const [tier, instructions] of Object.entries(
+      aiVersion.tier_instructions,
+    )) {
+      if (instructions) {
+        if (combinedTierInstructions[tier]) {
+          combinedTierInstructions[tier] =
+            `${combinedTierInstructions[tier]}\n\n## AI Instructions\n${instructions}`;
+        } else {
+          combinedTierInstructions[tier] =
+            `## AI Instructions\n${instructions}`;
+        }
+      }
+    }
+
+    // Combine both contexts
+    return {
+      id: `arbitrator-${userVersion.analyst_id}`,
+      analyst_id: userVersion.analyst_id,
+      fork_type: 'arbitrator',
+      version_number: Math.max(
+        userVersion.version_number,
+        aiVersion.version_number,
+      ),
+      // Combine perspectives with clear section markers
+      perspective: `## User-Maintained Context\n${userVersion.perspective}\n\n## AI-Maintained Context\n${aiVersion.perspective}`,
+      // Combine tier instructions
+      tier_instructions: combinedTierInstructions,
+      default_weight: Math.max(
+        userVersion.default_weight,
+        aiVersion.default_weight,
+      ),
+      agent_journal: aiVersion.agent_journal, // Use AI's journal if present
+      changed_by: 'system', // Arbitrator is system-generated
+      is_current: true,
+      created_at: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Calculate metadata comparing the three forks
+   */
+  private calculateThreeWayMetadata(
+    userAssessments: AnalystAssessmentResult[],
+    aiAssessments: AnalystAssessmentResult[],
+    arbitratorAssessments: AnalystAssessmentResult[],
+  ): ThreeWayForkEnsembleResult['metadata'] {
+    const totalAnalysts = Math.max(
+      userAssessments.length,
+      aiAssessments.length,
+      arbitratorAssessments.length,
+    );
+
+    if (totalAnalysts === 0) {
+      return {
+        totalAnalysts: 0,
+        userVsAiAgreement: 0,
+        arbitratorAgreesWithUser: 0,
+        arbitratorAgreesWithAi: 0,
+      };
+    }
+
+    // Build lookup maps by analyst ID
+    const userByAnalyst = new Map(
+      userAssessments.map((a) => [a.analyst.analyst_id, a]),
+    );
+    const aiByAnalyst = new Map(
+      aiAssessments.map((a) => [a.analyst.analyst_id, a]),
+    );
+    const arbitratorByAnalyst = new Map(
+      arbitratorAssessments.map((a) => [a.analyst.analyst_id, a]),
+    );
+
+    let userAiAgreements = 0;
+    let arbitratorUserAgreements = 0;
+    let arbitratorAiAgreements = 0;
+    let comparisons = 0;
+
+    // Compare directions across forks for each analyst
+    for (const [analystId, userAssessment] of userByAnalyst) {
+      const aiAssessment = aiByAnalyst.get(analystId);
+      const arbitratorAssessment = arbitratorByAnalyst.get(analystId);
+
+      if (aiAssessment) {
+        comparisons++;
+        // Normalize directions for comparison
+        const userDir = this.normalizeDirection(userAssessment.direction);
+        const aiDir = this.normalizeDirection(aiAssessment.direction);
+
+        if (userDir === aiDir) {
+          userAiAgreements++;
+        }
+
+        if (arbitratorAssessment) {
+          const arbDir = this.normalizeDirection(
+            arbitratorAssessment.direction,
+          );
+          if (arbDir === userDir) {
+            arbitratorUserAgreements++;
+          }
+          if (arbDir === aiDir) {
+            arbitratorAiAgreements++;
+          }
+        }
+      }
+    }
+
+    return {
+      totalAnalysts,
+      userVsAiAgreement: comparisons > 0 ? userAiAgreements / comparisons : 0,
+      arbitratorAgreesWithUser:
+        comparisons > 0 ? arbitratorUserAgreements / comparisons : 0,
+      arbitratorAgreesWithAi:
+        comparisons > 0 ? arbitratorAiAgreements / comparisons : 0,
+    };
+  }
+
+  /**
+   * Normalize direction strings for comparison
+   */
+  private normalizeDirection(direction: string): string {
+    const normalized = direction.toLowerCase();
+    if (['bullish', 'up', 'buy', 'long'].includes(normalized)) {
+      return 'bullish';
+    }
+    if (['bearish', 'down', 'sell', 'short'].includes(normalized)) {
+      return 'bearish';
+    }
+    return 'neutral';
   }
 
   /**
@@ -283,27 +666,33 @@ export class AnalystEnsembleService {
   ): Promise<AnalystAssessmentResult> {
     const tier = analyst.effective_tier;
 
-    // Get learnings for this analyst (learnings only apply to user fork)
+    // Get learnings for this analyst
+    // User fork: uses learnings (user-maintained context)
+    // AI fork: no learnings (self-adapts)
+    // Arbitrator fork: uses learnings (has full context including user-maintained learnings)
     const learnings =
-      forkType === 'user'
+      forkType === 'user' || forkType === 'arbitrator'
         ? await this.learningService.getActiveLearnings(
             target.id,
             tier,
             analyst.analyst_id,
           )
-        : []; // Agent fork doesn't use learnings - it self-adapts
+        : []; // AI fork doesn't use learnings - it self-adapts
 
-    // For agent fork, check status and get effective weight
+    // For ai and arbitrator forks, check status and get effective weight
     let effectiveWeight = analyst.effective_weight;
     let shouldInclude = true;
     let performanceContextMarkdown: string | undefined;
 
-    if (forkType === 'agent') {
-      // Get performance context for agent fork
+    if (forkType === 'ai' || forkType === 'arbitrator') {
+      // Get performance context for ai/arbitrator forks
+      // For arbitrator, we use 'ai' fork type to look up performance since
+      // arbitrator combines both and we track its performance via the ai metrics
+      const performanceForkType = forkType === 'arbitrator' ? 'ai' : forkType;
       const performanceContext =
         await this.analystMotivationService.buildPerformanceContext(
           analyst.analyst_id,
-          forkType,
+          performanceForkType,
         );
 
       if (performanceContext) {

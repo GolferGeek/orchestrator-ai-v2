@@ -122,7 +122,7 @@ describe('PortfolioRepository', () => {
         {
           id: 'portfolio-002',
           analyst_id: 'analyst-456',
-          fork_type: 'agent' as ForkType,
+          fork_type: 'ai' as ForkType,
           initial_balance: 1000000,
           current_balance: 950000,
         },
@@ -404,8 +404,7 @@ describe('PortfolioRepository', () => {
         error: null,
       });
 
-      const result =
-        await repository.getAllCurrentAnalystContextVersions('agent');
+      const result = await repository.getAllCurrentAnalystContextVersions('ai');
 
       expect(result).toBeInstanceOf(Map);
       expect(result.size).toBe(0);

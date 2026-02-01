@@ -45,7 +45,7 @@ describe('AnalystService', () => {
   const mockAgentPortfolio = {
     id: 'portfolio-agent-001',
     analyst_id: 'analyst-123',
-    fork_type: 'agent' as ForkType,
+    fork_type: 'ai' as ForkType,
     initial_balance: 1000000,
     current_balance: 1000000,
     total_realized_pnl: 0,
@@ -80,7 +80,7 @@ describe('AnalystService', () => {
         }),
       createAnalystPortfolios: jest.fn().mockResolvedValue({
         userPortfolio: mockUserPortfolio,
-        agentPortfolio: mockAgentPortfolio,
+        aiPortfolio: mockAgentPortfolio,
       }),
       getAnalystPortfolio: jest
         .fn()
@@ -195,14 +195,14 @@ describe('AnalystService', () => {
       const result = await service.getAnalystPortfolios('analyst-123');
 
       expect(result.user).toEqual(mockUserPortfolio);
-      expect(result.agent).toEqual(mockAgentPortfolio);
+      expect(result.ai).toEqual(mockAgentPortfolio);
       expect(mockPortfolioRepository.getAnalystPortfolio).toHaveBeenCalledWith(
         'analyst-123',
         'user',
       );
       expect(mockPortfolioRepository.getAnalystPortfolio).toHaveBeenCalledWith(
         'analyst-123',
-        'agent',
+        'ai',
       );
     });
 
@@ -214,7 +214,7 @@ describe('AnalystService', () => {
       const result = await service.getAnalystPortfolios('analyst-123');
 
       expect(result.user).toBeNull();
-      expect(result.agent).toBeNull();
+      expect(result.ai).toBeNull();
     });
   });
 
@@ -227,7 +227,7 @@ describe('AnalystService', () => {
       const result = await service.ensureAnalystPortfolios('analyst-123');
 
       expect(result.userPortfolio).toEqual(mockUserPortfolio);
-      expect(result.agentPortfolio).toEqual(mockAgentPortfolio);
+      expect(result.aiPortfolio).toEqual(mockAgentPortfolio);
       // Should not create new portfolios
       expect(
         mockPortfolioRepository.createAnalystPortfolio,
@@ -239,9 +239,7 @@ describe('AnalystService', () => {
         mockPortfolioRepository.getAnalystPortfolio as jest.Mock
       ).mockImplementation((analystId, forkType) => {
         // Return null for user, existing for agent
-        return Promise.resolve(
-          forkType === 'agent' ? mockAgentPortfolio : null,
-        );
+        return Promise.resolve(forkType === 'ai' ? mockAgentPortfolio : null);
       });
 
       const result = await service.ensureAnalystPortfolios('analyst-123');
@@ -251,9 +249,9 @@ describe('AnalystService', () => {
       ).toHaveBeenCalledWith('analyst-123', 'user');
       expect(
         mockPortfolioRepository.createAnalystPortfolio,
-      ).not.toHaveBeenCalledWith('analyst-123', 'agent');
+      ).not.toHaveBeenCalledWith('analyst-123', 'ai');
       expect(result.userPortfolio).toEqual(mockUserPortfolio);
-      expect(result.agentPortfolio).toEqual(mockAgentPortfolio);
+      expect(result.aiPortfolio).toEqual(mockAgentPortfolio);
     });
 
     it('should create missing agent portfolio', async () => {
@@ -271,9 +269,9 @@ describe('AnalystService', () => {
       ).not.toHaveBeenCalledWith('analyst-123', 'user');
       expect(
         mockPortfolioRepository.createAnalystPortfolio,
-      ).toHaveBeenCalledWith('analyst-123', 'agent');
+      ).toHaveBeenCalledWith('analyst-123', 'ai');
       expect(result.userPortfolio).toEqual(mockUserPortfolio);
-      expect(result.agentPortfolio).toEqual(mockAgentPortfolio);
+      expect(result.aiPortfolio).toEqual(mockAgentPortfolio);
     });
 
     it('should create both portfolios if neither exists', async () => {
@@ -288,9 +286,9 @@ describe('AnalystService', () => {
       ).toHaveBeenCalledWith('analyst-123', 'user');
       expect(
         mockPortfolioRepository.createAnalystPortfolio,
-      ).toHaveBeenCalledWith('analyst-123', 'agent');
+      ).toHaveBeenCalledWith('analyst-123', 'ai');
       expect(result.userPortfolio).toEqual(mockUserPortfolio);
-      expect(result.agentPortfolio).toEqual(mockAgentPortfolio);
+      expect(result.aiPortfolio).toEqual(mockAgentPortfolio);
     });
   });
 

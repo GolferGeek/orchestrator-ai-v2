@@ -5,10 +5,31 @@
 
 /**
  * Fork type for analyst context versioning
- * - user: Controlled by learning loop and user's explicit changes
- * - agent: Self-improving, controlled by the analyst itself
+ * - user: User-maintained context section
+ * - ai: AI-maintained context section (self-improving)
+ * - arbitrator: Combines both sections, makes final call
  */
-export type ForkType = 'user' | 'agent';
+export type ForkType = 'user' | 'ai' | 'arbitrator';
+
+/**
+ * Context mode for predictions - which context produced the prediction
+ */
+export type ContextMode = 'user' | 'ai' | 'arbitrator' | 'combined';
+
+/**
+ * Position sizing configuration tier
+ */
+export interface PositionSizingConfig {
+  id: string;
+  org_slug: string;
+  tier_name: string;
+  min_confidence: number;
+  max_confidence: number;
+  position_percent: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 /**
  * Portfolio status for agent fork (motivation system)
@@ -246,7 +267,7 @@ export interface AnalystAdaptationDiff {
  * Fork learning exchange - bidirectional learning dialogue
  */
 export type LearningOutcome = 'adopted' | 'rejected' | 'noted' | 'pending';
-export type ExchangeInitiator = 'user' | 'agent';
+export type ExchangeInitiator = 'user' | 'ai';
 
 export interface ForkLearningExchange {
   id: string;

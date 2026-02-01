@@ -353,7 +353,7 @@ describe('AnalystPerformanceService', () => {
 
       service.trackDissent({
         analystId: 'analyst-1',
-        forkType: 'agent',
+        forkType: 'ai',
         analystDirection: 'bearish',
         ensembleDirection: 'bullish',
         actualDirection: 'bullish',
@@ -367,7 +367,7 @@ describe('AnalystPerformanceService', () => {
       );
       const agentResult = service.calculateDissentAccuracy(
         'analyst-1',
-        'agent',
+        'ai',
         today,
       );
 
@@ -727,7 +727,7 @@ describe('AnalystPerformanceService', () => {
       // But since there's only one assessment, the majority IS bearish
       const agentDissent = service.calculateDissentAccuracy(
         'analyst-1',
-        'agent',
+        'ai',
         today,
       );
       expect(agentDissent.count).toBe(0); // No dissent when agreeing with self
