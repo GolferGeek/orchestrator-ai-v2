@@ -1,17 +1,17 @@
 <template>
   <div class="legal-department-conversation">
     <!-- Loading State -->
-    <div v-if="isLoading" class="loading-container">
+    <div v-if="isLoading || isLoadingExisting" class="loading-container">
       <ion-spinner name="crescent" />
-      <p>Initializing Legal Department AI...</p>
+      <p>{{ isLoadingExisting ? 'Loading previous analysis...' : 'Initializing Legal Department AI...' }}</p>
     </div>
 
     <!-- Main Conversation Pane -->
     <template v-else>
       <!-- Scrollable Response Area -->
       <div class="response-area" ref="responseAreaRef">
-        <!-- Welcome State (no request yet) -->
-        <div v-if="!hasActiveRequest && !analysisResults" class="welcome-state">
+        <!-- Welcome State (no request yet, and not loading existing, and no load error) -->
+        <div v-if="!hasActiveRequest && !analysisResults && !isLoadingExisting && !error" class="welcome-state">
           <div class="welcome-content">
             <ion-icon :icon="scaleOutline" class="welcome-icon" />
             <h2>Legal Department AI</h2>
@@ -131,7 +131,10 @@
         <div v-if="error" class="error-display">
           <ion-icon :icon="alertCircleOutline" color="danger" />
           <p>{{ error }}</p>
-          <ion-button size="small" @click="handleRetry">Retry</ion-button>
+          <div class="error-actions">
+            <ion-button size="small" @click="handleRetry">Retry</ion-button>
+            <ion-button size="small" fill="outline" @click="startNewAnalysis">Start New Analysis</ion-button>
+          </div>
         </div>
       </div>
 
@@ -208,6 +211,7 @@ const responseAreaRef = ref<HTMLElement | null>(null);
 
 // State
 const isLoading = ref(false);
+const isLoadingExisting = ref(false); // Separate state for loading existing analysis
 const isProcessing = ref(false);
 const error = ref<string | null>(null);
 const currentRequest = ref<ConversationRequest | null>(null);
@@ -350,44 +354,72 @@ async function saveAnalysisDeliverable() {
  * Load existing analysis from deliverables for this conversation
  */
 async function loadExistingAnalysis(conversationId: string): Promise<boolean> {
+  isLoadingExisting.value = true;
+  console.log('[LegalDepartment] Loading existing analysis for conversation:', conversationId);
+
   try {
     const deliverables = await deliverablesService.getConversationDeliverables(conversationId);
+    console.log('[LegalDepartment] Got deliverables:', deliverables.length, deliverables.map(d => ({ id: d.id, type: d.type, hasVersion: !!d.currentVersion })));
 
     // Find the most recent analysis deliverable
     const analysisDeliverable = deliverables
       .filter(d => d.type === DeliverableType.ANALYSIS)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
 
-    if (!analysisDeliverable?.currentVersion?.content) {
-      console.log('[LegalDepartment] No existing analysis found for conversation');
+    if (!analysisDeliverable) {
+      console.log('[LegalDepartment] No analysis deliverable found for conversation');
+      error.value = 'No previous analysis found for this conversation.';
+      return false;
+    }
+
+    console.log('[LegalDepartment] Found analysis deliverable:', {
+      id: analysisDeliverable.id,
+      type: analysisDeliverable.type,
+      hasCurrentVersion: !!analysisDeliverable.currentVersion,
+      hasContent: !!analysisDeliverable.currentVersion?.content,
+      contentLength: analysisDeliverable.currentVersion?.content?.length || 0,
+    });
+
+    if (!analysisDeliverable.currentVersion?.content) {
+      console.log('[LegalDepartment] Analysis deliverable has no content');
+      error.value = 'Previous analysis found but has no content.';
       return false;
     }
 
     // Parse and restore the state
     const persistedState = JSON.parse(analysisDeliverable.currentVersion.content);
+    console.log('[LegalDepartment] Parsed persisted state keys:', Object.keys(persistedState));
 
     if (persistedState.analysisResults) {
       analysisResults.value = persistedState.analysisResults;
+      console.log('[LegalDepartment] Restored analysisResults');
     }
     if (persistedState.routingDecision) {
       routingDecision.value = persistedState.routingDecision;
       updateSpecialistStates(persistedState.routingDecision);
+      console.log('[LegalDepartment] Restored routingDecision');
     }
     if (persistedState.currentRequest) {
       currentRequest.value = persistedState.currentRequest;
+      console.log('[LegalDepartment] Restored currentRequest');
     }
     if (persistedState.specialistStates) {
       specialistStates.value = persistedState.specialistStates;
+      console.log('[LegalDepartment] Restored specialistStates');
     }
 
     // Mark as completed since we're loading existing results
     analysisPhase.value = 'completed';
+    error.value = null; // Clear any previous errors
 
-    console.log('[LegalDepartment] Restored analysis from deliverable');
+    console.log('[LegalDepartment] Successfully restored analysis from deliverable');
     return true;
   } catch (err) {
     console.error('[LegalDepartment] Failed to load existing analysis:', err);
+    error.value = `Failed to load previous analysis: ${err instanceof Error ? err.message : 'Unknown error'}`;
     return false;
+  } finally {
+    isLoadingExisting.value = false;
   }
 }
 
@@ -1324,7 +1356,18 @@ function formatClauseLabel(key: string): string {
     .join(' ');
 }
 
-function handleRetry() {
+async function handleRetry() {
+  error.value = null;
+
+  // If we have a conversation ID, try to reload existing analysis
+  const conversationIdToUse = (route.query.conversationId as string) || props.conversationId || currentConversationId.value;
+  if (conversationIdToUse) {
+    await loadExistingAnalysis(conversationIdToUse);
+  }
+}
+
+function startNewAnalysis() {
+  // Clear error and state to start fresh
   error.value = null;
   currentRequest.value = null;
   routingDecision.value = undefined;
@@ -1651,6 +1694,12 @@ watch(analysisResults, (newResults) => {
   margin: 0;
   text-align: center;
   color: var(--ion-color-danger-shade);
+}
+
+.error-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 /* Text Response Panel */
