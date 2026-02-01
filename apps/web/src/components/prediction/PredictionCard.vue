@@ -85,8 +85,9 @@
           <div
             v-for="analyst in prediction.analystAssessments"
             :key="analyst.analystSlug"
-            class="analyst-opinion"
+            class="analyst-opinion clickable"
             :class="getDirectionClass(analyst.direction)"
+            @click.stop="openAnalystModal(analyst as AnalystAssessment)"
           >
             <div class="analyst-header">
               <span class="analyst-name">{{ analyst.analystName }}</span>
@@ -96,14 +97,22 @@
               <span class="analyst-confidence">
                 {{ Math.round(analyst.confidence * 100) }}%
               </span>
+              <span class="view-details-hint">Click for details</span>
             </div>
             <div v-if="analyst.reasoning" class="analyst-reasoning">
-              {{ analyst.reasoning }}
+              {{ truncateReasoning(analyst.reasoning) }}
             </div>
           </div>
         </div>
       </div>
     </div>
+
+    <!-- Analyst Opinion Detail Modal -->
+    <AnalystOpinionModal
+      :is-open="isAnalystModalOpen"
+      :analyst="selectedAnalyst"
+      @dismiss="closeAnalystModal"
+    />
 
     <div class="card-footer">
       <div class="timestamp">
@@ -122,6 +131,20 @@
 import { computed, ref } from 'vue';
 import type { Prediction } from '@/services/predictionDashboardService';
 import LLMComparisonBadge from './LLMComparisonBadge.vue';
+import AnalystOpinionModal from './AnalystOpinionModal.vue';
+
+// Type for analyst assessment from the Prediction
+interface AnalystAssessment {
+  analystSlug: string;
+  analystName?: string;
+  tier?: string;
+  direction: string;
+  confidence: number;
+  reasoning?: string;
+  keyFactors?: string[];
+  risks?: string[];
+  learningsApplied?: string[];
+}
 
 interface Props {
   prediction: Prediction;
@@ -138,6 +161,20 @@ defineEmits<{
 
 // Expandable state for analyst opinions
 const isExpanded = ref(false);
+
+// Modal state for detailed analyst view
+const selectedAnalyst = ref<AnalystAssessment | null>(null);
+const isAnalystModalOpen = ref(false);
+
+function openAnalystModal(analyst: AnalystAssessment) {
+  selectedAnalyst.value = analyst;
+  isAnalystModalOpen.value = true;
+}
+
+function closeAnalystModal() {
+  isAnalystModalOpen.value = false;
+  selectedAnalyst.value = null;
+}
 
 const statusClass = computed(() => `status-${props.prediction.status || 'active'}`);
 
@@ -216,6 +253,12 @@ function formatDate(dateStr: string): string {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+// Truncate long reasoning for card view (full version shown in modal)
+function truncateReasoning(reasoning: string, maxLength = 120): string {
+  if (!reasoning || reasoning.length <= maxLength) return reasoning;
+  return reasoning.substring(0, maxLength).trim() + '...';
 }
 </script>
 
@@ -572,6 +615,29 @@ function formatDate(dateStr: string): string {
   font-size: 0.6875rem;
   color: var(--text-secondary, #6b7280);
   line-height: 1.4;
+}
+
+.analyst-opinion.clickable {
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.analyst-opinion.clickable:hover {
+  transform: translateX(2px);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.view-details-hint {
+  margin-left: auto;
+  font-size: 0.5625rem;
+  color: var(--text-tertiary, #9ca3af);
+  font-style: italic;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.analyst-opinion.clickable:hover .view-details-hint {
+  opacity: 1;
 }
 
 /* Dark mode */
