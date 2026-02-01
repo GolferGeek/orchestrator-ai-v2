@@ -229,7 +229,7 @@ describe('AgentListDisplay', () => {
     it('accepts agents prop', () => {
       const agents = [createMockAgent('1', 'test-agent', 'Test agent')];
       const wrapper = createWrapper({ agents });
-      expect(wrapper.props('agents')).toEqual(agents);
+      expect((wrapper.props() as { agents: AgentInfo[] }).agents).toEqual(agents);
     });
 
     it('updates display when agents prop changes', async () => {
@@ -262,7 +262,7 @@ describe('AgentListDisplay', () => {
       const agents = [createMockAgent('1', 'test-agent', 'Test agent')];
       const wrapper = createWrapper({ agents });
       // The prop is defined as required in the component
-      expect(wrapper.props('agents')).toBeDefined();
+      expect((wrapper.props() as { agents: AgentInfo[] }).agents).toBeDefined();
     });
   });
 

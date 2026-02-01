@@ -5,7 +5,7 @@
  */
 
 import { defineStore } from 'pinia';
-import { ref, computed, readonly } from 'vue';
+import { ref, shallowRef, computed, readonly } from 'vue';
 import type { AgentTaskMode } from '@orchestrator-ai/transport-types';
 import type { TaskStatus, TaskMetadata, TaskData } from '@/types/task';
 
@@ -33,9 +33,9 @@ export interface TaskResult {
 }
 
 export const useTaskStore = defineStore('task', () => {
-  // State
-  const tasks = ref<Map<string, Task>>(new Map());
-  const taskResults = ref<Map<string, TaskResult>>(new Map());
+  // State - using shallowRef to avoid infinite type instantiation
+  const tasks = shallowRef<Map<string, Task>>(new Map());
+  const taskResults = shallowRef<Map<string, TaskResult>>(new Map());
   const activeTaskId = ref<string | null>(null);
   const tasksByConversation = ref<Map<string, string[]>>(new Map());
 

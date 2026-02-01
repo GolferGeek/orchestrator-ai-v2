@@ -3,7 +3,9 @@
  * Comprehensive type definitions for secure input validation
  */
 
-import type { JsonObject, JsonValue } from '@orchestrator-ai/transport-types';
+// Simplified types to avoid infinite type instantiation with JsonObject/JsonValue
+type JsonValue = string | number | boolean | null | Record<string, unknown> | unknown[];
+type JsonObject = Record<string, unknown>;
 
 // =====================================
 // CORE VALIDATION TYPES

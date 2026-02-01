@@ -1,5 +1,6 @@
 // Types for message evaluation system
-import type { JsonObject } from '@orchestrator-ai/transport-types';
+// Simplified type to avoid infinite type instantiation with JsonObject
+type SimpleJsonObject = Record<string, unknown>;
 export type UserRatingScale = 1 | 2 | 3 | 4 | 5;
 export interface MessageEvaluation {
   userRating?: UserRatingScale;
@@ -35,7 +36,7 @@ export interface EvaluationResponse {
   speedRating?: UserRatingScale;
   accuracyRating?: UserRatingScale;
   userNotes?: string;
-  evaluationDetails?: JsonObject;
+  evaluationDetails?: SimpleJsonObject;
   createdAt: string;
   updatedAt: string;
 }
@@ -115,7 +116,7 @@ export interface EvaluationInfo {
   accuracyRating?: UserRatingScale;
   userNotes?: string;
   evaluationTimestamp: string;
-  evaluationDetails?: JsonObject;
+  evaluationDetails?: SimpleJsonObject;
 }
 
 export interface EvaluationWithMessage {
@@ -139,17 +140,17 @@ export interface EvaluationWithMessage {
   accuracyRating?: UserRatingScale;
   userNotes?: string;
   evaluationTimestamp?: string;
-  evaluationDetails?: JsonObject;
+  evaluationDetails?: SimpleJsonObject;
   // Metadata for task evaluations
-  metadata?: (JsonObject & {
+  metadata?: (SimpleJsonObject & {
     agentName?: string;
     taskType?: string;
     status?: string;
     taskPrompt?: string;
     taskResponse?: string;
-    responseMetadata?: JsonObject;
-    llmMetadata?: JsonObject;
-    taskMetadata?: JsonObject;
+    responseMetadata?: SimpleJsonObject;
+    llmMetadata?: SimpleJsonObject;
+    taskMetadata?: SimpleJsonObject;
     deliverableType?: string;
     workflowStepsCompleted?: string[];
     userEmail?: string;

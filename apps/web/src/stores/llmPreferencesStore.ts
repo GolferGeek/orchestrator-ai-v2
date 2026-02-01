@@ -869,9 +869,8 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
 
         // Check if it's a standardized error
         if (resp?.error === true && resp?.technical && resp?.userMessage) {
-          const errorObj = response as unknown as StandardizedLLMError;
-          // @ts-expect-error Type instantiation is excessively deep - using type assertion to break inference chain
-          this.lastStandardizedError = errorObj;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (this as any).lastStandardizedError = response;
           const technical = resp.technical as Record<string, unknown>;
           return {
             content: resp.userMessage as string,
@@ -883,8 +882,8 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
 
         // Check if it's a unified LLM response
         if (resp?.content && (resp?.metadata as Record<string, unknown>)?.provider) {
-          const unifiedResp = response as UnifiedLLMResponse;
-          this.lastUnifiedResponse = unifiedResp;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (this as any).lastUnifiedResponse = response;
           return {
             content: resp.content as string,
             metadata: resp.metadata as Record<string, unknown>,
@@ -921,7 +920,8 @@ export const useLLMPreferencesStore = defineStore('llmPreferences', {
     } = {}) {
       const { showToUser = true, logTechnical = true } = options;
 
-      this.lastStandardizedError = error;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (this as any).lastStandardizedError = error;
 
       if (logTechnical) {
         console.error('Standardized LLM Error:', {

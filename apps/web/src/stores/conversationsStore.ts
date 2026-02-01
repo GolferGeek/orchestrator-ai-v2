@@ -13,7 +13,7 @@
  */
 
 import { defineStore } from 'pinia';
-import { ref, computed, readonly } from 'vue';
+import { ref, shallowRef, computed, readonly } from 'vue';
 import type { AgentTaskMode } from '@orchestrator-ai/transport-types';
 import type {
   MessageMetadata,
@@ -132,8 +132,8 @@ export const useConversationsStore = defineStore('conversations', () => {
 
   const conversations = ref<Map<string, Conversation>>(new Map());
   const messages = ref<Map<string, Message[]>>(new Map()); // conversationId -> messages[]
-  const tasks = ref<Map<string, Task>>(new Map()); // taskId -> task
-  const taskResults = ref<Map<string, TaskResult>>(new Map()); // taskId -> result
+  const tasks = shallowRef<Map<string, Task>>(new Map()); // taskId -> task
+  const taskResults = shallowRef<Map<string, TaskResult>>(new Map()); // taskId -> result
   const tasksByConversation = ref<Map<string, string[]>>(new Map()); // conversationId -> taskIds[]
 
   const activeConversationId = ref<string | null>(null);
@@ -188,8 +188,10 @@ export const useConversationsStore = defineStore('conversations', () => {
   /**
    * Get running tasks
    */
-  const runningTasks = computed(() => {
-    return Array.from(tasks.value.values())
+  const runningTasks = computed((): Task[] => {
+    const taskMap = tasks.value as Map<string, Task>;
+    const taskArray: Task[] = Array.from(taskMap.values());
+    return taskArray
       .filter(task => task.status === 'running')
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   });
@@ -197,8 +199,10 @@ export const useConversationsStore = defineStore('conversations', () => {
   /**
    * Get completed tasks
    */
-  const completedTasks = computed(() => {
-    return Array.from(tasks.value.values())
+  const completedTasks = computed((): Task[] => {
+    const taskMap = tasks.value as Map<string, Task>;
+    const taskArray: Task[] = Array.from(taskMap.values());
+    return taskArray
       .filter(task => task.status === 'completed')
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   });
@@ -206,8 +210,10 @@ export const useConversationsStore = defineStore('conversations', () => {
   /**
    * Get failed tasks
    */
-  const failedTasks = computed(() => {
-    return Array.from(tasks.value.values())
+  const failedTasks = computed((): Task[] => {
+    const taskMap = tasks.value as Map<string, Task>;
+    const taskArray: Task[] = Array.from(taskMap.values());
+    return taskArray
       .filter(task => task.status === 'failed')
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   });
@@ -240,8 +246,9 @@ export const useConversationsStore = defineStore('conversations', () => {
    */
   const tasksByConversationId = (conversationId: string): Task[] => {
     const taskIds = tasksByConversation.value.get(conversationId) || [];
+    const taskMap = tasks.value as Map<string, Task>;
     return taskIds
-      .map(id => tasks.value.get(id))
+      .map(id => taskMap.get(id))
       .filter((task): task is Task => task !== undefined)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   };
@@ -600,7 +607,7 @@ export const useConversationsStore = defineStore('conversations', () => {
    * Add a task
    */
   function addTask(task: Task): void {
-    tasks.value.set(task.id, task);
+    (tasks.value as Map<string, Task>).set(task.id, task);
 
     // Track task by conversation
     const conversationTasks = tasksByConversation.value.get(task.conversationId) || [];
@@ -613,13 +620,19 @@ export const useConversationsStore = defineStore('conversations', () => {
    * Update task status
    */
   function updateTaskStatus(taskId: string, status: TaskStatus): void {
-    const task = tasks.value.get(taskId);
+    const task = tasks.value.get(taskId) as Task | undefined;
     if (task) {
-      tasks.value.set(taskId, {
-        ...task,
+      const updatedTask: Task = {
+        id: task.id,
+        conversationId: task.conversationId,
+        mode: task.mode,
+        action: task.action,
         status,
+        createdAt: task.createdAt,
         updatedAt: new Date().toISOString(),
-      });
+        metadata: task.metadata,
+      };
+      (tasks.value as Map<string, Task>).set(taskId, updatedTask);
     }
   }
 
@@ -627,13 +640,19 @@ export const useConversationsStore = defineStore('conversations', () => {
    * Update task metadata
    */
   function updateTaskMetadata(taskId: string, metadata: TaskMetadata): void {
-    const task = tasks.value.get(taskId);
+    const task = tasks.value.get(taskId) as Task | undefined;
     if (task) {
-      tasks.value.set(taskId, {
-        ...task,
-        metadata: { ...task.metadata, ...metadata },
+      const updatedTask: Task = {
+        id: task.id,
+        conversationId: task.conversationId,
+        mode: task.mode,
+        action: task.action,
+        status: task.status,
+        createdAt: task.createdAt,
         updatedAt: new Date().toISOString(),
-      });
+        metadata: { ...task.metadata, ...metadata },
+      };
+      (tasks.value as Map<string, Task>).set(taskId, updatedTask);
     }
   }
 
@@ -643,10 +662,13 @@ export const useConversationsStore = defineStore('conversations', () => {
   function setTaskResult(taskId: string, result: Omit<TaskResult, 'taskId'>): void {
     const taskResult: TaskResult = {
       taskId,
-      ...result,
+      success: result.success,
+      data: result.data,
+      error: result.error,
+      completedAt: result.completedAt,
     };
 
-    taskResults.value.set(taskId, taskResult);
+    (taskResults.value as Map<string, TaskResult>).set(taskId, taskResult);
 
     // Update task status based on result
     updateTaskStatus(taskId, result.success ? 'completed' : 'failed');
@@ -659,8 +681,8 @@ export const useConversationsStore = defineStore('conversations', () => {
     const taskIds = tasksByConversation.value.get(conversationId) || [];
 
     taskIds.forEach(taskId => {
-      tasks.value.delete(taskId);
-      taskResults.value.delete(taskId);
+      (tasks.value as Map<string, Task>).delete(taskId);
+      (taskResults.value as Map<string, TaskResult>).delete(taskId);
     });
 
     tasksByConversation.value.delete(conversationId);

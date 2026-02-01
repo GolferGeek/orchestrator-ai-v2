@@ -205,9 +205,11 @@ export interface UnifiedLLMResponse {
       duration: number;
     };
     status: 'started' | 'completed' | 'error';
-    [key: string]: JsonValue | undefined;
+    // Simplified to avoid infinite type instantiation with JsonValue
+    [key: string]: string | number | boolean | object | undefined;
   };
-  piiMetadata?: JsonObject;
+  // Simplified to avoid infinite type instantiation
+  piiMetadata?: Record<string, unknown>;
 }
 
 export interface StandardizedLLMError {
@@ -225,7 +227,8 @@ export interface StandardizedLLMError {
     retryAfterMs?: number;
     timestamp: string;
     requestId?: string;
-    [key: string]: JsonValue | undefined;
+    // Simplified to avoid infinite type instantiation with JsonValue
+    [key: string]: string | number | boolean | undefined;
   };
 }
 

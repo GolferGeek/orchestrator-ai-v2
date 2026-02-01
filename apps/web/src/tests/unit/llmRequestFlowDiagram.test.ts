@@ -65,7 +65,7 @@ describe('LLMRequestFlowDiagram.vue', () => {
         },
       });
 
-      expect(wrapper.props('liveMode')).toBe(false);
+      expect((wrapper.props() as { liveMode: boolean }).liveMode).toBe(false);
     });
   });
 

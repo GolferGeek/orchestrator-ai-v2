@@ -1,4 +1,6 @@
-import type { JsonObject, JsonValue } from '@orchestrator-ai/transport-types';
+// Simplified types to avoid infinite type instantiation with JsonObject/JsonValue
+type SimpleJsonValue = string | number | boolean | null | Record<string, unknown> | unknown[];
+type SimpleJsonObject = Record<string, unknown>;
 
 export type MessageSender = 'user' | 'agent' | 'system';
 export type MessageDisplayType = 'text' | 'agentList' | 'workflow_progress' | 'deliverable';
@@ -9,7 +11,7 @@ export interface ChatMessage {
   agentName?: string;
   timestamp: Date;
   messageType?: MessageDisplayType;
-  data?: JsonValue;
+  data?: SimpleJsonValue;
   // Workflow-specific fields
   workflowStep?: string;
   stepIndex?: number;
@@ -24,7 +26,7 @@ export interface WorkflowProgressMessage {
   totalSteps: number;
   status: 'pending' | 'in_progress' | 'completed' | 'failed';
   message?: string;
-  metadata?: JsonObject;
+  metadata?: SimpleJsonObject;
   timestamp: Date;
 }
 // Interface for deliverable messages
@@ -33,7 +35,7 @@ export interface DeliverableMessage {
   content: string;
   deliverableType: 'document' | 'analysis' | 'report' | 'plan' | 'requirements';
   format: 'markdown' | 'text' | 'json' | 'html';
-  metadata?: JsonObject;
+  metadata?: SimpleJsonObject;
   downloadable?: boolean;
   timestamp: Date;
 }
@@ -46,7 +48,7 @@ export interface WorkflowState {
   status: 'pending' | 'running' | 'completed' | 'failed';
   steps: WorkflowProgressMessage[];
   deliverables: DeliverableMessage[];
-  metadata?: JsonObject;
+  metadata?: SimpleJsonObject;
 }
 // Interface for an agent (relevant for agent store later, but good to think about types together)
 export interface AgentInfo {
@@ -64,11 +66,11 @@ export interface AgentInfo {
     can_build: boolean;
     requires_human_gate: boolean;
   };
-  plan_structure?: JsonObject | null;
-  deliverable_structure?: JsonObject | null;
+  plan_structure?: SimpleJsonObject | null;
+  deliverable_structure?: SimpleJsonObject | null;
   io_schema?: {
-    input?: JsonObject;
-    output?: JsonObject;
+    input?: SimpleJsonObject;
+    output?: SimpleJsonObject;
   } | null;
   // Custom UI fields (for agents like Marketing Swarm that have their own UI)
   hasCustomUI?: boolean;
@@ -81,7 +83,7 @@ export interface AgentInfo {
     defaultModel?: string;
     supportedProviders?: string[];
     supportedModels?: Record<string, string[]>;
-    [key: string]: JsonValue | undefined;
+    [key: string]: SimpleJsonValue | undefined;
   } | null;
   // capabilities?: string[]; // Example
 }
@@ -103,20 +105,20 @@ export interface TaskMessagePart {
   text?: string; // For text parts
   url?: string;  // For image parts
   alt_text?: string;
-  content?: JsonValue; // For generic artifact parts
+  content?: SimpleJsonValue; // For generic artifact parts
   encoding?: string;
   // Allow other properties from backend
-  [key: string]: JsonValue | undefined;
+  [key: string]: SimpleJsonValue | undefined;
 }
 // Represents a message within a task (request or response)
 export interface TaskMessage {
   role: string; // "user", "agent", "system"
   parts: TaskMessagePart[];
-  artifacts?: JsonObject[];
+  artifacts?: SimpleJsonObject[];
   timestamp?: string; // ISO 8601
-  metadata?: JsonObject | null; // For agent_name or other info
+  metadata?: SimpleJsonObject | null; // For agent_name or other info
   // Allow other properties from backend
-  [key: string]: JsonValue | undefined;
+  [key: string]: SimpleJsonValue | undefined;
 }
 // Updated TaskResponse to closely match backend Pydantic Task model
 export interface TaskResponse {
@@ -129,9 +131,9 @@ export interface TaskResponse {
   request_message?: TaskMessage;
   response_message?: TaskMessage | null;
   history?: TaskMessage[]; 
-  artifacts?: JsonObject[]; 
+  artifacts?: SimpleJsonObject[]; 
   session_id?: string | null;
-  metadata?: JsonObject | null;
+  metadata?: SimpleJsonObject | null;
   created_at: string; 
   updated_at: string; 
   // A2A Protocol V2 fields
@@ -142,7 +144,7 @@ export interface TaskResponse {
     format?: string;
     data: string;
     encoding?: string;
-    metadata?: JsonObject;
+    metadata?: SimpleJsonObject;
     size?: number;
     checksum?: string;
   }>;
@@ -151,16 +153,16 @@ export interface TaskResponse {
     artifact_id: string;
     artifact_type: string;
     format?: string;
-    data: JsonValue;
+    data: SimpleJsonValue;
     encoding?: string;
-    metadata?: JsonObject;
+    metadata?: SimpleJsonObject;
     size?: number;
     checksum?: string;
   }>;
   error_details?: {
     code?: string;
     message?: string;
-    details?: JsonObject;
+    details?: SimpleJsonObject;
   };
   progress?: {
     percentage?: number;
@@ -181,7 +183,7 @@ export interface TaskResponse {
   actual_duration?: number;
   dependencies?: string[];
   tags?: string[];
-  context?: JsonObject;
+  context?: SimpleJsonObject;
   // Legacy fields for V1 compatibility
   task_id?: string;
   respondingAgentName?: string;

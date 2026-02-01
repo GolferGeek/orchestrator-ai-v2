@@ -51,6 +51,7 @@ describe('LearningSessionHandler', () => {
     target_id: null,
     agent_id: null,
     learned_patterns: [],
+    analyst_type: 'personality',
     created_at: '2024-01-01',
     updated_at: '2024-01-01',
   };

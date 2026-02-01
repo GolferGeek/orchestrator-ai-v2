@@ -31,6 +31,7 @@ describe('AnalystMotivationService', () => {
     learned_patterns: [],
     agent_id: null,
     is_enabled: true,
+    analyst_type: 'personality',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
