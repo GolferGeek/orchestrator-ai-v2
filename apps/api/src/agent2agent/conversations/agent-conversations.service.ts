@@ -11,6 +11,7 @@ import {
 import { getTableName } from '@/supabase/supabase.config';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
+import { EngineeringService } from '@/engineering/engineering.service';
 
 interface AgentConversationDbRecord {
   id: string;
@@ -44,6 +45,7 @@ export class AgentConversationsService {
     private readonly supabaseService: SupabaseService,
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
+    private readonly engineeringService: EngineeringService,
   ) {
     const langgraphPort = this.configService.get<string>('LANGGRAPH_PORT');
     if (!langgraphPort) {
@@ -294,6 +296,9 @@ export class AgentConversationsService {
     if (conversation.agentName === 'marketing-swarm') {
       await this.cleanupMarketingSwarmData(conversationId);
     }
+
+    // Clean up engineering CAD data (drawings, outputs, storage files)
+    await this.engineeringService.cleanupConversationData(conversationId);
 
     // Clean up media assets (images/videos) and their storage files BEFORE deleting conversation
     // This ensures storage files don't become orphaned

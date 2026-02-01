@@ -190,7 +190,7 @@ export class SignalsHandler implements IDashboardHandler {
     params?: SignalParams,
     baseContext?: ExecutionContext,
   ): Promise<DashboardActionResult> {
-    let targetId = params?.targetId;
+    const targetId = params?.targetId;
     let universeId = params?.universeId;
 
     // Auto-detect universe from agent context if not provided

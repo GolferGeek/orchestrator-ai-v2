@@ -176,7 +176,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, reactive } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { IonPage, IonContent } from '@ionic/vue';
 import { predictionDashboardService as _predictionDashboardService } from '@/services/predictionDashboardService';
 
@@ -206,6 +206,7 @@ interface AnomalyDetectionResult {
 }
 
 const router = useRouter();
+const route = useRoute();
 const alerts = ref<Alert[]>([]);
 const isLoading = ref(false);
 const isDetecting = ref(false);
@@ -380,7 +381,11 @@ async function refreshData() {
 }
 
 function goBackToDashboard() {
-  router.push({ name: 'PredictionDashboard' });
+  const agentSlug = route.query.agentSlug as string;
+  router.push({
+    name: 'PredictionDashboard',
+    query: agentSlug ? { agentSlug } : undefined,
+  });
 }
 
 onMounted(async () => {

@@ -550,7 +550,11 @@ onMounted(async () => {
 });
 
 function goBackToDashboard() {
-  router.push({ name: 'PredictionDashboard' });
+  const agentSlug = route.query.agentSlug as string;
+  router.push({
+    name: 'PredictionDashboard',
+    query: agentSlug ? { agentSlug } : undefined,
+  });
 }
 </script>
 

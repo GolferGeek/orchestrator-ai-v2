@@ -459,4 +459,93 @@ export class EngineeringService {
       executionLog,
     };
   }
+
+  // =============================================================================
+  // CLEANUP
+  // =============================================================================
+
+  /**
+   * Clean up all engineering data associated with a conversation.
+   * Deletes storage files and database records (drawings cascade to code, outputs, logs).
+   */
+  async cleanupConversationData(conversationId: string): Promise<void> {
+    const client = this.supabaseService.getServiceClient();
+
+    // Find all drawings linked to this conversation
+    const { data: drawings, error: drawingsError } = await client
+      .schema('engineering')
+      .from('drawings')
+      .select('id')
+      .eq('conversation_id', conversationId);
+
+    if (drawingsError) {
+      this.logger.warn(
+        `Failed to fetch engineering drawings for conversation ${conversationId}: ${drawingsError.message}`,
+      );
+      return;
+    }
+
+    if (!drawings || drawings.length === 0) {
+      this.logger.debug(
+        `No engineering drawings to clean up for conversation ${conversationId}`,
+      );
+      return;
+    }
+
+    const drawingIds = drawings.map((d) => (d as { id: string }).id);
+    this.logger.log(
+      `Cleaning up ${drawingIds.length} engineering drawing(s) for conversation ${conversationId}`,
+    );
+
+    // Find all CAD outputs with storage paths to delete from storage
+    const { data: cadOutputs, error: cadOutputsError } = await client
+      .schema('engineering')
+      .from('cad_outputs')
+      .select('id, storage_path')
+      .in('drawing_id', drawingIds);
+
+    if (cadOutputsError) {
+      this.logger.warn(
+        `Failed to fetch CAD outputs: ${cadOutputsError.message}`,
+      );
+    } else if (cadOutputs && cadOutputs.length > 0) {
+      // Delete storage files from engineering bucket
+      const storagePaths = cadOutputs
+        .map((o) => (o as { storage_path: string }).storage_path)
+        .filter((p) => p);
+
+      if (storagePaths.length > 0) {
+        const { error: storageError } = await client.storage
+          .from('engineering')
+          .remove(storagePaths);
+
+        if (storageError) {
+          this.logger.warn(
+            `Failed to delete CAD storage files: ${storageError.message}`,
+          );
+        } else {
+          this.logger.debug(
+            `Deleted ${storagePaths.length} CAD file(s) from engineering bucket`,
+          );
+        }
+      }
+    }
+
+    // Delete drawings (generated_code, cad_outputs, execution_log cascade automatically)
+    const { error: deleteError } = await client
+      .schema('engineering')
+      .from('drawings')
+      .delete()
+      .in('id', drawingIds);
+
+    if (deleteError) {
+      this.logger.warn(
+        `Failed to delete engineering drawings: ${deleteError.message}`,
+      );
+    } else {
+      this.logger.log(
+        `Successfully cleaned up engineering CAD data for conversation ${conversationId}`,
+      );
+    }
+  }
 }

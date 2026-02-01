@@ -183,7 +183,11 @@ async function loadPredictionData() {
 }
 
 function goBack() {
-  router.push({ name: 'PredictionDashboard' });
+  const agentSlug = route.query.agentSlug as string;
+  router.push({
+    name: 'PredictionDashboard',
+    query: agentSlug ? { agentSlug } : undefined,
+  });
 }
 
 function createLearningFromPrediction() {

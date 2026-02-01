@@ -364,7 +364,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, reactive } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { IonPage, IonContent } from '@ionic/vue';
 import { useToolRequestStore } from '@/stores/toolRequestStore';
 import type { ToolRequest, ToolRequestType, ToolRequestStatus, ToolRequestPriority } from '@/stores/toolRequestStore';
@@ -373,6 +373,7 @@ import { predictionDashboardService } from '@/services/predictionDashboardServic
 import ToolRequestCard from '@/components/prediction/ToolRequestCard.vue';
 
 const router = useRouter();
+const route = useRoute();
 const toolRequestStore = useToolRequestStore();
 const predictionStore = usePredictionStore();
 
@@ -610,7 +611,11 @@ async function executeDelete() {
 }
 
 function goBackToDashboard() {
-  router.push({ name: 'PredictionDashboard' });
+  const agentSlug = route.query.agentSlug as string;
+  router.push({
+    name: 'PredictionDashboard',
+    query: agentSlug ? { agentSlug } : undefined,
+  });
 }
 
 onMounted(() => {

@@ -4,9 +4,10 @@ import { ConfigModule } from '@nestjs/config';
 import { AgentConversationsService } from './agent-conversations.service';
 import { AgentConversationsController } from './agent-conversations.controller';
 import { SupabaseModule } from '@/supabase/supabase.module';
+import { EngineeringModule } from '@/engineering/engineering.module';
 
 @Module({
-  imports: [SupabaseModule, HttpModule, ConfigModule],
+  imports: [SupabaseModule, HttpModule, ConfigModule, EngineeringModule],
   providers: [AgentConversationsService],
   controllers: [AgentConversationsController],
   exports: [AgentConversationsService],

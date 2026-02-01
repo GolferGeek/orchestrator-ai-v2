@@ -732,7 +732,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { IonPage, IonContent } from '@ionic/vue';
 import { useTestScenarioStore } from '@/stores/testScenarioStore';
 import { usePredictionStore } from '@/stores/predictionStore';
@@ -750,11 +750,16 @@ import {
 } from '@/services/predictionDashboardService';
 
 const router = useRouter();
+const route = useRoute();
 const store = useTestScenarioStore();
 const predictionStore = usePredictionStore();
 
 function goBackToDashboard() {
-  router.push({ name: 'PredictionDashboard' });
+  const agentSlug = route.query.agentSlug as string;
+  router.push({
+    name: 'PredictionDashboard',
+    query: agentSlug ? { agentSlug } : undefined,
+  });
 }
 
 // State

@@ -175,16 +175,47 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed, onMounted } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { IonPage, IonContent } from '@ionic/vue';
 import {
   predictionDashboardService,
   type UserPortfolioSummary,
   type AnalystForksSummary,
 } from '@/services/predictionDashboardService';
+import { useAgentsStore } from '@/stores/agentsStore';
+import { useAuthStore } from '@/stores/rbacStore';
 
 const router = useRouter();
+const route = useRoute();
+const agentsStore = useAgentsStore();
+const authStore = useAuthStore();
+
+// Get agentSlug from query parameter or default to 'us-tech-stocks'
+const agentSlug = computed(() => (route.query.agentSlug as string) || 'us-tech-stocks');
+
+// Look up the agent by slug to get its organizationSlug
+const currentAgent = computed(() => {
+  const slug = agentSlug.value;
+  if (!slug) return null;
+  return agentsStore.availableAgents.find(a => a.slug === slug || a.name === slug) || null;
+});
+
+// Get organization from agent (priority) or fall back to auth store
+const effectiveOrg = computed(() => {
+  // Priority 1: Agent's organizationSlug
+  const agentOrg = currentAgent.value?.organizationSlug;
+  if (agentOrg && agentOrg !== '*') {
+    return Array.isArray(agentOrg) ? agentOrg[0] : agentOrg;
+  }
+  // Priority 2: Auth store's current organization (but not if it's '*')
+  const authOrg = authStore.currentOrganization;
+  if (authOrg && authOrg !== '*') {
+    return authOrg;
+  }
+  // Fallback: Default org for the default agent
+  return 'finance';
+});
 
 // Portfolio state
 const portfolio = ref<UserPortfolioSummary | null>(null);
@@ -196,8 +227,12 @@ const leaderboard = ref<AnalystForksSummary | null>(null);
 const leaderboardLoading = ref(false);
 const leaderboardError = ref<string | null>(null);
 
-// Load data on mount
+// Set service context and load data on mount
 onMounted(() => {
+  // Set the organization and agent slug for API calls
+  predictionDashboardService.setOrgSlug(effectiveOrg.value);
+  predictionDashboardService.setAgentSlug(agentSlug.value);
+
   loadPortfolio();
   loadLeaderboard();
 });
@@ -239,11 +274,17 @@ async function loadLeaderboard() {
 }
 
 function goToPredictions() {
-  router.push({ name: 'PredictionDashboard' });
+  router.push({
+    name: 'PredictionDashboard',
+    query: agentSlug.value ? { agentSlug: agentSlug.value } : undefined,
+  });
 }
 
 function goBackToDashboard() {
-  router.push({ name: 'PredictionDashboard' });
+  router.push({
+    name: 'PredictionDashboard',
+    query: agentSlug.value ? { agentSlug: agentSlug.value } : undefined,
+  });
 }
 
 function viewAnalyst(analystId: string) {

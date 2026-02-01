@@ -258,7 +258,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { IonPage, IonContent } from '@ionic/vue';
 import { useReviewQueueStore } from '@/stores/reviewQueueStore';
 import {
@@ -269,6 +269,7 @@ import ReviewQueueCard from '@/components/prediction/ReviewQueueCard.vue';
 import type { ReviewQueueItem, ReviewStatus, SignalDisposition } from '@/stores/reviewQueueStore';
 
 const router = useRouter();
+const route = useRoute();
 const store = useReviewQueueStore();
 
 const isLoading = ref(false);
@@ -422,7 +423,11 @@ async function submitReview() {
 }
 
 function goBackToDashboard() {
-  router.push({ name: 'PredictionDashboard' });
+  const agentSlug = route.query.agentSlug as string;
+  router.push({
+    name: 'PredictionDashboard',
+    query: agentSlug ? { agentSlug } : undefined,
+  });
 }
 
 onMounted(() => {

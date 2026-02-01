@@ -509,7 +509,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, reactive } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { IonPage, IonContent } from '@ionic/vue';
 import { useAnalystStore } from '@/stores/analystStore';
 import { usePredictionStore } from '@/stores/predictionStore';
@@ -522,11 +522,16 @@ import LearningSessionDialog from '@/components/prediction/LearningSessionDialog
 import type { ForkComparison, AnalystContextVersion, ForkType, PredictionAnalyst } from '@/stores/analystStore';
 
 const router = useRouter();
+const route = useRoute();
 const analystStore = useAnalystStore();
 const predictionStore = usePredictionStore();
 
 function goBackToDashboard() {
-  router.push({ name: 'PredictionDashboard' });
+  const agentSlug = route.query.agentSlug as string;
+  router.push({
+    name: 'PredictionDashboard',
+    query: agentSlug ? { agentSlug } : undefined,
+  });
 }
 
 // Helper function to convert service type to store type

@@ -572,13 +572,19 @@ export class PredictionGenerationService {
 
     // Use the highest confidence from analysts that agree with the consensus direction
     // This gives a more meaningful confidence than averaging opposing views
-    const consensusDirection = direction === 'up' ? 'bullish' : direction === 'down' ? 'bearish' : 'neutral';
+    const consensusDirection =
+      direction === 'up'
+        ? 'bullish'
+        : direction === 'down'
+          ? 'bearish'
+          : 'neutral';
     const agreeingAnalysts = ensembleResult.assessments.filter(
       (a) => a.direction.toLowerCase() === consensusDirection,
     );
-    const maxConfidence = agreeingAnalysts.length > 0
-      ? Math.max(...agreeingAnalysts.map((a) => a.confidence))
-      : ensembleResult.aggregated.confidence;
+    const maxConfidence =
+      agreeingAnalysts.length > 0
+        ? Math.max(...agreeingAnalysts.map((a) => a.confidence))
+        : ensembleResult.aggregated.confidence;
     const confidence = maxConfidence;
 
     // Calculate position sizing
@@ -599,9 +605,12 @@ export class PredictionGenerationService {
       .join('; ');
 
     // Find the strongest conviction analyst for the consensus direction
-    const strongestAnalyst = agreeingAnalysts.length > 0
-      ? agreeingAnalysts.reduce((max, a) => a.confidence > max.confidence ? a : max)
-      : null;
+    const strongestAnalyst =
+      agreeingAnalysts.length > 0
+        ? agreeingAnalysts.reduce((max, a) =>
+            a.confidence > max.confidence ? a : max,
+          )
+        : null;
 
     const arbitratorReasoning = strongestAnalyst
       ? `Consensus ${direction.toUpperCase()} led by ${strongestAnalyst.analyst.name} (${(strongestAnalyst.confidence * 100).toFixed(0)}% confidence). ` +

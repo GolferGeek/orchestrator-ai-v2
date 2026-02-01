@@ -170,11 +170,12 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, reactive } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { IonPage, IonContent } from '@ionic/vue';
 import { predictionDashboardService } from '@/services/predictionDashboardService';
 
 const router = useRouter();
+const route = useRoute();
 
 interface Source {
   id: string;
@@ -377,7 +378,11 @@ async function refreshData() {
 }
 
 function goBackToDashboard() {
-  router.push({ name: 'PredictionDashboard' });
+  const agentSlug = route.query.agentSlug as string;
+  router.push({
+    name: 'PredictionDashboard',
+    query: agentSlug ? { agentSlug } : undefined,
+  });
 }
 
 onMounted(async () => {
