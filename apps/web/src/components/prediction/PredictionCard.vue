@@ -115,14 +115,25 @@
     />
 
     <div class="card-footer">
-      <div class="timestamp">
-        <span class="label">Generated:</span>
-        <span class="value">{{ formatDate(prediction.generatedAt) }}</span>
+      <div class="footer-left">
+        <div class="timestamp">
+          <span class="label">Generated:</span>
+          <span class="value">{{ formatDate(prediction.generatedAt) }}</span>
+        </div>
+        <div v-if="prediction.expiresAt" class="timestamp">
+          <span class="label">Expires:</span>
+          <span class="value">{{ formatDate(prediction.expiresAt) }}</span>
+        </div>
       </div>
-      <div v-if="prediction.expiresAt" class="timestamp">
-        <span class="label">Expires:</span>
-        <span class="value">{{ formatDate(prediction.expiresAt) }}</span>
-      </div>
+      <button
+        v-if="canTakePosition"
+        class="take-position-btn"
+        @click="handleTakePosition"
+        title="Take position based on this prediction"
+      >
+        <span class="btn-icon">&#128176;</span>
+        <span class="btn-text">Take Position</span>
+      </button>
     </div>
   </div>
 </template>
@@ -155,9 +166,21 @@ const props = withDefaults(defineProps<Props>(), {
   isSelected: false,
 });
 
-defineEmits<{
+const emit = defineEmits<{
   select: [id: string];
+  takePosition: [prediction: Prediction];
 }>();
+
+// Can take position if prediction is active and directional
+const canTakePosition = computed(() => {
+  const pred = props.prediction;
+  return pred.status === 'active' && (pred.direction === 'up' || pred.direction === 'down');
+});
+
+function handleTakePosition(event: Event) {
+  event.stopPropagation();
+  emit('takePosition', props.prediction);
+}
 
 // Expandable state for analyst opinions
 const isExpanded = ref(false);
@@ -462,9 +485,45 @@ function truncateReasoning(reasoning: string, maxLength = 120): string {
 .card-footer {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   margin-top: 0.75rem;
   padding-top: 0.75rem;
   border-top: 1px solid var(--border-color, #e5e7eb);
+}
+
+.footer-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.take-position-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.375rem 0.75rem;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(22, 163, 74, 0.2));
+  border: 1px solid #22c55e;
+  border-radius: 6px;
+  color: #16a34a;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.take-position-btn:hover {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.25), rgba(22, 163, 74, 0.3));
+  border-color: #16a34a;
+  transform: translateY(-1px);
+}
+
+.take-position-btn .btn-icon {
+  font-size: 0.875rem;
+}
+
+.take-position-btn .btn-text {
+  white-space: nowrap;
 }
 
 .timestamp {

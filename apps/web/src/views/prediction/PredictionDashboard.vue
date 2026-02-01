@@ -178,8 +178,17 @@
         :prediction="prediction"
         :is-selected="prediction.id === store.selectedPredictionId"
         @select="onPredictionSelect"
+        @take-position="onTakePosition"
       />
     </section>
+
+    <!-- Take Position Modal -->
+    <TakePositionModal
+      :is-open="isTakePositionModalOpen"
+      :prediction="selectedPredictionForPosition"
+      @close="closeTakePositionModal"
+      @position-created="handlePositionCreated"
+    />
 
     <!-- Pagination -->
     <section v-if="store.totalPages > 1" class="pagination-section">
@@ -216,6 +225,8 @@ import { useAgentsStore } from '@/stores/agentsStore';
 import { predictionDashboardService } from '@/services/predictionDashboardService';
 import PredictionCard from '@/components/prediction/PredictionCard.vue';
 import PredictionActivityFeed from '@/components/prediction/PredictionActivityFeed.vue';
+import TakePositionModal from '@/components/prediction/TakePositionModal.vue';
+import type { Prediction } from '@/services/predictionDashboardService';
 
 const router = useRouter();
 const route = useRoute();
@@ -253,6 +264,17 @@ const statusFilter = ref<'all' | 'active' | 'resolved' | 'expired' | 'cancelled'
 const domainFilter = ref<string | null>(null);
 const outcomeFilter = ref<'correct' | 'incorrect' | 'pending' | null>(null);
 const showActivityFeed = ref(false);
+
+// Take Position Modal state
+const isTakePositionModalOpen = ref(false);
+const selectedPredictionForPosition = ref<{
+  id: string;
+  symbol: string;
+  direction: 'bullish' | 'bearish';
+  confidence: number;
+  magnitudePercent?: number;
+  rationale?: string;
+} | null>(null);
 
 const hasFilters = computed(() => {
   return selectedUniverse.value !== null || statusFilter.value !== 'all' || domainFilter.value !== null || outcomeFilter.value !== null;
@@ -318,6 +340,44 @@ function onFilterChange() {
 function onPredictionSelect(id: string) {
   store.selectPrediction(id);
   router.push({ name: 'PredictionDetail', params: { id } });
+}
+
+// Map categorical magnitude to percentage
+function magnitudeToPercent(magnitude?: number | string): number | undefined {
+  if (!magnitude) return undefined;
+  const mag = String(magnitude).toLowerCase();
+  switch (mag) {
+    case 'small': return 2;
+    case 'medium': return 5;
+    case 'large': return 10;
+    default: return typeof magnitude === 'number' ? magnitude : undefined;
+  }
+}
+
+function onTakePosition(prediction: Prediction) {
+  // Only allow positions for directional predictions
+  if (prediction.direction !== 'up' && prediction.direction !== 'down') return;
+
+  selectedPredictionForPosition.value = {
+    id: prediction.id,
+    symbol: prediction.targetSymbol || '',
+    direction: prediction.direction === 'up' ? 'bullish' : 'bearish',
+    confidence: prediction.confidence || 0,
+    magnitudePercent: magnitudeToPercent(prediction.magnitude),
+    rationale: prediction.rationale || `${prediction.direction.toUpperCase()} prediction with ${Math.round((prediction.confidence || 0) * 100)}% confidence`,
+  };
+  isTakePositionModalOpen.value = true;
+}
+
+function closeTakePositionModal() {
+  isTakePositionModalOpen.value = false;
+  selectedPredictionForPosition.value = null;
+}
+
+function handlePositionCreated(result: { positionId: string; symbol: string }) {
+  console.log('Position created from dashboard:', result);
+  // Modal closes automatically after success
+  // Optionally refresh data or show notification
 }
 
 function goToPage(page: number) {

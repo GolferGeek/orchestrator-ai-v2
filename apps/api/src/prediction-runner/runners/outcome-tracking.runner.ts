@@ -201,7 +201,11 @@ export class OutcomeTrackingRunner {
   }
 
   /**
-   * Capture current price snapshots for targets with active predictions
+   * Capture current price snapshots for all active targets
+   * This ensures we have prices for:
+   * 1. Targets with active predictions (for outcome tracking)
+   * 2. Targets with open positions (for P&L calculation)
+   * 3. All active targets (so users can take new positions)
    */
   private async captureSnapshots(): Promise<{
     captured: number;
@@ -211,15 +215,12 @@ export class OutcomeTrackingRunner {
     let errors = 0;
 
     try {
-      // Get all active predictions
-      const activePredictions =
-        await this.predictionRepository.findActivePredictions();
-
-      // Get unique target IDs
-      const targetIds = [...new Set(activePredictions.map((p) => p.target_id))];
+      // Get ALL active targets, not just those with predictions
+      const activeTargets = await this.targetRepository.findAllActive();
+      const targetIds = activeTargets.map((t) => t.id);
 
       this.logger.debug(
-        `Capturing snapshots for ${targetIds.length} targets with active predictions`,
+        `Capturing snapshots for ${targetIds.length} active targets`,
       );
 
       for (const targetId of targetIds) {

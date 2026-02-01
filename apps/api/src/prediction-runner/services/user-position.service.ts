@@ -58,6 +58,7 @@ export class UserPositionService {
   // Default position sizing parameters
   private readonly DEFAULT_RISK_PERCENT = 0.02; // 2% risk per trade
   private readonly DEFAULT_STOP_DISTANCE_PERCENT = 0.05; // 5% stop loss
+  private readonly MAX_POSITION_PERCENT = 0.1; // Max 10% of portfolio in one position
   private readonly CONFIDENCE_BASELINE = 0.7; // Confidence normalization baseline
 
   // Magnitude-based target distances
@@ -125,15 +126,22 @@ export class UserPositionService {
         ? currentPrice * (1 + targetDistancePercent)
         : currentPrice * (1 - targetDistancePercent);
 
-    // Base quantity calculation
-    const baseQuantity = riskAmount / stopDistance;
+    // Base quantity calculation from risk
+    const riskBasedQuantity = riskAmount / stopDistance;
 
     // Apply confidence multiplier (normalized to 70% baseline)
     const confidenceMultiplier =
       prediction.confidence / this.CONFIDENCE_BASELINE;
+    const adjustedQuantity = riskBasedQuantity * confidenceMultiplier;
 
-    // Final quantity
-    const recommendedQuantity = Math.floor(baseQuantity * confidenceMultiplier);
+    // Cap at max position size (10% of portfolio)
+    const maxPositionValue = portfolioBalance * this.MAX_POSITION_PERCENT;
+    const maxQuantityByPosition = maxPositionValue / currentPrice;
+
+    // Final quantity is the minimum of risk-based and max-position limits
+    const recommendedQuantity = Math.floor(
+      Math.min(adjustedQuantity, maxQuantityByPosition),
+    );
 
     // Calculate potential profit/loss
     const potentialLoss = stopDistance * recommendedQuantity;

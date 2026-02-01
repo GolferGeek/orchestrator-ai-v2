@@ -1292,14 +1292,12 @@ export class PredictionHandler implements IDashboardHandler {
         );
       }
 
-      // Use entry price from params or get from target snapshot
-      const currentPrice = params.entryPrice;
+      // Use entry price from params or get from target's cached current_price
+      const currentPrice = params.entryPrice ?? target.current_price;
       if (!currentPrice) {
-        // Note: In a real implementation, we'd get the price from TargetSnapshotRepository
-        // For now, we require the price to be provided
         return buildDashboardError(
-          'MISSING_PRICE',
-          'Entry price is required to calculate position size. Provide entryPrice parameter.',
+          'NO_PRICE_DATA',
+          `No entry price provided and no current price available for ${target.symbol}. Try refreshing market data.`,
         );
       }
 
@@ -1311,6 +1309,15 @@ export class PredictionHandler implements IDashboardHandler {
         );
 
       return buildDashboardSuccess({
+        predictionId: prediction.id,
+        symbol: target.symbol,
+        direction: prediction.direction === 'up' ? 'bullish' : 'bearish',
+        currentPrice,
+        recommendedQuantity: recommendation.recommendedQuantity,
+        riskAmount: recommendation.riskAmount,
+        riskRewardRatio: recommendation.riskRewardRatio,
+        reasoning: recommendation.reasoning,
+        // Additional details
         prediction: {
           id: prediction.id,
           direction: prediction.direction,

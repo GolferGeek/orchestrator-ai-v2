@@ -89,6 +89,17 @@
       <section class="actions-section">
         <h3>Actions</h3>
         <div class="actions-grid">
+          <button
+            v-if="canTakePosition"
+            class="action-card action-card-primary"
+            @click="openTakePositionModal"
+          >
+            <span class="action-icon">&#128176;</span>
+            <div class="action-content">
+              <span class="action-label">Take Position</span>
+              <span class="action-description">Create a position based on this prediction</span>
+            </div>
+          </button>
           <button class="action-card" @click="createLearningFromPrediction">
             <span class="action-icon">&#128161;</span>
             <div class="action-content">
@@ -115,6 +126,14 @@
 
       <!-- Full Lineage Tree View -->
       <PredictionLineageTree :prediction-id="predictionId" />
+
+      <!-- Take Position Modal -->
+      <TakePositionModal
+        :is-open="isTakePositionModalOpen"
+        :prediction="predictionForModal"
+        @close="closeTakePositionModal"
+        @position-created="handlePositionCreated"
+      />
     </div>
       </div>
     </ion-content>
@@ -129,6 +148,7 @@ import { usePredictionStore } from '@/stores/predictionStore';
 import { predictionDashboardService } from '@/services/predictionDashboardService';
 import LLMComparisonBadge from '@/components/prediction/LLMComparisonBadge.vue';
 import PredictionLineageTree from '@/components/prediction/PredictionLineageTree.vue';
+import TakePositionModal from '@/components/prediction/TakePositionModal.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -136,6 +156,56 @@ const store = usePredictionStore();
 
 const isLoading = ref(false);
 const error = ref<string | null>(null);
+
+// Take Position Modal state
+const isTakePositionModalOpen = ref(false);
+
+// Interface for the modal's prediction format
+interface PredictionInfo {
+  id: string;
+  symbol: string;
+  direction: 'bullish' | 'bearish';
+  confidence: number;
+  magnitudePercent?: number;
+  rationale?: string;
+}
+
+// Map categorical magnitude to percentage
+function magnitudeToPercent(magnitude?: number | string): number | undefined {
+  if (!magnitude) return undefined;
+  const mag = String(magnitude).toLowerCase();
+  switch (mag) {
+    case 'small': return 2;
+    case 'medium': return 5;
+    case 'large': return 10;
+    default: return typeof magnitude === 'number' ? magnitude : undefined;
+  }
+}
+
+// Map prediction to the format expected by TakePositionModal
+const predictionForModal = computed((): PredictionInfo | null => {
+  const pred = prediction.value;
+  if (!pred) return null;
+
+  // Only allow positions for directional predictions
+  if (pred.direction !== 'up' && pred.direction !== 'down') return null;
+
+  return {
+    id: pred.id,
+    symbol: pred.targetSymbol || '',
+    direction: pred.direction === 'up' ? 'bullish' : 'bearish',
+    confidence: pred.confidence || 0,
+    magnitudePercent: magnitudeToPercent(pred.magnitude),
+    rationale: pred.rationale || `${pred.direction.toUpperCase()} prediction with ${Math.round((pred.confidence || 0) * 100)}% confidence`,
+  };
+});
+
+// Can take position if prediction is active and directional
+const canTakePosition = computed(() => {
+  const pred = prediction.value;
+  if (!pred) return false;
+  return pred.status === 'active' && (pred.direction === 'up' || pred.direction === 'down');
+});
 
 const predictionId = computed(() => route.params.id as string);
 const prediction = computed(() => store.selectedPrediction);
@@ -237,6 +307,22 @@ function viewMissedOpportunities() {
 
 function viewTargetAnalysts() {
   router.push({ name: 'AnalystManagement' });
+}
+
+function openTakePositionModal() {
+  if (canTakePosition.value) {
+    isTakePositionModalOpen.value = true;
+  }
+}
+
+function closeTakePositionModal() {
+  isTakePositionModalOpen.value = false;
+}
+
+function handlePositionCreated(result: { positionId: string; symbol: string }) {
+  console.log('Position created:', result);
+  // Optionally navigate to portfolio or show success message
+  // For now, just close the modal (it closes automatically after success)
 }
 
 function formatDate(dateStr: string): string {
@@ -554,6 +640,20 @@ onMounted(async () => {
   background: var(--action-card-hover, #f3f4f6);
   border-color: var(--primary-color, #3b82f6);
   transform: translateY(-1px);
+}
+
+.action-card-primary {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(22, 163, 74, 0.15));
+  border-color: #22c55e;
+}
+
+.action-card-primary:hover {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(22, 163, 74, 0.2));
+  border-color: #16a34a;
+}
+
+.action-card-primary .action-label {
+  color: #16a34a;
 }
 
 .action-icon {

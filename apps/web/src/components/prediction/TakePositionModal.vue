@@ -27,27 +27,32 @@
         </div>
 
         <!-- Position Size Recommendation -->
-        <div v-if="sizeRecommendation" class="size-recommendation">
+        <div v-if="sizeRecommendation && sizeRecommendation.currentPrice" class="size-recommendation">
           <h3>Recommended Position</h3>
           <div class="recommendation-grid">
             <div class="rec-item">
               <span class="label">Quantity</span>
-              <span class="value">{{ sizeRecommendation.recommendedQuantity }}</span>
+              <span class="value">{{ sizeRecommendation.recommendedQuantity ?? 0 }}</span>
             </div>
             <div class="rec-item">
               <span class="label">Entry Price</span>
-              <span class="value">${{ sizeRecommendation.currentPrice.toFixed(2) }}</span>
+              <span class="value">${{ sizeRecommendation.currentPrice?.toFixed(2) ?? '-.--' }}</span>
             </div>
             <div class="rec-item">
               <span class="label">Risk Amount</span>
-              <span class="value">${{ sizeRecommendation.riskAmount.toFixed(2) }}</span>
+              <span class="value">${{ sizeRecommendation.riskAmount?.toFixed(2) ?? '-.--' }}</span>
             </div>
             <div class="rec-item">
               <span class="label">Risk/Reward</span>
-              <span class="value">{{ sizeRecommendation.riskRewardRatio.toFixed(2) }}</span>
+              <span class="value">{{ sizeRecommendation.riskRewardRatio?.toFixed(2) ?? '-' }}</span>
             </div>
           </div>
-          <p class="reasoning">{{ sizeRecommendation.reasoning }}</p>
+          <p v-if="sizeRecommendation.reasoning" class="reasoning">{{ sizeRecommendation.reasoning }}</p>
+        </div>
+
+        <!-- Size recommendation error/unavailable -->
+        <div v-else-if="sizeRecommendation && !sizeRecommendation.currentPrice" class="size-unavailable">
+          <p>Position size recommendation unavailable. Enter quantity manually below.</p>
         </div>
 
         <div v-else-if="loadingSize" class="loading-size">
@@ -179,13 +184,17 @@ async function loadSizeRecommendation(predictionId: string) {
 
   try {
     const response = await predictionDashboardService.calculatePositionSize(predictionId);
-    if (response.content) {
+    if (response.content && response.content.currentPrice != null) {
       sizeRecommendation.value = response.content;
       // Pre-fill recommended quantity
-      quantity.value = response.content.recommendedQuantity;
+      quantity.value = response.content.recommendedQuantity || 1;
+    } else {
+      // API returned but without required data - user can still enter manually
+      console.warn('Size recommendation missing required data:', response);
     }
   } catch (err) {
     console.error('Failed to load size recommendation:', err);
+    // Don't show error to user - they can still enter quantity manually
   } finally {
     loadingSize.value = false;
   }
@@ -291,7 +300,8 @@ function resetForm() {
 
 /* Size Recommendation */
 .size-recommendation {
-  background: var(--ion-color-primary-tint);
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(22, 163, 74, 0.15));
+  border: 1px solid rgba(34, 197, 94, 0.3);
   border-radius: 8px;
   padding: 1rem;
   margin-bottom: 1.5rem;
@@ -300,6 +310,8 @@ function resetForm() {
 .size-recommendation h3 {
   margin: 0 0 0.75rem 0;
   font-size: 1rem;
+  color: #16a34a;
+  font-weight: 600;
 }
 
 .recommendation-grid {
@@ -315,19 +327,36 @@ function resetForm() {
 
 .rec-item .label {
   font-size: 0.75rem;
-  color: var(--ion-color-medium);
+  color: #6b7280;
+  font-weight: 500;
+  text-transform: uppercase;
 }
 
 .rec-item .value {
   font-size: 1.1rem;
   font-weight: 600;
+  color: #111827;
 }
 
 .reasoning {
   font-size: 0.85rem;
-  color: var(--ion-color-medium);
+  color: #374151;
   margin-top: 0.75rem;
   font-style: italic;
+  line-height: 1.4;
+}
+
+.size-unavailable {
+  background: var(--ion-color-warning-tint);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.size-unavailable p {
+  margin: 0;
+  color: var(--ion-color-warning-shade);
+  font-size: 0.9rem;
 }
 
 /* Loading Size */
