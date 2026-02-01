@@ -267,6 +267,8 @@ export class SignalDetectionService {
       },
       status: 'active',
       expires_at: expiresAt.toISOString(),
+      // INV-03: Predictor must inherit is_test from source signal
+      is_test: signal.is_test,
     };
 
     const predictor = await this.predictorRepository.create(predictorData);

@@ -62,6 +62,8 @@ export interface CreatePredictorData {
   llm_usage_id?: string;
   expires_at: string;
   status?: PredictorStatus;
+  // INV-03: Must match is_test from source signal
+  is_test?: boolean;
 }
 
 export interface UpdatePredictorData {
