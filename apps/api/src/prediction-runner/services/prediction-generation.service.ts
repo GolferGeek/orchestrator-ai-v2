@@ -904,6 +904,16 @@ export class PredictionGenerationService {
     magnitudePercent: number,
   ): Promise<{ quantity: number; reasoning: string }> {
     try {
+      // Skip portfolio lookup for system user (automated processes)
+      // User portfolios require a valid UUID, not "system"
+      if (ctx.userId === 'system' || !this.isValidUUID(ctx.userId)) {
+        return {
+          quantity: 0,
+          reasoning:
+            'Position sizing not available for system-generated predictions',
+        };
+      }
+
       // Get user's portfolio balance
       const portfolio = await this.portfolioRepository.getUserPortfolio(
         ctx.userId,
@@ -1091,5 +1101,14 @@ export class PredictionGenerationService {
       // Return empty - context versioning is optional
       return {};
     }
+  }
+
+  /**
+   * Check if a string is a valid UUID
+   */
+  private isValidUUID(str: string): boolean {
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(str);
   }
 }
