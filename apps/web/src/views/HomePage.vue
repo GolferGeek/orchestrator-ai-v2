@@ -6,18 +6,6 @@
           <ion-menu-button :auto-hide="false" v-if="auth.isAuthenticated"></ion-menu-button>
         </ion-buttons>
         <ion-title>{{ pageTitle }}</ion-title>
-        <ion-buttons slot="end">
-          <ion-button
-            fill="clear"
-            @click="toggleDarkMode"
-            :title="isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'"
-          >
-            <ion-icon
-              :icon="isDarkMode ? sunnyOutline : moonOutline"
-              slot="icon-only"
-            />
-          </ion-button>
-        </ion-buttons>
       </ion-toolbar>
     </ion-header>
     <ion-content :fullscreen="true">
@@ -61,14 +49,11 @@ import {
   IonToolbar,
   IonButtons,
   IonMenuButton,
-  IonButton,
   IonIcon,
 } from '@ionic/vue';
 import {
   lockClosedOutline,
   chatbubblesOutline,
-  moonOutline,
-  sunnyOutline,
 } from 'ionicons/icons';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/rbacStore';
@@ -131,24 +116,6 @@ onUnmounted(() => {
   sessionStorage.removeItem('activeConversation');
 });
 
-// Reactive theme functionality
-const isDarkMode = computed(() => userPreferencesStore.effectiveTheme === 'dark');
-
-const toggleDarkMode = () => {
-  const currentTheme = userPreferencesStore.preferences.theme;
-  let newTheme: 'light' | 'dark' | 'auto';
-  
-  if (currentTheme === 'auto') {
-    // If auto, switch to the opposite of current effective theme
-    newTheme = isDarkMode.value ? 'light' : 'dark';
-  } else {
-    // If manual, toggle between light and dark
-    newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-  }
-  
-  // Just update the preference - let the store's reactivity handle theme application
-  userPreferencesStore.setTheme(newTheme);
-};
 
 </script>
 <style scoped>

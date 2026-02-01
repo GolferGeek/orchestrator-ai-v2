@@ -165,25 +165,27 @@ export class LlmTierResolverService {
       return defaults;
     }
 
+    // Using Gemini 3 Flash for all tiers - fast, cheap, and capable
+    // Pricing: $0.50/1M input, $3/1M output (6x cheaper than Claude Sonnet)
     defaults.set('gold', {
       tier: 'gold',
-      provider: 'anthropic',
-      model: 'claude-sonnet-4-20250514',
+      provider: 'google',
+      model: 'gemini-3-flash',
       model_tier: 'standard',
     });
 
     defaults.set('silver', {
       tier: 'silver',
-      provider: 'anthropic',
-      model: 'claude-haiku-4-20250514',
-      model_tier: 'economy',
+      provider: 'google',
+      model: 'gemini-3-flash',
+      model_tier: 'standard',
     });
 
     defaults.set('bronze', {
       tier: 'bronze',
-      provider: 'ollama',
-      model: 'llama3.3',
-      model_tier: 'economy',
+      provider: 'google',
+      model: 'gemini-3-flash',
+      model_tier: 'standard',
     });
 
     return defaults;
