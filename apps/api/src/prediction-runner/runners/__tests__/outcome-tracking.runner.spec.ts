@@ -2,8 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { OutcomeTrackingRunner } from '../outcome-tracking.runner';
 import { PredictionRepository } from '../../repositories/prediction.repository';
 import { TargetSnapshotRepository } from '../../repositories/target-snapshot.repository';
+import { TargetRepository } from '../../repositories/target.repository';
 import { OutcomeTrackingService } from '../../services/outcome-tracking.service';
 import { TargetSnapshotService } from '../../services/target-snapshot.service';
+import { PositionResolutionService } from '../../services/position-resolution.service';
 import { ObservabilityEventsService } from '@/observability/observability-events.service';
 import { Prediction } from '../../interfaces/prediction.interface';
 
@@ -67,6 +69,13 @@ describe('OutcomeTrackingRunner', () => {
           },
         },
         {
+          provide: TargetRepository,
+          useValue: {
+            findAll: jest.fn(),
+            findById: jest.fn(),
+          },
+        },
+        {
           provide: OutcomeTrackingService,
           useValue: {
             captureOutcome: jest.fn(),
@@ -79,6 +88,12 @@ describe('OutcomeTrackingRunner', () => {
           provide: TargetSnapshotService,
           useValue: {
             fetchAndCaptureValue: jest.fn(),
+          },
+        },
+        {
+          provide: PositionResolutionService,
+          useValue: {
+            resolvePosition: jest.fn(),
           },
         },
         {
