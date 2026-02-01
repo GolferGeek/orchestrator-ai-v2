@@ -138,10 +138,11 @@ export function validateUrlProtocol(url: string): boolean {
  */
 export function getSecureApiBaseUrl(): string {
   // Priority order for API base URL
+  const apiPort = import.meta.env.VITE_API_PORT || '6100';
   const candidates = [
     import.meta.env.VITE_API_BASE_URL,
     import.meta.env.VITE_API_NESTJS_BASE_URL,
-    import.meta.env.VITE_BASE_URL ? `${import.meta.env.VITE_BASE_URL}:6100` : null,
+    import.meta.env.VITE_BASE_URL ? `${import.meta.env.VITE_BASE_URL}:${apiPort}` : null,
   ].filter(Boolean);
 
   // If explicit env var is set, use it
@@ -160,7 +161,8 @@ export function getSecureApiBaseUrl(): string {
   }
 
   // Final fallback for local development
-  return enforceHttpsUrl('http://localhost:6100');
+  const fallbackPort = import.meta.env.VITE_API_PORT || '6100';
+  return enforceHttpsUrl(`http://localhost:${fallbackPort}`);
 }
 
 /**

@@ -307,7 +307,8 @@ async function connectToSSE() {
     return;
   }
 
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:6100';
+  const apiPort = import.meta.env.VITE_API_PORT || '6100';
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || `http://localhost:${apiPort}`;
 
   // Use /observability/stream endpoint like prediction does
   // Filter client-side by taskId since the endpoint doesn't have that filter

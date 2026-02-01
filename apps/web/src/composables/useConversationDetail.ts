@@ -49,7 +49,8 @@ export function useConversationDetail() {
   const tasks = ref<TaskDetail[]>([]);
   const deliverables = ref<DeliverableDetail[]>([]);
   
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:6100';
+  const apiPort = import.meta.env.VITE_API_PORT || '6100';
+  const apiUrl = import.meta.env.VITE_API_URL || `http://localhost:${apiPort}`;
   
   // Computed
   const hasData = computed(() => conversation.value !== null);

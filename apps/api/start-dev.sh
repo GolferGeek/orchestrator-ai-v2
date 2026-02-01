@@ -86,8 +86,8 @@ else
     fi
 fi
 
-# Check and start local Supabase (DEV - port 6010)
-echo -e "${BLUE}🗄️  Checking local Supabase status (Development - Port 6010)...${NC}"
+# Check and start local Supabase
+echo -e "${BLUE}🗄️  Checking local Supabase status (Development - Port ${SUPABASE_API_PORT:-6010})...${NC}"
 
 # Function to check if port is in use
 check_port() {
@@ -99,7 +99,7 @@ check_port() {
 }
 
 is_langgraph_running() {
-    if check_port 6200; then
+    if check_port ${LANGGRAPH_PORT:-6200}; then
         return 0
     else
         return 1
@@ -108,7 +108,7 @@ is_langgraph_running() {
 
 start_langgraph() {
     if is_langgraph_running; then
-        echo -e "${GREEN}✅ LangGraph server already running on port 6200${NC}"
+        echo -e "${GREEN}✅ LangGraph server already running on port ${LANGGRAPH_PORT:-6200}${NC}"
         return 0
     fi
 
@@ -139,8 +139,8 @@ start_langgraph() {
     local count=0
     local max_attempts=10
     while [ $count -lt $max_attempts ]; do
-        if check_port 6200; then
-            echo -e "${GREEN}✅ LangGraph server running at http://localhost:6200${NC}"
+        if check_port ${LANGGRAPH_PORT:-6200}; then
+            echo -e "${GREEN}✅ LangGraph server running at http://localhost:${LANGGRAPH_PORT:-6200}${NC}"
             LANGGRAPH_STARTED_BY_SCRIPT=true
             return 0
         fi
@@ -153,19 +153,19 @@ start_langgraph() {
     return 1
 }
 
-# Check if Supabase is running on dev port 6010
-if check_port 6010; then
-    echo -e "${GREEN}✅ Local Supabase is already running on port 6010${NC}"
-    echo -e "${BLUE}   Studio: http://127.0.0.1:6015${NC}"
-    echo -e "${BLUE}   API: http://127.0.0.1:6010${NC}"
-    echo -e "${BLUE}   Database: postgres://postgres:postgres@127.0.0.1:6012/postgres${NC}"
+# Check if Supabase is running on the configured port
+if check_port ${SUPABASE_API_PORT:-6010}; then
+    echo -e "${GREEN}✅ Local Supabase is already running on port ${SUPABASE_API_PORT:-6010}${NC}"
+    echo -e "${BLUE}   Studio: http://127.0.0.1:${SUPABASE_STUDIO_PORT:-6015}${NC}"
+    echo -e "${BLUE}   API: http://127.0.0.1:${SUPABASE_API_PORT:-6010}${NC}"
+    echo -e "${BLUE}   Database: postgres://postgres:postgres@127.0.0.1:${SUPABASE_DB_PORT:-6012}/postgres${NC}"
 
     # Remind about backup system if available
     if [ -f "supabase/backup-local-db.sh" ]; then
         echo -e "${BLUE}💡 Backup system available: ./supabase/backup-local-db.sh --list${NC}"
     fi
 else
-    echo -e "${BLUE}🚀 Starting local Supabase development instance on port 6010...${NC}"
+    echo -e "${BLUE}🚀 Starting local Supabase development instance on port ${SUPABASE_API_PORT:-6010}...${NC}"
 
     # Check if backup script exists and create a backup if Supabase has data
     if [ -f "supabase/backup-local-db.sh" ] && check_docker; then
@@ -179,14 +179,14 @@ else
     # Start Supabase with development config
     echo -e "${BLUE}🔧 Starting Supabase with development configuration...${NC}"
 
-    # Start Supabase (config.toml is already configured for dev on port 6010)
+    # Start Supabase (config.toml controls the actual ports)
     supabase start
     SUPABASE_EXIT_CODE=$?
     if [ $SUPABASE_EXIT_CODE -eq 0 ]; then
-        echo -e "${GREEN}✅ Local Supabase started successfully on port 6010${NC}"
-        echo -e "${BLUE}   Studio: http://127.0.0.1:6015${NC}"
-        echo -e "${BLUE}   API: http://127.0.0.1:6010${NC}"
-        echo -e "${BLUE}   Database: postgres://postgres:postgres@127.0.0.1:6012/postgres${NC}"
+        echo -e "${GREEN}✅ Local Supabase started successfully on port ${SUPABASE_API_PORT:-6010}${NC}"
+        echo -e "${BLUE}   Studio: http://127.0.0.1:${SUPABASE_STUDIO_PORT:-6015}${NC}"
+        echo -e "${BLUE}   API: http://127.0.0.1:${SUPABASE_API_PORT:-6010}${NC}"
+        echo -e "${BLUE}   Database: postgres://postgres:postgres@127.0.0.1:${SUPABASE_DB_PORT:-6012}/postgres${NC}"
         SUPABASE_STARTED_BY_SCRIPT=true
 
         # Remind about backup system
@@ -194,7 +194,7 @@ else
             echo -e "${BLUE}💡 Backup system available: ./supabase/backup-local-db.sh${NC}"
         fi
     else
-        echo -e "${RED}❌ Failed to start local Supabase on port 6010${NC}"
+        echo -e "${RED}❌ Failed to start local Supabase on port ${SUPABASE_API_PORT:-6010}${NC}"
         echo -e "${BLUE}💡 This might be due to Docker not being ready yet${NC}"
         echo -e "${BLUE}💡 Try running: supabase start --config ./supabase/config.dev.toml${NC}"
         echo -e "${BLUE}💡 Or check Docker Desktop status and restart if needed${NC}"
@@ -222,8 +222,8 @@ cleanup() {
     if [ "$LANGGRAPH_STARTED_BY_SCRIPT" = true ] && [ ! -z "$LANGGRAPH_PID" ]; then
         echo -e "${RED}🔄 Stopping LangGraph server...${NC}"
         kill $LANGGRAPH_PID 2>/dev/null
-        # Also kill any child processes on port 6200
-        lsof -ti:6200 | xargs kill -9 2>/dev/null || true
+        # Also kill any child processes on the LangGraph port
+        lsof -ti:${LANGGRAPH_PORT:-6200} | xargs kill -9 2>/dev/null || true
         echo -e "${GREEN}✅ LangGraph server stopped${NC}"
     fi
 
@@ -250,7 +250,7 @@ sleep 2
 echo -e "${GREEN}✅ Development environment ready!${NC}"
 echo -e "${BLUE}📡 NestJS API: http://localhost:${API_PORT:-6100}${NC}"
 if [ "$LANGGRAPH_STARTED_BY_SCRIPT" = true ]; then
-    echo -e "${BLUE}🔄 LangGraph Workflows: http://localhost:6200${NC}"
+    echo -e "${BLUE}🔄 LangGraph Workflows: http://localhost:${LANGGRAPH_PORT:-6200}${NC}"
 fi
 echo -e "\n${BLUE}Press Ctrl+C to stop all services${NC}"
 

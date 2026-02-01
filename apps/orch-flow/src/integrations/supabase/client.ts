@@ -2,7 +2,9 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+// Construct Supabase URL from port if not explicitly set
+const SUPABASE_API_PORT = import.meta.env.VITE_SUPABASE_API_PORT || import.meta.env.SUPABASE_API_PORT || '6010';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || `http://127.0.0.1:${SUPABASE_API_PORT}`;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Debug: Log environment variables (remove in production)

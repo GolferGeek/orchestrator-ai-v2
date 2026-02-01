@@ -133,12 +133,18 @@ async function bootstrap() {
 
   // Add web port if configured
   if (webPort) {
-    corsOrigins.push(`http://localhost:${webPort}`, `http://127.0.0.1:${webPort}`);
+    corsOrigins.push(
+      `http://localhost:${webPort}`,
+      `http://127.0.0.1:${webPort}`,
+    );
   }
 
   // Add orch flow port if configured
   if (orchFlowPort) {
-    corsOrigins.push(`http://localhost:${orchFlowPort}`, `http://127.0.0.1:${orchFlowPort}`);
+    corsOrigins.push(
+      `http://localhost:${orchFlowPort}`,
+      `http://127.0.0.1:${orchFlowPort}`,
+    );
   }
 
   // Add static origins (Supabase, production domains)

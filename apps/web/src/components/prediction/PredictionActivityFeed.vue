@@ -295,7 +295,8 @@ async function connect() {
   error.value = null;
 
   try {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:6100';
+    const apiPort = import.meta.env.VITE_API_PORT || '6100';
+    const apiUrl = import.meta.env.VITE_API_URL || `http://localhost:${apiPort}`;
     const queryParams = new URLSearchParams();
     queryParams.append('token', token);
     // Filter for prediction-related events
@@ -449,7 +450,8 @@ async function loadHistoricalEvents() {
   isLoadingHistory.value = true;
 
   try {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:6100';
+    const apiPort = import.meta.env.VITE_API_PORT || '6100';
+    const apiUrl = import.meta.env.VITE_API_URL || `http://localhost:${apiPort}`;
     // Get events from last 24 hours for a reasonable history
     const since = Date.now() - 24 * 60 * 60 * 1000;
     const response = await fetch(`${apiUrl}/observability/history?since=${since}&limit=100`, {
