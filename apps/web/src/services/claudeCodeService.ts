@@ -131,7 +131,8 @@ class ClaudeCodeService {
   private readonly baseUrl: string;
 
   constructor() {
-    this.baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:6100';
+    const apiPort = import.meta.env.VITE_API_PORT || '6100';
+    this.baseUrl = import.meta.env.VITE_API_URL || `http://localhost:${apiPort}`;
   }
 
   /**

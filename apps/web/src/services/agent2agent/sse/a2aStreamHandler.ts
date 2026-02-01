@@ -32,10 +32,11 @@ interface NormalizedStreamMetadata {
   conversationId?: string | null;
 }
 
+const API_PORT = import.meta.env.VITE_API_PORT || '6100';
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
   import.meta.env.VITE_API_NESTJS_BASE_URL ||
-  'http://localhost:6100';
+  `http://localhost:${API_PORT}`;
 
 export class A2AStreamHandler {
   private client: SSEClient;

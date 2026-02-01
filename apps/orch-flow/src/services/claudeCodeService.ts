@@ -18,8 +18,9 @@ class ClaudeCodeService {
   private readonly baseUrl: string;
 
   constructor() {
-    // Use the API URL from environment or default to the API server
-    this.baseUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:6100';
+    // Use the API URL from environment or construct from port
+    const apiPort = import.meta.env.VITE_API_PORT || '6100';
+    this.baseUrl = import.meta.env.VITE_API_URL || `http://127.0.0.1:${apiPort}`;
   }
 
   /**

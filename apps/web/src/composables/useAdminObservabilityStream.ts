@@ -67,7 +67,8 @@ export function useAdminObservabilityStream() {
     console.log('[Observability] Connecting to SSE stream...');
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:6100';
+      const apiPort = import.meta.env.VITE_API_PORT || '6100';
+      const apiUrl = import.meta.env.VITE_API_URL || `http://localhost:${apiPort}`;
       const queryParams = new URLSearchParams();
 
       if (filters?.userId) queryParams.append('userId', filters.userId);

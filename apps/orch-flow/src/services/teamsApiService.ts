@@ -59,7 +59,8 @@ class TeamsApiService {
   private readonly baseUrl: string;
 
   constructor() {
-    this.baseUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:6100';
+    const apiPort = import.meta.env.VITE_API_PORT || '6100';
+    this.baseUrl = import.meta.env.VITE_API_URL || `http://127.0.0.1:${apiPort}`;
   }
 
   /**
