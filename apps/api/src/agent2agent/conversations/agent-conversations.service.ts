@@ -49,7 +49,9 @@ export class AgentConversationsService {
     if (!langgraphPort) {
       this.logger.error('LANGGRAPH_PORT must be set in environment');
     }
-    this.langgraphBaseUrl = langgraphPort ? `http://localhost:${langgraphPort}` : '';
+    this.langgraphBaseUrl = langgraphPort
+      ? `http://localhost:${langgraphPort}`
+      : '';
   }
 
   /**
