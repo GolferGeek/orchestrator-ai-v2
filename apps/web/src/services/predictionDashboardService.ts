@@ -124,7 +124,30 @@ export interface Prediction {
     direction: string;
     confidence: number;
     reasoning?: string;
+    // Three-way fork assessments
+    userFork?: {
+      direction: string;
+      confidence: number;
+      reasoning?: string;
+    };
+    aiFork?: {
+      direction: string;
+      confidence: number;
+      reasoning?: string;
+    };
+    arbitratorFork?: {
+      direction: string;
+      confidence: number;
+      reasoning?: string;
+    };
   }>;
+  // Fork comparison metadata
+  forkMetadata?: {
+    totalAnalysts: number;
+    userVsAiAgreement: number;
+    arbitratorAgreesWithUser: number;
+    arbitratorAgreesWithAi: number;
+  };
 }
 
 export interface TierResult {

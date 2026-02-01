@@ -144,6 +144,13 @@ import type { Prediction } from '@/services/predictionDashboardService';
 import LLMComparisonBadge from './LLMComparisonBadge.vue';
 import AnalystOpinionModal from './AnalystOpinionModal.vue';
 
+// Fork assessment structure
+interface ForkAssessment {
+  direction: string;
+  confidence: number;
+  reasoning?: string;
+}
+
 // Type for analyst assessment from the Prediction
 interface AnalystAssessment {
   analystSlug: string;
@@ -155,6 +162,10 @@ interface AnalystAssessment {
   keyFactors?: string[];
   risks?: string[];
   learningsApplied?: string[];
+  // Three-way fork assessments
+  userFork?: ForkAssessment;
+  aiFork?: ForkAssessment;
+  arbitratorFork?: ForkAssessment;
 }
 
 interface Props {

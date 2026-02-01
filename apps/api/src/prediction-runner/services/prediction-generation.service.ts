@@ -22,6 +22,7 @@ import {
   EnsembleInput,
   EnsembleResult,
 } from '../interfaces/ensemble.interface';
+import { ThreeWayForkEnsembleResult } from './analyst-ensemble.service';
 import { SnapshotBuildInput } from '../interfaces/snapshot.interface';
 
 /**
@@ -205,18 +206,19 @@ export class PredictionGenerationService {
     const predictors =
       await this.predictorManagementService.getActivePredictors(targetId);
 
-    // Run fresh ensemble evaluation
+    // Run fresh ensemble evaluation using three-way fork
     const ensembleInput: EnsembleInput = {
       targetId,
       content: this.buildPredictionContext(predictors, thresholdResult),
       direction: thresholdResult.dominantDirection,
     };
 
-    const ensembleResult = await this.ensembleService.runEnsemble(
+    const threeWayResult = await this.ensembleService.runThreeWayForkEnsemble(
       ctx,
       target,
       ensembleInput,
     );
+    const ensembleResult = threeWayResult.final;
 
     // Calculate new prediction parameters
     const newDirection = this.mapPredictorToPredictonDirection(
@@ -358,17 +360,25 @@ export class PredictionGenerationService {
       await this.predictorManagementService.getActivePredictors(targetId);
 
     // Run final ensemble evaluation for prediction parameters
+    // Using three-way fork ensemble for full reasoning per analyst:
+    // - user fork: user-maintained context
+    // - ai fork: AI-maintained context
+    // - arbitrator fork: combined context for final call
     const ensembleInput: EnsembleInput = {
       targetId,
       content: this.buildPredictionContext(predictors, thresholdResult),
       direction: thresholdResult.dominantDirection,
     };
 
-    const ensembleResult = await this.ensembleService.runEnsemble(
+    const threeWayResult = await this.ensembleService.runThreeWayForkEnsemble(
       ctx,
       target,
       ensembleInput,
     );
+
+    // Use arbitrator fork assessments as the primary assessments
+    // but we'll store all three forks for display
+    const ensembleResult: EnsembleResult = threeWayResult.final;
 
     // Calculate common parameters
     const horizonHours = this.determineHorizon(predictors);
@@ -399,6 +409,7 @@ export class PredictionGenerationService {
     }
 
     // Create arbitrator prediction (synthesis of all analysts)
+    // Pass three-way result for storing all fork reasonings
     const arbitratorPrediction = await this.createArbitratorPrediction(
       ctx,
       target,
@@ -408,6 +419,7 @@ export class PredictionGenerationService {
       horizonHours,
       expiresAt,
       contextVersions,
+      threeWayResult,
     );
     createdPredictions.push(arbitratorPrediction);
 
@@ -545,6 +557,7 @@ export class PredictionGenerationService {
 
   /**
    * Create the arbitrator prediction (synthesis of all analyst opinions)
+   * Now includes all three fork assessments (user, ai, arbitrator) for each analyst
    */
   private async createArbitratorPrediction(
     ctx: ExecutionContext,
@@ -560,6 +573,7 @@ export class PredictionGenerationService {
       targetContextVersionId?: string;
       analystContextVersionIds?: Record<string, string>;
     },
+    threeWayResult?: ThreeWayForkEnsembleResult,
   ): Promise<Prediction> {
     // Map direction from predictor to prediction vocabulary
     const direction = this.mapPredictorToPredictonDirection(
@@ -621,6 +635,92 @@ export class PredictionGenerationService {
         `Consensus: ${(ensembleResult.aggregated.consensus_strength * 100).toFixed(0)}%. ` +
         ensembleResult.aggregated.reasoning;
 
+    // Build assessments with all three fork reasonings per analyst
+    const buildAssessmentsWithForks = (): Array<{
+      analyst_slug: string;
+      analyst_name: string;
+      direction: string;
+      confidence: number;
+      reasoning?: string;
+      user_fork?: { direction: string; confidence: number; reasoning?: string };
+      ai_fork?: { direction: string; confidence: number; reasoning?: string };
+      arbitrator_fork?: {
+        direction: string;
+        confidence: number;
+        reasoning?: string;
+      };
+    }> => {
+      if (!threeWayResult) {
+        // Fallback to simple format if no three-way result
+        return ensembleResult.assessments.map((a) => ({
+          analyst_slug: a.analyst.slug,
+          analyst_name: a.analyst.name,
+          direction: a.direction,
+          confidence: a.confidence,
+          reasoning: a.reasoning,
+        }));
+      }
+
+      // Build lookup maps by analyst slug
+      const userBySlug = new Map(
+        threeWayResult.userForkAssessments.map((a) => [a.analyst.slug, a]),
+      );
+      const aiBySlug = new Map(
+        threeWayResult.aiForkAssessments.map((a) => [a.analyst.slug, a]),
+      );
+      const arbitratorBySlug = new Map(
+        threeWayResult.arbitratorForkAssessments.map((a) => [
+          a.analyst.slug,
+          a,
+        ]),
+      );
+
+      // Get unique analyst slugs
+      const allSlugs = new Set([
+        ...userBySlug.keys(),
+        ...aiBySlug.keys(),
+        ...arbitratorBySlug.keys(),
+      ]);
+
+      return Array.from(allSlugs).map((slug) => {
+        const user = userBySlug.get(slug);
+        const ai = aiBySlug.get(slug);
+        const arbitrator = arbitratorBySlug.get(slug);
+
+        // Use arbitrator as primary, fallback to user or ai
+        const primary = arbitrator || user || ai;
+
+        return {
+          analyst_slug: slug,
+          analyst_name: primary?.analyst.name || slug,
+          direction: primary?.direction || 'neutral',
+          confidence: primary?.confidence || 0,
+          reasoning: primary?.reasoning,
+          user_fork: user
+            ? {
+                direction: user.direction,
+                confidence: user.confidence,
+                reasoning: user.reasoning,
+              }
+            : undefined,
+          ai_fork: ai
+            ? {
+                direction: ai.direction,
+                confidence: ai.confidence,
+                reasoning: ai.reasoning,
+              }
+            : undefined,
+          arbitrator_fork: arbitrator
+            ? {
+                direction: arbitrator.direction,
+                confidence: arbitrator.confidence,
+                reasoning: arbitrator.reasoning,
+              }
+            : undefined,
+        };
+      });
+    };
+
     const predictionData: CreatePredictionData = {
       target_id: target.id,
       direction,
@@ -633,11 +733,9 @@ export class PredictionGenerationService {
         predictor_count: predictors.length,
         combined_strength: thresholdResult.combinedStrength,
         direction_consensus: thresholdResult.directionConsensus,
-        assessments: ensembleResult.assessments.map((a) => ({
-          analyst_slug: a.analyst.slug,
-          direction: a.direction,
-          confidence: a.confidence,
-        })),
+        assessments: buildAssessmentsWithForks(),
+        // Include metadata about fork agreement
+        fork_metadata: threeWayResult?.metadata,
       },
       llm_ensemble: {
         direction: ensembleResult.aggregated.direction,

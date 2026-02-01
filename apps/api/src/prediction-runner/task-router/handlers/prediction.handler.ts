@@ -357,25 +357,109 @@ export class PredictionHandler implements IDashboardHandler {
 
         // Extract analyst assessments from analyst_ensemble for arbitrator predictions
         // The analyst_ensemble contains individual analyst assessments in the 'assessments' array
+        // New format includes three forks per analyst: user_fork, ai_fork, arbitrator_fork
+        // Data structure: { assessments: [{ analyst_slug, analyst_name, direction, confidence, reasoning,
+        //   user_fork: { direction, confidence, reasoning },
+        //   ai_fork: { direction, confidence, reasoning },
+        //   arbitrator_fork: { direction, confidence, reasoning }
+        // }], ... }
         const analystEnsembleData = p.analyst_ensemble as {
           assessments?: Array<{
-            analyst?: { slug?: string; name?: string };
+            analyst_slug?: string;
+            analyst_name?: string;
+            analyst?: { slug?: string; name?: string }; // Legacy format
             direction?: string;
             confidence?: number;
             reasoning?: string;
+            user_fork?: {
+              direction: string;
+              confidence: number;
+              reasoning?: string;
+            };
+            ai_fork?: {
+              direction: string;
+              confidence: number;
+              reasoning?: string;
+            };
+            arbitrator_fork?: {
+              direction: string;
+              confidence: number;
+              reasoning?: string;
+            };
           }>;
+          fork_metadata?: {
+            totalAnalysts: number;
+            userVsAiAgreement: number;
+            arbitratorAgreesWithUser: number;
+            arbitratorAgreesWithAi: number;
+          };
         } | null;
+
+        // Helper to convert analyst slug to display name
+        const slugToDisplayName = (slug: string): string => {
+          const nameMap: Record<string, string> = {
+            'fundamental-fred': 'Fundamental Fred',
+            'technical-tina': 'Technical Tina',
+            'sentiment-sally': 'Sentiment Sally',
+            'aggressive-alex': 'Aggressive Alex',
+            'cautious-carl': 'Cautious Carl',
+          };
+          return (
+            nameMap[slug] ||
+            slug
+              .split('-')
+              .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(' ')
+          );
+        };
 
         const analystAssessments =
           p.is_arbitrator && analystEnsembleData?.assessments
-            ? analystEnsembleData.assessments.map((a) => ({
-                analystSlug: a.analyst?.slug || 'unknown',
-                analystName: a.analyst?.name || a.analyst?.slug || 'Unknown',
-                direction: a.direction || 'neutral',
-                confidence: a.confidence || 0,
-                reasoning: a.reasoning,
-              }))
+            ? analystEnsembleData.assessments.map((a) => {
+                // Support both new format (analyst_slug) and legacy format (analyst.slug)
+                const slug = a.analyst_slug || a.analyst?.slug || 'unknown';
+                const name =
+                  a.analyst_name || a.analyst?.name || slugToDisplayName(slug);
+                return {
+                  analystSlug: slug,
+                  analystName: name,
+                  direction: a.direction || 'neutral',
+                  confidence: a.confidence || 0,
+                  reasoning: a.reasoning,
+                  // Include all three fork reasonings for the UI
+                  userFork: a.user_fork
+                    ? {
+                        direction: a.user_fork.direction,
+                        confidence: a.user_fork.confidence,
+                        reasoning:
+                          a.user_fork.reasoning ||
+                          'No user fork reasoning provided',
+                      }
+                    : undefined,
+                  aiFork: a.ai_fork
+                    ? {
+                        direction: a.ai_fork.direction,
+                        confidence: a.ai_fork.confidence,
+                        reasoning:
+                          a.ai_fork.reasoning ||
+                          'No AI fork reasoning provided',
+                      }
+                    : undefined,
+                  arbitratorFork: a.arbitrator_fork
+                    ? {
+                        direction: a.arbitrator_fork.direction,
+                        confidence: a.arbitrator_fork.confidence,
+                        reasoning:
+                          a.arbitrator_fork.reasoning ||
+                          'No arbitrator fork reasoning provided',
+                      }
+                    : undefined,
+                };
+              })
             : undefined;
+
+        // Include fork metadata for UI display
+        const forkMetadata = analystEnsembleData?.fork_metadata;
 
         return {
           // Core fields
@@ -415,6 +499,15 @@ export class PredictionHandler implements IDashboardHandler {
           isArbitrator: p.is_arbitrator || false,
           // Analyst assessments for arbitrator predictions (expandable UI)
           analystAssessments,
+          // Fork comparison metadata (how often user/ai/arbitrator agree)
+          forkMetadata: forkMetadata
+            ? {
+                totalAnalysts: forkMetadata.totalAnalysts,
+                userVsAiAgreement: forkMetadata.userVsAiAgreement,
+                arbitratorAgreesWithUser: forkMetadata.arbitratorAgreesWithUser,
+                arbitratorAgreesWithAi: forkMetadata.arbitratorAgreesWithAi,
+              }
+            : undefined,
         };
       });
 
