@@ -56,6 +56,10 @@ export interface Prediction {
   analyst_context_version_ids?: Record<string, string> | null;
   universe_context_version_id?: string | null;
   target_context_version_id?: string | null;
+  /** Slug of the analyst who made this prediction (null for legacy/aggregated predictions) */
+  analyst_slug?: string | null;
+  /** True if this is a synthesized arbitrator prediction combining all analyst opinions */
+  is_arbitrator?: boolean | null;
 }
 
 export interface CreatePredictionData {
@@ -83,6 +87,10 @@ export interface CreatePredictionData {
   analyst_context_version_ids?: Record<string, string>;
   universe_context_version_id?: string;
   target_context_version_id?: string;
+  /** Slug of the analyst who made this prediction */
+  analyst_slug?: string;
+  /** True if this is a synthesized arbitrator prediction */
+  is_arbitrator?: boolean;
 }
 
 export interface UpdatePredictionData {

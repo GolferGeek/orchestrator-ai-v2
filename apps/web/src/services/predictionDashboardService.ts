@@ -10,6 +10,7 @@
 
 import { useAuthStore } from '@/stores/rbacStore';
 import { useExecutionContextStore } from '@/stores/executionContextStore';
+import { useAgentsStore } from '@/stores/agentsStore';
 import type { JsonValue } from '@/types';
 import type {
   ExecutionContext,
@@ -112,6 +113,18 @@ export interface Prediction {
   outcomeValue?: number;
   rationale?: string;
   notes?: string;
+  // Per-analyst prediction fields
+  analystSlug?: string;
+  isArbitrator?: boolean;
+  reasoning?: string;
+  // Analyst opinions embedded in arbitrator prediction
+  analystAssessments?: Array<{
+    analystSlug: string;
+    analystName?: string;
+    direction: string;
+    confidence: number;
+    reasoning?: string;
+  }>;
 }
 
 export interface TierResult {
@@ -1420,7 +1433,7 @@ class PredictionDashboardService {
   }
 
   private getOrgSlug(): string {
-    // Priority: explicit org slug > auth store current org
+    // Priority: explicit org slug > auth store current org > agent's org from store
     // Explicit org slug is set when viewing an agent from a specific org (e.g., super-user)
     if (this.currentOrgSlug && this.currentOrgSlug !== '*') {
       return this.currentOrgSlug;
@@ -1429,6 +1442,23 @@ class PredictionDashboardService {
     const authOrg = this.getAuthStore().currentOrganization;
     if (authOrg && authOrg !== '*') {
       return authOrg;
+    }
+
+    // If we have a current agent slug, look up its org from the agents store
+    // This handles the case where user is in "all orgs" mode but has selected a specific agent
+    if (this.currentAgentSlug) {
+      const agentsStore = useAgentsStore();
+      const agent = agentsStore.availableAgents?.find(
+        (a) => a.slug === this.currentAgentSlug || a.name === this.currentAgentSlug
+      );
+      if (agent?.organizationSlug && agent.organizationSlug !== '*') {
+        const orgSlug = Array.isArray(agent.organizationSlug)
+          ? agent.organizationSlug[0]
+          : agent.organizationSlug;
+        if (orgSlug && orgSlug !== '*') {
+          return orgSlug;
+        }
+      }
     }
 
     // If we have global org (*), provide helpful error

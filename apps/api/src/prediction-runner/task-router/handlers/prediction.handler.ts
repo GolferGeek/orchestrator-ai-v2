@@ -338,6 +338,29 @@ export class PredictionHandler implements IDashboardHandler {
       // Transform predictions to frontend format (camelCase + enriched data)
       const enrichedPredictions = paginatedPredictions.map((p) => {
         const target = targetMap.get(p.target_id);
+
+        // Extract analyst assessments from analyst_ensemble for arbitrator predictions
+        // The analyst_ensemble contains individual analyst assessments in the 'assessments' array
+        const analystEnsembleData = p.analyst_ensemble as {
+          assessments?: Array<{
+            analyst?: { slug?: string; name?: string };
+            direction?: string;
+            confidence?: number;
+            reasoning?: string;
+          }>;
+        } | null;
+
+        const analystAssessments =
+          p.is_arbitrator && analystEnsembleData?.assessments
+            ? analystEnsembleData.assessments.map((a) => ({
+                analystSlug: a.analyst?.slug || 'unknown',
+                analystName: a.analyst?.name || a.analyst?.slug || 'Unknown',
+                direction: a.direction || 'neutral',
+                confidence: a.confidence || 0,
+                reasoning: a.reasoning,
+              }))
+            : undefined;
+
         return {
           // Core fields
           id: p.id,
@@ -371,6 +394,11 @@ export class PredictionHandler implements IDashboardHandler {
           // Ensemble data
           llmEnsembleResults: p.llm_ensemble || undefined,
           analystEnsemble: p.analyst_ensemble || undefined,
+          // Per-analyst prediction fields
+          analystSlug: p.analyst_slug || null,
+          isArbitrator: p.is_arbitrator || false,
+          // Analyst assessments for arbitrator predictions (expandable UI)
+          analystAssessments,
         };
       });
 

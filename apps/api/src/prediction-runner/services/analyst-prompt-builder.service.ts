@@ -83,6 +83,16 @@ ${tierInstructions ? `## Analysis Instructions\n${tierInstructions}` : ''}
 ${target.context ? `- Context: ${target.context}` : ''}
 ${learningsSection}${performanceSection}
 
+## Direction Decision Guidelines
+IMPORTANT: Be decisive. Markets move - take a position.
+
+- Choose "bullish" if your analysis suggests ANY upward bias, even slight. Use lower confidence (0.5-0.7) for weak signals.
+- Choose "bearish" if your analysis suggests ANY downward bias, even slight. Use lower confidence (0.5-0.7) for weak signals.
+- ONLY choose "neutral" if you see EQUAL and OFFSETTING bullish and bearish factors that genuinely cancel out.
+
+Do NOT default to "neutral" just because you're uncertain. Instead, pick the more likely direction with lower confidence.
+Example: 55% likely to go up → bullish with 0.55 confidence (NOT neutral)
+
 ## Output Format
 You must provide your analysis in the following JSON format:
 {

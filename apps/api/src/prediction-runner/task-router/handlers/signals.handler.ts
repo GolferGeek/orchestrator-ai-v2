@@ -16,6 +16,7 @@ import { NIL_UUID } from '@orchestrator-ai/transport-types';
 import type { DashboardRequestPayload } from '@orchestrator-ai/transport-types';
 import { SignalRepository } from '../../repositories/signal.repository';
 import { TargetRepository } from '../../repositories/target.repository';
+import { UniverseRepository } from '../../repositories/universe.repository';
 import { SignalDetectionService } from '../../services/signal-detection.service';
 import {
   IDashboardHandler,
@@ -50,6 +51,7 @@ export class SignalsHandler implements IDashboardHandler {
   constructor(
     private readonly signalRepository: SignalRepository,
     private readonly targetRepository: TargetRepository,
+    private readonly universeRepository: UniverseRepository,
     private readonly signalDetectionService: SignalDetectionService,
   ) {}
 
@@ -188,22 +190,46 @@ export class SignalsHandler implements IDashboardHandler {
     params?: SignalParams,
     baseContext?: ExecutionContext,
   ): Promise<DashboardActionResult> {
-    if (!params?.targetId && !params?.universeId) {
+    let targetId = params?.targetId;
+    let universeId = params?.universeId;
+
+    // Auto-detect universe from agent context if not provided
+    if (!targetId && !universeId && baseContext?.agentSlug) {
+      this.logger.debug(
+        `[SIGNALS-HANDLER] No targetId/universeId provided, looking up from agent: ${baseContext.agentSlug}`,
+      );
+
+      const universes = await this.universeRepository.findByAgentSlug(
+        baseContext.agentSlug,
+        baseContext.orgSlug,
+      );
+
+      const firstUniverse = universes[0];
+      if (firstUniverse) {
+        // Use the first active universe for this agent
+        universeId = firstUniverse.id;
+        this.logger.log(
+          `[SIGNALS-HANDLER] Auto-detected universeId: ${universeId} from agent: ${baseContext.agentSlug}`,
+        );
+      }
+    }
+
+    if (!targetId && !universeId) {
       return buildDashboardError(
         'MISSING_TARGET_OR_UNIVERSE',
-        'Either targetId or universeId is required for signal processing',
+        'Either targetId or universeId is required for signal processing (and could not auto-detect from agent context)',
       );
     }
 
-    const batchSize = params.batchSize ?? 10;
+    const batchSize = params?.batchSize ?? 10;
     const testDataFilter: TestDataFilter = {
-      includeTestData: params.includeTest ?? false,
+      includeTestData: params?.includeTest ?? false,
     };
 
     // If universeId provided, process all active targets in the universe
-    if (params.universeId) {
+    if (universeId) {
       return this.handleProcessUniverse(
-        params.universeId,
+        universeId,
         batchSize,
         testDataFilter,
         baseContext,
@@ -212,7 +238,7 @@ export class SignalsHandler implements IDashboardHandler {
 
     // Process single target
     return this.handleProcessTarget(
-      params.targetId!,
+      targetId!,
       batchSize,
       testDataFilter,
       baseContext,

@@ -62,6 +62,47 @@
           compact
         />
       </div>
+
+      <!-- Expandable Analyst Opinions Section -->
+      <div
+        v-if="prediction.isArbitrator && prediction.analystAssessments?.length"
+        class="analyst-opinions-section"
+      >
+        <button
+          class="expand-toggle"
+          @click.stop="isExpanded = !isExpanded"
+        >
+          <span class="toggle-icon">{{ isExpanded ? '\u25BC' : '\u25B6' }}</span>
+          <span class="toggle-label">
+            {{ prediction.analystAssessments.length }} Analyst Opinions
+          </span>
+          <span class="consensus-badge">
+            {{ consensusSummary }}
+          </span>
+        </button>
+
+        <div v-if="isExpanded" class="analyst-opinions-list">
+          <div
+            v-for="analyst in prediction.analystAssessments"
+            :key="analyst.analystSlug"
+            class="analyst-opinion"
+            :class="getDirectionClass(analyst.direction)"
+          >
+            <div class="analyst-header">
+              <span class="analyst-name">{{ analyst.analystName }}</span>
+              <span class="analyst-direction" :class="getDirectionClass(analyst.direction)">
+                {{ getDirectionIcon(analyst.direction) }} {{ analyst.direction.toUpperCase() }}
+              </span>
+              <span class="analyst-confidence">
+                {{ Math.round(analyst.confidence * 100) }}%
+              </span>
+            </div>
+            <div v-if="analyst.reasoning" class="analyst-reasoning">
+              {{ analyst.reasoning }}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="card-footer">
@@ -78,7 +119,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import type { Prediction } from '@/services/predictionDashboardService';
 import LLMComparisonBadge from './LLMComparisonBadge.vue';
 
@@ -95,7 +136,49 @@ defineEmits<{
   select: [id: string];
 }>();
 
+// Expandable state for analyst opinions
+const isExpanded = ref(false);
+
 const statusClass = computed(() => `status-${props.prediction.status || 'active'}`);
+
+// Compute consensus summary for analyst opinions toggle
+const consensusSummary = computed(() => {
+  const assessments = props.prediction.analystAssessments;
+  if (!assessments || assessments.length === 0) return '';
+
+  const directions = assessments.reduce(
+    (acc, a) => {
+      const dir = a.direction.toLowerCase();
+      if (dir === 'bullish' || dir === 'up') acc.up++;
+      else if (dir === 'bearish' || dir === 'down') acc.down++;
+      else acc.neutral++;
+      return acc;
+    },
+    { up: 0, down: 0, neutral: 0 },
+  );
+
+  const parts: string[] = [];
+  if (directions.up > 0) parts.push(`${directions.up} bullish`);
+  if (directions.down > 0) parts.push(`${directions.down} bearish`);
+  if (directions.neutral > 0) parts.push(`${directions.neutral} neutral`);
+  return parts.join(', ');
+});
+
+// Helper to get direction class for styling
+function getDirectionClass(direction: string): string {
+  const dir = direction.toLowerCase();
+  if (dir === 'bullish' || dir === 'up') return 'direction-up';
+  if (dir === 'bearish' || dir === 'down') return 'direction-down';
+  return 'direction-neutral';
+}
+
+// Helper to get direction icon
+function getDirectionIcon(direction: string): string {
+  const dir = direction.toLowerCase();
+  if (dir === 'bullish' || dir === 'up') return '\u2191'; // ↑
+  if (dir === 'bearish' || dir === 'down') return '\u2193'; // ↓
+  return '\u2194'; // ↔
+}
 
 // Determine outcome status for resolved predictions
 const outcomeStatus = computed((): 'correct' | 'incorrect' | null => {
@@ -372,6 +455,125 @@ function formatDate(dateStr: string): string {
   margin-right: 0.25rem;
 }
 
+/* Analyst Opinions Expandable Section */
+.analyst-opinions-section {
+  margin-top: 0.5rem;
+  border-top: 1px dashed var(--border-color, #e5e7eb);
+  padding-top: 0.5rem;
+}
+
+.expand-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.375rem 0.5rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: var(--text-secondary, #6b7280);
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+}
+
+.expand-toggle:hover {
+  background-color: var(--hover-bg, rgba(0, 0, 0, 0.05));
+}
+
+.toggle-icon {
+  font-size: 0.625rem;
+  width: 0.75rem;
+}
+
+.toggle-label {
+  font-weight: 500;
+  color: var(--text-primary, #111827);
+}
+
+.consensus-badge {
+  margin-left: auto;
+  font-size: 0.625rem;
+  color: var(--text-secondary, #6b7280);
+}
+
+.analyst-opinions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding-left: 0.75rem;
+}
+
+.analyst-opinion {
+  padding: 0.5rem;
+  border-radius: 4px;
+  background: var(--opinion-bg, rgba(0, 0, 0, 0.02));
+  border-left: 3px solid var(--border-color, #e5e7eb);
+}
+
+.analyst-opinion.direction-up {
+  border-left-color: #16a34a;
+  background: rgba(34, 197, 94, 0.05);
+}
+
+.analyst-opinion.direction-down {
+  border-left-color: #dc2626;
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.analyst-opinion.direction-neutral {
+  border-left-color: #6b7280;
+  background: rgba(107, 114, 128, 0.05);
+}
+
+.analyst-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.analyst-name {
+  font-weight: 600;
+  color: var(--text-primary, #111827);
+}
+
+.analyst-direction {
+  font-size: 0.625rem;
+  font-weight: 600;
+  padding: 0.125rem 0.375rem;
+  border-radius: 3px;
+}
+
+.analyst-direction.direction-up {
+  background-color: rgba(34, 197, 94, 0.15);
+  color: #16a34a;
+}
+
+.analyst-direction.direction-down {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
+}
+
+.analyst-direction.direction-neutral {
+  background-color: rgba(107, 114, 128, 0.15);
+  color: #6b7280;
+}
+
+.analyst-confidence {
+  margin-left: auto;
+  font-weight: 600;
+  color: var(--text-secondary, #6b7280);
+}
+
+.analyst-reasoning {
+  margin-top: 0.375rem;
+  font-size: 0.6875rem;
+  color: var(--text-secondary, #6b7280);
+  line-height: 1.4;
+}
+
 /* Dark mode */
 @media (prefers-color-scheme: dark) {
   .prediction-card {
@@ -381,6 +583,20 @@ function formatDate(dateStr: string): string {
     --text-secondary: #9ca3af;
     --selected-bg: #1e3a5f;
     --confidence-bg: #374151;
+    --hover-bg: rgba(255, 255, 255, 0.05);
+    --opinion-bg: rgba(255, 255, 255, 0.02);
+  }
+
+  .analyst-opinion.direction-up {
+    background: rgba(34, 197, 94, 0.1);
+  }
+
+  .analyst-opinion.direction-down {
+    background: rgba(239, 68, 68, 0.1);
+  }
+
+  .analyst-opinion.direction-neutral {
+    background: rgba(107, 114, 128, 0.1);
   }
 }
 </style>

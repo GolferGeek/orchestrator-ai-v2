@@ -67,14 +67,19 @@ export class PredictionGenerationService {
 
     this.logger.log(`Attempting prediction generation for target: ${targetId}`);
 
-    // Check for existing active prediction
+    // Check for existing active arbitrator prediction (primary prediction)
     const existingPredictions = await this.predictionRepository.findByTarget(
       targetId,
       'active',
     );
 
-    if (existingPredictions.length > 0) {
-      const existingPrediction = existingPredictions[0]!;
+    // Find the arbitrator prediction if it exists (the primary prediction)
+    const existingArbitratorPrediction = existingPredictions.find(
+      (p) => p.is_arbitrator === true || p.analyst_slug === 'arbitrator',
+    );
+
+    if (existingArbitratorPrediction) {
+      const existingPrediction = existingArbitratorPrediction;
 
       // Evaluate current predictors to see if refresh is needed
       const thresholdResult =
@@ -332,7 +337,9 @@ export class PredictionGenerationService {
   }
 
   /**
-   * Generate a prediction (called when threshold is confirmed met)
+   * Generate predictions (called when threshold is confirmed met)
+   * Creates per-analyst predictions plus an arbitrator prediction
+   * Returns the arbitrator prediction as the primary prediction
    */
   async generatePrediction(
     ctx: ExecutionContext,
@@ -340,7 +347,9 @@ export class PredictionGenerationService {
     thresholdResult: ThresholdEvaluationResult,
     _config: ThresholdConfig,
   ): Promise<Prediction> {
-    this.logger.log(`Generating prediction for target: ${targetId}`);
+    this.logger.log(
+      `Generating per-analyst predictions for target: ${targetId}`,
+    );
 
     const target = await this.targetService.findByIdOrThrow(targetId);
 
@@ -361,25 +370,10 @@ export class PredictionGenerationService {
       ensembleInput,
     );
 
-    // Map direction from predictor to prediction vocabulary
-    const direction = this.mapPredictorToPredictonDirection(
-      thresholdResult.dominantDirection,
-    );
-
-    // Calculate prediction parameters
-    const magnitude = this.estimateMagnitude(predictors, ensembleResult);
+    // Calculate common parameters
     const horizonHours = this.determineHorizon(predictors);
-    const confidence = this.calculateFinalConfidence(
-      thresholdResult,
-      ensembleResult,
-    );
-
-    // Create prediction record
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + horizonHours);
-
-    // Convert numeric magnitude to categorical
-    const magnitudeCategory = this.categorizeMagnitude(magnitude);
 
     // Capture context versions for traceability
     const contextVersions = await this.captureContextVersions(
@@ -388,7 +382,206 @@ export class PredictionGenerationService {
       ensembleResult,
     );
 
-    // Calculate recommended position sizing
+    // Track all created predictions
+    const createdPredictions: Prediction[] = [];
+
+    // Create per-analyst predictions
+    for (const assessment of ensembleResult.assessments) {
+      const analystPrediction = await this.createAnalystPrediction(
+        ctx,
+        target,
+        assessment,
+        horizonHours,
+        expiresAt,
+        contextVersions,
+      );
+      createdPredictions.push(analystPrediction);
+    }
+
+    // Create arbitrator prediction (synthesis of all analysts)
+    const arbitratorPrediction = await this.createArbitratorPrediction(
+      ctx,
+      target,
+      thresholdResult,
+      ensembleResult,
+      predictors,
+      horizonHours,
+      expiresAt,
+      contextVersions,
+    );
+    createdPredictions.push(arbitratorPrediction);
+
+    this.logger.log(
+      `Created ${createdPredictions.length} predictions for ${target.symbol}: ` +
+        `${ensembleResult.assessments.length} analyst + 1 arbitrator`,
+    );
+
+    // Consume predictors (link to arbitrator prediction as primary)
+    await this.predictorManagementService.consumePredictors(
+      targetId,
+      arbitratorPrediction.id,
+    );
+
+    // Create snapshot for audit trail (linked to arbitrator)
+    await this.createPredictionSnapshot(
+      arbitratorPrediction,
+      predictors,
+      thresholdResult,
+      ensembleResult,
+    );
+
+    // Emit prediction.created event for observability
+    await this.observabilityEventsService.push({
+      context: ctx,
+      source_app: 'prediction-runner',
+      hook_event_type: 'prediction.created',
+      status: 'created',
+      message: `Created ${createdPredictions.length} predictions for ${target.symbol}: ${ensembleResult.assessments.map((a) => a.analyst.slug).join(', ')} + arbitrator`,
+      progress: null,
+      step: 'prediction-created',
+      payload: {
+        predictionId: arbitratorPrediction.id,
+        targetId,
+        targetSymbol: target.symbol,
+        direction: arbitratorPrediction.direction,
+        magnitude: arbitratorPrediction.magnitude,
+        confidence: arbitratorPrediction.confidence,
+        timeframeHours: horizonHours,
+        expiresAt: expiresAt.toISOString(),
+        predictorCount: predictors.length,
+        combinedStrength: thresholdResult.combinedStrength,
+        directionConsensus: thresholdResult.directionConsensus,
+        analystPredictions: createdPredictions
+          .filter((p) => !p.is_arbitrator)
+          .map((p) => ({
+            id: p.id,
+            analyst_slug: p.analyst_slug,
+            direction: p.direction,
+            confidence: p.confidence,
+          })),
+      },
+      timestamp: Date.now(),
+    });
+
+    // Return the arbitrator prediction as the primary prediction
+    return arbitratorPrediction;
+  }
+
+  /**
+   * Create a prediction for a specific analyst
+   */
+  private async createAnalystPrediction(
+    ctx: ExecutionContext,
+    target: { id: string; symbol: string; universe_id: string },
+    assessment: EnsembleResult['assessments'][0],
+    horizonHours: number,
+    expiresAt: Date,
+    contextVersions: {
+      runnerContextVersionId?: string;
+      universeContextVersionId?: string;
+      targetContextVersionId?: string;
+      analystContextVersionIds?: Record<string, string>;
+    },
+  ): Promise<Prediction> {
+    // Map analyst direction to prediction direction
+    const direction = this.mapAnalystDirection(assessment.direction);
+
+    // Estimate magnitude from assessment confidence
+    const magnitude = assessment.confidence * 5; // Scale to reasonable percentage
+    const magnitudeCategory = this.categorizeMagnitude(magnitude);
+
+    // Calculate position sizing for this analyst's prediction
+    const positionSizing = await this.calculateRecommendedPositionSize(
+      ctx,
+      target,
+      direction,
+      assessment.confidence,
+      magnitude,
+    );
+
+    const predictionData: CreatePredictionData = {
+      target_id: target.id,
+      direction,
+      magnitude: magnitudeCategory,
+      confidence: assessment.confidence,
+      timeframe_hours: horizonHours,
+      expires_at: expiresAt.toISOString(),
+      reasoning: assessment.reasoning,
+      analyst_ensemble: {
+        analyst_slug: assessment.analyst.slug,
+        analyst_name: assessment.analyst.name,
+        key_factors: assessment.key_factors,
+        risks: assessment.risks,
+        tier: assessment.tier,
+      },
+      llm_ensemble: {
+        direction: assessment.direction,
+        confidence: assessment.confidence,
+        tier: assessment.tier,
+      },
+      status: 'active',
+      // Context version traceability
+      runner_context_version_id: contextVersions.runnerContextVersionId,
+      analyst_context_version_ids: contextVersions.analystContextVersionIds,
+      universe_context_version_id: contextVersions.universeContextVersionId,
+      target_context_version_id: contextVersions.targetContextVersionId,
+      // Position sizing recommendation
+      recommended_quantity: positionSizing.quantity,
+      quantity_reasoning: positionSizing.reasoning,
+      // Per-analyst identification
+      analyst_slug: assessment.analyst.slug,
+      is_arbitrator: false,
+    };
+
+    const prediction = await this.predictionRepository.create(predictionData);
+
+    this.logger.debug(
+      `Created analyst prediction ${prediction.id} for ${assessment.analyst.slug}: ` +
+        `${direction} (${(assessment.confidence * 100).toFixed(0)}% confidence)`,
+    );
+
+    return prediction;
+  }
+
+  /**
+   * Create the arbitrator prediction (synthesis of all analyst opinions)
+   */
+  private async createArbitratorPrediction(
+    ctx: ExecutionContext,
+    target: { id: string; symbol: string; universe_id: string },
+    thresholdResult: ThresholdEvaluationResult,
+    ensembleResult: EnsembleResult,
+    predictors: Predictor[],
+    horizonHours: number,
+    expiresAt: Date,
+    contextVersions: {
+      runnerContextVersionId?: string;
+      universeContextVersionId?: string;
+      targetContextVersionId?: string;
+      analystContextVersionIds?: Record<string, string>;
+    },
+  ): Promise<Prediction> {
+    // Map direction from predictor to prediction vocabulary
+    const direction = this.mapPredictorToPredictonDirection(
+      thresholdResult.dominantDirection,
+    );
+
+    // Calculate prediction parameters using aggregated result
+    const magnitude = this.estimateMagnitude(predictors, ensembleResult);
+    const magnitudeCategory = this.categorizeMagnitude(magnitude);
+
+    // Use the highest confidence from analysts that agree with the consensus direction
+    // This gives a more meaningful confidence than averaging opposing views
+    const consensusDirection = direction === 'up' ? 'bullish' : direction === 'down' ? 'bearish' : 'neutral';
+    const agreeingAnalysts = ensembleResult.assessments.filter(
+      (a) => a.direction.toLowerCase() === consensusDirection,
+    );
+    const maxConfidence = agreeingAnalysts.length > 0
+      ? Math.max(...agreeingAnalysts.map((a) => a.confidence))
+      : ensembleResult.aggregated.confidence;
+    const confidence = maxConfidence;
+
+    // Calculate position sizing
     const positionSizing = await this.calculateRecommendedPositionSize(
       ctx,
       target,
@@ -397,18 +590,45 @@ export class PredictionGenerationService {
       magnitude,
     );
 
+    // Build arbitrator reasoning summarizing analyst opinions
+    const analystSummary = ensembleResult.assessments
+      .map(
+        (a) =>
+          `${a.analyst.name}: ${a.direction} (${(a.confidence * 100).toFixed(0)}%)`,
+      )
+      .join('; ');
+
+    // Find the strongest conviction analyst for the consensus direction
+    const strongestAnalyst = agreeingAnalysts.length > 0
+      ? agreeingAnalysts.reduce((max, a) => a.confidence > max.confidence ? a : max)
+      : null;
+
+    const arbitratorReasoning = strongestAnalyst
+      ? `Consensus ${direction.toUpperCase()} led by ${strongestAnalyst.analyst.name} (${(strongestAnalyst.confidence * 100).toFixed(0)}% confidence). ` +
+        `${agreeingAnalysts.length}/${ensembleResult.assessments.length} analysts agree. ` +
+        `All views: ${analystSummary}.`
+      : `Arbitrator synthesis based on ${ensembleResult.assessments.length} analysts: ` +
+        `${analystSummary}. ` +
+        `Consensus: ${(ensembleResult.aggregated.consensus_strength * 100).toFixed(0)}%. ` +
+        ensembleResult.aggregated.reasoning;
+
     const predictionData: CreatePredictionData = {
-      target_id: targetId,
+      target_id: target.id,
       direction,
       magnitude: magnitudeCategory,
       confidence,
       timeframe_hours: horizonHours,
       expires_at: expiresAt.toISOString(),
-      reasoning: ensembleResult.aggregated.reasoning,
+      reasoning: arbitratorReasoning,
       analyst_ensemble: {
         predictor_count: predictors.length,
         combined_strength: thresholdResult.combinedStrength,
         direction_consensus: thresholdResult.directionConsensus,
+        assessments: ensembleResult.assessments.map((a) => ({
+          analyst_slug: a.analyst.slug,
+          direction: a.direction,
+          confidence: a.confidence,
+        })),
       },
       llm_ensemble: {
         direction: ensembleResult.aggregated.direction,
@@ -424,57 +644,30 @@ export class PredictionGenerationService {
       // Position sizing recommendation
       recommended_quantity: positionSizing.quantity,
       quantity_reasoning: positionSizing.reasoning,
+      // Arbitrator identification
+      analyst_slug: 'arbitrator',
+      is_arbitrator: true,
     };
 
     const prediction = await this.predictionRepository.create(predictionData);
 
     this.logger.log(
-      `Created prediction ${prediction.id} for ${target.symbol}: ` +
+      `Created arbitrator prediction ${prediction.id} for ${target.symbol}: ` +
         `${direction} ${magnitude.toFixed(1)}% over ${horizonHours}h ` +
         `(confidence: ${(confidence * 100).toFixed(0)}%)`,
     );
 
-    // Consume predictors
-    await this.predictorManagementService.consumePredictors(
-      targetId,
-      prediction.id,
-    );
-
-    // Create snapshot for audit trail
-    await this.createPredictionSnapshot(
-      prediction,
-      predictors,
-      thresholdResult,
-      ensembleResult,
-    );
-
-    // Emit prediction.created event for observability
-    await this.observabilityEventsService.push({
-      context: ctx,
-      source_app: 'prediction-runner',
-      hook_event_type: 'prediction.created',
-      status: 'created',
-      message: `Prediction created: ${target.symbol} ${direction} ${magnitudeCategory} (${(confidence * 100).toFixed(0)}% confidence)`,
-      progress: null,
-      step: 'prediction-created',
-      payload: {
-        predictionId: prediction.id,
-        targetId,
-        targetSymbol: target.symbol,
-        direction,
-        magnitude: magnitudeCategory,
-        magnitudePercent: magnitude,
-        confidence,
-        timeframeHours: horizonHours,
-        expiresAt: expiresAt.toISOString(),
-        predictorCount: predictors.length,
-        combinedStrength: thresholdResult.combinedStrength,
-        directionConsensus: thresholdResult.directionConsensus,
-      },
-      timestamp: Date.now(),
-    });
-
     return prediction;
+  }
+
+  /**
+   * Map analyst direction (bullish/bearish/neutral) to prediction direction (up/down/flat)
+   */
+  private mapAnalystDirection(direction: string): PredictionDirection {
+    const normalized = direction.toLowerCase();
+    if (normalized === 'bullish' || normalized === 'up') return 'up';
+    if (normalized === 'bearish' || normalized === 'down') return 'down';
+    return 'flat';
   }
 
   /**

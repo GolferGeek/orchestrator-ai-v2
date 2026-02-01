@@ -460,35 +460,33 @@ export class ArticleProcessorService {
 
   /**
    * Infer signal direction from article content
-   * This is a simple heuristic - could be enhanced with LLM analysis
+   * Uses expanded keyword lists and more aggressive matching
+   * The ensemble will refine this initial direction
    */
   private inferDirection(article: CrawlerArticle): SignalDirection {
     const text =
       `${article.title ?? ''} ${article.content ?? ''}`.toLowerCase();
 
+    // Expanded keyword lists for better coverage
     const bullishKeywords = [
-      'surge',
-      'rally',
-      'gain',
-      'rise',
-      'bullish',
-      'growth',
-      'positive',
-      'upgrade',
-      'beat',
-      'outperform',
+      // Strong bullish
+      'surge', 'rally', 'soar', 'jump', 'spike', 'breakout', 'bullish',
+      // Moderate bullish
+      'gain', 'rise', 'climb', 'advance', 'up', 'higher', 'increase',
+      'growth', 'positive', 'strong', 'beat', 'exceed', 'outperform',
+      // Financial bullish
+      'upgrade', 'buy', 'accumulate', 'overweight', 'optimistic',
+      'record high', 'all-time high', 'momentum', 'boost', 'expand',
     ];
     const bearishKeywords = [
-      'drop',
-      'fall',
-      'decline',
-      'bearish',
-      'loss',
-      'negative',
-      'downgrade',
-      'miss',
-      'underperform',
-      'crash',
+      // Strong bearish
+      'crash', 'plunge', 'collapse', 'tumble', 'plummet', 'bearish',
+      // Moderate bearish
+      'drop', 'fall', 'decline', 'slip', 'down', 'lower', 'decrease',
+      'loss', 'negative', 'weak', 'miss', 'below', 'underperform',
+      // Financial bearish
+      'downgrade', 'sell', 'reduce', 'underweight', 'concern', 'risk',
+      'warning', 'cut', 'layoff', 'slowdown', 'pressure', 'struggle',
     ];
 
     let bullishScore = 0;
@@ -501,8 +499,14 @@ export class ArticleProcessorService {
       if (text.includes(keyword)) bearishScore++;
     }
 
+    // More decisive: if ANY signal found, pick direction
+    // Only return neutral if truly no signals
     if (bullishScore > bearishScore) return 'bullish';
     if (bearishScore > bullishScore) return 'bearish';
+    if (bullishScore > 0 && bearishScore > 0) return 'neutral'; // True tie with signals
+
+    // No keywords found - let the ensemble decide (mark as neutral for now)
+    // The ensemble will evaluate the full content
     return 'neutral';
   }
 }
