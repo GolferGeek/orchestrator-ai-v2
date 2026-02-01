@@ -42,11 +42,19 @@ function getAuthToken(): string | null {
 // API CONFIGURATION
 // ============================================================================
 
-// LangGraph API base URL (different port from main API)
-const LANGGRAPH_BASE_URL = import.meta.env.VITE_LANGGRAPH_BASE_URL || 'http://localhost:6200';
+// LangGraph API base URL - constructed from port env var
+const LANGGRAPH_PORT = import.meta.env.VITE_LANGGRAPH_PORT;
+const LANGGRAPH_BASE_URL = LANGGRAPH_PORT ? `http://localhost:${LANGGRAPH_PORT}` : '';
+if (!LANGGRAPH_PORT) {
+  console.error('VITE_LANGGRAPH_PORT must be set in environment');
+}
 
-// Main API base URL (for observability stream)
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:6100';
+// API base URL - constructed from port env var
+const API_PORT = import.meta.env.VITE_API_PORT;
+const API_BASE_URL = API_PORT ? `http://localhost:${API_PORT}` : '';
+if (!API_PORT) {
+  console.error('VITE_API_PORT must be set in environment');
+}
 
 // ============================================================================
 // TYPE DEFINITIONS

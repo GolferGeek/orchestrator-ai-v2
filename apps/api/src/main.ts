@@ -120,27 +120,39 @@ async function bootstrap() {
     },
   });
 
-  // Enable CORS with more permissive settings for production
-  const corsOrigins = [
+  // Enable CORS with dynamic origins from environment
+  const webPort = process.env.WEB_PORT || process.env.VITE_WEB_PORT;
+  const orchFlowPort = process.env.ORCH_FLOW_PORT;
+
+  // Build dynamic CORS origins based on configured ports
+  const corsOrigins: string[] = [
+    // Vite dev server default
     'http://localhost:5173',
     'http://127.0.0.1:5173',
-    'http://localhost:7101',
-    'http://127.0.0.1:7101',
-    'http://localhost:7102',
-    'http://127.0.0.1:7102',
-    'http://localhost:3100',
-    'http://127.0.0.1:3100',
-    'http://localhost:3101',
-    'http://127.0.0.1:3101',
-    // Supabase local development ports
+  ];
+
+  // Add web port if configured
+  if (webPort) {
+    corsOrigins.push(`http://localhost:${webPort}`, `http://127.0.0.1:${webPort}`);
+  }
+
+  // Add orch flow port if configured
+  if (orchFlowPort) {
+    corsOrigins.push(`http://localhost:${orchFlowPort}`, `http://127.0.0.1:${orchFlowPort}`);
+  }
+
+  // Add static origins (Supabase, production domains)
+  corsOrigins.push(
+    // Supabase local development ports (shared across workspaces)
     'http://localhost:6010',
     'http://127.0.0.1:6010',
     'http://localhost:6015', // Supabase Studio
     'http://127.0.0.1:6015',
-    // Web app development port
-    'http://localhost:6101',
-    'http://127.0.0.1:6101',
-    // Add more common development ports
+    // Common development ports
+    'http://localhost:3100',
+    'http://127.0.0.1:3100',
+    'http://localhost:3101',
+    'http://127.0.0.1:3101',
     'http://localhost:8080',
     'http://127.0.0.1:8080',
     'http://localhost:8081',
@@ -150,10 +162,9 @@ async function bootstrap() {
     'https://api.orchestratorai.io',
     'http://app.orchestratorai.io',
     'http://api.orchestratorai.io',
-    // CloudFlare variations
     'https://orchestratorai.io',
     'http://orchestratorai.io',
-  ];
+  );
 
   app.enableCors({
     origin: (

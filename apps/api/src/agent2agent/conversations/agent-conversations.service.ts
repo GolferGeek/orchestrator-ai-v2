@@ -45,9 +45,11 @@ export class AgentConversationsService {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {
-    this.langgraphBaseUrl =
-      this.configService.get<string>('LANGGRAPH_BASE_URL') ||
-      'http://localhost:6200';
+    const langgraphPort = this.configService.get<string>('LANGGRAPH_PORT');
+    if (!langgraphPort) {
+      this.logger.error('LANGGRAPH_PORT must be set in environment');
+    }
+    this.langgraphBaseUrl = langgraphPort ? `http://localhost:${langgraphPort}` : '';
   }
 
   /**

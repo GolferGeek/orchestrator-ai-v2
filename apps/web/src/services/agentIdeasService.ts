@@ -11,8 +11,12 @@
 
 import { v4 as uuidv4 } from 'uuid';
 
-// LangGraph API base URL
-const LANGGRAPH_BASE_URL = import.meta.env.VITE_LANGGRAPH_BASE_URL || 'http://localhost:6200';
+// LangGraph API base URL - constructed from port env var
+const LANGGRAPH_PORT = import.meta.env.VITE_LANGGRAPH_PORT;
+const LANGGRAPH_BASE_URL = LANGGRAPH_PORT ? `http://localhost:${LANGGRAPH_PORT}` : '';
+if (!LANGGRAPH_PORT) {
+  console.error('VITE_LANGGRAPH_PORT must be set in environment');
+}
 
 /**
  * Agent recommendation from the LangGraph workflow
