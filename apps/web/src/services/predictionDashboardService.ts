@@ -3382,6 +3382,33 @@ class PredictionDashboardService {
     );
   }
 
+  /**
+   * Get closed positions history with statistics
+   */
+  async getClosedPositions(filters?: {
+    startDate?: string;
+    endDate?: string;
+    symbol?: string;
+    limit?: number;
+  }): Promise<DashboardResponsePayload<ClosedPositionsResult>> {
+    return this.executeDashboardRequest<ClosedPositionsResult>('prediction.closedPositions', {
+      filters,
+    });
+  }
+
+  /**
+   * Close an open position at the specified exit price
+   */
+  async closePosition(
+    positionId: string,
+    exitPrice: number,
+  ): Promise<DashboardResponsePayload<ClosePositionResult>> {
+    return this.executeDashboardRequest<ClosePositionResult>('prediction.closePosition', {
+      id: positionId,
+      exitPrice,
+    });
+  }
+
   // ============================================================================
   // ANALYST LEADERBOARD (Fork Comparison)
   // ============================================================================
@@ -3461,6 +3488,40 @@ export interface PositionSizeRecommendation {
   riskAmount: number;
   riskRewardRatio: number;
   reasoning: string;
+}
+
+export interface ClosedPosition {
+  id: string;
+  symbol: string;
+  direction: 'long' | 'short';
+  quantity: number;
+  entryPrice: number;
+  exitPrice: number | null;
+  realizedPnl: number;
+  pnlPercent: number;
+  openedAt: string;
+  closedAt: string | null;
+  predictionId: string;
+  targetId: string;
+}
+
+export interface ClosedPositionsResult {
+  positions: ClosedPosition[];
+  statistics: {
+    totalClosed: number;
+    wins: number;
+    losses: number;
+    totalPnl: number;
+    avgPnl: number;
+    winRate: number;
+  };
+}
+
+export interface ClosePositionResult {
+  positionId: string;
+  realizedPnl: number;
+  isWin: boolean;
+  message: string;
 }
 
 export interface AnalystForksSummary {

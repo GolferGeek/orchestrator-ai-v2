@@ -1,5 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ActiveAnalyst, LlmTier } from '../interfaces/analyst.interface';
+import {
+  ActiveAnalyst,
+  LlmTier,
+  ContextProvider,
+  PersonalityAnalyst,
+} from '../interfaces/analyst.interface';
 import { ActiveLearning } from '../interfaces/learning.interface';
 import { Target } from '../interfaces/target.interface';
 
@@ -8,6 +13,24 @@ import { Target } from '../interfaces/target.interface';
  */
 export interface PromptContext {
   analyst: ActiveAnalyst;
+  tier: LlmTier;
+  target: Target;
+  learnings: ActiveLearning[];
+  input: {
+    content: string;
+    direction?: string;
+    metadata?: Record<string, unknown>;
+  };
+  /** Performance context markdown for agent fork (optional) */
+  performanceContext?: string;
+}
+
+/**
+ * Context for building composed prompt with personality analyst + context providers
+ */
+export interface ComposedPromptContext {
+  personalityAnalyst: PersonalityAnalyst;
+  contextProviders: ContextProvider[];
   tier: LlmTier;
   target: Target;
   learnings: ActiveLearning[];
@@ -117,6 +140,140 @@ Provide your assessment based on your perspective as ${analyst.name}.`;
       userPrompt,
       learningIds,
     };
+  }
+
+  /**
+   * Build composed prompt for personality analyst with context provider layers
+   * This composes the personality analyst's perspective with domain/universe/target knowledge
+   */
+  buildComposedPrompt(context: ComposedPromptContext): BuiltPrompt {
+    const {
+      personalityAnalyst,
+      contextProviders,
+      tier,
+      target,
+      learnings,
+      input,
+      performanceContext,
+    } = context;
+
+    this.logger.log(
+      `Building composed prompt for ${personalityAnalyst.name} with ${contextProviders.length} context providers, target: ${target.symbol}`,
+    );
+
+    // Get tier-specific instructions from personality analyst
+    const analystTierInstructions =
+      personalityAnalyst.tier_instructions[tier] ||
+      personalityAnalyst.tier_instructions.silver ||
+      '';
+
+    // Build context providers section
+    let contextSection = '';
+    for (const provider of contextProviders) {
+      const providerTierInstructions =
+        provider.tier_instructions[tier] ||
+        provider.tier_instructions.silver ||
+        '';
+
+      // Label based on scope level
+      const scopeLabel = this.getScopeLabel(provider.scope_level, target);
+
+      contextSection += `\n## ${scopeLabel}\n`;
+      contextSection += `${provider.perspective}\n`;
+      if (providerTierInstructions) {
+        contextSection += `\n${providerTierInstructions}\n`;
+      }
+    }
+
+    // Build learnings section
+    const learningIds: string[] = [];
+    let learningsSection = '';
+    if (learnings.length > 0) {
+      learningsSection = '\n\n## Applied Learnings\n';
+      for (const learning of learnings) {
+        learningIds.push(learning.learning_id);
+        learningsSection += `\n### ${learning.title}\n${learning.description}\n`;
+        if (learning.config) {
+          learningsSection += `Config: ${JSON.stringify(learning.config)}\n`;
+        }
+      }
+      this.logger.log(
+        `Applied ${learnings.length} learnings to composed prompt`,
+      );
+    }
+
+    // Build performance context section for agent fork
+    const performanceSection = performanceContext
+      ? `\n\n${performanceContext}`
+      : '';
+
+    // Build system prompt with composed structure
+    const systemPrompt = `# You are ${personalityAnalyst.name}
+
+## Your Core Perspective
+${personalityAnalyst.perspective}
+
+${analystTierInstructions ? `## Your Analysis Approach\n${analystTierInstructions}\n` : ''}
+${contextSection}
+## Target Information
+- Symbol: ${target.symbol}
+- Name: ${target.name}
+- Type: ${target.target_type}
+${target.context ? `- Context: ${target.context}` : ''}
+${learningsSection}${performanceSection}
+
+## Direction Decision Guidelines
+IMPORTANT: Be decisive. Markets move - take a position.
+
+- Choose "bullish" if your analysis suggests ANY upward bias, even slight. Use lower confidence (0.5-0.7) for weak signals.
+- Choose "bearish" if your analysis suggests ANY downward bias, even slight. Use lower confidence (0.5-0.7) for weak signals.
+- ONLY choose "neutral" if you see EQUAL and OFFSETTING bullish and bearish factors that genuinely cancel out.
+
+Do NOT default to "neutral" just because you're uncertain. Instead, pick the more likely direction with lower confidence.
+Example: 55% likely to go up → bullish with 0.55 confidence (NOT neutral)
+
+## Output Format
+You must provide your analysis in the following JSON format:
+{
+  "direction": "bullish" | "bearish" | "neutral",
+  "confidence": 0.0-1.0,
+  "reasoning": "Your detailed analysis...",
+  "key_factors": ["factor1", "factor2", ...],
+  "risks": ["risk1", "risk2", ...]
+}`;
+
+    // Build user prompt
+    const userPrompt = `Analyze the following signal:
+
+${input.content}
+${input.direction ? `\nSuggested direction: ${input.direction}` : ''}
+${input.metadata ? `\nMetadata: ${JSON.stringify(input.metadata)}` : ''}
+
+Provide your assessment based on your perspective as ${personalityAnalyst.name}, incorporating the domain and context knowledge provided.`;
+
+    return {
+      systemPrompt,
+      userPrompt,
+      learningIds,
+    };
+  }
+
+  /**
+   * Get human-readable label for scope level
+   */
+  private getScopeLabel(scopeLevel: string, target: Target): string {
+    switch (scopeLevel) {
+      case 'runner':
+        return 'General Knowledge';
+      case 'domain':
+        return `Domain Knowledge (${target.target_type})`;
+      case 'universe':
+        return 'Sector/Universe Knowledge';
+      case 'target':
+        return `Instrument Knowledge (${target.symbol})`;
+      default:
+        return 'Additional Context';
+    }
   }
 
   /**

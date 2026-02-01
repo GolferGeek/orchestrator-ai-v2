@@ -17,6 +17,13 @@ export { LlmTier };
 export type AnalystScopeLevel = 'runner' | 'domain' | 'universe' | 'target';
 
 /**
+ * Analyst type - distinguishes decision-makers from knowledge layers
+ * - personality: Decision-making analysts (Fred, Tina, Sally, Alex, Carl)
+ * - context_provider: Knowledge layers that inject expertise into personality analysts
+ */
+export type AnalystType = 'personality' | 'context_provider';
+
+/**
  * Analyst entity - defines a perspective/persona for signal analysis
  */
 export interface Analyst {
@@ -33,6 +40,7 @@ export interface Analyst {
   learned_patterns: string[];
   agent_id: string | null;
   is_enabled: boolean;
+  analyst_type: AnalystType;
   created_at: string;
   updated_at: string;
 }
@@ -62,4 +70,30 @@ export interface ActiveAnalyst {
   tier_instructions: TierInstructions;
   learned_patterns: string[];
   scope_level: AnalystScopeLevel;
+  analyst_type?: AnalystType;
+}
+
+/**
+ * Context provider - provides domain/universe/target-specific knowledge
+ * Returned by prediction.get_context_for_target function
+ */
+export interface ContextProvider {
+  scope_level: AnalystScopeLevel;
+  slug: string;
+  name: string;
+  perspective: string;
+  tier_instructions: TierInstructions;
+}
+
+/**
+ * Personality analyst - decision-making analyst (simplified view)
+ * Returned by prediction.get_personality_analysts function
+ */
+export interface PersonalityAnalyst {
+  analyst_id: string;
+  slug: string;
+  name: string;
+  perspective: string;
+  default_weight: number;
+  tier_instructions: TierInstructions;
 }

@@ -12,6 +12,10 @@
       <div class="prediction-dashboard">
         <header class="dashboard-header">
       <div class="header-actions">
+        <button class="btn btn-secondary" @click="goToTradingDashboard">
+          <span class="icon">&#128200;</span>
+          Trading Dashboard
+        </button>
         <button class="btn btn-secondary" @click="goToPortfolios">
           <span class="icon">&#128193;</span>
           Manage Portfolios
@@ -20,6 +24,7 @@
           <span class="icon">&#128202;</span>
           {{ showActivityFeed ? 'Hide Activity' : 'Watch Activity' }}
         </button>
+        <div class="spacer"></div>
         <button class="btn btn-secondary" @click="refreshData">
           <span class="icon">&#8635;</span>
           Refresh
@@ -389,6 +394,10 @@ function goToPortfolios() {
   router.push({ name: 'PortfolioManagement' });
 }
 
+function goToTradingDashboard() {
+  router.push({ name: 'TradingDashboard' });
+}
+
 function navigateToTraining(screenName: string) {
   router.push({ name: screenName });
 }
@@ -450,6 +459,10 @@ onMounted(async () => {
 .header-actions {
   display: flex;
   gap: 0.5rem;
+}
+
+.header-actions .spacer {
+  flex: 1;
 }
 
 .btn {

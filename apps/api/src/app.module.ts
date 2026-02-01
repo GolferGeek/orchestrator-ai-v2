@@ -36,11 +36,15 @@ import { RiskRunnerModule } from './risk-runner/risk-runner.module';
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: [
+        // Use ENV_FILE if explicitly set, otherwise try standard locations
+        process.env.ENV_FILE || '',
+        // From dist/, go up: dist/ -> api/ -> apps/ -> project root
         join(__dirname, '../../../.env'),
-        '../../.env',
+        // From src/, go up: src/ -> api/ -> apps/ -> project root
+        join(__dirname, '../../../../.env'),
+        // Fallback to current working directory
         join(process.cwd(), '.env'),
-        '.env',
-      ],
+      ].filter(Boolean),
       expandVariables: true,
     }),
     // Core Infrastructure

@@ -3,7 +3,10 @@ import { ExecutionContext } from '@orchestrator-ai/transport-types';
 import { LLMService } from '@/llms/llm.service';
 import { AnalystService } from './analyst.service';
 import { LearningService } from './learning.service';
-import { AnalystPromptBuilderService } from './analyst-prompt-builder.service';
+import {
+  AnalystPromptBuilderService,
+  ComposedPromptContext,
+} from './analyst-prompt-builder.service';
 import {
   LlmTierResolverService,
   TierResolutionContext,
@@ -11,7 +14,11 @@ import {
 import { LlmUsageLimiterService } from './llm-usage-limiter.service';
 import { AnalystMotivationService } from './analyst-motivation.service';
 import { AnalystRepository } from '../repositories/analyst.repository';
-import { ActiveAnalyst } from '../interfaces/analyst.interface';
+import {
+  ActiveAnalyst,
+  PersonalityAnalyst,
+  ContextProvider,
+} from '../interfaces/analyst.interface';
 import { Target } from '../interfaces/target.interface';
 import { LlmTier } from '../interfaces/llm-tier.interface';
 import {
@@ -120,7 +127,8 @@ export class AnalystEnsembleService {
   ) {}
 
   /**
-   * Run ensemble evaluation with all active analysts
+   * Run ensemble evaluation with personality analysts
+   * Uses PERSONALITY ANALYSTS (decision-makers) with CONTEXT PROVIDERS (knowledge layers)
    */
   async runEnsemble(
     baseContext: ExecutionContext,
@@ -130,13 +138,21 @@ export class AnalystEnsembleService {
   ): Promise<EnsembleResult> {
     this.logger.log(`Running ensemble for target: ${target.symbol}`);
 
-    // Get active analysts for this target
-    const analysts = await this.analystService.getActiveAnalysts(target.id);
-    if (analysts.length === 0) {
-      this.logger.warn(`No active analysts for target: ${target.id}`);
-      throw new Error('No active analysts available for evaluation');
+    // Get personality analysts (decision-makers)
+    const personalityAnalysts =
+      await this.analystRepository.getPersonalityAnalysts();
+    if (personalityAnalysts.length === 0) {
+      this.logger.warn('No personality analysts found');
+      throw new Error('No personality analysts available for evaluation');
     }
-    this.logger.log(`Found ${analysts.length} active analysts`);
+    this.logger.log(`Found ${personalityAnalysts.length} personality analysts`);
+
+    // Get context providers for this target
+    const contextProviders =
+      await this.analystRepository.getContextProvidersForTarget(target.id);
+    this.logger.log(
+      `Found ${contextProviders.length} context providers for target ${target.symbol}`,
+    );
 
     // Build resolution context
     const resolutionContext: TierResolutionContext = {
@@ -145,17 +161,20 @@ export class AnalystEnsembleService {
       agentLlmConfig: options?.llmConfigContext?.agentConfig,
     };
 
-    // Run each analyst on their configured tier
+    // Run each personality analyst with context providers
     const assessments: AnalystAssessmentResult[] = [];
 
-    for (const analyst of analysts) {
+    for (const analyst of personalityAnalysts) {
       try {
-        const assessment = await this.runAnalystAssessment(
+        const assessment = await this.runPersonalityAnalystAssessmentWithFork(
           baseContext,
           analyst,
+          contextProviders,
           target,
           input,
           resolutionContext,
+          'user', // Default to user fork for backward compatibility
+          undefined,
         );
         assessments.push(assessment);
       } catch (error) {
@@ -185,7 +204,7 @@ export class AnalystEnsembleService {
 
   /**
    * Run dual-fork ensemble - generates assessments for both user and ai forks
-   * This is the main entry point for the dual-fork system
+   * Uses PERSONALITY ANALYSTS (decision-makers) with CONTEXT PROVIDERS (knowledge layers)
    */
   async runDualForkEnsemble(
     baseContext: ExecutionContext,
@@ -195,14 +214,22 @@ export class AnalystEnsembleService {
   ): Promise<DualForkEnsembleResult> {
     this.logger.log(`Running dual-fork ensemble for target: ${target.symbol}`);
 
-    // Get active analysts for this target
-    const analysts = await this.analystService.getActiveAnalysts(target.id);
-    if (analysts.length === 0) {
-      this.logger.warn(`No active analysts for target: ${target.id}`);
-      throw new Error('No active analysts available for evaluation');
+    // Get personality analysts (decision-makers)
+    const personalityAnalysts =
+      await this.analystRepository.getPersonalityAnalysts();
+    if (personalityAnalysts.length === 0) {
+      this.logger.warn('No personality analysts found');
+      throw new Error('No personality analysts available for evaluation');
     }
     this.logger.log(
-      `Found ${analysts.length} active analysts, running dual-fork assessments`,
+      `Found ${personalityAnalysts.length} personality analysts, running dual-fork assessments`,
+    );
+
+    // Get context providers for this target
+    const contextProviders =
+      await this.analystRepository.getContextProvidersForTarget(target.id);
+    this.logger.log(
+      `Found ${contextProviders.length} context providers for target ${target.symbol}`,
     );
 
     // Build resolution context
@@ -222,19 +249,21 @@ export class AnalystEnsembleService {
     const userForkAssessments: AnalystAssessmentResult[] = [];
     const aiForkAssessments: AnalystAssessmentResult[] = [];
 
-    for (const analyst of analysts) {
+    for (const analyst of personalityAnalysts) {
       // User fork assessment
       try {
         const userContextVersion = userContextVersions.get(analyst.analyst_id);
-        const userAssessment = await this.runAnalystAssessmentWithFork(
-          baseContext,
-          analyst,
-          target,
-          input,
-          resolutionContext,
-          'user',
-          userContextVersion,
-        );
+        const userAssessment =
+          await this.runPersonalityAnalystAssessmentWithFork(
+            baseContext,
+            analyst,
+            contextProviders,
+            target,
+            input,
+            resolutionContext,
+            'user',
+            userContextVersion,
+          );
         userForkAssessments.push(userAssessment);
       } catch (error) {
         this.logger.error(
@@ -245,9 +274,10 @@ export class AnalystEnsembleService {
       // AI fork assessment
       try {
         const aiContextVersion = aiContextVersions.get(analyst.analyst_id);
-        const aiAssessment = await this.runAnalystAssessmentWithFork(
+        const aiAssessment = await this.runPersonalityAnalystAssessmentWithFork(
           baseContext,
           analyst,
+          contextProviders,
           target,
           input,
           resolutionContext,
@@ -306,9 +336,11 @@ export class AnalystEnsembleService {
 
   /**
    * Run three-way fork ensemble - generates assessments for user, ai, and arbitrator forks
-   * Each analyst runs 3 times with different context modes:
-   * - user: Uses only user-maintained context section
-   * - ai: Uses only AI-maintained context section
+   * Uses PERSONALITY ANALYSTS (decision-makers) with CONTEXT PROVIDERS (knowledge layers)
+   *
+   * Each personality analyst runs 3 times with different context modes:
+   * - user: Uses only user-maintained context section (learnings applied)
+   * - ai: Uses only AI-maintained context section (self-adapting, no learnings)
    * - arbitrator: Combines both user and ai context sections for the final call
    *
    * The arbitrator fork is used for the final prediction, while user and ai forks
@@ -324,14 +356,20 @@ export class AnalystEnsembleService {
       `Running three-way fork ensemble for target: ${target.symbol}`,
     );
 
-    // Get active analysts for this target
-    const analysts = await this.analystService.getActiveAnalysts(target.id);
-    if (analysts.length === 0) {
-      this.logger.warn(`No active analysts for target: ${target.id}`);
-      throw new Error('No active analysts available for evaluation');
+    // Get personality analysts (decision-makers: Fred, Tina, Sally, Alex, Carl)
+    const personalityAnalysts =
+      await this.analystRepository.getPersonalityAnalysts();
+    if (personalityAnalysts.length === 0) {
+      this.logger.warn('No personality analysts found');
+      throw new Error('No personality analysts available for evaluation');
     }
+    this.logger.log(`Found ${personalityAnalysts.length} personality analysts`);
+
+    // Get context providers for this target (domain/universe/target knowledge)
+    const contextProviders =
+      await this.analystRepository.getContextProvidersForTarget(target.id);
     this.logger.log(
-      `Found ${analysts.length} active analysts, running three-way fork assessments`,
+      `Found ${contextProviders.length} context providers for target ${target.symbol}`,
     );
 
     // Build resolution context
@@ -346,26 +384,27 @@ export class AnalystEnsembleService {
       await this.analystRepository.getAllCurrentContextVersions('user');
     const aiContextVersions =
       await this.analystRepository.getAllCurrentContextVersions('ai');
-    // Arbitrator uses both - we'll combine them in the assessment method
 
     // Run assessments for all three forks
     const userForkAssessments: AnalystAssessmentResult[] = [];
     const aiForkAssessments: AnalystAssessmentResult[] = [];
     const arbitratorForkAssessments: AnalystAssessmentResult[] = [];
 
-    for (const analyst of analysts) {
+    for (const analyst of personalityAnalysts) {
       // User fork assessment
       try {
         const userContextVersion = userContextVersions.get(analyst.analyst_id);
-        const userAssessment = await this.runAnalystAssessmentWithFork(
-          baseContext,
-          analyst,
-          target,
-          input,
-          resolutionContext,
-          'user',
-          userContextVersion,
-        );
+        const userAssessment =
+          await this.runPersonalityAnalystAssessmentWithFork(
+            baseContext,
+            analyst,
+            contextProviders,
+            target,
+            input,
+            resolutionContext,
+            'user',
+            userContextVersion,
+          );
         userForkAssessments.push(userAssessment);
       } catch (error) {
         this.logger.error(
@@ -376,9 +415,10 @@ export class AnalystEnsembleService {
       // AI fork assessment
       try {
         const aiContextVersion = aiContextVersions.get(analyst.analyst_id);
-        const aiAssessment = await this.runAnalystAssessmentWithFork(
+        const aiAssessment = await this.runPersonalityAnalystAssessmentWithFork(
           baseContext,
           analyst,
+          contextProviders,
           target,
           input,
           resolutionContext,
@@ -403,15 +443,17 @@ export class AnalystEnsembleService {
           aiContextVersion,
         );
 
-        const arbitratorAssessment = await this.runAnalystAssessmentWithFork(
-          baseContext,
-          analyst,
-          target,
-          input,
-          resolutionContext,
-          'arbitrator',
-          arbitratorContextVersion,
-        );
+        const arbitratorAssessment =
+          await this.runPersonalityAnalystAssessmentWithFork(
+            baseContext,
+            analyst,
+            contextProviders,
+            target,
+            input,
+            resolutionContext,
+            'arbitrator',
+            arbitratorContextVersion,
+          );
         arbitratorForkAssessments.push(arbitratorAssessment);
       } catch (error) {
         this.logger.error(
@@ -783,7 +825,7 @@ export class AnalystEnsembleService {
         effectiveContext = {
           ...context,
           provider: 'ollama',
-          model: process.env.DEFAULT_LLM_MODEL || 'llama3.2:1b',
+          model: process.env.OLLAMA_FALLBACK_MODEL || 'llama3.2:1b',
         };
       }
     }
@@ -834,6 +876,200 @@ export class AnalystEnsembleService {
       fork_type: forkType,
       context_version_id: contextVersion?.id,
       is_paper_only: !shouldInclude, // Mark as paper-only if suspended
+    };
+  }
+
+  /**
+   * Run a personality analyst assessment with context providers
+   * Uses buildComposedPrompt to merge personality + context layers
+   */
+  private async runPersonalityAnalystAssessmentWithFork(
+    baseContext: ExecutionContext,
+    analyst: PersonalityAnalyst,
+    contextProviders: ContextProvider[],
+    target: Target,
+    input: EnsembleInput,
+    resolutionContext: TierResolutionContext,
+    forkType: ForkType,
+    contextVersion?: AnalystContextVersion,
+  ): Promise<AnalystAssessmentResult> {
+    // Default tier for personality analysts (can be overridden)
+    const tier: LlmTier = 'silver';
+
+    // Get learnings for this analyst
+    // User fork: uses learnings (user-maintained context)
+    // AI fork: no learnings (self-adapts)
+    // Arbitrator fork: uses learnings (has full context)
+    const learnings =
+      forkType === 'user' || forkType === 'arbitrator'
+        ? await this.learningService.getActiveLearnings(
+            target.id,
+            tier,
+            analyst.analyst_id,
+          )
+        : [];
+
+    // For ai and arbitrator forks, get performance context
+    let effectiveWeight = analyst.default_weight;
+    let shouldInclude = true;
+    let performanceContextMarkdown: string | undefined;
+
+    if (forkType === 'ai' || forkType === 'arbitrator') {
+      const performanceForkType = forkType === 'arbitrator' ? 'ai' : forkType;
+      const performanceContext =
+        await this.analystMotivationService.buildPerformanceContext(
+          analyst.analyst_id,
+          performanceForkType,
+        );
+
+      if (performanceContext) {
+        shouldInclude = this.analystMotivationService.shouldIncludeInEnsemble(
+          performanceContext.status,
+        );
+        effectiveWeight = this.analystMotivationService.getEffectiveWeight(
+          analyst.default_weight,
+          performanceContext.status,
+        );
+        performanceContextMarkdown =
+          this.analystMotivationService.formatPerformanceContextForPrompt(
+            performanceContext,
+          );
+
+        if (!shouldInclude) {
+          this.logger.log(
+            `Analyst ${analyst.slug} is suspended - running in paper-only mode`,
+          );
+        }
+      }
+    }
+
+    // Apply context version overrides if present
+    const effectiveAnalyst: PersonalityAnalyst = contextVersion
+      ? {
+          ...analyst,
+          perspective: contextVersion.perspective,
+          tier_instructions: contextVersion.tier_instructions,
+          default_weight: effectiveWeight,
+        }
+      : {
+          ...analyst,
+          default_weight: effectiveWeight,
+        };
+
+    // Build composed prompt with personality + context providers
+    const promptContext: ComposedPromptContext = {
+      personalityAnalyst: effectiveAnalyst,
+      contextProviders,
+      tier,
+      target,
+      learnings,
+      input: {
+        content: input.content,
+        direction: input.direction,
+        metadata: input.metadata,
+      },
+      performanceContext: performanceContextMarkdown,
+    };
+
+    const prompt = this.promptBuilderService.buildComposedPrompt(promptContext);
+
+    // Resolve LLM tier and create context
+    const { context } = await this.llmTierResolverService.createTierContext(
+      baseContext,
+      tier,
+      `${analyst.slug}:${forkType}`,
+      resolutionContext,
+    );
+
+    // Check LLM usage limits
+    const estimatedTokens = this.estimateTokens(
+      prompt.systemPrompt,
+      prompt.userPrompt,
+    );
+
+    let effectiveContext = context;
+    const isLocalProvider = this.llmUsageLimiterService.isLocalProvider(
+      context.provider || '',
+    );
+
+    if (!isLocalProvider) {
+      const usageCheck = this.llmUsageLimiterService.canUseTokens(
+        target.universe_id,
+        estimatedTokens,
+        context.provider,
+      );
+
+      if (!usageCheck.allowed) {
+        this.logger.warn(
+          `LLM usage limit reached for universe ${target.universe_id}: ${usageCheck.reason}. Falling back to local provider.`,
+        );
+        effectiveContext = {
+          ...context,
+          provider: 'ollama',
+          model: process.env.OLLAMA_FALLBACK_MODEL || 'llama3.2:1b',
+        };
+      }
+    }
+
+    // Call LLM
+    const response = await this.llmService.generateResponse(
+      prompt.systemPrompt,
+      prompt.userPrompt,
+      { executionContext: effectiveContext },
+    );
+
+    // Record usage
+    const actualTokens = estimatedTokens + Math.floor(estimatedTokens * 0.5);
+    this.llmUsageLimiterService.recordUsage(
+      target.universe_id,
+      actualTokens,
+      `analyst_assessment:${analyst.slug}:${forkType}`,
+      effectiveContext.provider,
+    );
+
+    // Check and emit usage warnings
+    if (
+      !this.llmUsageLimiterService.isLocalProvider(
+        effectiveContext.provider || '',
+      )
+    ) {
+      await this.llmUsageLimiterService.checkAndEmitWarnings(
+        effectiveContext,
+        target.universe_id,
+      );
+    }
+
+    // Parse response
+    const responseText =
+      typeof response === 'string' ? response : response.content;
+    const parsed = this.parseAnalystResponse(responseText);
+
+    // Convert PersonalityAnalyst to ActiveAnalyst format for the result
+    const activeAnalystResult: ActiveAnalyst = {
+      analyst_id: analyst.analyst_id,
+      slug: analyst.slug,
+      name: analyst.name,
+      perspective: effectiveAnalyst.perspective,
+      effective_weight: effectiveWeight,
+      effective_tier: tier,
+      tier_instructions: effectiveAnalyst.tier_instructions,
+      learned_patterns: [],
+      scope_level: 'runner',
+      analyst_type: 'personality',
+    };
+
+    return {
+      analyst: activeAnalystResult,
+      tier,
+      direction: parsed.direction,
+      confidence: parsed.confidence,
+      reasoning: parsed.reasoning,
+      key_factors: parsed.key_factors || [],
+      risks: parsed.risks || [],
+      learnings_applied: prompt.learningIds,
+      fork_type: forkType,
+      context_version_id: contextVersion?.id,
+      is_paper_only: !shouldInclude,
     };
   }
 

@@ -40,10 +40,10 @@ export interface UsageLimits {
  */
 export const TIER_LIMITS: Record<UsageTier, UsageLimits> = {
   free: {
-    daily_tokens: 100_000,
-    monthly_tokens: 1_000_000,
-    daily_requests: 100,
-    monthly_requests: 2_000,
+    daily_tokens: 10_000_000, // Increased for development/demo
+    monthly_tokens: 100_000_000,
+    daily_requests: 10_000,
+    monthly_requests: 100_000,
   },
   pro: {
     daily_tokens: 1_000_000,

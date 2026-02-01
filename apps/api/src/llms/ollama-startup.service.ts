@@ -98,6 +98,11 @@ export class OllamaStartupService implements OnModuleInit {
   ) {}
 
   async onModuleInit(): Promise<void> {
+    // TEMP: Skip startup sync to debug hang issue
+    if (process.env.SKIP_OLLAMA_SYNC === 'true') {
+      this.logger.warn('Skipping Ollama startup sync (SKIP_OLLAMA_SYNC=true)');
+      return;
+    }
     await this.performStartupSync();
   }
 
@@ -108,7 +113,11 @@ export class OllamaStartupService implements OnModuleInit {
     const warnings: string[] = [];
 
     // Step 1: Discover Ollama
+    this.logger.debug('[SYNC] Step 1: Starting Ollama discovery...');
     const discovery = await this.discoveryService.discover();
+    this.logger.debug(
+      `[SYNC] Step 1 complete: connected=${discovery.connected}`,
+    );
 
     if (!discovery.connected) {
       this.logger.warn(
@@ -127,41 +136,29 @@ export class OllamaStartupService implements OnModuleInit {
       `Ollama connected at ${discovery.url} (v${discovery.version || 'unknown'})`,
     );
 
-    // Step 2: Get available models from Ollama
-    const ollamaModels =
-      await this.localModelStatusService.getAvailableModels();
+    // Step 2: Get available models from Ollama (fast - no health checks)
+    this.logger.debug('[SYNC] Step 2: Getting available models...');
+    const ollamaModels = await this.localModelStatusService.getLoadedModels();
+    this.logger.debug(`[SYNC] Step 2 complete: ${ollamaModels.length} models`);
     const modelNames = ollamaModels.map((m) => m.name);
 
     this.logger.log(`Available models: ${modelNames.join(', ') || 'none'}`);
 
-    // Step 3: Sync with database
-    await this.syncModelsToDatabase(ollamaModels);
-
-    // Step 4: Check if global config model is available
-    const globalConfig = await this.getGlobalConfig();
-    const configModelAvailable = modelNames.includes(globalConfig.model);
-
-    if (!configModelAvailable && modelNames.length > 0) {
-      // Update global config to use first available model
-      const newModel = this.selectBestAvailableModel(modelNames);
-      await this.updateGlobalConfig(newModel);
-
-      warnings.push(
-        `Default model '${globalConfig.model}' not available. Switched to '${newModel}'.`,
-      );
-      this.logger.warn(
-        `Default model '${globalConfig.model}' not available. Switched to '${newModel}'.`,
-      );
-
-      globalConfig.model = newModel;
-    }
+    // Skip database sync at startup - models are synced on-demand when needed
+    // This dramatically speeds up API startup time
+    this.logger.debug(
+      '[SYNC] Startup sync complete (database sync skipped for speed)',
+    );
 
     return {
       success: true,
       ollamaUrl: discovery.url,
       ollamaVersion: discovery.version,
       models: modelNames,
-      globalConfig,
+      globalConfig: {
+        provider: 'ollama',
+        model: modelNames[0] || 'llama3.2:1b',
+      },
       warnings,
     };
   }

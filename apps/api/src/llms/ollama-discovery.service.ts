@@ -30,12 +30,9 @@ interface OllamaVersionResponse {
 export class OllamaDiscoveryService {
   private readonly logger = new Logger(OllamaDiscoveryService.name);
 
-  // Fallback URLs to try in order
+  // Ollama URL - just use the configured URL or localhost
   private readonly fallbackUrls = [
     process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
-    'http://localhost:11434',
-    'http://ollama:11434', // Docker network
-    'http://host.docker.internal:11434', // Docker to host
   ];
 
   // Retry configuration

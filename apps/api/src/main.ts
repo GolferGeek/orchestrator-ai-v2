@@ -10,17 +10,24 @@ async function bootstrap() {
   // Suppress punycode deprecation warning until dependencies are updated
   (process as NodeJS.Process & { noDeprecation?: boolean }).noDeprecation =
     true;
-  // Load custom environment file if ENV_FILE is specified
-  if (process.env.ENV_FILE) {
-    const envFilePath = process.env.ENV_FILE.startsWith('/')
+  // Load environment file - try explicit ENV_FILE or fallback to standard location
+  const envFilePath = process.env.ENV_FILE
+    ? process.env.ENV_FILE.startsWith('/')
       ? process.env.ENV_FILE
-      : join(process.cwd(), process.env.ENV_FILE);
+      : join(process.cwd(), process.env.ENV_FILE)
+    : join(process.cwd(), '../../.env'); // Default: project root from apps/api
 
-    try {
-      dotenv.config({ path: envFilePath });
-    } catch {
-      process.exit(1);
+  try {
+    const result = dotenv.config({ path: envFilePath });
+    if (result.error) {
+      console.error(
+        `[main.ts] Failed to load env from ${envFilePath}:`,
+        result.error.message,
+      );
     }
+  } catch (err) {
+    console.error(`[main.ts] dotenv.config() threw:`, err);
+    process.exit(1);
   }
 
   // Parse command line arguments for --enable-external-agents
@@ -78,10 +85,18 @@ async function bootstrap() {
     }
   })();
 
+  // Add startup timing
+  const startTime = Date.now();
+  console.log(`[STARTUP] Creating NestJS application...`);
+
   const app = await NestFactory.create(AppModule, {
     bodyParser: false, // Disable default body parser to configure custom limits
     logger: logLevels, // Configure logging levels
   });
+
+  console.log(
+    `[STARTUP] NestFactory.create completed in ${Date.now() - startTime}ms`,
+  );
 
   // Configure body parser with larger limits for conversation histories and metrics responses
   app.use(express.json({ limit: '50mb' }));
@@ -272,7 +287,11 @@ async function bootstrap() {
   }
   const port = parseInt(process.env.API_PORT);
 
+  console.log(`[STARTUP] Starting HTTP server on port ${port}...`);
+  const listenStart = Date.now();
   await app.listen(port);
+  console.log(`[STARTUP] Server listening in ${Date.now() - listenStart}ms`);
+  console.log(`[STARTUP] Total startup time: ${Date.now() - startTime}ms`);
 
   // Agent discovery and registration is now handled by AgentPlatformModule
   // All agents are now database-backed via agent-platform

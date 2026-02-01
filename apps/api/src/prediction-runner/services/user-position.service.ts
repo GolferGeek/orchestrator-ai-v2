@@ -260,6 +260,9 @@ export class UserPositionService {
     totalUnrealizedPnl: number;
     totalRealizedPnl: number;
     winRate: number;
+    totalTrades: number;
+    wins: number;
+    losses: number;
   }> {
     const portfolio = await this.portfolioRepository.getUserPortfolio(
       userId,
@@ -273,6 +276,9 @@ export class UserPositionService {
         totalUnrealizedPnl: 0,
         totalRealizedPnl: 0,
         winRate: 0,
+        totalTrades: 0,
+        wins: 0,
+        losses: 0,
       };
     }
 
@@ -286,12 +292,91 @@ export class UserPositionService {
       0,
     );
 
+    // Get win/loss statistics from closed positions
+    const stats = await this.portfolioRepository.getUserPortfolioStats(
+      portfolio.id,
+    );
+
     return {
       portfolio,
       openPositions,
       totalUnrealizedPnl,
       totalRealizedPnl: portfolio.total_realized_pnl,
-      winRate: 0, // TODO: Calculate from closed positions
+      winRate: stats.winRate,
+      totalTrades: stats.totalTrades,
+      wins: stats.wins,
+      losses: stats.losses,
+    };
+  }
+
+  /**
+   * Get closed positions for a user with statistics
+   */
+  async getClosedPositions(
+    userId: string,
+    orgSlug: string,
+    options?: {
+      startDate?: string;
+      endDate?: string;
+      symbol?: string;
+      limit?: number;
+    },
+  ): Promise<{
+    positions: UserPosition[];
+    statistics: {
+      totalClosed: number;
+      wins: number;
+      losses: number;
+      totalPnl: number;
+      avgPnl: number;
+      winRate: number;
+    };
+  }> {
+    const portfolio = await this.portfolioRepository.getUserPortfolio(
+      userId,
+      orgSlug,
+    );
+
+    if (!portfolio) {
+      return {
+        positions: [],
+        statistics: {
+          totalClosed: 0,
+          wins: 0,
+          losses: 0,
+          totalPnl: 0,
+          avgPnl: 0,
+          winRate: 0,
+        },
+      };
+    }
+
+    const positions = await this.portfolioRepository.getClosedUserPositions(
+      portfolio.id,
+      options,
+    );
+
+    // Calculate statistics
+    const wins = positions.filter((p) => (p.realized_pnl ?? 0) > 0).length;
+    const losses = positions.filter((p) => (p.realized_pnl ?? 0) < 0).length;
+    const totalPnl = positions.reduce(
+      (sum, p) => sum + (p.realized_pnl ?? 0),
+      0,
+    );
+    const totalClosed = positions.length;
+    const avgPnl = totalClosed > 0 ? totalPnl / totalClosed : 0;
+    const winRate = totalClosed > 0 ? wins / totalClosed : 0;
+
+    return {
+      positions,
+      statistics: {
+        totalClosed,
+        wins,
+        losses,
+        totalPnl,
+        avgPnl,
+        winRate,
+      },
     };
   }
 

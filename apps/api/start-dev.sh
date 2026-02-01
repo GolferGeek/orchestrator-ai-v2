@@ -8,8 +8,45 @@ YELLOW='\033[0;33m'
 NC='\033[0m' # No Color
 
 LANGGRAPH_STARTED_BY_SCRIPT=false
+API_PORT=${API_PORT:-6100}
 
 echo -e "${BLUE}🚀 Starting OrchAI NestJS API${NC}"
+
+# Kill any existing stale nest/api processes for this project
+cleanup_stale_processes() {
+    local found_any=false
+
+    # Kill nest start processes
+    local nest_pids=$(pgrep -f "nest start" 2>/dev/null)
+    if [ -n "$nest_pids" ]; then
+        echo -e "${YELLOW}🧹 Cleaning up stale NestJS watcher processes...${NC}"
+        echo "$nest_pids" | xargs kill -9 2>/dev/null || true
+        found_any=true
+    fi
+
+    # Kill any running api/dist/main processes
+    local main_pids=$(pgrep -f "apps/api/dist/main" 2>/dev/null)
+    if [ -n "$main_pids" ]; then
+        echo -e "${YELLOW}🧹 Cleaning up stale API main processes...${NC}"
+        echo "$main_pids" | xargs kill -9 2>/dev/null || true
+        found_any=true
+    fi
+
+    # Also check if our API port is in use and kill that process
+    local port_pid=$(lsof -ti:${API_PORT} 2>/dev/null)
+    if [ -n "$port_pid" ]; then
+        echo -e "${YELLOW}🧹 Clearing port ${API_PORT}...${NC}"
+        echo "$port_pid" | xargs kill -9 2>/dev/null || true
+        found_any=true
+    fi
+
+    if [ "$found_any" = true ]; then
+        sleep 2
+        echo -e "${GREEN}✅ Stale processes cleaned up${NC}"
+    fi
+}
+
+cleanup_stale_processes
 
 # Load environment variables from project root
 if [ -f "../../.env" ]; then
@@ -211,17 +248,25 @@ cleanup() {
     echo -e "\n${RED}🛑 Shutting down services...${NC}"
 
     # Kill the NestJS development server
-    if [ ! -z "$NESTJS_PID" ]; then
+    if [ -n "$NESTJS_PID" ]; then
         echo -e "${RED}📦 Stopping NestJS server...${NC}"
         kill $NESTJS_PID 2>/dev/null
         wait $NESTJS_PID 2>/dev/null
-        echo -e "${GREEN}✅ NestJS server stopped${NC}"
     fi
 
-    # Kill the LangGraph server
-    if [ "$LANGGRAPH_STARTED_BY_SCRIPT" = true ] && [ ! -z "$LANGGRAPH_PID" ]; then
+    # Also kill any process still on the API port
+    local port_pid=$(lsof -ti:${API_PORT} 2>/dev/null)
+    if [ -n "$port_pid" ]; then
+        echo "$port_pid" | xargs kill -9 2>/dev/null || true
+    fi
+    echo -e "${GREEN}✅ NestJS server stopped${NC}"
+
+    # Kill the LangGraph server if we started it
+    if [ "$LANGGRAPH_STARTED_BY_SCRIPT" = true ]; then
         echo -e "${RED}🔄 Stopping LangGraph server...${NC}"
-        kill $LANGGRAPH_PID 2>/dev/null
+        if [ -n "$LANGGRAPH_PID" ]; then
+            kill $LANGGRAPH_PID 2>/dev/null
+        fi
         # Also kill any child processes on the LangGraph port
         lsof -ti:${LANGGRAPH_PORT:-6200} | xargs kill -9 2>/dev/null || true
         echo -e "${GREEN}✅ LangGraph server stopped${NC}"
@@ -234,21 +279,48 @@ cleanup() {
 # Set up signal handlers
 trap cleanup SIGINT SIGTERM
 
-# Build transport-types if needed
-echo -e "${BLUE}📦 Building transport-types...${NC}"
-npm --prefix ../.. run build:transport-types
-echo -e "${GREEN}✅ Transport-types built${NC}"
+# Build transport-types only if not already built or source is newer
+TRANSPORT_TYPES_DIR="$(cd ../.. && pwd)/apps/transport-types"
+if [ ! -d "$TRANSPORT_TYPES_DIR/dist" ] || [ -n "$(find "$TRANSPORT_TYPES_DIR/src" -newer "$TRANSPORT_TYPES_DIR/dist" -type f 2>/dev/null | head -1)" ]; then
+    echo -e "${BLUE}📦 Building transport-types...${NC}"
+    npm --prefix ../.. run build:transport-types
+    echo -e "${GREEN}✅ Transport-types built${NC}"
+else
+    echo -e "${GREEN}✅ Transport-types already built${NC}"
+fi
 
 # Start NestJS development server in background
+# Pass the root .env file as ABSOLUTE path so NestJS can load it directly
+ROOT_ENV_FILE="$(cd ../.. && pwd)/.env"
 echo -e "${BLUE}🔥 Starting NestJS development server...${NC}"
-npm run start:dev &
+echo -e "${BLUE}   Using env file: ${ROOT_ENV_FILE}${NC}"
+ENV_FILE="${ROOT_ENV_FILE}" npm run start:dev &
 NESTJS_PID=$!
 
-# Wait a moment for NestJS to start
-sleep 2
+# Wait for API to be healthy (max 60 seconds - watch mode compilation takes time)
+echo -e "${BLUE}⏳ Waiting for API to be ready (watch mode may take up to 60s)...${NC}"
+count=0
+max_attempts=30
+while [ $count -lt $max_attempts ]; do
+    if curl -s "http://localhost:${API_PORT}/health" >/dev/null 2>&1; then
+        echo -e "${GREEN}✅ API is healthy and responding (took ~$((count * 2))s)${NC}"
+        break
+    fi
+    sleep 2
+    count=$((count + 1))
+    if [ $((count % 5)) -eq 0 ]; then
+        echo -e "${BLUE}   Still waiting... ($((count * 2))s/$((max_attempts * 2))s)${NC}"
+    fi
+done
+
+if [ $count -eq $max_attempts ]; then
+    echo -e "${YELLOW}⚠️  API health check timed out after 60 seconds${NC}"
+    echo -e "${BLUE}💡 Check for stale processes: ps aux | grep nest${NC}"
+    echo -e "${BLUE}💡 Or check: curl http://localhost:${API_PORT}/health${NC}"
+fi
 
 echo -e "${GREEN}✅ Development environment ready!${NC}"
-echo -e "${BLUE}📡 NestJS API: http://localhost:${API_PORT:-6100}${NC}"
+echo -e "${BLUE}📡 NestJS API: http://localhost:${API_PORT}${NC}"
 if [ "$LANGGRAPH_STARTED_BY_SCRIPT" = true ]; then
     echo -e "${BLUE}🔄 LangGraph Workflows: http://localhost:${LANGGRAPH_PORT:-6200}${NC}"
 fi

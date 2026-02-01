@@ -653,6 +653,77 @@ export class PortfolioRepository {
   }
 
   /**
+   * Get closed user positions with optional date filters
+   * Used for portfolio history and win rate calculation
+   */
+  async getClosedUserPositions(
+    portfolioId: string,
+    options?: {
+      startDate?: string;
+      endDate?: string;
+      symbol?: string;
+      limit?: number;
+    },
+  ): Promise<UserPosition[]> {
+    let query = this.getClient()
+      .schema(this.schema)
+      .from('user_positions')
+      .select('*')
+      .eq('portfolio_id', portfolioId)
+      .eq('status', 'closed')
+      .order('closed_at', { ascending: false });
+
+    if (options?.startDate) {
+      query = query.gte('closed_at', options.startDate);
+    }
+    if (options?.endDate) {
+      query = query.lte('closed_at', options.endDate);
+    }
+    if (options?.symbol) {
+      query = query.eq('symbol', options.symbol);
+    }
+    if (options?.limit) {
+      query = query.limit(options.limit);
+    }
+
+    const { data, error } =
+      (await query) as SupabaseSelectListResponse<UserPosition>;
+
+    if (error) {
+      this.logger.error(
+        `Failed to get closed user positions: ${error.message}`,
+      );
+      throw new Error(`Failed to get closed user positions: ${error.message}`);
+    }
+
+    return data ?? [];
+  }
+
+  /**
+   * Get win/loss statistics for a user portfolio
+   * Returns counts and calculated win rate
+   */
+  async getUserPortfolioStats(portfolioId: string): Promise<{
+    totalTrades: number;
+    wins: number;
+    losses: number;
+    winRate: number;
+  }> {
+    const closedPositions = await this.getClosedUserPositions(portfolioId);
+
+    const wins = closedPositions.filter(
+      (p) => (p.realized_pnl ?? 0) > 0,
+    ).length;
+    const losses = closedPositions.filter(
+      (p) => (p.realized_pnl ?? 0) < 0,
+    ).length;
+    const totalTrades = closedPositions.length;
+    const winRate = totalTrades > 0 ? wins / totalTrades : 0;
+
+    return { totalTrades, wins, losses, winRate };
+  }
+
+  /**
    * Update user portfolio with realized P&L
    */
   async recordUserTradeResult(

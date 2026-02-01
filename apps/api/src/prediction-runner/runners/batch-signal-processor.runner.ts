@@ -8,6 +8,7 @@ import { UniverseRepository } from '../repositories/universe.repository';
 import { SignalDetectionService } from '../services/signal-detection.service';
 import { FastPathService } from '../services/fast-path.service';
 import { LlmTierResolverService } from '../services/llm-tier-resolver.service';
+import { ObservabilityEventsService } from '@/observability/observability-events.service';
 import { Signal } from '../interfaces/signal.interface';
 
 /**
@@ -44,7 +45,26 @@ export class BatchSignalProcessorRunner {
     private readonly signalDetectionService: SignalDetectionService,
     private readonly fastPathService: FastPathService,
     private readonly llmTierResolver: LlmTierResolverService,
+    private readonly observabilityEventsService: ObservabilityEventsService,
   ) {}
+
+  /**
+   * Create execution context for observability events
+   */
+  private createObservabilityContext(): ExecutionContext {
+    return {
+      orgSlug: 'system',
+      userId: NIL_UUID,
+      conversationId: NIL_UUID,
+      taskId: `batch-signal-${Date.now()}`,
+      planId: NIL_UUID,
+      deliverableId: NIL_UUID,
+      agentSlug: 'batch-signal-processor',
+      agentType: 'runner',
+      provider: NIL_UUID,
+      model: NIL_UUID,
+    };
+  }
 
   /**
    * Check if batch signal processing is disabled via master environment variable
@@ -139,10 +159,21 @@ export class BatchSignalProcessorRunner {
             }
           } catch (error) {
             errors++;
+            const errorMessage =
+              error instanceof Error ? error.message : 'Unknown error';
             this.logger.error(
-              `Error processing signal ${signal.id}: ` +
-                `${error instanceof Error ? error.message : 'Unknown error'}`,
+              `Error processing signal ${signal.id}: ${errorMessage}`,
             );
+
+            // Reset failed signal back to pending so it can be retried
+            try {
+              await this.signalRepository.update(signal.id, {
+                disposition: 'pending',
+                processing_worker: null,
+              });
+            } catch {
+              // Ignore reset errors
+            }
           }
         }
       }
@@ -153,6 +184,30 @@ export class BatchSignalProcessorRunner {
           `${predictorsCreated} predictors created, ${rejected} rejected, ` +
           `${fastPathTriggered} fast-path, ${errors} errors (${duration}ms)`,
       );
+
+      // Emit batch completion event for observability
+      if (processed > 0 || errors > 0) {
+        const ctx = this.createObservabilityContext();
+        await this.observabilityEventsService.push({
+          context: ctx,
+          source_app: 'prediction-runner',
+          hook_event_type: 'signal.processing.completed',
+          status: errors > 0 ? 'partial' : 'completed',
+          message: `Processed ${processed} signals: ${predictorsCreated} predictors, ${rejected} rejected, ${errors} errors`,
+          progress: 100,
+          step: 'batch-complete',
+          payload: {
+            processed,
+            predictorsCreated,
+            rejected,
+            fastPathTriggered,
+            errors,
+            durationMs: duration,
+            workerId: this.workerId,
+          },
+          timestamp: Date.now(),
+        });
+      }
 
       return {
         processed,

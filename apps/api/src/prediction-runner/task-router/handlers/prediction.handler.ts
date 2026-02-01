@@ -43,6 +43,14 @@ interface PredictionFilters {
   includeTestData?: boolean;
   /** Filter by outcome: 'correct', 'incorrect', or 'pending' (not yet evaluated) */
   outcome?: 'correct' | 'incorrect' | 'pending';
+  /** Filter closed positions by start date (closedPositions action) */
+  startDate?: string;
+  /** Filter closed positions by end date (closedPositions action) */
+  endDate?: string;
+  /** Filter closed positions by symbol (closedPositions action) */
+  symbol?: string;
+  /** Limit number of closed positions returned (closedPositions action) */
+  limit?: number;
 }
 
 interface PredictionParams {
@@ -60,6 +68,8 @@ interface PredictionParams {
   quantity?: number;
   /** Entry price override for position creation (use action) */
   entryPrice?: number;
+  /** Exit price for closing a position (closePosition action) */
+  exitPrice?: number;
 }
 
 @Injectable()
@@ -75,6 +85,8 @@ export class PredictionHandler implements IDashboardHandler {
     'use',
     'calculateSize',
     'portfolio',
+    'closedPositions',
+    'closePosition',
   ];
 
   constructor(
@@ -127,6 +139,12 @@ export class PredictionHandler implements IDashboardHandler {
         return this.handleCalculateSize(params, context);
       case 'portfolio':
         return this.handlePortfolio(context);
+      case 'closedpositions':
+      case 'closed-positions':
+        return this.handleClosedPositions(params, context);
+      case 'closeposition':
+      case 'close-position':
+        return this.handleClosePosition(params, context);
       default:
         return buildDashboardError(
           'UNSUPPORTED_ACTION',
@@ -1413,6 +1431,9 @@ export class PredictionHandler implements IDashboardHandler {
           totalRealizedPnl: summary.totalRealizedPnl,
           winRate: summary.winRate,
           openPositionCount: summary.openPositions.length,
+          totalTrades: summary.totalTrades,
+          wins: summary.wins,
+          losses: summary.losses,
         },
       });
     } catch (error) {
@@ -1422,6 +1443,105 @@ export class PredictionHandler implements IDashboardHandler {
       return buildDashboardError(
         'PORTFOLIO_FAILED',
         error instanceof Error ? error.message : 'Failed to get portfolio',
+      );
+    }
+  }
+
+  /**
+   * Handle closed positions history request
+   * Returns list of closed positions with statistics
+   */
+  private async handleClosedPositions(
+    params: PredictionParams | undefined,
+    context: ExecutionContext,
+  ): Promise<DashboardActionResult> {
+    try {
+      const result = await this.userPositionService.getClosedPositions(
+        context.userId,
+        context.orgSlug,
+        {
+          startDate: params?.filters?.startDate,
+          endDate: params?.filters?.endDate,
+          symbol: params?.filters?.symbol,
+          limit: params?.filters?.limit,
+        },
+      );
+
+      return buildDashboardSuccess({
+        positions: result.positions.map((pos) => ({
+          id: pos.id,
+          symbol: pos.symbol,
+          direction: pos.direction,
+          quantity: pos.quantity,
+          entryPrice: pos.entry_price,
+          exitPrice: pos.exit_price,
+          realizedPnl: pos.realized_pnl ?? 0,
+          pnlPercent:
+            pos.entry_price > 0
+              ? ((pos.realized_pnl ?? 0) / (pos.entry_price * pos.quantity)) *
+                100
+              : 0,
+          openedAt: pos.opened_at,
+          closedAt: pos.closed_at,
+          predictionId: pos.prediction_id,
+          targetId: pos.target_id,
+        })),
+        statistics: result.statistics,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to get closed positions: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return buildDashboardError(
+        'CLOSED_POSITIONS_FAILED',
+        error instanceof Error
+          ? error.message
+          : 'Failed to get closed positions',
+      );
+    }
+  }
+
+  /**
+   * Handle close position request
+   * Closes an open position at the specified exit price
+   */
+  private async handleClosePosition(
+    params: PredictionParams | undefined,
+    _context: ExecutionContext,
+  ): Promise<DashboardActionResult> {
+    if (!params?.id) {
+      return buildDashboardError(
+        'MISSING_POSITION_ID',
+        'Position ID is required to close a position',
+      );
+    }
+
+    if (!params?.exitPrice) {
+      return buildDashboardError(
+        'MISSING_EXIT_PRICE',
+        'Exit price is required to close a position',
+      );
+    }
+
+    try {
+      const result = await this.userPositionService.closePosition(
+        params.id,
+        params.exitPrice,
+      );
+
+      return buildDashboardSuccess({
+        positionId: params.id,
+        realizedPnl: result.realizedPnl,
+        isWin: result.isWin,
+        message: `Position closed with ${result.isWin ? 'profit' : 'loss'} of $${result.realizedPnl.toFixed(2)}`,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to close position: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return buildDashboardError(
+        'CLOSE_POSITION_FAILED',
+        error instanceof Error ? error.message : 'Failed to close position',
       );
     }
   }

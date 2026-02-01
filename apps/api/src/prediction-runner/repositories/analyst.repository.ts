@@ -4,6 +4,8 @@ import {
   Analyst,
   ActiveAnalyst,
   LlmTier,
+  ContextProvider,
+  PersonalityAnalyst,
 } from '../interfaces/analyst.interface';
 import {
   ForkType,
@@ -199,6 +201,50 @@ export class AnalystRepository {
         `Failed to find runner-level analysts: ${error.message}`,
       );
       throw new Error(`Failed to find runner-level analysts: ${error.message}`);
+    }
+
+    return data ?? [];
+  }
+
+  /**
+   * Get all enabled personality analysts (decision-makers)
+   * These are the 5 core analysts: Fred, Tina, Sally, Alex, Carl
+   */
+  async getPersonalityAnalysts(): Promise<PersonalityAnalyst[]> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .rpc(
+        'get_personality_analysts',
+      )) as SupabaseSelectListResponse<PersonalityAnalyst>;
+
+    if (error) {
+      this.logger.error(`Failed to get personality analysts: ${error.message}`);
+      throw new Error(`Failed to get personality analysts: ${error.message}`);
+    }
+
+    return data ?? [];
+  }
+
+  /**
+   * Get context providers for a target in scope order
+   * Returns: runner -> domain -> universe -> target level providers
+   */
+  async getContextProvidersForTarget(
+    targetId: string,
+  ): Promise<ContextProvider[]> {
+    const { data, error } = (await this.getClient()
+      .schema(this.schema)
+      .rpc('get_context_for_target', {
+        p_target_id: targetId,
+      })) as SupabaseSelectListResponse<ContextProvider>;
+
+    if (error) {
+      this.logger.error(
+        `Failed to get context providers for target: ${error.message}`,
+      );
+      throw new Error(
+        `Failed to get context providers for target: ${error.message}`,
+      );
     }
 
     return data ?? [];
