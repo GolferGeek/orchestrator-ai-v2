@@ -19,7 +19,6 @@ import { TestDataInjectorService } from '../../services/test-data-injector.servi
 import { TestDataGeneratorService } from '../../services/test-data-generator.service';
 import { ScenarioGeneratorService } from '../../services/scenario-generator.service';
 import { ScenarioVariationService } from '../../services/scenario-variation.service';
-import { SourceRepository } from '../../repositories/source.repository';
 import {
   IDashboardHandler,
   DashboardActionResult,
@@ -113,7 +112,6 @@ export class TestScenarioHandler implements IDashboardHandler {
     private readonly testDataGeneratorService: TestDataGeneratorService,
     private readonly scenarioGeneratorService: ScenarioGeneratorService,
     private readonly scenarioVariationService: ScenarioVariationService,
-    private readonly sourceRepository: SourceRepository,
   ) {}
 
   async execute(
@@ -454,22 +452,13 @@ export class TestScenarioHandler implements IDashboardHandler {
             }
           }
 
-          // Resolve missing source_id by looking up available sources
+          // source_id is now required since we removed legacy prediction.sources
+          // Use a source_id from crawler.sources via source_subscriptions
           if (!signalConfig.source_id) {
-            const sources = await this.sourceRepository.findAll();
-            const firstSource = sources[0];
-            if (firstSource) {
-              // Use the first available active source
-              signalConfig.source_id = firstSource.id;
-              this.logger.debug(
-                `Auto-selected source ${firstSource.id} (${firstSource.name}) for signal generation`,
-              );
-            } else {
-              return buildDashboardError(
-                'MISSING_SOURCE_ID',
-                'source_id is required for signal generation. No active sources found. Please create a source first.',
-              );
-            }
+            return buildDashboardError(
+              'MISSING_SOURCE_ID',
+              'source_id is required for signal generation. Please provide a source_id from crawler.sources.',
+            );
           }
 
           const signals =

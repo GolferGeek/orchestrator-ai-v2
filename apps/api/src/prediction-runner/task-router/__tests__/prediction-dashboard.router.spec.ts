@@ -3,7 +3,6 @@ import { PredictionDashboardRouter } from '../prediction-dashboard.router';
 import { UniverseHandler } from '../handlers/universe.handler';
 import { TargetHandler } from '../handlers/target.handler';
 import { PredictionHandler } from '../handlers/prediction.handler';
-import { SourceHandler } from '../handlers/source.handler';
 import { AnalystHandler } from '../handlers/analyst.handler';
 import { LearningHandler } from '../handlers/learning.handler';
 import { LearningQueueHandler } from '../handlers/learning-queue.handler';
@@ -17,7 +16,6 @@ import { TestArticleHandler } from '../handlers/test-article.handler';
 import { TestPriceDataHandler } from '../handlers/test-price-data.handler';
 import { TestTargetMirrorHandler } from '../handlers/test-target-mirror.handler';
 import { AnalyticsHandler } from '../handlers/analytics.handler';
-import { SourceSeenItemsHandler } from '../handlers/source-seen-items.handler';
 import { SignalsHandler } from '../handlers/signals.handler';
 import { AgentActivityHandler } from '../handlers/agent-activity.handler';
 import { LearningSessionHandler } from '../handlers/learning-session.handler';
@@ -31,7 +29,6 @@ describe('PredictionDashboardRouter', () => {
   let universeHandler: jest.Mocked<UniverseHandler>;
   let targetHandler: jest.Mocked<TargetHandler>;
   let predictionHandler: jest.Mocked<PredictionHandler>;
-  let sourceHandler: jest.Mocked<SourceHandler>;
   let analystHandler: jest.Mocked<AnalystHandler>;
   let learningHandler: jest.Mocked<LearningHandler>;
   let learningQueueHandler: jest.Mocked<LearningQueueHandler>;
@@ -71,7 +68,6 @@ describe('PredictionDashboardRouter', () => {
         { provide: UniverseHandler, useValue: createMockHandler() },
         { provide: TargetHandler, useValue: createMockHandler() },
         { provide: PredictionHandler, useValue: createMockHandler() },
-        { provide: SourceHandler, useValue: createMockHandler() },
         { provide: AnalystHandler, useValue: createMockHandler() },
         { provide: LearningHandler, useValue: createMockHandler() },
         { provide: LearningQueueHandler, useValue: createMockHandler() },
@@ -85,7 +81,6 @@ describe('PredictionDashboardRouter', () => {
         { provide: TestPriceDataHandler, useValue: createMockHandler() },
         { provide: TestTargetMirrorHandler, useValue: createMockHandler() },
         { provide: AnalyticsHandler, useValue: createMockHandler() },
-        { provide: SourceSeenItemsHandler, useValue: createMockHandler() },
         { provide: SignalsHandler, useValue: createMockHandler() },
         { provide: AgentActivityHandler, useValue: createMockHandler() },
         { provide: LearningSessionHandler, useValue: createMockHandler() },
@@ -96,7 +91,6 @@ describe('PredictionDashboardRouter', () => {
     universeHandler = module.get(UniverseHandler);
     targetHandler = module.get(TargetHandler);
     predictionHandler = module.get(PredictionHandler);
-    sourceHandler = module.get(SourceHandler);
     analystHandler = module.get(AnalystHandler);
     learningHandler = module.get(LearningHandler);
     learningQueueHandler = module.get(LearningQueueHandler);
@@ -124,7 +118,6 @@ describe('PredictionDashboardRouter', () => {
       expect(entities).toContain('universes');
       expect(entities).toContain('targets');
       expect(entities).toContain('predictions');
-      expect(entities).toContain('sources');
       expect(entities).toContain('analysts');
       expect(entities).toContain('learnings');
       expect(entities).toContain('learning-queue');
@@ -197,26 +190,6 @@ describe('PredictionDashboardRouter', () => {
 
       expect(predictionHandler.execute).toHaveBeenCalledWith(
         'getSnapshot',
-        mockPayload,
-        mockContext,
-      );
-      expect(result.success).toBe(true);
-    });
-
-    it('should route sources.testCrawl to SourceHandler', async () => {
-      sourceHandler.execute.mockResolvedValue({
-        success: true,
-        data: { testResult: {} },
-      });
-
-      const result = await router.route(
-        'sources.testCrawl',
-        mockPayload,
-        mockContext,
-      );
-
-      expect(sourceHandler.execute).toHaveBeenCalledWith(
-        'testCrawl',
         mockPayload,
         mockContext,
       );

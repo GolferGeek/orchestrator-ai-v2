@@ -19,7 +19,6 @@ import { PredictorRepository } from '../../repositories/predictor.repository';
 import type { Predictor } from '../../interfaces/predictor.interface';
 import { SignalRepository } from '../../repositories/signal.repository';
 import { SignalFingerprintRepository } from '../../repositories/signal-fingerprint.repository';
-import { SourceSeenItemRepository } from '../../repositories/source-seen-item.repository';
 import { TargetRepository } from '../../repositories/target.repository';
 import { SnapshotService } from '../../services/snapshot.service';
 import { PredictionGenerationService } from '../../services/prediction-generation.service';
@@ -94,7 +93,6 @@ export class PredictionHandler implements IDashboardHandler {
     private readonly predictorRepository: PredictorRepository,
     private readonly signalRepository: SignalRepository,
     private readonly signalFingerprintRepository: SignalFingerprintRepository,
-    private readonly sourceSeenItemRepository: SourceSeenItemRepository,
     private readonly targetRepository: TargetRepository,
     private readonly snapshotService: SnapshotService,
     private readonly predictionGenerationService: PredictionGenerationService,
@@ -672,19 +670,9 @@ export class PredictionHandler implements IDashboardHandler {
         ),
       );
 
-      // Get source articles (from seen items) for signals
-      const sourceArticles = await Promise.all(
-        validSignals.map(async (signal) => {
-          const contentHash = signal.metadata?.content_hash as
-            | string
-            | undefined;
-          if (!contentHash) return null;
-          return this.sourceSeenItemRepository.findByContentHash(
-            signal.source_id,
-            contentHash,
-          );
-        }),
-      );
+      // Note: Source articles from legacy prediction.source_seen_items table were removed
+      // Articles now come from crawler.articles via source_subscriptions
+      // For deep-dive lineage, signal metadata may contain article info
 
       // Build reasoning chain from analyst assessments
       const reasoningChain =
@@ -722,7 +710,6 @@ export class PredictionHandler implements IDashboardHandler {
               (s) => s.id === predictor.signal_id,
             );
             const fingerprint = fingerprints[idx];
-            const article = sourceArticles[idx];
 
             return {
               id: predictor.id,
@@ -750,17 +737,9 @@ export class PredictionHandler implements IDashboardHandler {
                     fingerprintHash: fingerprint.fingerprint_hash,
                   }
                 : null,
-              sourceArticle: article
-                ? {
-                    url: article.original_url,
-                    title:
-                      typeof article.metadata?.title === 'string'
-                        ? article.metadata.title
-                        : undefined,
-                    firstSeenAt: article.first_seen_at,
-                    contentHash: article.content_hash,
-                  }
-                : null,
+              // Note: sourceArticle was previously populated from legacy prediction.source_seen_items
+              // Now articles come from crawler.articles - signal metadata may contain article info
+              sourceArticle: null,
             };
           }),
           // Analyst reasoning chain

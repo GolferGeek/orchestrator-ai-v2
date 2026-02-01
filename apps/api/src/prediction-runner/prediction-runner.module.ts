@@ -16,10 +16,6 @@ import {
   LearningQueueRepository,
   LearningLineageRepository,
   SnapshotRepository,
-  // Phase 6 Repositories (legacy - kept for backward compatibility during transition)
-  SourceRepository,
-  SourceCrawlRepository,
-  SourceSeenItemRepository,
   StrategyRepository,
   ToolRequestRepository,
   TargetSnapshotRepository,
@@ -67,7 +63,6 @@ import {
   // Phase 6 Services
   FirecrawlService,
   ContentHashService,
-  SourceCrawlerService,
   TargetSnapshotService,
   StrategyService,
   ToolRequestService,
@@ -87,8 +82,6 @@ import {
   ScenarioVariationService,
   // Phase 6.2 Analytics API Endpoints
   AnalyticsService,
-  // Phase 2 Test Input Infrastructure
-  TestDbSourceCrawlerService,
   // Sprint 5 - Learning Impact Tracking
   LearningImpactService,
   // Sprint 6 - Advanced Test Framework & Monitoring
@@ -136,7 +129,6 @@ import {
   UniverseHandler,
   TargetHandler,
   PredictionHandler,
-  SourceHandler,
   AnalystHandler,
   LearningHandler,
   LearningQueueHandler,
@@ -154,8 +146,7 @@ import {
   TestTargetMirrorHandler,
   // Phase 6.2 - Analytics API Endpoints
   AnalyticsHandler,
-  // Sprint 4 - Source Seen Items and Signals Dashboard
-  SourceSeenItemsHandler,
+  // Sprint 4 - Signals Dashboard
   SignalsHandler,
   // Sprint 5 - Manual Evaluation Override
   EvaluationHandler,
@@ -180,10 +171,6 @@ const repositories = [
   LearningQueueRepository,
   LearningLineageRepository,
   SnapshotRepository,
-  // Phase 6 Repositories (legacy - kept for backward compatibility)
-  SourceRepository,
-  SourceCrawlRepository,
-  SourceSeenItemRepository,
   StrategyRepository,
   ToolRequestRepository,
   TargetSnapshotRepository,
@@ -230,7 +217,6 @@ const services = [
   // Phase 6 Services
   FirecrawlService,
   ContentHashService,
-  SourceCrawlerService,
   TargetSnapshotService,
   StrategyService,
   ToolRequestService,
@@ -250,8 +236,6 @@ const services = [
   ScenarioVariationService,
   // Phase 6.2 Analytics API Endpoints
   AnalyticsService,
-  // Phase 2 Test Input Infrastructure
-  TestDbSourceCrawlerService,
   // Sprint 5 - Learning Impact Tracking
   LearningImpactService,
   // Sprint 6 - Advanced Test Framework & Monitoring
@@ -299,7 +283,6 @@ const dashboardHandlers = [
   UniverseHandler,
   TargetHandler,
   PredictionHandler,
-  SourceHandler,
   AnalystHandler,
   LearningHandler,
   LearningQueueHandler,
@@ -317,8 +300,7 @@ const dashboardHandlers = [
   TestTargetMirrorHandler,
   // Phase 6.2 - Analytics API Endpoints
   AnalyticsHandler,
-  // Sprint 4 - Source Seen Items and Signals Dashboard
-  SourceSeenItemsHandler,
+  // Sprint 4 - Signals Dashboard
   SignalsHandler,
   // Sprint 5 - Manual Evaluation Override
   EvaluationHandler,

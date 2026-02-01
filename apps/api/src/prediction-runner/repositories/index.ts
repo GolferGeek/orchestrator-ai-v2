@@ -8,10 +8,6 @@ export * from './learning.repository';
 export * from './learning-queue.repository';
 export * from './learning-lineage.repository';
 export * from './snapshot.repository';
-// Phase 6 repositories (legacy - will be deprecated after central crawler integration)
-export * from './source.repository';
-export * from './source-crawl.repository';
-export * from './source-seen-item.repository';
 export * from './strategy.repository';
 export * from './tool-request.repository';
 export * from './target-snapshot.repository';

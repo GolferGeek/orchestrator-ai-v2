@@ -26,7 +26,6 @@ export * from './prediction-generation.service';
 // Phase 6 services
 export * from './firecrawl.service';
 export * from './content-hash.service';
-export * from './source-crawler.service';
 export * from './target-snapshot.service';
 export * from './strategy.service';
 export * from './tool-request.service';
@@ -34,7 +33,6 @@ export * from './tool-request.service';
 export * from './notification.service';
 export * from './prediction-streaming.service';
 // Phase 2 Test Input Infrastructure
-export * from './test-db-source-crawler.service';
 export * from './test-price-data-router.service';
 // Phase 3 Test Data Injection Framework
 export * from './test-data-injector.service';

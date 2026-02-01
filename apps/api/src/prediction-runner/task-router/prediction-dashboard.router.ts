@@ -32,7 +32,6 @@ import {
 import { UniverseHandler } from './handlers/universe.handler';
 import { TargetHandler } from './handlers/target.handler';
 import { PredictionHandler } from './handlers/prediction.handler';
-import { SourceHandler } from './handlers/source.handler';
 import { AnalystHandler } from './handlers/analyst.handler';
 import { LearningHandler } from './handlers/learning.handler';
 import { LearningQueueHandler } from './handlers/learning-queue.handler';
@@ -50,8 +49,7 @@ import { TestPriceDataHandler } from './handlers/test-price-data.handler';
 import { TestTargetMirrorHandler } from './handlers/test-target-mirror.handler';
 // Phase 6.2 - Analytics API Endpoints
 import { AnalyticsHandler } from './handlers/analytics.handler';
-// Sprint 4 - Source Seen Items and Signals Dashboard
-import { SourceSeenItemsHandler } from './handlers/source-seen-items.handler';
+// Sprint 4 - Signals Dashboard
 import { SignalsHandler } from './handlers/signals.handler';
 // Phase 3 - Agent Activity (HITL Notifications)
 import { AgentActivityHandler } from './handlers/agent-activity.handler';
@@ -67,7 +65,6 @@ export type DashboardEntity =
   | 'universes'
   | 'targets'
   | 'predictions'
-  | 'sources'
   | 'analysts'
   | 'learnings'
   | 'learning-queue'
@@ -81,7 +78,6 @@ export type DashboardEntity =
   | 'test-price-data'
   | 'test-target-mirrors'
   | 'analytics'
-  | 'source-seen-items'
   | 'signals'
   | 'agent-activity'
   | 'learning-session'
@@ -109,7 +105,6 @@ export class PredictionDashboardRouter {
     private readonly universeHandler: UniverseHandler,
     private readonly targetHandler: TargetHandler,
     private readonly predictionHandler: PredictionHandler,
-    private readonly sourceHandler: SourceHandler,
     private readonly analystHandler: AnalystHandler,
     private readonly learningHandler: LearningHandler,
     private readonly learningQueueHandler: LearningQueueHandler,
@@ -127,8 +122,7 @@ export class PredictionDashboardRouter {
     private readonly testTargetMirrorHandler: TestTargetMirrorHandler,
     // Phase 6.2 - Analytics API Endpoints
     private readonly analyticsHandler: AnalyticsHandler,
-    // Sprint 4 - Source Seen Items and Signals Dashboard
-    private readonly sourceSeenItemsHandler: SourceSeenItemsHandler,
+    // Sprint 4 - Signals Dashboard
     private readonly signalsHandler: SignalsHandler,
     // Phase 3 - Agent Activity (HITL Notifications)
     private readonly agentActivityHandler: AgentActivityHandler,
@@ -245,10 +239,6 @@ export class PredictionDashboardRouter {
       case 'prediction':
         return this.predictionHandler.execute(operation, payload, context);
 
-      case 'sources':
-      case 'source':
-        return this.sourceHandler.execute(operation, payload, context);
-
       case 'analysts':
       case 'analyst':
         return this.analystHandler.execute(operation, payload, context);
@@ -322,11 +312,7 @@ export class PredictionDashboardRouter {
       case 'analytics':
         return this.analyticsHandler.execute(operation, payload, context);
 
-      // Sprint 4 - Source Seen Items and Signals Dashboard
-      case 'source-seen-items':
-      case 'sourcesenitems':
-        return this.sourceSeenItemsHandler.execute(operation, payload, context);
-
+      // Sprint 4 - Signals Dashboard
       case 'signals':
       case 'signal':
         return this.signalsHandler.execute(operation, payload, context);
@@ -401,7 +387,6 @@ export class PredictionDashboardRouter {
       'universes',
       'targets',
       'predictions',
-      'sources',
       'analysts',
       'learnings',
       'learning-queue',
@@ -415,7 +400,6 @@ export class PredictionDashboardRouter {
       'test-price-data',
       'test-target-mirrors',
       'analytics',
-      'source-seen-items',
       'signals',
       'agent-activity',
       'runner',
@@ -433,8 +417,6 @@ export class PredictionDashboardRouter {
         return this.targetHandler.getSupportedActions();
       case 'predictions':
         return this.predictionHandler.getSupportedActions();
-      case 'sources':
-        return this.sourceHandler.getSupportedActions();
       case 'analysts':
         return this.analystHandler.getSupportedActions();
       case 'learnings':
@@ -461,8 +443,6 @@ export class PredictionDashboardRouter {
         return this.testTargetMirrorHandler.getSupportedActions();
       case 'analytics':
         return this.analyticsHandler.getSupportedActions();
-      case 'source-seen-items':
-        return this.sourceSeenItemsHandler.getSupportedActions();
       case 'signals':
         return this.signalsHandler.getSupportedActions();
       case 'agent-activity':

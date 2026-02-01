@@ -6,7 +6,6 @@
 export { UniverseHandler } from './universe.handler';
 export { TargetHandler } from './target.handler';
 export { PredictionHandler } from './prediction.handler';
-export { SourceHandler } from './source.handler';
 export { AnalystHandler } from './analyst.handler';
 export { LearningHandler } from './learning.handler';
 export { LearningQueueHandler } from './learning-queue.handler';
@@ -24,8 +23,7 @@ export { TestPriceDataHandler } from './test-price-data.handler';
 export { TestTargetMirrorHandler } from './test-target-mirror.handler';
 // Phase 6.2 - Analytics API Endpoints
 export { AnalyticsHandler } from './analytics.handler';
-// Sprint 4 - Source Seen Items and Signals Dashboard
-export { SourceSeenItemsHandler } from './source-seen-items.handler';
+// Sprint 4 - Signals Dashboard
 export { SignalsHandler } from './signals.handler';
 // Sprint 5 - Manual Evaluation Override
 export { EvaluationHandler } from './evaluation.handler';
