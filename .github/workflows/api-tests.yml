@@ -1,0 +1,60 @@
+name: API Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'apps/api/**'
+      - 'apps/transport-types/**'
+      - '.github/workflows/api-tests.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'apps/api/**'
+      - 'apps/transport-types/**'
+
+jobs:
+  test:
+    name: Run API Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build transport-types
+        run: npm run build --workspace=@orchestrator-ai/transport-types
+
+      - name: Run API linter
+        run: npm run lint --workspace=api
+        continue-on-error: true
+
+      - name: Run type check
+        working-directory: apps/api
+        run: npx tsc --noEmit
+
+      - name: Build API application
+        run: npm run build --workspace=api
+
+      - name: Run API unit tests
+        run: npm test --workspace=api
+        env:
+          NODE_ENV: test
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: apps/api/coverage/lcov.info
+          flags: api
+          fail_ci_if_error: false
