@@ -121,10 +121,9 @@ export class WebhooksController {
       return;
     }
 
-    // Extract context fields - context is the single source of truth
-    const { userId, conversationId, agentSlug, orgSlug } = update.context;
+    // Context is the single source of truth - access directly, never destructure
     this.logger.log(
-      `🔔 [WEBHOOK] Context validated: userId=${userId}, conversationId=${conversationId}, agentSlug=${agentSlug}, orgSlug=${orgSlug}`,
+      `🔔 [WEBHOOK] Context validated: userId=${update.context.userId}, conversationId=${update.context.conversationId}, agentSlug=${update.context.agentSlug}, orgSlug=${update.context.orgSlug}`,
     );
 
     try {
@@ -175,7 +174,7 @@ export class WebhooksController {
         try {
           await this.tasksService.emitTaskMessage(
             update.taskId,
-            userId,
+            update.context.userId,
             update.message,
             'progress',
             progress,
@@ -221,7 +220,7 @@ export class WebhooksController {
         step: stepName,
         progress,
         timestamp: update.timestamp,
-        conversationId,
+        conversationId: update.context.conversationId,
         statusHistory: history,
         data: update,
       };
@@ -235,7 +234,7 @@ export class WebhooksController {
       // Emit event for other services that might care
       this.eventEmitter.emit('workflow.status_update', {
         taskId: update.taskId,
-        conversationId,
+        conversationId: update.context.conversationId,
         executionId: update.executionId,
         status: update.status,
         progress,
@@ -282,8 +281,7 @@ export class WebhooksController {
     try {
       const now = Date.now();
 
-      // Context is the single source of truth - no fallbacks
-      const { userId, conversationId, agentSlug, orgSlug } = update.context;
+      // Context is the single source of truth - access directly, never destructure
       const taskId = update.taskId;
 
       // UUID validation helper - only store valid UUIDs for uuid columns
@@ -294,15 +292,17 @@ export class WebhooksController {
         return uuidRegex.test(str);
       };
 
-      // Only use valid UUIDs for database columns
-      const validUserId = isValidUuid(userId) ? userId : null;
-      const validConversationId = isValidUuid(conversationId)
-        ? conversationId
+      // Only use valid UUIDs for database columns - access from context directly
+      const validUserId = isValidUuid(update.context.userId)
+        ? update.context.userId
+        : null;
+      const validConversationId = isValidUuid(update.context.conversationId)
+        ? update.context.conversationId
         : null;
 
       // Username will be resolved by ObservabilityWebhookService if available
       // For now, use userId as placeholder - the sendEvent method enriches it
-      const username = userId;
+      const username = update.context.userId;
 
       const eventData: ObservabilityEventRecord = {
         context: update.context,
@@ -332,8 +332,8 @@ export class WebhooksController {
           task_id: taskId,
           user_id: validUserId,
           conversation_id: validConversationId,
-          agent_slug: agentSlug || null,
-          organization_slug: orgSlug || null,
+          agent_slug: update.context.agentSlug || null,
+          organization_slug: update.context.orgSlug || null,
           mode: eventData.payload?.mode || 'build',
           status: update.status,
           message: eventData.message || null,
@@ -362,7 +362,7 @@ export class WebhooksController {
       });
       // Push into in-memory reactive buffer for shared SSE streams
       this.logger.debug(
-        `📊 [OBSERVABILITY] Pushing to ObservabilityEventsService buffer with conversationId: ${conversationId}`,
+        `📊 [OBSERVABILITY] Pushing to ObservabilityEventsService buffer with conversationId: ${update.context.conversationId}`,
       );
       void this.observabilityEvents.push(eventData);
       this.logger.debug(`📊 [OBSERVABILITY] ✅ Event broadcast complete`);
