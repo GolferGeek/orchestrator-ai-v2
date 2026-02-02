@@ -85,21 +85,58 @@ const mockMapping = {
 };
 
 // Mock the privacy store with proper data to avoid reduce error
-vi.mock('@/stores/privacyStore', () => ({
-  usePrivacyStore: vi.fn(() => ({
-    mappings: [mockMapping],
-    availableDataTypes: ['email', 'phone', 'name'],
-    totalMappings: 1,
-    totalUsage: 5,
-    averageUsage: 5,
-    isLoading: false,
-    error: null,
-    recentMappings: [mockMapping],
-    mappingsByDataType: { email: [mockMapping] },
-    fetchMappings: vi.fn(),
-    fetchStats: vi.fn(),
-    refreshData: vi.fn(),
-  })),
+// Note: vi.mock is hoisted, so we inline the mock data
+vi.mock('@/stores/privacyStore', () => {
+  const inlineMockMapping = {
+    id: 'test-mapping-1',
+    pseudonym: 'USER_ABC123',
+    dataType: 'email',
+    usageCount: 5,
+    lastUsedAt: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    context: 'test-context',
+    originalHash: 'abc123def456',
+    originalValue: '[REDACTED]',
+  };
+  return {
+    usePrivacyStore: vi.fn(() => ({
+      mappings: [inlineMockMapping],
+      availableDataTypes: ['email', 'phone', 'name'],
+      totalMappings: 1,
+      totalUsage: 5,
+      averageUsage: 5,
+      isLoading: false,
+      error: null,
+      recentMappings: [inlineMockMapping],
+      mappingsByDataType: { email: [inlineMockMapping] },
+      fetchMappings: vi.fn(),
+      fetchStats: vi.fn(),
+      refreshData: vi.fn(),
+      // Methods called by privacyService
+      setMappingsLoading: vi.fn(),
+      setMappingsError: vi.fn(),
+      setMappings: vi.fn(),
+      mappingsLoading: false,
+      mappingsLastFetched: new Date(),
+      mappingsError: null,
+      // Stats methods
+      setMappingStatsLoading: vi.fn(),
+      setMappingStats: vi.fn(),
+      mappingStatsLoading: false,
+    })),
+  };
+});
+
+// Mock privacyService to prevent async calls during mount
+// The component imports: import { privacyService } from '@/services/privacyService'
+vi.mock('@/services/privacyService', () => ({
+  privacyService: {
+    fetchMappings: vi.fn().mockResolvedValue([]),
+    fetchMappingStats: vi.fn().mockResolvedValue(undefined),
+    fetchMappingsFiltered: vi.fn().mockResolvedValue({ mappings: [], total: 0 }),
+    deletePseudonymMapping: vi.fn().mockResolvedValue(undefined),
+  },
 }));
 
 describe('PseudonymMappingViewer.vue', () => {
