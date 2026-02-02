@@ -296,8 +296,10 @@ export interface RiskDebate {
 export interface RiskDebateContext {
   id: string;
   scopeId: string;
-  role: 'blue_team' | 'red_team' | 'arbiter';
-  analysisPrompt: string;
+  role: 'blue' | 'red' | 'arbiter';
+  version: number;
+  systemPrompt: string;
+  outputSchema?: Record<string, unknown>;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

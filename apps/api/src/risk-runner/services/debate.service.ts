@@ -403,12 +403,21 @@ export class DebateService {
         executionContext: context,
         callerType: 'api',
         callerName: 'debate-red-agent',
+        maxTokens: 8192, // Red Team needs more tokens for complex JSON structure
       },
     );
 
-    return this.parseRedResponse(
-      typeof response === 'string' ? response : response.content,
+    const content = typeof response === 'string' ? response : response.content;
+
+    // DEBUG: Log full response to understand parsing issues
+    this.logger.debug(`[DEBUG] Red Agent response type: ${typeof response}`);
+    this.logger.debug(`[DEBUG] Red Agent content type: ${typeof content}`);
+    this.logger.debug(
+      `[DEBUG] Red Agent content length: ${content?.length || 0}`,
     );
+    this.logger.debug(`[DEBUG] Red Agent raw content:\n${content}`);
+
+    return this.parseRedResponse(content);
   }
 
   /**
@@ -662,11 +671,51 @@ Respond in JSON format:
           ? (parsed.understated_risks as string[])
           : [],
       };
-    } catch {
-      this.logger.warn('Failed to parse Red Agent response as JSON');
+    } catch (error) {
+      this.logger.warn(
+        `Failed to parse Red Agent response as JSON: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      this.logger.debug(
+        `Red Agent raw content (first 500 chars): ${content.slice(0, 500)}`,
+      );
+
+      // Try to extract JSON from the content (LLM might have added prose before/after)
+      const jsonMatch = content.match(/\{[\s\S]*"challenges"[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          const extractedJson = jsonMatch[0];
+          const parsed = JSON.parse(extractedJson) as Record<string, unknown>;
+          this.logger.log(
+            'Successfully extracted JSON from Red Agent response',
+          );
+          return {
+            challenges: this.parseChallenges(parsed.challenges),
+            blind_spots: Array.isArray(parsed.blind_spots)
+              ? (parsed.blind_spots as string[])
+              : [],
+            alternative_scenarios: this.parseAlternativeScenarios(
+              parsed.alternative_scenarios,
+            ),
+            overstated_risks: Array.isArray(parsed.overstated_risks)
+              ? (parsed.overstated_risks as string[])
+              : [],
+            understated_risks: Array.isArray(parsed.understated_risks)
+              ? (parsed.understated_risks as string[])
+              : [],
+          };
+        } catch (extractError) {
+          this.logger.warn(
+            `Failed to extract JSON from Red Agent response: ${extractError instanceof Error ? extractError.message : String(extractError)}`,
+          );
+        }
+      }
+
+      // Last resort: return empty challenges with error message (NOT the raw JSON)
       return {
         challenges: [],
-        blind_spots: [content.slice(0, 200)],
+        blind_spots: [
+          'Unable to parse Red Team response - please retry the analysis',
+        ],
         alternative_scenarios: [],
         overstated_risks: [],
         understated_risks: [],

@@ -402,10 +402,19 @@ function navigateToTraining(screenName: string) {
   router.push({ name: screenName });
 }
 
+// Track previous agentSlug to detect agent switches
+let previousAgentSlug: string | undefined | null = null;
+
 // Watch for organization context to become available (from agent or auth store)
 watch(
   [effectiveOrg, agentSlug],
   ([newOrg, newAgentSlug]) => {
+    // Reset state when switching between dashboard agents
+    if (previousAgentSlug && previousAgentSlug !== newAgentSlug) {
+      store.resetState();
+    }
+    previousAgentSlug = newAgentSlug;
+
     if (newOrg) {
       console.log('[PredictionDashboard] Org/agent changed:', newOrg, newAgentSlug);
       loadData();

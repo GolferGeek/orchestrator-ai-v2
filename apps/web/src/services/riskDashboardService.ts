@@ -475,14 +475,28 @@ class RiskDashboardService {
   // ==========================================================================
 
   async listDebateContexts(scopeId: string): Promise<DashboardActionResponse<RiskDebateContext[]>> {
-    return this.executeDashboardRequest<RiskDebateContext[]>('debate-contexts.list', { scopeId });
+    return this.executeDashboardRequest<RiskDebateContext[]>('debates.contexts.list', { scopeId });
+  }
+
+  async getDebateContext(scopeId: string, role: 'blue' | 'red' | 'arbiter'): Promise<DashboardActionResponse<RiskDebateContext>> {
+    return this.executeDashboardRequest<RiskDebateContext>('debates.contexts.get', { scopeId, role });
+  }
+
+  async createDebateContext(params: {
+    scopeId: string;
+    role: 'blue' | 'red' | 'arbiter';
+    systemPrompt: string;
+    outputSchema?: Record<string, unknown>;
+    isActive?: boolean;
+  }): Promise<DashboardActionResponse<RiskDebateContext>> {
+    return this.executeDashboardRequest<RiskDebateContext>('debates.contexts.create', params);
   }
 
   async updateDebateContext(
     id: string,
-    params: { analysisPrompt?: string; isActive?: boolean }
+    params: { systemPrompt?: string; outputSchema?: Record<string, unknown>; isActive?: boolean }
   ): Promise<DashboardActionResponse<RiskDebateContext>> {
-    return this.executeDashboardRequest<RiskDebateContext>('debate-contexts.update', { id, ...params });
+    return this.executeDashboardRequest<RiskDebateContext>('debates.contexts.update', { id, ...params });
   }
 
   // ==========================================================================

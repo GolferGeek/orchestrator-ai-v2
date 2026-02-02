@@ -14,6 +14,7 @@ import type {
   RiskAssessment,
   ActiveCompositeScoreView,
   RiskDebate,
+  RiskDebateContext,
   RiskAlert,
   UnacknowledgedAlertView,
   PendingLearningView,
@@ -39,6 +40,9 @@ interface RiskDashboardState {
 
   // Dimensions for the current scope
   dimensions: RiskDimension[];
+
+  // Debate contexts for the current scope
+  debateContexts: RiskDebateContext[];
 
   // Alerts
   alerts: UnacknowledgedAlertView[];
@@ -82,6 +86,7 @@ export const useRiskDashboardStore = defineStore('riskDashboard', () => {
     compositeScores: [],
     selectedSubject: null,
     dimensions: [],
+    debateContexts: [],
     alerts: [],
     pendingLearnings: [],
     viewMode: 'radar',
@@ -104,6 +109,7 @@ export const useRiskDashboardStore = defineStore('riskDashboard', () => {
   const compositeScores = computed(() => state.value.compositeScores);
   const selectedSubject = computed(() => state.value.selectedSubject);
   const dimensions = computed(() => state.value.dimensions);
+  const debateContexts = computed(() => state.value.debateContexts);
   const alerts = computed(() => state.value.alerts);
   const pendingLearnings = computed(() => state.value.pendingLearnings);
   const viewMode = computed(() => state.value.viewMode);
@@ -229,6 +235,10 @@ export const useRiskDashboardStore = defineStore('riskDashboard', () => {
 
   function getAlertsBySubjectId(subjectId: string): UnacknowledgedAlertView[] {
     return state.value.alerts.filter((a) => a.subjectId === subjectId);
+  }
+
+  function getDebateContextByRole(role: 'blue' | 'red' | 'arbiter'): RiskDebateContext | undefined {
+    return state.value.debateContexts.find((c) => c.role === role && c.isActive);
   }
 
   // ============================================================================
@@ -368,6 +378,57 @@ export const useRiskDashboardStore = defineStore('riskDashboard', () => {
 
   function removeDimension(id: string) {
     state.value.dimensions = state.value.dimensions.filter((d) => d.id !== id);
+  }
+
+  function setDebateContexts(contexts: RiskDebateContext[]) {
+    // Transform snake_case API response to camelCase expected by frontend
+    state.value.debateContexts = contexts.map((context) => {
+      const c = context as unknown as Record<string, unknown>;
+      return {
+        ...context,
+        scopeId: (c.scope_id as string) || (c.scopeId as string) || '',
+        systemPrompt: (c.system_prompt as string) || (c.systemPrompt as string) || '',
+        outputSchema: (c.output_schema as Record<string, unknown>) || (c.outputSchema as Record<string, unknown>) || undefined,
+        isActive: c.is_active === true || c.isActive === true,
+        createdAt: (c.created_at as string) || (c.createdAt as string) || '',
+        updatedAt: (c.updated_at as string) || (c.updatedAt as string) || '',
+      } as RiskDebateContext;
+    });
+  }
+
+  function addDebateContext(context: RiskDebateContext) {
+    // Transform if needed
+    const c = context as unknown as Record<string, unknown>;
+    const transformed = {
+      ...context,
+      scopeId: (c.scope_id as string) || (c.scopeId as string) || context.scopeId || '',
+      systemPrompt: (c.system_prompt as string) || (c.systemPrompt as string) || context.systemPrompt || '',
+      outputSchema: (c.output_schema as Record<string, unknown>) || (c.outputSchema as Record<string, unknown>) || context.outputSchema,
+      isActive: c.is_active === true || c.isActive === true || context.isActive === true,
+      createdAt: (c.created_at as string) || (c.createdAt as string) || context.createdAt || '',
+      updatedAt: (c.updated_at as string) || (c.updatedAt as string) || context.updatedAt || '',
+    } as RiskDebateContext;
+
+    const existing = state.value.debateContexts.findIndex((ctx) => ctx.id === context.id);
+    if (existing >= 0) {
+      state.value.debateContexts[existing] = transformed;
+    } else {
+      state.value.debateContexts.push(transformed);
+    }
+  }
+
+  function updateDebateContextInStore(id: string, updates: Partial<RiskDebateContext>) {
+    const index = state.value.debateContexts.findIndex((c) => c.id === id);
+    if (index >= 0) {
+      state.value.debateContexts[index] = {
+        ...state.value.debateContexts[index],
+        ...updates,
+      };
+    }
+  }
+
+  function removeDebateContext(id: string) {
+    state.value.debateContexts = state.value.debateContexts.filter((c) => c.id !== id);
   }
 
   // Helper to normalize scores to 0-1 scale
@@ -626,6 +687,7 @@ export const useRiskDashboardStore = defineStore('riskDashboard', () => {
     state.value.compositeScores = [];
     state.value.selectedSubject = null;
     state.value.dimensions = [];
+    state.value.debateContexts = [];
     state.value.alerts = [];
     state.value.pendingLearnings = [];
     state.value.viewMode = 'radar';
@@ -664,6 +726,7 @@ export const useRiskDashboardStore = defineStore('riskDashboard', () => {
     compositeScores,
     selectedSubject,
     dimensions,
+    debateContexts,
     alerts,
     pendingLearnings,
     viewMode,
@@ -695,6 +758,7 @@ export const useRiskDashboardStore = defineStore('riskDashboard', () => {
     getDimensionBySlug,
     getCompositeScoreBySubjectId,
     getAlertsBySubjectId,
+    getDebateContextByRole,
 
     // Mutations
     setLoading,
@@ -714,6 +778,10 @@ export const useRiskDashboardStore = defineStore('riskDashboard', () => {
     addDimension,
     updateDimension,
     removeDimension,
+    setDebateContexts,
+    addDebateContext,
+    updateDebateContextInStore,
+    removeDebateContext,
     setCompositeScores,
     addCompositeScore,
     updateCompositeScore,
