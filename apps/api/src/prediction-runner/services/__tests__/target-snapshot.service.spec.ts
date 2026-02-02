@@ -91,6 +91,7 @@ describe('TargetSnapshotService', () => {
             findById: jest.fn(),
             findByIdOrThrow: jest.fn(),
             findAll: jest.fn(),
+            updateCurrentPrice: jest.fn().mockResolvedValue(undefined),
           },
         },
         {

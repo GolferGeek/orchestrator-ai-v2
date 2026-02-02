@@ -157,6 +157,7 @@ describe('AnalystHandler', () => {
   beforeEach(async () => {
     const mockAnalystService = {
       findById: jest.fn(),
+      findAll: jest.fn(),
       findRunnerLevel: jest.fn(),
       findByDomain: jest.fn(),
       findBySlug: jest.fn(),
@@ -537,7 +538,7 @@ describe('AnalystHandler', () => {
 
   describe('execute - basic CRUD actions', () => {
     it('should list analysts', async () => {
-      analystService.findRunnerLevel.mockResolvedValue([mockAnalyst]);
+      analystService.findAll.mockResolvedValue([mockAnalyst]);
 
       const payload: DashboardRequestPayload = {
         action: 'list',

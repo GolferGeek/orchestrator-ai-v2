@@ -40,13 +40,14 @@ export class SignalRepository {
   /**
    * Apply test data filter to a query builder
    * By default, excludes test data from production queries
+   * Checks both is_test (main field) and is_test_data (legacy field)
    */
   private applyTestDataFilter<
     T extends { eq: (col: string, val: unknown) => T; or: (cond: string) => T },
   >(query: T, filter: TestDataFilter = DEFAULT_FILTER): T {
     if (filter.testDataOnly) {
-      // Only return test data
-      query = query.eq('is_test_data', true);
+      // Only return test data (check both is_test and is_test_data)
+      query = query.or('is_test.eq.true,is_test_data.eq.true');
       if (filter.testScenarioId) {
         query = query.eq('test_scenario_id', filter.testScenarioId);
       }
@@ -55,6 +56,8 @@ export class SignalRepository {
       query = query.eq('test_scenario_id', filter.testScenarioId);
     } else if (!filter.includeTestData) {
       // Exclude test data (default behavior)
+      // Must check both is_test=false AND is_test_data is null/false
+      query = query.or('is_test.is.null,is_test.eq.false');
       query = query.or('is_test_data.is.null,is_test_data.eq.false');
     }
     // If includeTestData is true and no scenarioId, return everything (no filter)

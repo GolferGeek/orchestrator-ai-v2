@@ -108,6 +108,12 @@ export class SignalDetectionService {
     }
 
     // Emit signal.detected event for observability
+    // Extract article title from metadata if available
+    const articleTitle =
+      (input.signal.metadata?.title as string) ||
+      (input.signal.metadata?.headline as string) ||
+      null;
+
     await this.observabilityEventsService.push({
       context: ctx,
       source_app: 'prediction-runner',
@@ -128,6 +134,11 @@ export class SignalDetectionService {
         shouldCreatePredictor: evaluation.shouldCreatePredictor,
         keyFactors: evaluation.key_factors,
         risks: evaluation.risks,
+        // Article information
+        url: input.signal.url,
+        title: articleTitle,
+        content: input.signal.content,
+        sourceName: input.signal.metadata?.source_name as string | undefined,
       },
       timestamp: Date.now(),
     });

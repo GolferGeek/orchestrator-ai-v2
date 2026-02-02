@@ -177,7 +177,7 @@ describe('LearningSessionHandler', () => {
       expect(actions).toContain('list');
       expect(actions).toContain('get');
       expect(actions).toContain('start');
-      expect(actions).toContain('askAgent');
+      expect(actions).toContain('askAi');
       expect(actions).toContain('askUser');
       expect(actions).toContain('respond');
       expect(actions).toContain('pending');
@@ -311,13 +311,13 @@ describe('LearningSessionHandler', () => {
     });
   });
 
-  describe('execute - askAgent action', () => {
+  describe('execute - askAi action', () => {
     it('should return error if params are missing', async () => {
       const payload: DashboardRequestPayload = {
-        action: 'askAgent',
+        action: 'askAi',
         params: {},
       };
-      const result = await handler.execute('askAgent', payload, mockContext);
+      const result = await handler.execute('askAi', payload, mockContext);
 
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('MISSING_PARAMS');
@@ -338,13 +338,13 @@ describe('LearningSessionHandler', () => {
       portfolioRepository.createLearningExchange.mockResolvedValue(newExchange);
 
       const payload: DashboardRequestPayload = {
-        action: 'askAgent',
+        action: 'askAi',
         params: {
           analystId: 'analyst-1',
           question: 'Why did you change your perspective?',
         },
       };
-      const result = await handler.execute('askAgent', payload, mockContext);
+      const result = await handler.execute('askAi', payload, mockContext);
 
       expect(result.success).toBe(true);
       expect(portfolioRepository.createLearningExchange).toHaveBeenCalledWith(

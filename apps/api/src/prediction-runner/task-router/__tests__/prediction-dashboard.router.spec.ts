@@ -19,6 +19,7 @@ import { AnalyticsHandler } from '../handlers/analytics.handler';
 import { SignalsHandler } from '../handlers/signals.handler';
 import { AgentActivityHandler } from '../handlers/agent-activity.handler';
 import { LearningSessionHandler } from '../handlers/learning-session.handler';
+import { RunnerHandler } from '../handlers/runner.handler';
 import {
   ExecutionContext,
   DashboardRequestPayload,
@@ -84,6 +85,7 @@ describe('PredictionDashboardRouter', () => {
         { provide: SignalsHandler, useValue: createMockHandler() },
         { provide: AgentActivityHandler, useValue: createMockHandler() },
         { provide: LearningSessionHandler, useValue: createMockHandler() },
+        { provide: RunnerHandler, useValue: createMockHandler() },
       ],
     }).compile();
 

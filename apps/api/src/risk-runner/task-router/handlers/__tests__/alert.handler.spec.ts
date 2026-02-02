@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AlertHandler } from '../alert.handler';
 import { RiskAlertService } from '../../../services/risk-alert.service';
 import { AlertRepository } from '../../../repositories/alert.repository';
+import { AssessmentRepository } from '../../../repositories/assessment.repository';
+import { DimensionRepository } from '../../../repositories/dimension.repository';
 import { ExecutionContext } from '@orchestrator-ai/transport-types';
 import { DashboardRequestPayload } from '@orchestrator-ai/transport-types';
 import {
@@ -84,6 +86,20 @@ describe('AlertHandler', () => {
             findUnacknowledged: jest.fn(),
             findById: jest.fn(),
             acknowledge: jest.fn(),
+          },
+        },
+        {
+          provide: AssessmentRepository,
+          useValue: {
+            findBySubject: jest.fn(),
+            findLatestBySubject: jest.fn(),
+          },
+        },
+        {
+          provide: DimensionRepository,
+          useValue: {
+            findAll: jest.fn(),
+            findByScope: jest.fn(),
           },
         },
       ],

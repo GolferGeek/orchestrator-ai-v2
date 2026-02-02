@@ -73,6 +73,9 @@ describe('OutcomeTrackingRunner', () => {
           useValue: {
             findAll: jest.fn(),
             findById: jest.fn(),
+            findAllActive: jest.fn().mockResolvedValue([
+              { id: 'target-1', symbol: 'AAPL', name: 'Apple Inc.' },
+            ]),
           },
         },
         {
@@ -94,6 +97,7 @@ describe('OutcomeTrackingRunner', () => {
           provide: PositionResolutionService,
           useValue: {
             resolvePosition: jest.fn(),
+            closePositionsForPrediction: jest.fn().mockResolvedValue([]),
           },
         },
         {
@@ -177,7 +181,9 @@ describe('OutcomeTrackingRunner', () => {
     });
 
     it('should handle errors gracefully', async () => {
-      predictionRepository.findActivePredictions.mockRejectedValue(
+      // Make the targetRepository.findAllActive throw to trigger error path
+      const mockTargetRepo = runner['targetRepository'] as jest.Mocked<TargetRepository>;
+      mockTargetRepo.findAllActive.mockRejectedValue(
         new Error('DB error'),
       );
       outcomeTrackingService.getPendingResolutionPredictions.mockResolvedValue(

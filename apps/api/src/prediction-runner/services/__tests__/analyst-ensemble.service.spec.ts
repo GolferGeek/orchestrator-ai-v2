@@ -102,6 +102,8 @@ describe('AnalystEnsembleService', () => {
             getAllCurrentContextVersions: jest
               .fn()
               .mockResolvedValue(new Map()),
+            getPersonalityAnalysts: jest.fn().mockResolvedValue([]),
+            getContextProvidersForTarget: jest.fn().mockResolvedValue([]),
           },
         },
         {
@@ -114,6 +116,11 @@ describe('AnalystEnsembleService', () => {
           provide: AnalystPromptBuilderService,
           useValue: {
             buildPrompt: jest.fn(),
+            buildComposedPrompt: jest.fn().mockReturnValue({
+              systemPrompt: 'System prompt',
+              userPrompt: 'User prompt',
+              learningIds: [],
+            }),
           },
         },
         {
@@ -175,6 +182,16 @@ describe('AnalystEnsembleService', () => {
       direction: 'bullish',
     };
 
+    // Helper to create personality analyst from active analyst data
+    const createPersonalityAnalyst = (analyst: ActiveAnalyst) => ({
+      analyst_id: analyst.analyst_id,
+      slug: analyst.slug,
+      name: analyst.name,
+      perspective: analyst.perspective,
+      default_weight: analyst.effective_weight,
+      tier_instructions: analyst.tier_instructions,
+    });
+
     beforeEach(() => {
       learningService.getActiveLearnings.mockResolvedValue([]);
       promptBuilderService.buildPrompt.mockReturnValue({
@@ -190,19 +207,25 @@ describe('AnalystEnsembleService', () => {
           model: 'claude-3-sonnet',
         },
       });
+      // Default: no personality analysts - each test should set up its own
+      analystRepository.getPersonalityAnalysts.mockResolvedValue([]);
     });
 
     it('should throw error when no analysts available', async () => {
       analystService.getActiveAnalysts.mockResolvedValue([]);
+      analystRepository.getPersonalityAnalysts.mockResolvedValue([]);
 
       await expect(
         service.runEnsemble(mockExecutionContext, mockTarget, mockInput),
-      ).rejects.toThrow('No active analysts available for evaluation');
+      ).rejects.toThrow('No personality analysts available for evaluation');
     });
 
     it('should run ensemble with single analyst', async () => {
       const analyst = createMockAnalyst();
       analystService.getActiveAnalysts.mockResolvedValue([analyst]);
+      analystRepository.getPersonalityAnalysts.mockResolvedValue([
+        createPersonalityAnalyst(analyst),
+      ]);
       llmService.generateResponse.mockResolvedValue(
         JSON.stringify({
           direction: 'bullish',
@@ -232,6 +255,9 @@ describe('AnalystEnsembleService', () => {
         createMockAnalyst({ slug: 'analyst-3', effective_weight: 1.0 }),
       ];
       analystService.getActiveAnalysts.mockResolvedValue(analysts);
+      analystRepository.getPersonalityAnalysts.mockResolvedValue(
+        analysts.map(createPersonalityAnalyst),
+      );
       llmService.generateResponse
         .mockResolvedValueOnce(
           JSON.stringify({ direction: 'bullish', confidence: 0.8 }),
@@ -261,6 +287,9 @@ describe('AnalystEnsembleService', () => {
         createMockAnalyst({ slug: 'analyst-2' }),
       ];
       analystService.getActiveAnalysts.mockResolvedValue(analysts);
+      analystRepository.getPersonalityAnalysts.mockResolvedValue(
+        analysts.map(createPersonalityAnalyst),
+      );
       llmService.generateResponse
         .mockRejectedValueOnce(new Error('LLM error'))
         .mockResolvedValueOnce(
@@ -283,6 +312,9 @@ describe('AnalystEnsembleService', () => {
         createMockAnalyst({ slug: 'analyst-2' }),
       ];
       analystService.getActiveAnalysts.mockResolvedValue(analysts);
+      analystRepository.getPersonalityAnalysts.mockResolvedValue(
+        analysts.map(createPersonalityAnalyst),
+      );
       llmService.generateResponse.mockRejectedValue(new Error('LLM error'));
 
       await expect(
@@ -293,6 +325,9 @@ describe('AnalystEnsembleService', () => {
     it('should parse non-JSON response gracefully', async () => {
       const analyst = createMockAnalyst();
       analystService.getActiveAnalysts.mockResolvedValue([analyst]);
+      analystRepository.getPersonalityAnalysts.mockResolvedValue([
+        createPersonalityAnalyst(analyst),
+      ]);
       llmService.generateResponse.mockResolvedValue(
         'This is not JSON, just plain text',
       );
@@ -311,6 +346,9 @@ describe('AnalystEnsembleService', () => {
     it('should clamp confidence to 0-1 range', async () => {
       const analyst = createMockAnalyst();
       analystService.getActiveAnalysts.mockResolvedValue([analyst]);
+      analystRepository.getPersonalityAnalysts.mockResolvedValue([
+        createPersonalityAnalyst(analyst),
+      ]);
       llmService.generateResponse.mockResolvedValue(
         JSON.stringify({
           direction: 'bullish',
@@ -493,6 +531,16 @@ describe('AnalystEnsembleService', () => {
       direction: 'bullish',
     };
 
+    // Helper to create personality analyst from active analyst data
+    const createPersonalityAnalyst = (analyst: ActiveAnalyst) => ({
+      analyst_id: analyst.analyst_id,
+      slug: analyst.slug,
+      name: analyst.name,
+      perspective: analyst.perspective,
+      default_weight: analyst.effective_weight,
+      tier_instructions: analyst.tier_instructions,
+    });
+
     const createMockContextVersion = (
       analystId: string,
       forkType: ForkType,
@@ -524,10 +572,13 @@ describe('AnalystEnsembleService', () => {
           model: 'claude-3-sonnet',
         },
       });
+      // Default: no personality analysts - each test should set up its own
+      analystRepository.getPersonalityAnalysts.mockResolvedValue([]);
     });
 
     it('should throw error when no analysts available', async () => {
       analystService.getActiveAnalysts.mockResolvedValue([]);
+      analystRepository.getPersonalityAnalysts.mockResolvedValue([]);
 
       await expect(
         service.runDualForkEnsemble(
@@ -535,12 +586,15 @@ describe('AnalystEnsembleService', () => {
           mockTarget,
           mockInput,
         ),
-      ).rejects.toThrow('No active analysts available for evaluation');
+      ).rejects.toThrow('No personality analysts available for evaluation');
     });
 
     it('should run assessments for both forks', async () => {
       const analyst = createMockAnalyst({ analyst_id: 'analyst-123' });
       analystService.getActiveAnalysts.mockResolvedValue([analyst]);
+      analystRepository.getPersonalityAnalysts.mockResolvedValue([
+        createPersonalityAnalyst(analyst),
+      ]);
 
       // Mock context versions for both forks
       const userVersions = new Map([
@@ -576,6 +630,9 @@ describe('AnalystEnsembleService', () => {
     it('should include context version IDs in assessments', async () => {
       const analyst = createMockAnalyst({ analyst_id: 'analyst-123' });
       analystService.getActiveAnalysts.mockResolvedValue([analyst]);
+      analystRepository.getPersonalityAnalysts.mockResolvedValue([
+        createPersonalityAnalyst(analyst),
+      ]);
 
       const userVersions = new Map([
         ['analyst-123', createMockContextVersion('analyst-123', 'user')],
@@ -611,6 +668,9 @@ describe('AnalystEnsembleService', () => {
         createMockAnalyst({ analyst_id: 'analyst-2', slug: 'analyst-2' }),
       ];
       analystService.getActiveAnalysts.mockResolvedValue(analysts);
+      analystRepository.getPersonalityAnalysts.mockResolvedValue(
+        analysts.map(createPersonalityAnalyst),
+      );
 
       // Mock context versions
       const userVersions = new Map(
@@ -664,6 +724,9 @@ describe('AnalystEnsembleService', () => {
     it('should only apply learnings to user fork', async () => {
       const analyst = createMockAnalyst({ analyst_id: 'analyst-123' });
       analystService.getActiveAnalysts.mockResolvedValue([analyst]);
+      analystRepository.getPersonalityAnalysts.mockResolvedValue([
+        createPersonalityAnalyst(analyst),
+      ]);
 
       const userVersions = new Map([
         ['analyst-123', createMockContextVersion('analyst-123', 'user')],
@@ -693,6 +756,9 @@ describe('AnalystEnsembleService', () => {
     it('should continue if one fork fails', async () => {
       const analyst = createMockAnalyst({ analyst_id: 'analyst-123' });
       analystService.getActiveAnalysts.mockResolvedValue([analyst]);
+      analystRepository.getPersonalityAnalysts.mockResolvedValue([
+        createPersonalityAnalyst(analyst),
+      ]);
 
       const userVersions = new Map([
         ['analyst-123', createMockContextVersion('analyst-123', 'user')],
@@ -732,6 +798,16 @@ describe('AnalystEnsembleService', () => {
       direction: 'bullish',
     };
 
+    // Helper to create personality analyst from active analyst data
+    const createPersonalityAnalyst = (analyst: ActiveAnalyst) => ({
+      analyst_id: analyst.analyst_id,
+      slug: analyst.slug,
+      name: analyst.name,
+      perspective: analyst.perspective,
+      default_weight: analyst.effective_weight,
+      tier_instructions: analyst.tier_instructions,
+    });
+
     const createMockContextVersion = (
       analystId: string,
       forkType: ForkType,
@@ -763,10 +839,13 @@ describe('AnalystEnsembleService', () => {
           model: 'claude-3-sonnet',
         },
       });
+      // Default: no personality analysts - each test should set up its own
+      analystRepository.getPersonalityAnalysts.mockResolvedValue([]);
     });
 
     it('should throw error when no analysts available', async () => {
       analystService.getActiveAnalysts.mockResolvedValue([]);
+      analystRepository.getPersonalityAnalysts.mockResolvedValue([]);
 
       await expect(
         service.runThreeWayForkEnsemble(
@@ -774,12 +853,16 @@ describe('AnalystEnsembleService', () => {
           mockTarget,
           mockInput,
         ),
-      ).rejects.toThrow('No active analysts available for evaluation');
+      ).rejects.toThrow('No personality analysts available for evaluation');
     });
 
     it('should run assessments for all three forks', async () => {
       const analyst = createMockAnalyst({ analyst_id: 'analyst-123' });
       analystService.getActiveAnalysts.mockResolvedValue([analyst]);
+      // Mock personality analysts to match the analyst setup
+      analystRepository.getPersonalityAnalysts.mockResolvedValue([
+        createPersonalityAnalyst(analyst),
+      ]);
 
       // Mock context versions for user and ai forks
       const userVersions = new Map([
@@ -817,6 +900,9 @@ describe('AnalystEnsembleService', () => {
     it('should use arbitrator result for final aggregation', async () => {
       const analyst = createMockAnalyst({ analyst_id: 'analyst-123' });
       analystService.getActiveAnalysts.mockResolvedValue([analyst]);
+      analystRepository.getPersonalityAnalysts.mockResolvedValue([
+        createPersonalityAnalyst(analyst),
+      ]);
 
       const userVersions = new Map([
         ['analyst-123', createMockContextVersion('analyst-123', 'user')],
@@ -859,6 +945,9 @@ describe('AnalystEnsembleService', () => {
         createMockAnalyst({ analyst_id: 'analyst-2', slug: 'analyst-2' }),
       ];
       analystService.getActiveAnalysts.mockResolvedValue(analysts);
+      analystRepository.getPersonalityAnalysts.mockResolvedValue(
+        analysts.map(createPersonalityAnalyst),
+      );
 
       // Mock context versions
       const userVersions = new Map(
@@ -898,6 +987,9 @@ describe('AnalystEnsembleService', () => {
     it('should apply learnings to user and arbitrator forks only', async () => {
       const analyst = createMockAnalyst({ analyst_id: 'analyst-123' });
       analystService.getActiveAnalysts.mockResolvedValue([analyst]);
+      analystRepository.getPersonalityAnalysts.mockResolvedValue([
+        createPersonalityAnalyst(analyst),
+      ]);
 
       const userVersions = new Map([
         ['analyst-123', createMockContextVersion('analyst-123', 'user')],
@@ -927,6 +1019,9 @@ describe('AnalystEnsembleService', () => {
     it('should continue if one fork fails for an analyst', async () => {
       const analyst = createMockAnalyst({ analyst_id: 'analyst-123' });
       analystService.getActiveAnalysts.mockResolvedValue([analyst]);
+      analystRepository.getPersonalityAnalysts.mockResolvedValue([
+        createPersonalityAnalyst(analyst),
+      ]);
 
       const userVersions = new Map([
         ['analyst-123', createMockContextVersion('analyst-123', 'user')],

@@ -5,6 +5,8 @@ import { TargetRepository } from '../../repositories/target.repository';
 import { UniverseRepository } from '../../repositories/universe.repository';
 import { SignalDetectionService } from '../../services/signal-detection.service';
 import { FastPathService } from '../../services/fast-path.service';
+import { LlmTierResolverService } from '../../services/llm-tier-resolver.service';
+import { ObservabilityEventsService } from '@/observability/observability-events.service';
 import { Signal } from '../../interfaces/signal.interface';
 
 describe('BatchSignalProcessorRunner', () => {
@@ -71,7 +73,9 @@ describe('BatchSignalProcessorRunner', () => {
           provide: SignalRepository,
           useValue: {
             findPendingSignals: jest.fn(),
+            findPendingSignalsGroupedByUrl: jest.fn().mockResolvedValue([]),
             claimSignal: jest.fn(),
+            updateDisposition: jest.fn().mockResolvedValue(undefined),
           },
         },
         {
@@ -98,6 +102,26 @@ describe('BatchSignalProcessorRunner', () => {
             processFastPath: jest.fn(),
           },
         },
+        {
+          provide: LlmTierResolverService,
+          useValue: {
+            resolveTier: jest.fn().mockResolvedValue({
+              tier: 'bronze',
+              provider: 'anthropic',
+              model: 'claude-haiku-4',
+            }),
+            createTierContext: jest.fn().mockResolvedValue({
+              context: {},
+              resolved: { tier: 'bronze', provider: 'anthropic', model: 'claude-haiku-4' },
+            }),
+          },
+        },
+        {
+          provide: ObservabilityEventsService,
+          useValue: {
+            push: jest.fn().mockResolvedValue(undefined),
+          },
+        },
       ],
     }).compile();
 
@@ -114,14 +138,15 @@ describe('BatchSignalProcessorRunner', () => {
   });
 
   describe('runBatchProcessing', () => {
+    const mockSignalGroup = {
+      url: 'https://example.com/article',
+      signals: [mockSignal],
+    };
+
     it('should process signals and create predictors', async () => {
-      universeRepository.findAllActive.mockResolvedValue([
-        mockUniverse as never,
+      signalRepository.findPendingSignalsGroupedByUrl.mockResolvedValue([
+        mockSignalGroup,
       ]);
-      targetRepository.findActiveByUniverse.mockResolvedValue([
-        mockTarget as never,
-      ]);
-      signalRepository.findPendingSignals.mockResolvedValue([mockSignal]);
       signalRepository.claimSignal.mockResolvedValue(mockSignal);
       signalDetectionService.processSignal.mockResolvedValue({
         signal: mockSignal,
@@ -143,13 +168,9 @@ describe('BatchSignalProcessorRunner', () => {
     });
 
     it('should trigger fast path for urgent signals', async () => {
-      universeRepository.findAllActive.mockResolvedValue([
-        mockUniverse as never,
+      signalRepository.findPendingSignalsGroupedByUrl.mockResolvedValue([
+        mockSignalGroup,
       ]);
-      targetRepository.findActiveByUniverse.mockResolvedValue([
-        mockTarget as never,
-      ]);
-      signalRepository.findPendingSignals.mockResolvedValue([mockSignal]);
       signalRepository.claimSignal.mockResolvedValue(mockSignal);
       signalDetectionService.processSignal.mockResolvedValue({
         signal: mockSignal,
@@ -173,13 +194,9 @@ describe('BatchSignalProcessorRunner', () => {
     });
 
     it('should handle rejected signals', async () => {
-      universeRepository.findAllActive.mockResolvedValue([
-        mockUniverse as never,
+      signalRepository.findPendingSignalsGroupedByUrl.mockResolvedValue([
+        mockSignalGroup,
       ]);
-      targetRepository.findActiveByUniverse.mockResolvedValue([
-        mockTarget as never,
-      ]);
-      signalRepository.findPendingSignals.mockResolvedValue([mockSignal]);
       signalRepository.claimSignal.mockResolvedValue(mockSignal);
       signalDetectionService.processSignal.mockResolvedValue({
         signal: mockSignal,
@@ -200,13 +217,9 @@ describe('BatchSignalProcessorRunner', () => {
     });
 
     it('should skip already claimed signals', async () => {
-      universeRepository.findAllActive.mockResolvedValue([
-        mockUniverse as never,
+      signalRepository.findPendingSignalsGroupedByUrl.mockResolvedValue([
+        mockSignalGroup,
       ]);
-      targetRepository.findActiveByUniverse.mockResolvedValue([
-        mockTarget as never,
-      ]);
-      signalRepository.findPendingSignals.mockResolvedValue([mockSignal]);
       signalRepository.claimSignal.mockResolvedValue(null); // Already claimed
 
       const result = await runner.runBatchProcessing();
@@ -216,13 +229,9 @@ describe('BatchSignalProcessorRunner', () => {
     });
 
     it('should handle errors gracefully', async () => {
-      universeRepository.findAllActive.mockResolvedValue([
-        mockUniverse as never,
+      signalRepository.findPendingSignalsGroupedByUrl.mockResolvedValue([
+        mockSignalGroup,
       ]);
-      targetRepository.findActiveByUniverse.mockResolvedValue([
-        mockTarget as never,
-      ]);
-      signalRepository.findPendingSignals.mockResolvedValue([mockSignal]);
       signalRepository.claimSignal.mockResolvedValue(mockSignal);
       signalDetectionService.processSignal.mockRejectedValue(
         new Error('Processing failed'),

@@ -40,22 +40,22 @@ export interface UsageLimits {
  */
 export const TIER_LIMITS: Record<UsageTier, UsageLimits> = {
   free: {
-    daily_tokens: 10_000_000, // Increased for development/demo
-    monthly_tokens: 100_000_000,
-    daily_requests: 10_000,
-    monthly_requests: 100_000,
+    daily_tokens: 100_000_000, // High limits for cheap models like gemini-2.5-flash-lite
+    monthly_tokens: 1_000_000_000,
+    daily_requests: 100_000,
+    monthly_requests: 1_000_000,
   },
   pro: {
-    daily_tokens: 1_000_000,
-    monthly_tokens: 20_000_000,
-    daily_requests: 1_000,
-    monthly_requests: 30_000,
+    daily_tokens: 100_000_000,
+    monthly_tokens: 1_000_000_000,
+    daily_requests: 100_000,
+    monthly_requests: 1_000_000,
   },
   enterprise: {
-    daily_tokens: 10_000_000,
-    monthly_tokens: 500_000_000,
-    daily_requests: 10_000,
-    monthly_requests: 500_000,
+    daily_tokens: 100_000_000,
+    monthly_tokens: 1_000_000_000,
+    daily_requests: 100_000,
+    monthly_requests: 1_000_000,
   },
 };
 
