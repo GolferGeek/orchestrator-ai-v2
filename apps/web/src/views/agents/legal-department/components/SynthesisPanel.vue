@@ -195,7 +195,7 @@ function getRiskColor(level: string): string {
 
 <style scoped>
 .synthesis-panel {
-  background: linear-gradient(135deg, var(--ion-color-primary-tint), var(--ion-color-tertiary-tint));
+  background: #f5f3f0;
   border-radius: 12px;
   padding: 20px;
   margin-bottom: 16px;
@@ -217,6 +217,7 @@ function getRiskColor(level: string): string {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
+  color: var(--ion-color-dark);
 }
 
 .risk-level {

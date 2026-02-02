@@ -553,19 +553,22 @@ function getSeverityColor(severity: string): string {
 
 .risk-flag-item.severity-critical {
   border-left-color: var(--ion-color-danger);
-  background: var(--ion-color-danger-tint);
+  background: rgba(var(--ion-color-danger-rgb), 0.12);
 }
 
 .risk-flag-item.severity-high {
   border-left-color: var(--ion-color-warning);
+  background: rgba(var(--ion-color-warning-rgb), 0.12);
 }
 
 .risk-flag-item.severity-medium {
   border-left-color: var(--ion-color-tertiary);
+  background: rgba(var(--ion-color-tertiary-rgb), 0.10);
 }
 
 .risk-flag-item.severity-low {
   border-left-color: var(--ion-color-success);
+  background: rgba(var(--ion-color-success-rgb), 0.10);
 }
 
 .flag-header {

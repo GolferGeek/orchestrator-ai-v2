@@ -178,7 +178,7 @@ function handleSpecialistClick(slug: SpecialistType) {
 
 <style scoped>
 .routing-visualization {
-  background: var(--ion-color-light);
+  background: #f5f3f0;
   border-radius: 12px;
   padding: 16px;
   margin-bottom: 16px;
@@ -197,6 +197,7 @@ function handleSpecialistClick(slug: SpecialistType) {
   gap: 8px;
   font-weight: 600;
   font-size: 16px;
+  color: var(--ion-color-dark);
 }
 
 .routing-title ion-icon {
@@ -209,8 +210,8 @@ function handleSpecialistClick(slug: SpecialistType) {
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  color: var(--ion-color-medium);
-  background: var(--ion-color-light-shade);
+  color: var(--ion-color-medium-shade);
+  background: rgba(0, 0, 0, 0.06);
   padding: 4px 8px;
   border-radius: 12px;
 }
@@ -232,20 +233,22 @@ function handleSpecialistClick(slug: SpecialistType) {
   align-items: center;
   min-width: 80px;
   padding: 12px;
-  background: var(--ion-background-color);
+  background: white;
   border-radius: 8px;
-  border: 2px solid transparent;
+  border: 1px solid rgba(0, 0, 0, 0.1);
   cursor: pointer;
   transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .specialist-card:hover {
-  background: var(--ion-color-primary-tint);
+  border-color: var(--ion-color-primary);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
 .specialist-card.is-selected {
   border-color: var(--ion-color-primary);
-  background: var(--ion-color-primary-tint);
+  background: rgba(var(--ion-color-primary-rgb), 0.05);
 }
 
 .specialist-card.status-running {
@@ -262,7 +265,7 @@ function handleSpecialistClick(slug: SpecialistType) {
 
 .card-icon {
   font-size: 24px;
-  color: var(--ion-color-primary);
+  color: var(--ion-color-medium-shade);
   margin-bottom: 4px;
 }
 
@@ -271,6 +274,7 @@ function handleSpecialistClick(slug: SpecialistType) {
   font-weight: 500;
   text-align: center;
   margin-bottom: 4px;
+  color: var(--ion-color-dark);
 }
 
 .card-status {
@@ -290,7 +294,7 @@ function handleSpecialistClick(slug: SpecialistType) {
 
 .routing-reasoning {
   margin-top: 12px;
-  border-top: 1px solid var(--ion-color-light-shade);
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
   padding-top: 12px;
 }
 

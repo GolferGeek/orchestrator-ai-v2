@@ -312,7 +312,7 @@ function handleSpeechError(errorMessage: string) {
   gap: 8px;
   margin-top: 8px;
   padding: 8px 12px;
-  background: var(--ion-color-danger-tint);
+  background: rgba(var(--ion-color-danger-rgb), 0.08);
   border-radius: 8px;
   font-size: 13px;
   color: var(--ion-color-danger-shade);

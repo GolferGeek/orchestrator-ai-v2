@@ -1025,11 +1025,11 @@ function exportToPdf() {
         .key-issues { margin: 20px 0; }
         .key-issue { display: flex; align-items: flex-start; gap: 10px; padding: 10px; background: #fff3cd; border-radius: 6px; margin: 8px 0; }
         .key-issue-icon { color: #856404; font-size: 18px; }
-        .risk { padding: 12px 15px; margin: 8px 0; border-left: 4px solid; border-radius: 4px; page-break-inside: avoid; }
-        .risk-critical { border-color: #dc3545; background: #f8d7da; }
-        .risk-high { border-color: #fd7e14; background: #fff3cd; }
-        .risk-medium { border-color: #6c757d; background: #e2e3e5; }
-        .risk-low { border-color: #28a745; background: #d4edda; }
+        .risk { padding: 12px 15px; margin: 8px 0; border-left: 4px solid; border-radius: 4px; page-break-inside: avoid; background: #fafafa; }
+        .risk-critical { border-color: #dc3545; background: rgba(220, 53, 69, 0.12); }
+        .risk-high { border-color: #fd7e14; background: rgba(253, 126, 20, 0.12); }
+        .risk-medium { border-color: #6c757d; background: rgba(108, 117, 125, 0.10); }
+        .risk-low { border-color: #28a745; background: rgba(40, 167, 69, 0.10); }
         .finding, .recommendation { padding: 12px 15px; margin: 8px 0; background: #f8f9fa; border-radius: 6px; page-break-inside: avoid; }
         .clause-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 15px 0; }
         .clause-item { background: #f8f9fa; padding: 12px; border-radius: 6px; }
@@ -1544,16 +1544,19 @@ watch(analysisResults, (newResults) => {
   margin-bottom: 8px;
   font-weight: 500;
   font-size: 14px;
-  color: var(--ion-color-primary-shade);
+  color: white;
+  opacity: 0.9;
 }
 
 .request-header ion-icon {
   font-size: 20px;
+  color: white;
 }
 
 .request-message {
   margin: 0;
   line-height: 1.5;
+  color: white;
 }
 
 .request-attachment {
@@ -1562,14 +1565,15 @@ watch(analysisResults, (newResults) => {
   gap: 6px;
   margin-top: 12px;
   padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(0, 0, 0, 0.15);
   border-radius: 6px;
   font-size: 13px;
+  color: white;
 }
 
 .request-attachment ion-icon {
   font-size: 18px;
-  color: var(--ion-color-primary);
+  color: white;
 }
 
 /* Processing Indicator with Thinking Animation */
@@ -1681,7 +1685,7 @@ watch(analysisResults, (newResults) => {
   align-items: center;
   gap: 12px;
   padding: 24px;
-  background: var(--ion-color-danger-tint);
+  background: rgba(var(--ion-color-danger-rgb), 0.08);
   border-radius: 12px;
   margin-bottom: 16px;
 }

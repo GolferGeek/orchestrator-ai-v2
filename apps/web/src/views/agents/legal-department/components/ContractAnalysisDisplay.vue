@@ -360,7 +360,7 @@ function getSeverityColor(severity: string): string {
 }
 
 .risk-flag-item {
-  background: var(--ion-background-color);
+  background: var(--ion-color-light);
   padding: 16px;
   border-radius: 6px;
   border-left: 4px solid var(--ion-color-medium);
@@ -368,19 +368,22 @@ function getSeverityColor(severity: string): string {
 
 .risk-flag-item.severity-critical {
   border-left-color: var(--ion-color-danger);
-  background: var(--ion-color-danger-tint);
+  background: rgba(var(--ion-color-danger-rgb), 0.12);
 }
 
 .risk-flag-item.severity-high {
   border-left-color: var(--ion-color-warning);
+  background: rgba(var(--ion-color-warning-rgb), 0.12);
 }
 
 .risk-flag-item.severity-medium {
   border-left-color: var(--ion-color-tertiary);
+  background: rgba(var(--ion-color-tertiary-rgb), 0.10);
 }
 
 .risk-flag-item.severity-low {
   border-left-color: var(--ion-color-success);
+  background: rgba(var(--ion-color-success-rgb), 0.10);
 }
 
 .flag-header {
@@ -438,18 +441,19 @@ function getSeverityColor(severity: string): string {
   align-items: center;
   gap: 8px;
   padding: 12px 16px;
-  background: var(--ion-color-primary-tint);
+  background: var(--ion-color-primary);
   border-bottom: 1px solid var(--ion-color-light-shade);
 }
 
 .clause-header ion-icon {
   font-size: 18px;
-  color: var(--ion-color-primary);
+  color: white;
 }
 
 .clause-header span {
   font-weight: 600;
   font-size: 14px;
+  color: white;
 }
 
 .clause-content {

@@ -380,19 +380,22 @@ function getSeverityColor(severity: string): string {
 
 .risk-card.risk-critical {
   border-left-color: var(--ion-color-danger);
-  background: var(--ion-color-danger-tint);
+  background: rgba(var(--ion-color-danger-rgb), 0.12);
 }
 
 .risk-card.risk-high {
   border-left-color: var(--ion-color-warning);
+  background: rgba(var(--ion-color-warning-rgb), 0.12);
 }
 
 .risk-card.risk-medium {
   border-left-color: var(--ion-color-tertiary);
+  background: rgba(var(--ion-color-tertiary-rgb), 0.10);
 }
 
 .risk-card.risk-low {
   border-left-color: var(--ion-color-success);
+  background: rgba(var(--ion-color-success-rgb), 0.10);
 }
 
 .risk-card p {
@@ -454,7 +457,7 @@ function getSeverityColor(severity: string): string {
 }
 
 .party-card.defendant .party-header {
-  background: var(--ion-color-danger-tint);
+  background: rgba(var(--ion-color-danger-rgb), 0.08);
 }
 
 .party-card.defendant .party-header ion-icon {
@@ -587,7 +590,7 @@ function getSeverityColor(severity: string): string {
 
 .deadline-item.urgent {
   border-left-color: var(--ion-color-danger);
-  background: var(--ion-color-danger-tint);
+  background: rgba(var(--ion-color-danger-rgb), 0.05);
 }
 
 .deadline-header {
@@ -650,19 +653,22 @@ function getSeverityColor(severity: string): string {
 
 .risk-flag-item.severity-critical {
   border-left-color: var(--ion-color-danger);
-  background: var(--ion-color-danger-tint);
+  background: rgba(var(--ion-color-danger-rgb), 0.12);
 }
 
 .risk-flag-item.severity-high {
   border-left-color: var(--ion-color-warning);
+  background: rgba(var(--ion-color-warning-rgb), 0.12);
 }
 
 .risk-flag-item.severity-medium {
   border-left-color: var(--ion-color-tertiary);
+  background: rgba(var(--ion-color-tertiary-rgb), 0.10);
 }
 
 .risk-flag-item.severity-low {
   border-left-color: var(--ion-color-success);
+  background: rgba(var(--ion-color-success-rgb), 0.10);
 }
 
 .flag-header {

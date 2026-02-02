@@ -385,7 +385,7 @@ function formatFileSize(bytes: number): string {
 .error-message {
   margin-top: 24px;
   padding: 16px;
-  background: var(--ion-color-danger-tint);
+  background: rgba(var(--ion-color-danger-rgb), 0.08);
   border-radius: 8px;
   display: flex;
   align-items: center;

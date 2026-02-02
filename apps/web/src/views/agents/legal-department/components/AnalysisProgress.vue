@@ -321,7 +321,7 @@ function formatTime(timestamp: string): string {
   align-items: center;
   gap: 16px;
   padding: 24px;
-  background: var(--ion-color-danger-tint);
+  background: rgba(var(--ion-color-danger-rgb), 0.08);
   border-radius: 8px;
   margin-bottom: 24px;
 }
