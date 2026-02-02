@@ -114,7 +114,15 @@ export default defineConfig(({ mode }) => {
         // For remote access (Tailscale/LAN), let the browser determine the host
         // Setting host to false allows the client to connect to the same host as the page
         protocol: env.VITE_ENFORCE_HTTPS === 'true' ? 'wss' : 'ws'
-      }
+      },
+      // Proxy LangGraph requests to avoid CORS issues in development
+      proxy: env.VITE_LANGGRAPH_PORT ? {
+        '/langgraph-api': {
+          target: `http://localhost:${env.VITE_LANGGRAPH_PORT}`,
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/langgraph-api/, ''),
+        }
+      } : undefined
     },
     build: {
       sourcemap: true,

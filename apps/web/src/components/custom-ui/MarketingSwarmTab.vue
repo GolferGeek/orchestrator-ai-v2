@@ -181,52 +181,63 @@ async function loadConversationState(conversation: AgentConversation | null) {
     console.log('[MarketingSwarmTab] Tasks from API:', tasksResponse.tasks.length);
 
     if (tasksResponse.tasks.length > 0) {
-      // Get the most recent task
-      const task = tasksResponse.tasks[0];
-      const taskId = task.id;
-      console.log('[MarketingSwarmTab] Found task from API:', taskId, 'status:', task.status);
+      // Try each task to find one with actual LangGraph data
+      // Prefer completed tasks with outputs over empty ones
+      for (const task of tasksResponse.tasks) {
+        const taskId = task.id;
+        console.log('[MarketingSwarmTab] Trying task:', taskId, 'status:', task.status);
 
-      // Store the taskId in the store (we only need the ID to fetch swarm state from LangGraph)
-      store.setCurrentTaskId(taskId);
+        try {
+          const state = await marketingSwarmService.getSwarmState(taskId);
+          console.log('[MarketingSwarmTab] Loaded swarm state from LangGraph:', state);
 
-      // Step 2: Now get the swarm operational state from LangGraph (direct call)
-      // This includes outputs, evaluations, rankings, agent statuses
-      try {
-        const state = await marketingSwarmService.getSwarmState(taskId);
-        console.log('[MarketingSwarmTab] Loaded swarm state from LangGraph:', state);
+          // Check if this task has actual data
+          const hasData = state.outputs && state.outputs.length > 0;
 
-        // Determine the appropriate view based on state
-        if (state.phase === 'completed' || task.status === 'completed') {
-          store.setUIView('results');
-        } else if (state.phase === 'failed' || task.status === 'failed') {
-          store.setUIView('config');
-          store.setError('Previous execution failed');
-        } else if (state.outputs && state.outputs.length > 0) {
-          // Has outputs - show progress view
-          store.setUIView('progress');
-          // Reconnect to SSE if task might still be running
-          marketingSwarmService.connectToSSEStream(conversation.id);
-        } else {
-          // Task exists but no outputs yet - show progress (initializing)
-          store.setUIView('progress');
-          marketingSwarmService.connectToSSEStream(conversation.id);
+          if (!hasData && tasksResponse.tasks.length > 1) {
+            console.log('[MarketingSwarmTab] Task has no data, trying next task...');
+            continue; // Try the next task
+          }
+
+          // Store the taskId in the store
+          store.setCurrentTaskId(taskId);
+
+          // Determine the appropriate view based on state
+          if (state.phase === 'completed' || task.status === 'completed') {
+            store.setUIView('results');
+          } else if (state.phase === 'failed' || task.status === 'failed') {
+            store.setUIView('config');
+            store.setError('Previous execution failed');
+          } else if (hasData) {
+            // Has outputs - show progress view
+            store.setUIView('progress');
+            // Reconnect to SSE if task might still be running
+            marketingSwarmService.connectToSSEStream(conversation.id);
+          } else {
+            // Task exists but no outputs yet - show progress (initializing)
+            store.setUIView('progress');
+            marketingSwarmService.connectToSSEStream(conversation.id);
+          }
+          return;
+        } catch (langGraphErr) {
+          console.log('[MarketingSwarmTab] LangGraph state not available for task:', taskId, langGraphErr);
+          // Try next task if available
+          if (tasksResponse.tasks.indexOf(task) < tasksResponse.tasks.length - 1) {
+            continue;
+          }
+          // Last task - fall back to API status
+          store.setCurrentTaskId(taskId);
+          if (task.status === 'completed') {
+            store.setUIView('results');
+          } else if (task.status === 'failed') {
+            store.setUIView('config');
+            store.setError('Previous execution failed (state unavailable)');
+          } else {
+            store.setUIView('progress');
+            marketingSwarmService.connectToSSEStream(conversation.id);
+          }
+          return;
         }
-        return;
-      } catch (langGraphErr) {
-        console.log('[MarketingSwarmTab] LangGraph state not available:', langGraphErr);
-        // Task exists in API but LangGraph state not available
-        // This could happen if LangGraph was restarted - show based on API status
-        if (task.status === 'completed') {
-          store.setUIView('results');
-        } else if (task.status === 'failed') {
-          store.setUIView('config');
-          store.setError('Previous execution failed (state unavailable)');
-        } else {
-          // Running task but LangGraph state unavailable - show progress anyway
-          store.setUIView('progress');
-          marketingSwarmService.connectToSSEStream(conversation.id);
-        }
-        return;
       }
     }
   } catch (apiErr) {
@@ -408,12 +419,30 @@ function handleRestart() {
 }
 
 .tab-navigation ion-segment-button {
-  --indicator-color: var(--ion-color-primary);
+  --indicator-color: transparent;
+  --indicator-height: 0;
   --color: var(--ion-color-medium);
-  --color-checked: var(--ion-color-primary-contrast);
+  --color-checked: #ffffff;
+  --background-checked: var(--ion-color-primary);
   font-size: 0.85em;
   min-height: 36px;
   position: relative;
+  border-radius: 6px;
+  margin: 2px;
+}
+
+.tab-navigation ion-segment-button::part(indicator) {
+  display: none;
+}
+
+.tab-navigation ion-segment-button.segment-button-checked {
+  background: var(--ion-color-primary);
+  border-radius: 6px;
+}
+
+.tab-navigation ion-segment-button.segment-button-checked ion-icon,
+.tab-navigation ion-segment-button.segment-button-checked ion-label {
+  color: #ffffff !important;
 }
 
 .tab-navigation ion-segment-button ion-icon {

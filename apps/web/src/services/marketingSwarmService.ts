@@ -47,9 +47,12 @@ import type {
 } from '@/types/marketing-swarm';
 import { SSEClient } from './agent2agent/sse/sseClient';
 
-// LangGraph API base URL - constructed from port env var
+// LangGraph API base URL - use Vite proxy in development to avoid CORS issues
 const LANGGRAPH_PORT = import.meta.env.VITE_LANGGRAPH_PORT;
-const LANGGRAPH_BASE_URL = LANGGRAPH_PORT ? `http://localhost:${LANGGRAPH_PORT}` : '';
+// In development, use the Vite proxy path; in production, use direct URL
+const LANGGRAPH_BASE_URL = LANGGRAPH_PORT
+  ? (import.meta.env.DEV ? '/langgraph-api' : `http://localhost:${LANGGRAPH_PORT}`)
+  : '';
 if (!LANGGRAPH_PORT) {
   console.error('VITE_LANGGRAPH_PORT must be set in environment');
 }
@@ -413,6 +416,10 @@ class MarketingSwarmService {
    * Get status of a running swarm execution
    */
   async getSwarmStatus(taskId: string): Promise<SwarmStatusResponse> {
+    if (!LANGGRAPH_BASE_URL) {
+      throw new Error('LangGraph server URL not configured');
+    }
+
     try {
       const response = await fetch(`${LANGGRAPH_BASE_URL}/marketing-swarm/status/${taskId}`, {
         headers: {
@@ -421,12 +428,21 @@ class MarketingSwarmService {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to get swarm status');
+        throw new Error(`Failed to get swarm status: HTTP ${response.status}`);
+      }
+
+      // Validate JSON response
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('LangGraph server returned non-JSON response');
       }
 
       const result = await response.json();
       return result.data;
     } catch (error) {
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error(`LangGraph server not reachable at ${LANGGRAPH_BASE_URL}`);
+      }
       console.error('Failed to get swarm status:', error);
       throw error;
     }
@@ -437,6 +453,11 @@ class MarketingSwarmService {
    * Used to restore task state when navigating to an existing conversation
    */
   async getTaskByConversationId(conversationId: string): Promise<{ taskId: string; status: string } | null> {
+    // If LangGraph not configured, return null (caller will use API tasks instead)
+    if (!LANGGRAPH_BASE_URL) {
+      return null;
+    }
+
     try {
       const response = await fetch(`${LANGGRAPH_BASE_URL}/marketing-swarm/by-conversation/${conversationId}`, {
         headers: {
@@ -450,6 +471,13 @@ class MarketingSwarmService {
           return null;
         }
         throw new Error('Failed to get task by conversation');
+      }
+
+      // Validate JSON response before parsing
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.warn('LangGraph server returned non-JSON response for task lookup');
+        return null;
       }
 
       const result = await response.json();
@@ -466,6 +494,11 @@ class MarketingSwarmService {
   async getSwarmState(taskId: string): Promise<SwarmStateResponse> {
     const store = useMarketingSwarmStore();
 
+    // Check if LangGraph URL is configured
+    if (!LANGGRAPH_BASE_URL) {
+      throw new Error('LangGraph server URL not configured (VITE_LANGGRAPH_PORT not set)');
+    }
+
     try {
       const response = await fetch(`${LANGGRAPH_BASE_URL}/marketing-swarm/state/${taskId}`, {
         headers: {
@@ -474,26 +507,146 @@ class MarketingSwarmService {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to get swarm state');
+        throw new Error(`Failed to get swarm state: HTTP ${response.status}`);
+      }
+
+      // Check content-type before parsing JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        const preview = text.substring(0, 100);
+        throw new Error(
+          `LangGraph server returned non-JSON response (${contentType || 'no content-type'}): ${preview}...`
+        );
       }
 
       const result = await response.json();
-      const state: SwarmStateResponse = result.data;
 
-      // Populate store with state
-      store.setExecutionQueue(state.executionQueue);
-      store.setOutputs(state.outputs);
-      store.setEvaluations(state.evaluations);
-
-      // Determine current view based on phase
-      if (state.phase === 'completed') {
-        store.setUIView('results');
-      } else if (state.phase !== 'initializing') {
-        store.setUIView('progress');
+      if (!result.data) {
+        throw new Error('LangGraph server returned response without data field');
       }
 
-      return state;
+      const rawState = result.data;
+
+      // Transform snake_case API response to camelCase and populate phase2 structures
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const outputs = (rawState.outputs || []).map((o: any) => ({
+        id: o.id,
+        status: o.status || 'pending',
+        writerAgent: {
+          slug: o.writer_agent_slug,
+          name: o.writer_agent_slug,
+          llmProvider: o.writer_llm_provider,
+          llmModel: o.writer_llm_model,
+        },
+        editorAgent: o.editor_agent_slug ? {
+          slug: o.editor_agent_slug,
+          name: o.editor_agent_slug,
+          llmProvider: o.editor_llm_provider,
+          llmModel: o.editor_llm_model,
+        } : null,
+        content: o.content,
+        editCycle: o.edit_cycle || 0,
+        editorFeedback: o.editor_feedback,
+        initialAvgScore: o.initial_avg_score,
+        initialRank: o.initial_rank,
+        isFinalist: o.is_finalist,
+        finalTotalScore: o.final_total_score,
+        finalRank: o.final_rank,
+        llmMetadata: o.llm_metadata ? {
+          tokensUsed: o.llm_metadata.tokensUsed,
+          cost: o.llm_metadata.cost,
+          totalLatencyMs: o.llm_metadata.totalLatencyMs,
+          llmCallCount: o.llm_metadata.llmCallCount,
+          lastLatencyMs: o.llm_metadata.lastLatencyMs,
+        } : undefined,
+      }));
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const evaluations = (rawState.evaluations || []).map((e: any) => ({
+        id: e.id,
+        outputId: e.output_id,
+        evaluatorAgent: {
+          slug: e.evaluator_agent_slug,
+          name: e.evaluator_agent_slug,
+          llmProvider: e.evaluator_llm_provider,
+          llmModel: e.evaluator_llm_model,
+        },
+        stage: e.stage,
+        status: e.status,
+        score: e.score,
+        reasoning: e.reasoning,
+        rank: e.rank,
+        weightedScore: e.weighted_score,
+        llmMetadata: e.llm_metadata ? {
+          tokensUsed: e.llm_metadata.tokensUsed,
+          cost: e.llm_metadata.cost,
+          latencyMs: e.llm_metadata.latencyMs,
+        } : undefined,
+      }));
+
+      // Populate phase2 structures in store
+      for (const output of outputs) {
+        store.upsertPhase2Output(output);
+      }
+      for (const evaluation of evaluations) {
+        store.upsertPhase2Evaluation(evaluation);
+      }
+
+      // Build rankings from outputs
+      const initialRankings = outputs
+        .filter((o: { initialRank: number | undefined }) => o.initialRank != null)
+        .sort((a: { initialRank: number }, b: { initialRank: number }) => a.initialRank - b.initialRank)
+        .map((o: { id: string; writerAgent: { slug: string }; editorAgent: { slug: string } | null; initialAvgScore: number; initialRank: number }) => ({
+          outputId: o.id,
+          writerAgentSlug: o.writerAgent.slug,
+          editorAgentSlug: o.editorAgent?.slug,
+          avgScore: o.initialAvgScore,
+          rank: o.initialRank,
+        }));
+
+      const finalRankings = outputs
+        .filter((o: { finalRank: number | undefined }) => o.finalRank != null)
+        .sort((a: { finalRank: number }, b: { finalRank: number }) => a.finalRank - b.finalRank)
+        .map((o: { id: string; writerAgent: { slug: string }; editorAgent: { slug: string } | null; finalTotalScore: number; finalRank: number }) => ({
+          outputId: o.id,
+          writerAgentSlug: o.writerAgent.slug,
+          editorAgentSlug: o.editorAgent?.slug,
+          totalScore: o.finalTotalScore,
+          rank: o.finalRank,
+        }));
+
+      const finalists = outputs
+        .filter((o: { isFinalist: boolean | undefined }) => o.isFinalist)
+        .map((o: { id: string; writerAgent: { slug: string }; initialRank: number }) => ({
+          outputId: o.id,
+          writerAgentSlug: o.writerAgent.slug,
+          initialRank: o.initialRank,
+        }));
+
+      store.setInitialRankings(initialRankings);
+      store.setFinalRankings(finalRankings);
+      store.setFinalists(finalists);
+
+      // Determine phase based on output status
+      const hasCompletedOutputs = outputs.some((o: { finalRank: number | undefined }) => o.finalRank != null);
+      const phase = hasCompletedOutputs ? 'completed' : 'writing';
+      store.setPhase(phase);
+
+      // Return a compatible response object
+      return {
+        taskId,
+        phase,
+        outputs,
+        evaluations,
+        executionQueue: [],
+      } as unknown as SwarmStateResponse;
     } catch (error) {
+      // Provide more context for network errors
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        console.error(`Failed to connect to LangGraph server at ${LANGGRAPH_BASE_URL}. Is it running?`);
+        throw new Error(`LangGraph server not reachable at ${LANGGRAPH_BASE_URL}`);
+      }
       console.error('Failed to get swarm state:', error);
       throw error;
     }
@@ -821,6 +974,10 @@ class MarketingSwarmService {
    * Used by modal to show write/edit history.
    */
   async getOutputVersions(outputId: string): Promise<OutputVersionsResponse> {
+    if (!LANGGRAPH_BASE_URL) {
+      throw new Error('LangGraph server URL not configured');
+    }
+
     try {
       const response = await fetch(`${LANGGRAPH_BASE_URL}/marketing-swarm/output/${outputId}/versions`, {
         headers: {
@@ -829,12 +986,21 @@ class MarketingSwarmService {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to get output versions');
+        throw new Error(`Failed to get output versions: HTTP ${response.status}`);
+      }
+
+      // Validate JSON response
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('LangGraph server returned non-JSON response');
       }
 
       const result = await response.json();
       return result.data as OutputVersionsResponse;
     } catch (error) {
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error(`LangGraph server not reachable at ${LANGGRAPH_BASE_URL}`);
+      }
       console.error('Failed to get output versions:', error);
       throw error;
     }

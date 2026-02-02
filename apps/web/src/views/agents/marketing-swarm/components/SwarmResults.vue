@@ -346,7 +346,13 @@ async function copyContent(content: string) {
 }
 
 ion-item.selected {
-  --background: var(--ion-color-primary-tint);
+  --background: rgba(var(--ion-color-primary-rgb), 0.1);
+  border-left: 4px solid var(--ion-color-primary);
+}
+
+ion-item.selected ion-label h2,
+ion-item.selected ion-label p {
+  color: var(--ion-color-dark);
 }
 
 .score-badges {
@@ -465,5 +471,57 @@ ion-item.selected {
 
 ion-card {
   margin-bottom: 16px;
+}
+
+/* Ensure good contrast for list items */
+ion-item {
+  --color: var(--ion-color-dark);
+}
+
+ion-item ion-label h2 {
+  color: var(--ion-text-color);
+  font-weight: 600;
+}
+
+ion-item ion-label p {
+  color: var(--ion-color-medium-shade);
+}
+
+/* Badge visibility improvements */
+ion-item ion-badge {
+  font-weight: 600;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  ion-item.selected {
+    --background: rgba(var(--ion-color-primary-rgb), 0.2);
+  }
+
+  .content-preview {
+    background: var(--ion-color-step-100);
+    color: var(--ion-text-color);
+  }
+
+  .evaluation-item {
+    background: var(--ion-color-step-100);
+  }
+
+  .edit-history,
+  .llm-metadata {
+    background: var(--ion-color-step-100);
+  }
+}
+
+html[data-theme="dark"] ion-item.selected {
+  --background: rgba(var(--ion-color-primary-rgb), 0.2);
+}
+
+html[data-theme="dark"] .content-preview,
+html[data-theme="dark"] .evaluation-item,
+html[data-theme="dark"] .edit-history,
+html[data-theme="dark"] .llm-metadata {
+  background: var(--ion-color-step-100);
+  color: var(--ion-text-color);
 }
 </style>
