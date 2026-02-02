@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ServiceUnavailableException } from '@nestjs/common';
 import type { Logger as _Logger } from '@nestjs/common';
 import { PIIService } from './pii.service';
 import { SupabaseService } from '@/supabase/supabase.service';
@@ -201,9 +202,13 @@ describe('PIIService', () => {
       expect(result.metadata.userMessage.isBlocked).toBe(true);
     });
 
-    it('should fail closed on detection error (SECURITY)', async () => {
+    it('should fail-open on detection error in development mode (SECURITY)', async () => {
       const prompt = 'Some potentially sensitive text';
       const options = { providerName: 'openai' };
+
+      // Ensure we're in development mode
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'development';
 
       // Simulate detection error
       mockPIIPatternService.detectPII.mockRejectedValue(
@@ -212,13 +217,59 @@ describe('PIIService', () => {
 
       const result = await service.checkPolicy(prompt, options);
 
-      // Should allow on error (fail open for availability)
-      // but log the error
+      // Should allow on error in development (fail-open for debugging)
       expect(result.metadata.policyDecision.allowed).toBe(true);
       expect(result.metadata.policyDecision.violations).toContain(
-        'PII policy check failed',
+        'PII policy check failed (dev mode - fail-open)',
       );
       expect(result.metadata.processingFlow).toBe('allowed-local');
+
+      // Restore environment
+      process.env.NODE_ENV = originalEnv;
+    });
+
+    it('should fail-closed on detection error in production mode (CRITICAL SECURITY)', async () => {
+      const prompt = 'Some potentially sensitive text';
+      const options = { providerName: 'openai' };
+
+      // Set production mode
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+
+      // Simulate detection error
+      mockPIIPatternService.detectPII.mockRejectedValue(
+        new Error('Detection service unavailable'),
+      );
+
+      // Should throw ServiceUnavailableException in production
+      await expect(service.checkPolicy(prompt, options)).rejects.toThrow(
+        ServiceUnavailableException,
+      );
+
+      // Restore environment
+      process.env.NODE_ENV = originalEnv;
+    });
+
+    it('should fail-open on detection error in test mode (SECURITY)', async () => {
+      const prompt = 'Some potentially sensitive text';
+      const options = { providerName: 'openai' };
+
+      // Ensure we're in test mode (not production)
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'test';
+
+      // Simulate detection error
+      mockPIIPatternService.detectPII.mockRejectedValue(
+        new Error('Detection service unavailable'),
+      );
+
+      const result = await service.checkPolicy(prompt, options);
+
+      // Should allow on error in test mode (fail-open for debugging)
+      expect(result.metadata.policyDecision.allowed).toBe(true);
+
+      // Restore environment
+      process.env.NODE_ENV = originalEnv;
     });
   });
 

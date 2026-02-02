@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { SupabaseService } from '@/supabase/supabase.service';
 import {
   PIIPatternService,
@@ -248,7 +248,22 @@ export class PIIService {
     } catch (error) {
       this.logger.error('🔥 [PII-SERVICE] Policy check failed', error);
 
-      // On error, return metadata indicating failure but allow request
+      // SECURITY: Fail-closed in production - block requests when PII service is unavailable
+      // This prevents data leakage when the PII detection system is compromised or down
+      if (process.env.NODE_ENV === 'production') {
+        this.logger.error(
+          '🛡️ [PII-SERVICE] Production fail-closed: blocking request due to PII service error',
+        );
+        throw new ServiceUnavailableException(
+          'PII protection service temporarily unavailable. Please try again.',
+        );
+      }
+
+      // In development/test, allow requests through with warning for debugging
+      this.logger.warn(
+        '⚠️ [PII-SERVICE] Development mode: allowing request despite PII service error',
+      );
+
       const errorMetadata: PIIProcessingMetadata = {
         piiDetected: false,
         showstopperDetected: false,
@@ -261,21 +276,21 @@ export class PIIService {
         policyDecision: {
           allowed: true,
           blocked: false,
-          violations: ['PII policy check failed'],
+          violations: ['PII policy check failed (dev mode - fail-open)'],
           reasoningPath: [
             'PII Detection: FAILED',
-            'Allowing request due to error',
+            'Development mode: allowing request for debugging',
           ],
           appliedFor: 'external',
         },
         userMessage: {
-          summary: 'PII check temporarily unavailable',
+          summary: 'PII check temporarily unavailable (dev mode)',
           details: ['PII detection service encountered an error'],
-          actionsTaken: ['Request processed without PII protection'],
+          actionsTaken: ['Request processed without PII protection (dev only)'],
           isBlocked: false,
         },
         processingFlow: 'allowed-local',
-        processingSteps: ['pii-detection-error', 'fallback-allow'],
+        processingSteps: ['pii-detection-error', 'dev-fallback-allow'],
         timestamps: {
           detectionStart: startTime,
         },
